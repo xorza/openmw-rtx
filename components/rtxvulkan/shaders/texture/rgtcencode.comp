@@ -3,19 +3,14 @@
 #extension GL_EXT_control_flow_attributes : require
 #extension GL_GOOGLE_include_directive : require
 
-// An image made on the device of one channel or two, encoded as BC4 or BC5 blocks, every level in
-// one dispatch and one lane a block, for the reason `bc7encode.comp` gives. A chain of the channels
-// its file held: a BC5 normal map's blue is nought where a reader looks for one, which a format
-// that shares a bit across four channels does not keep.
+// An image made on the device of one channel or two, encoded as BC4 or BC5 blocks, every level in one
+// dispatch and one lane a block, for the reason `bc7encode.comp` gives.
 //
-// **Each channel a BC4 block, between its least and its most**, with the eight values the first end
-// point's being the larger names, and each texel the index of the value nearest it. The fit
-// `stb_dxt` and every runtime encoder of the format make: two end points of a byte and eight steps
-// between them hold a channel to within a fourteenth of its spread, where a search of the end
-// points gains a fraction of that. A block of one value is that value at index nought.
+// **Each channel a BC4 block, between its least and its most**, with the eight values the first end point's
+// being the larger names, and each texel the index of the value nearest it.
 //
-// **In integers alone**: a texel's byte times seven against each value times seven, which is what
-// the decoder's division by seven leaves, so the nearest is chosen exactly and no float is rounded.
+// **In integers alone**: a texel's byte times seven against each value times seven, which is what the
+// decoder's division by seven leaves, so the nearest is chosen exactly and no float is rounded.
 
 #include "lib/blocklevel.glsl"
 #include "scene.h"

@@ -1,12 +1,11 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_RUNNINGMEAN_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_RUNNINGMEAN_GLSL
 
-// A light averaged over the frames a pixel's surface held still: the blend the glossy filter and
-// the pane filter each keep a history of, over the texels `surfacematch.glsl` says are the surface.
+// A light averaged over the frames a pixel's surface held still: the blend the glossy filter and the pane
+// filter each keep a history of, over the texels `surfacematch.glsl` says are the surface.
 //
-// **One statement of the blend, so the two filters cannot come to disagree about what a history
-// is worth**: the mean, the frame count, and ReLAX's weight on the frame. No outlier clamp, for the
-// accumulator's reason (`accumulate.comp`).
+// **One statement of the blend, so the two filters cannot come to disagree about what a history is worth**:
+// the mean, the frame count, and ReLAX's weight on the frame.
 
 #include "look.h"
 
@@ -45,8 +44,8 @@ RunningMean startedMean(vec3 sampled)
 
 /// `sampled` blended into `held`, a history `kept` of which is still the light this pixel sees.
 ///
-/// **ReLAX's `max(1 - confidence, 1 / (1 + frames))`.** The count kept is what the blend made of it,
-/// so a history kept in part is as short as its weight says.
+/// **ReLAX's `max(1 - confidence, 1 / (1 + frames))`.** The count kept is what the blend made of it, so a
+/// history kept in part is as short as its weight says.
 ///
 /// @param kept from nought to one: the glossy filter's share of a reflection the view still sees,
 ///        and one wherever the light does not turn with the view.

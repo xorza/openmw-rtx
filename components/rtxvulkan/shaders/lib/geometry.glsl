@@ -8,13 +8,7 @@
 #include "tangent.h"
 #include "bindings.glsl"
 
-/// The triangle's two edges from its first corner, in the world. Crossed, they are twice its area
-/// along its plane's normal: normalised that is the plane, and its length is the size a cone
-/// compares its own against. Apart, they are what a footprint on the triangle is mapped onto its
-/// texture through (`surfaceConeAt`).
-///
-/// Object to world is a rotation, a uniform scale and a translation, so a direction survives it —
-/// and the translation cancels in an edge, so the upper 3x3 is all an edge needs.
+/// The triangle's two edges from its first corner, in the world.
 struct TriangleEdges
 {
     vec3 mFirst;
@@ -28,8 +22,8 @@ TriangleEdges triangleEdges(vec3 corners[3], mat4x3 toWorld)
 
 /// Where in the shared vertex buffers the three corners of a mesh's triangle are.
 ///
-/// **One block for the three indices**, because a mesh's index run never straddles one — the
-/// argument `normalBlockOf` makes for the corners it hands back.
+/// **One block for the three indices**, because a mesh's index run never straddles one — the argument
+/// `normalBlockOf` makes for the corners it hands back.
 uvec3 triangleCorners(GpuMesh mesh, uint primitive)
 {
     const uint triangle = mesh.mIndexOffset + primitive * 3u;
@@ -39,16 +33,16 @@ uvec3 triangleCorners(GpuMesh mesh, uint primitive)
     return mesh.mVertexOffset + uvec3(block.at[at], block.at[at + 1u], block.at[at + 2u]);
 }
 
-/// What the three corners of a triangle hold, carried to where a hit landed on it from the two
-/// barycentrics a query reports: the first corner's value, and each other corner's difference from
-/// it scaled by that corner's barycentric.
+/// What the three corners of a triangle hold, carried to where a hit landed on it from the two barycentrics
+/// a query reports: the first corner's value, and each other corner's difference from it scaled by that
+/// corner's barycentric.
 ///
-/// **Relative to one corner, and not weighted by all three.** The first corner's weight would be
-/// `1 - b.x - b.y`, which rounds twice, so three weights need not sum to one: weighted, a value the
-/// same at every corner comes back one or two ulp off in between one hit in twenty-four and one in
-/// four, and a vertex tint of 1.0 as 0.99999994. Here a corner that agrees adds a difference of
-/// nought, so such a value comes back exactly, and one that changes little across a triangle keeps
-/// the precision of its change rather than of its size.
+/// **Relative to one corner, and not weighted by all three.** The first corner's weight would be `1 - b.x -
+/// b.y`, which rounds twice, so three weights need not sum to one: weighted, a value the same at every
+/// corner comes back one or two ulp off in between one hit in twenty-four and one in four, and a vertex
+/// tint of 1.0 as 0.99999994. Here a corner that agrees adds a difference of nought, so such a value comes
+/// back exactly, and one that changes little across a triangle keeps the precision of its change rather
+/// than of its size.
 vec2 acrossTriangle(vec2 first, vec2 second, vec2 third, vec2 bary)
 {
     return first + (second - first) * bary.x + (third - first) * bary.y;
@@ -72,17 +66,13 @@ vec3 cornerLift(vec3 normal, vec3 fromCorner, float weight)
     return -unit * (weight * min(dot(fromCorner, unit), 0.0));
 }
 
-/// How far above a hit the surface its triangle's vertex normals describe stands: Hanika's offset
-/// (*Hacking the Shadow Terminator*, Ray Tracing Gems II, ch. 4), which RTX Remix and Cycles build
-/// on. The hit is projected onto each corner's tangent plane where it lies under that plane, and
-/// the three projections are blended by the barycentrics; a concave corner, and one whose normal is
-/// its facet's, projects nothing. Sound where the normals describe a surface, which the content's
-/// creases were split for at load (`Rtx::CreaseSplit`).
+/// How far above a hit the surface its triangle's vertex normals describe stands: Hanika's offset (*Hacking
+/// the Shadow Terminator*, Ray Tracing Gems II, ch. 4), which RTX Remix and Cycles build on.
 ///
-/// **Three corners named rather than walked in arrays**, because a local array with a computed index
-/// is a spill on this hardware (`SkyChoice` says so): as arrays, the corners and their weights stood
-/// in the trace's closest-hit module of the time as six `vec3[3]` and six `float[3]` of the function
-/// storage class, and named they stand in none.
+/// **Three corners named rather than walked in arrays**, because a local array with a computed index is a
+/// spill on this hardware (`SkyChoice` says so): as arrays, the corners and their weights stood in the
+/// trace's closest-hit module of the time as six `vec3[3]` and six `float[3]` of the function storage
+/// class, and named they stand in none.
 ///
 /// @param edges the triangle's, in the world.
 /// @param normals the three corner normals, in the world, not unit, and turned to the side the ray
@@ -140,11 +130,11 @@ void trianglePositions(GpuMesh mesh, uvec3 corner, out vec3 position[3])
     position[2] = block.at[at.z];
 }
 
-/// The vertex normals of the triangle a hit landed on, in the mesh's own space and not yet unit:
-/// a mesh with no normals holds zeros, which the caller reads as "use the plane".
+/// The vertex normals of the triangle a hit landed on, in the mesh's own space and not yet unit: a mesh
+/// with no normals holds zeros, which the caller reads as "use the plane".
 ///
-/// **A body's out of this slot's own blocks, and every other mesh's out of the ones every slot
-/// shares**, by one id in one table: `GpuMesh::mNormalShift` moves a body's.
+/// **A body's out of this slot's own blocks, and every other mesh's out of the ones every slot shares**, by
+/// one id in one table: `GpuMesh::mNormalShift` moves a body's.
 void triangleNormals(GpuMesh mesh, uvec3 corner, out vec3 normal[3])
 {
     const uvec3 id = corner + mesh.mNormalShift;
@@ -156,10 +146,9 @@ void triangleNormals(GpuMesh mesh, uvec3 corner, out vec3 normal[3])
     normal[2] = block.at[at.z];
 }
 
-/// The vertex tangents interpolated across the triangle, in the mesh's own space, with the
-/// bitangent's handedness in `w` interpolated with them — which is what the rasterizer's
-/// `passTangent` is, and what `normals.glsl` builds its frame from. Nought where the mesh carries
-/// none, and the caller has asked whether it carries any — `MESH_TANGENTS`.
+/// The vertex tangents interpolated across the triangle, in the mesh's own space, with the bitangent's
+/// handedness in `w` interpolated with them — which is what the rasterizer's `passTangent` is, and what
+/// `normals.glsl` builds its frame from.
 vec4 triangleTangent(GpuMesh mesh, uvec3 corner, vec2 bary)
 {
     const uvec3 id = corner + mesh.mNormalShift;
@@ -170,15 +159,13 @@ vec4 triangleTangent(GpuMesh mesh, uvec3 corner, vec2 bary)
         unpackTangent(block.at[at.x]), unpackTangent(block.at[at.y]), unpackTangent(block.at[at.z]), bary);
 }
 
-/// How far the point a hit landed on moved since the previous frame, in the mesh's own space:
-/// this frame's pose less the previous frame's at the same barycentric point of the same
-/// triangle. Nought exactly for a mesh that did not move, whose two copies hold the same numbers.
-/// The caller has asked whether the mesh deforms — `GpuMesh::mBindOffset`.
+/// How far the point a hit landed on moved since the previous frame, in the mesh's own space: this frame's
+/// pose less the previous frame's at the same barycentric point of the same triangle.
 ///
-/// **In object space, because a difference of two positions is exact there.** Both poses are
-/// a body's own coordinates, a few hundred units at most, and a limb's step between frames is
-/// a few of them; the world's six-figure coordinates would spend the step in rounding, which is
-/// the argument `movedBy` makes for the rigid half.
+/// **In object space, because a difference of two positions is exact there.** Both poses are a body's own
+/// coordinates, a few hundred units at most, and a limb's step between frames is a few of them; the world's
+/// six-figure coordinates would spend the step in rounding, which is the argument `movedBy` makes for the
+/// rigid half.
 ///
 /// @param corner the global vertex ids `triangleCorners` hands back, which are the mesh's
 ///        vertex offset plus the index within the mesh; the pose blocks are addressed by the
@@ -200,31 +187,28 @@ struct TriangleColour
     vec3 mHue;
 };
 
-/// A vertex colour with its brightness taken out: each component divided by the largest, and white
-/// where the colour is black, which has no hue to keep.
+/// A vertex colour with its brightness taken out: each component divided by the largest, and white where
+/// the colour is black, which has no hue to keep.
 ///
-/// **A model's vertex colours are mostly light baked into its vertices**: `in_dwrv_corr2_03.nif`
-/// darkens its corners to two fifths, an occlusion of its own, and the trace casts the occlusion
-/// itself, so what tints a model's surface is the hue alone. RTX Remix reads vertex colours the
-/// same way by default (`rtx.vertexColorIsBakedLighting`).
+/// **A model's vertex colours are mostly light baked into its vertices**: `in_dwrv_corr2_03.nif` darkens
+/// its corners to two fifths, an occlusion of its own, and the trace casts the occlusion itself, so what
+/// tints a model's surface is the hue alone.
 vec3 hueOf(vec3 colour)
 {
     const float peak = max(max(colour.r, colour.g), colour.b);
     return peak > 0.0 ? colour / peak : vec3(1.0);
 }
 
-/// The vertex colour interpolated across the triangle a hit landed on, in linear light, whole and
-/// as its hue. The hue is taken at each corner and then blended, as a corner's colour is what the
-/// content wrote, and taken here rather than stored beside the colour: a second stream would be a
-/// fetch at every hit, where this is three divides.
+/// The vertex colour interpolated across the triangle a hit landed on, in linear light, whole and as its
+/// hue.
 ///
-/// **White where the mesh brought none, because that is what the table holds.** A colour is a
-/// factor and not a reading: `MeshTable::writeVertices` fills an absent one with ones, so this
-/// answers neutrally and nothing past it has a case to test.
+/// **White where the mesh brought none, because that is what the table holds.** A colour is a factor and
+/// not a reading: `MeshTable::writeVertices` fills an absent one with ones, so this answers neutrally and
+/// nothing past it has a case to test.
 ///
-/// **Interpolated in light, and not between two stored bytes.** The host decodes each vertex once
-/// — `Rtx::MeshArrays::mColours` — so what a hit reads across a triangle is a blend of
-/// reflectances rather than a blend of the numbers they were written down as.
+/// **Interpolated in light, and not between two stored bytes.** The host decodes each vertex once —
+/// `Rtx::MeshArrays::mColours` — so what a hit reads across a triangle is a blend of reflectances rather
+/// than a blend of the numbers they were written down as.
 TriangleColour triangleColour(uvec3 corner, vec2 bary)
 {
     ColourBlock block = colourBlockOf(corner.x);

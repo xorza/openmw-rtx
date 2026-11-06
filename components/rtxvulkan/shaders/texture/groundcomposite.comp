@@ -2,24 +2,21 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-// A chunk's whole layer stack, flattened into one texture — the shading LOD — made on the
-// device, in the placement that wrote the chunk's material row.
+// A chunk's whole layer stack, flattened into one texture — the shading LOD — made on the device, in the
+// placement that wrote the chunk's material row.
 //
-// **The same sum the trace's shading runs, once a texel instead of once a hit.** `ground.glsl` is the
-// sum, written once for both, so a flattened chunk cannot disagree with the stack it replaces —
-// the albedo into the composite, and the gloss into a second image where a layer reflects, both
-// out of one pass over the stack:
-// each layer's weight off its mask, its texel off its own tiling at the level a texel of the
-// composite resolves, the light painted into it divided out in full, and the stack summed in
-// light. The albedo is stored display-encoded through a `UNORM` view of the composite's `SRGB`
-// image, which is what the trace then samples as any file. The chain below the first level is
-// blitted, box filtered in light through the same `SRGB` format, which is the filter the sum was
-// made for; the gloss's is filtered as it is stored, as data.
+// **The same sum the trace's shading runs, once a texel instead of once a hit.** `ground.glsl` is the sum,
+// written once for both, so a flattened chunk cannot disagree with the stack it replaces — the albedo into
+// the composite, and the gloss into a second image where a layer reflects, both out of one pass over the
+// stack: each layer's weight off its mask, its texel off its own tiling at the level a texel of the
+// composite resolves, the light painted into it divided out in full, and the stack summed in light. The
+// albedo is stored display-encoded through a `UNORM` view of the composite's `SRGB` image, which is what
+// the trace then samples as any file.
 //
-// **On the device and in the placement rather than on threads of the host**, where this was
-// tens of milliseconds a chunk and dozens of chunks a ring fill: the layers are textures the
-// device already holds, the masks and the layer rows are tables it already reads, and a texture
-// nothing reads back has no business crossing to the host at all.
+// **On the device and in the placement rather than on threads of the host**, where this was tens of
+// milliseconds a chunk and dozens of chunks a ring fill: the layers are textures the device already holds,
+// the masks and the layer rows are tables it already reads, and a texture nothing reads back has no
+// business crossing to the host at all.
 
 #include "colour.h"
 #include "shared/ground.h"
@@ -59,10 +56,8 @@ void main()
     LayerTable layers = LayerTable(chunk.mLayers);
     MaskTable masks = MaskTable(chunk.mMasks);
 
-    // The stack in its own order, because a float sum is the order it was added in — and so
-    // the order the trace's shading adds it in. The gloss is the hit's too: the share of the weight on
-    // authored layers, which reflect `DIELECTRIC_F0`, the roughness over every layer, a Lambert
-    // one counted at one, and the mean reflectance the classic layers' alpha states.
+    // The stack in its own order, because a float sum is the order it was added in — and so the order the
+    // trace's shading adds it in.
     GroundSum sum = noGround();
     for (uint i = 0u; i < material.mLayerCount; ++i)
     {
@@ -81,9 +76,6 @@ void main()
     }
 
     // Which of the two the bake writes is the dispatch's, so a branch here is uniform across it.
-    //
-    // Opaque, because ground is not see-through: a composite left with its alpha at nought is a
-    // chunk the cutout test throws every ray straight through.
     if ((chunk.mOutputs & GROUND_COMPOSITE_ALBEDO) != 0u)
         RTX_STORE_COUNTED(composite, ivec2(texel), vec4(encodeSrgb(sum.mAlbedo), 1.0))
 

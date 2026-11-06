@@ -1,17 +1,16 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_WAVELINES_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_WAVELINES_GLSL
 
-// One line of each of the three packed fields, transformed together in shared memory: what
-// `waverows.comp` and `wavecolumns.comp` both run, a workgroup a line.
+// One line of each of the three packed fields, transformed together in shared memory: what `waverows.comp`
+// and `wavecolumns.comp` both run, a workgroup a line.
 //
-// **Cooley-Tukey with the permutation done on the way in.** Stockham avoids the bit reversal by
-// carrying an extra buffer through every stage; reversing an index is one instruction here, and the
-// load is going to shared memory anyway. Nine stages at the largest grid, each a barrier apart.
+// **Cooley-Tukey with the permutation done on the way in.** Stockham avoids the bit reversal by carrying an
+// extra buffer through every stage; reversing an index is one instruction here, and the load is going to
+// shared memory anyway. Nine stages at the largest grid, each a barrier apart.
 //
-// **Three lines a workgroup and not one**, because every field of a row or a column is formed from,
-// or composed into, the same cells: the row pass forms the three from one amplitude, and the column
-// pass writes a texel out of all three. A line a workgroup would put each field through memory
-// between the passes that read the others.
+// **Three lines a workgroup and not one**, because every field of a row or a column is formed from, or
+// composed into, the same cells: the row pass forms the three from one amplitude, and the column pass
+// writes a texel out of all three.
 
 #include "scene.h"
 #include "shared/sets.h"
@@ -38,9 +37,9 @@ uint reversedSlot(uint at, uint stages)
 
 /// Transforms the three lines of `count` points in place, after a barrier that ends the load.
 ///
-/// **The whole workgroup reaches every barrier**, which is why the idle threads of a narrow tile
-/// are turned away inside the loop rather than before it: the largest grid sizes the workgroup and
-/// a smaller one leaves most of it with nothing to do.
+/// **The whole workgroup reaches every barrier**, which is why the idle threads of a narrow tile are turned
+/// away inside the loop rather than before it: the largest grid sizes the workgroup and a smaller one
+/// leaves most of it with nothing to do.
 void transformLines(uint count)
 {
     const uint thread = gl_LocalInvocationID.x;

@@ -2,25 +2,21 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-// Which tiles of the screen each sprite can be met from, and how many sprites each tile holds — and,
-// in the invocations after the last sprite's, which tiles each medium and additive instance can be
-// met from, ORed into the tile's presence word. An instance is bounded as a sprite that faces the
-// eye is, by a sphere, and the same rectangle is taken of it.
+// Which tiles of the screen each sprite can be met from, and how many sprites each tile holds — and, in the
+// invocations after the last sprite's, which tiles each medium and additive instance can be met from, ORed
+// into the tile's presence word.
 //
-// **Conservative by construction, and the trace's own test is what refines it.** A tile's list
-// has to hold every sprite any ray through the tile could meet, because `spritesAlong` tests a
-// sprite it is handed and never looks for one it was not — a sprite the binning drops is a raindrop
-// that stops being drawn. So what is bounded here is exactly what the march tests against: a ball
-// for a sprite that faces the eye, and for a quad hanging on an axis of its own the capsule that
-// swinging its width about that axis sweeps. `Rtx::SceneDesc::addEmitter` says why the emitter's
-// own sphere is the wrong granularity for this, and rain is what proved it.
+// **Conservative by construction, and the trace's own test is what refines it.** A tile's list has to hold
+// every sprite any ray through the tile could meet, because `spritesAlong` tests a sprite it is handed and
+// never looks for one it was not — a sprite the binning drops is a raindrop that stops being drawn. So what
+// is bounded here is exactly what the march tests against: a ball for a sprite that faces the eye, and for
+// a quad hanging on an axis of its own the capsule that swinging its width about that axis sweeps.
 //
-// **A capsule and not a sphere around a quad's corners, and rain is why.** A drop is a long thin
-// streak, so that sphere is as wide as the streak is long — tens of times the width — and a bound
-// that wide holds the eye for every drop falling anywhere near the camera. A sphere that holds the
-// eye is met from every direction, so each of those goes into every tile on the screen, and a few
-// dozen drops are nearly the whole list. The capsule's radius is the streak's width instead of its
-// length.
+// **A capsule and not a sphere around a quad's corners, and rain is why.** A drop is a long thin streak, so
+// that sphere is as wide as the streak is long — tens of times the width — and a bound that wide holds the
+// eye for every drop falling anywhere near the camera. A sphere that holds the eye is met from every
+// direction, so each of those goes into every tile on the screen, and a few dozen drops are nearly the
+// whole list.
 
 #include "shared/spritebin.h"
 
@@ -34,27 +30,20 @@ layout(push_constant, scalar) uniform Push
     SpriteBinConstants bin;
 };
 
-/// Where a coordinate on the image plane lands, in whole pixels and generously: moved by `axis`,
-/// where the eye's axis crosses the picture along the same axis (`Camera::mCentre`), as `rayAt`
-/// moves it back.
+/// Where a coordinate on the image plane lands, in whole pixels and generously: moved by `axis`, where the
+/// eye's axis crosses the picture along the same axis (`Camera::mCentre`), as `rayAt` moves it back.
 ///
-/// **A pixel of slack at each end, which is what covers the jitter.** `rayAt` adds half a pixel and
-/// the frame's jitter to the index before scaling, and the jitter is a Halton offset inside the
-/// pixel — so a coordinate is worth a pixel either way and the binning has to hold every ray the
-/// tile can produce, not the one through its centre.
+/// **A pixel of slack at each end, which is what covers the jitter.** `rayAt` adds half a pixel and the
+/// frame's jitter to the index before scaling, and the jitter is a Halton offset inside the pixel — so a
+/// coordinate is worth a pixel either way and the binning has to hold every ray the tile can produce, not
+/// the one through its centre.
 int toPixel(float coordinate, float axis, uint extent, float slack)
 {
     return int(floor((coordinate + axis + 1.0) * 0.5 * float(extent) + slack));
 }
 
-/// Where an orthographic frame sees a ball of `radius` about `centre`, in whole pixels, before the
-/// frame's edges are applied: its first column and row in `xy`, its last in `zw`.
-///
-/// Every ray runs the same way and the eye slides across the plane instead, so the sphere covers
-/// the coordinates whose ray passes within its radius. Behind the plane is still binned: the march's
-/// own depth test is what rejects it, and this only has to be no tighter than that. **Off the frame
-/// and not clipped to it**, because a capsule is bounded by two of these and a rectangle clipped to
-/// nothing carries no side to union against.
+/// Where an orthographic frame sees a ball of `radius` about `centre`, in whole pixels, before the frame's
+/// edges are applied: its first column and row in `xy`, its last in `zw`.
 ivec4 orthographicPixels(vec3 centre, float radius, SpriteBinFrame frame)
 {
     const vec3 toward = centre - bin.mOrigin;
@@ -106,11 +95,8 @@ TileRect tilesOf(ivec4 rect)
 
 /// Everywhere a sprite's own drawing can reach, as a segment and a radius about it.
 ///
-/// **A ball for a billboard and a capsule for an oriented quad**, because that is the shape the
-/// march tests against. A billboard is rejected past `mRadius` of the ray, so the ball is exact. An
-/// oriented quad hangs on the axis its own particle carries and swings its width about that axis
-/// to meet the ray — so over every direction the eye can look from, it sweeps a cylinder of the
-/// width's radius about the axis segment, and the capsule is that cylinder with its ends rounded.
+/// **A ball for a billboard and a capsule for an oriented quad**, because that is the shape the march tests
+/// against.
 struct Bound
 {
     vec3 mFrom;
@@ -156,35 +142,28 @@ float distanceToSegment(vec2 from, vec2 to)
     return length(from + along * share);
 }
 
-/// The screen coordinate along an axis whose half-extent is `halfExtent` of the direction `angle` from
-/// the view, held to two either side: a right angle or past it is the frame's edge on that side,
-/// chosen before the tangent is taken, so what it makes of a right angle `PI` rounds to either side
-/// of is never what comes back.
+/// The screen coordinate along an axis whose half-extent is `halfExtent` of the direction `angle` from the
+/// view, held to two either side: a right angle or past it is the frame's edge on that side, chosen before
+/// the tangent is taken, so what it makes of a right angle `PI` rounds to either side of is never what
+/// comes back.
 float coordinateOf(float angle, float halfExtent)
 {
     const float quarter = 0.5 * PI;
     return angle <= -quarter ? -2.0 : angle >= quarter ? 2.0 : clamp(tan(angle) / halfExtent, -2.0, 2.0);
 }
 
-/// The screen coordinates, in minus one to one, that the rays meeting a capsule take along one axis
-/// of a perspective frame: the lowest in `x` and the highest in `y`, held to two either side, so a
-/// side that reaches past the frame lands off it, and `x` past `y` where the frame sees none of it.
-/// `from` and `to` are the caps' centres as `(across, depth)` in the plane of the axis and the view
-/// direction, where an angle is taken from the view direction towards `across`.
+/// The screen coordinates, in minus one to one, that the rays meeting a capsule take along one axis of a
+/// perspective frame: the lowest in `x` and the highest in `y`, held to two either side, so a side that
+/// reaches past the frame lands off it, and `x` past `y` where the frame sees none of it.
 ///
-/// **The arc of directions and not the tangent lines' slopes**, because a slope stands for a
-/// direction only in front of the eye. The capsule's cross-section in that plane is the stadium
-/// about the segment between the caps, and seen from outside it the directions that meet it are one
-/// arc under a half turn, whose two ends are tangent to the caps' discs. So the second cap's wedge is
-/// turned the short way to the first's, and the arc runs from the lower end of the two to the
-/// higher. The frame sees the half turn about the view direction; the arc, or its copy a whole turn
-/// round, meets it at most once, and an end past the right angle is the frame's edge.
+/// **The arc of directions and not the tangent lines' slopes**, because a slope stands for a direction only
+/// in front of the eye.
 ///
-/// **Only where the eye stands inside the stadium is every coordinate reached**, and not wherever a
-/// cap reaches the plane through the eye: that plane runs out sideways for ever, and the snow falling
-/// level with the camera, however far to the side and whether or not the frame can see it, sent
-/// everywhere is 141 sprites in every tile of a 2560x1440 frame at Nivalis, each walked by the trace
-/// and the composite at every pixel.
+/// **Only where the eye stands inside the stadium is every coordinate reached**, and not wherever a cap
+/// reaches the plane through the eye: that plane runs out sideways for ever, and the snow falling level
+/// with the camera, however far to the side and whether or not the frame can see it, sent everywhere is 141
+/// sprites in every tile of a 2560x1440 frame at Nivalis, each walked by the trace and the composite at
+/// every pixel.
 vec2 capsuleSpan(vec2 from, vec2 to, float radius, float halfExtent)
 {
     const float quarter = 0.5 * PI;
@@ -219,11 +198,8 @@ vec2 capsuleSpan(vec2 from, vec2 to, float radius, float halfExtent)
 
 /// The tiles a capsule can be met from.
 ///
-/// **In perspective, the span each screen axis sees, and one rectangle across the two**, because a
-/// ray meets the capsule only where both of its coordinates do. Orthographic, the rectangle around
-/// the two balls that cap it: a streak lying across the frame covers a long thin rectangle, and a
-/// ball holding the same two ends covers the square that rectangle sits in.
-/// Counted where its floats become the pixels it is made of, by every lane that works it out.
+/// **In perspective, the span each screen axis sees, and one rectangle across the two**, because a ray
+/// meets the capsule only where both of its coordinates do.
 TileRect capsuleTiles(Bound bound, SpriteBinFrame frame)
 {
     if (bin.mCamera.mOrthographic != 0u)

@@ -3,21 +3,21 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// The trace's channels back into one picture, still in linear radiance, written over the direct
-// channel it was composed from.
+// The trace's channels back into one picture, still in linear radiance, written over the direct channel it
+// was composed from.
 //
-// **Separate because a filter needs every pixel before any pixel is finished.** The trace writes
-// indirect light with the albedo divided out; something between here and there blurs it, which it
-// can only do once the whole image exists. Multiplying the albedo back afterwards is what returns
-// texture detail a blur would otherwise have smeared — the mortar between bricks is in the albedo,
-// and the light falling on the wall is not.
+// **Separate because a filter needs every pixel before any pixel is finished.** The trace writes indirect
+// light with the albedo divided out; something between here and there blurs it, which it can only do once
+// the whole image exists. Multiplying the albedo back afterwards is what returns texture detail a blur
+// would otherwise have smeared — the mortar between bricks is in the albedo, and the light falling on the
+// wall is not.
 //
-// **On every frame the cascade does not compose**, filtered or not: the trace's stages hold no
-// pixel's whole light in one place, so its pieces meet here.
+// **On every frame the cascade does not compose**, filtered or not: the trace's stages hold no pixel's
+// whole light in one place, so its pieces meet here.
 //
-// **In place**, because each invocation reads and writes its own pixel and nothing reads the direct
-// light apart from the frame after this: the frame is one image fewer, and the one an upscaler, the
-// puffs and the curve take is the channel the trace wrote.
+// **In place**, because each invocation reads and writes its own pixel and nothing reads the direct light
+// apart from the frame after this: the frame is one image fewer, and the one an upscaler, the puffs and the
+// curve take is the channel the trace wrote.
 
 #include "shared/composite.h"
 #include "gbuffer.h"
@@ -38,14 +38,13 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_DIRECT) uniform readonly image2D
 /// the frame only returns to its order here.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_COMPOSED) uniform writeonly image2D composed;
 
-/// The one bounce with the albedo divided out, times whatever the water and the air took off it on
-/// the way to the eye — the channel the wavelet filters.
+/// The one bounce with the albedo divided out, times whatever the water and the air took off it on the way
+/// to the eye — the channel the wavelet filters.
 ///
-/// **Declared with no format, because this is two images.** A denoised frame hands over the
-/// cascade's last level and an undenoised one hands over `CHANNEL_INDIRECT` itself, and those are
-/// `ATROUS_CHANNEL` and whichever width the run gave the channel. A `readonly` image that states
-/// no format converts from whatever the view holds, which `requirements.cpp` requires the device
-/// to be able to do.
+/// **Declared with no format, because this is two images.** A denoised frame hands over the cascade's last
+/// level and an undenoised one hands over `CHANNEL_INDIRECT` itself, and those are `ATROUS_CHANNEL` and
+/// whichever width the run gave the channel. A `readonly` image that states no format converts from
+/// whatever the view holds, which `requirements.cpp` requires the device to be able to do.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_INDIRECT) uniform readonly image2D indirect;
 
 /// What to put back: the surface's own albedo, and nothing of the path.
@@ -124,13 +123,9 @@ void main()
     const ivec2 at = ivec2(pixel);
     vec3 resolved = resolvedAt(at);
 
-    // **A split pixel is half its own path and half the other's**, which its four neighbours in the
-    // other field followed: Quake II RTX's interleave (`checkerboard_interleave.comp`), each path
-    // having carried twice its share. Over the neighbours that split, so a water pixel at the edge of
-    // the water takes nothing of the ground beside it. **The layers in front of it with it**, whose
-    // own light the layers' stage composes into the direct channel over the surface's: kept apart,
-    // it needs an image of its own, 8 bytes a pixel. **Not in a sum**: each frame turns the fields
-    // over, so every pixel's sum takes both paths of its own.
+    // **A split pixel is half its own path and half the other's**, which its four neighbours in the other
+    // field followed: Quake II RTX's interleave (`checkerboard_interleave.comp`), each path having carried
+    // twice its share.
     if (frame.mAccumulate == 0u && splitAt(at))
     {
         vec3 other = vec3(0.0);

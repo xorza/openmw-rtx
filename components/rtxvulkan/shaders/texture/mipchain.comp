@@ -5,25 +5,15 @@
 
 // The levels a texture needs, built on the device where its file carried none.
 //
-// **The chain `Rtx::TextureData::wantsCompletedChain` asks for, on the device.** A hundred and
-// eighty-seven of Morrowind's textures ship one level, the rain among them, and read at their finest
-// a drop's peak alpha is 0.400 where the levels below hold 0.283, 0.129 and 0.068 — a storm as hard
-// white marks that flicker. Made on the host this decoded every texel of the finest level and
-// box-filtered every level under it on the cell ring's worker, and uploaded the lot loose; here the
-// file's own bytes are uploaded as they are, in whichever block format they came in, and one
-// dispatch a level makes the rest.
+// **The chain `Rtx::TextureData::wantsCompletedChain` asks for, on the device.** A hundred and eighty-seven
+// of Morrowind's textures ship one level, the rain among them, and read at their finest a drop's peak alpha
+// is 0.400 where the levels below hold 0.283, 0.129 and 0.068 — a storm as hard white marks that flicker.
+// Made on the host this decoded every texel of the finest level and box-filtered every level under it on
+// the cell ring's worker, and uploaded the lot loose; here the file's own bytes are uploaded as they are,
+// in whichever block format they came in, and one dispatch a level makes the rest.
 //
-// **The finest level is fetched and not filtered**, texel for texel out of the upload through a
-// view with no curve under it, so the bytes a file holds are the bytes the chain's first level
-// holds. **Every other level is the box over the one above it** (`axisTaps`), **and a colour's are
-// weighed by the alpha carrying them**: a punch-through block stores black where nothing was
-// painted, and an even mean draws a dark rim round every leaf card and every raindrop one level
-// down. In light and not in bytes, because the mean of two stored bytes is not the byte of their
-// mean; the alpha is linear in every format and is the even mean of its own. Where nothing under a
-// texel was painted there is no weight to divide by, and the even mean is what is left. **Data and
-// a normal map take the even box** (`MipChainConstants::mCoverage`): their alpha is a height or a
-// gloss, and weighing by it took a dark texel's height out of the mean. The host's rule, texel for
-// texel, so that `RtxMipChainPassTest` can hold the two to a byte.
+// **The finest level is fetched and not filtered**, texel for texel out of the upload through a view with
+// no curve under it, so the bytes a file holds are the bytes the chain's first level holds.
 
 #include "colour.h"
 #include "shared/halving.h"

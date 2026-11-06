@@ -1,18 +1,17 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_GROUND_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_GROUND_GLSL
 
-// A piece of ground, as one texel of it is read: which of its layers show there, and what each
-// shows — its albedo, with the light painted into the layer's texture divided back out, and how
-// rough it is.
+// A piece of ground, as one texel of it is read: which of its layers show there, and what each shows — its
+// albedo, with the light painted into the layer's texture divided back out, and how rough it is.
 //
-// **Its own file because two shaders read the ground and neither may read it differently.** The
-// trace sums a chunk's stack at every hit near enough to keep it; `groundcomposite.comp` sums
-// the same stack once into one texture for a chunk far enough to flatten. A flattened chunk and
-// its live stack have to be the same ground, so the sum is written here, over the tables handed
-// in by address rather than reached through the trace's frame block, which the bake has not got.
+// **Its own file because two shaders read the ground and neither may read it differently.** The trace sums
+// a chunk's stack at every hit near enough to keep it; `groundcomposite.comp` sums the same stack once into
+// one texture for a chunk far enough to flatten. A flattened chunk and its live stack have to be the same
+// ground, so the sum is written here, over the tables handed in by address rather than reached through the
+// trace's frame block, which the bake has not got.
 //
-// **The three tables it reads are declared here** and reached through `bindings.glsl` by the
-// trace, so that a table is declared once whichever side constructs the reference.
+// **The three tables it reads are declared here** and reached through `bindings.glsl` by the trace, so that
+// a table is declared once whichever side constructs the reference.
 
 #include "shared/tables.h"
 #include "brdf.h"
@@ -40,15 +39,11 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) read
 
 /// The light a texture already carries at `at`, bilinear across its grid and wrapping with it.
 ///
-/// **One fetch through the array's own sampler, which does the wrap and the blend.** Read out of a
-/// buffer by hand this was four loads and the modulo apiece on every albedo read of every hit and
-/// every ground layer; measured, the loads cost nothing the trace can see, and the fetch is here for
-/// what it is rather than for what it saves. Wrapping because Morrowind's textures tile and a great
-/// many of them rely on it: a map that clamped at the edges would put a seam down every wall that
-/// repeats.
-///
-/// Decoded after the filter, which is exact: a blend of stored values decodes to the same blend of
-/// the values they stand for, because the decode is affine.
+/// **One fetch through the array's own sampler, which does the wrap and the blend.** Read out of a buffer
+/// by hand this was four loads and the modulo apiece on every albedo read of every hit and every ground
+/// layer; measured, the loads cost nothing the trace can see, and the fetch is here for what it is rather
+/// than for what it saves. Wrapping because Morrowind's textures tile and a great many of them rely on it:
+/// a map that clamped at the edges would put a seam down every wall that repeats.
 float paintedLight(uint slot, vec2 at)
 {
     return shadingFactor(textureLod(companions[nonuniformEXT(slot)], at, 0.0).r);
@@ -56,27 +51,20 @@ float paintedLight(uint slot, vec2 at)
 
 /// `texel`, read from `slot` at `at`, with `delight` of the light painted into it divided back out.
 ///
-/// **A texture drawn for a renderer with no bounce has the bounce drawn into it** — a wall darker
-/// toward its foot, a glow a lamp throws across it. Lighting it again puts those in twice, so what
-/// is wanted from the file is the colour underneath, and the estimate takes off what it can see.
+/// **A texture drawn for a renderer with no bounce has the bounce drawn into it** — a wall darker toward
+/// its foot, a glow a lamp throws across it.
 ///
-/// **What it can see is light that changes slowly across the texture.** The estimate is a grid of
-/// 32 cells a side blurred three times over, about eleven texels on a 256-square texture: it takes
-/// off a gradient across the texture, and lets through occlusion in a corner or a highlight along a
-/// rim, a few texels wide, which it cannot tell from the paint. And an albedo that itself changes
-/// slowly — a wall painted darker in its lower half — is flattened as though it were light: the
-/// smoothness assumption every such estimate rests on (Land and McCann's Retinex), and where it
-/// fails.
+/// **What it can see is light that changes slowly across the texture.** The estimate is a grid of 32 cells
+/// a side blurred three times over, about eleven texels on a 256-square texture: it takes off a gradient
+/// across the texture, and lets through occlusion in a corner or a highlight along a rim, a few texels
+/// wide, which it cannot tell from the paint. And an albedo that itself changes slowly — a wall painted
+/// darker in its lower half — is flattened as though it were light: the smoothness assumption every such
+/// estimate rests on (Land and McCann's Retinex), and where it fails.
 ///
-/// Only where an albedo is being read. The same sampler serves a cutout's mask, which is alpha and
-/// unaffected, and an emissive map, which is light rather than a surface and must keep what it was
-/// painted with.
-///
-/// **Held at a reflectance of one, and brought down whole rather than per channel.** A bright texel
-/// in a cell painted dark divides to past one — a glint in a shadowed fold is light painted in as
-/// well — and a surface that reflects more than reaches it makes light at every bounce. The factor
-/// is grey, so the colour is kept by scaling all three. A flattened chunk stores its sum in bytes,
-/// which hold it at one too, so the stack and the chunk it flattens to agree there.
+/// **Held at a reflectance of one, and brought down whole rather than per channel.** A bright texel in a
+/// cell painted dark divides to past one — a glint in a shadowed fold is light painted in as well — and a
+/// surface that reflects more than reaches it makes light at every bounce. The factor is grey, so the
+/// colour is kept by scaling all three.
 vec3 delitTexel(uint slot, vec2 at, vec3 texel, float delight)
 {
     if (delight <= 0.0)
@@ -101,13 +89,8 @@ bool layerClassic(GpuLayer layer, TexelTable texels)
     return (layer.mFlags & LAYER_CLASSIC) != 0u && holdsTexture(texels, layer.mDiffuse);
 }
 
-/// What one layer shows where `texel` was read from it, at `at`: its albedo in rgb and its
-/// perceptual roughness in alpha. **An authored layer** is read as it stands, its alpha its
-/// roughness; **any other** has `delight` of its painted light divided out, and is as rough as a
-/// surface is, or as `CLASSIC_GROUND_EXPONENT` where it is classic. What a layer reflects at normal
-/// incidence is the caller's to sum beside this: `DIELECTRIC_F0` an authored one, its alpha a classic
-/// one. The two readers of a stack call this and nothing else for a layer, so a flattened chunk is
-/// the stack it replaces.
+/// What one layer shows where `texel` was read from it, at `at`: its albedo in rgb and its perceptual
+/// roughness in alpha.
 ///
 /// @param authored,classic `layerAuthored` and `layerClassic`, which the trace asks only where
 ///        `HAS_MAPS` says a layer can be.
@@ -127,10 +110,6 @@ vec2 layerUv(GpuLayer layer, vec2 chunkUv)
 }
 
 /// How much of a terrain layer shows at `uv` of its chunk, from its grid of weights in `masks`.
-///
-/// Sampled by hand rather than through a sampler because the grid is ten texels across and lives in
-/// a buffer, and because a mask has to clamp at its edges — the one sampler every texture in this
-/// scene shares repeats, which is what the tiling ground needs and the mask cannot have.
 float maskWeightIn(GpuLayer layer, vec2 uv, MaskTable masks)
 {
     // A chunk of one ground type is given no mask at all: there is nothing to blend it against.
@@ -157,10 +136,9 @@ float maskWeightIn(GpuLayer layer, vec2 uv, MaskTable masks)
         mix(masks.at[row1 + uint(base.x)], masks.at[row1 + uint(high.x)], frac.x), frac.y);
 }
 
-/// The level a layer is read at when a chunk of it is flattened `extent` texels across: how
-/// many texels of the layer cross the chunk along its wider axis, against the texels the
-/// composite spends on it, as a power of two — a bake has no cone, and this is the footprint one
-/// would resolve. Held to the levels the texture has, and never finer than nought.
+/// The level a layer is read at when a chunk of it is flattened `extent` texels across: how many texels of
+/// the layer cross the chunk along its wider axis, against the texels the composite spends on it, as a
+/// power of two — a bake has no cone, and this is the footprint one would resolve.
 float groundLod(uint slot, GpuLayer layer, uint extent)
 {
     const vec2 size = vec2(textureSize(textures[nonuniformEXT(slot)], 0));
@@ -171,10 +149,10 @@ float groundLod(uint slot, GpuLayer layer, uint extent)
     return clamp(log2(footprint), 0.0, deepest);
 }
 
-/// What a stack sums to, layer by layer in its own order — a float sum is the order it was added
-/// in, and the hit and the bake add in one: the albedo, and for the gloss the weight, the share of
-/// it on authored layers, which reflect `DIELECTRIC_F0`, the roughness over every layer with a
-/// Lambert one at one, and the reflectance the classic layers' alpha states.
+/// What a stack sums to, layer by layer in its own order — a float sum is the order it was added in, and
+/// the hit and the bake add in one: the albedo, and for the gloss the weight, the share of it on authored
+/// layers, which reflect `DIELECTRIC_F0`, the roughness over every layer with a Lambert one at one, and the
+/// reflectance the classic layers' alpha states.
 struct GroundSum
 {
     vec3 mAlbedo;

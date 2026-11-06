@@ -6,48 +6,37 @@
 
 // The puffs over the reconstructed frame, at the resolution it is shown at.
 //
-// **After the denoiser and the upscaler, because neither should touch a particle.** A sprite is
-// not noise in a ray-traced estimate, so a denoiser given one reconstructs it as an error; and a
-// particle an upscaler took at the traced extent would be drawn at a fraction of the picture's
-// resolution and stretched. So the trace leaves the puffs in a layer of their own and this launch
-// composites them over the frame — `airBefore + colour * opacity + added + T * (frame - airBefore)`,
-// which is exact for a layer in front of the haze behind it.
+// **After the denoiser and the upscaler, because neither should touch a particle.** A sprite is not noise
+// in a ray-traced estimate, so a denoiser given one reconstructs it as an error; and a particle an upscaler
+// took at the traced extent would be drawn at a fraction of the picture's resolution and stretched. So the
+// trace leaves the puffs in a layer of their own and this launch composites them over the frame —
+// `airBefore + colour * opacity + added + T * (frame - airBefore)`, which is exact for a layer in front of
+// the haze behind it.
 //
-// **The shape at the shown extent and the light at the traced one.** What a picture needs at
-// its own resolution is a puff's edge: which pixels it covers and how much. What it does not need
-// there is the light, which is read out of froxels that are a hundred pixels across and costs
-// three fetches a sprite — marched at every shown pixel, a storm's frame paid five times what it
-// did. So the sprites are marched here for their shape alone (`spritesAlong` with `lit` off), and
-// the colour comes off the trace's own lit layer, read bilinearly and weighted by its coverage so
-// a rim the traced grid missed borrows from the pixel beside it. The cloud shells are gathered here
-// whole, light and all — `mediumAlong` is one walk a pixel and lights its layer once — so nothing
-// but the sprites' light is taken from the traced grid.
+// **The shape at the shown extent and the light at the traced one.** What a picture needs at its own
+// resolution is a puff's edge: which pixels it covers and how much. What it does not need there is the
+// light, which is read out of froxels that are a hundred pixels across and costs three fetches a sprite —
+// marched at every shown pixel, a storm's frame paid five times what it did.
 //
-// **One pass whatever reconstructs the frame.** Without an upscaler the shown extent is the traced
-// one and this runs at it; nothing else composites a puff anywhere in this renderer.
+// **One pass whatever reconstructs the frame.** Without an upscaler the shown extent is the traced one and
+// this runs at it; nothing else composites a puff anywhere in this renderer.
 //
-// **One invocation a traced pixel, for every shown pixel whose centre lands on it.** Whether a
-// puff can be there at all is a fact about the traced pixel — its tile's run of sprites and its
-// shells — and most of every frame holds none. Launched over the shown grid, each of the three
-// shown pixels over a traced one at `balanced` made the same test at the occupancy the full path's
-// registers allow: 0.30 ms of a 4K frame, where the traced grid takes 0.12. The shown pixels are
-// the run `shownPixelsFrom` gives, so each is composited exactly as it was.
+// **One invocation a traced pixel, for every shown pixel whose centre lands on it.** Whether a puff can be
+// there at all is a fact about the traced pixel — its tile's run of sprites and its shells — and most of
+// every frame holds none. Launched over the shown grid, each of the three shown pixels over a traced one at
+// `balanced` made the same test at the occupancy the full path's registers allow: 0.30 ms of a 4K frame,
+// where the traced grid takes 0.12.
 //
-// **Where the eye's view ends, found again along the ray through the traced pixel's centre.** The
-// traced grid is jittered for the upscaler, so the depth one of its pixels holds at a silhouette is
-// the post on one frame and the water behind it on the next — and a puff hidden by the one and not
-// the other was drawn over the post's edge on every other frame, in blocks of the traced grid: the
-// rope and the posts of Seyda Neen's pier shook under M[FR]'s mist, which stood still with the puffs
-// taken away. The centre does not move with the jitter, so a depth found along it holds still with
-// the edge it hides a puff behind. One ray query a traced pixel, with no material resolved, where a
-// puff can stand at all, and its depth along the eye's forward axis is each shown pixel's over it:
-// exact for a surface square to the eye. A query a shown pixel, along each one's own ray, drew that
-// edge at the shown extent and cost 0.72 ms of a 1.12 ms launch at 2560 by 1440 under M[FR]'s mist,
-// which reaches nearly every tile; the edge is now the traced grid's, and still.
+// **Where the eye's view ends, found again along the ray through the traced pixel's centre.** The traced
+// grid is jittered for the upscaler, so the depth one of its pixels holds at a silhouette is the post on
+// one frame and the water behind it on the next — and a puff hidden by the one and not the other was drawn
+// over the post's edge on every other frame, in blocks of the traced grid: the rope and the posts of Seyda
+// Neen's pier shook under M[FR]'s mist, which stood still with the puffs taken away. The centre does not
+// move with the jitter, so a depth found along it holds still with the edge it hides a puff behind.
 //
-// **A launch and not a dispatch**, for the reason `RtxSourceTreeTest` gives: this traces, and so
-// does the fog the sprite march reaches, and a dispatch that can trace answers differently under
-// another process's preemption.
+// **A launch and not a dispatch**, for the reason `RtxSourceTreeTest` gives: this traces, and so does the
+// fog the sprite march reaches, and a dispatch that can trace answers differently under another process's
+// preemption.
 
 #include "camera.h"
 #include "scene.h"
@@ -82,13 +71,9 @@ void gatherLit(ivec2 tap, uvec2 tracedExtent, float near, inout vec3 lit, inout 
     weight += covered;
 }
 
-/// How far ahead of the eye, along its forward axis, the eye's view ends through the centre of
-/// `traced`: the eye's own rule — the world's mask, what the eye sees through walked past and the
-/// eye's culling, as `fogdepth.rgen` finds where a column's view ends. The whole ray, and not only
-/// as far as the last emitter it passes: that bound is exact, since a surface beyond every emitter
-/// hides none, and it lost — under M[FR]'s mist nearly every ray passes one, and the walk of the
-/// tile's sprites it took to find the bound cost the launch a tenth to a fifth of a millisecond more
-/// than the longer query it saved, at 2560 by 1440.
+/// How far ahead of the eye, along its forward axis, the eye's view ends through the centre of `traced`:
+/// the eye's own rule — the world's mask, what the eye sees through walked past and the eye's culling, as
+/// `fogdepth.rgen` finds where a column's view ends.
 float surfaceDepthAt(uvec2 traced, uvec2 extent, uvec2 tracedExtent)
 {
     const Camera camera = picture.mShown.mWorld;
@@ -155,12 +140,6 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
         }
 
         // **Where all four missed, the ring around them**, weighted by a tent two traced pixels wide.
-        // The traced layer is hidden where the traced grid's jittered depth is, and this pixel's
-        // shape is not: at a silhouette the traced pixels under this one can all have met the post
-        // on a frame this pixel's ray passes beside it, and the colour fell back to the ambient
-        // alone — the puff went dark over the edge on those frames. A branch, where the fallback
-        // below always was one: the four answer for nearly every pixel, and the ring is read only
-        // at a silhouette or round a puff smaller than a traced pixel.
         if (!(weight > 0.0))
             for (int i = 0; i < 16; ++i)
             {
@@ -174,11 +153,8 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
         layer.mColour = weight > 0.0 ? lit / weight : layer.mColour * frame.mAmbient;
     }
 
-    // **The cloud shells, gathered along this pixel's own ray and lit where they stand**, and then
-    // put together with the sprites as the trace once did — `mergedPuffs`. Here and not in the
-    // trace because what a shell hides and lets through is a question about the ray the picture
-    // shows, which the traced grid's jittered sample is not. Only in a tile whose rays can meet
-    // one, which is most of every frame's tiles not.
+    // **The cloud shells, gathered along this pixel's own ray and lit where they stand**, and then put
+    // together with the sprites as the trace once did — `mergedPuffs`.
     if ((present & PRESENCE_MEDIUM) != 0u)
         layer = mergedPuffs(layer, mediumAlong(traced, origin, direction, distance, cone));
 
@@ -194,28 +170,20 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
         return;
     }
 
-    // **The air in front of the layer, so that it covers only what is behind it.** `visibility.comp`
-    // states the identity this is: the frame holds the whole path's haze over the surface, and a
-    // puff a few units out must not take two hundred units of haze away with it. The near half is
-    // read again as the whole one's own prefix, and the clamp is what a pair quantised apart by a
-    // froxel slice can need.
+    // **The air in front of the layer, so that it covers only what is behind it.** `visibility.comp` states
+    // the identity this is: the frame holds the whole path's haze over the surface, and a puff a few units
+    // out must not take two hundred units of haze away with it. The near half is read again as the whole
+    // one's own prefix, and the clamp is what a pair quantised apart by a froxel slice can need.
     const vec3 airBefore = opacity > 0.0 ? fogAlong(traced, WorldRay(origin, direction), layer.mCoveredAt).xyz : vec3(0.0);
 
     const vec3 composited
         = airBefore + layer.mColour * opacity + layer.mAdded + layer.mTransmittance * max(before.rgb - airBefore, vec3(0.0));
 
-    // **Behind a see-through arm, the world's puffs are laid down by what the arms let through.**
-    // The rasterizer draws the arms after every particle, so the smoke behind a Chameleon's hand is
-    // seen through the hand as the room is — and the frame here holds the two already blended, the
-    // arms' share `A` over `t` of the world `W`. Putting the puffs between them exactly wants `A`,
-    // which the reconstruction has mixed into the frame at a resolution the trace never ran at. So
-    // the whole frame is taken for the world behind the arms, and the puffs are laid over it by
-    // `t`: exact where no arm stands and where one lets nothing through, and elsewhere off by
-    // `t (1 - T) (A - (1 - t) W)` — nothing where the arm is the colour of what it stands over, and
-    // at `t` of a half no more than a quarter of the puff's opacity times that contrast. A puff
-    // between the eye and a see-through hand is laid down behind it the same way, by `t` and not
-    // whole. Selected and not mixed where no arm stands, so the world's own pixel is the composite
-    // to the bit.
+    // **Behind a see-through arm, the world's puffs are laid down by what the arms let through.** The
+    // rasterizer draws the arms after every particle, so the smoke behind a Chameleon's hand is seen
+    // through the hand as the room is — and the frame here holds the two already blended, the arms' share
+    // `A` over `t` of the world `W`. Putting the puffs between them exactly wants `A`, which the
+    // reconstruction has mixed into the frame at a resolution the trace never ran at.
     const float armsThrough = arms
         ? 1.0
         : imageLoad(backdrop, channelAt(CHANNEL_BACKDROP, ivec2(traced), tracedExtent.x, fieldSwapOf(frame.mFrame))).a;

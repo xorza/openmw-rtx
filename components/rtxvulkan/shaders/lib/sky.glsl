@@ -1,12 +1,11 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SKY_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SKY_GLSL
 
-// What a ray that reached nothing comes back with: the dome, the deck over it, the sheet
-// behind it, and the three discs in between.
+// What a ray that reached nothing comes back with: the dome, the deck over it, the sheet behind it, and the
+// three discs in between.
 //
-// **The sky is a light source and not a backdrop**, so this is split in two: `skyGlow` is
-// what a bounce may gather, and `skyRadiance` is what an eye may see. The difference is the
-// sun's disc, which `GatherRun` already asks about directly.
+// **The sky is a light source and not a backdrop**, so this is split in two: `skyGlow` is what a bounce may
+// gather, and `skyRadiance` is what an eye may see.
 
 #include "colour.h"
 #include "look.h"
@@ -19,13 +18,8 @@
 
 /// The sky's own glow along a direction, with nothing drawn in it.
 ///
-/// **This is the sky as a source of light**, which is not the sky as a thing to look at, and the
-/// two differ both ways. What a bounce gathers must leave out the sun's disc: `GatherRun` asks the sun
-/// directly, so a hemisphere that also picked it up out of the sky would count it twice — and a
-/// bounce cone a radian wide would pick it up over a quarter of the sky at that. It must carry
-/// `mSkyFill`, which is light the weather has and the sky is not painted with. And it takes the
-/// night's sheets as one mean rather than where they actually are, because a cosine lobe is a
-/// hemisphere and a ray is a direction — `NightSky::mGlow` carries that argument.
+/// **This is the sky as a source of light**, which is not the sky as a thing to look at, and the two differ
+/// both ways.
 vec3 skyGlow(vec3 direction)
 {
     return skyGradient(frame.mSkyHorizon, frame.mSkyZenith, frame.mSkyRamp, direction) + frame.mStars.mGlow
@@ -34,16 +28,12 @@ vec3 skyGlow(vec3 direction)
 
 /// Where a point on the layer sits on the sheet, in texture coordinates.
 ///
-/// **Addressed from the world and not from the eye**: a sheet laid out from where a ray happened to
-/// be looking travels with the camera, and a cloud overhead walks along with the player rather than
-/// stand over the ground under it.
+/// **Addressed from the world and not from the eye**: a sheet laid out from where a ray happened to be
+/// looking travels with the camera, and a cloud overhead walks along with the player rather than stand over
+/// the ground under it.
 ///
-/// **The turn is about the frame's eye**, as the rasterizer turns its cloud mesh about the
-/// camera, and one point for every ray of a frame, so a ray from the eye and a ray from a shading
-/// point reach one answer. An ash or blight storm blows off Red Mountain at the player, so its
-/// bearing changes as the player walks; turned about the world's origin, the deck overhead would
-/// slide by the walk times the player's distance from the origin over their distance from the
-/// mountain.
+/// **The turn is about the frame's eye**, as the rasterizer turns its cloud mesh about the camera, and one
+/// point for every ray of a frame, so a ray from the eye and a ray from a shading point reach one answer.
 vec2 cloudUvAt(vec2 crossing, vec2 bearing)
 {
     const vec2 from = crossing - frame.mOrigin.xy;
@@ -61,16 +51,13 @@ vec2 cloudUvStep(vec2 step, vec2 bearing)
         * frame.mClouds.mPerTile;
 }
 
-/// The sheet where a crossing lands on it, across whatever transition the weather is part way
-/// through, read along the footprint `across` and `along` of the ray's cone there: two steps across
-/// the layer in the world, which `cloudDeck` works out. Through the anisotropic samplers, as the
-/// rasterizer's hardware reads the deck mesh along its own gradients.
+/// The sheet where a crossing lands on it, across whatever transition the weather is part way through, read
+/// along the footprint `across` and `along` of the ray's cone there: two steps across the layer in the
+/// world, which `cloudDeck` works out.
 vec4 cloudSheetAt(vec2 crossing, vec2 across, vec2 along)
 {
-    // With no test on the weather ahead: the host names the near sheet twice where the weather
-    // ahead has none — `CloudDeck::mNext` — so the mix is one path however the weather stands. A
-    // sheet ahead that stands in is the near one again, as one that was never named is: the deck
-    // is there, and a grey stand-in blended into it would be sky that is not.
+    // With no test on the weather ahead: the host names the near sheet twice where the weather ahead has
+    // none — `CloudDeck::mNext` — so the mix is one path however the weather stands.
     const vec2 bearing = frame.mClouds.mBearing;
     const vec4 near = textureGrad(texturesAlong[nonuniformEXT(frame.mClouds.mTexture)], cloudUvAt(crossing, bearing),
         cloudUvStep(across, bearing), cloudUvStep(along, bearing));
@@ -82,12 +69,11 @@ vec4 cloudSheetAt(vec2 crossing, vec2 across, vec2 along)
     return mix(near, far, frame.mClouds.mBlend);
 }
 
-/// How high the deck stands over a point, or nothing at all: where there is no deck, and where
-/// the point stands over it, which is what an eye above the clouds is.
+/// How high the deck stands over a point, or nothing at all: where there is no deck, and where the point
+/// stands over it, which is what an eye above the clouds is.
 ///
-/// **A world height rather than one over the eye** (`Rtx::sCloudAltitude`): a layer that rose with
-/// the camera would never come nearer. What still follows the eye is the deck's *extent*, because
-/// the fade rings are the mesh's own and are measured from there.
+/// **A world height rather than one over the eye** (`Rtx::sCloudAltitude`): a layer that rose with the
+/// camera would never come nearer.
 float deckOver(vec3 at)
 {
     if (!(frame.mClouds.mOpacity > 0.0) || !holdsTexture(frame.mClouds.mTexture))
@@ -103,10 +89,9 @@ float capChord(float radius)
     return 2.0 * sin(0.5 * radius);
 }
 
-/// Whether a direction lies within a cap of that `chord` about an axis, both unit, by the chord
-/// rather than the cosine of the angle: at half a degree the cosine is 0.999988 — five of a
-/// float's seven digits spent before the question is asked — where `|a - b|` is `2 sin(theta / 2)`
-/// for unit vectors and loses nothing. The sun's disc and the glare fader's query both ask it.
+/// Whether a direction lies within a cap of that `chord` about an axis, both unit, by the chord rather than
+/// the cosine of the angle: at half a degree the cosine is 0.999988 — five of a float's seven digits spent
+/// before the question is asked — where `|a - b|` is `2 sin(theta / 2)` for unit vectors and loses nothing.
 bool insideCap(vec3 direction, vec3 axis, float chord)
 {
     return length(direction - axis) < chord;
@@ -114,17 +99,11 @@ bool insideCap(vec3 direction, vec3 axis, float chord)
 
 /// What a ray that reached nothing finds in the cloud deck, and how much of the sky it hides.
 ///
-/// **The deck is where the ray crosses a layer over a curved world**, which is the thing the game's
-/// cloud mesh is a stand-in for and the shape `CloudShell` reads back out of it. Where it hangs is
-/// all Morrowind's: the texture is the weather's own, the scroll and the bearing are what the engine
-/// turns its mesh by, the blend across a transition is the same factor, and the layer's height and
-/// curvature and where it fades out are its mesh's.
+/// **The deck is where the ray crosses a layer over a curved world**, which is the thing the game's cloud
+/// mesh is a stand-in for and the shape `CloudShell` reads back out of it.
 ///
-/// **Alpha is coverage and the sheet's own paint is shape**, which is where this parts company with
-/// the engine. Its deck is an unlit alpha-tracking material that owes nothing to where the sun is,
-/// painted with its own sheet times a lifted fog; this one takes the alpha for how much sky a cloud
-/// replaces and the paint for how thick it is, and `Rtx::deckLight` says what a cloud that thick
-/// radiates. A photograph of a 2002 sky is a shape and not a colour.
+/// **Alpha is coverage and the sheet's own paint is shape**, which is where this parts company with the
+/// engine.
 ///
 /// @param origin where the ray started, which is what the sheet is laid out from.
 /// @param blur how far this ray's cone has spread from its axis, in radians, which is what decides
@@ -142,20 +121,20 @@ vec3 cloudDeck(vec3 origin, vec3 direction, float blur, out float covered)
 
     const vec2 plane = direction.xy / direction.z;
 
-    // **How far down the layer has fallen where this ray meets it.** A flat one is met at `xy / z`
-    // and a curved one nearer, by the height of its crossing: solving `r = t (h - k r²)` gives
-    // `h · 2 / (1 + sqrt(1 + 4kh t²))`, which is the conjugate of `(sqrt(1 + 4kh t²) - 1) / 2kt` and
-    // is written that way because the other form divides by nothing on a ray straight up — and by a
-    // curvature of nothing on the flat layer a replaced mesh may be.
+    // **How far down the layer has fallen where this ray meets it.** A flat one is met at `xy / z` and a
+    // curved one nearer, by the height of its crossing: solving `r = t (h - k r²)` gives `h · 2 / (1 +
+    // sqrt(1 + 4kh t²))`, which is the conjugate of `(sqrt(1 + 4kh t²) - 1) / 2kt` and is written that way
+    // because the other form divides by nothing on a ray straight up — and by a curvature of nothing on the
+    // flat layer a replaced mesh may be.
     const float fallen = 2.0 / (1.0 + sqrt(1.0 + 4.0 * frame.mClouds.mCurvature * dot(plane, plane)));
 
     const vec2 offset = plane * (height * fallen);
 
-    // **How far out the ray met the layer, which is what the engine's fade is written in.** It paints
-    // the outermost ring of its mesh at nothing and the one inside it at a quarter, and a triangle
-    // between two rings interpolates that linearly in position — so the fade is a straight line in
-    // this radius, and the three radii it turns on came off the same mesh. Measured from the eye,
-    // because the rings are the mesh's own and the mesh is centred there.
+    // **How far out the ray met the layer, which is what the engine's fade is written in.** It paints the
+    // outermost ring of its mesh at nothing and the one inside it at a quarter, and a triangle between two
+    // rings interpolates that linearly in position — so the fade is a straight line in this radius, and the
+    // three radii it turns on came off the same mesh. Measured from the eye, because the rings are the
+    // mesh's own and the mesh is centred there.
     const vec3 rings = frame.mClouds.mRings;
     const float reach = length(offset * frame.mClouds.mPerTile);
     if (reach >= rings.z)
@@ -169,14 +148,7 @@ vec3 cloudDeck(vec3 origin, vec3 direction, float blur, out float covered)
     const float reaches = mix(mix(1.0, CLOUD_RING_ALPHA, inner), 0.0, outer);
 
     // **The cone's footprint where it crosses the layer, in closed form**, as every surface's is
-    // (`texturePoint`): the cone is `2 blur` wide over the `h · fallen / z` the ray ran. Square to
-    // the plane the ray climbs in, the layer is level and takes that width as it is. Along it, the
-    // width is stretched over the cosine to the layer's normal, `(2kr r̂, 1)` unnormalised for
-    // `z = h - k r²`, and shortened back by the slope's own cosine onto the ground the sheet is
-    // addressed by — together `width / (z + 2kr |xy|)`, with `kr = mCurvature · fallen · |xy| / z`
-    // since `k = mCurvature / h` and `r = h · fallen · |xy| / z`. The frame's level bias is in the
-    // width, as it is in a surface's. A ray straight up has no plane to climb in, and its two axes
-    // are the same length there, so either pair serves.
+    // (`texturePoint`): the cone is `2 blur` wide over the `h · fallen / z` the ray ran.
     const float outward = length(direction.xy);
     const float width = 2.0 * blur * (height * fallen / direction.z) * exp2(frame.mLevelBias);
     const vec2 radial = outward > 0.0 ? direction.xy / outward : vec2(1.0, 0.0);
@@ -188,11 +160,11 @@ vec3 cloudDeck(vec3 origin, vec3 direction, float blur, out float covered)
 
     covered = cloud.a * reaches * frame.mClouds.mOpacity;
 
-    // **The sheet says how thick the cloud is and the light says what that is worth.** A luminance
-    // and not the three channels, because a sheet's own hue is the 2002 sky behind it and carrying
-    // that would paint a day's light into the deck twice. `CLOUD_THICKNESS_MAX` is where the ratio
-    // reaches a cloud in full sun; a sheet nothing could average has no ratio to take, and reads as
-    // the average cloud it could not measure.
+    // **The sheet says how thick the cloud is and the light says what that is worth.** A luminance and not
+    // the three channels, because a sheet's own hue is the 2002 sky behind it and carrying that would paint
+    // a day's light into the deck twice. `CLOUD_THICKNESS_MAX` is where the ratio reaches a cloud in full
+    // sun; a sheet nothing could average has no ratio to take, and reads as the average cloud it could not
+    // measure.
     const float thickness = frame.mClouds.mMean > 0.0
         ? clamp(dot(cloud.rgb, LUMINANCE_WEIGHTS) / (frame.mClouds.mMean * CLOUD_THICKNESS_MAX), 0.0, 1.0)
         : 1.0 / CLOUD_THICKNESS_MAX;
@@ -210,10 +182,8 @@ vec3 cloudDeck(vec3 origin, vec3 direction, float blur, out float covered)
 
 /// Where a direction lands across a disc laid on the sky, in units of the disc's own radius.
 ///
-/// **One mapping for a moon and for a painted patch**, which are the same kind of thing: a sheet
-/// laid once across a piece of sky, named by a direction, two axes and a limb. Inside the disc at
-/// under one, on its rim at one. The hemisphere test is the caller's, because the offsets below are
-/// the same for a direction and its opposite.
+/// **One mapping for a moon and for a painted patch**, which are the same kind of thing: a sheet laid once
+/// across a piece of sky, named by a direction, two axes and a limb.
 vec2 discAt(vec3 direction, vec3 right, vec3 up, float limb)
 {
     return vec2(dot(direction, right), dot(direction, up)) / limb;
@@ -221,24 +191,22 @@ vec2 discAt(vec3 direction, vec3 right, vec3 up, float limb)
 
 /// What the nebulae and the constellations send back along a ray.
 ///
-/// **The same disc a moon is, and drawn by the same arithmetic.** Each is a sheet laid once across a
-/// patch of the sky, so a direction, a size and two axes are the whole of it — no phase, no shading
-/// law, nothing lit. They are additive over the sky because that is the material the engine gives
-/// them: unlit, alpha-tracking, nothing behind them to be occluded.
+/// **The same disc a moon is, and drawn by the same arithmetic.** Each is a sheet laid once across a patch
+/// of the sky, so a direction, a size and two axes are the whole of it — no phase, no shading law, nothing
+/// lit. They are additive over the sky because that is the material the engine gives them: unlit,
+/// alpha-tracking, nothing behind them to be occluded.
 ///
-/// **Most of a Morrowind night's colour is here** rather than in the stars. Two of the three nebulae
-/// reach past a radian, so what they do is tint half the sky at a time — which is why a renderer
-/// drawing the star field alone puts stars on black.
+/// **Most of a Morrowind night's colour is here** rather than in the stars.
 vec3 skyPatches(vec3 direction)
 {
     vec3 painted = vec3(0.0);
 
     // `patch` is a reserved word in GLSL, which is why this is not called one.
     //
-    // **Not `[[unroll]]`, where every other loop over a compile-time shape is.** There is no local
-    // array here for it to take out of scratch memory, and it moves the trace, pinned modules and
-    // all: unrolled, the direct channel of ten of the twenty-three views came out a rounding apart
-    // (2026-09-28), a changed picture for nothing gained.
+    // **Not `[[unroll]]`, where every other loop over a compile-time shape is.** There is no local array
+    // here for it to take out of scratch memory, and it moves the trace, pinned modules and all: unrolled,
+    // the direct channel of ten of the twenty-three views came out a rounding apart (2026-09-28), a changed
+    // picture for nothing gained.
     for (uint layer = 0u; layer < SKY_PATCH_COUNT; ++layer)
     {
         const SkyPatch sheet = frame.mSkyPatches[layer];
@@ -261,10 +229,9 @@ vec3 skyPatches(vec3 direction)
 
 /// What a moon's lit face sends back along a ray, and how much of the sky it stands in front of.
 ///
-/// **The disc is the sphere seen flat**, so the surface normal is recovered rather than stored: a
-/// point at `(x, y)` across the face, in units of its own radius, sits at a height of
-/// `sqrt(1 - x² - y²)` on a unit sphere. One square root buys a terminator that curves the way a
-/// real one does and moves continuously, where a selector between eight painted phases would step.
+/// **The disc is the sphere seen flat**, so the surface normal is recovered rather than stored: a point at
+/// `(x, y)` across the face, in units of its own radius, sits at a height of `sqrt(1 - x² - y²)` on a unit
+/// sphere.
 ///
 /// **The light's direction and the law's blend are the frame's**, so they arrive in the disc —
 /// `MoonDisc::mLitFrom` says why a crescent turns toward the sun, and `MoonDisc::mLunar` how much of
@@ -301,18 +268,17 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
     const float incidence = max(dot(normal, moon.mLitFrom), 0.0);
     const float emission = max(normal.z, 1.0e-4);
 
-    // **McEwen's lunar-Lambert, because a Lambertian sphere does not look like a moon.** A rough
-    // dusty surface scatters back the way the light came, which is why the real one reads as a flat
-    // disc rather than a lit ball, and Lommel-Seeliger's `mu0 / (mu0 + mu)` is that in one divide.
-    // Alone it puts the sunward limb at exactly twice the middle at every phase but full — its
-    // emission cosine goes to zero there while the incidence cosine does not — so it is blended
-    // toward a Lambertian term, whose cosine does vanish, by the share the phase keeps.
+    // **McEwen's lunar-Lambert, because a Lambertian sphere does not look like a moon.** A rough dusty
+    // surface scatters back the way the light came, which is why the real one reads as a flat disc rather
+    // than a lit ball, and Lommel-Seeliger's `mu0 / (mu0 + mu)` is that in one divide. Alone it puts the
+    // sunward limb at exactly twice the middle at every phase but full — its emission cosine goes to zero
+    // there while the incidence cosine does not — so it is blended toward a Lambertian term, whose cosine
+    // does vanish, by the share the phase keeps.
     const float shade = moon.mLunar * 2.0 * incidence / (incidence + emission) + (1.0 - moon.mLunar) * incidence;
 
-    // **The portrait where there is one, its mean where there is not.** `mColour` carries the mean
-    // so the two paths land at the same brightness and only the detail differs — the file decides
-    // the maria and the silhouette, `MOON_RADIANCE` decides how bright a full moon is, and neither
-    // is scaling the other.
+    // **The portrait where there is one, its mean where there is not.** `mColour` carries the mean so the
+    // two paths land at the same brightness and only the detail differs — the file decides the maria and
+    // the silhouette, `MOON_RADIANCE` decides how bright a full moon is, and neither is scaling the other.
     vec3 base = moon.mColour;
     if (holdsTexture(moon.mFace))
     {
@@ -321,45 +287,34 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
         const vec2 uv = vec2(0.5 + 0.5 * face.x, 0.5 - 0.5 * face.y);
         const vec4 painted = textureLod(textures[nonuniformEXT(moon.mFace)], uv, 0.0);
 
-        // **Multiplied by its own alpha, which the file does not do for us.** Past the edge of the
-        // painted disc the colour climbs back toward the middle of its range, so sampling the colour
-        // and dropping the alpha draws a bright ring around every moon; multiplying removes it and
-        // hands over the limb's own antialiasing at the same time.
+        // **Multiplied by its own alpha, which the file does not do for us.** Past the edge of the painted
+        // disc the colour climbs back toward the middle of its range, so sampling the colour and dropping
+        // the alpha draws a bright ring around every moon; multiplying removes it and hands over the limb's
+        // own antialiasing at the same time.
         base = painted.rgb * painted.a;
     }
 
-    // **Dimmed by the air it is seen through**, which is what takes a moon out near the horizon
-    // here — the engine switches one off under `Fade_End_Angle` instead. `mThroughAir` is per
-    // channel, so a low moon reddens as it goes rather than merely fading. And painted what a
-    // script painted it, which is how Secunda goes red for the Bloodmoon prophecy.
+    // **Dimmed by the air it is seen through**, which is what takes a moon out near the horizon here — the
+    // engine switches one off under `Fade_End_Angle` instead.
     return base * moon.mPaint * moon.mThroughAir * (MOON_RADIANCE * frame.mDaylightGain * shade * covered);
 }
 
 /// The radiance a ray that hit nothing comes back with, for a ray being looked along.
 ///
-/// **The sun is drawn here rather than answered by a lobe on each surface that could reflect it.**
-/// A glint is what a mirror does when there is something to see, so the water needs no highlight
-/// model of its own: it already traces a reflection ray, and this is what that ray finds. Anything
-/// else reflective gets the same sun for nothing, and there is one place where the sun's size lives.
+/// **The sun is drawn here rather than answered by a lobe on each surface that could reflect it.** A glint
+/// is what a mirror does when there is something to see, so the water needs no highlight model of its own:
+/// it already traces a reflection ray, and this is what that ray finds. Anything else reflective gets the
+/// same sun for nothing, and there is one place where the sun's size lives.
 ///
-/// **Drawn, and lighting nothing.** `GatherRun` asks the sun directly, so a path that also gathered the
-/// sky as a source would count it twice — this is the sky as a thing to look *at*.
+/// **Drawn, and lighting nothing.** `GatherRun` asks the sun directly, so a path that also gathered the sky
+/// as a source would count it twice — this is the sky as a thing to look *at*.
 ///
-/// The disc is widened by the ray's own spread and dimmed by exactly the widening, so what changes
-/// is where the light is and never how much. Two things widen it and both have to. **The pixel**,
-/// because a sun smaller than the pixel that found it has to be averaged over the pixel rather than
-/// hit or missed — sampled instead, it is a one-pixel speck that crawls as the camera moves. And
-/// **the slopes the cone could not resolve**, because water too fine to draw is not flat: what those
-/// slopes do to a reflected sun is spread it, and that spreading *is* the glitter path. A mirror
-/// shows one hard dot; a mile of ruffled water shows a shimmering road to the horizon. Cox and Munk
-/// measured sea roughness by photographing exactly this in 1954.
-///
-/// **Everything but the star field, which every caller draws for itself as `starField(...) * shown`.**
-/// A point source is what a temporal upscaler removes, so along a ray the eye is looking down the
-/// field is drawn by the display pass at the resolution the frame is shown at — and a pass that late
-/// cannot see the order the layers here were composited in. So the order reports what it left: an
-/// opaque moon leaves none of the field, a deck leaves what it does not cover, and the dome and the
-/// sun leave all of it because both are added rather than composited.
+/// **Everything but the star field, which every caller draws for itself as `starField(...) * shown`.** A
+/// point source is what a temporal upscaler removes, so along a ray the eye is looking down the field is
+/// drawn by the display pass at the resolution the frame is shown at — and a pass that late cannot see the
+/// order the layers here were composited in. So the order reports what it left: an opaque moon leaves none
+/// of the field, a deck leaves what it does not cover, and the dome and the sun leave all of it because
+/// both are added rather than composited.
 ///
 /// @param origin where the ray started, which the deck is laid out from.
 /// @param blur how far this ray's cone has spread from its axis, in radians.
@@ -379,47 +334,33 @@ vec3 skyRadiance(vec3 origin, vec3 direction, float blur, bool discs, out float 
 
     shown = 1.0;
 
-    // **Everything on or beyond the celestial sphere first, which is what a moon stands in front
-    // of.** The painted patches are on that sphere and the sun is nearer, but both are further off
-    // than a moon and neither is ever between two of them, so one term carries the pair. The star
-    // field belongs here too and is the one layer drawn outside this, which `shown` is what for.
+    // **Everything on or beyond the celestial sphere first, which is what a moon stands in front of.** The
+    // painted patches are on that sphere and the sun is nearer, but both are further off than a moon and
+    // neither is ever between two of them, so one term carries the pair. The star field belongs here too
+    // and is the one layer drawn outside this, which `shown` is what for.
     vec3 colour = frame.mStars.mFade > 0.0 ? frame.mStars.mFade * skyPatches(direction) : vec3(0.0);
 
-    // **Drawn on exactly the frames the sun lights anything**, because they are one fact: the
-    // irradiance is nought whenever the sun is not over the horizon, and fades to it across dusk. A
-    // second field saying whether to draw the disc is what once let a sun shadow out of an empty
-    // sky, and there is no longer one to disagree with.
+    // **Drawn on exactly the frames the sun lights anything**, because they are one fact: the irradiance is
+    // nought whenever the sun is not over the horizon, and fades to it across dusk.
     const float edge = capChord(SUN_ANGULAR_RADIUS + blur);
     if (discs && sunUp() && insideCap(direction, frame.mSun.mDirection, edge))
     {
-        // **The sun's radiance is five orders of magnitude above the sky's** and this does not
-        // pretend otherwise, so it saturates until there is an exposure stage to bring it down.
-        // That is a fact about the sun rather than a choice made here: a photograph exposed for a
-        // landscape shows a white disc, and a glitter road really is a field of blown-out sparks.
-        // **How bright from the light, what colour from the disc**, which is why the brightest
-        // channel and not the whole vector. The two are one quantity in the world and two in the
-        // content files, and the disc's is the one that is about the sun: taking the hue off the
-        // irradiance draws a blue sun through every dawn, because that ramp is still crossing to a
-        // night colour that belongs to the sky rather than to anything the sun did. Reading the
-        // peak leaves a white disc at white and lets a weather's sunset tint both redden and dim
-        // it, which is what air does to a sun on the horizon — it takes the blue out rather than
-        // putting red in.
-        // Capped for the sake of what holds a history of it rather than for the picture, which
-        // cannot tell this from the five figures the division gives. `MAX_SUN_RADIANCE` says why.
+        // **The sun's radiance is five orders of magnitude above the sky's** and this does not pretend
+        // otherwise, so it saturates until there is an exposure stage to bring it down.
         const float radiance
             = min(brightest(frame.mSun.mIrradiance) / (0.5 * TAU * edge * edge), MAX_SUN_RADIANCE);
 
         colour += radiance * frame.mSunDiscColour;
     }
 
-    // **Each moon takes its share of all of it, in the order the engine draws them.**
-    // `SkyManager::create` builds the sky as atmosphere, night sky, sun, Masser, Secunda, cloud —
-    // and `paintMoon` writes `color.a = maskAlpha` under a `(ONE, ONE_MINUS_SRC_ALPHA)` blend, so an
-    // opaque moon replaces whatever the star sheet and the sun put behind it. `moonFace` already
-    // hands back its radiance premultiplied by that coverage, which is the same form.
+    // **Each moon takes its share of all of it, in the order the engine draws them.** `SkyManager::create`
+    // builds the sky as atmosphere, night sky, sun, Masser, Secunda, cloud — and `paintMoon` writes
+    // `color.a = maskAlpha` under a `(ONE, ONE_MINUS_SRC_ALPHA)` blend, so an opaque moon replaces whatever
+    // the star sheet and the sun put behind it. `moonFace` already hands back its radiance premultiplied by
+    // that coverage, which is the same form.
     //
-    // **This is also the whole of an eclipse**, and of one moon in front of the other: Masser is
-    // nineteen degrees across against the sun's half a degree, so on the rare crossing it is total.
+    // **This is also the whole of an eclipse**, and of one moon in front of the other: Masser is nineteen
+    // degrees across against the sun's half a degree, so on the rare crossing it is total.
     if (HAS_MOONS && discs)
         for (uint moon = 0u; moon < MOON_COUNT; ++moon)
         {
@@ -429,13 +370,12 @@ vec3 skyRadiance(vec3 origin, vec3 direction, float blur, bool discs, out float 
             shown *= 1.0 - covered;
         }
 
-    // **The dome last and added rather than composited under, because it is the air in front of
-    // every one of them.** A moon is seen through the same sky the eye is looking at — the engine
-    // reaches the same picture from the other end, by having a moon re-add the atmosphere colour it
-    // just replaced.
+    // **The dome last and added rather than composited under, because it is the air in front of every one
+    // of them.** A moon is seen through the same sky the eye is looking at — the engine reaches the same
+    // picture from the other end, by having a moon re-add the atmosphere colour it just replaced.
     //
-    // **The gradient and not `skyGlow`**, which is the one place the two part company: the fill is
-    // light the weather says a night has and Morrowind draws nowhere, so an eye must not find it.
+    // **The gradient and not `skyGlow`**, which is the one place the two part company: the fill is light
+    // the weather says a night has and Morrowind draws nowhere, so an eye must not find it.
     colour += skyGradient(frame.mSkyHorizon, frame.mSkyZenith, frame.mSkyRamp, direction);
 
     // Last, and over everything: the deck is nearer than any of it.
@@ -446,11 +386,9 @@ vec3 skyRadiance(vec3 origin, vec3 direction, float blur, bool discs, out float 
     return colour * (1.0 - covered) + clouds;
 }
 
-/// The sky a reflection finds: what an eye looking along `direction` sees, the star field
-/// included, because what a mirror shows is composited into a surface long before the display pass
-/// that draws the field for the eye. **The sky as a thing to look at, and never `skyGlow`**, whose
-/// fill is light nothing draws and whose night is one mean; the water and a polished surface's
-/// escaped bounce both read it, so a pond and a plate show one sky.
+/// The sky a reflection finds: what an eye looking along `direction` sees, the star field included, because
+/// what a mirror shows is composited into a surface long before the display pass that draws the field for
+/// the eye.
 ///
 /// @param discs whether the sun and the moons are in it, which `skyRadiance` says.
 vec3 reflectedSky(vec3 origin, vec3 direction, float blur, bool discs)

@@ -8,33 +8,14 @@
 
 /// How far each stream's sequence advances between frames.
 ///
-/// **An additive recurrence with an irrational step**, which is the cheapest sequence whose every
-/// prefix covers `[0, 1)` evenly rather than only its powers of two. The fog draws one number and
-/// takes the golden ratio; a pair takes R2's steps, the plastic constant's first two powers, which
-/// is the same construction in two dimensions.
+/// **An additive recurrence with an irrational step**, which is the cheapest sequence whose every prefix
+/// covers `[0, 1)` evenly rather than only its powers of two.
 ///
-/// A rational step would close into a cycle and the frames after it would resample what the ones
-/// before had already asked.
+/// **The one part of the stream table that stays here**, because a constant array is spelled `float[](...)`
+/// in GLSL and `{...}` in C++ and there is no third spelling both compile.
 ///
-/// **The one part of the stream table that stays here**, because a constant array is spelled
-/// `float[](...)` in GLSL and `{...}` in C++ and there is no third spelling both compile. It is
-/// `RANDOM_STREAMS` long by declaration, so the count still binds it; what a second shader needs to
-/// know — which channels are taken — is the `STREAM_` ids, and those sit with the count in
-/// `scene.h`.
-///
-/// The two-dimensional `R2` pair for the fog's column, for the bounce and for the sun's disc,
-/// `sqrt(2) - 1` for the water and the golden ratio for the fog's march — two different irrationals
-/// for the two single numbers, because two streams turning by the same step differ only by where
-/// they started and converge on the same sweep. The fog's column is drawn in a pass of its own.
-///
-/// **The bounce and the sun's disc share `R2` though one hit reads both**, so the offset between
-/// their draws at a pixel never changes. The two are separate terms under separate filters, and
-/// the sun's pair turned by `(sqrt 19 - 4, sqrt 23 - 4)` in its place left the frame noisier at the
-/// pier, mean 0.72 and p99 2.03 against 0.71 and 2.00 (`./omw noise`). The split hit's other draws
-/// turn by their own: the lamp's pair by `(sqrt 3 - 1, sqrt 7 - 2)`, and the sky's pick by
-/// `sqrt 11 - 3`. Square roots of distinct square-free numbers are independent over the rationals,
-/// and of the plastic constant too, so none of these turns in step with another. The tone pass's
-/// dither turns by `sqrt 17 - 4`, for the same reason.
+/// **The bounce and the sun's disc share `R2` though one hit reads both**, so the offset between their
+/// draws at a pixel never changes.
 const float STREAM_TURN[RANDOM_STREAMS] = float[](0.7548777, 0.5698403, 0.7548777, 0.5698403, 0.4142136, 0.6180340,
     0.7548777, 0.5698403, 0.7320508, 0.6457513, 0.3166248, 0.1231056);
 
@@ -47,11 +28,11 @@ uint tileIndex(uvec2 pixel, uint stream)
 
 /// A tile's value of `stream`, turned for frame `index`.
 ///
-/// **The turn in fixed point, because a float product keeps no fraction of a long session.**
-/// `float(frame) * step` rounds to the product's own last place, which past 2^17 frames — half an
-/// hour at sixty — is a 128th of the interval, past 2^20 a sixteenth, and past 2^23 two values: the
-/// sweep over frames freezes into a few offsets. The step's float times 2^32 is a whole number, so
-/// the product wrapped in a word is the fraction of `frame * step` exactly, at any count.
+/// **The turn in fixed point, because a float product keeps no fraction of a long session.** `float(frame)
+/// * step` rounds to the product's own last place, which past 2^17 frames — half an hour at sixty — is a
+/// 128th of the interval, past 2^20 a sixteenth, and past 2^23 two values: the sweep over frames freezes
+/// into a few offsets. The step's float times 2^32 is a whole number, so the product wrapped in a word is
+/// the fraction of `frame * step` exactly, at any count.
 float turnedTile(float tiled, uint index, uint stream)
 {
     const uint turned = index * uint(STREAM_TURN[stream] * 4294967296.0);

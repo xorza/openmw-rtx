@@ -4,40 +4,35 @@
 
 // Each tile's run, filled in ascending sprite order.
 //
-// **From the tile's side, walking every sprite's rectangle, and that shape is the point.** A
-// scatter from the sprites' side — each sprite taking a slot in every tile it reaches by an atomic
-// — would be cheaper to write and would land the entries in whatever order the atomics resolved,
-// which is a composite order that changes from frame to frame and a fog evaluation per sprite
-// instead of per emitter's run: `spritesAlong` says why both matter. Sorting the runs afterwards
-// is what that would then cost. Walking the sprites in order from the tile's side gives the order
-// for nothing and needs no global atomic at all, and what it costs is tiles times sprites of an
-// eight-byte load and four compares.
+// **From the tile's side, walking every sprite's rectangle, and that shape is the point.** A scatter from
+// the sprites' side — each sprite taking a slot in every tile it reaches by an atomic — would be cheaper to
+// write and would land the entries in whatever order the atomics resolved, which is a composite order that
+// changes from frame to frame and a fog evaluation per sprite instead of per emitter's run: `spritesAlong`
+// says why both matter. Sorting the runs afterwards is what that would then cost.
 //
-// **Thirty-two lanes to a tile, thirty-two sprites at a time.** The lanes of a tile test one
-// stride of sprites each — one coalesced load for the stride — and then have to agree on the
-// order of what matched: each lane that matched sets its bit in the tile's word of shared memory,
-// and after a barrier every lane reads the word, counts the bits below its own for its place in
-// the run, and the stride's count is how far the run moved. A subgroup ballot is the same thing
-// with a device requirement attached; the shared word costs an atomic per match and a barrier per
-// stride and asks nothing of the hardware.
+// **Thirty-two lanes to a tile, thirty-two sprites at a time.** The lanes of a tile test one stride of
+// sprites each — one coalesced load for the stride — and then have to agree on the order of what matched:
+// each lane that matched sets its bit in the tile's word of shared memory, and after a barrier every lane
+// reads the word, counts the bits below its own for its place in the run, and the stride's count is how far
+// the run moved. A subgroup ballot is the same thing with a device requirement attached; the shared word
+// costs an atomic per match and a barrier per stride and asks nothing of the hardware.
 //
-// **Three words a tile and one barrier a stride.** The word a stride reads after its barrier must
-// not be cleared until every lane has read it, and the word the next stride sets must be clear
-// before any lane sets it — two barriers a stride, or three words cycled: after the barrier of
-// stride `i` the word for stride `i + 2` is cleared, which every lane last read before the
-// barrier of stride `i - 1` and will next set only after the barrier of stride `i + 1`.
+// **Three words a tile and one barrier a stride.** The word a stride reads after its barrier must not be
+// cleared until every lane has read it, and the word the next stride sets must be clear before any lane
+// sets it — two barriers a stride, or three words cycled: after the barrier of stride `i` the word for
+// stride `i + 2` is cleared, which every lane last read before the barrier of stride `i - 1` and will next
+// set only after the barrier of stride `i + 1`.
 //
-// **A tile tests only while its run is filling, and the workgroup stops when none is.** A tile with
-// an empty run, or one already full, has nothing left to place, so its lanes load no rectangle; and
-// the strides end for the workgroup once each of its tiles is full, which most are long before the
-// last sprite. The count of tiles still filling is cycled three ways for the reason the matched word
-// is: each stride's count is complete at that stride's barrier, and read after it by every lane, so
-// the stop is uniform.
+// **A tile tests only while its run is filling, and the workgroup stops when none is.** A tile with an
+// empty run, or one already full, has nothing left to place, so its lanes load no rectangle; and the
+// strides end for the workgroup once each of its tiles is full, which most are long before the last sprite.
+// The count of tiles still filling is cycled three ways for the reason the matched word is: each stride's
+// count is complete at that stride's barrier, and read after it by every lane, so the stop is uniform.
 //
-// **Ascending sprite index within a tile, and that is load-bearing.** Sprites composite in the
-// order they are walked, and a sprite's index is contiguous per emitter, so ascending index keeps
-// an emitter's sprites consecutive — which is what lets the march evaluate the fog and walk the
-// lamps once for a run rather than once for a sprite.
+// **Ascending sprite index within a tile, and that is load-bearing.** Sprites composite in the order they
+// are walked, and a sprite's index is contiguous per emitter, so ascending index keeps an emitter's sprites
+// consecutive — which is what lets the march evaluate the fog and walk the lamps once for a run rather than
+// once for a sprite.
 
 #include "shared/spritebin.h"
 
@@ -133,10 +128,9 @@ void main()
 
         const uint word = matched[current][group];
 
-        // **Held inside the run's own end, which the count pass sized from the same rectangles.**
-        // The two agree by construction, so the bound is never met — and a pass that ever
-        // disagreed with its own count would overrun a neighbour's run rather than say so, which
-        // the compare is cheaper than.
+        // **Held inside the run's own end, which the count pass sized from the same rectangles.** The two
+        // agree by construction, so the bound is never met — and a pass that ever disagreed with its own
+        // count would overrun a neighbour's run rather than say so, which the compare is cheaper than.
         if (hit)
         {
             const uint at = slot + bitCount(word & below);

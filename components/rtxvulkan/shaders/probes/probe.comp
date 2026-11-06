@@ -2,23 +2,13 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-// One pattern of `vec3`s, read four ways, with every reading written out so the host can say which
-// of them is wrong rather than only that they disagree:
+// One pattern of `vec3`s, read four ways, with every reading written out so the host can say which of them
+// is wrong rather than only that they disagree:
 //
-//   1. through a storage-buffer descriptor, which is what the renderer does today;
-//   2. through a pointer the host handed over whole, as a push constant;
-//   3. through a pointer read out of a table and indexed by block, which is what a scene made of
-//      blocks would do — `Vec3Run(blockAddresses[id / BLOCK]).at[id % BLOCK]`;
-//   4. through a pointer read out of a uniform block, which is how the frame block carries where
-//      every table is.
-//
-// And beside them one pattern of rows the shape of `GpuLayer`, read through a reference that claims
-// sixteen-byte alignment, which is the one claim above four the renderer's tables make.
-//
-// **This is the question that stopped the geometry blocking.** Swapping the normal fetch from a
-// descriptor to a `buffer_reference` changed the picture and nothing else did, and with no way to
-// ask the device directly it had to be put to a whole traced frame and answered by elimination —
-// which cost a day and reached the wrong answer twice.
+// **This is the question that stopped the geometry blocking.** Swapping the normal fetch from a descriptor
+// to a `buffer_reference` changed the picture and nothing else did, and with no way to ask the device
+// directly it had to be put to a whole traced frame and answered by elimination — which cost a day and
+// reached the wrong answer twice.
 
 #include "shared/probe.h"
 #include "scene.h"

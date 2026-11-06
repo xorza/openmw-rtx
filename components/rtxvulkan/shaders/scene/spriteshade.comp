@@ -3,9 +3,6 @@
 #extension GL_GOOGLE_include_directive : require
 
 // How many layers of its own emitter stand between each sprite and a light.
-//
-// `spriteshade.h` says what this computes, why it is here rather than on the host, and why there is
-// no second implementation of it anywhere.
 
 #include "shared/tables.h"
 #include "scene.h"
@@ -25,9 +22,9 @@ const uint SPRITE_SHADE_WORKGROUP = SPRITE_SHADE_CELLS * SPRITE_SHADE_CELLS;
 
 /// How many cells the largest sprite of an emitter may span in radius.
 ///
-/// **What bounds the cost of a sprite.** A grid fine enough for a column's wisps would put a
-/// candle's one big puff over the whole of it; coarsening the grid to the largest sprite keeps a
-/// footprint to a few hundred cells whatever the emitter is.
+/// **What bounds the cost of a sprite.** A grid fine enough for a column's wisps would put a candle's one
+/// big puff over the whole of it; coarsening the grid to the largest sprite keeps a footprint to a few
+/// hundred cells whatever the emitter is.
 const float SPRITE_SHADE_LARGEST_IN_CELLS = 8.0;
 
 /// Which of `SPRITE_SHADE_LIGHTS` a workgroup has. The sun's own direction is carried, and the
@@ -55,24 +52,21 @@ shared float grid[SPRITE_SHADE_WORKGROUP];
 /// The largest radius in the run, reduced through one entry a lane.
 shared float radii[SPRITE_SHADE_WORKGROUP];
 
-/// The next stretch of the sorted run, one sprite a lane: its disc on the grid — the centre, the
-/// radius in cells and the alpha — and its index in the emitter, where its layers are written.
+/// The next stretch of the sorted run, one sprite a lane: its disc on the grid — the centre, the radius in
+/// cells and the alpha — and its index in the emitter, where its layers are written.
 ///
-/// **Staged by every lane at once, so the serial walk reads nothing but shared memory.** Read where
-/// it is walked, each step was a load of the key and a load of the sprite it names, the second
-/// waiting on the first, with the whole workgroup held at the barriers behind them. The discs are
-/// the expressions the walk computed.
+/// **Staged by every lane at once, so the serial walk reads nothing but shared memory.** Read where it is
+/// walked, each step was a load of the key and a load of the sprite it names, the second waiting on the
+/// first, with the whole workgroup held at the barriers behind them. The discs are the expressions the walk
+/// computed.
 ///
-/// **Two barriers a step stay.** A second copy of the grid, read by turns, takes one away, but the
-/// lane that reads has then to lay the disc before at the four cells it reads: under snow the zone's
-/// median went from 0.64 to 0.81 ms, the serial read longer than the barrier it saved.
+/// **Two barriers a step stay.** A second copy of the grid, read by turns, takes one away, but the lane
+/// that reads has then to lay the disc before at the four cells it reads: under snow the zone's median went
+/// from 0.64 to 0.81 ms, the serial read longer than the barrier it saved.
 shared vec4 discs[SPRITE_SHADE_WORKGROUP];
 shared uint indices[SPRITE_SHADE_WORKGROUP];
 
 /// Whether this emitter is shaded at all.
-///
-/// A flame emits and shadows nothing of its own kind, a streak is a thin thing seen by what passes
-/// through it, and one sprite has nothing in front of it.
 bool spriteShadeWants(GpuEmitter emitter)
 {
     return (emitter.mFlags & EMITTER_ADDITIVE) == 0u && emitter.mWidth <= 0.0 && emitter.mCount >= 2u;
@@ -80,15 +74,15 @@ bool spriteShadeWants(GpuEmitter emitter)
 
 /// A float's bits, reordered so that unsigned comparison is the float's own descending order.
 ///
-/// **Descending, because the run is walked from the light outward.** The usual ascending map flips
-/// the sign bit of a positive and inverts a negative outright; this is that inverted, so the
-/// nearest the light sorts first.
+/// **Descending, because the run is walked from the light outward.** The usual ascending map flips the sign
+/// bit of a positive and inverts a negative outright; this is that inverted, so the nearest the light sorts
+/// first.
 ///
-/// **And a negative zero is written as a positive one first.** The two zeroes are one depth, so
-/// what has to separate two sprites at that depth is the index in the key's low half; a bit pattern
-/// kept as it was would order them apart by a sign nobody set. It is a sprite standing exactly on
-/// the emitter's centre along the light, so it decides nothing but which of two coincident discs is
-/// read first — and that still has to be the same answer every run.
+/// **And a negative zero is written as a positive one first.** The two zeroes are one depth, so what has to
+/// separate two sprites at that depth is the index in the key's low half; a bit pattern kept as it was
+/// would order them apart by a sign nobody set. It is a sprite standing exactly on the emitter's centre
+/// along the light, so it decides nothing but which of two coincident discs is read first — and that still
+/// has to be the same answer every run.
 uint sortableDepth(float depth)
 {
     const uint bits = floatBitsToUint(depth == 0.0 ? 0.0 : depth);
@@ -102,10 +96,6 @@ uint clampCell(float at)
 }
 
 /// Rounds halfway away from zero, spelled so that every driver rounds it the same way.
-///
-/// GLSL's own `round` leaves the halfway case to the implementation and `roundEven` takes the other
-/// branch of it, so a disc sitting exactly half a cell from a boundary would land in one cell on
-/// one driver and the next on another — and a picture would differ by a card.
 float roundHalfAway(float at)
 {
     return floor(at + 0.5);
@@ -136,13 +126,10 @@ float readAt(float x, float y)
 
 /// What one cell takes of a disc of `radius` about `x`, `y`, `weight` deep.
 ///
-/// **One expression, where a serial loop wants three.** A loop walks a row at a time — a ramp, the
-/// run the disc covers whole, and a ramp again — so that the run costs no arithmetic per cell. Per
-/// cell there is nothing to save: the clamp is already one inside the core and already nought
-/// outside the rim, which is what such a split works out.
-///
-/// The tiny disc is a different rule and stays one: too small to reach a cell's centre, its whole
-/// area lands on the cell it is in.
+/// **One expression, where a serial loop wants three.** A loop walks a row at a time — a ramp, the run the
+/// disc covers whole, and a ramp again — so that the run costs no arithmetic per cell. Per cell there is
+/// nothing to save: the clamp is already one inside the core and already nought outside the rim, which is
+/// what such a split works out.
 float coverage(uint cx, uint cy, float x, float y, float radius, float weight)
 {
     if (radius < 0.5)
@@ -159,20 +146,16 @@ float coverage(uint cx, uint cy, float x, float y, float radius, float weight)
 
 /// Sorts `count` entries of `run` from `first` ascending, which is the run from the light outward.
 ///
-/// **Batcher's odd-even merge and not a bitonic sort, because a run is any length.** A bitonic
-/// network is defined on a power of two and its comparators run both ways, so a shorter run has to
-/// be padded with keys that sort to the end — which needs room past the run, which is a cap, which
-/// needs something else to shade what is past the cap. This network is the power-of-two one with
-/// every comparator touching a wire past `count` removed, and that is exact here because every
-/// comparator runs the same way: a missing wire is the largest key there is, and the smaller of a
-/// key and the largest key is the key, so the comparator would have moved nothing.
+/// **Batcher's odd-even merge and not a bitonic sort, because a run is any length.** A bitonic network is
+/// defined on a power of two and its comparators run both ways, so a shorter run has to be padded with keys
+/// that sort to the end — which needs room past the run, which is a cap, which needs something else to
+/// shade what is past the cap. This network is the power-of-two one with every comparator touching a wire
+/// past `count` removed, and that is exact here because every comparator runs the same way: a missing wire
+/// is the largest key there is, and the smaller of a key and the largest key is the key, so the comparator
+/// would have moved nothing.
 ///
-/// **A fixed network, so two runs of one frame come out in one order.** Which comparators run is a
-/// function of `count` alone and never of what is in the keys.
-///
-/// The enumeration is the textbook one with `i` and `j` folded into the single index `l` a lane
-/// takes: `j` steps by `2k` from `k mod p` and `i` covers `k` from it, so `l mod 2k` lands in
-/// `[k mod p, k mod p + k)`, and the pairs of one stage are disjoint.
+/// **A fixed network, so two runs of one frame come out in one order.** Which comparators run is a function
+/// of `count` alone and never of what is in the keys.
 void sortRun(Order run, uint first, uint count)
 {
     const uint lane = gl_LocalInvocationID.x;
@@ -202,10 +185,7 @@ void sortRun(Order run, uint first, uint count)
                 }
             }
 
-            // **`barrier` alone would not order these**, and the keys are in a buffer. It is an
-            // execution barrier whose memory semantics name workgroup storage and nothing else.
-            // `groupMemoryBarrier` orders the buffer's writes, and `Order` being coherent is what
-            // makes them visible to the other lanes.
+            // **`barrier` alone would not order these**, and the keys are in a buffer.
             groupMemoryBarrier();
             barrier();
         }

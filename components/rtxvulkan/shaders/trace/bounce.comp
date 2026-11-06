@@ -4,18 +4,17 @@
 #extension GL_EXT_shader_image_load_formatted : require
 #extension GL_KHR_shader_subgroup_ballot : require
 
-// A bounce of every pixel's solid, one of the frame's bounce rays (`StageConstants`), a stage of its
-// own after the trace (`visibility.comp`):
-// the solid the trace found resolved again, its bounce drawn and traced, and what the bounce
-// brought back written where its ray met nothing; where it met a surface, the pixel listed for the
-// landing's stage (`landing.comp`), which visits it and writes what the bounce brought back.
+// A bounce of every pixel's solid, one of the frame's bounce rays (`StageConstants`), a stage of its own
+// after the trace (`visibility.comp`): the solid the trace found resolved again, its bounce drawn and
+// traced, and what the bounce brought back written where its ray met nothing; where it met a surface, the
+// pixel listed for the landing's stage (`landing.comp`), which visits it and writes what the bounce brought
+// back.
 //
-// **A stage, because the one kernel spilled** (`docs/rtx/architecture.md`, "A stage a kernel, in
-// one fixed order"): it carried every walk's record at once. **And apart from its landing**, whose
-// visit kept this stage's records live through its loop (`BounceRun`).
+// **A stage, because the one kernel spilled** (`docs/rtx/architecture.md`, "A stage a kernel, in one fixed
+// order"): it carried every walk's record at once.
 //
-// **The trace's hit, resolved again with no traversal** (`storedSolidOf`): the surface the trace
-// shaded, to the bit.
+// **The trace's hit, resolved again with no traversal** (`storedSolidOf`): the surface the trace shaded, to
+// the bit.
 
 #include "shared/traceconstants.h"
 #include "camera.h"
@@ -39,13 +38,10 @@ layout(push_constant, scalar) uniform Push
     StageConstants stage;
 };
 
-/// Lists the workgroup's pixels whose bounce ray `ray` landed (`landed`) in that ray's
-/// landings, together, by one atomic a run, in the tile's order: a run of the list holds pixels of
-/// one tile as the tile laid them out, so a warp of the landing's stage visits surfaces near each
-/// other — and **apart by whether their gather runs** (`gathers`), so a warp whose lanes skip it does
-/// not wait out the lanes that gather. **By ballot, with no shared memory and no barrier**: the
-/// workgroup is one subgroup, its 32 lanes held to it (`SubgroupSize::ThirtyTwo`). Every lane of the
-/// workgroup calls it, landed or not.
+/// Lists the workgroup's pixels whose bounce ray `ray` landed (`landed`) in that ray's landings, together,
+/// by one atomic a run, in the tile's order: a run of the list holds pixels of one tile as the tile laid
+/// them out, so a warp of the landing's stage visits surfaces near each other — and **apart by whether
+/// their gather runs** (`gathers`), so a warp whose lanes skip it does not wait out the lanes that gather.
 void listLanded(bool landed, bool gathers, uvec2 pixel, uint ray)
 {
     const uvec4 gathering = subgroupBallot(landed && gathers);
@@ -69,8 +65,8 @@ void listLanded(bool landed, bool gathers, uvec2 pixel, uint ray)
             gathers, pixel, ray);
 }
 
-/// Bounces `pixel` off its solid as bounce ray `ray`, and answers whether the ray met a surface,
-/// which the landing's stage then visits.
+/// Bounces `pixel` off its solid as bounce ray `ray`, and answers whether the ray met a surface, which the
+/// landing's stage then visits.
 ///
 /// @param gathers whether the landing's gather runs: always for the lobe's bounce, which the landing
 ///        visits as seen, and where the sky lights nothing, and otherwise as the gather draws it
@@ -98,10 +94,9 @@ bool bouncePixel(uvec2 pixel, uint ray, out bool gathers)
         daylight = daylightReaching(surface.mPosition);
     }
 
-    // **A split pixel's lift blended with its split neighbours'** where no layer stands, which the
-    // layers' stage blends where one does (`shownSurfaceLift`): here, where every pixel's halves are
-    // written, and not in the layers' stage, whose registers its tiles paid for the blend alone. Once
-    // a frame, by its first ray: the lift is the surface's, which every ray shares.
+    // **A split pixel's lift blended with its split neighbours'** where no layer stands, which the layers'
+    // stage blends where one does (`shownSurfaceLift`): here, where every pixel's halves are written, and
+    // not in the layers' stage, whose registers its tiles paid for the blend alone.
     if (ray == 0u && !record.mLayered && splitIn(imageLoad(motion, channelAt(CHANNEL_MOTION, at, width, swap))))
         RTX_STORE_COUNTED(lift, channelAt(CHANNEL_LIFT, at, width, swap),
             vec4(shownSurfaceLift(at, width, swap, true), 1.0))
@@ -120,10 +115,9 @@ bool bouncePixel(uvec2 pixel, uint ray, out bool gathers)
 
     if (bounce.mBounceTraced)
     {
-        // **What the ray met, stored for the landing** (`storeLandingHit`), which nothing reads after
-        // this stage but the landing's: the landing then resolves it as this walk would have
-        // (`storedLandingOf`). Beside the solid where the frame's next ray leaves the solid again, and
-        // in its place on the last.
+        // **What the ray met, stored for the landing** (`storeLandingHit`), which nothing reads after this
+        // stage but the landing's: the landing then resolves it as this walk would have
+        // (`storedLandingOf`).
         const SceneAnswer met = answered.mMet;
         if (met.mCommitted != 0u)
         {

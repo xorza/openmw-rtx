@@ -1,11 +1,8 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_TEXTURING_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_TEXTURING_GLSL
 
-// Reading a texture at the level the ray's cone can resolve, and taking the painted-in
-// lighting back out of it.
-//
-// Shared by everything that samples — a committed hit's colour, a candidate hit's cutout
-// mask, and each layer of a piece of ground — which is what keeps them reading one level.
+// Reading a texture at the level the ray's cone can resolve, and taking the painted-in lighting back out of
+// it.
 
 #include "look.h"
 #include "scene.h"
@@ -17,14 +14,13 @@
 
 /// What the hit's own triangle contributes to a mip level, before any texture is named.
 ///
-/// **One statement of the half of `coneBase` that every point on a hit's triangle shares.** A
-/// terrain chunk builds four or five points there, one a layer; each needs the same square root,
-/// the same divide by it and the same dot against the ray. The triangle and the ray are one pair
-/// per hit, so this is worked out once and handed over.
+/// **One statement of the half of `coneBase` that every point on a hit's triangle shares.** A terrain chunk
+/// builds four or five points there, one a layer; each needs the same square root, the same divide by it
+/// and the same dot against the ray. The triangle and the ray are one pair per hit, so this is worked out
+/// once and handed over.
 ///
-/// **It measures at no time either way**, because `glslc` inlines these and removes some of the
-/// repeat itself. A fact every point on the triangle needs is stated once regardless, and stating
-/// it does not depend on the optimizer going on making that choice.
+/// **It measures at no time either way**, because `glslc` inlines these and removes some of the repeat
+/// itself.
 struct SurfaceCone
 {
     /// Twice the triangle's area in the world. Nought for a degenerate one, which reads level zero.
@@ -40,14 +36,14 @@ struct SurfaceCone
     vec3 mToSecond;
     vec3 mToThird;
 
-    /// The ellipse a cone one unit wide makes on the surface: its short axis across the ray, one unit
-    /// long, and its long axis along the ray's shadow on the plane, `1 / mFacing` long.
+    /// The ellipse a cone one unit wide makes on the surface: its short axis across the ray, one unit long,
+    /// and its long axis along the ray's shadow on the plane, `1 / mFacing` long.
     ///
-    /// **What `mFacing` folds into one level, kept apart.** An isotropic read has to take the long
-    /// axis for both, so a surface seen at a grazing angle — most of the ground in most exterior
-    /// frames — is blurred across the ray by the stretch along it. A read along both axes keeps the
-    /// short one sharp (Akenine-Möller et al., *Improved Shader and Texture Level of Detail Using Ray
-    /// Cones*, JCGT 10(1) 2021).
+    /// **What `mFacing` folds into one level, kept apart.** An isotropic read has to take the long axis for
+    /// both, so a surface seen at a grazing angle — most of the ground in most exterior frames — is blurred
+    /// across the ray by the stretch along it. A read along both axes keeps the short one sharp
+    /// (Akenine-Möller et al., *Improved Shader and Texture Level of Detail Using Ray Cones*, JCGT 10(1)
+    /// 2021).
     vec3 mAcross;
     vec3 mAlong;
 };
@@ -75,17 +71,11 @@ SurfaceCone surfaceConeAt(TriangleEdges edges, vec3 direction)
         cross(normal, along), along / facing);
 }
 
-/// The variance of the shading normal's slopes over the ellipse a cone `footprint` wide makes on
-/// the surface, both axes together, which is what `widenedRoughness` takes.
+/// The variance of the shading normal's slopes over the ellipse a cone `footprint` wide makes on the
+/// surface, both axes together, which is what `widenedRoughness` takes.
 ///
-/// **Exact for the normal a hit shades with**, which is `m / |m|` for `m` the corner normals
-/// interpolated by the corner weights. Across the triangle `m` moves with the weights, so its rate
-/// along a step `d` over the surface is `s₂ (∂w₂·d) + s₃ (∂w₃·d)`: the difference at each of the
-/// second and third corner times how fast that corner's weight changes. The unit normal's rate is
-/// that with the part along the normal taken out, over `|m|`. A point spread evenly over an ellipse
-/// whose axes are `a` and `b` long has a second moment of `(aaᵀ + bbᵀ) / 16`, so the variance is
-/// `w² / 16` times the squared rate along the two axes `SurfaceCone` gives for a cone one unit wide,
-/// the long one `1 / facing` of the short.
+/// **Exact for the normal a hit shades with**, which is `m / |m|` for `m` the corner normals interpolated
+/// by the corner weights.
 ///
 /// @param secondTurn,thirdTurn,interpolated `Hit::mSecondTurn`, `mThirdTurn` and `mShading`: the
 ///        differences and `m`, in world space and not unit. Nought where the mesh has no normals,
@@ -106,19 +96,18 @@ float slopesUnder(SurfaceCone cone, vec3 secondTurn, vec3 thirdTurn, vec3 interp
 
 /// A base at or below which every texture reads its finest level, whatever its own resolution adds.
 ///
-/// **Both a sentinel and a threshold, and nothing has to know which a given point is.** A ray with
-/// no cone is given this so that `coneLod` loads no texel count for it, and a base that reaches
-/// it honestly would clamp to the finest level anyway — the largest `0.5 * log2(w * h)` a
-/// `maxImageDimension2D` of 16384 allows is 14.
+/// **Both a sentinel and a threshold, and nothing has to know which a given point is.** A ray with no cone
+/// is given this so that `coneLod` loads no texel count for it, and a base that reaches it honestly would
+/// clamp to the finest level anyway — the largest `0.5 * log2(w * h)` a `maxImageDimension2D` of 16384
+/// allows is 14.
 const float TEXTURE_FINEST_BASE = -64.0;
 
-/// Every term of the level but the texture's own resolution: the texture-to-world area ratio of
-/// the triangle, the cone's width where it landed, and the angle the surface presents.
+/// Every term of the level but the texture's own resolution: the texture-to-world area ratio of the
+/// triangle, the cone's width where it landed, and the angle the surface presents.
 ///
-/// **The ratio and not the coordinates it was measured from**, because a mesh's own texture
-/// coordinates are not the only parameterisation a surface reads a sheet through: a sphere map is
-/// indexed by where the eye is, and `spherePoint` measures the same ratio for it. One statement of
-/// the level, two ways of reaching the area — written twice is how the two would come to disagree.
+/// **The ratio and not the coordinates it was measured from**, because a mesh's own texture coordinates are
+/// not the only parameterisation a surface reads a sheet through: a sphere map is indexed by where the eye
+/// is, and `spherePoint` measures the same ratio for it.
 ///
 /// @param uvArea twice the triangle's area in the texture's own coordinates, against `cone.mArea`,
 ///        which is twice its area in the world. Doubled on both sides, so the two cancel.
@@ -143,12 +132,11 @@ float coneBase(vec2 uv0, vec2 uv1, vec2 uv2, SurfaceCone cone, float coneWidth)
     return coneBaseOf(uvArea, cone, coneWidth);
 }
 
-/// Where on a texture a hit lands, and how coarse a level the ray's cone can still tell apart
-/// there.
+/// Where on a texture a hit lands, and how coarse a level the ray's cone can still tell apart there.
 ///
-/// **One statement of a hit's place on a sheet, for every read made of that sheet.** A surface reads
-/// its albedo, its opacity and its emissive map off one transform, so the three transformed corners
-/// are worked out once per transform and handed to every read.
+/// **One statement of a hit's place on a sheet, for every read made of that sheet.** A surface reads its
+/// albedo, its opacity and its emissive map off one transform, so the three transformed corners are worked
+/// out once per transform and handed to every read.
 struct TexturePoint
 {
     /// The hit, in the texture's own coordinates.
@@ -156,10 +144,10 @@ struct TexturePoint
 
     /// The level any texture on this sheet is read at, before its own resolution is added.
     ///
-    /// **The answer and not what it was made from.** The three transformed corners travelled to
-    /// every sampler beside the surface's own cone so that each could take the same determinant
-    /// again — eight floats through the call chain for one scalar that is the same for every map on
-    /// the triangle, and a surface reads three of them.
+    /// **The answer and not what it was made from.** The three transformed corners travelled to every
+    /// sampler beside the surface's own cone so that each could take the same determinant again — eight
+    /// floats through the call chain for one scalar that is the same for every map on the triangle, and a
+    /// surface reads three of them.
     float mBase;
 
     /// The footprint's two axes in the texture's own coordinates, for `textureGrad`, and whether the
@@ -206,10 +194,9 @@ TexturePoint texturePoint(vec2 uv[3], vec2 bary, vec4 transform, SurfaceCone con
         point.mAcross = (second * dot(cone.mAcross, cone.mToSecond) + third * dot(cone.mAcross, cone.mToThird)) * width;
         point.mAlong = (second * dot(cone.mAlong, cone.mToSecond) + third * dot(cone.mAlong, cone.mToThird)) * width;
 
-        // **What the filter averages is the long axis by the level it reads at**: up to
-        // `mAnisotropy` taps along the long axis, each as wide as the long axis over the taps or the
-        // short axis, whichever is wider. A box of the same area is the level its loss is read
-        // at, half a `log2` of the axes' ratio finer than the long axis where the taps cover it.
+        // **What the filter averages is the long axis by the level it reads at**: up to `mAnisotropy` taps
+        // along the long axis, each as wide as the long axis over the taps or the short axis, whichever is
+        // wider.
         const float major = max(length(point.mAcross), length(point.mAlong));
         const float minor = min(length(point.mAcross), length(point.mAlong));
         const float covered = max(minor, major / frame.mAnisotropy);
@@ -219,33 +206,27 @@ TexturePoint texturePoint(vec2 uv[3], vec2 bary, vec4 transform, SurfaceCone con
     return point;
 }
 
-/// Where a sphere-mapped sheet is read, and how coarse a level the ray's cone can tell apart
-/// there. `objects.vert`'s own coordinates: the eye-space view vector reflected about the eye-space
-/// normal, folded onto the sheet, in whichever basis the caller shades in.
+/// Where a sphere-mapped sheet is read, and how coarse a level the ray's cone can tell apart there.
 ///
-/// **The sheet is parameterised by the reflection, so its footprint is the normal's and not the
-/// mesh's.** The two share nothing but the ray, so a `TexturePoint` built for the mesh's own
-/// coordinates is wrong in either direction and by any amount: it blurs a flat blade, whose sheet
-/// coordinate does not move at all, and it aliases the streaks on a curve that sweeps them.
+/// **The sheet is parameterised by the reflection, so its footprint is the normal's and not the mesh's.**
+/// The two share nothing but the ray, so a `TexturePoint` built for the mesh's own coordinates is wrong in
+/// either direction and by any amount: it blurs a flat blade, whose sheet coordinate does not move at all,
+/// and it aliases the streaks on a curve that sweeps them.
 ///
 /// **The ratio is closed form and not an estimate.** The sphere map `r.xy / (2 sqrt(2 + 2 r.z))` is
-/// Lambert's azimuthal equal-area projection over four, so it carries solid angle to sheet area at
-/// exactly one sixteenth, everywhere. Reflecting about a normal carries solid angle by `4 cos`, for
-/// the angle between the ray and that normal — the shading normal the sheet is reflected about,
-/// and not the plane's `SurfaceCone::mFacing`, which is how wide the ray's own footprint lies and
-/// a different question. So the sheet area the triangle covers is `cos / 4` of the solid angle its
-/// vertex normals span, and that span is the flat triangle their tips make.
+/// Lambert's azimuthal equal-area projection over four, so it carries solid angle to sheet area at exactly
+/// one sixteenth, everywhere. Reflecting about a normal carries solid angle by `4 cos`, for the angle
+/// between the ray and that normal — the shading normal the sheet is reflected about, and not the plane's
+/// `SurfaceCone::mFacing`, which is how wide the ray's own footprint lies and a different question.
 ///
-/// **Solid angle is rotation invariant, so the normals never leave the mesh's own space.** Bringing
-/// them across would want the object-to-world matrix, and `Hit` refuses to carry one: twelve floats
-/// on every ray in the frame, for a sheet nearly no material has. A placement scaled unevenly would
-/// move the span, which is the assumption the whole tree already makes of a normal — `Hit::mShading`
-/// comes through the same matrix rather than its inverse transpose.
+/// **Solid angle is rotation invariant, so the normals never leave the mesh's own space.** Bringing them
+/// across would want the object-to-world matrix, and `Hit` refuses to carry one: twelve floats on every ray
+/// in the frame, for a sheet nearly no material has. A placement scaled unevenly would move the span, which
+/// is the assumption the whole tree already makes of a normal — `Hit::mShading` comes through the same
+/// matrix rather than its inverse transpose.
 ///
-/// **What this leaves out is the ray's own turn across the triangle**, which moves the reflection
-/// as much as the normal does. At 1080p and sixty degrees a pixel spans about a milliradian, so it
-/// moves the sheet coordinate by 0.00025 — eight thousandths of a texel on a sheet 32 across, where
-/// the normal's term is the whole of what a curve does.
+/// **What this leaves out is the ray's own turn across the triangle**, which moves the reflection as much
+/// as the normal does.
 ///
 /// @param normal the triangle's three vertex normals, as `triangleNormals` hands them: the mesh's
 ///        own space, and not yet unit.
@@ -257,10 +238,8 @@ TexturePoint spherePoint(vec3 normal[3], vec3 shading, vec3 direction, SurfaceCo
     const float m = 2.0 * sqrt(r.x * r.x + r.y * r.y + (r.z + 1.0) * (r.z + 1.0));
     const vec2 at = r.xy / m + 0.5;
 
-    // **Unit, because what the three tips span is a solid angle on the sphere** and a stored normal
-    // is not one. A mesh that carries none holds zeros, which will not normalise: it shades from
-    // its plane instead, whose normal stands still across the triangle, so the span is nought — and
-    // the finest level is what a sheet coordinate that does not move across a triangle wants.
+    // **Unit, because what the three tips span is a solid angle on the sphere** and a stored normal is not
+    // one.
     const float shortest
         = min(min(dot(normal[0], normal[0]), dot(normal[1], normal[1])), dot(normal[2], normal[2]));
     if (!(shortest > 1e-8))
@@ -279,18 +258,14 @@ TexturePoint spherePoint(vec3 normal[3], vec3 shading, vec3 direction, SurfaceCo
 
 /// Which mip one texture on that sheet should be read from.
 ///
-/// Akenine-Moller's ray-cone formulation, split where JCGT 10(1) 2021 section 6 splits it: one term
-/// in the texture's own resolution and one term in nothing else. A compute shader has no
-/// derivatives, so this is the only thing standing between every fetch and level zero.
+/// **The texture's own term is a load and not a header read.** `textureSize` asked the driver for the
+/// slot's extent on every sample; the texel count is one word per slot for the life of the slot, and the
+/// array's owner writes it beside the descriptor — `GpuTables::mTextureTexels`. The logarithm stays here,
+/// over the same integer, so no level moves.
 ///
-/// **The texture's own term is a load and not a header read.** `textureSize` asked the driver
-/// for the slot's extent on every sample; the texel count is one word per slot for the life of the
-/// slot, and the array's owner writes it beside the descriptor — `GpuTables::mTextureTexels`. The
-/// logarithm stays here, over the same integer, so no level moves.
-///
-/// **The early answer is a read and not an arithmetic saving.** `passageAsk` says why a shadow
-/// ray takes level zero, and what it saves is the load this makes; on a shadow ray the width is a
-/// literal nought and the test folds.
+/// **The early answer is a read and not an arithmetic saving.** `passageAsk` says why a shadow ray takes
+/// level zero, and what it saves is the load this makes; on a shadow ray the width is a literal nought and
+/// the test folds.
 float coneLod(uint slot, TexturePoint point)
 {
     if (point.mBase <= TEXTURE_FINEST_BASE)
@@ -299,22 +274,17 @@ float coneLod(uint slot, TexturePoint point)
     return point.mBase + 0.5 * log2(float(textureTexelsAt(slot)));
 }
 
-/// How far a normal map's `height` shifts a texture point toward the eye, `eye` being the unit
-/// direction to the eye in the map's tangent frame: `PARALLAX_SCALE`'s shift, the rasterizer's own.
+/// How far a normal map's `height` shifts a texture point toward the eye, `eye` being the unit direction to
+/// the eye in the map's tangent frame: `PARALLAX_SCALE`'s shift, the rasterizer's own.
 ///
-/// **With offset limiting, as the rasterizer's form has it**: linear in the eye's lean, where
-/// dividing by the eye's height would slide a texture off a surface met at grazing.
+/// **With offset limiting, as the rasterizer's form has it**: linear in the eye's lean, where dividing by
+/// the eye's height would slide a texture off a surface met at grazing.
 vec2 parallaxShift(vec3 eye, float height)
 {
     return eye.xy * (height * PARALLAX_SCALE + PARALLAX_BIAS);
 }
 
 /// The diffuse texel a hit landed on, read at the level its cone can resolve.
-///
-/// Shared by everything that asks: the colour of a committed hit, the mask of a candidate one, and
-/// each layer of a piece of ground. Sharing it is what keeps them reading the same level — a cutout
-/// resolved against a different mip than the surface it cuts would put the hole and the leaf in
-/// different places.
 vec4 sampleDiffuse(uint slot, TexturePoint point)
 {
     if (point.mAnisotropic)
@@ -340,11 +310,8 @@ vec3 sampleNormalMap(uint slot, TexturePoint point)
 }
 
 /// The slope variance a normal map's level has lost under the cone that reads it: its spread
-/// (`NormalSpreadPass`), at the level `sampleNormalMap`'s read resolves (`TexturePoint::mResolved`),
-/// which is what `widenedRoughness` takes. **A level down, because the spread begins at the map's
-/// second level**: its first averages nothing and loses nothing, so the chain stores none of it,
-/// and between the two the loss rises from nought as a filter between the two levels would carry
-/// it.
+/// (`NormalSpreadPass`), at the level `sampleNormalMap`'s read resolves (`TexturePoint::mResolved`), which
+/// is what `widenedRoughness` takes.
 float normalMapSlopes(uint slot, TexturePoint point)
 {
     const float level = point.mResolved <= TEXTURE_FINEST_BASE

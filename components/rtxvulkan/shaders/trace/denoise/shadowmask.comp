@@ -4,43 +4,20 @@
 #extension GL_EXT_shader_image_load_formatted : require
 
 // Derived from the FidelityFX SDK (v1.1.4), `ffx_denoiser_shadows_prepare.h`, whose notice follows.
-//
-// Copyright (C) 2024 Advanced Micro Devices, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
 
-// The rays' bits, packed two words to an 8×4 tile — the SDK's `PrepareShadowMask`, with which
-// pixels receive beside them (`shadow.h` says why).
+// The rays' bits, packed two words to an 8×4 tile — the SDK's `PrepareShadowMask`, with which pixels
+// receive beside them (`shadow.h` says why).
 //
-// **Once a pixel, so the classification reads words and not texels.** Its kernel and its three
-// filter levels reach a 24×24 square around each tile; read off `CHANNEL_SHADOWED` directly, that
-// was every texel nine times over, and the classification cost 0.24 ms at 1080p whether it filtered
-// anything or not.
+// **Once a pixel, so the classification reads words and not texels.** Its kernel and its three filter
+// levels reach a 24×24 square around each tile; read off `CHANNEL_SHADOWED` directly, that was every texel
+// nine times over, and the classification cost 0.24 ms at 1080p whether it filtered anything or not.
 //
-// **Shared words and an atomic OR, not the SDK's wave-wide OR**, which assumes a wave of 32 lanes
-// laid out as the tile: AMD's are 32 or 64 and Intel's 8 to 32. A pixel off the frame receives
-// nothing, so the classification does not read it as a shadow.
+// **Shared words and an atomic OR, not the SDK's wave-wide OR**, which assumes a wave of 32 lanes laid out
+// as the tile: AMD's are 32 or 64 and Intel's 8 to 32.
 //
-// **And the widest penumbra of the workgroup's bits, a half a workgroup**: the workgroup's two
-// words are one tile of the classification, which reads the nine around its own rather than the 576
-// penumbrae they stand for. A ray that got through has none unless its source
-// was drawn (`SHADOW_PENUMBRA_DRAWN`), and a tile where no bit has one stands at nought.
+// **And the widest penumbra of the workgroup's bits, a half a workgroup**: the workgroup's two words are
+// one tile of the classification, which reads the nine around its own rather than the 576 penumbrae they
+// stand for.
 
 #include "colour.h"
 #include "gbuffer.h"

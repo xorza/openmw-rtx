@@ -3,10 +3,6 @@
 #extension GL_GOOGLE_include_directive : require
 
 // How much of the sun's quad the eye can see, eased toward what this frame's rays found.
-//
-// One thread: the whole job is a division and a clamp, and it is apart from the curve so that the
-// curve's every workgroup reads one settled number rather than each easing it again. `glare.h`
-// says whose query this is.
 
 #include "shared/glare.h"
 #include "shared/sets.h"

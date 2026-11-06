@@ -1,21 +1,20 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_RECORDS_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_RECORDS_GLSL
 
-// The records that cross the frame and belong to no walk: what a surface is in the filter's and
-// the composite's terms.
+// The records that cross the frame and belong to no walk: what a surface is in the filter's and the
+// composite's terms.
 //
-// **Their own file because the answer and the reprojection read them and nothing else of the
-// walks that fill them.** Declared where they were filled, the reprojection pulled in the water for
-// one struct.
+// **Their own file because the answer and the reprojection read them and nothing else of the walks that
+// fill them.** Declared where they were filled, the reprojection pulled in the water for one struct.
 
 #include "gbuffer.h"
 
 /// What a shading model made of a surface, in the terms the filter and the composite read.
 ///
-/// **Reported by whatever shaded the pixel rather than guessed after it.** The composite puts the
-/// bounce back by the albedo, and the filter tells surfaces apart by the normal, so the two have to
-/// describe what this renderer actually did — and only the function that did it knows. The *flat
-/// quad's* normal for water is a description of a renderer nobody wrote.
+/// **Reported by whatever shaded the pixel rather than guessed after it.** The composite puts the bounce
+/// back by the albedo, and the filter tells surfaces apart by the normal, so the two have to describe what
+/// this renderer actually did — and only the function that did it knows. The *flat quad's* normal for water
+/// is a description of a renderer nobody wrote.
 struct SurfaceResponse
 {
     /// The normal the shading used, which for water is the wave's and not the plane's, as the

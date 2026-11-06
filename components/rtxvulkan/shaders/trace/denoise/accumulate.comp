@@ -3,25 +3,23 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// The wavelet's temporal half: this pixel's bounce, averaged with what the same surface gave on the
-// frames before it.
+// The wavelet's temporal half: this pixel's bounce, averaged with what the same surface gave on the frames
+// before it.
 //
-// **The cascade behind this exists to fill in where this was rejected.** That is the shape every
-// denoiser the field settled on has — SVGF, A-SVGF, ReLAX, ReBLUR — and the renderer had the second
-// half without the first: five spatial levels blurring a single sample, with no way to tell a bright
-// pixel from a wrong one. An average over frames is where the estimator's error actually falls, and
-// the variance it produces on the way is what finally lets the cascade stop at an edge in the
-// *light* rather than only at an edge in the geometry.
+// **The cascade behind this exists to fill in where this was rejected.** That is the shape every denoiser
+// the field settled on has — SVGF, A-SVGF, ReLAX, ReBLUR — and the renderer had the second half without the
+// first: five spatial levels blurring a single sample, with no way to tell a bright pixel from a wrong one.
+// An average over frames is where the estimator's error actually falls, and the variance it produces on the
+// way is what finally lets the cascade stop at an edge in the *light* rather than only at an edge in the
+// geometry.
 //
 // **The surface a history belongs to is the one the trace held for it**, the previous frame's
-// `CHANNEL_SURFACE`: what it has to answer is "does the history at that pixel belong to this
-// surface", and the normal and the distance the frame before traced there are that answer.
+// `CHANNEL_SURFACE`: what it has to answer is "does the history at that pixel belong to this surface", and
+// the normal and the distance the frame before traced there are that answer.
 //
-// **What an occluder uncovered takes the history beside it** (`occluderMotion`, Zeng et al. 2021's
-// dual motion vector, which ReSTIR PT Enhanced applies to its temporal reuse): a surface the
-// previous frame did not see is fetched along the motion of what hid it, held to its own plane. A
-// floor a bar uncovered kept a fifth of the noise it had without it, near the floor beside a bar
-// that stood still (`theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt`).
+// **What an occluder uncovered takes the history beside it** (`occluderMotion`, Zeng et al. 2021's dual
+// motion vector, which ReSTIR PT Enhanced applies to its temporal reuse): a surface the previous frame did
+// not see is fetched along the motion of what hid it, held to its own plane.
 
 #include "shared/accumulate.h"
 #include "shared/atrous.h"
@@ -52,10 +50,9 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_SURFACE, GBUFFER_SURFACE) unifo
 
 /// Last frame's mean in `rgb`.
 ///
-/// **Written by the cascade's first level and not by this pass**, which is SVGF's feedback: what a
-/// pixel carries forward is the filtered light rather than the single sample it blended, so the
-/// history it draws on is as quiet as the picture the frame showed. How many frames are in it is
-/// the fourth channel of `historyFill`.
+/// **Written by the cascade's first level and not by this pass**, which is SVGF's feedback: what a pixel
+/// carries forward is the filtered light rather than the single sample it blended, so the history it draws
+/// on is as quiet as the picture the frame showed.
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_COLOUR, ACCUMULATE_COLOUR)
     uniform readonly image2D historyColour;
 
@@ -70,32 +67,24 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_MOMENTS, ACCUMULATE_MOM
 
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_MOMENTS_OUT, ACCUMULATE_MOMENTS) uniform writeonly image2D momentsOut;
 
-/// This frame's bounce blended with the history in `rgb`, which is what the cascade reads. **Nought
-/// in `a`, where the clamp writes the deviation** the cascade weighs a tap by, out of the moments this
-/// writes beside it (`accumulateclamp.comp`): the variance over one sample is exactly nought, which a
-/// filter reads as "this pixel is certain", and only the square around a short history can say how
-/// noisy it is.
+/// This frame's bounce blended with the history in `rgb`, which is what the cascade reads.
 ///
-/// **The cascade's channel and not the trace's**, so `CHANNEL_INDIRECT` keeps what the trace put
-/// there for the whole of the frame. `AccumulatePass::record` says what that separation is worth.
+/// **The cascade's channel and not the trace's**, so `CHANNEL_INDIRECT` keeps what the trace put there for
+/// the whole of the frame.
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_BLENDED_OUT, ATROUS_CHANNEL) uniform writeonly image2D blendedOut;
 
-/// The share of the bounce that is the fill, `CHANNEL_FILL`, its last frame's mean, and the two
-/// blended in `rgb`, as the bounce's are; and in the mean's and the blend's `a`, how many frames
-/// each holds.
+/// The share of the bounce that is the fill, `CHANNEL_FILL`, its last frame's mean, and the two blended in
+/// `rgb`, as the bounce's are; and in the mean's and the blend's `a`, how many frames each holds.
 ///
-/// **Blended by the bounce's weights and the bounce's count**, so the fill's mean stays the share of
-/// the bounce's mean that its samples were of theirs: what the composite takes off the one and puts
-/// back by the ambient albedo is the same light.
+/// **Blended by the bounce's weights and the bounce's count**, so the fill's mean stays the share of the
+/// bounce's mean that its samples were of theirs: what the composite takes off the one and puts back by the
+/// ambient albedo is the same light.
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_FILL) uniform readonly image2D fill;
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_FILL, ACCUMULATE_COLOUR) uniform readonly image2D historyFill;
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_FILL_BLENDED_OUT, ATROUS_CHANNEL) uniform writeonly image2D fillBlendedOut;
 
-/// The fast means of the bounce and the fill (`ACCUMULATE_FAST`), last frame's and this frame's blend
-/// of them: the same samples over at most `ACCUMULATE_FAST_FRAMES`, by the same taps and count. **The
-/// accumulator's own and not the cascade's**, since what they are for is to follow the light quickly,
-/// not quietly. The blend is an image of its own, and the clamp writes this frame's fast means from
-/// it: it reads a neighbour's blend while it writes its own pixel's mean.
+/// The fast means of the bounce and the fill (`ACCUMULATE_FAST`), last frame's and this frame's blend of
+/// them: the same samples over at most `ACCUMULATE_FAST_FRAMES`, by the same taps and count.
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_FAST, ACCUMULATE_FAST) uniform readonly uimage2D historyFast;
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_FAST_OUT, ACCUMULATE_FAST) uniform writeonly uimage2D fastOut;
 
@@ -157,17 +146,13 @@ vec3 nearerAt(ivec2 tap, float away, float tolerance)
     return nearer ? vec3(imageLoad(motion, stored).xy, 1.0) : vec3(0.0);
 }
 
-/// The motion of the occluder that hid this pixel's surface last frame, in `xy`, and in `z` one
-/// where one was found and nought where none was: Zeng et al. 2021's dual motion vector.
+/// The motion of the occluder that hid this pixel's surface last frame, in `xy`, and in `z` one where one
+/// was found and nought where none was: Zeng et al. 2021's dual motion vector.
 ///
-/// **The occluder's own motion vector is the dual one.** The pixel's motion sends it to `y`, where
-/// the occluder stood; the occluder stands at `z` now, with `z + m(z) = y`; and the history Zeng et
-/// al. fetch, `y + (at - z)`, is `at + m(z)`. So no second trace finds it: a pixel of this frame
-/// nearer the eye than this one whose motion lands on `y` is the occluder, and its motion is the
-/// answer. **Found in two steps, as Zeng et al. find `z`**: any surface nearer the eye on rings
-/// out to `ACCUMULATE_DUAL_REACH` carries the occluder's motion, the one landing nearest `y` taken;
-/// `z = y - m` is then where that occluder now stands, and its own motion there must land on `y`
-/// within `ACCUMULATE_DUAL_MISS`, or what was found is not what hid the pixel.
+/// **The occluder's own motion vector is the dual one.** The pixel's motion sends it to `y`, where the
+/// occluder stood; the occluder stands at `z` now, with `z + m(z) = y`; and the history Zeng et al. fetch,
+/// `y + (at - z)`, is `at + m(z)`. So no second trace finds it: a pixel of this frame nearer the eye than
+/// this one whose motion lands on `y` is the occluder, and its motion is the answer.
 vec3 occluderMotion(ivec2 at, vec3 moved, float away, float tolerance)
 {
     const vec2 landed = vec2(at) + moved.xy;
@@ -214,10 +199,10 @@ void main()
     uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_BOUNCE_ROUNDING, frame.mHistory.mFrame);
     if (dot(normal, normal) <= 0.0)
     {
-        // **The sky writes its sample on too, and it has to.** The cascade copies a pixel with no
-        // surface straight through, so one this never wrote would arrive there as whatever the
-        // allocation held — and the composite multiplies it by an albedo of nought, which turns a
-        // stray infinity into a NaN rather than into nothing.
+        // **The sky writes its sample on too, and it has to.** The cascade copies a pixel with no surface
+        // straight through, so one this never wrote would arrive there as whatever the allocation held —
+        // and the composite multiplies it by an albedo of nought, which turns a stray infinity into a NaN
+        // rather than into nothing.
         vec4 skyBounce = vec4(sampled, 0.0);
         vec4 skyFill = vec4(sampledFill, 0.0);
         roundedToHalves(skyBounce, skyFill, rounding);
@@ -230,10 +215,10 @@ void main()
         return;
     }
 
-    // **Bilinear over the four it landed between, each taken only if it is this surface.** A nearest
-    // tap is a history that steps a whole pixel at a time, which under any camera motion is a crawl
-    // along every edge; weighting the four and dropping the ones that are a different surface is
-    // what keeps it smooth without dragging the wall behind into the floor in front.
+    // **Bilinear over the four it landed between, each taken only if it is this surface.** A nearest tap is
+    // a history that steps a whole pixel at a time, which under any camera motion is a crawl along every
+    // edge; weighting the four and dropping the ones that are a different surface is what keeps it smooth
+    // without dragging the wall behind into the floor in front.
     const vec4 motionHere = imageLoad(motion, stored);
     const vec3 moved = motionHere.xyz;
     const HistoryFootprint before = historyFootprint(at, moved);
@@ -250,12 +235,8 @@ void main()
         gatherHistory(held, before, shares, fields);
         matched = historyMatchOf(shares);
 
-        // **Where the surface was hidden and not off the screen**, the history along the occluder's
-        // motion (`occluderMotion`). A branch, which only the pixels an occluder uncovered take:
-        // measured on the interiors, the accumulator's 0.28 ms became 0.29. **Held to the pixel's
-        // own plane, as the pixel's own texels are**: a texel the occluder's motion leads to is
-        // another point of the surface, as far off as the occluder moved, which a test on one point's
-        // distance refused on a floor five pixels on.
+        // **Where the surface was hidden and not off the screen**, the history along the occluder's motion
+        // (`occluderMotion`).
         const vec2 landed = vec2(at) + 0.5 + moved.xy;
         const vec3 previousForward = frame.mHistory.mPrevious.mForward;
         const bool hidden = frame.mDualMotion != 0u && dot(previousForward, previousForward) > 0.0
@@ -289,13 +270,13 @@ void main()
     vec3 blendedFast = sampled;
     vec3 blendedFastFill = sampledFill;
     vec2 blendedMoments = vec2(lit, 0.0);
-    // **Not `length`, which is GLSL's own**: a local of that name hides the builtin from everything
-    // below it, and the next edit that reaches for one gets a compile error with no explanation in it.
+    // **Not `length`, which is GLSL's own**: a local of that name hides the builtin from everything below
+    // it, and the next edit that reaches for one gets a compile error with no explanation in it.
     //
-    // **One with no history, because the mean it stores is this frame's sample.** Nought would read
-    // back as a history of nothing, and the next frame would blend at a weight of one and throw the
-    // sample away: every pixel a surface uncovers, and every pixel of a reset, would keep one sample
-    // for two frames and count one frame short ever after.
+    // **One with no history, because the mean it stores is this frame's sample.** Nought would read back as
+    // a history of nothing, and the next frame would blend at a weight of one and throw the sample away:
+    // every pixel a surface uncovers, and every pixel of a reset, would keep one sample for two frames and
+    // count one frame short ever after.
     float count = 1.0;
 
     if (weight > 0.0)
@@ -311,12 +292,11 @@ void main()
         count = min(frames + 1.0, ACCUMULATE_FRAMES);
         const float alpha = historyAlpha(frames);
 
-        // **No outlier clamp on the sample.** A bounce is often a rare bright event: one that finds
-        // a sunlit surface with probability `p` stands `sqrt((1 - p) / p)` deviations over the mean,
-        // so a ceiling of `k` deviations cuts every such sample where `p < 1 / (1 + k²)`, whatever
-        // `k` is — at four, 42% of the light of a two-per-cent event. Clamped at four, the still
-        // sail at Seyda Neen stood 2.2 levels darker than the truth and 2.6 times as noisy. An
-        // outlier is the wavelet's to spread, weighed by the variance it raises.
+        // **No outlier clamp on the sample.** A bounce is often a rare bright event: one that finds a
+        // sunlit surface with probability `p` stands `sqrt((1 - p) / p)` deviations over the mean, so a
+        // ceiling of `k` deviations cuts every such sample where `p < 1 / (1 + k²)`, whatever `k` is — at
+        // four, 42% of the light of a two-per-cent event. Clamped at four, the still sail at Seyda Neen
+        // stood 2.2 levels darker than the truth and 2.6 times as noisy.
         blended = mix(mean, sampled, alpha);
         blendedFill = mix(meanFill, sampledFill, alpha);
 

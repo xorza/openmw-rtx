@@ -3,10 +3,10 @@
 
 // The scene's textures, and nothing else.
 //
-// **Its own file because a second pass samples them.** The trace has this by way of everything else
-// it is handed; the display pass draws the sky's own points at the resolution they are shown at, and
-// needs the sheet and none of the rest of `bindings.glsl`. The set and its bindings are the
-// host's as well, so both sides read them from `sets.h` and `scene.h`.
+// **Its own file because a second pass samples them.** The trace has this by way of everything else it is
+// handed; the display pass draws the sky's own points at the resolution they are shown at, and needs the
+// sheet and none of the rest of `bindings.glsl`. The set and its bindings are the host's as well, so both
+// sides read them from `sets.h` and `scene.h`.
 
 // **The extension travels with the declaration**, because what needs it is the indexing rather than
 // the pass: a shader that includes this and forgets the line fails to compile, which is the failure
@@ -17,38 +17,33 @@
 #include "scene.h"
 #include "shared/sets.h"
 
-/// Every texture the scene loaded, indexed by the slot a material, a layer or an emitter names —
-/// and at `TEXTURE_NEUTRAL` the one texel a material with no diffuse names instead.
+/// Every texture the scene loaded, indexed by the slot a material, a layer or an emitter names — and at
+/// `TEXTURE_NEUTRAL` the one texel a material with no diffuse names instead.
 ///
-/// **A slot is qualified where it indexes and never where it is passed.** Neighbouring lanes hit
-/// different materials over most of a frame, so the descriptor read has to be a waterfall — and what
-/// tells the driver to emit one is a `NonUniform` decoration on the access chain itself.
-/// `nonuniformEXT` applied to a function *argument* decorates the argument and stops there: the
-/// chain built inside the callee comes out bare, and the driver may then read one lane's descriptor
-/// for the whole wave. That is a wrong texture on some lanes of some waves, which looks like nothing
-/// at all until it does; `spirv-val` passes either way and the validation layers say nothing.
+/// **A slot is qualified where it indexes and never where it is passed.** Neighbouring lanes hit different
+/// materials over most of a frame, so the descriptor read has to be a waterfall — and what tells the driver
+/// to emit one is a `NonUniform` decoration on the access chain itself. `nonuniformEXT` applied to a
+/// function *argument* decorates the argument and stops there: the chain built inside the callee comes out
+/// bare, and the driver may then read one lane's descriptor for the whole wave.
 layout(set = SET_TEXTURES, binding = TEXTURE_BIND_IMAGES) uniform sampler2D textures[];
 
-/// What was measured on each texture as it arrived (`Rtx::TextureCompanion`), at the slot of the
-/// texture it was measured on and through the same sampler, which wraps as the texture does: for a
-/// colour, the light painted into it, `SHADING_EXTENT` squared and stored over the range
-/// `SHADING_FLOOR` to `SHADING_CEILING`, which `paintedLight` decodes; for a normal map, what each
-/// of its levels lost, which `normalMapSlopes` reads. What a slot holds is the role its texture was
-/// taken for, so each reader asks the one it reads.
+/// What was measured on each texture as it arrived (`Rtx::TextureCompanion`), at the slot of the texture it
+/// was measured on and through the same sampler, which wraps as the texture does: for a colour, the light
+/// painted into it, `SHADING_EXTENT` squared and stored over the range `SHADING_FLOOR` to
+/// `SHADING_CEILING`, which `paintedLight` decodes; for a normal map, what each of its levels lost, which
+/// `normalMapSlopes` reads.
 ///
-/// **A binding of its own and not slots between the textures**, because `coneLod` measures the
-/// array it reads for the level a cone resolves, and a companion interleaved with the textures is
-/// one it would measure. A slot with a texture always has a companion, the neutral shading map
-/// where nothing is measured.
+/// **A binding of its own and not slots between the textures**, because `coneLod` measures the array it
+/// reads for the level a cone resolves, and a companion interleaved with the textures is one it would
+/// measure.
 layout(set = SET_TEXTURES, binding = TEXTURE_BIND_COMPANIONS) uniform sampler2D companions[];
 
-/// The same textures at the same slots, through samplers with anisotropic filtering on: what a read
-/// along a footprint (`textureGrad`) goes through, and nothing else.
+/// The same textures at the same slots, through samplers with anisotropic filtering on: what a read along a
+/// footprint (`textureGrad`) goes through, and nothing else.
 ///
-/// **A binding of its own and not anisotropy on `textures`**, because the device does not leave a
-/// read that names its level alone under such a sampler: an explicit level through one came back
-/// blended at a different fraction of a level than it asked for, and every read but the eye's names
-/// its level.
+/// **A binding of its own and not anisotropy on `textures`**, because the device does not leave a read that
+/// names its level alone under such a sampler: an explicit level through one came back blended at a
+/// different fraction of a level than it asked for, and every read but the eye's names its level.
 layout(set = SET_TEXTURES, binding = TEXTURE_BIND_ALONG) uniform sampler2D texturesAlong[];
 
 /// How many texels each slot holds, with `TEXTURE_STANDS_IN` over the count where the slot draws the

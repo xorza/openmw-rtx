@@ -6,30 +6,27 @@
 // The glossy filter: what the lobe reflects, `CHANNEL_SPECULAR`, averaged with what the same surface
 // reflected on the frames before, for as long as that is still the reflection the eye sees.
 //
-// **Over time and not across the screen.** A highlight is as wide as its lobe and no wider, so a
-// spatial filter that did not know the lobe would blur it; ReLAX's spatial passes know it, at a
-// cost the frame has not found a need for. What this leaves, the upscaler's own accumulation takes,
-// at every mode, native included.
+// **Over time and not across the screen.** A highlight is as wide as its lobe and no wider, so a spatial
+// filter that did not know the lobe would blur it; ReLAX's spatial passes know it, at a cost the frame has
+// not found a need for. What this leaves, the upscaler's own accumulation takes, at every mode, native
+// included.
 //
 // **How long the history is kept is ReLAX's rule for surface motion**
-// (`RELAX_TemporalAccumulation.cs.hlsl`, NRD 4.x): the history counts in proportion to how little
-// the direction the surface is seen from turned since, against the lobe's half angle, narrowed by
-// how squarely the eye meets the surface. A rough lobe keeps its reflection over a wide turn and a
-// mirror over none, since what a mirror shows moves with the eye.
+// (`RELAX_TemporalAccumulation.cs.hlsl`, NRD 4.x): the history counts in proportion to how little the
+// direction the surface is seen from turned since, against the lobe's half angle, narrowed by how squarely
+// the eye meets the surface.
 //
-// **What the port leaves out is ReLAX's second history**, the one reprojected along the reflected
-// ray to follow a sharp reflection by its own parallax. Without it a sharp lobe starts again every
-// frame the eye turns: a noisier sharp reflection in motion, and never a reflection dragged behind
-// the thing it reflects.
+// **What the port leaves out is ReLAX's second history**, the one reprojected along the reflected ray to
+// follow a sharp reflection by its own parallax.
 //
-// **And a sharp lobe keeps few frames whatever the view does** (`SPECULAR_RESPONSIVE_ROUGHNESS`):
-// ReBLUR's responsive accumulation, which is what bounds a mirror's lag behind a light that moves
-// before a still eye.
+// **And a sharp lobe keeps few frames whatever the view does** (`SPECULAR_RESPONSIVE_ROUGHNESS`): ReBLUR's
+// responsive accumulation, which is what bounds a mirror's lag behind a light that moves before a still
+// eye.
 //
-// **The accumulator's rules otherwise**: bilinear over the four texels the motion lands between,
-// each only if it is this surface by `heldSurfaceMatches`, against the frame before's surface
-// channel; `blendedMean` into a history of this pass's own; and beside it a fast mean of the same
-// samples over at most `ACCUMULATE_FAST_FRAMES`, which `historyclamp.comp` holds the slow one to.
+// **The accumulator's rules otherwise**: bilinear over the four texels the motion lands between, each only
+// if it is this surface by `heldSurfaceMatches`, against the frame before's surface channel; `blendedMean`
+// into a history of this pass's own; and beside it a fast mean of the same samples over at most
+// `ACCUMULATE_FAST_FRAMES`, which `historyclamp.comp` holds the slow one to.
 
 #include "shared/accumulate.h"
 #include "colour.h"
@@ -73,25 +70,23 @@ layout(push_constant, scalar) uniform Push
     HistoryConstants frame;
 };
 
-/// How far the direction a surface is seen from may turn, in radians, before the reflection its
-/// history holds is another one: the lobe's half angle times the cosine to the eye, ReLAX's
-/// `lobeHalfAngle * NoV`.
+/// How far the direction a surface is seen from may turn, in radians, before the reflection its history
+/// holds is another one: the lobe's half angle times the cosine to the eye, ReLAX's `lobeHalfAngle * NoV`.
 ///
-/// **Never under the angle one pixel subtends**, where ReLAX floors the lobe at what its normals'
-/// encoding resolves: a turn the frame cannot show is no turn, and a still eye rounds the two
-/// directions an ulp apart.
+/// **Never under the angle one pixel subtends**, where ReLAX floors the lobe at what its normals' encoding
+/// resolves: a turn the frame cannot show is no turn, and a still eye rounds the two directions an ulp
+/// apart.
 float turnAllowed(float roughness, float facing)
 {
     const float lobe = atan(roughness * roughness * SPECULAR_LOBE_VOLUME / (1.0 - SPECULAR_LOBE_VOLUME));
     return max(lobe * facing, frame.mEyes.mWorld.mSpreadAngle);
 }
 
-/// How much of the history is still the reflection the eye sees: ReLAX's
-/// `GetEncodingAwareNormalWeight(V, Vprev, allowed, 0, 0)`, one where the view did not turn and
-/// nought once it turned by `allowed`.
+/// How much of the history is still the reflection the eye sees: ReLAX's `GetEncodingAwareNormalWeight(V,
+/// Vprev, allowed, 0, 0)`, one where the view did not turn and nought once it turned by `allowed`.
 ///
-/// **The angle from the chord**, `2 asin(|a - b| / 2)`, which is exactly nought for two equal
-/// directions, where an arc cosine of their dot product is not.
+/// **The angle from the chord**, `2 asin(|a - b| / 2)`, which is exactly nought for two equal directions,
+/// where an arc cosine of their dot product is not.
 float reflectionKept(vec3 toEye, vec3 toEyeBefore, float allowed)
 {
     const float turned = 2.0 * asin(min(0.5 * length(toEye - toEyeBefore), 1.0));
@@ -129,11 +124,8 @@ void main()
 
     RunningMean blended = startedMean(sampled.rgb);
     vec3 blendedFast = sampled.rgb;
-    // A branch, where the tree selects, as the pane filter's over the same gather: the sky and the
-    // surfaces with no lobe skip the motion and the history's taps. Measured on the default suite
-    // under `openmw-pbr`, three alternated rounds against the test folded into the shares' `holds`:
-    // the temporal zone's median 0.326 ms became 0.316 on the ship and 0.321 became 0.312 at dawn,
-    // and the guild, with no sky, moved nothing.
+    // A branch, where the tree selects, as the pane filter's over the same gather: the sky and the surfaces
+    // with no lobe skip the motion and the history's taps.
     if (reflects && previous)
     {
         const vec4 motionHere = imageLoad(motion, stored);

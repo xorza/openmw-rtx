@@ -3,19 +3,17 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// The layers every pixel looks through, a stage of its own after the trace (`visibility.comp`): the
-// eye's rays peeled again, each layer lit as the end of a path and charged the medium in front of
-// it, and the stacks laid over what the trace left of the surface behind them.
+// The layers every pixel looks through, a stage of its own after the trace (`visibility.comp`): the eye's
+// rays peeled again, each layer lit as the end of a path and charged the medium in front of it, and the
+// stacks laid over what the trace left of the surface behind them.
 //
-// **A stage, because the one kernel spilled** (`docs/rtx/architecture.md`, "A stage a kernel, in
-// one fixed order"): the layers' visits and their stacks were records more beside every other
-// walk's.
+// **A stage, because the one kernel spilled** (`docs/rtx/architecture.md`, "A stage a kernel, in one fixed
+// order"): the layers' visits and their stacks were records more beside every other walk's.
 //
-// **The trace's rays again, and not its layers stored**: the peel walks the trace's own steps
-// (`Peel`), so it meets the layers the trace met, which the trace weighed by their opacity alone.
+// **The trace's rays again, and not its layers stored**: the peel walks the trace's own steps (`Peel`), so
+// it meets the layers the trace met, which the trace weighed by their opacity alone.
 //
-// **Over the tiles the trace listed alone** (`STAGE_LIST_PANES`): where a layer stands. Everywhere
-// else the trace stored what a pixel no layer stands in holds (`storePanes`).
+// **Over the tiles the trace listed alone** (`STAGE_LIST_PANES`): where a layer stands.
 
 #include "shared/traceconstants.h"
 #include "camera.h"
@@ -51,58 +49,48 @@ void main()
     if (!written.mLayered)
         return;
 
-    // **See-through arms are a picture of their own over the world's, and never a way into it.**
-    // The rasterizer blends a faded arm over what the world's own projection drew, so behind a
-    // Chameleon's hand is the world the eye sees beside it. Carried on along the arms' ray, the
-    // world behind the hand was drawn at the arms' field of view — a room seen through the arm
-    // stood larger than the same room around it, and its sky and its water had to be told which
-    // eye they were seen through.
+    // **See-through arms are a picture of their own over the world's, and never a way into it.** The
+    // rasterizer blends a faded arm over what the world's own projection drew, so behind a Chameleon's hand
+    // is the world the eye sees beside it. Carried on along the arms' ray, the world behind the hand was
+    // drawn at the arms' field of view — a room seen through the arm stood larger than the same room around
+    // it, and its sky and its water had to be told which eye they were seen through.
     //
-    // So the arms' stack is peeled on the arms alone, and composited as the world's is: each layer
-    // over the medium in front of it and behind what the layers nearer it left. Where the stack
-    // ends in an arm, that arm is the solid the pixel is drawn on, the same ray carried on; where
-    // it ends in nothing, the world's own ray is traced from the layer the arms' left off at.
-    //
-    // **The two pictures meet by the same identity the world's own stack uses**, with the world's
-    // whole path in place of the rest of the arms' ray — so where the arms let everything through,
-    // what is left is the world's picture exactly, and where they let nothing through it is
-    // theirs.
+    // **The two pictures meet by the same identity the world's own stack uses**, with the world's whole
+    // path in place of the rest of the arms' ray — so where the arms let everything through, what is left
+    // is the world's picture exactly, and where they let nothing through it is theirs.
     PaneStack armsStack = noPanes();
 
-    // **The surfaces the eye is looking through, peeled off nearest first and kept.** A pane of
-    // glass is one, and so is an actor the game is fading — Invisibility, Chameleon, or the distance
-    // fade at the edge of `actors processing range`. Each was met like any other surface and lit
-    // like any other, and the ray carries on from where it stood, so what is behind it is a real hit
-    // rather than whatever its mask happened to survive a cutoff.
+    // **The surfaces the eye is looking through, peeled off nearest first and kept.** A pane of glass is
+    // one, and so is an actor the game is fading — Invisibility, Chameleon, or the distance fade at the
+    // edge of `actors processing range`. Each was met like any other surface and lit like any other, and
+    // the ray carries on from where it stood, so what is behind it is a real hit rather than whatever its
+    // mask happened to survive a cutoff.
     //
-    // **A stack and not one layer, because a person is a stack.** A cuirass over a skirt over a leg
-    // is three surfaces, and peeling only the nearest showed one of them faded and the two under it
-    // at full strength — an actor under Chameleon wearing a solid body. `PEEL_LAYERS` is the budget
-    // and the layer a trace past it is for is how the shading there is told to draw a solid, so a
-    // deeper stack ends in the surface standing there rather than in a hole.
+    // **A stack and not one layer, because a person is a stack.** A cuirass over a skirt over a leg is
+    // three surfaces, and peeling only the nearest showed one of them faded and the two under it at full
+    // strength — an actor under Chameleon wearing a solid body. `PEEL_LAYERS` is the budget and the layer a
+    // trace past it is for is how the shading there is told to draw a solid, so a deeper stack ends in the
+    // surface standing there rather than in a hole.
     //
     // **The stack was counted rather than assumed** when the budget was set: Red Mountain holds 205
-    // translucent materials and its deepest ray crossed eight of them, and those are the medium's —
-    // a surface that is nowhere opaque never stops a ray at all and is gathered by `mediumAlong`
-    // instead, so what reaches here is glass and clothing.
+    // translucent materials and its deepest ray crossed eight of them, and those are the medium's — a
+    // surface that is nowhere opaque never stops a ray at all and is gathered by `mediumAlong` instead, so
+    // what reaches here is glass and clothing.
     //
-    // **The composite is the ordered one, back to front by construction.** Each layer keeps what
-    // every layer in front of it let through, which is one multiply a layer and no sorting: the ray
-    // meets them in depth order and cannot meet them in any other.
+    // **The composite is the ordered one, back to front by construction.** Each layer keeps what every
+    // layer in front of it let through, which is one multiply a layer and no sorting: the ray meets them in
+    // depth order and cannot meet them in any other.
     //
-    // **And each of them over the medium in front of *it*.** A layer is a lit surface standing part
-    // of the way along the path, so what it arrives at the eye as is its own radiance over the air
-    // and the water short of it — `ahead`. Charged the medium in front of the nearest layer
-    // instead, a glowing window three thousand units off behind a pane at one thousand read as
-    // though it stood at one thousand, and moving it along the path changed nothing at all: the same
-    // fault the split in `tracePixel` was written for, one layer deeper.
+    // **And each of them over the medium in front of *it*.** A layer is a lit surface standing part of the
+    // way along the path, so what it arrives at the eye as is its own radiance over the air and the water
+    // short of it — `ahead`. Charged the medium in front of the nearest layer instead, a glowing window
+    // three thousand units off behind a pane at one thousand read as though it stood at one thousand, and
+    // moving it along the path changed nothing at all: the same fault the split in `tracePixel` was written
+    // for, one layer deeper.
     //
-    // **The pixel's motion vector, its depth and the albedo the filter demodulates by all stay the
-    // surface behind them**, which is right while the stack is mostly see-through and wrong as it
-    // approaches opaque. **What was drawn for the layers is apart**: a layer is shaded at the end of a
-    // path, and one draw a frame composited over the frame speckled every window of a room. So it
-    // goes to `CHANNEL_PANE`, beside the nearest layer's own surface and motion, and the pane filter
-    // averages it over the frames that layer stood in.
+    // **The pixel's motion vector, its depth and the albedo the filter demodulates by all stay the surface
+    // behind them**, which is right while the stack is mostly see-through and wrong as it approaches
+    // opaque.
     PaneStack panes = noPanes();
 
     // The layer met first, whichever eye's stack it stands in: the peel's budget counts from it.
@@ -112,11 +100,10 @@ void main()
     // pane mask holds the nearest layer's against.
     vec3 endMotion = vec3(0.0);
 
-    // **One eye ray a turn of the peel, and each layer's light and medium in loops of their own**,
-    // as the trace peels in straight code (`tracePixel`): one loop over every walk kept the union of
-    // their records live through every turn, which this stage spilled (`docs/rtx/architecture.md`,
-    // "A stage's phases are loops of their own"). **Bounded**, every loop out of one count, so a
-    // walk that never ends is cut short and counted (`FrameCounts::mWalksCut`).
+    // **One eye ray a turn of the peel, and each layer's light and medium in loops of their own**, as the
+    // trace peels in straight code (`tracePixel`): one loop over every walk kept the union of their records
+    // live through every turn, which this stage spilled (`docs/rtx/architecture.md`, "A stage's phases are
+    // loops of their own").
     Peel peel = peelOf(pixel);
     bool cut = true;
     uint turns = 0u;
@@ -136,10 +123,8 @@ void main()
             break;
         }
 
-        // **The instance carries its material's kind as its shader-table offset**, which the query
-        // hands back (`SceneAnswer::mKind`). **Where the surface stood last frame, worked out where
-        // the rows already are**: the instance, its mesh and where on the triangle the ray landed are
-        // the hit's own, so nothing reads them again (`eyeRunOf`).
+        // **The instance carries its material's kind as its shader-table offset**, which the query hands
+        // back (`SceneAnswer::mKind`).
         Surface surface = resolveAsked(met, eyeRay.mQuery);
         const vec3 motion = motionOf(pixel, peel.mOrigin, peel.mDirection, met.mDistance, met.mInstance,
             met.mPrimitive, met.mBary, eyeSpread(uint(peel.mArms)));
@@ -160,23 +145,18 @@ void main()
             PEEL_SHADES_LAYERS);
         const Answer layer = eye.mAnswer;
 
-        // The water in front of a point and the air over the whole of it, put together, in front of
-        // a layer, and the stretch of it under the water.
+        // The water in front of a point and the air over the whole of it, put together, in front of a
+        // layer, and the stretch of it under the water.
         //
-        // **One composition for the whole path and for every layer peeled off it**, because those
-        // are the same measurement over different stretches: the water first and the air over what
-        // it left, in that order and nowhere else. Each layer's pair is then a prefix of the path's
-        // own — the air is one accumulation read twice and the water march draws from the same
-        // pixel — so the two agree where they meet by construction rather than by tolerance.
+        // **One composition for the whole path and for every layer peeled off it**, because those are the
+        // same measurement over different stretches: the water first and the air over what it left, in that
+        // order and nowhere else.
         //
-        // **Which of them stands in front depends on where the eye is.** Above the surface it is
-        // the air alone: every ray of it that meets the water is stopped by the water's surface,
-        // whose own shading charges what stands under it. Under it, the water — as far as the ray
-        // stays under the plane, `waterAlong` — and then the air past where it rose through it,
-        // behind the water, so what the air scatters reaches the eye through the column.
-        //
-        // Through the cone of the eye it was seen through, read at the column's far end, its march
-        // in a loop of its own.
+        // **Which of them stands in front depends on where the eye is.** Above the surface it is the air
+        // alone: every ray of it that meets the water is stopped by the water's surface, whose own shading
+        // charges what stands under it. Under it, the water — as far as the ray stays under the plane,
+        // `waterAlong` — and then the air past where it rose through it, behind the water, so what the air
+        // scatters reaches the eye through the column.
         const float air = layer.mDistance;
         const WorldRay ray = WorldRay(peel.mOrigin, peel.mDirection);
         MediumAhead ahead = MediumAhead(vec3(0.0), vec3(1.0));
@@ -227,21 +207,8 @@ void main()
     const ivec2 at = ivec2(pixel);
     const ivec2 stored = storedAt(at, width, swap);
 
-    // **The stacks over what the trace left behind them**, the surface's light over the medium in
-    // front of it. **What each layer is charged is a prefix of the whole path, so every split is
-    // exact.** With `S` for what the trace left and `Llast` for what the medium in front of the last
-    // layer scattered,
-    //
-    //     S      = Lwhole + Twhole * behind
-    //     wanted = <the layers, each over its own prefix> + T * (Lwhole - Llast + Twhole * behind)
-    //
-    // with `T` for what the stack lets through, and the second line is `R + T * (S - Llast)`, since
-    // the stack's radiance `R` holds every layer with the medium short of it and the air between the
-    // layers already in it — `stackOver`. **And the arms' stack over all of that**, by the same
-    // identity with the world's whole path in place of the arms' own: over an arm the stack ended on,
-    // the two are one ray and it is the prefix split; over the world, it is the arms' picture laid on
-    // the world's — so arms faded to nothing leave the world's picture and nothing of their own.
-    // Only where a layer stood, where the trace's light is the picture as it is.
+    // **The stacks over what the trace left behind them**, the surface's light over the medium in front of
+    // it.
     if (peel.mLayer > 0u)
     {
         const ivec2 directAt = channelAt(CHANNEL_DIRECT, at, width, swap);

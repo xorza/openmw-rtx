@@ -1,13 +1,12 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_GLOSS_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_GLOSS_GLSL
 
-// The specular half of a surface: the lobe `brdf.h` states, taken at each light a surface is lit by
-// and drawn for its bounce, and how much it reflects beside the diffuse half.
+// The specular half of a surface: the lobe `brdf.h` states, taken at each light a surface is lit by and
+// drawn for its bounce, and how much it reflects beside the diffuse half.
 //
-// **A surface with no reflectance has no specular half, and is not asked for one.** Every vanilla
-// surface is that, so `glossOf` answers it with one test and every step after reads a flag that is
-// false; in a scene with no map at all the test is `HAS_MAPS`, a constant, and the half is compiled
-// out.
+// **A surface with no reflectance has no specular half, and is not asked for one.** Every vanilla surface
+// is that, so `glossOf` answers it with one test and every step after reads a flag that is false; in a
+// scene with no map at all the test is `HAS_MAPS`, a constant, and the half is compiled out.
 
 #include "brdf.h"
 #include "scene.h"
@@ -36,11 +35,11 @@ struct Gloss
 
     /// The shading normal tilted until it faces the eye, which the lobe is evaluated about.
     ///
-    /// **Toward the plane, and not dropped where it leans away.** An interpolated normal on this
-    /// content leans past the eye across whole faces — a door's, bent toward its bevels — and a lobe
-    /// dropped there switches off along the curve where the lean crosses the ray: a hard edge between
-    /// a surface reflecting at grazing and one reflecting nothing. The diffuse half keeps the normal
-    /// as it was, since Lambert has no eye to face.
+    /// **Toward the plane, and not dropped where it leans away.** An interpolated normal on this content
+    /// leans past the eye across whole faces — a door's, bent toward its bevels — and a lobe dropped there
+    /// switches off along the curve where the lean crosses the ray: a hard edge between a surface
+    /// reflecting at grazing and one reflecting nothing. The diffuse half keeps the normal as it was, since
+    /// Lambert has no eye to face.
     vec3 mNormal;
     vec3 mToEye;
     float mToEyeCosine;
@@ -115,14 +114,13 @@ struct Reflection
     vec3 mFresnel;
 };
 
-/// The lobe at a light whose centre stands along `towards` and whose disc is `sine` across, as the
-/// sine of its half angle.
+/// The lobe at a light whose centre stands along `towards` and whose disc is `sine` across, as the sine of
+/// its half angle.
 ///
-/// **The highlight is the source's size** (Karis, *Real Shading in Unreal Engine 4*, 2013): the
-/// lobe is taken toward the representative point, the direction inside the disc nearest the
-/// mirror direction, and scaled by `(α / α′)²`, the normalisation of a lobe widened by the disc,
-/// `α′ = saturate(α + sine / 3)` (his equations 10 and 14). Taken at the centre, a polished surface
-/// reflected the sun and a lantern as a pinpoint where they are a disc.
+/// **The highlight is the source's size** (Karis, *Real Shading in Unreal Engine 4*, 2013): the lobe is
+/// taken toward the representative point, the direction inside the disc nearest the mirror direction, and
+/// scaled by `(α / α′)²`, the normalisation of a lobe widened by the disc, `α′ = saturate(α + sine / 3)`
+/// (his equations 10 and 14).
 ///
 /// @param side what decides which side of the surface a light has to stand on — `litCosine`'s
 ///        argument, and for the same reason: a normal map does not move a light through the surface,
@@ -169,9 +167,7 @@ struct LobeSample
     vec3 mWeight;
 };
 
-/// A direction drawn from the lobe by the facets the eye sees, `visibleNormal`, about the shading
-/// normal. The frame about it is `tangentTo`'s, which the diffuse draw builds on as well; which one
-/// it is changes where a draw lands and not how the draws are spread.
+/// A direction drawn from the lobe by the facets the eye sees, `visibleNormal`, about the shading normal.
 ///
 /// @param draw two numbers in `[0, 1)`: the facet's height on the cap, then its azimuth.
 LobeSample lobeSample(Gloss gloss, vec2 draw)

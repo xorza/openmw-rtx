@@ -2,11 +2,9 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-// A debug vertex in the world, projected through the frame's camera: `screenOf`, which is `rayAt`
-// run backwards, handed to the rasterizer with `ahead` as the divide — which is Vulkan's clip
-// space, and `+Y` down as the image is indexed. The depth is `1 - near / ahead`, nought at the
-// near plane and short of one ever after, which clips what stands behind the eye and nothing
-// else; the traced depth is what decides the rest, in the fragment stage.
+// A debug vertex in the world, projected through the frame's camera: `screenOf`, which is `rayAt` run
+// backwards, handed to the rasterizer with `ahead` as the divide — which is Vulkan's clip space, and `+Y`
+// down as the image is indexed.
 
 #include "camera.h"
 #include "shared/line.h"

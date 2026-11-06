@@ -8,12 +8,8 @@
 // Scene-referred radiance to bytes a display understands, and the sky's own points over it.
 //
 // **The one pass that knows what a display is**, and the last thing in the frame for that reason:
-// everything before it works in linear radiance, including the upscaler, which reconstructs from
-// several frames of it. Being last is also what makes it the only pass that can draw a point source
-// — `ToneConstants::mStars` says why one cannot survive the upscaler.
-//
-// Exposure is a multiply, the grade is `graded`'s and the curve is `toneMap`'s, which is where a
-// highlight is rolled off rather than clipped.
+// everything before it works in linear radiance, including the upscaler, which reconstructs from several
+// frames of it.
 
 #include "camera.h"
 #include "colour.h"
@@ -78,15 +74,12 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) read
     float at[];
 };
 
-/// `value` with a triangular dither of up to `ToneConstants::mDitherStep` either way added, before
-/// the store rounds it.
+/// `value` with a triangular dither of up to `ToneConstants::mDitherStep` either way added, before the
+/// store rounds it.
 ///
-/// **Triangular, because a step of uniform dither leaves the error's power following the signal**:
-/// a ramp shows its bands as noise that comes and goes with them, and a triangle twice as wide
-/// makes the noise's power one whatever the value (Lipshitz, Wannamaker and Vanderkooy, 1992). **Off
-/// the blue-noise tile**, so the error stands where the eye resolves it least, and turned by the
-/// frame, so a still picture's bands average away over frames. One draw a pixel for its three
-/// channels, so the dither is grey and adds no colour of its own.
+/// **Triangular, because a step of uniform dither leaves the error's power following the signal**: a ramp
+/// shows its bands as noise that comes and goes with them, and a triangle twice as wide makes the noise's
+/// power one whatever the value (Lipshitz, Wannamaker and Vanderkooy, 1992).
 vec3 dithered(vec3 value, uvec2 pixel)
 {
     const float tiled = DitherTile(frame.mBlueNoise).at[tileIndex(pixel, STREAM_DITHER)];
@@ -95,11 +88,11 @@ vec3 dithered(vec3 value, uvec2 pixel)
     return value + triangular * frame.mDitherStep;
 }
 
-/// `CHANNEL_LIFT` at the place `pixel` of the picture shows, `ToneConstants::mLiftOffset`. Held inside
-/// the traced extent, which a picture inside the interface fills only a corner of its channels with.
+/// `CHANNEL_LIFT` at the place `pixel` of the picture shows, `ToneConstants::mLiftOffset`. Held inside the
+/// traced extent, which a picture inside the interface fills only a corner of its channels with.
 ///
-/// **A picture the trace drew at its own extent reads its own texel**: the place is the texel's
-/// centre to the bit, and a bilinear read there is the texel.
+/// **A picture the trace drew at its own extent reads its own texel**: the place is the texel's centre to
+/// the bit, and a bilinear read there is the texel.
 vec3 liftAt(uvec2 pixel, uvec2 extent)
 {
     const vec2 traced = vec2(frame.mTracedWidth, frame.mTracedHeight);
@@ -141,21 +134,14 @@ void main()
     vec3 lift = vec3(0.0);
     if (stars || picture || lifting)
     {
-        // Not this pass's to work out — a moon, a cloud deck, a window pane, the water and the air
-        // all stand between the backdrop and the eye, and every one of them is the trace's — so the
-        // trace states it and this multiplies by it.
-        //
-        // Nearest and one tap, so a star within a traced pixel of a silhouette can land on the wrong
-        // side of it — which against a sheet that is 99% transparent is a star at the edge of a rock
-        // once in a while, and the four taps that would rule it out are four times the traffic for
-        // it. The traced pixel under this one's centre, which is the one the puffs' composite read
-        // too.
+        // Not this pass's to work out — a moon, a cloud deck, a window pane, the water and the air all
+        // stand between the backdrop and the eye, and every one of them is the trace's — so the trace
+        // states it and this multiplies by it.
         const uvec2 traced = tracedPixelUnder(pixel, extent, uvec2(frame.mTracedWidth, frame.mTracedHeight));
 
-        // And through the puffs, whose transmittance the composite left in the frame's alpha at
-        // this pass's own resolution wherever it drew one; where it drew none it wrote nothing, and
-        // the alpha there is whatever the upscaler left. Nowhere at all in a frame no puff can be met
-        // in, which the composite did not run over.
+        // And through the puffs, whose transmittance the composite left in the frame's alpha at this pass's
+        // own resolution wherever it drew one; where it drew none it wrote nothing, and the alpha there is
+        // whatever the upscaler left.
         const float puffs = frame.mPuffs == 0u
                 || puffsCoverNothing(SpriteTileList(frame.mSpriteTileList), SpritePresence(frame.mSpritePresence),
                     frame.mTracedWidth, traced,
@@ -168,20 +154,18 @@ void main()
         const ivec2 behind = channelAt(CHANNEL_BACKDROP, ivec2(traced), frame.mTracedWidth, fieldSwapOf(frame.mFrame));
         const vec3 shown = imageLoad(backdrop, behind).rgb * puffs;
 
-        // **The sky's own points, drawn where they are shown.** `ToneConstants::mStars` says why
-        // they are not the trace's.
+        // **The sky's own points, drawn where they are shown.** `ToneConstants::mStars` says why they are
+        // not the trace's.
         //
-        // **After the veil and so outside it**, because the pyramid is built before this pass runs
-        // and a field drawn here is never in it. A star is a point at the resolution it is shown
-        // at, which is the whole reason it is drawn here at all.
+        // **After the veil and so outside it**, because the pyramid is built before this pass runs and a
+        // field drawn here is never in it.
         if (stars && any(greaterThan(shown, vec3(0.0))))
             lit.rgb += shown
                 * starField(frame.mStars, texels, rayAt(frame.mCamera, vec2(pixel)).mDirection, pixelBlur(frame.mCamera));
 
-        // **A picture's alpha is how much of it there is**: the interface shows through it as much
-        // as the backdrop does — one channel of three, which `PictureTracer` holds equal by holding
-        // such a picture out of the air and the water. The colour stays premultiplied, for the
-        // reason `ToneConstants::mBackdrop` gives.
+        // **A picture's alpha is how much of it there is**: the interface shows through it as much as the
+        // backdrop does — one channel of three, which `PictureTracer` holds equal by holding such a picture
+        // out of the air and the water.
         alpha = picture ? 1.0 - shown.g : 1.0;
 
         // **Night-Eye's lift, behind the puffs as the backdrop is**: the rasterizer adds it to the
@@ -190,12 +174,12 @@ void main()
             lift = frame.mNightEye * liftAt(pixel, extent) * puffs;
     }
 
-    // **The glare fader and Night-Eye's lift over the encoded picture, added and clamped.** The
-    // rasterizer draws the fader as a full-screen quad blended `SRC_ALPHA, ONE` into the framebuffer
-    // after the world, and adds the lift to the ambient of every fragment it lights in the values it
-    // displays — each a sum in the display's own values that the framebuffer then saturates. So both
-    // are added here, after the curve and the encode, where the light is no longer light and the
-    // meter, which measured the frame before this pass, never sees them.
+    // **The glare fader and Night-Eye's lift over the encoded picture, added and clamped.** The rasterizer
+    // draws the fader as a full-screen quad blended `SRC_ALPHA, ONE` into the framebuffer after the world,
+    // and adds the lift to the ambient of every fragment it lights in the values it displays — each a sum
+    // in the display's own values that the framebuffer then saturates. So both are added here, after the
+    // curve and the encode, where the light is no longer light and the meter, which measured the frame
+    // before this pass, never sees them.
     const vec3 encoded = encodeSrgb(toneMap(graded(lit.rgb * exposure, TONE_CONTRAST, TONE_SATURATION)));
     const vec3 washed
         = min(encoded + frame.mGlareColour * (frame.mGlareAmount * sunGlareShare) + lift, vec3(1.0));

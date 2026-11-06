@@ -1,13 +1,11 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_RUNS_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_RUNS_GLSL
 
-// A run handed to a dispatch by its own address, indexed from nought: what the pose kernels and
-// the probe read, said once.
+// A run handed to a dispatch by its own address, indexed from nought: what the pose kernels and the probe
+// read, said once.
 //
-// **Its own file because three passes declared these for themselves**, each with the alignment
-// as a literal, where `scene.h` names what a reference may claim. A block is `bindings.glsl`'s
-// and is reached through a table of addresses; a run is one address the host hands over whole,
-// which `Rtx::SceneDesc` never lets straddle a block.
+// **Its own file because three passes declared these for themselves**, each with the alignment as a
+// literal, where `scene.h` names what a reference may claim.
 
 #include "shared/tables.h"
 #include "scene.h"

@@ -11,10 +11,10 @@
 const uint STAGE_NO_SOLID = 0u;
 const uint STAGE_EYE_SOLID = 1u;
 const uint STAGE_WATER_PATH = 2u;
-/// A pixel whose eye met the sea, which the trace leaves to the water's stage (`WATER_STAGE`): its
-/// record then holds the peel's eye in the bit after the kind, its layer and its turns in the bits
-/// after that, and its start and the two shares its layers let through as their bits
-/// (`tracePixel`), in place of the record's own fields.
+/// A pixel whose eye met the sea, which the trace leaves to the water's stage (`WATER_STAGE`): its record
+/// then holds the peel's eye in the bit after the kind, its layer and its turns in the bits after that, and
+/// its start and the two shares its layers let through as their bits (`tracePixel`), in place of the
+/// record's own fields.
 const uint STAGE_WATER_PENDING = 3u;
 
 /// Where a stage record's flags word holds whether a column of water on the pixel's path is one the
@@ -34,13 +34,12 @@ const uint STAGE_DETAILED = 1u << 5u;
 /// (`BounceDraw::mSpecular`).
 const uint STAGE_BOUNCE_LOBE = 1u << 6u;
 
-/// What the trace hands its later stages of a pixel, `STAGE_RECORD`: which solid, through which eye
-/// and from where along the eye's last ray, which the media stage casts again (`eyeAsk`,
-/// `WaterRun`); whether the media stage marches a column of its path, whether a layer stands in
-/// front, and the detail the solid is resolved at (`storedSolidOf`); and the two halves of the pane
-/// mask the whole pixel's light divides — the layers' own light and how far apart they move from
-/// the surface — beside the water's share, which the trace measured whole; and what the bounce's
-/// stage adds for its landing's.
+/// What the trace hands its later stages of a pixel, `STAGE_RECORD`: which solid, through which eye and
+/// from where along the eye's last ray, which the media stage casts again (`eyeAsk`, `WaterRun`); whether
+/// the media stage marches a column of its path, whether a layer stands in front, and the detail the solid
+/// is resolved at (`storedSolidOf`); and the two halves of the pane mask the whole pixel's light divides —
+/// the layers' own light and how far apart they move from the surface — beside the water's share, which the
+/// trace measured whole; and what the bounce's stage adds for its landing's.
 struct StageRecord
 {
     uint mKind;

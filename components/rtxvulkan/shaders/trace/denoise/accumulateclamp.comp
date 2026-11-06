@@ -3,52 +3,39 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// The accumulator's anti-lag: the slow mean of the bounce held to what its fast mean says around
-// the pixel, after the accumulator and before the wavelet. ReLAX's history clamp (NVIDIA NRD,
-// `RELAX_HistoryClamping`), taken as published and written again, after ReBLUR's anti-firefly.
+// The accumulator's anti-lag: the slow mean of the bounce held to what its fast mean says around the pixel,
+// after the accumulator and before the wavelet.
 //
-// **Why a slow mean drags.** The accumulator drops a history only where the surface changed. Where
-// the light changes on a surface that did not move — an actor's darkness dragged over a floor — its
-// 32 frames keep the old light, and the wavelet's feedback blurs it as it fades: a trail ten pixels
-// long and more behind a moving bar (`RtxBounceTrailTest`).
+// **Why a slow mean drags.** The accumulator drops a history only where the surface changed. Where the
+// light changes on a surface that did not move — an actor's darkness dragged over a floor — its 32 frames
+// keep the old light, and the wavelet's feedback blurs it as it fades: a trail ten pixels long and more
+// behind a moving bar (`RtxBounceTrailTest`).
 //
-// **Why the fast mean's neighbourhood and not the frame's sample.** A sample is one bounce, and one
-// that found a lit patch stands many deviations over the mean, so a box of samples would hold the
-// slow mean to noise. The same samples over `ACCUMULATE_FAST_FRAMES`, taken over a 5×5 square, are
-// quiet enough to bound it and short enough to follow the light: where the slow mean stands outside
-// the fast one's mean ± two deviations over the square, on any axis of YCoCg, it is moved to that
-// edge (`heldToFast`).
+// **Why the fast mean's neighbourhood and not the frame's sample.** A sample is one bounce, and one that
+// found a lit patch stands many deviations over the mean, so a box of samples would hold the slow mean to
+// noise. The same samples over `ACCUMULATE_FAST_FRAMES`, taken over a 5×5 square, are quiet enough to bound
+// it and short enough to follow the light: where the slow mean stands outside the fast one's mean ± two
+// deviations over the square, on any axis of YCoCg, it is moved to that edge (`heldToFast`).
 //
-// **Then ReLAX's push**, on both means: where the clamp moved the slow mean, both go on toward the
-// square's mean of samples in proportion (`antilagAcceleration`). The fast mean follows the light
-// only as fast as its frames do, and this takes it further. ReLAX's reset is not taken, and
-// `ACCUMULATE_ACCELERATION` says why.
+// **Then ReLAX's push**, on both means: where the clamp moved the slow mean, both go on toward the square's
+// mean of samples in proportion (`antilagAcceleration`).
 //
 // **Before both, ReBLUR's anti-firefly** (NVIDIA NRD, `REBLUR_HistoryFix`): a slow mean of
-// `ACCUMULATE_RING_FRAMES` or fewer is held under the mean of the fast means in the 9×9 ring around
-// it, less the 3×3 at its centre, plus two of their deviations (`ringHeldLuminance`). A mean of a few
-// frames has no history to tell a firefly by, and its neighbours do; a longer one keeps what it took
-// in, for the reason `ACCUMULATE_RING_FRAMES` gives. **Here and not in the history fix**, which
-// spreads the pixel it rebuilds over a leaf: held first, there is no firefly left to spread.
+// `ACCUMULATE_RING_FRAMES` or fewer is held under the mean of the fast means in the 9×9 ring around it,
+// less the 3×3 at its centre, plus two of their deviations (`ringHeldLuminance`).
 //
-// **And the variance the wavelet's brightness test reads**: a settled mean's own moments', and a
-// short history's, which its own cannot give yet (`ACCUMULATE_SETTLED`), that of the moments over
-// the same 5×5 square, each tap by how nearly it is the pixel's surface, `shortHistoryVariance`,
-// ReLAX's spatial estimate. Here because the square is here, and so one pass states which a pixel
-// takes.
+// **And the variance the wavelet's brightness test reads**: a settled mean's own moments', and a short
+// history's, which its own cannot give yet (`ACCUMULATE_SETTLED`), that of the moments over the same 5×5
+// square, each tap by how nearly it is the pixel's surface, `shortHistoryVariance`, ReLAX's spatial
+// estimate.
 //
-// **The fill moves by the bounce's share.** `CHANNEL_FILL` is a share of the bounce, so the fill
-// moves toward its fast mean by the share the bounce's luma moved, as ReLAX moves a history's other
-// data by its clamping factor, and is pushed by the bounce's push.
+// **The fill moves by the bounce's share.** `CHANNEL_FILL` is a share of the bounce, so the fill moves
+// toward its fast mean by the share the bounce's luma moved, as ReLAX moves a history's other data by its
+// clamping factor, and is pushed by the bounce's push.
 //
-// **In place** for the slow means, which each pixel alone reads and writes. The fast means are read
-// from the blend the accumulator left and written to the history, since a neighbour reads a pixel's
-// blend while the pixel writes its mean.
+// **In place** for the slow means, which each pixel alone reads and writes.
 //
-// **The luminance moments are not moved with the mean**, as ReLAX moves its second moment. Moved,
-// they kept the variance the next frame reads where it was, and left alone they leave it all but
-// there: every place of the bounce suite was as noisy to the hundredth, still, strafed and walked,
-// and the sky's trail as long, where reading and writing them cost the clamp 0.08 ms of 0.25.
+// **The luminance moments are not moved with the mean**, as ReLAX moves its second moment.
 
 #include "shared/accumulate.h"
 #include "shared/atrous.h"
@@ -79,10 +66,10 @@ layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST, ACCUMULATE_FAST) un
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED) uniform readonly image2D sampled;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED_FILL) uniform readonly image2D sampledFill;
 
-/// The slow means as the accumulator blended them, in the bounce's `a` the deviation this writes —
-/// the square root of the variance, which the wavelet squares back (`atrous.comp` says why) — and in
-/// the fill's how many frames the mean holds: whether the ring holds it down, and whether its
-/// variance is its own or the square's.
+/// The slow means as the accumulator blended them, in the bounce's `a` the deviation this writes — the
+/// square root of the variance, which the wavelet squares back (`atrous.comp` says why) — and in the fill's
+/// how many frames the mean holds: whether the ring holds it down, and whether its variance is its own or
+/// the square's.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_BLENDED, ATROUS_CHANNEL) uniform image2D blended;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FILL_BLENDED, ATROUS_CHANNEL) uniform image2D fillBlended;
 
@@ -112,10 +99,9 @@ const uint RING_SPAN = ACCUMULATE_WORKGROUP + 2u * uint(OUTER);
 /// How far inside the tile the clamp's square starts.
 const int INSET = OUTER - REACH;
 
-/// The fast mean at every pixel of the workgroup's ring, in YCoCg in `xyz` and its luminance in `w`,
-/// which is below nought where the pixel holds no surface; and over the clamp's square the samples of
-/// the bounce and the fill, and the first two moments of the slow mean's luminance, which a mixture
-/// sums.
+/// The fast mean at every pixel of the workgroup's ring, in YCoCg in `xyz` and its luminance in `w`, which
+/// is below nought where the pixel holds no surface; and over the clamp's square the samples of the bounce
+/// and the fill, and the first two moments of the slow mean's luminance, which a mixture sums.
 shared vec4 gFast[RING_SPAN][RING_SPAN];
 shared vec3 gSampled[SPAN][SPAN];
 shared vec3 gSampledFill[SPAN][SPAN];
@@ -204,11 +190,8 @@ void main()
     const vec3 sampledMean = sampledSum / count;
     const vec3 sampledFillMean = sampledFillSum / count;
 
-    // The ring's, likewise, over the square less its hole: ReBLUR's anti-firefly, which holds the
-    // slow mean under it before the anti-lag reads it, in ReBLUR's order. **Every surface the ring
-    // holds and not this one's alone**: a firefly is a bright pixel on a leaf a few pixels across,
-    // and a ring of that leaf is a ring of nothing. **Under the constant alone**, which the driver
-    // folds: without the ring the tile holds the clamp's square and no more.
+    // The ring's, likewise, over the square less its hole: ReBLUR's anti-firefly, which holds the slow mean
+    // under it before the anti-lag reads it, in ReBLUR's order.
     float ringCount = 0.0;
     float ringSum = 0.0;
     float ringSquares = 0.0;
@@ -248,11 +231,9 @@ void main()
 
     const vec3 toward = sampledMean - fastHere;
     const vec3 towardFill = sampledFillMean - fastFillHere;
-    // **Held at nought**: the push is the fast mean's way to the samples, and a slow mean the clamp
-    // moved only a little toward a bright fast one is pushed back by all of it, past nought where
-    // the samples stand far under the fast mean. **And each fill under its bounce**: the push moves
-    // the fill by its own way to the samples, and where the rest of the bounce falls faster than
-    // the fill does, the fill alone would stand over the bounce it is a part of.
+    // **Held at nought**: the push is the fast mean's way to the samples, and a slow mean the clamp moved
+    // only a little toward a bright fast one is pushed back by all of it, past nought where the samples
+    // stand far under the fast mean.
     const vec3 held = max(heldBounce + pushed * toward, vec3(0.0));
     const vec3 heldFill = clamp(heldShare + pushed * towardFill, vec3(0.0), held);
     const vec3 followed = max(fastHere + pushed * toward, vec3(0.0));
@@ -260,11 +241,9 @@ void main()
 
     // **A short history's variance is the square's moments, by how nearly each tap is this surface**
     // (`facingWeights`, `coplanarWeight`), as ReLAX weighs its spatial estimate's taps and SVGF its
-    // bilateral one: a short history stands where something was uncovered, and a flat square mixed
-    // the occluder's moments into the uncovered surface's variance, which loosened the wavelet's
-    // brightness test where it matters. A branch, which only those pixels take: computed for every
-    // pixel, the weights cost the clamp 0.02 to 0.04 ms more on the bench, and under the branch 0.01
-    // to 0.02; what is left is the square's normals and points, which the workgroup loads either way.
+    // bilateral one: a short history stands where something was uncovered, and a flat square mixed the
+    // occluder's moments into the uncovered surface's variance, which loosened the wavelet's brightness
+    // test where it matters.
     const ivec2 own = centre - INSET;
     const float deviation = imageLoad(moments, stored).g;
     float variance = deviation * deviation;

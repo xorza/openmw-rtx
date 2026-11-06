@@ -5,21 +5,13 @@
 
 // A normal map's spread, measured on the device as it arrives.
 //
-// **What each level of the map has lost of the normals it averages**, as the roughness that loss
-// stands for (`normalSpreadSlopes`): a level's texel is the mean of the texels over it, and where
-// they point different ways the mean is shorter than one, which is how much of the relief a cone
-// that reads the level can no longer show. `NormalSpreadPass` says why it is kept.
+// **What each level of the map has lost of the normals it averages**, as the roughness that loss stands for
+// (`normalSpreadSlopes`): a level's texel is the mean of the texels over it, and where they point different
+// ways the mean is shorter than one, which is how much of the relief a cone that reads the level can no
+// longer show.
 //
-// **The means are carried, and the loss beside them**, because a spread is not an average of
-// spreads: four texels that each agree with themselves and disagree with each other have a spread
-// none of the four has. The loss is `1 - |mean|²`, and the variance of a set of vectors is what
-// adds it up level by level exactly: the children's losses weighed as their means are, and what
-// the means lose to each other, `Σ wᵢ wⱼ |mᵢ - mⱼ|²` over the pairs — a sixteenth of each pair's
-// where four children weigh a quarter each. That is a sum of differences, so normals that agree
-// lose nought to the bit, where `1 - |mean|²` taken from the mean's own length loses a float's last
-// place. The first level boxes the map's own texels, decoded as the trace decodes them and made
-// unit, which lose nothing of their own. **The box is `mipchain.comp`'s** (`axisTaps`): nine
-// children where both axes above are odd, so the spread is of the texels the level's normal holds.
+// **The means are carried, and the loss beside them**, because a spread is not an average of spreads: four
+// texels that each agree with themselves and disagree with each other have a spread none of the four has.
 
 #include "brdf.h"
 #include "shared/halving.h"

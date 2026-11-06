@@ -3,14 +3,14 @@
 
 // What the eye's shading and the sky answer the kernel for one ray (`EyeRun`, `missedAlong`).
 //
-// **The whole of what the frame's tail needs, and nothing the kernel already holds.** The ray is
-// the kernel's own, so its origin and direction stay there; whether it hit and how far it went are
-// the answer's to say.
+// **The whole of what the frame's tail needs, and nothing the kernel already holds.** The ray is the
+// kernel's own, so its origin and direction stay there; whether it hit and how far it went are the answer's
+// to say.
 //
-// **The answers and not the questions.** Where a surface stood last frame is worked out by the
-// shading that found it, which has the instance's row, its mesh and where on the triangle the ray
-// landed already in hand — so the answer carries the vector a pixel stores, and not the point for
-// the kernel to reproject, which would read the rows a second time.
+// **The answers and not the questions.** Where a surface stood last frame is worked out by the shading that
+// found it, which has the instance's row, its mesh and where on the triangle the ray landed already in hand
+// — so the answer carries the vector a pixel stores, and not the point for the kernel to reproject, which
+// would read the rows a second time.
 
 #include "gbuffer.h"
 
@@ -74,9 +74,9 @@ struct Answer
 
 /// Everything the kernel reads, at what a shader that answered nothing would leave it.
 ///
-/// **What the shading and the sky start from**, because the kernel reads every field whichever
-/// answered: the sky writes no response, and a field one of them skipped would otherwise carry
-/// whatever the last pixel through that lane put there.
+/// **What the shading and the sky start from**, because the kernel reads every field whichever answered:
+/// the sky writes no response, and a field one of them skipped would otherwise carry whatever the last
+/// pixel through that lane put there.
 Answer noAnswer()
 {
     Answer answer;

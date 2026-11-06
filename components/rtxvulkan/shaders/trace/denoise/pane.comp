@@ -3,25 +3,19 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// The pane filter: what was drawn for the see-through layers in front of the surface,
-// `CHANNEL_PANE`, averaged with what was drawn for the same layer on the frames before.
+// The pane filter: what was drawn for the see-through layers in front of the surface, `CHANNEL_PANE`,
+// averaged with what was drawn for the same layer on the frames before.
 //
-// **Over time and not across the screen**, as the glossy filter is. A layer is shaded at the end of
-// a path — one occlusion ray, one lamp and one sun ray a frame — so its light is as noisy as a
-// bounce's, but a layer is thin: a window's frame, a ghost's sleeve. A spatial filter would have to
-// know where a layer ends at every tap, and FSR's accumulation stands behind this at every mode but
-// `off`.
+// **Over time and not across the screen**, as the glossy filter is.
 //
-// **Its own history, reprojected by the nearest layer's own motion and held against the nearest
-// layer's own surface**, which the channels the other filters read do not describe: those are the
-// surface behind the stack. Demodulated, as the bounce is, so what a history carries across a
-// moving window is the light on it and not its texture — and a layer fading in or out moves the
-// albedo it is multiplied back by and not its history.
+// **Its own history, reprojected by the nearest layer's own motion and held against the nearest layer's own
+// surface**, which the channels the other filters read do not describe: those are the surface behind the
+// stack.
 //
-// **The glossy filter's rules otherwise**: bilinear over the four texels the motion lands between,
-// each only if it is this layer by `heldSurfaceMatches`, and `blendedMean` into the history, with the
-// whole of it kept — a layer's light does not turn with the view — beside a fast mean, which
-// `historyclamp.comp` holds the slow one to.
+// **The glossy filter's rules otherwise**: bilinear over the four texels the motion lands between, each
+// only if it is this layer by `heldSurfaceMatches`, and `blendedMean` into the history, with the whole of
+// it kept — a layer's light does not turn with the view — beside a fast mean, which `historyclamp.comp`
+// holds the slow one to.
 
 #include "shared/accumulate.h"
 #include "gbuffer.h"

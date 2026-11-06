@@ -1,17 +1,10 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_CENSUS_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_CENSUS_GLSL
 
-// The census of stores that were not finite, `Census` in `counts.h`. **Every store of an image
-// goes through the two macros below** (`RtxSourceTreeTest`), so a store added beside the others
-// cannot cross uncounted; a float written into a buffer is counted where it is written.
+// The census of stores that were not finite, `Census` in `counts.h`.
 //
 // **Compiled in or out, `RTX_CENSUS`, and never specialized away**: every shader is built twice
-// (`rtx_compile_shader`), and only the harness's set counts. The game's modules carry no test of a
-// value, no binding and no constant of the census, and nor does a measured run's, whose figures are
-// the game's kernels. A specialization constant folds the test away and leaves the binding: Vulkan
-// holds a pipeline to every binding a module's code names, reached or not, so the game would push
-// the census to every dispatch. `check` asserts the census, a test asserts on it, and `view` stops
-// at a NaN.
+// (`rtx_compile_shader`), and only the harness's set counts.
 
 #ifndef RTX_CENSUS
 #error "every shader is compiled with RTX_CENSUS 0 or 1"
@@ -32,10 +25,7 @@ layout(set = SET_PASS, binding = BIND_CENSUS, scalar) buffer CensusBlock
     Census census;
 };
 
-/// Counts `value` against this module where any component of it is a NaN or an infinity. One word
-/// for every store that crossed, so a frame carrying one froxel of NaN reads as one and a frame gone
-/// black reads as the frame. A NaN is a logic error and is refused nowhere: the count is what turns
-/// it into a failed check rather than a picture that goes black by itself.
+/// Counts `value` against this module where any component of it is a NaN or an infinity.
 void countNotFinite(vec4 value)
 {
     if (any(notFinite(value)))
@@ -65,9 +55,8 @@ void countNotFinite(float value)
 
 /// Stores the float `value` into `target` at `at`, counted first.
 ///
-/// **A macro because an image with a format is a type of its own in SPIR-V**, and the stores are
-/// many formats and three dimensions: a function would take one of them. Substituted textually, so
-/// `value` is taken once into a local and `target` may name any image.
+/// **A macro because an image with a format is a type of its own in SPIR-V**, and the stores are many
+/// formats and three dimensions: a function would take one of them.
 #define RTX_STORE_COUNTED(target, at, value)                                                                           \
     {                                                                                                                  \
         const vec4 crossing = (value);                                                                                 \

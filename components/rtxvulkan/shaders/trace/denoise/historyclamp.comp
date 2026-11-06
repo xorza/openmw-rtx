@@ -3,25 +3,20 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// The glossy and the pane filters' anti-lag: each one's slow mean held to what its fast mean says
-// around the pixel, after the filter and before the composite. ReLAX's history clamp (NVIDIA NRD,
-// `RELAX_HistoryClamping`), which ReLAX applies to its specular as to its diffuse, and the
-// accumulator's own (`accumulateclamp.comp`) less what only the bounce needs: the ring, the fill and
-// the wavelet's variance.
+// The glossy and the pane filters' anti-lag: each one's slow mean held to what its fast mean says around
+// the pixel, after the filter and before the composite.
 //
-// **Why.** A filter drops a history only where the surface changed, so where a lamp changes on a
-// still surface a rough reflection kept up to `ACCUMULATE_FRAMES` of the old light: measured, a
-// glossy floor under a sky that halved stood within a tenth of the new level on frame 54 to 56, and a
-// pane on frame 16 to 32, against the clamped bounce's 31.
+// **Why.** A filter drops a history only where the surface changed, so where a lamp changes on a still
+// surface a rough reflection kept up to `ACCUMULATE_FRAMES` of the old light: measured, a glossy floor
+// under a sky that halved stood within a tenth of the new level on frame 54 to 56, and a pane on frame 16
+// to 32, against the clamped bounce's 31.
 //
-// **How**, as the accumulator's: where the slow mean stands outside the fast means' mean ± two
-// deviations over a 5×5 square, on any axis of YCoCg, it is moved to that edge (`heldToFast`), and
-// both means are pushed on toward the square's mean of samples in proportion
-// (`antilagAcceleration`). The square takes the pixels that hold a mean of the same filter, whatever
-// their surface, as the accumulator's does.
+// **How**, as the accumulator's: where the slow mean stands outside the fast means' mean ± two deviations
+// over a 5×5 square, on any axis of YCoCg, it is moved to that edge (`heldToFast`), and both means are
+// pushed on toward the square's mean of samples in proportion (`antilagAcceleration`).
 //
-// **In place** for the slow mean, which each pixel alone reads and writes; the fast means are read
-// from the blend the filter left and written to its history.
+// **In place** for the slow mean, which each pixel alone reads and writes; the fast means are read from the
+// blend the filter left and written to its history.
 
 #include "shared/accumulate.h"
 #include "shared/historyclamp.h"

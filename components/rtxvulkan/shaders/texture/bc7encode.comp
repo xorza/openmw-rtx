@@ -3,28 +3,21 @@
 #extension GL_EXT_control_flow_attributes : require
 #extension GL_GOOGLE_include_directive : require
 
-// An image made on the device, encoded as BC7 blocks, every level in one dispatch and one lane a
-// block: the small levels a dispatch each cost more than their blocks. **Each level whole
-// workgroups**, so the level a workgroup reads is the same in every lane of it, and indexing the
-// array of levels by it asks the device for nothing it does not have.
+// An image made on the device, encoded as BC7 blocks, every level in one dispatch and one lane a block: the
+// small levels a dispatch each cost more than their blocks.
 //
-// **Mode 6 alone**: one subset, two RGBA end points of seven bits and a shared lowest bit each, and
-// a four-bit index a texel. The mode a runtime encoder takes, since the others' partitions are a
-// search an arrival cannot pay for; it holds a smooth gradient in sixteen steps, which BC1's four
-// band.
+// **Mode 6 alone**: one subset, two RGBA end points of seven bits and a shared lowest bit each, and a
+// four-bit index a texel.
 //
-// **The end points along the block's principal axis, then fitted by least squares** to the indices
-// they chose, twice, keeping the attempt with the least error. **Each texel tries the three levels
-// around its projection**, each level the integers the format decodes it to. The error is the
-// squared difference of the stored bytes, which is what a sampler decodes, the alpha's only where
-// it is read (`Bc7Constants::mWeighsAlpha`). An attempt with no error ends the search.
+// **The end points along the block's principal axis, then fitted by least squares** to the indices they
+// chose, twice, keeping the attempt with the least error.
 //
 // **And the block's mean as one colour**, by the end points that reach it exactly at one index
-// (`BC7_SINGLE_INDEX`): a uniform block has no axis, and the two equal end points the axis leaves
-// share their lowest bit across the channels, which an odd red beside an even blue cannot.
+// (`BC7_SINGLE_INDEX`): a uniform block has no axis, and the two equal end points the axis leaves share
+// their lowest bit across the channels, which an odd red beside an even blue cannot.
 //
-// **The bytes as stored**, read through a view with no curve under it, so an sRGB image is fitted
-// in its encoded values and decoded through the same curve it was written with.
+// **The bytes as stored**, read through a view with no curve under it, so an sRGB image is fitted in its
+// encoded values and decoded through the same curve it was written with.
 
 #include "lib/blocklevel.glsl"
 #include "scene.h"
@@ -126,10 +119,8 @@ Attempt attemptWith(Ends ends)
     const uvec4 lowBytes = ends.mLow * 2u + ends.mLowBit;
     const uvec4 highBytes = ends.mHigh * 2u + ends.mHighBit;
 
-    // The levels lie on the line from one end point to the other, each channel rounded to a byte,
-    // so the nearest is the level the texel projects to or one beside it: three levels and not
-    // sixteen. A near tie the rounding decides otherwise costs the difference of two errors that
-    // are all but equal.
+    // The levels lie on the line from one end point to the other, each channel rounded to a byte, so the
+    // nearest is the level the texel projects to or one beside it: three levels and not sixteen.
     const vec4 from = vec4(lowBytes);
     const vec4 span = vec4(highBytes) - from;
     const float spanSquared = dot(span * span, gWeights);
@@ -173,10 +164,10 @@ Ends storedNearest(vec4 low, vec4 high)
     return Ends(quantized(low, lowBit), quantized(high, highBit), lowBit, highBit);
 }
 
-/// The end points whose level `BC7_SINGLE_INDEX` lies nearest `colour`, under the pair of lowest
-/// bits that reaches it nearest, searched in each channel among the seven-bit values one step
-/// either side of it: under one lowest bit the pair `v, v` or `v - 1, v + 1` reaches every byte `v`
-/// there, and under two `v, v + 1` or `v - 1, v + 2` does, each within a step of `v / 2`.
+/// The end points whose level `BC7_SINGLE_INDEX` lies nearest `colour`, under the pair of lowest bits that
+/// reaches it nearest, searched in each channel among the seven-bit values one step either side of it:
+/// under one lowest bit the pair `v, v` or `v - 1, v + 1` reaches every byte `v` there, and under two `v, v
+/// + 1` or `v - 1, v + 2` does, each within a step of `v / 2`.
 Ends singleColour(vec4 colour)
 {
     const uint weight = bc7Weight(BC7_SINGLE_INDEX);

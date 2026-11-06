@@ -4,12 +4,8 @@
 
 // A debug fragment, kept where it stands nearer than what the eye's ray met at its pixel.
 //
-// **The trace's depth and not a depth attachment**, because the picture has none: what is drawn
-// under these lines was traced, and its distances are in `Channel::Surface` at the traced extent.
-// The offset from the eye is interpolated across the primitive and measured here, so a long line
-// running into a wall stops where the wall is rather than where its ends' distances say. In the
-// display's own values, as the interface is, because the drawers painted their colours against a
-// monitor; and raised to the player's gamma, as the picture under them is.
+// **The trace's depth and not a depth attachment**, because the picture has none: what is drawn under these
+// lines was traced, and its distances are in `Channel::Surface` at the traced extent.
 
 #include "colour.h"
 #include "gbuffer.h"

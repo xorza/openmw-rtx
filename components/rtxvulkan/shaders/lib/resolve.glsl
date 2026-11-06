@@ -14,11 +14,11 @@
 #include "compose.glsl"
 #include "stagerecord.glsl"
 
-/// The picture at the pixel stored at `stored`: `directLight`, `CHANNEL_DIRECT`'s, with the bounce
-/// and its fill as the filter left them multiplied back by their albedos, each shadowed source by
-/// what got through — the shadow denoiser's answer where its field ran (`COMPOSITE_SHADOWED_*` in
-/// `shadowedFields`), the ray's own bit where it did not — the lobe's light where a surface can
-/// have one (`lobed`), and the layers'.
+/// The picture at the pixel stored at `stored`: `directLight`, `CHANNEL_DIRECT`'s, with the bounce and its
+/// fill as the filter left them multiplied back by their albedos, each shadowed source by what got through
+/// — the shadow denoiser's answer where its field ran (`COMPOSITE_SHADOWED_*` in `shadowedFields`), the
+/// ray's own bit where it did not — the lobe's light where a surface can have one (`lobed`), and the
+/// layers'.
 vec3 resolvedLight(ivec2 stored, vec3 directLight, vec3 bounce, vec3 fillShare, uint shadowedFields, uint lobed)
 {
     const vec4 sky = imageLoad(shadowed, stored);
@@ -34,12 +34,10 @@ vec3 resolvedLight(ivec2 stored, vec3 directLight, vec3 bounce, vec3 fillShare, 
         sky.rgb, skySeen, lamps.rgb, lampSeen, lobe, imageLoad(paneAlbedo, stored).rgb, imageLoad(pane, stored).rgb);
 }
 
-/// Writes what the upscaler is told its motion vector does not describe at the pixel `at`, whose
-/// record is stored at `stored` (`CHANNEL_UPSCALE_MASKS`): the layers' light, which moves as the
-/// nearest layer does, against `light`, the whole pixel's as this pass composed it; and the water's
-/// share, which the trace measured. **Against the filtered light and not the trace's**, which a
-/// mask the upscaler reads to decide how far to trust its history has to be: FSR's guide asks for
-/// one stable from frame to frame, and one sample's light is not.
+/// Writes what the upscaler is told its motion vector does not describe at the pixel `at`, whose record is
+/// stored at `stored` (`CHANNEL_UPSCALE_MASKS`): the layers' light, which moves as the nearest layer does,
+/// against `light`, the whole pixel's as this pass composed it; and the water's share, which the trace
+/// measured.
 void storeUpscaleMasks(ivec2 at, ivec2 stored, vec3 light)
 {
     const StageRecord record = unpackStageRecord(imageLoad(stageRecord, stored));

@@ -3,67 +3,18 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// Derived from the FidelityFX SDK (v1.1.4), `ffx_denoiser_shadows_tileclassification.h`, whose
-// notice follows.
-//
-// Copyright (C) 2024 Advanced Micro Devices, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// Derived from the FidelityFX SDK (v1.1.4), `ffx_denoiser_shadows_tileclassification.h`, whose notice
+// follows.
 
-// The shadow denoiser's temporal half: which tiles need filtering at all, and for those that do,
-// this frame's bit blended with what the same surface held before, clamped to what its neighbours
-// say now.
+// The shadow denoiser's temporal half: which tiles need filtering at all, and for those that do, this
+// frame's bit blended with what the same surface held before, clamped to what its neighbours say now.
 //
-// **What the port keeps is the algorithm**: the 17×17 kernel over the bits that gives each pixel its
-// local mean and spread, the clamp of the history to half a deviation of it, the sample count damped
-// by how far the history stood off, the variance boosted over the first sixteen frames, and the
-// blend of five per cent a frame once the history is eight deep. Each constant is the SDK's.
+// **What the port keeps is the algorithm**: the 17×17 kernel over the bits that gives each pixel its local
+// mean and spread, the clamp of the history to half a deviation of it, the sample count damped by how far
+// the history stood off, the variance boosted over the first sixteen frames, and the blend of five per cent
+// a frame once the history is eight deep.
 //
 // **What it changes, and why:**
-//
-// - **No subgroup operation.** The SDK's all-true takes a wave-wide vote where a wave is the
-//   workgroup, and falls back to shared memory where it is not; the fallback is the one kept, since
-//   AMD's waves are 32 or 64 lanes and Intel's 8 to 32. The words `shadowmask.comp` packed are laid
-//   out as rows of the square in shared memory, one word a row.
-// - **The tree's reprojection.** The SDK fetches its history at `uv + velocity`, dilated to the
-//   nearest depth of a quad, and calls a pixel disoccluded by a depth through projection matrices.
-//   This fetches where the accumulator fetches and keeps a tap only where `heldSurfaceMatches` says it
-//   is this surface, against the frame before's surface channel: one rule for "the same surface
-//   as last frame", and no depth history beside it.
-// - **The frame's edge is not a shadow.** The local mean is taken over the pixels the frame holds,
-//   where the SDK counts those off it as shadowed; `horizontalNeighbourhood` says what that cost.
-// - **Who receives.** A receiver is a surface the shadowed sources light at all
-//   (`receivesShadowed`), so a stretch no lamp reaches in a room skips every tile here. **And only a
-//   receiver is in the local mean**: the SDK counts every pixel's bit, and a pixel no source lights
-//   keeps a bit of one, which held a receiver in hard shadow beside it up to a seam of light
-//   (`shadow.h`).
-// - **A hard shadow is not noise.** Where the widest penumbra in the tile and the tiles around it
-//   is under a pixel and no bit there was drawn from among sources (`SHADOW_PENUMBRA_DRAWN`), the
-//   pixel's own bit is the answer, and no history is blended in: such a bit is the same every
-//   frame, and the box of the bits around it, half a deviation about their mean, held a shadow
-//   seven pixels wide 14 levels of 255 lighter than the raw frame and the floor beside it darker. A
-//   jittered edge's bit changes with the jitter, and that is the upscaler's to resolve, as it
-//   resolves every other edge. **The edge of a penumbra under a pixel is noise as the raw frame's
-//   is**: at the pond, whose leaves' shadows are that hard, the frame's noise rose from 0.46 to
-//   0.50 and its bias fell from 1.50 to 1.48, where the pier and the guild did not move. The reach
-//   is NVIDIA's SIGMA's rule (the distance to the occluder times the source's half angle, in
-//   pixels), and this pass hands it to the spatial levels, which run only as far.
 
 #include "shared/accumulate.h"
 #include "gbuffer.h"
@@ -138,17 +89,12 @@ shared uint gReach;
 /// reads: the weight of the open pixels, and the weight of the pixels inside the frame.
 shared vec2 gRows[SHADOW_WORKGROUP][SPAN];
 
-/// The horizontal half of the kernel (`shadowLocalWeight`) over row `row` of the square, centred on
-/// column `column + REACH`: the SDK's `HorizontalNeighborhood`, off the shared row rather than off
-/// three tile words — the weight of the open pixels, and beside it the weight of the receivers.
-/// **Not normalised over its taps, as the SDK's is**, because what reads it is the ratio of two
-/// sums under the same weights, and the factor falls out of it.
+/// The horizontal half of the kernel (`shadowLocalWeight`) over row `row` of the square, centred on column
+/// `column + REACH`: the SDK's `HorizontalNeighborhood`, off the shared row rather than off three tile
+/// words — the weight of the open pixels, and beside it the weight of the receivers.
 ///
-/// **What the SDK does not carry is the second**: it counts every pixel, a pixel off the frame as
-/// shadowed and one no source lights as whatever its bit says. Off the frame, the local mean of a lit
-/// floor fell toward the frame's edge and the clamp pulled the history down with it: measured on a
-/// penumbra that runs off the frame, the denoised mean stood 1.3% under a 256-frame reference. The
-/// two sums make the mean one over the receivers.
+/// **What the SDK does not carry is the second**: it counts every pixel, a pixel off the frame as shadowed
+/// and one no source lights as whatever its bit says.
 vec2 horizontalNeighbourhood(uint row, uint column)
 {
     const uint open = gOpen[row] >> column;
@@ -231,9 +177,7 @@ void main()
     const float reach = uintBitsToFloat(gReach);
 
     // **Whole tiles out, uniformly**, before any pixel of them costs anything: the branch is the
-    // workgroup's, so no lane waits on another. The SDK's two early outs, in its order: no receiver
-    // among the workgroup's own pixels, the middle of the square; and every receiver in the square
-    // open, or none.
+    // workgroup's, so no lane waits on another.
     bool noReceiver = true;
     for (uint row = REACH; row < REACH + SHADOW_WORKGROUP; ++row)
         noReceiver = noReceiver && (gReceiving[row] & (lowBits(SHADOW_WORKGROUP) << REACH)) == 0u;
@@ -319,13 +263,8 @@ void main()
         const float low = neighbourhood - 0.5 * deviation;
         const float high = neighbourhood + 0.5 * deviation;
 
-        // The history bilinear over the taps that are this surface and received, as the
-        // accumulator takes its own; the frame's own bit where none is, which is a history of one
-        // sample. A texel that received nothing holds no history: its value is the frame's
-        // nought, which pulled a terminator's history toward shadow. **Not gathered at all on a
-        // reset**, as every other temporal pass leaves it: a chain that keeps no past holds its
-        // surfaces in the image the accumulator wrote this frame, which nothing orders this read
-        // after.
+        // The history bilinear over the taps that are this surface and received, as the accumulator takes
+        // its own; the frame's own bit where none is, which is a history of one sample.
         vec4 shares = vec4(0.0);
         if (frame.mReset == 0u)
         {
@@ -362,11 +301,8 @@ void main()
         blended = reach < 1.0 ? current : mix(clamped, current, mix(0.05, 1.0, historyWeight));
     }
 
-    // **Selected and not branched around**: every lane runs the history, and one no source lights
-    // stores nought and says so. Measured against the branch on the default suite, three alternated
-    // rounds: the shadow zone's median 0.236 ms became 0.232 on the ship, and 0.288 became 0.281
-    // in the guild. Every store at random, since the first level filters the mean into the history
-    // and the next frame's update reads the moments back.
+    // **Selected and not branched around**: every lane runs the history, and one no source lights stores
+    // nought and says so.
     RTX_STORE_WORDS(reprojected, stored,
         uvec4(packShadowWord(receiver ? vec2(blended, variance) : vec2(0.0, SHADOW_NO_RECEIVER), randomWord(rounding)),
             0u, 0u, 0u))

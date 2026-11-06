@@ -31,10 +31,10 @@ struct MediumAhead
     vec3 mThrough;
 };
 
-/// The media in front of a point `air` along the eye's `ray`, which stands under the water for the
-/// first `under` of it (`waterAlong`) and crosses `column` there: the column's light, and past the
-/// plane, where the ray rose through it short of `water`, the air charged as a leg's is — the eye's
-/// own froxels hold no air in front of a submerged eye (`fogAlong`).
+/// The media in front of a point `air` along the eye's `ray`, which stands under the water for the first
+/// `under` of it (`waterAlong`) and crosses `column` there: the column's light, and past the plane, where
+/// the ray rose through it short of `water`, the air charged as a leg's is — the eye's own froxels hold no
+/// air in front of a submerged eye (`fogAlong`).
 MediumAhead mediumOverColumn(WorldRay ray, float under, float water, float air, WaterColumn column)
 {
     const vec4 above = under < water
@@ -51,15 +51,12 @@ struct PaneStack
     float mThrough;
     vec3 mScattered;
 
-    /// What was drawn for the layers, `SeenPane`'s drawn light, and their albedos, each by what
-    /// reaches the eye of that layer: `CHANNEL_PANE` before it is divided, and `CHANNEL_PANE_ALBEDO`
-    /// before the floor. Kept out of `mRadiance`, which holds what they glow with and the air between
-    /// them.
+    /// What was drawn for the layers, `SeenPane`'s drawn light, and their albedos, each by what reaches the
+    /// eye of that layer: `CHANNEL_PANE` before it is divided, and `CHANNEL_PANE_ALBEDO` before the floor.
     ///
-    /// **Their lobes' light is not here but in `mRadiance`, composed unfiltered**: the pane
-    /// filter keeps a layer's history whole over every turn of the view, which a reflection does not
-    /// survive, and divided by the diffuse albedo it was taken apart by an albedo it is not of. Every
-    /// vanilla layer has no lobe, and the upscaler's accumulation takes a replacer's.
+    /// **Their lobes' light is not here but in `mRadiance`, composed unfiltered**: the pane filter keeps a
+    /// layer's history whole over every turn of the view, which a reflection does not survive, and divided
+    /// by the diffuse albedo it was taken apart by an albedo it is not of.
     vec3 mDrawn;
     vec3 mAlbedo;
 
@@ -118,16 +115,11 @@ NearestPane nearestPaneOf(Answer layer, bool arms)
 }
 
 /// Stores what the layers in front of `at` leave in the pane channels: their drawn light, the world's
-/// behind the arms' as their pictures meet, per unit of the albedo that puts it back, that albedo,
-/// and the nearest layer's surface and motion. **And what a pixel no layer stands in holds there**,
-/// out of empty stacks, which the trace stores at every pixel and the layers' stage over its own
-/// tiles. Returns the layers' drawn light.
+/// behind the arms' as their pictures meet, per unit of the albedo that puts it back, that albedo, and the
+/// nearest layer's surface and motion.
 ///
-/// **Divided by what puts it back**, so the pane filter averages light and not the texture it lands
-/// on — the bounce's demodulation, for the bounce's reason. **Rounded to what `CHANNEL_PANE_ALBEDO`
-/// holds before anything is divided by it**, as `specularModulation` is: the light divided by this
-/// and the channel the composite multiplies by are one number, so the two meet to the rounding of a
-/// product. The floor stands past the least normal half, which the truncation asks.
+/// **Divided by what puts it back**, so the pane filter averages light and not the texture it lands on —
+/// the bounce's demodulation, for the bounce's reason.
 vec3 storePanes(ivec2 at, uint width, uint swap, PaneStack armsStack, PaneStack panes, NearestPane nearest)
 {
     const vec3 paneDrawn = armsStack.mDrawn + armsStack.mThrough * panes.mDrawn;
@@ -152,17 +144,17 @@ vec3 stackOver(PaneStack stack, vec3 behind)
 
 /// What a ray that met nothing answers: the sky, for the world's eye.
 ///
-/// **Nothing, for the arms' eye. The sky is seen through the world's eye alone**: the arms' eye
-/// traces the arms and nothing else, and a ray of it that finds no arm is not shaded — the world's
-/// own ray is traced there instead, so whatever reaches the sky reached it through `Eyes::mWorld`,
-/// and a pixel beside the arms shades the sky once and not twice.
+/// **Nothing, for the arms' eye. The sky is seen through the world's eye alone**: the arms' eye traces the
+/// arms and nothing else, and a ray of it that finds no arm is not shaded — the world's own ray is traced
+/// there instead, so whatever reaches the sky reached it through `Eyes::mWorld`, and a pixel beside the
+/// arms shades the sky once and not twice.
 ///
-/// **What the backdrop shows through is the sky's to say.** `mBackdropShown` is how much of the
-/// star field the sky's own layers left, and the display pass cannot work it out for itself —
-/// `backdrop` in `bindings.glsl` says why.
+/// **What the backdrop shows through is the sky's to say.** `mBackdropShown` is how much of the star field
+/// the sky's own layers left, and the display pass cannot work it out for itself — `backdrop` in
+/// `bindings.glsl` says why.
 ///
-/// **Packed and unpacked as every answer is**, so a miss keeps the rounding the channels' halves
-/// give a hit.
+/// **Packed and unpacked as every answer is**, so a miss keeps the rounding the channels' halves give a
+/// hit.
 Answer missedAlong(uvec2 pixel, vec3 origin, vec3 direction, bool shaded)
 {
     Answer answer = noAnswer();
@@ -194,24 +186,19 @@ Answer missedAlong(uvec2 pixel, vec3 origin, vec3 direction, bool shaded)
     return answer;
 }
 
-/// The eye's rays a pixel peels its layers along — the arms' first, then the world's, and every
-/// layer of the peel behind them — which the trace (`tracePixel`) and the layers' stage
-/// (`panes.comp`) both walk with these steps, so the two meet the same layers: the trace shades the
-/// surface behind them and weighs them by their opacity alone, and the layers' stage lights the
-/// layers and stops at that surface.
+/// The eye's rays a pixel peels its layers along — the arms' first, then the world's, and every layer of
+/// the peel behind them — which the trace (`tracePixel`) and the layers' stage (`panes.comp`) both walk
+/// with these steps, so the two meet the same layers: the trace shades the surface behind them and weighs
+/// them by their opacity alone, and the layers' stage lights the layers and stops at that surface.
 struct Peel
 {
     /// The eye the next ray is cast through, its ray, and where along it the next one starts.
     ///
-    /// **The arms first, through their own eye, and the world only where they are not.** The
-    /// rasterizer draws the player's arms under a projection of their own field of view and clears
-    /// the depth under them, so they stand in front of everything — a decision about what the
-    /// picture is, which `worldMask` says the world's ray keeps out of. A miss of the arms' ray is
-    /// not shaded, so a pixel beside the arms pays one traversal on a mask a handful of instances
-    /// carry and no second shading of the sky. **To the far plane, as the world's**: a
-    /// bound at 512 units, past the arms and the blade, moved the trace by nothing at
-    /// `seyda-neen-ship-armed` — 2.82 ms at the median either way, three alternated rounds. The same
-    /// rays the wavelet rebuilds come from the same `rayAt`.
+    /// **The arms first, through their own eye, and the world only where they are not.** The rasterizer
+    /// draws the player's arms under a projection of their own field of view and clears the depth under
+    /// them, so they stand in front of everything — a decision about what the picture is, which `worldMask`
+    /// says the world's ray keeps out of. A miss of the arms' ray is not shaded, so a pixel beside the arms
+    /// pays one traversal on a mask a handful of instances carry and no second shading of the sky.
     bool mArms;
     vec3 mOrigin;
     vec3 mDirection;
@@ -261,10 +248,8 @@ bool peelPastArms(inout Peel peel, uvec2 pixel)
 
 /// Past a layer met at `distance`, to the next.
 ///
-/// **Just past it along the same line** (`alongPast`), so a layer a unit behind it is met and the
-/// layer itself is not. **Held at the clip**, where a layer at the clip would start the ray past its
-/// own end: a trace with its `tmin` over its `tmax` is undefined, and one with the two equal is the
-/// miss the clip says it is.
+/// **Just past it along the same line** (`alongPast`), so a layer a unit behind it is met and the layer
+/// itself is not.
 void peelPastLayer(inout Peel peel, float distance)
 {
     peel.mTmin = min(alongPast(distance), frame.mFar);

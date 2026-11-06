@@ -4,9 +4,8 @@
 
 // Poses one morphed mesh from its base, ahead of the refit over it.
 //
-// **`SceneUtil::MorphGeometry::cull`'s arithmetic and nothing else**: the base, plus every target's
-// offset at its weight, positions only — a morph moves no normal there and moves none here. Target
-// nought is the base and its weight is never read, which is how the drawable numbers them.
+// **`SceneUtil::MorphGeometry::cull`'s arithmetic and nothing else**: the base, plus every target's offset
+// at its weight, positions only — a morph moves no normal there and moves none here.
 
 #include "skinning.h"
 #include "shared/skin.h"

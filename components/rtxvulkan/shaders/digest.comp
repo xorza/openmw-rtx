@@ -3,13 +3,12 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// Every image of the frame into the words of its digest, in one dispatch — `digest.h` says what
-// the words are and why a sum and an exclusive-or, which is what lets a thousand workgroups land
-// in any order.
+// Every image of the frame into the words of its digest, in one dispatch — `digest.h` says what the words
+// are and why a sum and an exclusive-or, which is what lets a thousand workgroups land in any order.
 //
-// **Each texel's bits, and never its value.** `floatBitsToUint` of what the load converted, so a
-// half and a normalised byte reach the digest as the float the shaders read them as: exact, and the
-// same on every run, because the conversion is the format's and not the frame's.
+// **Each texel's bits, and never its value.** `floatBitsToUint` of what the load converted, so a half and a
+// normalised byte reach the digest as the float the shaders read them as: exact, and the same on every run,
+// because the conversion is the format's and not the frame's.
 
 #include "digest.h"
 #include "shared/channeldigest.h"

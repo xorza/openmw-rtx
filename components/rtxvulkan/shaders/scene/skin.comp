@@ -4,20 +4,12 @@
 
 // Poses one skinned mesh from its bind pose, ahead of the refit over it.
 //
-// **`SceneUtil::RigGeometry::cull`'s arithmetic and nothing else.** Each vertex's run names the
-// bones that move it and by how much; the rows of those bones are blended at their weights, and the
-// blend is of the matrices and not of the results — the same thing for a position and not for a
-// normal, and one matrix at the end is three dot products against a normal instead of many. The
-// skin's own transform is applied once, to the blend, as `cull` applies it: composed into each bone
-// it would be scaled by the sum of the weights (`Rtx::packRig`).
-//
-// The normal and the tangent take the linear part and are not normalised, because the rasterizer
-// does not: what a hit reads is what it would have read. Morrowind scales uniformly, so the plain
-// matrix stands in for the inverse transpose there as well.
-//
-// Source and destination are different tables: the bind pose stays where it arrived and the pose
-// lands in the slot's copy of the positions, the normals and the tangents, at the mesh's bind run —
-// which is what the structure is refitted from and what a hit reads its shading frame out of.
+// **`SceneUtil::RigGeometry::cull`'s arithmetic and nothing else.** Each vertex's run names the bones that
+// move it and by how much; the rows of those bones are blended at their weights, and the blend is of the
+// matrices and not of the results — the same thing for a position and not for a normal, and one matrix at
+// the end is three dot products against a normal instead of many. The skin's own transform is applied once,
+// to the blend, as `cull` applies it: composed into each bone it would be scaled by the sum of the weights
+// (`Rtx::packRig`).
 
 #include "skinning.h"
 #include "shared/skin.h"

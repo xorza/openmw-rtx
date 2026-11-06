@@ -1,31 +1,25 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_BASIS_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_BASIS_GLSL
 
-// Directions, with nothing of the frame block in them: a frame built on one axis, for anything that
-// draws about a direction or lays a grid across one; and a normal turned to face the ray that found
-// it.
+// Directions, with nothing of the frame block in them: a frame built on one axis, for anything that draws
+// about a direction or lays a grid across one; and a normal turned to face the ray that found it.
 //
 // **Its own file because a pass with no frame block wants it.** `random.glsl` builds every sampled
-// direction on it and reaches the frame for its draws; `spriteshade.comp` lays its grid on it and
-// has no frame at all, and wrote its own copy with a different threshold.
+// direction on it and reaches the frame for its draws; `spriteshade.comp` lays its grid on it and has no
+// frame at all, and wrote its own copy with a different threshold.
 
 /// A unit vector square to `axis`, to build a basis on.
-///
-/// Any vector not parallel to it will do, and which one is arbitrary — so the only thing this owes
-/// a caller is that the cross product it takes never collapses: the helper is whichever world axis
-/// `axis` lies least along.
 vec3 tangentTo(vec3 axis)
 {
     const vec3 aside = abs(axis.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
     return normalize(cross(aside, axis));
 }
 
-/// The two unit vectors square to `axis` and to each other, `tangentTo` and the one across both:
-/// the frame every direction drawn about an axis is laid in.
+/// The two unit vectors square to `axis` and to each other, `tangentTo` and the one across both: the frame
+/// every direction drawn about an axis is laid in.
 ///
-/// **This frame and not Duff et al.'s branchless one**, whose seam is the plane of `z = 0` — the
-/// plane every vertical wall's normal lies in, and an interior is walls. Any continuous choice of
-/// frame has a seam somewhere; this one's is a floor tilted 2.6 degrees.
+/// **This frame and not Duff et al.'s branchless one**, whose seam is the plane of `z = 0` — the plane
+/// every vertical wall's normal lies in, and an interior is walls.
 struct TangentFrame
 {
     vec3 mTangent;
@@ -38,17 +32,13 @@ TangentFrame frameAbout(vec3 axis)
     return TangentFrame(tangent, cross(axis, tangent));
 }
 
-/// How squarely a shading normal has to face the ray that found its surface before `facingRay`
-/// tilts it back: a wave facet toward the water's plane, a mapped normal toward the interpolated
-/// one, a lobe's normal toward the plane. Small — a guard against a normal leaning past the ray,
-/// and not a limit on the waves or the map.
+/// How squarely a shading normal has to face the ray that found its surface before `facingRay` tilts it
+/// back: a wave facet toward the water's plane, a mapped normal toward the interpolated one, a lobe's
+/// normal toward the plane.
 const float MIN_FACING = 0.03;
 
-/// A shading normal turned back toward `fallback` until it faces the ray that found it at
-/// `MIN_FACING`, where it faced that ray less: Schüssler et al.'s problem, answered the cheap way.
-/// A normal a wave or a normal map leans past the ray has no light to give back along it, and the
-/// self-occlusion that would have hidden it is what a tilt stands in for. One statement for the
-/// water and for a mapped solid, so the two cannot come to answer it differently.
+/// A shading normal turned back toward `fallback` until it faces the ray that found it at `MIN_FACING`,
+/// where it faced that ray less: Schüssler et al.'s problem, answered the cheap way.
 ///
 /// @param fallback the normal that faces the ray, or faces it more — the water's plane, a solid's
 ///        interpolated normal. Where it does not face it either, the blend stops at it.

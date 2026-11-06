@@ -5,11 +5,7 @@
 
 // How bright the frame is, as a histogram of log luminance.
 //
-// **The frame the display curve is about to map**, which is the upscaled one wherever something
-// upscales. Measuring the render-resolution frame instead reads it as darker than it is: the
-// histogram bins `log2(luminance)` per pixel, the mean of a log sits below the log of the mean by
-// roughly the variance, and the frame an upscaler is handed still carries the noise it averages away
-// across frames. The whole of the fix is which image these two passes are bound to.
+// **The frame the display curve is about to map**, which is the upscaled one wherever something upscales.
 
 #include "colour.h"
 #include "shared/exposure.h"

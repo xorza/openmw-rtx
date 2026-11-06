@@ -4,62 +4,17 @@
 #extension GL_EXT_shader_image_load_formatted : require
 
 // Derived from the FidelityFX SDK (v1.1.4), `ffx_denoiser_shadows_filter.h`, whose notice follows.
-//
-// Copyright (C) 2024 Advanced Micro Devices, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
 
 // One level of the shadow denoiser's spatial half: a 3×3 edge-stopping filter with its taps `1 <<
 // SHADOW_LEVEL` apart, over the temporal pass's blend and its variance, run three times.
 //
-// **What the port keeps**: the 16×16 square each workgroup reads into shared memory once, the 3×3
-// Gaussian over the variance before its square root is the brightness test's scale, the separable
-// kernel of 1 and 2/3, the brightness test `exp(-|a - b| / sigma)`, the variance carried by the
-// squares of the weights, the cleared tiles copied rather than filtered — and not at the middle
-// level, which is how the temporal pass's exact value reaches the last one — and the first level's
-// answer kept as the next frame's history.
+// **What the port keeps**: the 16×16 square each workgroup reads into shared memory once, the 3×3 Gaussian
+// over the variance before its square root is the brightness test's scale, the separable kernel of 1 and
+// 2/3, the brightness test `exp(-|a - b| / sigma)`, the variance carried by the squares of the weights, the
+// cleared tiles copied rather than filtered — and not at the middle level, which is how the temporal pass's
+// exact value reaches the last one — and the first level's answer kept as the next frame's history.
 //
 // **What it changes, and why:**
-//
-// - **Full floats in the arithmetic and in shared memory, and the stores rounded by the shader.**
-//   The SDK's filter works only with half-float arithmetic, `FFX_HALF`: without it the functions
-//   are stubs, and shared memory holds halves. Here both are full floats. The first level's answer
-//   is the next frame's history, so a half in its shared memory was a rounding inside the history's
-//   loop, and one `packHalf2x16` makes as the device pleases: NVIDIA's rounds it to nearest and
-//   AMD's Windows driver toward nought (`aPackedHalfLandsBesideItsValueAndNearestHalfOnTheNearest`),
-//   and a history rounded toward nought darkens every penumbra a little at each frame. What a level
-//   stores is rounded once, as `storedWord` says.
-// - **The tree's two surface tests** in place of the SDK's depth and normal ones: `coplanarWeight`,
-//   over positions rebuilt through the eye that cast each ray, and `facingWeights`. The wavelet stops
-//   at the same edges, so a shadow does not bleed across an edge the bounce under it stops at.
-// - **No contrast step.** The SDK's last level raises its mean to `max(1.2 - variance, 1)`, which
-//   darkens a penumbra on purpose: 3.4% of a penumbra's light, against a 256-frame reference, in
-//   `theShadowDenoiserTakesTheNoiseOffAPenumbraAndLeavesItsLightWhereItWas`. A picture darker than
-//   the light it stands for is a picture read wrong, and the noise measure counts it as error.
-// - **A tap that receives nothing weighs nought**, where the SDK drops only the sky: a surface the
-//   source does not light carries a value that is not a shadow, and it must not darken the
-//   terminator beside it.
-// - **A level runs only where its step fits the penumbra**, the tile's reach the temporal pass
-//   wrote: the widest penumbra in pixels in the tile and around it. A narrower one has no noise at
-//   that scale to take off, and a hard shadow the levels blurred lost its depth (`shadowtiles.comp`
-//   says how much). NVIDIA's SIGMA sizes its blur by the penumbra the same way. A level that does
-//   not run copies its input, as a cleared tile does.
 
 #include "gbuffer.h"
 #include "shared/sets.h"
@@ -99,10 +54,8 @@ layout(push_constant, scalar) uniform Push
     ShadowFilterConstants level;
 };
 
-/// How far past the workgroup the square reaches on every side: this level's step, which is how far
-/// its taps reach and never less than the variance's one pixel. And the side of the square a
-/// workgroup reads. **Sized by the level, which a specialization constant is**: sized for the widest
-/// level, the first read a square of 16 a side to use one of 10, and the second one of 12.
+/// How far past the workgroup the square reaches on every side: this level's step, which is how far its
+/// taps reach and never less than the variance's one pixel. And the side of the square a workgroup reads.
 const int APRON = 1 << SHADOW_LEVEL;
 const uint SPAN = SHADOW_WORKGROUP + 2u * uint(APRON);
 
@@ -153,13 +106,13 @@ void storeFiltered(uint field, ivec2 pixel, uint word)
         RTX_STORE_WORDS(lampFiltered, stored, uvec4(word, 0u, 0u, 0u))
 }
 
-/// Fills the workgroup's square, four texels a lane, clamped to the frame as the SDK clamps them:
-/// the surface, and the input of each field `filtering` names.
+/// Fills the workgroup's square, four texels a lane, clamped to the frame as the SDK clamps them: the
+/// surface, and the input of each field `filtering` names.
 ///
-/// **Each level rebuilds its positions from the surface it reads anyway**, and no pass stores them
-/// once a frame: skipping the rebuild outright took 0.025 to 0.033 ms off the shadow zone of the
-/// default suite, three alternated rounds, and an image of positions in full floats at 1280×720 is
-/// 14.7 MB a frame, whose write alone takes 0.026 ms at the card's 576 GB/s before a level reads it.
+/// **Each level rebuilds its positions from the surface it reads anyway**, and no pass stores them once a
+/// frame: skipping the rebuild outright took 0.025 to 0.033 ms off the shadow zone of the default suite,
+/// three alternated rounds, and an image of positions in full floats at 1280×720 is 14.7 MB a frame, whose
+/// write alone takes 0.026 ms at the card's 576 GB/s before a level reads it.
 void readSquare(ivec2 corner, bvec2 filtering)
 {
     const ivec2 last = ivec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight) - 1;
@@ -207,10 +160,9 @@ float filteredVariance(uint field, ivec2 square)
     return variance;
 }
 
-/// What this level stores of `value`, a mean and its variance: the first level's mean rounded at
-/// random by `word`, since the next frame's temporal pass blends it; the second's to the nearest,
-/// since only the third reads it; and the third's mean alone, as its float's bits, which is what the
-/// composite reads.
+/// What this level stores of `value`, a mean and its variance: the first level's mean rounded at random by
+/// `word`, since the next frame's temporal pass blends it; the second's to the nearest, since only the
+/// third reads it; and the third's mean alone, as its float's bits, which is what the composite reads.
 uint storedWord(vec2 value, uint word)
 {
     if (SHADOW_LEVEL == SHADOW_FILTER_LEVELS - 1u)
@@ -221,10 +173,8 @@ uint storedWord(vec2 value, uint word)
     return packShadowWord(value, SHADOW_LEVEL == 0u ? word : UNORM16_NEAREST);
 }
 
-/// What this level stores of the word `source` it copies: the word itself where the target is one
-/// as well, and the third level's mean as its float's bits. **Not unpacked and rounded again**: a
-/// step read back stands within an ulp of its value, and a hair under it a rounding at random takes
-/// a step down as often as the hair is a share of a step.
+/// What this level stores of the word `source` it copies: the word itself where the target is one as well,
+/// and the third level's mean as its float's bits.
 uint copiedWord(uint source)
 {
     return SHADOW_LEVEL == SHADOW_FILTER_LEVELS - 1u ? floatBitsToUint(unpackShadowWord(source).x) : source;
@@ -236,12 +186,8 @@ float kernelAt(int offset)
     return offset == 0 ? 1.0 : 2.0 / 3.0;
 }
 
-/// Whether this workgroup filters `field`'s tile, storing the copy where it does not. **A cleared tile
-/// is copied**: its value is the temporal pass's exact nought or one. Not at the middle level, whose
-/// target is the temporal pass's own image, so the value is already there for the last level to
-/// read. **And a tile whose penumbra this level's step does not fit is copied at every level**, the
-/// middle one too: the first may have run, and its target is not the temporal pass's value the
-/// middle one's is.
+/// Whether this workgroup filters `field`'s tile, storing the copy where it does not. **A cleared tile is
+/// copied**: its value is the temporal pass's exact nought or one.
 bool filtersTile(uint field, ivec2 at, bool inFrame)
 {
     const vec2 tile = fieldTile(field);

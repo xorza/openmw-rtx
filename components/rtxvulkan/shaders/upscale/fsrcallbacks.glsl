@@ -1,69 +1,19 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_UPSCALE_FSRCALLBACKS_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_UPSCALE_FSRCALLBACKS_GLSL
 
-// Derived from the FidelityFX SDK (v1.1.4), `ffx_fsr3upscaler_callbacks_glsl.h`, whose notice
-// follows.
-//
-// Copyright (C) 2024 Advanced Micro Devices, Inc.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// Derived from the FidelityFX SDK (v1.1.4), `ffx_fsr3upscaler_callbacks_glsl.h`, whose notice follows.
 
-// What FSR 3.1 binds and reads, as the renderer hands it over: the SDK's callbacks, which is the file
-// the SDK has an integration write, and what this one changes.
+// What FSR 3.1 binds and reads, as the renderer hands it over: the SDK's callbacks, which is the file the
+// SDK has an integration write, and what this one changes.
 //
-// - **The constant blocks are `fsr.h`'s structs**, laid out as the SDK's std140 blocks and declared
-//   scalar, so the host writes one struct and not a list of floats.
-// - **One linear sampler** at `FSR_BIND_SAMPLER`: the SDK's point sampler is declared and read nowhere.
-// - **The depth is worked out, not bound.** The trace keeps the distance along each pixel's ray,
-//   not a device depth; `LoadInputDepth` makes the reversed, infinite one the SDK is built for, on
-//   the frames FSR runs, and the host sets the depth flags to say so.
-// - **The motion vector is the trace's as it is.** `CHANNEL_MOTION` is where the surface the pixel's
-//   ray hit stood on the last frame's unjittered screen, less where it stands on this frame's
-//   unjittered screen: both ends one point, so the jitter the ray was aimed with is in neither, and
-//   the vector is the unjittered one the SDK asks for (`JITTERED_MOTION_VECTORS 0`). Taking the
-//   jitter off it as well handed a still picture a motion of one jitter offset a frame, and the
-//   history, reprojected by it, followed the jitter: the whole frame shook, by more the fewer pixels
-//   were traced (`aStillPictureHoldsStillThroughEveryUpscale`).
-// - **The two masks are one image**, `CHANNEL_UPSCALE_MASKS`, the trace's own measure of what its
-//   motion vector does not describe: the reactive mask in `r`, read where the SDK reads its
-//   resource, and the transparency and composition mask in `g`, sampled where the SDK samples its
-//   resource, at the render extent.
-// - **Formats the SDK's host creates**: the luma history is `R16G16B16A16_FLOAT` there and was
-//   declared `rgba8` here, a view whose format is not the declared one; and the output is the
-//   renderer's `rgba16f`.
-// - **A pixel off the frame reads as nothing**: depth nought, no motion, black (`InputPixelOf`).
-//   The SDK's passes load their inputs where they did not make the coordinate, the taps around a
-//   pixel and the threads of the last workgroup past the edge, and lean on D3D answering nought
-//   there. A channel stored in fields answers with a real pixel of the frame instead: at an even
-//   width, column `W` is column 0 or 1 of its row. `ReconstructPrevDepth` then scattered that
-//   pixel's depth onto the right edge, and a turn lost the history of the band there.
-// - The passes the renderer does not run (the reactive generators, RCAS, the debug view) are gone.
+// **The SDK's configuration, stated here for every pass rather than on a command line**: GLSL, full floats,
+// a frame in HDR radiance, motion vectors at the render extent and from the pixel's centre, a reversed
+// depth, and no sharpening.
 //
-// **The SDK's configuration, stated here for every pass rather than on a command line**: GLSL, full
-// floats, a frame in HDR radiance, motion vectors at the render extent and from the pixel's centre,
-// a reversed depth, and no sharpening. Before any SDK header, which reads it.
-//
-// **Full floats where the SDK's own host takes halves on a device that has them**: with `FFX_HALF`,
-// which reaches the two pyramids' arithmetic and nothing else the upscaler computes, the upscale
-// zone's median fell from 0.364 to 0.320 ms on the default suite, and a still picture moved by 0.30
-// to 0.58 of a pixel across its frames, against the quarter `aStillPictureHoldsStillThroughEveryUpscale`
-// allows. The pyramids alone in halves moved it as much.
+// **Full floats where the SDK's own host takes halves on a device that has them**: with `FFX_HALF`, which
+// reaches the two pyramids' arithmetic and nothing else the upscaler computes, the upscale zone's median
+// fell from 0.364 to 0.320 ms on the default suite, and a still picture moved by 0.30 to 0.58 of a pixel
+// across its frames, against the quarter `aStillPictureHoldsStillThroughEveryUpscale` allows.
 
 #define FFX_GPU 1
 #define FFX_GLSL 1
@@ -169,10 +119,8 @@ layout (set = SET_PASS, binding = FSR_INPUTS_BIND_INPUTS, scalar) uniform cbInpu
 };
 
 /// The device depth a rasterizer would have written at `iPxPos`, reversed and with its far plane at
-/// infinity, worked out from `CHANNEL_SURFACE`'s distance along the pixel's own ray: the view depth
-/// is that distance times the ray's cosine to the eye's forward axis, and the device depth the near
-/// plane over it. Nought, the infinitely far, where the ray met nothing. Through the eye the ray
-/// left, `eyeOfPixel`.
+/// infinity, worked out from `CHANNEL_SURFACE`'s distance along the pixel's own ray: the view depth is that
+/// distance times the ray's cosine to the eye's forward axis, and the device depth the near plane over it.
 FfxFloat32 LoadInputDepth(FfxInt32x2 iPxPos)
 {
     const InputPixel at = InputPixelOf(iPxPos);

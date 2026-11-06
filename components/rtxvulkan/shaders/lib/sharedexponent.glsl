@@ -1,24 +1,19 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SHAREDEXPONENT_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SHAREDEXPONENT_GLSL
 
-// A colour in one word, for what a pass keeps of many pixels and reads many times: the accumulator's
-// fast means. **Rounded to nearest, where a half store rounds toward
-// nought on this card** (`RtxHalfStoreTest`), so a running mean kept in it does not fall a little at
-// every store.
+// A colour in one word, for what a pass keeps of many pixels and reads many times: the accumulator's fast
+// means.
 
 #include "census.glsl"
 
 /// The largest value `RGB9E5` holds: nine bits of mantissa at the largest of its exponents.
 const float RGB9E5_LARGEST = 65408.0;
 
-/// A colour as three nine-bit mantissas sharing one five-bit exponent: the one each channel needs
-/// for the brightest of them. **What a radiance loses is relative to its brightest channel**: half a
-/// step, a part in 512 of it at worst, where three halves would cost the same six bytes twice over.
-/// Below nought is nought, and past `RGB9E5_LARGEST` is that.
+/// A colour as three nine-bit mantissas sharing one five-bit exponent: the one each channel needs for the
+/// brightest of them.
 ///
-/// **Counted where the shaders count, because the format has no NaN to keep one in**: what reads
-/// the word back reads a number, so a NaN packed here would be one no later store sees. Not refused
-/// either: a NaN is the logic error it is, and its word whatever the conversions make of it.
+/// **Counted where the shaders count, because the format has no NaN to keep one in**: what reads the word
+/// back reads a number, so a NaN packed here would be one no later store sees.
 uint packRgb9e5(vec3 colour)
 {
     countNotFinite(colour);

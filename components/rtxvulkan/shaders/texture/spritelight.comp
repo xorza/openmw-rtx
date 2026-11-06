@@ -3,26 +3,19 @@
 #extension GL_EXT_samplerless_texture_functions : require
 #extension GL_GOOGLE_include_directive : require
 
-// What a sprite's own texture leaves of the light crossing it, baked from its alpha, made where
-// the texture is.
+// What a sprite's own texture leaves of the light crossing it, baked from its alpha, made where the texture
+// is.
 //
 // **`Rtx::TextureKind::SpriteLight`, on the device.** Six-way lighting for a billboard: for every texel and
-// each of the four in-plane directions, how much light from that side reaches it through the
-// texels between, as a running product of `(1 - a) ^ (1 / N)` over a level `N` texels across —
-// written to a texel *before* that texel's own alpha is multiplied in, because what reaches a
-// texel is what the ones beyond it let through and not what it lets through itself. The channels
-// are light from `+u`, `-u`, `+v` and `-v` in the texture's own coordinates, as `sprites.glsl`
-// reads. On the device because the source is uploaded anyway and the bake is read by nothing but
-// the trace: made on the host it walked every texel of every level four times on the frame the
-// first flame of a cell stood, and it was the one texture reading the cell ring never read ahead.
+// each of the four in-plane directions, how much light from that side reaches it through the texels
+// between, as a running product of `(1 - a) ^ (1 / N)` over a level `N` texels across — written to a texel
+// *before* that texel's own alpha is multiplied in, because what reaches a texel is what the ones beyond it
+// let through and not what it lets through itself. The channels are light from `+u`, `-u`, `+v` and `-v` in
+// the texture's own coordinates, as `sprites.glsl` reads.
 //
-// **A running product along each line, one channel a stage**: a lane walks its row or its column
-// from the edge the light comes from, writing each texel the product so far before multiplying its
-// own in, so a level costs a `pow` and a multiply a texel a channel. The order of the multiplies is
-// the host's — from the far edge inward — so the two agree to the last multiply and differ only in
-// `pow`. One channel a stage, because a texel's four are written by four lanes: each stage stores
-// the channels the stages before it wrote, read back as stored, beside its own, and a channel
-// stored once and read back is the byte it was.
+// **A running product along each line, one channel a stage**: a lane walks its row or its column from the
+// edge the light comes from, writing each texel the product so far before multiplying its own in, so a
+// level costs a `pow` and a multiply a texel a channel.
 
 #include "scene.h"
 #include "shared/sets.h"

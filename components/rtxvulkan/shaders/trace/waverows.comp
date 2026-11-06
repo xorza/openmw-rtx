@@ -2,21 +2,20 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-// The sea's spectrum at a moment, and the five derivatives of it a surface needs, transformed along
-// the rows — the first half of the inverse transform, with the forming in front of it.
+// The sea's spectrum at a moment, and the five derivatives of it a surface needs, transformed along the
+// rows — the first half of the inverse transform, with the forming in front of it.
 //
-// **This is the whole of what a frame does to the wave table.** The amplitudes were drawn once for
-// the sea state; turning them to a time is a rotation, and every field the shading wants is that
-// same rotated spectrum times a power of `i k`. So a frame costs one pass over the grid and three
-// transforms, where the spectrum itself costs a Gaussian draw per wavevector and is never redone.
+// **This is the whole of what a frame does to the wave table.** The amplitudes were drawn once for the sea
+// state; turning them to a time is a rotation, and every field the shading wants is that same rotated
+// spectrum times a power of `i k`. So a frame costs one pass over the grid and three transforms, where the
+// spectrum itself costs a Gaussian draw per wavevector and is never redone.
 //
-// **Six real fields in three complex transforms.** The spectrum of a real field is
-// conjugate-symmetric, so `A + iB` inverse-transforms to `a + ib` with `a` and `b` both real — one
-// in the real part of the answer and the other in the imaginary part.
+// **Six real fields in three complex transforms.** The spectrum of a real field is conjugate-symmetric, so
+// `A + iB` inverse-transforms to `a + ib` with `a` and `b` both real — one in the real part of the answer
+// and the other in the imaginary part.
 //
-// **Formed where it is transformed**, a row a workgroup: the spectrum is made straight into shared
-// memory and the transform reads it there. Formed in a pass of its own, the three fields went out to
-// memory whole and came straight back.
+// **Formed where it is transformed**, a row a workgroup: the spectrum is made straight into shared memory
+// and the transform reads it there.
 
 #include "scene.h"
 #include "shared/sets.h"
@@ -71,10 +70,10 @@ void main()
     {
         const uint at = row * count + column;
 
-        // **The partner at `-k`, and the entry that is its own.** A real field needs `H(-k)` to be
-        // the conjugate of `H(k)`, which the sum below gives for every pair — and along the edge the
-        // grid holds, where `-k` would fall outside it, the index maps to itself and the sum is twice
-        // a real part, which is the same statement.
+        // **The partner at `-k`, and the entry that is its own.** A real field needs `H(-k)` to be the
+        // conjugate of `H(k)`, which the sum below gives for every pair — and along the edge the grid
+        // holds, where `-k` would fall outside it, the index maps to itself and the sum is twice a real
+        // part, which is the same statement.
         const uint mirror = ((count - row) % count) * count + (count - column) % count;
 
         const vec2 wavevector = step * vec2(int(column) - middle, int(row) - middle);

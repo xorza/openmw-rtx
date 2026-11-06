@@ -2,9 +2,7 @@
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_COUNTS_GLSL
 
 // The trace's own counts, `FrameCounts` in `counts.h`, bound by each trace on its own buffer, so a
-// picture's misses are not the world's. The hold's own clock in `stress.comp` is not a count and is
-// not here: it binds the block on a layout of its own, because it runs on nothing else of the
-// frame's. The stores that were not finite are the device's census (`census.glsl`), apart.
+// picture's misses are not the world's.
 
 #include "bindings.glsl"
 #include "variants.glsl"

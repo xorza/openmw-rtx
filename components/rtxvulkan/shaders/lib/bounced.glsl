@@ -15,9 +15,7 @@
 #include "shading.glsl"
 #include "stagerecord.glsl"
 
-/// Writes what arrived along `pixel`'s bounce into the indirect light, the fill and the lobe's share
-/// of it. The upscaler's masks, which weigh a part of the pixel against the whole of its light, are
-/// the composing pass's (`storeUpscaleMasks`), which holds the whole filtered.
+/// Writes what arrived along `pixel`'s bounce into the indirect light, the fill and the lobe's share of it.
 ///
 /// @param modulation what the lobe's half is divided by (`storedBounceAt`), which only the lobe
 ///        brings any back to, and only off a glossy solid, whose modulation it is.

@@ -4,9 +4,8 @@
 
 // One doubling of the bloom pyramid, mixed into the level that was already there.
 //
-// **Mixed and not added**, so the pyramid's total does not depend on how many levels a frame had
-// room for — `BLOOM_SCATTER` says why, and what a level holds after this is the blur of everything
-// coarser than it.
+// **Mixed and not added**, so the pyramid's total does not depend on how many levels a frame had room for —
+// `BLOOM_SCATTER` says why, and what a level holds after this is the blur of everything coarser than it.
 
 #include "shared/bloom.h"
 #include "shared/sets.h"
