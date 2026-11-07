@@ -311,12 +311,11 @@ Facing facingOf(Surface surface)
 /// `bumpShadowing` for one light's direction, which a lit cosine and a lobe both take.
 ///
 /// **One exactly where nothing is mapped**, selected and not worked out: a unit normal's square is one to a
-/// rounding, and the share it would be divided into is a rounding off one, so a vanilla surface would move
-/// by an ulp it has no reason to.
+/// rounding, and the angle `bumpShadowing` reads off it a rounding off nought, so a vanilla surface would
+/// move by an ulp it has no reason to.
 float terminatorShare(Facing facing, vec3 towards)
 {
-    const float share
-        = bumpShadowing(dot(facing.mBase, towards), dot(facing.mNormal, towards), dot(facing.mBase, facing.mNormal));
+    const float share = bumpShadowing(dot(facing.mBase, towards), dot(facing.mBase, facing.mNormal));
     return all(equal(facing.mBase, facing.mNormal)) ? 1.0 : share;
 }
 

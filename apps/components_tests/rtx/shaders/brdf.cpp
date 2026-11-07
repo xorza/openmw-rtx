@@ -17,6 +17,25 @@ namespace Rtx
 {
     namespace
     {
+        /// **An open surface is exactly as it was, and a closed one sends nothing back.** The fit's value at
+        /// a visibility of 0.5 and an albedo of 0.5: `a = 0.6878`, `b = -1.75585`, `c = 2.0679`, so
+        /// `((0.5a + b) 0.5 + c) 0.5 = 0.6809625`. At an albedo of 0.068, `((0.5 * -0.19365 + 0.31563) 0.5 +
+        /// 0.87765) 0.5 = 0.49353`, under the visibility, which it stays at. At an albedo of 0.8,
+        /// `a = 1.29992`, `b = -3.19438`, `c = 2.89446`, so `0.811125`. An albedo of one reads 1.0001 at a
+        /// visibility of one, unheld.
+        TEST(RtxBrdfTest, anOcclusionMapsVisibilityRisesWithTheAlbedoAndHoldsAtOne)
+        {
+            for (const float albedo : { 0.0f, 0.068f, 0.5f, 0.8f, 1.0f })
+            {
+                EXPECT_EQ(Shaders::indirectVisibility(1.0f, albedo), 1.0f) << albedo;
+                EXPECT_EQ(Shaders::indirectVisibility(0.0f, albedo), 0.0f) << albedo;
+            }
+
+            EXPECT_NEAR(Shaders::indirectVisibility(0.5f, 0.5f), 0.6809625f, 1e-6f);
+            EXPECT_EQ(Shaders::indirectVisibility(0.5f, 0.068f), 0.5f);
+            EXPECT_NEAR(Shaders::indirectVisibility(0.5f, 0.8f), 0.811125f, 1e-6f);
+        }
+
         /// **A vanilla surface is the Lambert surface it was.** A reflectance of nought has an edge of
         /// nought, reflects exactly nothing at every angle, has a directional albedo of exactly
         /// nothing wherever the table is read, and is scaled by exactly one. A dielectric's 4% reaches
@@ -341,26 +360,37 @@ namespace Rtx
             }
         }
 
-        /// **A mapped normal keeps its light where the surface under it explains it, and fades with
-        /// that surface's cosine where it does not.** The share is the base cosine over the mapped
-        /// cosine times the two normals' cosine, held to one, then `g (1 + g (1 - g))`:
+        /// **A mapped normal's light fades with the cosine of the surface under it, by how far the map
+        /// leans.** `a = tan^2(d) / 8` held to one, and `G = 2c / (c + sqrt(c^2 + a (1 - c^2)))`:
         ///
-        /// - a base that leans as far as the map, `0.5 / (0.5 * 1)`, is a share of one, kept whole;
-        /// - `0.25 / (0.5 * 1)` = 0.5 keeps `0.5 * 1.25` = 0.625;
-        /// - `0.1 / (0.5 * 1)` = 0.2 keeps `0.2 * 1.16` = 0.232;
-        /// - a base turned from the light, or normals more than square apart, keep nothing.
-        ///
-        /// And the smoothing meets one flat: its slope `1 + 2g - 3g^2` is nought at one, so a share
-        /// just under one keeps all but its square of the gap, `0.99` keeping `0.99 * 1.0099`.
+        /// - normals that are one have `a` of nought, and every cosine keeps the whole, to the bit, down to
+        ///   one whose square underflows;
+        /// - at `cos d = 0.8`, `tan^2 d = 0.5625` and `a = 0.0703125`: `c = 0.5` has a root of
+        ///   `sqrt(0.302734375) = 0.550213` and keeps `1 / 1.050213 = 0.952188`, and `c = 0.1` a root of
+        ///   `sqrt(0.079609375) = 0.282151` and keeps `0.2 / 0.382151 = 0.523353`;
+        /// - at `cos d = 0.5`, `a = 0.375`: `c = 0.5` keeps `1 / 1.228869 = 0.813756`;
+        /// - at `cos d = 0.2`, `a` is three, held to one: `c = 0.5` has a root of one and keeps two thirds;
+        /// - a light on the normal keeps the whole however far the map leans;
+        /// - normals square or more apart keep what `cos d = 0.2` keeps, with no step at the square;
+        /// - a base turned from the light or square to it keeps nothing.
         TEST(RtxBrdfTest, aMappedNormalsLightFadesWithTheCosineOfTheSurfaceUnderIt)
         {
-            EXPECT_EQ(Shaders::bumpShadowing(0.5f, 0.5f, 1.0f), 1.0f);
-            EXPECT_EQ(Shaders::bumpShadowing(0.9f, 0.5f, 1.0f), 1.0f) << "past one is held to one";
-            EXPECT_FLOAT_EQ(Shaders::bumpShadowing(0.25f, 0.5f, 1.0f), 0.625f);
-            EXPECT_FLOAT_EQ(Shaders::bumpShadowing(0.1f, 0.5f, 1.0f), 0.232f);
-            EXPECT_EQ(Shaders::bumpShadowing(-0.1f, 0.5f, 1.0f), 0.0f) << "a base turned from the light";
-            EXPECT_EQ(Shaders::bumpShadowing(0.2f, 0.5f, -0.1f), 0.0f) << "normals more than square apart";
-            EXPECT_FLOAT_EQ(Shaders::bumpShadowing(0.495f, 0.5f, 1.0f), 0.99f * 1.0099f);
+            for (const float cosine : { 1e-30f, 0.001f, 0.1f, 0.5f, 1.0f })
+                EXPECT_EQ(Shaders::bumpShadowing(cosine, 1.0f), 1.0f) << cosine;
+
+            EXPECT_NEAR(Shaders::bumpShadowing(0.5f, 0.8f), 0.952188f, 1e-6f);
+            EXPECT_NEAR(Shaders::bumpShadowing(0.1f, 0.8f), 0.523353f, 1e-6f);
+            EXPECT_NEAR(Shaders::bumpShadowing(0.5f, 0.5f), 0.813756f, 1e-6f);
+            EXPECT_NEAR(Shaders::bumpShadowing(0.5f, 1.0f / 3.0f), 2.0f / 3.0f, 1e-6f) << "where `a` reaches one";
+            EXPECT_NEAR(Shaders::bumpShadowing(0.5f, 0.2f), 2.0f / 3.0f, 1e-6f);
+            EXPECT_EQ(Shaders::bumpShadowing(1.0f, 0.2f), 1.0f);
+            EXPECT_EQ(Shaders::bumpShadowing(1.2f, 0.8f), 1.0f) << "a cosine a rounding past one";
+
+            EXPECT_EQ(Shaders::bumpShadowing(-0.1f, 0.8f), 0.0f) << "a base turned from the light";
+            EXPECT_EQ(Shaders::bumpShadowing(0.0f, 0.8f), 0.0f) << "a base square to the light";
+            EXPECT_EQ(Shaders::bumpShadowing(0.0f, 1.0f), 0.0f) << "and with no map, which divides nought by nought";
+            EXPECT_NEAR(Shaders::bumpShadowing(0.5f, 0.0f), 2.0f / 3.0f, 1e-6f) << "normals square";
+            EXPECT_NEAR(Shaders::bumpShadowing(0.5f, -0.1f), 2.0f / 3.0f, 1e-6f) << "normals past square";
         }
     }
 }

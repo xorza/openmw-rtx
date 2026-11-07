@@ -82,7 +82,8 @@ runs.
    exponent over 255 — is matched to a roughness by :math:`\alpha = \sqrt{2 / (n + 2)}`, which is an
    approximation and not the rasterizer's highlight; a terrain :code:`_diffusespec` is read the same
    way, its alpha the grey reflectance at the exponent of 128 the rasterizer's terrain uses.
-   :code:`metal roughness` reads the second.
+   :code:`metal roughness` reads the second, the occlusion over indirect light alone and the
+   scattering not at all.
 
    Vanilla content has no :code:`_spec` maps, so its picture is the same under either layout. The
    maps are found by :ref:`specular map pattern`, and the :code:`_n` maps by :ref:`normal map

@@ -308,6 +308,45 @@ namespace Rtx::Testing
             }
         }
 
+        /// **A specular map's blue leaves a pane's lamps and its albedo alone**: `CHANNEL_PANE` holds a
+        /// pane's direct light beside its fill, and `CHANNEL_PANE_ALBEDO` multiplies both. Under no ambient,
+        /// only the lamps are in it, and a closed map and an open one draw them to the bit.
+        TEST_F(RtxVisibilityTest, aSpecularMapsBlueLeavesAPanesLampsAndAlbedoAlone)
+        {
+            struct Read
+            {
+                std::vector<float> mPane;
+                std::vector<float> mAlbedo;
+            };
+            const auto under = [&](std::uint8_t blue) {
+                constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
+                const std::array<std::uint8_t, 4> mapTexel{ 0, 128, blue, 255 };
+                const std::array<TextureData, 2> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1) };
+
+                SceneDesc scene;
+                addLampsBefore(scene, 200.0f);
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("pane.dds"));
+                const Index map = scene.textures().add(
+                    VFS::Path::NormalizedView("pane_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, uprightQuadAt(4000.0f, 200.0f)),
+                    .mMaterial = scene.addMaterial(Material{
+                        .mDiffuse = diffuse, .mSpecular = map, .mOpacity = 0.5f, .mAlphaMode = AlphaMode::Blend }) });
+
+                shoot(scene, textures, darkEyeAt(osg::Vec3f()), sSize);
+                Read read;
+                mProbe.readChannel(Channel::Pane, read.mPane);
+                mProbe.readChannel(Channel::PaneAlbedo, read.mAlbedo);
+                return read;
+            };
+
+            const Read open = under(255);
+            const Read closed = under(0);
+            const std::size_t centre = centreValueOf(sSize);
+            EXPECT_GT(open.mPane[centre], 0.0f) << "a pane that no lamp reaches proves nothing";
+            EXPECT_EQ(closed.mPane, open.mPane);
+            EXPECT_EQ(closed.mAlbedo, open.mAlbedo);
+        }
+
         /// **A pane's lobe is composed and not filtered**: the pane filter keeps a layer's history
         /// whole over every turn of the view, which a reflection does not survive. A metal pane at half
         /// its opacity under the four lamps: a metal has no diffuse half, and the black sky lights

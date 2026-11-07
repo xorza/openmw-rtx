@@ -1099,6 +1099,75 @@ namespace Rtx::Testing
             EXPECT_NE(lit(2u, 1).mRadiance, lit(0u, 1).mRadiance) << "the count is not read";
         }
 
+        /// **A specular map's blue occludes the indirect light alone.** Its two albedos are what the composite
+        /// multiplies the bounce and the fill back by, and they fall by `indirectVisibility`; the lamp, in the
+        /// lamps' channel, and Night-Eye's lift are the numbers an open map gives. A classic map's blue is a
+        /// reflectance, and an open map's a visibility of one, and the albedos keep their bits under both.
+        TEST_F(RtxVisibilityTest, aSpecularMapsBlueOccludesTheIndirectLightAndNothingElse)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            struct Read
+            {
+                std::vector<float> mAlbedo;
+                std::vector<float> mAmbient;
+                std::vector<float> mLamped;
+                std::vector<float> mLift;
+            };
+            const auto shot = [&](std::uint8_t blue, bool classic) {
+                const std::array<std::uint8_t, 4> mapTexel{ 0, 128, blue, 255 };
+                const std::array<TextureData, 2> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1) };
+
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(
+                    MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const Index map = scene.textures().add(VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat,
+                    classic ? TextureEncoding::Colour : TextureEncoding::Data);
+                scene.addInstance(MeshInstance{ .mMesh = mesh,
+                    .mMaterial = scene.addMaterial(
+                        Material{ .mDiffuse = diffuse, .mSpecular = map, .mSpecularClassic = classic }) });
+                scene.addLight(Light{
+                    .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f),
+                    .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                    .mReach = 500.0f,
+                });
+
+                const Frame frame = shoot(scene, textures, camera, size);
+                EXPECT_GT(frame.mHits, 0u);
+                Read read;
+                mProbe.readChannel(Channel::Albedo, read.mAlbedo);
+                mProbe.readChannel(Channel::AmbientAlbedo, read.mAmbient);
+                mProbe.readChannel(Channel::Lamped, read.mLamped);
+                mProbe.readChannel(Channel::Lift, read.mLift);
+                return read;
+            };
+
+            const std::size_t at = centreValueOf(size);
+            const float base = 128.0f / 255.0f;
+            const Read open = shot(255, false);
+            const Read occluded = shot(64, false);
+            EXPECT_NEAR(open.mAlbedo[at], base, 1e-3f);
+            EXPECT_NEAR(open.mAmbient[at], base, 1e-3f);
+
+            const float visibility = Shaders::indirectVisibility(64.0f / 255.0f, base);
+            EXPECT_LT(visibility, 1.0f);
+            EXPECT_NEAR(occluded.mAlbedo[at], base * visibility, 1e-3f);
+            EXPECT_NEAR(occluded.mAmbient[at], base * visibility, 1e-3f);
+
+            EXPECT_GT(open.mLamped[at], 0.0f) << "the lamp must reach the wall for its sameness to say anything";
+            EXPECT_EQ(occluded.mLamped, open.mLamped);
+            EXPECT_GT(open.mLift[at], 0.0f) << "a lift of nothing would stay the same whatever its albedo";
+            EXPECT_EQ(occluded.mLift, open.mLift);
+
+            const Read classic = shot(64, true);
+            EXPECT_NEAR(classic.mAlbedo[at], base, 1e-3f);
+            EXPECT_NEAR(classic.mAmbient[at], base, 1e-3f);
+        }
+
         /// **A wall with a specular map reflects the lamp by the lobe the host evaluates**, a
         /// dielectric keeps what the lobe did not take for its diffuse half, and a normal map turns
         /// both through the tangent frame the rasterizer builds.
@@ -1107,6 +1176,69 @@ namespace Rtx::Testing
         /// sky black, so the centre pixel is the lamp's direct light and nothing else: its
         /// irradiance square to the wall, `4000 * 3.99760e-4 = 1.59904`, through `brdf.h` at the
         /// pixel's own vectors — the eye along `(1, -1, 0) / √2` and the lamp along `(0, -1, 0)`.
+        /// **A bounce's landing takes its fill under its own specular map's blue**, where a room's record is
+        /// the ambient and no ray asks, and where the sky is and its occlusion ray does. The eye sees only a
+        /// wall with no map, and the bounces that reach the floor are the only ones the floor's map can move:
+        /// every path draws what it drew, so each pixel's fill falls by `indirectVisibility` of the floor's
+        /// blue and albedo, to the rounding of the two halves compared.
+        TEST_F(RtxVisibilityTest, aBouncesLandingTakesItsFillUnderItsSpecularMapsBlue)
+        {
+            constexpr std::uint32_t size = 16;
+            constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
+            const std::array<osg::Vec3f, 4> floorQuad{ osg::Vec3f(-400.0f, -400.0f, -100.0f),
+                osg::Vec3f(400.0f, -400.0f, -100.0f), osg::Vec3f(400.0f, 0.0f, -100.0f),
+                osg::Vec3f(-400.0f, 0.0f, -100.0f) };
+            const osg::Vec3f up(0.0f, 0.0f, 1.0f);
+            const std::array<osg::Vec3f, 4> floorNormals{ up, up, up, up };
+
+            const auto fillUnder = [&](std::uint8_t blue, float fromSky) {
+                const std::array<std::uint8_t, 4> mapTexel{ 0, 128, blue, 255 };
+                const std::array<TextureData, 2> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1) };
+
+                SceneDesc scene;
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const Index map = scene.textures().add(
+                    VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                scene.addInstance(
+                    MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
+                                      .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                        .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse }) });
+                scene.addInstance(MeshInstance{ .mMesh = scene.addMesh(MeshArrays{ .mPositions = floorQuad,
+                                                    .mNormals = floorNormals,
+                                                    .mTexCoords = sQuadUv,
+                                                    .mIndices = sQuadIndices }),
+                    .mMaterial
+                    = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map, .mTwoSided = true }) });
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
+                camera.mAmbientFromSky = fromSky;
+                EXPECT_EQ(shoot(scene, textures, camera, size).mHits, size * size) << "the wall fills the frame";
+
+                std::vector<float> fill;
+                mProbe.readChannel(Channel::Fill, fill);
+                return fill;
+            };
+
+            const float visibility = Shaders::indirectVisibility(64.0f / 255.0f, 128.0f / 255.0f);
+            for (const float fromSky : { 0.0f, 1.0f })
+            {
+                const std::vector<float> open = fillUnder(255, fromSky);
+                const std::vector<float> occluded = fillUnder(64, fromSky);
+                ASSERT_EQ(occluded.size(), open.size());
+
+                std::size_t landed = 0;
+                for (std::size_t value = 0; value < open.size(); value += 4)
+                {
+                    landed += open[value] > 0.0f ? 1 : 0;
+                    EXPECT_NEAR(occluded[value], open[value] * visibility, open[value] * 0x1p-9f)
+                        << "pixel " << value / 4 << " from the sky " << fromSky;
+                }
+                EXPECT_GT(landed, 0u) << "no bounce reached the floor with a fill, from the sky " << fromSky;
+            }
+        }
+
         /// The base colour and the roughness are both a byte of 128, `0.501961`, read linearly as a
         /// data map is.
         ///
@@ -1198,9 +1330,7 @@ namespace Rtx::Testing
             // nothing is mapped.
             const auto expected = [&](const osg::Vec3f& vertex, const osg::Vec3f& shading, const osg::Vec3f& facing,
                                       float metal, float tint = 1.0f) {
-                const float kept = shading == vertex
-                    ? 1.0f
-                    : Shaders::bumpShadowing(vertex * toLamp, shading * toLamp, vertex * shading);
+                const float kept = shading == vertex ? 1.0f : Shaders::bumpShadowing(vertex * toLamp, vertex * shading);
                 osg::Vec3f halfway = toEye + toLamp;
                 halfway.normalize();
                 const float toLight = facing * toLamp;

@@ -3,7 +3,7 @@
 Every `_spec` map of one PBR replacer profile, at the top level of each file: MVR PBR (Nexus 57592) and
 Tamrielic PBR Armors Pt. 1 (Nexus 57486), over vanilla and MVR. The last data folder wins, as in the game. A
 map over 1024 texels a side was box-filtered to 1024. B was read as stored. The diffuse was decoded from sRGB
-to linear. No frame was rendered, so nothing here measures the effect on a picture.
+to linear. The first sections measure the files, and "What it does to a picture" the frames.
 
 ## What the maps hold
 
@@ -106,3 +106,39 @@ shader. That shader's source was not available, so what that value does to B is 
 
 Not read at the source, because Nexus refuses the fetch: Rafael's shader. A Nexus summary lists "parallax AO" in its
 Enhanced PBR Lighting, and another mod's summary names "Rafael's PBR neighbour-sample AO".
+
+## What it does to a picture
+
+`shot --views=all --upscale=off --maps=metal-roughness` on the same profile, a high-end NVIDIA laptop GPU, release
+builds, metered exposure, 35 places, against the build that left B unread.
+
+- The mean difference is under 1 of 255 at 34 places, and 1.75 at `seyda-neen-fence`, whose mortar joints go darker.
+  Median brightness moves by at most 1 of 255. The doll of `imperial archer` moves by a mean of 0.02.
+- The surface, shadow, lamp, lift and specular albedo channels do not move, and the vanilla and `classic` pictures keep
+  their hashes. 96 of 384 kernels move, every one with `HAS_MAPS=1`.
+- Frame noise holds to 0.01, and fireflies move from 0.14 to 0.15 in a thousand at the fence.
+
+Median frame in ms, the middle of three 15-second runs back to back after a warm-up:
+
+| place | B unread | B read |
+|---|---|---|
+| `seyda-neen-fence` | 5.75 | 5.88 |
+| `seyda-neen-ship` | 6.41 | 6.40 |
+| `balmora` | 5.39 | 5.37 |
+| `addamasartus` | 5.49 | 5.51 |
+| `vivec-canalworks` | 5.05 | 4.97 |
+
+## Not measured
+
+The diffuse is dark where B is dark, and no pack states whether that is paint or a painted shadow. What
+`SPECULAR_MAP_INTERPRETATION 2` does to Tamrielic's B is unread. These packs would widen the census:
+
+- [Rafael's Shader Pack](https://www.nexusmods.com/morrowind/mods/53667?tab=files), its Enhanced PBR Lighting: what the
+  shader does with B and its height AO.
+- [Tamrielic PBR - Dwemer Ruins 2K](https://www.nexusmods.com/morrowind/mods/57266): architecture from the same series.
+- [Morrowind Watercolor HD Upscale](https://www.nexusmods.com/morrowind/mods/56990): a hand-painted diffuse.
+- [SaintJ's Landscape Remastered 2.0](https://www.nexusmods.com/morrowind/mods/57594), `01 PBR`: landscape.
+- [PBRified](https://www.nexusmods.com/morrowind/mods/59078), [PBR for Morrowind Enhanced
+  Textures](https://www.nexusmods.com/morrowind/mods/57946), [PBR maps for Wareya's core
+  shaders](https://www.nexusmods.com/morrowind/mods/53645), [Full Dwemer Retexture
+  PBR](https://www.nexusmods.com/morrowind/mods/52217).

@@ -113,6 +113,21 @@ namespace Rtx::Shaders
         return sqrt(sqrt(2.0f / (exponent + 2.0f)));
     }
 
+    /// What of the indirect light a surface of `albedo` sends back from under an occlusion map's
+    /// `visibility`, per channel: Jimenez et al. 2016's fit to the light that bounces inside what the map
+    /// occludes, in the form Filament writes on a desktop (`gtaoMultiBounce`). No ray stands for that light,
+    /// since a ray meets the mesh and not the relief the map is of, so a bright crack is not a grey one.
+    ///
+    /// **Held to one**, which Filament's is not: its coefficients sum to `0.9996 + 0.0005 * albedo`, so an
+    /// open surface over an albedo of 0.8 would make light.
+    RTX_SHADER float indirectVisibility(float visibility, float albedo)
+    {
+        const float a = 2.0404f * albedo - 0.3324f;
+        const float b = -4.7951f * albedo + 0.6417f;
+        const float c = 2.7552f * albedo + 0.6903f;
+        return min(max(visibility, ((visibility * a + b) * visibility + c) * visibility), 1.0f);
+    }
+
     /// GGX's alpha for a perceptual roughness: its square, the roughness a map paints being
     /// perceptually linear — glTF 2.0 and Filament. Held at `ROUGHNESS_FLOOR`.
     RTX_SHADER float ggxAlpha(float roughness)
@@ -307,28 +322,44 @@ namespace Rtx::Shaders
     }
 
     /// What a mapped normal's light is kept of as the light nears the horizon of the surface the map
-    /// was laid on: Chiang, Li and Burley's shadowing term for bump and normal maps ("Taming the
-    /// Shadow Terminator", 2019), as Cycles takes it (`bump_shadowing_term`).
+    /// was laid on: Conty Estevez, Lecocq and Stein's GGX shadowing ("A Microfacet-Based Shadowing
+    /// Function to Solve the Bump Terminator Problem", 2019), as Cycles takes it
+    /// (`bump_shadowing_term`), `G = 2c / (c + sqrt(c^2 + a (1 - c^2)))` with `c` the base's cosine
+    /// and `a = tan^2(d) / 8` from the angle `d` between the two normals, held to one.
     ///
     /// **Why a ray tracer needs it.** A mapped normal tilts toward a light the surface under it has
     /// all but turned from, and the facets of a coarse solid stop that light with a hard edge where
     /// one of them turns past it: their shadow rays leave into the solid. The round stone wall at
     /// Seyda Neen's (-2, -9), under the PBR replacers, drew that edge as a razor line, lit stones on
-    /// one facet and dark ones on the next; vanilla, with no map, is already dark there. This fades
-    /// the mapped light with the surface's own cosine, so it meets the edge as dark as vanilla does.
+    /// one facet and dark ones on the next.
     ///
-    /// `g` is the share of the mapped normal's cosine that the base normal's cosine explains, held
-    /// to one, and smoothed by `-g^3 + g^2 + g` so its slope is not cut at one. One wherever the two
-    /// normals are one, so a surface with no map keeps every light whole.
+    /// **A factor on the mapped cosine, and not a share of it.** Chiang, Li and Burley's term ("Taming
+    /// the Shadow Terminator", 2019) divides the base's cosine by the mapped one, so under a sun that
+    /// grazes a wall the light stood at the base's cosine whatever the map said, and fell to nought
+    /// within a sliver of the mapped terminator, past a rim a quarter over: relief went flat, in
+    /// hard-edged patches (`docs/rtx/research/2026-11-07-bump-terminator.md`).
+    ///
+    /// One to the bit where the two normals are one, so a surface with no map keeps every light whole:
+    /// `a` is then nought and the root is `c`.
+    ///
+    /// **Normals square or more apart keep what normals just short of square keep.** A replacer's map paints
+    /// texels whose own `z` is under nought, so it leans past the base. `a` is one from `cos^2 d = 1/9` on,
+    /// where `tan^2(d) / 8` reaches it, which also leaves nothing to divide by nought; and an answer of nought
+    /// there, which Cycles returns, stood a hard black patch beside `2c / (c + 1)` wherever a map crossed the
+    /// square. And the lobe takes it as the diffuse half does, where Cycles softens the diffuse half alone.
+    ///
+    /// **Held to one**: a cosine so small that its square underflows has a root of nought, and would read two.
     ///
     /// @param baseToLight the cosine between the light and the normal under the map.
-    /// @param mappedToLight the cosine between the light and the mapped normal.
     /// @param baseToMapped the cosine between the two normals.
-    RTX_SHADER float bumpShadowing(float baseToLight, float mappedToLight, float baseToMapped)
+    RTX_SHADER float bumpShadowing(float baseToLight, float baseToMapped)
     {
-        const float explained = mappedToLight * baseToMapped;
-        const float share = explained > 0.0f ? clamp(baseToLight / explained, 0.0f, 1.0f) : 0.0f;
-        return share * (1.0f + share * (1.0f - share));
+        const float cosine = min(baseToLight, 1.0f);
+        const float squared = cosine * cosine;
+        const float leaning = baseToMapped * baseToMapped;
+        const float a = leaning > 1.0f / 9.0f ? max(0.125f * (1.0f / leaning - 1.0f), 0.0f) : 1.0f;
+        const float root = sqrt(squared + a * (1.0f - squared));
+        return baseToLight > 0.0f ? min(2.0f * cosine / (cosine + root), 1.0f) : 0.0f;
     }
 
     /// Schlick's Fresnel, from the reflectance at normal incidence to the one at grazing.

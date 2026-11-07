@@ -1258,7 +1258,7 @@ namespace Rtx::Shaders
         uint mNormal;
 
         /// A `_spec` map in the metal and roughness layout, or `NO_TEXTURE`: metalness in red,
-        /// perceptual roughness in green. **What names it also says the diffuse was authored as an
+        /// perceptual roughness in green, occlusion in blue. **What names it also says the diffuse was authored as an
         /// albedo**, so a material that has one is not delit — `Rtx::SpecularLayout` is what lets a
         /// row carry one at all.
         uint mSpecular;

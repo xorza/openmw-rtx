@@ -383,6 +383,20 @@ SurfaceResponse responseOf(Surface surface, vec3 specular)
     return SurfaceResponse(packSurfaceNormal(surface.mNormal), surface.mAlbedo, surface.mAmbientAlbedo, specular);
 }
 
+/// `albedo`, one of `surface`'s, as it reflects indirect light under the occlusion its specular map paints
+/// (`indirectVisibility`). A surface with no such map keeps the albedo to the bit, and a program with no maps
+/// compiles this out.
+vec3 occludedAlbedo(Surface surface, vec3 albedo)
+{
+    if (!HAS_MAPS)
+        return albedo;
+
+    const float open = surface.mOcclusion;
+    return albedo
+        * vec3(indirectVisibility(open, albedo.x), indirectVisibility(open, albedo.y),
+            indirectVisibility(open, albedo.z));
+}
+
 /// What Night-Eye's lift adds to a surface, per unit of lift, in display values: its ambient albedo
 /// encoded, as the rasterizer adds `texture × A × lift` to every fragment it lights — in the values
 /// it displays, with nothing to occlude it and no exposure to adapt it away. `CHANNEL_LIFT`.
@@ -640,7 +654,7 @@ void addOccludedFill(inout PathEndLight light, Surface surface, uint seed)
     const float reaching = ambientRay.mReaches
         ? (ambientRay.mRated ? ambientRay.mWeight / AMBIENT_EXTERIOR_RATE : ambientRay.mWeight)
         : 0.0;
-    light.mFill = surface.mAmbientAlbedo * pathEnd(surface.mPosition, reaching);
+    light.mFill = occludedAlbedo(surface, surface.mAmbientAlbedo) * pathEnd(surface.mPosition, reaching);
     light.mRays.mAmbient = ambientRay.mRay;
 }
 
@@ -912,8 +926,13 @@ struct SolidLook
 
 SolidLook solidLookOf(Surface surface, Gloss gloss)
 {
-    return SolidLook(
-        responseOf(surface, specularModulation(gloss)), gloss.mGlossy ? surface.mRoughness : SPECULAR_NO_LOBE);
+    // **The two the composite multiplies the bounce and the fill back by, and so those alone**: the direct
+    // stage lights the surface by `Surface::mAlbedo`. Past the filter, for the reason the albedo is: a crack
+    // is detail the light behind it is not.
+    SurfaceResponse response = responseOf(surface, specularModulation(gloss));
+    response.mDiffuse = occludedAlbedo(surface, response.mDiffuse);
+    response.mAmbient = occludedAlbedo(surface, response.mAmbient);
+    return SolidLook(response, gloss.mGlossy ? surface.mRoughness : SPECULAR_NO_LOBE);
 }
 
 /// What a solid the eye found sends back before its shadow rays are answered, and the rays: what
@@ -1208,7 +1227,7 @@ LandingLight landingLightOf(Surface landing, bool lobe, uvec2 pixel, vec3 weight
     if (skyLights())
         addOccludedFill(end, landing, pixelKey(pixel) + seeds.mAmbient);
     else
-        end.mFill = landing.mAmbientAlbedo * pathEnd(landing.mPosition, 1.0);
+        end.mFill = occludedAlbedo(landing, landing.mAmbientAlbedo) * pathEnd(landing.mPosition, 1.0);
 
     LandingLight light;
     light.mGlow = weight * litSurface(landing, vec3(0.0), vec3(0.0));

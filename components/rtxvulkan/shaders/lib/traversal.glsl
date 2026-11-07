@@ -988,6 +988,11 @@ struct Surface
     /// Lambert surface is.
     float mRoughness;
 
+    /// How much of the indirect light the relief a specular map paints lets in: its blue, and one where
+    /// there is none. Past `mAlbedo` and `mAmbientAlbedo` because neither says it: a lamp and the sun light
+    /// the same crack by them, and Night-Eye's lift is held to no occlusion. `occludedAlbedo` applies it.
+    float mOcclusion;
+
     /// The material's own glow, as a lighting term. See `GpuMaterial::mEmissiveColour`.
     vec3 mEmissiveColour;
 
@@ -1049,6 +1054,7 @@ Surface noSurface(vec3 origin)
     surface.mAmbientAlbedo = vec3(0.0);
     surface.mSpecular = vec3(0.0);
     surface.mRoughness = 1.0;
+    surface.mOcclusion = 1.0;
     surface.mEmissiveColour = vec3(0.0);
     surface.mEmitted = vec3(0.0);
     surface.mDistance = frame.mReach;
@@ -1339,10 +1345,10 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     }
     else if (specularMap)
     {
-        // **A `_spec` map is a metalness and a perceptual roughness.** The occlusion in its blue is not
-        // read, because the traced bounce and `ambientReaching` already find what real geometry occludes
-        // and the map would count it twice; nor the scattering in its alpha, which the BC1 maps most of the
-        // content ships cannot carry.
+        // **A `_spec` map is a metalness, a perceptual roughness and an occlusion.** The occlusion is of
+        // the relief no ray meets, since a ray stops at the mesh, and what real geometry occludes the traced
+        // bounce and `ambientReaching` already find. The scattering in its alpha is not read: the BC1 maps
+        // most of the content ships cannot carry it.
         //
         // **A classic map is a reflectance and an exponent** over a diffuse that is no base colour: no
         // metal splits it, the highlight colour is the lobe's whole, and the exponent over 255 is a
@@ -1352,6 +1358,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
         const float metal = classic ? 0.0 : painted.x;
         surface.mSpecular = (classic ? painted.rgb : mix(vec3(DIELECTRIC_F0), albedo, metal)) * tint;
         surface.mRoughness = classic ? roughnessOfExponent(painted.a * 255.0) : painted.y;
+        surface.mOcclusion = classic ? 1.0 : painted.z;
         surface.mAlbedo *= 1.0 - metal;
         surface.mAmbientAlbedo *= 1.0 - metal;
     }

@@ -269,6 +269,27 @@ source-tree test holds the order.
   surface model is glTF 2.0's metal-roughness (`shaders/brdf.h`), shared with the host, which
   integrates it once into the table the shader reads for energy compensation. A vanilla surface
   is that model with no specular reflectance.
+- **A mapped normal's light fades by GGX's shadowing, as Cycles fades it** (`bumpShadowing`, Conty Estevez et
+  al. 2019). Refused: Chiang et al. 2019, which held the facet line on the round wall at (-2, -9) 15% lower at
+  15:00, and drew a sun grazing that wall as flat, hard-edged patches with bright rims; and no term at all, under
+  which that line stood at 5.2 times its dark side (`research/2026-11-07-bump-terminator.md`). And normals square
+  or more apart keep what normals just short of square keep: a nought there, which Cycles returns, drew hard black
+  patches.
+- **A `_spec` map's blue is an occlusion, on indirect diffuse light alone** (`indirectVisibility`, `occludedAlbedo`),
+  under `metal roughness` alone: a ray stops at the mesh, so no ray finds the relief a replacer's map holds. glTF,
+  Filament, Lumen and Wareya's shaders use it so. Refused: the blue unread, as Cycles, Falcor and RTX Remix have no
+  such input, since their geometry holds the detail and these low meshes do not; and in the albedo, which glTF forbids
+  because it darkens the sun and the lamps (`research/2026-11-07-specular-map-blue-channel.md`).
+- **Put back by the composite, in the two albedo channels it reads**, as the albedo is, so the filter blurs none of
+  it and no channel is added. A pane's response keeps its albedo, since `CHANNEL_PANE_ALBEDO` multiplies a pane's direct
+  light too, and Night-Eye's lift has nothing to occlude it. The fill at a path's end takes the occlusion itself.
+- **Jimenez et al. 2016's multi-bounce fit, held to one.** A crack's own bounce is light no ray stands for. Filament's
+  form makes light over an albedo of 0.8 on an open surface, hence the hold. Refused: the blue as it is, which a bright
+  plaster's cracks read too dark.
+- **No specular occlusion and no occlusion from a height.** `CHANNEL_SPECULAR` holds the lamps and the bounce together,
+  so the composite cannot occlude one, and only 71 of the 3396 maps measured hold metal. A height stands behind only 65
+  of the 436 flat maps, and a flat white blue states no occlusion. A land layer's `_diffusespec` has no blue, so ground
+  takes none.
 - **Reconstruction** (`frame/reconstruction.hpp`). `RenderProfile` is what a run decides once.
   `Reconstruction::resolve` is the one rule for everything that follows from how a frame is put
   back together: the denoiser, the jitter, the noise source, the texture level bias.
