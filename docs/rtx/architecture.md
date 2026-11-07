@@ -10,17 +10,17 @@ field's words in [`components/rtx/GLOSSARY.md`](../../components/rtx/GLOSSARY.md
 ## What the fork is
 
 Upstream OpenMW stays the host engine: cells, references, physics, scripts, animation, weather,
-GUI logic. A second renderer stands beside the OpenGL rasterizer and replaces the whole picture:
-primary visibility, shadows, direct and indirect light, sky, water and fog are ray traced. The
-rasterizer's picture is upstream's but for the corrections `AGENTS.md` lists under "Accepted diff".
-Both renderers stand behind one interface and one binary ships both, but the game starts the ray
-tracer alone: the OpenGL renderer stays built so upstream's code merges as it stands. The player's
-settings are in [`rtx.rst`](../source/reference/modding/settings/rtx.rst).
+GUI logic. The ray tracer draws the whole picture: primary visibility, shadows, direct and indirect
+light, sky, water and fog are ray traced. Both renderers stand behind one interface and one binary
+ships both, but the game starts the ray tracer alone and nothing reaches the OpenGL renderer, which
+stays built so upstream's code merges as it stands. Its code is upstream's but for the corrections
+`AGENTS.md` lists under "Accepted diff". The player's settings are in
+[`rtx.rst`](../source/reference/modding/settings/rtx.rst).
 
 The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan's ray tracing.
 The denoiser is the renderer's own, and the upscaler is AMD's FSR 3.1.4 ported to compute shaders:
-at `native` it is the anti-aliasing, and every other mode traces fewer pixels than the window
-shows. Vanilla textures are pre-lit, so the renderer estimates the painted light and divides it
+at `native` it is the anti-aliasing, and every other mode traces fewer pixels than the frame
+holds. Vanilla textures are pre-lit, so the renderer estimates the painted light and divides it
 out; a PBR replacer's companion maps reach the trace, and a vanilla scene draws the same whether or
 not the renderer can read them.
 
@@ -46,8 +46,8 @@ Beside the stack:
 A Vulkan fact that reaches `components/rtx` or `apps/openmw` is a bug, and the link lines keep
 it out: the core has no Vulkan header on its include path, and the backend reaches Vulkan
 privately, through volk, which loads the loader when the first instance is made. No program links
-the loader, so the game starts on a machine without one and draws with OpenGL there. Two places
-create a backend: `RtxRenderer` and the harness. OpenSceneGraph stays the
+the loader, so the game starts on a machine without one and its error box says what is missing.
+Two places create a backend: `RtxRenderer` and the harness. OpenSceneGraph stays the
 content loader whatever draws: the scene arrives as an `osg::Node` graph, and the core reads it.
 
 ## The build

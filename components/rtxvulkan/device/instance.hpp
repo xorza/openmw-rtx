@@ -29,7 +29,7 @@ namespace Rtx
 
         /// The version the Vulkan loader offers, loading it into the process the first time it is
         /// asked, or nought where the system has none. Nothing loads it before: no program imports it,
-        /// so a machine without one runs the OpenGL renderer.
+        /// so a machine without one starts, and its error box says what is missing.
         static std::uint32_t getLoaderVersion();
 
         /// The loader's version, where the system has one this renderer runs on, and `Unsupported`

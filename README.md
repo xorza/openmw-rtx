@@ -4,10 +4,10 @@ OpenMW RTX
 A fork of [OpenMW](https://openmw.org) that makes Morrowind work your GPU hard again:
 ray-traced lighting and path-traced indirect light.
 
-This tree is OpenMW 0.53 plus one renderer. Everything about the engine itself — what it is,
-how to install it, how to build it, the data path, the command line — is in the
+This tree is OpenMW 0.53 with a ray tracer in place of its renderer. What the engine itself is, the
+data path and the command line are in the
 [upstream README](https://gitlab.com/OpenMW/openmw/-/blob/master/README.md). This file covers
-only what the fork adds.
+only what the fork adds, and how to get it and build it, which differ from upstream.
 
 Screenshots
 -----------
@@ -31,27 +31,37 @@ What the fork is
 ----------------
 
 Upstream OpenMW stays the host engine: cells, references, physics, scripts, animation, weather
-and the GUI. It no longer owns the picture. A second renderer stands beside the OpenGL rasterizer
-and replaces the whole image: primary visibility, shadows, direct and indirect light, sky, water
-and fog are ray traced on the GPU. One binary ships both renderers, and the one not chosen never
-starts.
+and the GUI. It no longer owns the picture. The ray tracer draws the whole image: primary
+visibility, shadows, direct and indirect light, sky, water and fog are ray traced on the GPU.
 
-Vanilla content is read as it is. Morrowind's textures are pre-lit, so the renderer estimates
-the painted light and divides it out to recover materials the new light transport can use.
+The ray tracer is the one renderer the game starts. No setting, launcher page or fallback reaches
+upstream's OpenGL renderer, which stays in the build only so that upstream's code merges as it
+stands.
+
+Vanilla content and the PBR replacers made for OpenMW are read as they are. Morrowind's textures
+are pre-lit, so the renderer estimates the painted light and divides it out to recover materials
+the new light transport can use. What a replacer's companion maps add reaches the trace.
 
 Changes to upstream
 -------------------
 
 * SDL3 in place of SDL2, for display scaling on high-density and Wayland desktops.
 * `[Video] resolution` sets the frame size, and the frame is scaled into the window.
+* The settings window and the launcher offer only what the ray tracer honours, with `[RTX]` pages
+  in place of the rasterizer's.
+* The interface scale and the font size apply while the game runs.
+* A Light bolt that strikes no actor lights the surface it struck.
 * A crash reporter of its own, built on Crashpad.
-* Three rasterizer fixes: the optimizer's merge order, the land of a map tile, and a groundcover
-  plant's transforms.
+* Three fixes to upstream's picture that the ray tracer needed: the optimizer's merge order, the
+  land of a map tile, and a groundcover plant's transforms.
+
+[AGENTS.md](AGENTS.md#accepted-diff) lists every change and the reason for it.
 
 Goal
 ----
 
-A 2002 game made to look astonishing on current hardware. Vanilla content, new light transport.
+A 2002 game made to look astonishing on current hardware: the content as it stands, new light
+transport.
 
 Requirements
 ------------
@@ -60,19 +70,40 @@ Requirements
   tested for. An AMD card, RDNA 2 (RX 6000 series) or later, starts too and draws right on a
   low-end AMD integrated GPU, but far too slowly there to play yet.
 * Vulkan 1.4 with ray tracing pipelines, ray queries and position fetch. On a machine without them
-  the game does not start, and its error box says what is missing and where the log is.
+  the game does not start, and its error box says what is missing and where the log is. No other
+  renderer takes its place.
 
-Tested so far on one high-end NVIDIA laptop GPU.
+Measured so far on a high-end NVIDIA laptop GPU, an AMD handheld under RADV, and a low-end AMD
+integrated GPU under AMD's Windows driver. On a slow GPU, `[RTX] indirect lighting` off saves the
+most.
+
+Getting it
+----------
+
+Each [release](https://github.com/xorza/openmw-rtx/releases) holds an AppImage for Linux and a
+portable folder, zipped, for Windows, with the launcher and the installation wizard inside.
 
 Building and running
 --------------------
 
-The ray tracer is the one renderer the game starts. Upstream's OpenGL renderer stays in the build,
-so upstream's code merges as it stands, and nothing starts it.
+`./omw` is the one way to build, on Linux and on Windows (`omw.cmd`), and needs Python 3.11 or later.
+On Ubuntu 24.04, `sudo CI/install_ubuntu_deps.sh` installs the packages, clang-format 14 among them.
+On Windows, with MSVC installed, the driver fetches the dependencies itself.
+
+```
+./omw bootstrap                          # the pinned Vulkan SDK, into deps/
+./omw release build
+./omw release setup <Morrowind folder>   # the openmw.cfg a fresh machine has none of
+./omw release exec ./openmw
+```
+
+`./omw help` lists the rest: the flavours, the tests, and the harness that checks and measures the
+renderer without a window.
 
 * [Architecture](docs/rtx/architecture.md) — the seam, the layers, who owns whom, the order a
   frame is computed in
-* [Settings](docs/source/reference/modding/settings/rtx.rst) — every `[RTX]` setting
+* [Settings](docs/source/reference/modding/settings/rtx.rst) — every `[RTX]` setting, and what the
+  ray tracer declines of upstream's
 
 When it crashes
 ---------------
