@@ -71,8 +71,9 @@ This renderer traces low-poly meshes under relief that exists only in textures, 
 - `apps/components_tests/rtx/shaders/brdf.cpp`, for the correction in a shared header. A visibility of 1 gives exactly 1
   at each albedo. At a visibility and an albedo of 0.5, `a = 0.6878`, `b = -1.75585` and `c = 2.0679`, so
   `((0.5a + b) 0.5 + c) 0.5 = 0.6809625`.
-- `apps/components_tests/rtxvulkan/trace/visibility/surfaces.cpp`: a map with a B of 0.5 scales the two albedo channels and leaves
-  the direct channel. `classic`, and no map, give one. A pane and `liftOf` do not change.
+- `apps/components_tests/rtxvulkan/trace/visibility/light.cpp`: a map with a low B scales the two albedo channels and leaves
+  the lamps' channel and the lift. `classic` gives one. A landing's fill falls by the function, with and without a sky.
+- `apps/components_tests/rtxvulkan/trace/visibility/pane.cpp`: a pane's lamps and its albedo do not change.
 - `./omw kernels`: a tuple with no maps does not move.
 - `./omw shot --views=all --map --upscale=off` on vanilla: no picture moves. On the PBR profile: the pictures moved
   are read by eye, with a before and an after at each place.
