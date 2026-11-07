@@ -294,6 +294,51 @@ namespace Rtx::Testing
             EXPECT_LT(step / mean, 0.028) << "how far a settled pixel of a shaded puff moves between frames";
         }
 
+        /// A first-person billboard behind a palm has no volume to stand in front of it, and in the open
+        /// is the ball it is drawn as elsewhere, under either blend. A sprite of radius twenty stands
+        /// at 100 behind a wall at 90, whose ball reaches 80, and at 60, whose ball ends at 80 short of
+        /// the wall: a chord uncut, so `(until - from) / (2 * halfChord) = 1` and its middle is the centre.
+        TEST_F(RtxVisibilityTest, aHandSpellBehindAnOpaqueSurfaceDoesNotLeakItsVolumeThroughIt)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            Shaders::VisibilityConstants camera
+                = Testing::makeCameraAlong(osg::Vec3f(), osg::Vec3f(0, 1, 0), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbientFromSky = 0.0f;
+            camera.mAmbient = osg::Vec3f(0.25f, 0.25f, 0.25f);
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0, 0, 1), osg::Vec3f());
+
+            const auto seen = [&](const BlendKind blend, const bool firstPerson, const float depth) {
+                SceneDesc scene;
+                const Index texture = scene.textures().add(VFS::Path::NormalizedView("hand_spell.dds"));
+                const std::array<TextureData, 1> textures{ describeTexel(white) };
+                const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0, depth, 0),
+                    .mRadius = 20.0f,
+                    .mColour = osg::Vec3f(1, 1, 1),
+                    .mAlpha = 1.0f } };
+                scene.addEmitter(sprites, texture, blend, 0.0f, sNoIndex, false, firstPerson);
+                addQuad(scene, uprightQuadAt(200.0f, 90.0f));
+                return shoot(scene, textures, camera, size).at(centreValueOf(size));
+            };
+
+            const auto wall = [&] {
+                SceneDesc scene;
+                addQuad(scene, uprightQuadAt(200.0f, 90.0f));
+                return shoot(scene, std::span<const TextureData>(), camera, size).at(centreValueOf(size));
+            }();
+
+            for (const BlendKind blend : { BlendKind::Add, BlendKind::Over })
+            {
+                EXPECT_NE(seen(blend, false, 100.0f), wall) << "a world puff's near half stands before the wall";
+                EXPECT_NEAR(seen(blend, true, 100.0f), wall, 1e-4f) << "the hand billboard is wholly behind it";
+                EXPECT_NE(seen(blend, true, 60.0f), wall) << "a billboard in front is seen";
+                EXPECT_NEAR(seen(blend, true, 60.0f), seen(blend, false, 60.0f), 1e-4f)
+                    << "and is what a ball there draws";
+            }
+        }
+
         /// A puff behind a post's edge, and a cloud's shell, are hidden where the pixel's own ray
         /// meets the post, and not where that frame's sample happened to land.
         ///

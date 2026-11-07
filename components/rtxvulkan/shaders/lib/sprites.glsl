@@ -358,10 +358,15 @@ SpriteCrossing quadCrossing(GpuSprite sprite, vec3 toSprite, vec3 direction, flo
 /// the wall into it, or the eye into either — the chord is cut at the surface and the sprite fades along
 /// the ray instead of being clipped at its centre.
 ///
+/// **A first-person effect is the billboard and has no inside**: a ball's near half lets a particle centred
+/// behind the palm shine through the palm's front, so it stands at its centre, whole or not at all.
+/// Selected, so an emitter on the arms takes the path every other takes.
+///
 /// @param across,upward the disc's own axes, unit and square to the ray, which the disc's texture
 ///        is read along: `spritesAlong` says why they are not the screen's.
+/// @param billboard whether the sprite's emitter is on the arms (`EMITTER_FIRST_PERSON`).
 SpriteCrossing ballCrossing(
-    GpuSprite sprite, vec3 toSprite, vec3 direction, float limit, vec3 across, vec3 upward, vec2 texels)
+    GpuSprite sprite, vec3 toSprite, vec3 direction, float limit, vec3 across, vec3 upward, vec2 texels, bool billboard)
 {
     const float depth = dot(toSprite, direction);
     const vec3 offset = toSprite - direction * depth;
@@ -373,14 +378,15 @@ SpriteCrossing ballCrossing(
     const float halfChord = sprite.mRadius * lift;
     const float from = max(depth - halfChord, 0.0);
     const float until = min(depth + halfChord, limit);
-    if (until <= from)
+    const bool crossed = billboard ? depth > 0.0 && depth < limit : until > from;
+    if (!crossed)
         return noCrossing();
 
     const vec2 at = -vec2(dot(offset, across), dot(offset, upward)) / sprite.mRadius;
     const float rate = 0.5 * max(texels.x, texels.y) / sprite.mRadius;
 
-    return SpriteCrossing(
-        true, 0.5 * (from + until), (until - from) / (2.0 * halfChord), at, sqrt(radial2), lift, rate, vec3(0.0));
+    return SpriteCrossing(true, billboard ? depth : 0.5 * (from + until),
+        billboard ? 1.0 : (until - from) / (2.0 * halfChord), at, sqrt(radial2), lift, rate, vec3(0.0));
 }
 
 /// The pixel whose tile a ray looks its sprites up in: its own for the world's eye, and for the arms' the
@@ -615,7 +621,8 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
         if (oriented)
             crossing = quadCrossing(sprite, toSprite, direction, limit, width, measured.mTexels);
         else
-            crossing = ballCrossing(sprite, toSprite, direction, limit, across, upward, measured.mTexels);
+            crossing = ballCrossing(sprite, toSprite, direction, limit, across, upward, measured.mTexels,
+                (emitter.mFlags & EMITTER_FIRST_PERSON) != 0u);
 
         if (!crossing.mFound)
             continue;

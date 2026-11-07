@@ -448,6 +448,114 @@ namespace Rtx::Testing
             EXPECT_EQ(SceneUtil::LampBody::find(*world), nullptr);
         }
 
+        TEST_F(RtxSceneExtractorTest, particleEmittersKeepFirstPersonOwnershipWithoutChangingTheirColour)
+        {
+            constexpr osg::Node::NodeMask sHand = 1u << 3;
+            mExtractor.setClassMask(Rtx::InstanceClass::FirstPerson, sHand);
+            for (const bool firstPerson : { false, true })
+            {
+                for (const bool additive : { false, true })
+                {
+                    const Plume plume = makePlume(osg::Matrix::identity(), additive);
+                    emit(*plume.mParticles, osg::Vec3f(), 3.0f, osg::Vec4f(1, 1, 1, 1));
+                    osg::ref_ptr<osg::Group> root = new osg::Group;
+                    root->setNodeMask(firstPerson ? sHand : (1u << 4));
+                    root->addChild(plume.mRoot);
+                    mScene.clearPlacement();
+                    walk(*root);
+                    ASSERT_EQ(mScene.sprites().size(), 1u);
+                    EXPECT_EQ(mScene.sprites().front().mColour, osg::Vec3f(1, 1, 1));
+                    EXPECT_FLOAT_EQ(mScene.sprites().front().mAlpha, 1.0f);
+                    ASSERT_EQ(mScene.emitters().size(), 1u);
+                    EXPECT_EQ((mScene.emitters().front().mFlags & Shaders::EMITTER_FIRST_PERSON) != 0u, firstPerson);
+                }
+            }
+        }
+
+        TEST_F(RtxSceneExtractorTest, creatureFlamesShareOneLightUnlessTheCreatureAlreadyHasOne)
+        {
+            constexpr osg::Node::NodeMask sActor = 1u << 2;
+            mExtractor.setClassMask(Rtx::InstanceClass::Actor, sActor);
+
+            osg::ref_ptr<osg::Image> map = new osg::Image;
+            map->setFileName("textures/creature_flame.tga");
+            map->allocateImage(1, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            for (std::size_t channel = 0; channel < 4; ++channel)
+                map->data()[channel] = 255;
+
+            const Plume first = makePlume(osg::Matrix::translate(0.0, 0.0, 0.0), true, map);
+            const Plume second = makePlume(osg::Matrix::translate(0.0, 0.0, 10.0), true, map);
+            emit(*first.mParticles, osg::Vec3f(), 3.0f, osg::Vec4f(1.0f, 0.2f, 0.0f, 1.0f));
+            emit(*second.mParticles, osg::Vec3f(), 3.0f, osg::Vec4f(1.0f, 0.2f, 0.0f, 1.0f));
+
+            osg::ref_ptr<osg::Group> actor = new osg::Group;
+            actor->setNodeMask(sActor);
+            actor->addChild(first.mRoot);
+            actor->addChild(second.mRoot);
+            walk(*actor);
+
+            ASSERT_EQ(mScene.lights().size(), 1u);
+            const Rtx::Light shared = mScene.lights().front();
+            EXPECT_EQ(shared.mTraits, Shaders::lightTraits(true, Shaders::MASK_ACTOR));
+
+            // The same flames under an effect are the same lamp: a creature's are not priced apart.
+            constexpr osg::Node::NodeMask sEffect = 1u << 5;
+            mExtractor.setClassMask(Rtx::InstanceClass::Effect, sEffect);
+            actor->setNodeMask(sEffect);
+            mScene.clearPlacement();
+            walk(*actor);
+            ASSERT_EQ(mScene.lights().size(), 1u);
+            EXPECT_EQ(mScene.lights().front().mIntensity, shared.mIntensity);
+            EXPECT_EQ(mScene.lights().front().mPosition, shared.mPosition);
+            EXPECT_EQ(mScene.lights().front().mReach, shared.mReach);
+            actor->setNodeMask(sActor);
+
+            // Each creature its own lamp, and none outside a creature.
+            osg::ref_ptr<osg::Group> other = new osg::Group;
+            other->setNodeMask(sActor);
+            const Plume third = makePlume(osg::Matrix::translate(500.0, 0.0, 0.0), true, map);
+            emit(*third.mParticles, osg::Vec3f(), 3.0f, osg::Vec4f(1.0f, 0.2f, 0.0f, 1.0f));
+            other->addChild(third.mRoot);
+            osg::ref_ptr<osg::Group> both = new osg::Group;
+            both->addChild(actor);
+            both->addChild(other);
+            mScene.clearPlacement();
+            walk(*both);
+            EXPECT_EQ(mScene.lights().size(), 2u);
+
+            mScene.clearPlacement();
+            other->setNodeMask(1u << 4);
+            walk(*other);
+            EXPECT_TRUE(mScene.lights().empty()) << "a flame on no actor lights as it always did";
+
+            actor->addChild(makeLightSource(66.0f, osg::Vec4f(1, 1, 1, 1)));
+            mScene.clearPlacement();
+            walk(*actor);
+            ASSERT_EQ(mScene.lights().size(), 1u) << "the creature's authored lamp replaces the generated fill";
+            EXPECT_EQ(Shaders::lightFill(mScene.lights().front().mTraits), 0.0f);
+
+            actor->removeChildren(0, actor->getNumChildren());
+            const Plume smoke = makePlume(osg::Matrix::identity(), false, map);
+            emit(*smoke.mParticles, osg::Vec3f(), 3.0f, osg::Vec4f(1, 1, 1, 1));
+            actor->addChild(smoke.mRoot);
+            mScene.clearPlacement();
+            walk(*actor);
+            EXPECT_TRUE(mScene.lights().empty()) << "ordinary creature particles do not emit light";
+
+            // 300 actors with no flame against the world's room of 256 glows: each asks for none.
+            ASSERT_LT(sWorldExtractorRoom.mEffects, 300u);
+            osg::ref_ptr<osg::Group> town = new osg::Group;
+            for (int at = 0; at < 300; ++at)
+            {
+                osg::ref_ptr<osg::Group> bystander = new osg::Group;
+                bystander->setNodeMask(sActor);
+                town->addChild(bystander);
+            }
+            mScene.clearPlacement();
+            walk(*town);
+            EXPECT_EQ(mExtractor.countPastRoom(), 0u);
+        }
+
         /// A lamp the record says animates is mirrored at the instant the walk was told, not at rest.
         ///
         /// **Because nothing else here would do it.** The game animates its lights in the update

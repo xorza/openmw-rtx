@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 
+#include <apps/openmw/mwmechanics/drawstate.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/world/weather.hpp>
 
@@ -61,9 +62,9 @@ namespace RtxTool
         /// and says so where the content holds none of that id.
         static Misc::Result<void, std::string> arm(MWBase::World& world, const std::string& weapon);
 
-        /// Puts away whatever the player holds drawn, so a stop after an armed one stands as every
-        /// stop before it did. Nothing where nothing is drawn.
-        static void disarm(MWBase::World& world);
+        /// Stands the player's hands at `state`, so a stop after an armed one stands as every stop
+        /// before it did. Nothing where they stand so already.
+        static void setHands(MWBase::World& world, MWMechanics::DrawState state);
 
         /// Turns the player's collision off, as `tcl` does.
         static void turnCollisionOff(MWBase::World& world);

@@ -160,7 +160,7 @@ namespace Rtx
     }
 
     void EmitterResolver::add(const osgParticle::ParticleSystem& particles, std::span<const Shading> shading,
-        const osg::Matrixf& place, const std::optional<std::size_t> glow)
+        const osg::Matrixf& place, const std::optional<std::size_t> glow, const bool firstPerson)
     {
         // Registered the first time the emitter is seen and not the first time it has a particle
         // alive, or a flame that lights up two hundred frames later would add a texture on a frame
@@ -198,6 +198,7 @@ namespace Rtx
             .mFalls = mPass.mFalls,
             .mGlow = glow,
             .mFade = shading.empty() ? 1.0f : shading.back().mFade.mPlacement,
+            .mFirstPerson = firstPerson,
         });
     }
 
@@ -341,7 +342,8 @@ namespace Rtx
         // An untextured system is the white texel coloured by its particles, as the rasterizer
         // draws one, and lit as a flat card, having no alpha to bake.
         const Index texture = held.mUntextured ? Shaders::TEXTURE_NEUTRAL : held.mSlot.get();
-        mScene.addEmitter(mSpriteScratch, texture, held.mBlend, width, held.mLighting.get(), pending.mFalls);
+        mScene.addEmitter(
+            mSpriteScratch, texture, held.mBlend, width, held.mLighting.get(), pending.mFalls, pending.mFirstPerson);
 
         ++stats.mEmitters;
         stats.mSprites += static_cast<std::uint32_t>(mSpriteScratch.size());

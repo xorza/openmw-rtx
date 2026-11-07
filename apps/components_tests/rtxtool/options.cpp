@@ -169,6 +169,8 @@ namespace RtxTool
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
 
             const ToolLine plain = lineOf(options, {}, Verbs::Shot);
+            EXPECT_FALSE(plain.mSession.mSpellHands);
+            EXPECT_TRUE(lineOf(options, { "--spell-hands" }, Verbs::Shot).mSession.mSpellHands);
             EXPECT_EQ(plain.mSky.mHour, std::nullopt);
             EXPECT_EQ(plain.mSky.mWeather, std::nullopt);
             EXPECT_FALSE(plain.mSky.mAir.has_value());

@@ -120,6 +120,7 @@ namespace RtxTool
         struct Session
         {
             bool mHud = false;
+            bool mSpellHands = false;
             bool mVanity = false;
             int mNightEye = 0;
             unsigned int mRandomSeed = 0;

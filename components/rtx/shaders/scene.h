@@ -590,6 +590,9 @@ namespace Rtx::Shaders
     /// settles its sprites' own alpha at one.
     const uint EMITTER_ADD_WHOLE = 0x04u;
 
+    /// An emitter on the arms, whose sprites are billboards and not balls: `ballCrossing` says why.
+    const uint EMITTER_FIRST_PERSON = 0x08u;
+
     /// The content doubled every triangle of this mesh for its back — `Rtx::FoldedShape::mSheet`.
     /// With a mask on its material that is a leaf, and `SHEET_TRANSMISSION` says what the light on
     /// its far side is worth to it.

@@ -171,7 +171,7 @@ namespace RtxTool
                 return armed;
         }
         else
-            disarm(world);
+            setHands(world, request.mSpellHands ? MWMechanics::DrawState::Spell : MWMechanics::DrawState::Nothing);
 
         if (stop.mSchedule.mFreeCamera)
         {
@@ -322,16 +322,16 @@ namespace RtxTool
         return {};
     }
 
-    void Stager::disarm(MWBase::World& world)
+    void Stager::setHands(MWBase::World& world, const MWMechanics::DrawState state)
     {
         const MWWorld::Ptr player = world.getPlayerPtr();
         MWMechanics::CreatureStats& stats = player.getClass().getCreatureStats(player);
-        if (stats.getDrawState() == MWMechanics::DrawState::Nothing)
+        if (stats.getDrawState() == state)
             return;
 
         // Built again for the reason `arm` is, so the stop opens on a body at rest and not partway
         // through putting its weapon away.
-        stats.setDrawState(MWMechanics::DrawState::Nothing);
+        stats.setDrawState(state);
         world.renderPlayer();
     }
 
