@@ -495,9 +495,38 @@ namespace Rtx::Testing
             walk(*actor);
 
             ASSERT_EQ(mScene.lights().size(), 1u);
-            EXPECT_GT(mScene.lights().front().mIntensity.x(), 0.0f);
-            EXPECT_FLOAT_EQ(mScene.lights().front().mIntensity.z(), 0.0f);
-            EXPECT_EQ(mScene.lights().front().mTraits, Shaders::lightTraits(true, Shaders::MASK_ACTOR));
+            const Rtx::Light shared = mScene.lights().front();
+            EXPECT_EQ(shared.mTraits, Shaders::lightTraits(true, Shaders::MASK_ACTOR));
+
+            // The same flames under an effect are the same lamp: a creature's are not priced apart.
+            constexpr osg::Node::NodeMask sEffect = 1u << 5;
+            mExtractor.setClassMask(Rtx::InstanceClass::Effect, sEffect);
+            actor->setNodeMask(sEffect);
+            mScene.clearPlacement();
+            walk(*actor);
+            ASSERT_EQ(mScene.lights().size(), 1u);
+            EXPECT_EQ(mScene.lights().front().mIntensity, shared.mIntensity);
+            EXPECT_EQ(mScene.lights().front().mPosition, shared.mPosition);
+            EXPECT_EQ(mScene.lights().front().mReach, shared.mReach);
+            actor->setNodeMask(sActor);
+
+            // Each creature its own lamp, and none outside a creature.
+            osg::ref_ptr<osg::Group> other = new osg::Group;
+            other->setNodeMask(sActor);
+            const Plume third = makePlume(osg::Matrix::translate(500.0, 0.0, 0.0), true, map);
+            emit(*third.mParticles, osg::Vec3f(), 3.0f, osg::Vec4f(1.0f, 0.2f, 0.0f, 1.0f));
+            other->addChild(third.mRoot);
+            osg::ref_ptr<osg::Group> both = new osg::Group;
+            both->addChild(actor);
+            both->addChild(other);
+            mScene.clearPlacement();
+            walk(*both);
+            EXPECT_EQ(mScene.lights().size(), 2u);
+
+            mScene.clearPlacement();
+            other->setNodeMask(1u << 4);
+            walk(*other);
+            EXPECT_TRUE(mScene.lights().empty()) << "a flame on no actor lights as it always did";
 
             actor->addChild(makeLightSource(66.0f, osg::Vec4f(1, 1, 1, 1)));
             mScene.clearPlacement();
@@ -512,6 +541,19 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*actor);
             EXPECT_TRUE(mScene.lights().empty()) << "ordinary creature particles do not emit light";
+
+            // 300 actors with no flame against the world's room of 256 glows: each asks for none.
+            ASSERT_LT(sWorldExtractorRoom.mEffects, 300u);
+            osg::ref_ptr<osg::Group> town = new osg::Group;
+            for (int at = 0; at < 300; ++at)
+            {
+                osg::ref_ptr<osg::Group> bystander = new osg::Group;
+                bystander->setNodeMask(sActor);
+                town->addChild(bystander);
+            }
+            mScene.clearPlacement();
+            walk(*town);
+            EXPECT_EQ(mExtractor.countPastRoom(), 0u);
         }
 
         /// A lamp the record says animates is mirrored at the instant the walk was told, not at rest.

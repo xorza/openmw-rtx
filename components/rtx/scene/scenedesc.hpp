@@ -182,7 +182,7 @@ namespace Rtx
         ///        an axis where this is set and none where it is not — `SpriteEmitter::mWidth`.
         /// @param lighting the bake of `texture`'s alpha, or `sNoIndex`. `SpriteEmitter::mLighting`.
         /// @param falls whether the sprites fall from the sky. `SpriteEmitter::mFalls`.
-        /// @param firstPerson whether additive billboards retain their centre depth instead of a puff's volume.
+        /// @param firstPerson whether the emitter is on the arms. `EMITTER_FIRST_PERSON`.
         void addEmitter(std::span<const Sprite> sprites, Index texture, BlendKind blend, float width = 0.0f,
             Index lighting = sNoIndex, bool falls = false, bool firstPerson = false);
 

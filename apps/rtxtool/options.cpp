@@ -502,7 +502,8 @@ namespace RtxTool
             "instead, four of the accumulator's lengths");
 
         option(sFramed, "spell-hands", bpo::bool_switch(),
-            "ready the saved player's selected spell instead of putting their hands away");
+            "ready the saved player's selected spell instead of putting their hands away, at a stop "
+            "that names no weapon");
         option(sFramed, "hud", bpo::value<bool>()->default_value(false)->implicit_value(true),
             "draw the game's HUD over the picture: the bars, the compass and the cell's name. Off "
             "unless asked for, and a window's F11 toggles it either way. Off, a command that writes "

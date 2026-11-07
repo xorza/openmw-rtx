@@ -462,7 +462,8 @@ namespace RtxTool
         /// the compass are the played game's.
         bool mHud = false;
 
-        // Capture the selected spell's first-person effects from a saved game.
+        /// Whether the player's selected spell stands ready, and its effects on the hands, at a stop
+        /// that names no weapon, in place of the hands put away.
         bool mSpellHands = false;
 
         /// Whether the played game's vanity camera may take over — the orbit round the player

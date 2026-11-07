@@ -104,6 +104,9 @@ namespace Rtx
     /// **One lamp for the effect and not one for each sheet**, because a burst is twenty sheets
     /// stood at one place, and twenty lamps of a fireball's reach are twenty times the entries
     /// in the light grid, which coarsens every cell in the room for the length of the burst.
+    ///
+    /// **An actor's flames make one too**, an atronach's body being a cloud of them: its flames and not
+    /// its meshes, which a creature's material states no glow of. `SceneExtractor::flameGlow` opens it.
     struct Glow
     {
         /// What the sheets radiate, summed, per unit of area — `addSheet` says the arithmetic.
@@ -123,8 +126,8 @@ namespace Rtx
         /// something is added.
         osg::BoundingSpheref mBall;
 
-        /// Whether the game hung a light of its own on the effect — a bolt's `LightSource` — which
-        /// is then the effect's light, and this glow lights nothing: a lamp made of the picture
+        /// Whether the game hung a light of its own on the effect or the actor — a bolt's `LightSource`,
+        /// a torch — which is then its light, and this glow lights nothing: a lamp made of the picture
         /// beside the lamp the game meant would count the bolt twice.
         bool mLit = false;
 

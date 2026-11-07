@@ -78,7 +78,8 @@ namespace Rtx
         std::size_t mFrozen = 0;
 
         /// Effects a walk can be handed before its list of glows grows: every bolt in the air,
-        /// every burst and every cast, which a fight of a dozen casters does not reach.
+        /// every burst and every cast, which a fight of a dozen casters does not reach, and every
+        /// actor with a flame or a lamp, which a town's torches do not.
         std::size_t mEffects = 0;
     };
 
@@ -330,14 +331,26 @@ namespace Rtx
         /// below, which nothing else may make.
         class Traversal;
 
+        /// The glows a walk is inside, as indices into the extractor's.
+        struct WalkGlows
+        {
+            /// The effect's. Opened where the class first turns `Effect` and carried down as the class
+            /// is: an effect stated anywhere under an effect is the outer one's.
+            std::optional<std::size_t> mEffect;
+
+            /// The actor's, where something under it asked (`flameGlow`). Read only under an actor, whose
+            /// root clears it, so what a child opened its siblings share.
+            std::optional<std::size_t> mActor;
+        };
+
         /// Places one light. The graph and not the content files, because that is where a light
         /// that moves with the thing carrying it exists: a torch in an NPC's hand is no cell
         /// record, and neither is a lamp something picked up and put down.
         ///
-        /// @param glow the effect the light hangs on, where the walk is inside one.
+        /// @param glows what the walk is inside, whose glow the light takes the place of.
         /// @param owner the class of the placement the light hangs under, which a view hides it with.
         void addLight(const SceneUtil::LightSource& source, const osg::Matrixf& place, double simulationTime,
-            std::optional<std::size_t> glow, InstanceClass owner);
+            WalkGlows& glows, InstanceClass owner);
 
         /// Opens the glow of a magic effect the walk has entered — `Rtx::Glow` — and returns its
         /// index, which the walk carries down the effect's subtree. Not yet a lamp, because the
@@ -346,13 +359,18 @@ namespace Rtx
         /// to.
         std::size_t openGlow(InstanceClass owner);
 
+        /// The glow a flame or a lamp under a placement of class `what` belongs to: the effect the walk
+        /// is inside, or else an actor's, opened by the first thing under the actor to ask, so an actor
+        /// with no flame and no lamp costs the list of glows nothing. Nothing outside both.
+        std::optional<std::size_t> flameGlow(WalkGlows& glows, InstanceClass what);
+
         /// Resolves one drawable and places it. `place` is handed over rather than worked out from
         /// `path`, because `osg::computeLocalToWorld` rebuilds the whole chain from the root for
         /// every drawable. A drawable and not an `osg::Geometry`, because a skinned body is an
         /// `osg::Drawable` over a source geometry — the bind pose — beside the rig that poses it.
         ///
-        /// @param glow the effect the drawable stands under, where the walk is inside one.
-        /// @param actorGlow the lamp the flames of the actor the drawable stands under share, or nothing outside one.
+        /// @param glows what the walk is inside: an effect's takes the drawable's sheets as well as its
+        ///        flames, and an actor's its flames alone.
         /// @param jumped whether the drawable stands under a node `setJumped` named.
         /// @param lampBody whether the drawable is the model of a light that gives light
         ///        (`MeshInstance::mLampBody`).
@@ -361,8 +379,8 @@ namespace Rtx
         /// Answers whether the placement changes between frames on its own — a particle system,
         /// the sea, a mesh that deforms — which keeps a reference root above it walked.
         bool addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
-            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow,
-            std::optional<std::size_t> actorGlow, bool jumped, bool lampBody, std::span<osg::Node* const> path);
+            const osg::Matrixf& place, InstanceClass what, WalkGlows& glows, bool jumped, bool lampBody,
+            std::span<osg::Node* const> path);
 
         /// The state set a controller wrote over a node this frame, or null where none writes one —
         /// `MaterialResolver::animate`, which says why a node under one needs none. Applied here rather
