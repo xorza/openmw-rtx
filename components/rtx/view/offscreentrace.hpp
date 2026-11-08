@@ -129,7 +129,14 @@ namespace Rtx
         ///        doll's bones the first time and never again.
         /// @param releasing what the sweep lets go of goes into, for the caller to hand to the queue
         ///        the world's goes to, so a doll's retired parts are not destroyed on the frame thread.
-        bool rebuildSubject(const osg::FrameStamp& posing, Released& releasing);
+        /// @param settled whether the hand-over waits for the images its files' chains are made in
+        ///        (`SceneUploader::Handing::mSettled`): a settled run's, as the world's waits.
+        bool rebuildSubject(const osg::FrameStamp& posing, Released& releasing, bool settled);
+
+        /// Whether a slot of the subject stands its file while its image is made, which a picture
+        /// drawn again once made stands with: never for a picture of the world, whose slots are the
+        /// world's.
+        bool awaitsImages() const;
 
         /// Traces the picture into `texture`, a slot from `Renderer::addGuiTexture`, and leaves a
         /// copy for `takeCopy` where `readBack` asks for one. Whether it recorded the picture: false

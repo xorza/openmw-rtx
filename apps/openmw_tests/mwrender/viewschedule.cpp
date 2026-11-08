@@ -21,16 +21,25 @@ namespace MWRender
             ViewSchedule<FakeView>* mSchedule = nullptr;
             FakeView* mForgets = nullptr;
 
+            /// How many more draws it asks for from inside its own, as a picture awaiting its images
+            /// does (`TracedView::draw`).
+            int mAgain = 0;
+
             bool isOfWorld() const { return mWorld; }
             bool waitsForGround(const int& /*ground*/) const { return mWaits; }
             void abandon() { mAbandoned = true; }
 
-            void draw(std::vector<const FakeView*>& order)
+            void draw(const int& /*ground*/, std::vector<const FakeView*>& order)
             {
                 ++mDrawn;
                 order.push_back(this);
                 if (mForgets != nullptr)
                     mSchedule->forget(*mForgets);
+                if (mAgain > 0)
+                {
+                    --mAgain;
+                    mSchedule->redraw(*this);
+                }
             }
         };
 
@@ -97,6 +106,21 @@ namespace MWRender
             schedule.draw(4, sGround, order);
             EXPECT_EQ(order, (std::vector<const FakeView*>{ &forgetting, &after }));
             EXPECT_EQ(gone.mDrawn, 0);
+        }
+
+        /// **A view that asks again inside its draw is drawn once a flush**: a doll asking for two
+        /// more draws is drawn in this flush and the next two, and in no flush after.
+        TEST(ViewScheduleTest, aViewAskingAgainInsideItsDrawIsDrawnInTheNextFlush)
+        {
+            ViewSchedule<FakeView> schedule;
+            FakeView doll{ .mSchedule = &schedule, .mAgain = 2 };
+            schedule.redraw(doll);
+
+            std::vector<const FakeView*> order;
+            for (int flush = 0; flush < 4; ++flush)
+                schedule.draw(4, sGround, order);
+            EXPECT_EQ(doll.mDrawn, 3);
+            EXPECT_FALSE(schedule.hasDeferred());
         }
 
         /// **Leaving the scene gives up the world's pictures and keeps the subjects'.**

@@ -214,8 +214,8 @@ namespace Rtx
         /// normal map whose file's second level is black is described with it and named pending; once
         /// the image is made, the next hand-over describes the slot again, its second level the box
         /// (122, 130, 252, 75), with nothing pending; and the one after only places. **Settled, the
-        /// first hand-over waits for the image** and describes the slot with it, as a picture drawn
-        /// from one hand-over needs.
+        /// first hand-over waits for the image**, under a service that has made nothing yet, and
+        /// describes the slot with it, as a run that compares frames needs.
         TEST(RtxSceneUploaderTest, aSlotStandsItsFileUntilItsImageIsMadeAndThenStandsAgain)
         {
             const std::uint8_t bytes[] = {
@@ -270,11 +270,12 @@ namespace Rtx
             Testing::addModel(picture, VFS::Path::NormalizedView("textures/one.dds"));
             TextureHold pictured = picture.takeTexture(VFS::Path::NormalizedView("textures/tx_test_nh.dds"), *file,
                 TextureWrap::Repeat, TextureEncoding::Normal);
+            PreparedImages fresh(nullptr, 1);
             SceneUploader once;
             Testing::CountingRenderer drawn;
             once.hand(drawn,
                 Rtx::SceneUploader::Handing{
-                    .mSlot = Rtx::SceneSlot::world(), .mScene = picture, .mPrepared = &prepared, .mSettled = true });
+                    .mSlot = Rtx::SceneSlot::world(), .mScene = picture, .mPrepared = &fresh, .mSettled = true });
             const auto at = std::find(drawn.mDescribedSlots.begin(), drawn.mDescribedSlots.end(), pictured.get());
             ASSERT_NE(at, drawn.mDescribedSlots.end());
             EXPECT_EQ(drawn.mDescribedSecondTexels[static_cast<std::size_t>(at - drawn.mDescribedSlots.begin())], box);

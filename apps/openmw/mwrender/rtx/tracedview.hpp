@@ -73,13 +73,16 @@ namespace MWRender
 
         /// The drawing `redraw` asked for: the subject posed at `posing`, walked and handed over,
         /// and the trace recorded. The queue calls it inside the frame's window, once there is a
-        /// world.
+        /// world. **Asked for again while a slot of the subject stands its file and its image is
+        /// made**, as the world stands a slot again once made: a picture is drawn only when asked
+        /// for, and the frame waits on nothing, where a settled run's hand-over waits for the images
+        /// as `ring`'s walk waits for its cells.
         ///
         /// @param posing the renderer's own clock, which advances once per drawn frame whether or
         ///        not the world's does: a doll posed against a stopped clock is a doll frozen the
         ///        first time it was drawn. Asked for per redraw and never stored.
         /// @param releasing what a subject's sweep lets go of goes into (`OffscreenTrace::rebuildSubject`).
-        void draw(const osg::FrameStamp& posing, Rtx::Released& releasing);
+        void draw(const Rtx::CellRing& ring, const osg::FrameStamp& posing, Rtx::Released& releasing);
 
         bool isOfWorld() const { return mTrace.isOfWorld(); }
 

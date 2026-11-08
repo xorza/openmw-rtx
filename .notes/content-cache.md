@@ -237,8 +237,11 @@ said:
 - **A made chain has two forms** (`ChainForm`): loose to a texel for a block file of one level up to 512 a side and for
   a BC1 file of one level with a cut, whose coverage BC1 cannot hold; coarser levels in the file's own format for
   every other, which a 4096-square BC1 replacer with no levels keeps in 2.7 MB where loose it took 89 MB.
-- **A picture's scene reads the prepared images too**, and a settled hand-over, a picture's always, waits for them
-  inside the describe (`SceneTextures::describe`): with the completion gone, a picture's chainless file had no chain.
+- **A picture's scene reads the prepared images too**, and is drawn again while a slot of it stands its file
+  (`TracedView::draw`), as the world stands a slot again: with the completion gone, a picture's chainless file had no
+  chain. A settled hand-over waits for the images inside the describe (`SceneTextures::describe`). A picture that
+  always waited held the frame for 339 ms at a cold PBR doll's first hand-over, 330 ms of it waiting, where unsettled
+  no hand-over waits.
 - **The chain threads' figures are in the report**, a row of their own (`Preprocessed::mPrepared`).
 - **A chainless BC4 or BC5 file stands at its one level**, since no host reader decodes it: none of the PBR install's
   or the Fullrest Repack's files of one level is one (research note, "Formats").

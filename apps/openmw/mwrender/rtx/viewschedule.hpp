@@ -35,7 +35,7 @@ namespace MWRender
         /// Draws the pictures asked for since the last flush: every subject's and up to `worldViews`
         /// of the world's, the rest waiting for the next. A picture of the world whose ground
         /// `ground` has not stood yet waits for it and counts nothing against the budget. Each
-        /// view drawn is handed `drawn`.
+        /// view drawn is handed `ground` and `drawn`.
         template <class Ground, class... Drawn>
         void draw(const std::uint32_t worldViews, const Ground& ground, Drawn&... drawn)
         {
@@ -59,7 +59,7 @@ namespace MWRender
                 if (view->isOfWorld())
                     ++world;
 
-                view->draw(drawn...);
+                view->draw(ground, drawn...);
             }
 
             mDrawing.clear();

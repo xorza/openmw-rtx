@@ -150,11 +150,11 @@ namespace MWRender
         mAbandoned = true;
     }
 
-    void TracedView::draw(const osg::FrameStamp& posing, Rtx::Released& releasing)
+    void TracedView::draw(const Rtx::CellRing& ring, const osg::FrameStamp& posing, Rtx::Released& releasing)
     {
         if (!mTrace.isOfWorld())
         {
-            if (!mTrace.rebuildSubject(posing, releasing))
+            if (!mTrace.rebuildSubject(posing, releasing, ring.isSettled()))
                 return;
         }
 
@@ -163,6 +163,10 @@ namespace MWRender
         const bool keepCopy = mCopyState != CopyState::NotWanted;
         if (mTrace.traceInto(mTexture->getSlot(), keepCopy) && keepCopy)
             mCopyState = CopyState::Recorded;
+
+        // Into the next flush, the schedule's list being swapped out: a copy wanted waits for it.
+        if (mTrace.awaitsImages())
+            redraw();
     }
 
     void TracedView::keepCopy()

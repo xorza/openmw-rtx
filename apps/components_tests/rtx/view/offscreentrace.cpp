@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <numbers>
 #include <utility>
 #include <vector>
@@ -9,8 +10,10 @@
 
 #include <osg/BoundingSphere>
 #include <osg/FrameStamp>
+#include <osg/GL>
 #include <osg/Geometry>
 #include <osg/Group>
+#include <osg/Image>
 #include <osg/Matrix>
 #include <osg/MatrixTransform>
 #include <osg/Node>
@@ -26,6 +29,7 @@
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -200,7 +204,7 @@ namespace Rtx
                 context);
             const SceneDesc& scene = *trace.getScene();
 
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing, true));
 
             // Two quads of two triangles each: what a scene holding both looks like.
             EXPECT_EQ(scene.placements().getCounts().mPlaced, 2u);
@@ -212,7 +216,7 @@ namespace Rtx
             osg::ref_ptr<osg::Geometry> hat = Testing::makeQuad();
             subject->addChild(hat);
 
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(2), releasing));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(2), releasing, true));
 
             // **The shirt goes to the caller's sink and not where the sweep stands**, so its last
             // reference is dropped on the queue the world's go to: the picture's own sink is empty,
@@ -242,7 +246,7 @@ namespace Rtx
             osg::ref_ptr<osg::Geometry> boots = Testing::makeQuad();
             subject->addChild(boots);
 
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(3), releasing));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(3), releasing, true));
 
             EXPECT_EQ(scene.placements().getCounts().mPlaced, 2u);
 
@@ -267,7 +271,7 @@ namespace Rtx
                 boots = Testing::makeQuad();
                 subject->addChild(boots);
 
-                ASSERT_TRUE(trace.rebuildSubject(*stampAt(redraw), releasing));
+                ASSERT_TRUE(trace.rebuildSubject(*stampAt(redraw), releasing, true));
                 ASSERT_TRUE(scene.placements().getMoved().empty()) << "redraw " << redraw;
             }
         }
@@ -309,11 +313,62 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = sEveryNode },
                 context);
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(7), releasing));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(7), releasing, true));
 
             EXPECT_EQ(context.mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 1u)
                 << "the doll's one shape was folded somewhere nobody counts";
             EXPECT_EQ(glow->mAt, 7.0) << "the doll's glow ran at a clock of its own";
+        }
+
+        /// **A picture whose file's chain is being made awaits it unless settled**: a quad of a 2x2 colour
+        /// of one level, its one solid texel white beside three holes, handed over unsettled stands the
+        /// file at its one level and awaits its image; once made, the next rebuild describes the slot
+        /// with the chain, its second level white under a quarter's alpha, and awaits nothing. A
+        /// second picture of the same quad, settled, under a service that has made nothing yet,
+        /// describes the chain at its first rebuild.
+        TEST(RtxOffscreenTraceTest, aPictureAwaitsTheImagesBeingMadeUnlessSettled)
+        {
+            PreparedImages prepared(nullptr, 1);
+            WalkContext context{ .mPrepared = &prepared, .mSpecular = SpecularLayout::Classic };
+            Released releasing;
+
+            const std::uint8_t bytes[] = { 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            osg::ref_ptr<osg::Image> file = new osg::Image;
+            auto* data = new unsigned char[sizeof(bytes)];
+            std::memcpy(data, bytes, sizeof(bytes));
+            file->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            file->setFileName("textures/tx_rain.dds");
+            osg::ref_ptr<osg::Geometry> subject = Testing::makeQuad();
+            Testing::paint(*subject->getOrCreateStateSet(), *file);
+
+            constexpr std::uint32_t box = 255u | 255u << 8 | 255u << 16 | 64u << 24;
+            const ViewRequest request{ .mWidth = 64,
+                .mHeight = 64,
+                .mRayMask = Shaders::MASK_EVERY_CLASS,
+                .mSubject = subject.get(),
+                .mSubjectMask = sEveryNode };
+            const auto holdsChain = [&](const Testing::CountingRenderer& renderer) {
+                return std::ranges::find(renderer.mDescribedSecondTexels, box) != renderer.mDescribedSecondTexels.end();
+            };
+
+            Testing::CountingRenderer renderer;
+            OffscreenTrace trace(renderer, request, context);
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing, false));
+            EXPECT_FALSE(holdsChain(renderer)) << "the hand-over waited";
+            EXPECT_TRUE(trace.awaitsImages());
+
+            prepared.flush();
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(2), releasing, false));
+            EXPECT_TRUE(holdsChain(renderer)) << "the made image was not stood";
+            EXPECT_FALSE(trace.awaitsImages());
+
+            PreparedImages fresh(nullptr, 1);
+            WalkContext freshContext{ .mPrepared = &fresh, .mSpecular = SpecularLayout::Classic };
+            Testing::CountingRenderer settledRenderer;
+            OffscreenTrace settled(settledRenderer, request, freshContext);
+            ASSERT_TRUE(settled.rebuildSubject(*stampAt(3), releasing, true));
+            EXPECT_TRUE(holdsChain(settledRenderer));
+            EXPECT_FALSE(settled.awaitsImages());
         }
 
         /// A subject with nothing in it is a picture nobody should trace.
@@ -336,7 +391,7 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = sEveryNode },
                 context);
-            EXPECT_FALSE(trace.rebuildSubject(*stampAt(1), releasing));
+            EXPECT_FALSE(trace.rebuildSubject(*stampAt(1), releasing, true));
             EXPECT_EQ(trace.getScene()->placements().getCounts().mPlaced, 0u);
         }
 
@@ -370,7 +425,7 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = wanted },
                 context);
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing, true));
 
             // One of the two, and the same fixture with `wanted | other` would take both — which is
             // what says the mask is doing the choosing rather than the fixture.
@@ -383,7 +438,7 @@ namespace Rtx
                     .mSubject = subject.get(),
                     .mSubjectMask = wanted | other },
                 context);
-            ASSERT_TRUE(both.rebuildSubject(*stampAt(1), releasing));
+            ASSERT_TRUE(both.rebuildSubject(*stampAt(1), releasing, true));
             EXPECT_EQ(both.getScene()->placements().getCounts().mPlaced, 2u);
         }
 
@@ -437,7 +492,7 @@ namespace Rtx
 
             osg::NodePath hit;
             EXPECT_FALSE(trace.pick(0.0f, 0.0f, hit)) << "picked before there was a picture";
-            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing));
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(1), releasing, true));
             ASSERT_TRUE(trace.pick(0.0f, 0.0f, hit)) << "the part the redraw drew";
 
             // Put on in front of the first, so the nearest hit is the new part.

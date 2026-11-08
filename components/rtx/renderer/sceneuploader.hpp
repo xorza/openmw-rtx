@@ -79,8 +79,7 @@ namespace Rtx
 
             /// Whether the hand-over waits for the images its arrivals need before it describes them,
             /// as a settled walk waits for its cells (`CellRing::setSettled`): what makes two processes,
-            /// whatever their threads' timing, stand one image on one frame, and what a picture drawn
-            /// from one hand-over needs (`SceneTextures::describe`).
+            /// whatever their threads' timing, stand one image on one frame (`SceneTextures::describe`).
             bool mSettled = false;
         };
 
