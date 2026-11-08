@@ -419,7 +419,14 @@ at the top, over all of them.
   memory back once its compaction is done; a structure built to be refitted is built where it
   stays. One storage for both, refused, filled the loose blocks' holes with the copies, and a
   structure never copied held each block: a world built again kept 206 MiB of blocks for 66 MiB of
-  structures (`BottomLevelStore`). The top level and its scratch are made at the world's room, tens of MiB against
+  structures (`BottomLevelStore`). **The world's build copies its bottom levels tight before
+  its textures are made**, run by run, each built, waited on, copied and waited on again, as
+  NVIDIA's `RaytracingBuilderKHR::buildBlas` builds a load; a cell arriving copies them over the
+  placements after, a budget each, as NVIDIA's compaction tips stream them, and a picture's scene
+  rides the next submit as a cell does. Textures made beside loose structures, refused, were held
+  to room compaction gave back a few frames later: a world built again stood 2794.6 MiB of textures
+  and left 192.8 MiB unused, and 2986.6 MiB with 0.6 MiB unused once settled (`BuildCompaction`).
+  The top level and its scratch are made at the world's room, tens of MiB against
   a structure made on a crossing frame. Refused, by the user's decision after a measurement or an
   estimate:
   - textures shared across scenes: a doll's 12–17 textures are 0.2 MB and 0.4–1.1 ms on vanilla,

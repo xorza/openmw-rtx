@@ -101,13 +101,13 @@ namespace Rtx
 
     void SceneAcceleration::build(Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
         std::span<const InstanceRecord> records, const BlockedBuffer& positions, const TopLevelPackPass& pack,
-        std::vector<Refusal>& refused)
+        const BuildCompaction compaction, std::vector<Refusal>& refused)
     {
         assert(mBottomLevel.size() == 0 && mTopLevel.isEmpty() && "a scene built twice");
 
         // The rows after the structures, because a row names the address of the structure it places.
         mBottomLevel.build(
-            batch, scene, everyMesh, mPoses.at(FrameSlot{}), positions, mIndices, mPlacements + 1, refused);
+            batch, scene, everyMesh, mPoses.at(FrameSlot{}), positions, mIndices, mPlacements + 1, compaction, refused);
         sizeRefitScratch();
         writeRows(records, {});
         prepareTopLevel(scene, FrameSlot{});
@@ -157,7 +157,7 @@ namespace Rtx
         // Noted as built on the next posed placement, which is the one that brings them: built whole
         // here, nothing on it builds them whole again.
         mBottomLevel.build(batch, scene, scene.meshes().getArrived(), mPoses.at(FrameSlot{}), positions, mIndices,
-            mPlacements + 1, refused);
+            mPlacements + 1, BuildCompaction::Streamed, refused);
         sizeRefitScratch();
 
         // **A structure built is a top level to build, whatever its rows say.** A top level holds

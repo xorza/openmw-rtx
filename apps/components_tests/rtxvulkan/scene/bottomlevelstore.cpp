@@ -95,11 +95,13 @@ namespace Rtx
             }
 
             /// Builds and waits, so the answers are on the device when this returns.
-            void build(BottomLevelStore& store, std::span<const Index> meshes)
+            void build(BottomLevelStore& store, std::span<const Index> meshes,
+                BuildCompaction compaction = BuildCompaction::Streamed)
             {
                 Batch batch(getPool());
                 std::vector<Refusal> refused;
-                store.build(batch, mScene, meshes, mPoses.at(FrameSlot{}), mPositions, mIndices, 0, refused);
+                store.build(
+                    batch, mScene, meshes, mPoses.at(FrameSlot{}), mPositions, mIndices, 0, compaction, refused);
                 EXPECT_TRUE(refused.empty()) << "a device with room refused a structure";
                 batch.flush();
             }
@@ -109,7 +111,8 @@ namespace Rtx
             {
                 Batch batch(getPool());
                 std::vector<Refusal> refused;
-                store.build(batch, mScene, meshes, mPoses.at(FrameSlot{}), mPositions, mIndices, 0, refused);
+                store.build(batch, mScene, meshes, mPoses.at(FrameSlot{}), mPositions, mIndices, 0,
+                    BuildCompaction::Streamed, refused);
                 EXPECT_TRUE(refused.empty()) << "a device with room refused a structure";
                 batch.defer();
             }
@@ -262,7 +265,7 @@ namespace Rtx
                 const Testing::NoRoomForContent full(getDevice());
                 Batch batch(getPool());
                 store.build(batch, mScene, std::span(grids).subspan(1, 1), mPoses.at(FrameSlot{}), mPositions, mIndices,
-                    0, refused);
+                    0, BuildCompaction::Streamed, refused);
                 batch.flush();
             }
 
@@ -353,6 +356,40 @@ namespace Rtx
             EXPECT_EQ(store.getLooseBytes(), 0u) << "a loose block outlived every structure in it";
 
             // Before the store goes: a buried structure gives its room back to the store's storage.
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+        }
+
+        /// **A settled build returns with every structure copied out of the loose storage**, run by
+        /// run: four grids of sixty-four under a room of a byte are four runs, each built, copied
+        /// and given back before the next. Nothing is left loose and nothing is left to copy, so the
+        /// first placement after copies nothing, and every grid stands at the address it was copied
+        /// to. Streamed, the same grids stand loose until a placement copies them.
+        TEST_F(RtxBottomLevelStoreTest, aSettledBuildReturnsWithEveryStructureCopiedOut)
+        {
+            const std::array<Index, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+                addGrid(mScene, 64, 2.0f), addGrid(mScene, 64, 3.0f) };
+            stage();
+
+            {
+                BottomLevelStore store(getDevice(), 1);
+                build(store, grids, BuildCompaction::Settled);
+                EXPECT_EQ(store.getLooseBytes(), 0u) << "a loose structure outlived a settled build";
+                EXPECT_EQ(store.getLiveBytes(), store.getBytes()) << "copies left room between them";
+                for (const Index grid : grids)
+                {
+                    EXPECT_TRUE(store.stands(grid)) << "grid " << grid;
+                    EXPECT_NE(store.getAddress(grid), 0u) << "grid " << grid;
+                }
+                EXPECT_TRUE(place(store).empty()) << "a settled build left a copy for a placement";
+                getDevice().waitIdle();
+                getDevice().collectIdle();
+            }
+
+            BottomLevelStore streamed(getDevice(), 1);
+            build(streamed, grids);
+            EXPECT_GT(streamed.getLooseBytes(), 0u);
+            EXPECT_EQ(place(streamed).getSlots().size(), grids.size()) << "a streamed build copied before a placement";
             getDevice().waitIdle();
             getDevice().collectIdle();
         }

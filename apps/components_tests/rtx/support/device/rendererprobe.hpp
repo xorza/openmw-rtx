@@ -43,6 +43,10 @@ namespace Rtx::Testing
 
         VkExtent2D getPictureRoom() const;
 
+        /// What `slot`'s loose bottom levels stand in, `BottomLevelStore::getLooseBytes`: nought
+        /// where the slot holds nothing.
+        VkDeviceSize getLooseStructureBytes(SceneSlot slot) const;
+
         /// Reserves the frame's room as a renderer made with `modes` as its
         /// `RunProfile::mReservedUpscales` does, from now on: for a test of a run's profile on the
         /// renderer every test shares, which hands it back empty.

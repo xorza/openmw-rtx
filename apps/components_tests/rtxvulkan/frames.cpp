@@ -705,6 +705,25 @@ namespace Rtx
             EXPECT_EQ(runAt(Upscale::Off), alone) << "the reserve did not follow the run's modes back";
         }
 
+        /// **The world is handed over with its structures tight, and a picture's scene with its
+        /// loose** (`BuildCompaction`): the world's build waits, so its static wall is copied out
+        /// of the loose storage before the hand-over returns and its textures are made; a picture's
+        /// rides the next submit, so the same wall stands loose until a placement copies it.
+        TEST_F(RtxFramesTest, aWorldIsHandedOverWithItsStructuresTightAndAPicturesWithItsLoose)
+        {
+            SceneDesc wall;
+            wall.addInstance(MeshInstance{ .mMesh = Testing::addQuadMesh(wall, Testing::wallAt(300.0f)) });
+
+            mRenderer.setScene(Rtx::SceneSlot::world(), wall, {});
+            EXPECT_EQ(mProbe.getLooseStructureBytes(Rtx::SceneSlot::world()), 0u)
+                << "the world was handed over with a structure still loose";
+
+            const SceneSlot doll = mRenderer.addViewScene();
+            mRenderer.setScene(doll, wall, {});
+            EXPECT_GT(mProbe.getLooseStructureBytes(doll), 0u) << "a picture's scene waited for its structures";
+            mRenderer.dropViewScene(doll);
+        }
+
         /// **A picture's scene let go gives back every allocation it took**, once the queue has run
         /// what read it: its tables, its structures and its texture, made, placed and traced into a
         /// picture, then dropped. The allocator's ranges and what each use holds stand where they

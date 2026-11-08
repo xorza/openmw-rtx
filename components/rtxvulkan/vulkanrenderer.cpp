@@ -342,10 +342,14 @@ namespace Rtx
         // What the device has room for is decided below, against what it says now.
         mDevice.getMemory().refreshBudget(mDevice.getTimeline().getNext());
 
+        // **The world's structures settled tight before its textures are made** (`BuildCompaction`):
+        // its build is flushed and waited on below anyway, and textures made beside loose structures
+        // were held to room that compaction gave back a few frames later and nothing took again. A
+        // picture's rides the next submit and may not wait.
         Batch setup(mDevice.getPool());
         DeviceScene& held = mScenes.hold(slot,
-            std::make_unique<DeviceScene>(
-                mDevice, setup, mScenePasses, mArrival, scene, textures, mProfile.mAnisotropy, scene.getRoom()));
+            std::make_unique<DeviceScene>(mDevice, setup, mScenePasses, mArrival, scene, textures, mProfile.mAnisotropy,
+                scene.getRoom(), slot.isWorld() ? BuildCompaction::Settled : BuildCompaction::Streamed));
 
         // A picture's scene rides the next submit, as an arrival does: its placement and its trace
         // are deferred behind it, and the barrier every upload and build ends in orders them. The

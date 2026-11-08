@@ -51,6 +51,25 @@ namespace Rtx
         }
     };
 
+    /// When `BottomLevelStore::build` copies its structures out of the loose storage.
+    enum class BuildCompaction : std::uint8_t
+    {
+        /// Over the placements after it, a budget each (`BottomLevelStore::prepareCompaction`), as
+        /// a cell streams in and the frame may not wait.
+        Streamed,
+
+        /// Run by run before it returns, each run built, waited on, copied and waited on again, as
+        /// NVIDIA's load builds them (`nvvk::RaytracingBuilderKHR::buildBlas`): for a load, which
+        /// waits anyway. What is made after it — the textures — then stands against the structures'
+        /// tight size and not their loose one, and the loose structures never stand more than a run
+        /// at once.
+        Settled,
+    };
+
+    /// How much scratch one run of builds works in, and how many positions it stages, past what one
+    /// mesh needs alone: a storage block's worth, which takes a cell's meshes in a run or two.
+    inline constexpr VkDeviceSize sStructureBuildRoom = 64 * 1024 * 1024;
+
     /// One bottom-level acceleration structure per mesh, inside storage buffers at offsets, and the
     /// compaction that keeps them tight: a structure is built loose, the driver is asked what a tight
     /// copy would come to, and the copy is made in the storage that keeps it.
@@ -62,10 +81,6 @@ namespace Rtx
     /// in one arrival kept 206 MiB of blocks for 66 MiB of tight structures, since a structure that
     /// is never copied — one built to be refitted — held each block. A structure built to be
     /// refitted keeps its slack, so it is built where it stays.
-    /// How much scratch one run of builds works in, and how many positions it stages, past what one
-    /// mesh needs alone: a storage block's worth, which takes a cell's meshes in a run or two.
-    inline constexpr VkDeviceSize sStructureBuildRoom = 64 * 1024 * 1024;
-
     class BottomLevelStore
     {
     public:
@@ -87,9 +102,12 @@ namespace Rtx
         /// @param indices the shared index blocks, which every structure is built through.
         /// @param placement which posed placement brings these, on the clock the rebuild rota reads:
         ///        what `getRebuiltAt` answers for each of `meshes` until the rota comes round.
+        /// @param compaction when the structures are copied out of the loose storage. Settled
+        ///        flushes `batch` after each run, and what the caller recorded into it ahead runs
+        ///        with the first.
         void build(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes, const BlockedBuffer& poses,
             const BlockedBuffer& positions, const BlockedBuffer& indices, std::uint64_t placement,
-            std::vector<Refusal>& refused);
+            BuildCompaction compaction, std::vector<Refusal>& refused);
 
         /// Destroys the structures of `meshes` and gives their storage back. Idempotent, because
         /// both the frame that places and the one that appends run it. The last frame's top level
@@ -211,6 +229,18 @@ namespace Rtx
 
         /// Reads every answer whose submit the timeline says has run.
         void readAnswers();
+
+        /// Makes a room in the kept storage for as many answered structures as `budget` takes, and
+        /// queues the copy of each into its room for `recordCompaction`; the meshes it moved join
+        /// `mMovedMeshes`. A new block is made at what is left of the budget.
+        void copyAnswered(VkDeviceSize budget);
+
+        /// What every answered structure's copy would take: a settled run's budget, which then
+        /// copies them all into blocks of exactly that.
+        VkDeviceSize getAnsweredBytes() const;
+
+        /// Hands out the rooms of both storages whose stamps the timeline passed.
+        void reclaim();
 
         /// Whether a tight copy of the structure `state` answered for is smaller than the structure:
         /// what is copied tight and counted as a saving. One that is not, or that the driver gave

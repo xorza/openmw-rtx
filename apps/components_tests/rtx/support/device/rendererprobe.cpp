@@ -39,6 +39,12 @@ namespace Rtx::Testing
         return mRenderer.mTracePasses;
     }
 
+    VkDeviceSize RendererProbe::getLooseStructureBytes(const SceneSlot slot) const
+    {
+        const DeviceScene* held = mRenderer.mScenes.find(slot);
+        return held != nullptr ? held->getAcceleration().getBottomLevel().getLooseBytes() : 0;
+    }
+
     std::uint32_t RendererProbe::getTextureCount(const SceneSlot slot) const
     {
         const DeviceScene* held = mRenderer.mScenes.find(slot);

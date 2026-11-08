@@ -35,7 +35,7 @@ namespace Rtx
 
     DeviceScene::DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, TextureArrival& arrival,
         const SceneDesc& scene, std::span<const TextureData> textures, const std::uint32_t anisotropy,
-        const SceneRoom& room)
+        const SceneRoom& room, const BuildCompaction compaction)
         : mPasses(passes)
         , mRecords(recordsOf(scene))
         , mEveryMesh(everyMeshOf(scene))
@@ -58,7 +58,14 @@ namespace Rtx
         for (std::uint32_t copy = 0; copy < mAcceleration.getPoses().count(); ++copy)
             mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{ copy }));
         mAcceleration.build(
-            batch, scene, mEveryMesh, mRecords, mBuffers.getPositions(), mPasses.mTopLevelPack, mRefusals);
+            batch, scene, mEveryMesh, mRecords, mBuffers.getPositions(), mPasses.mTopLevelPack, compaction, mRefusals);
+
+        // **Waited on once more where the structures settled**: the last run's loose block went back
+        // to the storage under the copies' submit, and its memory is buried under the next, which
+        // this is. The textures below are then held to what the tight structures leave, and not to
+        // a loose block nothing holds any more.
+        if (compaction == BuildCompaction::Settled)
+            batch.flush();
         mTextures.write(batch, mPasses.mTextures, arrival, textures, mRefusals, nullptr);
         mBuiltMeshes = scene.meshes().getRevision();
         mReleasedFreed = scene.meshes().getFreedCount();

@@ -61,9 +61,11 @@ namespace Rtx
         /// appended to `refused` — `BottomLevelStore::build`. `pack` packs the rows the top level
         /// is built over, as on every placement. `positions` are the scene's static vertices, which
         /// `SceneBuffers` staged into the batch ahead of this and a static structure is built over.
+        /// `compaction` says when the bottom levels are copied tight (`BuildCompaction`), and the
+        /// rows are written after, so they name where the structures stand.
         void build(Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
             std::span<const InstanceRecord> records, const BlockedBuffer& positions, const TopLevelPackPass& pack,
-            std::vector<Refusal>& refused);
+            BuildCompaction compaction, std::vector<Refusal>& refused);
 
         /// Rebuilds what a moved world changed: every deformed mesh's structure, then the top level,
         /// in one command buffer with a barrier between — two `submitAndWait`s were a round trip
@@ -150,6 +152,9 @@ namespace Rtx
         /// How many structures the rota has built whole again since the scene was made, for the
         /// scene's report.
         std::uint64_t getRebuildCount() const { return mRebuildCount; }
+
+        /// The bottom levels. Read by the tests and by nothing else.
+        const BottomLevelStore& getBottomLevel() const { return mBottomLevel; }
 
         /// How many instance slots the rows hold, placed or not: every slot the scene ever handed
         /// out, which the top level's packing reads and its build does not.

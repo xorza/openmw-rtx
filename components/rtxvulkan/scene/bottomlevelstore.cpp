@@ -96,7 +96,7 @@ namespace Rtx
 
     void BottomLevelStore::build(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes,
         const BlockedBuffer& poses, const BlockedBuffer& positions, const BlockedBuffer& indices,
-        const std::uint64_t placement, std::vector<Refusal>& refused)
+        const std::uint64_t placement, const BuildCompaction compaction, std::vector<Refusal>& refused)
     {
         const Crash::NoteScope noted("building bottom-level structures for {} meshes", meshes.size());
         const std::size_t held = scene.meshes().getRows().size();
@@ -265,6 +265,17 @@ namespace Rtx
         std::size_t begin = 0;
         for (const std::size_t end : mRunEnds)
         {
+            // **A settled build's loose block is its run's**, which every structure of the run
+            // leaves before the next run is built: one for the whole build would stand until the
+            // last run was copied, and the loose structures would peak at the whole build again.
+            if (compaction == BuildCompaction::Settled && wantedLoose > 0)
+            {
+                wantedLoose = 0;
+                for (std::size_t at = begin; at < end; ++at)
+                    if (!mRows[meshes[at]].mUpdatable && mBuilding[at].mSize > 0)
+                        wantedLoose = alignUp(wantedLoose + mBuilding[at].mSize, StructureStorage::sAlignment);
+            }
+
             mLiveBuilds.clear();
             mBuild.mRangePointers.clear();
             for (std::size_t at = begin; at < end; ++at)
@@ -327,6 +338,24 @@ namespace Rtx
             vkCmdBuildAccelerationStructuresKHR(commands, static_cast<std::uint32_t>(mLiveBuilds.size()),
                 mLiveBuilds.data(), mBuild.mRangePointers.data());
             barrierAfterRun(commands);
+
+            if (compaction != BuildCompaction::Settled)
+                continue;
+
+            // The run built and asked about, waited on, every answer copied out with no budget,
+            // and waited on again, so the next run takes the rooms this one left.
+            askWhatCompactionWouldSave(commands);
+            batch.flush();
+            mCompactionCopies.clear();
+            mMovedMeshes.clear();
+            readAnswers();
+            copyAnswered(getAnsweredBytes());
+            if (!mCompactionCopies.empty())
+            {
+                recordCompaction(batch.getCommands(), nullptr);
+                batch.flush();
+            }
+            reclaim();
         }
 
         askWhatCompactionWouldSave(batch.getCommands());
@@ -476,14 +505,35 @@ namespace Rtx
 
         // Once a placement, so a block whose last structure left goes back to the device without
         // waiting for the next arrival to ask for room.
+        reclaim();
+        readAnswers();
+        copyAnswered(sCompactionPerPlacement);
+        return mMovedMeshes;
+    }
+
+    void BottomLevelStore::reclaim()
+    {
         const std::uint64_t finished = mDevice.getTimeline().getKnownFinished();
         mStorage.reclaim(finished);
         mLooseStorage.reclaim(finished);
+    }
 
-        readAnswers();
+    VkDeviceSize BottomLevelStore::getAnsweredBytes() const
+    {
+        VkDeviceSize bytes = 0;
+        for (std::size_t at = 0; at < mAnswered.size(); ++at)
+        {
+            const Compaction& state = mRows[mAnswered.at(at)].mCompaction;
+            if (state.mTightness == Tightness::Answered)
+                bytes += alignUp(shrinks(state) ? state.mTightSize : state.mBuiltSize, StructureStorage::sAlignment);
+        }
+        return bytes;
+    }
 
+    void BottomLevelStore::copyAnswered(const VkDeviceSize budget)
+    {
         VkDeviceSize taken = 0;
-        while (!mAnswered.empty() && taken < sCompactionPerPlacement)
+        while (!mAnswered.empty() && taken < budget)
         {
             const Index slot = mAnswered.at(0);
 
@@ -506,8 +556,7 @@ namespace Rtx
             // copied.
             const bool tight = shrinks(state);
             const VkDeviceSize size = tight ? state.mTightSize : state.mBuiltSize;
-            const Misc::Result<StructureRoom, std::string_view> room
-                = mStorage.take(mDevice, size, sCompactionPerPlacement);
+            const Misc::Result<StructureRoom, std::string_view> room = mStorage.take(mDevice, size, budget - taken);
             if (!room.isOk())
                 break;
 
@@ -541,12 +590,10 @@ namespace Rtx
             state.mTightness = Tightness::Tight;
 
             mMovedMeshes.addMakingRoom(slot);
-            taken += size;
+            taken += alignUp(size, StructureStorage::sAlignment);
         }
 
         mAnswered.settle();
-
-        return mMovedMeshes;
     }
 
     void BottomLevelStore::recordCompaction(const VkCommandBuffer commands, GpuTimer* const timer)

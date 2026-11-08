@@ -52,7 +52,9 @@ namespace Rtx
         /// again while that one is still tracing — so every table has `sFrameSlots` copies. The
         /// structures before the textures, because a mesh left out is worse than a texture held to
         /// a smaller side, and the textures are held to what the structures left — what the device
-        /// had no room for is `getRefusals`.
+        /// had no room for is `getRefusals`. **Left tight, where `compaction` settles them**: a
+        /// load that waits copies them tight before the textures are made, which are then held to
+        /// what the tight structures leave and not to what the loose ones held for a few frames.
         ///
         /// @param passes what poses this scene's bodies, at the build and at every placement, what
         ///        every texture is made with as it arrives, and what flattens every chunk's stack
@@ -61,9 +63,11 @@ namespace Rtx
         ///        for every scene: `TextureArray`'s constructor says why one.
         /// @param anisotropy `RenderProfile::mAnisotropy`, which the textures are read along a
         ///        footprint by.
+        /// @param compaction `BuildCompaction::Settled` for a caller that flushes `batch` and may
+        ///        wait, which this then flushes as well; Streamed for one that defers it.
         DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, TextureArrival& arrival,
             const SceneDesc& scene, std::span<const TextureData> textures, std::uint32_t anisotropy,
-            const SceneRoom& room);
+            const SceneRoom& room, BuildCompaction compaction);
 
         /// `TextureArray::setAnisotropy`.
         void setAnisotropy(std::uint32_t anisotropy) { mTextures.setAnisotropy(anisotropy); }
