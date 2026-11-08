@@ -410,7 +410,11 @@ at the top, over all of them.
   only arrives — the vertices, the mesh table, the posed normals — is one copy written on the queue
   behind every frame in flight. A static structure is built over the positions its hits read.
   Each scene owns its textures and structures, and a texture's side is chosen from the room left
-  when it arrives. The top level and its scratch are made at the world's room, tens of MiB against
+  when it arrives: within one arrival, the file that stands the most bytes comes down a level
+  first, until the arrival fits, as Unreal's streamer takes one mip at a time off until its plan
+  fits the pool. One side for the whole arrival, refused, came down by halves: a world built
+  again in one arrival under a budget stood 1383 MiB of textures and left 1344 MiB of room unused
+  (`TextureArray::chooseLevels`). The top level and its scratch are made at the world's room, tens of MiB against
   a structure made on a crossing frame. Refused, by the user's decision after a measurement or an
   estimate:
   - textures shared across scenes: a doll's 12–17 textures are 0.2 MB and 0.4–1.1 ms on vanilla,

@@ -107,11 +107,12 @@ namespace Rtx
             textures.sync(FrameSlot{ 1 });
         }
 
-        /// An arrival is held to the largest side it fits the room at, the whole of it to the one
-        /// side: a file from its first level within the side, a bake as large as its source is held
-        /// to, and a composite, whose side is the renderer's own, at what it costs. Where the
-        /// arrival fits at no side, its files are held to the side they fit at without the
-        /// composite, which gives way.
+        /// An arrival of one file is held to the largest side it fits the room at, the level a
+        /// file begins at: a file from its first level within the side, a bake as large as its
+        /// source is held to, and a composite, whose side is the renderer's own, at what it costs.
+        /// Where the arrival fits at no side, its files are held to the side they fit at without
+        /// the composite, which gives way; and where they fit at none, each begins at its last
+        /// level.
         ///
         /// **Hand-computed.** The ladder is 64, 32 and 16 texels square, four bytes a texel: 16384,
         /// 4096 and 1024 bytes, 21504 from the top, 5120 from the second level and 1024 from the
@@ -146,8 +147,6 @@ namespace Rtx
             const TextureArray textures(device, setup, layout, passes, rooms, 3);
             setup.flush();
 
-            const std::uint32_t limit = textures.getSideLimit();
-
             Testing::TestTexture ladder;
             Testing::paintLevels(ladder, 64, 64, 3, "ladder");
             const TextureData composite{ .mSlot = 1, .mSource = TextureSource::GroundComposite, .mFrom = 0 };
@@ -174,42 +173,93 @@ namespace Rtx
             EXPECT_EQ(atTop.standing(), 21504u + 1365u) << "a standing texture keeps no means";
             EXPECT_EQ(priceFile(completed.mData, 0).mTransient, 16384u);
 
+            // The first level of each side: 64 the top, 32 the second, 16 the third, and below 16
+            // the third again, where the ladder has no level. The completed chain has its one.
             struct Case
             {
                 std::span<const TextureData> mArrived;
                 VkDeviceSize mRoom;
-                std::uint32_t mSide;
+                std::uint32_t mFirst;
             };
             const std::array cases{
-                Case{ alone, 23552, limit },
-                Case{ alone, 23551, 32 },
-                Case{ alone, 7168, 32 },
-                Case{ alone, 7167, 16 },
-                Case{ alone, 3072, 16 },
-                Case{ alone, 3071, 1 },
-                Case{ alone, 0, 1 },
-                Case{ ground, 2099252 + 23552, limit },
-                Case{ ground, 2099252 + 23551, 32 },
-                Case{ ground, 2099252 + 3072, 16 },
-                Case{ ground, 2099251 + 3072, limit },
-                Case{ ground, 23551, 32 },
-                Case{ baked, 23552 + 23552, limit },
-                Case{ baked, 23552 + 23551, 32 },
-                Case{ baked, 7168 + 7168, 32 },
-                Case{ baked, 7168 + 7167, 16 },
-                Case{ spread, 44709, limit },
-                Case{ spread, 44708, 32 },
-                Case{ spread, 10917, 32 },
-                Case{ spread, 10916, 16 },
-                Case{ spread, 2469, 16 },
-                Case{ spread, 2468, 1 },
-                Case{ chained, 40276 + 23892, limit },
-                Case{ chained, 40276 + 23891, 1 },
+                Case{ alone, 23552, 0 },
+                Case{ alone, 23551, 1 },
+                Case{ alone, 7168, 1 },
+                Case{ alone, 7167, 2 },
+                Case{ alone, 3072, 2 },
+                Case{ alone, 3071, 2 },
+                Case{ alone, 0, 2 },
+                Case{ ground, 2099252 + 23552, 0 },
+                Case{ ground, 2099252 + 23551, 1 },
+                Case{ ground, 2099252 + 3072, 2 },
+                Case{ ground, 2099251 + 3072, 0 },
+                Case{ ground, 23551, 1 },
+                Case{ baked, 23552 + 23552, 0 },
+                Case{ baked, 23552 + 23551, 1 },
+                Case{ baked, 7168 + 7168, 1 },
+                Case{ baked, 7168 + 7167, 2 },
+                Case{ spread, 44709, 0 },
+                Case{ spread, 44708, 1 },
+                Case{ spread, 10917, 1 },
+                Case{ spread, 10916, 2 },
+                Case{ spread, 2469, 2 },
+                Case{ spread, 2468, 2 },
+                Case{ chained, 40276 + 23892, 0 },
+                Case{ chained, 40276 + 23891, 0 },
             };
 
+            std::vector<std::uint32_t> firsts;
             for (const Case& one : cases)
-                EXPECT_EQ(textures.chooseSide(one.mArrived, one.mRoom, rooms), one.mSide)
-                    << one.mArrived.size() << " textures in " << one.mRoom << " bytes";
+            {
+                textures.chooseLevels(one.mArrived, one.mRoom, rooms, firsts);
+                ASSERT_EQ(firsts.size(), one.mArrived.size());
+                EXPECT_EQ(firsts[0], one.mFirst) << one.mArrived.size() << " textures in " << one.mRoom << " bytes";
+            }
+        }
+
+        /// **The file that stands the most bytes comes down a level first, and of two that stand
+        /// alike the later slot, until the arrival fits.** Two of the ladders of
+        /// `anArrivalIsHeldToTheLargestSideItFitsTheRoomAt`, 23552 bytes whole, 7168 from the second
+        /// level and 3072 from the third: in 23552 + 7168 bytes the second slot comes down one and
+        /// the first stands whole, where one side for both held both to 32 and left 16384 unused; a
+        /// byte short, both come down one; in 7168 + 3072, the second comes down two. A 64-square
+        /// ladder beside a 32-square one, 7168 whole and 3072 from its second level, in 23552 + 3072
+        /// bytes: the large one comes down, though it is the earlier slot, and the small one stands
+        /// whole, where taking the later slot first would have stood the large whole.
+        TEST_F(RtxTextureArrayTest, theFileThatStandsTheMostComesDownFirstUntilTheArrivalFits)
+        {
+            Device& device = getDevice();
+            const SetLayout layout = TextureArray::describeLayout(device);
+            const TexturePasses passes(device);
+            TextureArrival rooms(device);
+            Batch setup(getPool());
+            const TextureArray textures(device, setup, layout, passes, rooms, 2);
+            setup.flush();
+
+            Testing::TestTexture first;
+            Testing::paintLevels(first, 64, 64, 3, "first");
+            Testing::TestTexture second;
+            Testing::paintLevels(second, 64, 64, 3, "second");
+            second.mData.mSlot = 1;
+            Testing::TestTexture small;
+            Testing::paintLevels(small, 32, 32, 2, "small");
+            small.mData.mSlot = 1;
+
+            const std::array alike{ first.mData, second.mData };
+            const std::array apart{ first.mData, small.mData };
+            std::vector<std::uint32_t> firsts;
+
+            textures.chooseLevels(alike, 23552 + 7168, rooms, firsts);
+            EXPECT_EQ(firsts, (std::vector<std::uint32_t>{ 0, 1 })) << "the later slot of two alike first";
+            textures.chooseLevels(alike, 23552 + 7167, rooms, firsts);
+            EXPECT_EQ(firsts, (std::vector<std::uint32_t>{ 1, 1 }));
+            textures.chooseLevels(alike, 7168 + 3072, rooms, firsts);
+            EXPECT_EQ(firsts, (std::vector<std::uint32_t>{ 1, 2 }));
+
+            textures.chooseLevels(apart, 23552 + 3072, rooms, firsts);
+            EXPECT_EQ(firsts, (std::vector<std::uint32_t>{ 1, 0 })) << "the file that stands the most first";
+            textures.chooseLevels(apart, 30720, rooms, firsts);
+            EXPECT_EQ(firsts, (std::vector<std::uint32_t>{ 0, 0 })) << "an arrival that fits came down";
         }
 
         /// **An arrival is priced only what its means room must grow by.** The normal map of
@@ -226,7 +276,6 @@ namespace Rtx
             Batch setup(getPool());
             TextureArray textures(device, setup, layout, passes, rooms, 2);
             setup.flush();
-            const std::uint32_t limit = textures.getSideLimit();
 
             Testing::TestTexture first;
             Testing::paintLevels(first, 64, 64, 3, "normals");
@@ -236,8 +285,13 @@ namespace Rtx
             second.mData.mEncoding = TextureEncoding::Normal;
             second.mData.mSlot = 1;
 
-            EXPECT_EQ(textures.chooseSide(std::span(&first.mData, 1), 44709, rooms), limit);
-            EXPECT_EQ(textures.chooseSide(std::span(&first.mData, 1), 44708, rooms), 32u);
+            std::vector<std::uint32_t> firsts;
+            const auto firstOf = [&](const TextureArray& array, const TextureData& texture, const VkDeviceSize room) {
+                array.chooseLevels(std::span(&texture, 1), room, rooms, firsts);
+                return firsts.at(0);
+            };
+            EXPECT_EQ(firstOf(textures, first.mData, 44709), 0u);
+            EXPECT_EQ(firstOf(textures, first.mData, 44708), 1u);
 
             std::vector<Refusal> refused;
             Batch arrival(getPool());
@@ -245,15 +299,15 @@ namespace Rtx
             arrival.flush();
             ASSERT_TRUE(refused.empty());
 
-            EXPECT_EQ(textures.chooseSide(std::span(&second.mData, 1), 44709 - 21840, rooms), limit)
+            EXPECT_EQ(firstOf(textures, second.mData, 44709 - 21840), 0u)
                 << "the means the room holds were priced again";
-            EXPECT_EQ(textures.chooseSide(std::span(&second.mData, 1), 44709 - 21840 - 1, rooms), 32u);
+            EXPECT_EQ(firstOf(textures, second.mData, 44709 - 21840 - 1), 1u);
 
             // **And so is another scene's array**: the rooms are the renderer's, one for every scene.
             Batch other(getPool());
             const TextureArray elsewhere(device, other, layout, passes, rooms, 2);
             other.flush();
-            EXPECT_EQ(elsewhere.chooseSide(std::span(&second.mData, 1), 44709 - 21840, rooms), limit)
+            EXPECT_EQ(firstOf(elsewhere, second.mData, 44709 - 21840), 0u)
                 << "a second scene priced the means the shared room holds";
         }
 
@@ -361,7 +415,7 @@ namespace Rtx
             EXPECT_EQ(held.mBySource.mCompletedFiles + held.mBySource.mSpriteBakes + held.mBySource.mGroundComposites
                     + held.mBySource.mGroundGloss,
                 0u);
-            EXPECT_EQ(textures.getSide(), limit) << "the device's side is not the room's";
+            EXPECT_EQ(textures.getRoomHeld(), 0u) << "the device's side is not the room's";
 
             EXPECT_EQ(textures.getTexels(0), (limit + 1) >> 1) << "the level that stands";
             EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "past the side";
@@ -443,7 +497,7 @@ namespace Rtx
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty()) << "a texture with a level the device had room for was refused";
-            EXPECT_EQ(textures.getSide(), textures.getSideLimit()) << "the room chose the level, and not the device";
+            EXPECT_EQ(textures.getRoomHeld(), 0u) << "the room chose the level, and not the device";
             EXPECT_EQ(textures.getHeld().mBytes, VkDeviceSize{ 1536 } * 1536 * 4 + 2048);
             EXPECT_EQ(textures.getHeld().mReduced, 1u);
             EXPECT_TRUE(textures.wasHeldBack()) << "a texture stood smaller than its file and held nothing back";

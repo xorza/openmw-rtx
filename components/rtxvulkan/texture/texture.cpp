@@ -2,13 +2,13 @@
 
 #include <algorithm>
 #include <array>
-#include <bit>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -136,20 +136,6 @@ namespace Rtx
                 makeFootprintSampler(device, "textures along clamped along s", TextureWrap::ClampS, anisotropy),
                 makeFootprintSampler(device, "textures along clamped along t", TextureWrap::ClampT, anisotropy),
                 makeFootprintSampler(device, "textures along clamped", TextureWrap::Clamp, anisotropy) };
-        }
-
-        /// Where `texture` begins held to `side`: its first level within it, or its last where the
-        /// file carries none that small, which is as far down as it goes.
-        std::uint32_t firstLevelAt(const TextureData& texture, std::uint32_t side)
-        {
-            return texture.firstLevelWithin(side).value_or(static_cast<std::uint32_t>(texture.mLevels.size()) - 1);
-        }
-
-        /// The next side a search tries below `side`: the power of two under it.
-        std::uint32_t sideBelow(std::uint32_t side)
-        {
-            assert(side > 1);
-            return std::bit_floor(side - 1);
         }
 
         /// Why a texture draws the stand-in where the device takes none of its levels.
@@ -427,8 +413,6 @@ namespace Rtx
             makeContentSampler(device, "textures clamped", TextureWrap::Clamp) }
         , mFootprintSamplers(makeFootprintSamplers(device, anisotropy))
         , mSideLimit(device.getPhysicalDevice().getTextureSide())
-        , mSide(mSideLimit)
-        , mSaidSide(mSideLimit)
         // Allocated at the maximum the layout declares, not at what this scene brought. Sizing the
         // set to the cell is what made a texture arriving mean a new set, a new pool and every
         // image uploaded again; the maximum's pool is paid once (`sBindings`). `write` then only
@@ -489,39 +473,51 @@ namespace Rtx
             reserveSlot(texture.mSlot);
         arrival.open(arrived.size());
 
-        const std::uint32_t side = chooseSide(arrived, mDevice.getMemory().getRoom(MemoryUse::Texture), arrival);
+        chooseLevels(arrived, mDevice.getMemory().getRoom(MemoryUse::Texture), arrival, mFirsts);
 
-        // Said for a side smaller than any said before, and not per arrival: a device short of room
-        // holds every arrival to about the same side, and the log would say it at every crossing.
-        if (side < mSaidSide)
+        std::uint32_t held = 0;
+        std::uint32_t deepest = 0;
+        for (std::size_t at = 0; at < arrived.size(); ++at)
+            if (arrived[at].mSource == TextureSource::File)
+                if (const std::optional<std::uint32_t> top = arrived[at].firstLevelWithin(mSideLimit); top.has_value())
+                {
+                    held += mFirsts[at] > *top ? 1 : 0;
+                    deepest = std::max(deepest, mFirsts[at] - *top);
+                }
+        mRoomHeld = held;
+
+        // Said for a drop deeper than any said before, and not per arrival: a device short of room
+        // holds every arrival about as far down, and the log would say it at every crossing.
+        if (deepest > mSaidDrop)
         {
-            Log(Debug::Warning) << "Ray tracing holds the textures that arrive to " << side
-                                << " texels a side, which is what the device has room for";
-            mSaidSide = side;
+            Log(Debug::Warning) << "Ray tracing holds " << held << " of " << arrived.size()
+                                << " textures that arrive up to " << deepest
+                                << " levels below what they come at, which is what the device has room for";
+            mSaidDrop = deepest;
         }
-        mSide = side;
 
         // Every source before every bake, because a bake is made from the texture standing in the
         // slot it names, and the ground last, because it is what gives way where the room runs out
-        // — `chooseSide` says why. Three walks and not a sort: the order is the kind's, and
+        // — `chooseLevels` says why. Three walks and not a sort: the order is the kind's, and
         // `arrived` is what one cell brought.
-        for (const TextureData& texture : arrived)
-            if (texture.mSource == TextureSource::File || texture.mSource == TextureSource::StandIn)
-                stand(batch, arrival, texture, side, refused);
+        for (std::size_t at = 0; at < arrived.size(); ++at)
+            if (arrived[at].mSource == TextureSource::File || arrived[at].mSource == TextureSource::StandIn)
+                stand(batch, arrival, arrived[at], mFirsts[at], refused);
 
-        for (const TextureData& texture : arrived)
-            if (texture.mSource == TextureSource::SpriteBake)
-                stand(batch, arrival, texture, side, refused);
+        for (std::size_t at = 0; at < arrived.size(); ++at)
+            if (arrived[at].mSource == TextureSource::SpriteBake)
+                stand(batch, arrival, arrived[at], mFirsts[at], refused);
 
-        for (const TextureData& texture : arrived)
-            if (texture.mSource == TextureSource::GroundComposite || texture.mSource == TextureSource::GroundGloss)
-                stand(batch, arrival, texture, side, refused);
+        for (std::size_t at = 0; at < arrived.size(); ++at)
+            if (arrived[at].mSource == TextureSource::GroundComposite
+                || arrived[at].mSource == TextureSource::GroundGloss)
+                stand(batch, arrival, arrived[at], mFirsts[at], refused);
 
         arrival.record(batch, passes);
     }
 
-    std::uint32_t TextureArray::chooseSide(
-        std::span<const TextureData> arrived, const VkDeviceSize room, const TextureArrival& arrival) const
+    void TextureArray::chooseLevels(std::span<const TextureData> arrived, const VkDeviceSize room,
+        const TextureArrival& arrival, std::vector<std::uint32_t>& firsts) const
     {
         // What every `costAt` below asks of a bake's source, found once for the arrival.
         mArrivingAt.clear();
@@ -533,32 +529,86 @@ namespace Rtx
             mArrivingAt[slot] = static_cast<Index>(at);
         }
 
-        const auto largestAt = [&](const bool ground) {
-            std::uint32_t side = mSideLimit;
-            while (side > 1 && costAt(arrived, side, ground, arrival) > room)
-                side = sideBelow(side);
+        // Every file from its first level within the device's side, which a file past the side at
+        // every level has none of: it draws the stand-in. **The whole arrival there, where it fits
+        // there**, which is every arrival on a card with room, priced once.
+        firsts.assign(arrived.size(), 0);
+        for (std::size_t at = 0; at < arrived.size(); ++at)
+            if (arrived[at].mSource == TextureSource::File)
+                firsts[at] = arrived[at].firstLevelWithin(mSideLimit).value_or(0);
+        if (costAt(arrived, firsts, true, arrival) <= room)
+            return;
 
-            return side;
+        // Every level under it a file can come down by: a completed chain has its one level, which
+        // the device makes the rest from.
+        mDrops.clear();
+        for (std::size_t at = 0; at < arrived.size(); ++at)
+        {
+            const TextureData& texture = arrived[at];
+            if (texture.mSource != TextureSource::File || texture.mCompleteChain
+                || !texture.firstLevelWithin(mSideLimit).has_value())
+                continue;
+            for (std::uint32_t level = firsts[at]; level + 1 < texture.mLevels.size(); ++level)
+                mDrops.push_back(
+                    Drop{ .mStanding = priceFile(texture, level).standing(), .mSlot = texture.mSlot, .mAt = at });
+        }
+
+        // **The file that stands the most bytes comes down a level first**, and of two that stand
+        // alike the one in the later slot, until the arrival fits: Unreal's streamer takes one mip
+        // at a time off the textures it least needs until its plan fits the pool, where one side
+        // for the whole arrival came down by halves and left up to three quarters of the room
+        // unused. What stands follows from the textures and the room alone, so the same world in
+        // the same room stands the same. Each level of a file stands fewer bytes than the one above
+        // it, so the order takes a file's levels in turn and any prefix holds each file's first.
+        std::ranges::sort(mDrops, [](const Drop& left, const Drop& right) {
+            return std::tie(left.mStanding, left.mSlot) > std::tie(right.mStanding, right.mSlot);
+        });
+
+        const auto costAfter = [&](const std::size_t drops, const bool ground) {
+            mTrialFirsts.assign(firsts.begin(), firsts.end());
+            for (std::size_t drop = 0; drop < drops; ++drop)
+                ++mTrialFirsts[mDrops[drop].mAt];
+            return costAt(arrived, mTrialFirsts, ground, arrival);
         };
 
-        // **The whole arrival, where it fits at some side.** Where it fits at none, the ground's
-        // composites, which no side brings down, are more than the room by themselves, and holding
-        // the files to one texel would buy them nothing: the files are held to the side they fit
-        // at alone, and the ground, stood last, takes what they leave. What is nearest the eye
-        // keeps its detail, and what gives way is the distance.
-        const std::uint32_t whole = largestAt(true);
-        if (costAt(arrived, whole, true, arrival) <= room)
-            return whole;
+        // The fewest drops that fit, found by halves: every drop takes bytes off and none puts any
+        // back, so the cost only falls along the order. Nothing where all of them leave too much.
+        const auto fewestFitting = [&](const bool ground) -> std::optional<std::size_t> {
+            if (costAfter(mDrops.size(), ground) > room)
+                return std::nullopt;
+            std::size_t low = 0;
+            std::size_t high = mDrops.size();
+            while (low < high)
+            {
+                const std::size_t middle = low + (high - low) / 2;
+                if (costAfter(middle, ground) <= room)
+                    high = middle;
+                else
+                    low = middle + 1;
+            }
+            return low;
+        };
 
-        return largestAt(false);
+        // **The whole arrival, where it fits after some drops.** Where it fits after none, the
+        // ground's composites, which no drop brings down, are more than the room by themselves, and
+        // holding the files to their last levels would buy them nothing: the files come down as far
+        // as they fit alone, and the ground, stood last, takes what they leave. What is nearest the
+        // eye keeps its detail, and what gives way is the distance. Where the files fit after no
+        // count of drops either, each comes down as far as its file goes.
+        std::optional<std::size_t> drops = fewestFitting(true);
+        if (!drops.has_value())
+            drops = fewestFitting(false);
+        const std::size_t taken = drops.value_or(mDrops.size());
+        for (std::size_t drop = 0; drop < taken; ++drop)
+            ++firsts[mDrops[drop].mAt];
     }
 
-    VkDeviceSize TextureArray::costAt(std::span<const TextureData> arrived, const std::uint32_t side, const bool ground,
-        const TextureArrival& arrival) const
+    VkDeviceSize TextureArray::costAt(std::span<const TextureData> arrived, std::span<const std::uint32_t> firsts,
+        const bool ground, const TextureArrival& arrival) const
     {
-        // A bake is shaped like its source as the source is held to `side`: from its first level
-        // within the side where it arrives beside the bake, as the stand-in where it arrives as one,
-        // and as its image where it stands already.
+        // A bake is shaped like its source as the source is held in `firsts`: from its first level
+        // where it arrives beside the bake, as the stand-in where it arrives as one, and as its
+        // image where it stands already.
         const auto bakeOf = [&](const Index slot) -> VkDeviceSize {
             const Index arrivingAt = slot < mArrivingAt.size() ? mArrivingAt[slot] : sNoIndex;
             const TextureData* const arriving = arrivingAt != sNoIndex ? &arrived[arrivingAt] : nullptr;
@@ -567,7 +617,7 @@ namespace Rtx
             if (arriving != nullptr)
             {
                 if (arriving->mSource == TextureSource::File && arriving->firstLevelWithin(mSideLimit).has_value())
-                    return priceBake(shapeOf(*arriving, firstLevelAt(*arriving, side))).total();
+                    return priceBake(shapeOf(*arriving, firsts[arrivingAt])).total();
 
                 standing = &mStandIn.getImage();
             }
@@ -589,14 +639,15 @@ namespace Rtx
         bool blocks = mCanvas.mBlocks.has_value();
         bool albedoCanvas = mCanvas.mAlbedo.has_value();
         bool glossCanvas = mCanvas.mGloss.has_value();
-        for (const TextureData& texture : arrived)
+        for (std::size_t at = 0; at < arrived.size(); ++at)
         {
+            const TextureData& texture = arrived[at];
             switch (texture.mSource)
             {
                 case TextureSource::File:
                     if (texture.firstLevelWithin(mSideLimit).has_value())
                     {
-                        const std::uint32_t first = firstLevelAt(texture, side);
+                        const std::uint32_t first = firsts[at];
                         cost += priceFile(texture, first).total();
                         const VkDeviceSize itsMeans = spreadMeansBytes(texture, first);
                         means += itsMeans;
@@ -643,7 +694,7 @@ namespace Rtx
     }
 
     Misc::Result<void, std::string_view> TextureArray::make(Batch& batch, TextureArrival& arrival, Texture& into,
-        const TextureData& texture, const std::uint32_t side, std::string_view name)
+        const TextureData& texture, const std::uint32_t first, std::string_view name)
     {
         switch (texture.mSource)
         {
@@ -670,16 +721,16 @@ namespace Rtx
 
             case TextureSource::File:
             {
-                // From the first level within the side, and a level further down each time the
-                // device has no room — only a file's own levels, so one whose chain the device
-                // completes has the one.
+                // From the level `chooseLevels` chose, and a level further down each time the device
+                // has no room — only a file's own levels, so one whose chain the device completes
+                // has the one.
                 const auto last = static_cast<std::uint32_t>(texture.mLevels.size()) - 1;
-                std::uint32_t first = firstLevelAt(texture, side);
+                std::uint32_t level = first;
                 Misc::Result<void, std::string_view> stood
-                    = into.standFile(mDevice, batch, arrival, texture, first, name, mRegionScratch, MemoryUse::Texture);
-                while (!stood.isOk() && first < last)
+                    = into.standFile(mDevice, batch, arrival, texture, level, name, mRegionScratch, MemoryUse::Texture);
+                while (!stood.isOk() && level < last)
                     stood = into.standFile(
-                        mDevice, batch, arrival, texture, ++first, name, mRegionScratch, MemoryUse::Texture);
+                        mDevice, batch, arrival, texture, ++level, name, mRegionScratch, MemoryUse::Texture);
 
                 return stood;
             }
@@ -692,7 +743,7 @@ namespace Rtx
     }
 
     void TextureArray::stand(Batch& batch, TextureArrival& arrival, const TextureData& texture,
-        const std::uint32_t side, std::vector<Refusal>& refused)
+        const std::uint32_t first, std::vector<Refusal>& refused)
     {
         assert(texture.mSlot < mSlots.size() && "a texture stood in a slot `write` did not reserve");
         Slot& slot = mSlots[texture.mSlot];
@@ -720,7 +771,8 @@ namespace Rtx
         {
             // Every refusal `make` answers is the device's room: a file past the side is the one
             // that is not, and it is known above.
-            const Misc::Result<void, std::string_view> stood = make(batch, arrival, slot.mTexture, texture, side, name);
+            const Misc::Result<void, std::string_view> stood
+                = make(batch, arrival, slot.mTexture, texture, first, name);
             if (!stood.isOk())
             {
                 why = stood.error();

@@ -173,7 +173,7 @@ namespace Rtx::Shaders
 
         /// How many texels the sheet `mTexture` names stands at, across and down. **The backend's
         /// and not the scene's**, because the array can stand a texture smaller than its file
-        /// (`TextureArray::chooseSide`); written beside the ripples, where the frame is sampled, so
+        /// (`TextureArray::chooseLevels`); written beside the ripples, where the frame is sampled, so
         /// a starry pixel reads a number the host holds rather than a texture header.
         uvec2 mExtent RTX_ZERO;
     };
