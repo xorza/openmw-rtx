@@ -176,3 +176,6 @@ JournalShowAll: "Show All"
 LoadingSelectCharacter: "Change Character"
 RechargeSelect: "Recharge"
 RepairTool: "Tool"
+
+RayTracingIndirectLimitValue: "Indirect limit: {value}× white (0 = Off)"
+RayTracingIndirectLimitHint: "Caps each indirect sample before averaging and denoising. White is linear brightness 1 after adapted exposure, before tone mapping. Lower values suppress sparks but can darken bounced light and reflections. Direct lighting is unchanged. Zero disables."

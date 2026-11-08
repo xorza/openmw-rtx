@@ -401,6 +401,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/glare.h
     shaders/shared/ground.h
     shaders/shared/gui.h
+    shaders/shared/indirect.h
     shaders/shared/halfmean.h
     shaders/shared/halfstore.h
     shaders/shared/halving.h

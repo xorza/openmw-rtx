@@ -495,17 +495,20 @@ namespace Rtx::Shaders
         /// upscaler, `Rtx::sampleFrame`.
         vec2 mPreviousJitter;
 
-        /// To the eight bytes `mTables` stands on, named so that every byte of the block is a field a
-        /// copy carries and a comparison reads: an implicit pad is what neither does.
-        uint mPadding RTX_ZERO;
+        /// Per-sample luminance ceiling in exposed-white units, zero for no cap. For a fixed
+        /// exposure the host divides this by the scale and leaves mIndirectExposure at zero.
+        float mIndirectLimit RTX_ZERO;
 
         /// Where every table a hit reads is. `GpuTables` says why it rides here.
         ///
-        /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would
+        /// **After the four-aligned fields, because these addresses are eight-aligned.** Earlier it would
         /// pad the middle of a struct two languages have to agree on, and the offset asserted below
         /// pins where it landed. Everything above it is four-aligned and sums to a multiple of
-        /// eight, `mPadding` included: a four-byte field added above takes its place.
+        /// eight, including mIndirectLimit.
         GpuTables mTables;
+
+        /// Previous adapted exposure, read on the GPU; zero means unit/fixed exposure.
+        uint64 mIndirectExposure RTX_ZERO;
     };
 
     /// What the puffs' composite is pushed beside the frame block: the frame's eyes on the grid of
@@ -539,8 +542,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1464, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1664, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1464, "GpuTables must land eight-aligned");
+    static_assert(sizeof(VisibilityConstants) == 1672, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

@@ -38,7 +38,8 @@ namespace Rtx
         // `TRANSFER_SRC` because the exposure is the whole of what this pass produces and so the
         // only thing a reader can check it by, as `BloomPass` says of its levels.
         , mExposure(Buffer::deviceLocal(device, sizeof(float),
-              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+                  | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
               "exposure"))
         , mPicture(Buffer::hostWritten(device, sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture exposure"))
     {
@@ -94,6 +95,9 @@ namespace Rtx
         // The reduction has to see every pixel's contribution before it divides by the total, which
         // is what this dispatch boundary is for.
         mHistogram.transition(commands, Use::sBufferComputeWrite, Use::sBufferComputeRead);
+
+        // The bounce may have read the previous exposure earlier in this same recording.
+        mExposure.transition(commands, Use::sBufferComputeReadWrite, Use::sBufferComputeReadWrite);
 
         DescriptorWrites reducing(mReducePipeline);
         reducing.buffer(Shaders::EXPOSURE_BIND_HISTOGRAM, mHistogram.describe());

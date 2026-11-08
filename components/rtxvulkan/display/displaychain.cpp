@@ -27,6 +27,13 @@
 
 namespace Rtx
 {
+    VkDeviceAddress DisplayChain::indirectExposure(VkCommandBuffer commands) const
+    {
+        const Buffer& exposure = mExposure.getExposure();
+        exposure.transition(commands, Use::sBufferComputeReadWrite, Use::sBufferComputeRead);
+        return exposure.addressFor();
+    }
+
     namespace
     {
         /// The display pass's own description of the frame, on the picture's grid. The alpha

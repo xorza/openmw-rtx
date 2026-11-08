@@ -126,6 +126,9 @@ namespace Rtx
         /// does. A pyramid built at the other extent is a bloom at the wrong scale.
         void resize(std::uint32_t width, std::uint32_t height);
 
+        /// The preceding adapted exposure, ordered before the bounce reads it; no CPU readback.
+        VkDeviceAddress indirectExposure(VkCommandBuffer commands) const;
+
         /// Lets what `resize` built go, until the next one.
         void release() { mBloom.release(); }
 

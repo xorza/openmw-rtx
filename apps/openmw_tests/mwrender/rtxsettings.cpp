@@ -21,6 +21,7 @@ namespace MWRender
             return RtxSettingValues{
                 .mUpscale = Rtx::Upscale::Balanced,
                 .mIndirectLighting = false,
+                .mIndirectLimit = 30.0f,
                 .mBounceRays = 3,
                 .mDistantLandCells = 6.0f,
                 .mViewingDistance = 7168.0f,
@@ -44,6 +45,7 @@ namespace MWRender
             const RtxSettings derived = RtxSettings::derive(valid());
             EXPECT_EQ(derived.mUpscale, Rtx::Upscale::Balanced);
             EXPECT_FALSE(derived.mIndirectLighting);
+            EXPECT_EQ(derived.mIndirectLimit, 30.0f);
             EXPECT_EQ(derived.mBounceRays, 3u);
             // Cells and the viewing distance, which a worldspace's grid turns into units: six of
             // Morrowind's 8192 are 49152.
@@ -77,6 +79,17 @@ namespace MWRender
         /// A gamma that is not a finite number over nought is refused: nought and less raise the
         /// picture to no power or a negative one, and an infinite one to the power of nought, which
         /// is white. The registry holds none of them; a harness's line holds anything.
+        TEST(RtxSettingsTest, anInvalidIndirectLimitIsRefused)
+        {
+            for (const float limit :
+                { -1.0f, 65.0f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN() })
+            {
+                auto values = valid();
+                values.mIndirectLimit = limit;
+                EXPECT_THROW(RtxSettings::derive(values), Rtx::InputError);
+            }
+        }
+
         TEST(RtxSettingsTest, aGammaThatIsNotOverNoughtIsRefused)
         {
             for (const float gamma :

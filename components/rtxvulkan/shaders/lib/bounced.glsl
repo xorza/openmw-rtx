@@ -7,6 +7,7 @@
 #include "shared/traceconstants.h"
 #include "gbuffer.h"
 #include "visibility.h"
+#include "shared/indirect.h"
 
 #include "bindings.glsl"
 #include "census.glsl"
@@ -14,6 +15,11 @@
 #include "pixels.glsl"
 #include "shading.glsl"
 #include "stagerecord.glsl"
+
+layout(buffer_reference, scalar, buffer_reference_align = 4) readonly buffer IndirectExposure
+{
+    float value;
+};
 
 /// Writes what arrived along `pixel`'s bounce into the indirect light, the fill and the lobe's share of it.
 ///
@@ -23,6 +29,16 @@
 ///        light adds to; the first writes it whole, in `bounce.comp` or in its landing.
 void storeBounced(uvec2 pixel, StageRecord record, Arriving arriving, vec3 modulation, bool onto)
 {
+    // Uniform Off branch preserves the original sample exactly and reads no exposure buffer.
+    if (frame.mIndirectLimit > 0.0)
+    {
+        const float exposure = frame.mIndirectExposure != uint64_t(0)
+            ? max(IndirectExposure(frame.mIndirectExposure).value, 1e-6) : 1.0;
+        const float luminance = dot(max(arriving.mWhole, vec3(0.0)), LUMINANCE_WEIGHTS);
+        const float scale = indirectSampleScale(luminance, frame.mIndirectLimit, exposure, max(frame.mBounceRays, 1u));
+        arriving.mWhole *= scale;
+        arriving.mFill *= scale;
+    }
     const uint width = frame.mEyes.mWorld.mWidth;
     const uint swap = fieldSwapOf(frame.mFrame);
     const ivec2 at = ivec2(pixel);

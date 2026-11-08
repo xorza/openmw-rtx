@@ -96,6 +96,9 @@ namespace Rtx
         void setGamma(float gamma) override;
         void setIndirectLighting(bool traced) override;
         void setBounceRays(std::uint32_t rays) override;
+
+        /// Per-sample indirect ceiling in exposure-relative white units; zero disables, applied live.
+        void setIndirectLimit(float multiple) override;
         void skipFrame() override;
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }

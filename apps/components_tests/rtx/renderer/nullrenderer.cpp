@@ -210,6 +210,8 @@ namespace Rtx
             renderer.readPixels(pixels);
             EXPECT_EQ(pixels.size(), std::size_t{ 12 * 6 * 4 });
 
+            renderer.setIndirectLimit(30.0f);
+            EXPECT_EQ(renderer.getProfile().mReconstruction.mSampling.mIndirectLimit, 30.0f);
             renderer.setBounceRays(3);
             EXPECT_EQ(renderer.getProfile().mReconstruction.mSampling.mBounceRays, 3u);
 

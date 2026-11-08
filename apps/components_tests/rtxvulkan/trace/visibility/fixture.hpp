@@ -438,6 +438,7 @@ namespace Rtx::Testing
         /// How many bounce rays the eye's surface traces — `ReconstructionRequest`'s, one unless a test
         /// names another.
         std::uint32_t mBounceRays = 1;
+        float mIndirectLimit = 0.0f;
 
         /// Where the trace draws from: the tile every figure over this fixture was derived against,
         /// unless a test names the other.
@@ -586,7 +587,8 @@ namespace Rtx::Testing
                                 .mShadowFloor = shot.mShadowFloor,
                                 .mLampCandidates = shot.mLampCandidates,
                                 .mIndirect = shot.mIndirect,
-                                .mBounceRays = shot.mBounceRays },
+                                .mBounceRays = shot.mBounceRays,
+                                .mIndirectLimit = shot.mIndirectLimit },
                             .mFilters = { .mAntilag = shot.mAntilag } },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),

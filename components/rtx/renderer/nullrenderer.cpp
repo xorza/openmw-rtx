@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 
 #include <components/rtx/frame/upscale.hpp>
@@ -159,6 +160,12 @@ namespace Rtx
     void NullRenderer::setIndirectLighting(const bool traced)
     {
         mProfile.mReconstruction.mSampling.mIndirect = traced;
+    }
+
+    void NullRenderer::setIndirectLimit(const float multiple)
+    {
+        assert(multiple >= 0.0f && std::isfinite(multiple));
+        mProfile.mReconstruction.mSampling.mIndirectLimit = multiple;
     }
 
     void NullRenderer::setBounceRays(const std::uint32_t rays)

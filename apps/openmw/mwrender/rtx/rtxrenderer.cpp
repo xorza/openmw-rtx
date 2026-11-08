@@ -173,7 +173,7 @@ namespace MWRender
                 .mRun = {
                     .mProfile = {
                         .mUpscale = settings.mUpscale,
-                        .mReconstruction = Rtx::ReconstructionRequest{ .mSampling = { .mIndirect = settings.mIndirectLighting, .mBounceRays = settings.mBounceRays } },
+                        .mReconstruction = Rtx::ReconstructionRequest{ .mSampling = { .mIndirect = settings.mIndirectLighting, .mBounceRays = settings.mBounceRays, .mIndirectLimit = settings.mIndirectLimit } },
                         .mAnisotropy = settings.mAnisotropy,
                         .mGamma = settings.mGamma,
                         .mLitEnvironmentMaps = settings.mLitEnvironmentMaps,
@@ -733,11 +733,12 @@ namespace MWRender
         const bool upscale = changed.contains({ "RTX", "upscale" });
         const bool indirect = changed.contains({ "RTX", "indirect lighting" });
         const bool bounceRays = changed.contains({ "RTX", "bounce rays" });
+        const bool indirectLimit = changed.contains({ "RTX", "indirect brightness limit" });
         const bool reach
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
         const bool anisotropy = changed.contains({ "General", "anisotropy" });
         const bool gamma = changed.contains({ "Video", "gamma" });
-        if (!upscale && !indirect && !bounceRays && !reach && !anisotropy && !gamma)
+        if (!upscale && !indirect && !bounceRays && !reach && !anisotropy && !gamma && !indirectLimit)
             return;
 
         // What asks is somebody choosing from a menu, so a value the derivation refuses is reported
@@ -773,6 +774,8 @@ namespace MWRender
 
         if (bounceRays)
             mRenderer->setBounceRays(settings->mBounceRays);
+        if (indirectLimit)
+            mRenderer->setIndirectLimit(settings->mIndirectLimit);
     }
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept

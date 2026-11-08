@@ -143,9 +143,12 @@ namespace Rtx
 
             Reconstruction several;
             several.mSampling.mBounceRays = 3;
+            several.mSampling.mIndirectLimit = 4.0f;
             const Shaders::VisibilityConstants traced
                 = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, several, counts, nullptr);
             EXPECT_EQ(traced.mBounceRays, 3u);
+            EXPECT_EQ(traced.mIndirectLimit, 4.0f);
+            EXPECT_EQ(traced.mIndirectExposure, 0u);
 
             several.mSampling.mIndirect = false;
             const Shaders::VisibilityConstants unbounced

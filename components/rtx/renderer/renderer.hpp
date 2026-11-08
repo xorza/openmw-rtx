@@ -520,6 +520,9 @@ namespace Rtx
         /// `Shaders::MAX_BOUNCE_RAYS`: a caller that reads it from a file refuses anything else first.
         virtual void setBounceRays(std::uint32_t rays) = 0;
 
+        /// Per-sample indirect ceiling in exposure-relative white units; zero disables, applied live.
+        virtual void setIndirectLimit(float multiple) = 0;
+
         /// How many of `set`'s kernels are made, waiting `patience` at most for the rest, and
         /// rethrowing what making one threw. The renderer starts making them as it is made, on
         /// threads of its own, and returns without them — ten seconds on a cold cache — so a host

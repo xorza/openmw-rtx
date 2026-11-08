@@ -1984,9 +1984,13 @@ namespace Rtx::Testing
                 addBox(scene, half, walls, walls);
                 return scene;
             };
-            const auto indirect = [&](const SceneDesc& scene, std::uint32_t rays) {
+            const auto indirect = [&](const SceneDesc& scene, std::uint32_t rays, float limit = 0.0f,
+                                      std::optional<float> exposure = 1.0f) {
                 std::vector<float> read;
-                EXPECT_EQ(shoot(scene, {}, camera, size, { .mBounceRays = rays }).mHits, size * size);
+                EXPECT_EQ(shoot(scene, {}, camera, size,
+                              { .mBounceRays = rays, .mIndirectLimit = limit, .mExposure = exposure })
+                              .mHits,
+                    size * size);
                 mProbe.readChannel(Channel::Indirect, read);
                 EXPECT_EQ(read.size(), std::size_t{ size } * size * 4);
                 return read;
@@ -2041,6 +2045,34 @@ namespace Rtx::Testing
                     }
                 EXPECT_EQ(off, 0u) << rays << " rays: channels off the furnace's G";
             }
+
+            const SceneDesc bright = box(osg::Vec3f(32.0f, 16.0f, 8.0f));
+            for (const float exposure : { 0.5f, 2.0f })
+                for (const unsigned rays : { 1u, 2u, 4u })
+                {
+                    const auto capped = indirect(bright, rays, 0.25f, exposure);
+                    float maximum = 0.0f;
+                    for (std::size_t i = 0; i < capped.size(); i += 4)
+                    {
+                        const float luminance
+                            = (0.2126f * capped[i] + 0.7152f * capped[i + 1] + 0.0722f * capped[i + 2]) * exposure;
+                        maximum = std::max(maximum, luminance);
+                        EXPECT_LE(luminance, 0.251f);
+                        EXPECT_NEAR(capped[i], 2.0f * capped[i + 1], 0.002f);
+                        EXPECT_NEAR(capped[i + 1], 2.0f * capped[i + 2], 0.002f);
+                    }
+                    EXPECT_GT(maximum, 0.24f) << "a black result would not prove the cap";
+                }
+            // The preceding fixed frame left exposure two in the GPU buffer. A measured frame
+            // reads that value before its own metering, not a stale CPU estimate or unit exposure.
+            const auto adapted = indirect(bright, 4, 0.25f, std::nullopt);
+            float adaptedMaximum = 0.0f;
+            for (std::size_t i = 0; i < adapted.size(); i += 4)
+                adaptedMaximum = std::max(
+                    adaptedMaximum, 0.2126f * adapted[i] + 0.7152f * adapted[i + 1] + 0.0722f * adapted[i + 2]);
+            EXPECT_NEAR(adaptedMaximum, 0.125f, 0.001f);
+            const SceneDesc dim = box(osg::Vec3f(0.5f, 0.25f, 0.125f));
+            EXPECT_EQ(indirect(dim, 4, 0.0f), indirect(dim, 4, 64.0f));
         }
 
         /// **Each bounce ray takes a direction of its own, from the solid the eye found.** The box again,

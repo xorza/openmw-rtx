@@ -468,6 +468,24 @@
                             <Property key="AddItem" value="8x"/>
                             <Property key="AddItem" value="16x"/>
                         </Widget>
+                        <Widget type="TextBox" skin="NormalText" position="0 300 420 18" name="RayTracingIndirectLimitText"/>
+                        <Widget type="ScrollBar" skin="MW_HScroll" position="0 322 420 18" name="RayTracingIndirectLimitSlider">
+                            <Property key="Range" value="257"/>
+                            <Property key="Page" value="1"/>
+                            <Property key="WheelPage" value="1"/>
+                            <UserString key="SettingType" value="Slider"/>
+                            <UserString key="SettingCategory" value="RTX"/>
+                            <UserString key="SettingName" value="indirect brightness limit"/>
+                            <UserString key="SettingValueType" value="Float"/>
+                            <UserString key="SettingMin" value="0"/>
+                            <UserString key="SettingMax" value="64"/>
+                            <UserString key="SettingLabelWidget" value="RayTracingIndirectLimitText"/>
+                            <UserString key="SettingLabelCaption" value="RayTracingIndirectLimitValue"/>
+                            <UserString key="ToolTipType" value="Layout"/>
+                            <UserString key="ToolTipLayout" value="TextToolTip"/>
+                            <UserString key="Caption_Text" value="#{OMWEngine:RayTracingIndirectLimitHint}"/>
+                        </Widget>
+
                     </Widget>
                 </Widget>
             </Widget>

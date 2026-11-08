@@ -95,6 +95,8 @@ namespace RtxTool
                 } },
             { "indirect",
                 [](const Value& value, Request& request) { request.mSampling.mIndirect = value.as<bool>(); } },
+            { "indirect-limit",
+                [](const Value& value, Request& request) { request.mSampling.mIndirectLimit = value.as<float>(); } },
             { "bounce-rays",
                 [](const Value& value, Request& request) {
                     request.mSampling.mBounceRays = value.as<std::uint32_t>();
@@ -605,6 +607,9 @@ namespace RtxTool
                 ->implicit_value(true),
             "trace the bounces, or stand the record's ambient on the surface: the player's "
             "`[RTX] indirect lighting`");
+
+        option(sFramed, "indirect-limit", number(between(0.0f, 64.0f))->default_value(0.0f),
+            "cap each indirect sample at this multiple of exposure-relative reference white; zero disables");
 
         option(sFramed, "bounce-rays",
             number(between<std::uint32_t>(1, Rtx::Shaders::MAX_BOUNCE_RAYS))

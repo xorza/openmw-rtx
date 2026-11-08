@@ -99,6 +99,7 @@ namespace MWRender
             { "Post Processing", "", sPostProcessing },
             { "RTX", "bounce rays", {} },
             { "RTX", "distant land cells", {} },
+            { "RTX", "indirect brightness limit", {} },
             { "RTX", "indirect lighting", {} },
             { "RTX", "specular map layout", {} },
             { "RTX", "upscale", {} },

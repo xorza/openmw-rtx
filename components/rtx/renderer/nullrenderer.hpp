@@ -69,6 +69,9 @@ namespace Rtx
         void setGamma(float gamma) override { mProfile.mGamma = gamma; }
         void setIndirectLighting(bool traced) override;
         void setBounceRays(std::uint32_t rays) override;
+
+        /// Per-sample indirect ceiling in exposure-relative white units; zero disables, applied live.
+        void setIndirectLimit(float multiple) override;
         JobProgress awaitKernels(KernelSet, std::chrono::milliseconds) override { return {}; }
         FrameTraced renderFrame(const FrameRequest& request) override;
         void holdAir(const AirClock&) override {}
