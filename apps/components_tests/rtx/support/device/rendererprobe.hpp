@@ -83,9 +83,9 @@ namespace Rtx::Testing
         /// clearing before a test and reading after it are the same call.
         void takeValidationErrors(std::vector<std::string>& errors);
 
-        /// `FrameRing::takeUncollectedStores`: the stores not finite of every frame whose report
-        /// nothing read, which no report carries after.
-        NotFinite takeUncollectedStores();
+        /// `FrameRing::takeCountedStores`: the stores not finite of every frame since the last call,
+        /// whatever read its report.
+        NotFinite takeCountedStores();
 
         /// `VulkanRenderer::traceFrame`: a frame traced from a block written whole.
         void traceFrame(const Shaders::VisibilityConstants& constants, const FrameOptions& options,

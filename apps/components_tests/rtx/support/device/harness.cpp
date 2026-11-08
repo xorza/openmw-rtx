@@ -353,7 +353,7 @@ namespace Rtx::Testing
     {
         // The frames' first, which wait the frames out: the census read after them is then what
         // came after every frame.
-        reportStores(mProbe.takeUncollectedStores(), "in frames whose report no check of the test read");
+        reportStores(mProbe.takeCountedStores(), "in frames of the test");
         reportStores(takeUncountedStores(mProbe.getDevice()), "that no frame of the test reported");
         reportErrors(mRenderer, "validation error");
     }

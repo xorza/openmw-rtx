@@ -1047,7 +1047,8 @@ namespace Rtx::Testing
         /// number. Which is why every module counts what it is about to store rather than trusting
         /// a NaN to show downstream: the fault this was found by read as black blocks, and now reads
         /// as nothing at all. **And a report the renderer drops uncollected hands its count to the
-        /// next report it makes**, so no frame's store goes unread.
+        /// next report it makes**, and every frame's count reaches the test's total once, whatever
+        /// became of its report, so no frame's store goes unread.
         TEST_F(RtxVisibilityTest, aStoreThatIsNotFiniteIsCountedAgainstItsModule)
         {
             constexpr std::uint32_t size = 8 * Shaders::FOG_VOLUME_SCALE;
@@ -1061,7 +1062,7 @@ namespace Rtx::Testing
 
             camera.mFogColour = osg::Vec3f(std::numeric_limits<float>::quiet_NaN(), 1.0f, 1.0f);
             camera.mFogExtinction = 3.0e-6f;
-            const Frame frame = shoot(makeWall(), {}, camera, size, Shot{ .mMakesNotFinite = true });
+            const Frame frame = shoot(makeWall(), {}, camera, size);
 
             constexpr std::uint32_t columns = size / Shaders::FOG_VOLUME_SCALE;
             constexpr std::uint32_t froxels = columns * columns * Shaders::FOG_VOLUME_SLICES;
@@ -1069,6 +1070,8 @@ namespace Rtx::Testing
                 << "8 by 8 columns by 64 slices, every one in air short of a wall behind the eye";
             EXPECT_EQ(frame.mNotFinite.kernels().size(), 1u) << "no other module stores one";
             EXPECT_EQ(frame.mNotFinite.total(), froxels);
+            EXPECT_EQ(mProbe.takeCountedStores().total(), froxels)
+                << "the frames whose reports the test read count as well, the clear ones' nought";
 
             // **And none is lost with a report nothing collected**: the next report the renderer
             // makes carries it. The ring holds a report for each frame it can have in flight, so
@@ -1088,25 +1091,28 @@ namespace Rtx::Testing
             EXPECT_EQ(reports, held) << "the reports the ring held, and those of the frames still in flight";
             EXPECT_EQ(collected.of("fogscatter.rgen"), uncollected * froxels);
             EXPECT_EQ(collected.total(), uncollected * froxels);
+            EXPECT_EQ(mProbe.takeCountedStores().total(), uncollected * froxels)
+                << "each frame once, and not again for the stores a report carried";
 
-            // What a test's end reads: every frame nothing collected, the reports the ring dropped
-            // and those it held, and no report carries them after.
+            // What a test's end reads: every frame, those nothing collected among them, and no
+            // report carries their stores after.
             for (std::uint32_t at = 0; at < held + 1; ++at)
                 mProbe.traceFrame(camera, FrameOptions{});
-            const NotFinite unread = mProbe.takeUncollectedStores();
+            const NotFinite unread = mProbe.takeCountedStores();
             EXPECT_EQ(unread.of("fogscatter.rgen"), (held + 1) * froxels);
             EXPECT_EQ(unread.total(), (held + 1) * froxels);
-            EXPECT_FALSE(mRenderer.finishFrame().has_value()) << "every frame was waited out and taken";
-            EXPECT_EQ(mProbe.takeUncollectedStores().total(), 0u) << "taken once";
+            EXPECT_FALSE(mRenderer.finishFrame().has_value()) << "every frame was waited out and dropped";
+            EXPECT_EQ(mProbe.takeCountedStores().total(), 0u) << "taken once";
 
             // A new world drops every report, and the first report of the new world carries them.
             mProbe.traceFrame(camera, FrameOptions{});
             mProbe.traceFrame(camera, FrameOptions{});
             camera.mFogColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
-            const Frame newWorld = shoot(makeWall(), {}, camera, size, Shot{ .mMakesNotFinite = true });
+            const Frame newWorld = shoot(makeWall(), {}, camera, size);
             EXPECT_EQ(newWorld.mNotFinite.of("fogscatter.rgen"), 2 * froxels)
                 << "the two frames of the world before, and none of the clear frame's own";
             EXPECT_EQ(newWorld.mNotFinite.total(), 2 * froxels);
+            EXPECT_EQ(mProbe.takeCountedStores().total(), 2 * froxels);
 
             // **A door: the frame before stood 80000 units off**, farther than a half float holds,
             // and the reset says that no step from there reaches this frame's motion. The motion

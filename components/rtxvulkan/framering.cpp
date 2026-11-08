@@ -215,7 +215,10 @@ namespace Rtx
 
         NotFinite notFinite = std::exchange(mDropped, NotFinite{});
         if (const NotFiniteCensus* const census = mDevice.getCensus(); census != nullptr)
+        {
             census->readInto(frame.mNotFinite, notFinite);
+            census->readInto(frame.mNotFinite, mCounted);
+        }
 
         FrameResult& report = mReports.emplace_back(FrameResult{
             .mHits = frame.mCountedRays - counted.mMisses,
@@ -276,11 +279,12 @@ namespace Rtx
         mReports.clear();
     }
 
-    NotFinite FrameRing::takeUncollectedStores()
+    NotFinite FrameRing::takeCountedStores()
     {
         finishAll();
-        dropReports();
-        return std::exchange(mDropped, NotFinite{});
+        mReports.clear();
+        mDropped = NotFinite{};
+        return std::exchange(mCounted, NotFinite{});
     }
 
 }

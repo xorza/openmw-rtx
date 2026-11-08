@@ -100,9 +100,9 @@ namespace Rtx::Testing
         log->takeErrorsOnThisThread(errors);
     }
 
-    NotFinite RendererProbe::takeUncollectedStores()
+    NotFinite RendererProbe::takeCountedStores()
     {
-        return mRenderer.mRing.takeUncollectedStores();
+        return mRenderer.mRing.takeCountedStores();
     }
 
     void RendererProbe::traceFrame(

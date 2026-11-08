@@ -183,10 +183,12 @@ namespace Rtx
         /// were not finite are not dropped with them: the next report carries them (`mDropped`).
         void dropReports();
 
-        /// Waits every frame in flight out and hands over the stores not finite of every report
-        /// nothing collected, the dropped ones' with them, which no report carries after: for a
-        /// caller that asks what went unread, as a test asks when it ends.
-        NotFinite takeUncollectedStores();
+        /// Waits every frame in flight out and hands over every store not finite the census counted
+        /// for the ring's frames since the last call, whatever collected their reports, and drops
+        /// every report nothing collected with what it would carry: what a test asks as it ends, so
+        /// that one which never read a report's stores is not passed, and the next test reads
+        /// nothing from before it.
+        NotFinite takeCountedStores();
 
     private:
         /// The slot of the frame being recorded, with whatever last used it finished. It does not
@@ -248,5 +250,9 @@ namespace Rtx
         /// next report it makes carries: each is a logic error, and a caller that stopped asking
         /// for a while has not stopped asking whether a frame stored one.
         NotFinite mDropped;
+
+        /// The stores not finite of every frame since `takeCountedStores` last took them, each once,
+        /// whatever became of its report.
+        NotFinite mCounted;
     };
 }
