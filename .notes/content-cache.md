@@ -1,6 +1,6 @@
-# Proposal: preprocessed content — a content tool, its store, and every chain built from its finest level
+# Proposal: preprocessed content — a content store, filled on the game's loading screen, and every chain built from its finest level
 
-Status: proposed; the dependency, the cap, the tool and the chains approved by the user. When it lands, its lasting
+Status: proposed; the dependency, the cap, the preparing module and the chains approved by the user. When it lands, its lasting
 decisions go to `docs/rtx/architecture.md` ("`Rtx::ContentPreprocessor`" and the texture bullets), and this file is
 deleted. The measurements are in
 `docs/rtx/research/2026-11-08-normal-map-chains.md`.
@@ -34,24 +34,25 @@ which keeps files in hashed subdirectories and removes the least recently used p
 ([ccache](https://man.archlinux.org/man/ccache.1)). The runtime then makes a texture smaller for its budget by
 dropping levels from the top of a full chain
 ([Unity's mipmap streaming](https://docs.unity3d.com/2023.2/Documentation/Manual/TextureStreaming)). This
-renderer has no import step, because it reads mod files as they are. So a content tool run before the game is the
-import step, as `openmw-navmeshtool` is for the navigation mesh, and its store is the game's input.
+renderer has no import step, because it reads mod files as they are. So a preparing step on the game's loading
+screen is the import step, and its store is the game's input.
 
 ## Decisions
 
-- **The game's input is the tool's output, and the game computes as little as it can**, by the user's decision. Every
-  form the renderer reads of a file, and every derivation it now makes of one, is made by the tool before the game and
-  read from the store by the game. The game computes only a miss: content the tool could not know ahead, or a store
-  older than the content list. A miss runs the same pass the tool runs and is stored, so the next start reads it, and
-  the game counts its misses in the log and the stats row, where a miss the tool could have known is the tool's bug.
-  Refused: a game that refuses content the tool did not see, which a mod's script spawning an object or a body put
+- **The game's input is the store, filled before play, and the game computes as little as it can in play**, by the
+  user's decision. Every form the renderer reads of a file, and every derivation the host makes of one, is made on the
+  loading screen and read from the store in play. The game computes only a miss: content the loading screen could not
+  know ahead. A miss runs the same pass and is stored, so the next start reads it, and the game counts its misses in the
+  log and the stats row, where a miss the loading screen could have known is a bug of the preparing module.
+  Refused: a game that refuses content the module did not see, which a mod's script spawning an object or a body put
   together at run time would break; and a second, cheaper runtime path for a miss, a second route to one result.
-- **Everything the backend derives from a file at arrival is preprocessed too**: the shading map, the normal spread,
-  the sprite light bake, and the ground composite and gloss. The tool runs the same device passes with no window, as
-  the harness runs the renderer, and reads their results back into the store; the game uploads them and runs no pass.
-  A miss runs the pass on the game's device and reads it back into the store. The shaders' float arithmetic is the
-  build's (`spirvpin.hpp`), so the result is the same on every device and the key needs no device in it. Refused:
-  host ports of the passes, a second implementation of each.
+- **What the backend derives from a file on the device stays the device's work at arrival**, by the user's decision
+  after batch 6: the shading map, the normal spread, the sprite light bake, and the ground composite and gloss cost
+  0.02 to 0.10 ms in the median frame that runs them and 1.10 ms at the worst, on frames whose p99 and worst come from
+  the host (research note, "What the device's derivations cost at arrival"). Refused: each read back after its pass and
+  kept in the store, a device-output format, its guard and a disk read at arrival, for under a millisecond on no
+  frame's bottleneck; Unreal's derived data cache and Godot's imports keep what minutes of offline work make, not a
+  sub-millisecond pass.
 - **Acceleration structures are not stored**: a serialized structure is valid only on a device and driver that
   `vkGetDeviceAccelerationStructureCompatibilityKHR` accepts, so a driver update throws the store's structures away,
   and a static structure builds in the arrival's frame already. Refused for now, and measured again once the rest has
@@ -151,44 +152,32 @@ import step, as `openmw-navmeshtool` is for the navigation mesh, and its store i
   already gets (`mCacheDirectory`). The harness takes `--content-cache=<dir>|off`. A measured run uses the game's store,
   warm after a throwaway leg, as it already warms the card. A test uses a store of its own in its test folder, or none.
   A hit must give the same output as a run, and `./omw repeat` and a cold-against-warm shot hold this.
-- **A tool fills the store before the game, as `openmw-navmeshtool` fills the navigation mesh cache**, by the user's
-  decision: a C++ app in the tree, built from the same components, that loads the content list, walks every model and
-  land texture it names through the mirror's own walk, and runs the same passes into the same store. The game
-  still computes what the tool could not know ahead (a mod added since, a script's spawns, a body put together at run
-  time) and writes it to the same store, as the game builds a navigation tile the tool missed. The tool writes a
-  manifest of the content list and data folders it read, and the game logs where its own differs, so a stale store is
-  named. Refused: a Rust tool that reads NIF, DDS, BSA and ESM again, a second implementation whose output must match
-  the game's byte for byte; and a Rust front end over the C++ through bindings, a second toolchain for a progress bar.
-- **The game starts the tool itself, at every launch, and shows its progress on the loading screen before the main
-  menu**, by the user's decision, so a game started without the launcher prepares its content too. The renderer
-  starts the tool as a child process when it is made, so the tool runs beside the game's own loading of the content
-  files, and the loading step that now waits for the kernels (`Renderer::awaitShaders`, which shows "Compiling
-  Shaders") waits for the tool as well, its label and bar fed from the tool's progress. Many PC games compile and
-  prepare on such a screen before their menu; this one already compiles its kernels there. The tool reports its
-  progress as binary messages on its standard output, as navmeshtool reports to the launcher
-  (`components/navmeshtool/protocol.hpp`, [navmeshtool](https://modding-openmw.com/tips/navmeshtool)), and a reader
-  thread hands them to the screen through `Loading::AsyncListener`, as the content's own load is shown. **One route**:
-  the tool always runs, compares its manifest with the content list and ends at once where nothing is new, so the
-  game asks no question of its own before starting it. A tool that fails or ends is logged, and the game goes on,
-  computing its misses. Refused: a launcher tab as well, a second route to the same run (the tool keeps its command
-  line for scripts and the harness); and the tool's work done inside the game's process, where a fault in a pass would
-  end the game and its memory would stay in the game's heap.
-- **The tool's run is incremental by each file's size and time; the game's lookup is by content.** The manifest names
-  every file the tool read with its size, its time and the keys made from it, so a run after one mod changed reads
-  that mod's files again and no other, as ccache's direct mode trusts a file's stat for its manifest and make trusts
-  a time. The game never trusts a stat: it keys every lookup by the bytes, so a stat that lies costs the tool a stale
-  manifest and the game a miss, never a wrong answer. Refused: a tool that reads every file of the content list again
-  to hash it on each change, minutes for a large list to find one mod's files.
+- **The game fills the store on its loading screen, in its own process**, by the user's decision: a preparing module
+  inside the game, built from the same components, that walks every model and land texture the loaded content list
+  names through the mirror's own walk, on worker threads, and runs the same passes into the same store, while the
+  step that now waits for the kernels (`Renderer::awaitShaders`, "Compiling Shaders") waits for it too, its label and
+  bar fed from the module's progress through `Loading::AsyncListener`, as the content's own load is shown. Many PC
+  games compile and prepare on such a screen before their menu; this one already compiles its kernels there, and
+  Godot's import and Unreal's derived data fill run in the process that uses what they make. It reads the content list
+  the game already loaded, and the images it reads stay in the game's caches for the load after it. The game still
+  computes what the module could not know ahead (a script's spawns, a body put together at run time) and writes it to
+  the same store, as the game builds a navigation tile `openmw-navmeshtool` missed. The harness runs the same module
+  for a run's store. Refused: a separate tool the game starts as a child process (`openmw-contenttool`), which loads the
+  content list a second time and needs a pipe protocol, a version handshake and a second binary kept in step, for a
+  fault isolation the passes do not need: the game runs the same passes for its misses. Unreal's ShaderCompileWorker
+  and Steam's Fossilize run apart against driver compilers that crash, which no pass here calls. And a launcher tab, a
+  second route to the same run.
+- **The module's run is incremental by each file's size and time; the game's lookup is by content.** A manifest in the
+  store names every file the module read with its size, its time and the keys made from it, so a start after one mod
+  changed reads that mod's files again and no other, as ccache's direct mode trusts a file's stat for its manifest and
+  make trusts a time; a start where nothing changed walks nothing. The game never trusts a stat: it keys every lookup by
+  the bytes, so a stat that lies costs a stale manifest and a miss, never a wrong answer. Refused: reading every file of
+  the content list again to hash it on each change, minutes for a large list to find one mod's files.
 - **A pass's version is held by a test**: each pass runs over fixed inputs, and a digest of its outputs is recorded
   beside its `sVersion`. An output that moves while the version stays fails the test, so a forgotten bump cannot hand
   an old output to a new build. Refused: the build's revision in every key, which empties the store at every build.
-- **A device pass stores the same bytes on every run**: a test runs each of them twice over one input and compares
-  the read-back bytes, beside the pinned float arithmetic that makes them the same on every device.
 - **A store that cannot be written is a store that misses**: a full disk, a read-only directory or a failed rename is
-  logged once, and the game and the tool go on computing what they would have stored.
-- **The tool is the game's own build**: the game starts the tool next to its own executable, and the first message
-  carries the protocol's version and the build's revision; a tool of another build is ended and logged, and the
-  game computes its misses.
+  logged once, and the game goes on computing what it would have stored.
 - **The scene graph stays the renderer's one input**: the store holds what the mirror derives from it, and not
   models of its own that would replace the walk. Upstream's model and land reading is a small share of a load, and the
   passes are most of the reader's time (research note, "What a load costs the processor"). Refused: a store of
@@ -251,55 +240,45 @@ every shape at `seyda-neen-ship` on `openmw-pbr` and keys them in 21 ms, where i
 note, "The shapes through the store"). What it does otherwise than the item said:
 
 - **The frame finds only the small shapes**, which the store holds in memory: its asks reach no disk, so it runs the
-  138 large ones again at every start, a quarter of its shape time. Batch 7's tool does not change this.
+  138 large ones again at every start, a quarter of its shape time. Batch 7 does not change this.
 - **A write of a key whose file stands stamps it and writes nothing**, since the frame offers those large shapes
   again in every session; and **a payload its pass cannot read is discarded**, so the output run in its place is
   written (`ContentStore::discard`).
 - **The pass version guard is in** (`RtxPassVersionsTest`), for the four stored passes, since a stored shape that a
   forgotten bump left would be a wrong mesh.
 
-Batch 6: the device's derivations.
+Batch 6 is done: each derivation is timed in a zone of its own at arrival (`FrameZone::Shading`, `Spread`, `Bake`,
+beside `Ground`), and measured on the streaming route on three profiles.
 
-4. **Their cost at arrival measured first**: each pass's device time and the worst frame of a load at
-    `seyda-neen-ship` on both PBR profiles and the Fullrest Repack, against which the two items after it are judged.
-5. **The shading map, the normal spread and the sprite bake through the store**: each read back after its pass and
-    stored, and uploaded from the store at arrival where it is there.
-6. **The ground composite and gloss through the store**, keyed by the chunk's layers, their blend weights and the
-    delight they were baked at.
+Batch 7: the loading screen fills the store.
 
-Batch 7: the tool.
-
-7. **The content tool** (`apps/contenttool`, `openmw-contenttool`): the content list loaded as navmeshtool loads it,
-    from the configuration the game hands it, every model and land texture walked through the mirror's walk, every
-    host pass on worker threads and every device pass on a windowless device into the store, the manifest written,
-    progress as binary messages on its standard output, and as text on a terminal.
-8. **A child process with a pipe** in `Platform::Process`: start a program with its arguments, read its standard
-    output, wait for it, end it. A POSIX and a Windows file behind the one header, as the rest of it is.
-9. **The game's start**: the renderer starts the tool when it is made, a reader thread turns its messages into the
-    loading screen's label and bar, and the step that waits for the kernels waits for the tool too
-    (`Renderer::awaitShaders` named again for what it now waits for). The game's log line and stats row of its
-    misses. The harness starts it the same way, into the store its run states. The call in `OMW::Engine` is upstream
-    code and enters the accepted diff.
+7. **The preparing module** (`components/rtx/prepare/`): from the loaded content list, every model and land texture
+    walked through the mirror's walk on worker threads, every host pass into the store, the manifest read and written,
+    its progress counted for a listener. Its working memory let go when it ends.
+8. **The game's start**: the renderer starts the module once the content list is loaded, and the step that waits for
+    the kernels waits for it too (`Renderer::awaitShaders` named again for what it now waits for), its label and bar
+    fed from the module's progress. The game's log line and stats row of its misses. The harness runs it the same way,
+    into the store its run states. Where `OMW::Engine` calls it is upstream code and enters the accepted diff.
 
 Batch 8: content in the renderer's own forms, by the user's request.
 
 10. **The audit**: every place the renderer accommodates a form the content comes in, rather than the one form it
-    reads, each with whether it is a function of the files alone (the tool can make it once) or of a run's state (it
+    reads, each with whether it is a function of the files alone (the preparing module can make it once) or of a run's state (it
     stays). The candidates found so far, each a decision for the user after its measurement:
     - **Normal maps in one encoding.** `decodeNormal` reconstructs the blue where a file holds none, and `resolve`
-      stands the plane in for a texel of (0.5, 0.5, 0.5), on every hit. Rewritten by the tool into one encoding with
+      stands the plane in for a texel of (0.5, 0.5, 0.5), on every hit. Rewritten by the preparing module into one encoding with
       a unit normal in every texel, the decode is one expression. Its cost: level 0 re-encoded, and no longer the
       file's bytes, against the decision above that keeps them.
     - **Pictures stored delit.** `sampleAlbedo` divides every colour sample by its shading map at the run's delight
-      (`delitTexel`). The game always runs at a delight of one, so the tool could store each colour file divided
+      (`delitTexel`). The game always runs at a delight of one, so the preparing module could store each colour file divided
       once, and the trace would read it as it stands. Its cost: the harness's `--delight` A/B loses its one route
       unless it reads the files as they stand, and a delit file in BC1 or BC3 is re-encoded.
     - **One specular layout.** The trace and the ground branch on the classic layout against the metal-roughness one
       (`MATERIAL_SPECULAR_CLASSIC`, `layerClassic`). The classic layout's coloured highlight has no metal-roughness
       equal for a dielectric, so a conversion loses it; measured before it is proposed.
-    - **Loose formats laid to RGBA8** (`layImage`), now on the reader thread, made once by the tool with the chains.
+    - **Loose formats laid to RGBA8** (`layImage`), now on the reader thread, made once by the preparing module with the chains.
     - **Vertices packed for the device.** A vertex's colour is three floats in linear light, 22 of the 125 MB of
-      vertex and index bytes at `seyda-neen-ship`, and its normal three floats. Packed by the tool, at 16 bits a
+      vertex and index bytes at `seyda-neen-ship`, and its normal three floats. Packed by the preparing module, at 16 bits a
       channel for the colour and 32 bits for an octahedral normal as the tangent already is, they would read less
       memory on every hit. Its cost: a precision measured against the shots before it is proposed.
     - **Loose files compressed for the device**: a loose file is four bytes a texel, a BC7 one one. Its cost: a
@@ -312,20 +291,21 @@ Batch 9: program constants, at any time.
 11. **The blue noise's rank matrices and the fog's noise generated by the build** and compiled in, with a test that
     the compiled table equals what the generator makes.
 
+## Declined
+
+- **The device's derivations through the store** (items 5 and 6): under a millisecond at their worst, on frames whose
+  slow ones are the host's; the decision above says what storing them would cost.
+
 ## Risks
 
-- **A miss draws its file as it stands until a worker builds it.** With the tool run, a miss is content the tool
-  could not know ahead, and few; a game started on a store older than its content list shows MVR PBR's black patches
-  for its first seconds, which the tool's run on the loading screen prevents.
-- **A first start of a large mod list waits on the loading screen.** The tool prepares everything the content list
+- **A miss draws its file as it stands until a worker builds it.** With the loading screen's run, a miss is content
+  it could not know ahead, and few.
+- **A first start of a large mod list waits on the loading screen.** The module prepares everything the content list
   names before the menu: on the first start, or after the list changed, minutes for a list as large as the Fullrest
   Repack. The screen says what it does and how much is left. The loading screen has no way to skip, and adding one is
   upstream's code, a decision for later if the wait proves long.
 - **Disk use.** About 1.1 to 1.7 GiB for the PBR profiles, under a 16 GiB cap.
-  The ground composites are the open figure: a 512-square BC7 composite and its gloss are about 0.7 MB a chunk,
-  so a mod list with Tamriel Rebuilt's thousands of exterior cells could store several GiB of them. Batch 6 measures
-  them before they land, and they stay runtime work if they crowd the chains out of the cap. A user who clears the cache directory
-  only pays a cold start.
+  A user who clears the cache directory only pays a cold start.
 - **Two processes on one store**, a harness running beside the game. A rename is atomic, so a reader sees a whole
   entry or none, and two writers of one key write the same bytes. A sweep in one process can remove an entry the other
   is about to open, which that process takes as a miss.
@@ -344,8 +324,7 @@ Batch 9: program constants, at any time.
 - The chain pass: the box of a hand-made 4x4 level, colour in linear light, alpha apart, normals unrenormalized, with
   exact expected bytes before encoding. A premultiplied fixture (alpha 0 under an ordinary normal) builds the box and
   not the black. A built BC1, BC3 and BC5 level decodes within the encoder's stated error of the box.
-- The device passes' guard: two runs over one input, the same read-back bytes.
-- The tool's incremental run: a file whose time moved is read again and one whose time stayed is not; a manifest
+- The module's incremental run: a file whose time moved is read again and one whose time stayed is not; a manifest
   whose file the content list lost drops its keys from the next run.
 - A warm and a cold run give the same frames (`./omw repeat --pairs=10` with the cache warm and cold).
 - `./omw shot --views=all --map --upscale=off` on vanilla and the Fullrest profile against the base: vanilla does not

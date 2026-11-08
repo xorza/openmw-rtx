@@ -116,6 +116,31 @@ the finest levels of those that keep their file's format to 1226 MiB, which the 
 copied its file's finest level. Cold, the chain threads ran for 335 s of processor time, about 42 s on their 8
 threads.
 
+## What the device's derivations cost at arrival
+
+`bench --suite=streaming` (`island-crossing`, twenty cell boundaries in ten seconds, unsettled), release build, the
+same GPU, after a throwaway leg, each derivation in its zone (`FrameZone::Shading`, `Spread`, `Bake`, `Ground`).
+Milliseconds on the frames that ran it, of 597:
+
+| profile | zone | frames | median | p99 | worst |
+|---|---|---|---|---|---|
+| `openmw-pbr` | shading | 77 | 0.062 | 0.338 | 0.338 |
+| | spread | 125 | 0.103 | 0.818 | 0.826 |
+| | bake | 7 | 0.049 | 0.056 | 0.056 |
+| | ground | 344 | 0.101 | 0.343 | 0.353 |
+| `openmw-pbr-all` | shading | 77 | 0.059 | 0.408 | 0.408 |
+| | spread | 128 | 0.096 | 1.028 | 1.097 |
+| | bake | 7 | 0.050 | 0.055 | 0.055 |
+| | ground | 344 | 0.101 | 0.340 | 0.346 |
+| Fullrest Repack | shading | 116 | 0.022 | 0.174 | 0.318 |
+| | bake | 7 | 0.049 | 0.325 | 0.325 |
+| | ground | 342 | 0.099 | 0.334 | 0.654 |
+
+- **The frames around them**: a median of 5.1, 5.1 and 4.8 ms, a p99 of 20.4, 38.3 and 341 ms. The worst frames are the
+  host's: the game's update (72 ms on `openmw-pbr`) and the placement's uploads (57 ms on `openmw-pbr-all`).
+- **The Fullrest Repack's worst frames, 396 to 451 ms, are not in the renderer's zones**: the report gives each
+  21.9 to 24.2 ms of the game's update and under 3 ms of anything else.
+
 ## The colour and data chains
 
 Level 1 of every colour and data DDS file that carries its own chain, against two references made from its level 0:
