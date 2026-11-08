@@ -15,8 +15,10 @@
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
+#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/scene/surface.hpp>
 
 namespace osg
@@ -285,6 +287,13 @@ namespace Rtx
         const osg::Image* getTexture(SurfaceMap map) const { return mTextures[static_cast<std::size_t>(map)].get(); }
 
         const TextureUse& getTextureUse(SurfaceMap map) const { return mTextures[static_cast<std::size_t>(map)]; }
+
+        /// What `map` is bound as, under `layout`: a normal map a normal map, a specular map data or, in
+        /// the classic layout, a colour as the artist saw it; a diffuse a painted colour, delit on the
+        /// host, unless a metal-roughness specular map makes it an authored base colour; and every other
+        /// map a colour, read as it stands. The one rule, which the material resolver binds by and the
+        /// loading screen's preparation makes the chains of.
+        TextureEncoding encodingOf(SurfaceMap map, SpecularLayout layout) const;
 
         /// Repeating, which is what a caller that has no texture to read a wrap off means.
         void setTexture(SurfaceMap map, const osg::Image* image, TextureWrap wrap = TextureWrap::Repeat)

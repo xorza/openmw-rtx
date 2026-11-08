@@ -10,6 +10,7 @@
 
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 
@@ -27,6 +28,10 @@ namespace Rtx
 
         /// The whole chain in BC7, from the finest down (`MadeImage::whole`).
         Bc7,
+
+        /// The whole chain in the file's own format, from the finest down: a painted colour's, every
+        /// level delit (`MadeImage::whole`).
+        Own,
     };
 
     /// The largest side of a block-compressed file with no chain whose chain is made in BC7: the
@@ -63,10 +68,15 @@ namespace Rtx
     /// rebuild, for a block colour that carried its chain, and for a BC1 file that carried a chain and
     /// has a cut, whose own chain stands.
     ///
+    /// **A painted colour's whole chain delit** (`.notes/content-cache.md`, colour files stored delit):
+    /// every level it carries, and the levels under a chainless one boxed from the delit finest, in the
+    /// file's own format, so a BC1 colour keeps its four bits a texel; in BC7 where it is loose, small
+    /// and chainless, or holds a cut, whose one bit of alpha rgbcx's BC1 does not encode.
+    ///
     /// **The key is everything the run reads**: the file's format, encoding and level count, its
-    /// finest level's extent, and the bytes of its finest level, or of every level where a colour's own
-    /// chain is encoded as it stands. Not its name, so one picture under two names is one entry, and not
-    /// the coarser levels of a chain made again, which nothing here reads.
+    /// finest level's extent, a painted colour's wrap, and the bytes of its finest level, or of every
+    /// level where a colour's own chain is read. Not its name, so one picture under two names is one
+    /// entry, and not the coarser levels of a chain made again, which nothing here reads.
     class ChainPass
     {
     public:
@@ -74,12 +84,15 @@ namespace Rtx
         {
             const osg::Image& mImage;
             TextureEncoding mEncoding;
+
+            /// How the slot addresses it past its edges, which a painted colour's estimate follows.
+            TextureWrap mWrap = TextureWrap::Repeat;
         };
 
         using Output = MadeChain;
 
         static constexpr ContentPassId sPass = ContentPassId::Chain;
-        static constexpr std::uint32_t sVersion = 4;
+        static constexpr std::uint32_t sVersion = 5;
         static constexpr bool sStored = true;
 
         void digest(const Input& input, ContentDigest& digest);
@@ -91,6 +104,7 @@ namespace Rtx
 
         osg::ref_ptr<const osg::Image> mImage;
         TextureEncoding mEncoding = TextureEncoding::Colour;
+        TextureWrap mWrap = TextureWrap::Repeat;
         std::optional<TextureData> mFile;
         std::vector<MipLevel> mLevels;
         std::vector<std::byte> mTexels;

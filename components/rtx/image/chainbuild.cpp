@@ -12,6 +12,7 @@
 #include <components/rtx/shaders/halving.h>
 
 #include "colour.hpp"
+#include "shadingmap.hpp"
 #include "texels.hpp"
 #include "textureformat.hpp"
 
@@ -99,15 +100,19 @@ namespace Rtx
             && (isBc1(format) || isBc2(format) || isBc3(format) || isLoose(format) || normalBc5);
     }
 
-    void ChainBuild::build(const TextureData& finest, const std::uint32_t levels)
+    void ChainBuild::build(const TextureData& file, const std::uint32_t levels)
     {
         assert(levels >= 1 && "a chain of no level");
 
-        // The first level alone, as the readers take a description: the levels under it are what is
-        // made here, and never read.
-        TextureData first = finest;
-        first.mLevels = finest.mLevels.first(1);
-        first.mBytes = finest.mBytes.first(finest.mLevels[0].mOffset + finest.bytesOf(0).size());
+        // **The levels read, as the readers take a description**: a painted colour's own levels, each
+        // delit where it stands, and every other chain's finest alone, the levels under it what is made
+        // here and never read.
+        const std::uint32_t read = file.mEncoding == TextureEncoding::Painted
+            ? std::min(levels, static_cast<std::uint32_t>(file.mLevels.size()))
+            : 1u;
+        TextureData first = file;
+        first.mLevels = file.mLevels.first(read);
+        first.mBytes = file.mBytes.first(file.mLevels[read - 1].mOffset + file.bytesOf(read - 1).size());
         first.mCoarser = {};
         mAlpha.build(first);
 
@@ -124,31 +129,38 @@ namespace Rtx
         }
         mTexels.assign(bytes, std::byte{ 0 });
 
-        if (finest.mEncoding == TextureEncoding::Normal)
+        if (file.mEncoding == TextureEncoding::Normal)
         {
             buildNormals(first);
             return;
         }
 
-        // The finest level through the readers that know every format: colour a band of blocks at a
+        // The levels read through the readers that know every format: colour a band of blocks at a
         // time, as stored, and alpha a byte a texel.
-        for (std::uint32_t row = 0; row < top.mHeight; row += 4)
+        for (std::uint32_t at = 0; at < read; ++at)
         {
-            readTexelBand(first, top, row / 4, mBand);
-            for (std::uint32_t y = row; y < row + mBand.size() / top.mWidth; ++y)
-                for (std::uint32_t x = 0; x < top.mWidth; ++x)
-                {
-                    const osg::Vec3f& colour = mBand[std::size_t{ y - row } * top.mWidth + x];
-                    const std::size_t at = mLevels[0].texelOffset(x, y, sTexel);
-                    for (int channel = 0; channel < 3; ++channel)
-                        mTexels[at + static_cast<std::size_t>(channel)] = quantise(colour[channel]);
-                    mTexels[at + 3] = static_cast<std::byte>(mAlpha.at(0, x, y));
-                }
+            const MipLevel& level = first.mLevels[at];
+            for (std::uint32_t row = 0; row < level.mHeight; row += 4)
+            {
+                readTexelBand(first, level, row / 4, mBand);
+                for (std::uint32_t y = row; y < row + mBand.size() / level.mWidth; ++y)
+                    for (std::uint32_t x = 0; x < level.mWidth; ++x)
+                    {
+                        const osg::Vec3f& colour = mBand[std::size_t{ y - row } * level.mWidth + x];
+                        const std::size_t into = mLevels[at].texelOffset(x, y, sTexel);
+                        for (int channel = 0; channel < 3; ++channel)
+                            mTexels[into + static_cast<std::size_t>(channel)] = quantise(colour[channel]);
+                        mTexels[into + 3] = static_cast<std::byte>(mAlpha.at(at, x, y));
+                    }
+            }
         }
 
-        const bool encoded = isSrgb(finest.mFormat);
-        const bool coverage = finest.mEncoding == TextureEncoding::Colour;
-        for (std::size_t at = 1; at < mLevels.size(); ++at)
+        if (file.mEncoding == TextureEncoding::Painted)
+            delight(first);
+
+        const bool encoded = isSrgb(file.mFormat);
+        const bool coverage = isColour(file.mEncoding);
+        for (std::size_t at = read; at < mLevels.size(); ++at)
         {
             const MipLevel& above = mLevels[at - 1];
             const MipLevel& level = mLevels[at];
@@ -191,6 +203,38 @@ namespace Rtx
                         mTexels[into + static_cast<std::size_t>(channel)]
                             = quantise(encoded ? toEncoded(mean[channel]) : mean[channel]);
                     mTexels[into + 3] = quantise(painted);
+                }
+        }
+    }
+
+    void ChainBuild::delight(const TextureData& read)
+    {
+        assert(isSrgb(read.mFormat) && "a painted colour that is not display-encoded");
+
+        // **The light painted in, estimated off the finest level** (`ShadingMap`), and divided out of
+        // every level read at its own texels' centres, as the trace divided a read at its point by the
+        // map there. **Held at a reflectance of one, brought down whole**, as `delitTexel` held it: a
+        // glint in a fold painted dark divides to past one, and the colour is kept by scaling all three.
+        const ShadingMap map(read);
+        for (std::size_t at = 0; at < read.mLevels.size(); ++at)
+        {
+            const MipLevel& level = mLevels[at];
+            for (std::uint32_t y = 0; y < level.mHeight; ++y)
+                for (std::uint32_t x = 0; x < level.mWidth; ++x)
+                {
+                    const float factor = paintedLight(map.getValues(), (static_cast<float>(x) + 0.5f) / level.mWidth,
+                        (static_cast<float>(y) + 0.5f) / level.mHeight);
+                    const std::size_t into = level.texelOffset(x, y, sTexel);
+                    osg::Vec3f delit;
+                    for (int channel = 0; channel < 3; ++channel)
+                        delit[channel] = toLinear(std::to_integer<std::uint8_t>(
+                                             mTexels[into + static_cast<std::size_t>(channel)]))
+                            / factor;
+                    const float brightest = std::max({ delit.x(), delit.y(), delit.z() });
+                    if (brightest > 1.0f)
+                        delit /= brightest;
+                    for (int channel = 0; channel < 3; ++channel)
+                        mTexels[into + static_cast<std::size_t>(channel)] = quantise(toEncoded(delit[channel]));
                 }
         }
     }
@@ -358,13 +402,13 @@ namespace Rtx
         return std::span(mTexels).subspan(at.mOffset, std::size_t{ at.mWidth } * at.mHeight * sTexel);
     }
 
-    void ChainBuild::encode(const TextureData& file, std::vector<std::byte>& into) const
+    void ChainBuild::encode(const TextureData& file, const std::uint32_t from, std::vector<std::byte>& into) const
     {
         assert(mLevels.size() >= file.mLevels.size() && "a chain encoded for a file it was not built of");
         initEncoders();
 
         const TextureFormat format = file.mFormat;
-        for (std::uint32_t at = 1; at < getLevelCount(); ++at)
+        for (std::uint32_t at = from; at < getLevelCount(); ++at)
         {
             const MipLevel& level = mLevels[at];
             const std::span<const std::byte> texels = getTexels(at);

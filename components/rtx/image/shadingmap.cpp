@@ -11,7 +11,6 @@
 #include <osg/Vec3f>
 
 #include <components/rtx/shaders/colour.h>
-#include <components/rtx/shaders/shadingmap.h>
 
 #include "alphaimage.hpp"
 #include "colour.hpp"
@@ -26,7 +25,10 @@ namespace Rtx
     namespace
     {
         /// What one block or one texel contributes: the sum of its colours in linear light, each
-        /// weighed by its alpha, and the alpha summed — `Shaders::ShadingSum` says why.
+        /// weighed by its alpha, and the alpha summed. **Weighed by alpha in every format**: a texel
+        /// nothing was painted on is usually black, and counted whole it darkened every cell round a
+        /// leaf's holes, which the delighting then brightened the leaves against. A format with no alpha
+        /// weighs every texel one, and BC1's holes are an alpha of nought like any other.
         struct TexelSum
         {
             osg::Vec3f mSum;
@@ -167,12 +169,12 @@ namespace Rtx
                 mValues[cell] = average;
 
         // Around the wrap along an axis the texture repeats, and held at the edge along one it
-        // clamps: `Shaders::SHADING_BLUR_PASSES` says why each.
+        // clamps: `sBlurPasses` says why each.
         const bool clampsAcross = clampsS(texture.mWrap);
         const bool clampsDown = clampsT(texture.mWrap);
         const std::uint32_t last = sExtent - 1;
         std::array<float, std::size_t{ sExtent } * sExtent> scratch{};
-        for (std::uint32_t pass = 0; pass < Shaders::SHADING_BLUR_PASSES; ++pass)
+        for (std::uint32_t pass = 0; pass < sBlurPasses; ++pass)
         {
             for (std::uint32_t y = 0; y < sExtent; ++y)
                 for (std::uint32_t x = 0; x < sExtent; ++x)
@@ -214,16 +216,6 @@ namespace Rtx
 
         for (float& value : mValues)
             value = std::clamp(value / mean, sFloor, sCeiling);
-    }
-
-    std::uint16_t encodeShading(const float value)
-    {
-        return static_cast<std::uint16_t>(std::lround(Shaders::shadingUnit(value) * 65535.0f));
-    }
-
-    float decodeShading(const std::uint16_t stored)
-    {
-        return Shaders::shadingFactor(static_cast<float>(stored) / 65535.0f);
     }
 
     float paintedLight(std::span<const float> map, float u, float v)

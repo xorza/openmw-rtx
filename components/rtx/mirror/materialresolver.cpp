@@ -525,7 +525,8 @@ namespace Rtx
         // twice for it is asking twice.
         const osg::Image* const diffuse = described->getTexture(SurfaceMap::Diffuse);
 
-        material.mDiffuse = takeTexture(described->getTextureUse(SurfaceMap::Diffuse), worn);
+        material.mDiffuse = takeTexture(described->getTextureUse(SurfaceMap::Diffuse), worn,
+            described->encodingOf(SurfaceMap::Diffuse, mSpecularLayout));
         material.mEmissive = takeTexture(described->getTextureUse(SurfaceMap::Emissive), worn);
         material.mEmissiveUnit = described->mEmissiveUnit;
         material.mEnvironment = takeTexture(described->getTextureUse(SurfaceMap::Environment), worn);
@@ -533,12 +534,11 @@ namespace Rtx
         material.mDark = takeTexture(described->getTextureUse(SurfaceMap::Dark), worn);
         material.mDarkUnit = described->mDarkUnit;
 
-        // A specular map is read in the layout the player named: a metalness and a roughness are
-        // data, and a classic map's highlight is a colour as the artist saw it.
-        material.mNormal = takeTexture(described->getTextureUse(SurfaceMap::Normal), worn, TextureEncoding::Normal);
+        material.mNormal = takeTexture(described->getTextureUse(SurfaceMap::Normal), worn,
+            described->encodingOf(SurfaceMap::Normal, mSpecularLayout));
         material.mSpecularClassic = mSpecularLayout == SpecularLayout::Classic;
         material.mSpecular = takeTexture(described->getTextureUse(SurfaceMap::Specular), worn,
-            material.mSpecularClassic ? TextureEncoding::Colour : TextureEncoding::Data);
+            described->encodingOf(SurfaceMap::Specular, mSpecularLayout));
 
         material.mAlphaTest = described->mAlphaTest;
         material.mAlphaMode = described->mAlphaMode;

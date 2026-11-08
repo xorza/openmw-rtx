@@ -133,7 +133,7 @@ namespace Rtx
         static bool decode(std::span<const std::byte> from, MadeChain& chain)
         {
             std::uint8_t form = 0;
-            if (!ContentBytes::take(from, form) || form > static_cast<std::uint8_t>(ChainForm::Bc7))
+            if (!ContentBytes::take(from, form) || form > static_cast<std::uint8_t>(ChainForm::Own))
                 return false;
             chain.mForm = static_cast<ChainForm>(form);
             chain.mBytes.assign(from.begin(), from.end());

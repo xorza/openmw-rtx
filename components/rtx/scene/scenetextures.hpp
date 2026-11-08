@@ -63,6 +63,7 @@ namespace Rtx
             Index mSlot;
             osg::ref_ptr<const osg::Image> mSource;
             TextureEncoding mEncoding;
+            TextureWrap mWrap;
         };
 
         std::span<const Pending> getPending() const { return mPending; }

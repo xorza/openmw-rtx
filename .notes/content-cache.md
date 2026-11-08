@@ -313,13 +313,39 @@ What it does otherwise than the item said:
   drawn before its chain is made may hold a grey texel. The spread pass keeps its flat normal for the same file.
 - **A normal map's block takes one BC7 mode**, mode 5 with a height and mode 6 without, where the full search made the
   cold start 270 s; bc7enc has no mode 4.
+
+The order is 13, then 12, by the user's decision: a converted classic material's base colour is solved from the
+delit diffuse, which item 13 makes.
+
+13. **Colour files stored delit**: the painted light of every colour the trace delights today estimated on the host by
+    `Rtx::ShadingMap`, the estimate the device's `ShadingPass` is held to, and divided out at a delight of one by
+    preparation, each level of the file at its own texels; the trace reads colours as they stand, and the shading maps,
+    `ShadingPass`, `delitTexel`, the frame's `mDelight` and the harness's `--delight` go, by the user's decision.
+    - **Keyed by use, a new `TextureEncoding::Painted`**: a diffuse the trace delights today (no metal-roughness
+      `_spec`, a ground layer that is not authored) is asked as a painted colour, and a base colour, an emissive map
+      or a sheet as a colour. One source made two textures by how it is used is how engines import a texture once a
+      use (Unreal's compression settings a texture asset); a file used both ways is two slots, and every other costs
+      nothing more. Refused: every colour file delit, which flattens the PBR packs' authored base colours.
+    - **Re-encoded in the file's own format**, by the user's priority of memory and speed: a BC1 colour stays four
+      bits a texel, where BC7 doubles every vanilla texture; a loose or a small chainless file is BC7, by item 10.
+    - **Keyed by the slot's wrap as well**, since the estimate wraps along an axis the texture repeats and clamps along
+      one it clamps.
 12. **One specular layout**: every classic `_spec` map converted by preparation to metal-roughness, and the
-    `[RTX] specular map layout` setting, `MATERIAL_SPECULAR_CLASSIC` and `layerClassic` gone, by the user's decision;
-    a classic map's coloured highlight is fitted, since a dielectric has no metal-roughness equal for it.
-13. **Colour files stored delit**: every colour file's painted light estimated on the host and divided out at a delight
-    of one by preparation, and the file re-encoded and stored; the trace reads colours as they stand, and the shading
-    maps and `delitTexel` go, by the user's decision. The estimate moves to the host, one implementation, from the
-    device's `ShadingPass`; the harness's `--delight` A/B goes with it.
+    `[RTX] specular map layout` setting, `MATERIAL_SPECULAR_CLASSIC` and `layerClassic` gone, by the user's decision.
+    - **A map's layout is detected per file**, by the user's decision: a map whose red, green and blue are near equal
+      (a mean spread under 0.1) is classic, and every other metal-roughness. The Fullrest Repack's 14 classic maps
+      spread 0.004 to 0.042, and the PBR installs' 3400 metal-roughness maps 0.151 at the least, 0.99 at the median.
+      Refused: the layout kept as a load option, a setting the item removes; and every map read as metal-roughness,
+      which reads a classic map's grey highlight as metal.
+    - **A classic pair is converted per texel by Khronos' converter**, by the user's decision: the metalness solved
+      from the delit diffuse's and the highlight's perceived brightness (`solveMetallic`), the base colour rewritten,
+      and the roughness the exponent's (`roughnessOfExponent`)
+      ([Khronos](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows)).
+      A pair is a material's diffuse and its `_spec`, so a converted texture is made a pair. Refused: a metalness from
+      the diffuse's mean, wrong where the diffuse varies under one map; and a dielectric alone, which drops a
+      highlight of 0.1 to 0.87 to 0.04. glTF-Transform's `metalRough` keeps a separate specular colour
+      (`KHR_materials_specular`), a second layout this item removes.
+
 
 Kept, by the user's decisions: **loose formats widened on read** (`layImage`), where a stored copy is four times a
 file on disk and a read for a cheap conversion. Moved to `.notes/todo.txt`: **vertices packed for the device**, the

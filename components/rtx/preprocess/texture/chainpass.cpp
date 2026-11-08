@@ -12,26 +12,29 @@ namespace Rtx
 {
     namespace
     {
-        /// Whether `file` is a colour that carried its chain, which stands: encoded as it is where the
-        /// file is loose, and not made again.
-        bool keepsOwnChain(const TextureData& file)
+        /// Whether the run reads every level `file` carries: a colour's own chain, encoded as it stands
+        /// where the file is loose, and a painted colour's, each level delit where it stands.
+        bool readsOwnChain(const TextureData& file)
         {
-            return file.mEncoding == TextureEncoding::Colour && file.mLevels.size() > 1;
+            return isColour(file.mEncoding) && file.mLevels.size() > 1;
         }
     }
 
     void ChainPass::describe(const Input& input)
     {
-        if (mImage.get() == &input.mImage && mEncoding == input.mEncoding)
+        if (mImage.get() == &input.mImage && mEncoding == input.mEncoding && mWrap == input.mWrap)
             return;
 
         mImage = &input.mImage;
         mEncoding = input.mEncoding;
+        mWrap = input.mWrap;
         mLevels.clear();
         mTexels.clear();
         const Misc::Result<TextureData, std::string> read
             = describeImage(input.mImage, input.mEncoding, mLevels, mTexels);
         mFile = read.isOk() ? std::optional(read.value()) : std::nullopt;
+        if (mFile.has_value())
+            mFile->mWrap = input.mWrap;
     }
 
     void ChainPass::digest(const Input& input, ContentDigest& digest)
@@ -49,7 +52,9 @@ namespace Rtx
         digest.add(static_cast<std::uint32_t>(file.mLevels.size()));
         digest.add(finest.mWidth);
         digest.add(finest.mHeight);
-        const auto read = keepsOwnChain(file) ? static_cast<std::uint32_t>(file.mLevels.size()) : 1u;
+        if (file.mEncoding == TextureEncoding::Painted)
+            digest.add(file.mWrap);
+        const auto read = readsOwnChain(file) ? static_cast<std::uint32_t>(file.mLevels.size()) : 1u;
         for (std::uint32_t level = 0; level < read; ++level)
             digest.add(file.bytesOf(level));
     }
@@ -65,27 +70,36 @@ namespace Rtx
             const MipLevel& finest = file.mLevels.front();
             const bool chainless = file.mLevels.size() == 1;
             const bool loose = !layoutOf(file.mFormat).isBlocked();
+            const bool painted = file.mEncoding == TextureEncoding::Painted;
+            const bool normals = file.mEncoding == TextureEncoding::Normal;
 
-            const bool remade = !keepsOwnChain(file);
-            if (remade)
+            // A colour's own chain stands, and is laid as it stands where it is loose; every other chain
+            // is built, a painted colour's from every level it carries.
+            const bool built = file.mEncoding != TextureEncoding::Colour || chainless;
+            if (built)
                 mChain.build(file,
                     chainless ? levelsTo1x1(finest.mWidth, finest.mHeight)
                               : static_cast<std::uint32_t>(file.mLevels.size()));
+            else if (loose)
+                mChain.layOwnLevels(file);
 
-            const bool cut = remade && mChain.holdsCut(file);
+            const bool cut = built && mChain.holdsCut(file);
             const bool small = std::max(finest.mWidth, finest.mHeight) <= sLargestBc7ChainSide;
-            const bool normals = file.mEncoding == TextureEncoding::Normal;
-            if (normals || loose || (chainless && (small || cut)))
+            if (normals || loose || (chainless && small) || (cut && (chainless || painted)))
             {
-                if (!remade)
-                    mChain.layOwnLevels(file);
                 output.mForm = ChainForm::Bc7;
                 mChain.encodeBc7(file.mEncoding, output.mBytes);
             }
-            else if (remade && !cut)
+            else if (painted)
+            {
+                // Every level delit, so the finest is made again with the rest, in the file's format.
+                output.mForm = ChainForm::Own;
+                mChain.encode(file, 0, output.mBytes);
+            }
+            else if (built && !cut)
             {
                 output.mForm = ChainForm::Coarser;
-                mChain.encode(file, output.mBytes);
+                mChain.encode(file, 1, output.mBytes);
             }
         }
 

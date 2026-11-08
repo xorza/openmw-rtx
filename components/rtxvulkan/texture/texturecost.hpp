@@ -24,8 +24,8 @@ namespace Rtx
         /// The image the trace samples.
         VkDeviceSize mImage = 0;
 
-        /// Its shading map, or a normal map's spread, by `TextureData::getCompanion`. The float means
-        /// a spread is built through are the arrival's room, and priced once for it
+        /// A normal map's spread, by `TextureData::getCompanion`, and nothing beside any other. The float
+        /// means a spread is built through are the arrival's room, and priced once for it
         /// (`spreadMeansBytes`).
         VkDeviceSize mCompanion = 0;
 

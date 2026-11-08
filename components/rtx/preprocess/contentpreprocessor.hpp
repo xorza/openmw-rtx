@@ -54,8 +54,8 @@ namespace Rtx
         /// `AlphaSpan`: the lowest and the highest alpha `image` holds.
         AlphaRange alphaRange(const osg::Image& image);
 
-        /// `ChainPass`: `image`'s chain made again, or made where it carried none, read as `encoding`.
-        void chain(const osg::Image& image, TextureEncoding encoding, MadeChain& made);
+        /// `ChainPass`: an image's chain made again, or made where it carried none, read as its input says.
+        void chain(const ChainPass::Input& input, MadeChain& made);
 
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();

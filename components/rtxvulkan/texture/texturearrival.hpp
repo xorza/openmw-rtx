@@ -7,7 +7,6 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -25,8 +24,7 @@ namespace Rtx
     inline constexpr VkDeviceSize sSpreadMeansRoom = 64 * 1024 * 1024;
 
     /// What a run of arriving textures leaves the device to do, recorded once for the whole run a
-    /// phase at a time: every copy and clear, then every shading map, each level of every spread
-    /// and every bake, with one barrier between two phases rather than
+    /// phase at a time: every copy, then each level of every spread and every bake, with one barrier between two phases rather than
     /// several around each texture. A barrier drains the queue, and a texture's dispatches are a
     /// few groups each: recorded texture by texture, a cell of three hundred textures was
     /// thousands of barriers around work that left the device idle between them.
@@ -47,12 +45,6 @@ namespace Rtx
         /// Copies `staged`, which the caller staged through the batch the run is recorded into, into
         /// `image` by `regions`, whose offsets are into `staged`. `image` is met undefined.
         void upload(const StagingRun& staged, const Image& image, std::span<const VkBufferImageCopy> regions);
-
-        /// Clears `map`, met undefined, to the neutral shading factor.
-        void clearNeutral(const Image& map);
-
-        /// `ShadingPass` of `source` into `map`, met undefined.
-        void shade(const Image& source, const Image& map, TextureWrap wrap);
 
         /// `NormalSpreadPass` of `map` into `spread`, met undefined, through the run's means.
         void spread(const Image& map, const Image& spread);
@@ -87,13 +79,6 @@ namespace Rtx
             std::uint32_t mCount;
         };
 
-        struct Shade
-        {
-            const Image* mSource;
-            const Image* mMap;
-            TextureWrap mWrap;
-        };
-
         struct Spread
         {
             const Image* mMap;
@@ -106,11 +91,8 @@ namespace Rtx
             const Image* mBake;
         };
 
-        /// The copies and clears, and every image the run names out of `UNDEFINED`.
+        /// The copies, and every image the run names out of `UNDEFINED`.
         void recordWrites(VkCommandBuffer commands, Barriers& barriers);
-
-        /// Every sum, one barrier, every map.
-        void recordShading(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes, GpuTimer* timer);
 
         /// Each level of every spread of a group, a level of all of them between two barriers, one
         /// group after another over the same means.
@@ -122,17 +104,11 @@ namespace Rtx
         std::vector<VkBufferImageCopy> mRegions;
 
         std::vector<Upload> mUploads;
-        std::vector<const Image*> mClears;
-        std::vector<Shade> mShades;
         std::vector<Spread> mSpreads;
         std::vector<Bake> mBakes;
 
         /// The room every barrier of a run is recorded in, sized to its widest.
         std::vector<VkImageMemoryBarrier2> mImageBarriers;
-
-        /// Every texture's own sums, `ShadingPass::sSumBytes` each, so a run's sums are dispatched
-        /// together: one buffer for every texture in turn ordered each against the one before.
-        GrowableBuffer mSums;
 
         /// The means the spreads are carried through, one group at a time: grown to the largest
         /// group so far, and worked in again by every group after. **A room and not a chain apiece**,

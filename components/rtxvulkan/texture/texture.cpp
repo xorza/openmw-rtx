@@ -23,7 +23,6 @@
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
@@ -44,27 +43,6 @@ namespace Rtx
 {
     namespace
     {
-        /// The map beside a texture: one level and no chain, because the map is read at level
-        /// nought whatever the cone and has no detail for a level to lose. Left undefined, for a
-        /// dispatch to write or `clearNeutral` to fill.
-        Misc::Result<Image, std::string_view> makeShadingMap(const Device& device, std::string_view name, MemoryUse use)
-        {
-            // Built only where something reads it. A release build names no object, and the
-            // concatenation is past what a short string holds — so building it anyway is one trip
-            // to the heap per texture, for a name that goes nowhere.
-            std::string shadingName;
-            if constexpr (sDebugNames)
-                shadingName = std::string(name) + " shading";
-
-            return Image::tryMake(use, device,
-                ImageDescription{ .mWidth = Shaders::SHADING_EXTENT,
-                    .mHeight = Shaders::SHADING_EXTENT,
-                    .mFormat = toVulkanFormat(SHADING_MAP_FORMAT),
-                    .mUsage
-                    = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT },
-                shadingName);
-        }
-
         /// A normal map's spread, `NormalSpreadPass`'s: a byte a texel from half the map's `width` by
         /// `height` down to one texel, sampled and written by the pass a level at a time.
         Misc::Result<Image, std::string_view> makeSpreadMap(
@@ -171,15 +149,14 @@ namespace Rtx
             laid += data.bytesOf(first + level).size();
         }
 
-        // Estimated off the texture about to be made, by a dispatch behind it, or cleared to the
-        // neutral factor where nothing is to be estimated — `TextureData::getCompanion`. A normal
-        // map's spread is built through the arrival's means.
-        const TextureCompanion companion = data.getCompanion();
-        Misc::Result<Image, std::string_view> shading = companion == TextureCompanion::Spread
-            ? makeSpreadMap(device, name, use, top.mWidth, top.mHeight)
-            : makeShadingMap(device, name, use);
-        if (!shading.isOk())
-            return Misc::Err{ shading.error() };
+        // A normal map's spread, measured by a dispatch behind the texture through the arrival's means
+        // (`TextureData::getCompanion`); nothing beside any other texture, whose companion no read
+        // reaches.
+        const bool spread = data.getCompanion() == TextureCompanion::Spread;
+        Misc::Result<Image, std::string_view> companion
+            = spread ? makeSpreadMap(device, name, use, top.mWidth, top.mHeight) : Image();
+        if (!companion.isOk())
+            return Misc::Err{ companion.error() };
 
         Misc::Result<Image, std::string_view> image = Image::tryMake(use, device,
             ImageDescription{ .mWidth = top.mWidth,
@@ -195,7 +172,7 @@ namespace Rtx
         // makes it is the arrival's to record.
         mWrap = data.mWrap;
         mImage = std::move(image.value());
-        mCompanion = std::move(shading.value());
+        mCompanion = std::move(companion.value());
 
         const StagingLend staged = batch.reserve(laid);
         for (std::uint32_t level = 0; level < levels; ++level)
@@ -203,18 +180,8 @@ namespace Rtx
                 staged.mBytes.begin() + static_cast<std::ptrdiff_t>(regions[level].bufferOffset));
         arrival.upload(staged.mRun, mImage, regions);
 
-        switch (companion)
-        {
-            case TextureCompanion::Neutral:
-                arrival.clearNeutral(mCompanion);
-                break;
-            case TextureCompanion::Shading:
-                arrival.shade(mImage, mCompanion, data.mWrap);
-                break;
-            case TextureCompanion::Spread:
-                arrival.spread(mImage, mCompanion);
-                break;
-        }
+        if (spread)
+            arrival.spread(mImage, mCompanion);
 
         mBytes = priceFile(data, first).standing();
         return {};
@@ -238,20 +205,13 @@ namespace Rtx
         if (!image.isOk())
             return Misc::Err{ image.error() };
 
-        // Neutral, because nothing divides a bake by a map, and the array binds one at every slot.
-        Misc::Result<Image, std::string_view> shading = makeShadingMap(device, name, MemoryUse::Texture);
-        if (!shading.isOk())
-            return Misc::Err{ shading.error() };
-
         mImage = std::move(image.value());
 
         // Clamped, because a bake is one image whose coordinates run edge to edge — what
         // `TextureTable::addSpriteLight` says of its row.
         mWrap = TextureWrap::Clamp;
 
-        mCompanion = std::move(shading.value());
         arrival.bake(from, mImage);
-        arrival.clearNeutral(mCompanion);
 
         mBytes = priceBake(shapeOf(mImage)).standing();
         return {};
@@ -271,8 +231,6 @@ namespace Rtx
         const std::array<VkBufferImageCopy, 1> regions{ wholeLevel(0, 0, VkExtent3D{ 1, 1, 1 }) };
         arrival.upload(batch.stage(std::as_bytes(std::span<const float>(texel))), mImage, regions);
 
-        mCompanion = std::move(makeShadingMap(device, name, MemoryUse::Essential).value());
-        arrival.clearNeutral(mCompanion);
         mBytes = priceColour().standing();
     }
 
@@ -295,21 +253,11 @@ namespace Rtx
         if (!image.isOk())
             return Misc::Err{ image.error() };
 
-        // Neutral, because the light painted into each ground texture came off per tile in the
-        // bake, which is the only place the tiling is known; an estimate off the composite would
-        // take it off twice.
-        Misc::Result<Image, std::string_view> shading = makeShadingMap(device, name, MemoryUse::Texture);
-        if (!shading.isOk())
-            return Misc::Err{ shading.error() };
-
         mImage = std::move(image.value());
 
         // Clamped, because a composite is one image whose coordinates run edge to edge — what
         // `TextureTable::addGround` says of its row.
         mWrap = TextureWrap::Clamp;
-
-        mCompanion = std::move(shading.value());
-        arrival.clearNeutral(mCompanion);
 
         mBytes = priceComposite().standing();
         return {};
@@ -773,8 +721,10 @@ namespace Rtx
             const std::size_t wrap = static_cast<std::size_t>(held.getWrap());
             const VkSampler sampler = mSamplers[wrap].get();
             queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, at, held.describe(sampler), mImageScratch, mWriteScratch);
-            queueWrite(set, Shaders::TEXTURE_BIND_COMPANIONS, at, held.describeCompanion(sampler), mImageScratch,
-                mWriteScratch);
+            // A companion only where a read reaches one, a normal map's: the binding is partially bound.
+            if (held.hasCompanion())
+                queueWrite(set, Shaders::TEXTURE_BIND_COMPANIONS, at, held.describeCompanion(sampler), mImageScratch,
+                    mWriteScratch);
             queueWrite(set, Shaders::TEXTURE_BIND_ALONG, at, held.describe(mFootprintSamplers[wrap].get()),
                 mImageScratch, mWriteScratch);
         }

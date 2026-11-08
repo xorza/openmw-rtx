@@ -173,7 +173,7 @@ namespace Rtx
             ChainBuild chain;
             chain.build(file, 2);
             std::vector<std::byte> built;
-            chain.encode(file, built);
+            chain.encode(file, 1, built);
             ASSERT_EQ(built.size(), 4u);
             EXPECT_EQ(std::to_integer<int>(built[0]), 0) << "blue";
             EXPECT_EQ(std::to_integer<int>(built[1]), 0) << "green";
@@ -209,7 +209,7 @@ namespace Rtx
             ChainBuild chain;
             chain.build(file, 2);
             std::vector<std::byte> built;
-            chain.encode(file, built);
+            chain.encode(file, 1, built);
             ASSERT_EQ(built.size(), 16u);
 
             std::array<std::uint8_t, 64> decoded{};

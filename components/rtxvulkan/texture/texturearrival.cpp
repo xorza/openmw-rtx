@@ -7,7 +7,6 @@
 
 #include <volk.h>
 
-#include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -22,8 +21,7 @@
 namespace Rtx
 {
     TextureArrival::TextureArrival(const Device& device, const VkDeviceSize meansRoom)
-        : mSums(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shading sums")
-        , mMeansRoom(meansRoom)
+        : mMeansRoom(meansRoom)
         , mMeans(device, BufferKind::DeviceLocal, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
               "normal spread means")
     {
@@ -52,16 +50,6 @@ namespace Rtx
         });
     }
 
-    void TextureArrival::clearNeutral(const Image& map)
-    {
-        mClears.push_back(&map);
-    }
-
-    void TextureArrival::shade(const Image& source, const Image& map, const TextureWrap wrap)
-    {
-        mShades.push_back(Shade{ .mSource = &source, .mMap = &map, .mWrap = wrap });
-    }
-
     void TextureArrival::spread(const Image& map, const Image& spread)
     {
         mSpreads.push_back(Spread{ .mMap = &map, .mSpread = &spread });
@@ -74,15 +62,13 @@ namespace Rtx
 
     void TextureArrival::record(Batch& batch, const TexturePasses& passes, GpuTimer* const timer)
     {
-        const bool any
-            = !mUploads.empty() || !mClears.empty() || !mShades.empty() || !mSpreads.empty() || !mBakes.empty();
+        const bool any = !mUploads.empty() || !mSpreads.empty() || !mBakes.empty();
         mRecordedBarriers = 0;
         if (any)
         {
             // Room for the widest barrier of the run, the one after the copies, which holds every
             // image the run writes once.
-            const std::size_t widest
-                = mUploads.size() + mClears.size() + mShades.size() + mSpreads.size() + mBakes.size();
+            const std::size_t widest = mUploads.size() + mSpreads.size() + mBakes.size();
             mImageBarriers.resize(std::max(widest, mImageBarriers.size()));
 
             const VkCommandBuffer commands = batch.getCommands();
@@ -92,7 +78,6 @@ namespace Rtx
             // it wrote pending as the texture the trace samples: a phase's last barrier and the next
             // phase's first are one command.
             recordWrites(commands, barriers);
-            recordShading(commands, barriers, passes, timer);
             recordSpreads(commands, barriers, passes, timer);
             recordBakes(commands, barriers, passes, timer);
             barriers.flush();
@@ -101,8 +86,6 @@ namespace Rtx
 
         mRegions.clear();
         mUploads.clear();
-        mClears.clear();
-        mShades.clear();
         mSpreads.clear();
         mBakes.clear();
     }
@@ -112,62 +95,20 @@ namespace Rtx
         // Nothing before them: the head of every command buffer orders it after the last frame.
         for (const Upload& upload : mUploads)
             upload.mImage->addTransition(barriers, Use::sUndefined, Use::sCopyWrite);
-        for (const Image* const map : mClears)
-            map->addTransition(barriers, Use::sUndefined, Use::sClearWrite);
         barriers.flush();
 
         for (const Upload& upload : mUploads)
             vkCmdCopyBufferToImage(commands, upload.mStaged.mBuffer, upload.mImage->getHandle(),
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, upload.mCount, &mRegions[upload.mFirst]);
 
-        const VkClearColorValue neutral{ .float32 = { Shaders::shadingUnit(1.0f), 0.0f, 0.0f, 0.0f } };
-        for (const Image* const map : mClears)
-        {
-            const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, map->getMipLevels(), 0, 1 };
-            vkCmdClearColorImage(commands, map->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &neutral, 1, &whole);
-        }
-
         // What was written, as the textures they are, and what a dispatch writes next, out of
         // `UNDEFINED`.
         for (const Upload& upload : mUploads)
             upload.mImage->addTransition(barriers, Use::sCopyWrite, Use::sTextureSample);
-        for (const Image* const map : mClears)
-            map->addTransition(barriers, Use::sClearWrite, Use::sTextureSample);
-        for (const Shade& shade : mShades)
-            shade.mMap->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
         for (const Spread& spread : mSpreads)
             spread.mSpread->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
         for (const Bake& bake : mBakes)
             bake.mBake->addTransition(barriers, Use::sUndefined, Use::sComputeReadWrite);
-    }
-
-    void TextureArrival::recordShading(
-        const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes, GpuTimer* const timer)
-    {
-        if (mShades.empty())
-            return;
-        const GpuZone timed(timer, commands, FrameZone::Shading);
-
-        mSums.outgrow(mShades.size() * ShadingPass::sSumBytes);
-        const Buffer& sums = mSums.get();
-        const auto sumsOf
-            = [&](const std::size_t at) { return sums.describe(at * ShadingPass::sSumBytes, ShadingPass::sSumBytes); };
-
-        // After the copies, because a texture's own chain is what its estimate reads.
-        barriers.flush();
-        for (std::size_t at = 0; at < mShades.size(); ++at)
-            passes.mShading.recordSum(commands, *mShades[at].mSource, sumsOf(at), mShades[at].mWrap);
-
-        barriers.add(memoryBarrier(Use::sBufferComputeWrite, Use::sBufferComputeRead));
-        barriers.flush();
-        for (std::size_t at = 0; at < mShades.size(); ++at)
-        {
-            const Shade& shade = mShades[at];
-            passes.mShading.recordMap(commands, *shade.mSource, *shade.mMap, sumsOf(at), shade.mWrap);
-        }
-
-        for (const Shade& shade : mShades)
-            shade.mMap->addTransition(barriers, Use::sComputeWrite, Use::sTextureSample);
     }
 
     void TextureArrival::recordSpreads(

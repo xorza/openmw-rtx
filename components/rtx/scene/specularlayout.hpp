@@ -6,6 +6,7 @@
 #include <utility>
 
 #include <components/rtx/common/namedenum.hpp>
+#include <components/rtx/image/textureencoding.hpp>
 
 namespace Rtx
 {
@@ -31,6 +32,14 @@ namespace Rtx
         std::pair{ SpecularLayout::Classic, std::string_view("classic") },
         std::pair{ SpecularLayout::MetalRoughness, std::string_view("metal roughness") },
     } };
+
+    /// What a ground layer's diffuse is bound as: an authored albedo where it is a `_diffusespec` read in
+    /// the metal-roughness layout, and a painted colour, delit on the host, otherwise.
+    constexpr TextureEncoding layerEncodingOf(const bool diffuseSpec, const SpecularLayout layout)
+    {
+        return diffuseSpec && layout == SpecularLayout::MetalRoughness ? TextureEncoding::Colour
+                                                                       : TextureEncoding::Painted;
+    }
 
     /// The layouts the launcher and the settings window offer, in `sSpecularLayoutNames`' order: a
     /// layout added there stops the build until each menu gives it a label.

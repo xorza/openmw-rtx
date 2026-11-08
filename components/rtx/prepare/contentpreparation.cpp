@@ -152,10 +152,7 @@ namespace Rtx
             hand.mModel.reuse();
             hand.mWalk.read(*node, mMask, hand.mModel);
 
-            // Each map its surface reads, as the material resolver binds it: a normal map and a
-            // specular map in the encodings the frame reads them in, every other as a colour.
-            const TextureEncoding specular
-                = mSpecular == SpecularLayout::Classic ? TextureEncoding::Colour : TextureEncoding::Data;
+            // Each map its surface reads, as the material resolver binds it (`SurfaceDescription::encodingOf`).
             for (const PreparedPart& part : hand.mModel.mParts)
             {
                 if (!part.mMaterial.mDescribed.has_value())
@@ -177,10 +174,10 @@ namespace Rtx
                             Shader::appendCompanionPaths(mAutoMaps, image->getFileName(), hand.mFiles);
                     }
 
-                    const TextureEncoding encoding = surfaceMap == SurfaceMap::Normal ? TextureEncoding::Normal
-                        : surfaceMap == SurfaceMap::Specular                          ? specular
-                                                                                      : TextureEncoding::Colour;
-                    chain(hand, *image, encoding);
+                    chain(hand,
+                        ChainPass::Input{ .mImage = *image,
+                            .mEncoding = described.encodingOf(surfaceMap, mSpecular),
+                            .mWrap = described.getTextureUse(surfaceMap).mWrap });
                 }
             }
 
@@ -194,12 +191,15 @@ namespace Rtx
         const Crash::NoteScope noted("preparing the ground layer \"{}\"", layer.mDiffuse);
         hand.mFiles.push_back(layer.mDiffuse);
 
-        // As the cell reader reads a layer: the diffuse a colour, the normal map a normal map, and
-        // where it may carry a height and does, the heights it spans.
+        // As the cell reader reads a layer: the diffuse as `layerEncodingOf` binds it, the normal map a
+        // normal map, and where it may carry a height and does, the heights it spans.
         const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> diffuse
             = mContent.getImage(VFS::Path::NormalizedView(layer.mDiffuse.c_str()));
         if (diffuse.isOk() && diffuse.value() != nullptr)
-            chain(hand, *diffuse.value(), TextureEncoding::Colour);
+            chain(hand,
+                ChainPass::Input{ .mImage = *diffuse.value(),
+                    .mEncoding = layerEncodingOf(layer.mDiffuseSpec, mSpecular),
+                    .mWrap = TextureWrap::Repeat });
 
         if (layer.mNormal.empty())
             return;
@@ -208,19 +208,23 @@ namespace Rtx
             = mContent.getImage(VFS::Path::NormalizedView(layer.mNormal.c_str()));
         if (!normal.isOk() || normal.value() == nullptr)
             return;
-        chain(hand, *normal.value(), TextureEncoding::Normal);
+        chain(hand, ChainPass::Input{ .mImage = *normal.value(), .mEncoding = TextureEncoding::Normal });
         if (layer.mParallax && carriesHeight(*normal.value()))
             hand.mWalk.alphaRangeOf(*normal.value());
     }
 
-    void ContentPreparation::chain(Hand& hand, const osg::Image& image, const TextureEncoding encoding)
+    void ContentPreparation::chain(Hand& hand, const ChainPass::Input& input)
     {
-        if (!PreparedImages::prepares(image, encoding))
+        if (!PreparedImages::prepares(input.mImage, input.mEncoding))
             return;
-        std::string name(SceneUtil::EmbeddedImage::nameOf(image));
-        name += static_cast<char>('0' + static_cast<int>(encoding));
+
+        // Claimed by its name, its encoding and, for a painted colour, its wrap: what the store keys it by.
+        std::string name(SceneUtil::EmbeddedImage::nameOf(input.mImage));
+        name += static_cast<char>('0' + static_cast<int>(input.mEncoding));
+        if (input.mEncoding == TextureEncoding::Painted)
+            name += static_cast<char>('0' + static_cast<int>(input.mWrap));
         if (claim(std::move(name)))
-            hand.mChains.chain(image, encoding, hand.mChain);
+            hand.mChains.chain(input, hand.mChain);
     }
 
     bool ContentPreparation::claim(std::string name)

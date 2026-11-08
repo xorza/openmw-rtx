@@ -30,10 +30,13 @@ namespace Rtx
         /// here gives a meaning.
         static bool rebuilds(const TextureData& file);
 
-        /// Decodes the first level of `finest`, a description `rebuilds` holds, and boxes `levels` levels
-        /// in all from it, each half the one above and at least a texel, as a file lays its own: four
-        /// bytes a texel, display-encoded where `finest`'s format is. Refills this one.
-        void build(const TextureData& finest, std::uint32_t levels);
+        /// Decodes the first level of `file`, a description `rebuilds` holds, and boxes `levels` levels in
+        /// all from it, each half the one above and at least a texel, as a file lays its own: four bytes a
+        /// texel, display-encoded where `file`'s format is. **A painted colour** reads every level it
+        /// carries instead, up to `levels`, and has the light painted into it divided out of each, the
+        /// levels past its own boxed from the last of them (`.notes/content-cache.md`, colour files stored
+        /// delit). Refills this one.
+        void build(const TextureData& file, std::uint32_t levels);
 
         /// Lays `file`'s own levels as the built ones, four bytes a texel in red, green, blue and alpha:
         /// for a loose file, whose bytes are its texels, encoded whole without a level made again.
@@ -45,10 +48,11 @@ namespace Rtx
         /// again in BC1.
         bool holdsCut(const TextureData& finest) const;
 
-        /// Appends the built levels 1 and down to `into`, encoded in `file`'s own format and laid as a
-        /// file lays its levels, so `file`'s finest level and these make a chain of `file`'s format:
-        /// `build` of `file`, to its own level count or, for a file of one level, to a texel.
-        void encode(const TextureData& file, std::vector<std::byte>& into) const;
+        /// Appends the built levels `from` and down to `into`, encoded in `file`'s own format and laid as
+        /// a file lays its levels: from 1, so `file`'s finest level and these make a chain of `file`'s
+        /// format, and from 0 for a whole chain in it. `build` of `file`, to its own level count or, for a
+        /// file of one level, to a texel.
+        void encode(const TextureData& file, std::uint32_t from, std::vector<std::byte>& into) const;
 
         /// Appends every built level, the finest first, to `into` in BC7 as `encoding` (`bc7FormatOf`),
         /// laid as a file lays its levels: a colour's error weighed as the eye sees it, a map of data's
@@ -64,6 +68,10 @@ namespace Rtx
     private:
         /// `build` of a normal map: the levels laid, the finest's alpha read.
         void buildNormals(const TextureData& first);
+
+        /// `build` of a painted colour: the light painted into `read`, its levels read as the levels
+        /// built, divided out of each.
+        void delight(const TextureData& read);
 
         AlphaImage mAlpha;
         std::vector<osg::Vec3f> mBand;

@@ -37,43 +37,6 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) read
     float at[];
 };
 
-/// The light a texture already carries at `at`, bilinear across its grid and wrapping with it.
-///
-/// **One fetch through the array's own sampler, which does the wrap and the blend.** Read out of a buffer
-/// by hand this was four loads and the modulo apiece on every albedo read of every hit and every ground
-/// layer; measured, the loads cost nothing the trace can see, and the fetch is here for what it is rather
-/// than for what it saves. Wrapping because Morrowind's textures tile and a great many of them rely on it:
-/// a map that clamped at the edges would put a seam down every wall that repeats.
-float paintedLight(uint slot, vec2 at)
-{
-    return shadingFactor(textureLod(companions[nonuniformEXT(slot)], at, 0.0).r);
-}
-
-/// `texel`, read from `slot` at `at`, with `delight` of the light painted into it divided back out.
-///
-/// **A texture drawn for a renderer with no bounce has the bounce drawn into it** — a wall darker toward
-/// its foot, a glow a lamp throws across it.
-///
-/// **What it can see is light that changes slowly across the texture.** The estimate is a grid of 32 cells
-/// a side blurred three times over, about eleven texels on a 256-square texture: it takes off a gradient
-/// across the texture, and lets through occlusion in a corner or a highlight along a rim, a few texels
-/// wide, which it cannot tell from the paint. And an albedo that itself changes slowly — a wall painted
-/// darker in its lower half — is flattened as though it were light: the smoothness assumption every such
-/// estimate rests on (Land and McCann's Retinex), and where it fails.
-///
-/// **Held at a reflectance of one, and brought down whole rather than per channel.** A bright texel in a
-/// cell painted dark divides to past one — a glint in a shadowed fold is light painted in as well — and a
-/// surface that reflects more than reaches it makes light at every bounce. The factor is grey, so the
-/// colour is kept by scaling all three.
-vec3 delitTexel(uint slot, vec2 at, vec3 texel, float delight)
-{
-    if (delight <= 0.0)
-        return texel;
-
-    const vec3 delit = texel / mix(1.0, paintedLight(slot, at), delight);
-    return delit / max(brightest(delit), 1.0);
-}
-
 /// Whether `layer` is authored (`LAYER_AUTHORED`) and its texture holds what it was: a layer whose
 /// `_diffusespec` stands in is a Lambert layer under the grey, and reflects nothing. The two readers
 /// of a stack ask this and nothing else, the sum of what reflects included.
@@ -89,18 +52,18 @@ bool layerClassic(GpuLayer layer, TexelTable texels)
     return (layer.mFlags & LAYER_CLASSIC) != 0u && holdsTexture(texels, layer.mDiffuse);
 }
 
-/// What one layer shows where `texel` was read from it, at `at`: its albedo in rgb and its perceptual
-/// roughness in alpha.
+/// What one layer shows where `texel` was read from it: its albedo in rgb, a painted colour delit on the
+/// host (`TextureEncoding::Painted`), and its perceptual roughness in alpha.
 ///
 /// @param authored,classic `layerAuthored` and `layerClassic`, which the trace asks only where
 ///        `HAS_MAPS` says a layer can be.
-vec4 layerTexel(GpuLayer layer, vec2 at, vec4 texel, float delight, bool authored, bool classic)
+vec4 layerTexel(vec4 texel, bool authored, bool classic)
 {
     if (authored)
         return texel;
 
     const float rough = classic ? roughnessOfExponent(CLASSIC_GROUND_EXPONENT) : 1.0;
-    return vec4(delitTexel(layer.mDiffuse, at, texel.rgb, delight), rough);
+    return vec4(texel.rgb, rough);
 }
 
 /// Where `chunkUv` of a chunk lands on one of its layers, which tiles across it.

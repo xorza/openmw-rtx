@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <deque>
 #include <map>
+#include <tuple>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -16,6 +17,7 @@
 #include <components/rtx/common/worker.hpp>
 #include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 
 namespace Rtx
@@ -62,9 +64,9 @@ namespace Rtx
         PreparedImages(PreparedImages&&) = delete;
         PreparedImages& operator=(PreparedImages&&) = delete;
 
-        /// `file`, read as `encoding`, with its chain made again: made, or queued and pending, or
-        /// nothing made of it. `prepares(encoding)` holds. Never waits.
-        PreparedImage find(const osg::Image& file, TextureEncoding encoding);
+        /// `file`, read as `encoding` by a slot that addresses it as `wrap`, with its chain made again:
+        /// made, or queued and pending, or nothing made of it. `prepares(encoding)` holds. Never waits.
+        PreparedImage find(const osg::Image& file, TextureEncoding encoding, TextureWrap wrap);
 
         /// Whether nothing is queued or being made: what a run that compares frames waits for, so
         /// every frame it compares draws the made chains.
@@ -78,7 +80,7 @@ namespace Rtx
         ContentStats takeStats();
 
     private:
-        using Key = std::pair<const osg::Image*, TextureEncoding>;
+        using Key = std::tuple<const osg::Image*, TextureEncoding, TextureWrap>;
 
         struct Entry
         {

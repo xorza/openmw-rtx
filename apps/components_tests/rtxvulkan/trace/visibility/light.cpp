@@ -774,7 +774,7 @@ namespace Rtx::Testing
             ChainBuild chain;
             chain.build(file, levelsTo1x1(extent, extent));
             std::vector<std::byte> coarser;
-            chain.encode(file, coarser);
+            chain.encode(file, 1, coarser);
             std::vector<MipLevel> levels{ level };
             std::uint32_t laid = 0;
             for (std::uint32_t side = extent / 2; side >= 1; side /= 2)

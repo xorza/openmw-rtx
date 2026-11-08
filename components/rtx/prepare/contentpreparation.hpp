@@ -17,6 +17,7 @@
 #include <components/rtx/common/monitor.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/shader/automaps.hpp>
 
@@ -75,6 +76,9 @@ namespace Rtx
         /// Whether the normal map may carry a height in its alpha, which the ground reads
         /// (`carriesHeight`).
         bool mParallax = false;
+
+        /// Whether the diffuse is a `_diffusespec` the storage found, which `layerEncodingOf` reads.
+        bool mDiffuseSpec = false;
     };
 
     /// The game's import step, run on its loading screen (`.notes/content-cache.md`, the store filled
@@ -128,8 +132,8 @@ namespace Rtx
         /// A job's name in the manifest: a model's path, or a layer's files (`mLayerNames`).
         const std::string& nameOf(std::size_t at) const;
 
-        /// `image`'s chain made as `encoding` where it is made at all and this run is the first to ask.
-        void chain(Hand& hand, const osg::Image& image, TextureEncoding encoding);
+        /// `input`'s chain made where it is made at all and this run is the first to ask.
+        void chain(Hand& hand, const ChainPass::Input& input);
 
         /// Whether this run is the first to ask for `name`'s chain as `encoding`: a map many models
         /// wear is made once a run.

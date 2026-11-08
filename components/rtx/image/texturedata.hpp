@@ -180,16 +180,12 @@ namespace Rtx
         /// in a debugger; every backend has somewhere to put it.
         std::string_view mName{};
 
-        /// What stands beside it: the neutral shading map for a composite, whose painted light came
-        /// off per tile in the bake and would come off twice; a bake, which nothing divides; the
-        /// stand-in, which is one grey; and data, which is no picture of anything lit. A colour
-        /// file's painted light, estimated on the device as it arrives, and a normal map's spread,
-        /// measured on it the same way. Derived, because the source and the encoding decide it.
+        /// What stands beside it: a normal map file's spread, measured on the device as it arrives, and
+        /// nothing beside any other. Derived, because the source and the encoding decide it.
         TextureCompanion getCompanion() const
         {
-            if (mSource != TextureSource::File || mEncoding == TextureEncoding::Data)
-                return TextureCompanion::Neutral;
-            return mEncoding == TextureEncoding::Normal ? TextureCompanion::Spread : TextureCompanion::Shading;
+            return mSource == TextureSource::File && mEncoding == TextureEncoding::Normal ? TextureCompanion::Spread
+                                                                                          : TextureCompanion::Neutral;
         }
 
         /// The first level no wider and no taller than `side`, or nothing where every level is

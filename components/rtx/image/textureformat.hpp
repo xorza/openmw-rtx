@@ -374,11 +374,11 @@ namespace Rtx
         return format == TextureFormat::Bc1RgbaSrgb || format == TextureFormat::Bc1RgbaUnorm;
     }
 
-    /// The format a texture the host makes whole is encoded into as `encoding`: BC7, display-encoded
-    /// for a colour and linear for every map of data.
+    /// The format a texture the host makes whole in BC7 is encoded into as `encoding`: display-encoded
+    /// for a colour, painted or not, and linear for every map of data.
     constexpr TextureFormat bc7FormatOf(TextureEncoding encoding)
     {
-        return encoding == TextureEncoding::Colour ? TextureFormat::Bc7Srgb : TextureFormat::Bc7Unorm;
+        return isColour(encoding) ? TextureFormat::Bc7Srgb : TextureFormat::Bc7Unorm;
     }
 
     /// Which format `image` arrived in, read as `encoding` — the one place a texture's `GLenum`

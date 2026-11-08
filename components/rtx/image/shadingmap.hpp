@@ -27,14 +27,22 @@ namespace Rtx
     class ShadingMap
     {
     public:
-        /// Cells along each edge of the grid the estimate is made on, which the shader indexes
-        /// with and so declares.
+        /// Cells along each edge of the grid the estimate is made on.
         static constexpr std::uint32_t sExtent = Shaders::SHADING_EXTENT;
         static constexpr std::size_t sCells = std::size_t{ sExtent } * sExtent;
 
         /// How far the correction may reach, either way.
         static inline const float sFloor = Shaders::SHADING_FLOOR;
         static inline const float sCeiling = Shaders::SHADING_CEILING;
+
+        /// How many times the grid is box blurred, three by three, before it is normalised: three passes
+        /// are a close enough Gaussian for anything this coarse, and a correction with an edge in it
+        /// would put that edge into the picture. **Wrapping along an axis the texture repeats**, because
+        /// Morrowind's textures tile and a blur that clamped there would invent a gradient across every
+        /// wall; **and clamped along one it clamps** (`TextureData::mWrap`), because that is an unwrapped
+        /// picture — a banner, a flame — whose border cells took the opposite edge's light and divided
+        /// real albedo by it.
+        static constexpr std::uint32_t sBlurPasses = 3;
 
         /// A map that changes nothing, which is what a texture that would not load has to get: a
         /// shader reading a missing one reads the array's stand-in, which is how every untextured
@@ -50,13 +58,6 @@ namespace Rtx
     private:
         std::array<float, sCells> mValues;
     };
-
-    // Read by the tests and by nothing else: the device encodes through `shadingmap.h`'s own.
-    /// One factor as the device stores it: a sixteen-bit unorm over the map's own range, so that
-    /// the neutral factor is exact and a step is a part in forty thousand. `SHADING_FLOOR` says why
-    /// the range is the map's and not the format's.
-    std::uint16_t encodeShading(float value);
-    float decodeShading(std::uint16_t stored);
 
     /// The map at a point, bilinear across it and wrapping with it — the shader's `paintedLight`.
     /// Wrapping because Morrowind's textures tile, and a clamp would seam every wall that repeats.

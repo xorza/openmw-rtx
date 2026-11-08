@@ -6,7 +6,6 @@
 
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/shaders/shared/bc7.h>
 #include <components/rtxvulkan/shaders/shared/ground.h>
@@ -46,9 +45,6 @@ namespace Rtx
             const MipLevel& top = texture.mLevels[first];
             return texelsOf(chainTo1x1(std::max(top.mWidth / 2, 1u), std::max(top.mHeight / 2, 1u)));
         }
-
-        constexpr VkDeviceSize sShadingBytes
-            = VkDeviceSize{ Shaders::SHADING_EXTENT } * Shaders::SHADING_EXTENT * texelBytes(SHADING_MAP_FORMAT);
     }
 
     ImageShape shapeOf(const TextureData& texture, const std::uint32_t first)
@@ -69,7 +65,7 @@ namespace Rtx
             .mImage = texture.bytesFrom(first),
             .mCompanion = texture.getCompanion() == TextureCompanion::Spread
                 ? spreadTexels(texture, first) * texelBytes(NORMAL_SPREAD_FORMAT)
-                : sShadingBytes,
+                : 0,
         };
     }
 
@@ -82,7 +78,7 @@ namespace Rtx
 
     TextureCost priceBake(const ImageShape& source)
     {
-        return TextureCost{ .mImage = writtenBytes(source), .mCompanion = sShadingBytes };
+        return TextureCost{ .mImage = writtenBytes(source) };
     }
 
     TextureCost priceComposite()
@@ -92,7 +88,6 @@ namespace Rtx
                 levelsTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT),
                 Shaders::BC7_BLOCK_BYTES)
                           .mBytes,
-            .mCompanion = sShadingBytes,
         };
     }
 
@@ -112,6 +107,6 @@ namespace Rtx
 
     TextureCost priceColour()
     {
-        return TextureCost{ .mImage = sizeof(std::array<float, 4>), .mCompanion = sShadingBytes };
+        return TextureCost{ .mImage = sizeof(std::array<float, 4>) };
     }
 }

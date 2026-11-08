@@ -90,7 +90,8 @@ namespace MWRender
                 = storage.getLayerInfo(Misc::ResourceHelpers::correctTexturePath(texture, vfs));
             layers.push_back(Rtx::PreparationLayer{ .mDiffuse = std::string(info.mDiffuseMap.value()),
                 .mNormal = std::string(info.mNormalMap.value()),
-                .mParallax = info.mParallax });
+                .mParallax = info.mParallax,
+                .mDiffuseSpec = info.mSpecular });
         };
         add(VFS::Path::NormalizedView("_land_default.dds"));
         for (const auto& [id, path] : store.get<ESM::LandTexture>())

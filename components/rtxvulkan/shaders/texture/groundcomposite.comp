@@ -71,7 +71,7 @@ void main()
         const vec2 at = layerUv(layer, chunkUv);
         const vec4 read = textureLod(
             textures[nonuniformEXT(layer.mDiffuse)], at, groundLod(layer.mDiffuse, layer, GROUND_COMPOSITE_EXTENT));
-        const vec4 shown = layerTexel(layer, at, read, GROUND_COMPOSITE_DELIGHT, authored, classic);
+        const vec4 shown = layerTexel(read, authored, classic);
         addLayer(sum, showing, shown, read.a, authored, classic, true);
     }
 

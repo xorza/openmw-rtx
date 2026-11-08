@@ -325,12 +325,6 @@ float normalMapSlopes(uint slot, TexturePoint point)
     return roughness * roughness * roughness * roughness;
 }
 
-/// The albedo a hit landed on, read as `sampleDiffuse` reads it, with the light painted into the
-/// texture divided back out by the run's `mDelight` — `delitTexel` says why.
-vec3 sampleAlbedo(uint slot, TexturePoint point)
-{
-    return delitTexel(slot, point.mAt, sampleDiffuse(slot, point).rgb, frame.mDelight);
-}
 
 /// How much of a terrain layer shows at `uv`, from the scene's grid of weights — `maskWeightIn`.
 float maskWeight(GpuLayer layer, vec2 uv)

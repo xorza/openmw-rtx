@@ -56,8 +56,6 @@ set(RTX_SHADERS
     shaders/texture/bc7encode.comp
     shaders/texture/groundcomposite.comp
     shaders/texture/normalspread.comp
-    shaders/texture/shadingmap.comp
-    shaders/texture/shadingsum.comp
     shaders/texture/spritelight.comp
     shaders/trace/denoise/accumulate.comp
     shaders/trace/denoise/accumulateclamp.comp
@@ -410,7 +408,6 @@ set(RTX_VULKAN_FILES
     shaders/shared/probe.h
     shaders/shared/ripple.h
     shaders/shared/sets.h
-    shaders/shared/shading.h
     shaders/shared/shadow.h
     shaders/shared/shadowmoments.h
     shaders/shared/share.h
@@ -437,8 +434,6 @@ set(RTX_VULKAN_FILES
     texture/groundcompositepass.hpp
     texture/normalspreadpass.cpp
     texture/normalspreadpass.hpp
-    texture/shadingpass.cpp
-    texture/shadingpass.hpp
     texture/spritelightpass.cpp
     texture/spritelightpass.hpp
     texture/texture.cpp

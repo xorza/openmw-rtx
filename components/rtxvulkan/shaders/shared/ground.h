@@ -27,12 +27,6 @@ namespace Rtx::Shaders
     /// chain halves exactly and ends at one texel.
     const uint GROUND_COMPOSITE_EXTENT = 512u;
 
-    /// How much painted light a bake divides out: full, because a composite cannot be corrected
-    /// later — the estimate repeats with a texture's tiling and a composite has none — so
-    /// `--delight` reaches the near field and not distant ground. A near chunk's bounce reads its
-    /// composite only at this delight and sums its stack at any other (`resolve`).
-    const float GROUND_COMPOSITE_DELIGHT = 1.0f;
-
     /// The bake's workgroup, square.
     const uint GROUND_COMPOSITE_WORKGROUP = 16u;
 

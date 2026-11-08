@@ -250,7 +250,6 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/texture/bc7encodepass.cpp
     rtxvulkan/texture/groundcompositepass.cpp
     rtxvulkan/texture/normalspreadpass.cpp
-    rtxvulkan/texture/shadingpass.cpp
     rtxvulkan/texture/spritelightpass.cpp
     rtxvulkan/texture/texturearrival.cpp
     rtxvulkan/texture/texturearray.cpp

@@ -61,4 +61,21 @@ namespace Rtx
         }
         return {};
     }
+
+    TextureEncoding SurfaceDescription::encodingOf(const SurfaceMap map, const SpecularLayout layout) const
+    {
+        switch (map)
+        {
+            case SurfaceMap::Normal:
+                return TextureEncoding::Normal;
+            case SurfaceMap::Specular:
+                return layout == SpecularLayout::Classic ? TextureEncoding::Colour : TextureEncoding::Data;
+            case SurfaceMap::Diffuse:
+                return getTexture(SurfaceMap::Specular) != nullptr && layout == SpecularLayout::MetalRoughness
+                    ? TextureEncoding::Colour
+                    : TextureEncoding::Painted;
+            default:
+                return TextureEncoding::Colour;
+        }
+    }
 }

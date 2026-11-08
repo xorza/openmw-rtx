@@ -101,7 +101,7 @@ namespace Rtx
 
         for (const GlFormat& row : sGlFormats)
             if (row.mPixelFormat == pixelFormat && (row.mType == sAnyType || row.mType == type))
-                return encoding == TextureEncoding::Colour ? row.mColour : row.mData;
+                return isColour(encoding) ? row.mColour : row.mData;
 
         return TextureFormat::Unnamed;
     }

@@ -42,10 +42,9 @@ namespace Rtx
 
     /// A sampled image on the GPU, the levels a content file brought for it, and what was measured
     /// on it — two `Image`s: the first uploaded, the second its companion, made off the first on the
-    /// device as it arrives (`TextureCompanion`): for a colour, the shading map, `SHADING_EXTENT`
-    /// squared, of the light the file already had painted into it; for a normal map, the spread its
-    /// levels lost; neutral for anything else. The companion travels with the texture because it is
-    /// measured on it and read at its coordinates.
+    /// device as it arrives (`TextureCompanion`): for a normal map, the spread its levels lost, and
+    /// none for anything else. The companion travels with the texture because it is measured on it
+    /// and read at its coordinates.
     class Texture
     {
     public:
@@ -100,6 +99,9 @@ namespace Rtx
         {
             return mImage.describeSampled(sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
+
+        /// Whether something is measured beside the texture: a normal map's spread.
+        bool hasCompanion() const { return !mCompanion.isEmpty(); }
 
         VkDescriptorImageInfo describeCompanion(VkSampler sampler) const
         {

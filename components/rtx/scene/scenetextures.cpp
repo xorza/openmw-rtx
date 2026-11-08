@@ -59,7 +59,7 @@ namespace Rtx
                     continue;
                 const TextureRow& row = scene.textures().getRows()[slot];
                 if (const osg::Image* const source = toPrepare(row))
-                    prepared->find(*source, row.mEncoding);
+                    prepared->find(*source, row.mEncoding, row.mWrap);
             }
             prepared->flush();
         }
@@ -92,10 +92,11 @@ namespace Rtx
             // as it stands while it is, and the slot named for its owner to stand again.
             const osg::Image* const source = toPrepare(row);
             const PreparedImage made = source != nullptr && prepared != nullptr
-                ? prepared->find(*source, row.mEncoding)
+                ? prepared->find(*source, row.mEncoding, row.mWrap)
                 : PreparedImage{ .mImage = row.mPrepared };
             if (made.mPending)
-                mPending.push_back(Pending{ .mSlot = slot, .mSource = source, .mEncoding = row.mEncoding });
+                mPending.push_back(
+                    Pending{ .mSlot = slot, .mSource = source, .mEncoding = row.mEncoding, .mWrap = row.mWrap });
             if (made.mImage != nullptr && row.mPrepared == nullptr)
                 mMade.push_back(Made{ .mSlot = slot, .mImage = made.mImage });
 

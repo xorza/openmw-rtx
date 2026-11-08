@@ -52,13 +52,14 @@ namespace Rtx
             hand->mWorker.stop();
     }
 
-    PreparedImage PreparedImages::find(const osg::Image& file, const TextureEncoding encoding)
+    PreparedImage PreparedImages::find(const osg::Image& file, const TextureEncoding encoding, const TextureWrap wrap)
     {
         assert(prepares(file, encoding) && "a colour's own chain asked to be made again");
 
         bool queued = false;
         PreparedImage answer = mMonitor.under([&] {
-            const Key key{ &file, encoding };
+            // The wrap only where it decides what is made: a painted colour's estimate follows it.
+            const Key key{ &file, encoding, encoding == TextureEncoding::Painted ? wrap : TextureWrap::Repeat };
             auto entry = mEntries.find(key);
             osg::ref_ptr<const osg::Image> standing;
             if (entry != mEntries.end() && !entry->second.mFile.lock(standing))
@@ -147,17 +148,21 @@ namespace Rtx
             },
             [&](const Platform::StopToken&) {
                 const osg::Image& file = *job.mFile;
-                hand.mContent.chain(file, job.mKey.second, hand.mChain);
+                const auto [image, encoding, wrap] = job.mKey;
+                hand.mContent.chain(ChainPass::Input{ .mImage = file, .mEncoding = encoding, .mWrap = wrap }, hand.mChain);
 
                 // The made levels move into the image that holds them; the file's finest level stays
                 // the file's (`MadeImage`).
                 osg::ref_ptr<const MadeImage> made;
+                const auto width = static_cast<std::uint32_t>(file.s());
+                const auto height = static_cast<std::uint32_t>(file.t());
                 if (hand.mChain.mForm == ChainForm::Coarser)
                     made = new MadeImage(
-                        file, MadeImage::laidLayout(readFormat(file, job.mKey.second)), std::move(hand.mChain.mBytes));
+                        file, MadeImage::laidLayout(readFormat(file, encoding)), std::move(hand.mChain.mBytes));
                 else if (hand.mChain.mForm == ChainForm::Bc7)
-                    made = MadeImage::whole(bc7FormatOf(job.mKey.second), static_cast<std::uint32_t>(file.s()),
-                        static_cast<std::uint32_t>(file.t()), std::move(hand.mChain.mBytes));
+                    made = MadeImage::whole(bc7FormatOf(encoding), width, height, std::move(hand.mChain.mBytes));
+                else if (hand.mChain.mForm == ChainForm::Own)
+                    made = MadeImage::whole(readFormat(file, encoding), width, height, std::move(hand.mChain.mBytes));
 
                 const ContentStats stats = hand.mContent.takeStats();
                 mMonitor.hand([&] {

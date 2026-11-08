@@ -1261,12 +1261,10 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     // sharpness, or the chunk has no composite, and one fetch for everything else, an untextured surface
     // included: its diffuse is `TEXTURE_NEUTRAL`, whose one texel is white.
     //
-    // **Near ground's bounce reads the composite only where the frame divides out the painted light the
-    // bake did** (`GROUND_COMPOSITE_DELIGHT`): the near field is what `--delight` reaches, its bounces as
-    // well as its eye, and a composite baked to another delight would bounce a colour the eye does not see.
+    // **Near ground's bounce reads the composite**, which the layers' delit colours were baked into as
+    // the stack sums them.
     const bool stacked = (material.mFlags & MATERIAL_STACKED) != 0u
-        || ((material.mFlags & MATERIAL_STACKED_SEEN) != 0u
-            && (detailed || frame.mDelight != GROUND_COMPOSITE_DELIGHT))
+        || ((material.mFlags & MATERIAL_STACKED_SEEN) != 0u && detailed)
         || (material.mLayerCount > 0u && !holdsTexture(material.mDiffuse));
     vec3 albedo = vec3(0.0);
 
@@ -1395,7 +1393,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
             const bool authored = HAS_MAPS && layerAuthored(layer, sceneTexels());
             const bool classic = HAS_MAPS && layerClassic(layer, sceneTexels());
             const vec4 read = sampleDiffuse(layer.mDiffuse, at);
-            const vec4 shown = layerTexel(layer, at.mAt, read, frame.mDelight, authored, classic);
+            const vec4 shown = layerTexel(read, authored, classic);
             addLayer(ground, showing, shown, read.a, authored, classic, HAS_MAPS);
 
             if (HAS_MAPS)
@@ -1421,10 +1419,8 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
         // And what the layers' maps lost, weighted as their roughness is.
         lostSlopes += ground.mWeights > 0.0 ? spread / ground.mWeights : 0.0;
     }
-    else if (specularMap && (material.mFlags & MATERIAL_SPECULAR_CLASSIC) == 0u)
-        albedo = sampleDiffuse(material.mDiffuse, point).rgb;
     else
-        albedo = sampleAlbedo(material.mDiffuse, point);
+        albedo = sampleDiffuse(material.mDiffuse, point).rgb;
 
     // The vertex colour *replaces* the material's tint where the content asked for it, which is
     // what `glColorMaterial(GL_AMBIENT_AND_DIFFUSE)` does and what `getDiffuseColor` reads in the
@@ -1483,9 +1479,9 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     // energy it keeps and the cone a reflection leaves in.
     surface.mRoughness = widenedRoughness(surface.mRoughness, lostSlopes);
 
-    // **Fetched again rather than kept from the albedo.** `sampleAlbedo` drops the alpha on purpose, for
-    // the reason written over it: it is the hottest sampler in the shader and an out-parameter there costs
-    // every opaque surface in the frame. This is a fetch a pane of glass pays and nothing else does.
+    // **Fetched again rather than kept from the albedo**, whose read keeps its colour alone: it is the
+    // hottest sampler in the shader and an out-parameter there costs every opaque surface in the frame.
+    // This is a fetch a pane of glass pays and nothing else does.
     const float opacity = surfaceOpacity(instance, material);
     const bool seenThrough = isSeenThrough(opacity, material);
     if (seenThrough)
