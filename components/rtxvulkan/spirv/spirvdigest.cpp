@@ -2,14 +2,17 @@
 
 #include <algorithm>
 #include <array>
+#include <compare>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -303,44 +306,32 @@ namespace Rtx
                     mColours[global] = canon.hash();
                 }
 
-                std::size_t distinct = countDistinct(mColours);
-                std::vector<DigestWords> next(mGlobals.size());
-                while (true)
-                {
-                    for (std::size_t global = 0; global < mGlobals.size(); ++global)
+                refineToFixedPoint(mColours, [&](const std::size_t global) {
+                    const Line& line = *mGlobals[global];
+                    Canon canon;
+                    canon.digest('S', mColours[global]);
+                    for (const std::string_view operand : line.mOperands)
+                        if (isId(operand))
+                            canon.digest('G', mColours[globalAt(operand)]);
+
+                    std::vector<DigestWords> decorations;
+                    for (const Line* decoration : decorationsOf(line.mResult))
                     {
-                        const Line& line = *mGlobals[global];
-                        Canon canon;
-                        canon.digest('S', mColours[global]);
-                        for (const std::string_view operand : line.mOperands)
-                            if (isId(operand))
-                                canon.digest('G', mColours[globalAt(operand)]);
-
-                        std::vector<DigestWords> decorations;
-                        for (const Line* decoration : decorationsOf(line.mResult))
-                        {
-                            Canon named;
-                            named.literal(decoration->mOp);
-                            for (std::size_t at = 1; at < decoration->mOperands.size(); ++at)
-                                if (isId(decoration->mOperands[at]))
-                                    named.digest('G', mColours[globalAt(decoration->mOperands[at])]);
-                                else
-                                    named.literal(decoration->mOperands[at]);
-                            decorations.push_back(named.hash());
-                        }
-                        std::ranges::sort(decorations);
-                        for (const DigestWords& decoration : decorations)
-                            canon.digest('D', decoration);
-
-                        next[global] = canon.hash();
+                        Canon named;
+                        named.literal(decoration->mOp);
+                        for (std::size_t at = 1; at < decoration->mOperands.size(); ++at)
+                            if (isId(decoration->mOperands[at]))
+                                named.digest('G', mColours[globalAt(decoration->mOperands[at])]);
+                            else
+                                named.literal(decoration->mOperands[at]);
+                        decorations.push_back(named.hash());
                     }
+                    std::ranges::sort(decorations);
+                    for (const DigestWords& decoration : decorations)
+                        canon.digest('D', decoration);
 
-                    mColours.swap(next);
-                    const std::size_t refined = countDistinct(mColours);
-                    if (refined == distinct)
-                        break;
-                    distinct = refined;
-                }
+                    return canon.hash();
+                });
 
                 std::vector<DigestWords> sorted = mColours;
                 std::ranges::sort(sorted);
@@ -349,6 +340,27 @@ namespace Rtx
                 {
                     const auto [first, last] = std::ranges::equal_range(sorted, mColours[global]);
                     mAlike[global] = last - first > 1;
+                }
+            }
+
+            /// Rounds of `recolour`, which names the element at an index by its own colour and what it
+            /// reads of the round before, until a round tells no two apart that the round before did
+            /// not. Each colour holds the last round's, so each round's partition refines the last:
+            /// at most one round an element.
+            template <class Recolour>
+            static void refineToFixedPoint(std::vector<DigestWords>& colours, const Recolour& recolour)
+            {
+                std::size_t distinct = countDistinct(colours);
+                std::vector<DigestWords> next(colours.size());
+                while (true)
+                {
+                    for (std::size_t at = 0; at < colours.size(); ++at)
+                        next[at] = recolour(at);
+                    colours.swap(next);
+                    const std::size_t refined = countDistinct(colours);
+                    if (refined == distinct)
+                        return;
+                    distinct = refined;
                 }
             }
 
@@ -442,9 +454,162 @@ namespace Rtx
                 return canon.hash();
             }
 
-            /// A function's instructions in their order, each id it defines named by where it is
-            /// defined and each decoration on one written after it. **A function a call names is
-            /// digested first**, which SPIR-V's ban on recursion keeps finite.
+            /// A phi's (value, parent) pairs, ordered by where each parent block is defined: **the
+            /// pairs of a phi are a set**, one to a parent, and their order is not the program.
+            static std::vector<std::pair<std::string_view, std::string_view>> pairsOf(
+                const Line& phi, const std::unordered_map<std::string_view, std::size_t>& placed)
+            {
+                if (phi.mOperands.size() % 2 != 1)
+                    throw std::runtime_error("the pairs of the phi " + std::string(phi.mResult) + " do not pair");
+
+                std::vector<std::pair<std::string_view, std::string_view>> pairs;
+                pairs.reserve(phi.mOperands.size() / 2);
+                for (std::size_t at = 1; at < phi.mOperands.size(); at += 2)
+                {
+                    if (!placed.contains(phi.mOperands[at + 1]))
+                        throw std::runtime_error("the phi " + std::string(phi.mResult) + " names a parent, "
+                            + std::string(phi.mOperands[at + 1]) + ", that its function does not define");
+                    pairs.emplace_back(phi.mOperands[at], phi.mOperands[at + 1]);
+                }
+                std::ranges::stable_sort(pairs, {}, [&](const auto& pair) { return placed.at(pair.second); });
+                return pairs;
+            }
+
+            /// The order a function's lines are digested in: the module's, except that **each run of
+            /// phis at a block's head is ordered by what its phis are**, since they take their values
+            /// at once and their order is not the program.
+            ///
+            /// What a phi is: colour refinement over the function's phis, as `refine` does over the
+            /// globals, from its type, its pairs and its decorations, each value named by where it is
+            /// defined or, for a phi, by that phi's colour of the round before. None of it reads an id
+            /// or a phi's place, and every other line keeps its place, since every run keeps its
+            /// length. **Phis the refinement left alike are ordered by where the program first reads
+            /// them**, at which line and which operand, and in the module's order where only phis
+            /// read them: an order that follows the module can name one program two digests, and
+            /// never two programs one, since every instruction is written whatever the order.
+            std::vector<std::size_t> digestOrder(
+                const Function& range, const std::unordered_map<std::string_view, std::size_t>& placed) const
+            {
+                std::vector<std::size_t> order;
+                order.reserve(range.mEnd - range.mBegin);
+                for (std::size_t at = range.mBegin; at < range.mEnd; ++at)
+                    order.push_back(at);
+
+                struct Run
+                {
+                    std::size_t mBegin;
+                    std::size_t mEnd;
+                };
+                std::vector<Run> runs;
+                std::vector<std::size_t> phis;
+                std::unordered_map<std::string_view, std::size_t> phiAt;
+                for (std::size_t at = range.mBegin; at < range.mEnd; ++at)
+                {
+                    if (mLines[at].mOp != "OpLabel")
+                        continue;
+                    Run run{ .mBegin = at + 1, .mEnd = at + 1 };
+                    while (run.mEnd < range.mEnd && mLines[run.mEnd].mOp == "OpPhi")
+                    {
+                        phiAt.emplace(mLines[run.mEnd].mResult, phis.size());
+                        phis.push_back(run.mEnd++);
+                    }
+                    if (run.mEnd - run.mBegin > 1)
+                        runs.push_back(run);
+                }
+                if (runs.empty())
+                    return order;
+
+                // Named without `nameOutside`, which counts the order the alike globals are first
+                // named in, and that order follows the one this decides.
+                const auto nameQuietly = [&](Canon& canon, const std::string_view operand) {
+                    if (!isId(operand))
+                        canon.literal(operand);
+                    else if (phiAt.contains(operand))
+                        canon.literal("phi");
+                    else if (const auto local = placed.find(operand); local != placed.end())
+                        canon.number('L', local->second);
+                    else if (const auto global = mGlobalAt.find(operand); global != mGlobalAt.end())
+                        canon.digest('G', mColours[global->second]);
+                    else
+                        throw std::runtime_error("a phi names " + std::string(operand) + ", which no value defines");
+                };
+
+                std::vector<std::vector<std::pair<std::string_view, std::string_view>>> pairs;
+                pairs.reserve(phis.size());
+                std::vector<DigestWords> colours(phis.size());
+                for (std::size_t phi = 0; phi < phis.size(); ++phi)
+                {
+                    const Line& line = mLines[phis[phi]];
+                    pairs.push_back(pairsOf(line, placed));
+
+                    Canon canon;
+                    nameQuietly(canon, line.mOperands[0]);
+                    for (const auto& [value, parent] : pairs.back())
+                    {
+                        nameQuietly(canon, value);
+                        canon.number('L', placed.at(parent));
+                    }
+
+                    std::vector<DigestWords> decorations;
+                    for (const Line* decoration : decorationsOf(line.mResult))
+                    {
+                        Canon shape;
+                        shape.literal(decoration->mOp);
+                        for (std::size_t at = 1; at < decoration->mOperands.size(); ++at)
+                            nameQuietly(shape, decoration->mOperands[at]);
+                        decorations.push_back(shape.hash());
+                    }
+                    std::ranges::sort(decorations);
+                    for (const DigestWords& decoration : decorations)
+                        canon.digest('D', decoration);
+
+                    colours[phi] = canon.hash();
+                }
+
+                refineToFixedPoint(colours, [&](const std::size_t phi) {
+                    Canon canon;
+                    canon.digest('S', colours[phi]);
+                    for (const auto& [value, parent] : pairs[phi])
+                        if (const auto read = phiAt.find(value); read != phiAt.end())
+                            canon.digest('P', colours[read->second]);
+                    return canon.hash();
+                });
+
+                struct FirstRead
+                {
+                    std::size_t mLine = std::numeric_limits<std::size_t>::max();
+                    std::size_t mOperand = 0;
+
+                    auto operator<=>(const FirstRead&) const = default;
+                };
+                std::vector<FirstRead> firstReads(phis.size());
+                for (std::size_t at = range.mBegin; at < range.mEnd; ++at)
+                {
+                    if (mLines[at].mOp == "OpPhi")
+                        continue;
+                    const std::vector<std::string_view>& operands = mLines[at].mOperands;
+                    for (std::size_t operand = 0; operand < operands.size(); ++operand)
+                        if (const auto read = phiAt.find(operands[operand]); read != phiAt.end())
+                            firstReads[read->second]
+                                = std::min(firstReads[read->second], FirstRead{ .mLine = at, .mOperand = operand });
+                }
+
+                for (const Run& run : runs)
+                {
+                    const auto begin = order.begin() + static_cast<std::ptrdiff_t>(run.mBegin - range.mBegin);
+                    const auto end = order.begin() + static_cast<std::ptrdiff_t>(run.mEnd - range.mBegin);
+                    std::stable_sort(begin, end, [&](const std::size_t left, const std::size_t right) {
+                        const std::size_t a = phiAt.at(mLines[left].mResult);
+                        const std::size_t b = phiAt.at(mLines[right].mResult);
+                        return std::tie(colours[a], firstReads[a]) < std::tie(colours[b], firstReads[b]);
+                    });
+                }
+                return order;
+            }
+
+            /// A function's instructions in their order (`digestOrder`), each id it defines named by
+            /// where it is defined in that order and each decoration on one written after it. **A
+            /// function a call names is digested first**, which SPIR-V's ban on recursion keeps finite.
             DigestWords functionDigest(std::size_t function)
             {
                 if (mFunctionDigests[function].has_value())
@@ -453,10 +618,16 @@ namespace Rtx
                     throw std::runtime_error("a function calls itself");
 
                 const Function& range = mFunctions[function];
-                std::unordered_map<std::string_view, std::size_t> numbered;
+                std::unordered_map<std::string_view, std::size_t> placed;
                 for (std::size_t at = range.mBegin; at < range.mEnd; ++at)
-                    if (!mLines[at].mResult.empty() && !numbered.emplace(mLines[at].mResult, numbered.size()).second)
+                    if (!mLines[at].mResult.empty() && !placed.emplace(mLines[at].mResult, placed.size()).second)
                         throw std::runtime_error(std::string(mLines[at].mResult) + " is defined twice");
+
+                const std::vector<std::size_t> order = digestOrder(range, placed);
+                std::unordered_map<std::string_view, std::size_t> numbered;
+                for (const std::size_t at : order)
+                    if (!mLines[at].mResult.empty())
+                        numbered.emplace(mLines[at].mResult, numbered.size());
 
                 const auto name = [&](Canon& canon, std::string_view operand) {
                     if (!isId(operand))
@@ -468,14 +639,25 @@ namespace Rtx
                 };
 
                 Canon canon;
-                for (std::size_t at = range.mBegin; at < range.mEnd; ++at)
+                for (const std::size_t at : order)
                 {
                     const Line& line = mLines[at];
                     if (!line.mResult.empty())
                         canon.number('L', numbered.at(line.mResult));
                     canon.literal(line.mOp);
-                    for (const std::string_view operand : line.mOperands)
-                        name(canon, operand);
+                    if (line.mOp == "OpPhi")
+                    {
+                        const auto pairs = pairsOf(line, placed);
+                        name(canon, line.mOperands[0]);
+                        for (const auto& [value, parent] : pairs)
+                        {
+                            name(canon, value);
+                            name(canon, parent);
+                        }
+                    }
+                    else
+                        for (const std::string_view operand : line.mOperands)
+                            name(canon, operand);
 
                     if (!line.mResult.empty())
                     {

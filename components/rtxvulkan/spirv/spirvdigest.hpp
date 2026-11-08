@@ -23,7 +23,8 @@ namespace Rtx
     /// pointer cycles `OpTypeForwardPointer` makes do not stop. **An id a function defines is named
     /// by where it is defined**, since the order of a function's instructions is its program. What
     /// has no order — the capabilities, the entry point's interface, the execution modes, the
-    /// globals — is sorted. The digest is `MurmurHash3_x64_128`'s, as `digestShaders`' is.
+    /// globals, the phis at a block's head and each phi's pairs — is sorted. The digest is
+    /// `MurmurHash3_x64_128`'s, as `digestShaders`' is.
     ///
     /// **Instructions and not values**: two programs that compute one value by different
     /// instructions digest apart. Debug instructions are skipped, since they are not the program.

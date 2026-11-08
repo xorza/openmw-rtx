@@ -47,6 +47,40 @@ OpReturn
 OpFunctionEnd
 )";
 
+        /// A loop whose head holds four phis: `%a` and `%b` differ only in the phi each takes from
+        /// the body, and nothing but a phi reads either.
+        constexpr std::string_view sLoop = R"(OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint GLCompute %main "main"
+OpExecutionMode %main LocalSize 1 1 1
+%void = OpTypeVoid
+%action = OpTypeFunction %void
+%float = OpTypeFloat 32
+%bool = OpTypeBool
+%pointer = OpTypePointer Private %float
+%out = OpVariable %pointer Private
+%one = OpConstant %float 1
+%two = OpConstant %float 2
+%main = OpFunction %void None %action
+%entry = OpLabel
+OpBranch %head
+%head = OpLabel
+%a = OpPhi %float %one %entry %c %body
+%b = OpPhi %float %one %entry %d %body
+%c = OpPhi %float %one %entry %a %body
+%d = OpPhi %float %two %entry %b %body
+%more = OpFOrdLessThan %bool %c %d
+OpLoopMerge %end %body None
+OpBranchConditional %more %body %end
+%body = OpLabel
+OpBranch %head
+%end = OpLabel
+%less = OpFSub %float %c %d
+OpStore %out %less
+OpReturn
+OpFunctionEnd
+)";
+
         std::string replaced(std::string_view text, std::string_view from, std::string_view to)
         {
             std::string result(text);
@@ -253,8 +287,43 @@ OpFunctionEnd
                     replaced(deep, "%kept = OpLoad %outerFloat %heldFloat", "%kept = OpLoad %outerInt %heldInt")));
         }
 
+        /// **The phis at a block's head and each phi's pairs have no order**: the loop with its
+        /// head's phis turned round, or with a pair turned round, is one program. Nothing but a phi
+        /// reads `%a` or `%b`, so the refinement and not the program's reads orders them. The
+        /// comparison reading its two phis the other way round, or a phi taking another from the
+        /// body, is another program.
+        TEST(RtxSpirvDigestTest, thePhisOfABlockAndThePairsOfAPhiHaveNoOrder)
+        {
+            const auto digest = digestProgram(sLoop);
+
+            constexpr std::string_view phis = R"(%a = OpPhi %float %one %entry %c %body
+%b = OpPhi %float %one %entry %d %body
+%c = OpPhi %float %one %entry %a %body
+%d = OpPhi %float %two %entry %b %body
+)";
+            constexpr std::string_view turned = R"(%d = OpPhi %float %two %entry %b %body
+%c = OpPhi %float %one %entry %a %body
+%b = OpPhi %float %one %entry %d %body
+%a = OpPhi %float %one %entry %c %body
+)";
+            EXPECT_EQ(digestProgram(replaced(sLoop, phis, turned)), digest) << "the phis turned round";
+            EXPECT_EQ(digestProgram(replaced(
+                          sLoop, "%b = OpPhi %float %one %entry %d %body", "%b = OpPhi %float %d %body %one %entry")),
+                digest)
+                << "a phi's pairs turned round";
+
+            EXPECT_NE(
+                digestProgram(replaced(sLoop, "%less = OpFSub %float %c %d", "%less = OpFSub %float %d %c")), digest)
+                << "the comparison's phis read the other way round";
+            EXPECT_NE(digestProgram(replaced(
+                          sLoop, "%b = OpPhi %float %one %entry %d %body", "%b = OpPhi %float %one %entry %c %body")),
+                digest)
+                << "another phi taken from the body";
+        }
+
         /// **What it cannot read, it refuses, and names**: an operand nothing defines, a decoration of
-        /// nothing, a line that is not an instruction, and a module with no function.
+        /// nothing, a line that is not an instruction, a module with no function, a phi whose pairs
+        /// do not pair and a phi whose parent is no block of its function.
         TEST(RtxSpirvDigestTest, whatItCannotReadItRefuses)
         {
             const std::string broken[] = {
@@ -262,6 +331,8 @@ OpFunctionEnd
                 replaced(sKernel, "OpDecorate %less NoContraction", "OpDecorate %nowhere NoContraction"),
                 replaced(sKernel, "OpReturn", "return"),
                 "OpCapability Shader\nOpMemoryModel Logical GLSL450\n",
+                replaced(sLoop, "%a = OpPhi %float %one %entry %c %body", "%a = OpPhi %float %one %entry %c"),
+                replaced(sLoop, "%a = OpPhi %float %one %entry %c %body", "%a = OpPhi %float %one %entry %c %out"),
             };
 
             for (const std::string& text : broken)
