@@ -124,20 +124,19 @@ namespace RtxTool
         /// run on another commit, and a figure it never wrote is one nobody can go back for.
         std::string asJson(const Rtx::SceneStats& scene)
         {
-            return std::format(
-                R"({{"instances": {}, "instanceSlots": {}, "cutoutInstances": {}, )"
-                R"("waterInstances": {}, "mediumInstances": {}, )"
-                R"("structureBytes": {}, "structureLiveBytes": {}, )"
-                R"("compactableBytes": {}, "compactableNowBytes": {}, "rebuilt": {}, )"
-                R"("tableBytes": {}, "workBytes": {}, "textureCount": {}, "textureBytes": {}, )"
-                R"("reducedTextureCount": {}, "textureBytesBySource": {{"files": {}, )"
-                R"("completedFiles": {}, "spriteBakes": {}, "groundComposites": {}, "groundGloss": {}}}}})",
+            return std::format(R"({{"instances": {}, "instanceSlots": {}, "cutoutInstances": {}, )"
+                               R"("waterInstances": {}, "mediumInstances": {}, )"
+                               R"("structureBytes": {}, "structureLiveBytes": {}, )"
+                               R"("compactableBytes": {}, "compactableNowBytes": {}, "rebuilt": {}, )"
+                               R"("tableBytes": {}, "workBytes": {}, "textureCount": {}, "textureBytes": {}, )"
+                               R"("reducedTextureCount": {}, "textureBytesBySource": {{"files": {}, )"
+                               R"("spriteBakes": {}, "groundComposites": {}, "groundGloss": {}}}}})",
                 scene.mInstances.mPlaced, scene.mInstanceSlots, scene.mInstances.mCutout, scene.mInstances.mWater,
                 scene.mInstances.mMedium, scene.mStructureBytes, scene.mStructureLiveBytes, scene.mCompactableBytes,
                 scene.mCompactableNowBytes, scene.mRebuilt, scene.mTableBytes, scene.mWorkBytes, scene.mTextureCount,
                 scene.mTextureBytes, scene.mReducedTextureCount, scene.mTextureBytesBySource.mFiles,
-                scene.mTextureBytesBySource.mCompletedFiles, scene.mTextureBytesBySource.mSpriteBakes,
-                scene.mTextureBytesBySource.mGroundComposites, scene.mTextureBytesBySource.mGroundGloss);
+                scene.mTextureBytesBySource.mSpriteBakes, scene.mTextureBytesBySource.mGroundComposites,
+                scene.mTextureBytesBySource.mGroundGloss);
         }
 
         /// Every heap the device stated and every use, as the report's memory lines read them.
@@ -358,13 +357,12 @@ namespace RtxTool
         return std::format(
             "{} instances ({} cutouts) in {} slots   {:.1f} MiB structures in {:.1f} reserved{}, {:.1f} MiB "
             "tables, {:.1f} MiB working   {} textures, "
-            "{:.1f} MiB{}: files {:.1f}, completed {:.1f}, bakes {:.1f}, ground {:.1f}, gloss {:.1f}",
+            "{:.1f} MiB{}: files {:.1f}, bakes {:.1f}, ground {:.1f}, gloss {:.1f}",
             scene.mInstances.mPlaced, scene.mInstances.mCutout, scene.mInstanceSlots,
             Rtx::megabytes(scene.mStructureLiveBytes), Rtx::megabytes(scene.mStructureBytes), describeCompaction(scene),
             Rtx::megabytes(scene.mTableBytes), Rtx::megabytes(scene.mWorkBytes), scene.mTextureCount,
             Rtx::megabytes(scene.mTextureBytes), describeReduced(scene),
             Rtx::megabytes(scene.mTextureBytesBySource.mFiles),
-            Rtx::megabytes(scene.mTextureBytesBySource.mCompletedFiles),
             Rtx::megabytes(scene.mTextureBytesBySource.mSpriteBakes),
             Rtx::megabytes(scene.mTextureBytesBySource.mGroundComposites),
             Rtx::megabytes(scene.mTextureBytesBySource.mGroundGloss));

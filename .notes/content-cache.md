@@ -123,8 +123,7 @@ import step, as `openmw-navmeshtool` is for the navigation mesh, and its store i
   Refused: NVTT 3's slope-space filter
   ([NVIDIA](https://developer.nvidia.com/blog/Texture-Tools-Exporter-2020-1)), which suits a height-derived map better
   but puts each level's direction in another space than the spread measured around it. Moving both together is a
-  separate change. One filter on the host and none on the device, so a chainless file's levels stay what they are now,
-  apart from the encoder.
+  separate change. One filter on the host and none on the device.
 - **The coarser levels are encoded on the host, in the file's format**: BC1, BC2, BC3, BC4 and BC5, the only formats
   the three installs hold for these files. Dependency, approved by the user: `rgbcx.h` from bc7enc_rdo (Rich Geldreich,
   MIT or public domain; the licence is read from the repository before it is vendored), one header with BC1 to BC5 encoders and decoders, whose BC1 matches Compressonator and libsquish in quality at
@@ -132,8 +131,11 @@ import step, as `openmw-navmeshtool` is for the navigation mesh, and its store i
   code. Refused: an encoder of our own, a quality problem that a maintained one already solves; and new BC1 and BC3
   encoders on the device with a read-back, which adds two compute encoders and a transfer to the host to fill a disk
   file.
-- **A chainless file of 512 or less on a side keeps its loose chain**, stored loose, so no vanilla picture moves. Its
-  level 0 is the file's decoded, as now. The proof is vanilla's shots against the base, which are the same.
+- **A chainless block file of 512 or less on a side keeps its loose chain**, stored loose, so a vanilla level moves by
+  the box's rounding and not by an encoder's step. Its level 0 is the file's decoded, as before. **Vanilla moves by a
+  byte**, by the user's decision: the host's box rounds where the device's rounded in its own float order, and 11 of
+  vanilla's 72 pictures moved by 1 to 3 of 255 on at most 1.25% of their pixels. Refused: the device completion kept
+  for vanilla's files so that no picture moves, a second route to one result.
 - **A chain is built on a worker, never on the frame or the reader.** A 2048-square normal map's levels take tens of
   milliseconds to build and encode. A cold start of the PBR profile builds about 1500 of them. A build on the cell
   reader would hold up each cell by seconds, and a build on the frame would be a spike. Workers drain a bounded queue.
@@ -142,8 +144,9 @@ import step, as `openmw-navmeshtool` is for the navigation mesh, and its store i
   the queue to empty, so a measured or compared frame always draws the built chains. A warm start reads the stored
   levels on a worker as well, so the reader thread does no new I/O. Refused: the build on the reader thread, and the
   device completion kept for what the frame thread meets, which would be a second route to one result.
-- **The device completion is removed** (`MipChainPass`, the loose chains, `TextureData::mCompleteChain`) once
-  every chain comes from the store. `Bc7EncodePass` stays, because the ground composite encodes through it.
+- **The device completion is removed** (`MipChainPass`, `RgtcEncodePass`, the arrival's loose chains,
+  `TextureData::mCompleteChain`): every chain comes from the host. `Bc7EncodePass` stays, because the ground composite
+  encodes through it.
 - **A run states its store.** The game uses `<cache>/rtx-content`, under the user's cache directory, which the renderer
   already gets (`mCacheDirectory`). The harness takes `--content-cache=<dir>|off`. A measured run uses the game's store,
   warm after a throwaway leg, as it already warms the card. A test uses a store of its own in its test folder, or none.
@@ -225,14 +228,20 @@ otherwise than the items said:
   finest level and the made levels) is the change that would remove it.
 - **Not made again**: BC4 and BC5 maps, which no host reader decodes and whose channels hold no alpha to be weighed by,
   and a BC1 map with a cut, whose one bit of alpha a box blurs.
-- **A picture's scene reads its files as they stand**: only the world's hand-over is handed the prepared images.
 - `halving.h`, the odd-axis rule, moved to the core's shared headers, so the host chain reads the device's.
 
-Batch 4: chainless files.
+Batch 4 is done: every file that lacks a chain has one made by the chain pass, and the device completion is gone
+with its passes, its shaders, the arrival's canvas and the BC4 and BC5 encoder. What it does otherwise than the items
+said:
 
-1. **Every file that lacks a chain through the chain pass**, the loose chain for 512 or less on a side.
-2. **The device completion removed**: `MipChainPass`, `mipchain.comp`, the loose chains, `mCompleteChain` and the
-    canvas room the arrival keeps for them.
+- **A made chain has two forms** (`ChainForm`): loose to a texel for a block file of one level up to 512 a side and for
+  a BC1 file of one level with a cut, whose coverage BC1 cannot hold; coarser levels in the file's own format for
+  every other, which a 4096-square BC1 replacer with no levels keeps in 2.7 MB where loose it took 89 MB.
+- **A picture's scene reads the prepared images too**, and a settled hand-over, a picture's always, waits for them
+  inside the describe (`SceneTextures::describe`): with the completion gone, a picture's chainless file had no chain.
+- **The chain threads' figures are in the report**, a row of their own (`Preprocessed::mPrepared`).
+- **A chainless BC4 or BC5 file stands at its one level**, since no host reader decodes it: none of the PBR install's
+  or the Fullrest Repack's files of one level is one (research note, "Formats").
 
 Batch 5: the shapes.
 

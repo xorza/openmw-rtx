@@ -55,9 +55,7 @@ set(RTX_SHADERS
     shaders/scene/toplevelpack.comp
     shaders/texture/bc7encode.comp
     shaders/texture/groundcomposite.comp
-    shaders/texture/mipchain.comp
     shaders/texture/normalspread.comp
-    shaders/texture/rgtcencode.comp
     shaders/texture/shadingmap.comp
     shaders/texture/shadingsum.comp
     shaders/texture/spritelight.comp
@@ -406,12 +404,10 @@ set(RTX_VULKAN_FILES
     shaders/shared/historyclamp.h
     shaders/shared/line.h
     shaders/shared/medium.h
-    shaders/shared/mipchain.h
     shaders/shared/normalspread.h
     shaders/shared/pane.h
     shaders/shared/pinning.h
     shaders/shared/probe.h
-    shaders/shared/rgtc.h
     shaders/shared/ripple.h
     shaders/shared/sets.h
     shaders/shared/shading.h
@@ -439,12 +435,8 @@ set(RTX_VULKAN_FILES
     texture/blockencode.hpp
     texture/groundcompositepass.cpp
     texture/groundcompositepass.hpp
-    texture/mipchainpass.cpp
-    texture/mipchainpass.hpp
     texture/normalspreadpass.cpp
     texture/normalspreadpass.hpp
-    texture/rgtcencodepass.cpp
-    texture/rgtcencodepass.hpp
     texture/shadingpass.cpp
     texture/shadingpass.hpp
     texture/spritelightpass.cpp

@@ -7,6 +7,8 @@
 
 namespace Rtx
 {
+    class PreparedImages;
+
     /// What every walk on one thread shares: where its traversal numbers come from, what it computes
     /// from the content, and what the content's `_spec` maps mean. **One a thread, owned by what owns
     /// the thread's walks, and handed to each by reference**: a walk with a counter or a cache of its
@@ -16,6 +18,10 @@ namespace Rtx
     {
         Traversals mTraversals{};
         ThreadContent mContent{};
+
+        /// Where a scene this thread hands over finds its files' chains made (`PreparedImages`), or
+        /// null for none: the world's and every picture's.
+        PreparedImages* mPrepared = nullptr;
 
         /// `[RTX] specular map layout`, told rather than read, so this library reads no settings.
         const SpecularLayout mSpecular;

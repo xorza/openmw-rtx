@@ -194,9 +194,6 @@ namespace MWRender
         /// The process's content store, or null: what the cell reader is handed (`CellWorld::mStore`).
         Rtx::ContentStore* mStore;
 
-        /// What the world's hand-over finds made images in, or null.
-        Rtx::PreparedImages* mPrepared;
-
         /// Shared by every walk on the frame thread: the world's and every traced view's.
         Rtx::WalkContext mWalk;
 

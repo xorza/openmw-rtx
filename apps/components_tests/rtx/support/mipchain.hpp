@@ -7,10 +7,9 @@
 
 namespace Rtx::Testing
 {
-    /// The levels a texture needs, built on the host where its file carried none
-    /// (`TextureData::wantsCompletedChain`): the host's chain (`ChainBuild`) beside the one the device
-    /// makes as the texture arrives, `mipchain.comp`, which a test holds that one to. Owns its bytes, unlike
-    /// a `TextureData`, because there is nobody else's to span for a level no file holds.
+    /// The whole chain of a texture whose file carried one level of more than a texel, built as the
+    /// host builds it (`ChainBuild`) and laid out loose, as `ChainPass` lays out a small one. Owns its
+    /// bytes, unlike a `TextureData`, because there is nobody else's to span for a level no file holds.
     class MipChain
     {
     public:
@@ -19,8 +18,8 @@ namespace Rtx::Testing
         /// For a caller with one texture to build and no chain to reuse. `build` is the whole of it.
         explicit MipChain(const TextureData& described) { build(described); }
 
-        /// Builds a chain where `TextureData::wantsCompletedChain` says, and nothing otherwise. Refills this one, so a
-        /// loader keeps the room the last chain grew.
+        /// Builds a chain where the file carried one level of more than a texel, and nothing otherwise.
+        /// Refills this one, so a loader keeps the room the last chain grew.
         void build(const TextureData& described);
 
         /// Empties the chain and keeps the room its texture grew.

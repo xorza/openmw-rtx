@@ -133,10 +133,9 @@ namespace Rtx
         /// means it is built through, which are the arrival's room and priced once as what it grows
         /// by — all of it here, where the array holds none yet: from 64, 32 square down is 1365
         /// texels, 1365 + 21840 bytes beside the 21504, 44709 in all; from 32, 341 texels and 5120,
-        /// 10917; from 16, 85 texels and 1024, 2469. A one-level 64 square the device completes is its chain to one
-        /// texel, 5461 texels and 21844 bytes, the 16384 bytes of the level uploaded to make it, and its map, 40276 —
-        /// whatever the side, because the file has no smaller level — and a bake of it is the whole chain again with a
-        /// map, 23892, and not its one level.
+        /// 10917; from 16, 85 texels and 1024, 2469. A one-level 64 square is its level and its map,
+        /// 18432, whatever the side, because the file has no smaller level, and a bake of it the
+        /// same again.
         TEST_F(RtxTextureArrayTest, anArrivalIsHeldToTheLargestSideItFitsTheRoomAt)
         {
             Device& device = getDevice();
@@ -155,26 +154,23 @@ namespace Rtx
             Testing::TestTexture normals;
             Testing::paintLevels(normals, 64, 64, 3, "normals");
             normals.mData.mEncoding = TextureEncoding::Normal;
-            Testing::TestTexture completed;
-            Testing::paintLevels(completed, 64, 64, 1, "completed");
-            completed.mData.mCompleteChain = true;
+            Testing::TestTexture single;
+            Testing::paintLevels(single, 64, 64, 1, "single");
 
             const std::array alone{ ladder.mData };
             const std::array ground{ ladder.mData, composite };
             const std::array baked{ ladder.mData, bake };
             const std::array spread{ normals.mData };
-            const std::array chained{ completed.mData, bake };
+            const std::array lone{ single.mData, bake };
 
             const TextureCost atTop = priceFile(normals.mData, 0);
             EXPECT_EQ(atTop.mImage, 21504u);
             EXPECT_EQ(atTop.mCompanion, 1365u);
-            EXPECT_EQ(atTop.mTransient, 0u) << "a file priced the means its arrival's room holds";
             EXPECT_EQ(spreadMeansBytes(normals.mData, 0), 21840u);
             EXPECT_EQ(atTop.standing(), 21504u + 1365u) << "a standing texture keeps no means";
-            EXPECT_EQ(priceFile(completed.mData, 0).mTransient, 16384u);
 
             // The first level of each side: 64 the top, 32 the second, 16 the third, and below 16
-            // the third again, where the ladder has no level. The completed chain has its one.
+            // the third again, where the ladder has no level. The one-level file has its one.
             struct Case
             {
                 std::span<const TextureData> mArrived;
@@ -204,8 +200,8 @@ namespace Rtx
                 Case{ spread, 10916, 2 },
                 Case{ spread, 2469, 2 },
                 Case{ spread, 2468, 2 },
-                Case{ chained, 40276 + 23892, 0 },
-                Case{ chained, 40276 + 23891, 0 },
+                Case{ lone, 18432 + 18432, 0 },
+                Case{ lone, 18432 + 18431, 0 },
             };
 
             std::vector<std::uint32_t> firsts;
@@ -311,57 +307,6 @@ namespace Rtx
                 << "a second scene priced the means the shared room holds";
         }
 
-        /// **A one-level file past the loose side stands as BC7**, encoded off the loose chain the
-        /// device makes, and one at the side stays loose, so no vanilla file moves. 1024 square to one
-        /// texel is eleven levels of 65536, 16384, 4096, 1024, 256, 64, 16, 4, 1, 1 and 1 blocks:
-        /// 87383 blocks of sixteen bytes, 1398128, beside its shading map's 2048. The loose chain it is
-        /// encoded off is 1398101 texels of four bytes, 5592404, which goes with the batch as the
-        /// upload's four mebibytes do; the blocks are priced beside them, as the room they need.
-        TEST_F(RtxTextureArrayTest, aCompletedChainPastTheLooseSideStandsAsBc7)
-        {
-            Device& device = getDevice();
-            const SetLayout layout = TextureArray::describeLayout(device);
-            const TexturePasses passes(device);
-            TextureArrival rooms(device);
-            Batch setup(getPool());
-            TextureArray textures(device, setup, layout, passes, rooms, 1);
-            setup.flush();
-
-            Testing::TestTexture vanilla;
-            Testing::paintLevels(vanilla, sLargestLooseChainSide, sLargestLooseChainSide, 1, "vanilla");
-            EXPECT_FALSE(vanilla.mData.encodesChain()) << "a vanilla side was encoded";
-            Testing::TestTexture row;
-            Testing::paintLevels(row, sLargestLooseChainSide + 1, 1, 1, "row");
-            EXPECT_TRUE(row.mData.encodesChain()) << "one past the side on either axis";
-
-            Testing::TestTexture large;
-            Testing::paintLevels(large, 1024, 1024, 1, "large");
-            large.mData.mCompleteChain = true;
-            ASSERT_TRUE(large.mData.encodesChain());
-
-            // The upload alone is the file's own, and the loose chain and the blocks the arrival's,
-            // priced once for it: a chain of 1024 to one texel at four bytes a texel, 5,592,404, and
-            // its BC7, a byte a texel, 1,398,128.
-            const TextureCost cost = priceFile(large.mData, 0);
-            EXPECT_EQ(cost.mImage, 1398128u);
-            EXPECT_EQ(cost.mTransient, VkDeviceSize{ 1024 } * 1024 * 4);
-            const EncodeCost encode = priceEncode(large.mData, 0);
-            EXPECT_EQ(encode.mLoose, 5592404u);
-            EXPECT_EQ(encode.mBlocks, 1398128u);
-            EXPECT_EQ(priceEncode(vanilla.mData, 0).mLoose, 0u) << "a file that is not encoded priced a canvas";
-
-            std::vector<Refusal> refused;
-            {
-                Batch arrival(getPool());
-                textures.write(arrival, passes, rooms, std::array{ large.mData }, refused);
-                arrival.flush();
-            }
-
-            EXPECT_TRUE(refused.empty());
-            EXPECT_EQ(textures.getHeld().mBySource.mCompletedFiles, 1398128u + 2048u);
-            textures.drop(std::array{ 0u });
-        }
-
         /// A texture past the side the device takes stands from its first level within the side,
         /// and one with no level within it draws the stand-in, refused and saying why.
         ///
@@ -412,9 +357,7 @@ namespace Rtx
             EXPECT_EQ(held.mBytes, VkDeviceSize{ 4 } * ((limit + 1) >> 1) + 2048);
             EXPECT_EQ(held.mReduced, 1u) << "a texture standing from its second level was not counted as smaller";
             EXPECT_EQ(held.mBySource.mFiles, held.mBytes) << "a file counted under another source";
-            EXPECT_EQ(held.mBySource.mCompletedFiles + held.mBySource.mSpriteBakes + held.mBySource.mGroundComposites
-                    + held.mBySource.mGroundGloss,
-                0u);
+            EXPECT_EQ(held.mBySource.mSpriteBakes + held.mBySource.mGroundComposites + held.mBySource.mGroundGloss, 0u);
             EXPECT_EQ(textures.getRoomHeld(), 0u) << "the device's side is not the room's";
 
             EXPECT_EQ(textures.getTexels(0), (limit + 1) >> 1) << "the level that stands";
@@ -436,25 +379,23 @@ namespace Rtx
             EXPECT_EQ(dropped.mReduced, 0u);
             EXPECT_EQ(dropped.mBySource.mFiles, 0u);
 
-            // **And each source under its own name**: a one-level 64 square the device completes and
-            // a bake of it, each standing at its whole chain and a map, 23892 bytes
+            // **And each source under its own name**: a one-level 64 square and a bake of it, each
+            // standing at its one level and a map, 18432 bytes
             // (`anArrivalIsHeldToTheLargestSideItFitsTheRoomAt` derives it).
-            Testing::TestTexture completed;
-            Testing::paintLevels(completed, 64, 64, 1, "completed");
-            completed.mData.mCompleteChain = true;
+            Testing::TestTexture lone;
+            Testing::paintLevels(lone, 64, 64, 1, "lone");
             const TextureData bake{
                 .mSlot = 1, .mSource = TextureSource::SpriteBake, .mFrom = 0, .mFormat = TextureFormat::Rgba8Unorm
             };
             {
                 Batch again(getPool());
-                textures.write(again, passes, rooms, std::array{ completed.mData, bake }, refused);
+                textures.write(again, passes, rooms, std::array{ lone.mData, bake }, refused);
                 again.flush();
             }
             const TexturesHeld bySource = textures.getHeld();
-            EXPECT_EQ(bySource.mBySource.mCompletedFiles, 23892u);
-            EXPECT_EQ(bySource.mBySource.mSpriteBakes, 23892u);
-            EXPECT_EQ(bySource.mBySource.mFiles, 0u) << "a completed chain counted as a file as it came";
-            EXPECT_EQ(bySource.mBytes, 2u * 23892u);
+            EXPECT_EQ(bySource.mBySource.mFiles, 18432u);
+            EXPECT_EQ(bySource.mBySource.mSpriteBakes, 18432u);
+            EXPECT_EQ(bySource.mBytes, 2u * 18432u);
         }
 
         /// A texture the device has no room for comes down a level at a time, and one it has room

@@ -10,8 +10,8 @@
 namespace Rtx
 {
     /// Where each level of a chain's blocks stands in a buffer of them: level by level, each row by
-    /// row, a level under a block taking one. What every block encoder writes and copies from
-    /// (`Bc7EncodePass`, `RgtcEncodePass`).
+    /// row, a level under a block taking one. What the block encoder writes and copies from
+    /// (`Bc7EncodePass`).
     struct BlockChain
     {
         struct Level

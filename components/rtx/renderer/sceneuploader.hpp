@@ -77,9 +77,10 @@ namespace Rtx
             /// (`PreparedImages`), or null for a scene that reads its files as they stand.
             PreparedImages* mPrepared = nullptr;
 
-            /// Whether the hand-over waits for every image being made before it asks after them, as a
-            /// settled walk waits for its cells (`CellRing::setSettled`): what makes two processes,
-            /// whatever their threads' timing, stand one image on one frame.
+            /// Whether the hand-over waits for the images its arrivals need before it describes them,
+            /// as a settled walk waits for its cells (`CellRing::setSettled`): what makes two processes,
+            /// whatever their threads' timing, stand one image on one frame, and what a picture drawn
+            /// from one hand-over needs (`SceneTextures::describe`).
             bool mSettled = false;
         };
 

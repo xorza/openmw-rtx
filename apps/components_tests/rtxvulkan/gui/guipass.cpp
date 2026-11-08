@@ -130,7 +130,6 @@ namespace Rtx
 
                 Batch upload(getPool());
                 TextureArrival arrival(getDevice());
-                arrival.open(1);
                 std::vector<VkBufferImageCopy> regions;
                 Texture texture;
                 EXPECT_TRUE(

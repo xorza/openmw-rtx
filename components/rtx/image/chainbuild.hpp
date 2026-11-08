@@ -16,16 +16,15 @@ namespace Rtx
     /// the level above** (`Shaders::axisTaps`, three taps along an odd axis), in light where the format
     /// is display-encoded, with a colour weighed by its alpha where the alpha is coverage
     /// (`TextureEncoding::Colour`) and divided back, and the alpha averaged on its own; a normal is
-    /// averaged as a vector and not renormalized. `mipchain.comp` is the device's statement of the same
-    /// filter, which a test holds the two to.
+    /// averaged as a vector and not renormalized.
     ///
     /// One a thread: it keeps the decoded levels and its scratch between builds.
     class ChainBuild
     {
     public:
-        /// Whether `file`'s levels below its finest can be made again in its own format (`encode`): a
-        /// BC1, BC2 or BC3 file, or four loose bytes a texel, of more than one level. Not BC4 or BC5,
-        /// which no host reader here decodes.
+        /// Whether `file`'s levels below its finest can be made in its own format (`encode`): a BC1,
+        /// BC2 or BC3 file, or four loose bytes a texel, of more than a texel. Not BC4 or BC5, which no
+        /// host reader here decodes.
         static bool rebuilds(const TextureData& file);
 
         /// Decodes the first level of `finest`, a description `readsColour` holds, and boxes `levels`
@@ -38,9 +37,9 @@ namespace Rtx
         /// again in BC1.
         bool holdsCut(const TextureData& finest) const;
 
-        /// Appends levels 1 and down to `into`, encoded in `file`'s own format and laid as its levels
-        /// are, so `file`'s finest level and these make a chain of `file`'s format and shape: `build`
-        /// of `file` to its level count.
+        /// Appends the built levels 1 and down to `into`, encoded in `file`'s own format and laid as a
+        /// file lays its levels, so `file`'s finest level and these make a chain of `file`'s format:
+        /// `build` of `file`, to its own level count or, for a file of one level, to a texel.
         void encode(const TextureData& file, std::vector<std::byte>& into) const;
 
         std::uint32_t getLevelCount() const { return static_cast<std::uint32_t>(mLevels.size()); }

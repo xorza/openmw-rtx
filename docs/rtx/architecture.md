@@ -420,8 +420,6 @@ at the top, over all of them.
   - textures shared across scenes: a doll's 12–17 textures are 0.2 MB and 0.4–1.1 ms on vanilla,
     and a PBR pack could raise that to an estimated 50–280 MB and 5–25 ms;
   - a residency manager that moves each texture's side by priority under a budget;
-  - a completed chain past `sLargestLooseChainSide` kept in its file's format, and BC5 for its
-    normal maps, both for files a pack may not hold;
   - 16-bit indices, about 22 MB on each side against an unpack in the candidate loop;
   - white vertex colours stored only where a mesh brings colours, about 1 MB live;
   - one bottom level per template model, whose top-level gain is about 0.17 ms

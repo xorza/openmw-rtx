@@ -213,7 +213,9 @@ namespace Rtx
         /// **A slot stands its file until its image is made, and then stands again with it**: a
         /// normal map whose file's second level is black is described with it and named pending; once
         /// the image is made, the next hand-over describes the slot again, its second level the box
-        /// (122, 130, 252, 75), with nothing pending; and the one after only places.
+        /// (122, 130, 252, 75), with nothing pending; and the one after only places. **Settled, the
+        /// first hand-over waits for the image** and describes the slot with it, as a picture drawn
+        /// from one hand-over needs.
         TEST(RtxSceneUploaderTest, aSlotStandsItsFileUntilItsImageIsMadeAndThenStandsAgain)
         {
             const std::uint8_t bytes[] = {
@@ -236,10 +238,12 @@ namespace Rtx
             PreparedImages prepared(nullptr, 1);
             SceneUploader uploader;
             Testing::CountingRenderer renderer;
-            const auto hand = [&] {
+            const auto hand = [&](bool settled) {
                 return uploader.hand(renderer,
-                    Rtx::SceneUploader::Handing{
-                        .mSlot = Rtx::SceneSlot::world(), .mScene = scene, .mPrepared = &prepared, .mSettled = true });
+                    Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(),
+                        .mScene = scene,
+                        .mPrepared = &prepared,
+                        .mSettled = settled });
             };
             const auto secondOf = [&](Index described) {
                 const auto at = std::find(renderer.mDescribedSlots.begin(), renderer.mDescribedSlots.end(), described);
@@ -247,18 +251,35 @@ namespace Rtx
                 return renderer.mDescribedSecondTexels[static_cast<std::size_t>(at - renderer.mDescribedSlots.begin())];
             };
 
-            EXPECT_EQ(hand().mKind, SceneUpload::Kind::Rebuilt);
+            constexpr std::uint32_t box = 122u | 130u << 8 | 252u << 16 | 75u << 24;
+            EXPECT_EQ(hand(false).mKind, SceneUpload::Kind::Rebuilt);
             EXPECT_EQ(secondOf(slot), 0u) << "the file's own black";
             EXPECT_EQ(uploader.getPendingCount(), 1u);
 
-            EXPECT_EQ(hand().mKind, SceneUpload::Kind::Extended) << "settled, it waited for the image";
+            prepared.flush();
+            EXPECT_EQ(hand(false).mKind, SceneUpload::Kind::Extended);
             EXPECT_EQ(renderer.mDescribedSlots, (std::vector<Index>{ slot }));
-            EXPECT_EQ(secondOf(slot), 122u | 130u << 8 | 252u << 16 | 75u << 24);
+            EXPECT_EQ(secondOf(slot), box);
             EXPECT_EQ(uploader.getPendingCount(), 0u);
             EXPECT_NE(scene.textures().getRows()[slot].mPrepared, nullptr) << "the slot holds its image";
 
-            EXPECT_EQ(hand().mKind, SceneUpload::Kind::Placed);
+            EXPECT_EQ(hand(false).mKind, SceneUpload::Kind::Placed);
             scene.drop(std::move(held));
+
+            Rtx::SceneDesc picture;
+            Testing::addModel(picture, VFS::Path::NormalizedView("textures/one.dds"));
+            TextureHold pictured = picture.takeTexture(VFS::Path::NormalizedView("textures/tx_test_nh.dds"), *file,
+                TextureWrap::Repeat, TextureEncoding::Normal);
+            SceneUploader once;
+            Testing::CountingRenderer drawn;
+            once.hand(drawn,
+                Rtx::SceneUploader::Handing{
+                    .mSlot = Rtx::SceneSlot::world(), .mScene = picture, .mPrepared = &prepared, .mSettled = true });
+            const auto at = std::find(drawn.mDescribedSlots.begin(), drawn.mDescribedSlots.end(), pictured.get());
+            ASSERT_NE(at, drawn.mDescribedSlots.end());
+            EXPECT_EQ(drawn.mDescribedSecondTexels[static_cast<std::size_t>(at - drawn.mDescribedSlots.begin())], box);
+            EXPECT_EQ(once.getPendingCount(), 0u);
+            picture.drop(std::move(pictured));
         }
 
         /// **The array's limit is reported on the hand-over that met it, whichever branch it went**:

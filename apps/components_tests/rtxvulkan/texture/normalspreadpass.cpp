@@ -66,7 +66,6 @@ namespace Rtx
 
                 Batch upload(getPool());
                 TextureArrival arrival(device, room);
-                arrival.open(maps.size());
                 for (const SpreadMap& map : maps)
                 {
                     const std::uint32_t across = std::max(map.mWidth / 2, 1u);

@@ -39,11 +39,6 @@ namespace Rtx
         }
     };
 
-    /// The largest side of a file whose completed chain stays loose (`TextureData::encodesChain`):
-    /// the largest of the hundred and eighty-seven single-level files Morrowind ships, so no
-    /// vanilla picture moves.
-    inline constexpr std::uint32_t sLargestLooseChainSide = 512;
-
     /// How many levels a chain from `width` by `height` down to one texel has: what
     /// `MipPyramid::layOutTo1x1` lays out, for an image made to hold one.
     inline std::uint32_t levelsTo1x1(std::uint32_t width, std::uint32_t height)
@@ -99,7 +94,7 @@ namespace Rtx
     enum class TextureSource : std::uint8_t
     {
         /// A file the content named, decoded. `TextureData::mBytes` and `mLevels` are the file's
-        /// own, and `mCompleteChain` says whether the device finishes a chain it did not carry.
+        /// own, or the chain the host made of it (`ChainPass`).
         File,
 
         /// The light bake of a sprite texture — `TextureKind::SpriteLight` says what a bake is —
@@ -128,10 +123,8 @@ namespace Rtx
     /// of them a memory budget is spent on. The stand-in costs a slot nothing and is not here.
     struct TextureSourceBytes
     {
-        /// A file standing as the content carried its chain, and one whose chain the device completed
-        /// from its one level (`TextureData::mCompleteChain`).
+        /// A file, with the chain it carried or the one the host made of it.
         std::uint64_t mFiles = 0;
-        std::uint64_t mCompletedFiles = 0;
 
         std::uint64_t mSpriteBakes = 0;
 
@@ -167,11 +160,6 @@ namespace Rtx
         /// What the slot's texels are, which the scene's table says per slot and `mFormat` follows.
         TextureEncoding mEncoding = TextureEncoding::Colour;
 
-        /// Which channels carry what the file holds, as its own format said before `describeImage`
-        /// widened it: a widened `R8G8` is RGBA8 with a blue of nought that only this tells from a
-        /// colour's.
-        HeldChannels mHeld = HeldChannels::All;
-
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
 
@@ -179,11 +167,6 @@ namespace Rtx
         /// `GroundComposite` and `GroundGloss`, whose bytes are the device's.
         std::span<const std::byte> mBytes{};
         std::span<const MipLevel> mLevels{};
-
-        /// Whether a backend completes the chain the file did not carry, on the device, from the
-        /// one level here down to one texel. Set by the builder where `wantsCompletedChain` says,
-        /// and never for a texture a test paints to be read at its one level. Under `File` alone.
-        bool mCompleteChain = false;
 
         /// What to call it in a capture — the file it came from. Spans storage the description's
         /// owner holds, like everything else here. Empty is allowed and only costs a nameless object
@@ -220,39 +203,6 @@ namespace Rtx
             assert(level < mLevels.size() && "a level past the end of the chain");
             return mBytes.size() - mLevels[level].mOffset;
         }
-
-        /// Whether this is a file whose chain a backend completes: one level, and more than a texel.
-        ///
-        /// **Only a file that carried no chain at all.** Morrowind ships a hundred and eighty-seven
-        /// such textures and its rain is one: read at its finest, a drop's peak alpha is 0.400 where
-        /// the missing levels hold 0.283, 0.129 and 0.068, so a storm comes out as hard white marks
-        /// that flicker; the rasterizer has the driver generate them. Morrowind's own chains stop
-        /// short of a single texel — a 256-square texture ships six levels and ends at 8 by 8, and
-        /// that last level is already the texture's own mean to within what a ray can tell —
-        /// and rebuilding those would decompress the whole game to gain nothing. A texel has no
-        /// level below it, and a level with no extent has no texel to read. **Completed in loose
-        /// texels** up to `sLargestLooseChainSide`, and not compressed again, because a level in
-        /// another format is a level read differently: `Bc7EncodePass` writes every level of an
-        /// image, the file's own among them, and its mode 6 shares one low bit across an endpoint's
-        /// channels, which a decoded BC1 or BC3 texel does not survive — a vanilla picture moved for
-        /// a renderer's bookkeeping. Past that side, `encodesChain` says.
-        bool wantsCompletedChain() const;
-
-        /// Whether a chain completed for this file is encoded to BC7 rather than kept loose: a side
-        /// past `sLargestLooseChainSide`, where no vanilla file stands. A replacer's 4096-square BC1
-        /// with no levels is 8 MB on disk, 89 MB as a loose chain and 22 MB as a BC7 one, and the
-        /// budget cannot stand a completed chain from a coarser level. Its own level moves by the
-        /// low bit the comment above names.
-        bool encodesChain() const;
-
-        /// The format a chain completed for this file is encoded to where `encodesChain` says: BC4 or
-        /// BC5 for a linear file of one channel or two, and BC7 for every other, in the file's
-        /// encoding.
-        /// **The file's own channels and none other**, because a format that shares one lowest bit
-        /// across four channels stores a BC5 normal map's blue of nought beside its alpha of one as
-        /// one step above nought, and the trace reads a blue above nought as a normal map's height
-        /// (`decodeNormal`): normals into the surface, a block in two.
-        TextureFormat encodedChainFormat() const;
 
         /// Whether every level lies inside `mBytes` at its format's layout: what `describeImage`
         /// guarantees and a reader of the bytes asserts rather than clamps, so a description short

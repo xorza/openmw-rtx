@@ -53,17 +53,13 @@ namespace Rtx
         Texture() = default;
 
         /// Stands a texture from its file's bytes in this one, which is empty, from level `first`
-        /// on: uploaded level by level where the file carried a chain, and where it carried one
-        /// level of more than a texel, uploaded once and the chain made from that upload —
-        /// `TextureData::wantsCompletedChain` says which files and why — into a four-byte image of
-        /// the same curve, the upload buried under the batch. Left empty, and why, where the device
-        /// has no room for it as `use`. Every image is made before anything is handed to `arrival`,
-        /// so a refusal leaves it as it found it. What makes the texture is `arrival`'s to record, and this stays where
-        /// it is until then: the work names its images.
+        /// on, uploaded level by level. Left empty, and why, where the device has no room for it as
+        /// `use`. Every image is made before anything is handed to `arrival`, so a refusal leaves it
+        /// as it found it. What makes the texture is `arrival`'s to record, and this stays where it
+        /// is until then: the work names its images.
         ///
         /// @param first the level the image begins at: nought for the file as it is, and further
-        ///        down for one held to a smaller side. Nought where the device completes the chain,
-        ///        which begins at the file's one level.
+        ///        down for one held to a smaller side.
         /// @param name what a capture calls it. Empty where the build names no objects.
         /// @param regions the caller's scratch, cleared and refilled here with one copy per level.
         Misc::Result<void, std::string_view> standFile(const Device& device, Batch& batch, TextureArrival& arrival,
@@ -72,7 +68,7 @@ namespace Rtx
 
         /// Stands a sprite's light bake in this one, which is empty: shaped like `source`, made from
         /// its alpha, under the neutral map. `source` stands, uploaded in an earlier batch or in
-        /// `arrival`'s run, which records every chain ahead of every bake.
+        /// `arrival`'s run, which records every copy ahead of every bake.
         ///
         /// @param format what the description says the bake is, which is its image's format.
         Misc::Result<void, std::string_view> standBake(const Device& device, TextureArrival& arrival,
@@ -294,7 +290,6 @@ namespace Rtx
 
             /// What the texture was made from, which `mHeld` counts its bytes under.
             TextureSource mSource = TextureSource::File;
-            bool mCompletedChain = false;
 
             bool isEmpty() const { return mTexture.isEmpty() && !mStandIn; }
         };

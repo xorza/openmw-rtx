@@ -945,6 +945,7 @@ namespace MWRender
             mWalked.mSession += mWalked.mFound.mPreprocessed;
             if (mWalked.mAgain.has_value())
                 mWalked.mSession += mWalked.mAgain->mPreprocessed;
+            mWalked.mSession.mPrepared += mPrepared->takeStats();
         }
 
         // After the last walk, because a walk clears the frame's lists.

@@ -15,6 +15,7 @@
 #include <components/rtx/common/monitor.hpp>
 #include <components/rtx/common/worker.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/preprocess/contentstats.hpp>
 
 namespace Rtx
 {
@@ -42,10 +43,15 @@ namespace Rtx
     class PreparedImages
     {
     public:
-        /// Whether a file read as `encoding` has its chain made again: normal and data maps, whose
-        /// replacers' chains are made with filters wrong for them, and never a colour, whose chain
-        /// stands as the file holds it, so no vanilla picture moves.
-        static constexpr bool prepares(TextureEncoding encoding) { return encoding != TextureEncoding::Colour; }
+        /// Whether `file` read as `encoding` has its chain made: a normal or a data map's again,
+        /// whose replacers' chains are made with filters wrong for them, and any file's that carries
+        /// none and is more than a texel. Never a colour's own chain, which stands as the file holds
+        /// it.
+        static bool prepares(const osg::Image& file, TextureEncoding encoding)
+        {
+            return encoding != TextureEncoding::Colour
+                || (file.getNumMipmapLevels() <= 1 && std::size_t(file.s()) * std::size_t(file.t()) > 1);
+        }
 
         /// @param store where the chains are found and kept, or null for none.
         /// @param hands how many threads make them.
@@ -69,6 +75,10 @@ namespace Rtx
 
         /// Waits until `isIdle`.
         void flush();
+
+        /// What every thread's preprocessor cost since the last take, its jobs' whole: a job's
+        /// figures join once it is done.
+        ContentStats takeStats();
 
     private:
         using Key = std::pair<const osg::Image*, TextureEncoding>;
@@ -109,6 +119,7 @@ namespace Rtx
         std::size_t mSweepAt = 1024;
         std::deque<Job> mQueue;
         int mInFlight = 0;
+        ContentStats mStats;
 
         /// Each thread's own preprocessor and its worker, last, for the reason `Worker` gives.
         std::vector<std::unique_ptr<Hand>> mHands;

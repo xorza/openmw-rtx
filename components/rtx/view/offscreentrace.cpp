@@ -162,8 +162,13 @@ namespace Rtx
         releasing.keepAll(subject.mExtractor->getReleased());
 
         // It consumes the arrivals and ends the placement, so nothing here clears either.
-        subject.mUploader.hand(
-            mRenderer, SceneUploader::Handing{ .mSlot = subject.mSlot.get(), .mScene = *subject.mScene });
+        // **Waiting for its files' chains**, since a picture is drawn from one hand-over and not
+        // stood again as the world is: a file that carried no chain has none to draw with until made.
+        subject.mUploader.hand(mRenderer,
+            SceneUploader::Handing{ .mSlot = subject.mSlot.get(),
+                .mScene = *subject.mScene,
+                .mPrepared = subject.mExtractor->getContext().mPrepared,
+                .mSettled = true });
 
         return subject.mScene->placements().getCounts().mPlaced > 0;
     }

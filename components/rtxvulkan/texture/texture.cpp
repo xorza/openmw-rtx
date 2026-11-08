@@ -92,10 +92,8 @@ namespace Rtx
             };
         }
 
-        /// What a written texture is stored as, which is what the shaders that write it declare,
-        /// and the same bytes through the curve.
+        /// What a written texture is stored as, which is what the shaders that write it declare.
         constexpr VkFormat sWrittenFormat = toVulkanFormat(TEXTURE_WRITTEN_FORMAT);
-        constexpr VkFormat sWrittenEncoded = withCurve(sWrittenFormat);
 
         /// What a texture made on the device is created as: the format its description states.
         ///
@@ -153,7 +151,6 @@ namespace Rtx
     {
         assert(isEmpty() && "a texture stood over one that stands");
         assert(first < data.mLevels.size() && "a texture begun past the file's last level");
-        assert((first == 0 || !data.mCompleteChain) && "a chain completed from a level the file did not begin at");
 
         const Crash::NoteScope noted("staging the texture \"{}\"", data.mName);
 
@@ -183,94 +180,22 @@ namespace Rtx
         if (!shading.isOk())
             return Misc::Err{ shading.error() };
 
-        std::optional<Image> upload;
-        std::optional<ImageDescription> looseChain;
-        Image image;
-        if (!data.mCompleteChain)
-        {
-            Misc::Result<Image, std::string_view> made = Image::tryMake(use, device,
-                ImageDescription{ .mWidth = top.mWidth,
-                    .mHeight = top.mHeight,
-                    .mFormat = toVulkanFormat(data.mFormat),
-                    .mUsage = sUploadedTextureUsage,
-                    .mMipLevels = levels },
-                name);
-            if (!made.isOk())
-                return Misc::Err{ made.error() };
-            image = std::move(made.value());
-        }
-        else
-        {
-            assert(data.wantsCompletedChain() && "a chain completed for a file that has one");
-
-            // The file's one level, uploaded as the bytes it holds, in a format with no curve under
-            // it so that the chain's first dispatch fetches those bytes and not the light behind
-            // them; gone with the batch, because the chain is what the trace samples.
-            Misc::Result<Image, std::string_view> uploaded = Image::tryMake(use, device,
-                ImageDescription{ .mWidth = data.mWidth,
-                    .mHeight = data.mHeight,
-                    .mFormat = withoutCurve(toVulkanFormat(data.mFormat)),
-                    .mUsage = sUploadedTextureUsage },
-                name);
-            if (!uploaded.isOk())
-                return Misc::Err{ uploaded.error() };
-
-            // Four bytes a texel down to one texel, with the file's own curve over the sampler's
-            // read and none over the dispatch's store — `TextureData::wantsCompletedChain` says why the
-            // chain is loose.
-            const bool encoded = isSrgb(data.mFormat);
-            const ImageDescription chain{ .mWidth = data.mWidth,
-                .mHeight = data.mHeight,
-                .mFormat = encoded ? sWrittenEncoded : sWrittenFormat,
-                .mUsage = sWrittenTextureUsage,
-                .mMipLevels = levelsTo1x1(data.mWidth, data.mHeight),
-                .mStorageFormat = encoded ? sWrittenFormat : VK_FORMAT_UNDEFINED };
-
-            upload = std::move(uploaded.value());
-            if (!data.encodesChain())
-            {
-                Misc::Result<Image, std::string_view> made = Image::tryMake(use, device, chain, name);
-                if (!made.isOk())
-                    return Misc::Err{ made.error() };
-                image = std::move(made.value());
-            }
-            else
-            {
-                // **Kept in blocks past the loose side**, encoded off a loose chain the arrival makes
-                // in its canvas: `TextureData::encodesChain` says why, and `encodedChainFormat` which.
-                Misc::Result<Image, std::string_view> blocks = Image::tryMake(use, device,
-                    ImageDescription{ .mWidth = data.mWidth,
-                        .mHeight = data.mHeight,
-                        .mFormat = toVulkanFormat(data.encodedChainFormat()),
-                        .mUsage = sUploadedTextureUsage,
-                        .mMipLevels = levelsTo1x1(data.mWidth, data.mHeight) },
-                    name);
-                if (!blocks.isOk())
-                    return Misc::Err{ blocks.error() };
-
-                looseChain = chain;
-                image = std::move(blocks.value());
-            }
-        }
+        Misc::Result<Image, std::string_view> image = Image::tryMake(use, device,
+            ImageDescription{ .mWidth = top.mWidth,
+                .mHeight = top.mHeight,
+                .mFormat = toVulkanFormat(data.mFormat),
+                .mUsage = sUploadedTextureUsage,
+                .mMipLevels = levels },
+            name);
+        if (!image.isOk())
+            return Misc::Err{ image.error() };
 
         // Every image is made, so nothing below can refuse: the texture stands from here, and what
         // makes it is the arrival's to record.
         mWrap = data.mWrap;
-        mImage = std::move(image);
+        mImage = std::move(image.value());
         mCompanion = std::move(shading.value());
-
-        if (upload.has_value())
-        {
-            const Image& held = arrival.hold(std::move(*upload));
-            arrival.upload(batch, held, data.mBytes, regions);
-            if (looseChain.has_value())
-                arrival.encode(
-                    held, *looseChain, isSrgb(data.mFormat), data.mEncoding, data.encodedChainFormat(), mImage);
-            else
-                arrival.chain(held, mImage, isSrgb(data.mFormat), data.mEncoding);
-        }
-        else
-            arrival.upload(batch, mImage, bytes, regions);
+        arrival.upload(batch, mImage, bytes, regions);
 
         switch (companion)
         {
@@ -419,7 +344,6 @@ namespace Rtx
         // ever owes the slots that are new.
         , mSets(device, sBindings, layout.get(), sFrameSlots, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT)
     {
-        arrival.open(2);
         mNeutral.standColour(device, batch, arrival, "neutral texel",
             osg::Vec4f(
                 Shaders::UNTEXTURED_ALBEDO.x(), Shaders::UNTEXTURED_ALBEDO.y(), Shaders::UNTEXTURED_ALBEDO.z(), 1.0f));
@@ -471,7 +395,6 @@ namespace Rtx
         // work names before it records.
         for (const TextureData& texture : arrived)
             reserveSlot(texture.mSlot);
-        arrival.open(arrived.size());
 
         chooseLevels(arrived, mDevice.getMemory().getRoom(MemoryUse::Texture), arrival, mFirsts);
 
@@ -539,14 +462,12 @@ namespace Rtx
         if (costAt(arrived, firsts, true, arrival) <= room)
             return;
 
-        // Every level under it a file can come down by: a completed chain has its one level, which
-        // the device makes the rest from.
+        // Every level under it a file can come down by.
         mDrops.clear();
         for (std::size_t at = 0; at < arrived.size(); ++at)
         {
             const TextureData& texture = arrived[at];
-            if (texture.mSource != TextureSource::File || texture.mCompleteChain
-                || !texture.firstLevelWithin(mSideLimit).has_value())
+            if (texture.mSource != TextureSource::File || !texture.firstLevelWithin(mSideLimit).has_value())
                 continue;
             for (std::uint32_t level = firsts[at]; level + 1 < texture.mLevels.size(); ++level)
                 mDrops.push_back(
@@ -617,7 +538,7 @@ namespace Rtx
             if (arriving != nullptr)
             {
                 if (arriving->mSource == TextureSource::File && arriving->firstLevelWithin(mSideLimit).has_value())
-                    return priceBake(shapeOf(*arriving, firsts[arrivingAt])).total();
+                    return priceBake(shapeOf(*arriving, firsts[arrivingAt])).standing();
 
                 standing = &mStandIn.getImage();
             }
@@ -627,15 +548,12 @@ namespace Rtx
             if (standing == nullptr || standing->isEmpty())
                 return 0;
 
-            return priceBake(shapeOf(*standing)).total();
+            return priceBake(shapeOf(*standing)).standing();
         };
 
         VkDeviceSize cost = 0;
         VkDeviceSize means = 0;
         VkDeviceSize largestMeans = 0;
-        VkDeviceSize loose = 0;
-        VkDeviceSize largestLoose = 0;
-        VkDeviceSize largestBlocks = 0;
         bool blocks = mCanvas.mBlocks.has_value();
         bool albedoCanvas = mCanvas.mAlbedo.has_value();
         bool glossCanvas = mCanvas.mGloss.has_value();
@@ -648,14 +566,10 @@ namespace Rtx
                     if (texture.firstLevelWithin(mSideLimit).has_value())
                     {
                         const std::uint32_t first = firsts[at];
-                        cost += priceFile(texture, first).total();
+                        cost += priceFile(texture, first).standing();
                         const VkDeviceSize itsMeans = spreadMeansBytes(texture, first);
                         means += itsMeans;
                         largestMeans = std::max(largestMeans, itsMeans);
-                        const EncodeCost encode = priceEncode(texture, first);
-                        loose += encode.mLoose;
-                        largestLoose = std::max(largestLoose, encode.mLoose);
-                        largestBlocks = std::max(largestBlocks, encode.mBlocks);
                     }
                     break;
 
@@ -668,11 +582,11 @@ namespace Rtx
                     if (!ground)
                         break;
                     {
-                        cost += priceComposite().total();
+                        cost += priceComposite().standing();
 
                         // What the scene's first composite of each kind is made with, once.
                         bool& canvas = texture.mSource == TextureSource::GroundGloss ? glossCanvas : albedoCanvas;
-                        cost += (canvas ? 0 : priceCanvas().total()) + (blocks ? 0 : priceBlocks().total());
+                        cost += (canvas ? 0 : priceCanvas().standing()) + (blocks ? 0 : priceBlocks().standing());
                         canvas = true;
                         blocks = true;
                         break;
@@ -683,14 +597,11 @@ namespace Rtx
             }
         }
 
-        // The means the spreads are built through, the canvas the loose chains are made in and the
-        // blocks the encodes work through are the arrival's rooms, each grown once to its largest
-        // group and kept: what this arrival needs past what each holds already.
-        const auto past
-            = [](const VkDeviceSize needed, const VkDeviceSize held) { return needed > held ? needed - held : 0; };
-        return cost + past(arrival.meansNeeded(means, largestMeans), arrival.getMeansBytes())
-            + past(arrival.looseNeeded(loose, largestLoose), arrival.getLooseBytes())
-            + past(largestBlocks, arrival.getBlocksBytes());
+        // The means the spreads are built through are the arrival's room, grown once to its largest
+        // group and kept: what this arrival needs past what it holds already.
+        const VkDeviceSize needed = arrival.meansNeeded(means, largestMeans);
+        const VkDeviceSize held = arrival.getMeansBytes();
+        return cost + (needed > held ? needed - held : 0);
     }
 
     Misc::Result<void, std::string_view> TextureArray::make(Batch& batch, TextureArrival& arrival, Texture& into,
@@ -722,8 +633,7 @@ namespace Rtx
             case TextureSource::File:
             {
                 // From the level `chooseLevels` chose, and a level further down each time the device
-                // has no room — only a file's own levels, so one whose chain the device completes
-                // has the one.
+                // has no room.
                 const auto last = static_cast<std::uint32_t>(texture.mLevels.size()) - 1;
                 std::uint32_t level = first;
                 Misc::Result<void, std::string_view> stood
@@ -783,7 +693,6 @@ namespace Rtx
         const Texture& made = slot.mTexture;
         slot.mStandIn = made.isEmpty();
         slot.mSource = texture.mSource;
-        slot.mCompletedChain = texture.mSource == TextureSource::File && texture.mCompleteChain;
         slot.mReduced = texture.mSource == TextureSource::File && !made.isEmpty()
             && (made.getImage().getWidth() < texture.mWidth || made.getImage().getHeight() < texture.mHeight);
         count(slot);
@@ -1040,7 +949,7 @@ namespace Rtx
         switch (slot.mSource)
         {
             case TextureSource::File:
-                return slot.mCompletedChain ? held.mBySource.mCompletedFiles : held.mBySource.mFiles;
+                return held.mBySource.mFiles;
             case TextureSource::SpriteBake:
                 return held.mBySource.mSpriteBakes;
             case TextureSource::GroundComposite:

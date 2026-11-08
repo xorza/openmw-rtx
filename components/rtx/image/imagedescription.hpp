@@ -72,11 +72,17 @@ namespace Rtx
         const osg::Image& image, TextureFormat format, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
 
     /// `image`, which `described` describes, with its levels under the finest replaced by `coarser`,
-    /// laid as `described`'s are and in its format (`ChainBuild::encode`): an image of its own under
-    /// the same name, which the upload reads in `image`'s place. The finest level is copied, since an
-    /// image's levels are one buffer.
+    /// laid as a file lays its levels and in its format (`ChainBuild::encode`), for a file of one level
+    /// as well: an image of its own under the same name, which the upload reads in `image`'s place.
+    /// The finest level is copied, since an image's levels are one buffer.
     osg::ref_ptr<const osg::Image> joinChain(
         const osg::Image& image, const TextureData& described, std::span<const std::byte> coarser);
+
+    /// `image`'s chain made whole in four loose bytes a texel (`ChainBuild::getTexels`, every level back
+    /// to back from the finest, `width` by `height`): an image of its own under the same name, which a
+    /// slot reads as RGBA8 in its own encoding.
+    osg::ref_ptr<const osg::Image> looseChain(
+        const osg::Image& image, std::uint32_t width, std::uint32_t height, std::span<const std::byte> levels);
 
     /// `describeImage` of the finest level alone, as a colour, for a reader of nothing else: the
     /// coarser levels are neither held against OpenSceneGraph's count nor laid, and a volume's first

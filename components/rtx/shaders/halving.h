@@ -5,9 +5,9 @@
 #include <components/rtx/shaders/portable.h>
 
 // How a level of a mip chain is made from the one above it: which texels each of its texels covers,
-// and what each is worth. Read by both the device's passes that halve a texture, `mipchain.comp`
-// and `normalspread.comp`, and by the host's chain (`Rtx::ChainBuild`), which a test holds the first
-// to, so the three halve alike. Included verbatim by both sides, for the reason `visibility.h` is.
+// and what each is worth. Read by the device's pass that halves a normal map's spread,
+// `normalspread.comp`, and by the host's chain (`Rtx::ChainBuild`), so the two halve alike. Included verbatim by both
+// sides, for the reason `visibility.h` is.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders

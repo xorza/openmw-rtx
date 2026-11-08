@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <string>
+#include <utility>
 
 #include <components/misc/result.hpp>
 #include <components/rtx/image/imagedescription.hpp>
@@ -22,7 +23,7 @@ namespace Rtx
         }
 
         ContentPreprocessor mContent;
-        std::vector<std::byte> mLevels;
+        MadeChain mChain;
         std::vector<MipLevel> mDescribedLevels;
         std::vector<std::byte> mDescribedTexels;
         Worker mWorker;
@@ -47,7 +48,7 @@ namespace Rtx
 
     PreparedImage PreparedImages::find(const osg::Image& file, const TextureEncoding encoding)
     {
-        assert(prepares(encoding) && "a colour's chain asked to be made again");
+        assert(prepares(file, encoding) && "a colour's own chain asked to be made again");
 
         bool queued = false;
         PreparedImage answer = mMonitor.under([&] {
@@ -109,6 +110,11 @@ namespace Rtx
         mMonitor.await([&] { return mQueue.empty() && mInFlight == 0; });
     }
 
+    ContentStats PreparedImages::takeStats()
+    {
+        return mMonitor.under([&] { return std::exchange(mStats, ContentStats{}); });
+    }
+
     void PreparedImages::sweep()
     {
         if (mEntries.size() < mSweepAt)
@@ -134,20 +140,25 @@ namespace Rtx
             },
             [&](const Platform::StopToken&) {
                 const osg::Image& file = *job.mFile;
-                hand.mContent.chain(file, job.mKey.second, hand.mLevels);
+                hand.mContent.chain(file, job.mKey.second, hand.mChain);
 
                 osg::ref_ptr<const osg::Image> made;
-                if (!hand.mLevels.empty())
+                if (hand.mChain.mForm == ChainForm::Coarser)
                 {
                     hand.mDescribedLevels.clear();
                     hand.mDescribedTexels.clear();
                     const Misc::Result<TextureData, std::string> described
                         = describeImage(file, job.mKey.second, hand.mDescribedLevels, hand.mDescribedTexels);
                     if (described.isOk())
-                        made = joinChain(file, described.value(), hand.mLevels);
+                        made = joinChain(file, described.value(), hand.mChain.mBytes);
                 }
+                else if (hand.mChain.mForm == ChainForm::Loose)
+                    made = looseChain(file, static_cast<std::uint32_t>(file.s()), static_cast<std::uint32_t>(file.t()),
+                        hand.mChain.mBytes);
 
+                const ContentStats stats = hand.mContent.takeStats();
                 mMonitor.hand([&] {
+                    mStats += stats;
                     --mInFlight;
                     const auto entry = mEntries.find(job.mKey);
                     if (entry == mEntries.end())

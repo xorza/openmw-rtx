@@ -78,10 +78,9 @@ namespace Rtx
         return range;
     }
 
-    void ContentPreprocessor::chain(
-        const osg::Image& image, const TextureEncoding encoding, std::vector<std::byte>& levels)
+    void ContentPreprocessor::chain(const osg::Image& image, const TextureEncoding encoding, MadeChain& made)
     {
-        run(mChain, ChainPass::Input{ .mImage = image, .mEncoding = encoding }, levels);
+        run(mChain, ChainPass::Input{ .mImage = image, .mEncoding = encoding }, made);
     }
 
     ContentPreprocessor::ContentPreprocessor(ContentStore* const store, const StoreReach reach)

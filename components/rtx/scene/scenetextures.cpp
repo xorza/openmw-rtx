@@ -22,15 +22,46 @@
 
 namespace Rtx
 {
-    void SceneTextures::describeAll(const SceneDesc& scene, PreparedImages* const prepared)
+    namespace
     {
-        describe(scene, everyIndexBelow(scene.textures().getRows().size(), mEverything), prepared);
+        /// The image `row`'s chain is made from, or null where nothing is to be made of it: a file
+        /// whose made image its slot does not hold yet, of a kind the service makes
+        /// (`PreparedImages::prepares`). Laid where a reader laid it.
+        const osg::Image* toPrepare(const TextureRow& row)
+        {
+            const osg::Image* const source = row.mLaid != nullptr ? row.mLaid.get() : row.mImage.get();
+            return row.mKind == TextureKind::File && row.mPrepared == nullptr && source != nullptr
+                    && PreparedImages::prepares(*source, row.mEncoding)
+                ? source
+                : nullptr;
+        }
     }
 
-    void SceneTextures::describe(const SceneDesc& scene, std::span<const Index> slots, PreparedImages* const prepared)
+    void SceneTextures::describeAll(const SceneDesc& scene, PreparedImages* const prepared, const bool settled)
+    {
+        describe(scene, everyIndexBelow(scene.textures().getRows().size(), mEverything), prepared, settled);
+    }
+
+    void SceneTextures::describe(
+        const SceneDesc& scene, std::span<const Index> slots, PreparedImages* const prepared, const bool settled)
     {
         mPending.clear();
         mMade.clear();
+
+        // **Every image the slots need asked for first, and waited for**, where the caller is settled:
+        // asked one at a time and each waited for, they would be made one after another.
+        if (settled && prepared != nullptr)
+        {
+            for (const Index slot : slots)
+            {
+                if (!scene.textures().isLive(slot))
+                    continue;
+                const TextureRow& row = scene.textures().getRows()[slot];
+                if (const osg::Image* const source = toPrepare(row))
+                    prepared->find(*source, row.mEncoding);
+            }
+            prepared->flush();
+        }
         mLevels.clear();
         mTexels.clear();
         mDescriptions.clear();
@@ -58,9 +89,8 @@ namespace Rtx
             // its texels are read as they stand rather than widened here.
             // **A normal or a data map's image with its chain made again**, where it is made; its file
             // as it stands while it is, and the slot named for its owner to stand again.
-            const osg::ref_ptr<const osg::Image> source = row.mLaid != nullptr ? row.mLaid : row.mImage;
-            const PreparedImage made = row.mKind == TextureKind::File && row.mPrepared == nullptr && source != nullptr
-                    && prepared != nullptr && PreparedImages::prepares(row.mEncoding)
+            const osg::Image* const source = toPrepare(row);
+            const PreparedImage made = source != nullptr && prepared != nullptr
                 ? prepared->find(*source, row.mEncoding)
                 : PreparedImage{ .mImage = row.mPrepared };
             if (made.mPending)
@@ -151,16 +181,7 @@ namespace Rtx
 
         if (const osg::Image* image = kept.mImage.value().get())
         {
-            const Misc::Result<TextureData, std::string> read
-                = describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
-            if (!read.isOk())
-                return read;
-
-            // What the file did not carry, the device makes. `wantsCompletedChain` says why almost
-            // nothing in the game needs this and why the rain does.
-            TextureData described = read.value();
-            described.mCompleteChain = described.wantsCompletedChain();
-            return described;
+            return describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
         }
 
         if (kept.mBakedFrom.has_value())

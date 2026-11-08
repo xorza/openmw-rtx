@@ -324,7 +324,6 @@ namespace Rtx
                     continue;
                 const std::string named(traitsOf(format).mName);
                 add(toVulkanFormat(format), sUploadedTextureUsage, 0, "files in " + named);
-                add(withoutCurve(toVulkanFormat(format)), sUploadedTextureUsage, 0, "chains completed from " + named);
             }
 
             const VkFormat written = toVulkanFormat(TEXTURE_WRITTEN_FORMAT);

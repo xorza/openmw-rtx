@@ -148,9 +148,10 @@ namespace Rtx
                 EXPECT_NEAR(decoded[channel], solid[channel], 4) << "channel " << channel;
         }
 
-        /// What is made again and what is not: a BC1 file with a hole in it keeps its cut, a BC5 file
-        /// is no format a host reader decodes, and a file of one level has no chain to make again.
-        TEST(RtxChainBuildTest, aCutABc5FileAndAFileOfOneLevelAreNotMadeAgain)
+        /// What is made and what is not: a BC1 file with a hole in it holds a cut, a BC5 file is no
+        /// format a host reader decodes, and a file of one texel has no level under it; a file of one
+        /// level and more than a texel has its chain made.
+        TEST(RtxChainBuildTest, aCutABc5FileAndAFileOfOneTexelAreNotMadeAndAFileOfOneLevelIs)
         {
             std::vector<std::uint8_t> holed(16, 0);
             // BC1, its first endpoint not above its second, every index 3: transparent black.
@@ -178,7 +179,11 @@ namespace Rtx
 
             const osg::ref_ptr<osg::Image> single
                 = makeChained(GL_RGBA8, GL_RGBA, 2, { 16 }, std::vector<std::uint8_t>(16, 7));
-            EXPECT_FALSE(ChainBuild::rebuilds(describe(*single, TextureEncoding::Normal, levels, texels)));
+            EXPECT_TRUE(ChainBuild::rebuilds(describe(*single, TextureEncoding::Normal, levels, texels)));
+
+            const osg::ref_ptr<osg::Image> texel
+                = makeChained(GL_RGBA8, GL_RGBA, 1, { 4 }, std::vector<std::uint8_t>(4, 7));
+            EXPECT_FALSE(ChainBuild::rebuilds(describe(*texel, TextureEncoding::Normal, levels, texels)));
         }
     }
 }

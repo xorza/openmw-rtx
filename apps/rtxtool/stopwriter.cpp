@@ -379,13 +379,13 @@ namespace RtxTool
         // thread, which is the figure a cache is judged against.
         into.mRecord.note("\npreprocessed since the renderer started\n");
         const Rtx::Preprocessed& preprocessed = into.mReport.mWalked.mSession;
-        for (const auto& [thread, passes] :
-            { std::pair{ "frame", &preprocessed.mOnFrame }, std::pair{ "ring", &preprocessed.mOffFrame } })
+        for (const auto& [thread, passes] : { std::pair{ "frame", &preprocessed.mOnFrame },
+                 std::pair{ "ring", &preprocessed.mOffFrame }, std::pair{ "chains", &preprocessed.mPrepared } })
             for (const auto& [pass, name] : Rtx::sContentPasses.mNames)
             {
                 const Rtx::PassStats& counted = passes->at(pass);
                 into.mRecord.note(
-                    std::format("  {:<6}{:<12} {:>7} asked, {:>7} found, {:>9.1f} ms keying "
+                    std::format("  {:<7}{:<12} {:>7} asked, {:>7} found, {:>9.1f} ms keying "
                                 "{:>8.1f} MiB, {:>9.1f} ms running\n",
                         thread, name, counted.mAsked, counted.mHits, counted.mKeyMs, Rtx::megabytes(counted.mKeyBytes),
                         counted.mRunMs));
@@ -410,7 +410,7 @@ namespace RtxTool
         const Rtx::SceneDesc& scene = into.mContext.mMirror.getScene();
 
         Rtx::SceneTextures described;
-        described.describeAll(scene, nullptr);
+        described.describeAll(scene, nullptr, false);
 
         const float delight = into.mContext.mBackend.getProfile().mDelight;
         const ContactSheet drawn = drawContactSheet(described.getDescriptions(), delight);

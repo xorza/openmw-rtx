@@ -13,6 +13,7 @@
 
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/texels.hpp>
+#include <components/rtx/preprocess/texture/chainpass.hpp>
 
 namespace Rtx
 {
@@ -89,18 +90,23 @@ namespace Rtx
         }
     };
 
-    /// A payload of bytes, as it stands: a chain's levels.
+    /// A made chain: its form's byte, then its bytes as they stand.
     template <>
-    struct ContentCodec<std::vector<std::byte>>
+    struct ContentCodec<MadeChain>
     {
-        static void encode(const std::vector<std::byte>& bytes, std::vector<std::byte>& into)
+        static void encode(const MadeChain& chain, std::vector<std::byte>& into)
         {
-            into.insert(into.end(), bytes.begin(), bytes.end());
+            ContentBytes::put(into, static_cast<std::uint8_t>(chain.mForm));
+            into.insert(into.end(), chain.mBytes.begin(), chain.mBytes.end());
         }
 
-        static bool decode(std::span<const std::byte> from, std::vector<std::byte>& bytes)
+        static bool decode(std::span<const std::byte> from, MadeChain& chain)
         {
-            bytes.assign(from.begin(), from.end());
+            std::uint8_t form = 0;
+            if (!ContentBytes::take(from, form) || form > static_cast<std::uint8_t>(ChainForm::Loose))
+                return false;
+            chain.mForm = static_cast<ChainForm>(form);
+            chain.mBytes.assign(from.begin(), from.end());
             return true;
         }
     };

@@ -4,8 +4,8 @@
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/portable.h>
 
-// What every block encoder shares: `bc7encode.comp` and `rgtcencode.comp` read one image's chain and
-// write its blocks, a lane a block, every level in one dispatch (`Rtx::BlockChain`).
+// The block encoder's dispatch: `bc7encode.comp` reads one image's chain and writes its blocks, a
+// lane a block, every level in one dispatch (`Rtx::BlockChain`).
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders

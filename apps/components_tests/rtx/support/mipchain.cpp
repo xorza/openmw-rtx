@@ -14,7 +14,7 @@ namespace Rtx::Testing
         mTexture.reuse();
         mEncoded = true;
 
-        if (!described.wantsCompletedChain())
+        if (described.mLevels.size() != 1 || std::size_t{ described.mWidth } * described.mHeight <= 1)
             return;
 
         // The host's one chain (`ChainBuild`), laid into a texture of this object's own.

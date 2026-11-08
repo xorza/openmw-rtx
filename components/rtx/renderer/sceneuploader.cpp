@@ -1,5 +1,6 @@
 #include "sceneuploader.hpp"
 
+#include <cassert>
 #include <chrono>
 #include <cstdint>
 #include <span>
@@ -71,8 +72,6 @@ namespace Rtx
 
         // **A slot whose image was made since it stood its file arrives again**, before the
         // arrivals are read, so this hand-over describes it with its image.
-        if (handing.mPrepared != nullptr && handing.mSettled && !mPending.empty())
-            handing.mPrepared->flush();
         if (handing.mPrepared != nullptr)
             std::erase_if(mPending, [&](const SceneTextures::Pending& pending) {
                 if (!scene.textures().isLive(pending.mSlot))
@@ -122,9 +121,11 @@ namespace Rtx
             // Read only across the call below: `TextureData` carries spans into `mTextures`. The
             // whole table where there is nothing to append to, and the arrivals otherwise.
             if (!mine)
-                mTextures.describeAll(tables, handing.mPrepared);
+                mTextures.describeAll(tables, handing.mPrepared, handing.mSettled);
             else
-                mTextures.describe(tables, tables.textures().getArrived(), handing.mPrepared);
+                mTextures.describe(tables, tables.textures().getArrived(), handing.mPrepared, handing.mSettled);
+            if (handing.mSettled)
+                assert(mTextures.getPending().empty() && "a settled hand-over left an image to be made");
             mPending.insert(mPending.end(), mTextures.getPending().begin(), mTextures.getPending().end());
             for (const SceneTextures::Made& made : mTextures.getMade())
                 scene.textures().prepare(made.mSlot, made.mImage, false);

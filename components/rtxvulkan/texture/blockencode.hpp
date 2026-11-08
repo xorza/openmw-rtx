@@ -15,7 +15,7 @@ namespace Rtx
     class Device;
     class Image;
 
-    /// What every block encoder binds: every level of the source in, the chain's blocks out.
+    /// What the block encoder binds: every level of the source in, the chain's blocks out.
     extern const std::array<VkDescriptorSetLayoutBinding, Shaders::BLOCK_ENCODE_BINDINGS> sBlockEncodeBindings;
 
     /// The source's levels as `sBlockEncodeBindings`' array of storage views: the array past the

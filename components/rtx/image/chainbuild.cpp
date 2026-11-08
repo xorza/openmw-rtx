@@ -75,7 +75,8 @@ namespace Rtx
     bool ChainBuild::rebuilds(const TextureData& file)
     {
         const TextureFormat format = file.mFormat;
-        return file.mLevels.size() >= 2 && file.levelsFit()
+        const MipLevel& finest = file.mLevels.front();
+        return std::size_t{ finest.mWidth } * finest.mHeight > 1 && file.levelsFit()
             && (isBc1(format) || isBc2(format) || isBc3(format) || isLoose(format));
     }
 
@@ -190,7 +191,7 @@ namespace Rtx
 
     void ChainBuild::encode(const TextureData& file, std::vector<std::byte>& into) const
     {
-        assert(mLevels.size() == file.mLevels.size() && "a chain encoded for a file it was not built of");
+        assert(mLevels.size() >= file.mLevels.size() && "a chain encoded for a file it was not built of");
         initEncoders();
 
         const TextureFormat format = file.mFormat;

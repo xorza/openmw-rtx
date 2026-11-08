@@ -33,7 +33,7 @@ namespace Rtx
             return ImageShape{ .mWidth = width, .mHeight = height, .mLevels = levelsTo1x1(width, height) };
         }
 
-        /// What the device writes a texture it makes as: a bake, a composite, a completed chain.
+        /// What the device writes a texture it makes as: a bake or a composite's canvas.
         VkDeviceSize writtenBytes(const ImageShape& shape)
         {
             return texelsOf(shape) * texelBytes(TEXTURE_WRITTEN_FORMAT);
@@ -55,9 +55,6 @@ namespace Rtx
     {
         assert(first < texture.mLevels.size() && "a texture begun past the file's last level");
 
-        if (texture.mCompleteChain)
-            return chainTo1x1(texture.mWidth, texture.mHeight);
-
         const MipLevel& top = texture.mLevels[first];
         return ImageShape{
             .mWidth = top.mWidth,
@@ -66,39 +63,14 @@ namespace Rtx
         };
     }
 
-    namespace
-    {
-        /// The bytes of a chain `shape` takes in the blocks `texture` is encoded to.
-        VkDeviceSize encodedBytes(const TextureData& texture, const ImageShape& shape)
-        {
-            return BlockChain::of(
-                shape.mWidth, shape.mHeight, shape.mLevels, layoutOf(texture.encodedChainFormat()).mBytes)
-                .mBytes;
-        }
-    }
-
     TextureCost priceFile(const TextureData& texture, const std::uint32_t first)
     {
-        TextureCost cost;
-
-        // A completed chain is the device's, made from the file's one level uploaded as it is; one
-        // past the loose side stands in blocks (`TextureData::encodedChainFormat`), encoded off a
-        // loose chain the arrival's canvas holds, through blocks its room holds, both priced once
-        // for the arrival (`priceEncode`).
-        if (texture.mCompleteChain)
-        {
-            const ImageShape shape = shapeOf(texture, first);
-            cost.mTransient = texture.mBytes.size();
-            cost.mImage = texture.encodesChain() ? encodedBytes(texture, shape) : writtenBytes(shape);
-        }
-        else
-            cost.mImage = texture.bytesFrom(first);
-
-        cost.mCompanion = texture.getCompanion() == TextureCompanion::Spread
-            ? spreadTexels(texture, first) * texelBytes(NORMAL_SPREAD_FORMAT)
-            : sShadingBytes;
-
-        return cost;
+        return TextureCost{
+            .mImage = texture.bytesFrom(first),
+            .mCompanion = texture.getCompanion() == TextureCompanion::Spread
+                ? spreadTexels(texture, first) * texelBytes(NORMAL_SPREAD_FORMAT)
+                : sShadingBytes,
+        };
     }
 
     VkDeviceSize spreadMeansBytes(const TextureData& texture, const std::uint32_t first)
@@ -106,15 +78,6 @@ namespace Rtx
         return texture.getCompanion() == TextureCompanion::Spread
             ? spreadTexels(texture, first) * Shaders::NORMAL_SPREAD_MEAN_BYTES
             : 0;
-    }
-
-    EncodeCost priceEncode(const TextureData& texture, const std::uint32_t first)
-    {
-        if (!texture.mCompleteChain || !texture.encodesChain())
-            return {};
-
-        const ImageShape shape = shapeOf(texture, first);
-        return EncodeCost{ .mLoose = writtenBytes(shape), .mBlocks = encodedBytes(texture, shape) };
     }
 
     TextureCost priceBake(const ImageShape& source)

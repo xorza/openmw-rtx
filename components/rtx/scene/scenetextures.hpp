@@ -46,12 +46,14 @@ namespace Rtx
         /// @param prepared where a normal or a data map's image with its chain made again is found
         ///        (`PreparedImages`), or null for none: a file whose image is still being made is
         ///        described as it stands, and named in `getPending`.
-        void describeAll(const SceneDesc& scene, PreparedImages* prepared);
+        /// @param settled whether to wait for the images the slots need before describing them, so none
+        ///        is pending.
+        void describeAll(const SceneDesc& scene, PreparedImages* prepared, bool settled);
 
         /// The same, for `slots` and nothing else — what stops a texture being described twice. A
         /// list and not an offset, because a slot a departing cell freed is taken over wherever it
         /// sits.
-        void describe(const SceneDesc& scene, std::span<const Index> slots, PreparedImages* prepared);
+        void describe(const SceneDesc& scene, std::span<const Index> slots, PreparedImages* prepared, bool settled);
 
         /// A slot the last `describe` described as its file stands, while its image with its chain
         /// made again is made: the file the image is made of, which the slot's owner asks after.

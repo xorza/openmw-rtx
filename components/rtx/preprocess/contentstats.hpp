@@ -42,12 +42,14 @@ namespace Rtx
     };
 
     /// What was preprocessed, by the thread that did it: the frame's — what its walks met the first
-    /// time, and what the host read between them — and the cell ring's reader, whose models the
-    /// walk adopted. Apart, because only the first is a frame's time.
+    /// time, and what the host read between them — the cell ring's reader, whose models the walk
+    /// adopted, and the threads that make chains again (`PreparedImages`). Apart, because only the
+    /// first is a frame's time.
     struct Preprocessed
     {
         ContentStats mOnFrame;
         ContentStats mOffFrame{};
+        ContentStats mPrepared{};
 
         Preprocessed& operator+=(const Preprocessed& other);
     };

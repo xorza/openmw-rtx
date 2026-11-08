@@ -144,8 +144,9 @@ namespace MWRender
     WorldMirror::WorldMirror(
         const MirrorKnobs& knobs, Rtx::ContentStore* const store, Rtx::PreparedImages* const prepared)
         : mStore(store)
-        , mPrepared(prepared)
-        , mWalk{ .mContent{ store, Rtx::StoreReach::Memory }, .mSpecular = knobs.mSpecularLayout }
+        , mWalk{ .mContent{ store, Rtx::StoreReach::Memory },
+            .mPrepared = prepared,
+            .mSpecular = knobs.mSpecularLayout }
         , mGroundcoverReach(knobs.mGroundcoverReach)
         , mGroundcoverDensity(knobs.mGroundcoverDensity)
         , mGroundcoverLampLit(knobs.mGroundcoverLampLit)
@@ -394,7 +395,7 @@ namespace MWRender
                 .mScene = mScene,
                 .mComposites = &mComposites,
                 .mSpend = &spend,
-                .mPrepared = mPrepared,
+                .mPrepared = mWalk.mPrepared,
                 .mSettled = mRing.isSettled() });
     }
 

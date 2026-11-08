@@ -34,6 +34,7 @@ namespace Rtx
     {
         mOnFrame += other.mOnFrame;
         mOffFrame += other.mOffFrame;
+        mPrepared += other.mPrepared;
 
         return *this;
     }

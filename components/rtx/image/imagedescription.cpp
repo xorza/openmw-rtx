@@ -329,7 +329,6 @@ namespace Rtx
             TextureData described{
                 .mFormat = format,
                 .mEncoding = encoding,
-                .mHeld = traitsOf(format).mHeld,
                 .mWidth = width,
                 .mHeight = height,
                 .mBytes = std::span(data, kept),
@@ -429,12 +428,37 @@ namespace Rtx
         return made;
     }
 
+    namespace
+    {
+        /// Lays `made`'s `bytes` as a file lays its levels at `layout`, each after the finest half the
+        /// one above and at least a texel, so a file of one level takes the chain made for it as one
+        /// that carried its own does; and names `made` as `image`, whose place it takes.
+        void finishChain(const osg::Image& image, osg::Image& made, const TexelLayout layout, const std::size_t bytes)
+        {
+            const auto width = static_cast<std::uint32_t>(made.s());
+            const auto height = static_cast<std::uint32_t>(made.t());
+            osg::Image::MipmapDataType offsets;
+            std::size_t laid = layout.levelBytes(width, height);
+            for (std::uint32_t level = 1; laid < bytes; ++level)
+            {
+                offsets.push_back(static_cast<unsigned int>(laid));
+                laid += layout.levelBytes(std::max(width >> level, 1u), std::max(height >> level, 1u));
+            }
+            assert(laid == bytes && "a chain of another length than its levels");
+            made.setMipmapLevels(offsets);
+
+            made.setFileName(image.getFileName());
+            if (const SceneUtil::EmbeddedImage* const stamped = SceneUtil::EmbeddedImage::find(image))
+                made.setUserData(new SceneUtil::EmbeddedImage(*stamped));
+        }
+    }
+
     osg::ref_ptr<const osg::Image> joinChain(
         const osg::Image& image, const TextureData& described, std::span<const std::byte> coarser)
     {
-        assert(described.mLevels.size() >= 2 && "a chain joined to a file of one level");
-        const std::size_t finest = described.mLevels[1].mOffset;
-        assert(finest + coarser.size() == described.mBytes.size() && "a chain laid otherwise than its file");
+        const TexelLayout layout = layoutOf(described.mFormat);
+        const MipLevel& top = described.mLevels.front();
+        const std::size_t finest = layout.levelBytes(top.mWidth, top.mHeight);
 
         auto data = std::make_unique_for_overwrite<unsigned char[]>(finest + coarser.size());
         std::memcpy(data.get(), described.mBytes.data(), finest);
@@ -452,15 +476,21 @@ namespace Rtx
                 image.getInternalTextureFormat(), image.getPixelFormat(), image.getDataType(), data.release(),
                 osg::Image::USE_NEW_DELETE, image.getPacking());
 
-        osg::Image::MipmapDataType offsets;
-        offsets.reserve(described.mLevels.size() - 1);
-        for (const MipLevel& level : described.mLevels.subspan(1))
-            offsets.push_back(level.mOffset);
-        made->setMipmapLevels(offsets);
+        finishChain(image, *made, layout, finest + coarser.size());
+        return made;
+    }
 
-        made->setFileName(image.getFileName());
-        if (const SceneUtil::EmbeddedImage* const stamped = SceneUtil::EmbeddedImage::find(image))
-            made->setUserData(new SceneUtil::EmbeddedImage(*stamped));
+    osg::ref_ptr<const osg::Image> looseChain(
+        const osg::Image& image, std::uint32_t width, std::uint32_t height, std::span<const std::byte> levels)
+    {
+        auto data = std::make_unique_for_overwrite<unsigned char[]>(levels.size());
+        std::memcpy(data.get(), levels.data(), levels.size());
+
+        osg::ref_ptr<osg::Image> made = new osg::Image;
+        made->setImage(static_cast<int>(width), static_cast<int>(height), 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE,
+            data.release(), osg::Image::USE_NEW_DELETE);
+
+        finishChain(image, *made, layoutOf(TextureFormat::Rgba8Unorm), levels.size());
         return made;
     }
 

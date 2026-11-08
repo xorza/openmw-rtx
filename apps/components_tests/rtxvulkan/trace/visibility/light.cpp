@@ -23,6 +23,7 @@
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/lobeintegrals.hpp>
+#include <apps/components_tests/rtx/support/mipchain.hpp>
 #include <apps/components_tests/rtx/support/shadowalpha.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
@@ -735,8 +736,8 @@ namespace Rtx::Testing
         }
 
         /// **A cutout keeps its coverage with distance, as the rasterizer keeps it.** A checker of
-        /// opaque texels and holes, cut at 0.6, whose file carries one level: the chain the device
-        /// makes holds an alpha of a half at every level under it, which the test fails, so a
+        /// opaque texels and holes, cut at 0.6, whose file carries one level: the chain the host
+        /// makes (`ChainPass`) holds an alpha of a half at every level under it, which the test fails, so a
         /// canopy read from a few levels down had no leaves. The alpha is raised by a quarter a
         /// level (`alpha.glsl`'s scale): tiled sixteen times across a card that fills the frame, a
         /// pixel covers four texels, the read stands two levels down, and `0.5 · 1.5 = 0.75` passes —
@@ -761,14 +762,16 @@ namespace Rtx::Testing
                 }
 
             const MipLevel level{ 0, extent, extent };
-            const TextureData data{
+            const TextureData file{
                 .mFormat = TextureFormat::Rgba8Unorm,
                 .mWidth = extent,
                 .mHeight = extent,
                 .mBytes = std::as_bytes(std::span(bytes)),
                 .mLevels = std::span(&level, 1),
-                .mCompleteChain = true,
             };
+            const Testing::MipChain chain(file);
+            ASSERT_FALSE(chain.isEmpty());
+            const TextureData data = chain.describe();
             const std::span<const TextureData> textures(&data, 1);
 
             const std::array masked = cardAt(-50.0f);
