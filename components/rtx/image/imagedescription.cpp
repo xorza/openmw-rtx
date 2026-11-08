@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <exception>
 #include <limits>
 #include <memory>
@@ -419,6 +420,41 @@ namespace Rtx
         osg::Image::MipmapDataType offsets;
         offsets.reserve(laid.mLevels.size() - 1);
         for (const MipLevel& level : laid.mLevels.subspan(1))
+            offsets.push_back(level.mOffset);
+        made->setMipmapLevels(offsets);
+
+        made->setFileName(image.getFileName());
+        if (const SceneUtil::EmbeddedImage* const stamped = SceneUtil::EmbeddedImage::find(image))
+            made->setUserData(new SceneUtil::EmbeddedImage(*stamped));
+        return made;
+    }
+
+    osg::ref_ptr<const osg::Image> joinChain(
+        const osg::Image& image, const TextureData& described, std::span<const std::byte> coarser)
+    {
+        assert(described.mLevels.size() >= 2 && "a chain joined to a file of one level");
+        const std::size_t finest = described.mLevels[1].mOffset;
+        assert(finest + coarser.size() == described.mBytes.size() && "a chain laid otherwise than its file");
+
+        auto data = std::make_unique_for_overwrite<unsigned char[]>(finest + coarser.size());
+        std::memcpy(data.get(), described.mBytes.data(), finest);
+        std::memcpy(data.get() + finest, coarser.data(), coarser.size());
+
+        // **In the format the description holds, which a widened file's is not**: its bytes were laid
+        // as RGBA8, as `layImage` lays them, and an image under the file's own sixteen-bit or
+        // three-byte spelling would be read past its buffer.
+        osg::ref_ptr<osg::Image> made = new osg::Image;
+        if (isWidened(readFormat(image, described.mEncoding)))
+            made->setImage(static_cast<int>(described.mWidth), static_cast<int>(described.mHeight), 1, GL_RGBA8,
+                GL_RGBA, GL_UNSIGNED_BYTE, data.release(), osg::Image::USE_NEW_DELETE);
+        else
+            made->setImage(static_cast<int>(described.mWidth), static_cast<int>(described.mHeight), 1,
+                image.getInternalTextureFormat(), image.getPixelFormat(), image.getDataType(), data.release(),
+                osg::Image::USE_NEW_DELETE, image.getPacking());
+
+        osg::Image::MipmapDataType offsets;
+        offsets.reserve(described.mLevels.size() - 1);
+        for (const MipLevel& level : described.mLevels.subspan(1))
             offsets.push_back(level.mOffset);
         made->setMipmapLevels(offsets);
 

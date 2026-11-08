@@ -141,8 +141,10 @@ namespace MWRender
         }
     }
 
-    WorldMirror::WorldMirror(const MirrorKnobs& knobs, Rtx::ContentStore* const store)
+    WorldMirror::WorldMirror(
+        const MirrorKnobs& knobs, Rtx::ContentStore* const store, Rtx::PreparedImages* const prepared)
         : mStore(store)
+        , mPrepared(prepared)
         , mWalk{ .mContent{ store, Rtx::StoreReach::Memory }, .mSpecular = knobs.mSpecularLayout }
         , mGroundcoverReach(knobs.mGroundcoverReach)
         , mGroundcoverDensity(knobs.mGroundcoverDensity)
@@ -388,8 +390,12 @@ namespace MWRender
     Rtx::SceneUpload WorldMirror::hand(Rtx::SceneHolder& scenes, Rtx::FrameSpend& spend)
     {
         return mUploader.hand(scenes,
-            Rtx::SceneUploader::Handing{
-                .mSlot = Rtx::SceneSlot::world(), .mScene = mScene, .mComposites = &mComposites, .mSpend = &spend });
+            Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(),
+                .mScene = mScene,
+                .mComposites = &mComposites,
+                .mSpend = &spend,
+                .mPrepared = mPrepared,
+                .mSettled = mRing.isSettled() });
     }
 
 }

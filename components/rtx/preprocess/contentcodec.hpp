@@ -89,6 +89,22 @@ namespace Rtx
         }
     };
 
+    /// A payload of bytes, as it stands: a chain's levels.
+    template <>
+    struct ContentCodec<std::vector<std::byte>>
+    {
+        static void encode(const std::vector<std::byte>& bytes, std::vector<std::byte>& into)
+        {
+            into.insert(into.end(), bytes.begin(), bytes.end());
+        }
+
+        static bool decode(std::span<const std::byte> from, std::vector<std::byte>& bytes)
+        {
+            bytes.assign(from.begin(), from.end());
+            return true;
+        }
+    };
+
     /// Whether `T` has a `ContentCodec`: what a pass whose outputs are stored needs.
     template <class T>
     concept StoredOutput

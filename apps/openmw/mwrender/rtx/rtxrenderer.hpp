@@ -26,6 +26,7 @@
 #include <components/rtx/mirror/drawableposer.hpp>
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/preprocess/contentstore.hpp>
+#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sdlutil/graphicslistener.hpp>
@@ -405,6 +406,11 @@ namespace MWRender
         /// none. Before the mirror, whose walks and cell reader find their passes' outputs in it, and
         /// so gone after them: its going finishes what they handed it to write.
         std::unique_ptr<Rtx::ContentStore> mContentStore;
+
+        /// The world's normal and data maps with their chains made again, on half the processors,
+        /// as the content's preprocessing is (`Rtx::Hands::Half`). After the store, which its threads
+        /// write to, and before the mirror, whose hand-over reads it.
+        std::unique_ptr<Rtx::PreparedImages> mPrepared;
 
         /// The engine's scene graph mirrored into what a ray can meet, and the hand-over that
         /// puts it on the device.

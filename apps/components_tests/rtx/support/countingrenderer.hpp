@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <optional>
 #include <span>
@@ -190,8 +191,15 @@ namespace Rtx::Testing
         void recordSlots(std::span<const Rtx::TextureData> described)
         {
             mDescribedSlots.clear();
+            mDescribedSecondTexels.clear();
             for (const Rtx::TextureData& texture : described)
+            {
                 mDescribedSlots.push_back(texture.mSlot);
+                std::uint32_t second = 0;
+                if (texture.mLevels.size() > 1 && texture.mBytes.size() >= texture.mLevels[1].mOffset + 4)
+                    std::memcpy(&second, texture.mBytes.data() + texture.mLevels[1].mOffset, 4);
+                mDescribedSecondTexels.push_back(second);
+            }
         }
 
         void dropViewScene(Rtx::SceneSlot slot) override { mViewDropped.push_back(slot.getViewIndex()); }
@@ -199,6 +207,10 @@ namespace Rtx::Testing
         void finishGuiTraces() override {}
         void readPixels(std::vector<std::uint8_t>&) override {}
         void readDeepPixels(std::vector<std::uint16_t>&) override {}
+
+        /// The first four bytes of each described texture's second level, beside `mDescribedSlots`, or
+        /// nought for one of one level: what says which chain a slot was described with.
+        std::vector<std::uint32_t> mDescribedSecondTexels;
 
         /// Which slots the last hand-over described, in the order it described them.
         ///

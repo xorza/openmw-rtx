@@ -14,7 +14,7 @@
 // texels that each agree with themselves and disagree with each other have a spread none of the four has.
 
 #include "brdf.h"
-#include "shared/halving.h"
+#include "halving.h"
 #include "shared/normalspread.h"
 #include "shared/sets.h"
 

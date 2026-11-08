@@ -437,7 +437,7 @@ namespace Rtx
             Testing::addModel(scene, oddPath, odd);
 
             SceneTextures described;
-            described.describeAll(scene);
+            described.describeAll(scene, nullptr);
             ASSERT_EQ(described.getRefusals().size(), 1u);
             EXPECT_EQ(described.getRefusals()[0].mName, oddPath.value());
             ASSERT_EQ(described.getDescriptions().size(), 2u);
@@ -764,7 +764,7 @@ namespace Rtx
                 laidPath, widened.get(), Rtx::TextureWrap::Repeat, Rtx::TextureEncoding::Normal, laid.get());
 
             SceneTextures described;
-            described.describeAll(scene);
+            described.describeAll(scene, nullptr);
             ASSERT_TRUE(described.getRefusals().empty()) << "an image the slot kept was not described";
             ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 3 });
             ASSERT_EQ(described.getDescriptions()[1].mBytes.size(), 20u) << "the widened texels were not described";
@@ -781,7 +781,7 @@ namespace Rtx
             ASSERT_EQ(described.getDescriptions()[0].mLevels.size(), std::size_t{ 1 });
 
             const std::size_t before = Testing::getAllocationCount();
-            described.describeAll(scene);
+            described.describeAll(scene, nullptr);
             const std::size_t spent = Testing::getAllocationCount() - before;
 
             EXPECT_EQ(spent, 0u) << "a second description reached the heap " << spent << " times";
@@ -833,10 +833,10 @@ namespace Rtx
             // One loader for both, which is how the uploader holds it: the second call clears what
             // the first left and answers on its own.
             SceneTextures described;
-            described.describe(scene, both);
+            described.describe(scene, both, nullptr);
             check(described, "described by arrival");
 
-            described.describeAll(scene);
+            described.describeAll(scene, nullptr);
             check(described, "described from the whole table");
         }
 
@@ -852,7 +852,7 @@ namespace Rtx
             const Rtx::Index bake = scene.textures().addSpriteLight(smoke);
 
             SceneTextures described;
-            described.describeAll(scene);
+            described.describeAll(scene, nullptr);
             ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 1 });
             EXPECT_EQ(described.getDescriptions()[0].mSlot, bake);
             EXPECT_EQ(described.getDescriptions()[0].mName, "stand-in");
@@ -864,7 +864,7 @@ namespace Rtx
             // The emitter holds the source under a wrap of its own beside the bake; the bake finds
             // it whichever wrap that was, and is then a bake and not a texture.
             const Rtx::Index source = scene.textures().add(smoke, Rtx::TextureWrap::ClampS);
-            described.describe(scene, std::span(&bake, 1));
+            described.describe(scene, std::span(&bake, 1), nullptr);
             ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 1 });
             EXPECT_EQ(described.getDescriptions()[0].mSlot, bake);
             EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::SpriteBake);
@@ -924,13 +924,13 @@ namespace Rtx
 
             const std::array arrived{ albedo, gloss };
             SceneTextures described;
-            described.describe(scene, arrived);
+            described.describe(scene, arrived, nullptr);
             check(described, "the frame it arrived");
 
             scene.clearArrivals();
             ASSERT_EQ(queue.advance(scene), 0u) << "nothing else asks";
             SceneTextures rebuilt;
-            rebuilt.describeAll(scene);
+            rebuilt.describeAll(scene, nullptr);
             check(rebuilt, "a rebuild a frame later");
         }
 
@@ -949,7 +949,7 @@ namespace Rtx
             Testing::addModel(scene, path, image);
 
             SceneTextures described;
-            described.describeAll(scene);
+            described.describeAll(scene, nullptr);
             ASSERT_EQ(described.getDescriptions().size(), 1u);
             EXPECT_EQ(described.getDescriptions()[0].mLevels.size(), 1u) << "the file's own level and no chain";
             EXPECT_TRUE(described.getDescriptions()[0].mCompleteChain) << "the chain is the device's to make";

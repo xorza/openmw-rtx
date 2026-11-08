@@ -86,6 +86,7 @@ namespace Rtx
         /// stood the same ground in other slots. One cell and one cell's groundcover a frame either
         /// way.
         void setSettled(bool settled);
+        bool isSettled() const { return mSettled; }
 
         /// How many cells of its band the ring still has to stand after the last walk, and how many
         /// cells' groundcover of the grass band: asked for and not yet read, or read and waiting for

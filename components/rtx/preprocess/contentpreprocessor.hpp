@@ -3,6 +3,7 @@
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
+#include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 
 #include "contentcache.hpp"
@@ -53,6 +54,10 @@ namespace Rtx
         /// `AlphaSpan`: the lowest and the highest alpha `image` holds.
         AlphaRange alphaRange(const osg::Image& image);
 
+        /// `ChainPass`: `image`'s levels under its finest made again, read as `encoding`, into
+        /// `levels`; empty where its own chain stands.
+        void chain(const osg::Image& image, TextureEncoding encoding, std::vector<std::byte>& levels);
+
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();
 
@@ -66,6 +71,7 @@ namespace Rtx
         TexelMean mMean{ mTexels };
         SolidFall mFall{ mTexels };
         AlphaSpan mSpan{ mTexels };
+        ChainPass mChain;
 
         ContentCache mCache;
         ContentStats mStats;

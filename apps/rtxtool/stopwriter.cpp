@@ -410,7 +410,7 @@ namespace RtxTool
         const Rtx::SceneDesc& scene = into.mContext.mMirror.getScene();
 
         Rtx::SceneTextures described;
-        described.describeAll(scene);
+        described.describeAll(scene, nullptr);
 
         const float delight = into.mContext.mBackend.getProfile().mDelight;
         const ContactSheet drawn = drawContactSheet(described.getDescriptions(), delight);

@@ -19,6 +19,7 @@
 
 namespace Rtx
 {
+    class PreparedImages;
     class SceneDesc;
 
     /// Every live texture a scene names, described, and the storage those descriptions point into.
@@ -41,12 +42,37 @@ namespace Rtx
         /// building an array from nothing. The free slots are not among them. A texture that cannot
         /// be described is described as the stand-in and refused, and so is the array running out
         /// of room.
-        void describeAll(const SceneDesc& scene);
+        ///
+        /// @param prepared where a normal or a data map's image with its chain made again is found
+        ///        (`PreparedImages`), or null for none: a file whose image is still being made is
+        ///        described as it stands, and named in `getPending`.
+        void describeAll(const SceneDesc& scene, PreparedImages* prepared);
 
         /// The same, for `slots` and nothing else — what stops a texture being described twice. A
         /// list and not an offset, because a slot a departing cell freed is taken over wherever it
         /// sits.
-        void describe(const SceneDesc& scene, std::span<const Index> slots);
+        void describe(const SceneDesc& scene, std::span<const Index> slots, PreparedImages* prepared);
+
+        /// A slot the last `describe` described as its file stands, while its image with its chain
+        /// made again is made: the file the image is made of, which the slot's owner asks after.
+        struct Pending
+        {
+            Index mSlot;
+            osg::ref_ptr<const osg::Image> mSource;
+            TextureEncoding mEncoding;
+        };
+
+        std::span<const Pending> getPending() const { return mPending; }
+
+        /// A slot the last `describe` described with its image made, which its owner gives the slot
+        /// to hold (`TextureTable::prepare`).
+        struct Made
+        {
+            Index mSlot;
+            osg::ref_ptr<const osg::Image> mImage;
+        };
+
+        std::span<const Made> getMade() const { return mMade; }
 
         /// What the last `describe` found, each carrying the slot it goes to in `TextureData::mSlot`.
         std::span<const TextureData> getDescriptions() const { return mDescriptions; }
@@ -95,6 +121,8 @@ namespace Rtx
         /// The slots `describe` kept, because a free one is passed over and the descriptions are
         /// no longer one per entry of what it was asked for.
         std::vector<Kept> mKept;
+        std::vector<Pending> mPending;
+        std::vector<Made> mMade;
 
         /// Every image's levels, back to back. One table rather than one vector each: a cell reaches
         /// a couple of hundred textures, and the descriptions want a span into something stable.

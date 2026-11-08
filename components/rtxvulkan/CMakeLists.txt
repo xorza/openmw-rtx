@@ -403,7 +403,6 @@ set(RTX_VULKAN_FILES
     shaders/shared/gui.h
     shaders/shared/halfmean.h
     shaders/shared/halfstore.h
-    shaders/shared/halving.h
     shaders/shared/historyclamp.h
     shaders/shared/line.h
     shaders/shared/medium.h

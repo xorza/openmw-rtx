@@ -208,43 +208,54 @@ facts came with the store, since a store no pass reaches would be code nothing r
 on `openmw-pbr` finds all 488 alpha spans and 19 texel means, which ran 953 ms cold, in 142 ms of keying, and a cold
 and a warm shot draw the same frames.
 
-Batch 3: normal and data map chains.
+Batch 3 is done: rgbcx vendored (`extern/rgbcx`, its licence in `files/licenses/rgbcx.txt`), the host chain
+(`Rtx::ChainBuild`, which the test support's chain now is), the chain pass kept in the store, and the prepared images
+(`Rtx::PreparedImages`) that every world slot of a normal or data map reads once made. The patch at the Seyda Neen place
+is gone; a settled cold and warm shot draw the same frames, and both stand the world whole on frame 429. What it does
+otherwise than the items said:
 
-1. **The chain pass** (`ChainPass`): input an image, output the levels below its finest in the file's format, made by
-   the box filter and `rgbcx`, vendored under `extern/` with its licence.
-2. **The prepared image**: `LaidImageCache` becomes the one place that turns a file into what the upload reads. It
-   widens a loose format as now and joins a built chain to the file's level 0. A worker builds, the slot is made again
-   when the build lands, and the world is not whole until the queue is empty.
-3. **Every normal and data map through it.**
+- **The made image is held by its slot** (`TextureRow::mPrepared`) and not in `LaidImageCache`, which stays the widening
+  alone: the slot decides how long the image lives, and the hand-over stands a slot again once its image is made
+  (`TextureTable::prepare`), which the frame's describe reads in place of the file.
+- **A settled run waits for the images being made** at each hand-over (`SceneUploader::Handing::mSettled`), as a settled
+  walk waits for its cells: a cold run otherwise stood the world whole on a frame its threads' timing chose, and two
+  cold runs drew two pictures.
+- **The finest level is copied into the made image**, an image's levels being one buffer: a normal or data map is held
+  twice on the host while its slot stands. Measured before the next batch; a description of two spans (the file's
+  finest level and the made levels) is the change that would remove it.
+- **Not made again**: BC4 and BC5 maps, which no host reader decodes and whose channels hold no alpha to be weighed by,
+  and a BC1 map with a cut, whose one bit of alpha a box blurs.
+- **A picture's scene reads its files as they stand**: only the world's hand-over is handed the prepared images.
+- `halving.h`, the odd-axis rule, moved to the core's shared headers, so the host chain reads the device's.
 
 Batch 4: chainless files.
 
-4. **Every file that lacks a chain through the chain pass**, the loose chain for 512 or less on a side.
-5. **The device completion removed**: `MipChainPass`, `mipchain.comp`, the loose chains, `mCompleteChain` and the
+1. **Every file that lacks a chain through the chain pass**, the loose chain for 512 or less on a side.
+2. **The device completion removed**: `MipChainPass`, `mipchain.comp`, the loose chains, `mCompleteChain` and the
     canvas room the arrival keeps for them.
 
 Batch 5: the shapes.
 
-6. `ShapePass`'s output through the store: 0.4 s of a PBR load and 1.3 s of a Fullrest load (batch 0).
+3. `ShapePass`'s output through the store: 0.4 s of a PBR load and 1.3 s of a Fullrest load (batch 0).
 
 Batch 6: the device's derivations.
 
-7. **Their cost at arrival measured first**: each pass's device time and the worst frame of a load at
+4. **Their cost at arrival measured first**: each pass's device time and the worst frame of a load at
     `seyda-neen-ship` on both PBR profiles and the Fullrest Repack, against which the two items after it are judged.
-8. **The shading map, the normal spread and the sprite bake through the store**: each read back after its pass and
+5. **The shading map, the normal spread and the sprite bake through the store**: each read back after its pass and
     stored, and uploaded from the store at arrival where it is there.
-9. **The ground composite and gloss through the store**, keyed by the chunk's layers, their blend weights and the
+6. **The ground composite and gloss through the store**, keyed by the chunk's layers, their blend weights and the
     delight they were baked at.
 
 Batch 7: the tool.
 
-10. **The content tool** (`apps/contenttool`, `openmw-contenttool`): the content list loaded as navmeshtool loads it,
+7. **The content tool** (`apps/contenttool`, `openmw-contenttool`): the content list loaded as navmeshtool loads it,
     from the configuration the game hands it, every model and land texture walked through the mirror's walk, every
     host pass on worker threads and every device pass on a windowless device into the store, the manifest written,
     progress as binary messages on its standard output, and as text on a terminal.
-11. **A child process with a pipe** in `Platform::Process`: start a program with its arguments, read its standard
+8. **A child process with a pipe** in `Platform::Process`: start a program with its arguments, read its standard
     output, wait for it, end it. A POSIX and a Windows file behind the one header, as the rest of it is.
-12. **The game's start**: the renderer starts the tool when it is made, a reader thread turns its messages into the
+9. **The game's start**: the renderer starts the tool when it is made, a reader thread turns its messages into the
     loading screen's label and bar, and the step that waits for the kernels waits for the tool too
     (`Renderer::awaitShaders` named again for what it now waits for). The game's log line and stats row of its
     misses. The harness starts it the same way, into the store its run states. The call in `OMW::Engine` is upstream
@@ -252,7 +263,7 @@ Batch 7: the tool.
 
 Batch 8: content in the renderer's own forms, by the user's request.
 
-13. **The audit**: every place the renderer accommodates a form the content comes in, rather than the one form it
+10. **The audit**: every place the renderer accommodates a form the content comes in, rather than the one form it
     reads, each with whether it is a function of the files alone (the tool can make it once) or of a run's state (it
     stays). The candidates found so far, each a decision for the user after its measurement:
     - **Normal maps in one encoding.** `decodeNormal` reconstructs the blue where a file holds none, and `resolve`
@@ -278,7 +289,7 @@ Batch 8: content in the renderer's own forms, by the user's request.
 
 Batch 9: program constants, at any time.
 
-14. **The blue noise's rank matrices and the fog's noise generated by the build** and compiled in, with a test that
+11. **The blue noise's rank matrices and the fog's noise generated by the build** and compiled in, with a test that
     the compiled table equals what the generator makes.
 
 ## Risks

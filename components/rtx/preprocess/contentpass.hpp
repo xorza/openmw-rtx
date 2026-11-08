@@ -35,6 +35,9 @@ namespace Rtx
         /// The lowest and the highest alpha a texture holds — `AlphaSpan`.
         AlphaSpan,
 
+        /// A file's levels under its finest, made again from it — `ChainPass`.
+        Chain,
+
         Count,
     };
 
@@ -46,6 +49,7 @@ namespace Rtx
         std::pair{ ContentPassId::TexelMean, std::string_view("texel mean") },
         std::pair{ ContentPassId::SolidFall, std::string_view("solid fall") },
         std::pair{ ContentPassId::AlphaSpan, std::string_view("alpha span") },
+        std::pair{ ContentPassId::Chain, std::string_view("chain") },
     } };
 
     inline constexpr std::size_t sContentPassCount = sContentPasses.mNames.size();

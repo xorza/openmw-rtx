@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -81,6 +82,11 @@ namespace Rtx
         /// and what the upload then reads in its place; null otherwise, and the upload widens
         /// `mImage` itself. `mImage` stays the file, which the format count and the name are of.
         osg::ref_ptr<const osg::Image> mLaid{};
+
+        /// A normal or a data map's image with its chain made again (`PreparedImages`), which the
+        /// upload reads in place of both above once it is made; null until then, and for every other
+        /// slot. Held here, so the slot decides how long it stays.
+        osg::ref_ptr<const osg::Image> mPrepared{};
 
         /// `mImage`'s format as `mEncoding` reads it, read once when the slot is taken.
         /// `TextureFormat::Unnamed` where there is no image.
@@ -164,6 +170,18 @@ namespace Rtx
         /// that textures decide. A revision and not a count, because a slot freed and taken again
         /// has to read as a change.
         std::uint64_t getRevision() const { return mRevision; }
+
+        /// Gives `slot`, a live file's slot, its image with its chain made again (`TextureRow::mPrepared`),
+        /// and where it stood without it, has it arrive again, so the next hand-over stands it with it.
+        void prepare(Index slot, osg::ref_ptr<const osg::Image> image, bool stood)
+        {
+            assert(isLive(slot) && "a slot that stands no texture was prepared");
+            rowAt(slot).mPrepared = std::move(image);
+            if (!stood)
+                return;
+            mChanges.note(slot, SlotNews::Arrived);
+            ++mRevision;
+        }
 
         /// Settles what a drop took out of the arrivals, so they can be read.
         void compact() { mChanges.compact(); }

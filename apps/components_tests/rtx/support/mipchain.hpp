@@ -1,10 +1,6 @@
 #pragma once
 
-#include <vector>
-
-#include <osg/Vec3f>
-
-#include <components/rtx/image/alphaimage.hpp>
+#include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/texturedata.hpp>
 
 #include "ownedtexture.hpp"
@@ -12,8 +8,8 @@
 namespace Rtx::Testing
 {
     /// The levels a texture needs, built on the host where its file carried none
-    /// (`TextureData::wantsCompletedChain`): the host's statement of the chain the device makes as
-    /// the texture arrives, `mipchain.comp`, which a test holds that one to. Owns its bytes, unlike
+    /// (`TextureData::wantsCompletedChain`): the host's chain (`ChainBuild`) beside the one the device
+    /// makes as the texture arrives, `mipchain.comp`, which a test holds that one to. Owns its bytes, unlike
     /// a `TextureData`, because there is nobody else's to span for a level no file holds.
     class MipChain
     {
@@ -38,12 +34,8 @@ namespace Rtx::Testing
         TextureData describe() const;
 
     private:
-        /// The finest level's alpha, read to weigh the colours by it. Not among what `build`
-        /// resets, because nothing reads it but the line that fills it.
-        AlphaImage mAlpha;
-
-        /// A band of the finest level's colours at a time, `readTexelBand`'s.
-        std::vector<osg::Vec3f> mBand;
+        /// The host's chain, which this lays out as a texture.
+        ChainBuild mChain;
 
         /// Every level, back to back, four bytes a texel, with the name and the format beside them.
         OwnedTexture mTexture;

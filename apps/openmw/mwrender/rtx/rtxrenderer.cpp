@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 
 #include <MyGUI_ITexture.h>
@@ -59,6 +60,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
 #include <components/rtx/preprocess/contentstore.hpp>
+#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -211,7 +213,9 @@ namespace MWRender
         , mContentStore(setup.mContentStore.has_value()
                   ? std::make_unique<Rtx::ContentStore>(*setup.mContentStore, Rtx::ContentStore::sGameCap)
                   : nullptr)
-        , mMirror(setup.mMirror, mContentStore.get())
+        , mPrepared(std::make_unique<Rtx::PreparedImages>(
+              mContentStore.get(), std::max<std::size_t>(1, std::thread::hardware_concurrency() / 2)))
+        , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get())
     {
         mSettled = setup.mSettled;
 
@@ -1034,6 +1038,7 @@ namespace MWRender
         report.mSpend.at(Rtx::Timing::Place) = Rtx::since(handing, std::chrono::steady_clock::now());
         report.mUpload = handed;
         report.mCellsToStand = mMirror.getRing().getCellsToStand();
+        report.mImagesPending = static_cast<std::uint32_t>(mMirror.getImagesPending());
 
         if (handed.mKind == Rtx::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mMirror.getScene().meshes().getRows().size() << " meshes into "

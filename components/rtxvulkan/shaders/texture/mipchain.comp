@@ -16,7 +16,7 @@
 // no curve under it, so the bytes a file holds are the bytes the chain's first level holds.
 
 #include "colour.h"
-#include "shared/halving.h"
+#include "halving.h"
 #include "shared/mipchain.h"
 #include "scene.h"
 #include "shared/sets.h"

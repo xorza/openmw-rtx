@@ -2,7 +2,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
+#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/scene/scenetextures.hpp>
 
 #include "framespend.hpp"
@@ -70,6 +72,15 @@ namespace Rtx
             /// and `Upload`. Timed here, because a backend that timed itself would be answering a
             /// question about the host's frame.
             FrameSpend* mSpend = nullptr;
+
+            /// Where a normal or a data map's image with its chain made again is found
+            /// (`PreparedImages`), or null for a scene that reads its files as they stand.
+            PreparedImages* mPrepared = nullptr;
+
+            /// Whether the hand-over waits for every image being made before it asks after them, as a
+            /// settled walk waits for its cells (`CellRing::setSettled`): what makes two processes,
+            /// whatever their threads' timing, stand one image on one frame.
+            bool mSettled = false;
         };
 
         /// Hands the scene to `scenes`, building only what has to be built, and ends the
@@ -79,9 +90,17 @@ namespace Rtx
         /// on the device as it stood before.
         SceneUpload hand(SceneHolder& scenes, const Handing& handing);
 
+        /// How many slots stand their files as they are while their images are made: what a run that
+        /// compares frames waits for, beside the cells.
+        std::size_t getPendingCount() const { return mPending.size(); }
+
     private:
         /// What an arrival is described into, and the storage the descriptions point at. Held, so
         /// an arrival frame does not pay for the buffers; nothing reads them between calls.
         SceneTextures mTextures;
+
+        /// The slots described as their files stand, whose images are being made: asked after at
+        /// every hand-over, and stood again once made (`TextureTable::arriveAgain`).
+        std::vector<SceneTextures::Pending> mPending;
     };
 }

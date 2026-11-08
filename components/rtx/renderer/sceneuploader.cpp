@@ -4,9 +4,11 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <vector>
 
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -67,7 +69,26 @@ namespace Rtx
         const std::chrono::steady_clock::time_point gathered = std::chrono::steady_clock::now();
         timed.at(Timing::Bake) = since(began, gathered);
 
-        // After the two calls above, because both rewrite what the spans reach.
+        // **A slot whose image was made since it stood its file arrives again**, before the
+        // arrivals are read, so this hand-over describes it with its image.
+        if (handing.mPrepared != nullptr && handing.mSettled && !mPending.empty())
+            handing.mPrepared->flush();
+        if (handing.mPrepared != nullptr)
+            std::erase_if(mPending, [&](const SceneTextures::Pending& pending) {
+                if (!scene.textures().isLive(pending.mSlot))
+                    return true;
+                const TextureRow& row = scene.textures().getRows()[pending.mSlot];
+                if ((row.mLaid != nullptr ? row.mLaid : row.mImage) != pending.mSource)
+                    return true;
+                const PreparedImage made = handing.mPrepared->find(*pending.mSource, pending.mEncoding);
+                if (made.mPending)
+                    return false;
+                if (made.mImage != nullptr)
+                    scene.textures().prepare(pending.mSlot, made.mImage, true);
+                return true;
+            });
+
+        // After the calls above, because they rewrite what the spans reach.
         scene.compact();
         const SceneDesc& tables = scene;
 
@@ -101,9 +122,12 @@ namespace Rtx
             // Read only across the call below: `TextureData` carries spans into `mTextures`. The
             // whole table where there is nothing to append to, and the arrivals otherwise.
             if (!mine)
-                mTextures.describeAll(tables);
+                mTextures.describeAll(tables, handing.mPrepared);
             else
-                mTextures.describe(tables, tables.textures().getArrived());
+                mTextures.describe(tables, tables.textures().getArrived(), handing.mPrepared);
+            mPending.insert(mPending.end(), mTextures.getPending().begin(), mTextures.getPending().end());
+            for (const SceneTextures::Made& made : mTextures.getMade())
+                scene.textures().prepare(made.mSlot, made.mImage, false);
             scene.refusals().refuse(mTextures.getRefusals());
 
             const std::chrono::steady_clock::time_point described = std::chrono::steady_clock::now();

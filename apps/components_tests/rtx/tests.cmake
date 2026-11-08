@@ -33,6 +33,7 @@ set(RTX_TEST_FILES
     rtx/frame/specularalbedo.cpp
     rtx/frame/spritelistsize.cpp
     rtx/image/alphaimage.cpp
+    rtx/image/chainbuild.cpp
     rtx/image/colour.cpp
     rtx/image/mipchain.cpp
     rtx/image/shadingmap.cpp
@@ -64,6 +65,7 @@ set(RTX_TEST_FILES
     rtx/preprocess/contentkey.cpp
     rtx/preprocess/contentpreprocessor.cpp
     rtx/preprocess/contentstore.cpp
+    rtx/preprocess/preparedimages.cpp
     rtx/preprocess/laidimagecache.cpp
     rtx/preprocess/shape/creasesplit.cpp
     rtx/preprocess/shape/shapefold.cpp

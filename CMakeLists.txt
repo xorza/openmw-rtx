@@ -964,6 +964,7 @@ function(install_fork_licenses destination)
     install(FILES "${OpenMW_SOURCE_DIR}/extern/fidelityfx/LICENSE.txt" DESTINATION "${destination}" RENAME "FidelityFX-SDK.txt")
     install(FILES "${OpenMW_SOURCE_DIR}/files/licenses/VulkanMemoryAllocator.txt"
         "${OpenMW_SOURCE_DIR}/files/licenses/volk.txt" "${OpenMW_SOURCE_DIR}/files/licenses/SDL3.txt"
+        "${OpenMW_SOURCE_DIR}/files/licenses/rgbcx.txt"
         DESTINATION "${destination}")
     if (OPENMW_CRASHPAD)
         install(DIRECTORY "${OpenMW_SOURCE_DIR}/files/licenses/crashpad/" DESTINATION "${destination}/crashpad")

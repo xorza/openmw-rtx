@@ -24,6 +24,7 @@
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/preprocess/contentstore.hpp>
+#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
@@ -71,7 +72,9 @@ namespace MWRender
     public:
         /// @param store the process's content store, or null for none: the frame's walks reach its
         ///        memory alone, and the cell reader its files too.
-        WorldMirror(const MirrorKnobs& knobs, Rtx::ContentStore* store);
+        /// @param prepared where the world's normal and data maps find their chains made again, or
+        ///        null for none (`Rtx::PreparedImages`).
+        WorldMirror(const MirrorKnobs& knobs, Rtx::ContentStore* store, Rtx::PreparedImages* prepared);
 
         /// Asserts the scene empty: a world detached has given every row back, and the one that
         /// did not is named here rather than found at the next frame's horizon. Not while an
@@ -170,6 +173,10 @@ namespace MWRender
         /// `_spec` maps mean (`Rtx::WalkContext`).
         Rtx::WalkContext& getWalkContext() { return mWalk; }
 
+        /// How many of the world's slots stand their files as they are while their images are made
+        /// (`Rtx::SceneUploader::getPendingCount`).
+        std::size_t getImagesPending() const { return mUploader.getPendingCount(); }
+
         /// What the world's walk may see. Read by the tests and by nothing else.
         osg::Node::NodeMask getTraversalMask() const { return mTraversal; }
 
@@ -186,6 +193,9 @@ namespace MWRender
 
         /// The process's content store, or null: what the cell reader is handed (`CellWorld::mStore`).
         Rtx::ContentStore* mStore;
+
+        /// What the world's hand-over finds made images in, or null.
+        Rtx::PreparedImages* mPrepared;
 
         /// Shared by every walk on the frame thread: the world's and every traced view's.
         Rtx::WalkContext mWalk;

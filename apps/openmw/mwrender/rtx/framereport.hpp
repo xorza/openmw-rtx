@@ -64,6 +64,10 @@ namespace MWRender
         /// How many cells the walk left to stand, `Rtx::CellRing::getCellsToStand`.
         std::uint32_t mCellsToStand = 0;
 
+        /// How many of the world's textures stand their files as they are while their images with
+        /// their chains made again are made (`WorldMirror::getImagesPending`).
+        std::uint32_t mImagesPending = 0;
+
         /// Whether the world stood paused for this frame: the game's own flag, as the frame was
         /// described with it, and not the one the game will have set by the time anybody asks.
         bool mPaused = false;
@@ -88,10 +92,13 @@ namespace MWRender
 
         WalkReport mWalked{};
 
-        /// Whether this frame drew the whole world: nothing of its reach left to stand, and
-        /// nothing arrived. What a stop starts measuring after, because the frame after it draws
-        /// what this one drew.
-        bool isWhole() const { return mCellsToStand == 0 && mUpload.mKind == Rtx::SceneUpload::Kind::Placed; }
+        /// Whether this frame drew the whole world: nothing of its reach left to stand, no image
+        /// still being made, and nothing arrived. What a stop starts measuring after, because the
+        /// frame after it draws what this one drew.
+        bool isWhole() const
+        {
+            return mCellsToStand == 0 && mImagesPending == 0 && mUpload.mKind == Rtx::SceneUpload::Kind::Placed;
+        }
     };
 
     /// What a measured stop may reach beyond the frame's own report. Borrowed and valid for one stop:

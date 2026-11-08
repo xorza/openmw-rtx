@@ -13,6 +13,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/textureformat.hpp>
+#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "refusal.hpp"
@@ -21,13 +22,15 @@
 
 namespace Rtx
 {
-    void SceneTextures::describeAll(const SceneDesc& scene)
+    void SceneTextures::describeAll(const SceneDesc& scene, PreparedImages* const prepared)
     {
-        describe(scene, everyIndexBelow(scene.textures().getRows().size(), mEverything));
+        describe(scene, everyIndexBelow(scene.textures().getRows().size(), mEverything), prepared);
     }
 
-    void SceneTextures::describe(const SceneDesc& scene, std::span<const Index> slots)
+    void SceneTextures::describe(const SceneDesc& scene, std::span<const Index> slots, PreparedImages* const prepared)
     {
+        mPending.clear();
+        mMade.clear();
         mLevels.clear();
         mTexels.clear();
         mDescriptions.clear();
@@ -53,7 +56,24 @@ namespace Rtx
             // The image the adder held, and never the file opened again: this runs on the frame an
             // arrival lands on, and a path is a lock and a disk read. Laid where a reader laid it, so
             // its texels are read as they stand rather than widened here.
-            if (row.mKind == TextureKind::File && row.mLaid != nullptr)
+            // **A normal or a data map's image with its chain made again**, where it is made; its file
+            // as it stands while it is, and the slot named for its owner to stand again.
+            const osg::ref_ptr<const osg::Image> source = row.mLaid != nullptr ? row.mLaid : row.mImage;
+            const PreparedImage made = row.mKind == TextureKind::File && row.mPrepared == nullptr && source != nullptr
+                    && prepared != nullptr && PreparedImages::prepares(row.mEncoding)
+                ? prepared->find(*source, row.mEncoding)
+                : PreparedImage{ .mImage = row.mPrepared };
+            if (made.mPending)
+                mPending.push_back(Pending{ .mSlot = slot, .mSource = source, .mEncoding = row.mEncoding });
+            if (made.mImage != nullptr && row.mPrepared == nullptr)
+                mMade.push_back(Made{ .mSlot = slot, .mImage = made.mImage });
+
+            if (made.mImage != nullptr)
+            {
+                kept.mImage = made.mImage;
+                kept.mFormat = readFormat(*made.mImage, row.mEncoding);
+            }
+            else if (row.mKind == TextureKind::File && row.mLaid != nullptr)
             {
                 kept.mImage = row.mLaid;
                 kept.mFormat = readFormat(*row.mLaid, row.mEncoding);

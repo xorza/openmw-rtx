@@ -409,7 +409,7 @@ add_component_dir (rtx/frame
     )
 
 add_component_dir (rtx/image
-    alphaimage colour colourblock formatcensus imagedescription shadingmap
+    alphaimage chainbuild colour colourblock formatcensus imagedescription shadingmap
     texels texturedata textureencoding textureformat texturewrap
     )
 
@@ -425,7 +425,8 @@ add_component_dir (rtx/mirror/cells
     )
 
 add_component_dir (rtx/preprocess
-    contentcache contentcodec contentkey contentpass contentpreprocessor contentstats contentstore imagefactcache laidimagecache threadcontent
+    contentcache contentcodec contentkey contentpass contentpreprocessor contentstats contentstore imagefactcache laidimagecache
+    preparedimages threadcontent
     )
 
 add_component_dir (rtx/preprocess/shape
@@ -433,7 +434,7 @@ add_component_dir (rtx/preprocess/shape
     )
 
 add_component_dir (rtx/preprocess/texture
-    texturepass
+    chainpass texturepass
     )
 
 add_component_dir (rtx/renderer
@@ -449,7 +450,7 @@ add_component_dir (rtx/scene
     )
 
 add_component_dir (rtx/shaders
-    brdf camera colour digest gbuffer hosttypes look octahedral portable scene shadingmap skinning sky
+    brdf camera colour digest gbuffer halving hosttypes look octahedral portable scene shadingmap skinning sky
     storageformat tangent visibility wave
     )
 
@@ -728,6 +729,7 @@ target_link_libraries(components
     Base64
     SQLite3::SQLite3
     smhasher
+    rgbcx
     ${ICU_LIBRARIES}
     ZLIB::ZLIB
     )
