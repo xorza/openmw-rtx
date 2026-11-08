@@ -173,6 +173,18 @@ namespace Rtx
             std::vector<std::byte> fourth{ std::byte{ 8 } };
             fourth.insert(fourth.end(), payload.begin() + 1, payload.end());
             EXPECT_FALSE(ContentCodec<ShapePass::Output>::decode(fourth, read));
+
+            // **And a shape with no normals and no added vertex**, two empty runs: 1 + (4 + 24) + 4 + 4.
+            std::vector<osg::Vec3f> noNormals;
+            std::vector<std::uint32_t> noSources;
+            std::vector<std::byte> bare;
+            ContentCodec<ShapePass::Output>::encode(
+                ShapePass::Output{ .mKept = kept, .mNormals = noNormals, .mSources = noSources }, bare);
+            EXPECT_EQ(bare.size(), 37u);
+            ASSERT_TRUE(ContentCodec<ShapePass::Output>::decode(bare, read));
+            EXPECT_EQ(readKept, kept);
+            EXPECT_TRUE(readNormals.empty());
+            EXPECT_TRUE(readSources.empty());
         }
 
         /// The texture passes through the preprocessor answer what the readings of the described

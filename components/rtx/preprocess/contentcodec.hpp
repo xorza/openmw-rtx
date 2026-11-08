@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <bit>
 #include <concepts>
 #include <cstddef>
@@ -68,9 +69,11 @@ namespace Rtx
             std::uint32_t count = 0;
             if (!take(from, count) || from.size() / sizeof(T) < count)
                 return false;
+            // `std::copy` and not `memcpy`, which an empty run hands two null pointers.
             values.resize(count);
-            std::memcpy(values.data(), from.data(), std::size_t{ count } * sizeof(T));
-            from = from.subspan(std::size_t{ count } * sizeof(T));
+            const std::span<const std::byte> run = from.first(std::size_t{ count } * sizeof(T));
+            std::copy(run.begin(), run.end(), reinterpret_cast<std::byte*>(values.data()));
+            from = from.subspan(run.size());
             return true;
         }
     }
