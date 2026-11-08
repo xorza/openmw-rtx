@@ -19,6 +19,8 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/device/notfinitecensus.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/validation.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
@@ -44,6 +46,33 @@ namespace Rtx::Testing
             static Once<VulkanRenderer> sValidated;
             static Once<VulkanRenderer> sPlain;
             return validation ? sValidated : sPlain;
+        }
+
+        /// What `device`'s census counted since a frame last took it, which it then holds no more:
+        /// the stores no frame's report carries, as a picture's or a pass a test drove itself. Taken
+        /// on the queue behind everything before it, a picture's deferred batch among them, and
+        /// nothing where the device does not count.
+        NotFinite takeUncountedStores(const Device& device)
+        {
+            NotFinite stores;
+            const NotFiniteCensus* const census = device.getCensus();
+            if (census == nullptr)
+                return stores;
+
+            const Buffer copied = Buffer::readBack(
+                device, NotFiniteCensus::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "uncounted not-finite stores");
+            device.getPool().submitAndWait([&](const VkCommandBuffer commands) {
+                census->record(commands, copied);
+                copied.orderForHostRead(commands);
+            });
+            census->readInto(copied, stores);
+            return stores;
+        }
+
+        void reportStores(const NotFinite& stores, std::string_view unread)
+        {
+            for (const NotFiniteStores& kernel : stores.kernels())
+                ADD_FAILURE() << kernel.mStores << " stores not finite in " << kernel.mKernel << ' ' << unread;
         }
     }
 
@@ -279,6 +308,7 @@ namespace Rtx::Testing
 
     void DeviceTest::TearDown()
     {
+        reportStores(takeUncountedStores(getDevice()), "that no frame of the test reported");
         takeRaised();
         for (const std::string& error : mRaised)
             ADD_FAILURE() << "validation error: " << error;
@@ -321,6 +351,10 @@ namespace Rtx::Testing
 
     void RendererTest::TearDown()
     {
+        // The frames' first, which wait the frames out: the census read after them is then what
+        // came after every frame.
+        reportStores(mProbe.takeUncollectedStores(), "in frames whose report no check of the test read");
+        reportStores(takeUncountedStores(mProbe.getDevice()), "that no frame of the test reported");
         reportErrors(mRenderer, "validation error");
     }
 

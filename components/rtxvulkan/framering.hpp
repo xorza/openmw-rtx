@@ -179,8 +179,14 @@ namespace Rtx
         /// flight (`VulkanRenderer::extendScene`).
         void finishAll();
 
-        /// Drops what nothing has collected, for a caller whose world has gone.
-        void dropReports() { mReports.clear(); }
+        /// Drops what nothing has collected, for a caller whose world has gone. Their stores that
+        /// were not finite are not dropped with them: the next report carries them (`mDropped`).
+        void dropReports();
+
+        /// Waits every frame in flight out and hands over the stores not finite of every report
+        /// nothing collected, the dropped ones' with them, which no report carries after: for a
+        /// caller that asks what went unread, as a test asks when it ends.
+        NotFinite takeUncollectedStores();
 
     private:
         /// The slot of the frame being recorded, with whatever last used it finished. It does not
@@ -237,5 +243,10 @@ namespace Rtx
         /// `sFrameSlots`: a caller that stopped asking is not a reason to grow, and the oldest is
         /// the one furthest from what it asks about next, so `finishOldest` drops it.
         std::vector<FrameResult> mReports;
+
+        /// The stores not finite of the reports dropped since the ring last made one, which the
+        /// next report it makes carries: each is a logic error, and a caller that stopped asking
+        /// for a while has not stopped asking whether a frame stored one.
+        NotFinite mDropped;
     };
 }

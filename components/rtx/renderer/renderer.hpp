@@ -390,8 +390,9 @@ namespace Rtx
         /// away" without opening the image. Nought where `RendererOptions::mCounting` was cleared.
         std::uint32_t mHits = 0;
 
-        /// What the frame wrote that was not finite, by shader module. Nothing where the shaders
-        /// do not count (`ShaderSet::mCensus`).
+        /// What the frame wrote that was not finite, by shader module, with what the frames before
+        /// it wrote whose reports the renderer dropped uncollected, from a full ring or for a new
+        /// world. Nothing where the shaders do not count (`ShaderSet::mCensus`).
         NotFinite mNotFinite;
 
         /// Pixels whose walk the trace cut short: a logic error, logged the first time it happens.

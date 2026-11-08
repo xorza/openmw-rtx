@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -21,7 +22,10 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
+#include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/renderer/framesinflight.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -1042,7 +1046,8 @@ namespace Rtx::Testing
         /// as every rounded history does, so the integration and the trace are handed a finite
         /// number. Which is why every module counts what it is about to store rather than trusting
         /// a NaN to show downstream: the fault this was found by read as black blocks, and now reads
-        /// as nothing at all.
+        /// as nothing at all. **And a report the renderer drops uncollected hands its count to the
+        /// next report it makes**, so no frame's store goes unread.
         TEST_F(RtxVisibilityTest, aStoreThatIsNotFiniteIsCountedAgainstItsModule)
         {
             constexpr std::uint32_t size = 8 * Shaders::FOG_VOLUME_SCALE;
@@ -1064,6 +1069,44 @@ namespace Rtx::Testing
                 << "8 by 8 columns by 64 slices, every one in air short of a wall behind the eye";
             EXPECT_EQ(frame.mNotFinite.kernels().size(), 1u) << "no other module stores one";
             EXPECT_EQ(frame.mNotFinite.total(), froxels);
+
+            // **And none is lost with a report nothing collected**: the next report the renderer
+            // makes carries it. The ring holds a report for each frame it can have in flight, so
+            // two frames more than both together drop the reports of the first two, and the
+            // reports left carry every frame's stores.
+            constexpr std::uint32_t held = 2 * sFramesInFlight;
+            constexpr std::uint32_t uncollected = held + 2;
+            for (std::uint32_t at = 0; at < uncollected; ++at)
+                mProbe.traceFrame(camera, FrameOptions{});
+            NotFinite collected;
+            std::uint32_t reports = 0;
+            while (const std::optional<FrameResult> report = mRenderer.finishFrame())
+            {
+                collected.add(report->mNotFinite);
+                ++reports;
+            }
+            EXPECT_EQ(reports, held) << "the reports the ring held, and those of the frames still in flight";
+            EXPECT_EQ(collected.of("fogscatter.rgen"), uncollected * froxels);
+            EXPECT_EQ(collected.total(), uncollected * froxels);
+
+            // What a test's end reads: every frame nothing collected, the reports the ring dropped
+            // and those it held, and no report carries them after.
+            for (std::uint32_t at = 0; at < held + 1; ++at)
+                mProbe.traceFrame(camera, FrameOptions{});
+            const NotFinite unread = mProbe.takeUncollectedStores();
+            EXPECT_EQ(unread.of("fogscatter.rgen"), (held + 1) * froxels);
+            EXPECT_EQ(unread.total(), (held + 1) * froxels);
+            EXPECT_FALSE(mRenderer.finishFrame().has_value()) << "every frame was waited out and taken";
+            EXPECT_EQ(mProbe.takeUncollectedStores().total(), 0u) << "taken once";
+
+            // A new world drops every report, and the first report of the new world carries them.
+            mProbe.traceFrame(camera, FrameOptions{});
+            mProbe.traceFrame(camera, FrameOptions{});
+            camera.mFogColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
+            const Frame newWorld = shoot(makeWall(), {}, camera, size, Shot{ .mMakesNotFinite = true });
+            EXPECT_EQ(newWorld.mNotFinite.of("fogscatter.rgen"), 2 * froxels)
+                << "the two frames of the world before, and none of the clear frame's own";
+            EXPECT_EQ(newWorld.mNotFinite.total(), 2 * froxels);
 
             // **A door: the frame before stood 80000 units off**, farther than a half float holds,
             // and the reset says that no step from there reaches this frame's motion. The motion

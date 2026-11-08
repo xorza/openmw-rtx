@@ -100,6 +100,11 @@ namespace Rtx::Testing
         log->takeErrorsOnThisThread(errors);
     }
 
+    NotFinite RendererProbe::takeUncollectedStores()
+    {
+        return mRenderer.mRing.takeUncollectedStores();
+    }
+
     void RendererProbe::traceFrame(
         const Shaders::VisibilityConstants& constants, const FrameOptions& options, const WorldOptions& described)
     {

@@ -163,7 +163,8 @@ namespace Rtx::Testing
     ///
     /// **The validation errors are drained before the test and reported after it**, the way
     /// `RendererTest` does and for the same reason: whatever a previous test left behind is not this
-    /// one's to report.
+    /// one's to report. **And the census's stores no frame reported are reported after it**, as
+    /// `RendererTest` reports them.
     class DeviceTest : public ::testing::Test
     {
     protected:
@@ -193,7 +194,13 @@ namespace Rtx::Testing
     ///
     /// **The validation errors are drained before the test and reported after it**, so a hazard the
     /// layers caught fails the test that caused it: whatever a previous test left behind is not this
-    /// one's to report. **And the renderer's histories and what a test told it are reset before
+    /// one's to report. **And the census's stores no check read are reported after it**: those of the
+    /// frames whose report the test never read, and those no frame reported, a picture's above all.
+    /// Either the next test's first report would otherwise carry, and so whichever test drew next
+    /// under a shuffled order. Not drained before it as well: every test that draws on the
+    /// shared devices stands on one of the two fixtures, so a test starts with nothing left, and a
+    /// death test's child, which ends before `TearDown`, submits nothing for the census. **And the
+    /// renderer's histories and what a test told it are reset before
     /// it** (`SetUp`), so it draws nothing a previous test's frames or settings left either.
     class RendererTest : public ::testing::Test
     {

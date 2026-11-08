@@ -198,7 +198,10 @@ namespace Rtx
         }
 
         if (mReports.size() >= sFrameSlots)
+        {
+            mDropped.add(mReports.front().mNotFinite);
             mReports.erase(mReports.begin());
+        }
 
         // Handed out as a span over the ring's own memory, which `pictureOf` says how long stands.
         const std::span<const std::uint8_t> pixels = frame.mReadBackBytes > 0
@@ -210,7 +213,7 @@ namespace Rtx
 
         assert(counted.mMisses <= frame.mCountedRays && "more primary rays missed than were launched");
 
-        NotFinite notFinite;
+        NotFinite notFinite = std::exchange(mDropped, NotFinite{});
         if (const NotFiniteCensus* const census = mDevice.getCensus(); census != nullptr)
             census->readInto(frame.mNotFinite, notFinite);
 
@@ -264,6 +267,20 @@ namespace Rtx
     {
         while (mFinished < mFrame)
             finishOldest();
+    }
+
+    void FrameRing::dropReports()
+    {
+        for (const FrameResult& report : mReports)
+            mDropped.add(report.mNotFinite);
+        mReports.clear();
+    }
+
+    NotFinite FrameRing::takeUncollectedStores()
+    {
+        finishAll();
+        dropReports();
+        return std::exchange(mDropped, NotFinite{});
     }
 
 }

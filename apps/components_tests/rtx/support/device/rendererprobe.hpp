@@ -9,6 +9,7 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/picturerenderer.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
@@ -81,6 +82,10 @@ namespace Rtx::Testing
         /// Moves whatever the API has complained about since the last call into `errors`, so that
         /// clearing before a test and reading after it are the same call.
         void takeValidationErrors(std::vector<std::string>& errors);
+
+        /// `FrameRing::takeUncollectedStores`: the stores not finite of every frame whose report
+        /// nothing read, which no report carries after.
+        NotFinite takeUncollectedStores();
 
         /// `VulkanRenderer::traceFrame`: a frame traced from a block written whole.
         void traceFrame(const Shaders::VisibilityConstants& constants, const FrameOptions& options,
