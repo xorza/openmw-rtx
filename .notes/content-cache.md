@@ -250,15 +250,25 @@ note, "The shapes through the store"). What it does otherwise than the item said
 Batch 6 is done: each derivation is timed in a zone of its own at arrival (`FrameZone::Shading`, `Spread`, `Bake`,
 beside `Ground`), and measured on the streaming route on three profiles.
 
-Batch 7: the loading screen fills the store.
+Batch 7 is done: every model a record of the loaded content names and every ground layer it names is read on the
+loading screen (`Rtx::ContentPreparation`, `MWRender::contentModels`, `MWRender::contentLayers`) as the cell reader
+reads it, its shapes, texture facts and chains into the store, beside the kernels' compile, under "Preparing
+Content". At `seyda-neen-ship` on `openmw-pbr`, a cold start prepares 6620 models and 135 layers in 62 s, its chains
+940 s of processor time on 16 threads, and play then finds every shape and alpha span the ring asks and 1249 of the
+1264 chains; a warm start finds all 6755 as they were in 0.13 s (research note, "The loading screen's preparation").
+What it does otherwise than the items said:
 
-7. **The preparing module** (`components/rtx/prepare/`): from the loaded content list, every model and land texture
-    walked through the mirror's walk on worker threads, every host pass into the store, the manifest read and written,
-    its progress counted for a listener. Its working memory let go when it ends.
-8. **The game's start**: the renderer starts the module once the content list is loaded, and the step that waits for
-    the kernels waits for it too (`Renderer::awaitShaders` named again for what it now waits for), its label and bar
-    fed from the module's progress. The game's log line and stats row of its misses. The harness runs it the same way,
-    into the store its run states. Where `OMW::Engine` calls it is upstream code and enters the accepted diff.
+- **`awaitShaders` keeps its name and its one call**: the preparation starts and is waited for inside it, so
+  `OMW::Engine` is unchanged; the label's string is new in each of the engine's six languages.
+- **A layer's files come through the terrain storage's own rule**, `ESMTerrain::Storage::getLayerInfo`, made public,
+  on a storage of the preparation's own under the game's settings, and the land textures through the iteration
+  `Store<ESM::LandTexture>` now offers: two upstream hooks.
+- **The resource caches are emptied once a second and at the end** of the preparation: aged by their expiry they
+  kept every model walked, 14.7 GB at the peak under the harness, whose stated step never ages them; emptied, 8.0 GB.
+- **The manifest is written only where something moved**, and a model no file stands for is walked again once its
+  stamp moves. A model depends on every companion file the loader looks for beside its diffuses
+  (`Shader::appendCompanionPaths`), and a layer is named by its normal map as well as its diffuse, so a map a mod
+  adds is the model or the layer read again.
 
 Batch 8: content in the renderer's own forms, by the user's request.
 

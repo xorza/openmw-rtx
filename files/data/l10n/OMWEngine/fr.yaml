@@ -14,6 +14,7 @@ PhysicsProfiler: "Profileur des performances de la physique"
 
 BuildingNavigationMesh: "Construction du mesh de navigation"
 CompilingShaders: "Compilation des shaders"
+PreparingContent: "Préparation du contenu"
 AskLoadLastSave: "La sauvegarde la plus récente est ''{save}''. Voulez-vous la charger ?"
 InitializingData: "Initialisation des données..."
 LoadingExterior: "Chargement de la zone de jeu"

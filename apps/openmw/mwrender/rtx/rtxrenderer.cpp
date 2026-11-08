@@ -38,6 +38,7 @@
 #include <apps/openmw/mwrender/sceneframe.hpp>
 #include <apps/openmw/mwrender/skystate.hpp>
 #include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
@@ -79,6 +80,7 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "classmasks.hpp"
+#include "contentmodels.hpp"
 #include "rtxsettings.hpp"
 #include "rtxsupport.hpp"
 #include "tracedground.hpp"
@@ -630,23 +632,58 @@ namespace MWRender
     void RtxRenderer::awaitShaders(Loading::Listener& listener)
     {
         mPhase.expect(Phase::Between, Phase::Run);
+
+        // **The content prepared beside the kernels' compile**, from the content list the screen
+        // before this one loaded: every model it names walked into the store, so play reads what
+        // it would otherwise compute (`Rtx::ContentPreparation`).
+        if (const MWWorld::ESMStore* const store = MWBase::Environment::get().getESMStore())
+            mMirror.startPreparing(getResources(), contentModels(*store), contentLayers(*store, getResources()),
+                std::max<std::size_t>(1, std::thread::hardware_concurrency() / 2));
+
         Rtx::JobProgress progress = mRenderer->awaitKernels(mKernels, std::chrono::milliseconds::zero());
-        if (progress.isDone())
-            return;
-
-        listener.setLabel("#{OMWEngine:CompilingShaders}");
-        listener.setProgressRange(progress.mCount);
-
-        // **Under a frame of the loading screen's**, which draws at 120 a second at most, so what
-        // paces the screen is the screen and not this wait. Every report draws, the count moved or
-        // not, and the draw is what pumps the window's events and beats the crash catcher's heart:
-        // one kernel alone takes seconds cold.
-        constexpr std::chrono::milliseconds patience{ 8 };
-        while (!progress.isDone())
+        if (!progress.isDone())
         {
-            listener.setProgress(progress.mMade);
-            progress = mRenderer->awaitKernels(mKernels, patience);
+            listener.setLabel("#{OMWEngine:CompilingShaders}");
+            listener.setProgressRange(progress.mCount);
+
+            // **Under a frame of the loading screen's**, which draws at 120 a second at most, so
+            // what paces the screen is the screen and not this wait. Every report draws, the count
+            // moved or not, and the draw is what pumps the window's events and beats the crash
+            // catcher's heart: one kernel alone takes seconds cold.
+            constexpr std::chrono::milliseconds patience{ 8 };
+            while (!progress.isDone())
+            {
+                listener.setProgress(progress.mMade);
+                progress = mRenderer->awaitKernels(mKernels, patience);
+            }
         }
+
+        progress = mMirror.getPreparing();
+        if (!progress.isDone())
+        {
+            listener.setLabel("#{OMWEngine:PreparingContent}");
+            listener.setProgressRange(progress.mCount);
+
+            // **The caches emptied once a second and at the end**, so the models walked and let go of
+            // leave them and the walk's memory stays bounded: aged by their expiry instead, they kept
+            // every model a cold start of the PBR profile walks, 14.7 GB at the peak under the
+            // harness, whose stated step never ages them. Nothing of the world stands yet to be
+            // read again, and a walk still holding what it asked keeps it alive.
+            auto cleared = std::chrono::steady_clock::now();
+            while (!progress.isDone())
+            {
+                // Each report draws a frame, as above.
+                listener.setProgress(progress.mMade);
+                if (std::chrono::steady_clock::now() - cleared >= std::chrono::seconds(1))
+                {
+                    cleared = std::chrono::steady_clock::now();
+                    getResources().clearCache();
+                }
+                progress = mMirror.getPreparing();
+            }
+            getResources().clearCache();
+        }
+        mWalked.mSession.mLoading += mMirror.finishPreparing();
     }
 
     osg::ref_ptr<osg::Image> RtxRenderer::readFrame(const int width, const int height, const Rtx::Channels channels)

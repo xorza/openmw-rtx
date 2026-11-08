@@ -265,6 +265,10 @@ namespace MWWorld
         // Not a big deal here, since ESM::LandTexture can never be modified or inserted/erased
         const ESM::Path* search(std::uint32_t index, int plugin) const;
 
+        /// Every land texture's path, by its record.
+        auto begin() const { return mStatic.begin(); }
+        auto end() const { return mStatic.end(); }
+
         size_t getSize() const override;
         bool eraseStatic(const ESM::RefId& id) override;
 

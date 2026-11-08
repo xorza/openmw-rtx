@@ -35,6 +35,7 @@ namespace Rtx
         mOnFrame += other.mOnFrame;
         mOffFrame += other.mOffFrame;
         mPrepared += other.mPrepared;
+        mLoading += other.mLoading;
 
         return *this;
     }

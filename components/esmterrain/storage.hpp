@@ -134,6 +134,10 @@ namespace ESMTerrain
 
         int getTextureTileCount(float chunkSize, ESM::RefId worldspace) override;
 
+        /// The files a ground layer of `texture` is drawn with: its diffuse, or the specular map that
+        /// stands for it, and its normal map, as the auto-use settings find them beside it. Thread-safe.
+        Terrain::LayerInfo getLayerInfo(VFS::Path::NormalizedView texture);
+
         float getVertexHeight(const ESM::LandData* data, int x, int y)
         {
             const int landSize = data->getLandSize();
@@ -170,7 +174,6 @@ namespace ESMTerrain
         std::string mSpecularMapPattern;
         bool mAutoUseSpecularMaps;
 
-        Terrain::LayerInfo getLayerInfo(VFS::Path::NormalizedView texture);
         Terrain::LayerInfo getTextureSetLayerInfo(const ESM4::TextureSet& txst);
         Terrain::LayerInfo getLandTextureLayerInfo(ESM::FormId id);
 

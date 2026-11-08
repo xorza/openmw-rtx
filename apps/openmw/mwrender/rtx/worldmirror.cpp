@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <iterator>
 #include <memory>
@@ -27,6 +28,7 @@
 #include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/weather.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/result.hpp>
@@ -39,6 +41,9 @@
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/prepare/contentpreparation.hpp>
+#include <components/rtx/prepare/filestamps.hpp>
+#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
@@ -80,6 +85,33 @@ namespace MWRender
 
         private:
             Resource::SceneManager& mScenes;
+        };
+
+        /// A file's stamp as the virtual file system holds it: the archive or folder that holds it and
+        /// its time, so a file a later folder shadows, an archive rebuilt and a loose file written each
+        /// move it (`Rtx::FileStamps`).
+        class VfsStamps final : public Rtx::FileStamps
+        {
+        public:
+            explicit VfsStamps(const VFS::Manager& vfs)
+                : mVfs(vfs)
+            {
+            }
+
+            std::uint64_t stampOf(VFS::Path::NormalizedView path) override
+            {
+                if (!mVfs.exists(path))
+                    return 0;
+                const std::string archive = mVfs.getArchive(VFS::Path::Normalized(path));
+                const auto time = mVfs.getLastModified(path).time_since_epoch().count();
+                Rtx::ContentDigest digest("stamp", 1);
+                digest.add(std::span<const char>(archive));
+                digest.add(time);
+                return digest.getKey().mHash[0];
+            }
+
+        private:
+            const VFS::Manager& mVfs;
         };
 
         /// Which child the ring's day-night switches show: the game's mode, whose value is the
@@ -184,6 +216,63 @@ namespace MWRender
         for (const ClassMask& held : sClassMasks)
             if (held.mClass != Rtx::InstanceClass::Static)
                 mExtractor.setClassMask(held.mClass, held.mNodes);
+    }
+
+    /// The preparation and what it reads, which outlive it: made together, gone together. Pinned:
+    /// the run holds its sources by reference.
+    struct WorldMirror::Preparing
+    {
+        Preparing(Resource::ResourceSystem& resources, Rtx::ContentStore& store, const Rtx::SpecularLayout specular,
+            std::vector<std::string> models, std::vector<Rtx::PreparationLayer> layers, const std::size_t hands)
+            : mContent(*resources.getSceneManager())
+            , mStamps(*resources.getVFS())
+            // With the world's own mask and with no state set above them: the scene's root is the
+            // rendering manager's, which stands after the loading screen, and what stands above a
+            // part keys its material, not a pass.
+            , mRun(Rtx::PreparationSetup{ .mContent = mContent,
+                       .mStamps = mStamps,
+                       .mStore = store,
+                       .mManifest = store.getDirectory() / "prepared.manifest",
+                       .mMask = sWorldTraversal,
+                       .mSpecular = specular,
+                       .mAutoMaps = resources.getSceneManager()->getAutoMaps(),
+                       .mHands = hands },
+                  std::move(models), std::move(layers))
+        {
+        }
+
+        SceneContent mContent;
+        VfsStamps mStamps;
+        Rtx::ContentPreparation mRun;
+    };
+
+    void WorldMirror::startPreparing(Resource::ResourceSystem& resources, std::vector<std::string> models,
+        std::vector<Rtx::PreparationLayer> layers, const std::size_t hands)
+    {
+        assert(mPreparing == nullptr && "a preparation started over one that runs");
+        if (mStore != nullptr)
+            mPreparing = std::make_unique<Preparing>(
+                resources, *mStore, mWalk.mSpecular, std::move(models), std::move(layers), hands);
+    }
+
+    Rtx::JobProgress WorldMirror::getPreparing() const
+    {
+        return mPreparing != nullptr ? mPreparing->mRun.getProgress() : Rtx::JobProgress{};
+    }
+
+    Rtx::ContentStats WorldMirror::finishPreparing()
+    {
+        if (mPreparing == nullptr)
+            return {};
+
+        if (!mPreparing->mRun.finish())
+            Log(Debug::Warning) << "The content's preparation could not write its manifest";
+        Log(Debug::Info) << "Prepared " << mPreparing->mRun.getWalked() << " of "
+                         << mPreparing->mRun.getProgress().mCount
+                         << " models and ground layers; the rest stood as the last preparation found them";
+        const Rtx::ContentStats stats = mPreparing->mRun.getStats();
+        mPreparing.reset();
+        return stats;
     }
 
     void WorldMirror::attach(Resource::ResourceSystem& resources, SceneUtil::UnrefQueue& released)

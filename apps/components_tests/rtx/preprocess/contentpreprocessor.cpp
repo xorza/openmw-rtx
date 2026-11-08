@@ -370,7 +370,7 @@ namespace Rtx
             second.at(ContentPassId::TexelMean) = PassStats{ .mAsked = 4, .mRunMs = 4.0 };
 
             Preprocessed both{ .mOnFrame = first };
-            both += Preprocessed{ .mOnFrame = second, .mOffFrame = second, .mPrepared = first };
+            both += Preprocessed{ .mOnFrame = second, .mOffFrame = second, .mPrepared = first, .mLoading = second };
 
             const PassStats& fold = both.mOnFrame.at(ContentPassId::Shape);
             EXPECT_EQ(fold.mAsked, 3u);
@@ -382,6 +382,7 @@ namespace Rtx
             EXPECT_EQ(both.mOnFrame.getMs(), 10.0);
             EXPECT_EQ(both.mOffFrame.getMs(), 7.0);
             EXPECT_EQ(both.mPrepared.getMs(), 3.0) << "the chain threads' figures not summed";
+            EXPECT_EQ(both.mLoading.getMs(), 7.0) << "the loading screen's figures not summed";
         }
     }
 }

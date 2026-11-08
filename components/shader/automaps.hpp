@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <osg/Node>
 #include <osg/NodeVisitor>
@@ -50,6 +51,10 @@ namespace Shader
         bool mSpecularMaps = false;
         std::string mSpecularMapPattern;
     };
+
+    /// Appends to `into` every file `rules` may lead `diffuse`, a diffuse map's file name, to, whether
+    /// or not one stands there: the files the maps `attachAutoMaps` adds beside it depend on.
+    void appendCompanionPaths(const AutoMapRules& rules, std::string_view diffuse, std::vector<std::string>& into);
 
     /// What `attachAutoMaps` added, with the unit of each map, or -1 where it added none.
     struct AttachedMaps

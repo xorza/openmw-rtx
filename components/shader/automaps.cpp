@@ -64,6 +64,17 @@ namespace Shader
         }
     }
 
+    void appendCompanionPaths(const AutoMapRules& rules, std::string_view diffuse, std::vector<std::string>& into)
+    {
+        if (rules.mNormalMaps)
+        {
+            into.push_back(companionPath(std::string(diffuse), rules.mNormalHeightMapPattern).value());
+            into.push_back(companionPath(std::string(diffuse), rules.mNormalMapPattern).value());
+        }
+        if (rules.mSpecularMaps)
+            into.push_back(companionPath(std::string(diffuse), rules.mSpecularMapPattern).value());
+    }
+
     std::string_view textureNameAt(const osg::StateSet& stateSet, const osg::Texture& texture, unsigned int unit)
     {
         const std::string_view name = SceneUtil::getTextureType(stateSet, texture, unit);

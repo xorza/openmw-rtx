@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <string>
 #include <vector>
 
 #include <osg/Matrixd>
@@ -13,6 +14,7 @@
 #include <osg/ref_ptr>
 
 #include <components/esm3/refnum.hpp>
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
@@ -23,6 +25,8 @@
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
+#include <components/rtx/prepare/contentpreparation.hpp>
+#include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
@@ -92,6 +96,20 @@ namespace MWRender
         /// lets go of joins. Told once, where the world is attached; what is kept of the resource
         /// system is the image manager, which is all a frame reaches for.
         void attach(Resource::ResourceSystem& resources, SceneUtil::UnrefQueue& released);
+
+        /// The content's import step, on the loading screen: every model in `models`, each a corrected
+        /// path, and every ground layer in `layers`, read on `hands` threads into the store, as the
+        /// cell reader reads them (`Rtx::ContentPreparation`). Nothing where there is no store. Once,
+        /// before the world.
+        void startPreparing(Resource::ResourceSystem& resources, std::vector<std::string> models,
+            std::vector<Rtx::PreparationLayer> layers, std::size_t hands);
+
+        /// How far the preparation came: done where none runs.
+        Rtx::JobProgress getPreparing() const;
+
+        /// Once `getPreparing` is done: the manifest written, the threads ended, and what they
+        /// computed, nothing where none ran.
+        Rtx::ContentStats finishPreparing();
 
         /// The world is going: every thread that reads it stops, what was read of it goes, and
         /// every row the world stood is swept — so a detached world is an empty scene, which the
@@ -203,6 +221,10 @@ namespace MWRender
         /// attached, because that is when there is a scene manager. Before the ring, whose reader
         /// thread reads it: the members below die first, and the thread with them.
         std::unique_ptr<Rtx::ContentSource> mContent;
+
+        /// The loading screen's preparation and what it reads, while it runs.
+        struct Preparing;
+        std::unique_ptr<Preparing> mPreparing;
 
         /// The world's groundcover, or null where it has none. Before the ring, as the content is.
         std::unique_ptr<TracedGroundcover> mGroundcover;

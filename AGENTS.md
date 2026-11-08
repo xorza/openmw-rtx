@@ -160,6 +160,10 @@ is not here is held to the rules above.
 - The scripts' `math.random` seeded where the harness seeds the world's generators
   (`LuaUtil::LuaState::seedRandom`): seeded from the clock, the fish `cellhandlers.lua` spawns stood
   elsewhere in every run.
+- What the loading screen's preparation reads of the content (`Rtx::ContentPreparation`, run inside
+  `Renderer::awaitShaders`): `ESMTerrain::Storage::getLayerInfo` made public and `Store<ESM::LandTexture>`'s
+  `begin` and `end`, which list the ground layers as the ground reader finds them (`MWRender::contentLayers`), and
+  the `PreparingContent` label in each of the engine's six languages.
 - What the ray tracer reads of the rasterizer's own state: the projection offset `SceneFrame` is
   handed beside the projection, and `Precipitation::isShown` and its occlusion setting, so neither
   renderer draws rain the other hides.

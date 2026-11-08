@@ -424,6 +424,10 @@ add_component_dir (rtx/mirror/cells
     prepared readermemory templatewalk
     )
 
+add_component_dir (rtx/prepare
+    contentpreparation filestamps preparationmanifest
+    )
+
 add_component_dir (rtx/preprocess
     contentcache contentcodec contentkey contentpass contentpreprocessor contentstats contentstore imagefactcache laidimagecache
     preparedimages threadcontent

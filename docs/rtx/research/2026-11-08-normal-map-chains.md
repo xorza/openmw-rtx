@@ -141,6 +141,23 @@ Milliseconds on the frames that ran it, of 597:
 - **The Fullrest Repack's worst frames, 396 to 451 ms, are not in the renderer's zones**: the report gives each
   21.9 to 24.2 ms of the game's update and under 3 ms of anything else.
 
+## The loading screen's preparation
+
+`scene --views=seyda-neen-ship` on `openmw-pbr`, release build, the same GPU, a store of its own made empty for the
+cold run, the preparation on 16 threads beside the kernels' compile. Whole runs, from the process's start to its end.
+
+| run | models and layers read | preparation | whole run | peak resident |
+|---|---|---|---|---|
+| cold | 6755 of 6755 | 62 s | 72.5 s | 8.0 GB |
+| warm | 0 of 6755 | 0.13 s | 9.6 s | 5.8 GB |
+
+- **Cold, what it ran**: 22884 shapes asked (8.0 s), 4765 alpha spans (8.0 s, 9.9 GiB keyed), 56 texel means and
+  6343 chains (940 s of processor time, 3.7 GiB keyed).
+- **What play then found**: the ring's 4195 shapes and 385 alpha spans all, the chain threads' 1264 chains less 15,
+  and the frame's large shapes as before, its asks reaching the store's memory alone.
+- **Without the ground layers**, play made 68 chains and 53 alpha spans of the land's in the cold run. **Before the
+  caches were emptied** during the preparation, a cold run peaked at 14.7 GB.
+
 ## The colour and data chains
 
 Level 1 of every colour and data DDS file that carries its own chain, against two references made from its level 0:

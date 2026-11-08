@@ -209,6 +209,7 @@ source-tree test holds the order.
 | `world/`            | the sky, the air and the water a frame is told                           |
 | `renderer/`         | `Rtx::Renderer` and what it hands, reports and writes                    |
 | `mirror/`           | the walk from the scene graph, what it reads a surface and a lamp as; the cell ring in `cells/`, which runs inside it |
+| `prepare/`          | the loading screen's walk of every model the content names into the store |
 | `environment/`      | the sky read out of the content files, and the sea's waves               |
 | `view/`             | the pictures traced away from the eye                                    |
 
