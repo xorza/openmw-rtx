@@ -1,38 +1,65 @@
 #pragma once
 
+#include <cstddef>
+#include <vector>
+
+#include "contentcodec.hpp"
 #include "contentkey.hpp"
 #include "contentpass.hpp"
+#include "contentstore.hpp"
 
 namespace Rtx
 {
     /// Where a pass's output is found again by its key instead of computed again, and where a
     /// computed one is kept for the next time the same input arrives — in this session or a later
-    /// one.
+    /// one: one thread's view of the process's `ContentStore`, through its codecs.
     ///
-    /// **It holds nothing.** Every `find` misses and every `keep` is dropped, so every pass runs
-    /// every time it is asked, as it did before there was a cache. What a store needs of a pass is
-    /// its key, made of everything the pass reads, which is made on every ask already, and a way to
-    /// write its output and read it back, which arrives with the store because nothing else would
-    /// call it.
+    /// **It holds nothing where it has no store**, which a test and a picture with none hand it:
+    /// every `find` misses and every `keep` is dropped, and no key is made (`holds`).
     class ContentCache
     {
     public:
-        /// Whether anything is ever found. While nothing is, no key is made: a key is every byte
-        /// of a pass's input read once more, for an answer that is always no.
-        static constexpr bool sHolds = false;
+        /// @param store the process's store, or null for none.
+        /// @param reach where an ask may reach: the frame's thread asks memory alone.
+        ContentCache(ContentStore* store, StoreReach reach)
+            : mStore(store)
+            , mReach(reach)
+        {
+        }
+
+        /// Whether anything is ever found for `Pass`. While nothing is, no key is made: a key is every
+        /// byte of a pass's input read once more, for an answer that is always no.
+        template <ContentPass Pass>
+        bool holds() const
+        {
+            return mStore != nullptr && Pass::sStored;
+        }
 
         /// Fills `output` with what `Pass` computed from the input filed under `key`, and says
-        /// whether it could.
+        /// whether it could. A payload its codec cannot read is a miss.
         template <ContentPass Pass>
-        bool find(const ContentKey& key, typename Pass::Output& output) const
+        requires StoredOutput<typename Pass::Output>
+        bool find(const ContentKey& key, typename Pass::Output& output)
         {
-            return false;
+            return mStore->read(key, Pass::sPass, Pass::sVersion, mReach, mPayload)
+                && ContentCodec<typename Pass::Output>::decode(mPayload, output);
         }
 
         /// Keeps what `Pass` computed from the input filed under `key`.
         template <ContentPass Pass>
+        requires StoredOutput<typename Pass::Output>
         void keep(const ContentKey& key, const typename Pass::Output& output)
         {
+            mPayload.clear();
+            ContentCodec<typename Pass::Output>::encode(output, mPayload);
+            mStore->write(key, Pass::sPass, Pass::sVersion, mPayload);
         }
+
+    private:
+        ContentStore* mStore;
+        StoreReach mReach;
+
+        /// A payload read or written, refilled for each.
+        std::vector<std::byte> mPayload;
     };
 }

@@ -58,10 +58,15 @@ namespace Rtx
     /// without a word. `sVersion` goes up whenever what `run` computes from the same input changes,
     /// which files every older output apart from the new ones.
     ///
-    /// **`run` reads its input whether or not `digest` came first**, because no key is made while
-    /// the cache holds nothing (`ContentCache::sHolds`). Where `digest` did come first, on the same
-    /// input, `run` may use what it read — a texture pass describes the image once for both. `run`
-    /// is not called where the cache found the output.
+    /// **`run` reads its input whether or not `digest` came first**, because no key is made for a
+    /// pass the store keeps nothing of (`sStored`), or where there is no store. Where `digest` did
+    /// come first, on the same input, `run` may use what it read — a texture pass describes the
+    /// image once for both. `run` is not called where the cache found the output.
+    ///
+    /// **`sStored` says whether its outputs are kept** (`ContentStore`): false for a pass whose key
+    /// costs more than its run, as a walk that stops at the first texel that answers does, since a
+    /// key reads every byte (`docs/rtx/research/2026-11-08-normal-map-chains.md`, "What the
+    /// preprocessor costs a start").
     template <class Pass>
     concept ContentPass
         = requires(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output, ContentDigest& digest)
@@ -72,6 +77,9 @@ namespace Rtx
         {
             Pass::sVersion
             } -> std::convertible_to<std::uint32_t>;
+        {
+            Pass::sStored
+            } -> std::convertible_to<bool>;
         pass.digest(input, digest);
         pass.run(input, output);
     };

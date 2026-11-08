@@ -24,6 +24,7 @@ namespace Terrain
 
 namespace Rtx
 {
+    class ContentStore;
     class GroundcoverSource;
 
     /// Where a cell's content is read from, by path: a model's template, and an image. An
@@ -83,6 +84,10 @@ namespace Rtx
         /// is, and the ground and the lamps are read either way. Part of what is read, so a change
         /// is a reader built again and every cell read again, as any other change here is.
         bool mStatics = true;
+
+        /// The process's content store, or null for none: what the reader's passes find their
+        /// outputs in and keep them in (`ContentStore`).
+        ContentStore* mStore = nullptr;
 
         /// Whether there is enough here to read anything at all.
         bool isReadable() const { return mStorage != nullptr && mGround != nullptr && mContent != nullptr; }

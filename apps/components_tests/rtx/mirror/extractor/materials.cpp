@@ -378,7 +378,7 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
             paint(*quad->getOrCreateStateSet(), *glass);
             quad->getOrCreateStateSet()->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
-            TemplateWalk walk(nullptr);
+            TemplateWalk walk(nullptr, nullptr);
             walk.read(*quad, ~0u, model);
             ASSERT_EQ(model.mParts.size(), 1u);
             ASSERT_TRUE(model.mParts[0].mMaterial.mDiffuseFacts.has_value());
@@ -460,7 +460,7 @@ namespace Rtx::Testing
             EXPECT_FALSE(wall.mDarkBelowSolid) << "an opaque surface reads no coverage";
 
             PreparedModel model;
-            TemplateWalk walk(nullptr);
+            TemplateWalk walk(nullptr, nullptr);
             walk.read(*quadWearing(*stained, true), ~0u, model);
             ASSERT_EQ(model.mParts.size(), 1u);
             ASSERT_TRUE(model.mParts[0].mMaterial.mDarkFacts.has_value());

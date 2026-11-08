@@ -108,7 +108,7 @@ namespace Rtx::Testing
             root->addChild(haze);
 
             PreparedModel model;
-            TemplateWalk walk(nullptr);
+            TemplateWalk walk(nullptr, nullptr);
             walk.read(*root, ~hidden, model);
 
             ASSERT_EQ(model.mParts.size(), 3u) << "the branch that is on, the frame shown, and the near level";
@@ -214,7 +214,7 @@ namespace Rtx::Testing
                         { quads[3], modesOf({ ExteriorNight }) } } },
             };
 
-            TemplateWalk walk(nullptr);
+            TemplateWalk walk(nullptr, nullptr);
             for (std::size_t at = 0; at < std::size(cases); ++at)
             {
                 const auto& [branches, read] = cases[at];
@@ -253,7 +253,7 @@ namespace Rtx::Testing
             rope->setVertexArray(makePositions({ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f) }));
             rope->addPrimitiveSet(new osg::DrawArrays(GL_LINES, 0, 2));
 
-            TemplateWalk walk(nullptr);
+            TemplateWalk walk(nullptr, nullptr);
             for (const auto& [broken, why] : { std::pair{ makePastOneBlock(), pastABlock },
                      std::pair{ makeIndexPastItsVertices(), std::string("its triangles name vertex 4 of 4") },
                      std::pair{ rope, std::string("its lines and points have no width a ray can meet") } })

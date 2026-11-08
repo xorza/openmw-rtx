@@ -141,8 +141,9 @@ namespace MWRender
         }
     }
 
-    WorldMirror::WorldMirror(const MirrorKnobs& knobs)
-        : mWalk{ .mSpecular = knobs.mSpecularLayout }
+    WorldMirror::WorldMirror(const MirrorKnobs& knobs, Rtx::ContentStore* const store)
+        : mStore(store)
+        , mWalk{ .mContent{ store, Rtx::StoreReach::Memory }, .mSpecular = knobs.mSpecularLayout }
         , mGroundcoverReach(knobs.mGroundcoverReach)
         , mGroundcoverDensity(knobs.mGroundcoverDensity)
         , mGroundcoverLampLit(knobs.mGroundcoverLampLit)
@@ -340,6 +341,7 @@ namespace MWRender
                 // What `extractWorld` walks every reference root under, below.
                 .mAbove = frame.mScene.getStateSet(),
                 .mStatics = mDistantStatics,
+                .mStore = mStore,
             },
             .mEye = eye,
             .mReach = getReach(),

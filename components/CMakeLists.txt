@@ -425,7 +425,7 @@ add_component_dir (rtx/mirror/cells
     )
 
 add_component_dir (rtx/preprocess
-    contentcache contentkey contentpass contentpreprocessor contentstats imagefactcache laidimagecache threadcontent
+    contentcache contentcodec contentkey contentpass contentpreprocessor contentstats contentstore imagefactcache laidimagecache threadcontent
     )
 
 add_component_dir (rtx/preprocess/shape

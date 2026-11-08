@@ -17,7 +17,6 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
-#include <components/rtx/preprocess/contentcache.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/scene/texturetable.hpp>
@@ -48,10 +47,8 @@ namespace Rtx::Testing
         }
 
         /// A walk computes from the content through the extractor's own preprocessor: a quad met
-        /// the first time is shaped once — keyed, where the cache holds anything, on its four
-        /// positions, no normals, six indices and the split's flag, 48 + 0 + 24 + 1 = 73 bytes, and
-        /// on nothing otherwise; met again it is the mesh already uploaded, and the second walk
-        /// shapes nothing.
+        /// the first time is shaped once, and keyed on nothing, since the store keeps no shape;
+        /// met again it is the mesh already uploaded, and the second walk shapes nothing.
         /// The counts wait in the preprocessor for the frame's owner, and a walk takes none of them.
         TEST_F(RtxSceneExtractorTest, aWalkPreprocessesThroughTheExtractorsOwnAndAMeshMetAgainCostsNothing)
         {
@@ -62,7 +59,7 @@ namespace Rtx::Testing
 
             const ContentStats counted = mExtractor.getContext().mContent.mPreprocessor.takeStats();
             EXPECT_EQ(counted.at(ContentPassId::Shape).mAsked, 1u);
-            EXPECT_EQ(counted.at(ContentPassId::Shape).mKeyBytes, ContentCache::sHolds ? 73u : 0u);
+            EXPECT_EQ(counted.at(ContentPassId::Shape).mKeyBytes, 0u);
 
             walk(*quad, 0, 2);
             EXPECT_EQ(mExtractor.getContext().mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 0u);

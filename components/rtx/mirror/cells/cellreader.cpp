@@ -90,7 +90,7 @@ namespace Rtx
         , mGroundcover(world.mGroundcover)
         , mStatics(world.mStatics)
         , mGround(*Crash::notNull(world.mGround, "a reader of a world with no land"), world.mWorldspace)
-        , mWalk(world.mAbove)
+        , mWalk(world.mAbove, world.mStore)
         , mCollector(mStorage.makeCollector())
     {
     }

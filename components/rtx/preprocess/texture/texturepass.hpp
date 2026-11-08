@@ -76,8 +76,8 @@ namespace Rtx
 
     /// A pass over a texture's finest level: `FinestTexels` keys it, and `Answer` is asked of what
     /// the key described, so an image is read once for both. `Answer` is handed nothing for an image
-    /// no reader here decodes.
-    template <ContentPassId Id, std::uint32_t Version, class Result,
+    /// no reader here decodes. `Stored` is `ContentPass::sStored`.
+    template <ContentPassId Id, std::uint32_t Version, bool Stored, class Result,
         Result (*Answer)(const std::optional<TextureData>& finest, TexelScratch& scratch)>
     class TexturePass
     {
@@ -87,6 +87,7 @@ namespace Rtx
 
         static constexpr ContentPassId sPass = Id;
         static constexpr std::uint32_t sVersion = Version;
+        static constexpr bool sStored = Stored;
 
         void digest(const osg::Image& image, ContentDigest& digest)
         {
@@ -134,17 +135,17 @@ namespace Rtx
 
     /// Asked of a translucent material's own diffuse map, whose texels it walks up to the first
     /// solid one.
-    using SolidReach = TexturePass<ContentPassId::SolidReach, 1, bool, solidReachOf>;
+    using SolidReach = TexturePass<ContentPassId::SolidReach, 1, false, bool, solidReachOf>;
 
     /// Asked of an additive material's own diffuse map, a sprite's and the sky's sheets, whose every
     /// texel it walks.
-    using TexelMean = TexturePass<ContentPassId::TexelMean, 1, MeanTexel, texelMeanOf>;
+    using TexelMean = TexturePass<ContentPassId::TexelMean, 1, true, MeanTexel, texelMeanOf>;
 
     /// Asked of a blended material's dark map, whose texels it walks up to the first one under
     /// solid.
-    using SolidFall = TexturePass<ContentPassId::SolidFall, 1, bool, solidFallOf>;
+    using SolidFall = TexturePass<ContentPassId::SolidFall, 1, false, bool, solidFallOf>;
 
     /// Asked of a normal map whose alpha is a height, whose every texel it walks: the heights its relief
     /// spans, which bound the march through it.
-    using AlphaSpan = TexturePass<ContentPassId::AlphaSpan, 1, AlphaRange, alphaSpanOf>;
+    using AlphaSpan = TexturePass<ContentPassId::AlphaSpan, 1, true, AlphaRange, alphaSpanOf>;
 }

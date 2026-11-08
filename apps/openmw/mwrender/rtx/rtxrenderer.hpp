@@ -25,6 +25,7 @@
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/drawableposer.hpp>
 #include <components/rtx/mirror/released.hpp>
+#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sdlutil/graphicslistener.hpp>
@@ -399,6 +400,11 @@ namespace MWRender
         /// After the backend, because its slot is in the backend's table and goes back before the
         /// table does.
         std::unique_ptr<MyGUI::ITexture> mFrozenFrameTexture;
+
+        /// The content's derived data kept across sessions (`RunSetup::mContentStore`), or null for
+        /// none. Before the mirror, whose walks and cell reader find their passes' outputs in it, and
+        /// so gone after them: its going finishes what they handed it to write.
+        std::unique_ptr<Rtx::ContentStore> mContentStore;
 
         /// The engine's scene graph mirrored into what a ray can meet, and the hand-over that
         /// puts it on the device.

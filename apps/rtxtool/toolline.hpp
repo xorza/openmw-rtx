@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include <osg/Vec3f>
@@ -32,6 +33,21 @@ namespace RtxTool
         T mValue{};
         bool mNamed = false;
     };
+
+    /// `--content-cache=game`: the store the game keeps under the user's cache directory.
+    struct GameContentCache
+    {
+        bool operator==(const GameContentCache&) const = default;
+    };
+
+    /// `--content-cache=off`: no store, so every pass runs.
+    struct NoContentCache
+    {
+        bool operator==(const NoContentCache&) const = default;
+    };
+
+    /// What `--content-cache` names: the game's store, none, or a directory of the run's own.
+    using ContentCacheChoice = std::variant<GameContentCache, NoContentCache, std::filesystem::path>;
 
     /// What `--size` names.
     struct FrameSize
@@ -68,6 +84,10 @@ namespace RtxTool
             std::optional<std::uint64_t> mMemoryBudget;
 
             std::filesystem::path mPipelineCode;
+
+            /// `--content-cache`.
+            ContentCacheChoice mContentCache{};
+
             float mDelight = 0.0f;
             Rtx::SurfaceView mShow{};
             Rtx::ExposureRule mExposure;

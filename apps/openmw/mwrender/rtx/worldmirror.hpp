@@ -23,6 +23,7 @@
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
+#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
@@ -68,7 +69,9 @@ namespace MWRender
     class WorldMirror
     {
     public:
-        explicit WorldMirror(const MirrorKnobs& knobs);
+        /// @param store the process's content store, or null for none: the frame's walks reach its
+        ///        memory alone, and the cell reader its files too.
+        WorldMirror(const MirrorKnobs& knobs, Rtx::ContentStore* store);
 
         /// Asserts the scene empty: a world detached has given every row back, and the one that
         /// did not is named here rather than found at the next frame's horizon. Not while an
@@ -180,6 +183,9 @@ namespace MWRender
         /// The engine's, which outlives every world (`Engine::~Engine` ends it after the world).
         /// Null while no world is attached.
         SceneUtil::UnrefQueue* mReleasing = nullptr;
+
+        /// The process's content store, or null: what the cell reader is handed (`CellWorld::mStore`).
+        Rtx::ContentStore* mStore;
 
         /// Shared by every walk on the frame thread: the world's and every traced view's.
         Rtx::WalkContext mWalk;

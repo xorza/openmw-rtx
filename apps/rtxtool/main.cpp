@@ -13,7 +13,9 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include <boost/program_options/parsers.hpp>
@@ -41,6 +43,7 @@
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
@@ -235,6 +238,17 @@ namespace RtxTool
             framed.mSetup.mKernels = Rtx::KernelSet::Every;
             framed.mSetup.mRun.mMemoryBudget = line.mMemoryBudget;
             framed.mSetup.mRun.mPipelineCode = line.mPipelineCode;
+            framed.mSetup.mContentStore = std::visit(
+                [&](const auto& choice) -> std::optional<std::filesystem::path> {
+                    using Choice = std::decay_t<decltype(choice)>;
+                    if constexpr (std::is_same_v<Choice, GameContentCache>)
+                        return command.mConfig.getCachePath() / Rtx::sContentStoreFolder;
+                    else if constexpr (std::is_same_v<Choice, NoContentCache>)
+                        return std::nullopt;
+                    else
+                        return choice;
+                },
+                line.mContentCache);
 
             Rtx::RenderProfile& profile = framed.mSetup.mRun.mProfile;
             profile.mRadianceWidth = policyOf(command.mVerb).radianceWidth();

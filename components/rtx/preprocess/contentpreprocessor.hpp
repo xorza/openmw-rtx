@@ -8,6 +8,7 @@
 #include "contentcache.hpp"
 #include "contentpass.hpp"
 #include "contentstats.hpp"
+#include "contentstore.hpp"
 
 namespace osg
 {
@@ -17,17 +18,20 @@ namespace osg
 namespace Rtx
 {
     /// The one way the renderer computes anything from what the content files hold. Every pass is
-    /// asked through here: once a cache holds anything, its key is made of everything it reads, the
-    /// cache is asked for the output under that key, and the pass runs only where the cache has none
-    /// — and then the cache is offered what it computed. `ContentCache` holds nothing, so for now no
-    /// key is made, every pass runs, and what each cost is counted.
+    /// asked through here: for a pass the store keeps (`ContentPass::sStored`) where there is a
+    /// store, its key is made of everything it reads, the cache is asked for the output under that
+    /// key, and the pass runs only where the cache has none — and then the cache is offered what it
+    /// computed. Every other pass runs. What each cost is counted.
     ///
     /// **One a thread**, as the passes' scratch is: the frame's walk has one and the cell ring's
     /// reader another. Pinned: the texture passes describe into the one scratch it holds for both.
     class ContentPreprocessor
     {
     public:
-        ContentPreprocessor() = default;
+        /// @param store the process's store, or null for none (`ContentCache`): a test's, which
+        ///        computes every ask.
+        /// @param reach where this thread's asks may reach in it.
+        explicit ContentPreprocessor(ContentStore* store = nullptr, StoreReach reach = StoreReach::Memory);
 
         ContentPreprocessor(const ContentPreprocessor&) = delete;
         ContentPreprocessor& operator=(const ContentPreprocessor&) = delete;

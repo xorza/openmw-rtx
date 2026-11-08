@@ -59,8 +59,9 @@ namespace Rtx
         }
     }
 
-    TemplateWalk::TemplateWalk(const osg::StateSet* const above)
+    TemplateWalk::TemplateWalk(const osg::StateSet* const above, ContentStore* const store)
         : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+        , mContent(store, StoreReach::Disk)
         , mAbove(above)
     {
     }

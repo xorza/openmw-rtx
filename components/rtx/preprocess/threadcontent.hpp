@@ -10,6 +10,7 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "contentpreprocessor.hpp"
+#include "contentstore.hpp"
 #include "imagefactcache.hpp"
 #include "laidimagecache.hpp"
 
@@ -26,6 +27,13 @@ namespace Rtx
     /// could not be moved, and in an aggregate MSVC binds such a reference to the enclosing object.
     struct ThreadContent
     {
+        /// @param store the process's store, or null for none (`ContentCache`).
+        /// @param reach where this thread's asks may reach in it: memory alone on the frame's.
+        ThreadContent(ContentStore* store = nullptr, StoreReach reach = StoreReach::Memory)
+            : mPreprocessor(store, reach)
+        {
+        }
+
         ContentPreprocessor mPreprocessor;
         ImageFactCache mFacts;
         LaidImageCache mLaid;

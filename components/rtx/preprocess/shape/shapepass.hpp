@@ -58,6 +58,10 @@ namespace Rtx
         static constexpr ContentPassId sPass = ContentPassId::Shape;
         static constexpr std::uint32_t sVersion = 3;
 
+        /// Not kept yet: its outputs are spans into the reader's scratch, which a codec of its own
+        /// writes (`.notes/content-cache.md`, the shapes' batch).
+        static constexpr bool sStored = false;
+
         static void digest(const Input& input, ContentDigest& digest);
         void run(const Input& input, Output& output);
 

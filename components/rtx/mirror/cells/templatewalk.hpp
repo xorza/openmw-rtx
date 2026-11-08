@@ -48,7 +48,9 @@ namespace Rtx
         ///        root's (`CellWorld::mAbove`) — or null for none: the first link of every chain
         ///        this reads, so a part is described and keyed as the frame's walk finds its clone.
         ///        Read on this walk's thread, so nothing may write it while this stands.
-        explicit TemplateWalk(const osg::StateSet* above);
+        /// @param store the process's content store, or null for none (`CellWorld::mStore`), which
+        ///        this thread reaches to the disk, being no frame's.
+        TemplateWalk(const osg::StateSet* above, ContentStore* store);
 
         /// Walks `root` and appends one part to `into` for every drawable under it that holds a
         /// triangle, with its arrays appended to the model's buffers. A drawable this cannot take

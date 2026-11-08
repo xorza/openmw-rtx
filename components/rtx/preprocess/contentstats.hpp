@@ -11,8 +11,8 @@ namespace Rtx
     /// What one pass cost, over however many times it was asked.
     struct PassStats
     {
-        /// How often it was asked, and how many of those its cache answered: nought while the cache
-        /// holds nothing (`ContentCache::sHolds`), as the two key figures below are.
+        /// How often it was asked, and how many of those its cache answered: nought where the cache
+        /// holds nothing for the pass (`ContentCache::holds`), as the two key figures below are.
         std::uint32_t mAsked = 0;
         std::uint32_t mHits = 0;
 

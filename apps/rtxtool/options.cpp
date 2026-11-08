@@ -534,6 +534,11 @@ namespace RtxTool
             "instruction view shows. Every pipeline is then compiled past the driver's cache. "
             "NVIDIA's driver gives no such text, and nothing is written");
 
+        option(sFramed, "content-cache", bpo::value<std::string>()->default_value("game"),
+            "where the content's derived data is found and kept across runs (`Rtx::ContentStore`): "
+            "game, the store the game keeps under the user's cache directory, so a run reads what the "
+            "game wrote; off, none, so every pass runs; or a directory of the run's own");
+
         option(Verbs::Bench, "window", bpo::value<bool>()->default_value(true)->implicit_value(true),
             "show the run while it happens. The swapchain is mailbox, so it does not "
             "pace the loop; --window=false is one fewer thing between the trace and the number");
@@ -923,6 +928,14 @@ namespace RtxTool
         if (named("memory-budget"))
             frame.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
         frame.mPipelineCode = text("pipeline-code");
+        if (const std::string& store = text("content-cache"); store == "off")
+            frame.mContentCache = NoContentCache{};
+        else if (store == "game")
+            frame.mContentCache = GameContentCache{};
+        else if (store.empty())
+            throw std::runtime_error("--content-cache names nothing: game, off or a directory");
+        else
+            frame.mContentCache = std::filesystem::path(store);
         frame.mDelight = real("delight");
         frame.mShow = Rtx::sSurfaceViewNames.require(text("show"), "a surface view");
         frame.mExposure = parseExposure(text("exposure"));

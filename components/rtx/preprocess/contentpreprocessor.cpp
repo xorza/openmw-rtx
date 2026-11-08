@@ -16,31 +16,33 @@ namespace Rtx
         ++stats.mAsked;
 
         const std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
-        if constexpr (!ContentCache::sHolds)
+        if constexpr (Pass::sStored)
         {
-            pass.run(input, output);
-            stats.mRunMs += since(started, std::chrono::steady_clock::now());
-        }
-        else
-        {
-            ContentDigest digest(sContentPasses.name(Pass::sPass), Pass::sVersion);
-            pass.digest(input, digest);
-            const ContentKey key = digest.getKey();
-            const std::chrono::steady_clock::time_point keyed = std::chrono::steady_clock::now();
-
-            stats.mKeyMs += since(started, keyed);
-            stats.mKeyBytes += digest.getBytes();
-
-            if (mCache.find<Pass>(key, output))
+            if (mCache.holds<Pass>())
             {
-                ++stats.mHits;
+                ContentDigest digest(sContentPasses.name(Pass::sPass), Pass::sVersion);
+                pass.digest(input, digest);
+                const ContentKey key = digest.getKey();
+                const std::chrono::steady_clock::time_point keyed = std::chrono::steady_clock::now();
+
+                stats.mKeyMs += since(started, keyed);
+                stats.mKeyBytes += digest.getBytes();
+
+                if (mCache.find<Pass>(key, output))
+                {
+                    ++stats.mHits;
+                    return;
+                }
+
+                pass.run(input, output);
+                mCache.keep<Pass>(key, output);
+                stats.mRunMs += since(keyed, std::chrono::steady_clock::now());
                 return;
             }
-
-            pass.run(input, output);
-            mCache.keep<Pass>(key, output);
-            stats.mRunMs += since(keyed, std::chrono::steady_clock::now());
         }
+
+        pass.run(input, output);
+        stats.mRunMs += since(started, std::chrono::steady_clock::now());
     }
 
     void ContentPreprocessor::shape(const ShapePass::Input& input, ShapePass::Output& output)
@@ -74,6 +76,11 @@ namespace Rtx
         AlphaRange range;
         run(mSpan, image, range);
         return range;
+    }
+
+    ContentPreprocessor::ContentPreprocessor(ContentStore* const store, const StoreReach reach)
+        : mCache(store, reach)
+    {
     }
 
     ContentStats ContentPreprocessor::takeStats()

@@ -87,14 +87,22 @@ import step, as `openmw-navmeshtool` is for the navigation mesh, and its store i
   and its version, the key, and the payload's length and digest. A file that does not match is a miss and is deleted,
   never an assert, as `PipelineCache::read` refuses a blob. A file is written to a temporary name in its own folder and
   renamed into place, so a reader sees a whole entry or none, and two processes writing one key write the same bytes.
+  No sync before the rename, which `PipelineCache` makes for its one file a session: the payload's digest finds a body
+  a power loss left unwritten, and a load writes thousands of entries that would each wait on the disk.
+- **A small entry is held in memory, and the frame's thread reaches memory alone** (`StoreReach`): an entry of 4 KiB
+  or less is kept once read or written, and the start's sweep loads every one on the store's thread, so a fact the
+  frame's walk asks for is found with no wait on the disk; a larger entry the frame's thread computes, as it did, and
+  the cell reader reads from its file. Bounded at 64 MiB of payload. Refused: a file read on the frame's thread, a
+  wait on the disk inside a frame.
 - **The store's bound is a size cap with least recently used eviction, by each file's modification time**, as ccache
   and the bazel-remote cache evict ([ccache](https://man.archlinux.org/man/ccache.1),
-  [bazel-remote](https://github.com/buchgr/bazel-remote)). A hit is stamped in memory, and each entry used in the
-  session has its time set once, at a checkpoint and at the end of the session. A sweep at start, on a worker, lists
+  [bazel-remote](https://github.com/buchgr/bazel-remote)). An entry's first hit of a session hands its file to the
+  store's thread, which sets its time; later hits set nothing. A sweep at start, on the store's thread, lists
   the folders, sorts the entries by time and removes the oldest past the cap, and removes a temporary file older than
   a day (one a killed process left). Cap: 16 GiB, by the user's decision, against `openmw-pbr-all`'s 1.71 GiB of
   chains. Refused: the time set at every hit (ccache's access time), a write on every read; and an index file of
-  sizes and times, a second record of what the folders already state.
+  sizes and times, a second record of what the folders already state. The file operations are `std::filesystem`'s,
+  whose API is one on every system, and the folder listing `Platform::listFolder`'s.
 - **Only the levels the file has wrong are stored, in the file's own format.** For a normal map, levels 1 and down, built
   from the file's level 0, which stays byte-exact. For a file with no chain, every level below its one. The upload
   then joins level 0 from the file and the rest from the store. The result is an ordinary file with a full chain, so
@@ -195,60 +203,48 @@ import step, as `openmw-navmeshtool` is for the navigation mesh, and its store i
 Batch 0 is done; its measurements are in the research note, and its outcomes are the three decisions after the
 key's.
 
-Batch 1: the store.
-
-1. **`ContentStore`**: the directory and its 256 folders, an entry file and its header, read and validate, a write
-   through a temporary name and a rename, the used entries' times set at a checkpoint and at the end, the start's
-   sweep to the cap and of stale temporary files. The file operations behind one entity whose API is the same on every
-   system (`components/platform`), since a rename over an existing file and a time set are spelled differently on
-   Windows. One instance for a process, shared by each thread's `ContentCache`, with the writes on a worker behind a
-   bounded queue.
-2. **`ContentCache` holds**: `sHolds` true, `find` and `keep` through the store, and a codec for each pass's `Output`
-   that writes it and reads it back.
-3. **The plumbing**: the game's store under the cache directory, the harness's `--content-cache`, the tests' stores,
-   the stats row's hits.
-
-Batch 2: the texture facts through the store.
-
-4. `TexelMean` and `AlphaSpan` through the store, so a warm start walks no texel for either.
+Batches 1 and 2 are done: the store, its plumbing, and the texel mean and the alpha span kept in it. The texture
+facts came with the store, since a store no pass reaches would be code nothing runs. A warm load of `seyda-neen-ship`
+on `openmw-pbr` finds all 488 alpha spans and 19 texel means, which ran 953 ms cold, in 142 ms of keying, and a cold
+and a warm shot draw the same frames.
 
 Batch 3: normal and data map chains.
 
-5. **The chain pass** (`ChainPass`): input an image, output the levels below its finest in the file's format, made by
+1. **The chain pass** (`ChainPass`): input an image, output the levels below its finest in the file's format, made by
    the box filter and `rgbcx`, vendored under `extern/` with its licence.
-6. **The prepared image**: `LaidImageCache` becomes the one place that turns a file into what the upload reads. It
+2. **The prepared image**: `LaidImageCache` becomes the one place that turns a file into what the upload reads. It
    widens a loose format as now and joins a built chain to the file's level 0. A worker builds, the slot is made again
    when the build lands, and the world is not whole until the queue is empty.
-7. **Every normal and data map through it.**
+3. **Every normal and data map through it.**
 
 Batch 4: chainless files.
 
-8. **Every file that lacks a chain through the chain pass**, the loose chain for 512 or less on a side.
-9. **The device completion removed**: `MipChainPass`, `mipchain.comp`, the loose chains, `mCompleteChain` and the
+4. **Every file that lacks a chain through the chain pass**, the loose chain for 512 or less on a side.
+5. **The device completion removed**: `MipChainPass`, `mipchain.comp`, the loose chains, `mCompleteChain` and the
     canvas room the arrival keeps for them.
 
 Batch 5: the shapes.
 
-10. `ShapePass`'s output through the store: 0.4 s of a PBR load and 1.3 s of a Fullrest load (batch 0).
+6. `ShapePass`'s output through the store: 0.4 s of a PBR load and 1.3 s of a Fullrest load (batch 0).
 
 Batch 6: the device's derivations.
 
-11. **Their cost at arrival measured first**: each pass's device time and the worst frame of a load at
+7. **Their cost at arrival measured first**: each pass's device time and the worst frame of a load at
     `seyda-neen-ship` on both PBR profiles and the Fullrest Repack, against which the two items after it are judged.
-12. **The shading map, the normal spread and the sprite bake through the store**: each read back after its pass and
+8. **The shading map, the normal spread and the sprite bake through the store**: each read back after its pass and
     stored, and uploaded from the store at arrival where it is there.
-13. **The ground composite and gloss through the store**, keyed by the chunk's layers, their blend weights and the
+9. **The ground composite and gloss through the store**, keyed by the chunk's layers, their blend weights and the
     delight they were baked at.
 
 Batch 7: the tool.
 
-14. **The content tool** (`apps/contenttool`, `openmw-contenttool`): the content list loaded as navmeshtool loads it,
+10. **The content tool** (`apps/contenttool`, `openmw-contenttool`): the content list loaded as navmeshtool loads it,
     from the configuration the game hands it, every model and land texture walked through the mirror's walk, every
     host pass on worker threads and every device pass on a windowless device into the store, the manifest written,
     progress as binary messages on its standard output, and as text on a terminal.
-15. **A child process with a pipe** in `Platform::Process`: start a program with its arguments, read its standard
+11. **A child process with a pipe** in `Platform::Process`: start a program with its arguments, read its standard
     output, wait for it, end it. A POSIX and a Windows file behind the one header, as the rest of it is.
-16. **The game's start**: the renderer starts the tool when it is made, a reader thread turns its messages into the
+12. **The game's start**: the renderer starts the tool when it is made, a reader thread turns its messages into the
     loading screen's label and bar, and the step that waits for the kernels waits for the tool too
     (`Renderer::awaitShaders` named again for what it now waits for). The game's log line and stats row of its
     misses. The harness starts it the same way, into the store its run states. The call in `OMW::Engine` is upstream
@@ -256,7 +252,7 @@ Batch 7: the tool.
 
 Batch 8: content in the renderer's own forms, by the user's request.
 
-17. **The audit**: every place the renderer accommodates a form the content comes in, rather than the one form it
+13. **The audit**: every place the renderer accommodates a form the content comes in, rather than the one form it
     reads, each with whether it is a function of the files alone (the tool can make it once) or of a run's state (it
     stays). The candidates found so far, each a decision for the user after its measurement:
     - **Normal maps in one encoding.** `decodeNormal` reconstructs the blue where a file holds none, and `resolve`
@@ -282,7 +278,7 @@ Batch 8: content in the renderer's own forms, by the user's request.
 
 Batch 9: program constants, at any time.
 
-18. **The blue noise's rank matrices and the fog's noise generated by the build** and compiled in, with a test that
+14. **The blue noise's rank matrices and the fog's noise generated by the build** and compiled in, with a test that
     the compiled table equals what the generator makes.
 
 ## Risks

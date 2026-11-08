@@ -65,6 +65,11 @@ namespace MWRender
         /// keyed on the modules, and the game's carry neither.
         std::optional<Rtx::ShaderSet> mShaders{};
 
+        /// Where the content store stands (`Rtx::ContentStore`), or nothing for none: a played
+        /// session's under the user's cache directory, the harness's where `--content-cache` says,
+        /// and none for a test's renderer, which computes every ask.
+        std::optional<std::filesystem::path> mContentStore{};
+
         /// Which kernels the start waits for (`Rtx::KernelSet`): the ones a frame draws with for a
         /// played session, and every tuple's for a run that measures or compares, so two runs change
         /// kernel at no frame.

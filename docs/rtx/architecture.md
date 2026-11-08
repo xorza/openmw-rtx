@@ -255,10 +255,12 @@ source-tree test holds the order.
   mean. One lives on each thread that reads content (`Rtx::ThreadContent`): the frame's, which the
   world's walk, the sky and every picture's walk share inside the frame thread's `Rtx::WalkContext`
   beside the traversal numbers and the specular layout, and the ring's reader's. Every
-  pass states everything it reads, which is the key a cache would file its output under; the
-  cache (`ContentCache`) holds nothing yet, so no key is made, every pass runs, and what each costs
-  is counted into the walk's stats and the `preprocess` row of a frame. The empty cache stays as a
-  staged design, by the user's decision.
+  pass states everything it reads, which is the key its output is filed under in the process's
+  `Rtx::ContentStore`, a folder of files under the user's cache directory kept across sessions
+  (`.notes/content-cache.md`); a pass whose key would cost more than its run keeps nothing there
+  (`ContentPass::sStored`), and what each costs is counted into the walk's stats and the
+  `preprocess` row of a frame. The frame's thread reaches the store's memory alone, so no frame
+  waits on the disk.
 - **`Rtx::SceneUploader`** hands a scene to the backend once a frame, in the cheapest of three
   ways: place what moved, extend with what arrived, or rebuild.
 - **The world a frame is told** (`world/`) turns a `WorldReading` into the frame's

@@ -1,6 +1,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <vector>
 
@@ -16,14 +17,15 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
-#include <components/rtx/preprocess/contentcache.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
+#include <components/testing/util.hpp>
 
 namespace Rtx
 {
@@ -69,10 +71,8 @@ namespace Rtx
         }
 
         /// A shape asked through the preprocessor keeps the card's front and says it was a sheet,
-        /// and is counted: asked once, found in no cache, and — where the cache holds anything —
-        /// keyed on exactly what it read: eight positions of twelve bytes, no normals, twelve
-        /// indices of four and the split's one-byte flag, 96 + 0 + 48 + 1 = 145. While the cache
-        /// holds nothing, no key is made at all.
+        /// and is counted: asked once, found in no cache, and keyed on nothing, since the store keeps
+        /// no shape (`ShapePass::sStored`).
         TEST(RtxContentPreprocessorTest, aShapeIsCountedByWhatItRead)
         {
             ContentPreprocessor content;
@@ -86,12 +86,12 @@ namespace Rtx
             const PassStats& shaped = stats.at(ContentPassId::Shape);
             EXPECT_EQ(shaped.mAsked, 1u);
             EXPECT_EQ(shaped.mHits, 0u);
-            EXPECT_EQ(shaped.mKeyBytes, ContentCache::sHolds ? 145u : 0u);
+            EXPECT_EQ(shaped.mKeyBytes, 0u);
             EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 0u) << "a pass not asked counts nothing";
         }
 
-        /// **The cache holds nothing, so every ask runs.** The same shape asked twice is asked
-        /// twice and found twice nowhere, and a take leaves nothing counted behind it.
+        /// **With no store, every ask runs.** The same shape asked twice is asked twice and found
+        /// twice nowhere, and a take leaves nothing counted behind it.
         TEST(RtxContentPreprocessorTest, theSameInputAskedAgainRunsAgainAndATakeEmptiesTheCount)
         {
             ContentPreprocessor content;
@@ -102,7 +102,7 @@ namespace Rtx
             const ContentStats stats = content.takeStats();
             EXPECT_EQ(stats.at(ContentPassId::Shape).mAsked, 2u);
             EXPECT_EQ(stats.at(ContentPassId::Shape).mHits, 0u);
-            EXPECT_EQ(stats.at(ContentPassId::Shape).mKeyBytes, ContentCache::sHolds ? 290u : 0u);
+            EXPECT_EQ(stats.at(ContentPassId::Shape).mKeyBytes, 0u);
 
             EXPECT_EQ(content.takeStats().at(ContentPassId::Shape).mAsked, 0u);
         }
@@ -138,6 +138,64 @@ namespace Rtx
             EXPECT_EQ(stats.at(ContentPassId::TexelMean).mAsked, 2u);
         }
 
+        /// What a texture pass's key reads of a two-by-two RGBA8 level: whether it described, its
+        /// format, its encoding, its extent and its sixteen bytes.
+        constexpr std::uint64_t sFinestKeyBytes
+            = sizeof(bool) + sizeof(TextureFormat) + sizeof(TextureEncoding) + 2 * sizeof(std::uint32_t) + 16;
+
+        /// **A pass the store keeps is found again**: the texel mean asked twice through a store is
+        /// run once and found once, keyed both times on what it read, and answers the same; and a
+        /// later session's frame thread, whose reach is memory alone, finds it in a store made on
+        /// the same folder, which held it from its start.
+        TEST(RtxContentPreprocessorTest, aStoredPassIsFoundAgainInThisSessionAndTheNext)
+        {
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
+            TexelScratch scratch;
+            const MeanTexel direct = meanTexel(*describeFinest(*painted, scratch), scratch);
+            {
+                ContentStore store(folder, ContentStore::sGameCap);
+                ContentPreprocessor content(&store, StoreReach::Disk);
+                const MeanTexel run = content.meanTexel(*painted);
+                const MeanTexel found = content.meanTexel(*painted);
+                EXPECT_EQ(run.mColour, direct.mColour);
+                EXPECT_EQ(found.mColour, direct.mColour);
+                EXPECT_EQ(found.mWhole, direct.mWhole);
+                EXPECT_EQ(found.mAlpha, direct.mAlpha);
+
+                const PassStats stats = content.takeStats().at(ContentPassId::TexelMean);
+                EXPECT_EQ(stats.mAsked, 2u);
+                EXPECT_EQ(stats.mHits, 1u);
+                EXPECT_EQ(stats.mKeyBytes, 2 * sFinestKeyBytes);
+            }
+
+            ContentStore next(folder, ContentStore::sGameCap);
+            next.flush();
+            ContentPreprocessor frame(&next, StoreReach::Memory);
+            const MeanTexel found = frame.meanTexel(*painted);
+            EXPECT_EQ(found.mColour, direct.mColour);
+            EXPECT_EQ(found.mAlpha, direct.mAlpha);
+            EXPECT_EQ(frame.takeStats().at(ContentPassId::TexelMean).mHits, 1u);
+        }
+
+        /// **A pass the store keeps nothing of makes no key**, store or none: the solid reach, whose
+        /// walk stops at the first solid texel, runs every time and writes nothing.
+        TEST(RtxContentPreprocessorTest, aPassTheStoreKeepsNothingOfMakesNoKey)
+        {
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            ContentPreprocessor content(&store, StoreReach::Disk);
+            const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
+            EXPECT_TRUE(content.reachesSolid(*painted));
+            EXPECT_TRUE(content.reachesSolid(*painted));
+
+            const PassStats stats = content.takeStats().at(ContentPassId::SolidReach);
+            EXPECT_EQ(stats.mAsked, 2u);
+            EXPECT_EQ(stats.mHits, 0u);
+            EXPECT_EQ(stats.mKeyBytes, 0u);
+            store.flush();
+            EXPECT_EQ(store.getStats().mWritten, 0u);
+        }
+
         ContentKey finestKeyOf(const osg::Image& image, FinestTexels& finest)
         {
             ContentDigest digest("solid reach", 1);
@@ -167,8 +225,7 @@ namespace Rtx
             ContentDigest digest("solid reach", 1);
             finest.describe(*makeImage(sPaint, "painted.dds"));
             finest.addTo(digest);
-            EXPECT_EQ(digest.getBytes(),
-                sizeof(bool) + sizeof(TextureFormat) + sizeof(TextureEncoding) + 2 * sizeof(std::uint32_t) + 16);
+            EXPECT_EQ(digest.getBytes(), sFinestKeyBytes);
             EXPECT_EQ(digest.getKey(), key) << "the description outlived the caller's image";
 
             const osg::ref_ptr<osg::Image> held = makeImage(sPaint, "painted.dds");
@@ -183,6 +240,33 @@ namespace Rtx
             odd->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
             finestKeyOf(*odd, finest);
             EXPECT_FALSE(finest.get().has_value()) << "an image no reader decodes is described as none";
+        }
+
+        /// **A stored payload its codec cannot read is a miss, and the output run again is held from
+        /// then on**: a texel mean filed as three bytes, against the 28 its codec reads, runs, and the
+        /// run's output replaces the held payload, so the next ask finds it.
+        TEST(RtxContentPreprocessorTest, aPayloadItsCodecCannotReadIsRunAgainAndReplaced)
+        {
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
+
+            TexelScratch scratch;
+            FinestTexels finest(scratch);
+            ContentDigest digest(sContentPasses.name(ContentPassId::TexelMean), TexelMean::sVersion);
+            finest.describe(*painted);
+            finest.addTo(digest);
+            const std::vector<std::byte> broken{ std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 } };
+            store.write(digest.getKey(), ContentPassId::TexelMean, TexelMean::sVersion, broken);
+
+            ContentPreprocessor content(&store, StoreReach::Memory);
+            const MeanTexel first = content.meanTexel(*painted);
+            const MeanTexel second = content.meanTexel(*painted);
+            EXPECT_EQ(second.mColour, first.mColour);
+            EXPECT_EQ(second.mAlpha, first.mAlpha);
+
+            const PassStats stats = content.takeStats().at(ContentPassId::TexelMean);
+            EXPECT_EQ(stats.mAsked, 2u);
+            EXPECT_EQ(stats.mHits, 1u) << "the second, from the run's output";
         }
 
         /// A sum is pass by pass and figure by figure, and the whole is every key and every run:

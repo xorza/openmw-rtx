@@ -63,6 +63,7 @@ set(RTX_TEST_FILES
     rtx/mirror/statereading.cpp
     rtx/preprocess/contentkey.cpp
     rtx/preprocess/contentpreprocessor.cpp
+    rtx/preprocess/contentstore.cpp
     rtx/preprocess/laidimagecache.cpp
     rtx/preprocess/shape/creasesplit.cpp
     rtx/preprocess/shape/shapefold.cpp

@@ -58,6 +58,7 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
+#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -164,7 +165,7 @@ namespace MWRender
         /// upscaler tunes itself against how fast a motion vector was travelled, so each reader
         /// times what it is about — a setting that could state a step once made a played game step
         /// by frames, and at two hundred of them a second the world ran three times over.
-        RunSetup playedRunSetup()
+        RunSetup playedRunSetup(const RendererSpec& spec)
         {
             const RtxSettings settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
             const RtxBackend backend = askedBackend();
@@ -187,12 +188,15 @@ namespace MWRender
                 .mBackend = backend,
                 .mHeadless = backend == RtxBackend::Null,
                 .mSettled = std::nullopt,
+                .mContentStore = spec.mCachePath.empty()
+                    ? std::nullopt
+                    : std::optional(spec.mCachePath / Rtx::sContentStoreFolder),
             };
         }
     }
 
     RtxRenderer::RtxRenderer(const RendererSpec& spec, const RtxSetup* const run)
-        : RtxRenderer(spec, run, run != nullptr ? run->mSetup : playedRunSetup())
+        : RtxRenderer(spec, run, run != nullptr ? run->mSetup : playedRunSetup(spec))
     {
     }
 
@@ -204,7 +208,10 @@ namespace MWRender
               setup.mHeadless, setup.mWindowPixels)
         , mUpdateVisitor(new Rtx::PoseUpdate)
         , mStartTick(osg::Timer::instance()->tick())
-        , mMirror(setup.mMirror)
+        , mContentStore(setup.mContentStore.has_value()
+                  ? std::make_unique<Rtx::ContentStore>(*setup.mContentStore, Rtx::ContentStore::sGameCap)
+                  : nullptr)
+        , mMirror(setup.mMirror, mContentStore.get())
     {
         mSettled = setup.mSettled;
 
