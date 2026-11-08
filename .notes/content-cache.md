@@ -270,31 +270,25 @@ What it does otherwise than the items said:
   (`Shader::appendCompanionPaths`), and a layer is named by its normal map as well as its diffuse, so a map a mod
   adds is the model or the layer read again.
 
-Batch 8: content in the renderer's own forms, by the user's request.
+Batch 8: content in the renderer's own forms, by the user's decisions on the audit, one at a time.
 
-10. **The audit**: every place the renderer accommodates a form the content comes in, rather than the one form it
-    reads, each with whether it is a function of the files alone (the preparing module can make it once) or of a run's state (it
-    stays). The candidates found so far, each a decision for the user after its measurement:
-    - **Normal maps in one encoding.** `decodeNormal` reconstructs the blue where a file holds none, and `resolve`
-      stands the plane in for a texel of (0.5, 0.5, 0.5), on every hit. Rewritten by the preparing module into one encoding with
-      a unit normal in every texel, the decode is one expression. Its cost: level 0 re-encoded, and no longer the
-      file's bytes, against the decision above that keeps them.
-    - **Pictures stored delit.** `sampleAlbedo` divides every colour sample by its shading map at the run's delight
-      (`delitTexel`). The game always runs at a delight of one, so the preparing module could store each colour file divided
-      once, and the trace would read it as it stands. Its cost: the harness's `--delight` A/B loses its one route
-      unless it reads the files as they stand, and a delit file in BC1 or BC3 is re-encoded.
-    - **One specular layout.** The trace and the ground branch on the classic layout against the metal-roughness one
-      (`MATERIAL_SPECULAR_CLASSIC`, `layerClassic`). The classic layout's coloured highlight has no metal-roughness
-      equal for a dielectric, so a conversion loses it; measured before it is proposed.
-    - **Loose formats laid to RGBA8** (`layImage`), now on the reader thread, made once by the preparing module with the chains.
-    - **Vertices packed for the device.** A vertex's colour is three floats in linear light, 22 of the 125 MB of
-      vertex and index bytes at `seyda-neen-ship`, and its normal three floats. Packed by the preparing module, at 16 bits a
-      channel for the colour and 32 bits for an octahedral normal as the tangent already is, they would read less
-      memory on every hit. Its cost: a precision measured against the shots before it is proposed.
-    - **Loose files compressed for the device**: a loose file is four bytes a texel, a BC7 one one. Its cost: a
-      vanilla loose file's picture moves by BC7's low bit, against the rule that keeps them loose.
+10. **Loose files encoded to BC7**: every loose file (RGBA8, BGRA8) and its chain encoded by preparation into BC7 and
+    stored, a quarter of its device memory, with bc7enc (Rich Geldreich, as rgbcx; approved by the user). Vanilla's
+    loose files move by BC7's error, by the user's decision against the rule that kept them.
+11. **Normal maps in one encoding**: every normal map stored with a unit normal in all three channels, so `decodeNormal`
+    is `2·rgb − 1` and `resolve` stands no plane in for a grey texel: a two-channel map (BC5) is given its blue, its
+    finest level re-encoded, by the user's decision against the rule that kept a file's finest level its own.
+12. **One specular layout**: every classic `_spec` map converted by preparation to metal-roughness, and the
+    `[RTX] specular map layout` setting, `MATERIAL_SPECULAR_CLASSIC` and `layerClassic` gone, by the user's decision;
+    a classic map's coloured highlight is fitted, since a dielectric has no metal-roughness equal for it.
+13. **Colour files stored delit**: every colour file's painted light estimated on the host and divided out at a delight
+    of one by preparation, and the file re-encoded and stored; the trace reads colours as they stand, and the shading
+    maps and `delitTexel` go, by the user's decision. The estimate moves to the host, one implementation, from the
+    device's `ShadingPass`; the harness's `--delight` A/B goes with it.
 
-    Already preprocessed: the shape fold and the normals split at hard edges (`ShapePass`), and the alpha facts.
+Kept, by the user's decisions: **loose formats widened on read** (`layImage`), where a stored copy is four times a
+file on disk and a read for a cheap conversion. Moved to `.notes/todo.txt`: **vertices packed for the device**, the
+renderer's own format and no content's.
 
 Batch 9: program constants, at any time.
 

@@ -179,6 +179,14 @@ namespace Rtx
         return mDirectory / name.substr(0, 2) / name;
     }
 
+    std::filesystem::path ContentStore::partialOf(const ContentKey& key, const std::uint64_t write) const
+    {
+        std::filesystem::path partial = pathOf(key);
+        partial += std::format(
+            ".{}-{:x}-{}{}", Platform::Process::currentId(), reinterpret_cast<std::uintptr_t>(this), write, sPartial);
+        return partial;
+    }
+
     bool ContentStore::read(const ContentKey& key, const ContentPassId pass, const std::uint32_t version,
         const StoreReach reach, std::vector<std::byte>& payload)
     {
@@ -436,10 +444,7 @@ namespace Rtx
 
         // **Through a temporary in the entry's own folder, renamed into place**, so a reader sees a
         // whole entry or none, and two writers of one key, which write the same bytes, leave one.
-        // Named for the process and its count of writes, so no other writer of this store, in this
-        // process or another, uses the name at once.
-        std::filesystem::path partial = path;
-        partial += std::format(".{}-{}{}", Platform::Process::currentId(), mPartials++, sPartial);
+        const std::filesystem::path partial = partialOf(task.mKey, mPartials++);
         {
             std::ofstream file(partial, std::ios::binary | std::ios::trunc);
             file.write(reinterpret_cast<const char*>(&header), sizeof(header));

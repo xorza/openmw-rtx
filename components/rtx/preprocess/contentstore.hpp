@@ -142,6 +142,13 @@ namespace Rtx
         /// Where the entry `key` stands.
         std::filesystem::path pathOf(const ContentKey& key) const;
 
+        /// The temporary this store's `write`th write goes through for `key` before its rename, named
+        /// for the process, the store and the write: no other writer of the folder, in this process or
+        /// another, names it while this one is live. A store of its own in the name, since two stores
+        /// in one process count their writes alike, and on Windows the second's open of a shared name
+        /// failed and its clean-up deleted the first's file under it.
+        std::filesystem::path partialOf(const ContentKey& key, std::uint64_t write) const;
+
     private:
         enum class TaskKind
         {
