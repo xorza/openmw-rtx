@@ -14,7 +14,7 @@ namespace Rtx
     ///
     /// **A painted colour is one encoding with its own made chain**: Morrowind's textures were lit
     /// before they were saved, so the host divides the light painted into one out of each level
-    /// (`ChainBuild::buildPainted`). A metal-roughness base colour, an emissive map and a sheet are
+    /// (`ChainBuild::build`). A metal-roughness base colour, an emissive map and a sheet are
     /// colours, read as they stand. One file bound both ways is two textures, as an engine imports a
     /// source once for each use (`.notes/content-cache.md`, colour files stored delit).
     ///

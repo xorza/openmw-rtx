@@ -160,9 +160,9 @@ namespace Rtx
         /// @param kind `GroundAlbedo` or `GroundGloss`.
         Index addGround(Index material, TextureKind kind);
 
-        /// The slot `path` stands in as a colour under any wrap, or `sNoIndex` where it stands in
-        /// none. What a bake made from a file's alpha finds its source by: the alpha is the same
-        /// under every wrap, and the bake names the file and not the wrap.
+        /// The slot `path` stands in as a colour, painted or not, under any wrap, or `sNoIndex` where it
+        /// stands in none. What a bake made from a file's alpha finds its source by: the alpha is the same
+        /// under every wrap and in both encodings, and the bake names the file and not the slot.
         Index findFile(VFS::Path::NormalizedView path) const;
 
         std::span<const Index> getArrived() const { return mChanges.getArrived(); }

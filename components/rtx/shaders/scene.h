@@ -97,13 +97,6 @@ namespace Rtx::Shaders
     /// terrain chunk closer to six.
     const uint INDEX_BLOCK = 1024u * 1024u;
 
-    /// Cells along each edge of the grid a texture's baked lighting is estimated over.
-    ///
-    /// Coarse on purpose: painted lighting varies slowly across a surface and painted detail does
-    /// not, so a grid this size follows the first and cannot follow the second. `Rtx::ShadingMap`
-    /// makes them and says why at length.
-    const uint SHADING_EXTENT = 32u;
-
     /// How many world units the game puts in a metre, which is `Constants::UnitsPerMeter`.
     ///
     /// **Here so that a coefficient measured in a laboratory can stay in the units it was measured

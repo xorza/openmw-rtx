@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <deque>
 #include <map>
-#include <tuple>
 #include <memory>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -48,8 +48,9 @@ namespace Rtx
     public:
         /// Whether `file` read as `encoding` has its chain made: none in a format the scene refuses
         /// (`describeImage`); a normal or a data map's again, whose replacers' chains are made with filters
-        /// wrong for them; any file's that carries none and is more than a texel; and a loose file's,
-        /// which is encoded to BC7 (`ChainPass`). A block colour's own chain stands as the file holds it.
+        /// wrong for them; a painted colour's, delit; any file's that carries none and is more than a
+        /// texel; and a loose file's, which is encoded to BC7 (`ChainPass`). A block colour's own chain
+        /// stands as the file holds it.
         static bool prepares(const osg::Image& file, TextureEncoding encoding);
 
         /// @param store where the chains are found and kept, or null for none.

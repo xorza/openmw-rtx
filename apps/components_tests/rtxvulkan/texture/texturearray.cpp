@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -14,6 +15,7 @@
 #include <apps/components_tests/rtx/support/device/heldsubmit.hpp>
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/scene/refusal.hpp>
@@ -23,6 +25,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
+#include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
 #include <components/rtxvulkan/texture/texturearrival.hpp>
@@ -116,26 +119,25 @@ namespace Rtx
         ///
         /// **Hand-computed.** The ladder is 64, 32 and 16 texels square, four bytes a texel: 16384,
         /// 4096 and 1024 bytes, 21504 from the top, 5120 from the second level and 1024 from the
-        /// third, and every texture brings a shading map of 32 by 32 halves, 2048 bytes. The
-        /// ladder alone is 23552 bytes whole, 7168 held to 32 and 3072 held to 16, and no smaller
-        /// for anything below 16, where it has no level. A bake of it is four bytes a texel over the
-        /// levels the ladder stands with — 5376 texels from 64 and 1280 from 32, which with its map
-        /// is what the ladder itself comes to. A composite is 512 square in BC7 with its chain, a block
-        /// of sixteen bytes a 4 by 4 and one each for the two levels under a block: 16384 + 4096 +
-        /// 1024 + 256 + 64 + 16 + 4 + 1 + 1 + 1 = 21847 blocks, 349552 bytes, 351600 with its map,
-        /// whatever the side. The scene's first composite brings the canvas it is baked on, a chain of
-        /// 349525 texels at four bytes, and the blocks it is encoded through, 1398100 + 349552 =
-        /// 1747652, and 2099252 with the composite — so a byte short of it and the ladder's least,
-        /// the arrival fits nowhere and the ladder is held as though the composite were not there.
+        /// third, and a colour brings nothing beside it. The ladder alone is 21504 bytes whole, 5120
+        /// held to 32 and 1024 held to 16, and no smaller for anything below 16, where it has no
+        /// level. A bake of it is four bytes a texel over the levels the ladder stands with — 5376
+        /// texels from 64 and 1280 from 32, which is what the ladder itself comes to. A composite is
+        /// 512 square in BC7 with its chain, a block of sixteen bytes a 4 by 4 and one each for the two
+        /// levels under a block: 16384 + 4096 + 1024 + 256 + 64 + 16 + 4 + 1 + 1 + 1 = 21847 blocks,
+        /// 349552 bytes, whatever the side. The scene's first composite brings the canvas it is baked
+        /// on, a chain of 349525 texels at four bytes, and the blocks it is encoded through, 1398100 +
+        /// 349552 = 1747652, and 2097204 with the composite — so a byte short of it and the ladder's
+        /// least, the arrival fits nowhere and the ladder is held as though the composite were not
+        /// there.
         ///
         /// **The companions and what a texture is made through count too.** The ladder as a normal
         /// map brings a spread of half its side to one texel, a byte a texel, and the sixteen-byte
         /// means it is built through, which are the arrival's room and priced once as what it grows
         /// by — all of it here, where the array holds none yet: from 64, 32 square down is 1365
         /// texels, 1365 + 21840 bytes beside the 21504, 44709 in all; from 32, 341 texels and 5120,
-        /// 10917; from 16, 85 texels and 1024, 2469. A one-level 64 square is its level and its map,
-        /// 18432, whatever the side, because the file has no smaller level, and a bake of it the
-        /// same again.
+        /// 10917; from 16, 85 texels and 1024, 2469. A one-level 64 square is its level, 16384,
+        /// whatever the side, because the file has no smaller level, and a bake of it the same again.
         TEST_F(RtxTextureArrayTest, anArrivalIsHeldToTheLargestSideItFitsTheRoomAt)
         {
             Device& device = getDevice();
@@ -178,30 +180,30 @@ namespace Rtx
                 std::uint32_t mFirst;
             };
             const std::array cases{
-                Case{ alone, 23552, 0 },
-                Case{ alone, 23551, 1 },
-                Case{ alone, 7168, 1 },
-                Case{ alone, 7167, 2 },
-                Case{ alone, 3072, 2 },
-                Case{ alone, 3071, 2 },
+                Case{ alone, 21504, 0 },
+                Case{ alone, 21503, 1 },
+                Case{ alone, 5120, 1 },
+                Case{ alone, 5119, 2 },
+                Case{ alone, 1024, 2 },
+                Case{ alone, 1023, 2 },
                 Case{ alone, 0, 2 },
-                Case{ ground, 2099252 + 23552, 0 },
-                Case{ ground, 2099252 + 23551, 1 },
-                Case{ ground, 2099252 + 3072, 2 },
-                Case{ ground, 2099251 + 3072, 0 },
-                Case{ ground, 23551, 1 },
-                Case{ baked, 23552 + 23552, 0 },
-                Case{ baked, 23552 + 23551, 1 },
-                Case{ baked, 7168 + 7168, 1 },
-                Case{ baked, 7168 + 7167, 2 },
+                Case{ ground, 2097204 + 21504, 0 },
+                Case{ ground, 2097204 + 21503, 1 },
+                Case{ ground, 2097204 + 1024, 2 },
+                Case{ ground, 2097203 + 1024, 0 },
+                Case{ ground, 21503, 1 },
+                Case{ baked, 21504 + 21504, 0 },
+                Case{ baked, 21504 + 21503, 1 },
+                Case{ baked, 5120 + 5120, 1 },
+                Case{ baked, 5120 + 5119, 2 },
                 Case{ spread, 44709, 0 },
                 Case{ spread, 44708, 1 },
                 Case{ spread, 10917, 1 },
                 Case{ spread, 10916, 2 },
                 Case{ spread, 2469, 2 },
                 Case{ spread, 2468, 2 },
-                Case{ lone, 18432 + 18432, 0 },
-                Case{ lone, 18432 + 18431, 0 },
+                Case{ lone, 16384 + 16384, 0 },
+                Case{ lone, 16384 + 16383, 0 },
             };
 
             std::vector<std::uint32_t> firsts;
@@ -215,11 +217,11 @@ namespace Rtx
 
         /// **The file that stands the most bytes comes down a level first, and of two that stand
         /// alike the later slot, until the arrival fits.** Two of the ladders of
-        /// `anArrivalIsHeldToTheLargestSideItFitsTheRoomAt`, 23552 bytes whole, 7168 from the second
-        /// level and 3072 from the third: in 23552 + 7168 bytes the second slot comes down one and
+        /// `anArrivalIsHeldToTheLargestSideItFitsTheRoomAt`, 21504 bytes whole, 5120 from the second
+        /// level and 1024 from the third: in 21504 + 5120 bytes the second slot comes down one and
         /// the first stands whole, where one side for both held both to 32 and left 16384 unused; a
-        /// byte short, both come down one; in 7168 + 3072, the second comes down two. A 64-square
-        /// ladder beside a 32-square one, 7168 whole and 3072 from its second level, in 23552 + 3072
+        /// byte short, both come down one; in 5120 + 1024, the second comes down two. A 64-square
+        /// ladder beside a 32-square one, 5120 whole and 1024 from its second level, in 21504 + 1024
         /// bytes: the large one comes down, though it is the earlier slot, and the small one stands
         /// whole, where taking the later slot first would have stood the large whole.
         TEST_F(RtxTextureArrayTest, theFileThatStandsTheMostComesDownFirstUntilTheArrivalFits)
@@ -245,16 +247,16 @@ namespace Rtx
             const std::array apart{ first.mData, small.mData };
             std::vector<std::uint32_t> firsts;
 
-            textures.chooseLevels(alike, 23552 + 7168, rooms, firsts);
+            textures.chooseLevels(alike, 21504 + 5120, rooms, firsts);
             EXPECT_EQ(firsts, (std::vector<std::uint32_t>{ 0, 1 })) << "the later slot of two alike first";
-            textures.chooseLevels(alike, 23552 + 7167, rooms, firsts);
+            textures.chooseLevels(alike, 21504 + 5119, rooms, firsts);
             EXPECT_EQ(firsts, (std::vector<std::uint32_t>{ 1, 1 }));
-            textures.chooseLevels(alike, 7168 + 3072, rooms, firsts);
+            textures.chooseLevels(alike, 5120 + 1024, rooms, firsts);
             EXPECT_EQ(firsts, (std::vector<std::uint32_t>{ 1, 2 }));
 
-            textures.chooseLevels(apart, 23552 + 3072, rooms, firsts);
+            textures.chooseLevels(apart, 21504 + 1024, rooms, firsts);
             EXPECT_EQ(firsts, (std::vector<std::uint32_t>{ 1, 0 })) << "the file that stands the most first";
-            textures.chooseLevels(apart, 30720, rooms, firsts);
+            textures.chooseLevels(apart, 21504 + 5120, rooms, firsts);
             EXPECT_EQ(firsts, (std::vector<std::uint32_t>{ 0, 0 })) << "an arrival that fits came down";
         }
 
@@ -312,7 +314,7 @@ namespace Rtx
         ///
         /// **One texel wider than the device takes**, so the case is the device's own and no
         /// larger than a row: the second level is half that, within the side, and is what stands —
-        /// four bytes a texel and the map's 2048.
+        /// four bytes a texel.
         ///
         /// **The slot's texel word says which stands**: the level's count, and the stand-in's four by
         /// four with `TEXTURE_STANDS_IN` over it — as it does for a slot described as the stand-in,
@@ -354,7 +356,7 @@ namespace Rtx
 
             const TexturesHeld held = textures.getHeld();
             EXPECT_EQ(held.mCount, 1u) << "a texture the device takes at no level stood";
-            EXPECT_EQ(held.mBytes, VkDeviceSize{ 4 } * ((limit + 1) >> 1) + 2048);
+            EXPECT_EQ(held.mBytes, VkDeviceSize{ 4 } * ((limit + 1) >> 1));
             EXPECT_EQ(held.mReduced, 1u) << "a texture standing from its second level was not counted as smaller";
             EXPECT_EQ(held.mBySource.mFiles, held.mBytes) << "a file counted under another source";
             EXPECT_EQ(held.mBySource.mSpriteBakes + held.mBySource.mGroundComposites + held.mBySource.mGroundGloss, 0u);
@@ -380,7 +382,7 @@ namespace Rtx
             EXPECT_EQ(dropped.mBySource.mFiles, 0u);
 
             // **And each source under its own name**: a one-level 64 square and a bake of it, each
-            // standing at its one level and a map, 18432 bytes
+            // standing at its one level, 16384 bytes
             // (`anArrivalIsHeldToTheLargestSideItFitsTheRoomAt` derives it).
             Testing::TestTexture lone;
             Testing::paintLevels(lone, 64, 64, 1, "lone");
@@ -393,19 +395,19 @@ namespace Rtx
                 again.flush();
             }
             const TexturesHeld bySource = textures.getHeld();
-            EXPECT_EQ(bySource.mBySource.mFiles, 18432u);
-            EXPECT_EQ(bySource.mBySource.mSpriteBakes, 18432u);
-            EXPECT_EQ(bySource.mBytes, 2u * 18432u);
+            EXPECT_EQ(bySource.mBySource.mFiles, 16384u);
+            EXPECT_EQ(bySource.mBySource.mSpriteBakes, 16384u);
+            EXPECT_EQ(bySource.mBytes, 2u * 16384u);
         }
 
         /// A texture the device has no room for comes down a level at a time, and one it has room
         /// for at no level draws the stand-in, refused and saying why.
         ///
         /// **Room for one block, and every gap filled.** The ladder's first level, 3072 square at
-        /// four bytes, is 36 MiB, past half a block and so an allocation of its own; its map comes
-        /// first and opens the block, which leaves a megabyte under the ceiling, and the level is
-        /// refused although the side chosen for the arrival counted the block as room for it. Its
-        /// second level, 1536 square, is 9 MiB and fits the block: 9437184 bytes and the map's 2048.
+        /// four bytes, is 36 MiB, past half a block and so an allocation of its own; a small image the
+        /// test holds comes first and opens the block, which leaves a megabyte under the ceiling, and
+        /// the level is refused although the side chosen for the arrival counted the block as room for
+        /// it. Its second level, 1536 square, is 9 MiB and fits the block: 9437184 bytes.
         /// The single level of the same 36 MiB has nothing further down. The slot's texel word says
         /// the stand-in while it stands in, and is the file's own count once it stands.
         TEST_F(RtxTextureArrayTest, aTextureTheDeviceHasNoRoomForComesDownALevelOrDrawsTheStandIn)
@@ -430,6 +432,11 @@ namespace Rtx
 
             const Testing::BudgetLimit oneBlock(
                 memory, Testing::budgetAbove(memory, MemoryUse::Texture, VkDeviceSize{ 65 } << 20));
+            Misc::Result<Image, std::string_view> opener = Image::tryMake(MemoryUse::Texture, device,
+                ImageDescription{
+                    .mWidth = 32, .mHeight = 32, .mFormat = VK_FORMAT_R16_UNORM, .mUsage = VK_IMAGE_USAGE_SAMPLED_BIT },
+                "block opener");
+            ASSERT_TRUE(opener.isOk()) << "the image that opens the block";
 
             std::vector<Refusal> refused;
             {
@@ -439,7 +446,7 @@ namespace Rtx
             }
             EXPECT_TRUE(refused.empty()) << "a texture with a level the device had room for was refused";
             EXPECT_EQ(textures.getRoomHeld(), 0u) << "the room chose the level, and not the device";
-            EXPECT_EQ(textures.getHeld().mBytes, VkDeviceSize{ 1536 } * 1536 * 4 + 2048);
+            EXPECT_EQ(textures.getHeld().mBytes, VkDeviceSize{ 1536 } * 1536 * 4);
             EXPECT_EQ(textures.getHeld().mReduced, 1u);
             EXPECT_TRUE(textures.wasHeldBack()) << "a texture stood smaller than its file and held nothing back";
 

@@ -125,11 +125,19 @@ namespace Rtx
             const std::array<std::uint8_t, 16> heights{ 128, 128, 255, 0, 128, 136, 255, 0, 120, 128, 247, 100, 112,
                 128, 251, 200 };
             MadeChain chain;
-            content.chain(*makeImage(heights, { 0, 0, 0, 0 }), TextureEncoding::Normal, chain);
+            content.chain(
+                ChainPass::Input{ .mImage = *makeImage(heights, { 0, 0, 0, 0 }), .mEncoding = TextureEncoding::Normal },
+                chain);
             ASSERT_EQ(chain.mForm, ChainForm::Bc7);
             MadeChain coarser;
-            content.chain(*makeBlockImage(), TextureEncoding::Data, coarser);
+            content.chain(ChainPass::Input{ .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Data }, coarser);
             ASSERT_EQ(coarser.mForm, ChainForm::Coarser);
+            MadeChain own;
+            content.chain(
+                ChainPass::Input{
+                    .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Painted, .mWrap = TextureWrap::ClampS },
+                own);
+            ASSERT_EQ(own.mForm, ChainForm::Own);
 
             struct Recorded
             {
@@ -143,13 +151,15 @@ namespace Rtx
                 Recorded{ "alpha span", AlphaSpan::sVersion, digestOf(span) },
                 Recorded{ "chain in BC7", ChainPass::sVersion, digestOf(chain) },
                 Recorded{ "coarser chain", ChainPass::sVersion, digestOf(coarser) },
+                Recorded{ "painted chain", ChainPass::sVersion, digestOf(own) },
             };
             const std::array recorded{
                 Recorded{ "shape", 3, 0xea9852832b8ceb62 },
                 Recorded{ "texel mean", 1, 0xfaa7e2c796ee8c55 },
                 Recorded{ "alpha span", 1, 0xb02496efa84a6d00 },
-                Recorded{ "chain in BC7", 4, 0xc9f191cc7fdae1aa },
-                Recorded{ "coarser chain", 4, 0x5f247501ba043a44 },
+                Recorded{ "chain in BC7", 5, 0xc9f191cc7fdae1aa },
+                Recorded{ "coarser chain", 5, 0x5f247501ba043a44 },
+                Recorded{ "painted chain", 5, 0xdc5310c2a2fefd7d },
             };
             for (std::size_t at = 0; at < computed.size(); ++at)
             {

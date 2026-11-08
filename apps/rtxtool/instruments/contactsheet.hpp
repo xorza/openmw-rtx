@@ -45,11 +45,9 @@ namespace RtxTool
     /// look like progress. The only way to tell them apart is to put the two side by side and look.
     ///
     /// The thumbnails are nearest-neighbour on purpose: a smoothed one would hide exactly the loss
-    /// of detail this exists to find.
-    ///
-    /// @param strength the same `--delight` the frame runs at, so the sheet shows what the frame
-    ///        is actually doing rather than what it could do.
-    ContactSheet drawContactSheet(std::span<const Rtx::TextureData> textures, float strength);
+    /// of detail this exists to find. A painted colour is delit as its chain is (`ChainBuild`); every
+    /// other texture stands beside itself.
+    ContactSheet drawContactSheet(std::span<const Rtx::TextureData> textures);
 
     /// Appends what each pair of the sheet shows, in the order `drawContactSheet` draws them — the
     /// sheet's legend, which it carries no lettering for: each slot's `TextureRow::getName`. By the

@@ -212,9 +212,7 @@ namespace Rtx
         assert(isSrgb(read.mFormat) && "a painted colour that is not display-encoded");
 
         // **The light painted in, estimated off the finest level** (`ShadingMap`), and divided out of
-        // every level read at its own texels' centres, as the trace divided a read at its point by the
-        // map there. **Held at a reflectance of one, brought down whole**, as `delitTexel` held it: a
-        // glint in a fold painted dark divides to past one, and the colour is kept by scaling all three.
+        // every level read at its own texels' centres, in linear light.
         const ShadingMap map(read);
         for (std::size_t at = 0; at < read.mLevels.size(); ++at)
         {
@@ -223,18 +221,15 @@ namespace Rtx
                 for (std::uint32_t x = 0; x < level.mWidth; ++x)
                 {
                     const float factor = paintedLight(map.getValues(), (static_cast<float>(x) + 0.5f) / level.mWidth,
-                        (static_cast<float>(y) + 0.5f) / level.mHeight);
+                        (static_cast<float>(y) + 0.5f) / level.mHeight, read.mWrap);
                     const std::size_t into = level.texelOffset(x, y, sTexel);
-                    osg::Vec3f delit;
+                    osg::Vec3f light;
                     for (int channel = 0; channel < 3; ++channel)
-                        delit[channel] = toLinear(std::to_integer<std::uint8_t>(
-                                             mTexels[into + static_cast<std::size_t>(channel)]))
-                            / factor;
-                    const float brightest = std::max({ delit.x(), delit.y(), delit.z() });
-                    if (brightest > 1.0f)
-                        delit /= brightest;
+                        light[channel] = toLinear(
+                            std::to_integer<std::uint8_t>(mTexels[into + static_cast<std::size_t>(channel)]));
+                    const osg::Vec3f divided = Rtx::delit(light, factor);
                     for (int channel = 0; channel < 3; ++channel)
-                        mTexels[into + static_cast<std::size_t>(channel)] = quantise(toEncoded(delit[channel]));
+                        mTexels[into + static_cast<std::size_t>(channel)] = quantise(toEncoded(divided[channel]));
                 }
         }
     }

@@ -79,7 +79,7 @@ namespace Rtx
             PreparedImages prepared(&store, 2);
             const osg::ref_ptr<osg::Image> file = makeBlockNormalMap();
 
-            const PreparedImage first = prepared.find(*file, TextureEncoding::Data);
+            const PreparedImage first = prepared.find(*file, TextureEncoding::Data, TextureWrap::Repeat);
             EXPECT_TRUE(first.mPending);
             EXPECT_EQ(first.mImage, nullptr);
             prepared.flush();
@@ -89,7 +89,8 @@ namespace Rtx
             EXPECT_EQ(madeOnce.at(ContentPassId::Chain).mHits, 0u);
             EXPECT_EQ(prepared.takeStats().at(ContentPassId::Chain).mAsked, 0u) << "taken twice";
 
-            osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Data).mImage;
+            osg::ref_ptr<const MadeImage> made
+                = prepared.find(*file, TextureEncoding::Data, TextureWrap::Repeat).mImage;
             ASSERT_NE(made, nullptr);
             EXPECT_FALSE(made->getWholeFormat().has_value()) << "the finest level is the file's";
             ASSERT_EQ(made->getLevels().size(), 1u) << "the 2x2, as many levels as the file carries";
@@ -97,12 +98,14 @@ namespace Rtx
             EXPECT_EQ(Testing::firstTexelOf(TextureFormat::Bc1RgbaUnorm, made->getBytes()),
                 (Testing::Texel{ 132, 130, 255, 255 }));
 
-            EXPECT_EQ(prepared.find(*file, TextureEncoding::Data).mImage, made) << "held by what holds it";
+            EXPECT_EQ(prepared.find(*file, TextureEncoding::Data, TextureWrap::Repeat).mImage, made)
+                << "held by what holds it";
 
             made = nullptr;
-            EXPECT_TRUE(prepared.find(*file, TextureEncoding::Data).mPending) << "let go of, made again";
+            EXPECT_TRUE(prepared.find(*file, TextureEncoding::Data, TextureWrap::Repeat).mPending)
+                << "let go of, made again";
             prepared.flush();
-            EXPECT_NE(prepared.find(*file, TextureEncoding::Data).mImage, nullptr);
+            EXPECT_NE(prepared.find(*file, TextureEncoding::Data, TextureWrap::Repeat).mImage, nullptr);
             const ContentStats madeAgain = prepared.takeStats();
             EXPECT_EQ(madeAgain.at(ContentPassId::Chain).mAsked, 1u);
             EXPECT_EQ(madeAgain.at(ContentPassId::Chain).mHits, 1u) << "made again and not found";
@@ -133,18 +136,20 @@ namespace Rtx
 
             PreparedImages prepared(nullptr, 1);
             const osg::ref_ptr<osg::Image> normals = makeNormalMap();
-            EXPECT_TRUE(prepared.find(*normals, TextureEncoding::Normal).mPending);
-            EXPECT_TRUE(prepared.find(*file, TextureEncoding::Normal).mPending);
+            EXPECT_TRUE(prepared.find(*normals, TextureEncoding::Normal, TextureWrap::Repeat).mPending);
+            EXPECT_TRUE(prepared.find(*file, TextureEncoding::Normal, TextureWrap::Repeat).mPending);
             prepared.flush();
 
-            const osg::ref_ptr<const MadeImage> loose = prepared.find(*normals, TextureEncoding::Normal).mImage;
+            const osg::ref_ptr<const MadeImage> loose
+                = prepared.find(*normals, TextureEncoding::Normal, TextureWrap::Repeat).mImage;
             ASSERT_NE(loose, nullptr);
             EXPECT_EQ(loose->getWholeFormat(), TextureFormat::Bc7Unorm);
             ASSERT_EQ(loose->getLevels().size(), 2u);
             EXPECT_EQ(loose->getBytes().size(), 32u) << "a BC7 block a level";
             EXPECT_TRUE(Testing::isNear(texelOf(*loose, 1), { 122, 130, 255, 75 }, 2)) << "the mean's direction";
 
-            const osg::ref_ptr<const MadeImage> widened = prepared.find(*file, TextureEncoding::Normal).mImage;
+            const osg::ref_ptr<const MadeImage> widened
+                = prepared.find(*file, TextureEncoding::Normal, TextureWrap::Repeat).mImage;
             ASSERT_NE(widened, nullptr);
             EXPECT_EQ(widened->getWholeFormat(), TextureFormat::Bc7Unorm);
             EXPECT_TRUE(Testing::isNear(texelOf(*widened, 1), { 64, 72, 223, 255 }, 2))
@@ -152,9 +157,10 @@ namespace Rtx
 
             // A block normal map that carries its chain is made whole too, its finest level with the rest.
             const osg::ref_ptr<osg::Image> block = makeBlockNormalMap();
-            EXPECT_TRUE(prepared.find(*block, TextureEncoding::Normal).mPending);
+            EXPECT_TRUE(prepared.find(*block, TextureEncoding::Normal, TextureWrap::Repeat).mPending);
             prepared.flush();
-            const osg::ref_ptr<const MadeImage> blockMade = prepared.find(*block, TextureEncoding::Normal).mImage;
+            const osg::ref_ptr<const MadeImage> blockMade
+                = prepared.find(*block, TextureEncoding::Normal, TextureWrap::Repeat).mImage;
             ASSERT_NE(blockMade, nullptr);
             EXPECT_EQ(blockMade->getWholeFormat(), TextureFormat::Bc7Unorm);
             ASSERT_EQ(blockMade->getLevels().size(), 2u) << "4x4 and 2x2, as the file carries";
@@ -185,20 +191,50 @@ namespace Rtx
 
             ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
             PreparedImages prepared(&store, 1);
-            prepared.find(*red, TextureEncoding::Colour);
+            prepared.find(*red, TextureEncoding::Colour, TextureWrap::Repeat);
             prepared.flush();
-            prepared.find(*blue, TextureEncoding::Colour);
+            prepared.find(*blue, TextureEncoding::Colour, TextureWrap::Repeat);
             prepared.flush();
             EXPECT_EQ(prepared.takeStats().at(ContentPassId::Chain).mHits, 0u) << "one key for both";
 
-            const osg::ref_ptr<const MadeImage> madeRed = prepared.find(*red, TextureEncoding::Colour).mImage;
-            const osg::ref_ptr<const MadeImage> madeBlue = prepared.find(*blue, TextureEncoding::Colour).mImage;
+            const osg::ref_ptr<const MadeImage> madeRed
+                = prepared.find(*red, TextureEncoding::Colour, TextureWrap::Repeat).mImage;
+            const osg::ref_ptr<const MadeImage> madeBlue
+                = prepared.find(*blue, TextureEncoding::Colour, TextureWrap::Repeat).mImage;
             ASSERT_NE(madeRed, nullptr);
             ASSERT_NE(madeBlue, nullptr);
             EXPECT_EQ(madeRed->getWholeFormat(), TextureFormat::Bc7Srgb);
             ASSERT_EQ(madeRed->getLevels().size(), 2u);
             EXPECT_TRUE(Testing::isNear(texelOf(*madeRed, 1), { 255, 0, 0, 255 }, 2)) << "the file's own red";
             EXPECT_TRUE(Testing::isNear(texelOf(*madeBlue, 1), { 0, 0, 255, 255 }, 2)) << "the file's own blue";
+        }
+
+        /// **A painted block colour is made whole in its own format, and made once a wrap**: the 4x4 BC1
+        /// map of one colour, (132, 130, 255), bound as a painted colour, estimates to one everywhere,
+        /// so its two levels come back as one BC1 block each of that colour, 2 × 8 bytes, sRGB. Asked
+        /// again at another wrap it is made again, since the estimate follows the wrap, where a normal
+        /// map asked at two wraps is one job.
+        TEST(RtxPreparedImagesTest, aPaintedBlockColourIsMadeWholeInItsOwnFormatOnceAWrap)
+        {
+            PreparedImages prepared(nullptr, 1);
+            const osg::ref_ptr<osg::Image> file = makeBlockNormalMap();
+            ASSERT_TRUE(PreparedImages::prepares(*file, TextureEncoding::Painted));
+            EXPECT_TRUE(prepared.find(*file, TextureEncoding::Painted, TextureWrap::Repeat).mPending);
+            EXPECT_TRUE(prepared.find(*file, TextureEncoding::Painted, TextureWrap::Clamp).mPending)
+                << "another wrap, another chain";
+            EXPECT_TRUE(prepared.find(*file, TextureEncoding::Normal, TextureWrap::Repeat).mPending);
+            prepared.flush();
+            EXPECT_EQ(prepared.takeStats().at(ContentPassId::Chain).mAsked, 3u);
+            EXPECT_FALSE(prepared.find(*file, TextureEncoding::Normal, TextureWrap::Clamp).mPending)
+                << "a normal map's chain is one at every wrap";
+
+            const osg::ref_ptr<const MadeImage> made
+                = prepared.find(*file, TextureEncoding::Painted, TextureWrap::Repeat).mImage;
+            ASSERT_NE(made, nullptr);
+            EXPECT_EQ(made->getWholeFormat(), TextureFormat::Bc1RgbaSrgb);
+            ASSERT_EQ(made->getLevels().size(), 2u);
+            EXPECT_EQ(made->getBytes().size(), 16u);
+            EXPECT_TRUE(Testing::isNear(texelOf(*made, 0), { 132, 130, 255, 255 }, 2)) << "a neutral estimate";
         }
 
         /// **A file whose chain stands answers nothing made**: a BC5 map of data, whose two channels no
@@ -210,9 +246,9 @@ namespace Rtx
             two->allocateImage(4, 4, 1, GL_COMPRESSED_RED_GREEN_RGTC2_EXT, GL_UNSIGNED_BYTE);
             two->setFileName("textures/tx_two_data.dds");
 
-            EXPECT_TRUE(prepared.find(*two, TextureEncoding::Data).mPending);
+            EXPECT_TRUE(prepared.find(*two, TextureEncoding::Data, TextureWrap::Repeat).mPending);
             prepared.flush();
-            const PreparedImage answer = prepared.find(*two, TextureEncoding::Data);
+            const PreparedImage answer = prepared.find(*two, TextureEncoding::Data, TextureWrap::Repeat);
             EXPECT_FALSE(answer.mPending);
             EXPECT_EQ(answer.mImage, nullptr);
         }
@@ -234,9 +270,10 @@ namespace Rtx
             EXPECT_FALSE(PreparedImages::prepares(*makeBlockNormalMap(), TextureEncoding::Colour));
 
             PreparedImages prepared(nullptr, 1);
-            prepared.find(*file, TextureEncoding::Colour);
+            prepared.find(*file, TextureEncoding::Colour, TextureWrap::Repeat);
             prepared.flush();
-            const osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Colour).mImage;
+            const osg::ref_ptr<const MadeImage> made
+                = prepared.find(*file, TextureEncoding::Colour, TextureWrap::Repeat).mImage;
             ASSERT_NE(made, nullptr);
             EXPECT_EQ(made->getWholeFormat(), TextureFormat::Bc7Srgb);
             EXPECT_TRUE(Testing::isNear(texelOf(*made, 1), { 255, 255, 255, 64 }, 2)) << "the coverage-weighed box";
@@ -268,9 +305,10 @@ namespace Rtx
             file->setFileName("textures/tx_block.dds");
 
             PreparedImages prepared(nullptr, 1);
-            prepared.find(*file, TextureEncoding::Colour);
+            prepared.find(*file, TextureEncoding::Colour, TextureWrap::Repeat);
             prepared.flush();
-            const osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Colour).mImage;
+            const osg::ref_ptr<const MadeImage> made
+                = prepared.find(*file, TextureEncoding::Colour, TextureWrap::Repeat).mImage;
             ASSERT_NE(made, nullptr);
             EXPECT_EQ(made->getWholeFormat(), TextureFormat::Bc7Srgb);
             ASSERT_EQ(made->getLevels().size(), 3u);

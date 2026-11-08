@@ -30,7 +30,6 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/image/alpharange.hpp>
-#include <components/rtx/image/shadingmap.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
@@ -372,10 +371,9 @@ namespace Rtx::Testing
 
             // **And what the report says is what is stood, not how long the table is.** The two are
             // one number until something is freed, so only a route, which frees, tells them apart. One texel of four
-            // bytes and the map beside it, two bytes a cell, is the whole of what is left here.
-            constexpr std::size_t map = std::size_t{ Shaders::SHADING_EXTENT } * Shaders::SHADING_EXTENT * 2;
+            // bytes, a colour with nothing beside it, is the whole of what is left here.
             EXPECT_EQ(mRenderer.getSceneStats().mTextureCount, 1u);
-            EXPECT_EQ(mRenderer.getSceneStats().mTextureBytes, redTexel.size() + map);
+            EXPECT_EQ(mRenderer.getSceneStats().mTextureBytes, redTexel.size());
 
             mProbe.traceFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             mRenderer.readPixels(shown);
@@ -722,117 +720,6 @@ namespace Rtx::Testing
         /// One that is red alone, for a test reading what a second surface put on a pixel: whatever
         /// it adds lands in a channel the grey one leaves where it was.
         constexpr std::array<std::uint8_t, 4> sRedTexel{ 255, 0, 0, 255 };
-
-        /// The other half of de-lighting: the shader dividing the estimate back out.
-        ///
-        /// `ShadingMap`'s own tests say what the estimate is and `RtxShadingPassTest` says the
-        /// device makes the same one; this says the frame uses it. The frame looks at the middle
-        /// of the wall, `u` from 0.356 to 0.644, and the texture is bright across its middle half:
-        /// the centre pixel sees a texel of 1.0 under a factor of 1.501, eight cells from either
-        /// boundary, which is 0.66624 in light and `1.055 * 0.66624^(1/2.4) - 0.055` encodes to
-        /// 213 of 255. Left alone it encodes to 255, and a texture of one tone estimates to one
-        /// everywhere and changes nothing. A slot described as the stand-in draws the one the array
-        /// holds, whatever bytes its description carries, under a map that was cleared and never
-        /// estimated: its block's 565 grey, `0x10 << 3 | 0x10 >> 2`, is 132 of 255.
-        ///
-        /// **And no reflectance past one, with the colour kept.** Over the first three quarters a
-        /// texel of `(0.3325, 0.3325, 1)`, luminance 0.3807, and white over the last: the mean is
-        /// 0.5355, so the cells under the frame, beyond the blur's three either side of a boundary,
-        /// estimate to 0.7109 and divide to `(0.468, 0.468, 1.407)` — a red of 182. Brought down
-        /// whole it is the texel again, and its red is 156.
-        TEST_F(RtxVisibilityTest, aTexturesPaintedLightIsDividedBackOutOfItsAlbedo)
-        {
-            constexpr std::uint32_t size = 32;
-            constexpr std::size_t centre = centreValueOf(size);
-            const Testing::TestTexture twoTones = Testing::paintTwoTones(32, 96);
-            const Testing::TestTexture oneTone = Testing::paintTwoTones(0, 128);
-            Testing::TestTexture standIn = Testing::paintTwoTones(32, 96);
-            standIn.mData.mSource = TextureSource::StandIn;
-
-            // The two tones' bytes, the dark one in red and green alone.
-            Testing::TestTexture tinted = Testing::paintTwoTones(96, 128);
-            for (std::size_t texel = 0; texel < tinted.mBytes.size(); texel += 4)
-                tinted.mBytes[texel + 2] = 255;
-
-            SceneDesc scene;
-            const Index mesh
-                = scene.addMesh(MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
-            const Index material = scene.addMaterial(
-                Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("tones.dds")) });
-            scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
-
-            Shaders::VisibilityConstants camera = Testing::makeCamera(
-                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
-
-            const auto shownAt = [&](float delight, const TextureData& texture) {
-                const Frame frame = shoot(scene, std::span(&texture, 1), camera, size,
-                    Shot{ .mShow = SurfaceView::Albedo, .mDelight = delight });
-                EXPECT_EQ(frame.mHits, size * size);
-                return static_cast<int>(frame.byte(centre));
-            };
-
-            EXPECT_NEAR(shownAt(1.0f, twoTones.mData), 213, 1) << "a texture painted half again as bright comes back";
-            EXPECT_NEAR(shownAt(1.0f, oneTone.mData), 255, 1) << "and a neutral map changes nothing";
-            EXPECT_NEAR(shownAt(1.0f, standIn.mData), 132, 1) << "a stand-in draws the array's one grey, unestimated";
-            EXPECT_NEAR(shownAt(1.0f, tinted.mData), 156, 1) << "a colour divided past one is brought down whole";
-
-            // The strength is what makes this answerable rather than believable: the same map at no
-            // strength has to leave the texture exactly as it was drawn.
-            EXPECT_NEAR(shownAt(0.0f, twoTones.mData), 255, 1) << "at zero strength the estimate is not applied";
-        }
-
-        /// The map read where the hit lands, blended and wrapped as the host reads it.
-        ///
-        /// **The device's read against the host's, pixel by pixel.** The texture is bright over its
-        /// left half and dark over its right, so its estimate steps down at `u = 0.5` and back up at
-        /// the wrap, each step blurred over six cells; between two cells the answer is a blend, and
-        /// at the frame's first pixel it wraps: a wall scaled to fill the frame exactly puts that
-        /// pixel's `u` at a hundred and twenty-eighth, which is a quarter of a cell before the first
-        /// cell's centre, so the read leans on the last cell of the row. `Rtx::paintedLight` is the
-        /// host's spelling and the composite bake reads through it, so the two agreeing is what
-        /// keeps a flattened chunk and its live stack the same ground. The pixels asked are away
-        /// from the two tone boundaries, where the sampled texel is one tone whole.
-        ///
-        /// Within a byte, which is where the map's own step and the sampler's eight-bit weights both
-        /// land: a step of the device's estimate against the host's is a part in forty thousand.
-        TEST_F(RtxVisibilityTest, aTexturesPaintedLightIsReadWhereTheHitLandsAsTheHostReadsIt)
-        {
-            constexpr std::uint32_t size = 64;
-            const Testing::TestTexture painted = Testing::paintTwoTones(0, 64);
-            const ShadingMap host(painted.mData);
-
-            // The wall is four hundred across and the frame sees `2 * tan(30) * 100` of it, so this
-            // scale puts the wall's edges on the frame's and `u` at `(x + 0.5) / size` at pixel `x`.
-            constexpr float fills = 115.470054f / 400.0f;
-
-            SceneDesc scene;
-            const Index mesh
-                = scene.addMesh(MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
-            const Index material = scene.addMaterial(
-                Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("tones.dds")) });
-            scene.addInstance(MeshInstance{
-                .mTransform = osg::Matrixf::scale(fills, 1.0f, fills), .mMesh = mesh, .mMaterial = material });
-
-            Shaders::VisibilityConstants camera = Testing::makeCamera(
-                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
-
-            const Frame frame = shoot(scene, std::span(&painted.mData, 1), camera, size,
-                Shot{ .mShow = SurfaceView::Albedo, .mDelight = 1.0f });
-            ASSERT_EQ(frame.mHits, size * size);
-
-            constexpr std::uint32_t row = size / 2;
-            for (const std::uint32_t x : { 0u, 1u, 2u, 28u, 36u, size - 1 })
-            {
-                const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(size);
-                const float v = (static_cast<float>(row) + 0.5f) / static_cast<float>(size);
-                const float factor = paintedLight(host.getValues(), u, v);
-                const float texel = u < 0.5f ? 1.0f : 0.33247f;
-
-                const int expected = encodeSrgb(texel / factor);
-                EXPECT_NEAR(int{ frame.byte((std::size_t{ row } * size + x) * 4) }, expected, 1)
-                    << "at pixel " << x << ", where the host reads " << factor;
-            }
-        }
 
         /// The surface's own normal and albedo reach the channels the filter reads: through the
         /// normal's code and the albedo channel's halves.
@@ -2217,9 +2104,7 @@ namespace Rtx::Testing
         /// Under `Undetailed` the eye on the wall reads red and the floor's bounces green; with no
         /// composite, both red; and under `Every` both green. **A composite on a chunk that asked
         /// for none is read by the eye as `Undetailed`'s is not**: only `Every` lets the eye read
-        /// one, whatever else the row holds. **And a bounce reads a near chunk's composite only at
-        /// the delight it was baked at** (`GROUND_COMPOSITE_DELIGHT`): at another, `Undetailed`'s
-        /// floor is red, since the near field is what the delight reaches.
+        /// one, whatever else the row holds.
         TEST_F(RtxVisibilityTest, groundInsideTheActiveGridShowsTheEyeItsStackAndABounceItsComposite)
         {
             constexpr std::uint32_t size = 16;
@@ -2272,30 +2157,23 @@ namespace Rtx::Testing
             {
                 GroundFlattening mFlattening;
                 bool mComposite;
-                float mDelight;
             };
-            const float baked = Shaders::GROUND_COMPOSITE_DELIGHT;
-            for (const Case& one :
-                { Case{ GroundFlattening::None, false, baked }, Case{ GroundFlattening::Undetailed, true, baked },
-                    Case{ GroundFlattening::Every, true, baked }, Case{ GroundFlattening::None, true, baked },
-                    Case{ GroundFlattening::Undetailed, true, 0.0f }, Case{ GroundFlattening::Every, true, 0.0f } })
+            for (const Case& one : { Case{ GroundFlattening::None, false }, Case{ GroundFlattening::Undetailed, true },
+                     Case{ GroundFlattening::Every, true }, Case{ GroundFlattening::None, true } })
             {
                 const GroundFlattening flattening = one.mFlattening;
                 const SceneDesc scene = sceneFor(flattening, one.mComposite);
                 const bool eyeGreen = flattening == GroundFlattening::Every;
-                const bool bounceGreen
-                    = one.mComposite && (flattening == GroundFlattening::Every || one.mDelight == baked);
-                const std::string name = std::to_string(static_cast<int>(flattening))
-                    + (one.mComposite ? " with a composite" : "") + " at a delight of " + std::to_string(one.mDelight);
+                const bool bounceGreen = one.mComposite;
+                const std::string name
+                    = std::to_string(static_cast<int>(flattening)) + (one.mComposite ? " with a composite" : "");
 
-                const Frame wallSeen = shoot(
-                    scene, textures, onTheWall, size, Shot{ .mShow = SurfaceView::Albedo, .mDelight = one.mDelight });
+                const Frame wallSeen = shoot(scene, textures, onTheWall, size, Shot{ .mShow = SurfaceView::Albedo });
                 EXPECT_EQ(wallSeen.mHits, size * size);
                 EXPECT_EQ(wallSeen.mean(eyeGreen ? 0 : 1), 0.0f) << "the eye read the other image, " << name;
                 EXPECT_GT(wallSeen.mean(eyeGreen ? 1 : 0), 0.9f) << "the eye read neither, " << name;
 
-                const Frame floorLit
-                    = shoot(scene, textures, onTheFloor, size, Shot{ .mFrames = 16, .mDelight = one.mDelight });
+                const Frame floorLit = shoot(scene, textures, onTheFloor, size, Shot{ .mFrames = 16 });
                 EXPECT_EQ(floorLit.mean(bounceGreen ? 0 : 1), 0.0f) << "a bounce read the other image, " << name;
                 EXPECT_GT(floorLit.mean(bounceGreen ? 1 : 0), 0.01f)
                     << "the floor took no bounce off the wall, " << name;
@@ -2976,10 +2854,9 @@ namespace Rtx::Testing
             everyPixelIs(frame, "arrived into a standing world");
 
             // **And the ground's bytes are the composite and what made it, once**: the composite in
-            // BC7 with its map, 349552 + 2048 = 351600; the albedo's canvas, a chain of 349525 texels
-            // at four bytes, 1398100; and the blocks, 349552 — 2099252 in all. No gloss arrived, so
-            // no gloss canvas was made.
-            EXPECT_EQ(mRenderer.getSceneStats().mTextureBytesBySource.mGroundComposites, 2099252u);
+            // BC7, 349552; the albedo's canvas, a chain of 349525 texels at four bytes, 1398100; and
+            // the blocks, 349552 — 2097204 in all. No gloss arrived, so no gloss canvas was made.
+            EXPECT_EQ(mRenderer.getSceneStats().mTextureBytesBySource.mGroundComposites, 2097204u);
             EXPECT_EQ(mRenderer.getSceneStats().mTextureBytesBySource.mGroundGloss, 0u);
 
             // And from nothing, where there is no placement before the first trace.

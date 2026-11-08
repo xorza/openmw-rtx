@@ -10,7 +10,6 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/shaders/shared/normalspread.h>
 #include <components/rtxvulkan/shaders/shared/tone.h>
@@ -286,12 +285,9 @@ namespace Rtx
     namespace
     {
         constexpr std::array sRequiredFormats{
-            // The shading estimate is written by a dispatch straight into the sixteen-bit map the
-            // trace samples — `ShadingPass` — and a sixteen-bit unorm as a storage image is one of
-            // the features Vulkan leaves optional.
-            RequiredFormat{
-                toVulkanFormat(SHADING_MAP_FORMAT), VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT, "the shading map's dispatch" },
-            // And a normal map's spread into its byte, the same way — `NormalSpreadPass`.
+            // A normal map's spread is written by a dispatch straight into the byte the trace samples —
+            // `NormalSpreadPass` — and a storage image of a format is one of the features Vulkan leaves
+            // optional.
             RequiredFormat{ toVulkanFormat(NORMAL_SPREAD_FORMAT), VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
                 "the normal spread's dispatch" },
             // And the curve's sixteen-bit picture of a summed frame, the same way — `TONE_DEEP_FORMAT`.

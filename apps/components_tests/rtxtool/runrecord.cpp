@@ -66,7 +66,6 @@ namespace RtxTool
             Rtx::RenderProfile& profile = request.mSetup.mRun.mProfile;
             profile.mReconstruction.mDenoise = false;
             profile.mReconstruction.mJitter = false;
-            profile.mDelight = 0.5f;
             profile.mGamma = 2.2f;
             profile.mShow = Rtx::SurfaceView::Albedo;
             profile.mExposure = Rtx::FixedExposure{ 1.5f };
@@ -110,7 +109,7 @@ namespace RtxTool
                   "     1920x1080 from 960x540, upscale performance, filter off, jitter on, noise white-hash, "
                   "level bias -1.000, antilag on, history fix off, dual motion on, anti-firefly on, "
                   "shadow floor 0.0625, lamp candidates 4, indirect off, bounce rays 3, relief off\n"
-                  "     delight 0.50, gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
+                  "     gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
                   "     land 4.0 cells, viewing distance 7168, distant statics off, maps player, step 0.0625 s, "
                   "walks streamed, memory budget 512 MiB, host pages ";
             EXPECT_EQ(record.getReport().substr(0, expected.size()), expected) << record.getReport();
@@ -135,7 +134,7 @@ namespace RtxTool
             constexpr std::string_view premises
                 = R"("measures": false, "hashed": true, "turnsWeather": true, "maps": "player", "hugePageShare": )";
             constexpr std::string_view setup
-                = R"(  "filter": false, "jitter": false, "delight": 0.500, "gamma": 2.200, "show": "albedo", )"
+                = R"(  "filter": false, "jitter": false, "gamma": 2.200, "show": "albedo", )"
                   R"("exposure": 1.5, "exposureHeld": false, "variants": false, "holdMs": 8.000,)";
             constexpr std::string_view mirror = R"(  "landCells": 4.0, "viewingDistance": 7168.0, )"
                                                 R"("distantStatics": false, "step": 0.0625, "settled": false, )"

@@ -54,7 +54,7 @@ namespace RtxTool
         return sGap + index / sColumns * (sThumbnail + sGap);
     }
 
-    ContactSheet drawContactSheet(std::span<const Rtx::TextureData> textures, float strength)
+    ContactSheet drawContactSheet(std::span<const Rtx::TextureData> textures)
     {
         if (textures.empty())
             return ContactSheet{};
@@ -96,11 +96,9 @@ namespace RtxTool
                 continue;
             }
 
-            // The estimate the device makes as the texture arrives, made here for the sheet: the
-            // host's `ShadingMap` is the reference that dispatch is held to, and neutral where the
-            // texture is one nothing estimates.
-            const std::optional<Rtx::ShadingMap> painted
-                = texture.getCompanion() != Rtx::TextureCompanion::Shading || !(strength > 0.0f)
+            // The estimate a painted colour's chain is delit by (`ChainBuild`), made here for the
+            // sheet off the file, and none for a texture nothing delights.
+            const std::optional<Rtx::ShadingMap> painted = texture.mEncoding != Rtx::TextureEncoding::Painted
                 ? std::nullopt
                 : std::optional<Rtx::ShadingMap>(std::in_place, texture);
 
@@ -119,17 +117,13 @@ namespace RtxTool
                     osg::Vec3f corrected = stored;
                     if (painted.has_value())
                     {
-                        // **In linear, because that is where the shader divides.** A texture's
-                        // bytes are display-encoded and the sampler hands the frame linear values,
-                        // so a sheet that divided the bytes would be showing a correction the
-                        // renderer never applies — half again too strong in the darks.
-                        const float factor = std::lerp(1.0f, Rtx::paintedLight(painted->getValues(), u, v), strength);
-                        const bool srgb = Rtx::isSrgb(texture.mFormat);
+                        // **In linear, because that is where the chain divides.** A painted colour's
+                        // bytes are display-encoded, and a sheet that divided the bytes would show a
+                        // correction the renderer never applies, half again too strong in the darks.
+                        const osg::Vec3f divided = Rtx::delit(
+                            Rtx::toLinear(stored), Rtx::paintedLight(painted->getValues(), u, v, texture.mWrap));
                         for (int channel = 0; channel < 3; ++channel)
-                        {
-                            const float linear = srgb ? Rtx::toLinear(stored[channel]) : stored[channel];
-                            corrected[channel] = srgb ? Rtx::toEncoded(linear / factor) : linear / factor;
-                        }
+                            corrected[channel] = Rtx::toEncoded(divided[channel]);
                     }
 
                     const auto place = [&](std::uint32_t offset, const osg::Vec3f& colour) {

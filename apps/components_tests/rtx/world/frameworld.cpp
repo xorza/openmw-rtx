@@ -500,7 +500,6 @@ namespace Rtx
             constants.mFar = 12000.0f;
             constants.mEyes.mWorld.mSpreadAngle = 0.001f;
             constants.mFrame = 42;
-            constants.mDelight = 0.5f;
             constants.mShow = Shaders::SHOW_ALBEDO;
             constants.mTransparentBackground = 1;
 
@@ -517,7 +516,6 @@ namespace Rtx
             EXPECT_EQ(constants.mFar, 12000.0f);
             EXPECT_EQ(constants.mEyes.mWorld.mSpreadAngle, 0.001f);
             EXPECT_EQ(constants.mFrame, 42u);
-            EXPECT_EQ(constants.mDelight, 0.5f);
             EXPECT_EQ(constants.mShow, Shaders::SHOW_ALBEDO);
             EXPECT_EQ(constants.mTransparentBackground, 1u);
         }

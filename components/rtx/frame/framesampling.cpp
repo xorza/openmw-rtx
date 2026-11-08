@@ -65,7 +65,6 @@ namespace Rtx
         assert(profile.mAnisotropy >= 1 && "an anisotropy of nought, which no sampler takes");
         sampled.mAnisotropy = static_cast<float>(profile.mAnisotropy);
 
-        sampled.mDelight = options.mDelight.value_or(profile.mDelight);
         sampled.mShow = static_cast<std::uint32_t>(options.mShow.value_or(profile.mShow));
         sampled.mLitEnvironmentMaps = options.mLitEnvironmentMaps.value_or(profile.mLitEnvironmentMaps) ? 1u : 0u;
 

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -15,6 +16,7 @@
 #include <rgbcx/rgbcx.h>
 
 #include <apps/components_tests/rtx/support/firsttexel.hpp>
+#include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -294,6 +296,46 @@ namespace Rtx
                 EXPECT_TRUE(
                     Testing::isNear(Testing::firstTexelOf(TextureFormat::Bc7Srgb, std::span(*encoded).subspan(16)),
                         { 180, 120, 60, 255 }, 2));
+        }
+
+        /// **A painted colour's every level is delit where it stands, in linear light, held at one**:
+        /// `Testing::paintTwoTones` says the estimate. Bright across its middle half, the texel at the
+        /// middle column, 64, is 1.0 under a factor of 1.501, which is 0.66622 in light and encodes to
+        /// 213; one tone across, the estimate is one everywhere and 255 stays. Over its first three
+        /// quarters `(0.3325, 0.3325, 1)` and white past them, column 64 estimates to 0.7109 and divides
+        /// to `(0.468, 0.468, 1.407)`, which brought down whole is the texel again: 156, 156, 255. The
+        /// chain is made to a texel, every level under the finest boxed from the delit one. **The
+        /// wrap decides the estimate**: bright over its left half, column 1 is blurred across the edge
+        /// with the dark far side where the texture repeats, and with itself where it clamps.
+        TEST(RtxChainBuildTest, aPaintedColoursEveryLevelIsDelitWhereItStands)
+        {
+            const auto built = [](Testing::TestTexture&& texture, TextureWrap wrap, std::uint32_t x) {
+                texture.mData.mEncoding = TextureEncoding::Painted;
+                texture.mData.mWrap = wrap;
+                ChainBuild chain;
+                chain.build(texture.mData, levelsTo1x1(Testing::sTwoTonesExtent, Testing::sTwoTonesExtent));
+                EXPECT_EQ(chain.getLevelCount(), 8u) << "128 down to a texel";
+                const std::span<const std::byte> texel = chain.getTexels(0).subspan(std::size_t{ x } * 4, 4);
+                return Testing::Texel{ std::to_integer<std::uint8_t>(texel[0]), std::to_integer<std::uint8_t>(texel[1]),
+                    std::to_integer<std::uint8_t>(texel[2]), std::to_integer<std::uint8_t>(texel[3]) };
+            };
+
+            EXPECT_TRUE(Testing::isNear(
+                built(Testing::paintTwoTones(32, 96), TextureWrap::Repeat, 64), { 213, 213, 213, 255 }, 1))
+                << "a texture painted half again as bright comes back";
+            EXPECT_EQ(
+                built(Testing::paintTwoTones(0, 128), TextureWrap::Repeat, 64), (Testing::Texel{ 255, 255, 255, 255 }))
+                << "and a neutral map changes nothing";
+
+            Testing::TestTexture tinted = Testing::paintTwoTones(96, 128);
+            for (std::size_t texel = 0; texel < tinted.mBytes.size(); texel += 4)
+                tinted.mBytes[texel + 2] = 255;
+            EXPECT_TRUE(Testing::isNear(built(std::move(tinted), TextureWrap::Repeat, 64), { 156, 156, 255, 255 }, 1))
+                << "a colour divided past one is brought down whole";
+
+            EXPECT_NE(built(Testing::paintTwoTones(0, 64), TextureWrap::Repeat, 1),
+                built(Testing::paintTwoTones(0, 64), TextureWrap::ClampS, 1))
+                << "the estimate follows the wrap";
         }
     }
 }

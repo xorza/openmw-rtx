@@ -180,7 +180,7 @@ namespace Rtx
         /// their radiance, how long the queue is held, and what the frames are traced under —
         /// `mUpscale` as it was handed over, and then whatever `setUpscale` moved it to, which
         /// rebuilds every target and is why the mode is a setting rather than a frame option. What
-        /// a frame carries — the reconstruction request, the exposure, the delight, the sample —
+        /// a frame carries — the reconstruction request, the exposure, the sample —
         /// is read off the frame's own blocks instead, which is where a frame that asks otherwise
         /// says so.
         RenderProfile mProfile;

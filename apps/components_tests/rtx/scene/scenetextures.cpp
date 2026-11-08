@@ -159,8 +159,8 @@ namespace Rtx
                 *makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), Rtx::TextureEncoding::Colour, levels, texels)
                                                 .value();
             EXPECT_EQ(colour.mEncoding, Rtx::TextureEncoding::Colour);
-            EXPECT_EQ(colour.getCompanion(), Rtx::TextureCompanion::Shading)
-                << "a colour file's painted light is estimated";
+            EXPECT_EQ(colour.getCompanion(), Rtx::TextureCompanion::Neutral)
+                << "a colour file's painted light is divided out on the host";
 
             EXPECT_EQ(
                 describeImage(*makeBlock(GL_COMPRESSED_RED_GREEN_RGTC2_EXT), Rtx::TextureEncoding::Data, levels, texels)
@@ -957,8 +957,8 @@ namespace Rtx
             EXPECT_EQ(described.getDescriptions()[0].mBytes.data(), reinterpret_cast<const std::byte*>(image->data()))
                 << "the file's own bytes, spanned and not copied";
             EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::File);
-            EXPECT_EQ(described.getDescriptions()[0].getCompanion(), Rtx::TextureCompanion::Shading)
-                << "a file is estimated on the device";
+            EXPECT_EQ(described.getDescriptions()[0].getCompanion(), Rtx::TextureCompanion::Neutral)
+                << "a colour file has nothing measured beside it";
         }
 
         /// **A made coarser chain is described as the file's finest level, spanned where the file holds

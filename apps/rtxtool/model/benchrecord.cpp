@@ -73,12 +73,12 @@ namespace RtxTool
         {
             const Rtx::RenderProfile& profile = setup.mRun.mProfile;
             const MWRender::MirrorKnobs& mirror = setup.mMirror;
-            return std::format(R"(  "filter": {}, "jitter": {}, "delight": {:.3f}, "gamma": {:.3f}, "show": "{}", )"
+            return std::format(R"(  "filter": {}, "jitter": {}, "gamma": {:.3f}, "show": "{}", )"
                                R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {:.3f},)"
                                "\n"
                                R"(  "landCells": {:.1f}, "viewingDistance": {:.1f}, "distantStatics": {}, "step": {}, )"
                                R"("settled": {}, "memoryBudget": {},)",
-                profile.mReconstruction.mDenoise, profile.mReconstruction.mJitter, profile.mDelight, profile.mGamma,
+                profile.mReconstruction.mDenoise, profile.mReconstruction.mJitter, profile.mGamma,
                 Rtx::sSurfaceViewNames.name(profile.mShow), asJson(fixedScaleOf(profile.mExposure)),
                 std::holds_alternative<Rtx::HeldExposure>(profile.mExposure), profile.mSpecializeKernels,
                 profile.mStressOverlapMs, mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics,
@@ -412,9 +412,9 @@ namespace RtxTool
             resolved.mSampling.mShadowFloor, resolved.mSampling.mLampCandidates,
             resolved.mSampling.mIndirect ? "on" : "off", resolved.mSampling.mBounceRays,
             resolved.mSampling.mRelief ? "on" : "off");
-        out += std::format("     delight {:.2f}, gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n",
-            profile.mDelight, profile.mGamma, Rtx::sSurfaceViewNames.name(profile.mShow),
-            describeExposure(profile.mExposure), profile.mSpecializeKernels ? "on" : "off",
+        out += std::format("     gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n", profile.mGamma,
+            Rtx::sSurfaceViewNames.name(profile.mShow), describeExposure(profile.mExposure),
+            profile.mSpecializeKernels ? "on" : "off",
             profile.mStressOverlapMs > 0.0 ? std::format("{:.1f} ms", profile.mStressOverlapMs) : std::string("none"));
         out += std::format(
             "     land {:.1f} cells, viewing distance {:.0f}, distant statics {}, maps {}, step {}, walks {}, "

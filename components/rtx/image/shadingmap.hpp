@@ -5,8 +5,9 @@
 #include <cstdint>
 #include <span>
 
-#include <components/rtx/shaders/look.h>
-#include <components/rtx/shaders/scene.h>
+#include <osg/Vec3f>
+
+#include "texturewrap.hpp"
 
 namespace Rtx
 {
@@ -20,20 +21,20 @@ namespace Rtx
     /// painted lighting varies slowly and painted detail does not, and following the detail is the
     /// over-correction that flattens a texture into a colour.
     ///
-    /// **The host's statement of the estimate, which the game never runs.** The one the trace
-    /// and the ground bake divide by is made on the device as the texture arrives,
-    /// `shadingmap.comp`, and held to this one by a test; this is what the texture sheet draws
-    /// and what `paintedLight` reads.
+    /// **Made on the host, as a painted colour's chain is made** (`ChainBuild::build`), which
+    /// divides each level by it where it stands; the texture sheet draws the same.
     class ShadingMap
     {
     public:
-        /// Cells along each edge of the grid the estimate is made on.
-        static constexpr std::uint32_t sExtent = Shaders::SHADING_EXTENT;
+        /// Cells along each edge of the grid the estimate is made on. Coarse on purpose: painted lighting
+        /// varies slowly across a surface and painted detail does not, so a grid this size follows the
+        /// first and cannot follow the second.
+        static constexpr std::uint32_t sExtent = 32;
         static constexpr std::size_t sCells = std::size_t{ sExtent } * sExtent;
 
         /// How far the correction may reach, either way.
-        static inline const float sFloor = Shaders::SHADING_FLOOR;
-        static inline const float sCeiling = Shaders::SHADING_CEILING;
+        static constexpr float sFloor = 0.5f;
+        static constexpr float sCeiling = 2.0f;
 
         /// How many times the grid is box blurred, three by three, before it is normalised: three passes
         /// are a close enough Gaussian for anything this coarse, and a correction with an edge in it
@@ -59,10 +60,17 @@ namespace Rtx
         std::array<float, sCells> mValues;
     };
 
-    /// The map at a point, bilinear across it and wrapping with it — the shader's `paintedLight`.
-    /// Wrapping because Morrowind's textures tile, and a clamp would seam every wall that repeats.
+    /// The map at a point, bilinear across it, addressed past its edges as its texture is: wrapping
+    /// along an axis the texture repeats, because Morrowind's textures tile and a clamp would seam
+    /// every wall that repeats, and held at the edge along one it clamps, as the estimate's blur is.
     ///
     /// @param map `ShadingMap::sExtent` squared factors, which is what `ShadingMap::getValues`
     ///        holds.
-    float paintedLight(std::span<const float> map, float u, float v);
+    float paintedLight(std::span<const float> map, float u, float v, TextureWrap wrap);
+
+    /// `light`, a colour in linear light, with the painted light `factor` divided out: **held at a
+    /// reflectance of one, brought down whole**, since a glint in a fold painted dark divides to past
+    /// one and a surface that reflects more than reaches it makes light at every bounce, and the colour
+    /// is kept by scaling all three.
+    osg::Vec3f delit(const osg::Vec3f& light, float factor);
 }

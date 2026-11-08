@@ -413,8 +413,7 @@ namespace RtxTool
         Rtx::SceneTextures described;
         described.describeAll(scene, nullptr, false);
 
-        const float delight = into.mContext.mBackend.getProfile().mDelight;
-        const ContactSheet drawn = drawContactSheet(described.getDescriptions(), delight);
+        const ContactSheet drawn = drawContactSheet(described.getDescriptions());
         if (drawn.mCount == 0)
         {
             into.mRecord.note("the world uses no textures\n");
@@ -431,8 +430,7 @@ namespace RtxTool
         for (std::size_t at = 0; at < names.size(); ++at)
             into.mRecord.note(std::format("  {}  {}\n", at, names[at]));
 
-        into.mRecord.note(std::format(
-            "wrote {}, {} textures at delight {}\n", Files::pathToUnicodeString(sheet), drawn.mCount, delight));
+        into.mRecord.note(std::format("wrote {}, {} textures\n", Files::pathToUnicodeString(sheet), drawn.mCount));
     }
 
     void StopWriter::writeView(const Writing& into, MWRender::OffscreenView& view, const std::filesystem::path& file)

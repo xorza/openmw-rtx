@@ -197,6 +197,19 @@ Every normal map made whole in BC7, its texels unit normals, on `openmw-pbr`, a 
 | mode 5 | 16.5 Mpx/s | 0.12 to 0.35 (26) | 0.45° to 0.58° (28.3°) |
 | mode 6, a map with no height | 16.7 Mpx/s | — | 0.31° (18.9°), where the full search made 0.32° (11.2°) |
 
+## Colours stored delit
+
+Every painted colour delit on the host and re-encoded in its own format, against the build before it, a store of
+its own made empty for each, `shot --upscale=off`, on the same day (2026-11-09).
+
+| install | cold preparation | store | pictures' pixels moved by more than 8 of 255 | mean brightness |
+|---|---|---|---|---|
+| `openmw-pbr` | 103 s, where it took 81 s | 6.0 GiB, where 5.6 | median 0.01%, at most 0.65% | within 0.03 of 255 |
+| vanilla | — | 257 MiB, where 131 | median 0.26%, at most 5.05% (`vivec`) | within 0.21 of 255 |
+
+- **What moves is a byte along an edge**: each stored texel is delit and re-encoded, where the trace divided the
+  filtered read; `vivec` beside the build before it shows the same stone, its differences along the trim.
+
 ## The colour and data chains
 
 Level 1 of every colour and data DDS file that carries its own chain, against two references made from its level 0:

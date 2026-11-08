@@ -239,7 +239,7 @@ namespace RtxTool
         std::optional<float> mStep{};
 
         /// Everything the renderer was made with, as the command stated it: the profile — the hold,
-        /// the filter, the jitter, the delight, the gamma, what is shown, the exposure and the
+        /// the filter, the jitter, the gamma, what is shown, the exposure and the
         /// variants — the mirror's reach, the step, whether the walks settle, and the budget.
         MWRender::RunSetup mSetup{};
 

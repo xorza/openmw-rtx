@@ -24,10 +24,10 @@ namespace Rtx
     inline constexpr VkDeviceSize sSpreadMeansRoom = 64 * 1024 * 1024;
 
     /// What a run of arriving textures leaves the device to do, recorded once for the whole run a
-    /// phase at a time: every copy, then each level of every spread and every bake, with one barrier between two phases rather than
-    /// several around each texture. A barrier drains the queue, and a texture's dispatches are a
-    /// few groups each: recorded texture by texture, a cell of three hundred textures was
-    /// thousands of barriers around work that left the device idle between them.
+    /// phase at a time: every copy, then each level of every spread and every bake, with one barrier between two phases
+    /// rather than several around each texture. A barrier drains the queue, and a texture's dispatches are a few groups
+    /// each: recorded texture by texture, a cell of three hundred textures was thousands of barriers around work that
+    /// left the device idle between them.
     ///
     /// Work names its images by address, so an image stays where it is from the call that names it
     /// to `record`: a `Texture` stands where its owner keeps it. Kept and refilled per run, so what

@@ -256,7 +256,6 @@ namespace RtxTool
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mGamma = derived.mGamma;
             profile.mLitEnvironmentMaps = derived.mLitEnvironmentMaps;
-            profile.mDelight = line.mDelight;
             profile.mShow = line.mShow;
             profile.mExposure = line.mExposure;
             profile.mStressOverlapMs = line.mHold.mValue ? sCheckHoldMs : 0.0;

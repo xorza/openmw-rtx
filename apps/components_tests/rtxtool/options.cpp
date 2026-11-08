@@ -131,7 +131,7 @@ namespace RtxTool
                     << moved[at].first << " is not read";
             }
 
-            EXPECT_THROW(options.versus(played, "delight=0.5"), std::runtime_error);
+            EXPECT_THROW(options.versus(played, "gamma=2.2"), std::runtime_error);
             EXPECT_THROW(options.versus(played, "noise=sideways"), std::runtime_error);
             EXPECT_THROW(options.versus(played, "antifirefly=maybe"), std::runtime_error);
             EXPECT_THROW(options.versus(played, "bounce-rays=0"), std::runtime_error) << "no bounce is `indirect`'s";

@@ -28,10 +28,9 @@
 layout(set = SET_TEXTURES, binding = TEXTURE_BIND_IMAGES) uniform sampler2D textures[];
 
 /// What was measured on each texture as it arrived (`Rtx::TextureCompanion`), at the slot of the texture it
-/// was measured on and through the same sampler, which wraps as the texture does: for a colour, the light
-/// painted into it, `SHADING_EXTENT` squared and stored over the range `SHADING_FLOOR` to
-/// `SHADING_CEILING`, which `paintedLight` decodes; for a normal map, what each of its levels lost, which
-/// `normalMapSlopes` reads.
+/// was measured on and through the same sampler, which wraps as the texture does: for a normal map, what
+/// each of its levels lost, which `normalMapSlopes` reads, and nothing at any other slot, which no read
+/// reaches.
 ///
 /// **A binding of its own and not slots between the textures**, because `coneLod` measures the array it
 /// reads for the level a cone resolves, and a companion interleaved with the textures is one it would

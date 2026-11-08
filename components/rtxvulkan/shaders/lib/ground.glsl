@@ -18,7 +18,6 @@
 #include "colour.h"
 #include "look.h"
 #include "scene.h"
-#include "shadingmap.h"
 
 #include "texturearray.glsl"
 

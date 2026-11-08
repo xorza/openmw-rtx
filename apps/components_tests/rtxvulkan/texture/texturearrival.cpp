@@ -47,14 +47,13 @@ namespace Rtx
             }
         };
 
-        /// **A run's barriers are its phases', whatever its length.** Textures uploaded and shaded
-        /// take four commands however many there are: the copies' way in; their way out beside the
-        /// maps' way in; the sums against the maps; and the maps' way to the sampler.
+        /// **A run's barriers are its phases', whatever its length.** Colours uploaded take two
+        /// commands however many there are: the copies' way in, and their way out to the sampler.
         TEST_F(RtxTextureArrivalTest, aRunsBarriersAreItsPhasesWhateverItsLength)
         {
             const Testing::TestTexture painted = Testing::paintTwoTones(32, 96, TextureFormat::Rgba8Unorm);
-            EXPECT_EQ(barriersFor(painted.mData, 1), 4u);
-            EXPECT_EQ(barriersFor(painted.mData, 8), 4u);
+            EXPECT_EQ(barriersFor(painted.mData, 1), 2u);
+            EXPECT_EQ(barriersFor(painted.mData, 8), 2u);
         }
     }
 }

@@ -454,7 +454,7 @@ add_component_dir (rtx/scene
     )
 
 add_component_dir (rtx/shaders
-    brdf camera colour digest gbuffer halving hosttypes look octahedral portable scene shadingmap skinning sky
+    brdf camera colour digest gbuffer halving hosttypes look octahedral portable scene skinning sky
     storageformat tangent visibility wave
     )
 

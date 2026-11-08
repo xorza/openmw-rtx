@@ -379,8 +379,7 @@ namespace Rtx
             }
 
             if (widened)
-                described.mFormat
-                    = isColour(encoding) ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8Unorm;
+                described.mFormat = isColour(encoding) ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8Unorm;
             described.mBytes = into;
             return described;
         }

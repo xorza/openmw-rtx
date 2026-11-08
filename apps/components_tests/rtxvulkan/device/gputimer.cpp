@@ -240,9 +240,9 @@ namespace Rtx
             const Drawn settled = draw(mRenderer, camera);
             EXPECT_FALSE(reports(settled.mGpu.spans(), FrameZone::Blas)) << "nothing arrived, so nothing was built";
 
-            // **And what a texture that arrives is made with**: a colour's shading map and a normal
-            // map's spread, each in a zone of its own on the frame they arrive in, and no bake, which
-            // no sprite asked for.
+            // **And what a texture that arrives is made with**: a normal map's spread, in a zone of its
+            // own on the frame it arrives in, and no bake, which no sprite asked for. A colour is made
+            // with nothing on the device.
             Testing::TestTexture colour;
             Testing::paintLevels(colour, 16, 16, 5, "colour");
             colour.mData.mSlot = scene.textures().add(VFS::Path::NormalizedView("textures/colour.dds"));
@@ -254,10 +254,9 @@ namespace Rtx
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, textures);
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             const Drawn textured = draw(mRenderer, camera);
-            EXPECT_TRUE(reports(textured.mGpu.spans(), FrameZone::Shading)) << "a colour's shading map unmeasured";
             EXPECT_TRUE(reports(textured.mGpu.spans(), FrameZone::Spread)) << "a normal map's spread unmeasured";
             EXPECT_FALSE(reports(textured.mGpu.spans(), FrameZone::Bake)) << "a bake no sprite asked for";
-            EXPECT_FALSE(reports(draw(mRenderer, camera).mGpu.spans(), FrameZone::Shading))
+            EXPECT_FALSE(reports(draw(mRenderer, camera).mGpu.spans(), FrameZone::Spread))
                 << "nothing arrived, so nothing was made";
 
             // **A structure that arrives builds the top level though no row moved**: a slot handed
@@ -317,7 +316,7 @@ namespace Rtx
             // First of the frame's own work: the placement's structures go ahead of it, and
             // placing the scene again compacts what setting it built.
             constexpr std::array sPlacement{ FrameZone::Blas, FrameZone::Compact, FrameZone::Refit, FrameZone::Tlas,
-                FrameZone::Skin, FrameZone::Shading, FrameZone::Spread, FrameZone::Bake, FrameZone::Ground };
+                FrameZone::Skin, FrameZone::Spread, FrameZone::Bake, FrameZone::Ground };
             const auto placement
                 = [&](const GpuSpan& span) { return std::ranges::find(sPlacement, span.mZone) != sPlacement.end(); };
             const auto first = std::ranges::find_if_not(stepped.mGpu.spans(), placement);

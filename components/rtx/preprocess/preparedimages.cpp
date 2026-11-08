@@ -149,7 +149,8 @@ namespace Rtx
             [&](const Platform::StopToken&) {
                 const osg::Image& file = *job.mFile;
                 const auto [image, encoding, wrap] = job.mKey;
-                hand.mContent.chain(ChainPass::Input{ .mImage = file, .mEncoding = encoding, .mWrap = wrap }, hand.mChain);
+                hand.mContent.chain(
+                    ChainPass::Input{ .mImage = file, .mEncoding = encoding, .mWrap = wrap }, hand.mChain);
 
                 // The made levels move into the image that holds them; the file's finest level stays
                 // the file's (`MadeImage`).

@@ -6,6 +6,8 @@
 #include <numbers>
 #include <span>
 
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/statistics.hpp>
@@ -331,38 +333,23 @@ namespace Rtx
                 EXPECT_EQ(value, 1.0f);
         }
 
-        /// The map as the device stores it: sixteen bits over the map's own range.
-        ///
-        /// **One is exact, because the range is the map's and not the format's.** A unorm counts in
-        /// 65535ths and cannot write a half, so a map stored over nought to two would hold the
-        /// neutral map a hair off one. Over the floor and the ceiling it is a third exactly, which
-        /// is 21845 of 65535, and every other value comes back within half a step of one part in
-        /// forty thousand. Past the bounds the encode clamps, which is what the estimate did first.
-        TEST(RtxShadingMapTest, theStoredMapKeepsOneExactAndEveryOtherValueWithinAStep)
+        /// **The map is read as its texture is addressed**: a map whose every column holds its own
+        /// index, read at `u = 0`, which the half-texel back puts at cell minus one and a half of the way
+        /// to cell nought. Repeating, cell minus one is the far edge's, so `(31 + 0) / 2 = 15.5`; clamped
+        /// along `s`, it is the edge's own, nought; clamped along `t` alone, `s` still wraps. Mid-cell,
+        /// at `u = 4.5 / 32`, every wrap reads cell four.
+        TEST(RtxShadingMapTest, theMapIsReadAsItsTextureIsAddressed)
         {
-            EXPECT_EQ(encodeShading(1.0f), 21845);
-            EXPECT_EQ(decodeShading(21845), 1.0f);
+            std::vector<float> map(ShadingMap::sCells);
+            for (std::size_t at = 0; at < map.size(); ++at)
+                map[at] = static_cast<float>(at % ShadingMap::sExtent);
 
-            EXPECT_EQ(encodeShading(ShadingMap::sFloor), 0);
-            EXPECT_EQ(encodeShading(ShadingMap::sCeiling), 65535);
-
-            // The two ends decode to the bounds themselves: `floor * 1 + ceiling * 0` and
-            // `floor * 0 + ceiling * 1` are each one bound and a nought, exactly.
-            EXPECT_EQ(decodeShading(0), ShadingMap::sFloor);
-            EXPECT_EQ(decodeShading(65535), ShadingMap::sCeiling);
-            EXPECT_EQ(encodeShading(0.0f), 0);
-            EXPECT_EQ(encodeShading(3.0f), 65535);
-
-            const float span = ShadingMap::sCeiling - ShadingMap::sFloor;
-            const float step = span / 65535.0f;
-            for (int at = 0; at <= 300; ++at)
-            {
-                const float value = ShadingMap::sFloor + span * static_cast<float>(at) / 300.0f;
-                EXPECT_NEAR(decodeShading(encodeShading(value)), value, 0.5f * step + 1.0e-6f) << value;
-            }
-
-            // The neutral factor is exactly a third of the way up, which is what a cleared map holds.
-            EXPECT_EQ(encodeShading(1.0f), 21845);
+            EXPECT_EQ(paintedLight(map, 0.0f, 0.5f, TextureWrap::Repeat), 15.5f);
+            EXPECT_EQ(paintedLight(map, 0.0f, 0.5f, TextureWrap::ClampS), 0.0f);
+            EXPECT_EQ(paintedLight(map, 0.0f, 0.5f, TextureWrap::ClampT), 15.5f);
+            EXPECT_EQ(paintedLight(map, 0.0f, 0.0f, TextureWrap::Clamp), 0.0f);
+            for (const TextureWrap wrap : { TextureWrap::Repeat, TextureWrap::ClampS, TextureWrap::Clamp })
+                EXPECT_EQ(paintedLight(map, 4.5f / 32.0f, 0.5f, wrap), 4.0f) << static_cast<int>(wrap);
         }
     }
 }

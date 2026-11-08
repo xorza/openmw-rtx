@@ -88,7 +88,6 @@ namespace RtxTool
             /// `--content-cache`.
             ContentCacheChoice mContentCache{};
 
-            float mDelight = 0.0f;
             Rtx::SurfaceView mShow{};
             Rtx::ExposureRule mExposure;
             Named<bool> mHold;

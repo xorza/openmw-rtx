@@ -157,6 +157,16 @@ screen is the import step, and its store is the game's input.
   vanilla's 72 pictures moved beyond the denoiser's noise, at most 28 of 255 on 0.08% of a picture's pixels, on
   animated effects (research note, "Loose chains in BC7"). Refused: the loose form kept beside BC7 for vanilla's
   files, a second route to one result.
+- **A colour the trace delights is stored delit, keyed by use** (item 13, by the user's decisions): a diffuse with no
+  metal-roughness `_spec` and a ground layer that is not authored are bound as `TextureEncoding::Painted`, whose
+  chain is every level of the file divided by `Rtx::ShadingMap`'s estimate where it stands, held at a reflectance of
+  one; a base colour, an emissive map, a sheet and a sprite are colours, read as they stand. One source made two
+  textures by its use is how engines import a texture once a use (Unreal's compression settings a texture asset); a
+  file used both ways is two slots. The delit chain is re-encoded in the file's own format, by the user's priority
+  of memory and speed, so a BC1 colour keeps four bits a texel; a loose, small chainless or cut one is BC7. The
+  estimate follows the slot's wrap, along an axis that repeats and one that clamps, so the made chain is keyed by
+  it. Refused: every colour file delit, which flattens the PBR packs' authored base colours; and BC7 for every
+  delit colour, which doubles every vanilla texture.
 - **A chain is built on a worker, never on the frame or the reader.** A 2048-square normal map's levels take tens of
   milliseconds to build and encode. A cold start of the PBR profile builds about 1500 of them. A build on the cell
   reader would hold up each cell by seconds, and a build on the frame would be a spike. Workers drain a bounded queue.
@@ -317,19 +327,17 @@ What it does otherwise than the item said:
 The order is 13, then 12, by the user's decision: a converted classic material's base colour is solved from the
 delit diffuse, which item 13 makes.
 
-13. **Colour files stored delit**: the painted light of every colour the trace delights today estimated on the host by
-    `Rtx::ShadingMap`, the estimate the device's `ShadingPass` is held to, and divided out at a delight of one by
-    preparation, each level of the file at its own texels; the trace reads colours as they stand, and the shading maps,
-    `ShadingPass`, `delitTexel`, the frame's `mDelight` and the harness's `--delight` go, by the user's decision.
-    - **Keyed by use, a new `TextureEncoding::Painted`**: a diffuse the trace delights today (no metal-roughness
-      `_spec`, a ground layer that is not authored) is asked as a painted colour, and a base colour, an emissive map
-      or a sheet as a colour. One source made two textures by how it is used is how engines import a texture once a
-      use (Unreal's compression settings a texture asset); a file used both ways is two slots, and every other costs
-      nothing more. Refused: every colour file delit, which flattens the PBR packs' authored base colours.
-    - **Re-encoded in the file's own format**, by the user's priority of memory and speed: a BC1 colour stays four
-      bits a texel, where BC7 doubles every vanilla texture; a loose or a small chainless file is BC7, by item 10.
-    - **Keyed by the slot's wrap as well**, since the estimate wraps along an axis the texture repeats and clamps along
-      one it clamps.
+Item 13 is done: the trace reads every colour as it stands, and `ShadingPass`, the shading maps, `delitTexel`, the
+frame's `mDelight`, the harness's `--delight` and the shading zone are gone; a texture other than a normal map stands
+with nothing beside it. At `seyda-neen-ship` on `openmw-pbr`, a cold start prepares in 103 s where the build before
+it took 81 s on the same day, and the store holds 6.0 GiB where it held 5.6 (research note, "Colours stored delit").
+What it does otherwise than the item said:
+
+- **A medium's diffuse is delit too**, a diffuse with no specular map, where the gather read it as it stood: taking
+  it as a colour would need the blend facts first, which are kept on the texture the take makes.
+- **The estimate is read as the texture is addressed** (`paintedLight`), clamped along an axis the slot clamps, as
+  the device read it through the texture's own sampler.
+
 12. **One specular layout**: every classic `_spec` map converted by preparation to metal-roughness, and the
     `[RTX] specular map layout` setting, `MATERIAL_SPECULAR_CLASSIC` and `layerClassic` gone, by the user's decision.
     - **A map's layout is detected per file**, by the user's decision: a map whose red, green and blue are near equal

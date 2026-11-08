@@ -309,10 +309,6 @@ namespace Rtx
         /// converge on the filter's opinion. A frame may ask otherwise (`FrameOptions`).
         ReconstructionRequest mReconstruction{};
 
-        /// How much of the painted lighting to divide out of a texture. Nought hands the trace
-        /// Bethesda's textures with their lighting still in them.
-        float mDelight = 1.0f;
-
         /// How many times longer than it is wide a footprint the eye's texture reads may filter
         /// along: the player's `[General] anisotropy`, held to what the device takes. One or less
         /// reads every footprint at the level of its long axis, which is what a profile that says

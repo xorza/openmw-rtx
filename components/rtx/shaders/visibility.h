@@ -377,13 +377,6 @@ namespace Rtx::Shaders
         /// the way it folds the sea's in — `GpuLightGrid` says why it rides here and not in a table.
         GpuLightGrid mLightGrid;
 
-        /// How much of each texture's painted-in lighting to divide back out, from zero to one.
-        ///
-        /// **Morrowind's textures were lit before they were saved**, and a ray tracer lights them
-        /// again — so a corner with occlusion painted into it is dark twice over. One is the whole
-        /// estimate and zero is the A/B that says what it did.
-        float mDelight;
-
         /// Where the eye stands now, less where it stood on the previous frame.
         ///
         /// **Differenced on the host, and that is the whole trick.** Morrowind's coordinates run to

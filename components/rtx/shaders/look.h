@@ -362,16 +362,6 @@ namespace Rtx::Shaders
     /// which is `cloudDeck`'s coverage and not this.
     const float CLOUD_TRANSMISSION = 0.25f;
 
-    /// How far the estimate may reach either way, which is also how a map is stored.
-    ///
-    /// **A map on the device is a sixteen-bit unorm of `(value - floor) / (ceiling - floor)`**, so
-    /// the whole of the format's range is spent on the values a map can hold — a step of one part
-    /// in forty thousand — and the neutral map, one everywhere, lands on exactly a third: 21845 of
-    /// 65535, which the decode carries back to exactly one. `Rtx::ShadingMap` says why the bounds
-    /// are what they are, and `shadingUnit` in `shadingmap.h` is the one statement of the encode.
-    const float SHADING_FLOOR = 0.5f;
-    const float SHADING_CEILING = 2.0f;
-
     /// What a surface with no diffuse map reads: white, the rasterizer's `vec4(1.0)`, so its colour
     /// is its material's. A map that did not load reads the backend's grey stand-in instead.
     const vec3 UNTEXTURED_ALBEDO = vec3(1.0f, 1.0f, 1.0f);

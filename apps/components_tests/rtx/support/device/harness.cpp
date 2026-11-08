@@ -263,9 +263,6 @@ namespace Rtx::Testing
         // And no dither, for the same reason: a test reads the curve's bytes. A test of the dither
         // asks for it.
         options.mRun.mProfile.mDither = false;
-        // And no painted light divided out, so a texture a test hands over is the albedo it traces,
-        // which is what its expectation is computed from. A test of the estimate asks per frame.
-        options.mRun.mProfile.mDelight = 0.0f;
 
         return options;
     }

@@ -33,16 +33,15 @@ namespace Rtx
             return frame;
         }
 
-        /// **The profile answers what the frame did not ask**, the delight and the surface view
-        /// among them, rather than the host reading them back off the renderer to hand in again —
-        /// where a frame that forgot would trace with a delight of nought.
+        /// **The profile answers what the frame did not ask**, the surface view among them, rather than
+        /// the host reading it back off the renderer to hand in again — where a frame that forgot would
+        /// trace what nobody asked.
         TEST(RtxFrameSamplingTest, theProfileAnswersWhatTheFrameDidNotAsk)
         {
-            const RenderProfile profile{ .mDelight = 0.75f, .mLitEnvironmentMaps = true, .mShow = SurfaceView::Albedo };
+            const RenderProfile profile{ .mLitEnvironmentMaps = true, .mShow = SurfaceView::Albedo };
 
             const Shaders::VisibilityConstants played
                 = sampleFrame(stated(), FrameOptions{}, profile, Reconstruction{}, InstanceCounts{}, nullptr);
-            EXPECT_EQ(played.mDelight, 0.75f);
             EXPECT_EQ(played.mShow, static_cast<std::uint32_t>(SurfaceView::Albedo));
             EXPECT_EQ(played.mLitEnvironmentMaps, 1u);
             EXPECT_EQ(
@@ -52,10 +51,8 @@ namespace Rtx
                 << "the setting's default";
 
             // And the frame's own ask stands over it, which is how a test of one input asks for it.
-            const Shaders::VisibilityConstants asked
-                = sampleFrame(stated(), FrameOptions{ .mDelight = 0.0f, .mShow = SurfaceView::Shaded }, profile,
-                    Reconstruction{}, InstanceCounts{}, nullptr);
-            EXPECT_EQ(asked.mDelight, 0.0f);
+            const Shaders::VisibilityConstants asked = sampleFrame(stated(),
+                FrameOptions{ .mShow = SurfaceView::Shaded }, profile, Reconstruction{}, InstanceCounts{}, nullptr);
             EXPECT_EQ(asked.mShow, static_cast<std::uint32_t>(SurfaceView::Shaded));
         }
 

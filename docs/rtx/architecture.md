@@ -21,7 +21,7 @@ The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vu
 The denoiser is the renderer's own, and the upscaler is AMD's FSR 3.1.4 ported to compute shaders:
 at `native` it is the anti-aliasing, and every other mode traces fewer pixels than the frame
 holds. Vanilla textures are pre-lit, so the renderer estimates the painted light and divides it
-out; a PBR replacer's companion maps reach the trace, and a vanilla scene draws the same whether or
+out as it prepares the content; a PBR replacer's companion maps reach the trace, and a vanilla scene draws the same whether or
 not the renderer can read them.
 
 ## Layers and libraries

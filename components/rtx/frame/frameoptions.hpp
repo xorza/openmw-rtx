@@ -18,7 +18,7 @@ namespace Rtx
     /// profile is empty unless this frame asks otherwise, which is how a reference and the frame it
     /// is compared against come off one renderer; the renderer reads its own profile for the rest.
     /// A host that read the profile back to hand it in again was a host that could forget to, and
-    /// a frame that forgot traced with a delight of nought.
+    /// a frame that forgot traced what nobody asked.
     struct FrameOptions
     {
         /// How many frames have gone into the running sum, this one included; zero is no averaging.
@@ -46,10 +46,8 @@ namespace Rtx
         /// How the frame is scaled before the display curve, in place of the profile's rule.
         std::optional<ExposureRule> mExposure{};
 
-        /// How much painted lighting to divide out, what every pixel is painted with, and whether an
-        /// environment map's sheet is lit, in place of the profile's: what a test of one surface
-        /// input asks for.
-        std::optional<float> mDelight{};
+        /// What every pixel is painted with, and whether an environment map's sheet is lit, in place of
+        /// the profile's: what a test of one surface input asks for.
         std::optional<SurfaceView> mShow{};
         std::optional<bool> mLitEnvironmentMaps{};
 

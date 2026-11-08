@@ -364,9 +364,6 @@ namespace RtxTool
             "`config <path>` and `data <path>`, and quit, before any device: the answer `Files` gives "
             "on this system, which the driver's `setup` and `game` read rather than restating");
 
-        option(sFramed, "delight", number(between(0.0f, 1.0f))->default_value(byDefault.mSetup.mRun.mProfile.mDelight),
-            "how much of the lighting painted into each texture to divide back out, from 0 to 1. "
-            "Zero is the A/B that says what it did");
         option(sFramed, "filter",
             bpo::value<bool>()
                 ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mDenoise)
@@ -936,7 +933,6 @@ namespace RtxTool
             throw std::runtime_error("--content-cache names nothing: game, off or a directory");
         else
             frame.mContentCache = std::filesystem::path(store);
-        frame.mDelight = real("delight");
         frame.mShow = Rtx::sSurfaceViewNames.require(text("show"), "a surface view");
         frame.mExposure = parseExposure(text("exposure"));
         frame.mHold = { on("hold"), named("hold") };

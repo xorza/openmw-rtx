@@ -470,10 +470,9 @@ namespace Rtx::Testing
         /// What the debug modes drew, over the picture. Nothing, for every test not about it.
         DebugLines mDebug{};
 
-        /// What every pixel is painted with and how much painted light is divided out, over the
-        /// harness's profile — which paints the light and divides out none (`describeRenderer`).
+        /// What every pixel is painted with, over the harness's profile, which paints the light
+        /// (`describeRenderer`).
         std::optional<SurfaceView> mShow{};
-        std::optional<float> mDelight{};
 
         /// `RenderProfile::mLitEnvironmentMaps` over the harness's, which leaves a sheet unlit.
         std::optional<bool> mLitEnvironmentMaps{};
@@ -590,7 +589,6 @@ namespace Rtx::Testing
                             .mFilters = { .mAntilag = shot.mAntilag } },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),
-                        .mDelight = shot.mDelight,
                         .mShow = shot.mShow,
                         .mLitEnvironmentMaps = shot.mLitEnvironmentMaps,
                         .mDither = shot.mDither,

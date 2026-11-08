@@ -159,7 +159,7 @@ namespace MWRender
 
         /// What a played session is made with, where the harness installed nothing: what `[RTX]`
         /// leaves a player, through the one derivation (`RtxSettings`), and the played answer to
-        /// everything else. The knobs a measurement turns — delight, albedo, the filter, the
+        /// everything else. The knobs a measurement turns — albedo, the filter, the
         /// exposure, the crossings — are a run's, handed to the constructor by the harness that
         /// makes one, and a settings file cannot reach them: one that could once turned a played
         /// game into a fixed-step run for good. A played session shows every frame and sums none,

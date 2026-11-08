@@ -661,12 +661,15 @@ namespace Rtx::Testing
         /// **The companion maps reach the material, the specular map in the layout that names what
         /// its channels mean.** A normal map with height and one without are one map. The metal
         /// layout reads the specular map as data, and the classic one as a colour, its highlight
-        /// being one the artist saw. **A normal map bound with its height is parallax**, and not on a
+        /// being one the artist saw. **The diffuse is a painted colour, delit on the host, but beside a
+        /// metal-roughness map**, which makes it an authored base colour, a colour read as it stands;
+        /// with no specular map at all it is painted. **A normal map bound with its height is parallax**, and not on a
         /// cutout, whose hole the traversal finds with no eye to shift by; its relief spans the lowest
         /// and the highest alpha its texels hold, here 30 and 200 of the four 30, 90, 200 and 120.
         TEST_F(RtxSceneExtractorTest, theCompanionMapsReachTheMaterialAsDataAndTheSpecularMapOnlyInItsLayout)
         {
-            const auto extractOne = [](SpecularLayout layout, TextureRole normalRole, bool cutout = false) {
+            const auto extractOne = [](SpecularLayout layout, TextureRole normalRole, bool cutout = false,
+                                        bool specular = true) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
                 paint(state, "textures/tx_a_steel.dds");
@@ -684,7 +687,8 @@ namespace Rtx::Testing
                 }
                 normalMap->setFileName("textures/tx_a_steel_nh.dds");
                 paint(state, *normalMap, normalRole);
-                paint(state, "textures/tx_a_steel_spec.dds", TextureRole::Specular);
+                if (specular)
+                    paint(state, "textures/tx_a_steel_spec.dds", TextureRole::Specular);
                 if (cutout)
                     state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GEQUAL, 0.5f));
 
@@ -702,7 +706,7 @@ namespace Rtx::Testing
             ASSERT_NE(classic.mNormal, sNoIndex);
             EXPECT_EQ(classicRows[classic.mNormal].mPath, VFS::Path::NormalizedView("textures/tx_a_steel_nh.dds"));
             EXPECT_EQ(classicRows[classic.mNormal].mEncoding, TextureEncoding::Normal);
-            EXPECT_EQ(classicRows[classic.mDiffuse].mEncoding, TextureEncoding::Colour);
+            EXPECT_EQ(classicRows[classic.mDiffuse].mEncoding, TextureEncoding::Painted);
             ASSERT_NE(classic.mSpecular, sNoIndex);
             EXPECT_EQ(classicRows[classic.mSpecular].mPath, VFS::Path::NormalizedView("textures/tx_a_steel_spec.dds"));
             EXPECT_EQ(classicRows[classic.mSpecular].mEncoding, TextureEncoding::Colour);
@@ -718,10 +722,15 @@ namespace Rtx::Testing
             ASSERT_NE(read.mSpecular, sNoIndex);
             EXPECT_EQ(readRows[read.mSpecular].mPath, VFS::Path::NormalizedView("textures/tx_a_steel_spec.dds"));
             EXPECT_EQ(readRows[read.mSpecular].mEncoding, TextureEncoding::Data);
+            EXPECT_EQ(readRows[read.mDiffuse].mEncoding, TextureEncoding::Colour) << "an authored base colour";
             EXPECT_EQ(readRows.size(), 3u);
             EXPECT_FALSE(read.mRelief.has_value()) << "a normal map without one";
             EXPECT_FALSE(read.getTraversed().mRelief);
             EXPECT_FALSE(read.mSpecularClassic);
+
+            const auto [bare, bareRows] = extractOne(SpecularLayout::MetalRoughness, TextureRole::Normal, false, false);
+            EXPECT_EQ(bare.mSpecular, sNoIndex);
+            EXPECT_EQ(bareRows[bare.mDiffuse].mEncoding, TextureEncoding::Painted) << "no specular map, a picture";
 
             const auto [cut, cutRows] = extractOne(SpecularLayout::Classic, TextureRole::NormalHeight, true);
             EXPECT_TRUE(cut.isCutout());
@@ -1709,9 +1718,9 @@ namespace Rtx::Testing
         /// the fifth is where a remembered refusal that outlived the room it lacked would leave the
         /// surface untextured.
         ///
-        /// **The refusal is the wrap's and not the file's.** Slot 5 holds the banner clamped, which
-        /// the full table answers all the same, so a clamped surface wearing the banner image the
-        /// animated one was refused under a repeat still finds it.
+        /// **The refusal is the wrap's and not the file's.** Slot 5 holds the banner clamped as a painted
+        /// colour, as a diffuse with no specular map is bound, which the full table answers all the same, so a clamped
+        /// surface wearing the banner image the animated one was refused under a repeat still finds it.
         TEST_F(RtxSceneExtractorTest, aRefusedTextureIsAskedAgainOnlyOnceASlotIsFreed)
         {
             TextureTable& textures = mScene.textures();
@@ -1720,7 +1729,8 @@ namespace Rtx::Testing
             for (std::size_t at = 0; at < TextureTable::sCapacity; ++at)
             {
                 const Index slot = at == clampedSlot
-                    ? textures.add(VFS::Path::NormalizedView("textures/tx_banner.dds"), TextureWrap::Clamp)
+                    ? textures.add(VFS::Path::NormalizedView("textures/tx_banner.dds"), TextureWrap::Clamp,
+                        TextureEncoding::Painted)
                     : textures.add(VFS::Path::Normalized("textures/tx_" + std::to_string(at) + ".dds"));
                 ASSERT_EQ(slot, at);
                 holds.texture(slot);
