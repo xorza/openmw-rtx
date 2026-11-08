@@ -392,6 +392,13 @@ namespace RtxTool
                 Rtx::sUpscaleNames.name(sFilmUpscale))
                 .c_str());
 
+        option(sFramed, "upscaler",
+            bpo::value<std::string>()->default_value(
+                std::string(Rtx::sUpscalerNames.name(byDefault.mSetup.mRun.mProfile.mUpscaler))),
+            std::format("reconstruction backend: {}. `{}` by default for repeatable measurements",
+                Rtx::sUpscalerNames.list(), Rtx::sUpscalerNames.name(byDefault.mSetup.mRun.mProfile.mUpscaler))
+                .c_str());
+
         option(sFramed, "exposure", bpo::value<std::string>()->default_value("auto"),
             "what to scale the frame by before the display curve: auto measures it off the frame, "
             "and a number holds it there. A pixel test and a converged reference want it held, "
@@ -903,6 +910,7 @@ namespace RtxTool
         if (verb != Verbs::View)
             frame.mMaps = MapRules::Shipped;
         frame.mUpscale = { Rtx::sUpscaleNames.require(text("upscale"), "an upscale mode"), named("upscale") };
+        frame.mUpscaler = Rtx::sUpscalerNames.require(text("upscaler"), "an upscaler");
         if (named("grass"))
             frame.mGrass = on("grass");
         if (named("distant-cells"))

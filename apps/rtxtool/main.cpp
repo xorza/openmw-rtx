@@ -234,6 +234,7 @@ namespace RtxTool
             Rtx::RenderProfile& profile = framed.mSetup.mRun.mProfile;
             profile.mRadianceWidth = policyOf(command.mVerb).radianceWidth();
             profile.mUpscale = derived.mUpscale;
+            profile.mUpscaler = line.mUpscaler;
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mGamma = derived.mGamma;
             profile.mLitEnvironmentMaps = derived.mLitEnvironmentMaps;

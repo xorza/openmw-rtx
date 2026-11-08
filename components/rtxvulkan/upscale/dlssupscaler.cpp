@@ -272,12 +272,12 @@ namespace Rtx
         create.Feature.TargetHeight = output.height;
         create.Feature.PerfQuality = qualityOf(render, output);
 
-        // **HDR, low-resolution motion, jittered motion and reversed depth**: the renderer's frame
-        // is linear radiance, its motion is resolved at the render extent and already includes the
-        // trace's jitter, and its depth is `near / view depth` with the near plane at one. Exposure
-        // is DLSS's own meter, because the renderer's meter runs after the upscaler.
-        create.Flags = Ngx::sDlssFlagIsHdr | Ngx::sDlssFlagMotionVectorsLowRes | Ngx::sDlssFlagMotionVectorsJittered
-            | Ngx::sDlssFlagDepthInverted | Ngx::sDlssFlagAutoExposure;
+        // Motion projects the surface at both ends without jitter: a stationary surface has zero
+        // motion even as the trace samples a different subpixel. Marking it jittered makes NGX
+        // subtract a jitter delta that is not there. Depth is reversed and colour is linear HDR;
+        // exposure is DLSS's own meter, because the renderer's meter runs after the upscaler.
+        create.Flags = Ngx::sDlssFlagIsHdr | Ngx::sDlssFlagMotionVectorsLowRes | Ngx::sDlssFlagDepthInverted
+            | Ngx::sDlssFlagAutoExposure;
         create.OutputSubrects = false;
 
         Ngx::Result result = Ngx::Result::Failure;
@@ -365,8 +365,10 @@ namespace Rtx
         evaluation.Feature.Sharpness = 0.0f;
         evaluation.Depth = &depth;
         evaluation.MotionVectors = &motion;
-        evaluation.JitterX = inputs.mEyes.mWorld.mJitter.x();
-        evaluation.JitterY = inputs.mEyes.mWorld.mJitter.y();
+        // The trace offsets the sample, whereas NGX names the resulting image displacement, which
+        // is opposite. `FsrFrame` uses the same conversion for the same ray samples.
+        evaluation.JitterX = -inputs.mEyes.mWorld.mJitter.x();
+        evaluation.JitterY = -inputs.mEyes.mWorld.mJitter.y();
         evaluation.RenderSubrectDimensions
             = Ngx::Dimensions{ .Width = targets.mRender.width, .Height = targets.mRender.height };
         evaluation.Reset = reset ? 1 : 0;
