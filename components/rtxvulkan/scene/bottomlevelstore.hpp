@@ -51,9 +51,17 @@ namespace Rtx
         }
     };
 
-    /// One bottom-level acceleration structure per mesh, all inside a single storage buffer at
-    /// offsets, and the compaction that keeps them tight: a structure is built loose, the driver is
-    /// asked what a tight copy would come to, and the copy takes room out of the same storage.
+    /// One bottom-level acceleration structure per mesh, inside storage buffers at offsets, and the
+    /// compaction that keeps them tight: a structure is built loose, the driver is asked what a tight
+    /// copy would come to, and the copy is made in the storage that keeps it.
+    ///
+    /// **The loose structures stand in storage of their own**, which every one of them leaves, so
+    /// each block of it empties whole once its structures are copied out, as RTXMU gives a build's
+    /// memory back once its compaction is done. A copy that took room in the block its loose
+    /// structure left filled the holes of every block the loose ones stood in: a world built again
+    /// in one arrival kept 206 MiB of blocks for 66 MiB of tight structures, since a structure that
+    /// is never copied — one built to be refitted — held each block. A structure built to be
+    /// refitted keeps its slack, so it is built where it stays.
     /// How much scratch one run of builds works in, and how many positions it stages, past what one
     /// mesh needs alone: a storage block's worth, which takes a cell's meshes in a run or two.
     inline constexpr VkDeviceSize sStructureBuildRoom = 64 * 1024 * 1024;
@@ -134,11 +142,12 @@ namespace Rtx
 
         /// The room the structures were given, and what they occupy in it. Neither counts the
         /// geometry they were built from.
-        VkDeviceSize getBytes() const { return mStorage.getBytes(); }
-        VkDeviceSize getLiveBytes() const { return mStorage.getLiveBytes(); }
+        VkDeviceSize getBytes() const { return mStorage.getBytes() + mLooseStorage.getBytes(); }
+        VkDeviceSize getLiveBytes() const { return mStorage.getLiveBytes() + mLooseStorage.getLiveBytes(); }
 
         // Read by the tests and by nothing else.
         VkDeviceSize getScratchBytes() const { return mScratch.get().getSize(); }
+        VkDeviceSize getLooseBytes() const { return mLooseStorage.getBytes(); }
 
         /// What the structures still to be copied tight would come to, or nought where there are
         /// none and where the device would not say — what is left to save, falling to nothing over
@@ -156,7 +165,7 @@ namespace Rtx
         /// build never read an answer while cells kept arriving.
         enum class Tightness : std::uint8_t
         {
-            /// No structure, or one that refits and so keeps its slack.
+            /// No structure, or one that refits and so was built where it stays, slack and all.
             None,
 
             /// Built loose and not yet asked about.
@@ -168,7 +177,8 @@ namespace Rtx
             /// The driver's answer is in `mTightSize`, and the copy is owed.
             Answered,
 
-            /// Copied tight, or no smaller tight: nothing more to do.
+            /// Copied out of the loose storage, tight where a tight copy is smaller: nothing more
+            /// to do.
             Tight,
         };
 
@@ -201,6 +211,14 @@ namespace Rtx
 
         /// Reads every answer whose submit the timeline says has run.
         void readAnswers();
+
+        /// Whether a tight copy of the structure `state` answered for is smaller than the structure:
+        /// what is copied tight and counted as a saving. One that is not, or that the driver gave
+        /// no size for, is copied as it stands, so it leaves the loose storage all the same.
+        static bool shrinks(const Compaction& state)
+        {
+            return state.mTightSize > 0 && state.mTightSize < state.mBuiltSize;
+        }
 
         /// Whether `ask` is still the question its slot is waiting on: a slot built again since is
         /// waiting on a later one.
@@ -238,8 +256,12 @@ namespace Rtx
         const Device& mDevice;
         const VkDeviceSize mBuildRoom;
 
-        // Before the rows, which give their rooms back to it as they go.
-        StructureStorage mStorage{ sStructureStorageUsage, "bottom level structures" };
+        // Before the rows, which give their rooms back to them as they go. The structures that
+        // stay — copied tight, or built to be refitted — and the loose ones until they are copied.
+        StructureStorage mStorage{ sStructureStorageUsage, "bottom level structures",
+            StructureStorage::LastBlock::Kept };
+        StructureStorage mLooseStorage{ sStructureStorageUsage, "loose bottom level structures",
+            StructureStorage::LastBlock::GivenBack };
 
         /// One row per mesh slot, grown with the mesh table.
         std::vector<Row> mRows;

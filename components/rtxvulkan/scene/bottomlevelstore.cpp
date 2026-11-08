@@ -30,9 +30,10 @@ namespace Rtx
 {
     namespace
     {
-        /// How much a placement copies tight before it leaves the rest to the next one. A budget
-        /// and not the lot, because a copy needs the tight room while the loose room is still
-        /// standing, so compacting a cell in one placement would make the high-water mark the sum.
+        /// How much a placement copies out of the loose storage before it leaves the rest to the
+        /// next one. A budget and not the lot, because a copy needs its room while the loose room is
+        /// still standing, so compacting a cell in one placement would make the high-water mark the
+        /// sum.
         /// At this rate a cell is tight within a few dozen placements of arriving.
         constexpr VkDeviceSize sCompactionPerPlacement = 8 * 1024 * 1024;
 
@@ -65,7 +66,7 @@ namespace Rtx
         Row& row = mRows[slot];
 
         Compaction& state = row.mCompaction;
-        if (state.mTightness == Tightness::Answered)
+        if (state.mTightness == Tightness::Answered && shrinks(state))
         {
             mCompactableNow -= state.mBuiltSize;
             mCompactableTight -= state.mTightSize;
@@ -112,11 +113,12 @@ namespace Rtx
 
         const VkDeviceSize scratchAlignment = mDevice.getPhysicalDevice().getStructureScratchAlignment();
 
-        // Sized before anything is created, so a load's structures land in one storage block rather
-        // than one per mesh. What is still to place, which falls as each is placed: a block made
-        // after part of an arrival went into the holes a departed cell left covers the rest and
-        // not the whole arrival again.
-        VkDeviceSize wanted = 0;
+        // Sized before anything is created, so a load's structures land in one storage block of
+        // each kind rather than one per mesh. What is still to place, which falls as each is placed:
+        // a block made after part of an arrival went into the holes a departed cell left covers the
+        // rest and not the whole arrival again.
+        VkDeviceSize wantedLoose = 0;
+        VkDeviceSize wantedKept = 0;
 
         // Every row at nought, which is what a mesh with no triangles is left at: nothing
         // describes it, nothing builds it, and the gate below reads that nought.
@@ -207,6 +209,7 @@ namespace Rtx
 
             mBuilding[at].mSize = sizes.accelerationStructureSize;
             mBuilding[at].mScratch = alignUp(sizes.buildScratchSize, scratchAlignment);
+            VkDeviceSize& wanted = mesh.deforms() ? wantedKept : wantedLoose;
             wanted = alignUp(wanted + sizes.accelerationStructureSize, StructureStorage::sAlignment);
 
             // Kept so a refit of this one mesh does not have to ask the driver its size again. The
@@ -271,26 +274,29 @@ namespace Rtx
 
                 const Index slot = meshes[at];
                 Row& row = mRows[slot];
+                StructureStorage& storage = row.mUpdatable ? mStorage : mLooseStorage;
+                VkDeviceSize& wanted = row.mUpdatable ? wantedKept : wantedLoose;
 
                 // Left out where the device has no room: the slot holds no structure and so nothing a
                 // refit or a rebuild reads, and the scratch it was counted into goes unread. A load's
                 // whole total is not asked for again once the device has refused it, and each structure
                 // after asks for its own room.
                 const Misc::Result<StructureRoom, std::string_view> room
-                    = mStorage.take(mDevice, mBuilding[at].mSize, wanted);
+                    = storage.take(mDevice, mBuilding[at].mSize, wanted);
                 if (!room.isOk())
                 {
                     row.mUpdatable = false;
                     row.mUpdateScratch = 0;
                     row.mBuildScratch = 0;
-                    wanted = 0;
+                    wantedLoose = 0;
+                    wantedKept = 0;
                     mRefusedRoom = true;
                     refused.push_back(Refusal{ .mKind = Refused::Mesh, .mWhy = std::string(room.error()) });
                     continue;
                 }
 
                 row.mStructure
-                    = AccelerationStructure::bottomLevel(mDevice, mStorage, room.value(), mBuilding[at].mSize);
+                    = AccelerationStructure::bottomLevel(mDevice, storage, room.value(), mBuilding[at].mSize);
                 wanted -= std::min(wanted, alignUp(mBuilding[at].mSize, StructureStorage::sAlignment));
 
                 mBuild.mBuilds[at].dstAccelerationStructure = row.mStructure.getHandle();
@@ -445,19 +451,15 @@ namespace Rtx
                 const Index slot = mAsked.at(at).mSlot;
                 Compaction& state = mRows[slot].mCompaction;
 
-                // A driver that says a tight copy would be no smaller leaves the structure as it
-                // was built: the copy would spend a room and a command to change nothing.
-                const VkDeviceSize tight = mReadScratch[at];
-                if (tight == 0 || tight >= state.mBuiltSize)
-                {
-                    state.mTightness = Tightness::Tight;
-                    continue;
-                }
-
+                // Every answer owes a copy, a tight one where it is smaller (`shrinks`): a structure
+                // left in the loose storage would hold its block there for good.
                 state.mTightness = Tightness::Answered;
-                state.mTightSize = tight;
-                mCompactableNow += state.mBuiltSize;
-                mCompactableTight += tight;
+                state.mTightSize = mReadScratch[at];
+                if (shrinks(state))
+                {
+                    mCompactableNow += state.mBuiltSize;
+                    mCompactableTight += state.mTightSize;
+                }
                 mAnswered.push(slot);
             }
 
@@ -474,7 +476,9 @@ namespace Rtx
 
         // Once a placement, so a block whose last structure left goes back to the device without
         // waiting for the next arrival to ask for room.
-        mStorage.reclaim(mDevice.getTimeline().getKnownFinished());
+        const std::uint64_t finished = mDevice.getTimeline().getKnownFinished();
+        mStorage.reclaim(finished);
+        mLooseStorage.reclaim(finished);
 
         readAnswers();
 
@@ -500,13 +504,14 @@ namespace Rtx
             // answer is popped: a device that refuses the room leaves the answer where it was, to
             // be asked again by a later placement, rather than a structure answered and never
             // copied.
-            const VkDeviceSize tight = state.mTightSize;
+            const bool tight = shrinks(state);
+            const VkDeviceSize size = tight ? state.mTightSize : state.mBuiltSize;
             const Misc::Result<StructureRoom, std::string_view> room
-                = mStorage.take(mDevice, tight, sCompactionPerPlacement);
+                = mStorage.take(mDevice, size, sCompactionPerPlacement);
             if (!room.isOk())
                 break;
 
-            AccelerationStructure made = AccelerationStructure::bottomLevel(mDevice, mStorage, room.value(), tight);
+            AccelerationStructure made = AccelerationStructure::bottomLevel(mDevice, mStorage, room.value(), size);
             mAnswered.pop(1);
 
             mCompactionCopies.push_back(VkCopyAccelerationStructureInfoKHR{
@@ -514,7 +519,8 @@ namespace Rtx
                 .pNext = nullptr,
                 .src = row.mStructure.getHandle(),
                 .dst = made.getHandle(),
-                .mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR,
+                .mode = tight ? VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR
+                              : VK_COPY_ACCELERATION_STRUCTURE_MODE_CLONE_KHR,
             });
 
             // Replaced though the copy below reads it: the old structure buries itself under the
@@ -525,14 +531,17 @@ namespace Rtx
 
             // The pair the report prints follows the copy, so what it says is what is left to save
             // rather than what was saved once.
-            mCompactableNow -= state.mBuiltSize;
-            mCompactableTight -= tight;
+            if (tight)
+            {
+                mCompactableNow -= state.mBuiltSize;
+                mCompactableTight -= state.mTightSize;
+            }
 
-            state.mBuiltSize = tight;
+            state.mBuiltSize = size;
             state.mTightness = Tightness::Tight;
 
             mMovedMeshes.addMakingRoom(slot);
-            taken += tight;
+            taken += size;
         }
 
         mAnswered.settle();

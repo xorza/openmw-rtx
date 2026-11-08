@@ -414,7 +414,12 @@ at the top, over all of them.
   first, until the arrival fits, as Unreal's streamer takes one mip at a time off until its plan
   fits the pool. One side for the whole arrival, refused, came down by halves: a world built
   again in one arrival under a budget stood 1383 MiB of textures and left 1344 MiB of room unused
-  (`TextureArray::chooseLevels`). The top level and its scratch are made at the world's room, tens of MiB against
+  (`TextureArray::chooseLevels`). A bottom level is built loose in storage of its own and copied
+  out of it, tight where that is smaller, so that storage empties whole, as RTXMU gives a build's
+  memory back once its compaction is done; a structure built to be refitted is built where it
+  stays. One storage for both, refused, filled the loose blocks' holes with the copies, and a
+  structure never copied held each block: a world built again kept 206 MiB of blocks for 66 MiB of
+  structures (`BottomLevelStore`). The top level and its scratch are made at the world's room, tens of MiB against
   a structure made on a crossing frame. Refused, by the user's decision after a measurement or an
   estimate:
   - textures shared across scenes: a doll's 12–17 textures are 0.2 MB and 0.4–1.1 ms on vanilla,

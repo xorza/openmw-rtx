@@ -1,3 +1,3 @@
 # Open issues
 
-- A world built again in one arrival reserves almost twice the structure memory the same world loaded cell by cell reserves, and its textures stand in what is left: at `seyda-neen-wall-noon` on the PBR profile with `--memory-budget=6004`, the load held 151.8 MiB of structures in 152.4 MiB reserved, and the world built again on a change of upscaling mode 150.9 MiB in 290.6 MiB reserved, with the structures' use at 206.0 MiB against 67.7 MiB.
+- A world built again in one arrival chooses its textures' levels while its bottom-level structures stand loose, and never again after compaction gives that room back: at `seyda-neen-wall-noon` on the PBR profile with `--memory-budget=6004`, the world built again on a change of upscaling mode stood 2784.3 MiB of textures, 63 of them held smaller, and kept 203.0 MiB of texture room unused once its structures stood tight at 66.5 MiB, where the same world loaded cell by cell stood 3095.1 MiB.

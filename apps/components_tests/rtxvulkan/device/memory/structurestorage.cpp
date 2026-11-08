@@ -40,7 +40,7 @@ namespace Rtx
             const Device& device = getDevice();
             StructureStorage storage(
                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                "test structures");
+                "test structures", StructureStorage::LastBlock::Kept);
 
             const StructureRoom first = storage.take(device, 1024, sBlock).value();
             const StructureRoom second = storage.take(device, 2048, sBlock).value();
@@ -95,6 +95,29 @@ namespace Rtx
             EXPECT_EQ(storage.getLiveBytes(), sBlock);
         }
 
+        /// **The last block goes back once it empties where the storage gives it back, and stays
+        /// where it keeps it.** One structure of a block's size, given back and cooled, empties
+        /// the one block either storage has.
+        TEST_F(RtxStructureStorageTest, theLastBlockGoesBackOnlyWhereTheStorageGivesItBack)
+        {
+            const Device& device = getDevice();
+            const auto emptied = [&](const StructureStorage::LastBlock last) {
+                StructureStorage storage(
+                    VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                    "test structures", last);
+                const StructureRoom room = storage.take(device, sBlock, sBlock).value();
+                EXPECT_EQ(storage.getBytes(), sBlock);
+                storage.retire(room, device.getTimeline().getNext());
+                getPool().submitAndWait([](VkCommandBuffer) {});
+                storage.reclaim(device.getTimeline().getKnownFinished());
+                EXPECT_EQ(storage.getLiveBytes(), 0u);
+                return storage.getBytes();
+            };
+
+            EXPECT_EQ(emptied(StructureStorage::LastBlock::GivenBack), 0u);
+            EXPECT_EQ(emptied(StructureStorage::LastBlock::Kept), sBlock);
+        }
+
         /// A structure larger than the block a caller asked for gets a block that holds it.
         ///
         /// **A load knows its whole total and asks for it; an arrival does not.** So the size named
@@ -105,7 +128,7 @@ namespace Rtx
             const Device& device = getDevice();
             StructureStorage storage(
                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                "test structures");
+                "test structures", StructureStorage::LastBlock::Kept);
 
             const StructureRoom big = storage.take(device, 5 * sBlock, sBlock).value();
             EXPECT_EQ(big.mBlock, 0u);
@@ -132,7 +155,7 @@ namespace Rtx
             MemoryAllocator& memory = device.getMemory();
             StructureStorage storage(
                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                "test structures");
+                "test structures", StructureStorage::LastBlock::Kept);
 
             const Testing::NoRoomForContent full(device);
 

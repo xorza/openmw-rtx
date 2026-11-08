@@ -40,11 +40,23 @@ namespace Rtx
         /// block for — sums them in this unit.
         static constexpr VkDeviceSize sAlignment = sStructureOffsetAlignment;
 
+        /// What a storage does with its last block once that empties too.
+        enum class LastBlock : std::uint8_t
+        {
+            /// Kept, so a scene that empties and fills does not ask for it back on the next arrival.
+            Kept,
+
+            /// Given back like any other: a storage every structure leaves, whose kept block would
+            /// be the largest arrival's for as long as the scene stood.
+            GivenBack,
+        };
+
         /// @param usage what a block's buffer is created with, which is what says who may be placed
         ///        in it. What is stored this way is an opaque object the driver puts at a 256-byte
         ///        offset in a buffer the application owns.
         /// @param name what a block is called in a capture, numbered from there.
-        StructureStorage(VkBufferUsageFlags usage, std::string name);
+        /// @param last what becomes of the last block once it empties.
+        StructureStorage(VkBufferUsageFlags usage, std::string name, LastBlock last);
 
         /// Pinned: every structure placed here keeps a pointer to it, to give its room back.
         StructureStorage(const StructureStorage&) = delete;
@@ -114,5 +126,6 @@ namespace Rtx
 
         VkBufferUsageFlags mUsage = 0;
         std::string mName;
+        LastBlock mLast;
     };
 }

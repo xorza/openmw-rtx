@@ -10,6 +10,7 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
+#include <apps/components_tests/rtx/support/geometry.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -60,9 +61,9 @@ namespace Rtx
             BlockedBuffer mIndices{ Shaders::INDEX_BLOCK, sizeof(std::uint32_t) };
             bool mOpened = false;
 
-            /// Puts the scene's static positions and index runs on the device, as `SceneBuffers` and
-            /// `SceneAcceleration` do, which is what a build reads through. Again after meshes are
-            /// added, which writes every run once more.
+            /// Puts the scene's static positions and index runs on the device, and room for its bodies'
+            /// poses, as `SceneBuffers` and `SceneAcceleration` do, which is what a build reads through. Again after
+            /// meshes are added, which writes every run once more.
             void stage()
             {
                 const Device& device = getDevice();
@@ -77,6 +78,7 @@ namespace Rtx
                 }
 
                 Batch setup(getPool());
+                mPoses.reserve(setup, tables.deformers().getBindVertexCount());
                 mPositions.reserve(setup, static_cast<std::uint32_t>(tables.meshes().getPositions().size()));
                 mIndices.reserve(setup, static_cast<std::uint32_t>(tables.meshes().getIndices().size()));
                 for (const MeshRange& range : tables.meshes().getRows())
@@ -310,6 +312,49 @@ namespace Rtx
             const VkDeviceSize together = scratchOf(sStructureBuildRoom);
             ASSERT_GT(alone, 0u);
             EXPECT_EQ(together, 4 * alone) << "four grids in one run do not share one scratch";
+        }
+
+        /// **Every structure leaves the loose storage, which then holds nothing**: a body built to
+        /// be refitted is built where it stays, so building it takes no loose room, and two grids
+        /// of sixty-four and one of a single quad, whose tight copy the driver may answer no smaller
+        /// for, are each copied out — tight, or as they stand — and the loose block they were built
+        /// in goes back to the device once the copies have run.
+        TEST_F(RtxBottomLevelStoreTest, everyStructureLeavesTheLooseStorageWhichThenHoldsNothing)
+        {
+            const std::vector<osg::Vec3f> corners{ { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 } };
+            const std::vector<osg::Vec3f> up(3, osg::Vec3f(0, 0, 1));
+            const std::vector<std::uint32_t> triangle{ 0, 1, 2 };
+            const Index body = Testing::addOneBoneBody(
+                mScene, MeshArrays{ .mPositions = corners, .mNormals = up, .mIndices = triangle })
+                                   .mMesh;
+            const std::array<Index, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+                addGrid(mScene, 1, 2.0f) };
+            stage();
+
+            BottomLevelStore store(getDevice());
+            build(store, std::span(&body, 1));
+            ASSERT_TRUE(store.isUpdatable(body));
+            EXPECT_GT(store.getBytes(), 0u);
+            EXPECT_EQ(store.getLooseBytes(), 0u) << "a structure built to be refitted took loose room";
+
+            build(store, grids);
+            EXPECT_GT(store.getLooseBytes(), 0u);
+
+            const SlotSet& moved = place(store);
+            for (const Index grid : grids)
+                EXPECT_TRUE(moved.has(grid)) << "grid " << grid << " stayed in the loose storage";
+            EXPECT_FALSE(moved.has(body)) << "a structure built to be refitted was copied";
+
+            // The loose rooms cool under the copies' submit, and the next placement hands them back.
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+            EXPECT_TRUE(place(store).empty());
+            EXPECT_EQ(store.getLooseBytes(), 0u) << "a loose block outlived every structure in it";
+
+            // Before the store goes: a buried structure gives its room back to the store's storage.
+            getDevice().waitIdle();
+            getDevice().collectIdle();
         }
 
         /// **A block made part way through an arrival covers what is still to place.** Two grids of

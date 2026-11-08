@@ -24,9 +24,10 @@ namespace Rtx
         }
     }
 
-    StructureStorage::StructureStorage(VkBufferUsageFlags usage, std::string name)
+    StructureStorage::StructureStorage(VkBufferUsageFlags usage, std::string name, const LastBlock last)
         : mUsage(usage)
         , mName(std::move(name))
+        , mLast(last)
     {
     }
 
@@ -95,14 +96,13 @@ namespace Rtx
         if (room.empty())
             return;
 
-        // A block that empties goes back to the device, one at a time and never a sweep. A
-        // refitted structure stays for the life of its mesh and pins its block. The last one
-        // standing stays, so a scene that empties and fills does not ask for it back on the next
-        // arrival. Asked only of a block that emptied, and what it answers yes to is retired.
+        // A block that empties goes back to the device, one at a time and never a sweep, and the
+        // last one standing as `mLast` says. Asked only of a block that emptied, and what it
+        // answers yes to is retired.
         assert(mLiveUnits >= room.mRun.mCount && "a room given back that was never counted");
         mLiveUnits -= room.mRun.mCount;
         mBlocks.give(room, [&](const Block& block) {
-            if (mLiveBlocks <= 1)
+            if (mLast == LastBlock::Kept && mLiveBlocks <= 1)
                 return false;
 
             mBytes -= block.mBuffer.getSize();
