@@ -38,10 +38,14 @@ openmw_add_test(cs openmw-cs-tests)
 openmw_add_test(crash.matrix crash-tests ARGS --matrix "${RTX_TEST_OUTPUT_DIR}/crash-matrix")
 
 # Two processes on one device, so one's host work overlaps the other's device work: 17 s rather than
-# 23, and three shards were no faster than two.
+# 23, and three shards were no faster than two. Fifteen minutes and not the preset's five: the first
+# run after a shader change compiles every pipeline, which passed 300 s on a low-end AMD integrated
+# GPU under AMD's Windows driver, where the same binary with its pipelines in the cache took 74 s.
+# The property and not `--timeout`, which sets only the limit of a test that states none.
 foreach (shard RANGE 1)
     openmw_add_test(rtx.gpu.${shard} rtx-gpu-tests LABELS device)
     if (TEST rtx.gpu.${shard})
         set_property(TEST rtx.gpu.${shard} APPEND PROPERTY ENVIRONMENT "GTEST_TOTAL_SHARDS=2;GTEST_SHARD_INDEX=${shard}")
+        set_property(TEST rtx.gpu.${shard} PROPERTY TIMEOUT 900)
     endif()
 endforeach()
