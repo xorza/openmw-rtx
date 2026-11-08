@@ -59,24 +59,25 @@ namespace Rtx
     namespace
     {
         /// Every trace module a kernel of the pass runs, which its shader code reads once.
-        constexpr std::array<std::string_view, 23> sTraceModules{ "visibility.comp.spv", "direct.comp.spv",
+        constexpr std::array<std::string_view, 12> sTraceModules{ "visibility.comp.spv", "direct.comp.spv",
             "media.comp.spv", "panes.comp.spv", "bounce.comp.spv", "landing.comp.spv", "unbounced.comp.spv",
             "fogscatter.rgen.spv", "fogdepth.rgen.spv", "spritecomposite.rgen.spv", "spriteshelter.rgen.spv",
-            "spriteemitters.rgen.spv", "visibility.dark.comp.spv", "direct.dark.comp.spv", "media.dark.comp.spv",
-            "panes.dark.comp.spv", "bounce.dark.comp.spv", "landing.dark.comp.spv", "unbounced.dark.comp.spv",
-            "fogscatter.dark.rgen.spv", "fogdepth.dark.rgen.spv", "spritecomposite.dark.rgen.spv",
-            "spriteshelter.dark.rgen.spv" };
+            "spriteemitters.rgen.spv" };
 
-        /// The words of the whole tuple, which the kernels made once and not per tuple run under:
-        /// the sun, the moons, the sea and the maps all standing, and nothing counted.
-        constexpr std::array<std::uint32_t, Shaders::SPEC_COUNT> sWholeSky = [] {
+        /// One word per `constant_id` for `tuple`, with nothing counted and no stage named.
+        constexpr std::array<std::uint32_t, Shaders::SPEC_COUNT> wordsOf(const VisibilityVariant& tuple)
+        {
             std::array<std::uint32_t, Shaders::SPEC_COUNT> words{};
-            words[Shaders::SPEC_HAS_SUN] = 1u;
-            words[Shaders::SPEC_HAS_MOONS] = 1u;
-            words[Shaders::SPEC_HAS_SEA] = 1u;
-            words[Shaders::SPEC_HAS_MAPS] = 1u;
+            words[Shaders::SPEC_HAS_SUN] = tuple.mSun ? 1u : 0u;
+            words[Shaders::SPEC_HAS_MOONS] = tuple.mMoons ? 1u : 0u;
+            words[Shaders::SPEC_HAS_SEA] = tuple.mSea ? 1u : 0u;
+            words[Shaders::SPEC_HAS_MAPS] = tuple.mMaps ? 1u : 0u;
+            words[Shaders::SPEC_HAS_DARK_ALPHA] = tuple.mDarkAlpha ? 1u : 0u;
             return words;
-        }();
+        }
+
+        /// The words of the whole tuple, which the kernels made once and not per tuple run under.
+        constexpr std::array<std::uint32_t, Shaders::SPEC_COUNT> sWholeSky = wordsOf(VisibilityVariant{});
 
         /// Whether every table has an address, and each is aligned as the reference that reads it
         /// declares. Debug-only, through the assert that calls it.
@@ -183,31 +184,11 @@ namespace Rtx
             vkCmdDispatchIndirect(commands, tiles.getHandle(), VkDeviceSize{ 4u * list } * sizeof(std::uint32_t));
         }
 
-        /// A module without and with a see-through candidate's dark map alpha, at
-        /// `VisibilityPass::twinOf`: the `<name>.dark.<stage>` twin `rtx_compile_shader` builds.
-        using TwinModules = std::array<std::string_view, 2>;
-
-        /// A launch no tuple of the sky changes, made once a twin: its modules, and the name each
-        /// kernel is made under, at `VisibilityPass::twinOf` as well.
-        struct TwinLaunch
-        {
-            TwinModules mModules;
-            std::array<std::string_view, 2> mNames;
-        };
-
-        constexpr TwinModules sScatterModules{ "fogscatter.rgen.spv", "fogscatter.dark.rgen.spv" };
-        constexpr TwinLaunch sDepthLaunch{ { "fogdepth.rgen.spv", "fogdepth.dark.rgen.spv" },
-            { "fog depth", "fog depth dark" } };
-        constexpr TwinLaunch sCompositeLaunch{ { "spritecomposite.rgen.spv", "spritecomposite.dark.rgen.spv" },
-            { "sprite composite", "sprite composite dark" } };
-        constexpr TwinLaunch sShelterLaunch{ { "spriteshelter.rgen.spv", "spriteshelter.dark.rgen.spv" },
-            { "sprite shelter", "sprite shelter dark" } };
-
-        /// One of the trace's stages: its modules, the name its kernels are made under, the zone it
+        /// One of the trace's stages: its module, the name its kernels are made under, the zone it
         /// is timed in, and the list it runs over, or none for one over every pixel.
         struct Stage
         {
-            TwinModules mModules;
+            std::string_view mModule;
             std::string_view mName;
             FrameZone mZone;
             std::optional<std::uint32_t> mList;
@@ -224,16 +205,14 @@ namespace Rtx
         /// list — the pair once for each of the frame's bounce rays, each landing over its ray's list
         /// (`landingDispatch`); and in the pair's place, where no bounce is traced, the ambient's stage.
         constexpr std::array<Stage, 8> sTraceStages{ {
-            { { "visibility.comp.spv", "visibility.dark.comp.spv" }, "visibility", FrameZone::Trace, std::nullopt },
-            { { "visibility.comp.spv", "visibility.dark.comp.spv" }, "water", FrameZone::Water,
-                Shaders::STAGE_LIST_WATER },
-            { { "direct.comp.spv", "direct.dark.comp.spv" }, "direct", FrameZone::Direct, std::nullopt },
-            { { "media.comp.spv", "media.dark.comp.spv" }, "media", FrameZone::Media, Shaders::STAGE_LIST_MEDIA },
-            { { "panes.comp.spv", "panes.dark.comp.spv" }, "panes", FrameZone::Panes, Shaders::STAGE_LIST_PANES },
-            { { "bounce.comp.spv", "bounce.dark.comp.spv" }, "bounce", FrameZone::Bounce, std::nullopt },
-            { { "landing.comp.spv", "landing.dark.comp.spv" }, "landing", FrameZone::Landing,
-                Shaders::STAGE_DISPATCH_LANDING },
-            { { "unbounced.comp.spv", "unbounced.dark.comp.spv" }, "unbounced", FrameZone::Bounce, std::nullopt },
+            { "visibility.comp.spv", "visibility", FrameZone::Trace, std::nullopt },
+            { "visibility.comp.spv", "water", FrameZone::Water, Shaders::STAGE_LIST_WATER },
+            { "direct.comp.spv", "direct", FrameZone::Direct, std::nullopt },
+            { "media.comp.spv", "media", FrameZone::Media, Shaders::STAGE_LIST_MEDIA },
+            { "panes.comp.spv", "panes", FrameZone::Panes, Shaders::STAGE_LIST_PANES },
+            { "bounce.comp.spv", "bounce", FrameZone::Bounce, std::nullopt },
+            { "landing.comp.spv", "landing", FrameZone::Landing, Shaders::STAGE_DISPATCH_LANDING },
+            { "unbounced.comp.spv", "unbounced", FrameZone::Bounce, std::nullopt },
         } };
     }
 
@@ -300,11 +279,9 @@ namespace Rtx
     {
         // Queued after the full tuple, which takes seconds a kernel where these take tens of
         // milliseconds: a hand takes up whatever is next, and a tuple taken last is the whole batch
-        // waiting on one hand. Each at the full tuple's dark map, and those that walk past a
-        // see-through candidate again without it, which every scene but nearly none draws with.
+        // waiting on one hand.
         constexpr std::array singles{ Kernel::Depth, Kernel::Integrate, Kernel::SpriteComposite, Kernel::SpriteShelter,
             Kernel::SpriteEmitters };
-        constexpr std::array twinned{ Kernel::Depth, Kernel::SpriteComposite, Kernel::SpriteShelter };
 
         // **The full tuple first, on every hand**, which every frame draws with until its own is made:
         // its constants are all true and the shaders' own tests answer the rest. Its froxels' launch
@@ -314,14 +291,12 @@ namespace Rtx
             "a stage with no row, or a row with no stage");
         const VisibilityVariant full{};
         std::vector<Wanted> drawing;
-        drawing.reserve(sStageCount + 1 + singles.size() + twinned.size());
+        drawing.reserve(sStageCount + 1 + singles.size());
         for (std::size_t stage = 0; stage < sStageCount; ++stage)
             drawing.push_back(Wanted{ .mKernel = static_cast<Kernel>(stage), .mVariant = full });
         drawing.push_back(Wanted{ .mKernel = Kernel::Scatter, .mVariant = full });
         for (const Kernel single : singles)
             drawing.push_back(Wanted{ .mKernel = single });
-        for (const Kernel single : twinned)
-            drawing.push_back(Wanted{ .mKernel = single, .mVariant = VisibilityVariant{ .mDarkAlpha = false } });
 
         // So that a hand's validation error reaches whoever asked for these pipelines. The
         // layers report on the thread that made the call, and the log files by thread because the
@@ -418,12 +393,8 @@ namespace Rtx
         // One word per `constant_id`. The volume traces no primary ray and so adds no miss, but its
         // froxels are a boundary the finiteness count watches, so it counts under the same word as
         // the trace.
-        std::array<std::uint32_t, Shaders::SPEC_COUNT> specialization{};
+        std::array<std::uint32_t, Shaders::SPEC_COUNT> specialization = wordsOf(variant);
         specialization[Shaders::SPEC_COUNTING] = mCounting;
-        specialization[Shaders::SPEC_HAS_SUN] = variant.mSun ? 1u : 0u;
-        specialization[Shaders::SPEC_HAS_MOONS] = variant.mMoons ? 1u : 0u;
-        specialization[Shaders::SPEC_HAS_SEA] = variant.mSea ? 1u : 0u;
-        specialization[Shaders::SPEC_HAS_MAPS] = variant.mMaps ? 1u : 0u;
         specialization[Shaders::SPEC_WATER_STAGE] = wanted.mKernel == Kernel::Water ? 1u : 0u;
 
         switch (wanted.mKernel)
@@ -440,51 +411,39 @@ namespace Rtx
                 const auto at = static_cast<std::size_t>(wanted.mKernel);
                 const Stage& stage = sTraceStages[at];
                 mKernels.mStages[at][variant.index()] = std::make_unique<ComputePipeline<Shaders::StageConstants>>(
-                    mDevice, sBindings, sharedSets(textureLayout), *mCode, stage.mModules[twinOf(variant.mDarkAlpha)],
-                    variant.describe(stage.mName), specialization, SubgroupSize::ThirtyTwo);
+                    mDevice, sBindings, sharedSets(textureLayout), *mCode, stage.mModule, variant.describe(stage.mName),
+                    specialization, SubgroupSize::ThirtyTwo);
                 return;
             }
             case Kernel::Scatter:
-                mKernels.mScatter[variant.index()] = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), *mCode, sScatterModules[twinOf(variant.mDarkAlpha)],
-                    variant.describe("fog scatter"), specialization);
+                mKernels.mScatter[variant.index()]
+                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
+                        *mCode, "fogscatter.rgen.spv", variant.describe("fog scatter"), specialization);
                 return;
             // From here on no tuple of the sky: each is made at the whole sky and counting nothing,
-            // once, or once a twin where it walks past a see-through candidate (`Wanted::mVariant`'s
-            // dark map alone). **The whole sky computes what each tuple would**, since a constant a
+            // once. **The whole sky computes what each tuple would**, since a constant a
             // tuple sets false stands in front of a runtime test that already answers no
             // (`variants.glsl`), and what a tuple would take out is a few hundredths of a millisecond
             // of puffs and emitters, against a pipeline more each to compile cold. Handed those words
             // and not left to the GLSL's defaults, which say the same, so that no constant a module
             // reads takes a default in silence (`specializationDisagreement`).
             case Kernel::Depth:
-            {
-                const std::size_t twin = twinOf(variant.mDarkAlpha);
-                mKernels.mDepth[twin]
-                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
-                        *mCode, sDepthLaunch.mModules[twin], sDepthLaunch.mNames[twin], sWholeSky);
+                mKernels.mDepth = std::make_unique<TracePipeline<NoConstants>>(
+                    mDevice, sBindings, sharedSets(textureLayout), *mCode, "fogdepth.rgen.spv", "fog depth", sWholeSky);
                 return;
-            }
             case Kernel::Integrate:
                 mKernels.mIntegrate = std::make_unique<ComputePipeline<NoConstants>>(
                     mDevice, sBindings, sharedSets(textureLayout), "fogintegrate.comp.spv", "fog integrate", sWholeSky);
                 return;
             case Kernel::SpriteComposite:
-            {
-                const std::size_t twin = twinOf(variant.mDarkAlpha);
-                mKernels.mSpriteComposite[twin] = std::make_unique<TracePipeline<Shaders::PuffConstants>>(mDevice,
-                    sCompositeBindings, sharedSets(textureLayout), *mCode, sCompositeLaunch.mModules[twin],
-                    sCompositeLaunch.mNames[twin], sWholeSky);
+                mKernels.mSpriteComposite
+                    = std::make_unique<TracePipeline<Shaders::PuffConstants>>(mDevice, sCompositeBindings,
+                        sharedSets(textureLayout), *mCode, "spritecomposite.rgen.spv", "sprite composite", sWholeSky);
                 return;
-            }
             case Kernel::SpriteShelter:
-            {
-                const std::size_t twin = twinOf(variant.mDarkAlpha);
-                mKernels.mSpriteShelter[twin]
-                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
-                        *mCode, sShelterLaunch.mModules[twin], sShelterLaunch.mNames[twin], sWholeSky);
+                mKernels.mSpriteShelter = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                    sharedSets(textureLayout), *mCode, "spriteshelter.rgen.spv", "sprite shelter", sWholeSky);
                 return;
-            }
             case Kernel::SpriteEmitters:
                 mKernels.mSpriteEmitters = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
                     sharedSets(textureLayout), *mCode, "spriteemitters.rgen.spv", "sprite emitters", sWholeSky);
@@ -515,21 +474,18 @@ namespace Rtx
         if (mSpecialize)
             mSpecializing.wait();
         for (std::size_t stage = 0; stage < sStageCount; ++stage)
-            for (const std::unique_ptr<ComputePipeline<Shaders::StageConstants>>& kernel : made.mStages[stage])
-                if (kernel != nullptr)
-                    out.push_back(NamedKernel{ sTraceStages[stage].mName, kernel.get() });
-        for (const std::unique_ptr<TracePipeline<NoConstants>>& kernel : made.mScatter)
-            if (kernel != nullptr)
-                out.push_back(NamedKernel{ "fog scatter", kernel.get() });
-        for (const bool darkAlpha : { false, true })
-        {
-            const std::size_t twin = twinOf(darkAlpha);
-            out.push_back(NamedKernel{ sDepthLaunch.mNames[twin], made.mDepth[twin].get() });
-            out.push_back(NamedKernel{ sCompositeLaunch.mNames[twin], made.mSpriteComposite[twin].get() });
-            out.push_back(NamedKernel{ sShelterLaunch.mNames[twin], made.mSpriteShelter[twin].get() });
-        }
-        out.push_back(NamedKernel{ "sprite emitters", made.mSpriteEmitters.get() });
-        out.push_back(NamedKernel{ "fog integrate", made.mIntegrate.get() });
+            for (std::uint32_t tuple = 0; tuple < VisibilityVariant::sCount; ++tuple)
+                if (const auto& kernel = made.mStages[stage][tuple]; kernel != nullptr)
+                    out.push_back(NamedKernel{ sTraceStages[stage].mName, kernel.get(), tuple });
+        for (std::uint32_t tuple = 0; tuple < VisibilityVariant::sCount; ++tuple)
+            if (const auto& kernel = made.mScatter[tuple]; kernel != nullptr)
+                out.push_back(NamedKernel{ "fog scatter", kernel.get(), tuple });
+        const std::uint32_t whole = VisibilityVariant{}.index();
+        out.push_back(NamedKernel{ "fog depth", made.mDepth.get(), whole });
+        out.push_back(NamedKernel{ "sprite composite", made.mSpriteComposite.get(), whole });
+        out.push_back(NamedKernel{ "sprite shelter", made.mSpriteShelter.get(), whole });
+        out.push_back(NamedKernel{ "sprite emitters", made.mSpriteEmitters.get(), whole });
+        out.push_back(NamedKernel{ "fog integrate", made.mIntegrate.get(), whole });
     }
 
     const VisibilityPass::Kernels& VisibilityPass::kernels() const
@@ -731,7 +687,7 @@ namespace Rtx
 
         const GpuZone timed(timer, commands, FrameZone::Shelter);
 
-        const auto& shelter = *kernels().mSpriteShelter[twinOf(inputs.mSubject.mDarkAlpha)];
+        const auto& shelter = *kernels().mSpriteShelter;
         bind(commands, shelter);
         pushInputs(commands, shelter, inputs);
 
@@ -783,7 +739,7 @@ namespace Rtx
 
             // Where each column's ray stops, before anything is drawn along it. One ray a
             // column, and the froxels of the column keep their draws short of the answer.
-            const auto& depth = *kernels().mDepth[twinOf(variant.mDarkAlpha)];
+            const auto& depth = *kernels().mDepth;
             bind(commands, depth);
             pushInputs(commands, depth, inputs);
 
@@ -878,7 +834,7 @@ namespace Rtx
         // extent costs apart from what binning the sprites over the traced one does.
         const GpuZone timed(timer, commands, FrameZone::Puffs);
 
-        const auto& composite = *kernels().mSpriteComposite[twinOf(inputs.mSubject.mDarkAlpha)];
+        const auto& composite = *kernels().mSpriteComposite;
         bind(commands, composite);
         pushInputs(commands, composite, inputs, &shown);
         composite.push(commands,

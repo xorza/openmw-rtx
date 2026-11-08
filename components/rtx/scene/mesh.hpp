@@ -256,7 +256,7 @@ namespace Rtx
 
         /// How many wear a dark map whose alpha falls below solid — `Material::Traversed::mDarkAlpha`
         /// — and so whether the trace reads a dark map's alpha at a see-through candidate at all
-        /// (`RTX_DARK_ALPHA`). None in nearly every scene.
+        /// (`HAS_DARK_ALPHA`). None in nearly every scene.
         std::uint32_t mDarkAlpha = 0;
     };
 }

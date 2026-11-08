@@ -25,8 +25,9 @@ namespace Rtx::Shaders
     const uint SPEC_HAS_MOONS = 2u;
     const uint SPEC_HAS_SEA = 3u;
     const uint SPEC_HAS_MAPS = 4u;
-    const uint SPEC_WATER_STAGE = 5u;
-    const uint SPEC_COUNT = 6u;
+    const uint SPEC_HAS_DARK_ALPHA = 5u;
+    const uint SPEC_WATER_STAGE = 6u;
+    const uint SPEC_COUNT = 7u;
 
     /// What a trace stage is pushed beside the frame block: which of the frame's bounce rays the
     /// bounce's and the landing's stages trace and light (`bounce.comp`, `landing.comp`), counting the

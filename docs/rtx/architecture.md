@@ -542,7 +542,9 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   ceiling one that only falls: at 128 registers an RDNA SIMD runs eight waves, at 256 four. A
   register ceiling rises only inside the waves it already allowed, with no scratch: `direct` went
   from 244 to 256, four waves at either, for the gather that carries the lamp's draw and not its
-  ray (`research/2026-10-22-amd-integrated-spill-ceilings.md`). A
+  ray (`research/2026-10-22-amd-integrated-spill-ceilings.md`). The whole tuple, which alone reads a
+  see-through dark map's alpha (`HAS_DARK_ALPHA`), holds ceilings of its own past that rule, since nearly
+  no scene runs it for long; the same tuple without the read holds the rule's. A
   spill is a cost measured and cut where it shows in the frame, as NVIDIA cut Indiana Jones' path
   tracer's; held at nought, it kept the gate red until a redesign and hid a new regression behind
   the old failure.
@@ -656,10 +658,11 @@ The rest are compute passes — the fog's integration, the sprites' bins, the bo
 merge, the denoiser, the composite, the display chain, skinning, texture preparation, the sea and
 the ripples — but for the fog's depth and scatter, the sprites' composite, shelter and emitters,
 and the harness's probe, each a launch of a ray generation stage alone (`TracePipeline`).
-Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`). The
-one read nearly no scene asks for, a see-through candidate's dark map alpha, is a module of its own
-instead (`RTX_DARK_ALPHA`): set false, a constant left the read in the module the build's optimizer
-laid out, and one driver ran the vanilla bounce 2.6% slower for it.
+Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`), a
+see-through candidate's dark map alpha among them (`HAS_DARK_ALPHA`). Refused: a module of its own
+for that read (`<name>.dark.<stage>`), which held one driver's vanilla bounce 2.6% faster
+(`cc6d8f3e09`) and built eleven shaders a second time for one read, beside the one way every other
+fact of a frame is told to the compiler.
 Every store of an image goes through the census (`lib/census.glsl`), as does every float a shader
 writes into a buffer. Every shader is built twice: the game's modules carry no census, and the
 harness's, which every run but a measured one reads (`Rtx::ShaderSet`), count each NaN or infinity

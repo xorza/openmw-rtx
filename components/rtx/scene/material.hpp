@@ -207,7 +207,7 @@ namespace Rtx
         /// Whether the dark map's alpha ever falls below solid where the material is blended, so a
         /// see-through hit's coverage is the diffuse's alpha times the dark map's, as `objects.frag`
         /// multiplies them. Nearly every dark map is opaque, and the trace reads none for it
-        /// (`RTX_DARK_ALPHA`).
+        /// (`HAS_DARK_ALPHA`).
         bool mDarkBelowSolid = false;
 
         /// What one texel of the diffuse map adds on average under this material's blend, in

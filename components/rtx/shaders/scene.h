@@ -525,7 +525,7 @@ namespace Rtx::Shaders
 
     /// A blended material whose dark map's alpha falls below solid (`Rtx::Material::mDarkBelowSolid`):
     /// a see-through hit's coverage takes the dark map's alpha too, where a scene that places one
-    /// compiles the read in (`RTX_DARK_ALPHA`).
+    /// compiles the read in (`HAS_DARK_ALPHA`).
     const uint MATERIAL_DARK_ALPHA = 0x800000u;
 
     /// The normal map's alpha is a height the texture coordinates are shifted by —

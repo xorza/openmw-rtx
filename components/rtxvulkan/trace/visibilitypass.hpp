@@ -123,6 +123,9 @@ namespace Rtx
         {
             std::string_view mName;
             const Pipeline* mPipeline = nullptr;
+
+            /// Which tuple it runs, `VisibilityVariant::index`: the whole one for a launch no tuple changes.
+            std::uint32_t mTuple = 0;
         };
 
         /// Every kernel the pass made, once the compile is over: for what is asked of a kernel and
@@ -286,7 +289,7 @@ namespace Rtx
         /// serves every frame.
         Buffer mConstants;
 
-        /// Fixed for the life of the pass, where the four in `VisibilityVariant` are the frame's:
+        /// Fixed for the life of the pass, where those in `VisibilityVariant` are the frame's:
         /// what counts is which binary was built and not what is being looked at. As the word the
         /// kernels are specialized with.
         std::uint32_t mCounting = 0;
@@ -303,14 +306,6 @@ namespace Rtx
         /// `mChannelLayout` is.
         const SetLayout* mVolumeLayout = nullptr;
 
-        /// A kernel compiled without a see-through candidate's dark map alpha and with it, at
-        /// `twinOf`.
-        template <class Pipeline>
-        using DarkTwins = std::array<std::unique_ptr<Pipeline>, 2>;
-
-        /// The slot of `DarkTwins` that reads a dark map's alpha where `darkAlpha` says.
-        static constexpr std::size_t twinOf(bool darkAlpha) { return darkAlpha ? 1 : 0; }
-
         /// Every kernel the pass launches, filled by `compileEvery`'s hands, each writing slots no
         /// other hand does.
         struct Kernels
@@ -326,17 +321,16 @@ namespace Rtx
             std::array<std::unique_ptr<TracePipeline<NoConstants>>, VisibilityVariant::sCount> mScatter;
 
             /// The launch that finds where each column's ray stops, which no tuple of the sky changes:
-            /// it shades nothing. Two, as every launch below that walks past a see-through
-            /// candidate: without and with its dark map's alpha (`twinOf`).
-            DarkTwins<TracePipeline<NoConstants>> mDepth;
+            /// it shades nothing.
+            std::unique_ptr<TracePipeline<NoConstants>> mDepth;
 
             /// The launch that composites the puffs over the shown frame, which takes no tuple of the
             /// sky either. A launch and not a dispatch for the reason `spritecomposite.rgen` gives.
-            DarkTwins<TracePipeline<Shaders::PuffConstants>> mSpriteComposite;
+            std::unique_ptr<TracePipeline<Shaders::PuffConstants>> mSpriteComposite;
 
             /// The launch over the sprite list that keeps the rain from under the roofs. Like the
             /// composite's: it reads the structure and the tables and has no opinion about the sky.
-            DarkTwins<TracePipeline<NoConstants>> mSpriteShelter;
+            std::unique_ptr<TracePipeline<NoConstants>> mSpriteShelter;
 
             /// The launch over the emitters that writes what each is for this camera, for the same
             /// reason.

@@ -374,14 +374,12 @@ bool candidateStops(Candidate candidate, TriangleEdges edges, vec3 direction, fl
     // **And the dark map's alpha for a see-through hit's coverage**, which the hit's `resolve` multiplies
     // in: one surface hazed one way from either side (`sampledOpacity`).
     float covered = painted;
-#if RTX_DARK_ALPHA
-    if ((material.mFlags & MATERIAL_DARK_ALPHA) != 0u)
+    if (HAS_DARK_ALPHA && (material.mFlags & MATERIAL_DARK_ALPHA) != 0u)
     {
         const GpuMesh mesh = meshAt(instance.mMesh);
         covered *= darkAt(material, mesh, triangleCorners(mesh, candidate.mPrimitive), candidate.mBary, point,
             surfaceConeAt(edges, direction), coneWidth, detailed).a;
     }
-#endif
 
     // **Tested as the rasterizer tests it**, with the alpha raised by a quarter a level the read stands
     // below the finest (`alpha.glsl`'s `coveragePreservingAlphaScale`, on by default): a box filter's level

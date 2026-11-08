@@ -60,11 +60,9 @@ layout(constant_id = SPEC_HAS_SEA) const bool HAS_SEA = true;
 /// existed.
 layout(constant_id = SPEC_HAS_MAPS) const bool HAS_MAPS = true;
 
-// `RTX_DARK_ALPHA`: whether this module reads a see-through candidate's dark map alpha (`candidateStops`),
-// for a scene that places a blended material whose dark map falls below solid
-// (`Rtx::Material::mDarkBelowSolid`).
-#ifndef RTX_DARK_ALPHA
-#error "every shader is compiled with RTX_DARK_ALPHA 0 or 1"
-#endif
+/// Whether this frame's scene places a blended material whose dark map falls below solid
+/// (`Rtx::Material::mDarkBelowSolid`). False takes a see-through candidate's read of that map's alpha
+/// (`candidateStops`) out of every scene that has none, which is nearly every scene.
+layout(constant_id = SPEC_HAS_DARK_ALPHA) const bool HAS_DARK_ALPHA = true;
 
 #endif

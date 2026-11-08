@@ -1,6 +1,8 @@
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <span>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -45,22 +47,21 @@ namespace Rtx
         };
 
         /// The kernels are counted as they land, the count never goes back, and it reaches the
-        /// whole only once the compile is over. What a frame draws with is the full tuple's eight —
+        /// whole only once the compile is over. What a frame draws with is the full tuple's nine —
         /// the trace, the water's walk, its direct light, its media, its layers, its bounce, the
-        /// bounce's landing and the froxels' launch — beside the 5 kernels no tuple changes, the
-        /// air's two and the sprites' three, and again without a dark map's alpha the 3 of them that
-        /// walk past a see-through candidate; every other tuple compiles behind them, a tuple a step,
-        /// 31 of them: 15 of the maps and the sky, and those 16 again reading a dark map's alpha but
-        /// the full tuple, which reads it already.
+        /// bounce's landing, the ambient's stage and the froxels' launch — beside the 5 kernels no tuple changes, the
+        /// air's two and the sprites' three; every other tuple compiles behind them, a tuple a step,
+        /// 31 of them: 16 of the maps and the sky with no dark map's alpha, and 15 reading it, the
+        /// full tuple being the sixteenth.
         ///
         /// **The full tuple alone is watched as it compiles, and the table read off the suite's
         /// renderer**, which made every tuple before any test ran (`Testing::getRenderer` waits for
         /// `KernelSet::Every`): every kernel made again under the layers was seconds of this binary
-        /// for an answer the 16 already give.
+        /// for an answer the 14 already give.
         TEST_F(RtxVisibilityKernelsTest, theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile)
         {
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
-            constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5 + 3;
+            constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5;
 
             JobProgress progress = pass.awaitKernels(KernelSet::Drawing, std::chrono::milliseconds::zero());
             while (!progress.isDone())
@@ -94,7 +95,8 @@ namespace Rtx
         }
 
         /// **No kernel spills past its ceiling**, where the driver says (`Device::compiledUseOf`). The
-        /// full tuple, which carries every case. A kernel that spills runs at the speed of its
+        /// full tuple, which carries every case, and the same without a dark map's alpha, which is what
+        /// nearly every scene that has everything else runs. A kernel that spills runs at the speed of its
         /// scratch: the inline trace's, which carried 800 words a lane through 256 registers, drew an
         /// 80x45 frame of a low-end AMD integrated GPU in 650 ms
         /// (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`).
@@ -125,13 +127,24 @@ namespace Rtx
             // `direct` at 256 and not 244, a rise inside the waves it allowed (`docs/rtx/architecture.md`,
             // "No kernel spills past its ceiling"). `visibility` at 145 since the water's walk left it
             // for a stage of its own, which holds 219 ("The sea's walk, a stage of its own").
-            constexpr std::array<Ceiling, 6> sCeilings{ {
+            constexpr std::array<Ceiling, 6> sWithoutDarkAlpha{ {
                 { "visibility", 0, 145 },
                 { "water", 0, 219 },
                 { "direct", 0, 256 },
                 { "media", 0, 256 },
-                { "panes", 192, 256 },
+                { "panes", 80, 256 },
                 { "landing", 0, 256 },
+            } };
+            // The whole tuple, which a scene with a see-through dark map runs and every other scene only
+            // until its own tuple lands, at what that read costs it (`HAS_DARK_ALPHA`).
+            constexpr std::array<Ceiling, 7> sWhole{ {
+                { "visibility", 0, 145 },
+                { "water", 0, 244 },
+                { "direct", 0, 256 },
+                { "media", 0, 256 },
+                { "panes", 256, 256 },
+                { "landing", 0, 256 },
+                { "bounce", 0, 144 },
             } };
             constexpr std::array<std::pair<std::string_view, std::uint64_t>, 4> sStacks{ {
                 { "fog scatter", 320 },
@@ -140,22 +153,32 @@ namespace Rtx
                 { "sprite shelter", 320 },
             } };
 
-            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
+            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, true);
             std::vector<VisibilityPass::NamedKernel> kernels;
             pass.listKernels(kernels);
-            ASSERT_EQ(kernels.size(), 1u + 1u + 1u + 1u + 1u + 1u + 1u + 1u + 1u + 5u + 3u);
+
+            const std::uint32_t whole = VisibilityVariant{}.index();
+            const std::uint32_t withoutDarkAlpha = VisibilityVariant{ .mDarkAlpha = false }.index();
+            const auto tupled = [&](const std::uint32_t tuple) {
+                return std::ranges::count_if(
+                    kernels, [&](const VisibilityPass::NamedKernel& kernel) { return kernel.mTuple == tuple; });
+            };
+            ASSERT_EQ(tupled(whole), 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5);
+            ASSERT_EQ(tupled(withoutDarkAlpha), 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1);
 
             for (const VisibilityPass::NamedKernel& kernel : kernels)
             {
-                // A launch's twin that reads a dark map's alpha, at the launch's own ceiling.
-                const std::string_view twinOf = kernel.mName.ends_with(" dark")
-                    ? kernel.mName.substr(0, kernel.mName.size() - std::string_view(" dark").size())
-                    : kernel.mName;
+                if (kernel.mTuple != whole && kernel.mTuple != withoutDarkAlpha)
+                    continue;
+
                 Ceiling ceiling = sEveryOther;
-                for (const Ceiling& held : sCeilings)
+                const std::span<const Ceiling> ceilings = kernel.mTuple == whole
+                    ? std::span<const Ceiling>(sWhole)
+                    : std::span<const Ceiling>(sWithoutDarkAlpha);
+                for (const Ceiling& stated : ceilings)
                 {
-                    if (kernel.mName == held.mName)
-                        ceiling = held;
+                    if (kernel.mName == stated.mName)
+                        ceiling = stated;
                 }
 
                 const CompiledUse use
@@ -170,7 +193,7 @@ namespace Rtx
                     std::uint64_t stack = 0;
                     for (const auto& [name, held] : sStacks)
                     {
-                        if (twinOf == name)
+                        if (kernel.mName == name)
                             stack = held;
                     }
                     EXPECT_LE(*use.mStackBytes, stack) << "the " << kernel.mName << " kernel's stack";
