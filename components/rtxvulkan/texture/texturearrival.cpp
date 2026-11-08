@@ -9,6 +9,7 @@
 
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -71,7 +72,7 @@ namespace Rtx
         mBakes.push_back(Bake{ .mSource = &source, .mBake = &bake });
     }
 
-    void TextureArrival::record(Batch& batch, const TexturePasses& passes)
+    void TextureArrival::record(Batch& batch, const TexturePasses& passes, GpuTimer* const timer)
     {
         const bool any
             = !mUploads.empty() || !mClears.empty() || !mShades.empty() || !mSpreads.empty() || !mBakes.empty();
@@ -91,9 +92,9 @@ namespace Rtx
             // it wrote pending as the texture the trace samples: a phase's last barrier and the next
             // phase's first are one command.
             recordWrites(commands, barriers);
-            recordShading(commands, barriers, passes);
-            recordSpreads(commands, barriers, passes);
-            recordBakes(commands, barriers, passes);
+            recordShading(commands, barriers, passes, timer);
+            recordSpreads(commands, barriers, passes, timer);
+            recordBakes(commands, barriers, passes, timer);
             barriers.flush();
             mRecordedBarriers = barriers.getEmitted();
         }
@@ -140,10 +141,12 @@ namespace Rtx
             bake.mBake->addTransition(barriers, Use::sUndefined, Use::sComputeReadWrite);
     }
 
-    void TextureArrival::recordShading(const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes)
+    void TextureArrival::recordShading(
+        const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes, GpuTimer* const timer)
     {
         if (mShades.empty())
             return;
+        const GpuZone timed(timer, commands, FrameZone::Shading);
 
         mSums.outgrow(mShades.size() * ShadingPass::sSumBytes);
         const Buffer& sums = mSums.get();
@@ -167,10 +170,12 @@ namespace Rtx
             shade.mMap->addTransition(barriers, Use::sComputeWrite, Use::sTextureSample);
     }
 
-    void TextureArrival::recordSpreads(const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes)
+    void TextureArrival::recordSpreads(
+        const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes, GpuTimer* const timer)
     {
         if (mSpreads.empty())
             return;
+        const GpuZone timed(timer, commands, FrameZone::Spread);
 
         // **In groups whose means fit the room**, each over the room the group before worked in, in
         // the order the spreads came: the largest group is what the means are grown to, and
@@ -233,10 +238,12 @@ namespace Rtx
             spread.mSpread->addTransition(barriers, Use::sComputeWrite, Use::sTextureSample);
     }
 
-    void TextureArrival::recordBakes(const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes)
+    void TextureArrival::recordBakes(
+        const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes, GpuTimer* const timer)
     {
         if (mBakes.empty())
             return;
+        const GpuZone timed(timer, commands, FrameZone::Bake);
 
         // After the copies, because a bake's source may have arrived in this run. A stage of every
         // level of every bake at once, and the next after a barrier, since it reads back what this

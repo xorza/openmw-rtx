@@ -16,6 +16,7 @@ namespace Rtx
 {
     class Barriers;
     class Device;
+    class GpuTimer;
     struct TexturePasses;
 
     /// How many bytes of means the spreads of one group are carried through at once, past what one
@@ -59,9 +60,9 @@ namespace Rtx
         /// `SpriteLightPass` of `source` into `bake`, met undefined.
         void bake(const Image& source, const Image& bake);
 
-        /// Records the run into `batch` and empties it. Every image the run names is left as a texture
-        /// the trace samples.
-        void record(Batch& batch, const TexturePasses& passes);
+        /// Records the run into `batch` and empties it, a phase that has work timed in its own zone
+        /// where `timer` is given. Every image the run names is left as a texture the trace samples.
+        void record(Batch& batch, const TexturePasses& passes, GpuTimer* timer);
 
         /// How many bytes of means the spreads are carried through now, which an arrival that needs
         /// more is priced the rest of (`TextureArray::costAt`).
@@ -109,13 +110,13 @@ namespace Rtx
         void recordWrites(VkCommandBuffer commands, Barriers& barriers);
 
         /// Every sum, one barrier, every map.
-        void recordShading(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
+        void recordShading(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes, GpuTimer* timer);
 
         /// Each level of every spread of a group, a level of all of them between two barriers, one
         /// group after another over the same means.
-        void recordSpreads(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
+        void recordSpreads(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes, GpuTimer* timer);
 
-        void recordBakes(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes);
+        void recordBakes(VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes, GpuTimer* timer);
 
         /// The copies' regions, every upload's in one run, moved along by where its bytes landed.
         std::vector<VkBufferImageCopy> mRegions;

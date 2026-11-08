@@ -41,7 +41,7 @@ namespace Rtx
                             .standFile(device, upload, arrival, file, 0, "arrival test", regions, MemoryUse::Essential)
                             .isOk());
 
-                arrival.record(upload, passes);
+                arrival.record(upload, passes, nullptr);
                 upload.flush();
                 return arrival.getRecordedBarriers();
             }

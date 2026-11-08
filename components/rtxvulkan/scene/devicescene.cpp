@@ -59,7 +59,7 @@ namespace Rtx
             mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{ copy }));
         mAcceleration.build(
             batch, scene, mEveryMesh, mRecords, mBuffers.getPositions(), mPasses.mTopLevelPack, mRefusals);
-        mTextures.write(batch, mPasses.mTextures, arrival, textures, mRefusals);
+        mTextures.write(batch, mPasses.mTextures, arrival, textures, mRefusals, nullptr);
         mBuiltMeshes = scene.meshes().getRevision();
         mReleasedFreed = scene.meshes().getFreedCount();
         mBuiltStructure = scene.getStructureRevision();
@@ -135,7 +135,7 @@ namespace Rtx
             mBuiltMeshes = scene.meshes().getRevision();
         }
 
-        mTextures.write(batch, mPasses.mTextures, arrival, arrived, mRefusals);
+        mTextures.write(batch, mPasses.mTextures, arrival, arrived, mRefusals, timer);
 
         mBuiltStructure = scene.getStructureRevision();
     }

@@ -54,7 +54,7 @@ namespace Rtx
                     source.standFile(device, upload, arrival, sprite, 0, "sprite", regions, MemoryUse::Essential)
                         .isOk());
                 arrival.bake(source.getImage(), bake);
-                arrival.record(upload, passes);
+                arrival.record(upload, passes, nullptr);
                 upload.flush();
 
                 std::vector<std::vector<std::uint8_t>> read(levels);

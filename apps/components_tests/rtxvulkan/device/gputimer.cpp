@@ -18,9 +18,11 @@
 #include <apps/components_tests/rtx/support/device/rendererprobe.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
+#include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -32,6 +34,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace Rtx
 {
@@ -237,6 +240,26 @@ namespace Rtx
             const Drawn settled = draw(mRenderer, camera);
             EXPECT_FALSE(reports(settled.mGpu.spans(), FrameZone::Blas)) << "nothing arrived, so nothing was built";
 
+            // **And what a texture that arrives is made with**: a colour's shading map and a normal
+            // map's spread, each in a zone of its own on the frame they arrive in, and no bake, which
+            // no sprite asked for.
+            Testing::TestTexture colour;
+            Testing::paintLevels(colour, 16, 16, 5, "colour");
+            colour.mData.mSlot = scene.textures().add(VFS::Path::NormalizedView("textures/colour.dds"));
+            Testing::TestTexture normals;
+            Testing::paintLevels(normals, 16, 16, 5, "normals");
+            normals.mData.mEncoding = TextureEncoding::Normal;
+            normals.mData.mSlot = scene.textures().add(VFS::Path::NormalizedView("textures/normals_n.dds"));
+            const std::array textures{ colour.mData, normals.mData };
+            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, textures);
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            const Drawn textured = draw(mRenderer, camera);
+            EXPECT_TRUE(reports(textured.mGpu.spans(), FrameZone::Shading)) << "a colour's shading map unmeasured";
+            EXPECT_TRUE(reports(textured.mGpu.spans(), FrameZone::Spread)) << "a normal map's spread unmeasured";
+            EXPECT_FALSE(reports(textured.mGpu.spans(), FrameZone::Bake)) << "a bake no sprite asked for";
+            EXPECT_FALSE(reports(draw(mRenderer, camera).mGpu.spans(), FrameZone::Shading))
+                << "nothing arrived, so nothing was made";
+
             // **A structure that arrives builds the top level though no row moved**: a slot handed
             // out again can land its new structure at an address a buried one gave back, under rows
             // the same to the byte. A mesh nothing places is that arrival with no row at all.
@@ -294,7 +317,7 @@ namespace Rtx
             // First of the frame's own work: the placement's structures go ahead of it, and
             // placing the scene again compacts what setting it built.
             constexpr std::array sPlacement{ FrameZone::Blas, FrameZone::Compact, FrameZone::Refit, FrameZone::Tlas,
-                FrameZone::Skin, FrameZone::Ground };
+                FrameZone::Skin, FrameZone::Shading, FrameZone::Spread, FrameZone::Bake, FrameZone::Ground };
             const auto placement
                 = [&](const GpuSpan& span) { return std::ranges::find(sPlacement, span.mZone) != sPlacement.end(); };
             const auto first = std::ranges::find_if_not(stepped.mGpu.spans(), placement);

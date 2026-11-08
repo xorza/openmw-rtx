@@ -88,7 +88,7 @@ namespace Rtx
                     arrival.upload(upload.stage(std::as_bytes(map.mTexels)), image, regions);
                     arrival.spread(image, spread);
                 }
-                arrival.record(upload, passes);
+                arrival.record(upload, passes, nullptr);
                 upload.flush();
 
                 Spreads read;

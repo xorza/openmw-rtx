@@ -21,6 +21,13 @@ namespace Rtx
         Tlas,
         Skin,
 
+        /// What the textures that arrived are made with on the device, a zone a phase of the run
+        /// (`TextureArrival::record`): every colour's shading map, every normal map's spread and every
+        /// sprite's light bake.
+        Shading,
+        Spread,
+        Bake,
+
         /// The ground composites that arrived, baked and encoded in the placement after
         /// (`TextureArray::bakeComposites`).
         Ground,
@@ -86,6 +93,9 @@ namespace Rtx
         std::pair{ FrameZone::Refit, std::string_view("refit") },
         std::pair{ FrameZone::Tlas, std::string_view("tlas") },
         std::pair{ FrameZone::Skin, std::string_view("skin") },
+        std::pair{ FrameZone::Shading, std::string_view("shading") },
+        std::pair{ FrameZone::Spread, std::string_view("spread") },
+        std::pair{ FrameZone::Bake, std::string_view("bake") },
         std::pair{ FrameZone::Ground, std::string_view("ground") },
         std::pair{ FrameZone::Ripples, std::string_view("ripples") },
         std::pair{ FrameZone::Waves, std::string_view("waves") },

@@ -114,7 +114,7 @@ namespace Rtx
                 const std::optional<Image> gloss = canvasFor(Shaders::GROUND_COMPOSITE_GLOSS, true);
                 TextureArray array(device, setup, layout, passes, rooms, 2);
                 std::vector<Refusal> refused;
-                array.write(setup, passes, rooms, textures, refused);
+                array.write(setup, passes, rooms, textures, refused, nullptr);
                 array.sync(FrameSlot{});
                 std::vector<Index> everyMesh;
                 const SceneBuffers buffers(device, setup, scene,

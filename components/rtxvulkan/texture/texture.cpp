@@ -359,7 +359,7 @@ namespace Rtx
         [[maybe_unused]] const Misc::Result<void, std::string_view> stood = mStandIn.standFile(
             device, batch, arrival, describeStandIn(), 0, "stand-in", mRegionScratch, MemoryUse::Essential);
         assert(stood.isOk() && "essential memory refused rather than thrown");
-        arrival.record(batch, passes);
+        arrival.record(batch, passes, nullptr);
 
         // The last slot is the neutral texel's. `TextureTable` refuses a slot past it, so a scene
         // that reaches it is a table that broke that rule.
@@ -392,7 +392,7 @@ namespace Rtx
     }
 
     void TextureArray::write(Batch& batch, const TexturePasses& passes, TextureArrival& arrival,
-        std::span<const TextureData> arrived, std::vector<Refusal>& refused)
+        std::span<const TextureData> arrived, std::vector<Refusal>& refused, GpuTimer* const timer)
     {
         if (arrived.empty())
             return;
@@ -442,7 +442,7 @@ namespace Rtx
                 || arrived[at].mSource == TextureSource::GroundGloss)
                 stand(batch, arrival, arrived[at], mFirsts[at], refused);
 
-        arrival.record(batch, passes);
+        arrival.record(batch, passes, timer);
     }
 
     void TextureArray::chooseLevels(std::span<const TextureData> arrived, const VkDeviceSize room,

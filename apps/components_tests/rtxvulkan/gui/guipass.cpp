@@ -135,7 +135,7 @@ namespace Rtx
                 EXPECT_TRUE(
                     texture.standFile(getDevice(), upload, arrival, data, 0, name, regions, MemoryUse::Essential)
                         .isOk());
-                arrival.record(upload, passes);
+                arrival.record(upload, passes, nullptr);
                 upload.flush();
                 return texture;
             }

@@ -75,7 +75,8 @@ namespace Rtx
         /// geometry at the same size. Into `batch`, which the caller defers or flushes.
         ///
         /// @param arrival the textures' arrival, as the constructor takes it.
-        /// @param timer where the arrived meshes' build is timed, or null for a picture's scene.
+        /// @param timer where the arrived meshes' build and the arrived textures' making are timed, or
+        ///        null for a picture's scene.
         void extend(Batch& batch, TextureArrival& arrival, const SceneDesc& scene, std::span<const TextureData> arrived,
             GpuTimer* timer);
 

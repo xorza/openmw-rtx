@@ -54,7 +54,7 @@ namespace Rtx
                 EXPECT_TRUE(
                     source.standFile(device, upload, arrival, data, first, name, regions, MemoryUse::Essential).isOk());
                 arrival.shade(source.getImage(), map, data.mWrap);
-                arrival.record(upload, passes);
+                arrival.record(upload, passes, nullptr);
                 upload.flush();
 
                 std::vector<std::uint8_t> bytes;

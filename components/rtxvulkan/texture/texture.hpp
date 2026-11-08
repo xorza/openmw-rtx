@@ -195,8 +195,10 @@ namespace Rtx
         ///
         /// @param passes the renderer's, which every texture is made with as it arrives.
         /// @param arrival the renderer's, which the arrival is recorded through.
+        /// @param timer where what the arrival is made with on the device is timed, or null where it
+        ///        is not: a scene being built, which is a load and no frame's.
         void write(Batch& batch, const TexturePasses& passes, TextureArrival& arrival,
-            std::span<const TextureData> arrived, std::vector<Refusal>& refused);
+            std::span<const TextureData> arrived, std::vector<Refusal>& refused, GpuTimer* timer);
 
         /// Writes the descriptors `slot`'s set owes. Before the placement that binds it, after
         /// `finishReads`: the bindings allow an update after a bind, but not of a descriptor a

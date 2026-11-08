@@ -65,7 +65,7 @@ namespace Rtx
             const TextureData arrived = Testing::describeTexel(white, 0);
             Batch arrival(pool);
             std::vector<Refusal> refused;
-            textures.write(arrival, passes, rooms, std::span(&arrived, 1), refused);
+            textures.write(arrival, passes, rooms, std::span(&arrived, 1), refused, nullptr);
             EXPECT_TRUE(refused.empty());
             arrival.flush();
             Testing::expectAssertDies([&] { static_cast<void>(textures.getSet(FrameSlot{ 0 })); },
@@ -82,7 +82,7 @@ namespace Rtx
             // write once that set is free. Deferred, so it rides ahead of the held submit.
             const TextureData second = Testing::describeTexel(white, 1);
             Batch secondArrival(pool);
-            textures.write(secondArrival, passes, rooms, std::span(&second, 1), refused);
+            textures.write(secondArrival, passes, rooms, std::span(&second, 1), refused, nullptr);
             EXPECT_TRUE(refused.empty());
             secondArrival.defer();
             hold.submit(std::move(binding));
@@ -291,7 +291,7 @@ namespace Rtx
 
             std::vector<Refusal> refused;
             Batch arrival(getPool());
-            textures.write(arrival, passes, rooms, std::span(&first.mData, 1), refused);
+            textures.write(arrival, passes, rooms, std::span(&first.mData, 1), refused, nullptr);
             arrival.flush();
             ASSERT_TRUE(refused.empty());
 
@@ -342,7 +342,7 @@ namespace Rtx
             const std::array arrived{ wide.mData, single.mData, unread.mData };
             std::vector<Refusal> refused;
             Batch arrival(getPool());
-            textures.write(arrival, passes, rooms, arrived, refused);
+            textures.write(arrival, passes, rooms, arrived, refused, nullptr);
             arrival.flush();
 
             ASSERT_EQ(refused.size(), 1u);
@@ -389,7 +389,7 @@ namespace Rtx
             };
             {
                 Batch again(getPool());
-                textures.write(again, passes, rooms, std::array{ lone.mData, bake }, refused);
+                textures.write(again, passes, rooms, std::array{ lone.mData, bake }, refused, nullptr);
                 again.flush();
             }
             const TexturesHeld bySource = textures.getHeld();
@@ -434,7 +434,7 @@ namespace Rtx
             std::vector<Refusal> refused;
             {
                 Batch arrival(getPool());
-                textures.write(arrival, passes, rooms, std::span(&ladder.mData, 1), refused);
+                textures.write(arrival, passes, rooms, std::span(&ladder.mData, 1), refused, nullptr);
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty()) << "a texture with a level the device had room for was refused";
@@ -445,7 +445,7 @@ namespace Rtx
 
             {
                 Batch arrival(getPool());
-                textures.write(arrival, passes, rooms, std::span(&lone.mData, 1), refused);
+                textures.write(arrival, passes, rooms, std::span(&lone.mData, 1), refused, nullptr);
                 arrival.flush();
             }
             ASSERT_EQ(refused.size(), 1u);
@@ -461,7 +461,7 @@ namespace Rtx
             {
                 const Testing::BudgetLimit ample(memory, ~VkDeviceSize{ 0 });
                 Batch arrival(getPool());
-                textures.write(arrival, passes, rooms, std::span(&lone.mData, 1), refused);
+                textures.write(arrival, passes, rooms, std::span(&lone.mData, 1), refused, nullptr);
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty());
@@ -475,7 +475,7 @@ namespace Rtx
             {
                 const Testing::BudgetLimit ample(memory, ~VkDeviceSize{ 0 });
                 Batch arrival(getPool());
-                textures.write(arrival, passes, rooms, std::span(&ladder.mData, 1), refused);
+                textures.write(arrival, passes, rooms, std::span(&ladder.mData, 1), refused, nullptr);
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty());
