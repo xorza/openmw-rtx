@@ -67,6 +67,7 @@ set(RTX_TEST_FILES
     rtx/preprocess/contentstore.cpp
     rtx/preprocess/preparedimages.cpp
     rtx/preprocess/laidimagecache.cpp
+    rtx/preprocess/passversions.cpp
     rtx/preprocess/shape/creasesplit.cpp
     rtx/preprocess/shape/shapefold.cpp
     rtx/renderer/framedescriber.cpp

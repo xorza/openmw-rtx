@@ -264,6 +264,20 @@ namespace Rtx
             mMonitor.give([] {});
     }
 
+    void ContentStore::discard(const ContentKey& key)
+    {
+        mMonitor.under([&] {
+            const auto held = mResident.find(key);
+            if (held != mResident.end())
+            {
+                mResidentBytes -= held->second.mPayload.size();
+                mResident.erase(held);
+            }
+            mQueue.push_back(Task{ .mKind = TaskKind::Discard, .mKey = key });
+        });
+        mMonitor.give([] {});
+    }
+
     void ContentStore::flush()
     {
         mMonitor.await([&] { return mQueue.empty() && mInFlight == 0; });
@@ -280,8 +294,7 @@ namespace Rtx
         if (payload.size() > sResidentMost)
             return;
 
-        // **Over what was held under the key**, so an output written again after its held payload
-        // failed to decode is the one held from then on.
+        // **Over what was held under the key**, as two writers of one key replace it.
         const auto held = mResident.find(key);
         const std::size_t replaced = held != mResident.end() ? held->second.mPayload.size() : 0;
         if (mResidentBytes - replaced + payload.size() > sResidentBytesMost)
@@ -323,6 +336,9 @@ namespace Rtx
                 return;
             case TaskKind::Stamp:
                 stampFile(task.mKey);
+                return;
+            case TaskKind::Discard:
+                refuse(pathOf(task.mKey));
                 return;
         }
     }
@@ -397,6 +413,17 @@ namespace Rtx
     {
         const std::filesystem::path path = pathOf(task.mKey);
         std::error_code failed;
+
+        // **A key whose file stands is stamped and not written again**: a key is its pass's whole
+        // input, so the file holds these bytes, and the frame's thread, whose asks reach memory
+        // alone, misses an entry too large to hold there in every session and offers it again. A
+        // file a fault left is refused by the next read that reaches it, and the next write makes it.
+        if (std::filesystem::exists(path, failed))
+        {
+            stampFile(task.mKey);
+            return;
+        }
+
         std::filesystem::create_directories(path.parent_path(), failed);
 
         const EntryHeader header{ .mMagic = sMagic,
@@ -435,8 +462,9 @@ namespace Rtx
 
         // **Kept under the cap within a session as well as at its start**, as ccache keeps its
         // limit at every compile: past the cap, the least recently used go until a tenth of it is
-        // free, so a session at the cap does not list the folders after every write. A key written
-        // again counts twice here, which only sweeps sooner, and the sweep counts the folders anew.
+        // free, so a session at the cap does not list the folders after every write. Two stores
+        // writing one key count it twice here, which only sweeps sooner, and the sweep counts the
+        // folders anew.
         mStoredBytes += sizeof(EntryHeader) + task.mPayload.size();
         if (mStoredBytes > mCap)
         {

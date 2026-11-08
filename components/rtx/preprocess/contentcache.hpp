@@ -36,13 +36,18 @@ namespace Rtx
         }
 
         /// Fills `output` with what `Pass` computed from the input filed under `key`, and says
-        /// whether it could. A payload its codec cannot read is a miss.
+        /// whether it could. A payload its codec cannot read is a miss, and discarded, so the output
+        /// run again is filed in its place.
         template <ContentPass Pass>
         requires StoredOutput<typename Pass::Output>
         bool find(const ContentKey& key, typename Pass::Output& output)
         {
-            return mStore->read(key, Pass::sPass, Pass::sVersion, mReach, mPayload)
-                && ContentCodec<typename Pass::Output>::decode(mPayload, output);
+            if (!mStore->read(key, Pass::sPass, Pass::sVersion, mReach, mPayload))
+                return false;
+            if (ContentCodec<typename Pass::Output>::decode(mPayload, output))
+                return true;
+            mStore->discard(key);
+            return false;
         }
 
         /// Keeps what `Pass` computed from the input filed under `key`.

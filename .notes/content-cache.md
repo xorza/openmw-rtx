@@ -246,9 +246,17 @@ said:
 - **A chainless BC4 or BC5 file stands at its one level**, since no host reader decodes it: none of the PBR install's
   or the Fullrest Repack's files of one level is one (research note, "Formats").
 
-Batch 5: the shapes.
+Batch 5 is done: the shape pass's output is kept in the store through a codec of its own. Warm, the cell ring finds
+every shape at `seyda-neen-ship` on `openmw-pbr` and keys them in 21 ms, where it ran them for 0.9 s cold (research
+note, "The shapes through the store"). What it does otherwise than the item said:
 
-3. `ShapePass`'s output through the store: 0.4 s of a PBR load and 1.3 s of a Fullrest load (batch 0).
+- **The frame finds only the small shapes**, which the store holds in memory: its asks reach no disk, so it runs the
+  138 large ones again at every start, a quarter of its shape time. Batch 7's tool does not change this.
+- **A write of a key whose file stands stamps it and writes nothing**, since the frame offers those large shapes
+  again in every session; and **a payload its pass cannot read is discarded**, so the output run in its place is
+  written (`ContentStore::discard`).
+- **The pass version guard is in** (`RtxPassVersionsTest`), for the four stored passes, since a stored shape that a
+  forgotten bump left would be a wrong mesh.
 
 Batch 6: the device's derivations.
 
@@ -336,8 +344,7 @@ Batch 9: program constants, at any time.
 - The chain pass: the box of a hand-made 4x4 level, colour in linear light, alpha apart, normals unrenormalized, with
   exact expected bytes before encoding. A premultiplied fixture (alpha 0 under an ordinary normal) builds the box and
   not the black. A built BC1, BC3 and BC5 level decodes within the encoder's stated error of the box.
-- The pass version guard: each pass's output digest over its fixed inputs, against the digest recorded beside its
-  version. The device passes: two runs over one input, the same read-back bytes.
+- The device passes' guard: two runs over one input, the same read-back bytes.
 - The tool's incremental run: a file whose time moved is read again and one whose time stayed is not; a manifest
   whose file the content list lost drops its keys from the next run.
 - A warm and a cold run give the same frames (`./omw repeat --pairs=10` with the cache warm and cold).

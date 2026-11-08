@@ -256,6 +256,54 @@ namespace Rtx
             EXPECT_EQ(again.getStats().mStamped, 1u) << "once a session";
         }
 
+        /// **A write of a key whose file stands stamps it and writes nothing**, as a frame thread that
+        /// cannot reach the file offers its output again in a later session: a two-day-old file is
+        /// used within the minute and keeps its payload, which is the same bytes in a real store and
+        /// another here, to show it was not written.
+        TEST(RtxContentStoreTest, aWriteOfAKeyWhoseFileStandsStampsItAndWritesNothing)
+        {
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            const auto now = std::filesystem::file_time_type::clock::now();
+            const std::vector<std::byte> first = payloadOf(sLarge, 1);
+            {
+                ContentStore store(folder, ContentStore::sGameCap);
+                store.write(sKey, ContentPassId::AlphaSpan, 3, first);
+            }
+
+            ContentStore again(folder, ContentStore::sGameCap);
+            again.flush();
+            const std::filesystem::path path = again.pathOf(sKey);
+            std::filesystem::last_write_time(path, now - std::chrono::hours(48));
+            again.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 2));
+            again.flush();
+
+            EXPECT_EQ(again.getStats().mWritten, 0u);
+            EXPECT_EQ(again.getStats().mStamped, 1u);
+            EXPECT_GT(std::filesystem::last_write_time(path), now - std::chrono::minutes(1));
+            std::vector<std::byte> read;
+            ASSERT_TRUE(again.read(sKey, ContentPassId::AlphaSpan, 3, StoreReach::Disk, read));
+            EXPECT_EQ(read, first);
+        }
+
+        /// **A discarded entry is gone from memory and from its folder**, and counted refused: a small
+        /// entry held from the start is found by neither reach after it.
+        TEST(RtxContentStoreTest, aDiscardedEntryIsGoneFromMemoryAndFromItsFolder)
+        {
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            ContentStore store(folder, ContentStore::sGameCap);
+            store.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(16, 1));
+            store.flush();
+            ASSERT_TRUE(std::filesystem::exists(store.pathOf(sKey)));
+
+            store.discard(sKey);
+            std::vector<std::byte> read;
+            EXPECT_FALSE(store.read(sKey, ContentPassId::AlphaSpan, 3, StoreReach::Memory, read)) << "held still";
+            store.flush();
+            EXPECT_FALSE(std::filesystem::exists(store.pathOf(sKey)));
+            EXPECT_FALSE(store.read(sKey, ContentPassId::AlphaSpan, 3, StoreReach::Disk, read));
+            EXPECT_EQ(store.getStats().mRefused, 1u);
+        }
+
         /// **The queue is bounded**: a payload past what it holds is dropped and counted, and no file
         /// is written for it.
         TEST(RtxContentStoreTest, aWritePastTheQueuesBoundIsDropped)

@@ -90,6 +90,25 @@ keys made under a store that always misses (`ContentCache::sHolds` set true for 
 - **On the frame's thread**, the PBR profile's alpha spans are 1.7 ms an ask, and the Fullrest Repack's texel means
   16 ms an ask.
 
+## The shapes through the store
+
+`scene --views=seyda-neen-ship` on `openmw-pbr`, release build, the same GPU, with the shape pass kept in a store of
+its own, made empty for each cold run. **The machine was not quiet**: another build ran beside every run, at a load of
+20 to 38, so a figure is good to its pair alone. A pair ran back to back at a load of 38.
+
+| run | thread | asked | found | running | keying |
+|---|---|---|---|---|---|
+| cold | frame | 1394 | 108 | 240 ms | 5.0 ms |
+| | ring | 4195 | 1255 | 907 ms | 22.4 ms |
+| warm | frame | 1394 | 1256 | 182 ms | 5.0 ms |
+| | ring | 4195 | 4195 | 0 | 20.9 ms |
+
+- **The ring finds every shape warm**, and keys them in 21 ms where it ran them for 0.9 s cold. Cold, it shares the
+  cores with the chain threads, which a cold store sets to work: 907–1090 ms against batch 0's 317–329.
+- **The frame finds the small shapes and runs the 138 large ones again**, a quarter less: its asks reach the store's
+  memory alone, which holds entries of 4 KiB or less. Its running moved from 85 to 240 ms cold and from 159 to 183
+  warm between runs, with the load beside it.
+
 ## The colour and data chains
 
 Level 1 of every colour and data DDS file that carries its own chain, against two references made from its level 0:

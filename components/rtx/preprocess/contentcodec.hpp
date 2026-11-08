@@ -13,6 +13,7 @@
 
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/texels.hpp>
+#include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 
 namespace Rtx
@@ -44,6 +45,32 @@ namespace Rtx
                 return false;
             std::memcpy(&value, from.data(), sizeof(T));
             from = from.subspan(sizeof(T));
+            return true;
+        }
+
+        /// Appends a run of `values`: its count, then their bytes. `T` carries no padding, which the
+        /// caller asserts where it is not a number.
+        template <class T>
+        requires std::is_trivially_copyable_v<T>
+        void putRun(std::vector<std::byte>& into, std::span<const T> values)
+        {
+            put(into, static_cast<std::uint32_t>(values.size()));
+            const std::span<const std::byte> bytes = std::as_bytes(values);
+            into.insert(into.end(), bytes.begin(), bytes.end());
+        }
+
+        /// Reads a run `putRun` wrote into `values` and moves past it, answering whether `from` held
+        /// the whole of one.
+        template <class T>
+        requires std::is_trivially_copyable_v<T>
+        bool takeRun(std::span<const std::byte>& from, std::vector<T>& values)
+        {
+            std::uint32_t count = 0;
+            if (!take(from, count) || from.size() / sizeof(T) < count)
+                return false;
+            values.resize(count);
+            std::memcpy(values.data(), from.data(), std::size_t{ count } * sizeof(T));
+            from = from.subspan(std::size_t{ count } * sizeof(T));
             return true;
         }
     }
@@ -107,6 +134,39 @@ namespace Rtx
                 return false;
             chain.mForm = static_cast<ChainForm>(form);
             chain.mBytes.assign(from.begin(), from.end());
+            return true;
+        }
+    };
+
+    /// A shape: its three findings in a byte, then the kept triangles, the normals as three floats each
+    /// and the added vertices' sources, each a run.
+    template <>
+    struct ContentCodec<ShapePass::Output>
+    {
+        static_assert(
+            sizeof(osg::Vec3f) == 3 * sizeof(float), "a normal is its three floats, with no padding between them");
+
+        static void encode(const ShapePass::Output& shape, std::vector<std::byte>& into)
+        {
+            ContentBytes::put(into,
+                static_cast<std::uint8_t>((shape.mShape.mSheet ? 1u : 0u) | (shape.mShape.mFolded ? 2u : 0u)
+                    | (shape.mShape.mPocketed ? 4u : 0u)));
+            ContentBytes::putRun(into, std::span<const std::uint32_t>(shape.mKept));
+            ContentBytes::putRun(into, std::span<const osg::Vec3f>(shape.mNormals));
+            ContentBytes::putRun(into, std::span<const std::uint32_t>(shape.mSources));
+        }
+
+        static bool decode(std::span<const std::byte> from, ShapePass::Output& shape)
+        {
+            std::uint8_t findings = 0;
+            if (!ContentBytes::take(from, findings) || findings > 7u || !ContentBytes::takeRun(from, shape.mKept)
+                || !ContentBytes::takeRun(from, shape.mNormals) || !ContentBytes::takeRun(from, shape.mSources)
+                || !from.empty())
+                return false;
+
+            shape.mShape = FoldedShape{
+                .mSheet = (findings & 1u) != 0, .mFolded = (findings & 2u) != 0, .mPocketed = (findings & 4u) != 0
+            };
             return true;
         }
     };

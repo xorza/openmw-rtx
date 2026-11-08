@@ -38,14 +38,16 @@ namespace Rtx
         /// Asks no entry answered: no file, or one this refused.
         std::uint64_t mMissed = 0;
 
-        /// Files refused and deleted: a wrong header, length or digest.
+        /// Files refused and deleted: a wrong header, length or digest, or a payload its pass could not
+        /// read (`discard`).
         std::uint64_t mRefused = 0;
 
         /// Entries written, and writes dropped because the queue held its bound or the write failed.
         std::uint64_t mWritten = 0;
         std::uint64_t mDropped = 0;
 
-        /// Entries whose file had its time set for this session's use.
+        /// Entries whose file had its time set for this session's use: by a hit, or by a write of a key
+        /// whose file stood.
         std::uint64_t mStamped = 0;
 
         /// Entries a sweep removed to bring the store under its cap, at the start or past the cap in
@@ -126,6 +128,10 @@ namespace Rtx
         void write(
             const ContentKey& key, ContentPassId pass, std::uint32_t version, std::span<const std::byte> payload);
 
+        /// Deletes the entry `key` filed, whose payload its pass could not read, on the store's thread:
+        /// a write of the output run in its place finds no file and writes it.
+        void discard(const ContentKey& key);
+
         /// Waits until every write, stamp and the start's sweep handed so far are done.
         void flush();
 
@@ -142,6 +148,7 @@ namespace Rtx
             Start,
             Write,
             Stamp,
+            Discard,
         };
 
         struct Task
