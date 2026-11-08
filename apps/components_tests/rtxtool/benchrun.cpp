@@ -1,14 +1,18 @@
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
 #include <osg/Math>
 #include <osg/Vec3f>
 
+#include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/world/weather.hpp>
 
@@ -244,6 +248,29 @@ namespace RtxTool
             const SessionRequest measured;
             EXPECT_EQ(measured.stopAt(clean), std::nullopt);
             EXPECT_EQ(measured.stopAt(stored), std::nullopt);
+        }
+
+        /// **A run reserves room for its own upscaling mode and for every one a stop takes**, each
+        /// once and in the enum's order: a run of the quality mode whose stops take the mode off
+        /// twice and the native mode once reserves off, quality and native. A run whose stops take
+        /// none reserves its own alone. The rest of the setup is the request's.
+        TEST(RtxBenchRunTest, aRunReservesItsOwnUpscaleAndEveryOneAStopTakes)
+        {
+            SessionRequest request;
+            request.mSetup.mRun.mProfile.mUpscale = Rtx::Upscale::Quality;
+            request.mSetup.mRun.mMemoryBudget = 6004ull << 20;
+            request.mStops.resize(5);
+            EXPECT_EQ(request.rendererSetup().mRun.mReservedUpscales, std::vector{ Rtx::Upscale::Quality });
+
+            request.mStops[0].mSchedule.mUpscale = Rtx::Upscale::Off;
+            request.mStops[2].mSchedule.mUpscale = Rtx::Upscale::Native;
+            request.mStops[4].mSchedule.mUpscale = Rtx::Upscale::Off;
+            const MWRender::RunSetup setup = request.rendererSetup();
+            EXPECT_EQ(setup.mRun.mReservedUpscales,
+                (std::vector{ Rtx::Upscale::Off, Rtx::Upscale::Quality, Rtx::Upscale::Native }));
+            EXPECT_EQ(setup.mRun.mProfile.mUpscale, Rtx::Upscale::Quality);
+            EXPECT_EQ(setup.mRun.mMemoryBudget, std::optional<std::uint64_t>(6004ull << 20));
+            EXPECT_TRUE(request.mSetup.mRun.mReservedUpscales.empty()) << "the request's own setup was changed";
         }
     }
 }

@@ -23,7 +23,7 @@ namespace RtxTool
 {
     Session::Session(SessionRequest request)
         : mRequest(std::move(request))
-        , mInstalled{ .mSetup = mRequest.mSetup, .mRun = *this }
+        , mInstalled{ .mSetup = mRequest.rendererSetup(), .mRun = *this }
         , mHome(mRequest.mKeys, mRequest.mHomePictures)
         , mMeasurer(mRequest, mRecord)
     {

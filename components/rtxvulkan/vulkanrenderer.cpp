@@ -136,6 +136,7 @@ namespace Rtx
         , mMedia(mDevice, FogNoise::shared())
         , mGui(mDevice)
         , mPictures(mDevice, mTracePasses, mProfile.mRadianceWidth)
+        , mReservedUpscales(options.mRun.mReservedUpscales)
     {
         mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
 
@@ -200,10 +201,20 @@ namespace Rtx
         // **Room for the running mode's targets, and not for the most any mode would take**: the
         // native mode's are about twice the quality mode's, which traces 2.25 times fewer pixels,
         // and room kept for them was room an 8 GB card's textures stood smaller for at a 4K output.
+        // **Or for the most the modes the run named would take** (`RunProfile::mReservedUpscales`).
         std::vector<ArenaImage> declared;
         FrameTracer::declare(render, output, mProfile, declared);
         const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared);
-        const VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, declared);
+        VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, declared);
+        for (const Upscale mode : mReservedUpscales)
+        {
+            RenderProfile reserved = mProfile;
+            reserved.mUpscale = mode;
+            const FrameExtents its = extentsFor(width, height, mode);
+            std::vector<ArenaImage> itsDeclared;
+            FrameTracer::declare(VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output, reserved, itsDeclared);
+            reserve = std::max(reserve, frameAt(mDevice, width, height, mPictureRoom, reserved, itsDeclared));
+        }
 
         // **The world is built again where the reserve moving changes what it would stand as**, by the
         // hand-over after this, which finds its slot empty (`SceneUploader`) and stands every texture

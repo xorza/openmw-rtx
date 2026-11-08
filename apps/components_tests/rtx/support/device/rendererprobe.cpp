@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cstddef>
 #include <optional>
+#include <utility>
+#include <vector>
 
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -23,6 +25,13 @@ namespace Rtx::Testing
     VkExtent2D RendererProbe::getPictureRoom() const
     {
         return mRenderer.mPictureRoom;
+    }
+
+    void RendererProbe::setReservedUpscales(std::vector<Upscale> modes)
+    {
+        mRenderer.mReservedUpscales = std::move(modes);
+        const VkExtent2D output = mRenderer.mTarget.getExtent();
+        mRenderer.createTargets(output.width, output.height);
     }
 
     const TracePasses& RendererProbe::getTracePasses() const

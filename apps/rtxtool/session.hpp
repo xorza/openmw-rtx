@@ -134,8 +134,8 @@ namespace RtxTool
         /// (`Measurer::probeSample`): the stop stands until it has come back.
         std::optional<std::uint32_t> mProbe;
 
-        /// What the renderer is made with: the request's setup, and this as the run. After the
-        /// request, which it refers into.
+        /// What the renderer is made with: the request's (`SessionRequest::rendererSetup`), and
+        /// this as the run. After the request, which it is made from.
         const MWRender::RtxSetup mInstalled;
 
         /// The world's `timescale` when the first stop began: the game's own clock speed for the

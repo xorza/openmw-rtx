@@ -616,7 +616,9 @@ namespace Rtx
         /// took, so a second release leaves what the first did. And a run that sums, as this one may
         /// (`RadianceWidth::Summed`), fills its reserve to the byte once a frame sums, upscaled or not:
         /// the running sum and the deep picture are the last of what it keeps room for, and nothing
-        /// is kept that no frame makes.
+        /// is kept that no frame makes. **A run that names the modes it moves between**
+        /// (`RunProfile::mReservedUpscales`) reserves the largest of theirs under each, so the move
+        /// that built the world again under the budget at the heap keeps it.
         TEST_F(RtxFramesTest, theReserveIsTheRunningModesAndOnlyAMoveThatChangesTheRoomBuildsTheWorldAgain)
         {
             MemoryAllocator& memory = mProbe.getDevice().getMemory();
@@ -688,6 +690,19 @@ namespace Rtx
             EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), memory.getFrameReserve())
                 << "the reserve and what an upscaled summing frame holds differ";
             runAt(Upscale::Off);
+
+            mProbe.setReservedUpscales({ Upscale::Off, Upscale::Native });
+            ASSERT_TRUE(worldHeld());
+            EXPECT_EQ(runAt(Upscale::Off), upscaled) << "the reserve kept no room for a mode the run named";
+            {
+                const Testing::BudgetLimit atTheHeap(memory, Testing::budgetAbove(memory, MemoryUse::Texture, 0));
+                EXPECT_EQ(runAt(Upscale::Native), upscaled);
+                EXPECT_TRUE(worldHeld()) << "a move between two modes the run named built the world again";
+                EXPECT_EQ(runAt(Upscale::Off), upscaled);
+                EXPECT_TRUE(worldHeld()) << "a move back built the world again";
+            }
+            mProbe.setReservedUpscales({});
+            EXPECT_EQ(runAt(Upscale::Off), alone) << "the reserve did not follow the run's modes back";
         }
 
         /// **A picture's scene let go gives back every allocation it took**, once the queue has run

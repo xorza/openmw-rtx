@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <vector>
 
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -254,5 +255,19 @@ namespace RtxTool
             return std::nullopt;
 
         return std::format("frame {}: {}", finished.mFrame, describeNotFinite(finished.mNotFinite));
+    }
+
+    MWRender::RunSetup SessionRequest::rendererSetup() const
+    {
+        MWRender::RunSetup setup = mSetup;
+        std::vector<Rtx::Upscale>& reserved = setup.mRun.mReservedUpscales;
+        reserved.assign(1, setup.mRun.mProfile.mUpscale);
+        for (const Stop& stop : mStops)
+            if (stop.mSchedule.mUpscale.has_value())
+                reserved.push_back(*stop.mSchedule.mUpscale);
+
+        std::ranges::sort(reserved);
+        reserved.erase(std::ranges::unique(reserved).begin(), reserved.end());
+        return setup;
     }
 }

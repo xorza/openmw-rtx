@@ -7,6 +7,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/frame/frameoptions.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/picturerenderer.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -41,6 +42,11 @@ namespace Rtx::Testing
         const Device& getDevice() const;
 
         VkExtent2D getPictureRoom() const;
+
+        /// Reserves the frame's room as a renderer made with `modes` as its
+        /// `RunProfile::mReservedUpscales` does, from now on: for a test of a run's profile on the
+        /// renderer every test shares, which hands it back empty.
+        void setReservedUpscales(std::vector<Upscale> modes);
 
         /// The passes every trace runs, for a test that stands a chain up beside the frame's on
         /// pipelines already made.

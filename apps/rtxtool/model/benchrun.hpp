@@ -523,6 +523,12 @@ namespace RtxTool
         /// would say so, and what a NaN reaches it spreads to — the picture the player went on
         /// looking at. Elsewhere the stop's end says it, where `Check::Finite` is asked.
         std::optional<std::string> stopAt(const Rtx::FrameResult& finished) const;
+
+        /// What the renderer is made with: `mSetup`, with the run's upscaling mode and every one a
+        /// stop takes as the modes it keeps room for (`RunProfile::mReservedUpscales`), each once
+        /// and in order. A stop traced at another mode than the stop before then stands the world
+        /// that stop stood, which a picture held against another stop's must.
+        MWRender::RunSetup rendererSetup() const;
     };
 
     /// The exit status of a run whose one fault is a hashed frame that differed from its reference.

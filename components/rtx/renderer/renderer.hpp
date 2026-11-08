@@ -135,6 +135,15 @@ namespace Rtx
         /// holds is never refused, whatever this says. The harness's, and never a played session's.
         std::optional<std::uint64_t> mMemoryBudget{};
 
+        /// The upscaling modes whose frame targets the reserve keeps room for beside the running
+        /// mode's, for a run that moves between them (`Renderer::setUpscale`): the reserve stands at
+        /// the largest of them from the start, so a move between two leaves it where it was and the
+        /// world stands as it stood. A reserve that followed the mode built the world again against
+        /// another room under a tight budget, and a picture of one mode was held against a world of
+        /// other textures. The harness's, and never a played session's: a player's reserve is the
+        /// running mode's alone, which is room the textures stand larger in.
+        std::vector<Upscale> mReservedUpscales{};
+
         /// Where the driver's own code of every pipeline is written as text, a file a pipeline, or
         /// empty for none: what a profiler's instruction view shows, on a device no profiler there
         /// reads. The harness's, and never a played session's.

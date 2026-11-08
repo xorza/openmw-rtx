@@ -263,6 +263,9 @@ namespace Rtx
         /// `createTargets` makes the pictures' chain at. Nought until a view asks.
         VkExtent2D mPictureRoom{ 0, 0 };
 
+        /// `RunProfile::mReservedUpscales`, which `createTargets` reserves the frame's room for.
+        std::vector<Upscale> mReservedUpscales;
+
         /// Null where nothing asked for a window. After `mTarget`, so it is destroyed before it:
         /// its command buffers blit out of the image, and its destructor waits for the device to
         /// finish them, which `VUID-vkDestroyImage-image-01000` asks of every submitted command that

@@ -390,7 +390,12 @@ at the top, over all of them.
 - **The frame's targets are made at `createTargets` and counted from what makes them.** The
   reserve sums each owner's `bytesAt`, read off the descriptions it makes its images of, and the
   pictures' chain is made at the room its views asked (`PictureRenderer::reservePicture`), never on
-  the frame a picture is first traced.
+  the frame a picture is first traced. The reserve is the running mode's, since room kept for
+  every mode was room an 8 GB card's textures stood smaller for; a run that names the modes its
+  stops move between reserves the largest of theirs from the start (`RunProfile::mReservedUpscales`),
+  since a reserve that followed the mode built the world again against another room under a
+  budget, and `noise` held a frame that stood every texture whole against a reference that
+  held 560 smaller.
 - **The images a frame uses inside one stretch of it share memory** (`ImageArena`): the stage
   images, the denoiser's scratch and the upscaler's own, each over its span of the fixed order
   (`FrameStep`), laid over each other where their spans do not meet. It rests on one queue and the
