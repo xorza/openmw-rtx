@@ -1,7 +1,8 @@
-# Proposal: an on-disk content cache, and every chain built from its finest level
+# Proposal: preprocessed content — a content tool, its store, and every chain built from its finest level
 
-Status: proposed; the dependency and the cap approved by the user. When it lands, its lasting decisions go to `docs/rtx/architecture.md` ("`Rtx::ContentPreprocessor`"
-and the texture bullets), and this file is deleted. The measurements are in
+Status: proposed; the dependency, the cap, the tool and the chains approved by the user. When it lands, its lasting
+decisions go to `docs/rtx/architecture.md` ("`Rtx::ContentPreprocessor`" and the texture bullets), and this file is
+deleted. The measurements are in
 `docs/rtx/research/2026-11-08-normal-map-chains.md`.
 
 ## The problem
@@ -10,9 +11,14 @@ and the texture bullets), and this file is deleted. The measurements are in
   RGB (32, 36, 0) wherever the height is 0. The mips were made with premultiplied alpha. Level 0 is correct, so a
   surface is correct near the camera and has black patches further away. The renderer reads every file's chain as the
   file holds it.
+- **MVR PBR's `_spec` maps turn metal at a distance.** 343 of the PBR install's data maps hold a metalness of 0 at
+  level 0 and up to 253 in the levels below it.
 - **A file with no chain gets one built on the device at every load** (`TextureData::wantsCompletedChain`). A chain
   built this way is always full size, so the budget's side search cannot make it smaller. A chain of 512 or less on a
   side stays loose, at four bytes a texel. The Fullrest Repack loads 5398 such files.
+- **The backend derives more from each file at every arrival, on the device**: a colour file's shading map, a normal
+  map's spread, a sprite's light bake, and a land chunk's composite and gloss (`TexturePasses`,
+  `GroundCompositePass`). Each is a function of its files alone.
 - **Every pass of the preprocessor runs again at every start.** The shape fold, the alpha walks and the texel means are
   functions of their input alone, and `ContentCache` holds nothing (`sHolds = false`), as a staged design.
 
@@ -28,17 +34,49 @@ which keeps files in hashed subdirectories and removes the least recently used p
 ([ccache](https://man.archlinux.org/man/ccache.1)). The runtime then makes a texture smaller for its budget by
 dropping levels from the top of a full chain
 ([Unity's mipmap streaming](https://docs.unity3d.com/2023.2/Documentation/Manual/TextureStreaming)). This
-renderer has no import step, because it reads mod files as they are. So the preprocessor is the import step, and its
-cache is the derived-data store.
+renderer has no import step, because it reads mod files as they are. So a content tool run before the game is the
+import step, as `openmw-navmeshtool` is for the navigation mesh, and its store is the game's input.
 
 ## Decisions
 
+- **The game's input is the tool's output, and the game computes as little as it can**, by the user's decision. Every
+  form the renderer reads of a file, and every derivation it now makes of one, is made by the tool before the game and
+  read from the store by the game. The game computes only a miss: content the tool could not know ahead, or a store
+  older than the content list. A miss runs the same pass the tool runs and is stored, so the next start reads it, and
+  the game counts its misses in the log and the stats row, where a miss the tool could have known is the tool's bug.
+  Refused: a game that refuses content the tool did not see, which a mod's script spawning an object or a body put
+  together at run time would break; and a second, cheaper runtime path for a miss, a second route to one result.
+- **Everything the backend derives from a file at arrival is preprocessed too**: the shading map, the normal spread,
+  the sprite light bake, and the ground composite and gloss. The tool runs the same device passes with no window, as
+  the harness runs the renderer, and reads their results back into the store; the game uploads them and runs no pass.
+  A miss runs the pass on the game's device and reads it back into the store. The shaders' float arithmetic is the
+  build's (`spirvpin.hpp`), so the result is the same on every device and the key needs no device in it. Refused:
+  host ports of the passes, a second implementation of each.
+- **Acceleration structures are not stored**: a serialized structure is valid only on a device and driver that
+  `vkGetDeviceAccelerationStructureCompatibilityKHR` accepts, so a driver update throws the store's structures away,
+  and a static structure builds in the arrival's frame already. Refused for now, and measured again once the rest has
+  landed.
 - **The key is the content, as `ContentKey` already makes it**: the pass's name and version and every byte the pass
   reads, as one 128-bit MurmurHash3. The bytes are in memory already, because upstream's resource system loads every
   file the scene graph names. Refused: a key made of the path, size and modification time, as ccache's direct mode and
   Godot's `.import` use. A file inside a BSA has no time of its own, a later data folder shadows an earlier file under
   the same path, and a stale hit would be quietly wrong. What hashing every input costs a session is measured first
   (batch 0).
+- **MurmurHash3 stays the key's hash**: a key reads about 9.5 GB/s of input, 3% of a shape's run and 7–14% of an
+  alpha span's (research note, "What the preprocessor costs a start"). Refused: XXH3, a dependency for a share this
+  small.
+- **`SolidReach` and `SolidFall` are not cached**: their walks stop at the first texel that answers, and a key reads
+  every byte, so a key costs more than the run (3.4 ms against 0.2 on the frame). Shapes, texel means and alpha spans
+  are, and the chains.
+- **Every normal and data map's chain is rebuilt, and a colour file keeps its own**, by the user's decision after
+  batch 0: 343 of the PBR install's data maps, MVR PBR's `_spec` maps, hold a metalness of 0 at level 0 and up to 253
+  below it, and colour chains are faulty in few texels a file and vanilla's in none (research note, "The colour and
+  data chains"). One rule by encoding, with no threshold to judge a chain by, and no vanilla picture moves, since
+  vanilla has no companion maps. Refused: rebuilding the colour chains a check finds faulty. Of the 582 colour chains
+  the threshold flags, 579 match an ordinary filter best (plain box, linear light, or weighed by alpha), and one,
+  the Fullrest Repack's `sm_leaves`, matches the premultiplied box by a margin (research note, "Which filter the
+  flagged colour chains match"): a check would rebuild chains made on purpose with another filter. And rebuilding
+  every chain, which moves vanilla's pictures for no fault.
 - **One file per entry, in 256 folders named by the key's first byte**, as ccache, Bazel's disk cache
   (`cas/54/546197…`, [EngFlow](https://blog.engflow.com/2024/05/13/the-many-caches-of-bazel/)) and Unreal's
   file-system DDC keep them. A fact of a few bytes (`AlphaRange`, `MeanTexel`) is a file of its own like a chain of
@@ -63,10 +101,9 @@ cache is the derived-data store.
   the side search, the upload of a chain and the residency work as they work now. Refused: the whole chain re-encoded
   to BC7, which doubles a DXT1 map (2762 of the PBR install's normal maps) and moves level 0 by BC7's low bit; and the
   chain kept on the device only, which no later start reuses.
-- **Which chains are built**: every normal map's (`TextureEncoding::Normal`), by the user's decision, and every
-  chain a file lacks. A colour file's own chain stays as the file holds it, as Godot loads a DDS file's levels
-  directly ([Godot](https://docs.godotengine.org/en/4.5/tutorials/assets_pipeline/importing_images.html)), so no
-  vanilla picture moves, unless batch 0's scan of the colour chains finds faulty ones (item 3).
+- **Which chains are built**: every normal and data map's (`TextureEncoding::Normal`, `TextureEncoding::Data`), and
+  every chain a file lacks. A colour file's own chain stays as the file holds it, as Godot loads a DDS file's levels
+  directly ([Godot](https://docs.godotengine.org/en/4.5/tutorials/assets_pipeline/importing_images.html)).
 - **The filter is `mipchain.comp`'s, moved to the host**: a box of the level above, with three taps along an odd axis
   (`shared/halving.h`), in linear light for an sRGB colour. Where the alpha is coverage, the colour is weighed by it
   and divided back, so a hole's colour does not bleed. Where it is not, as a normal map's height is, the colour is a
@@ -103,70 +140,164 @@ cache is the derived-data store.
   already gets (`mCacheDirectory`). The harness takes `--content-cache=<dir>|off`. A measured run uses the game's store,
   warm after a throwaway leg, as it already warms the card. A test uses a store of its own in its test folder, or none.
   A hit must give the same output as a run, and `./omw repeat` and a cold-against-warm shot hold this.
+- **A tool fills the store before the game, as `openmw-navmeshtool` fills the navigation mesh cache**, by the user's
+  decision: a C++ app in the tree, built from the same components, that loads the content list, walks every model and
+  land texture it names through the mirror's own walk, and runs the same passes into the same store. The game
+  still computes what the tool could not know ahead (a mod added since, a script's spawns, a body put together at run
+  time) and writes it to the same store, as the game builds a navigation tile the tool missed. The tool writes a
+  manifest of the content list and data folders it read, and the game logs where its own differs, so a stale store is
+  named. Refused: a Rust tool that reads NIF, DDS, BSA and ESM again, a second implementation whose output must match
+  the game's byte for byte; and a Rust front end over the C++ through bindings, a second toolchain for a progress bar.
+- **The game starts the tool itself, at every launch, and shows its progress on the loading screen before the main
+  menu**, by the user's decision, so a game started without the launcher prepares its content too. The renderer
+  starts the tool as a child process when it is made, so the tool runs beside the game's own loading of the content
+  files, and the loading step that now waits for the kernels (`Renderer::awaitShaders`, which shows "Compiling
+  Shaders") waits for the tool as well, its label and bar fed from the tool's progress. Many PC games compile and
+  prepare on such a screen before their menu; this one already compiles its kernels there. The tool reports its
+  progress as binary messages on its standard output, as navmeshtool reports to the launcher
+  (`components/navmeshtool/protocol.hpp`, [navmeshtool](https://modding-openmw.com/tips/navmeshtool)), and a reader
+  thread hands them to the screen through `Loading::AsyncListener`, as the content's own load is shown. **One route**:
+  the tool always runs, compares its manifest with the content list and ends at once where nothing is new, so the
+  game asks no question of its own before starting it. A tool that fails or ends is logged, and the game goes on,
+  computing its misses. Refused: a launcher tab as well, a second route to the same run (the tool keeps its command
+  line for scripts and the harness); and the tool's work done inside the game's process, where a fault in a pass would
+  end the game and its memory would stay in the game's heap.
+- **The tool's run is incremental by each file's size and time; the game's lookup is by content.** The manifest names
+  every file the tool read with its size, its time and the keys made from it, so a run after one mod changed reads
+  that mod's files again and no other, as ccache's direct mode trusts a file's stat for its manifest and make trusts
+  a time. The game never trusts a stat: it keys every lookup by the bytes, so a stat that lies costs the tool a stale
+  manifest and the game a miss, never a wrong answer. Refused: a tool that reads every file of the content list again
+  to hash it on each change, minutes for a large list to find one mod's files.
+- **A pass's version is held by a test**: each pass runs over fixed inputs, and a digest of its outputs is recorded
+  beside its `sVersion`. An output that moves while the version stays fails the test, so a forgotten bump cannot hand
+  an old output to a new build. Refused: the build's revision in every key, which empties the store at every build.
+- **A device pass stores the same bytes on every run**: a test runs each of them twice over one input and compares
+  the read-back bytes, beside the pinned float arithmetic that makes them the same on every device.
+- **A store that cannot be written is a store that misses**: a full disk, a read-only directory or a failed rename is
+  logged once, and the game and the tool go on computing what they would have stored.
+- **The tool is the game's own build**: the game starts the tool next to its own executable, and the first message
+  carries the protocol's version and the build's revision; a tool of another build is ended and logged, and the
+  game computes its misses.
+- **The scene graph stays the renderer's one input**: the store holds what the mirror derives from it, and not
+  models of its own that would replace the walk. Upstream's model and land reading is a small share of a load, and the
+  passes are most of the reader's time (research note, "What a load costs the processor"). Refused: a store of
+  whole prepared models read in place of the scene graph, a second reader of the content for a share the
+  measurement does not show.
+- **What the program computes at every start from no content is made by the build**: the blue noise's rank
+  matrices and the fog's noise, 136 ms and 53 ms of each start's main thread, are generated at build time and
+  compiled in, as the kernels' SPIR-V is.
 - **A pass's version moves whenever its output for the same input moves**, an encoder update included, as
   `ContentPass` states. The store's format version moves when an entry's layout moves, and an entry of another version
   is a miss.
 
 ## Items
 
-Batch 0: measure before building.
-
-1. **The key's cost.** Turn keying on with a store that always misses, at `seyda-neen-ship` on `openmw-pbr` and the
-   Fullrest Repack: `PassStats::mKeyMs` and `mKeyBytes` against the run time, on the frame and off it. If the key costs
-   more than the walks it saves, compare XXH3-128 (a proposed dependency) against MurmurHash3 before batch 1.
-2. **The preprocessor's share of a start**: each pass's run time over a cold load of both profiles, from the stats
-   row, which orders batches 2 and 5.
-3. **The colour chains.** Level 1 of every colour and data file that carries its own chain against the box of its
-   level 0, in the three installs, as the `_nh` maps were read
-   (`docs/rtx/research/2026-11-08-normal-map-chains.md`): the faulty texels and the files that hold them, by mod.
-   Where none is faulty, colour chains stay as their files hold them. Where some are, the user decides between
-   rebuilding the faulty chains alone and rebuilding every chain, which moves vanilla's pictures at a distance, before
-   batch 3.
+Batch 0 is done; its measurements are in the research note, and its outcomes are the three decisions after the
+key's.
 
 Batch 1: the store.
 
-4. **`ContentStore`**: the directory and its 256 folders, an entry file and its header, read and validate, a write
+1. **`ContentStore`**: the directory and its 256 folders, an entry file and its header, read and validate, a write
    through a temporary name and a rename, the used entries' times set at a checkpoint and at the end, the start's
    sweep to the cap and of stale temporary files. The file operations behind one entity whose API is the same on every
    system (`components/platform`), since a rename over an existing file and a time set are spelled differently on
    Windows. One instance for a process, shared by each thread's `ContentCache`, with the writes on a worker behind a
    bounded queue.
-5. **`ContentCache` holds**: `sHolds` true, `find` and `keep` through the store, and a codec for each pass's `Output`
+2. **`ContentCache` holds**: `sHolds` true, `find` and `keep` through the store, and a codec for each pass's `Output`
    that writes it and reads it back.
-6. **The plumbing**: the game's store under the cache directory, the harness's `--content-cache`, the tests' stores,
+3. **The plumbing**: the game's store under the cache directory, the harness's `--content-cache`, the tests' stores,
    the stats row's hits.
 
 Batch 2: the texture facts through the store.
 
-7. `SolidReach`, `TexelMean`, `SolidFall` and `AlphaSpan` through the store, so a warm start walks no texel for a fact.
+4. `TexelMean` and `AlphaSpan` through the store, so a warm start walks no texel for either.
 
-Batch 3: normal map chains.
+Batch 3: normal and data map chains.
 
-8. **The chain pass** (`ChainPass`): input an image, output the levels below its finest in the file's format, made by
+5. **The chain pass** (`ChainPass`): input an image, output the levels below its finest in the file's format, made by
    the box filter and `rgbcx`, vendored under `extern/` with its licence.
-9. **The prepared image**: `LaidImageCache` becomes the one place that turns a file into what the upload reads. It
+6. **The prepared image**: `LaidImageCache` becomes the one place that turns a file into what the upload reads. It
    widens a loose format as now and joins a built chain to the file's level 0. A worker builds, the slot is made again
    when the build lands, and the world is not whole until the queue is empty.
-10. **Every normal map through it.**
+7. **Every normal and data map through it.**
 
 Batch 4: chainless files.
 
-11. **Every file that lacks a chain through the chain pass**, the loose chain for 512 or less on a side.
-12. **The device completion removed**: `MipChainPass`, `mipchain.comp`, the loose chains, `mCompleteChain` and the
+8. **Every file that lacks a chain through the chain pass**, the loose chain for 512 or less on a side.
+9. **The device completion removed**: `MipChainPass`, `mipchain.comp`, the loose chains, `mCompleteChain` and the
     canvas room the arrival keeps for them.
 
 Batch 5: the shapes.
 
-13. `ShapePass`'s output through the store, if batch 0 shows its share of a start is worth it.
+10. `ShapePass`'s output through the store: 0.4 s of a PBR load and 1.3 s of a Fullrest load (batch 0).
+
+Batch 6: the device's derivations.
+
+11. **Their cost at arrival measured first**: each pass's device time and the worst frame of a load at
+    `seyda-neen-ship` on both PBR profiles and the Fullrest Repack, against which the two items after it are judged.
+12. **The shading map, the normal spread and the sprite bake through the store**: each read back after its pass and
+    stored, and uploaded from the store at arrival where it is there.
+13. **The ground composite and gloss through the store**, keyed by the chunk's layers, their blend weights and the
+    delight they were baked at.
+
+Batch 7: the tool.
+
+14. **The content tool** (`apps/contenttool`, `openmw-contenttool`): the content list loaded as navmeshtool loads it,
+    from the configuration the game hands it, every model and land texture walked through the mirror's walk, every
+    host pass on worker threads and every device pass on a windowless device into the store, the manifest written,
+    progress as binary messages on its standard output, and as text on a terminal.
+15. **A child process with a pipe** in `Platform::Process`: start a program with its arguments, read its standard
+    output, wait for it, end it. A POSIX and a Windows file behind the one header, as the rest of it is.
+16. **The game's start**: the renderer starts the tool when it is made, a reader thread turns its messages into the
+    loading screen's label and bar, and the step that waits for the kernels waits for the tool too
+    (`Renderer::awaitShaders` named again for what it now waits for). The game's log line and stats row of its
+    misses. The harness starts it the same way, into the store its run states. The call in `OMW::Engine` is upstream
+    code and enters the accepted diff.
+
+Batch 8: content in the renderer's own forms, by the user's request.
+
+17. **The audit**: every place the renderer accommodates a form the content comes in, rather than the one form it
+    reads, each with whether it is a function of the files alone (the tool can make it once) or of a run's state (it
+    stays). The candidates found so far, each a decision for the user after its measurement:
+    - **Normal maps in one encoding.** `decodeNormal` reconstructs the blue where a file holds none, and `resolve`
+      stands the plane in for a texel of (0.5, 0.5, 0.5), on every hit. Rewritten by the tool into one encoding with
+      a unit normal in every texel, the decode is one expression. Its cost: level 0 re-encoded, and no longer the
+      file's bytes, against the decision above that keeps them.
+    - **Pictures stored delit.** `sampleAlbedo` divides every colour sample by its shading map at the run's delight
+      (`delitTexel`). The game always runs at a delight of one, so the tool could store each colour file divided
+      once, and the trace would read it as it stands. Its cost: the harness's `--delight` A/B loses its one route
+      unless it reads the files as they stand, and a delit file in BC1 or BC3 is re-encoded.
+    - **One specular layout.** The trace and the ground branch on the classic layout against the metal-roughness one
+      (`MATERIAL_SPECULAR_CLASSIC`, `layerClassic`). The classic layout's coloured highlight has no metal-roughness
+      equal for a dielectric, so a conversion loses it; measured before it is proposed.
+    - **Loose formats laid to RGBA8** (`layImage`), now on the reader thread, made once by the tool with the chains.
+    - **Vertices packed for the device.** A vertex's colour is three floats in linear light, 22 of the 125 MB of
+      vertex and index bytes at `seyda-neen-ship`, and its normal three floats. Packed by the tool, at 16 bits a
+      channel for the colour and 32 bits for an octahedral normal as the tangent already is, they would read less
+      memory on every hit. Its cost: a precision measured against the shots before it is proposed.
+    - **Loose files compressed for the device**: a loose file is four bytes a texel, a BC7 one one. Its cost: a
+      vanilla loose file's picture moves by BC7's low bit, against the rule that keeps them loose.
+
+    Already preprocessed: the shape fold and the normals split at hard edges (`ShapePass`), and the alpha facts.
+
+Batch 9: program constants, at any time.
+
+18. **The blue noise's rank matrices and the fog's noise generated by the build** and compiled in, with a test that
+    the compiled table equals what the generator makes.
 
 ## Risks
 
-- **A cold first start is slower to settle.** Every normal map in view draws its file's chain until the workers build
-  it, which shows the black patches for the first seconds on MVR PBR. A warm start draws the built chains from its first
-  frame of whole world.
-- **The key reads every input byte at every start.** If batch 0 shows that this costs more than the walks it saves for
-  the small facts, those passes stay uncached, and only the chains, whose build is the cost, are stored.
-- **Disk use.** About 1.1 to 1.7 GiB for the PBR profiles, under a 16 GiB cap. A user who clears the cache directory
+- **A miss draws its file as it stands until a worker builds it.** With the tool run, a miss is content the tool
+  could not know ahead, and few; a game started on a store older than its content list shows MVR PBR's black patches
+  for its first seconds, which the tool's run on the loading screen prevents.
+- **A first start of a large mod list waits on the loading screen.** The tool prepares everything the content list
+  names before the menu: on the first start, or after the list changed, minutes for a list as large as the Fullrest
+  Repack. The screen says what it does and how much is left. The loading screen has no way to skip, and adding one is
+  upstream's code, a decision for later if the wait proves long.
+- **Disk use.** About 1.1 to 1.7 GiB for the PBR profiles, under a 16 GiB cap.
+  The ground composites are the open figure: a 512-square BC7 composite and its gloss are about 0.7 MB a chunk,
+  so a mod list with Tamriel Rebuilt's thousands of exterior cells could store several GiB of them. Batch 6 measures
+  them before they land, and they stay runtime work if they crowd the chains out of the cap. A user who clears the cache directory
   only pays a cold start.
 - **Two processes on one store**, a harness running beside the game. A rename is atomic, so a reader sees a whole
   entry or none, and two writers of one key write the same bytes. A sweep in one process can remove an entry the other
@@ -186,6 +317,10 @@ Batch 5: the shapes.
 - The chain pass: the box of a hand-made 4x4 level, colour in linear light, alpha apart, normals unrenormalized, with
   exact expected bytes before encoding. A premultiplied fixture (alpha 0 under an ordinary normal) builds the box and
   not the black. A built BC1, BC3 and BC5 level decodes within the encoder's stated error of the box.
+- The pass version guard: each pass's output digest over its fixed inputs, against the digest recorded beside its
+  version. The device passes: two runs over one input, the same read-back bytes.
+- The tool's incremental run: a file whose time moved is read again and one whose time stayed is not; a manifest
+  whose file the content list lost drops its keys from the next run.
 - A warm and a cold run give the same frames (`./omw repeat --pairs=10` with the cache warm and cold).
 - `./omw shot --views=all --map --upscale=off` on vanilla and the Fullrest profile against the base: vanilla does not
   move. On the PBR profile, the patch at the Seyda Neen place is gone, and each moved picture is read by eye.

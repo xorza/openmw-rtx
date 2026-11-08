@@ -60,3 +60,92 @@ winning:
 | `openmw-pbr` | 3839 | 3.31 GiB | 1.10 GiB | 0.00 GiB |
 | `openmw-pbr-all` | 3858 | 5.12 GiB | 1.71 GiB | 0.00 GiB |
 | Fullrest Repack | 463 | 0.22 GiB | 0.07 GiB | 0.19 GiB |
+
+## What the preprocessor costs a start
+
+`scene --views=seyda-neen-ship`, release build, a high-end NVIDIA laptop GPU, two runs a profile, each figure the
+range of the two. Milliseconds of each pass over the load, on the frame's thread and on the cell ring's reader, and with
+keys made under a store that always misses (`ContentCache::sHolds` set true for the measurement alone):
+
+| profile | pass | thread | asked | running | keying | keyed |
+|---|---|---|---|---|---|---|
+| `openmw-pbr` | shape | frame | 1394 | 86–89 | 2.1 | 19.3 MiB |
+| | shape | ring | 4195 | 317–329 | 8.8–9.1 | 84.2 MiB |
+| | alpha span | frame | 103 | 168–173 | 23.7–24.4 | 221 MiB |
+| | alpha span | ring | 385 | 722–749 | 100–103 | 952 MiB |
+| | texel mean | frame | 19 | 28–34 | 1.1 | 10.9 MiB |
+| | solid reach | frame, ring | 38, 88 | 0.2, 2.7–2.9 | 3.4, 9.2–9.3 | 31, 88 MiB |
+| Fullrest Repack | shape | frame | 1239 | 201–208 | 2.5 | 23.3 MiB |
+| | shape | ring | 5327 | 1135–1163 | 14.8–15.1 | 144 MiB |
+| | texel mean | frame | 19 | 305–311 | 7.0–7.1 | 67.8 MiB |
+| | solid reach | frame, ring | 25, 101 | 0.2, 0.6–0.9 | 0.9, 5.2–5.4 | 8, 50 MiB |
+| | solid fall | ring | 2 | 0.5 | 0.0 | 0.3 MiB |
+
+- **A key costs about 9.5 GB/s of input** (952 MiB in 100 ms), 3% of a shape's run, 7–14% of an alpha span's and
+  2–4% of a texel mean's. **A solid reach's key costs more than its run**, 3.4 ms against 0.2 on the frame: the walk
+  stops at the first solid texel, and the key reads every byte.
+- The passes come to 1.4 s on the PBR profile (0.29 on the frame) and 1.7 s on the Fullrest Repack (0.52 on the
+  frame), over about 7.3 s from the session's start to the last log line before the world stood whole. The two
+  threads run side by side.
+- **On the frame's thread**, the PBR profile's alpha spans are 1.7 ms an ask, and the Fullrest Repack's texel means
+  16 ms an ask.
+
+## The colour and data chains
+
+Level 1 of every colour and data DDS file that carries its own chain, against two references made from its level 0:
+the plain box, and the box with the colour weighed by the alpha. A texel counts where it is more than 64 from both on
+the mean of its three channels, and only where the box's alpha and its own are 8 or more, since a BC1 hole decodes to
+black. Normal maps are left out. A file counts with 16 or more such texels.
+
+| install | data files with a chain | faulty | colour files with a chain | faulty (darker than both) |
+|---|---|---|---|---|
+| vanilla | 37 | 0 | 4504 | 1 (0) |
+| `openmw-pbr-all` | 3613 | 343 | 4587 | 158 (62) |
+| Fullrest Repack | 263 | 10 | 19 015 | 423 (216) |
+
+- **The PBR install's faulty data maps are MVR PBR's `_spec` maps**, every one of the 223 traced to a loose file. In
+  217 of them the channel that moves is red, which the metal-roughness layout reads as metalness: `tx_a_dragonscale_spec`
+  holds a red of 0 at level 0 and 253 at level 1, so a surface turns metal at a distance. In
+  `tx_a_glass_shield_spec`, 0 against 56.
+- **The faulty colour chains are few texels a file.** The worst in the PBR install, `tx_w_dart_steel`, has 145 darker
+  texels of 131 072; the worst in the Fullrest Repack, `tx_skyrim_basket_orc_02` and `pc_misc_ungorth_01`, have 1697 of
+  65 536. Vanilla's chains agree with their boxes.
+
+## Which filter the flagged colour chains match
+
+Each flagged colour chain's level 1 against four references made from its level 0, by the mean distance over the
+texels that show: the plain box, the box weighed by the alpha, the box in linear light (a 2.2 curve), and the
+premultiplied box with no division back, which is the fault in MVR PBR's normal maps.
+
+| install | flagged | plain | linear light | weighed by alpha | premultiplied |
+|---|---|---|---|---|---|
+| vanilla | 1 | 0 | 0 | 1 | 0 |
+| `openmw-pbr-all` | 158 | 87 | 58 | 13 | 0 |
+| Fullrest Repack | 423 | 241 | 136 | 43 | 3 |
+
+The flagged chains were made by an ordinary filter, the threshold's texels being sharpening and the encoder's error.
+Of the three that match the premultiplied box best, only the Fullrest Repack's `mfr/f/sm_leaves.dds` does so by a
+margin (4.0 against 7.0); `pc_flora_milkthistle_atl` and `pc_red_servants01` are within 0.3 of the plain box.
+
+## What a load costs the processor
+
+`perf record -e task-clock -F 1999 --call-graph fp` over a whole `scene --views=seyda-neen-ship` run, release build,
+the content cache holding nothing. Own time of a function, in milliseconds:
+
+| function | `openmw-pbr` | Fullrest Repack | what it is |
+|---|---|---|---|
+| `RtxTool::digestScene`, and most of `MurmurHash3_x64_128` | 716, 876 | 918, 1123 | the harness's report of the scene, no game cost |
+| `Rtx::alphaRange` | 552 | 0 | the relief's bounds, on both threads |
+| `Rtx::PocketTree::firstFacing` | 130 | 449 | the shape fold |
+| `Rtx::CreaseSplit::cutFan` | 92 | 260 | the normals' split |
+| `rankMatrix` (`frame/bluenoise.cpp`) | 136 | 137 | the blue noise's rank matrices, made at every start |
+| `Rtx::FogNoise::shared` | 53 | 58 | the fog's noise, made at every start |
+| `Rtx::SceneExtractor::Traversal::enterWalked` | 56 | 165 | the walk |
+| `Rtx::meanTexel` | 6 | 88 | the texel means |
+| `dxtc_tool::isCompressedImageTranslucent` | 69 | 26 | OpenSceneGraph's own read of each DXT file, upstream's |
+| `ESMTerrain::Storage::fillVertexBuffers` | 13 | 20 | the land's vertices, upstream's |
+| `osgUtil::TangentSpaceGenerator` | under 1 | under 1 | the tangents the map visitor builds |
+
+The cell reader spent 1.64 s on the PBR profile, most of it in the alpha walk and its block decode; on the Fullrest
+Repack most of its time is the shape fold and the split. Upstream's own model and land reading is a small share of
+either.
