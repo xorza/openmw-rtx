@@ -69,6 +69,13 @@ namespace Rtx
         return falls;
     }
 
+    AlphaRange ContentPreprocessor::alphaRange(const osg::Image& image)
+    {
+        AlphaRange range;
+        run(mSpan, image, range);
+        return range;
+    }
+
     ContentStats ContentPreprocessor::takeStats()
     {
         return std::exchange(mStats, ContentStats{});

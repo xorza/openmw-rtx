@@ -290,6 +290,49 @@ source-tree test holds the order.
   so the composite cannot occlude one, and only 71 of the 3396 maps measured hold metal. A height stands behind only 65
   of the 436 flat maps, and a flat white blue states no occlusion. A land layer's `_diffusespec` has no blue, so ground
   takes none.
+- **An `_nh` map's relief is marched, as RTX Remix marches it** (`reliefToward`, Tatarchuk 2006): at the depth and
+  the middle height OpenMW's parallax states, since the replacers paint their mean height at the one the shift puts on
+  the triangle (`research/2026-11-08-height-map-range.md`). The march is the shift where it crosses under one texel
+  at the level the cone reads, so a far surface keeps its picture and its cost. Refused: a max-mip quadtree, Remix's
+  default, whose chain is a byte a texel more, as much as the maps, for heights that are broad shapes; relaxed cone
+  stepping, which BC3 has no channel for; the relief under the triangle, as classic POM puts it, which moves every
+  texture off where the rasterizer draws it; and true displacement, 20 to 60 ms a frame or NVIDIA's alone
+  (`research/2026-11-08-parallax-occlusion-techniques.md`).
+- **Bounded by the heights each map holds**, read at load as an image fact (`alphaRange`), so the march spans 0.62 of
+  the scale at the median map and not all of it. Refused: the bounds off each block's endpoints alone, which the
+  walk over the palette's indices makes exact at no allocation.
+- **Marched once, by the trace, and read back by every stage after it** (`STAGE_RELIEF`), 4 bytes a pixel whatever
+  the tuple, since the stage images are made at the chain's extent and a scene's relief comes and goes. Refused: a
+  march in each stage that resolves the solid.
+- **The eye's motion and distance are measured to the texel the march shows** (`Surface::mReliefDepth`), and the shift
+  stands its texel at the triangle: a history fetched by the triangle's motion doubled the fireflies at a close wall,
+  and measured to the texel they stood 23% over the shift's (`research/2026-11-08-relief-cost-and-noise.md`). Unity's
+  POM writes a depth offset for the same reason. Rays still leave from the triangle, which a ray from under it would
+  meet.
+- **A ground stack's relief is marched once, through the heights its layers show summed by their shares**
+  (`ReliefMaps`), a layer with no height standing at the middle one, and every layer read where the march stood: the
+  stack draws the sum of its layers' albedos, and all of a chunk's layers lie on one sheet. Bounded by the heights its
+  layers span together, on the chunk's material. Refused: a march for each layer, a relief no layer's albedo shows, at a
+  cost a layer; the dominant layer's alone, with a seam where it changes.
+- **A bounce's landing shifts its relief once and does not march it** (`Hit::mMarches`), as RTX Remix leaves an
+  indirect hit's relief unmarched: marched, the landing's stage cost a close wall 0.13 ms of a 6.4 ms frame.
+- **A relief shadows the sky's source and the held lamp** (`reliefLit`): a march from the texel toward the light, soft by
+  the light's own size and at least a texel of the level read, multiplying the light whole and not its bit, so the
+  shadow filter blurs no shadow the size of a texel. Only a height over the light's ray takes light, so flat ground
+  lights itself whole. Refused: the bounce's, which a `_spec` map's blue already occludes; horizon maps, several bytes
+  a texel for each direction.
+- **A march takes at most 32 steps** (`RELIEF_STEPS`), and a wider crossing reads a coarser level: 16 saved a close
+  wall 0.07 ms of its frame and 64 cost it 0.15, and only the nearest grazing texels cross past the cap. Remix caps at
+  64 and Tatarchuk at 50 (`research/2026-11-08-relief-cost-and-noise.md`).
+- **The tuples that march a relief stand only beside the maps** (`HAS_RELIEF`), 48 made of the table's 64, since a
+  relief is read through a normal map. Refused: the full product, sixteen tuples no frame asks for, compiled at every
+  first start.
+- **A seabed's relief is marched under the sea**, which holds the sea's walk at 224 registers against the 219 it held:
+  on an RDNA SIMD both run four waves. Refused: the landing's shift there, which takes a seabed's relief away for
+  registers that cost no wave.
+- **No setting turns the march off**: it costs a close wall 3% of its frame on a high-end NVIDIA laptop GPU and 5% on
+  a low-end AMD integrated one, and a far surface what the shift cost, since there the march is the shift
+  (`research/2026-11-08-relief-cost-and-noise.md`). `--relief` is the harness's A/B alone (`SamplingSwitches::mRelief`).
 - **Reconstruction** (`frame/reconstruction.hpp`). `RenderProfile` is what a run decides once.
   `Reconstruction::resolve` is the one rule for everything that follows from how a frame is put
   back together: the denoiser, the jitter, the noise source, the texture level bias.

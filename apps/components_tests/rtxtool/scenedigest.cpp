@@ -177,13 +177,21 @@ namespace RtxTool
                      { "flatten", [](Rtx::Material& m) { m.mFlatten = Rtx::GroundFlattening::Every; } },
                      { "animated", [](Rtx::Material& m) { m.mAnimated = true; } },
                      { "never solid", [](Rtx::Material& m) { m.mDiffuseNeverSolid = true; } },
-                     { "parallax", [](Rtx::Material& m) { m.mParallax = true; } },
+                     { "relief", [](Rtx::Material& m) { m.mRelief = Rtx::AlphaRange{}; } },
                  })
             {
                 const auto [movedScene, movedLayout] = digestsOfMaterial(change);
                 EXPECT_NE(scene, movedScene) << what;
                 EXPECT_NE(layout, movedLayout) << what;
             }
+
+            // And the heights a relief spans, apart from whether there is one.
+            const auto [whole, wholeLayout]
+                = digestsOfMaterial([](Rtx::Material& m) { m.mRelief = Rtx::AlphaRange{}; });
+            const auto [spanned, spannedLayout]
+                = digestsOfMaterial([](Rtx::Material& m) { m.mRelief = Rtx::AlphaRange{ .mLow = 21, .mHigh = 175 }; });
+            EXPECT_NE(whole, spanned) << "the relief's heights";
+            EXPECT_NE(wholeLayout, spannedLayout) << "the relief's heights";
         }
 
         /// One box under one placement, its corners carrying `tangents`, digested whole and part by

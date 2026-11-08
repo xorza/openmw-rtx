@@ -93,11 +93,11 @@ namespace Rtx
                    || (camera.mFogExtinction == 0.0f && !(camera.mFogEdge > 0.0f) && std::isinf(camera.mWaterLevel)))
             && "a picture laid over the interface that stands in air or water");
 
-        const TraceSubject subject = parts.mMedia.describe(traced, camera, mCounts, mGlareCounts);
-
         // Nothing puts a picture together across frames, so nothing jitters it, and it has no frame
         // before it.
         const Reconstruction reconstruction = Reconstruction::forPicture();
+        const TraceSubject subject
+            = parts.mMedia.describe(traced, camera, reconstruction.mSampling, mCounts, mGlareCounts);
         Shaders::VisibilityConstants sampled
             = sampleFrame(camera, FrameOptions{}, profile, reconstruction, traced.getCounts(), nullptr);
         traced.measureStars(sampled.mStars);

@@ -165,23 +165,31 @@ RayAsk eyeAsk(vec3 origin, vec3 direction, float tmin, uint arms, uvec2 pixel)
 
 /// Stores the solid `asked` met (`met`) at the stored place `stored`: the instance's slot, the triangle and
 /// the barycentrics' bits (`STAGE_HIT`); the ray's start with its cone's width where it landed
-/// (`STAGE_RAY_FROM`); and the ray's direction with the distance (`STAGE_RAY_ALONG`).
-void storeStageSolid(ivec2 stored, SceneAnswer met, SceneQuery asked)
+/// (`STAGE_RAY_FROM`); the ray's direction with the distance (`STAGE_RAY_ALONG`); and how far toward the
+/// eye its relief showed its texture, `Surface::mRelief`, or `RELIEF_UNMARCHED` for a hit nothing resolved
+/// (`STAGE_RELIEF`), in a frame whose scene has a relief to march at all.
+void storeStageSolid(ivec2 stored, SceneAnswer met, SceneQuery asked, float relief)
 {
     RTX_STORE_WORDS(stageHit, stored, uvec4(met.mInstance, met.mPrimitive, floatBitsToUint(met.mBary)))
     RTX_STORE_COUNTED(stageRayFrom, stored, vec4(asked.mFrom, footprintOf(asked, met)))
     RTX_STORE_COUNTED(stageRayAlong, stored, vec4(asked.mAlong, met.mDistance))
+    if (HAS_RELIEF)
+        RTX_STORE_COUNTED(stageRelief, stored, vec4(relief, 0.0, 0.0, 0.0))
 }
 
 /// The hit stored at the stored place `stored` (`storeStageSolid`), resolved at the detail `detailed`
-/// with no traversal.
-Surface storedHitOf(ivec2 stored, bool detailed)
+/// with no traversal, at the relief its trace marched to, or a landing's (`storedLandingOf`), whose relief is
+/// shifted and not marched.
+Surface storedHitOf(ivec2 stored, bool detailed, bool landing)
 {
     const uvec4 hit = imageLoad(stageHit, stored);
     const vec4 from = imageLoad(stageRayFrom, stored);
     const vec4 along = imageLoad(stageRayAlong, stored);
-    return resolve(
-        committedHit(hit.x, hit.y, uintBitsToFloat(hit.zw), along.w, from.w), from.xyz, along.xyz, detailed);
+    Hit committed = committedHit(hit.x, hit.y, uintBitsToFloat(hit.zw), along.w, from.w);
+    if (HAS_RELIEF)
+        committed.mRelief = imageLoad(stageRelief, stored).r;
+    committed.mMarches = !landing;
+    return resolve(committed, from.xyz, along.xyz, detailed);
 }
 
 /// The solid `record` names at the stored place `stored`, resolved off its stored hit as the trace resolved
@@ -195,7 +203,7 @@ Surface storedSolidOf(StageRecord record, ivec2 stored)
     if (record.mKind == STAGE_NO_SOLID)
         return noSurface(frame.mOrigin);
 
-    return storedHitOf(stored, record.mDetailed);
+    return storedHitOf(stored, record.mDetailed, false);
 }
 
 /// Whether bounce ray `ray` stores its landing apart from the solid (`STAGE_LANDING_HIT`): every ray
@@ -213,7 +221,7 @@ void storeLandingHit(ivec2 stored, SceneAnswer met, SceneQuery asked, uint ray)
 {
     if (!landingApart(ray))
     {
-        storeStageSolid(stored, met, asked);
+        storeStageSolid(stored, met, asked, RELIEF_UNMARCHED);
         return;
     }
 
@@ -223,17 +231,19 @@ void storeLandingHit(ivec2 stored, SceneAnswer met, SceneQuery asked, uint ray)
 }
 
 /// Bounce ray `ray`'s landing at the stored place `stored` (`storeLandingHit`), resolved as the walk
-/// that traced it would have resolved it (`resolveAsked`).
+/// that traced it would have resolved it (`resolveAsked`), but for its relief, which is shifted and not
+/// marched (`Hit::mMarches`).
 Surface storedLandingOf(StageRecord record, ivec2 stored, uint ray)
 {
     if (!landingApart(ray))
-        return storedHitOf(stored, record.mBounceLobe);
+        return storedHitOf(stored, record.mBounceLobe, true);
 
     const uvec4 hit = imageLoad(landingHit, stored);
     const vec4 from = imageLoad(landingRayFrom, stored);
     const vec4 along = imageLoad(landingRayAlong, stored);
-    return resolve(committedHit(hit.x, hit.y, uintBitsToFloat(hit.zw), along.w, from.w), from.xyz, along.xyz,
-        record.mBounceLobe);
+    Hit landing = committedHit(hit.x, hit.y, uintBitsToFloat(hit.zw), along.w, from.w);
+    landing.mMarches = false;
+    return resolve(landing, from.xyz, along.xyz, record.mBounceLobe);
 }
 
 /// What the bounce hands its landing at the stored place `stored`, `STAGE_BOUNCE`: what light along

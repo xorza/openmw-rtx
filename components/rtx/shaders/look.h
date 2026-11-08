@@ -442,6 +442,12 @@ namespace Rtx::Shaders
     const float PARALLAX_SCALE = 0.04f;
     const float PARALLAX_BIAS = -0.02f;
 
+    /// The most steps a march through a relief takes (`reliefToward`): where its crossing is wider,
+    /// the march reads a coarser level, so each step stays a texel of the level it reads. RTX Remix
+    /// caps its march at 64 and Tatarchuk's runs 8 to 50 (`docs/rtx/research/2026-11-08-parallax-
+    /// occlusion-techniques.md`).
+    const float RELIEF_STEPS = 32.0f;
+
     /// What the reflectance at grazing is, as a multiple of the reflectance at normal incidence's
     /// green, saturated at one: `F90 = saturate(50 * F0.g)`.
     ///

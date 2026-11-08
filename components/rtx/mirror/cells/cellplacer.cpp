@@ -15,11 +15,13 @@
 
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/scene/light.hpp>
+#include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -311,6 +313,11 @@ namespace Rtx
         stands.mStands = true;
         mLayerScratch.clear();
         bool mapped = false;
+
+        // The heights every layer with one spans together, which bound the march through the stack's summed
+        // relief: the material's relief, as a surface's is its normal map's. The material's and not each
+        // layer's, since the march reads the stack's sum and nothing reads a layer's alone.
+        std::optional<AlphaRange> relief;
         for (const PreparedLayer& layer : ground.mLayers)
         {
             MaterialLayer row = layer.mRow;
@@ -327,8 +334,13 @@ namespace Rtx
             {
                 row.mNormal = mScene.textures().add(layer.mNormalTexture->mPath, layer.mNormalTexture->mImage.get(),
                     TextureWrap::Repeat, TextureEncoding::Normal, layer.mNormalTexture->mLaid.get());
-                if (layer.mParallax && row.mNormal != sNoIndex)
+                if (layer.mRelief.has_value() && row.mNormal != sNoIndex)
+                {
                     row.mFlags |= Shaders::LAYER_PARALLAX;
+                    relief = relief.has_value() ? AlphaRange{ .mLow = std::min(relief->mLow, layer.mRelief->mLow),
+                        .mHigh = std::max(relief->mHigh, layer.mRelief->mHigh) }
+                                                : *layer.mRelief;
+                }
             }
 
             // What a `_diffusespec` is, the layout says: an authored albedo and its roughness, or a
@@ -363,6 +375,7 @@ namespace Rtx
         // where `Terrain::ChunkManager` states the same thing for the rasterizer's chunks.
         material.mVertexColour = VertexColour::Tint;
         material.mLayersMapped = mapped;
+        material.mRelief = relief;
         if (!mLayerScratch.empty())
             material.mLayers = mScene.materials().addLayers(mLayerScratch);
         material.mFlatten = flatteningOf(held.mCell, material, around);

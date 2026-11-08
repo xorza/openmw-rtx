@@ -29,6 +29,7 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
+#include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/shadingmap.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -2527,6 +2528,147 @@ namespace Rtx::Testing
                 EXPECT_NEAR(shown[axis], wanted[axis], 1e-5f) << "axis " << axis;
         }
 
+        /// A ramp of 256 texels square whose byte is its column, which reads `(256 u - 0.5) / 255` between
+        /// texel centres: what a parallax test reads the texel the eye sees off.
+        Testing::TestTexture paintRamp()
+        {
+            constexpr std::uint32_t extent = 256;
+            std::vector<std::uint8_t> ramp(std::size_t{ extent } * extent * 4);
+            for (std::uint32_t row = 0; row < extent; ++row)
+                for (std::uint32_t column = 0; column < extent; ++column)
+                {
+                    const std::size_t at = (std::size_t{ row } * extent + column) * 4;
+                    const auto value = static_cast<std::uint8_t>(column);
+                    ramp[at] = value;
+                    ramp[at + 1] = value;
+                    ramp[at + 2] = value;
+                    ramp[at + 3] = 255;
+                }
+            Testing::TestTexture albedo;
+            Testing::paintFlat(albedo, extent, ramp, "ramp");
+            return albedo;
+        }
+
+        /// A normal map 256 texels square, flat, whose height is 255 in the columns under 125 and nought in
+        /// the rest: a plateau whose edge falls from one at `u = 124.5 / 256` to nought at `125.5 / 256`.
+        Testing::TestTexture paintPlateau()
+        {
+            constexpr std::uint32_t extent = 256;
+            std::vector<std::uint8_t> plateau(std::size_t{ extent } * extent * 4);
+            for (std::uint32_t row = 0; row < extent; ++row)
+                for (std::uint32_t column = 0; column < extent; ++column)
+                {
+                    const std::size_t at = (std::size_t{ row } * extent + column) * 4;
+                    plateau[at] = 128;
+                    plateau[at + 1] = 128;
+                    plateau[at + 2] = 255;
+                    plateau[at + 3] = column < 125 ? 255 : 0;
+                }
+            Testing::TestTexture heights;
+            Testing::paintFlat(heights, extent, plateau, "plateau");
+            return heights;
+        }
+
+        /// The parallax tests over a plateau (`paintPlateau`).
+        class RtxReliefTest : public RtxVisibilityTest
+        {
+        protected:
+            /// The ramp of `paintRamp` on the wall of the parallax tests, its normal map `paintPlateau`'s with the
+            /// relief `relief`, seen from `eye` and lit by a sun toward `toSun` in a black sky with no bounce: the
+            /// centre pixel's channel of `view`.
+            float plateauShown(const osg::Vec3f& eye, std::optional<AlphaRange> relief, SurfaceView view,
+                const osg::Vec3f& toSun = osg::Vec3f(0.0f, -1.0f, 0.0f))
+            {
+                constexpr std::uint32_t size = 65;
+                const Testing::TestTexture albedo = paintRamp();
+                const Testing::TestTexture heights = paintPlateau();
+                const osg::Vec3f facing(0.0f, -1.0f, 0.0f);
+                const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
+                const std::array normals{ facing, facing, facing, facing };
+                const std::array tangents{ tangent, tangent, tangent, tangent };
+
+                std::array<TextureData, 2> textures{ albedo.mData, heights.mData };
+                textures[0].mSlot = 0;
+                textures[1].mSlot = 1;
+
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
+                Material material;
+                material.mDiffuse = scene.textures().add(VFS::Path::NormalizedView("ramp.dds"));
+                material.mNormal = scene.textures().add(
+                    VFS::Path::NormalizedView("plateau_nh.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
+                material.mRelief = relief;
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = scene.addMaterial(material) });
+
+                Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(eye, osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                camera.mSun = Shaders::sunSource(toSun, osg::Vec3f(2.0f, 2.0f, 2.0f));
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mIndirect = false, .mShow = view });
+                EXPECT_GT(frame.mHits, 0u);
+                return frame.at(centreValueOf(size));
+            }
+
+            /// The same wall as ground, the ramp in every layer of its stack: `paintPlateau`'s map on a layer of
+            /// its own, the whole stack's where `share` is one and that share of it with a layer of no height
+            /// beside it otherwise. The centre pixel's albedo from `eye`.
+            float groundShown(const osg::Vec3f& eye, float share)
+            {
+                constexpr std::uint32_t size = 65;
+                const Testing::TestTexture albedo = paintRamp();
+                const Testing::TestTexture heights = paintPlateau();
+                const osg::Vec3f facing(0.0f, -1.0f, 0.0f);
+                const std::array normals{ facing, facing, facing, facing };
+
+                std::array<TextureData, 2> textures{ albedo.mData, heights.mData };
+                textures[0].mSlot = 0;
+                textures[1].mSlot = 1;
+
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(MeshArrays{
+                    .mPositions = sWallQuad, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("ramp.dds"));
+                const Index normalMap = scene.textures().add(
+                    VFS::Path::NormalizedView("plateau_nh.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
+
+                const std::array<float, 2> shown{ share, share };
+                const std::array<float, 2> rest{ 1.0f - share, 1.0f - share };
+                std::vector<MaterialLayer> layers{ Testing::layerOf(diffuse, scene.materials().addMask(shown), 2, 1) };
+                layers[0].mNormal = normalMap;
+                layers[0].mFlags = Shaders::LAYER_PARALLAX;
+                if (share < 1.0f)
+                    layers.push_back(Testing::layerOf(diffuse, scene.materials().addMask(rest), 2, 1));
+
+                Material material;
+                material.mKind = MaterialKind::Terrain;
+                material.mLayers = scene.materials().addLayers(layers);
+                material.mLayersMapped = true;
+                material.mRelief = AlphaRange{ .mLow = 0, .mHigh = 255 };
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = scene.addMaterial(material) });
+
+                const Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(eye, osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                const Frame frame
+                    = shoot(scene, textures, camera, size, Shot{ .mIndirect = false, .mShow = SurfaceView::Albedo });
+                EXPECT_GT(frame.mHits, 0u);
+                return frame.at(centreValueOf(size));
+            }
+
+            /// The distance the centre pixel's surface was measured at in the frame `plateauShown` last shot,
+            /// as the denoiser and the motion read it (`Channel::Surface`).
+            float shownDistance()
+            {
+                std::vector<float> surface;
+                mProbe.readChannel(Channel::Surface, surface);
+                return Shaders::surfaceDistance(surface[centreOf(65) * 2 + 1]);
+            }
+        };
+
         /// **Parallax shifts the sheet toward the eye by the height the normal map carries**, as the
         /// rasterizer's `parallax.glsl` does, for a surface and for a ground layer alike: `eye.xy *
         /// (height * 0.04 - 0.02)`, the eye in the tangent frame.
@@ -2544,21 +2686,7 @@ namespace Rtx::Testing
         {
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
-            constexpr std::uint32_t extent = 256;
-
-            std::vector<std::uint8_t> ramp(std::size_t{ extent } * extent * 4);
-            for (std::uint32_t row = 0; row < extent; ++row)
-                for (std::uint32_t column = 0; column < extent; ++column)
-                {
-                    const std::size_t at = (std::size_t{ row } * extent + column) * 4;
-                    const auto value = static_cast<std::uint8_t>(column);
-                    ramp[at] = value;
-                    ramp[at + 1] = value;
-                    ramp[at + 2] = value;
-                    ramp[at + 3] = 255;
-                }
-            Testing::TestTexture albedo;
-            Testing::paintFlat(albedo, extent, ramp, "ramp");
+            const Testing::TestTexture albedo = paintRamp();
 
             const osg::Vec3f facing(0.0f, -1.0f, 0.0f);
             const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
@@ -2599,7 +2727,8 @@ namespace Rtx::Testing
                 {
                     material.mDiffuse = diffuse;
                     material.mNormal = normalMap;
-                    material.mParallax = flagged;
+                    if (flagged)
+                        material.mRelief = Rtx::AlphaRange{ .mLow = height, .mHigh = height };
                 }
                 scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = scene.addMaterial(material) });
 
@@ -2617,6 +2746,134 @@ namespace Rtx::Testing
                 EXPECT_NEAR(shown(ground, 0, true) - still, -shift, 5.0e-5f) << what << " at no height";
                 EXPECT_EQ(shown(ground, 255, true, true), still) << what << " whose normal map stands in";
             }
+        }
+
+        /// **A relief that spans more than one height is marched** (`reliefToward`): the eye's ray walks
+        /// down through it and stops at the first height it meets, so a step hides what stands behind it.
+        ///
+        /// The wall of `parallaxShiftsTheSheetTowardTheEyeByTheNormalMapsHeight`, its ramp and its frame,
+        /// seen closer, from `(40, -40, 0)`: the centre pixel meets it at `u = 0.5` along
+        /// `(0.70711, 0, 0.70711)` in the map's frame, and its footprint there is under a texel, so the
+        /// march reads level nought. The map is 256 texels square, its columns under 125 at 255 and the
+        /// rest at nought: a plateau on the far side of the hit, whose edge falls from one at
+        /// `u = 124.5 / 256` to nought at `125.5 / 256`. Over the bounds nought to 255 the relief is 0.04
+        /// deep, which the ray crosses over 0.04 of the side, 10.24 texels: eleven steps of
+        /// `0.04 / 11 = 0.0036364` down from the elevation 0.02, the ray standing over `u = 0.5 + z`. Step
+        /// eight stands at `z = -0.0090909`, over nought and 0.0109091 above it; step nine at
+        /// `z = -0.0127273`, `u = 0.4872727`, on the edge at `256 (0.4902344 - 0.4872727) = 0.7582`, which
+        /// is `0.04 * 0.7582 - 0.02 = 0.0103273` high and 0.0230546 over the step. The line between the two
+        /// meets the relief at `-0.0127273 + 0.0036364 * 0.0230546 / (0.0109091 + 0.0230546) = -0.0102590`:
+        /// the eye sees `u = 0.4897410`, the plateau's edge, where the shift reads the height under the hit,
+        /// nought, and lands at `0.5 - 0.02 * 0.70711 = 0.4858579`, on the plateau the edge hides. The
+        /// ramp's albedo moves by `256 / 255` of either.
+        ///
+        /// **A cone too wide to tell one texel of the crossing is the shift to the bit**: from
+        /// `(1000, -1000, 0)` a pixel spans some twenty texels, and the march takes no step.
+        ///
+        /// **And the stages after the trace light the texel the trace showed** (`STAGE_RELIEF`): the direct
+        /// stage resolves the solid off the stored hit and the stored march, so the sun's light over the
+        /// albedo the eye sees is the same where the relief is marched as where it is shifted. A stored
+        /// march of nought lit the unshifted texel, 0.650 of the albedo against 0.637.
+        TEST_F(RtxReliefTest, aReliefIsMarchedSoAStepHidesWhatStandsBehindIt)
+        {
+            const auto shown = [&](const osg::Vec3f& eye, std::optional<AlphaRange> relief, SurfaceView view) {
+                return plateauShown(eye, relief, view);
+            };
+
+            const osg::Vec3f near(40.0f, -40.0f, 0.0f);
+            const AlphaRange spanned{ .mLow = 0, .mHigh = 255 };
+            const AlphaRange flat{ .mLow = 0, .mHigh = 0 };
+            const float unshifted = shown(near, std::nullopt, SurfaceView::Albedo);
+            EXPECT_NEAR(unshifted, (128.0f - 0.5f) / 255.0f, 1.0e-4f) << "the hit, unshifted";
+
+            const float marched = shown(near, spanned, SurfaceView::Albedo);
+            EXPECT_NEAR(marched - unshifted, 256.0f / 255.0f * -0.0102590f, 3.0e-4f) << "the plateau's edge";
+            const float shifted = shown(near, flat, SurfaceView::Albedo);
+            EXPECT_NEAR(shifted - unshifted, 256.0f / 255.0f * -0.0141421f, 1.0e-4f) << "the shift's one step";
+
+            const osg::Vec3f far(1000.0f, -1000.0f, 0.0f);
+            EXPECT_EQ(shown(far, spanned, SurfaceView::Albedo), shown(far, flat, SurfaceView::Albedo))
+                << "a cone too wide for the march";
+
+            const float marchedLit = shown(near, spanned, SurfaceView::Shaded);
+            const float shiftedLit = shown(near, flat, SurfaceView::Shaded);
+            ASSERT_GT(shiftedLit, 0.0f);
+            EXPECT_NEAR(marchedLit / marched, shiftedLit / shifted, 1.0e-3f * shiftedLit / shifted)
+                << "the direct stage lit another texel than the trace showed";
+        }
+
+        /// **A relief shadows its own texels from the sun** (`reliefLit`): the plateau of
+        /// `aReliefIsMarchedSoAStepHidesWhatStandsBehindIt` seen square from `(0, -40, 0)`, so the eye sees its
+        /// foot at `u = 0.5` with no shift, nought high, at the elevation -0.02.
+        ///
+        /// A sun 45 degrees over the wall from the plateau's side, toward `(-0.70711, -0.70711, 0)`, is
+        /// `(-0.70711, 0, 0.70711)` in the map's frame: its ray leaves the foot rising as fast as it goes, over
+        /// 0.04 of height and of `u`, 10.24 texels, in eleven steps of 0.0036364. Step three stands at
+        /// `u = 0.4890909` on the plateau's edge, 0.2933 high, `0.04 * 0.2933 - 0.02 = -0.0082677` against the
+        /// ray's -0.0090909, over it by `0.0008232 * 0.70711 = 0.0005821` across the ray: the cone there is
+        /// narrower than the narrowest width, a texel, `1 / 256`, so it takes `0.0005821 / (2 / 256) = 0.0745`.
+        /// Step four stands on the plateau at 0.02, over the ray's -0.0054545 by `0.0254545 * 0.70711 =
+        /// 0.0179990`, more than twice the width: the sun is gone, and the foot stands in the black of a sky
+        /// with no light but the sun's.
+        ///
+        /// **A sun from the other side, and one square to the wall, light the foot as a wall with no relief**:
+        /// the ray from the low side passes over flat ground, which takes nothing, and the square one crosses
+        /// no texel sideways.
+        TEST_F(RtxReliefTest, aReliefShadowsItsOwnTexelsFromTheSun)
+        {
+            const osg::Vec3f square(0.0f, -40.0f, 0.0f);
+            const AlphaRange spanned{ .mLow = 0, .mHigh = 255 };
+            const float rootHalf = std::sqrt(0.5f);
+            const osg::Vec3f fromPlateau(-rootHalf, -rootHalf, 0.0f);
+            const osg::Vec3f fromFoot(rootHalf, -rootHalf, 0.0f);
+            const osg::Vec3f fromFront(0.0f, -1.0f, 0.0f);
+
+            const float lit = plateauShown(square, std::nullopt, SurfaceView::Shaded, fromPlateau);
+            ASSERT_GT(lit, 0.0f) << "the sun lights the wall with no relief";
+            EXPECT_EQ(plateauShown(square, spanned, SurfaceView::Shaded, fromPlateau), 0.0f)
+                << "the plateau stands between the foot and the sun";
+            EXPECT_EQ(plateauShown(square, spanned, SurfaceView::Shaded, fromFoot),
+                plateauShown(square, std::nullopt, SurfaceView::Shaded, fromFoot))
+                << "the sun over flat ground";
+            EXPECT_EQ(plateauShown(square, spanned, SurfaceView::Shaded, fromFront),
+                plateauShown(square, std::nullopt, SurfaceView::Shaded, fromFront))
+                << "the sun square to the wall";
+        }
+
+        /// **The eye's distance and motion are measured to the texel the march shows**, which moves with its
+        /// own parallax, and not to the triangle (`Surface::mReliefDepth`). From `(40, -40, 0)` the wall stands
+        /// `40 sqrt(2) = 56.5685` along the centre pixel's ray, and the march of
+        /// `aReliefIsMarchedSoAStepHidesWhatStandsBehindIt` meets the plateau's edge at the elevation
+        /// -0.0102590, `0.0102590 / 0.70711 = 0.0145084` of the texture along the ray past the wall, whose
+        /// texture is 400 units a side: `5.8034` units. **The shift stands its texel at no depth**, as a tuple
+        /// with no relief does, so a relief bounded flat is measured at the wall.
+        /// **A ground stack's relief is marched through the heights its layers show, summed by their shares**,
+        /// and every layer is read where the march stood. Whole, the plateau's layer is the surface of
+        /// `aReliefIsMarchedSoAStepHidesWhatStandsBehindIt`, whose march meets its edge at `u = 0.4897410`: the
+        /// layers' frame is the chunk's x, which on this wall is the surface's tangent. At half beside a layer
+        /// of no height, the stack stands at `0.5 h + 0.25`, from 0.25 at the foot to 0.75 on the plateau:
+        /// elevations -0.01 and 0.01, within the bounds nought to one. The same eleven steps down from 0.02:
+        /// step eight, `z = -0.0090909` over the foot at -0.01, is 0.0009091 above it; step nine,
+        /// `z = -0.0127273` at `u = 0.4872727`, stands over the edge's 0.7582, a stack of 0.6291 at 0.0051640,
+        /// 0.0178913 under it. The line between them meets the stack at
+        /// `-0.0127273 + 0.0036364 * 0.0178913 / (0.0009091 + 0.0178913) = -0.0092667`: `u = 0.4907333`.
+        TEST_F(RtxReliefTest, aGroundStacksReliefIsMarchedThroughItsLayersSummedHeights)
+        {
+            const osg::Vec3f near(40.0f, -40.0f, 0.0f);
+            const float unshifted = (128.0f - 0.5f) / 255.0f;
+            EXPECT_NEAR(groundShown(near, 1.0f) - unshifted, 256.0f / 255.0f * -0.0102590f, 3.0e-4f) << "whole";
+            EXPECT_NEAR(groundShown(near, 0.5f) - unshifted, 256.0f / 255.0f * -0.0092667f, 3.0e-4f) << "half";
+        }
+
+        TEST_F(RtxReliefTest, theEyesDistanceIsMeasuredToTheTexelTheMarchShows)
+        {
+            const osg::Vec3f near(40.0f, -40.0f, 0.0f);
+            plateauShown(near, std::nullopt, SurfaceView::Albedo);
+            EXPECT_NEAR(shownDistance(), 56.5685f, 1.0e-3f) << "the wall";
+            plateauShown(near, AlphaRange{ .mLow = 0, .mHigh = 255 }, SurfaceView::Albedo);
+            EXPECT_NEAR(shownDistance(), 56.5685f + 5.8034f, 0.05f) << "the plateau's edge";
+            plateauShown(near, AlphaRange{ .mLow = 0, .mHigh = 0 }, SurfaceView::Albedo);
+            EXPECT_NEAR(shownDistance(), 56.5685f, 1.0e-3f) << "the shift";
         }
 
         /// A chunk flattened on the device is the ground its stack sums, whichever way it arrived.

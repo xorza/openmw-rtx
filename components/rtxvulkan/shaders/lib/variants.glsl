@@ -65,4 +65,10 @@ layout(constant_id = SPEC_HAS_MAPS) const bool HAS_MAPS = true;
 /// (`candidateStops`) out of every scene that has none, which is nearly every scene.
 layout(constant_id = SPEC_HAS_DARK_ALPHA) const bool HAS_DARK_ALPHA = true;
 
+/// Whether this frame's scene places a material whose normal map's relief spans more than one height
+/// (`Rtx::Material::Traversed::mRelief`), which only a scene with maps does. False takes the march through
+/// the relief out of every scene with no `_nh` map, and its stored answer (`STAGE_RELIEF`) with it: such a
+/// surface keeps the one shift it had, which is the march's answer where the relief is flat.
+layout(constant_id = SPEC_HAS_RELIEF) const bool HAS_RELIEF = true;
+
 #endif

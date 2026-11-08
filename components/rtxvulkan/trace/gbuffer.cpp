@@ -173,7 +173,7 @@ namespace Rtx
             StageRead mRead = StageRead::EveryFrame;
         };
 
-        /// Every stage image, at its binding less `GBuffer::sFirstStage`. **The record past the trace**,
+        /// Every stage image, in the order of its binding, the tile lists' left out. **The record past the trace**,
         /// to the pass that composes the frame, which weighs the upscaler's masks out of it
         /// (`storeUpscaleMasks`).
         constexpr std::array<StageDeclared, GBuffer::sStageImages> sStages{ {
@@ -190,17 +190,24 @@ namespace Rtx
                 StageRead::SeveralRays },
             { Shaders::STAGE_LANDING_RAY_ALONG, GBUFFER_STAGE_RAY, "stage landing ray along", FrameStep::Trace,
                 StageRead::SeveralRays },
+            { Shaders::STAGE_RELIEF, GBUFFER_STAGE_RELIEF, "stage relief" },
         } };
 
         constexpr bool stagesInOrder()
         {
-            for (std::size_t at = 0; at < sStages.size(); ++at)
-                if (sStages[at].mBinding != GBuffer::sFirstStage + at)
+            std::uint32_t binding = GBuffer::sFirstStage;
+            for (const StageDeclared& declared : sStages)
+            {
+                if (!Shaders::isStageImage(binding))
+                    ++binding;
+                if (declared.mBinding != binding)
                     return false;
-            return true;
+                ++binding;
+            }
+            return binding == Shaders::CHANNEL_SET_BINDINGS;
         }
 
-        static_assert(stagesInOrder(), "the stage table is indexed by binding");
+        static_assert(stagesInOrder(), "the stage table holds every stage image in the order of its binding");
 
         /// A stage image, in fields as the trace writes it, and storage alone: only the trace's
         /// stages and the composing passes touch them. **A texel where the frame does not read it**,
@@ -299,9 +306,13 @@ namespace Rtx
                 const Image& bound = set == 1 && held.has_value() ? mOthers[*held] : mChannels[indexOf(channel)];
                 writes.image(indexOf(channel), bound.describeStorage());
             }
+            // In the bindings' order: the tile lists stand between the stage images and the relief.
             for (std::size_t at = 0; at < sStages.size(); ++at)
+            {
+                if (sStages[at].mBinding == Shaders::STAGE_TILES + 1)
+                    writes.buffer(Shaders::STAGE_TILES, mStageTiles.describe());
                 writes.image(sStages[at].mBinding, mStages[at].describeStorage());
-            writes.buffer(Shaders::STAGE_TILES, mStageTiles.describe());
+            }
             updateSets(device, writes.get());
         }
     }

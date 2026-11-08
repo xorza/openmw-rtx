@@ -66,7 +66,7 @@ namespace RtxTool
 
     /// The reconstruction's switches, by their names on the line: the ones `--versus` may name, since
     /// nothing else reads them.
-    inline constexpr std::array sReconstructionSwitches
-        = std::to_array<std::string_view>({ "filter", "jitter", "noise", "level-epsilon", "shadow-floor",
-            "lamp-candidates", "indirect", "bounce-rays", "antilag", "history-fix", "dual-motion", "antifirefly" });
+    inline constexpr std::array sReconstructionSwitches = std::to_array<std::string_view>(
+        { "filter", "jitter", "noise", "level-epsilon", "shadow-floor", "lamp-candidates", "indirect", "bounce-rays",
+            "relief", "antilag", "history-fix", "dual-motion", "antifirefly" });
 }

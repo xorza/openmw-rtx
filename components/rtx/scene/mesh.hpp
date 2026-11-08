@@ -258,5 +258,10 @@ namespace Rtx
         /// — and so whether the trace reads a dark map's alpha at a see-through candidate at all
         /// (`HAS_DARK_ALPHA`). None in nearly every scene.
         std::uint32_t mDarkAlpha = 0;
+
+        /// How many wear a relief that spans more than one height — `Material::Traversed::mRelief` —
+        /// and so whether the trace needs the march through it at all (`HAS_RELIEF`). None in a scene
+        /// with no `_nh` map.
+        std::uint32_t mRelief = 0;
     };
 }

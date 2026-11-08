@@ -290,6 +290,17 @@ namespace Rtx
             reading.mDarkFacts = known;
         }
 
+        // And the heights a normal map's relief spans, for every surface whose normal map carries one:
+        // a cutout's as well, which `describe` then leaves unread, since the file's facts are kept for
+        // every material that names it.
+        if (const osg::Image* const normal = described.getTexture(SurfaceMap::Normal);
+            described.mNormalHeight && normal != nullptr && !SceneUtil::EmbeddedImage::nameOf(*normal).empty())
+        {
+            ImageFacts& known = thread.factsOf(*normal);
+            thread.alphaRangeOf(known, *normal);
+            reading.mNormalFacts = known;
+        }
+
         return reading;
     }
 
@@ -560,7 +571,16 @@ namespace Rtx
                 += osg::Vec3f(overridden.x() * ambient.x(), overridden.y() * ambient.y(), overridden.z() * ambient.z());
         }
 
-        material.mParallax = described->mNormalHeight && material.mNormal != sNoIndex && !material.isCutout();
+        // **The heights the relief spans**, the reader's answer where it made one, and the walk over the
+        // normal map's texels here where it made none. A map this cannot answer for is bounded by the
+        // whole byte range, which bounds whatever it holds.
+        if (described->mNormalHeight && material.mNormal != sNoIndex && !material.isCutout())
+        {
+            const osg::Image* const normal = described->getTexture(SurfaceMap::Normal);
+            std::optional<ImageFacts> read = reading.mNormalFacts;
+            ImageFacts* const facts = read.has_value() ? &*read : takenFacts(normal);
+            material.mRelief = facts != nullptr ? mThread.alphaRangeOf(*facts, *normal) : AlphaRange{};
+        }
 
         // Scaled about the middle of the texture, then offset, which is what `NifOsg` builds its
         // texture matrix from — so `(uv - 0.5) * scale + 0.5 + offset`, resolved here into the

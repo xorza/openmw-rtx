@@ -48,6 +48,10 @@ namespace Rtx
         /// (`InstanceCounts::mDarkAlpha`): which picks the tuple that reads its alpha (`HAS_DARK_ALPHA`).
         bool mDarkAlpha = false;
 
+        /// Whether the scene places a material whose relief spans more than one height
+        /// (`InstanceCounts::mRelief`): what `HAS_RELIEF` reads.
+        bool mRelief = false;
+
         /// Whether the scene holds a lamp, which the shadow denoiser reads: a lamp's light is one
         /// of the two it shadows, the sky's source the other.
         bool mLamps = false;

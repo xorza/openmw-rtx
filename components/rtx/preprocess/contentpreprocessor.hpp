@@ -1,5 +1,6 @@
 #pragma once
 
+#include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
@@ -45,6 +46,9 @@ namespace Rtx
         /// `SolidFall`: whether `image`'s alpha ever falls below solid.
         bool fallsBelowSolid(const osg::Image& image);
 
+        /// `AlphaSpan`: the lowest and the highest alpha `image` holds.
+        AlphaRange alphaRange(const osg::Image& image);
+
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();
 
@@ -57,6 +61,7 @@ namespace Rtx
         SolidReach mSolid{ mTexels };
         TexelMean mMean{ mTexels };
         SolidFall mFall{ mTexels };
+        AlphaSpan mSpan{ mTexels };
 
         ContentCache mCache;
         ContentStats mStats;

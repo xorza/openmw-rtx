@@ -32,6 +32,9 @@ namespace Rtx
         /// Whether a texture's alpha ever falls below solid — `SolidFall`.
         SolidFall,
 
+        /// The lowest and the highest alpha a texture holds — `AlphaSpan`.
+        AlphaSpan,
+
         Count,
     };
 
@@ -42,6 +45,7 @@ namespace Rtx
         std::pair{ ContentPassId::SolidReach, std::string_view("solid reach") },
         std::pair{ ContentPassId::TexelMean, std::string_view("texel mean") },
         std::pair{ ContentPassId::SolidFall, std::string_view("solid fall") },
+        std::pair{ ContentPassId::AlphaSpan, std::string_view("alpha span") },
     } };
 
     inline constexpr std::size_t sContentPassCount = sContentPasses.mNames.size();

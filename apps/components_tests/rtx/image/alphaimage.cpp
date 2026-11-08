@@ -17,6 +17,7 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/alphaimage.hpp>
+#include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
@@ -409,6 +410,53 @@ namespace Rtx
             EXPECT_TRUE(content.fallsBelowSolid(*makeBlockImage(
                 GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF })))
                 << "ascending endpoints and fifteen holes";
+        }
+
+        /// **The heights a relief spans are its lowest and its highest texel, whatever spells them.**
+        ///
+        /// Loose, the fourth byte of each texel. BC3 descending from 200 to 40, indices 0, 1, 2 and 4
+        /// repeating (`0x88` six times): the endpoints, `(6 * 200 + 40 + 3) / 7 = 177` and
+        /// `(4 * 200 + 3 * 40 + 3) / 7 = 131`, so 40 to 200. Ascending from 40 to 200, its six-entry
+        /// palette with nought and 255 last: index one in texel nought and nought in the rest is 200
+        /// and 40; index six in texel nought and one in texel one, `6 | 1 << 3 = 0x0E`, is nought,
+        /// 200 and 40. A BC1 block all hole is nought throughout. And a texel the block pads past
+        /// the picture's edge bounds nothing: the two-by-two block of
+        /// `aBlockFormatReachesSolidByItsBlocksAndNeverByItsPadding` holds 200 in the picture and 255
+        /// in its padding.
+        TEST(RtxAlphaImageTest, alphaRangeIsTheLowestAndTheHighestTexelOfThePicture)
+        {
+            ContentPreprocessor content;
+            const auto range = [&](const osg::ref_ptr<osg::Image>& image) {
+                const AlphaRange read = content.alphaRange(*image);
+                return std::array<int, 2>{ read.mLow, read.mHigh };
+            };
+            using Range = std::array<int, 2>;
+
+            EXPECT_EQ(range(makeAlphaImage({ 30, 90, 200, 120 })), (Range{ 30, 200 })) << "loose";
+            EXPECT_EQ(range(makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4,
+                          { 200, 40, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0, 0, 0, 0, 0, 0, 0, 0 })),
+                (Range{ 40, 200 }))
+                << "eight entries";
+            EXPECT_EQ(range(makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4,
+                          { 40, 200, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })),
+                (Range{ 40, 200 }))
+                << "six entries, and neither end named";
+            EXPECT_EQ(range(makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4,
+                          { 40, 200, 0x0E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })),
+                (Range{ 0, 200 }))
+                << "six entries, and nought named";
+            EXPECT_EQ(range(makeBlockImage(
+                          GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF })),
+                (Range{ 0, 0 }))
+                << "a BC1 block all hole";
+
+            // Refused where OpenSceneGraph counts the level short of its block, and a refused image is
+            // bounded by the whole byte range, which bounds whatever it holds.
+            const bool wholeBlock = countedBytes(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2) == 16;
+            EXPECT_EQ(range(makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2,
+                          { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })),
+                wholeBlock ? (Range{ 200, 200 }) : (Range{ 0, 255 }))
+                << "the 255 is in the padding";
         }
 
         /// The second image a preprocessor reads costs the heap nothing, and reads as itself.

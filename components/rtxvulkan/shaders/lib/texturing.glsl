@@ -1,6 +1,8 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_TEXTURING_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_TEXTURING_GLSL
 
+#extension GL_EXT_control_flow_attributes : require
+
 // Reading a texture at the level the ray's cone can resolve, and taking the painted-in lighting back out of
 // it.
 
@@ -334,6 +336,234 @@ vec3 sampleAlbedo(uint slot, TexturePoint point)
 float maskWeight(GpuLayer layer, vec2 uv)
 {
     return maskWeightIn(layer, uv, MaskTable(frame.mTables.mMasks));
+}
+
+/// The heights a material's relief spans (`GpuMaterial::mRelief`), as its normal map's alpha reads them:
+/// the lowest in `x` and the highest in `y`.
+vec2 reliefBoundsOf(uint packed)
+{
+    return vec2(float(packed & 0xffu), float((packed >> 8u) & 0xffu)) / 255.0;
+}
+
+/// The level of normal map `slot` the reads at `point` resolve, nought at the finest: what a march through
+/// its relief counts its texels at (`reliefToward`, `reliefLit`).
+float reliefLevelOf(uint slot, TexturePoint point)
+{
+    return point.mResolved <= TEXTURE_FINEST_BASE
+        ? 0.0
+        : max(point.mResolved + 0.5 * log2(float(textureTexelsAt(slot))), 0.0);
+}
+
+/// The most normal maps a march sums the heights of (`ReliefMaps`): the layers of a ground stack that show
+/// at a hit, past which the rest stand at the middle height. Ground blends two or three at a point.
+const uint RELIEF_LAYERS = 4u;
+
+/// The heights a march goes through (`reliefToward`): a surface's one normal map, or a stack's layers that
+/// show at the hit, each by the share of the stack it shows, beside the share of the layers with no height,
+/// which stand at the middle height, on the triangle. The shares sum to one. **One sheet for all of them**:
+/// every layer of a chunk is laid by one transform (`Rtx::GroundReader`), so one point names a texel of each.
+///
+/// **Vectors and not arrays, and every index a constant**: an array indexed by a count the hit decides is
+/// local memory on NVIDIA's compiler, which spilled the direct stage and the landing's by 32 bytes a lane.
+struct ReliefMaps
+{
+    uint mCount;
+    uvec4 mSlots;
+    vec4 mShares;
+    float mFlat;
+};
+
+/// A surface's one normal map, `slot`, whole.
+ReliefMaps reliefMapOf(uint slot)
+{
+    return ReliefMaps(1u, uvec4(slot, NO_TEXTURE, NO_TEXTURE, NO_TEXTURE), vec4(1.0, 0.0, 0.0, 0.0), 0.0);
+}
+
+/// `maps` with `slot` taken in at `share`, where it has room: each place compared against the count, so no
+/// index is the count's.
+void takeReliefMap(inout ReliefMaps maps, uint slot, float share)
+{
+    [[unroll]] for (uint place = 0u; place < RELIEF_LAYERS; ++place)
+        if (place == maps.mCount)
+        {
+            maps.mSlots[place] = slot;
+            maps.mShares[place] = share;
+        }
+    ++maps.mCount;
+}
+
+/// The height `maps` sum to at `at`, read at `level`.
+float reliefHeightAt(ReliefMaps maps, vec2 at, float level)
+{
+    float height = 0.5 * maps.mFlat;
+    [[unroll]] for (uint place = 0u; place < RELIEF_LAYERS; ++place)
+        if (place < maps.mCount)
+            height += maps.mShares[place] * textureLod(textures[nonuniformEXT(maps.mSlots[place])], at, level).a;
+    return height;
+}
+
+/// How far toward the eye a hit's relief shows its texture, in the texture's own units along the eye's
+/// lean, in `x`: the texel the eye sees stands at `point.mAt + eye.xy * reliefToward(...).x`. And in `y` the
+/// march's own share of it, past the shift's, which stands a point along the eye's ray and nought where the
+/// march took no step: the shift moves the texture and stands it at no depth.
+///
+/// **The relief OpenMW states, marched** (Tatarchuk 2006): a height `h` stands `h * PARALLAX_SCALE +
+/// PARALLAX_BIAS` over the triangle in the map's tangent frame, measured in the texture's units, so the
+/// mean height the replacers paint stands on it. The eye's ray enters the relief at its highest height and
+/// is walked down in even steps to its lowest; the first step under the height ends it, and the root is
+/// found in float between that step and the one before, on the line through their two heights, which
+/// joins the filtered bytes without the stairs a step would leave.
+///
+/// **The steps follow the ray's cone.** As many as the texels the ray crosses sideways inside the bounds,
+/// at the level the hit's reads resolve, up to `RELIEF_STEPS`; past it a coarser level, so a step stays
+/// one texel of the level it reads. **Under one texel, the shift**, `parallaxShift`'s, which is what the
+/// march comes to where nothing it crosses tells one texel from another: a far surface keeps the picture
+/// and the cost it had. Between one texel and two the two are mixed, so no ring stands where the march
+/// begins (Tatarchuk's threshold blend). A face the eye meets from behind its frame takes the shift.
+///
+/// **Held to one side of the texture**: the eye's rise over the sheet is taken at least as high as a
+/// crossing of the whole relief over one side needs, since past it the texture repeats and the march
+/// would read a tile it does not stand over.
+///
+/// @param maps the normal maps whose alpha is the height, the first of which the march counts its texels
+///        at.
+/// @param bounds the lowest and the highest height they hold (`reliefBoundsOf`).
+/// @param eye the direction to the eye in the maps' tangent frame, as `parallaxShift` takes it.
+/// @param height their height at the hit, read as the shift reads it.
+vec2 reliefToward(ReliefMaps maps, vec2 bounds, TexturePoint point, vec3 eye, float height)
+{
+    const uint slot = maps.mSlots[0];
+    const float shift = height * PARALLAX_SCALE + PARALLAX_BIAS;
+    const float top = bounds.y * PARALLAX_SCALE + PARALLAX_BIAS;
+    const float bottom = bounds.x * PARALLAX_SCALE + PARALLAX_BIAS;
+    const float depth = top - bottom;
+    if (!(eye.z > 0.0) || !(depth > 0.0))
+        return vec2(shift, 0.0);
+
+    const float lean = length(eye.xy);
+    const float rise = max(eye.z, lean * depth);
+    const float texels = float(textureTexelsAt(slot));
+    const float level = reliefLevelOf(slot, point);
+    const float crossed = lean / rise * depth * sqrt(texels) * exp2(-level);
+    if (!(crossed > 1.0))
+        return vec2(shift, 0.0);
+
+    const float steps = min(ceil(crossed), RELIEF_STEPS);
+    const float read = level + max(log2(crossed / RELIEF_STEPS), 0.0);
+    const vec2 along = eye.xy / rise;
+    const float step = depth / steps;
+
+    // **What a step stands under, in float**: the first that is under the height ends the walk, and the
+    // one before it was over, by `over`. A walk that ends under none stands on the lowest height.
+    float met = bottom;
+    float over = 0.0;
+    const uint count = uint(steps);
+    for (uint at = 0u; at <= count; ++at)
+    {
+        const float elevation = top - float(at) * step;
+        const float stands = reliefHeightAt(maps, point.mAt + along * elevation, read) * PARALLAX_SCALE + PARALLAX_BIAS;
+        const float gap = elevation - stands;
+        if (!(gap > 0.0))
+        {
+            met = at == 0u ? elevation : elevation - step * gap / (over - gap);
+            break;
+        }
+        over = gap;
+    }
+
+    const float marched = clamp(crossed - 1.0, 0.0, 1.0);
+    return vec2(mix(shift, met / rise, marched), marched * (met / rise));
+}
+
+/// How much farther along the ray than the triangle a march's texel stands, in the world (`Surface::mReliefDepth`):
+/// `marched`, the march's own share (`reliefToward`'s `y`) in the units of the sheet `transform` lays, carried by
+/// the triangle's world length of one, the square root of its area in the world over its area on the sheet, so a
+/// texture stretched unevenly takes the mean of its two stretches. Nought where the sheet has no area.
+float reliefDepthOf(vec2 uv[3], vec4 transform, SurfaceCone cone, float marched)
+{
+    const vec2 across = (uv[1] - uv[0]) * transform.xy;
+    const vec2 down = (uv[2] - uv[0]) * transform.xy;
+    const float sheetArea = abs(across.x * down.y - down.x * across.y);
+    return sheetArea > 0.0 ? -marched * sqrt(cone.mArea / sheetArea) : 0.0;
+}
+
+/// Where a hit's relief showed the eye its texel, for a march from there toward a light (`reliefLit`): the
+/// normal map, or `NO_TEXTURE` where the surface has no relief; the texel, past the march; the heights the
+/// map spans (`reliefBoundsOf`); the map's tangent frame, as `reliefToward` was handed the eye in it; and the
+/// level its reads resolve (`reliefLevelOf`).
+struct ReliefSite
+{
+    uint mMap;
+    vec2 mAt;
+    vec2 mBounds;
+    vec3 mTangent;
+    vec3 mBitangent;
+    vec3 mNormal;
+    float mLevel;
+};
+
+ReliefSite noReliefSite()
+{
+    return ReliefSite(NO_TEXTURE, vec2(0.0), vec2(0.0), vec3(0.0), vec3(0.0), vec3(0.0, 0.0, 1.0), 0.0);
+}
+
+/// How much of a light `toLight` lights the texel `site` showed the eye, past the relief between: a march
+/// from the height that texel stands at up along the light, through the map's heights to its highest.
+///
+/// **Soft, by the light's own size** (Tatarchuk 2006's approximate soft shadow, here with the light's
+/// width): at each step a height that stands over the light's ray is weighed against how wide the light's
+/// cone has opened there, `spread` times the distance from the texel, and takes the light away in a line,
+/// all of it where the height stands the cone's whole width over the ray. **Only what stands over the ray**,
+/// as Remix's `pomSampleVisibility` counts it: a height under the ray takes nothing, so flat ground lights
+/// itself whole. **A texel of the level the march reads is the narrowest width**, since the heights are
+/// filtered over it and a shadow sharper than a texel would be the filter's stairs. The least of the steps
+/// is the answer.
+///
+/// **The march's own rules, the eye's level among them**: as many steps as the texels the light's ray crosses
+/// sideways, up to `RELIEF_STEPS`, and none where it crosses under one, which lights the texel whole. A light
+/// under the map's plane lights it whole as well, where the cosine already takes the light away.
+///
+/// @param toLight unit, toward the light.
+/// @param spread the sine of half the angle the light subtends: the sky source's limb, a lamp's radius over
+///        its distance.
+float reliefLit(ReliefSite site, vec3 toLight, float spread)
+{
+    const vec3 light = vec3(dot(site.mTangent, toLight), dot(site.mBitangent, toLight), dot(site.mNormal, toLight));
+    const float top = site.mBounds.y * PARALLAX_SCALE + PARALLAX_BIAS;
+    const float start = textureLod(textures[nonuniformEXT(site.mMap)], site.mAt, site.mLevel).a * PARALLAX_SCALE
+        + PARALLAX_BIAS;
+    const float depth = top - start;
+    if (!(light.z > 0.0) || !(depth > 0.0))
+        return 1.0;
+
+    const float lean = length(light.xy);
+    const float rise = max(light.z, lean * depth);
+    const float side = sqrt(float(textureTexelsAt(site.mMap)));
+    const float crossed = lean / rise * depth * side * exp2(-site.mLevel);
+    if (!(crossed > 1.0))
+        return 1.0;
+
+    const float steps = min(ceil(crossed), RELIEF_STEPS);
+    const float read = site.mLevel + max(log2(crossed / RELIEF_STEPS), 0.0);
+    const vec2 along = light.xy / rise;
+    const float step = depth / steps;
+    const float span = sqrt(lean * lean + rise * rise);
+    const float texel = exp2(read) / side;
+
+    float lit = 1.0;
+    const uint count = uint(steps);
+    for (uint at = 1u; at <= count; ++at)
+    {
+        const float risen = float(at) * step;
+        const float stands = textureLod(textures[nonuniformEXT(site.mMap)], site.mAt + along * risen, read).a
+                * PARALLAX_SCALE
+            + PARALLAX_BIAS;
+        const float over = (stands - (start + risen)) * lean / span;
+        const float width = max(risen * span / rise * spread, texel);
+        lit = min(lit, clamp(1.0 - over / (2.0 * width), 0.0, 1.0));
+    }
+
+    return lit;
 }
 
 #endif

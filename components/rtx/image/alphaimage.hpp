@@ -8,6 +8,7 @@
 
 #include <osg/Vec3f>
 
+#include "alpharange.hpp"
 #include "texturedata.hpp"
 
 namespace osg
@@ -94,4 +95,10 @@ namespace Rtx
     /// dark map whose alpha a see-through surface's coverage is multiplied by from one that changes
     /// nothing, as nearly every dark map is.
     bool fallsBelowSolid(const TextureData& finest);
+
+    /// The lowest and the highest alpha of a finest level `describeFinest` gave: the heights a normal
+    /// map's relief spans, which bound the march through it. Every texel, read off each block's palette
+    /// and indices with nothing decoded into an image. The finest level alone, as for the facts above:
+    /// a coarser level's texel is a mean of finer ones, so it stands inside their range.
+    AlphaRange alphaRange(const TextureData& finest);
 }

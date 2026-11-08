@@ -6,6 +6,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/environment/wavespectrum.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -42,8 +43,9 @@ namespace Rtx
         /// @param counts the census the launches sum into.
         /// @param sunGlare the counts the eye's launch adds to: the fader's for a frame,
         ///        `DisplayChain::getGlareCounts`.
-        TraceSubject describe(const DeviceScene& held, const Shaders::VisibilityConstants& camera, const Buffer& counts,
-            const Buffer& sunGlare) const;
+        /// @param sampling how the frame is drawn: whether it marches a relief (`SamplingSwitches::mRelief`).
+        TraceSubject describe(const DeviceScene& held, const Shaders::VisibilityConstants& camera,
+            const SamplingSwitches& sampling, const Buffer& counts, const Buffer& sunGlare) const;
 
         /// Writes the media's bindings into a trace's push, in the table's order: the sea's tiles
         /// and their curvature, the fog's field, and the wake and its curvature. Sampled from

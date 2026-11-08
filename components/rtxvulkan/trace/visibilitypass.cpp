@@ -73,6 +73,7 @@ namespace Rtx
             words[Shaders::SPEC_HAS_SEA] = tuple.mSea ? 1u : 0u;
             words[Shaders::SPEC_HAS_MAPS] = tuple.mMaps ? 1u : 0u;
             words[Shaders::SPEC_HAS_DARK_ALPHA] = tuple.mDarkAlpha ? 1u : 0u;
+            words[Shaders::SPEC_HAS_RELIEF] = tuple.mRelief ? 1u : 0u;
             return words;
         }
 
@@ -216,8 +217,8 @@ namespace Rtx
         } };
     }
 
-    VisibilityVariant VisibilityVariant::resolve(
-        const Shaders::VisibilityConstants& frame, const bool sea, const bool mapped, const bool darkAlpha)
+    VisibilityVariant VisibilityVariant::resolve(const Shaders::VisibilityConstants& frame, const bool sea,
+        const bool mapped, const bool darkAlpha, const bool relief)
     {
         // A moon that is drawn and a moon that lights are two facts, and the sky needs the first
         // where no surface asks for the second: the game fades both out over the hours around dawn,
@@ -236,12 +237,16 @@ namespace Rtx
             .mSea = sea,
             .mMaps = mapped,
             .mDarkAlpha = darkAlpha,
+
+            // A relief is read through a normal map, so a scene with none has none to march.
+            .mRelief = mapped && relief,
         };
     }
 
     std::uint32_t VisibilityVariant::index() const
     {
-        return (mSun ? 1u : 0u) | (mMoons ? 2u : 0u) | (mSea ? 4u : 0u) | (mMaps ? 8u : 0u) | (mDarkAlpha ? 16u : 0u);
+        return (mSun ? 1u : 0u) | (mMoons ? 2u : 0u) | (mSea ? 4u : 0u) | (mMaps ? 8u : 0u) | (mDarkAlpha ? 16u : 0u)
+            | (mRelief ? 32u : 0u);
     }
 
     std::string VisibilityVariant::describe(const std::string_view kernel) const
@@ -257,6 +262,8 @@ namespace Rtx
             name += " maps";
         if (mDarkAlpha)
             name += " dark";
+        if (mRelief)
+            name += " relief";
         return name;
     }
 
@@ -329,7 +336,7 @@ namespace Rtx
         // it (`variantFor`): the game runs meanwhile, and half the processors are its. After the full
         // tuple, whose compile they would slow. **A kernel a turn**, so a stop waits for one compile
         // and not a tuple's six or seven, and a tuple made when its last kernel lands.
-        mSpecializing.start("tuple compile", VisibilityVariant::sCount - 1,
+        mSpecializing.start("tuple compile", VisibilityVariant::sMade - 1,
             [this, &textureLayout, caller](const Platform::StopToken& stop, Job& job) {
                 while (!mCompiling.waitFor(std::chrono::milliseconds(100)).isDone())
                     if (stop.stopRequested())
@@ -339,6 +346,9 @@ namespace Rtx
                 // frame waits on, which the queue takes first. **The tuples that read a dark map's
                 // alpha last**, which nearly no scene asks for and the whole tuple stands in for
                 // meanwhile.
+                //
+                // **A relief only beside the maps**, which `resolve` never asks without them: the march
+                // reads a normal map.
                 std::vector<Wanted> kernels;
                 std::vector<TupleRun> runs;
                 for (const bool darkAlpha : { false, true })
@@ -346,25 +356,28 @@ namespace Rtx
                         for (const bool moons : { false, true })
                             for (const bool sea : { false, true })
                                 for (const bool maps : { false, true })
-                                {
-                                    const VisibilityVariant tuple{ .mSun = sun,
-                                        .mMoons = moons,
-                                        .mSea = sea,
-                                        .mMaps = maps,
-                                        .mDarkAlpha = darkAlpha };
-                                    if (sun && moons && sea && maps && darkAlpha)
-                                        continue;
+                                    for (const bool relief : { false, true })
+                                    {
+                                        const VisibilityVariant tuple{ .mSun = sun,
+                                            .mMoons = moons,
+                                            .mSea = sea,
+                                            .mMaps = maps,
+                                            .mDarkAlpha = darkAlpha,
+                                            .mRelief = relief };
+                                        if ((sun && moons && sea && maps && darkAlpha && relief) || (relief && !maps))
+                                            continue;
 
-                                    const std::size_t first = kernels.size();
-                                    for (std::size_t stage = 0; stage < sStageCount; ++stage)
-                                        if (runsStage(static_cast<Kernel>(stage), tuple))
-                                            kernels.push_back(
-                                                Wanted{ .mKernel = static_cast<Kernel>(stage), .mVariant = tuple });
-                                    if (!tuple.mMaps)
-                                        kernels.push_back(Wanted{ .mKernel = Kernel::Scatter, .mVariant = tuple });
-                                    runs.push_back(TupleRun{ .mTuple = tuple.index(),
-                                        .mItems = static_cast<std::uint32_t>(kernels.size() - first) });
-                                }
+                                        const std::size_t first = kernels.size();
+                                        for (std::size_t stage = 0; stage < sStageCount; ++stage)
+                                            if (runsStage(static_cast<Kernel>(stage), tuple))
+                                                kernels.push_back(
+                                                    Wanted{ .mKernel = static_cast<Kernel>(stage), .mVariant = tuple });
+                                        if (!tuple.mMaps)
+                                            kernels.push_back(Wanted{ .mKernel = Kernel::Scatter, .mVariant = tuple });
+                                        runs.push_back(TupleRun{ .mTuple = tuple.index(),
+                                            .mItems = static_cast<std::uint32_t>(kernels.size() - first) });
+                                    }
+                assert(runs.size() == VisibilityVariant::sMade - 1 && "a tuple made that the count leaves out");
                 TupleQueue queue(runs, VisibilityVariant::sCount);
 
                 // Each turn claims one kernel and every kernel is one turn's, so no turn finds none.
@@ -458,7 +471,7 @@ namespace Rtx
         if (set == KernelSet::Drawing || !mSpecialize)
             return drawing;
 
-        const std::uint32_t tuples = VisibilityVariant::sCount - 1;
+        const std::uint32_t tuples = VisibilityVariant::sMade - 1;
         if (!drawing.isDone())
             return JobProgress{ .mMade = drawing.mMade, .mCount = drawing.mCount + tuples };
 
@@ -502,8 +515,8 @@ namespace Rtx
     VisibilityVariant VisibilityPass::variantFor(
         const VisibilityInputs& inputs, const Shaders::VisibilityConstants& constants) const
     {
-        const VisibilityVariant wanted = VisibilityVariant::resolve(
-            constants, inputs.mSubject.mSea, inputs.mSubject.mMapped, inputs.mSubject.mDarkAlpha);
+        const VisibilityVariant wanted = VisibilityVariant::resolve(constants, inputs.mSubject.mSea,
+            inputs.mSubject.mMapped, inputs.mSubject.mDarkAlpha, inputs.mSubject.mRelief);
         if (isMade(wanted))
             return wanted;
 
@@ -560,6 +573,7 @@ namespace Rtx
     const TracePipeline<NoConstants>& VisibilityPass::scatterPipelineFor(VisibilityVariant variant) const
     {
         variant.mMaps = false;
+        variant.mRelief = false;
         const std::uint32_t at = isMade(variant) ? variant.index() : VisibilityVariant{}.index();
         const std::unique_ptr<TracePipeline<NoConstants>>& held = kernels().mScatter[at];
         assert(held != nullptr && "a tuple `compileEvery` made no scatter kernel for");

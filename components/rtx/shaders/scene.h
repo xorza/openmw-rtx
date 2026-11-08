@@ -1263,9 +1263,11 @@ namespace Rtx::Shaders
         /// row carry one at all.
         uint mSpecular;
 
-        /// Up to 112 bytes, a multiple of sixteen, so a row stands on sixteen wherever the table puts
-        /// it and the candidate's fields above share one 32-byte sector.
-        uint mPadding RTX_ZERO;
+        /// The heights the normal map's relief spans, where `MATERIAL_PARALLAX` says its alpha is
+        /// one (`Rtx::Material::mRelief`): the lowest alpha in the low byte and the highest in the
+        /// byte over it, which bound the march through it (`reliefOf`). The row's last word, where it
+        /// stands on sixteen at 112 bytes and the candidate's fields above share one 32-byte sector.
+        uint mRelief RTX_ZERO;
     };
 
     // **The host's layout has to be the one the device reads**, because this side writes these

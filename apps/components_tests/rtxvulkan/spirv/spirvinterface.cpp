@@ -129,8 +129,7 @@ namespace Rtx
 
                 const ModuleInterface read = readInterface(readSpirv(entry.path()));
                 if (std::ranges::any_of(read.mBindings, [](const ModuleBinding& bound) {
-                        return bound.mSet == Shaders::SET_CHANNELS && bound.mBinding >= Shaders::STAGE_RECORD
-                            && bound.mBinding < Shaders::STAGE_TILES;
+                        return bound.mSet == Shaders::SET_CHANNELS && Shaders::isStageImage(bound.mBinding);
                     }))
                     binding.push_back(Files::pathToUnicodeString(entry.path().filename()));
             }

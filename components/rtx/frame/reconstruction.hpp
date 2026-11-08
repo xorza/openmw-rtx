@@ -65,6 +65,11 @@ namespace Rtx
         /// a picture's, whose `Reconstruction{}` takes the default.
         std::uint32_t mBounceRays = 1;
 
+        /// Whether the trace marches a relief that spans more than one height (`HAS_RELIEF`), or shifts it
+        /// once as the rasterizer does. On unless a run names it off, which is the A/B, and the one false a
+        /// specialization takes that is not the scene's answer: no game frame states it.
+        bool mRelief = true;
+
         bool operator==(const SamplingSwitches& other) const = default;
     };
 

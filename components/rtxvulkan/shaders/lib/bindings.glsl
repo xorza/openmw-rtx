@@ -162,6 +162,10 @@ layout(set = SET_CHANNELS, binding = STAGE_LANDING_HIT, GBUFFER_STAGE_HIT) unifo
 layout(set = SET_CHANNELS, binding = STAGE_LANDING_RAY_FROM, GBUFFER_STAGE_RAY) uniform image2D landingRayFrom;
 layout(set = SET_CHANNELS, binding = STAGE_LANDING_RAY_ALONG, GBUFFER_STAGE_RAY) uniform image2D landingRayAlong;
 
+/// How far toward the eye the solid's relief showed its texture (`STAGE_RELIEF`): `storeStageSolid` says
+/// what it holds.
+layout(set = SET_CHANNELS, binding = STAGE_RELIEF, GBUFFER_STAGE_RELIEF) uniform image2D stageRelief;
+
 /// The tiles the later stages run over, which the trace appends, and the pixels the landing's stage runs
 /// over, which the bounce's appends (`STAGE_TILES`): each tile list's count in its indirect dispatch's `x`,
 /// which the frame's `GBuffer::begin` sets to nought, and each tile list `stageTileCapacity` long; each

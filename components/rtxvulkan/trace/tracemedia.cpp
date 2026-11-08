@@ -23,7 +23,7 @@ namespace Rtx
     }
 
     TraceSubject TraceMedia::describe(const DeviceScene& held, const Shaders::VisibilityConstants& camera,
-        const Buffer& counts, const Buffer& sunGlare) const
+        const SamplingSwitches& sampling, const Buffer& counts, const Buffer& sunGlare) const
     {
         return TraceSubject{
             .mScene = &held,
@@ -34,6 +34,7 @@ namespace Rtx
             .mSea = held.getCounts().mWater > 0 || !std::isinf(camera.mWaterLevel),
             .mMapped = held.getCounts().mMapped > 0,
             .mDarkAlpha = held.getCounts().mDarkAlpha > 0,
+            .mRelief = sampling.mRelief && held.getCounts().mRelief > 0,
             .mLamps = held.getBuffers().getLightGrid().getLightCount() > 0,
         };
     }

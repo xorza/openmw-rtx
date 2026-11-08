@@ -50,6 +50,7 @@
 #include <components/misc/convert.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
@@ -809,6 +810,9 @@ namespace Rtx::Testing
             ASSERT_NE(awayLayers[1].mNormal, sNoIndex);
             EXPECT_EQ(mScene.textures().getRows()[awayLayers[1].mNormal].mPath, "textures/rock_nh.dds");
             EXPECT_TRUE(awayMaterial.mLayersMapped);
+
+            // **And the heights it spans**, a grey of 128 throughout, on the material: the one layer with a height.
+            EXPECT_EQ(awayMaterial.mRelief, (AlphaRange{ .mLow = 128, .mHigh = 128 }));
         }
 
         /// **A model the ring stands and the walk meets wears one material**: both key the chain's
@@ -1917,8 +1921,9 @@ namespace Rtx::Testing
             ASSERT_NE(rock.mNormalTexture, nullptr);
             ASSERT_NE(rock.mNormalTexture->mImage, nullptr);
             EXPECT_EQ(rock.mNormalTexture->mImage->getFileName(), "textures/rock_nh.dds");
-            EXPECT_TRUE(rock.mParallax) << "an `_nh` of four channels carries a height";
-            EXPECT_FALSE(grass.mParallax);
+            ASSERT_TRUE(rock.mRelief.has_value()) << "an `_nh` of four channels carries a height";
+            EXPECT_EQ(*rock.mRelief, (AlphaRange{ .mLow = 128, .mHigh = 128 })) << "the grey every texel holds";
+            EXPECT_FALSE(grass.mRelief.has_value());
             EXPECT_EQ(grass.mNormalTexture, nullptr);
             EXPECT_EQ(grass.mTexture->mImage, looseGrass) << "the file was replaced rather than laid beside";
             ASSERT_NE(grass.mTexture->mLaid, nullptr) << "a widened file was left to the hand-over";

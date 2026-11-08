@@ -232,7 +232,8 @@ namespace Rtx
 
             PreparedTexture& normal = readTexture(files[at].mNormalPath);
             layer.mNormalTexture = &normal;
-            layer.mParallax = files[at].mParallax && normal.mImage != nullptr && carriesHeight(*normal.mImage);
+            if (files[at].mParallax && normal.mImage != nullptr && carriesHeight(*normal.mImage))
+                layer.mRelief = mWalk.alphaRangeOf(*normal.mImage);
         }
 
         // One cell at a time, which is the paging's near answer: containers page here as they do

@@ -51,8 +51,8 @@ namespace Rtx
         /// the trace, the water's walk, its direct light, its media, its layers, its bounce, the
         /// bounce's landing, the ambient's stage and the froxels' launch — beside the 5 kernels no tuple changes, the
         /// air's two and the sprites' three; every other tuple compiles behind them, a tuple a step,
-        /// 31 of them: 16 of the maps and the sky with no dark map's alpha, and 15 reading it, the
-        /// full tuple being the sixteenth.
+        /// 47 of them: the 32 of the maps, the sky and a dark map's alpha, and the 16 with the maps that
+        /// march a relief beside them, but the full tuple, which is one of those.
         ///
         /// **The full tuple alone is watched as it compiles, and the table read off the suite's
         /// renderer**, which made every tuple before any test ran (`Testing::getRenderer` waits for
@@ -90,8 +90,8 @@ namespace Rtx
             EXPECT_EQ(first.mCount, drawing);
             const JobProgress every
                 = Testing::getRenderer().awaitKernels(KernelSet::Every, std::chrono::milliseconds::zero());
-            EXPECT_EQ(every.mMade, drawing + 31u);
-            EXPECT_EQ(every.mCount, drawing + 31u);
+            EXPECT_EQ(every.mMade, drawing + 47u);
+            EXPECT_EQ(every.mCount, drawing + 47u);
         }
 
         /// **No kernel spills past its ceiling**, where the driver says (`Device::compiledUseOf`). The
@@ -126,10 +126,11 @@ namespace Rtx
             constexpr Ceiling sEveryOther{ "", 0, 128 };
             // `direct` at 256 and not 244, a rise inside the waves it allowed (`docs/rtx/architecture.md`,
             // "No kernel spills past its ceiling"). `visibility` at 145 since the water's walk left it
-            // for a stage of its own, which holds 219 ("The sea's walk, a stage of its own").
+            // for a stage of its own, which held 219 ("The sea's walk, a stage of its own"), and holds 224
+            // with the relief's march under the sea, inside the four waves 219 allowed.
             constexpr std::array<Ceiling, 6> sWithoutDarkAlpha{ {
                 { "visibility", 0, 145 },
-                { "water", 0, 219 },
+                { "water", 0, 224 },
                 { "direct", 0, 256 },
                 { "media", 0, 256 },
                 { "panes", 80, 256 },

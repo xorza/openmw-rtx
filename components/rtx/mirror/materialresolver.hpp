@@ -61,6 +61,10 @@ namespace Rtx
         /// What the dark map's texels say, for a blended surface that wears one, as the diffuse's.
         std::optional<ImageFacts> mDarkFacts{};
 
+        /// What the normal map's texels say, for a surface whose normal map's alpha is a height: the
+        /// heights its relief spans.
+        std::optional<ImageFacts> mNormalFacts{};
+
         /// Whether the reader laid upstream's groundcover override over `mDescribed`
         /// (`CellReader::readModel`), which no state set of the chain states: the frame keys it
         /// apart, since the same chain read as a static wears another material.

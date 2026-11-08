@@ -88,6 +88,10 @@
 #define GBUFFER_STAGE_HIT STORAGE_RGBA32UI
 #define GBUFFER_STAGE_RAY STORAGE_RGBA32F
 
+// **And how far toward the eye the solid's relief showed its texture** (`Surface::mRelief`), a whole
+// float, so a stage resolves the surface the trace's march found without marching again.
+#define GBUFFER_STAGE_RELIEF STORAGE_R32F
+
 // **And what the bounce hands its landing**: the bits of three floats, what light along the bounce
 // is worth or what arrived along it, and the lobe's modulation as the shared-exponent word it is
 // made from, so the landing divides by the number the lamps' half did.
@@ -273,7 +277,8 @@ namespace Rtx::Shaders
     /// Where the set binds what the trace hands its later stages, after the channels: the record of
     /// each pixel's solid (`StageRecord`), the throughput to it, the surface's lift, and the solid's
     /// hit with the ray's start and direction (`storeStageSolid`); what the bounce hands its landing
-    /// (`storeBounce`); and the landing's hit, laid out as the solid's (`storeLandingHit`). **The
+    /// (`storeBounce`); the landing's hit, laid out as the solid's (`storeLandingHit`); and, past the
+    /// tile lists (`STAGE_RELIEF`), how far toward the eye the solid's relief showed its texture. **The
     /// landing's apart from the solid's for every bounce ray but the frame's last**, because a ray
     /// after it leaves the solid again; the last stores its landing in the solid's place, which
     /// nothing reads after it, so a frame of one ray makes the landing's own a texel wide
@@ -326,8 +331,20 @@ namespace Rtx::Shaders
     const uint STAGE_TILES_HEAD_WORDS = 4u * STAGE_DISPATCHES + 2u * MAX_BOUNCE_RAYS;
     const uint STAGE_DISPATCH_ROW = 1024u;
 
-    /// How many bindings the set holds: the channels, the stage images and the tile lists.
-    const uint CHANNEL_SET_BINDINGS = CHANNEL_COUNT + 11u;
+    /// The stage image the relief's march stores (`storeStageSolid`), **past the tile lists**, so every
+    /// binding before it stands where it stood and a tuple that marches no relief compiles as it did
+    /// before the march existed (`HAS_RELIEF`).
+    const uint STAGE_RELIEF = CHANNEL_COUNT + 11u;
+
+    /// How many bindings the set holds: the channels, the stage images, the tile lists and the relief.
+    const uint CHANNEL_SET_BINDINGS = CHANNEL_COUNT + 12u;
+
+    /// Whether `binding` of the set is a stage image: every binding past the channels but the tile
+    /// lists, which are a buffer.
+    RTX_CONSTEXPR bool isStageImage(uint binding)
+    {
+        return binding >= STAGE_RECORD && binding < CHANNEL_SET_BINDINGS && binding != STAGE_TILES;
+    }
 
     /// Whether a channel is stored in the pixel's checkerboard field, which every channel the
     /// denoiser reads is. **The ones only the passes after it read stay in the frame's own order** —

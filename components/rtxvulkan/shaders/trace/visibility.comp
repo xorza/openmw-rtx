@@ -173,9 +173,12 @@ TracedLists tracePixel(uvec2 pixel)
     else
     {
         const bool water = met.mKind == KIND_WATER && HAS_SEA;
-        const vec3 motion = motionOf(pixel, origin, direction, met.mDistance, met.mInstance, met.mPrimitive, met.mBary,
+        // **Measured to the texel the relief showed**, which moves with its own parallax, and not to the
+        // triangle: a history fetched off the triangle's motion is another texel's (`Surface::mReliefDepth`).
+        const float seen = HAS_RELIEF ? met.mDistance + surface.mReliefDepth : met.mDistance;
+        const vec3 motion = motionOf(pixel, origin, direction, seen, met.mInstance, met.mPrimitive, met.mBary,
             eyeSpread(uint(arms)));
-        EyeRun eye = eyeRunOf(origin, direction, uint(arms), layer, water, motion, met.mDistance);
+        EyeRun eye = eyeRunOf(origin, direction, uint(arms), layer, water, motion, seen);
 
         // **No layer's visit and no solid's light here**: the layers' stage lights the layers, and the
         // direct stage the solid (`panes.comp`, `direct.comp`).
@@ -187,14 +190,14 @@ TracedLists tracePixel(uvec2 pixel)
         stepEye(eye, waterRunOf(vec3(0.0, 0.0, -1.0), Cone(0.0, 0.0), WATER_MIRROR), noPane(), surface, pixel,
             PEEL_SHADES_SURFACE);
         if (!water)
-            storeStageSolid(stored, met, peelAsk(peel, pixel).mQuery);
+            storeStageSolid(stored, met, peelAsk(peel, pixel).mQuery, surface.mRelief);
         if (eye.mStep == EYE_WATER)
         {
             // **Pending, with what the water's stage takes up**: the sea's hit where the solid's goes,
             // which the walk then writes over, and in the record the peel's state and turns.
             if (!WATER_STAGE)
             {
-                storeStageSolid(stored, met, peelAsk(peel, pixel).mQuery);
+                storeStageSolid(stored, met, peelAsk(peel, pixel).mQuery, surface.mRelief);
                 RTX_STORE_WORDS(stageRecord, stored,
                     uvec4(STAGE_WATER_PENDING | uint(arms) << 2u | layer << 3u | turns << 16u, floatBitsToUint(tmin),
                         floatBitsToUint(panesThrough), floatBitsToUint(armsThrough)))
@@ -212,7 +215,7 @@ TracedLists tracePixel(uvec2 pixel)
                     if (ask.mResolved)
                     {
                         surface = resolveAsked(answered.mMet, ask.mQuery);
-                        storeStageSolid(stored, answered.mMet, ask.mQuery);
+                        storeStageSolid(stored, answered.mMet, ask.mQuery, surface.mRelief);
                         detailed = ask.mQuery.mDetailed != 0u;
                     }
                 }

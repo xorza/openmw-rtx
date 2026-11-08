@@ -75,10 +75,10 @@ namespace Rtx
     class GBuffer
     {
     public:
-        /// The first stage image's binding, and how many there are: every binding from the channels'
-        /// end to the tile lists.
+        /// The first stage image's binding, and how many there are: every binding past the channels' end
+        /// but the tile lists (`Shaders::isStageImage`).
         static constexpr std::uint32_t sFirstStage = Shaders::STAGE_RECORD;
-        static constexpr std::size_t sStageImages = Shaders::STAGE_TILES - Shaders::STAGE_RECORD;
+        static constexpr std::size_t sStageImages = Shaders::CHANNEL_SET_BINDINGS - Shaders::STAGE_RECORD - 1;
 
         /// @param radiance how wide the radiance channels are stored, which is the run's choice
         ///        and `Rtx::RadianceWidth`'s argument.

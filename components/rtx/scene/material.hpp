@@ -7,6 +7,7 @@
 #include <osg/Vec4f>
 
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 
@@ -105,13 +106,15 @@ namespace Rtx
         Index mSpecular = sNoIndex;
         bool mSpecularClassic = false;
 
-        /// Whether the normal map's alpha is a height the texture coordinates are shifted by toward
-        /// the eye, as the rasterizer's `parallax.glsl` shifts them (`Shaders::MATERIAL_PARALLAX`).
+        /// Where the normal map's alpha is a height the texture coordinates are shifted by toward the
+        /// eye, as the rasterizer's `parallax.glsl` shifts them (`Shaders::MATERIAL_PARALLAX`), the
+        /// heights it spans (`alphaRange`): what bounds the march through its relief. Nothing where the
+        /// alpha is no height.
         ///
         /// **Never on a cutout**, which the rasterizer does not spare: a hole is found by the
         /// traversal's test, which has no eye to shift toward, and a surface that shifted where it
         /// shades and not where it is cut would put the leaf and the hole in different places.
-        bool mParallax = false;
+        std::optional<AlphaRange> mRelief{};
 
         /// What the texture is tinted by, in linear light. Three channels and not the record's
         /// four: the alpha beside it is `mOpacity` and is not a colour.
@@ -366,6 +369,11 @@ namespace Rtx
             /// (`InstanceCounts::mDarkAlpha`).
             bool mDarkAlpha = false;
 
+            /// Whether its relief spans more than one height, which a march has to find its way
+            /// through: what the trace compiles the march in for, and only for a scene that places
+            /// such a material (`InstanceCounts::mRelief`). A flat map's relief is its shift.
+            bool mRelief = false;
+
             bool operator==(const Traversed& other) const = default;
 
             /// What a placement wearing this at `opacity` tells traversal.
@@ -392,6 +400,7 @@ namespace Rtx
                 .mTwoSided = mTwoSided,
                 .mMapped = mNormal != sNoIndex || mSpecular != sNoIndex || mLayersMapped,
                 .mDarkAlpha = mDarkBelowSolid,
+                .mRelief = mRelief.has_value() && mRelief->spans(),
             };
         }
     };

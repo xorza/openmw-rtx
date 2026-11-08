@@ -569,6 +569,10 @@ RayAnswer answerAsked(RayAsk asked)
                          : RayAnswer(false, unansweredScene());
 }
 
+/// What `Hit::mRelief` holds where no march through the hit's relief was stored: `resolve` marches it. Past
+/// any march's answer, which a texture's side bounds (`reliefToward`).
+const float RELIEF_UNMARCHED = 3.0e38;
+
 /// The triangle a traversal committed, placed in the world, before any material is read off it.
 ///
 /// **Geometry, and no material**: the triangle off the instance's row and the scene's own vertices
@@ -634,6 +638,16 @@ struct Hit
     /// and not unit, as `mShading` is interpolated from them — nought where the mesh carries no normals.
     vec3 mSecondTurn;
     vec3 mThirdTurn;
+
+    /// How far toward the eye a march through the hit's relief already showed its texture
+    /// (`Surface::mRelief`), which a stage reads back off the trace's (`storedHitOf`), or
+    /// `RELIEF_UNMARCHED` for `resolve` to march.
+    float mRelief;
+
+    /// Whether a relief nothing marched is marched, or shifted once: shifted at a bounce's landing, a
+    /// reflection's, as RTX Remix leaves an indirect hit's relief unmarched — marched there, the landing's
+    /// stage cost the close wall 0.13 ms of a 6.4 ms frame (`research/2026-11-08-relief-cost-and-noise.md`).
+    bool mMarches;
 };
 
 /// A ray that committed nothing, as far away as anything can be.
@@ -654,6 +668,8 @@ Hit noHit()
     hit.mTangent = vec4(0.0);
     hit.mSecondTurn = vec3(0.0);
     hit.mThirdTurn = vec3(0.0);
+    hit.mRelief = RELIEF_UNMARCHED;
+    hit.mMarches = true;
 
     return hit;
 }
@@ -718,6 +734,8 @@ Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float
     hit.mBary = bary;
     hit.mDistance = distance;
     hit.mFootprint = footprint;
+    hit.mRelief = RELIEF_UNMARCHED;
+    hit.mMarches = true;
 
     // **The vertex fetches a hit takes, here so that the transform need not survive the call.** The test is
     // on the mesh's own normal rather than on the transformed one: a mesh with no normals stores zeros, and
@@ -1033,6 +1051,23 @@ struct Surface
     /// Whether the lamps light this surface: false under `MATERIAL_NO_LAMPS`, where `weighLamps`
     /// and `darkeningAt` walk an empty run.
     bool mLampLit;
+
+    /// How far toward the eye its relief showed its texture, in the texture's own units along the eye's
+    /// lean in the map's tangent frame (`reliefToward`): the march's answer, or the shift's where the march
+    /// took no step, and nought where no relief was read, which the trace stores for the stages after it
+    /// (`storeStageSolid`).
+    float mRelief;
+
+    /// Where its relief showed the eye its texel, which a light's march through it starts from (`reliefLit`),
+    /// or none.
+    ReliefSite mReliefSite;
+
+    /// How much farther than `mDistance` along the ray the texel its relief showed stands, in the world
+    /// (`reliefDepthOf`), less than nought where the texel stands over the triangle. What the eye's motion and
+    /// its distance are measured to (`visibility.comp`); nought where the march took no step, so a relief a
+    /// tuple marches and one it shifts stand at one distance where both shift, and nought off a stored hit,
+    /// whose motion its trace measured.
+    float mReliefDepth;
 };
 
 /// A ray that met nothing, as far away as anything can be: what `resolveAsked` answers with for a
@@ -1063,6 +1098,9 @@ Surface noSurface(vec3 origin)
     surface.mLift = vec3(0.0);
     surface.mTransmission = 0.0;
     surface.mLampLit = true;
+    surface.mRelief = 0.0;
+    surface.mReliefSite = noReliefSite();
+    surface.mReliefDepth = 0.0;
 
     return surface;
 }
@@ -1183,8 +1221,26 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
 
         // **Shifted toward the eye by the map's height first**, where it carries one, so every read on this
         // sheet after it lands where the relief puts it: the map itself, the albedo, the opacity, and the
-        // specular, emissive and dark maps.
-        if ((material.mFlags & MATERIAL_PARALLAX) != 0u)
+        // specular, emissive and dark maps. **Marched through the relief** where the scene has one that
+        // spans more than one height, and read back where the trace marched it already.
+        //
+        // **The march its own branch, ahead of the shift's and not inside it**, so a tuple with no relief
+        // compiles the shift's branch as it stood before the march existed (`HAS_RELIEF`).
+        if (HAS_RELIEF && (material.mFlags & MATERIAL_PARALLAX) != 0u)
+        {
+            const vec3 eye = vec3(dot(tangent, -direction), dot(bitangent, -direction), dot(normal, -direction));
+            // A relief held flat is its shift (`reliefToward`).
+            const vec2 bounds = hit.mMarches ? reliefBoundsOf(material.mRelief) : vec2(1.0, 0.0);
+            const vec2 shown = hit.mRelief != RELIEF_UNMARCHED
+                ? vec2(hit.mRelief, 0.0)
+                : reliefToward(reliefMapOf(material.mNormal), bounds, point, eye, sampleDiffuse(material.mNormal, point).a);
+            surface.mRelief = shown.x;
+            point.mAt += eye.xy * surface.mRelief;
+            surface.mReliefSite = ReliefSite(
+                material.mNormal, point.mAt, bounds, tangent, bitangent, normal, reliefLevelOf(material.mNormal, point));
+            surface.mReliefDepth = reliefDepthOf(uv, material.mTextureTransform, cone, shown.y);
+        }
+        else if ((material.mFlags & MATERIAL_PARALLAX) != 0u)
         {
             const vec3 eye = vec3(dot(tangent, -direction), dot(bitangent, -direction), dot(normal, -direction));
             point.mAt += parallaxShift(eye, sampleDiffuse(material.mNormal, point).a);
@@ -1256,6 +1312,66 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
             layerEye = vec3(dot(layerTangent, -direction), dot(layerBitangent, -direction), dot(normal, -direction));
         }
 
+        // **The stack's relief marched once, through the heights its layers show summed** (`ReliefMaps`), and
+        // every layer read where the march stood: the stack draws the sum of its layers' albedos, so the
+        // relief it draws is the sum of their heights, and a layer with no height stands at the middle one.
+        // Behind `HAS_RELIEF` and the chunk's own relief, so a stack with none shifts each layer as
+        // `terrain.frag` does, as it always did.
+        bool stackMarched = false;
+        float stackToward = 0.0;
+        if (HAS_RELIEF && HAS_MAPS && detailed && (material.mFlags & MATERIAL_PARALLAX) != 0u
+            && hit.mRelief != RELIEF_UNMARCHED)
+        {
+            // Read back where the trace marched it, as a surface's is.
+            stackMarched = true;
+            stackToward = hit.mRelief;
+        }
+        else if (HAS_RELIEF && HAS_MAPS && detailed && (material.mFlags & MATERIAL_PARALLAX) != 0u)
+        {
+            ReliefMaps maps = ReliefMaps(0u, uvec4(NO_TEXTURE), vec4(0.0), 0.0);
+            float total = 0.0;
+            for (uint i = 0u; i < material.mLayerCount; ++i)
+            {
+                const GpuLayer layer = layerAt(material.mLayerOffset + i);
+                const float showing = maskWeight(layer, chunkUv);
+                if (showing <= 0.0)
+                    continue;
+                total += showing;
+                const bool height = (layer.mFlags & LAYER_PARALLAX) != 0u && holdsTexture(layer.mNormal);
+                if (height && maps.mCount < RELIEF_LAYERS)
+                    takeReliefMap(maps, layer.mNormal, showing);
+                else
+                    maps.mFlat += showing;
+            }
+
+            if (maps.mCount > 0u && total > 0.0)
+            {
+                maps.mShares /= total;
+                maps.mFlat /= total;
+
+                // Every layer's sheet is the first's (`ReliefMaps`).
+                const TexturePoint sheet = texturePoint(
+                    uv, hit.mBary, layerAt(material.mLayerOffset).mDiffuseTransform, cone, surface.mFootprint, detailed);
+                float height = 0.5 * maps.mFlat;
+                [[unroll]] for (uint place = 0u; place < RELIEF_LAYERS; ++place)
+                    if (place < maps.mCount)
+                        height += maps.mShares[place] * sampleDiffuse(maps.mSlots[place], sheet).a;
+
+                vec2 bounds = reliefBoundsOf(material.mRelief);
+                if (maps.mFlat > 0.0)
+                    bounds = vec2(min(bounds.x, 0.5), max(bounds.y, 0.5));
+                if (!hit.mMarches)
+                    bounds = vec2(1.0, 0.0);
+                const vec2 shown = reliefToward(maps, bounds, sheet, layerEye, height);
+                stackMarched = true;
+                stackToward = shown.x;
+                surface.mRelief = shown.x;
+
+                surface.mReliefDepth
+                    = reliefDepthOf(uv, layerAt(material.mLayerOffset).mDiffuseTransform, cone, shown.y);
+            }
+        }
+
         for (uint i = 0u; i < material.mLayerCount; ++i)
         {
             const GpuLayer layer = layerAt(material.mLayerOffset + i);
@@ -1271,7 +1387,9 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
             // where the layer was.
             TexturePoint at = texturePoint(uv, hit.mBary, layer.mDiffuseTransform, cone, surface.mFootprint, detailed);
             const bool mapped = HAS_MAPS && detailed && holdsTexture(layer.mNormal);
-            if (mapped && (layer.mFlags & LAYER_PARALLAX) != 0u)
+            if (stackMarched)
+                at.mAt += layerEye.xy * stackToward;
+            else if (mapped && (layer.mFlags & LAYER_PARALLAX) != 0u)
                 at.mAt += parallaxShift(layerEye, sampleDiffuse(layer.mNormal, at).a);
 
             const bool authored = HAS_MAPS && layerAuthored(layer, sceneTexels());

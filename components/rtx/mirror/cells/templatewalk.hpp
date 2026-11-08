@@ -11,6 +11,7 @@
 #include <osg/ref_ptr>
 
 #include <components/misc/result.hpp>
+#include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/mirror/shading.hpp>
@@ -60,6 +61,13 @@ namespace Rtx
 
         /// `ThreadContent::laidOf`, through this thread's content.
         osg::ref_ptr<const osg::Image> laidOf(const osg::Image& image) { return mContent.laidOf(image); }
+
+        /// `ThreadContent::alphaRangeOf`, through this thread's content: the heights a land layer's normal map
+        /// spans.
+        AlphaRange alphaRangeOf(const osg::Image& image)
+        {
+            return mContent.alphaRangeOf(mContent.factsOf(image), image);
+        }
 
         /// What the reads computed from the content since the last take — `ContentPreprocessor`.
         ContentStats takeStats() { return mContent.mPreprocessor.takeStats(); }

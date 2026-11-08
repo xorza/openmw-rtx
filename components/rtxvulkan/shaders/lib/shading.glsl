@@ -1035,6 +1035,7 @@ SolidLight solidLightOf(Surface surface, uvec2 pixel)
         light.mLampRadius = lamp.mSourceRadius;
         light.mLampDistance = length(lamp.mPosition - kept.mFrom);
     }
+
     light.mLampStretch = gather.mLampStretch;
     light.mLampDrawn = drawnAmong(kept.mWeight, kept.mTotal);
     light.mFootprint = gather.mFootprint;
@@ -1042,6 +1043,22 @@ SolidLight solidLightOf(Surface surface, uvec2 pixel)
     uint passing = randomSeed(gather.mKey + SEED_SHADOW_THROUGH);
     light.mPassing.x = randomNext(passing);
     light.mPassing.y = randomNext(passing);
+
+    // **The relief's own shadow on the sources' light** (`reliefLit`), whole and not drawn into a bit, so the
+    // shadow filter blurs no shadow the size of a texel: the sky's source, and the held lamp's over every lamp,
+    // as the ratio estimator weighs their light by its ray.
+    if (HAS_RELIEF && surface.mReliefSite.mMap != NO_TEXTURE)
+    {
+        light.mSky *= reliefLit(surface.mReliefSite, gather.mSky.mDirection, gather.mSky.mLimb);
+        if (light.mLampHeld)
+        {
+            const vec3 toLamp = lightAt(kept.mLamp).mPosition - surface.mPosition;
+            const float lampRelief = reliefLit(surface.mReliefSite, normalize(toLamp),
+                light.mLampRadius / max(length(toLamp), light.mLampRadius));
+            light.mLamps *= lampRelief;
+            light.mLampSpecular *= lampRelief;
+        }
+    }
     return light;
 }
 

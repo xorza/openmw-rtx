@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 
+#include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -32,6 +33,9 @@ namespace Rtx
 
         /// `ContentPreprocessor::fallsBelowSolid`.
         std::optional<bool> mFallsBelowSolid;
+
+        /// `ContentPreprocessor::alphaRange`.
+        std::optional<AlphaRange> mAlphaRange;
     };
 
     /// The facts of every file this has been asked about, kept for the life of its thread's owner

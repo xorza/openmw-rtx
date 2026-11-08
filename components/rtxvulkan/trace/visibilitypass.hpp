@@ -69,12 +69,13 @@ namespace Rtx
         bool mSea = true;
         bool mMaps = true;
         bool mDarkAlpha = true;
+        bool mRelief = true;
 
         /// What this frame is. `sea` is `TraceSubject::mSea`, for the reason given there, and
         /// `subject`'s maps and dark alpha the scene's answers, because which materials a camera's
         /// rays meet is not known until they are traced.
         static VisibilityVariant resolve(
-            const Shaders::VisibilityConstants& frame, bool sea, bool mapped, bool darkAlpha);
+            const Shaders::VisibilityConstants& frame, bool sea, bool mapped, bool darkAlpha, bool relief);
 
         /// Which of the table's pipelines this tuple is.
         std::uint32_t index() const;
@@ -83,7 +84,11 @@ namespace Rtx
         std::string describe(std::string_view kernel) const;
 
         /// How many tuples there are, and so how long the table is.
-        static constexpr std::uint32_t sCount = 32;
+        static constexpr std::uint32_t sCount = 64;
+
+        /// How many of them are made, the whole tuple's among them: a relief stands only beside the
+        /// maps, which half the table's indices leave out.
+        static constexpr std::uint32_t sMade = 48;
     };
 
     /// One ray per pixel against the top-level structure. Everything it needs arrives at record

@@ -6,6 +6,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/image/alphaimage.hpp>
+#include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
@@ -127,6 +128,10 @@ namespace Rtx
     /// reader here decodes, which is the answer that changes nothing about how the surface is traced.
     bool solidFallOf(const std::optional<TextureData>& finest, TexelScratch& scratch);
 
+    /// The lowest and the highest alpha a texture holds — `alphaRange`. The whole byte range for an image
+    /// no reader here decodes, which bounds whatever it holds.
+    AlphaRange alphaSpanOf(const std::optional<TextureData>& finest, TexelScratch& scratch);
+
     /// Asked of a translucent material's own diffuse map, whose texels it walks up to the first
     /// solid one.
     using SolidReach = TexturePass<ContentPassId::SolidReach, 1, bool, solidReachOf>;
@@ -138,4 +143,8 @@ namespace Rtx
     /// Asked of a blended material's dark map, whose texels it walks up to the first one under
     /// solid.
     using SolidFall = TexturePass<ContentPassId::SolidFall, 1, bool, solidFallOf>;
+
+    /// Asked of a normal map whose alpha is a height, whose every texel it walks: the heights its relief
+    /// spans, which bound the march through it.
+    using AlphaSpan = TexturePass<ContentPassId::AlphaSpan, 1, AlphaRange, alphaSpanOf>;
 }

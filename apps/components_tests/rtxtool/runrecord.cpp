@@ -95,7 +95,8 @@ namespace RtxTool
                     .mShadowFloor = 0.0625f,
                     .mLampCandidates = 4u,
                     .mIndirect = false,
-                    .mBounceRays = 3u },
+                    .mBounceRays = 3u,
+                    .mRelief = false },
                 .mFilters = { .mAntilag = true, .mHistoryFix = false, .mDualMotion = true, .mAntiFirefly = true } };
             header.mValidating = true;
 
@@ -108,7 +109,7 @@ namespace RtxTool
                 + ", layers on, not a figure to quote, not measured, every frame hashed, the weather turned\n"
                   "     1920x1080 from 960x540, upscale performance, filter off, jitter on, noise white-hash, "
                   "level bias -1.000, antilag on, history fix off, dual motion on, anti-firefly on, "
-                  "shadow floor 0.0625, lamp candidates 4, indirect off, bounce rays 3\n"
+                  "shadow floor 0.0625, lamp candidates 4, indirect off, bounce rays 3, relief off\n"
                   "     delight 0.50, gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
                   "     land 4.0 cells, viewing distance 7168, distant statics off, maps player, step 0.0625 s, "
                   "walks streamed, memory budget 512 MiB, host pages ";
@@ -145,7 +146,7 @@ namespace RtxTool
             EXPECT_NE(
                 json.find(R"("antilag": true, "historyFix": false, "dualMotion": true, )"
                           R"("antiFirefly": true, "shadowFloor": 0.0625, "lampCandidates": 4, "indirect": false, )"
-                          R"("bounceRays": 3,)"),
+                          R"("bounceRays": 3, "relief": false,)"),
                 std::string::npos)
                 << json;
             EXPECT_NE(json.find(Rtx::sAssertsOn ? R"("asserts": true)" : R"("asserts": false)"), std::string::npos);

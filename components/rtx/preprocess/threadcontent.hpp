@@ -5,6 +5,7 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <components/rtx/image/alpharange.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -50,6 +51,14 @@ namespace Rtx
             if (!facts.mFallsBelowSolid.has_value())
                 facts.mFallsBelowSolid = mPreprocessor.fallsBelowSolid(image);
             return *facts.mFallsBelowSolid;
+        }
+
+        /// The lowest and the highest alpha `image` holds, read into `facts` at the first ask.
+        AlphaRange alphaRangeOf(ImageFacts& facts, const osg::Image& image)
+        {
+            if (!facts.mAlphaRange.has_value())
+                facts.mAlphaRange = mPreprocessor.alphaRange(image);
+            return *facts.mAlphaRange;
         }
 
         /// What a texel of `image` is worth on average, read into `facts` at the first ask.

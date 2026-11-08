@@ -116,6 +116,7 @@ namespace RtxTool
                 { "lamp-candidates", "0" },
                 { "indirect", "false" },
                 { "bounce-rays", "4" },
+                { "relief", "false" },
                 { "antilag", "false" },
                 { "history-fix", "false" },
                 { "dual-motion", "false" },

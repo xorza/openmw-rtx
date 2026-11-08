@@ -720,7 +720,8 @@ namespace Rtx
         // The rays the misses are counted against: one a pixel of the traced extent, not the shown one.
         frame.mCountedRays = mCounting ? sampled.mEyes.mWorld.mWidth * sampled.mEyes.mWorld.mHeight : 0u;
 
-        const TraceSubject subject = mMedia.describe(world, camera, frame.mCounts, mDisplay.getGlareCounts());
+        const TraceSubject subject
+            = mMedia.describe(world, camera, reconstruction.mSampling, frame.mCounts, mDisplay.getGlareCounts());
 
         if (past.mReprojectionLost)
             upscaler.reset();

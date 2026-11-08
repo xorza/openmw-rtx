@@ -221,4 +221,23 @@ namespace Rtx
         return forEachAlpha(finest.mFormat, finest.mBytes.subspan(level.mOffset), level.mWidth, level.mHeight,
             [](std::uint32_t, std::uint32_t, std::uint8_t alpha) { return alpha < 255; });
     }
+
+    AlphaRange alphaRange(const TextureData& finest)
+    {
+        assert(finest.levelsFit() && "an alpha read of a description short of its bytes");
+        const MipLevel& level = finest.mLevels.front();
+        AlphaRange range{ .mLow = 255, .mHigh = 0 };
+        forEachAlpha(finest.mFormat, finest.mBytes.subspan(level.mOffset), level.mWidth, level.mHeight,
+            [&](std::uint32_t, std::uint32_t, std::uint8_t alpha) {
+                range.mLow = std::min(range.mLow, alpha);
+                range.mHigh = std::max(range.mHigh, alpha);
+                return false;
+            });
+
+        // A level of no texels holds no alpha, and bounds nothing tighter than the whole range.
+        if (range.mLow > range.mHigh)
+            return AlphaRange{};
+
+        return range;
+    }
 }

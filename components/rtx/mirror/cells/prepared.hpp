@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 #include <tuple>
@@ -23,6 +24,7 @@
 #include <components/misc/convert.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/scratch.hpp>
+#include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/mirror/materialresolver.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
@@ -97,9 +99,9 @@ namespace Rtx
         /// before `_n`), or null where there is none.
         PreparedTexture* mNormalTexture = nullptr;
 
-        /// Whether that normal map's alpha is a height: an `_nh` the storage found, and
-        /// `carriesHeight`.
-        bool mParallax = false;
+        /// Where that normal map's alpha is a height — an `_nh` the storage found, and `carriesHeight` —
+        /// the heights it spans (`alphaRange`), and nothing where it is no height.
+        std::optional<AlphaRange> mRelief{};
 
         /// Whether the storage swapped `_diffusespec` in for the diffuse. What its alpha means is
         /// the layout's to say, and the placer is what knows the layout.

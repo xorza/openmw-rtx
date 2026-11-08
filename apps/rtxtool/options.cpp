@@ -99,6 +99,7 @@ namespace RtxTool
                 [](const Value& value, Request& request) {
                     request.mSampling.mBounceRays = value.as<std::uint32_t>();
                 } },
+            { "relief", [](const Value& value, Request& request) { request.mSampling.mRelief = value.as<bool>(); } },
             { "antilag", [](const Value& value, Request& request) { request.mFilters.mAntilag = value.as<bool>(); } },
             { "history-fix",
                 [](const Value& value, Request& request) { request.mFilters.mHistoryFix = value.as<bool>(); } },
@@ -610,6 +611,11 @@ namespace RtxTool
                 ->default_value(Rtx::SamplingSwitches{}.mBounceRays),
             "how many bounce rays the eye's surface traces a frame, each in a direction of its own and "
             "worth its share of the bounce: the player's `[RTX] bounce rays`");
+
+        option(sFramed, "relief",
+            bpo::value<bool>()->default_value(Rtx::SamplingSwitches{}.mRelief)->implicit_value(true),
+            "march an `_nh` map's relief through the heights it holds, or shift it once as the rasterizer does: "
+            "the A/B of the march, which the game always takes");
 
         option(sFramed, "lamp-candidates",
             number(atLeast<std::uint32_t>(0))->default_value(Rtx::Shaders::LAMP_CANDIDATES),
