@@ -25,6 +25,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
+#include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
@@ -341,14 +342,15 @@ namespace Rtx
             osg::ref_ptr<osg::Geometry> subject = Testing::makeQuad();
             Testing::paint(*subject->getOrCreateStateSet(), *file);
 
-            constexpr std::uint32_t box = 255u | 255u << 8 | 255u << 16 | 64u << 24;
+            constexpr Testing::Texel box{ 255, 255, 255, 64 };
             const ViewRequest request{ .mWidth = 64,
                 .mHeight = 64,
                 .mRayMask = Shaders::MASK_EVERY_CLASS,
                 .mSubject = subject.get(),
                 .mSubjectMask = sEveryNode };
             const auto holdsChain = [&](const Testing::CountingRenderer& renderer) {
-                return std::ranges::find(renderer.mDescribedSecondTexels, box) != renderer.mDescribedSecondTexels.end();
+                return std::ranges::any_of(renderer.mDescribedSecondTexels,
+                    [&](const Testing::Texel& texel) { return bool(Testing::isNear(texel, box, 2)); });
             };
 
             Testing::CountingRenderer renderer;

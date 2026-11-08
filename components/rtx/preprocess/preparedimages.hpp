@@ -44,15 +44,11 @@ namespace Rtx
     class PreparedImages
     {
     public:
-        /// Whether `file` read as `encoding` has its chain made: a normal or a data map's again,
-        /// whose replacers' chains are made with filters wrong for them, and any file's that carries
-        /// none and is more than a texel. Never a colour's own chain, which stands as the file holds
-        /// it.
-        static bool prepares(const osg::Image& file, TextureEncoding encoding)
-        {
-            return encoding != TextureEncoding::Colour
-                || (file.getNumMipmapLevels() <= 1 && std::size_t(file.s()) * std::size_t(file.t()) > 1);
-        }
+        /// Whether `file` read as `encoding` has its chain made: none in a format the scene refuses
+        /// (`describeImage`); a normal or a data map's again, whose replacers' chains are made with filters
+        /// wrong for them; any file's that carries none and is more than a texel; and a loose file's,
+        /// which is encoded to BC7 (`ChainPass`). A block colour's own chain stands as the file holds it.
+        static bool prepares(const osg::Image& file, TextureEncoding encoding);
 
         /// @param store where the chains are found and kept, or null for none.
         /// @param hands how many threads make them.

@@ -18,6 +18,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
+#include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/index.hpp>
@@ -960,13 +961,53 @@ namespace Rtx
                 << "a file is estimated on the device";
         }
 
-        /// **A made chain is described as the file's finest level, spanned where the file holds it, with
-        /// the made levels under it**: a 4x4 colour of one level, every byte 128, is made a chain whose
-        /// 2x2 and 1x1 levels lie in their own bytes, 16 + 4, each the box of 128s; the description
-        /// spans the file's 64 bytes for its finest and comes to 64 + 16 + 4 = 84 from it. A widened
-        /// RGB file's finest is laid in four bytes a texel, (255, 0, 255, 255), and its second level,
-        /// the box of one colour, the same.
-        TEST(RtxSceneTexturesTest, aMadeChainIsTheFilesFinestLevelWithTheMadeLevelsUnderIt)
+        /// **A made coarser chain is described as the file's finest level, spanned where the file holds
+        /// it, with the made levels under it**: a 4x4 BC1 normal map of two levels, its finest one block
+        /// of (132, 130, 255) and its second black, is made a 2x2 level in a block of its own, the box of
+        /// that normal; the description spans the file's 8 bytes for its finest and comes to 8 + 8 = 16
+        /// from it.
+        TEST(RtxSceneTexturesTest, aMadeCoarserChainIsTheFilesFinestLevelWithTheMadeLevelsUnderIt)
+        {
+            constexpr VFS::Path::NormalizedView path("textures/tx_block_n.dds");
+            const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0 };
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            auto* data = new unsigned char[sizeof(bytes)];
+            std::copy(std::begin(bytes), std::end(bytes), data);
+            image->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE,
+                data, osg::Image::USE_NEW_DELETE);
+            image->setMipmapLevels(osg::Image::MipmapDataType{ 8 });
+            image->setFileName(std::string(path.value()));
+
+            Rtx::SceneDesc scene;
+            TextureHold held = scene.takeTexture(path, *image, TextureWrap::Repeat, TextureEncoding::Normal);
+            PreparedImages prepared(nullptr, 1);
+            SceneTextures described;
+            described.describeAll(scene, &prepared, true);
+            ASSERT_EQ(described.getDescriptions().size(), 1u);
+
+            const TextureData& made = described.getDescriptions()[0];
+            EXPECT_EQ(made.mFormat, TextureFormat::Bc1RgbaUnorm);
+            ASSERT_EQ(made.mLevels.size(), 2u);
+            EXPECT_TRUE(made.levelsFit());
+            EXPECT_EQ(made.bytesOf(0).data(), reinterpret_cast<const std::byte*>(image->data()))
+                << "the file's finest level was copied";
+            EXPECT_EQ(made.mCoarser.size(), 8u);
+            EXPECT_EQ(made.bytesOf(1).data(), made.mCoarser.data());
+            EXPECT_EQ(Testing::firstTexelOf(made.mFormat, made.bytesOf(1)), (Testing::Texel{ 132, 130, 255, 255 }));
+            EXPECT_EQ(made.bytesFrom(0), 16u);
+            EXPECT_EQ(made.bytesFrom(1), 8u);
+            TextureData shortRun = made;
+            shortRun.mCoarser = made.mCoarser.first(7);
+            EXPECT_FALSE(shortRun.levelsFit()) << "a last level a byte short of its run";
+            scene.drop(std::move(held));
+        }
+
+        /// **A whole chain made in BC7 is described as it was made, under its file's name**: a 4x4
+        /// RGBA8 colour of one level, every byte 128, is three BC7 levels, 3 × 16 = 48 bytes, none of
+        /// them the file's, its last within BC7's step of 128 in every channel. A widened RGB file is
+        /// made the same way, its second level the box of its one magenta.
+        TEST(RtxSceneTexturesTest, aWholeChainMadeInBc7IsDescribedAsItWasMade)
         {
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
             osg::ref_ptr<osg::Image> image = new osg::Image;
@@ -995,28 +1036,21 @@ namespace Rtx
             ASSERT_EQ(described.getDescriptions().size(), 2u);
 
             const TextureData& made = described.getDescriptions()[0];
+            EXPECT_EQ(made.mFormat, TextureFormat::Bc7Srgb);
+            EXPECT_EQ(made.mWidth, 4u);
             ASSERT_EQ(made.mLevels.size(), 3u);
             EXPECT_TRUE(made.levelsFit());
-            EXPECT_EQ(made.bytesOf(0).data(), reinterpret_cast<const std::byte*>(image->data()))
-                << "the file's finest level was copied";
-            EXPECT_EQ(made.mCoarser.size(), 16u + 4u);
-            EXPECT_EQ(made.bytesOf(1).data(), made.mCoarser.data());
+            EXPECT_TRUE(made.mCoarser.empty());
+            EXPECT_EQ(made.bytesFrom(0), 48u);
+            EXPECT_EQ(made.mName, path.value());
             EXPECT_TRUE(
-                std::ranges::all_of(made.bytesOf(1), [](std::byte value) { return value == std::byte{ 128 }; }));
-            EXPECT_EQ(made.bytesOf(2).size(), 4u);
-            EXPECT_EQ(made.bytesFrom(0), 84u);
-            EXPECT_EQ(made.bytesFrom(1), 20u);
-            TextureData shortRun = made;
-            shortRun.mCoarser = made.mCoarser.first(19);
-            EXPECT_FALSE(shortRun.levelsFit()) << "a last level a byte short of its run";
+                Testing::isNear(Testing::firstTexelOf(made.mFormat, made.bytesOf(2)), { 128, 128, 128, 128 }, 2));
 
             const TextureData& laid = described.getDescriptions()[1];
+            EXPECT_EQ(laid.mFormat, TextureFormat::Bc7Srgb);
             ASSERT_EQ(laid.mLevels.size(), 2u);
-            EXPECT_EQ(laid.mFormat, TextureFormat::Rgba8Srgb);
-            const std::array<std::byte, 4> magenta{ std::byte{ 255 }, std::byte{ 0 }, std::byte{ 255 },
-                std::byte{ 255 } };
-            EXPECT_TRUE(std::ranges::equal(laid.bytesOf(0).first(4), magenta)) << "the finest level as laid";
-            EXPECT_TRUE(std::ranges::equal(laid.bytesOf(1), magenta)) << "the made second level";
+            EXPECT_TRUE(Testing::isNear(Testing::firstTexelOf(laid.mFormat, laid.bytesOf(1)), { 255, 0, 255, 255 }, 2))
+                << "the made second level";
         }
     }
 }

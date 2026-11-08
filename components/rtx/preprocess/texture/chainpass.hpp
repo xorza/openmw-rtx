@@ -25,13 +25,13 @@ namespace Rtx
         /// (`MadeImage`).
         Coarser,
 
-        /// The whole chain in four loose bytes a texel, from the finest down (`MadeImage::loose`).
-        Loose,
+        /// The whole chain in BC7, from the finest down (`MadeImage::whole`).
+        Bc7,
     };
 
-    /// The largest side of a block-compressed file with no chain whose chain is made loose: the
+    /// The largest side of a block-compressed file with no chain whose chain is made in BC7: the
     /// largest of the hundred and eighty-seven single-level files Morrowind ships (`ChainPass`).
-    inline constexpr std::uint32_t sLargestLooseChainSide = 512;
+    inline constexpr std::uint32_t sLargestBc7ChainSide = 512;
 
     /// A chain `ChainPass` made, and in which form.
     struct MadeChain
@@ -52,16 +52,20 @@ namespace Rtx
     /// of a texel, at eight by eight for a 256-square texture, whose last level is its mean to within
     /// what a ray can tell: a colour's own chain stands.
     ///
-    /// **Loose for a block file of one level up to `sLargestLooseChainSide`**, so a vanilla level
-    /// moves by the box's rounding and not by an encoder's step, and for a BC1 file of one level with
-    /// a cut, whose coverage BC1 cannot hold; **coarser levels in the file's own format** for every
-    /// other, a replacer's 4096-square BC1 with no levels 2.7 MB more where loose it was 89 MB;
-    /// **nothing made** for a format `ChainBuild` does not rebuild and for a BC1 file that carried a
-    /// chain and has a cut, whose own chain stands.
+    /// **The whole chain in BC7 for a loose file and for every chain the host would make loose**
+    /// (`.notes/content-cache.md`, loose files encoded to BC7): a loose file, four bytes a texel, its
+    /// own chain where it is a colour that carried one and the chain made again otherwise; a block file
+    /// of one level up to `sLargestBc7ChainSide`, which BC7's error moves less than BC1's would; and a
+    /// BC1 file of one level with a cut, whose coverage BC1 cannot hold. A quarter of a loose chain's
+    /// bytes. **Coarser levels in the file's own format** for every other block file, a replacer's
+    /// 4096-square BC1 with no levels 2.7 MB more; **nothing made** for a format `ChainBuild` does not
+    /// rebuild, for a block colour that carried its chain, and for a BC1 file that carried a chain and
+    /// has a cut, whose own chain stands.
     ///
-    /// **The key is everything the build reads**: the file's format, encoding and level count, and
-    /// its finest level's extent and bytes. Not its name, so one picture under two names is one entry,
-    /// and not its coarser levels, which nothing here reads.
+    /// **The key is everything the run reads**: the file's format, encoding and level count, its
+    /// finest level's extent, and the bytes of its finest level, or of every level where a colour's own
+    /// chain is encoded as it stands. Not its name, so one picture under two names is one entry, and not
+    /// the coarser levels of a chain made again, which nothing here reads.
     class ChainPass
     {
     public:
@@ -74,7 +78,7 @@ namespace Rtx
         using Output = MadeChain;
 
         static constexpr ContentPassId sPass = ContentPassId::Chain;
-        static constexpr std::uint32_t sVersion = 2;
+        static constexpr std::uint32_t sVersion = 3;
         static constexpr bool sStored = true;
 
         void digest(const Input& input, ContentDigest& digest);

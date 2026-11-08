@@ -132,11 +132,15 @@ screen is the import step, and its store is the game's input.
   code. Refused: an encoder of our own, a quality problem that a maintained one already solves; and new BC1 and BC3
   encoders on the device with a read-back, which adds two compute encoders and a transfer to the host to fill a disk
   file.
-- **A chainless block file of 512 or less on a side keeps its loose chain**, stored loose, so a vanilla level moves by
-  the box's rounding and not by an encoder's step. Its level 0 is the file's decoded, as before. **Vanilla moves by a
-  byte**, by the user's decision: the host's box rounds where the device's rounded in its own float order, and 11 of
-  vanilla's 72 pictures moved by 1 to 3 of 255 on at most 1.25% of their pixels. Refused: the device completion kept
-  for vanilla's files so that no picture moves, a second route to one result.
+- **Every chain the host would lay loose is stored whole in BC7**, by the user's decision: a loose file's (RGBA8,
+  BGRA8, and every widened format), its own chain where it is a colour that carried one, and a chainless block file's
+  of 512 or less on a side or a BC1 file's of one level with a cut. Encoder, approved by the user: bc7enc from the same
+  bc7enc_rdo commit as rgbcx (MIT or public domain), perceptual weights for a colour and linear for data, as its own
+  tool chooses them; bc7decomp, from the same commit, decodes in the tests alone. **Vanilla moves by BC7's error**, by
+  the user's decision against the rule that kept a level loose so that it moved by the box's rounding alone: 16 of
+  vanilla's 72 pictures moved beyond the denoiser's noise, at most 28 of 255 on 0.08% of a picture's pixels, on
+  animated effects (research note, "Loose chains in BC7"). Refused: the loose form kept beside BC7 for vanilla's
+  files, a second route to one result.
 - **A chain is built on a worker, never on the frame or the reader.** A 2048-square normal map's levels take tens of
   milliseconds to build and encode. A cold start of the PBR profile builds about 1500 of them. A build on the cell
   reader would hold up each cell by seconds, and a build on the frame would be a spike. Workers drain a bounded queue.
@@ -272,9 +276,17 @@ What it does otherwise than the items said:
 
 Batch 8: content in the renderer's own forms, by the user's decisions on the audit, one at a time.
 
-10. **Loose files encoded to BC7**: every loose file (RGBA8, BGRA8) and its chain encoded by preparation into BC7 and
-    stored, a quarter of its device memory, with bc7enc (Rich Geldreich, as rgbcx; approved by the user). Vanilla's
-    loose files move by BC7's error, by the user's decision against the rule that kept them.
+Item 10 is done: every loose chain is made whole in BC7 (`ChainForm::Bc7`, `MadeImage::whole`), a quarter of its
+bytes where it was loose. At `seyda-neen-ship` on `openmw-pbr`, a cold start prepared in 65.7 s, its chains 868 s of
+processor time, where it took 72.5 s and 940 s before; the store came to 1.4 GiB (research note, "Loose chains in
+BC7"). What it does otherwise than the item said:
+
+- **A loose colour's own chain is encoded as it stands**, and a chain is keyed by every level it reads, so two files of
+  one finest level and two chains are two entries.
+- **A file in a format the scene refuses has no chain made** (`PreparedImages::prepares`), where a loose file of such a
+  format would have asked for a layout it has none of.
+- **A widened file's laid copy is still held** after its chain is made, by the cell reader, the material resolver and
+  the laid image cache, though the description reads the BC7 chain alone.
 11. **Normal maps in one encoding**: every normal map stored with a unit normal in all three channels, so `decodeNormal`
     is `2·rgb − 1` and `resolve` stands no plane in for a grey texel: a two-channel map (BC5) is given its blue, its
     finest level re-encoded, by the user's decision against the rule that kept a file's finest level its own.

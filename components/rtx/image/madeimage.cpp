@@ -2,33 +2,24 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cstdint>
-#include <cstring>
-#include <memory>
 #include <utility>
-
-#include <osg/GL>
-
-#include <components/sceneutil/embeddedimage.hpp>
 
 namespace Rtx
 {
     MadeImage::MadeImage(const osg::Image& file, const TexelLayout& laid, std::vector<std::byte> coarser)
-        : mCoarser(std::move(coarser))
-        , mLaid(laid)
+        : mBytes(std::move(coarser))
     {
-        const auto width = static_cast<std::uint32_t>(file.s());
-        const auto height = static_cast<std::uint32_t>(file.t());
-        std::size_t bytes = 0;
-        for (std::uint32_t level = 1; bytes < mCoarser.size(); ++level)
-        {
-            const MipLevel at{ .mOffset = static_cast<std::uint32_t>(bytes),
-                .mWidth = std::max(width >> level, 1u),
-                .mHeight = std::max(height >> level, 1u) };
-            mLevels.push_back(at);
-            bytes += laid.levelBytes(at.mWidth, at.mHeight);
-        }
-        assert(bytes == mCoarser.size() && "a chain of another length than its levels");
+        layLevels(static_cast<std::uint32_t>(file.s()), static_cast<std::uint32_t>(file.t()), 1, laid);
+    }
+
+    osg::ref_ptr<const MadeImage> MadeImage::whole(const TextureFormat format, const std::uint32_t width,
+        const std::uint32_t height, std::vector<std::byte> levels)
+    {
+        osg::ref_ptr<MadeImage> made = new MadeImage;
+        made->mWholeFormat = format;
+        made->mBytes = std::move(levels);
+        made->layLevels(width, height, 0, layoutOf(format));
+        return made;
     }
 
     TexelLayout MadeImage::laidLayout(const TextureFormat format)
@@ -36,24 +27,19 @@ namespace Rtx
         return layoutOf(isWidened(format) ? TextureFormat::Rgba8Unorm : format);
     }
 
-    osg::ref_ptr<const MadeImage> MadeImage::loose(const osg::Image& image, const std::span<const std::byte> levels)
+    void MadeImage::layLevels(
+        const std::uint32_t width, const std::uint32_t height, const std::uint32_t first, const TexelLayout& laid)
     {
-        const std::size_t finest = std::size_t(image.s()) * std::size_t(image.t()) * 4;
-        assert(levels.size() >= finest && "a loose chain shorter than its finest level");
-
-        auto data = std::make_unique_for_overwrite<unsigned char[]>(finest);
-        std::memcpy(data.get(), levels.data(), finest);
-        osg::ref_ptr<osg::Image> first = new osg::Image;
-        first->setImage(
-            image.s(), image.t(), 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data.release(), osg::Image::USE_NEW_DELETE);
-        first->setFileName(image.getFileName());
-        if (const SceneUtil::EmbeddedImage* const stamped = SceneUtil::EmbeddedImage::find(image))
-            first->setUserData(new SceneUtil::EmbeddedImage(*stamped));
-
-        const std::span<const std::byte> coarser = levels.subspan(finest);
-        osg::ref_ptr<MadeImage> made = new MadeImage(
-            *first, layoutOf(TextureFormat::Rgba8Unorm), std::vector<std::byte>(coarser.begin(), coarser.end()));
-        made->mOwnFinest = std::move(first);
-        return made;
+        mLaid = laid;
+        std::size_t bytes = 0;
+        for (std::uint32_t level = first; bytes < mBytes.size(); ++level)
+        {
+            const MipLevel at{ .mOffset = static_cast<std::uint32_t>(bytes),
+                .mWidth = std::max(width >> level, 1u),
+                .mHeight = std::max(height >> level, 1u) };
+            mLevels.push_back(at);
+            bytes += laid.levelBytes(at.mWidth, at.mHeight);
+        }
+        assert(bytes == mBytes.size() && "a chain of another length than its levels");
     }
 }

@@ -170,6 +170,8 @@ set(RTX_TEST_SUPPORT
     rtx/support/displaycurve.hpp
     rtx/support/fakeland.hpp
     rtx/support/fallbackseed.cpp
+    rtx/support/firsttexel.cpp
+    rtx/support/firsttexel.hpp
     rtx/support/geometry.hpp
     rtx/support/graph.hpp
     rtx/support/graphlight.hpp

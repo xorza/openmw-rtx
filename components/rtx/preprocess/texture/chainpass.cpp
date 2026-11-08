@@ -10,6 +10,16 @@
 
 namespace Rtx
 {
+    namespace
+    {
+        /// Whether `file` is a colour that carried its chain, which stands: encoded as it is where the
+        /// file is loose, and not made again.
+        bool keepsOwnChain(const TextureData& file)
+        {
+            return file.mEncoding == TextureEncoding::Colour && file.mLevels.size() > 1;
+        }
+    }
+
     void ChainPass::describe(const Input& input)
     {
         if (mImage.get() == &input.mImage && mEncoding == input.mEncoding)
@@ -39,7 +49,9 @@ namespace Rtx
         digest.add(static_cast<std::uint32_t>(file.mLevels.size()));
         digest.add(finest.mWidth);
         digest.add(finest.mHeight);
-        digest.add(file.bytesOf(0));
+        const auto read = keepsOwnChain(file) ? static_cast<std::uint32_t>(file.mLevels.size()) : 1u;
+        for (std::uint32_t level = 0; level < read; ++level)
+            digest.add(file.bytesOf(level));
     }
 
     void ChainPass::run(const Input& input, Output& output)
@@ -52,22 +64,24 @@ namespace Rtx
             const TextureData& file = *mFile;
             const MipLevel& finest = file.mLevels.front();
             const bool chainless = file.mLevels.size() == 1;
-            mChain.build(file,
-                chainless ? levelsTo1x1(finest.mWidth, finest.mHeight)
-                          : static_cast<std::uint32_t>(file.mLevels.size()));
+            const bool loose = !layoutOf(file.mFormat).isBlocked();
 
-            const bool cut = mChain.holdsCut(file);
-            const bool small = std::max(finest.mWidth, finest.mHeight) <= sLargestLooseChainSide;
-            if (chainless && ((layoutOf(file.mFormat).isBlocked() && small) || cut))
+            const bool remade = !keepsOwnChain(file);
+            if (remade)
+                mChain.build(file,
+                    chainless ? levelsTo1x1(finest.mWidth, finest.mHeight)
+                              : static_cast<std::uint32_t>(file.mLevels.size()));
+
+            const bool cut = remade && mChain.holdsCut(file);
+            const bool small = std::max(finest.mWidth, finest.mHeight) <= sLargestBc7ChainSide;
+            if (loose || (chainless && (small || cut)))
             {
-                output.mForm = ChainForm::Loose;
-                for (std::uint32_t level = 0; level < mChain.getLevelCount(); ++level)
-                {
-                    const std::span<const std::byte> texels = mChain.getTexels(level);
-                    output.mBytes.insert(output.mBytes.end(), texels.begin(), texels.end());
-                }
+                if (!remade)
+                    mChain.layOwnLevels(file);
+                output.mForm = ChainForm::Bc7;
+                mChain.encodeBc7(file.mEncoding, output.mBytes);
             }
-            else if (!cut)
+            else if (remade && !cut)
             {
                 output.mForm = ChainForm::Coarser;
                 mChain.encode(file, output.mBytes);

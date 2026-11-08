@@ -158,6 +158,22 @@ cold run, the preparation on 16 threads beside the kernels' compile. Whole runs,
 - **Without the ground layers**, play made 68 chains and 53 alpha spans of the land's in the cold run. **Before the
   caches were emptied** during the preparation, a cold run peaked at 14.7 GB.
 
+## Loose chains in BC7
+
+The same runs as the loading screen's preparation, after every loose chain was made whole in BC7 (bc7enc, perceptual
+for a colour and linear for data), a store of its own made empty for the cold run.
+
+| run | models and layers read | whole run | the preparation's chains | peak resident | store |
+|---|---|---|---|---|---|
+| cold | 6755 of 6755 | 65.7 s | 6343 asked, 868 s of processor time | 8.6 GB | 1.4 GiB |
+| warm | 0 of 6755 | 8.0 s | none | 6.9 GB | |
+
+- **Play then found** 1249 of the chain threads' 1264 chains, as before.
+- **Vanilla's pictures**, `shot --views=all --map --upscale=off` against the last build's: 16 of 72 moved beyond the
+  denoiser's noise, the worst 28 of 255 on 0.08% of `akulakhan-chamber` and 21 of 255 on 3.52% of `vivec-canalworks`,
+  both on animated effects, a fire and a waterfall, whose frames are small loose files; no more than 0.03% of any
+  picture's pixels moved by more than 4.
+
 ## The colour and data chains
 
 Level 1 of every colour and data DDS file that carries its own chain, against two references made from its level 0:

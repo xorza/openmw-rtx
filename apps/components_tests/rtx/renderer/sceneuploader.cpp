@@ -14,6 +14,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
+#include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/layers.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
@@ -213,7 +214,7 @@ namespace Rtx
         /// **A slot stands its file until its image is made, and then stands again with it**: a
         /// normal map whose file's second level is black is described with it and named pending; once
         /// the image is made, the next hand-over describes the slot again, its second level the box
-        /// (122, 130, 252, 75), with nothing pending; and the one after only places. **Settled, the
+        /// (122, 130, 252, 75) within BC7's step, with nothing pending; and the one after only places. **Settled, the
         /// first hand-over waits for the image**, under a service that has made nothing yet, and
         /// describes the slot with it, as a run that compares frames needs.
         TEST(RtxSceneUploaderTest, aSlotStandsItsFileUntilItsImageIsMadeAndThenStandsAgain)
@@ -251,15 +252,15 @@ namespace Rtx
                 return renderer.mDescribedSecondTexels[static_cast<std::size_t>(at - renderer.mDescribedSlots.begin())];
             };
 
-            constexpr std::uint32_t box = 122u | 130u << 8 | 252u << 16 | 75u << 24;
+            constexpr Testing::Texel box{ 122, 130, 252, 75 };
             EXPECT_EQ(hand(false).mKind, SceneUpload::Kind::Rebuilt);
-            EXPECT_EQ(secondOf(slot), 0u) << "the file's own black";
+            EXPECT_EQ(secondOf(slot), Testing::Texel{}) << "the file's own black";
             EXPECT_EQ(uploader.getPendingCount(), 1u);
 
             prepared.flush();
             EXPECT_EQ(hand(false).mKind, SceneUpload::Kind::Extended);
             EXPECT_EQ(renderer.mDescribedSlots, (std::vector<Index>{ slot }));
-            EXPECT_EQ(secondOf(slot), box);
+            EXPECT_TRUE(Testing::isNear(secondOf(slot), box, 2));
             EXPECT_EQ(uploader.getPendingCount(), 0u);
             EXPECT_NE(scene.textures().getRows()[slot].mPrepared, nullptr) << "the slot holds its image";
 
@@ -278,7 +279,8 @@ namespace Rtx
                     .mSlot = Rtx::SceneSlot::world(), .mScene = picture, .mPrepared = &fresh, .mSettled = true });
             const auto at = std::find(drawn.mDescribedSlots.begin(), drawn.mDescribedSlots.end(), pictured.get());
             ASSERT_NE(at, drawn.mDescribedSlots.end());
-            EXPECT_EQ(drawn.mDescribedSecondTexels[static_cast<std::size_t>(at - drawn.mDescribedSlots.begin())], box);
+            EXPECT_TRUE(Testing::isNear(
+                drawn.mDescribedSecondTexels[static_cast<std::size_t>(at - drawn.mDescribedSlots.begin())], box, 2));
             EXPECT_EQ(once.getPendingCount(), 0u);
             picture.drop(std::move(pictured));
         }

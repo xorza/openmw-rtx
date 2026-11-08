@@ -6,6 +6,7 @@
 #include <cmath>
 #include <mutex>
 
+#include <rgbcx/bc7enc.h>
 #include <rgbcx/rgbcx.h>
 
 #include <components/rtx/shaders/halving.h>
@@ -50,7 +51,10 @@ namespace Rtx
         void initEncoders()
         {
             static std::once_flag made;
-            std::call_once(made, [] { rgbcx::init(rgbcx::bc1_approx_mode::cBC1Ideal); });
+            std::call_once(made, [] {
+                rgbcx::init(rgbcx::bc1_approx_mode::cBC1Ideal);
+                bc7enc_compress_block_init();
+            });
         }
 
         /// The sixteen texels of block `bx`, `by` of `level`, RGBA, the edge's texel standing in for a
@@ -181,6 +185,54 @@ namespace Rtx
                 if (mAlpha.at(0, x, y) == 0)
                     return true;
         return false;
+    }
+
+    void ChainBuild::layOwnLevels(const TextureData& file)
+    {
+        assert(isLoose(file.mFormat) && "own levels laid of a file whose bytes are not its texels");
+        mLevels.clear();
+        mTexels.clear();
+        for (std::uint32_t at = 0; at < file.mLevels.size(); ++at)
+        {
+            const MipLevel& level = file.mLevels[at];
+            mLevels.push_back(MipLevel{ .mOffset = static_cast<std::uint32_t>(mTexels.size()),
+                .mWidth = level.mWidth,
+                .mHeight = level.mHeight });
+            const std::span<const std::byte> texels = file.bytesOf(at);
+            const std::size_t start = mTexels.size();
+            mTexels.insert(mTexels.end(), texels.begin(), texels.end());
+            if (isBgr(file.mFormat))
+                for (std::size_t texel = start; texel < mTexels.size(); texel += sTexel)
+                    std::swap(mTexels[texel], mTexels[texel + 2]);
+        }
+    }
+
+    void ChainBuild::encodeBc7(const TextureEncoding encoding, std::vector<std::byte>& into) const
+    {
+        initEncoders();
+
+        bc7enc_compress_block_params params;
+        bc7enc_compress_block_params_init(&params);
+        if (!isSrgb(bc7FormatOf(encoding)))
+            bc7enc_compress_block_params_init_linear_weights(&params);
+
+        const TexelLayout layout = layoutOf(bc7FormatOf(encoding));
+        for (std::uint32_t at = 0; at < getLevelCount(); ++at)
+        {
+            const MipLevel& level = mLevels[at];
+            const std::span<const std::byte> texels = getTexels(at);
+            const std::uint32_t across = (level.mWidth + layout.mSide - 1) / layout.mSide;
+            const std::uint32_t down = (level.mHeight + layout.mSide - 1) / layout.mSide;
+            const std::size_t start = into.size();
+            into.resize(start + layout.levelBytes(level.mWidth, level.mHeight));
+            for (std::uint32_t by = 0; by < down; ++by)
+                for (std::uint32_t bx = 0; bx < across; ++bx)
+                {
+                    const std::array<std::uint8_t, 64> block = blockAt(texels, level, bx, by);
+                    bc7enc_compress_block(
+                        into.data() + start + (std::size_t{ by } * across + bx) * layout.mBytes, block.data(), &params);
+                }
+        }
     }
 
     std::span<const std::byte> ChainBuild::getTexels(std::uint32_t level) const

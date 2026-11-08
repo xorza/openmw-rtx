@@ -8,6 +8,7 @@
 
 #include <osg/GL>
 #include <osg/Image>
+#include <osg/Texture> // The S3TC formats, which Windows's and Apple's gl.h lack.
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
@@ -77,6 +78,22 @@ namespace Rtx
             return image;
         }
 
+        /// A 4x4 BC1 image of two levels: its finest one block between (132, 130, 255) and black, its
+        /// indices every one of the four, and its second level black.
+        osg::ref_ptr<osg::Image> makeBlockImage()
+        {
+            const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0x1b, 0x6c, 0xb1, 0xe4, //
+                0, 0, 0, 0, 0, 0, 0, 0 };
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            auto* data = new unsigned char[sizeof(bytes)];
+            std::memcpy(data, bytes, sizeof(bytes));
+            image->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE,
+                data, osg::Image::USE_NEW_DELETE);
+            image->setMipmapLevels(osg::Image::MipmapDataType{ 8 });
+            image->setFileName("textures/tx_guard_block.dds");
+            return image;
+        }
+
         /// **Every stored pass's version is held to what it computes**: each runs over fixed inputs,
         /// and the digest of what its codec files is recorded beside its `sVersion`. An output that
         /// moves while the version stays fails here, so a forgotten bump cannot hand a store's old
@@ -109,7 +126,10 @@ namespace Rtx
                 128, 251, 200 };
             MadeChain chain;
             content.chain(*makeImage(heights, { 0, 0, 0, 0 }), TextureEncoding::Normal, chain);
-            ASSERT_EQ(chain.mForm, ChainForm::Coarser);
+            ASSERT_EQ(chain.mForm, ChainForm::Bc7);
+            MadeChain coarser;
+            content.chain(*makeBlockImage(), TextureEncoding::Normal, coarser);
+            ASSERT_EQ(coarser.mForm, ChainForm::Coarser);
 
             struct Recorded
             {
@@ -121,13 +141,15 @@ namespace Rtx
                 Recorded{ "shape", ShapePass::sVersion, digestOf(shape) },
                 Recorded{ "texel mean", TexelMean::sVersion, digestOf(mean) },
                 Recorded{ "alpha span", AlphaSpan::sVersion, digestOf(span) },
-                Recorded{ "chain", ChainPass::sVersion, digestOf(chain) },
+                Recorded{ "chain in BC7", ChainPass::sVersion, digestOf(chain) },
+                Recorded{ "coarser chain", ChainPass::sVersion, digestOf(coarser) },
             };
             const std::array recorded{
                 Recorded{ "shape", 3, 0xea9852832b8ceb62 },
                 Recorded{ "texel mean", 1, 0xfaa7e2c796ee8c55 },
                 Recorded{ "alpha span", 1, 0xb02496efa84a6d00 },
-                Recorded{ "chain", 2, 0x3380535a10d2ab78 },
+                Recorded{ "chain in BC7", 3, 0xce26916638ee39f4 },
+                Recorded{ "coarser chain", 3, 0x5f247501ba043a44 },
             };
             for (std::size_t at = 0; at < computed.size(); ++at)
             {

@@ -25,6 +25,16 @@ namespace Rtx
         Worker mWorker;
     };
 
+    bool PreparedImages::prepares(const osg::Image& file, const TextureEncoding encoding)
+    {
+        const TextureFormat format = readFormat(file, encoding);
+        if (!isUploadable(format) && !isWidened(format))
+            return false;
+        return encoding != TextureEncoding::Colour
+            || (file.getNumMipmapLevels() <= 1 && std::size_t(file.s()) * std::size_t(file.t()) > 1)
+            || !layoutOf(format).isBlocked();
+    }
+
     PreparedImages::PreparedImages(ContentStore* const store, const std::size_t hands)
         : mStore(store)
     {
@@ -145,8 +155,9 @@ namespace Rtx
                 if (hand.mChain.mForm == ChainForm::Coarser)
                     made = new MadeImage(
                         file, MadeImage::laidLayout(readFormat(file, job.mKey.second)), std::move(hand.mChain.mBytes));
-                else if (hand.mChain.mForm == ChainForm::Loose)
-                    made = MadeImage::loose(file, hand.mChain.mBytes);
+                else if (hand.mChain.mForm == ChainForm::Bc7)
+                    made = MadeImage::whole(bc7FormatOf(job.mKey.second), static_cast<std::uint32_t>(file.s()),
+                        static_cast<std::uint32_t>(file.t()), std::move(hand.mChain.mBytes));
 
                 const ContentStats stats = hand.mContent.takeStats();
                 mMonitor.hand([&] {

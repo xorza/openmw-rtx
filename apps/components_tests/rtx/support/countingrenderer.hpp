@@ -4,7 +4,6 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <limits>
 #include <optional>
 #include <span>
@@ -27,6 +26,8 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
+
+#include "firsttexel.hpp"
 
 namespace Rtx::Testing
 {
@@ -195,10 +196,8 @@ namespace Rtx::Testing
             for (const Rtx::TextureData& texture : described)
             {
                 mDescribedSlots.push_back(texture.mSlot);
-                std::uint32_t second = 0;
-                if (texture.mLevels.size() > 1 && texture.bytesOf(1).size() >= 4)
-                    std::memcpy(&second, texture.bytesOf(1).data(), 4);
-                mDescribedSecondTexels.push_back(second);
+                mDescribedSecondTexels.push_back(
+                    texture.mLevels.size() > 1 ? firstTexelOf(texture.mFormat, texture.bytesOf(1)) : Texel{});
             }
         }
 
@@ -208,9 +207,9 @@ namespace Rtx::Testing
         void readPixels(std::vector<std::uint8_t>&) override {}
         void readDeepPixels(std::vector<std::uint16_t>&) override {}
 
-        /// The first four bytes of each described texture's second level, beside `mDescribedSlots`, or
+        /// The first texel of each described texture's second level, beside `mDescribedSlots`, or
         /// nought for one of one level: what says which chain a slot was described with.
-        std::vector<std::uint32_t> mDescribedSecondTexels;
+        std::vector<Texel> mDescribedSecondTexels;
 
         /// Which slots the last hand-over described, in the order it described them.
         ///

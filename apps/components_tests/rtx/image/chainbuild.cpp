@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <span>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -13,6 +14,7 @@
 
 #include <rgbcx/rgbcx.h>
 
+#include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -185,6 +187,51 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> texel
                 = makeChained(GL_RGBA8, GL_RGBA, 1, { 4 }, std::vector<std::uint8_t>(4, 7));
             EXPECT_FALSE(ChainBuild::rebuilds(describe(*texel, TextureEncoding::Normal, levels, texels)));
+        }
+
+        /// **A loose file's own levels are encoded whole in BC7, weighed by its encoding**: a 4x4 BGRA8
+        /// file of two levels, its finest scattered colours and its second one colour, is laid in red, green, blue
+        /// and alpha, the file's (10, 20, 30, 255) its first texel, and encoded a block a level, 2 × 16 =
+        /// 32 bytes, its second level within BC7's step of that colour in either encoding. The scatter,
+        /// which no block holds exactly, is weighed as the eye sees a colour and channel for channel as
+        /// data, so its blocks differ.
+        TEST(RtxChainBuildTest, aLooseFilesOwnLevelsAreEncodedWholeInBc7WeighedByItsEncoding)
+        {
+            std::vector<std::uint8_t> bytes{ 30, 20, 10, 255 };
+            for (unsigned texel = 1; texel < 16; ++texel)
+                bytes.insert(bytes.end(),
+                    { static_cast<std::uint8_t>(texel * 29 + 201), static_cast<std::uint8_t>(texel * 151 + 97),
+                        static_cast<std::uint8_t>(texel * 73 + 11), 255 });
+            for (int texel = 0; texel < 4; ++texel)
+                bytes.insert(bytes.end(), { 60, 120, 180, 255 });
+            const osg::ref_ptr<osg::Image> image = makeChained(GL_RGBA8, GL_BGRA, 4, { 64, 16 }, bytes);
+            std::vector<MipLevel> levels;
+            std::vector<std::byte> texels;
+            const TextureData file = describe(*image, TextureEncoding::Colour, levels, texels);
+            ASSERT_EQ(file.mFormat, TextureFormat::Bgra8Srgb);
+
+            ChainBuild chain;
+            chain.layOwnLevels(file);
+            ASSERT_EQ(chain.getLevelCount(), 2u);
+            const std::span<const std::byte> finest = chain.getTexels(0);
+            EXPECT_EQ(std::to_integer<int>(finest[0]), 10) << "red, from the file's third byte";
+            EXPECT_EQ(std::to_integer<int>(finest[1]), 20);
+            EXPECT_EQ(std::to_integer<int>(finest[2]), 30) << "blue, from the file's first byte";
+            EXPECT_EQ(std::to_integer<int>(finest[3]), 255);
+
+            std::vector<std::byte> colour;
+            chain.encodeBc7(TextureEncoding::Colour, colour);
+            std::vector<std::byte> data;
+            chain.encodeBc7(TextureEncoding::Data, data);
+            ASSERT_EQ(colour.size(), 32u);
+            ASSERT_EQ(data.size(), 32u);
+            EXPECT_NE(std::vector<std::byte>(colour.begin(), colour.begin() + 16),
+                std::vector<std::byte>(data.begin(), data.begin() + 16))
+                << "the scatter weighed one way";
+            for (const std::vector<std::byte>* encoded : { &colour, &data })
+                EXPECT_TRUE(
+                    Testing::isNear(Testing::firstTexelOf(TextureFormat::Bc7Srgb, std::span(*encoded).subspan(16)),
+                        { 180, 120, 60, 255 }, 2));
         }
     }
 }

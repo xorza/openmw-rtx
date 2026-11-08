@@ -14,6 +14,7 @@
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
+#include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "refusal.hpp"
@@ -100,9 +101,9 @@ namespace Rtx
 
             if (made.mImage != nullptr)
             {
-                const osg::Image& finest = made.mImage->finestOf(row.mLaid != nullptr ? *row.mLaid : *row.mImage);
-                kept.mImage = osg::ref_ptr<const osg::Image>(&finest);
-                kept.mFormat = readFormat(finest, row.mEncoding);
+                const osg::Image& file = row.mLaid != nullptr ? *row.mLaid : *row.mImage;
+                kept.mImage = osg::ref_ptr<const osg::Image>(&file);
+                kept.mFormat = readFormat(file, row.mEncoding);
                 kept.mMade = made.mImage;
             }
             else if (row.mKind == TextureKind::File && row.mLaid != nullptr)
@@ -139,8 +140,11 @@ namespace Rtx
         for (const Kept& kept : mKept)
             if (kept.mImage.isOk() && kept.mImage.value() != nullptr)
             {
-                levels += kept.mImage.value()->getNumMipmapLevels();
-                texels += laidBytes(*kept.mImage.value(), kept.mFormat);
+                if (kept.mMade == nullptr || !kept.mMade->getWholeFormat().has_value())
+                {
+                    levels += kept.mImage.value()->getNumMipmapLevels();
+                    texels += laidBytes(*kept.mImage.value(), kept.mFormat);
+                }
                 if (kept.mMade != nullptr)
                     levels += kept.mMade->getLevels().size();
             }
@@ -185,6 +189,22 @@ namespace Rtx
 
         if (const osg::Image* image = kept.mImage.value().get())
         {
+            // **A whole chain made in a format of its own** stands as it was made, under its file's name.
+            if (kept.mMade != nullptr && kept.mMade->getWholeFormat().has_value())
+            {
+                const MadeImage& made = *kept.mMade;
+                const std::size_t at = mLevels.size();
+                mLevels.insert(mLevels.end(), made.getLevels().begin(), made.getLevels().end());
+                const MipLevel& top = made.getLevels().front();
+                return TextureData{ .mFormat = *made.getWholeFormat(),
+                    .mEncoding = kept.mEncoding,
+                    .mWidth = top.mWidth,
+                    .mHeight = top.mHeight,
+                    .mBytes = made.getBytes(),
+                    .mLevels = std::span<const MipLevel>(mLevels).subspan(at),
+                    .mName = SceneUtil::EmbeddedImage::nameOf(*image) };
+            }
+
             const Misc::Result<TextureData, std::string> read
                 = describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
             if (!read.isOk() || kept.mMade == nullptr)
@@ -201,7 +221,7 @@ namespace Rtx
             mLevels.resize(at + 1);
             mLevels.insert(mLevels.end(), kept.mMade->getLevels().begin(), kept.mMade->getLevels().end());
             described.mLevels = std::span<const MipLevel>(mLevels).subspan(at);
-            described.mCoarser = kept.mMade->getCoarser();
+            described.mCoarser = kept.mMade->getBytes();
             assert(described.levelsFit() && "a made chain short of its levels");
             return described;
         }

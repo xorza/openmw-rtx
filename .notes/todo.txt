@@ -5,3 +5,6 @@
 - bake distant land into one mesh
 
 - pack vertices for the device: a vertex colour is three floats in linear light (22 of the 125 MB of vertex and index bytes at seyda-neen-ship) and a normal three floats; 16 bits a channel for the colour and a 32-bit octahedral normal, as the tangent already is, read less memory on every hit. Packed at read time, measured for precision against the shots and for trace time first.
+
+- atomic files (rename on finishwrite)
+- remove sqlite

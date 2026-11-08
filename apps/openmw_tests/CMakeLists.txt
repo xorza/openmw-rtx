@@ -58,6 +58,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/allocations.cpp
     ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/fallbackseed.cpp
+    ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/firsttexel.cpp
     ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/guiinstance.cpp
 )
 

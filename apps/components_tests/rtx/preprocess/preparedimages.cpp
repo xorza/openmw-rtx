@@ -1,7 +1,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <initializer_list>
 #include <span>
 #include <vector>
 
@@ -12,8 +11,10 @@
 #include <osg/Texture> // The S3TC and RGTC formats, which Windows's and Apple's gl.h lack.
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
@@ -26,17 +27,27 @@ namespace Rtx
 {
     namespace
     {
-        std::vector<std::byte> bytesOf(std::initializer_list<std::uint8_t> values)
+        /// The first texel of `made`'s level `level`, as the device decodes it.
+        Testing::Texel texelOf(const MadeImage& made, std::size_t level)
         {
-            std::vector<std::byte> bytes;
-            for (const std::uint8_t value : values)
-                bytes.push_back(static_cast<std::byte>(value));
-            return bytes;
+            return Testing::firstTexelOf(
+                made.getWholeFormat().value(), std::span(made.getBytes()).subspan(made.getLevels()[level].mOffset));
         }
 
-        std::vector<std::byte> copyOf(std::span<const std::byte> bytes)
+        /// A 4x4 BC1 normal map of two levels: its finest one block of (132, 130, 255), the first endpoint
+        /// (16, 32, 31) in 5:6:5 above a black second with every index nought, and its second level black.
+        osg::ref_ptr<osg::Image> makeBlockNormalMap()
         {
-            return std::vector<std::byte>(bytes.begin(), bytes.end());
+            const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0, 0, 0, 0, //
+                0, 0, 0, 0, 0, 0, 0, 0 };
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            auto* data = new unsigned char[sizeof(bytes)];
+            std::memcpy(data, bytes, sizeof(bytes));
+            image->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE,
+                data, osg::Image::USE_NEW_DELETE);
+            image->setMipmapLevels(osg::Image::MipmapDataType{ 8 });
+            image->setFileName("textures/tx_block_n.dds");
+            return image;
         }
 
         /// A 2x2 RGBA8 normal map whose file's second level is the premultiplied black, laid as a
@@ -57,15 +68,16 @@ namespace Rtx
         }
 
         /// **A map's chain is pending, then made**: the first ask queues it and answers pending, and
-        /// once the threads are done it is the box under the file's finest level, (122, 130, 252, 75),
-        /// where the file held black, standing on the file's own finest level and holding none of it. Asked again while
-        /// a texture holds it, it is the same image; let go of by every holder, it is made again, from the store. Each
-        /// making is one ask of the chain pass in the threads' figures, the second found.
+        /// once the threads are done a block map's is the box under the file's finest level, one BC1
+        /// block of (132, 130, 255) where the file held black, standing on the file's own finest level and
+        /// holding none of it. Asked again while a texture holds it, it is the same image; let go of by
+        /// every holder, it is made again, from the store. Each making is one ask of the chain pass in the
+        /// threads' figures, the second found.
         TEST(RtxPreparedImagesTest, aMapsImageIsPendingThenMadeAndHeldByWhatHoldsIt)
         {
             ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
             PreparedImages prepared(&store, 2);
-            const osg::ref_ptr<osg::Image> file = makeNormalMap();
+            const osg::ref_ptr<osg::Image> file = makeBlockNormalMap();
 
             const PreparedImage first = prepared.find(*file, TextureEncoding::Normal);
             EXPECT_TRUE(first.mPending);
@@ -79,10 +91,11 @@ namespace Rtx
 
             osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Normal).mImage;
             ASSERT_NE(made, nullptr);
-            EXPECT_EQ(&made->finestOf(*file), file.get()) << "the finest level is the file's";
-            ASSERT_EQ(made->getLevels().size(), 1u);
-            EXPECT_EQ(made->getLevels()[0].mWidth, 1u);
-            EXPECT_EQ(copyOf(made->getCoarser()), bytesOf({ 122, 130, 252, 75 }));
+            EXPECT_FALSE(made->getWholeFormat().has_value()) << "the finest level is the file's";
+            ASSERT_EQ(made->getLevels().size(), 1u) << "the 2x2, as many levels as the file carries";
+            ASSERT_EQ(made->getBytes().size(), 8u) << "one BC1 block";
+            EXPECT_EQ(Testing::firstTexelOf(TextureFormat::Bc1RgbaUnorm, made->getBytes()),
+                (Testing::Texel{ 132, 130, 255, 255 }));
 
             EXPECT_EQ(prepared.find(*file, TextureEncoding::Normal).mImage, made) << "held by what holds it";
 
@@ -97,11 +110,12 @@ namespace Rtx
             EXPECT_GE(store.getStats().mFound, 1u) << "the second making read the store";
         }
 
-        /// **A widened file's chain is laid in RGBA8**, the format its levels are described in: a
-        /// three-byte RGB normal map's second level is the box of its four texels in four bytes,
-        /// `(10 + 30 + 50 + 70) / 4 = 40`, `(20 + 40 + 60 + 80) / 4 = 50`, `(255 * 4) / 4 = 255`, under
-        /// an opaque alpha the widening gave.
-        TEST(RtxPreparedImagesTest, aWidenedFilesChainIsLaidInTheFormatItsLevelsAreDescribedIn)
+        /// **A loose file's whole chain is made in BC7**: a 2x2 RGBA8 normal map whose second level is
+        /// black is two BC7 blocks, linear, its second the box of its four normals, `(128 + 128 + 120 +
+        /// 112) / 4 = 122`, `130`, `252`, and its heights' `75`, within BC7's step. A widened file is a
+        /// loose one: a three-byte RGB normal map's second level is the box `(40, 50, 255)` under the
+        /// alpha the widening gave.
+        TEST(RtxPreparedImagesTest, aLooseFilesWholeChainIsMadeInBc7)
         {
             const std::uint8_t bytes[] = { 10, 20, 255, 30, 40, 255, 50, 60, 255, 70, 80, 255, 1, 2, 3 };
             osg::ref_ptr<osg::Image> file = new osg::Image;
@@ -112,12 +126,61 @@ namespace Rtx
             file->setFileName("textures/tx_rgb_n.dds");
 
             PreparedImages prepared(nullptr, 1);
+            const osg::ref_ptr<osg::Image> normals = makeNormalMap();
+            EXPECT_TRUE(prepared.find(*normals, TextureEncoding::Normal).mPending);
             EXPECT_TRUE(prepared.find(*file, TextureEncoding::Normal).mPending);
             prepared.flush();
-            const osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Normal).mImage;
-            ASSERT_NE(made, nullptr);
-            EXPECT_EQ(&made->finestOf(*file), file.get());
-            EXPECT_EQ(copyOf(made->getCoarser()), bytesOf({ 40, 50, 255, 255 }));
+
+            const osg::ref_ptr<const MadeImage> loose = prepared.find(*normals, TextureEncoding::Normal).mImage;
+            ASSERT_NE(loose, nullptr);
+            EXPECT_EQ(loose->getWholeFormat(), TextureFormat::Bc7Unorm);
+            ASSERT_EQ(loose->getLevels().size(), 2u);
+            EXPECT_EQ(loose->getBytes().size(), 32u) << "a BC7 block a level";
+            EXPECT_TRUE(Testing::isNear(texelOf(*loose, 1), { 122, 130, 252, 75 }, 2)) << "the box";
+
+            const osg::ref_ptr<const MadeImage> widened = prepared.find(*file, TextureEncoding::Normal).mImage;
+            ASSERT_NE(widened, nullptr);
+            EXPECT_EQ(widened->getWholeFormat(), TextureFormat::Bc7Unorm);
+            EXPECT_TRUE(Testing::isNear(texelOf(*widened, 1), { 40, 50, 255, 255 }, 2)) << "the widened box";
+        }
+
+        /// **A loose colour's own chain is encoded as it stands, and keyed by every level**: two 2x2
+        /// RGBA8 colours of one white finest level, the one's second level red and the other's blue, are
+        /// each their own two BC7 levels, the second within BC7's step of the file's own, and neither is
+        /// found in the store under the other's key.
+        TEST(RtxPreparedImagesTest, aLooseColoursOwnChainIsEncodedAsItStandsAndKeyedByEveryLevel)
+        {
+            const auto makeColour = [](std::uint8_t red, std::uint8_t blue, const char* name) {
+                const std::uint8_t bytes[] = { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+                    255, 255, red, 0, blue, 255 };
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                auto* data = new unsigned char[sizeof(bytes)];
+                std::memcpy(data, bytes, sizeof(bytes));
+                image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+                image->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
+                image->setFileName(name);
+                return image;
+            };
+            const osg::ref_ptr<osg::Image> red = makeColour(255, 0, "textures/tx_red.dds");
+            const osg::ref_ptr<osg::Image> blue = makeColour(0, 255, "textures/tx_blue.dds");
+            ASSERT_TRUE(PreparedImages::prepares(*red, TextureEncoding::Colour));
+
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            PreparedImages prepared(&store, 1);
+            prepared.find(*red, TextureEncoding::Colour);
+            prepared.flush();
+            prepared.find(*blue, TextureEncoding::Colour);
+            prepared.flush();
+            EXPECT_EQ(prepared.takeStats().at(ContentPassId::Chain).mHits, 0u) << "one key for both";
+
+            const osg::ref_ptr<const MadeImage> madeRed = prepared.find(*red, TextureEncoding::Colour).mImage;
+            const osg::ref_ptr<const MadeImage> madeBlue = prepared.find(*blue, TextureEncoding::Colour).mImage;
+            ASSERT_NE(madeRed, nullptr);
+            ASSERT_NE(madeBlue, nullptr);
+            EXPECT_EQ(madeRed->getWholeFormat(), TextureFormat::Bc7Srgb);
+            ASSERT_EQ(madeRed->getLevels().size(), 2u);
+            EXPECT_TRUE(Testing::isNear(texelOf(*madeRed, 1), { 255, 0, 0, 255 }, 2)) << "the file's own red";
+            EXPECT_TRUE(Testing::isNear(texelOf(*madeBlue, 1), { 0, 0, 255, 255 }, 2)) << "the file's own blue";
         }
 
         /// **A file whose chain stands answers nothing made**: a BC5 map, which no host reader
@@ -137,9 +200,9 @@ namespace Rtx
         }
 
         /// **A colour file of one level has its chain made**: a 2x2 RGBA8 colour, its one solid texel
-        /// white beside three holes, is made a chain of two levels in its own four bytes a texel, the
-        /// second its coverage-weighed box, white under a quarter's alpha. A colour that carries its
-        /// own chain is not asked for. **Its key is its one level's texels**: the same file again is
+        /// white beside three holes, is made a chain of two levels in BC7 under the curve, the second its
+        /// coverage-weighed box, white under a quarter's alpha. A block colour that carries its own chain
+        /// is not asked for. **Its key is its one level's texels**: the same file again is
         /// one key, and one whose solid texel is red another.
         TEST(RtxPreparedImagesTest, aColourOfOneLevelHasItsChainMade)
         {
@@ -150,15 +213,15 @@ namespace Rtx
             file->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             file->setFileName("textures/tx_rain.dds");
             ASSERT_TRUE(PreparedImages::prepares(*file, TextureEncoding::Colour));
-            EXPECT_FALSE(PreparedImages::prepares(*makeNormalMap(), TextureEncoding::Colour));
+            EXPECT_FALSE(PreparedImages::prepares(*makeBlockNormalMap(), TextureEncoding::Colour));
 
             PreparedImages prepared(nullptr, 1);
             prepared.find(*file, TextureEncoding::Colour);
             prepared.flush();
             const osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Colour).mImage;
             ASSERT_NE(made, nullptr);
-            EXPECT_EQ(&made->finestOf(*file), file.get());
-            EXPECT_EQ(copyOf(made->getCoarser()), bytesOf({ 255, 255, 255, 64 }));
+            EXPECT_EQ(made->getWholeFormat(), TextureFormat::Bc7Srgb);
+            EXPECT_TRUE(Testing::isNear(texelOf(*made, 1), { 255, 255, 255, 64 }, 2)) << "the coverage-weighed box";
 
             const auto keyOf = [](const osg::Image& image) {
                 ChainPass pass;
@@ -173,11 +236,10 @@ namespace Rtx
             EXPECT_NE(keyOf(*file), keyOf(*red)) << "the level's texels are not in the key";
         }
 
-        /// **A block file of one level has its chain made loose**: a 4x4 BC1 colour of one block, its
-        /// first endpoint pure red in 5:6:5 (0xf800) above a black second and every index nought, is
-        /// made RGBA8 to a texel: its finest a 4x4 RGBA8 image of its own, and its 2x2 and 1x1 levels
-        /// 16 + 4 = 20 bytes, its last texel the box of red, (255, 0, 0, 255).
-        TEST(RtxPreparedImagesTest, aBlockFileOfOneLevelHasItsChainMadeLoose)
+        /// **A block file of one level has its whole chain made in BC7**: a 4x4 BC1 colour of one block,
+        /// its first endpoint pure red in 5:6:5 (0xf800) above a black second and every index nought, is
+        /// made in BC7 to a texel, a block a level, 3 × 16 = 48 bytes, its last texel the box of red.
+        TEST(RtxPreparedImagesTest, aBlockFileOfOneLevelHasItsWholeChainMadeInBc7)
         {
             const std::uint8_t block[] = { 0x00, 0xf8, 0x00, 0x00, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> file = new osg::Image;
@@ -192,14 +254,10 @@ namespace Rtx
             prepared.flush();
             const osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Colour).mImage;
             ASSERT_NE(made, nullptr);
-            const osg::Image& finest = made->finestOf(*file);
-            EXPECT_NE(&finest, file.get());
-            EXPECT_EQ(finest.getPixelFormat(), static_cast<GLenum>(GL_RGBA));
-            EXPECT_EQ(finest.getTotalSizeInBytesIncludingMipmaps(), 64u);
-            ASSERT_EQ(made->getLevels().size(), 2u);
-            ASSERT_EQ(made->getCoarser().size(), 20u);
-            const std::span<const std::byte> last = made->getCoarser().subspan(made->getLevels()[1].mOffset);
-            EXPECT_EQ(copyOf(last), bytesOf({ 255, 0, 0, 255 }));
+            EXPECT_EQ(made->getWholeFormat(), TextureFormat::Bc7Srgb);
+            ASSERT_EQ(made->getLevels().size(), 3u);
+            EXPECT_EQ(made->getBytes().size(), 48u);
+            EXPECT_TRUE(Testing::isNear(texelOf(*made, 2), { 255, 0, 0, 255 }, 2)) << "the box of red";
         }
     }
 }
