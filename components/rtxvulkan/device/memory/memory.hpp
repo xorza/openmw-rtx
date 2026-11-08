@@ -252,6 +252,11 @@ namespace Rtx
         /// The heap video memory is taken out of, whose room `getRoom` measures.
         std::uint32_t getVideoHeap() const { return mContent.mHeap; }
 
+        /// Whether the driver states what this process holds and may hold (`VK_EXT_memory_budget`).
+        /// Asked, and not read off the report's figures: a heap the process holds nothing on is
+        /// stated at nought, and a budget held to nought (`limitBudget`) reports nought.
+        bool hasBudget() const { return mBudget; }
+
         /// Holds every heap to `bytes` where the driver states more, or to the driver's word where
         /// nothing: for a run that asks what a smaller card does, and for a test that drives
         /// content past the room. The ceilings move with it and essential memory does not, which

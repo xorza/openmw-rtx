@@ -27,10 +27,11 @@ namespace Rtx::Testing
 
     VkDeviceSize budgetAbove(const MemoryAllocator& memory, const MemoryUse use, const VkDeviceSize above)
     {
+        if (!memory.hasBudget())
+            throw std::runtime_error("a device with no budget extension cannot say what the heap holds");
+
         const std::uint32_t heap = memory.getVideoHeap();
         const HeapUse held = memory.report().mHeaps[heap];
-        if (held.mHeld == 0)
-            throw std::runtime_error("a device with no budget extension cannot say what the heap holds");
 
         VkDeviceSize owed = 0;
         const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
