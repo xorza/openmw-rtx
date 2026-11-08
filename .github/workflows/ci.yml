@@ -77,7 +77,7 @@ jobs:
         run: python omw lint workflows
 
   build:
-    # A leg's name is also its compiler cache's key, and no key may begin another: the cache action
+    # A leg's name is also its caches' key, and no key may begin another: the compiler cache's action
     # restores the newest cache whose name begins with the key.
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -141,7 +141,7 @@ jobs:
       - uses: $/.github/actions/openmw-deps
         with:
           cache: ${{ env.CI_CACHE }}
-          ccache-key: ${{ matrix.name }}
+          cache-key: ${{ matrix.name }}
           ccache-size: ${{ matrix.ccache-size }}
 
       - name: Build

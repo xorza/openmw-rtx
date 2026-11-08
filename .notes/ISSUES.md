@@ -1,4 +1,3 @@
 # Open issues
 
-- On Linux, CI caches only the Vulkan SDK of `deps/`: every leg configures by downloading the FetchContent sources (SDL3, google/benchmark) from GitHub again, so a GitHub 504 fails the leg at configure. PR #46, run 42476807559: `linux-gcc` failed on `benchmark/archive/refs/tags/v1.8.3.zip`, `linux-clang` on `SDL3-3.4.16.tar.gz`, both HTTP 504.
 - A world built again in one arrival reserves almost twice the structure memory the same world loaded cell by cell reserves, and its textures stand in what is left: at `seyda-neen-wall-noon` on the PBR profile with `--memory-budget=6004`, the load held 151.8 MiB of structures in 152.4 MiB reserved, and the world built again on a change of upscaling mode 150.9 MiB in 290.6 MiB reserved, with the structures' use at 206.0 MiB against 67.7 MiB.

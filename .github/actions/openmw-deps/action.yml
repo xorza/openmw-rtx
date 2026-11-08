@@ -3,10 +3,10 @@ description: The packages and SDKs a build of the tree needs, per system.
 
 inputs:
   cache:
-    description: Whether to restore and save the deps/ cache and the compiler cache; false for a release.
+    description: Whether to restore and save the deps/ cache, the FetchContent archives and the compiler cache; false for a release.
     default: "true"
-  ccache-key:
-    description: The compiler cache's name, which begins no other job's; none, and the job keeps none.
+  cache-key:
+    description: The name of the job's compiler cache and FetchContent archives, which begins no other job's; none, and the job keeps neither.
     default: ""
   ccache-size:
     description: How large the compiler cache may grow.
@@ -55,15 +55,34 @@ runs:
         key: deps-${{ runner.os }}-${{ hashFiles('CI/deps_versions.msvc.sh', 'tools/omw/pins.py', 'tools/omw/deps.py') }}
         restore-keys: deps-${{ runner.os }}-
 
+    - name: The FetchContent archives' pins
+      # Every archive is declared with its `URL_HASH`, so the hashes are what the archives are: the
+      # key moves with a pin and with nothing else.
+      if: inputs.cache-key != '' && inputs.cache == 'true'
+      id: fetched
+      shell: bash
+      run: echo "digest=$(git grep -h URL_HASH -- '*CMakeLists.txt' '*.cmake' | sort | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+    - name: FetchContent archives cache
+      # Where CMake keeps each archive it downloads, and skips the download of one whose hash
+      # matches (`FETCHCONTENT_BASE_DIR`): without it every leg downloaded every source again, and
+      # CMake retries no HTTP error, so one 504 from GitHub failed the leg at configure. A leg's
+      # own, since a flavour fetches what its options build.
+      if: inputs.cache-key != '' && inputs.cache == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: build-*/_deps/*-tmp
+        key: fetchcontent-${{ inputs.cache-key }}-${{ steps.fetched.outputs.digest }}
+
     - name: The Vulkan SDK
       shell: bash
       run: python omw bootstrap
 
     - name: Compiler cache
-      if: inputs.ccache-key != '' && inputs.cache == 'true'
+      if: inputs.cache-key != '' && inputs.cache == 'true'
       uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
       with:
-        key: ${{ inputs.ccache-key }}
+        key: ${{ inputs.cache-key }}
         max-size: ${{ inputs.ccache-size }}
         # On master alone: a branch's copies would evict master's. The repository's cache limit is
         # the free 10 GB: past it storage is billed, and with the budget spent every cache is
