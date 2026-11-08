@@ -128,7 +128,7 @@ namespace Rtx
             content.chain(*makeImage(heights, { 0, 0, 0, 0 }), TextureEncoding::Normal, chain);
             ASSERT_EQ(chain.mForm, ChainForm::Bc7);
             MadeChain coarser;
-            content.chain(*makeBlockImage(), TextureEncoding::Normal, coarser);
+            content.chain(*makeBlockImage(), TextureEncoding::Data, coarser);
             ASSERT_EQ(coarser.mForm, ChainForm::Coarser);
 
             struct Recorded
@@ -148,8 +148,8 @@ namespace Rtx
                 Recorded{ "shape", 3, 0xea9852832b8ceb62 },
                 Recorded{ "texel mean", 1, 0xfaa7e2c796ee8c55 },
                 Recorded{ "alpha span", 1, 0xb02496efa84a6d00 },
-                Recorded{ "chain in BC7", 3, 0xce26916638ee39f4 },
-                Recorded{ "coarser chain", 3, 0x5f247501ba043a44 },
+                Recorded{ "chain in BC7", 4, 0xc9f191cc7fdae1aa },
+                Recorded{ "coarser chain", 4, 0x5f247501ba043a44 },
             };
             for (std::size_t at = 0; at < computed.size(); ++at)
             {

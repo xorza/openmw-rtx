@@ -53,12 +53,16 @@ namespace Rtx
             return describeImage(image, encoding, levels, texels).value();
         }
 
-        /// **A normal map's chain is the box of its finest level, its height no part of it**: a 2x2
-        /// RGBA8 map whose file's second level is the premultiplied black, (0, 0, 0) under an alpha
-        /// of 0, is made again as the plain mean of its four normals, `(128 + 128 + 120 + 112) / 4 =
-        /// 122`, `(128 + 136 + 128 + 128) / 4 = 130`, `(255 + 255 + 247 + 251) / 4 = 252`, with the
-        /// heights' mean `(0 + 0 + 100 + 200) / 4 = 75` beside it.
-        TEST(RtxChainBuildTest, aNormalMapsChainIsTheBoxOfItsFinestLevelAndNotTheFilesOwn)
+        /// **A normal map's chain is the direction of the mean of its unit normals, every level made**: a
+        /// 2x2 RGBA8 map whose file's second level is the premultiplied black is made again whole. Each
+        /// finest texel is `2 c − 1` made unit: (120, 128, 247) is (−0.058824, 0.003922, 0.937255), of
+        /// length 0.939108, so (−0.062638, 0.004176, 0.998023), whose bytes `(n + 1) / 2 · 255` are
+        /// (119.51, 128.03, 254.75), so (120, 128, 255), its height 100 as it was. The second level is the
+        /// mean of the four unit normals, (−0.044833, 0.019658, 0.996999), of length 0.998200, so
+        /// (−0.044914, 0.019694, 0.998803) and the bytes (121.77, 130.01, 254.85): (122, 130, 255), with
+        /// the heights' plain mean `(0 + 0 + 100 + 200) / 4 = 75` beside it. Each level is one BC7 block
+        /// in mode 5, which keeps the height apart, the second within BC7's step of what was built.
+        TEST(RtxChainBuildTest, aNormalMapsChainIsTheDirectionOfTheMeanOfItsUnitNormals)
         {
             const std::vector<std::uint8_t> bytes{
                 128, 128, 255, 0, //
@@ -75,14 +79,77 @@ namespace Rtx
 
             ChainBuild chain;
             chain.build(file, 2);
-            EXPECT_FALSE(chain.holdsCut(file));
-            std::vector<std::byte> built;
-            chain.encode(file, built);
-            ASSERT_EQ(built.size(), 4u);
-            EXPECT_EQ(std::to_integer<int>(built[0]), 122);
-            EXPECT_EQ(std::to_integer<int>(built[1]), 130);
-            EXPECT_EQ(std::to_integer<int>(built[2]), 252);
-            EXPECT_EQ(std::to_integer<int>(built[3]), 75);
+            ASSERT_EQ(chain.getLevelCount(), 2u);
+            const auto texelOf = [&](std::uint32_t level, std::size_t at) {
+                const std::span<const std::byte> laid = chain.getTexels(level).subspan(at * 4, 4);
+                return Testing::Texel{ std::to_integer<std::uint8_t>(laid[0]), std::to_integer<std::uint8_t>(laid[1]),
+                    std::to_integer<std::uint8_t>(laid[2]), std::to_integer<std::uint8_t>(laid[3]) };
+            };
+            EXPECT_EQ(texelOf(0, 0), (Testing::Texel{ 128, 128, 255, 0 }));
+            EXPECT_EQ(texelOf(0, 2), (Testing::Texel{ 120, 128, 255, 100 })) << "made unit";
+            EXPECT_EQ(texelOf(1, 0), (Testing::Texel{ 122, 130, 255, 75 }));
+
+            // Each level one BC7 block, its mode its first byte's lowest set bit: mode 5, which keeps the
+            // height apart, for a block that holds one.
+            std::vector<std::byte> encoded;
+            chain.encodeBc7(TextureEncoding::Normal, encoded);
+            ASSERT_EQ(encoded.size(), 32u);
+            for (std::size_t block = 0; block < 2; ++block)
+                EXPECT_EQ(std::to_integer<unsigned>(encoded[block * 16]) & 0x3fu, 0x20u) << "block " << block;
+            EXPECT_TRUE(Testing::isNear(
+                Testing::firstTexelOf(TextureFormat::Bc7Unorm, std::span(encoded).subspan(16)), texelOf(1, 0), 2));
+        }
+
+        /// **A map of two channels is given its blue, and a mean that points nowhere is made straight
+        /// up**: a BC5 map of one block whose red is 191 and green 128 decodes to (0.498039, 0.003922),
+        /// its blue raised to `sqrt(1 − 0.248043 − 0.000015) = 0.867146`, so the bytes (191.00, 128.50,
+        /// 238.06): (191, 128, 238), and its second level the same. A 2x2 RGBA8 map of (255, 255, 255)
+        /// and (0, 0, 0) twice each decodes to (1, 1, 1) and (−1, −1, −1), whose unit normals cancel: its
+        /// second level is up, `(0 + 1) / 2 · 255 = 127.5`, so (128, 128, 255). The BC5 map, which holds
+        /// no height, is encoded in BC7's mode 6.
+        TEST(RtxChainBuildTest, aMapOfTwoChannelsIsGivenItsBlueAndAMeanOfNoDirectionIsUp)
+        {
+            // BC5: two BC4 blocks, each its two endpoints and every index nought, the first endpoint's.
+            std::vector<std::uint8_t> bytes(32, 0);
+            bytes[0] = 191;
+            bytes[1] = 191;
+            bytes[8] = 128;
+            bytes[9] = 128;
+            bytes[16] = 191;
+            bytes[17] = 191;
+            bytes[24] = 128;
+            bytes[25] = 128;
+            const osg::ref_ptr<osg::Image> two = makeChained(
+                GL_COMPRESSED_RED_GREEN_RGTC2_EXT, GL_COMPRESSED_RED_GREEN_RGTC2_EXT, 4, { 16, 16 }, bytes);
+            std::vector<MipLevel> levels;
+            std::vector<std::byte> texels;
+            const TextureData file = describe(*two, TextureEncoding::Normal, levels, texels);
+            ASSERT_TRUE(ChainBuild::rebuilds(file));
+            EXPECT_FALSE(ChainBuild::rebuilds(describe(*two, TextureEncoding::Data, levels, texels)))
+                << "a map of data's two channels mean nothing a reader here knows";
+
+            ChainBuild chain;
+            chain.build(describe(*two, TextureEncoding::Normal, levels, texels), 2);
+            for (std::uint32_t level = 0; level < 2; ++level)
+            {
+                const std::span<const std::byte> first = chain.getTexels(level).first(4);
+                EXPECT_EQ(std::to_integer<int>(first[0]), 191) << "level " << level;
+                EXPECT_EQ(std::to_integer<int>(first[1]), 128) << "level " << level;
+                EXPECT_EQ(std::to_integer<int>(first[2]), 238) << "level " << level;
+                EXPECT_EQ(std::to_integer<int>(first[3]), 255) << "level " << level << ", no height";
+            }
+
+            std::vector<std::byte> opaque;
+            chain.encodeBc7(TextureEncoding::Normal, opaque);
+            EXPECT_EQ(std::to_integer<unsigned>(opaque[0]) & 0x7fu, 0x40u) << "mode 6 for a block with no height";
+
+            const osg::ref_ptr<osg::Image> cancelling = makeChained(
+                GL_RGBA8, GL_RGBA, 2, { 16 }, { 255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255 });
+            chain.build(describe(*cancelling, TextureEncoding::Normal, levels, texels), 2);
+            const std::span<const std::byte> up = chain.getTexels(1);
+            EXPECT_EQ(std::to_integer<int>(up[0]), 128);
+            EXPECT_EQ(std::to_integer<int>(up[1]), 128);
+            EXPECT_EQ(std::to_integer<int>(up[2]), 255);
         }
 
         /// **A colour's chain weighs it by its coverage, and the channels keep the file's order**: a
@@ -114,8 +181,8 @@ namespace Rtx
             EXPECT_EQ(std::to_integer<int>(built[3]), 64) << "a quarter's coverage";
         }
 
-        /// **A block-compressed chain is encoded in the file's own format**: a BC3 map of one block
-        /// whose sixteen texels are one normal and one height decodes, made again, to that texel within
+        /// **A block-compressed chain is encoded in the file's own format**: a BC3 map of data of one
+        /// block whose sixteen texels are one value and one alpha decodes, made again, to that texel within
         /// the encoder's step, and its second level is one block of sixteen bytes, as the file's was.
         TEST(RtxChainBuildTest, aBlockCompressedChainIsEncodedInTheFilesOwnFormat)
         {
@@ -135,7 +202,7 @@ namespace Rtx
                 = makeChained(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, { 16, 16 }, bytes);
             std::vector<MipLevel> levels;
             std::vector<std::byte> texels;
-            const TextureData file = describe(*image, TextureEncoding::Normal, levels, texels);
+            const TextureData file = describe(*image, TextureEncoding::Data, levels, texels);
             ASSERT_EQ(file.mLevels.size(), 2u);
             ASSERT_TRUE(ChainBuild::rebuilds(file));
 
@@ -151,10 +218,9 @@ namespace Rtx
                 EXPECT_NEAR(decoded[channel], solid[channel], 4) << "channel " << channel;
         }
 
-        /// What is made and what is not: a BC1 file with a hole in it holds a cut, a BC5 file is no
-        /// format a host reader decodes, and a file of one texel has no level under it; a file of one
-        /// level and more than a texel has its chain made.
-        TEST(RtxChainBuildTest, aCutABc5FileAndAFileOfOneTexelAreNotMadeAndAFileOfOneLevelIs)
+        /// What is made and what is not: a BC1 file with a hole in it holds a cut, and a file of one
+        /// texel has no level under it; a file of one level and more than a texel has its chain made.
+        TEST(RtxChainBuildTest, aCutAndAFileOfOneTexelAreNotMadeAndAFileOfOneLevelIs)
         {
             std::vector<std::uint8_t> holed(16, 0);
             // BC1, its first endpoint not above its second, every index 3: transparent black.
@@ -175,10 +241,6 @@ namespace Rtx
             ChainBuild chain;
             chain.build(file, 2);
             EXPECT_TRUE(chain.holdsCut(file));
-
-            const osg::ref_ptr<osg::Image> two = makeChained(GL_COMPRESSED_RED_GREEN_RGTC2_EXT,
-                GL_COMPRESSED_RED_GREEN_RGTC2_EXT, 4, { 16, 16 }, std::vector<std::uint8_t>(32, 0));
-            EXPECT_FALSE(ChainBuild::rebuilds(describe(*two, TextureEncoding::Normal, levels, texels)));
 
             const osg::ref_ptr<osg::Image> single
                 = makeChained(GL_RGBA8, GL_RGBA, 2, { 16 }, std::vector<std::uint8_t>(16, 7));

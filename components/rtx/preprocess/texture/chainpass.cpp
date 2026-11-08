@@ -74,7 +74,8 @@ namespace Rtx
 
             const bool cut = remade && mChain.holdsCut(file);
             const bool small = std::max(finest.mWidth, finest.mHeight) <= sLargestBc7ChainSide;
-            if (loose || (chainless && (small || cut)))
+            const bool normals = file.mEncoding == TextureEncoding::Normal;
+            if (normals || loose || (chainless && (small || cut)))
             {
                 if (!remade)
                     mChain.layOwnLevels(file);

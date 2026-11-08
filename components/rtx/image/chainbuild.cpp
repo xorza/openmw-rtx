@@ -57,6 +57,20 @@ namespace Rtx
             });
         }
 
+        /// The direction a decoded normal points, and straight up where it points none: a texel of
+        /// (0.5, 0.5, 0.5), or a box of normals that cancel.
+        osg::Vec3f unitNormal(const osg::Vec3f& decoded)
+        {
+            const float length = decoded.length();
+            return length > 0.0f ? decoded / length : osg::Vec3f(0.0f, 0.0f, 1.0f);
+        }
+
+        /// A unit normal's component as the byte `2 c − 1` decodes back to it.
+        std::byte quantiseNormal(float component)
+        {
+            return quantise((component + 1.0f) * 0.5f);
+        }
+
         /// The sixteen texels of block `bx`, `by` of `level`, RGBA, the edge's texel standing in for a
         /// texel past a level smaller than a block, as a block-compressed file pads it.
         std::array<std::uint8_t, 64> blockAt(
@@ -80,8 +94,9 @@ namespace Rtx
     {
         const TextureFormat format = file.mFormat;
         const MipLevel& finest = file.mLevels.front();
+        const bool normalBc5 = format == TextureFormat::Bc5Unorm && file.mEncoding == TextureEncoding::Normal;
         return std::size_t{ finest.mWidth } * finest.mHeight > 1 && file.levelsFit()
-            && (isBc1(format) || isBc2(format) || isBc3(format) || isLoose(format));
+            && (isBc1(format) || isBc2(format) || isBc3(format) || isLoose(format) || normalBc5);
     }
 
     void ChainBuild::build(const TextureData& finest, const std::uint32_t levels)
@@ -108,6 +123,12 @@ namespace Rtx
             bytes += std::size_t{ laid.mWidth } * laid.mHeight * sTexel;
         }
         mTexels.assign(bytes, std::byte{ 0 });
+
+        if (finest.mEncoding == TextureEncoding::Normal)
+        {
+            buildNormals(first);
+            return;
+        }
 
         // The finest level through the readers that know every format: colour a band of blocks at a
         // time, as stored, and alpha a byte a texel.
@@ -174,6 +195,87 @@ namespace Rtx
         }
     }
 
+    void ChainBuild::buildNormals(const TextureData& first)
+    {
+        const MipLevel& top = first.mLevels.front();
+        mMeans.assign(mTexels.size() / sTexel, osg::Vec3f());
+        const auto meanAt = [&](const MipLevel& level, std::uint32_t x, std::uint32_t y) -> osg::Vec3f& {
+            return mMeans[level.texelOffset(x, y, sTexel) / sTexel];
+        };
+
+        // **Every texel of the finest level its unit normal**: three channels decoded as `2 c − 1`, and a
+        // map of two its blue raised from the other two, as a sampler of the map would have.
+        if (first.mFormat == TextureFormat::Bc5Unorm)
+        {
+            const TexelLayout layout = layoutOf(first.mFormat);
+            for (std::uint32_t by = 0; by < (top.mHeight + 3) / 4; ++by)
+                for (std::uint32_t bx = 0; bx < (top.mWidth + 3) / 4; ++bx)
+                {
+                    std::array<std::uint8_t, 64> block{};
+                    rgbcx::unpack_bc5(first.mBytes.data() + top.blockOffset(bx, by, layout.mBytes), block.data());
+                    for (std::uint32_t y = by * 4; y < std::min(by * 4 + 4, top.mHeight); ++y)
+                        for (std::uint32_t x = bx * 4; x < std::min(bx * 4 + 4, top.mWidth); ++x)
+                        {
+                            const std::size_t at = (std::size_t{ y - by * 4 } * 4 + (x - bx * 4)) * sTexel;
+                            const float across = block[at] / 255.0f * 2.0f - 1.0f;
+                            const float along = block[at + 1] / 255.0f * 2.0f - 1.0f;
+                            const float up = std::sqrt(std::max(1.0f - across * across - along * along, 0.0f));
+                            meanAt(top, x, y) = unitNormal(osg::Vec3f(across, along, up));
+                        }
+                }
+        }
+        else
+            for (std::uint32_t row = 0; row < top.mHeight; row += 4)
+            {
+                readTexelBand(first, top, row / 4, mBand);
+                for (std::uint32_t y = row; y < row + mBand.size() / top.mWidth; ++y)
+                    for (std::uint32_t x = 0; x < top.mWidth; ++x)
+                    {
+                        const osg::Vec3f& stored = mBand[std::size_t{ y - row } * top.mWidth + x];
+                        meanAt(top, x, y) = unitNormal(stored * 2.0f - osg::Vec3f(1.0f, 1.0f, 1.0f));
+                    }
+            }
+
+        // **Each level the box of the unit normals under it, stored as its direction**: the means are
+        // carried unnormalised, so a level is the mean of the finest texels it covers and not a mean of
+        // means each rounded to a byte and made unit again. The height beside them a plain box.
+        for (std::size_t at = 0; at < mLevels.size(); ++at)
+        {
+            const MipLevel& level = mLevels[at];
+            for (std::uint32_t y = 0; y < level.mHeight; ++y)
+                for (std::uint32_t x = 0; x < level.mWidth; ++x)
+                {
+                    float height = 0.0f;
+                    if (at == 0)
+                        height = mAlpha.at(0, x, y) / 255.0f;
+                    else
+                    {
+                        const MipLevel& above = mLevels[at - 1];
+                        const Shaders::AxisTaps across = Shaders::axisTaps(x, above.mWidth);
+                        const Shaders::AxisTaps down = Shaders::axisTaps(y, above.mHeight);
+                        osg::Vec3f mean;
+                        for (const std::uint32_t dy : { 0u, 1u, 2u })
+                            for (const std::uint32_t dx : { 0u, 1u, 2u })
+                            {
+                                const float weight = across.mWeights[dx] * down.mWeights[dy];
+                                const std::uint32_t sx = std::min(across.mFirst + dx, above.mWidth - 1);
+                                const std::uint32_t sy = std::min(down.mFirst + dy, above.mHeight - 1);
+                                mean += meanAt(above, sx, sy) * weight;
+                                height += std::to_integer<std::uint8_t>(mTexels[above.texelOffset(sx, sy, sTexel) + 3])
+                                    / 255.0f * weight;
+                            }
+                        meanAt(level, x, y) = mean;
+                    }
+
+                    const osg::Vec3f direction = unitNormal(meanAt(level, x, y));
+                    const std::size_t into = level.texelOffset(x, y, sTexel);
+                    for (int channel = 0; channel < 3; ++channel)
+                        mTexels[into + static_cast<std::size_t>(channel)] = quantiseNormal(direction[channel]);
+                    mTexels[into + 3] = quantise(height);
+                }
+        }
+    }
+
     bool ChainBuild::holdsCut(const TextureData& finest) const
     {
         if (!isBc1(finest.mFormat))
@@ -229,6 +331,21 @@ namespace Rtx
                 for (std::uint32_t bx = 0; bx < across; ++bx)
                 {
                     const std::array<std::uint8_t, 64> block = blockAt(texels, level, bx, by);
+
+                    // **A normal map's block in one mode**, as DirectXTex narrows its search by mode
+                    // (`TEX_COMPRESS_BC7_QUICK`): mode 5 where it holds a height, whose alpha it keeps
+                    // apart from the normal, and mode 6 where it holds none, which bc7enc tries first for
+                    // an opaque block. Five times the full search's speed, a height's error less and a
+                    // normal's a tenth of a degree more on the mean (`.notes/content-cache.md`, normal
+                    // maps in one encoding). bc7enc tells the kinds apart by the same test, and asserts a
+                    // mode it can take for each.
+                    if (encoding == TextureEncoding::Normal)
+                    {
+                        bool height = false;
+                        for (std::size_t texel = 0; texel < 16; ++texel)
+                            height = height || block[texel * sTexel + 3] < 255;
+                        params.m_mode_mask = height ? 1u << 5 : 1u << 6;
+                    }
                     bc7enc_compress_block(
                         into.data() + start + (std::size_t{ by } * across + bx) * layout.mBytes, block.data(), &params);
                 }

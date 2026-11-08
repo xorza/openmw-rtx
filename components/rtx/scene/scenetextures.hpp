@@ -117,6 +117,10 @@ namespace Rtx
             /// For a chunk's flattened ground, which chunk and which layer. Nothing for a slot that
             /// is no composite.
             std::optional<Ground> mGround{};
+
+            /// Whether the slot stands in until its chain is made: a normal map of two channels, which
+            /// the trace does not decode (`decodeNormal`).
+            bool mStandsIn = false;
         };
 
         /// What `kept` is described as, or why it gets the stand-in.

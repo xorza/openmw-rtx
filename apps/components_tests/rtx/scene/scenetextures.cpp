@@ -962,13 +962,13 @@ namespace Rtx
         }
 
         /// **A made coarser chain is described as the file's finest level, spanned where the file holds
-        /// it, with the made levels under it**: a 4x4 BC1 normal map of two levels, its finest one block
+        /// it, with the made levels under it**: a 4x4 BC1 map of data of two levels, its finest one block
         /// of (132, 130, 255) and its second black, is made a 2x2 level in a block of its own, the box of
         /// that normal; the description spans the file's 8 bytes for its finest and comes to 8 + 8 = 16
         /// from it.
         TEST(RtxSceneTexturesTest, aMadeCoarserChainIsTheFilesFinestLevelWithTheMadeLevelsUnderIt)
         {
-            constexpr VFS::Path::NormalizedView path("textures/tx_block_n.dds");
+            constexpr VFS::Path::NormalizedView path("textures/tx_block_data.dds");
             const std::uint8_t bytes[] = { 0x1f, 0x84, 0x00, 0x00, 0, 0, 0, 0, //
                 0, 0, 0, 0, 0, 0, 0, 0 };
             osg::ref_ptr<osg::Image> image = new osg::Image;
@@ -980,7 +980,7 @@ namespace Rtx
             image->setFileName(std::string(path.value()));
 
             Rtx::SceneDesc scene;
-            TextureHold held = scene.takeTexture(path, *image, TextureWrap::Repeat, TextureEncoding::Normal);
+            TextureHold held = scene.takeTexture(path, *image, TextureWrap::Repeat, TextureEncoding::Data);
             PreparedImages prepared(nullptr, 1);
             SceneTextures described;
             described.describeAll(scene, &prepared, true);
@@ -1000,6 +1000,36 @@ namespace Rtx
             TextureData shortRun = made;
             shortRun.mCoarser = made.mCoarser.first(7);
             EXPECT_FALSE(shortRun.levelsFit()) << "a last level a byte short of its run";
+            scene.drop(std::move(held));
+        }
+
+        /// **A normal map of two channels stands in until its chain is made**, which the trace reads as no
+        /// map, and is refused nowhere: a 4x4 BC5 normal map described with no service, or before its
+        /// chain is made, is the stand-in; made, it is two BC7 levels.
+        TEST(RtxSceneTexturesTest, aNormalMapOfTwoChannelsStandsInUntilItsChainIsMade)
+        {
+            constexpr VFS::Path::NormalizedView path("textures/tx_two_n.dds");
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->allocateImage(4, 4, 1, GL_COMPRESSED_RED_GREEN_RGTC2_EXT, GL_UNSIGNED_BYTE);
+            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(0));
+            image->setFileName(std::string(path.value()));
+
+            Rtx::SceneDesc scene;
+            TextureHold held = scene.takeTexture(path, *image, TextureWrap::Repeat, TextureEncoding::Normal);
+            SceneTextures described;
+            described.describeAll(scene, nullptr, false);
+            ASSERT_EQ(described.getDescriptions().size(), 1u);
+            EXPECT_EQ(described.getDescriptions()[0].mSource, TextureSource::StandIn);
+            EXPECT_TRUE(described.getRefusals().empty()) << "a map waiting for its chain is not refused";
+
+            PreparedImages prepared(nullptr, 1);
+            described.describeAll(scene, &prepared, false);
+            EXPECT_EQ(described.getDescriptions()[0].mSource, TextureSource::StandIn) << "while it is made";
+            prepared.flush();
+            described.describeAll(scene, &prepared, false);
+            EXPECT_EQ(described.getDescriptions()[0].mSource, TextureSource::File);
+            EXPECT_EQ(described.getDescriptions()[0].mFormat, TextureFormat::Bc7Unorm);
+            EXPECT_EQ(described.getDescriptions()[0].mLevels.size(), 3u);
             scene.drop(std::move(held));
         }
 

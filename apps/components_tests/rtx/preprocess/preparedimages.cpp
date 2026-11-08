@@ -68,8 +68,8 @@ namespace Rtx
         }
 
         /// **A map's chain is pending, then made**: the first ask queues it and answers pending, and
-        /// once the threads are done a block map's is the box under the file's finest level, one BC1
-        /// block of (132, 130, 255) where the file held black, standing on the file's own finest level and
+        /// once the threads are done a block map of data's is the box under the file's finest level, one
+        /// BC1 block of (132, 130, 255) where the file held black, standing on the file's own finest level and
         /// holding none of it. Asked again while a texture holds it, it is the same image; let go of by
         /// every holder, it is made again, from the store. Each making is one ask of the chain pass in the
         /// threads' figures, the second found.
@@ -79,7 +79,7 @@ namespace Rtx
             PreparedImages prepared(&store, 2);
             const osg::ref_ptr<osg::Image> file = makeBlockNormalMap();
 
-            const PreparedImage first = prepared.find(*file, TextureEncoding::Normal);
+            const PreparedImage first = prepared.find(*file, TextureEncoding::Data);
             EXPECT_TRUE(first.mPending);
             EXPECT_EQ(first.mImage, nullptr);
             prepared.flush();
@@ -89,7 +89,7 @@ namespace Rtx
             EXPECT_EQ(madeOnce.at(ContentPassId::Chain).mHits, 0u);
             EXPECT_EQ(prepared.takeStats().at(ContentPassId::Chain).mAsked, 0u) << "taken twice";
 
-            osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Normal).mImage;
+            osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Data).mImage;
             ASSERT_NE(made, nullptr);
             EXPECT_FALSE(made->getWholeFormat().has_value()) << "the finest level is the file's";
             ASSERT_EQ(made->getLevels().size(), 1u) << "the 2x2, as many levels as the file carries";
@@ -97,12 +97,12 @@ namespace Rtx
             EXPECT_EQ(Testing::firstTexelOf(TextureFormat::Bc1RgbaUnorm, made->getBytes()),
                 (Testing::Texel{ 132, 130, 255, 255 }));
 
-            EXPECT_EQ(prepared.find(*file, TextureEncoding::Normal).mImage, made) << "held by what holds it";
+            EXPECT_EQ(prepared.find(*file, TextureEncoding::Data).mImage, made) << "held by what holds it";
 
             made = nullptr;
-            EXPECT_TRUE(prepared.find(*file, TextureEncoding::Normal).mPending) << "let go of, made again";
+            EXPECT_TRUE(prepared.find(*file, TextureEncoding::Data).mPending) << "let go of, made again";
             prepared.flush();
-            EXPECT_NE(prepared.find(*file, TextureEncoding::Normal).mImage, nullptr);
+            EXPECT_NE(prepared.find(*file, TextureEncoding::Data).mImage, nullptr);
             const ContentStats madeAgain = prepared.takeStats();
             EXPECT_EQ(madeAgain.at(ContentPassId::Chain).mAsked, 1u);
             EXPECT_EQ(madeAgain.at(ContentPassId::Chain).mHits, 1u) << "made again and not found";
@@ -110,12 +110,18 @@ namespace Rtx
             EXPECT_GE(store.getStats().mFound, 1u) << "the second making read the store";
         }
 
-        /// **A loose file's whole chain is made in BC7**: a 2x2 RGBA8 normal map whose second level is
-        /// black is two BC7 blocks, linear, its second the box of its four normals, `(128 + 128 + 120 +
-        /// 112) / 4 = 122`, `130`, `252`, and its heights' `75`, within BC7's step. A widened file is a
-        /// loose one: a three-byte RGB normal map's second level is the box `(40, 50, 255)` under the
-        /// alpha the widening gave.
-        TEST(RtxPreparedImagesTest, aLooseFilesWholeChainIsMadeInBc7)
+        /// **A normal map's whole chain is made in BC7**: a 2x2 RGBA8 normal map whose second level is
+        /// black is two BC7 blocks, linear, its second the direction of the mean of its four unit normals,
+        /// (122, 130, 255) under its heights' `75` (`aNormalMapsChainIsTheDirectionOfTheMeanOfItsUnitNormals`),
+        /// within BC7's step. A widened three-byte RGB normal map of (10, 20, 255), (30, 40, 255), (50, 60,
+        /// 255) and (70, 80, 255) is made the same way: their unit normals (−0.575961, −0.526944, 0.624979),
+        /// (−0.533345, −0.478643, 0.697453), (−0.473241, −0.412177, 0.778559) and (−0.389272, −0.321573,
+        /// 0.863169) average to (−0.492955, −0.434834, 0.741040), of length 0.990568, so (−0.497649,
+        /// −0.438974, 0.748096) and the bytes (64.05, 71.53, 222.88): (64, 72, 223), under the alpha the
+        /// widening gave. A BC1 normal map that carries its chain is made whole as well, its finest texel
+        /// (132, 130, 255) as unit: (0.035294, 0.019608, 1) over its length 1.000815 is (0.035265,
+        /// 0.019592, 0.999186), the bytes (132.00, 130.00, 254.90).
+        TEST(RtxPreparedImagesTest, aNormalMapsWholeChainIsMadeInBc7)
         {
             const std::uint8_t bytes[] = { 10, 20, 255, 30, 40, 255, 50, 60, 255, 70, 80, 255, 1, 2, 3 };
             osg::ref_ptr<osg::Image> file = new osg::Image;
@@ -136,12 +142,24 @@ namespace Rtx
             EXPECT_EQ(loose->getWholeFormat(), TextureFormat::Bc7Unorm);
             ASSERT_EQ(loose->getLevels().size(), 2u);
             EXPECT_EQ(loose->getBytes().size(), 32u) << "a BC7 block a level";
-            EXPECT_TRUE(Testing::isNear(texelOf(*loose, 1), { 122, 130, 252, 75 }, 2)) << "the box";
+            EXPECT_TRUE(Testing::isNear(texelOf(*loose, 1), { 122, 130, 255, 75 }, 2)) << "the mean's direction";
 
             const osg::ref_ptr<const MadeImage> widened = prepared.find(*file, TextureEncoding::Normal).mImage;
             ASSERT_NE(widened, nullptr);
             EXPECT_EQ(widened->getWholeFormat(), TextureFormat::Bc7Unorm);
-            EXPECT_TRUE(Testing::isNear(texelOf(*widened, 1), { 40, 50, 255, 255 }, 2)) << "the widened box";
+            EXPECT_TRUE(Testing::isNear(texelOf(*widened, 1), { 64, 72, 223, 255 }, 2))
+                << "the widened mean's direction";
+
+            // A block normal map that carries its chain is made whole too, its finest level with the rest.
+            const osg::ref_ptr<osg::Image> block = makeBlockNormalMap();
+            EXPECT_TRUE(prepared.find(*block, TextureEncoding::Normal).mPending);
+            prepared.flush();
+            const osg::ref_ptr<const MadeImage> blockMade = prepared.find(*block, TextureEncoding::Normal).mImage;
+            ASSERT_NE(blockMade, nullptr);
+            EXPECT_EQ(blockMade->getWholeFormat(), TextureFormat::Bc7Unorm);
+            ASSERT_EQ(blockMade->getLevels().size(), 2u) << "4x4 and 2x2, as the file carries";
+            EXPECT_TRUE(Testing::isNear(texelOf(*blockMade, 0), { 132, 130, 255, 255 }, 2))
+                << "the file's normal, unit";
         }
 
         /// **A loose colour's own chain is encoded as it stands, and keyed by every level**: two 2x2
@@ -183,18 +201,18 @@ namespace Rtx
             EXPECT_TRUE(Testing::isNear(texelOf(*madeBlue, 1), { 0, 0, 255, 255 }, 2)) << "the file's own blue";
         }
 
-        /// **A file whose chain stands answers nothing made**: a BC5 map, which no host reader
-        /// decodes, is neither pending nor made once its ask is done.
+        /// **A file whose chain stands answers nothing made**: a BC5 map of data, whose two channels no
+        /// host reader gives a meaning, is neither pending nor made once its ask is done.
         TEST(RtxPreparedImagesTest, aFileWhoseChainStandsAnswersNothingMade)
         {
             PreparedImages prepared(nullptr, 1);
             osg::ref_ptr<osg::Image> two = new osg::Image;
             two->allocateImage(4, 4, 1, GL_COMPRESSED_RED_GREEN_RGTC2_EXT, GL_UNSIGNED_BYTE);
-            two->setFileName("textures/tx_two_n.dds");
+            two->setFileName("textures/tx_two_data.dds");
 
-            EXPECT_TRUE(prepared.find(*two, TextureEncoding::Normal).mPending);
+            EXPECT_TRUE(prepared.find(*two, TextureEncoding::Data).mPending);
             prepared.flush();
-            const PreparedImage answer = prepared.find(*two, TextureEncoding::Normal);
+            const PreparedImage answer = prepared.find(*two, TextureEncoding::Data);
             EXPECT_FALSE(answer.mPending);
             EXPECT_EQ(answer.mImage, nullptr);
         }

@@ -1248,9 +1248,9 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
 
         const vec3 painted = sampleNormalMap(material.mNormal, point);
         lostSlopes += normalMapSlopes(material.mNormal, point);
-        // A texel of (0.5, 0.5, 0.5) decodes to no direction at all, as the plane and the shading
-        // normal above may be: the plane stands in, where a normalised zero was a NaN in every
-        // history that read it.
+        // Where the frame carries the normal nowhere, the plane stands in, where a normalised zero was a
+        // NaN in every history that read it: a mesh with no normals carries noughts, and a file drawn
+        // before its chain is made may hold a texel of (0.5, 0.5, 0.5), which a made map never does.
         const vec3 carried = tangent * painted.x + bitangent * painted.y + normal * painted.z;
         const vec3 mapped = dot(carried, carried) > 0.0 ? normalize(carried) : surface.mGeometric;
 

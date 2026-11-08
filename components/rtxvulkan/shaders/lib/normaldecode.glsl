@@ -6,15 +6,10 @@
 // **Its own file because two passes decode one texel and must agree**: the trace, reading a map at the
 // level its cone resolves, and the spread measured on the map as it arrives.
 
-/// `2 rgb - 1`, as `objects.frag` decodes it, and not unit.
-///
-/// **A map of two channels reads nought in blue**, and no map of three holds that: its blue is the normal's
-/// height over the surface, from a half up.
+/// `2 rgb - 1`, as `objects.frag` decodes it, and not unit: every normal map is made in one encoding, a unit
+/// normal in three channels (`ChainBuild`), and a map of two stands in until it is.
 vec3 decodeNormal(vec3 stored)
 {
-    const vec2 across = stored.xy * 2.0 - 1.0;
-    const float up = stored.z > 0.0 ? stored.z * 2.0 - 1.0 : sqrt(max(1.0 - dot(across, across), 0.0));
-
-    return vec3(across, up);
+    return stored * 2.0 - 1.0;
 }
 #endif

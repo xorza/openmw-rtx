@@ -104,12 +104,28 @@ screen is the import step, and its store is the game's input.
   chains. Refused: the time set at every hit (ccache's access time), a write on every read; and an index file of
   sizes and times, a second record of what the folders already state. The file operations are `std::filesystem`'s,
   whose API is one on every system, and the folder listing `Platform::listFolder`'s.
-- **Only the levels the file has wrong are stored, in the file's own format.** For a normal map, levels 1 and down, built
-  from the file's level 0, which stays byte-exact. For a file with no chain, every level below its one. The upload
-  then joins level 0 from the file and the rest from the store. The result is an ordinary file with a full chain, so
-  the side search, the upload of a chain and the residency work as they work now. Refused: the whole chain re-encoded
-  to BC7, which doubles a DXT1 map (2762 of the PBR install's normal maps) and moves level 0 by BC7's low bit; and the
-  chain kept on the device only, which no later start reuses.
+- **A data map stores only the levels the file has wrong, in the file's own format**: levels 1 and down, built from
+  the file's level 0, which stays byte-exact, and for a file with no chain every level below its one. The upload then
+  joins level 0 from the file and the rest from the store, an ordinary file with a full chain to the side search, the
+  upload and the residency. Refused: the chain kept on the device only, which no later start reuses.
+- **A normal map is stored whole in BC7, in one encoding**, by the user's decision (item 11): every texel its unit
+  normal in three channels, a two-channel map given its blue as a sampler of it would have, a texel or a mean that
+  points nowhere made straight up, and the height kept in alpha; so the trace decodes every map as `2 rgb − 1`. BC7,
+  linear, is the one block format that holds three channels and an alpha at a normal's precision: Unreal and Microsoft
+  store a two-channel normal in BC5 and an RGBA texture in BC7
+  ([Unreal](https://dev.epicgames.com/documentation/en-us/unreal-engine/texture-format-support-and-settings-in-unreal-engine),
+  [Microsoft](https://learn.microsoft.com/en-us/windows/win32/direct3d11/texture-block-compression-in-direct3d-11)),
+  and BC1 holds a normal poorly ([Reed](https://www.reedbeta.com/blog/understanding-bcn-texture-compression-formats/)).
+  The cost: a DXT1 normal map doubles (2646 of `openmw-pbr-all`'s 3858 normal maps), and level 0 moves by BC7's step.
+  **A block in one BC7 mode**, by the user's decision on the measurement: mode 5 where it holds a height, whose alpha
+  it keeps apart from the normal, and mode 6 where it holds none, the modes bc7enc searches first for each kind, as
+  DirectXTex narrows its search by mode ([DirectXTex](https://github.com/microsoft/DirectXTex/wiki/Compress)). On MVR
+  PBR's maps 16.5 million texels a second where the full search made 2.8 to 4, a height's error a mean of 0.12 to
+  0.35 of 255 where it was 0.29 to 0.46, and a normal's 0.31° to 0.58° where it was 0.27° to 0.41°
+  (research note, "Normal maps in BC7").
+  A two-channel map stands in until its chain is made, since the trace no longer decodes two channels. Refused: each
+  map re-encoded in its own format, a second loss for BC1 and BC3 and a path a format; and BC3 for all, a normal at
+  5:6:5.
 - **Which chains are built**: every normal and data map's (`TextureEncoding::Normal`, `TextureEncoding::Data`), and
   every chain a file lacks. A colour file's own chain stays as the file holds it, as Godot loads a DDS file's levels
   directly ([Godot](https://docs.godotengine.org/en/4.5/tutorials/assets_pipeline/importing_images.html)).
@@ -287,9 +303,16 @@ BC7"). What it does otherwise than the item said:
   format would have asked for a layout it has none of.
 - **A widened file's laid copy is still held** after its chain is made, by the cell reader, the material resolver and
   the laid image cache, though the description reads the BC7 chain alone.
-11. **Normal maps in one encoding**: every normal map stored with a unit normal in all three channels, so `decodeNormal`
-    is `2·rgb − 1` and `resolve` stands no plane in for a grey texel: a two-channel map (BC5) is given its blue, its
-    finest level re-encoded, by the user's decision against the rule that kept a file's finest level its own.
+
+Item 11 is done: every normal map is made whole in BC7 in one encoding (`ChainBuild::buildNormals`), and the trace
+decodes `2 rgb − 1` alone. At `seyda-neen-ship` on `openmw-pbr`, a cold start prepares in 64 s, as before; the store
+holds 5.6 GiB where it held 1.4, every normal map's finest level now in it (research note, "Normal maps in BC7").
+What it does otherwise than the item said:
+
+- **`resolve` keeps the plane for a normal that points nowhere**: a mesh with no normals carries noughts, and a file
+  drawn before its chain is made may hold a grey texel. The spread pass keeps its flat normal for the same file.
+- **A normal map's block takes one BC7 mode**, mode 5 with a height and mode 6 without, where the full search made the
+  cold start 270 s; bc7enc has no mode 4.
 12. **One specular layout**: every classic `_spec` map converted by preparation to metal-roughness, and the
     `[RTX] specular map layout` setting, `MATERIAL_SPECULAR_CLASSIC` and `layerClassic` gone, by the user's decision;
     a classic map's coloured highlight is fitted, since a dielectric has no metal-roughness equal for it.

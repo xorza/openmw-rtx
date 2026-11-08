@@ -106,6 +106,9 @@ namespace Rtx
                 kept.mFormat = readFormat(file, row.mEncoding);
                 kept.mMade = made.mImage;
             }
+            else if (row.mKind == TextureKind::File && row.mEncoding == TextureEncoding::Normal && row.mImage != nullptr
+                && readFormat(*row.mImage, row.mEncoding) == TextureFormat::Bc5Unorm)
+                kept.mStandsIn = true;
             else if (row.mKind == TextureKind::File && row.mLaid != nullptr)
             {
                 kept.mImage = row.mLaid;
@@ -184,6 +187,9 @@ namespace Rtx
 
     Misc::Result<TextureData, std::string> SceneTextures::describeKept(const Kept& kept)
     {
+        if (kept.mStandsIn)
+            return describeStandIn();
+
         if (!kept.mImage.isOk())
             return Misc::Err{ kept.mImage.error() };
 

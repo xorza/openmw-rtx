@@ -40,10 +40,10 @@ namespace Rtx
         std::vector<std::byte> mBytes{};
     };
 
-    /// A file's levels under its finest, made again from that level (`ChainBuild`), as a pass: what
-    /// the store keeps for every normal and data map, since the replacers' own chains are made with
-    /// filters that are wrong for a map (`.notes/content-cache.md`, the chains' decisions), and the
-    /// whole chain of a file that carried none.
+    /// A file's chain made again from its finest level (`ChainBuild`), as a pass: what the store keeps
+    /// for every normal and data map, since the replacers' own chains are made with filters that are
+    /// wrong for a map (`.notes/content-cache.md`, the chains' decisions), and for a file that carried
+    /// none.
     ///
     /// **A file that carried no chain gets one down to a texel.** Morrowind ships a hundred and
     /// eighty-seven such textures and its rain is one: read at its finest, a drop's peak alpha is
@@ -52,7 +52,8 @@ namespace Rtx
     /// of a texel, at eight by eight for a 256-square texture, whose last level is its mean to within
     /// what a ray can tell: a colour's own chain stands.
     ///
-    /// **The whole chain in BC7 for a loose file and for every chain the host would make loose**
+    /// **The whole chain in BC7 for every normal map**, in one encoding (`ChainBuild`), its finest level
+    /// made again with the rest; **and for a loose file and every chain the host would make loose**
     /// (`.notes/content-cache.md`, loose files encoded to BC7): a loose file, four bytes a texel, its
     /// own chain where it is a colour that carried one and the chain made again otherwise; a block file
     /// of one level up to `sLargestBc7ChainSide`, which BC7's error moves less than BC1's would; and a
@@ -78,7 +79,7 @@ namespace Rtx
         using Output = MadeChain;
 
         static constexpr ContentPassId sPass = ContentPassId::Chain;
-        static constexpr std::uint32_t sVersion = 3;
+        static constexpr std::uint32_t sVersion = 4;
         static constexpr bool sStored = true;
 
         void digest(const Input& input, ContentDigest& digest);

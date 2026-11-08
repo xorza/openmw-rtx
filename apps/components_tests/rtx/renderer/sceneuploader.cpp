@@ -213,10 +213,11 @@ namespace Rtx
 
         /// **A slot stands its file until its image is made, and then stands again with it**: a
         /// normal map whose file's second level is black is described with it and named pending; once
-        /// the image is made, the next hand-over describes the slot again, its second level the box
-        /// (122, 130, 252, 75) within BC7's step, with nothing pending; and the one after only places. **Settled, the
-        /// first hand-over waits for the image**, under a service that has made nothing yet, and
-        /// describes the slot with it, as a run that compares frames needs.
+        /// the image is made, the next hand-over describes the slot again, its second level the
+        /// direction of its normals' mean, (122, 130, 255, 75), within BC7's step, with nothing pending;
+        /// and the one after only places. **Settled, the first hand-over waits for the image**, under a
+        /// service that has made nothing yet, and describes the slot with it, as a run that compares
+        /// frames needs.
         TEST(RtxSceneUploaderTest, aSlotStandsItsFileUntilItsImageIsMadeAndThenStandsAgain)
         {
             const std::uint8_t bytes[] = {
@@ -252,7 +253,7 @@ namespace Rtx
                 return renderer.mDescribedSecondTexels[static_cast<std::size_t>(at - renderer.mDescribedSlots.begin())];
             };
 
-            constexpr Testing::Texel box{ 122, 130, 252, 75 };
+            constexpr Testing::Texel box{ 122, 130, 255, 75 };
             EXPECT_EQ(hand(false).mKind, SceneUpload::Kind::Rebuilt);
             EXPECT_EQ(secondOf(slot), Testing::Texel{}) << "the file's own black";
             EXPECT_EQ(uploader.getPendingCount(), 1u);

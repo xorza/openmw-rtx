@@ -174,6 +174,29 @@ for a colour and linear for data), a store of its own made empty for the cold ru
   both on animated effects, a fire and a waterfall, whose frames are small loose files; no more than 0.03% of any
   picture's pixels moved by more than 4.
 
+## Normal maps in BC7
+
+Every normal map made whole in BC7, its texels unit normals, on `openmw-pbr`, a store of its own made empty, and
+`shot --views=all --upscale=off` against the build before it (2026-11-09).
+
+| BC7 search | the cold run's preparation | store | pictures' pixels moved by more than 8 of 255 |
+|---|---|---|---|
+| bc7enc's full search | about 270 s | 5.6 GiB | median 0.5%, the close wall 10.9% |
+| one mode a block: 5 with a height, 6 without | 64 s | 5.6 GiB | median 0.32%, the close wall 4.58% |
+
+- **Before it**, the cold run prepared in 62 to 66 s, and the store held 1.4 GiB.
+- **The noise floor**: one build shot twice moves 0.92% of the close wall's pixels by more than 8.
+- **What moves is the relief**: under the full search, the albedo view moves 5.4% of the close wall's pixels with the
+  march and 0.9% with the single shift, and the normal view moves nothing visible, so the heights' error is what the march magnifies.
+- **The encoder on its own**, on MVR PBR's `_nh` maps against their own decoded texels, a texel's height in 255ths
+  and its normal's angle:
+
+| search | speed | height error, mean (max) | normal error, mean (max) |
+|---|---|---|---|
+| full | 2.8 to 4.0 Mpx/s | 0.29 to 0.46 (40) | 0.27° to 0.41° (25.7°) |
+| mode 5 | 16.5 Mpx/s | 0.12 to 0.35 (26) | 0.45° to 0.58° (28.3°) |
+| mode 6, a map with no height | 16.7 Mpx/s | — | 0.31° (18.9°), where the full search made 0.32° (11.2°) |
+
 ## The colour and data chains
 
 Level 1 of every colour and data DDS file that carries its own chain, against two references made from its level 0:
