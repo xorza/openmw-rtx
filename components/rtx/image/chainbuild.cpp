@@ -88,8 +88,8 @@ namespace Rtx
         // made here, and never read.
         TextureData first = finest;
         first.mLevels = finest.mLevels.first(1);
-        if (finest.mLevels.size() > 1)
-            first.mBytes = finest.mBytes.first(finest.mLevels[1].mOffset);
+        first.mBytes = finest.mBytes.first(finest.mLevels[0].mOffset + finest.bytesOf(0).size());
+        first.mCoarser = {};
         mAlpha.build(first);
 
         const MipLevel& top = first.mLevels.front();

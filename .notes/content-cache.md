@@ -223,9 +223,9 @@ otherwise than the items said:
 - **A settled run waits for the images being made** at each hand-over (`SceneUploader::Handing::mSettled`), as a settled
   walk waits for its cells: a cold run otherwise stood the world whole on a frame its threads' timing chose, and two
   cold runs drew two pictures.
-- **The finest level is copied into the made image**, an image's levels being one buffer: a normal or data map is held
-  twice on the host while its slot stands. Measured before the next batch; a description of two spans (the file's
-  finest level and the made levels) is the change that would remove it.
+- **A made chain holds the levels under the finest alone** (`MadeImage`), and a slot describes it as the file's finest
+  level with them under it (`TextureData::mCoarser`): copying the finest level into one buffer held 1226 MiB twice at
+  `seyda-neen-ship` on `openmw-pbr`, where the made levels are 409 MiB (research note, "What the made chains hold").
 - **Not made again**: BC4 and BC5 maps, which no host reader decodes and whose channels hold no alpha to be weighed by,
   and a BC1 map with a cut, whose one bit of alpha a box blurs.
 - `halving.h`, the odd-axis rule, moved to the core's shared headers, so the host chain reads the device's.

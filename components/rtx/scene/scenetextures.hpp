@@ -11,6 +11,7 @@
 
 #include <components/misc/result.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
@@ -71,7 +72,7 @@ namespace Rtx
         struct Made
         {
             Index mSlot;
-            osg::ref_ptr<const osg::Image> mImage;
+            osg::ref_ptr<const MadeImage> mImage;
         };
 
         std::span<const Made> getMade() const { return mMade; }
@@ -103,8 +104,12 @@ namespace Rtx
             /// `sNoIndex` where the table no longer holds that. Nothing for a slot that is no bake.
             std::optional<Index> mBakedFrom{};
 
-            /// The file's image, or why none reads. Null for a slot that names no file.
+            /// The file's image, or why none reads. Null for a slot that names no file. Its finest level
+            /// alone where `mMade` is not null.
             Misc::Result<osg::ref_ptr<const osg::Image>, std::string> mImage = osg::ref_ptr<const osg::Image>();
+
+            /// The file's chain made again, which the description takes its levels after the finest from.
+            osg::ref_ptr<const MadeImage> mMade{};
 
             /// The row's `TextureRow::mFormat`, which the reserve and the description both read.
             TextureFormat mFormat = TextureFormat::Unnamed;

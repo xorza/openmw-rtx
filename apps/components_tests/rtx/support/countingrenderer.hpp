@@ -196,8 +196,8 @@ namespace Rtx::Testing
             {
                 mDescribedSlots.push_back(texture.mSlot);
                 std::uint32_t second = 0;
-                if (texture.mLevels.size() > 1 && texture.mBytes.size() >= texture.mLevels[1].mOffset + 4)
-                    std::memcpy(&second, texture.mBytes.data() + texture.mLevels[1].mOffset, 4);
+                if (texture.mLevels.size() > 1 && texture.bytesOf(1).size() >= 4)
+                    std::memcpy(&second, texture.bytesOf(1).data(), 4);
                 mDescribedSecondTexels.push_back(second);
             }
         }

@@ -34,9 +34,8 @@ namespace Rtx
     }
 
     void TextureArrival::upload(
-        Batch& batch, const Image& image, std::span<const std::byte> bytes, std::span<const VkBufferImageCopy> regions)
+        const StagingRun& staged, const Image& image, std::span<const VkBufferImageCopy> regions)
     {
-        const StagingRun staged = batch.stage(bytes);
         const auto first = static_cast<std::uint32_t>(mRegions.size());
         for (VkBufferImageCopy region : regions)
         {

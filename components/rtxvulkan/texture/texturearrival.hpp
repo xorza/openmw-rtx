@@ -43,10 +43,9 @@ namespace Rtx
         TextureArrival(const TextureArrival&) = delete;
         TextureArrival& operator=(const TextureArrival&) = delete;
 
-        /// Stages `bytes` through `batch` and copies them into `image` by `regions`, whose offsets
-        /// are into `bytes`. `image` is met undefined.
-        void upload(Batch& batch, const Image& image, std::span<const std::byte> bytes,
-            std::span<const VkBufferImageCopy> regions);
+        /// Copies `staged`, which the caller staged through the batch the run is recorded into, into
+        /// `image` by `regions`, whose offsets are into `staged`. `image` is met undefined.
+        void upload(const StagingRun& staged, const Image& image, std::span<const VkBufferImageCopy> regions);
 
         /// Clears `map`, met undefined, to the neutral shading factor.
         void clearNeutral(const Image& map);

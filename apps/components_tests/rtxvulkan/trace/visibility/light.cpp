@@ -23,13 +23,13 @@
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/lobeintegrals.hpp>
-#include <apps/components_tests/rtx/support/mipchain.hpp>
 #include <apps/components_tests/rtx/support/shadowalpha.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
+#include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
@@ -769,9 +769,23 @@ namespace Rtx::Testing
                 .mBytes = std::as_bytes(std::span(bytes)),
                 .mLevels = std::span(&level, 1),
             };
-            const Testing::MipChain chain(file);
-            ASSERT_FALSE(chain.isEmpty());
-            const TextureData data = chain.describe();
+            // Its coarser levels in bytes of their own under the file's finest level, as a slot
+            // describes a chain the host made (`TextureData::mCoarser`).
+            ChainBuild chain;
+            chain.build(file, levelsTo1x1(extent, extent));
+            std::vector<std::byte> coarser;
+            chain.encode(file, coarser);
+            std::vector<MipLevel> levels{ level };
+            std::uint32_t laid = 0;
+            for (std::uint32_t side = extent / 2; side >= 1; side /= 2)
+            {
+                levels.push_back(MipLevel{ laid, side, side });
+                laid += side * side * 4;
+            }
+            TextureData data = file;
+            data.mLevels = levels;
+            data.mCoarser = coarser;
+            ASSERT_TRUE(data.levelsFit());
             const std::span<const TextureData> textures(&data, 1);
 
             const std::array masked = cardAt(-50.0f);

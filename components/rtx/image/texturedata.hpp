@@ -94,7 +94,7 @@ namespace Rtx
     enum class TextureSource : std::uint8_t
     {
         /// A file the content named, decoded. `TextureData::mBytes` and `mLevels` are the file's
-        /// own, or the chain the host made of it (`ChainPass`).
+        /// own, or its finest level with the chain the host made of it under it (`mCoarser`).
         File,
 
         /// The light bake of a sprite texture — `TextureKind::SpriteLight` says what a bake is —
@@ -163,9 +163,16 @@ namespace Rtx
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
 
-        /// Every level, back to back. The levels index into this. Empty under `SpriteBake`,
-        /// `GroundComposite` and `GroundGloss`, whose bytes are the device's.
+        /// Every level, back to back, the levels indexing into it — or, where `mCoarser` is not empty,
+        /// the bytes the finest level lies in, whose bytes past it no level indexes. Empty under
+        /// `SpriteBake`, `GroundComposite` and `GroundGloss`, whose bytes are the device's.
         std::span<const std::byte> mBytes{};
+
+        /// The levels after the finest where the host made them again (`MadeImage`), each level after
+        /// the first indexing into it: the file's finest level stays in `mBytes` where the file holds
+        /// it, and is not copied. Empty where every level is in `mBytes`.
+        std::span<const std::byte> mCoarser{};
+
         std::span<const MipLevel> mLevels{};
 
         /// What to call it in a capture — the file it came from. Spans storage the description's
@@ -197,16 +204,23 @@ namespace Rtx
             return std::nullopt;
         }
 
-        /// How many bytes the levels from `level` on take: what an upload that begins there copies.
-        std::size_t bytesFrom(std::uint32_t level) const
+        /// `level`'s own bytes, in `mBytes` or `mCoarser`, as its format lays it.
+        std::span<const std::byte> bytesOf(std::uint32_t level) const
         {
             assert(level < mLevels.size() && "a level past the end of the chain");
-            return mBytes.size() - mLevels[level].mOffset;
+            const MipLevel& at = mLevels[level];
+            const std::span<const std::byte> run = level > 0 && !mCoarser.empty() ? mCoarser : mBytes;
+            return run.subspan(at.mOffset, layoutOf(mFormat).levelBytes(at.mWidth, at.mHeight));
         }
 
-        /// Whether every level lies inside `mBytes` at its format's layout: what `describeImage`
-        /// guarantees and a reader of the bytes asserts rather than clamps, so a description short
-        /// of its bytes fails where it is read and is not read as opaque or as nothing.
+        /// How many bytes the levels from `level` on take as its format lays them: what an upload that
+        /// begins there copies.
+        std::size_t bytesFrom(std::uint32_t level) const;
+
+        /// Whether every level lies inside the bytes it indexes at its format's layout: what
+        /// `describeImage` guarantees and a reader of the bytes asserts rather than clamps, so a
+        /// description short of its bytes fails where it is read and is not read as opaque or as
+        /// nothing.
         bool levelsFit() const;
     };
 

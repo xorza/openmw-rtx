@@ -39,8 +39,7 @@ namespace Rtx
         digest.add(static_cast<std::uint32_t>(file.mLevels.size()));
         digest.add(finest.mWidth);
         digest.add(finest.mHeight);
-        digest.add(
-            file.mBytes.subspan(finest.mOffset, layoutOf(file.mFormat).levelBytes(finest.mWidth, finest.mHeight)));
+        digest.add(file.bytesOf(0));
     }
 
     void ChainPass::run(const Input& input, Output& output)

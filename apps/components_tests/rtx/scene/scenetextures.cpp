@@ -26,6 +26,7 @@
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -957,6 +958,65 @@ namespace Rtx
             EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::File);
             EXPECT_EQ(described.getDescriptions()[0].getCompanion(), Rtx::TextureCompanion::Shading)
                 << "a file is estimated on the device";
+        }
+
+        /// **A made chain is described as the file's finest level, spanned where the file holds it, with
+        /// the made levels under it**: a 4x4 colour of one level, every byte 128, is made a chain whose
+        /// 2x2 and 1x1 levels lie in their own bytes, 16 + 4, each the box of 128s; the description
+        /// spans the file's 64 bytes for its finest and comes to 64 + 16 + 4 = 84 from it. A widened
+        /// RGB file's finest is laid in four bytes a texel, (255, 0, 255, 255), and its second level,
+        /// the box of one colour, the same.
+        TEST(RtxSceneTexturesTest, aMadeChainIsTheFilesFinestLevelWithTheMadeLevelsUnderIt)
+        {
+            constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName(std::string(path.value()));
+            image->allocateImage(4, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+
+            constexpr VFS::Path::NormalizedView widenedPath("textures/tx_rgb.dds");
+            osg::ref_ptr<osg::Image> widened = new osg::Image;
+            widened->setFileName(std::string(widenedPath.value()));
+            widened->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE);
+            for (std::size_t texel = 0; texel < 4; ++texel)
+            {
+                widened->data()[texel * 3 + 0] = 255;
+                widened->data()[texel * 3 + 1] = 0;
+                widened->data()[texel * 3 + 2] = 255;
+            }
+
+            Rtx::SceneDesc scene;
+            Testing::addModel(scene, path, image);
+            Testing::addModel(scene, widenedPath, widened);
+
+            PreparedImages prepared(nullptr, 1);
+            SceneTextures described;
+            described.describeAll(scene, &prepared, true);
+            ASSERT_EQ(described.getDescriptions().size(), 2u);
+
+            const TextureData& made = described.getDescriptions()[0];
+            ASSERT_EQ(made.mLevels.size(), 3u);
+            EXPECT_TRUE(made.levelsFit());
+            EXPECT_EQ(made.bytesOf(0).data(), reinterpret_cast<const std::byte*>(image->data()))
+                << "the file's finest level was copied";
+            EXPECT_EQ(made.mCoarser.size(), 16u + 4u);
+            EXPECT_EQ(made.bytesOf(1).data(), made.mCoarser.data());
+            EXPECT_TRUE(
+                std::ranges::all_of(made.bytesOf(1), [](std::byte value) { return value == std::byte{ 128 }; }));
+            EXPECT_EQ(made.bytesOf(2).size(), 4u);
+            EXPECT_EQ(made.bytesFrom(0), 84u);
+            EXPECT_EQ(made.bytesFrom(1), 20u);
+            TextureData shortRun = made;
+            shortRun.mCoarser = made.mCoarser.first(19);
+            EXPECT_FALSE(shortRun.levelsFit()) << "a last level a byte short of its run";
+
+            const TextureData& laid = described.getDescriptions()[1];
+            ASSERT_EQ(laid.mLevels.size(), 2u);
+            EXPECT_EQ(laid.mFormat, TextureFormat::Rgba8Srgb);
+            const std::array<std::byte, 4> magenta{ std::byte{ 255 }, std::byte{ 0 }, std::byte{ 255 },
+                std::byte{ 255 } };
+            EXPECT_TRUE(std::ranges::equal(laid.bytesOf(0).first(4), magenta)) << "the finest level as laid";
+            EXPECT_TRUE(std::ranges::equal(laid.bytesOf(1), magenta)) << "the made second level";
         }
     }
 }

@@ -85,7 +85,7 @@ namespace Rtx
                             .mUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT },
                         "normal spread test map");
                     const std::array regions{ wholeLevel(0, 0, VkExtent3D{ map.mWidth, map.mHeight, 1 }) };
-                    arrival.upload(upload, image, std::as_bytes(map.mTexels), regions);
+                    arrival.upload(upload.stage(std::as_bytes(map.mTexels)), image, regions);
                     arrival.spread(image, spread);
                 }
                 arrival.record(upload, passes);

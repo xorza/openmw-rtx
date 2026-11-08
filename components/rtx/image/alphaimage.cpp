@@ -184,7 +184,7 @@ namespace Rtx
             if (count == 0)
                 continue;
 
-            decodeLevel(texture.mFormat, texture.mBytes.subspan(texture.mLevels[at].mOffset), into.mWidth, into.mHeight,
+            decodeLevel(texture.mFormat, texture.bytesOf(at), into.mWidth, into.mHeight,
                 std::span(mValues).subspan(into.mOffset, count));
         }
     }
@@ -209,7 +209,7 @@ namespace Rtx
         // never do.
         assert(finest.levelsFit() && "an alpha read of a description short of its bytes");
         const MipLevel& level = finest.mLevels.front();
-        return forEachAlpha(finest.mFormat, finest.mBytes.subspan(level.mOffset), level.mWidth, level.mHeight,
+        return forEachAlpha(finest.mFormat, finest.bytesOf(0), level.mWidth, level.mHeight,
             [](std::uint32_t, std::uint32_t, std::uint8_t alpha) { return alpha == 255; });
     }
 
@@ -218,7 +218,7 @@ namespace Rtx
         // Only as far as the first texel under solid: an opaque map is walked whole, once a file.
         assert(finest.levelsFit() && "an alpha read of a description short of its bytes");
         const MipLevel& level = finest.mLevels.front();
-        return forEachAlpha(finest.mFormat, finest.mBytes.subspan(level.mOffset), level.mWidth, level.mHeight,
+        return forEachAlpha(finest.mFormat, finest.bytesOf(0), level.mWidth, level.mHeight,
             [](std::uint32_t, std::uint32_t, std::uint8_t alpha) { return alpha < 255; });
     }
 
@@ -227,7 +227,7 @@ namespace Rtx
         assert(finest.levelsFit() && "an alpha read of a description short of its bytes");
         const MipLevel& level = finest.mLevels.front();
         AlphaRange range{ .mLow = 255, .mHigh = 0 };
-        forEachAlpha(finest.mFormat, finest.mBytes.subspan(level.mOffset), level.mWidth, level.mHeight,
+        forEachAlpha(finest.mFormat, finest.bytesOf(0), level.mWidth, level.mHeight,
             [&](std::uint32_t, std::uint32_t, std::uint8_t alpha) {
                 range.mLow = std::min(range.mLow, alpha);
                 range.mHigh = std::max(range.mHigh, alpha);

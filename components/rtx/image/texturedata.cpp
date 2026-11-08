@@ -65,9 +65,23 @@ namespace Rtx
             return true;
 
         const TexelLayout layout = layoutOf(mFormat);
-        return std::ranges::all_of(mLevels, [&](const MipLevel& level) {
-            return level.mOffset <= mBytes.size()
-                && layout.levelBytes(level.mWidth, level.mHeight) <= mBytes.size() - level.mOffset;
-        });
+        for (std::uint32_t at = 0; at < mLevels.size(); ++at)
+        {
+            const MipLevel& level = mLevels[at];
+            const std::size_t run = (at > 0 && !mCoarser.empty() ? mCoarser : mBytes).size();
+            if (level.mOffset > run || layout.levelBytes(level.mWidth, level.mHeight) > run - level.mOffset)
+                return false;
+        }
+        return true;
+    }
+
+    std::size_t TextureData::bytesFrom(const std::uint32_t level) const
+    {
+        assert(level < mLevels.size() && "a level past the end of the chain");
+        const TexelLayout layout = layoutOf(mFormat);
+        std::size_t bytes = 0;
+        for (const MipLevel& from : mLevels.subspan(level))
+            bytes += layout.levelBytes(from.mWidth, from.mHeight);
+        return bytes;
     }
 }

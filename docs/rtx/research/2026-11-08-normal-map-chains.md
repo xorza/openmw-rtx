@@ -109,6 +109,13 @@ its own, made empty for each cold run. **The machine was not quiet**: another bu
   memory alone, which holds entries of 4 KiB or less. Its running moved from 85 to 240 ms cold and from 159 to 183
   warm between runs, with the load beside it.
 
+## What the made chains hold
+
+The same warm run, counted in the chain threads: the 1264 chains made come to 409 MiB of levels under the finest, and
+the finest levels of those that keep their file's format to 1226 MiB, which the host held twice while each made image
+copied its file's finest level. Cold, the chain threads ran for 335 s of processor time, about 42 s on their 8
+threads.
+
 ## The colour and data chains
 
 Level 1 of every colour and data DDS file that carries its own chain, against two references made from its level 0:

@@ -1,6 +1,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
+#include <span>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -9,6 +11,7 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
@@ -22,6 +25,19 @@ namespace Rtx
 {
     namespace
     {
+        std::vector<std::byte> bytesOf(std::initializer_list<std::uint8_t> values)
+        {
+            std::vector<std::byte> bytes;
+            for (const std::uint8_t value : values)
+                bytes.push_back(static_cast<std::byte>(value));
+            return bytes;
+        }
+
+        std::vector<std::byte> copyOf(std::span<const std::byte> bytes)
+        {
+            return std::vector<std::byte>(bytes.begin(), bytes.end());
+        }
+
         /// A 2x2 RGBA8 normal map whose file's second level is the premultiplied black, laid as a
         /// loader hands one over.
         osg::ref_ptr<osg::Image> makeNormalMap()
@@ -39,11 +55,11 @@ namespace Rtx
             return image;
         }
 
-        /// **A map's image is pending, then made**: the first ask queues it and answers pending, and
-        /// once the threads are done the image holds the file's finest level and the box under it,
-        /// (122, 130, 252, 75), where the file held black. Asked again while a texture holds it, it is
-        /// the same image; let go of by every holder, it is made again, from the store. Each making is
-        /// one ask of the chain pass in the threads' figures, the second found.
+        /// **A map's chain is pending, then made**: the first ask queues it and answers pending, and
+        /// once the threads are done it is the box under the file's finest level, (122, 130, 252, 75),
+        /// where the file held black, standing on the file's own finest level and holding none of it. Asked again while
+        /// a texture holds it, it is the same image; let go of by every holder, it is made again, from the store. Each
+        /// making is one ask of the chain pass in the threads' figures, the second found.
         TEST(RtxPreparedImagesTest, aMapsImageIsPendingThenMadeAndHeldByWhatHoldsIt)
         {
             ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
@@ -60,16 +76,12 @@ namespace Rtx
             EXPECT_EQ(madeOnce.at(ContentPassId::Chain).mHits, 0u);
             EXPECT_EQ(prepared.takeStats().at(ContentPassId::Chain).mAsked, 0u) << "taken twice";
 
-            osg::ref_ptr<const osg::Image> made = prepared.find(*file, TextureEncoding::Normal).mImage;
+            osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Normal).mImage;
             ASSERT_NE(made, nullptr);
-            EXPECT_NE(made.get(), file.get());
-            EXPECT_EQ(made->getNumMipmapLevels(), 2u);
-            const unsigned char* const second = made->getMipmapData(1);
-            EXPECT_EQ(second[0], 122);
-            EXPECT_EQ(second[1], 130);
-            EXPECT_EQ(second[2], 252);
-            EXPECT_EQ(second[3], 75);
-            EXPECT_EQ(std::memcmp(made->data(), file->data(), 16), 0) << "the finest level is the file's";
+            EXPECT_EQ(&made->finestOf(*file), file.get()) << "the finest level is the file's";
+            ASSERT_EQ(made->getLevels().size(), 1u);
+            EXPECT_EQ(made->getLevels()[0].mWidth, 1u);
+            EXPECT_EQ(copyOf(made->getCoarser()), bytesOf({ 122, 130, 252, 75 }));
 
             EXPECT_EQ(prepared.find(*file, TextureEncoding::Normal).mImage, made) << "held by what holds it";
 
@@ -84,11 +96,11 @@ namespace Rtx
             EXPECT_GE(store.getStats().mFound, 1u) << "the second making read the store";
         }
 
-        /// **A widened file's image is made in RGBA8**, the format its levels were laid in: a
-        /// three-byte RGB normal map's made image is RGBA8 of four bytes a texel, its finest level the
-        /// file's texels with an opaque alpha, and its second the box of the four, `(10 + 30 + 50 + 70)
-        /// / 4 = 40`, `(20 + 40 + 60 + 80) / 4 = 50`, `(255 * 4) / 4 = 255`.
-        TEST(RtxPreparedImagesTest, aWidenedFilesImageIsMadeInTheFormatItsLevelsWereLaidIn)
+        /// **A widened file's chain is laid in RGBA8**, the format its levels are described in: a
+        /// three-byte RGB normal map's second level is the box of its four texels in four bytes,
+        /// `(10 + 30 + 50 + 70) / 4 = 40`, `(20 + 40 + 60 + 80) / 4 = 50`, `(255 * 4) / 4 = 255`, under
+        /// an opaque alpha the widening gave.
+        TEST(RtxPreparedImagesTest, aWidenedFilesChainIsLaidInTheFormatItsLevelsAreDescribedIn)
         {
             const std::uint8_t bytes[] = { 10, 20, 255, 30, 40, 255, 50, 60, 255, 70, 80, 255, 1, 2, 3 };
             osg::ref_ptr<osg::Image> file = new osg::Image;
@@ -101,17 +113,10 @@ namespace Rtx
             PreparedImages prepared(nullptr, 1);
             EXPECT_TRUE(prepared.find(*file, TextureEncoding::Normal).mPending);
             prepared.flush();
-            const osg::ref_ptr<const osg::Image> made = prepared.find(*file, TextureEncoding::Normal).mImage;
+            const osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Normal).mImage;
             ASSERT_NE(made, nullptr);
-            EXPECT_EQ(made->getPixelFormat(), static_cast<GLenum>(GL_RGBA));
-            EXPECT_EQ(made->getTotalSizeInBytesIncludingMipmaps(), 16u + 4u);
-            const unsigned char* const finest = made->data();
-            EXPECT_EQ(finest[0], 10);
-            EXPECT_EQ(finest[3], 255) << "the alpha the widening gave";
-            const unsigned char* const second = made->getMipmapData(1);
-            EXPECT_EQ(second[0], 40);
-            EXPECT_EQ(second[1], 50);
-            EXPECT_EQ(second[2], 255);
+            EXPECT_EQ(&made->finestOf(*file), file.get());
+            EXPECT_EQ(copyOf(made->getCoarser()), bytesOf({ 40, 50, 255, 255 }));
         }
 
         /// **A file whose chain stands answers nothing made**: a BC5 map, which no host reader
@@ -149,14 +154,10 @@ namespace Rtx
             PreparedImages prepared(nullptr, 1);
             prepared.find(*file, TextureEncoding::Colour);
             prepared.flush();
-            const osg::ref_ptr<const osg::Image> made = prepared.find(*file, TextureEncoding::Colour).mImage;
+            const osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Colour).mImage;
             ASSERT_NE(made, nullptr);
-            EXPECT_EQ(made->getNumMipmapLevels(), 2u);
-            const unsigned char* const second = made->getMipmapData(1);
-            EXPECT_EQ(second[0], 255);
-            EXPECT_EQ(second[1], 255);
-            EXPECT_EQ(second[2], 255);
-            EXPECT_EQ(second[3], 64);
+            EXPECT_EQ(&made->finestOf(*file), file.get());
+            EXPECT_EQ(copyOf(made->getCoarser()), bytesOf({ 255, 255, 255, 64 }));
 
             const auto keyOf = [](const osg::Image& image) {
                 ChainPass pass;
@@ -173,8 +174,8 @@ namespace Rtx
 
         /// **A block file of one level has its chain made loose**: a 4x4 BC1 colour of one block, its
         /// first endpoint pure red in 5:6:5 (0xf800) above a black second and every index nought, is
-        /// made RGBA8 to a texel, 4x4, 2x2 and 1x1, 64 + 16 + 4 = 84 bytes, its last texel the box of
-        /// red, (255, 0, 0, 255).
+        /// made RGBA8 to a texel: its finest a 4x4 RGBA8 image of its own, and its 2x2 and 1x1 levels
+        /// 16 + 4 = 20 bytes, its last texel the box of red, (255, 0, 0, 255).
         TEST(RtxPreparedImagesTest, aBlockFileOfOneLevelHasItsChainMadeLoose)
         {
             const std::uint8_t block[] = { 0x00, 0xf8, 0x00, 0x00, 0, 0, 0, 0 };
@@ -188,16 +189,16 @@ namespace Rtx
             PreparedImages prepared(nullptr, 1);
             prepared.find(*file, TextureEncoding::Colour);
             prepared.flush();
-            const osg::ref_ptr<const osg::Image> made = prepared.find(*file, TextureEncoding::Colour).mImage;
+            const osg::ref_ptr<const MadeImage> made = prepared.find(*file, TextureEncoding::Colour).mImage;
             ASSERT_NE(made, nullptr);
-            EXPECT_EQ(made->getPixelFormat(), static_cast<GLenum>(GL_RGBA));
-            EXPECT_EQ(made->getNumMipmapLevels(), 3u);
-            EXPECT_EQ(made->getTotalSizeInBytesIncludingMipmaps(), 84u);
-            const unsigned char* const last = made->getMipmapData(2);
-            EXPECT_EQ(last[0], 255);
-            EXPECT_EQ(last[1], 0);
-            EXPECT_EQ(last[2], 0);
-            EXPECT_EQ(last[3], 255);
+            const osg::Image& finest = made->finestOf(*file);
+            EXPECT_NE(&finest, file.get());
+            EXPECT_EQ(finest.getPixelFormat(), static_cast<GLenum>(GL_RGBA));
+            EXPECT_EQ(finest.getTotalSizeInBytesIncludingMipmaps(), 64u);
+            ASSERT_EQ(made->getLevels().size(), 2u);
+            ASSERT_EQ(made->getCoarser().size(), 20u);
+            const std::span<const std::byte> last = made->getCoarser().subspan(made->getLevels()[1].mOffset);
+            EXPECT_EQ(copyOf(last), bytesOf({ 255, 0, 0, 255 }));
         }
     }
 }

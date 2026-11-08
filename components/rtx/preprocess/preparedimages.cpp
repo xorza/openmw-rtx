@@ -2,11 +2,9 @@
 
 #include <algorithm>
 #include <cassert>
-#include <string>
 #include <utility>
 
-#include <components/misc/result.hpp>
-#include <components/rtx/image/imagedescription.hpp>
+#include <components/rtx/image/textureformat.hpp>
 
 #include "contentpreprocessor.hpp"
 #include "contentstore.hpp"
@@ -14,7 +12,7 @@
 namespace Rtx
 {
     /// One thread that makes images: its own preprocessor, whose asks reach the store's files, the
-    /// scratch a description is laid into, and the thread, last.
+    /// chain it makes, and the thread, last.
     struct PreparedImages::Hand
     {
         explicit Hand(ContentStore* store)
@@ -24,8 +22,6 @@ namespace Rtx
 
         ContentPreprocessor mContent;
         MadeChain mChain;
-        std::vector<MipLevel> mDescribedLevels;
-        std::vector<std::byte> mDescribedTexels;
         Worker mWorker;
     };
 
@@ -82,7 +78,7 @@ namespace Rtx
                 return made;
             }
 
-            osg::ref_ptr<const osg::Image> image;
+            osg::ref_ptr<const MadeImage> image;
             if (found.mWatched.lock(image))
                 return PreparedImage{ .mImage = image };
             if (found.mStands)
@@ -120,9 +116,10 @@ namespace Rtx
         if (mEntries.size() < mSweepAt)
             return;
 
-        osg::ref_ptr<const osg::Image> held;
+        osg::ref_ptr<const osg::Image> file;
+        osg::ref_ptr<const MadeImage> made;
         std::erase_if(mEntries, [&](const auto& entry) {
-            return entry.second.mMade && !entry.second.mFile.lock(held) && !entry.second.mWatched.lock(held)
+            return entry.second.mMade && !entry.second.mFile.lock(file) && !entry.second.mWatched.lock(made)
                 && entry.second.mHeld == nullptr;
         });
         mSweepAt = std::max<std::size_t>(1024, 2 * mEntries.size());
@@ -142,19 +139,14 @@ namespace Rtx
                 const osg::Image& file = *job.mFile;
                 hand.mContent.chain(file, job.mKey.second, hand.mChain);
 
-                osg::ref_ptr<const osg::Image> made;
+                // The made levels move into the image that holds them; the file's finest level stays
+                // the file's (`MadeImage`).
+                osg::ref_ptr<const MadeImage> made;
                 if (hand.mChain.mForm == ChainForm::Coarser)
-                {
-                    hand.mDescribedLevels.clear();
-                    hand.mDescribedTexels.clear();
-                    const Misc::Result<TextureData, std::string> described
-                        = describeImage(file, job.mKey.second, hand.mDescribedLevels, hand.mDescribedTexels);
-                    if (described.isOk())
-                        made = joinChain(file, described.value(), hand.mChain.mBytes);
-                }
+                    made = new MadeImage(
+                        file, MadeImage::laidLayout(readFormat(file, job.mKey.second)), std::move(hand.mChain.mBytes));
                 else if (hand.mChain.mForm == ChainForm::Loose)
-                    made = looseChain(file, static_cast<std::uint32_t>(file.s()), static_cast<std::uint32_t>(file.t()),
-                        hand.mChain.mBytes);
+                    made = MadeImage::loose(file, hand.mChain.mBytes);
 
                 const ContentStats stats = hand.mContent.takeStats();
                 mMonitor.hand([&] {

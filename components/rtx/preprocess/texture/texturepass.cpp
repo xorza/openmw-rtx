@@ -47,8 +47,7 @@ namespace Rtx
         digest.add(level.mHeight);
 
         assert(finest.levelsFit() && "a key of a description short of its bytes");
-        digest.add(
-            finest.mBytes.subspan(level.mOffset, layoutOf(finest.mFormat).levelBytes(level.mWidth, level.mHeight)));
+        digest.add(finest.bytesOf(0));
     }
 
     bool solidReachOf(const std::optional<TextureData>& finest, TexelScratch&)

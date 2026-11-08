@@ -156,18 +156,19 @@ namespace Rtx
 
         const MipLevel& top = data.mLevels[first];
         const auto levels = static_cast<std::uint32_t>(data.mLevels.size()) - first;
-        const std::span<const std::byte> bytes = data.mBytes.subspan(top.mOffset);
 
-        // Every level in one submit: the levels are already contiguous in the source, so this is one
-        // copy per level out of one buffer rather than one upload per level — and from the first
-        // level on, so a texture held to a smaller side stages none of what it leaves out.
+        // Every level in one submit, laid back to back in one staging run, one copy a level out of
+        // it — and from the first level on, so a texture held to a smaller side stages none of what
+        // it leaves out. Laid level by level, since a chain the host made lies apart from the file's
+        // finest level (`TextureData::mCoarser`).
         regions.clear();
         regions.reserve(levels);
+        std::size_t laid = 0;
         for (std::uint32_t level = 0; level < levels; ++level)
         {
             const MipLevel& from = data.mLevels[first + level];
-            regions.push_back(
-                wholeLevel(from.mOffset - top.mOffset, level, VkExtent3D{ from.mWidth, from.mHeight, 1 }));
+            regions.push_back(wholeLevel(laid, level, VkExtent3D{ from.mWidth, from.mHeight, 1 }));
+            laid += data.bytesOf(first + level).size();
         }
 
         // Estimated off the texture about to be made, by a dispatch behind it, or cleared to the
@@ -195,7 +196,12 @@ namespace Rtx
         mWrap = data.mWrap;
         mImage = std::move(image.value());
         mCompanion = std::move(shading.value());
-        arrival.upload(batch, mImage, bytes, regions);
+
+        const StagingLend staged = batch.reserve(laid);
+        for (std::uint32_t level = 0; level < levels; ++level)
+            std::ranges::copy(data.bytesOf(first + level),
+                staged.mBytes.begin() + static_cast<std::ptrdiff_t>(regions[level].bufferOffset));
+        arrival.upload(staged.mRun, mImage, regions);
 
         switch (companion)
         {
@@ -263,7 +269,7 @@ namespace Rtx
 
         const std::array<float, 4> texel{ colour.x(), colour.y(), colour.z(), colour.w() };
         const std::array<VkBufferImageCopy, 1> regions{ wholeLevel(0, 0, VkExtent3D{ 1, 1, 1 }) };
-        arrival.upload(batch, mImage, std::as_bytes(std::span<const float>(texel)), regions);
+        arrival.upload(batch.stage(std::as_bytes(std::span<const float>(texel))), mImage, regions);
 
         mCompanion = std::move(makeShadingMap(device, name, MemoryUse::Essential).value());
         arrival.clearNeutral(mCompanion);

@@ -22,10 +22,10 @@ namespace Rtx
         Stands,
 
         /// The levels under the file's finest, in its own format, laid as a file lays them
-        /// (`joinChain`).
+        /// (`MadeImage`).
         Coarser,
 
-        /// The whole chain in four loose bytes a texel, from the finest down (`looseChain`).
+        /// The whole chain in four loose bytes a texel, from the finest down (`MadeImage::loose`).
         Loose,
     };
 

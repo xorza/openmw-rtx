@@ -14,6 +14,7 @@
 
 #include <components/rtx/common/monitor.hpp>
 #include <components/rtx/common/worker.hpp>
+#include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 
@@ -24,9 +25,9 @@ namespace Rtx
     /// What `PreparedImages::find` answers for a file.
     struct PreparedImage
     {
-        /// The image the upload reads in the file's place, with its chain made again; null where
+        /// The file's chain made again, which the upload reads in the file's place; null where
         /// nothing is made of it.
-        osg::ref_ptr<const osg::Image> mImage{};
+        osg::ref_ptr<const MadeImage> mImage{};
 
         /// Whether it is being made, so the caller describes the file as it stands for now and asks
         /// again: false where it is made, or where its own chain stands.
@@ -94,8 +95,8 @@ namespace Rtx
             bool mStands = false;
 
             /// Held until first handed out, watched after it.
-            osg::ref_ptr<const osg::Image> mHeld{};
-            osg::observer_ptr<const osg::Image> mWatched{};
+            osg::ref_ptr<const MadeImage> mHeld{};
+            osg::observer_ptr<const MadeImage> mWatched{};
         };
 
         struct Job

@@ -100,8 +100,10 @@ namespace Rtx
 
             if (made.mImage != nullptr)
             {
-                kept.mImage = made.mImage;
-                kept.mFormat = readFormat(*made.mImage, row.mEncoding);
+                const osg::Image& finest = made.mImage->finestOf(row.mLaid != nullptr ? *row.mLaid : *row.mImage);
+                kept.mImage = osg::ref_ptr<const osg::Image>(&finest);
+                kept.mFormat = readFormat(finest, row.mEncoding);
+                kept.mMade = made.mImage;
             }
             else if (row.mKind == TextureKind::File && row.mLaid != nullptr)
             {
@@ -139,6 +141,8 @@ namespace Rtx
             {
                 levels += kept.mImage.value()->getNumMipmapLevels();
                 texels += laidBytes(*kept.mImage.value(), kept.mFormat);
+                if (kept.mMade != nullptr)
+                    levels += kept.mMade->getLevels().size();
             }
         mLevels.reserve(levels);
         mTexels.reserve(texels);
@@ -181,7 +185,25 @@ namespace Rtx
 
         if (const osg::Image* image = kept.mImage.value().get())
         {
-            return describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
+            const Misc::Result<TextureData, std::string> read
+                = describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
+            if (!read.isOk() || kept.mMade == nullptr)
+                return read;
+
+            // **The file's finest level and the made levels under it**, in place of the levels the
+            // file carried, which the description laid last in the table.
+            TextureData described = read.value();
+            assert(layoutOf(described.mFormat).mBytes == kept.mMade->getLaid().mBytes
+                && "a chain made at another layout than its file is described at");
+            assert(layoutOf(described.mFormat).mSide == kept.mMade->getLaid().mSide
+                && "a chain made at another layout than its file is described at");
+            const auto at = static_cast<std::size_t>(described.mLevels.data() - mLevels.data());
+            mLevels.resize(at + 1);
+            mLevels.insert(mLevels.end(), kept.mMade->getLevels().begin(), kept.mMade->getLevels().end());
+            described.mLevels = std::span<const MipLevel>(mLevels).subspan(at);
+            described.mCoarser = kept.mMade->getCoarser();
+            assert(described.levelsFit() && "a made chain short of its levels");
+            return described;
         }
 
         if (kept.mBakedFrom.has_value())
