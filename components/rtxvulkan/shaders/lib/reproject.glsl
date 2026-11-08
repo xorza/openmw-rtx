@@ -166,8 +166,12 @@ vec3 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
     const vec3 was = direction * distance + moved;
 
     // **`|a + m| - |a|` as `m · (2a + m) / (|a + m| + |a|)`**, with `a` the offset from this eye and `m`
-    // the step: the same number without the cancellation.
-    const float farther = dot(moved, direction * (2.0 * distance) + moved) / (length(was) + distance);
+    // the step: the same number without the cancellation. **Nought where the sum under it is**: a hit
+    // at the eye that did not move, which a ray from an eye standing on a surface commits at a
+    // distance of nought, has `a` and `m` both nought, and so the difference too, where the quotient
+    // is `0 / 0`.
+    const float across = length(was) + distance;
+    const float farther = across > 0.0 ? dot(moved, direction * (2.0 * distance) + moved) / across : 0.0;
 
     return vec3(reprojected(pixel, was, spread), frame.mEyes.mWorld.mOrthographic != 0u ? 0.0 : farther);
 }

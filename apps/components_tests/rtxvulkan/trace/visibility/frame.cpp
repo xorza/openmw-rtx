@@ -672,6 +672,24 @@ namespace Rtx::Testing
                 EXPECT_EQ(held.z(), 0.0f) << "and its distance is its history's to the bit";
             }
 
+            // **A still eye standing on a surface**, which a ray meets at a distance of nought: the
+            // offset and the step are both nought, so the surface stands no farther than its history
+            // did, where the quotient that measures it is `0 / 0`. `shoot` holds that no module stored
+            // a value that is not finite. Whether a ray commits a hit at nought is the driver's: AMD's
+            // Windows driver commits every one here, and NVIDIA's none, which sees the sky through it.
+            {
+                SceneDesc scene;
+                addQuad(scene, wallAt(0.0f));
+
+                shoot(scene, {},
+                    Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f),
+                    size);
+
+                std::vector<float> motion;
+                mProbe.readChannel(Channel::Motion, motion);
+                EXPECT_EQ(motion[centre * 4 + 2], 0.0f) << "a surface at the eye stands where its history did";
+            }
+
             // **A still camera that jitters**, which is every frame an upscaler ever sees. Where in
             // its pixel a frame chose to sample says nothing about where the surface went, so this
             // is the same zero as above — and it is a separate case because the jitter is exactly
