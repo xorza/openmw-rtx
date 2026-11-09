@@ -49,6 +49,7 @@
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtx/shaders/tangent.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
@@ -2373,8 +2374,13 @@ namespace Rtx::Testing
 
             const osg::Vec3f painted(
                 2.0f * 128.0f / 255.0f - 1.0f, 2.0f * 191.0f / 255.0f - 1.0f, 2.0f * 221.0f / 255.0f - 1.0f);
-            osg::Vec3f mapped = osg::Vec3f(0.8f, 0.6f, 0.0f) * painted.x() + osg::Vec3f(0.0f, 0.0f, 1.0f) * painted.y()
-                + leaning * painted.z();
+            // The frame of the normal as the mesh stores it (`Shaders::packNormal`), whose steps move
+            // it by up to 1.3e-4, five times the tolerance's worth of the picture.
+            const osg::Vec3f stored = Shaders::unpackNormal(Shaders::packNormal(leaning));
+            osg::Vec3f tangent = osg::Vec3f(1.0f, 0.0f, 0.0f) - stored * stored.x();
+            tangent.normalize();
+            const osg::Vec3f bitangent = stored ^ tangent;
+            osg::Vec3f mapped = tangent * painted.x() + bitangent * painted.y() + stored * painted.z();
             mapped.normalize();
             const osg::Vec3f wanted = mapped * 0.5f + osg::Vec3f(0.5f, 0.5f, 0.5f);
             for (int axis = 0; axis < 3; ++axis)

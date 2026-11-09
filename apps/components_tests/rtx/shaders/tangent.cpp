@@ -8,6 +8,7 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/tangent.h>
 
 namespace Rtx
@@ -15,13 +16,18 @@ namespace Rtx
     namespace
     {
         /// The six axes come back as they went, either way round, because an odd count of steps puts
-        /// nought and one on a step.
+        /// nought and one on a step, and the decode's reciprocal of the steps times them is one.
         ///
         /// Along x is the square's `(1, 0)`: steps `16383 + 16383 = 32766 = 0x7FFE` and
         /// `0 + 16383 = 0x3FFF`, the second fifteen bits up, which is `0x1FFF8000`, and the present
         /// bit over them — the flipped bit as well for the other handedness.
         TEST(RtxTangentTest, theAxesComeBackExactlyWithTheirHandedness)
         {
+            // **The decode multiplies by the steps' reciprocal**, which lands the ends and the middle
+            // exactly only because each count times its float reciprocal rounds to one.
+            EXPECT_EQ(static_cast<float>(Shaders::TANGENT_STEPS) * Shaders::TANGENT_STEP, 1.0f);
+            EXPECT_EQ(static_cast<float>(Shaders::SURFACE_NORMAL_STEPS) * Shaders::SURFACE_NORMAL_STEP, 1.0f);
+
             EXPECT_EQ(Shaders::packTangent(osg::Vec3f(1.0f, 0.0f, 0.0f), false), 0x9FFFFFFEu);
             EXPECT_EQ(Shaders::packTangent(osg::Vec3f(1.0f, 0.0f, 0.0f), true), 0xDFFFFFFEu);
 
@@ -98,6 +104,27 @@ namespace Rtx
                                 << "the length was stored: " << x << ' ' << y << ' ' << z;
                         }
                     }
+        }
+
+        /// **A normal is a tangent's word with no handedness**: the flipped bit never set, whichever
+        /// way the normal points, and the direction read back as a tangent's is; a normal of no
+        /// length is the word nought, which reads back as the zeros "the triangle's plane" is.
+        TEST(RtxTangentTest, aNormalIsATangentWordWithNoHandedness)
+        {
+            EXPECT_EQ(Shaders::packNormal(osg::Vec3f(1.0f, 0.0f, 0.0f)), 0x9FFFFFFEu);
+            EXPECT_EQ(Shaders::packNormal(osg::Vec3f(0.0f, 0.0f, 1.0f)), 0x9FFFBFFFu);
+            for (int x = -2; x <= 2; ++x)
+                for (int z = -2; z <= 2; ++z)
+                {
+                    const osg::Vec3f direction(static_cast<float>(x), 1.0f, static_cast<float>(z));
+                    const std::uint32_t packed = Shaders::packNormal(direction);
+                    EXPECT_EQ(packed, Shaders::packTangent(direction, false));
+                    EXPECT_EQ(packed & Shaders::TANGENT_FLIPPED, 0u);
+                    const osg::Vec4f tangent = Shaders::unpackTangent(packed);
+                    EXPECT_EQ(Shaders::unpackNormal(packed), osg::Vec3f(tangent.x(), tangent.y(), tangent.z()));
+                }
+            EXPECT_EQ(Shaders::packNormal(osg::Vec3f()), 0u);
+            EXPECT_EQ(Shaders::unpackNormal(0u), osg::Vec3f());
         }
     }
 }

@@ -8,6 +8,7 @@ set(RTX_TEST_FILES
     myguirtx/sharedtexture.cpp
     myguirtx/texture.cpp
     platform/linuxtext.cpp
+    rtx/common/halffloat.cpp
     rtx/common/hashstate.cpp
     rtx/common/job.cpp
     rtx/common/monitor.cpp

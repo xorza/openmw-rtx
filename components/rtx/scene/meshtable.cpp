@@ -9,6 +9,8 @@
 #include <osg/Vec4f>
 
 #include <components/rtx/common/finite.hpp>
+#include <components/rtx/common/halffloat.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/tangent.h>
 
 namespace Rtx
@@ -21,6 +23,26 @@ namespace Rtx
         std::uint32_t packTangent(const osg::Vec4f& tangent)
         {
             return Shaders::packTangent(osg::Vec3f(tangent.x(), tangent.y(), tangent.z()), tangent.w() < 0.0f);
+        }
+
+        /// A vertex's colour as the device reads it, `Shaders::GpuVertexColour`: three half floats.
+        ///
+        /// **White where a channel stands past the largest half**, as `MeshReader` reads a colour that
+        /// is not a finite number: the half would be an infinity, which a hit multiplies into the
+        /// light and every filter after it into NaNs.
+        Shaders::GpuVertexColour packColour(const osg::Vec3f& colour)
+        {
+            const std::uint16_t red = toHalf(colour.x());
+            const std::uint16_t green = toHalf(colour.y());
+            const std::uint16_t blue = toHalf(colour.z());
+            const auto infinite = [](const std::uint16_t half) { return (half & 0x7c00u) == 0x7c00u; };
+            if (infinite(red) || infinite(green) || infinite(blue))
+                return packColour(osg::Vec3f(1.0f, 1.0f, 1.0f));
+
+            return Shaders::GpuVertexColour{
+                .mRedGreen = std::uint32_t{ red } | (std::uint32_t{ green } << 16),
+                .mBlue = blue,
+            };
         }
 
         /// The box every one of `positions` fits in.
@@ -144,19 +166,22 @@ namespace Rtx
 
         // Filled where the mesh brought none, or a reused slot lights a surface by its last
         // tenant's normals. A zero normal says "use the triangle's plane" and a white colour says
-        // "no tint", because one is read and the other is multiplied.
-        const auto fill = [&](auto& into, const auto& brought, const auto& nothing) {
+        // "no tint", because one is read and the other is multiplied. The normal is packed to a word
+        // (`Shaders::packNormal`) and the colour to halves (`packColour`) as they are copied: once a
+        // mesh, and never a frame.
+        const auto fill = [&](auto& into, const auto& brought, const auto& nothing, const auto& stored) {
             const auto at = into.in(range.mVertices).begin();
             if (brought.empty())
                 std::fill_n(at, range.mVertices.mCount, nothing);
             else
-                std::copy(brought.begin(), brought.end(), at);
+                std::transform(brought.begin(), brought.end(), at, stored);
         };
+        const auto asItIs = [](const auto& value) { return value; };
 
-        fill(mPositions, arrays.mPositions, osg::Vec3f());
-        fill(mNormals, arrays.mNormals, osg::Vec3f());
-        fill(mTexCoords, arrays.mTexCoords, osg::Vec2f());
-        fill(mColours, arrays.mColours, osg::Vec3f(1.0f, 1.0f, 1.0f));
+        fill(mPositions, arrays.mPositions, osg::Vec3f(), asItIs);
+        fill(mTexCoords, arrays.mTexCoords, osg::Vec2f(), asItIs);
+        fill(mNormals, arrays.mNormals, 0u, [](const osg::Vec3f& normal) { return Shaders::packNormal(normal); });
+        fill(mColours, arrays.mColours, packColour(osg::Vec3f(1.0f, 1.0f, 1.0f)), packColour);
 
         // Packed where they are copied, and nought — no tangent — where the mesh brought none. The
         // mesh has tangents where any word is not nought, and not wherever it brought an array: a
@@ -236,11 +261,11 @@ namespace Rtx
     std::size_t MeshTable::getGeometryBytes() const
     {
         return std::size_t{ mPositions.size() } * sizeof(osg::Vec3f)
-            + std::size_t{ mNormals.size() } * sizeof(osg::Vec3f)
+            + std::size_t{ mNormals.size() } * sizeof(std::uint32_t)
             + std::size_t{ mTangents.size() } * sizeof(std::uint32_t)
             + std::size_t{ mTexCoords.size() } * sizeof(osg::Vec2f)
             + std::size_t{ mSecondTexCoords.size() } * sizeof(osg::Vec2f)
-            + std::size_t{ mColours.size() } * sizeof(osg::Vec3f)
+            + std::size_t{ mColours.size() } * sizeof(Shaders::GpuVertexColour)
             + std::size_t{ mIndices.size() } * sizeof(std::uint32_t);
     }
 

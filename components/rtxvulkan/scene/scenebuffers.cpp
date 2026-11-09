@@ -208,7 +208,7 @@ namespace Rtx
             if (range.mVertices.empty())
                 continue;
 
-            const std::span<const osg::Vec3f> normals = range.mVertices.in(scene.meshes().getNormals());
+            const std::span<const std::uint32_t> normals = range.mVertices.in(scene.meshes().getNormals());
             const std::span<const std::uint32_t> tangents = range.mVertices.in(scene.meshes().getTangents());
             if (range.deforms())
             {

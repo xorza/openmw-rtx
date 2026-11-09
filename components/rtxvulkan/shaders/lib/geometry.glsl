@@ -122,7 +122,7 @@ void trianglePositions(GpuMesh mesh, uvec3 corner, out vec3 position[3])
 {
     const bool posed = mesh.mBindOffset != NO_RUN;
     const uvec3 id = posed ? corner - mesh.mVertexOffset + mesh.mBindOffset : corner;
-    NormalBlock block = posed ? poseBlockOf(id.x) : positionBlockOf(id.x);
+    PositionBlock block = posed ? poseBlockOf(id.x) : positionBlockOf(id.x);
     const uvec3 at = id % VERTEX_BLOCK;
 
     position[0] = block.at[at.x];
@@ -130,8 +130,8 @@ void trianglePositions(GpuMesh mesh, uvec3 corner, out vec3 position[3])
     position[2] = block.at[at.z];
 }
 
-/// The vertex normals of the triangle a hit landed on, in the mesh's own space and not yet unit: a mesh
-/// with no normals holds zeros, which the caller reads as "use the plane".
+/// The vertex normals of the triangle a hit landed on, in the mesh's own space and unit: a mesh with no
+/// normals holds the word nought, which unpacks to zeros, and the caller reads those as "use the plane".
 ///
 /// **A body's out of this slot's own blocks, and every other mesh's out of the ones every slot shares**, by
 /// one id in one table: `GpuMesh::mNormalShift` moves a body's.
@@ -141,9 +141,9 @@ void triangleNormals(GpuMesh mesh, uvec3 corner, out vec3 normal[3])
     NormalBlock block = normalBlockOf(id.x);
     const uvec3 at = id % VERTEX_BLOCK;
 
-    normal[0] = block.at[at.x];
-    normal[1] = block.at[at.y];
-    normal[2] = block.at[at.z];
+    normal[0] = unpackNormal(block.at[at.x]);
+    normal[1] = unpackNormal(block.at[at.y]);
+    normal[2] = unpackNormal(block.at[at.z]);
 }
 
 /// The vertex tangents interpolated across the triangle, in the mesh's own space, with the bitangent's
@@ -174,8 +174,8 @@ vec3 triangleDeformation(GpuMesh mesh, uvec3 corner, vec2 bary)
 {
     const uvec3 posed = corner - mesh.mVertexOffset + mesh.mBindOffset;
     const uvec3 at = posed % VERTEX_BLOCK;
-    NormalBlock now = poseBlockOf(posed.x);
-    NormalBlock was = previousPoseBlockOf(posed.x);
+    PositionBlock now = poseBlockOf(posed.x);
+    PositionBlock was = previousPoseBlockOf(posed.x);
 
     return acrossTriangle(now.at[at.x] - was.at[at.x], now.at[at.y] - was.at[at.y], now.at[at.z] - was.at[at.z], bary);
 }
@@ -186,6 +186,12 @@ struct TriangleColour
     vec3 mColour;
     vec3 mHue;
 };
+
+/// A vertex's colour out of its halves (`GpuVertexColour`), an exact conversion.
+vec3 colourOf(GpuVertexColour packed)
+{
+    return vec3(unpackHalf2x16(packed.mRedGreen), unpackHalf2x16(packed.mBlue).x);
+}
 
 /// A vertex colour with its brightness taken out: each component divided by the largest, and white where
 /// the colour is black, which has no hue to keep.
@@ -214,9 +220,9 @@ TriangleColour triangleColour(uvec3 corner, vec2 bary)
     ColourBlock block = colourBlockOf(corner.x);
     const uvec3 at = corner % VERTEX_BLOCK;
 
-    const vec3 first = block.at[at.x];
-    const vec3 second = block.at[at.y];
-    const vec3 third = block.at[at.z];
+    const vec3 first = colourOf(block.at[at.x]);
+    const vec3 second = colourOf(block.at[at.y]);
+    const vec3 third = colourOf(block.at[at.z]);
     return TriangleColour(acrossTriangle(first, second, third, bary),
         acrossTriangle(hueOf(first), hueOf(second), hueOf(third), bary));
 }

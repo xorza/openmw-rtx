@@ -177,7 +177,7 @@ namespace Rtx
                 = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
             SlotBlocks poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
-            BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             BlockedBuffer tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             poses.open(device, 2, readable, "posed positions");
             normals.open(device, readable, "posed normals");
@@ -202,7 +202,7 @@ namespace Rtx
             const SkinPass pass(device);
 
             const VkDeviceSize poseBytes = VkDeviceSize{ posedVertices } * sizeof(osg::Vec3f);
-            const VkDeviceSize normalBytes = VkDeviceSize{ posedVertices } * sizeof(osg::Vec3f);
+            const VkDeviceSize normalBytes = VkDeviceSize{ posedVertices } * sizeof(std::uint32_t);
             const Buffer readPositions = Buffer::readBack(device, poseBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
             const Buffer readNormals = Buffer::readBack(device, normalBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
             const VkDeviceSize tangentBytes = VkDeviceSize{ posedVertices } * sizeof(std::uint32_t);
@@ -238,7 +238,8 @@ namespace Rtx
                 return readAt<osg::Vec3f>(readPositions, scene.meshes().getRows()[mesh].mBindOffset + vertex);
             };
             const auto normalOf = [&](Index mesh, std::uint32_t vertex) {
-                return readAt<osg::Vec3f>(readNormals, scene.meshes().getRows()[mesh].mBindOffset + vertex);
+                return Shaders::unpackNormal(
+                    readAt<std::uint32_t>(readNormals, scene.meshes().getRows()[mesh].mBindOffset + vertex));
             };
             const auto tangentOf = [&](Index mesh, std::uint32_t vertex) {
                 return readAt<std::uint32_t>(readTangents, scene.meshes().getRows()[mesh].mBindOffset + vertex);
@@ -415,7 +416,7 @@ namespace Rtx
             constexpr VkBufferUsageFlags readable
                 = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
             SlotBlocks poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
-            BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             BlockedBuffer tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             poses.open(device, 1, readable, "posed positions");
             normals.open(device, readable, "posed normals");
@@ -437,8 +438,9 @@ namespace Rtx
             const SkinPass pass(device);
 
             const VkDeviceSize bytes = VkDeviceSize{ posedVertices } * sizeof(osg::Vec3f);
+            const VkDeviceSize normalBytes = VkDeviceSize{ posedVertices } * sizeof(std::uint32_t);
             const Buffer readPositions = Buffer::readBack(device, bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
-            const Buffer readNormals = Buffer::readBack(device, bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
+            const Buffer readNormals = Buffer::readBack(device, normalBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
             pool.submitAndWait([&](VkCommandBuffer commands) {
                 ASSERT_TRUE(pass.record(commands,
                     Skinning{ .mScene = scene,
@@ -450,17 +452,20 @@ namespace Rtx
                 handOver(commands, Use::sBufferComputeWrite,
                     BufferUse{ VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT });
                 poses.at(FrameSlot{ 0 }).getBlock(0).copyTo(commands, readPositions, bytes);
-                normals.getBlock(0).copyTo(commands, readNormals, bytes);
+                normals.getBlock(0).copyTo(commands, readNormals, normalBytes);
             });
 
             const std::uint32_t bind = scene.meshes().getRows()[mesh].mBindOffset;
             EXPECT_EQ(readAt<osg::Vec3f>(readPositions, bind + 0), osg::Vec3f(10.0f, 0.0f, 4.0f));
             EXPECT_EQ(readAt<osg::Vec3f>(readPositions, bind + 1), osg::Vec3f(10.5f, 0.0f, 2.0f))
                 << "the transform's translation was scaled by the weights";
-            EXPECT_EQ(readAt<osg::Vec3f>(readNormals, bind + 1), osg::Vec3f(0.0f, 0.0f, 0.5f));
+            // Halved by the blend's scale, and packed as a direction: the length is not kept.
+            EXPECT_EQ(
+                Shaders::unpackNormal(readAt<std::uint32_t>(readNormals, bind + 1)), osg::Vec3f(0.0f, 0.0f, 1.0f));
             EXPECT_EQ(readAt<osg::Vec3f>(readPositions, bind + 2), osg::Vec3f(1.0f, 1.0f, 0.0f))
                 << "a vertex no bone moves left its bind pose";
-            EXPECT_EQ(readAt<osg::Vec3f>(readNormals, bind + 2), osg::Vec3f(0.0f, 0.0f, 1.0f));
+            EXPECT_EQ(
+                Shaders::unpackNormal(readAt<std::uint32_t>(readNormals, bind + 2)), osg::Vec3f(0.0f, 0.0f, 1.0f));
         }
 
         /// **The reader the frame ring does not count.** An arrival stages its rows into the first
@@ -506,7 +511,7 @@ namespace Rtx
                 = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
             SlotBlocks poses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
-            BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+            BlockedBuffer normals{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             BlockedBuffer tangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t) };
             poses.open(device, 2, readable, "posed positions");
             normals.open(device, readable, "posed normals");

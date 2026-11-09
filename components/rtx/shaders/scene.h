@@ -646,6 +646,19 @@ namespace Rtx::Shaders
     const uint TANGENT_COORDINATE_BITS = 15u;
     const uint TANGENT_COORDINATE_MASK = (1u << TANGENT_COORDINATE_BITS) - 1u;
     const uint TANGENT_STEPS = TANGENT_COORDINATE_MASK / 2u;
+    const float TANGENT_STEP = 1.0f / float(TANGENT_STEPS);
+
+    /// A vertex's colour in linear light as the device reads it: red and green as two half floats in
+    /// one word, low half first as `packHalf2x16` lays them, and blue in the low half of the other.
+    /// Halves and not floats, a third of the bytes every hit reads, and not normalized words, because
+    /// a content file's float colour may stand past one and a half float holds every finite colour
+    /// to eleven bits. `Rtx::MeshTable` packs it on the host (`Rtx::toHalf`), and `unpackHalf2x16`
+    /// reads it back exactly.
+    struct GpuVertexColour
+    {
+        uint mRedGreen;
+        uint mBlue;
+    };
 
     /// The device's material table puts the untextured material a placement with none wears at
     /// row nought, for the table's life, and the scene's material `i` at row `i + 1`. First and not
@@ -1251,6 +1264,7 @@ namespace Rtx::Shaders
     // produces a plausible wrong image rather than an error. GLSL is pinned separately, by the
     // `--scalar-block-layout` the build hands the validator.
 #ifdef RTX_HOST
+    static_assert(sizeof(GpuVertexColour) == 8, "GpuVertexColour must be scalar-packed on every side");
     static_assert(sizeof(GpuMesh) == 28, "GpuMesh must be scalar-packed on every side");
     static_assert(sizeof(GpuInstance) == 160, "GpuInstance must be scalar-packed on every side");
     static_assert(INSTANCE_LAMP_BODY > (MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM),

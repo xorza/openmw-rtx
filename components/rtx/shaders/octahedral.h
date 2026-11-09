@@ -60,9 +60,13 @@ namespace Rtx::Shaders
         return uint(int(rounded) + int(steps));
     }
 
-    RTX_SHADER float octahedralCoordinate(uint stored, uint steps)
+    /// A stored coordinate back on the square, by `step`, the reciprocal of `steps` its caller holds
+    /// as a constant: a multiply where a division was, at every decode of every corner a hit reads.
+    /// Exact at the ends and the middle, since `steps` times its float reciprocal rounds to one for
+    /// every count this map is used with (`theAxesComeBackExactlyWithTheirHandedness`).
+    RTX_SHADER float octahedralCoordinate(uint stored, uint steps, float step)
     {
-        return (float(stored) - float(steps)) / float(steps);
+        return (float(stored) - float(steps)) * step;
     }
 
     /// Whether `direction` has one to fold: some length, and none a number cannot hold. A sum past
@@ -81,10 +85,10 @@ namespace Rtx::Shaders
         return uvec2(octahedralStep(square[0], steps), octahedralStep(square[1], steps));
     }
 
-    /// The unit direction the two stepped coordinates `x` and `y` stand for.
-    RTX_SHADER vec3 octahedralFromCode(uint x, uint y, uint steps)
+    /// The unit direction the two stepped coordinates `x` and `y` stand for, `step` being `1 / steps`.
+    RTX_SHADER vec3 octahedralFromCode(uint x, uint y, uint steps, float step)
     {
-        return octahedralUnit(vec2(octahedralCoordinate(x, steps), octahedralCoordinate(y, steps)));
+        return octahedralUnit(vec2(octahedralCoordinate(x, steps, step), octahedralCoordinate(y, steps, step)));
     }
 
 #ifdef RTX_HOST

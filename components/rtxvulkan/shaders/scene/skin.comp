@@ -61,14 +61,14 @@ void main()
     posed[2] = still ? vec4(0.0, 0.0, 1.0, 0.0) : posed[2];
 
     const vec4 point = vec4(Vec3Run(skin.mBindPositions).at[vertex], 1.0);
-    const vec3 normal = Vec3Run(skin.mBindNormals).at[vertex];
+    const vec3 normal = unpackNormal(UintRun(skin.mBindNormals).at[vertex]);
 
     const vec3 position = vec3(dot(posed[0], point), dot(posed[1], point), dot(posed[2], point));
     const vec3 posedNormal = vec3(dot(posed[0].xyz, normal), dot(posed[1].xyz, normal), dot(posed[2].xyz, normal));
     countNotFinite(position);
     countNotFinite(posedNormal);
     Vec3Written(skin.mPositions).at[vertex] = position;
-    Vec3Written(skin.mNormals).at[vertex] = posedNormal;
+    UintWritten(skin.mNormals).at[vertex] = packNormal(posedNormal);
 
     // `RigGeometry::cull`'s tangent: the linear part, the handedness as it was, and no tangent left
     // as none — a body no normal map is read through carries none.

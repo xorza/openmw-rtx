@@ -1470,11 +1470,15 @@ namespace Rtx::Testing
         }
 
         /// **A glossy surface that turns under a pixel is as rough as the turns it averages.** The
-        /// wall's corner normals are `(k x, -1, k z)` and not unit, so the normal the hit
-        /// interpolates is `(0, -1, 0)` at the middle of the frame and turns by exactly `k` a unit
-        /// along both of the wall's axes there. The eye a hundred units off looks at it square on,
-        /// so the footprint is a circle `w = 100 · spread` across, and a point spread evenly over it
-        /// sees slopes of `w² / 16 · k²` along each axis: `w² k² / 8` of variance over both, which
+        /// wall's corner normals are `(k x, -1, k z)`, one length at every corner, so the normal the
+        /// hit interpolates is `(0, -1, 0)` at the middle of the frame and turns by exactly `k` a unit
+        /// along both of the wall's axes there. **A wall twenty units across**, whose corners are
+        /// three units long at the most: the mesh stores them as directions (`Shaders::packNormal`),
+        /// whose steps move each by up to 1.3e-4, and the middle's normal is the corners' small
+        /// `-1` part over their length, so a longer corner, as the 400-unit wall's 57, made that
+        /// step a twentyfold larger share of the turn and moved the roughness past the tolerance. The eye a hundred
+        /// units off looks at it square on, so the footprint is a circle `w = 100 · spread` across, and a point spread
+        /// evenly over it sees slopes of `w² / 16 · k²` along each axis: `w² k² / 8` of variance over both, which
         /// `widenedRoughness` adds to the painted `alpha²`. A wall that does not turn keeps the map's
         /// roughness to the bit.
         TEST_F(RtxVisibilityTest, aGlossySurfaceThatTurnsUnderAPixelIsAsRoughAsTheTurnsItAverages)
@@ -1491,13 +1495,14 @@ namespace Rtx::Testing
                 osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
             const auto roughnessUnder = [&](float turn) {
+                const std::array<osg::Vec3f, 4> wall = uprightQuadAt(10.0f, 0.0f);
                 std::array<osg::Vec3f, 4> normals;
                 for (std::size_t at = 0; at < normals.size(); ++at)
-                    normals[at] = osg::Vec3f(turn * sWallQuad[at].x(), -1.0f, turn * sWallQuad[at].z());
+                    normals[at] = osg::Vec3f(turn * wall[at].x(), -1.0f, turn * wall[at].z());
 
                 SceneDesc scene;
                 const Index mesh = scene.addMesh(MeshArrays{
-                    .mPositions = sWallQuad, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                    .mPositions = wall, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
                 const Index map = scene.textures().add(
                     VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);

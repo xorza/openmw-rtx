@@ -284,9 +284,11 @@ namespace RtxTool
         struct Corner
         {
             osg::Vec3f mPosition;
-            osg::Vec3f mNormal;
+            std::uint32_t mNormal = 0;
             osg::Vec2f mTexCoord;
-            osg::Vec3f mColour;
+
+            /// `Rtx::Shaders::GpuVertexColour`'s two words, which order as a pair.
+            std::array<std::uint32_t, 2> mColour{};
             std::uint32_t mTangent = 0;
 
             bool operator<(const Corner& other) const
@@ -320,9 +322,10 @@ namespace RtxTool
                 for (std::size_t corner = 0; corner < 3; ++corner)
                 {
                     const std::uint32_t vertex = mesh.mVertices.mOffset + indices[at + corner];
+                    const Rtx::Shaders::GpuVertexColour& colour = scene.meshes().getColours()[vertex];
                     corners[corner] = Corner{ scene.meshes().getPositions()[vertex],
                         scene.meshes().getNormals()[vertex], scene.meshes().getTexCoords()[vertex],
-                        scene.meshes().getColours()[vertex], scene.meshes().getTangents()[vertex] };
+                        { colour.mRedGreen, colour.mBlue }, scene.meshes().getTangents()[vertex] };
                 }
 
                 const std::size_t least

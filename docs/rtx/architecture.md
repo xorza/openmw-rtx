@@ -238,6 +238,18 @@ source-tree test holds the order.
   languages. The lights are ordered by position each walk. Refused: lights ordered by a stable
   identity, or a slotted light table, since the ordering costs about 17 µs a frame at the
   lamp-heaviest places (`research/2026-10-22-light-ordering-share.md`).
+- **A vertex's normal and colour are packed for the device, once, where the mesh table is filled**
+  (`MeshTable::writeVertices`), by the user's decisions. The normal is the tangent's word, the direction on Cigolle
+  et al.'s octahedral map (JCGT 2014) in fifteen bits a coordinate and a bit for "present", so a zero normal stays
+  the triangle's plane; the colour is three half floats in two words (`Shaders::GpuVertexColour`), every finite
+  colour to eleven bits and none clamped, a channel past the largest half read as white. Positions and texture
+  coordinates stay floats: a position is what a bottom level is built from, and Vulkan's mandatory
+  acceleration-structure vertex formats would quantize a large mesh's. The decode multiplies by the steps'
+  reciprocal and selects where it branched: with a division and a branch, the guild's landing cost 21% more.
+  Device memory 44 MiB less at the ship, frames within the noise at the ship, at dawn and in the guild, and at most
+  0.2% of a picture's pixels moved by more than 8. Refused: two 16-bit `SNORM` coordinates for the normal, a second
+  format with no "none"; 16-bit `UNORM` for the colour, which clamps; and sRGB bytes as Unreal and Unity store
+  them, which round a float colour and decode nine sRGB values at every hit.
 - **`Rtx::SceneExtractor`** mirrors an OSG subtree into a `SceneDesc`. Its identity maps live
   across walks, so an object met again resolves to what was already uploaded, and a still frame
   costs what moved. What a walk did not meet is swept after it. Refused: a sweep kept to what it
