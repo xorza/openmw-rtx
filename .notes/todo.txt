@@ -7,4 +7,4 @@
 - check content hasmisses
 - all IO serial?
 - organize code
-- no content crashes game/prerpocessor
+- RAM limits for content preprocessing
