@@ -16,7 +16,7 @@ namespace Rtx
     /// before they were saved, so the host divides the light painted into one out of each level
     /// (`ChainBuild::build`). A metal-roughness base colour, an emissive map and a sheet are
     /// colours, read as they stand. One file bound both ways is two textures, as an engine imports a
-    /// source once for each use (`.notes/content-cache.md`, colour files stored delit).
+    /// source once for each use (`docs/rtx/architecture.md`, "A painted colour is stored delit, keyed by use").
     ///
     /// **A normal map is an encoding of its own because of what is made beside it**, and not because
     /// of how it is stored: its companion is the roughness each of its levels loses to the normals it

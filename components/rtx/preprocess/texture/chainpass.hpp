@@ -47,8 +47,8 @@ namespace Rtx
 
     /// A file's chain made again from its finest level (`ChainBuild`), as a pass: what the store keeps
     /// for every normal and data map, since the replacers' own chains are made with filters that are
-    /// wrong for a map (`.notes/content-cache.md`, the chains' decisions), and for a file that carried
-    /// none.
+    /// wrong for a map (`docs/rtx/architecture.md`, "Every normal and data map's chain is rebuilt, and a colour
+    /// file keeps its own"), and for a file that carried none.
     ///
     /// **A file that carried no chain gets one down to a texel.** Morrowind ships a hundred and
     /// eighty-seven such textures and its rain is one: read at its finest, a drop's peak alpha is
@@ -59,7 +59,7 @@ namespace Rtx
     ///
     /// **The whole chain in BC7 for every normal map**, in one encoding (`ChainBuild`), its finest level
     /// made again with the rest; **and for a loose file and every chain the host would make loose**
-    /// (`.notes/content-cache.md`, loose files encoded to BC7): a loose file, four bytes a texel, its
+    /// (`docs/rtx/architecture.md`, "A loose chain is whole in BC7"): a loose file, four bytes a texel, its
     /// own chain where it is a colour that carried one and the chain made again otherwise; a block file
     /// of one level up to `sLargestBc7ChainSide`, which BC7's error moves less than BC1's would; and a
     /// BC1 file of one level with a cut, whose coverage BC1 cannot hold. A quarter of a loose chain's
@@ -68,7 +68,8 @@ namespace Rtx
     /// rebuild, for a block colour that carried its chain, and for a BC1 file that carried a chain and
     /// has a cut, whose own chain stands.
     ///
-    /// **A painted colour's whole chain delit** (`.notes/content-cache.md`, colour files stored delit):
+    /// **A painted colour's whole chain delit** (`docs/rtx/architecture.md`, "A painted colour is stored delit,
+    /// keyed by use"):
     /// every level it carries, and the levels under a chainless one boxed from the delit finest, in the
     /// file's own format, so a BC1 colour keeps its four bits a texel; in BC7 where it is loose, small
     /// and chainless, or holds a cut, whose one bit of alpha rgbcx's BC1 does not encode.

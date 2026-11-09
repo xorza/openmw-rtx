@@ -36,12 +36,12 @@ namespace Rtx
     ConvertedTexel convertTexel(const osg::Vec3f& diffuse, const osg::Vec3f& specular);
 
     /// A classic pair's base colour or metal-roughness map, made of the pair's diffuse and its classic
-    /// `_spec` (`.notes/content-cache.md`, one specular layout): every texel of the job's own file
-    /// converted with its partner's nearest texel (`convertTexel`), the diffuse delit first as a painted
-    /// colour is (`ChainBuild`), and the roughness the exponent's (`roughnessOfExponent`), the occlusion
-    /// one. The whole chain is made to a texel from the converted finest: a base colour in the diffuse's
-    /// own block format where it has one and no cut, as a painted colour is kept, and in BC7 otherwise;
-    /// a metal-roughness map in BC7.
+    /// `_spec` (`docs/rtx/architecture.md`, "One specular layout, a classic map converted"): every
+    /// texel of the job's own file converted with its partner's nearest texel (`convertTexel`), the
+    /// diffuse delit first as a painted colour is (`ChainBuild`), and the roughness the exponent's
+    /// (`roughnessOfExponent`), the occlusion one. The whole chain is made to a texel from the
+    /// converted finest: a base colour in the diffuse's own block format where it has one and no cut,
+    /// as a painted colour is kept, and in BC7 otherwise; a metal-roughness map in BC7.
     ///
     /// **The key is everything the run reads**: the encoding, the wrap the diffuse is delit under, and
     /// each file's format, level count, finest extent and every level's bytes.

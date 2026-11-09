@@ -375,9 +375,9 @@ namespace Rtx
                     // (`TEX_COMPRESS_BC7_QUICK`): mode 5 where it holds a height, whose alpha it keeps
                     // apart from the normal, and mode 6 where it holds none, which bc7enc tries first for
                     // an opaque block. Five times the full search's speed, a height's error less and a
-                    // normal's a tenth of a degree more on the mean (`.notes/content-cache.md`, normal
-                    // maps in one encoding). bc7enc tells the kinds apart by the same test, and asserts a
-                    // mode it can take for each.
+                    // normal's a tenth of a degree more on the mean (`docs/rtx/architecture.md`, "A normal map
+                    // is whole in BC7, in one encoding"). bc7enc tells the kinds apart by the same test,
+                    // and asserts a mode it can take for each.
                     if (encoding == TextureEncoding::Normal)
                     {
                         bool height = false;

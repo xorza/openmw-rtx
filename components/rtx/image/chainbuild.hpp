@@ -17,9 +17,9 @@ namespace Rtx
     /// the level above** (`Shaders::axisTaps`, three taps along an odd axis), in light where the format
     /// is display-encoded, with a colour weighed by its alpha where the alpha is coverage
     /// (`TextureEncoding::Colour`) and divided back, and the alpha averaged on its own. **A normal map
-    /// in one encoding** (`.notes/content-cache.md`, normal maps in one encoding): every texel its unit
-    /// normal in three channels, a map of two given its blue, and each level the direction of the mean of
-    /// the finest normals it covers, its height beside it.
+    /// in one encoding** (`docs/rtx/architecture.md`, "A normal map is whole in BC7, in one encoding"): every
+    /// texel its unit normal in three channels, a map of two given its blue, and each level the
+    /// direction of the mean of the finest normals it covers, its height beside it.
     ///
     /// One a thread: it keeps the decoded levels and its scratch between builds.
     class ChainBuild
@@ -34,8 +34,8 @@ namespace Rtx
         /// all from it, each half the one above and at least a texel, as a file lays its own: four bytes a
         /// texel, display-encoded where `file`'s format is. **A painted colour** reads every level it
         /// carries instead, up to `levels`, and has the light painted into it divided out of each, the
-        /// levels past its own boxed from the last of them (`.notes/content-cache.md`, colour files stored
-        /// delit). Refills this one.
+        /// levels past its own boxed from the last of them (`docs/rtx/architecture.md`, "A painted colour is
+        /// stored delit, keyed by use"). Refills this one.
         void build(const TextureData& file, std::uint32_t levels);
 
         /// Lays `file`'s own levels as the built ones, four bytes a texel in red, green, blue and alpha:

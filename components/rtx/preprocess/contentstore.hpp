@@ -66,12 +66,12 @@ namespace Rtx
 
     /// The content's derived data, kept on disk across sessions: one file per entry under its key, in
     /// 256 folders named by the key's first byte, as ccache and Bazel's disk cache keep theirs
-    /// (`.notes/content-cache.md`, the store's decisions). **Every file is untrusted data**: its own
-    /// header states the pass, its version, its key and its payload's length and digest, and a file
-    /// that does not match is a miss and is deleted. **Bounded by a cap, the least recently used
-    /// leaving first**, by each file's time, which a hit sets once a session: at the start, and
-    /// again whenever a session's writes pass it. **Nothing here fails
-    /// loudly**: a directory that cannot be made or written is a store that misses.
+    /// (`docs/rtx/architecture.md`, "One file an entry, and every entry untrusted"). **Every file is
+    /// untrusted data**: its own header states the pass, its version, its key and its payload's length
+    /// and digest, and a file that does not match is a miss and is deleted. **Bounded by a cap, the
+    /// least recently used leaving first**, by each file's time, which a hit sets once a session: at
+    /// the start, and again whenever a session's writes pass it. **Nothing here fails loudly**: a
+    /// directory that cannot be made or written is a store that misses.
     ///
     /// One for a process, shared by every thread's cache. Reads run on the asking thread; writes,
     /// stamps, the start's sweep and the loading of the small entries into memory run on a thread of

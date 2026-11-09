@@ -78,12 +78,13 @@ namespace Rtx
         bool mDiffuseSpec = false;
     };
 
-    /// The game's import step, run on its loading screen (`.notes/content-cache.md`, the store filled
-    /// on the loading screen): every model the content names walked as the cell reader walks it, on
-    /// threads of its own, so every pass that walk asks — the shapes and the texture facts — and
-    /// every chain its maps need is in the store before play, and play reads it there; and every
-    /// ground layer's maps, as the ground reader reads them. A model or a layer whose files stand as the
-    /// last preparation found them is not read again (`PreparationManifest`).
+    /// The game's import step, run on its loading screen (`docs/rtx/architecture.md`, "The store is
+    /// filled on the loading screen, in the game's own process"): every model the content names walked
+    /// as the cell reader walks it, on threads of its own, so every pass that walk asks — the shapes
+    /// and the texture facts — and every chain its maps need is in the store before play, and play
+    /// reads it there; and every ground layer's maps, as the ground reader reads them. A model or a
+    /// layer whose files stand as the last preparation found them is not read again
+    /// (`PreparationManifest`).
     ///
     /// Starts when made. Pinned: the threads reach every member.
     class ContentPreparation
