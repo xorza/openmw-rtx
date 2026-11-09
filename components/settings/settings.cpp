@@ -450,6 +450,11 @@ namespace Settings
         setString(setting, category, std::string(Rtx::sUpscaleNames.name(value)));
     }
 
+    void Manager::set(std::string_view setting, std::string_view category, Rtx::UpscalerKind value)
+    {
+        setString(setting, category, std::string(Rtx::sUpscalerNames.name(value)));
+    }
+
     void Manager::recordInit(std::string_view setting, std::string_view category)
     {
         sInitialized.emplace(category, setting);

@@ -79,6 +79,10 @@ namespace Rtx
         /// Whether the zones read the device's counters (`Device::getZoneCounters`), where the
         /// driver offers them: `RunProfile::mZoneCounters`.
         bool mCounters = false;
+
+        /// Whether the device is asked for DLSS's extensions and whether NGX accepts the card. A
+        /// profile that may use DLSS sets this; one that only ever uses FSR leaves NGX untouched.
+        bool mDlss = false;
     };
 
     /// Which `VkObjectType` a handle is, so that `Device::setName` takes the handle and never a
@@ -171,6 +175,14 @@ namespace Rtx
         VkQueue getQueue() const { return mQueue; }
         std::uint32_t getQueueFamily() const { return mPhysicalDevice.getQueueFamily(); }
         const PhysicalDevice& getPhysicalDevice() const { return mPhysicalDevice; }
+
+        /// The instance the device was made on, which NGX's Vulkan entry points ask for. Not owned:
+        /// the instance outlives the device, as `Instance` says.
+        VkInstance getInstanceHandle() const { return mInstance; }
+
+        /// Whether NGX accepted this card and driver for DLSS at start. False where the build has no
+        /// NGX, the card is not NVIDIA's, or the driver's feature check refused it.
+        bool supportsDlss() const { return mDlssSupported; }
 
         /// Where every buffer's and every image's memory comes from: one suballocator for the
         /// device, where an allocation per resource is a kernel call apiece for a cell's several
@@ -352,6 +364,13 @@ namespace Rtx
         void beginLabelImpl(VkCommandBuffer commands, const char* name) const;
 
         PhysicalDevice mPhysicalDevice;
+
+        /// The instance the device was made on, held as a handle because NGX asks for one and the
+        /// device does not otherwise keep it (`Instance` outlives every device made on it).
+        VkInstance mInstance = VK_NULL_HANDLE;
+
+        /// Whether NGX's feature check accepted this card and driver, when the run asked about DLSS.
+        bool mDlssSupported = false;
 
         /// Before every member made on it — `Root` says why.
         Root<VkDevice, vkDestroyDevice> mHandle;

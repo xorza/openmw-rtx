@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 
 #include "uniquehold.hpp"
 
@@ -18,6 +19,10 @@ namespace Platform::Library
     /// Opens the library the system finds under `name`, by its own search — a bare file name and
     /// never a path, so the driver's copy is the one found. Invalid where there is none.
     Handle open(const char* name);
+
+    /// Opens the library at `path`, for one the system's search will not name: the Windows driver
+    /// keeps NGX in its DriverStore and spells where in the registry. Invalid where it does not load.
+    Handle open(const std::filesystem::path& path);
 
     /// The address `symbol` has in `handle`, or null where it exports none by that name.
     void* find(Handle handle, const char* symbol);

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -9,148 +8,66 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/camera.h>
-#include <components/rtxvulkan/device/handles.hpp>
-#include <components/rtxvulkan/device/memory/buffer.hpp>
-#include <components/rtxvulkan/device/memory/frameslots.hpp>
-#include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
-#include <components/rtxvulkan/pipeline/computepipeline.hpp>
-#include <components/rtxvulkan/pipeline/pipeline.hpp>
 
-#include "fsrframe.hpp"
+#include "dlssupscaler.hpp"
+#include "fsrupscaler.hpp"
+#include "upscaleinputs.hpp"
 
 namespace Rtx
 {
     class Device;
     class GpuTimer;
 
-    /// Everything one reconstruction reads. Every image is created with `VK_IMAGE_USAGE_SAMPLED_BIT`,
-    /// since the upscaler samples all of them.
-    struct UpscaleInputs
-    {
-        /// The frame at render resolution, as the trace chain composed it: denoised where the
-        /// denoisers ran, and the trace's own composite where nothing filtered it.
-        const Image& mColour;
-
-        /// `CHANNEL_SURFACE`: the distance from the eye along each pixel's ray in `g`, which the
-        /// upscaler's depth is worked out from (`fsrcallbacks.glsl`), and in its sign the eye the
-        /// ray left.
-        const Image& mSurface;
-
-        /// Where each surface stood on the previous frame's screen, less where it was sampled on this
-        /// one, in render pixels.
-        const Image& mMotion;
-
-        /// `CHANNEL_UPSCALE_MASKS`: the reactive mask and the transparency and composition mask, as
-        /// the trace measured what `mMotion` does not describe.
-        const Image& mMasks;
-
-        /// The two eyes the trace sampled through, jitter and all.
-        Shaders::Eyes mEyes;
-
-        /// Where inside its pixel the previous frame sampled: `VisibilityConstants::mPreviousJitter`.
-        Shaders::vec2 mPreviousJitter;
-
-        /// `VisibilityConstants::mFrame`, which says how the channels' fields lie.
-        std::uint32_t mFrame = 0;
-
-        /// `Reconstruction::mJitterPhases`: what the jitter the trace sampled with repeats after.
-        std::uint32_t mJitterPhases = 0;
-
-        /// How long since the previous frame, in seconds, or nought where there was none.
-        float mSeconds = 0.0f;
-
-        /// The frame in flight this reconstruction is recorded into, whose constants it writes.
-        FrameSlot mSlot;
-    };
-
-    /// FSR 3.1.4, ported: AMD's temporal upscaler, which also reconstructs a frame at its own size,
-    /// as the anti-aliasing. The passes are AMD's (`extern/fidelityfx/`), the bindings and the
-    /// inputs the port's (`shaders/upscale/`), and this is the SDK host's dispatch
-    /// (`ffx_fsr3upscaler.cpp`): the resources, the order, the clears. `FsrFrame` is its constants.
+    /// The reconstruction between the trace and the display, whichever backend makes it. Both
+    /// upscalers write the same arena image and hand it to the display, so the rest of the frame
+    /// never asks which one is running.
     ///
-    /// **Compute shaders and nothing else**, so every device that runs the renderer runs it: no
-    /// extension, no library, no vendor.
+    /// **`Auto` is resolved where the device is known**: DLSS where this build has NGX and the card
+    /// accepted it, FSR everywhere else. An explicit `Dlss` that cannot start is a start failure
+    /// naming why, so a test never mistakes FSR's picture for DLSS's.
     class Upscaler
     {
     public:
-        explicit Upscaler(const Device& device);
+        Upscaler(const Device& device, UpscalerKind requested);
         ~Upscaler();
 
         Upscaler(const Upscaler&) = delete;
         Upscaler& operator=(const Upscaler&) = delete;
 
-        /// Builds what the upscaler keeps for one pair of extents, releasing the last, and clears all
-        /// of it: the frame after starts a history of its own. Once per resolution, and never per
-        /// frame. Takes `shared`, the images `declareShared` declared at these extents as the frame's
-        /// arena placed them, whether the extents moved or not.
-        void resize(VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
+        /// What `Auto` came to, which the renderer writes into its profile.
+        UpscalerKind getKind() const { return mKind; }
 
-        /// The images a reconstruction at these extents writes whole before it reads them and no
-        /// later frame reads, which the frame's arena places (`ImageArena`), appended to `into`: in
-        /// use over the upscale alone (`FrameStep::Upscale`), and the image it writes until the
-        /// display has read it.
-        static void declareShared(VkExtent2D render, VkExtent2D output, std::vector<ArenaImage>& into);
+        void resize(UpscalerKind kind, VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
 
-        /// How many images `declareShared` declares.
-        static std::size_t getSharedCount();
+        static void declareShared(
+            UpscalerKind kind, VkExtent2D render, VkExtent2D output, std::vector<ArenaImage>& into);
+        static std::size_t getSharedCount(UpscalerKind kind);
+        static VkDeviceSize bytesAt(const Device& device, UpscalerKind kind, VkExtent2D render, VkExtent2D output);
 
-        /// Lets what `resize` built go and keeps the pipelines, for a mode turned off that may come back.
         void release();
 
-        /// Whether `resize` built anything that stands.
-        bool isBuilt() const { return mTargets != nullptr; }
+        bool isBuilt(UpscalerKind kind) const;
+        bool isAt(UpscalerKind kind, VkExtent2D render, VkExtent2D output) const;
 
-        /// Whether what `resize` built is for these extents, which a resize to them keeps.
-        bool isAt(VkExtent2D render, VkExtent2D output) const;
+        void reset();
+        bool isFresh() const;
 
-        /// What `resize` to these extents builds, in the device's memory, and not what the frame's
-        /// arena holds of it.
-        static VkDeviceSize bytesAt(const Device& device, VkExtent2D render, VkExtent2D output);
-
-        /// Says the history is worthless, until the next `record`: after a jump no motion vector can
-        /// describe, a new cell or a teleport. A `resize` says it too.
-        void reset() { mFrame.reset(); }
-
-        /// Whether the next `record` reads no history.
-        bool isFresh() const { return mFrame.isFresh(); }
-
-        /// Records one reconstruction at the output extent, and hands over the image it wrote,
-        /// which the display composites the puffs over and maps. After `resize`.
-        HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
+        HandedImage record(UpscalerKind kind, VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
 
         /// One line for `info`: which upscaler this renderer has.
-        static std::string_view describe() { return "FSR 3.1.4, ported"; }
-
-        /// What the passes are, in the order `record` dispatches them.
-        enum class Pass : std::uint8_t
-        {
-            Inputs,
-            LumaPyramid,
-            ChangePyramid,
-            Change,
-            Reactivity,
-            Instability,
-            Accumulate,
-        };
-        static constexpr std::size_t sPasses = static_cast<std::size_t>(Pass::Accumulate) + 1;
+        std::string_view describe() const;
 
     private:
-        struct Targets;
+        /// Makes `kind`'s upscaler if it is not the one standing, letting the other go. `Auto` is
+        /// never passed here: the constructor resolves it.
+        void ensure(UpscalerKind kind);
 
         const Device& mDevice;
+        UpscalerKind mKind;
 
-        std::array<ComputePipeline<NoConstants>, sPasses> mPipelines;
-        Sampler mSampler;
-
-        /// The three constant blocks, one buffer a frame in flight: `FSR_BLOCKS_BYTES` written whole
-        /// by the host before the frame's dispatches read it.
-        PerSlot<Buffer> mBlocks;
-
-        FsrFrame mFrame;
-
-        /// Empty until `resize`, and after `release`.
-        std::unique_ptr<Targets> mTargets;
+        std::unique_ptr<FsrUpscaler> mFsr;
+        std::unique_ptr<DlssUpscaler> mDlss;
     };
 }

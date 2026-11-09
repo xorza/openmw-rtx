@@ -18,6 +18,7 @@ namespace MWRender
     struct RtxSettingValues
     {
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+        Rtx::UpscalerKind mUpscaler = Rtx::UpscalerKind::Auto;
         bool mIndirectLighting = true;
         int mBounceRays = 1;
         float mDistantLandCells = 0.0f;
@@ -42,6 +43,9 @@ namespace MWRender
     struct RtxSettings
     {
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+
+        /// `RenderProfile::mUpscaler`: the setting, its `Auto` resolved where the renderer is made.
+        Rtx::UpscalerKind mUpscaler = Rtx::UpscalerKind::Auto;
 
         /// `SamplingSwitches::mIndirect`: the setting.
         bool mIndirectLighting = true;

@@ -20,6 +20,7 @@ namespace MWRender
     {
         return RtxSettingValues{
             .mUpscale = Settings::rtx().mUpscale.get(),
+            .mUpscaler = Settings::rtx().mUpscaler.get(),
             .mIndirectLighting = Settings::rtx().mIndirectLighting,
             .mBounceRays = Settings::rtx().mBounceRays,
             .mDistantLandCells = Settings::rtx().mDistantLandCells,
@@ -50,6 +51,7 @@ namespace MWRender
 
         return RtxSettings{
             .mUpscale = values.mUpscale,
+            .mUpscaler = values.mUpscaler,
             .mIndirectLighting = values.mIndirectLighting,
             .mBounceRays = static_cast<std::uint32_t>(values.mBounceRays),
             .mMirror = {

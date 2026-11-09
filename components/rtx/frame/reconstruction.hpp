@@ -303,6 +303,12 @@ namespace Rtx
         /// at what quality.
         Upscale mUpscale = Upscale::Off;
 
+        /// Which upscaler runs. `Auto` is resolved to one of the concrete backends where the
+        /// renderer is made, and a profile read after that carries the resolution. A harness's
+        /// profile that says nothing asks for FSR, so a measured picture does not change with the
+        /// card it was measured on; a played session takes its value from `[RTX] upscaler`.
+        UpscalerKind mUpscaler = UpscalerKind::Fsr;
+
         /// What every frame asks of the reconstruction, before the upscaler has its say —
         /// `Reconstruction::resolve` is the rule. Jitter is off unless something puts the frames
         /// back together; the filter is off for a reference, because a thousand filtered frames

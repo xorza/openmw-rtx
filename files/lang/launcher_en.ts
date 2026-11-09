@@ -239,6 +239,22 @@
         <translation></translation>
     </message>
     <message>
+        <source>Upscaler</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Which upscaler reconstructs the frame. Auto uses NVIDIA DLSS when the card is NVIDIA and the DLSS runtime is installed, and AMD FSR otherwise. DLSS refuses to start where it cannot run; FSR never looks for DLSS. A change takes effect the next time OpenMW starts.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Download NVIDIA&apos;s DLSS runtime from NVIDIA&apos;s release and place it where OpenMW can use it. NVIDIA&apos;s licence applies; the button shows it before downloading.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Download DLSS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -255,8 +271,24 @@
         <translation></translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AMD FSR 3.1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>NVIDIA DLSS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Performance</source>
         <translation></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Balanced</source>
@@ -440,6 +472,74 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
     <message>
         <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
         <translation></translation>
+    </message>
+    <message>
+        <source>DLSS runtime installed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>DLSS is not installed. Download it from NVIDIA to enable it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Download NVIDIA DLSS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>DLSS is not available on this system.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loading NVIDIA&apos;s licence...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>NVIDIA&apos;s licence did not match the pinned checksum.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>NVIDIA&apos;s licence could not be loaded: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>NVIDIA DLSS licence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>I accept NVIDIA&apos;s licence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Download</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Downloading NVIDIA DLSS...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The download failed: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The downloaded file did not match NVIDIA&apos;s pinned checksum.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OpenMW could not find a folder to put the DLSS runtime in.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The DLSS folder could not be created: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The DLSS runtime could not be written: %1</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Window border is available only in Windowed mode.</source>

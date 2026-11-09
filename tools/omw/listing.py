@@ -20,6 +20,13 @@ ELSEWHERE = {
     "components/toutf8/geniconv.cpp",
     # The catcher of a build with `OPENMW_CRASHPAD` off.
     "components/crashcatcher/crashunsupported.cpp",
+    # The DLSS pair a build chooses between: the real source where `OPENMW_RTX_DLSS` is on and the
+    # stub where it is off. The stub keeps the same interface and refuses the DLSS choice by name.
+    "components/rtxvulkan/device/dlss.cpp",
+    "components/rtxvulkan/device/ngx.cpp",
+    "components/rtxvulkan/upscale/dlssupscaler.cpp",
+    "components/rtxvulkan/device/dlssstub.cpp",
+    "components/rtxvulkan/upscale/dlssupscalerstub.cpp",
 }
 
 # Upstream's wizard unpacks the installer's archives with libunshield on every system but Windows,

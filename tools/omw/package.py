@@ -319,6 +319,8 @@ def _archive_windows(build: Build, name: str) -> None:
     prune_empty(folder)
     _refuse_harness(folder)
     _refuse_missing_runtime(folder, WINDOWS_RUNTIME)
+    if not any((folder / "tls").glob("*.dll")):
+        raise Refusal("the archive's launcher cannot make an https request: its Qt holds no TLS plugin under tls/")
 
 
 def symbols(build: Build, name: str) -> None:

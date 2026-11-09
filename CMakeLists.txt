@@ -64,6 +64,7 @@ option(BUILD_NAVMESHTOOL        "Build navmesh tool" ON)
 option(BUILD_BULLETOBJECTTOOL   "Build Bullet object tool" ON)
 option(BUILD_OPENCS_TESTS       "Build OpenMW Construction Set tests" OFF)
 option(BUILD_OPENMW_TESTS       "Build OpenMW tests" OFF)
+option(OPENMW_RTX_DLSS          "Build the ray tracer with NVIDIA DLSS support" ON)
 # Crashpad on the systems the fork builds and tests: any other has no crash catcher, and says so in
 # its log.
 if (WIN32 OR (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID))
@@ -1153,6 +1154,7 @@ elseif(NOT APPLE)
                 "${RUNTIME_OUTPUT_DIRECTORY}/imageformats"
                 "${RUNTIME_OUTPUT_DIRECTORY}/platforms"
                 "${RUNTIME_OUTPUT_DIRECTORY}/styles"
+                "${RUNTIME_OUTPUT_DIRECTORY}/tls"
             DESTINATION "." FILES_MATCHING PATTERN "*.dll")
         INSTALL(DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}/" DESTINATION "." CONFIGURATIONS Debug;RelWithDebInfo FILES_MATCHING PATTERN "*.pdb"
                                                                                                                             PATTERN ".cmake" EXCLUDE

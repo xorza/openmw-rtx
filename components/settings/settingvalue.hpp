@@ -45,6 +45,7 @@ namespace Settings
         VSyncMode,
         NormalizedPath,
         Upscale,
+        Upscaler,
     };
 
     template <class T>
@@ -182,6 +183,12 @@ namespace Settings
         return SettingValueType::Upscale;
     }
 
+    template <>
+    inline constexpr SettingValueType getSettingValueType<Rtx::UpscalerKind>()
+    {
+        return SettingValueType::Upscaler;
+    }
+
     inline constexpr std::string_view getSettingValueTypeName(SettingValueType type)
     {
         switch (type)
@@ -230,6 +237,8 @@ namespace Settings
                 return "normalized path";
             case SettingValueType::Upscale:
                 return "upscale mode";
+            case SettingValueType::Upscaler:
+                return "upscaler";
         }
         return "unsupported";
     }

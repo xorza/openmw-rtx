@@ -200,13 +200,64 @@
          </widget>
         </item>
         <item row="9" column="0">
+         <widget class="QLabel" name="rayTracingUpscalerLabel">
+          <property name="text">
+           <string>Upscaler</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+          </property>
+         </widget>
+        </item>
+        <item row="9" column="1">
+         <layout class="QVBoxLayout" name="upscalerLayout">
+          <item>
+           <widget class="QComboBox" name="rayTracingUpscalerComboBox">
+            <property name="toolTip">
+             <string>Which upscaler reconstructs the frame. Auto uses NVIDIA DLSS when the card is NVIDIA and the DLSS runtime is installed, and AMD FSR otherwise. DLSS refuses to start where it cannot run; FSR never looks for DLSS. A change takes effect the next time OpenMW starts.</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="dlssDownloadLayout">
+            <item>
+             <widget class="QPushButton" name="downloadDlssButton">
+              <property name="visible">
+               <bool>false</bool>
+              </property>
+              <property name="toolTip">
+               <string>Download NVIDIA's DLSS runtime from NVIDIA's release and place it where OpenMW can use it. NVIDIA's licence applies; the button shows it before downloading.</string>
+              </property>
+              <property name="text">
+               <string>Download DLSS</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="dlssStatusLabel">
+              <property name="visible">
+               <bool>false</bool>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+        <item row="10" column="0">
          <widget class="QLabel" name="rayTracingDistantLandLabel">
           <property name="text">
            <string>Ray Tracing Distant Land</string>
           </property>
          </widget>
         </item>
-        <item row="9" column="1">
+        <item row="10" column="1">
          <widget class="QSpinBox" name="rayTracingDistantLandSpinBox">
           <property name="toolTip">
            <string>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</string>

@@ -18,6 +18,7 @@
 
 #include "buffermarkers.hpp"
 #include "commands.hpp"
+#include "dlss.hpp"
 #include "graveyard.hpp"
 #include "instance.hpp"
 #include "notfinitecensus.hpp"
@@ -107,6 +108,7 @@ namespace Rtx
     Device::Device(const Instance& instance, PhysicalDevice&& physicalDevice, const ShaderSet& shaders,
         const PipelineCacheSpec& cache, const DeviceReport& report)
         : mPhysicalDevice(std::move(physicalDevice))
+        , mInstance(instance.getHandle())
         , mWatchesSubmits(instance.watchesSubmits())
         , mShaderDirectory(shaders.mDirectory)
         , mReport(report)
@@ -114,8 +116,35 @@ namespace Rtx
         const Crash::NoteScope noted("making the device");
         if (!mReport.mCodeFolder.empty())
             mCode = std::make_unique<PipelineCodeFolder>(mReport.mCodeFolder);
+
+        // **What NGX needs is asked before the device exists**, since its extensions cannot be
+        // enabled after `vkCreateDevice`. The check and the list are two calls to the same
+        // discovery record the upscaler later initialises with, so a card that fails here never
+        // reaches feature creation.
+        std::vector<std::string> dlssExtensions;
+        constexpr std::uint32_t sNvidiaVendor = 0x10DE;
+        if (mReport.mDlss && Dlss::sCompiled
+            && mPhysicalDevice.getProperties().mProperties2.properties.vendorID == sNvidiaVendor)
+        {
+            // **Tried on every NVIDIA card the build has NGX for**, even where the feature query
+            // is not sure: the query before a device exists is the SDK's own pre-device path, but
+            // a false negative there must not silently cost an RTX card its upscaler. Feature
+            // creation is the real answer, and `Auto` falls back to FSR if it refuses.
+            mDlssSupported = true;
+            dlssExtensions = Dlss::requiredDeviceExtensions(instance.getHandle(), mPhysicalDevice.getHandle());
+            const bool queried = Dlss::isSupported(instance.getHandle(), mPhysicalDevice.getHandle());
+
+            std::string named;
+            for (const std::string& extension : dlssExtensions)
+                named += (named.empty() ? "" : ", ") + extension;
+            Log(Debug::Info) << "NVIDIA DLSS: trying (feature query " << (queried ? "supported" : "inconclusive") << ')'
+                             << (named.empty() ? "" : ", NGX asks for " + named);
+        }
+
         const std::span<const char* const> required = getRequiredDeviceExtensions();
         std::vector<const char*> extensions(required.begin(), required.end());
+        for (const std::string& extension : dlssExtensions)
+            extensions.push_back(extension.c_str());
 
         // The swapchain rests on the surface, which the instance loads for a window and never
         // headless: one fact, stated where the instance was made, and read here rather than said

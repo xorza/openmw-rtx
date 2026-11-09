@@ -1,8 +1,11 @@
 #ifndef MWGUI_SETTINGS_H
 #define MWGUI_SETTINGS_H
 
+#include <vector>
+
 #include <components/files/configurationmanager.hpp>
 #include <components/lua_ui/adapter.hpp>
+#include <components/rtx/frame/upscale.hpp>
 
 #include "windowbase.hpp"
 
@@ -49,7 +52,9 @@ namespace MWGui
         MyGUI::Button* mGmstOverridesL10n;
 
         MyGUI::ComboBox* mRayTracingUpscale;
+        MyGUI::ComboBox* mRayTracingUpscaler;
         MyGUI::ScrollBar* mRayTracingBounceRays;
+        std::vector<Rtx::UpscalerKind> mUpscalers;
 
         // controls
         MyGUI::ScrollView* mControlsBox;
@@ -89,6 +94,7 @@ namespace MWGui
         void onWindowModeChanged(MyGUI::ComboBox* sender, size_t pos);
         void onVSyncModeChanged(MyGUI::ComboBox* sender, size_t pos);
         void onRayTracingUpscaleChanged(MyGUI::ComboBox* sender, size_t pos);
+        void onRayTracingUpscalerChanged(MyGUI::ComboBox* sender, size_t pos);
 
         void onRebindAction(MyGUI::Widget* sender);
         void onInputTabMouseWheel(MyGUI::Widget* sender, int rel);

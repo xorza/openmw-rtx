@@ -598,6 +598,8 @@ if (WIN32)
         librarywin32
         threadwin32
         userhomewin32
+        gpuwin32
+        dlsswin32
         )
 elseif (UNIX)
     add_component_dir(platform
@@ -611,6 +613,8 @@ elseif (UNIX)
         libraryposix
         threadposix
         userhomeposix
+        gpuposix
+        dlssposix
         )
 else ()
     add_component_dir(platform
@@ -692,6 +696,7 @@ if (OPENMW_USE_SYSTEM_SQLITE3)
 endif()
 
 add_library(components STATIC ${COMPONENT_FILES})
+target_compile_definitions(components PUBLIC OPENMW_RTX_DLSS=$<BOOL:${OPENMW_RTX_DLSS}>)
 
 if (ANDROID)
     set_property(TARGET components PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -770,7 +775,8 @@ if (OSG_STATIC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
 endif()
 
 if (WIN32)
-    target_link_libraries(components shlwapi)
+    # `DXGI` names the display adapters the launcher asks about before Vulkan exists.
+    target_link_libraries(components shlwapi dxgi)
 endif()
 
 # Boost's `typed_value::notify`, which GCC reports as a null dereference: compiled here alone, as

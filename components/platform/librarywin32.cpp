@@ -12,6 +12,14 @@ namespace Platform::Library
             reinterpret_cast<std::intptr_t>(LoadLibraryExA(name, nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32)));
     }
 
+    Handle open(const std::filesystem::path& path)
+    {
+        // The DriverStore copy is named by its full path; its directory is where the driver's other
+        // libraries are, so the altered search path finds them and leaves the process's own first.
+        return static_cast<Handle>(
+            reinterpret_cast<std::intptr_t>(LoadLibraryExW(path.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH)));
+    }
+
     void* find(const Handle handle, const char* symbol)
     {
         return reinterpret_cast<void*>(

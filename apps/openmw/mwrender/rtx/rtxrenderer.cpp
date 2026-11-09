@@ -178,6 +178,7 @@ namespace MWRender
                 .mRun = {
                     .mProfile = {
                         .mUpscale = settings.mUpscale,
+                        .mUpscaler = settings.mUpscaler,
                         .mReconstruction = Rtx::ReconstructionRequest{ .mSampling = { .mIndirect = settings.mIndirectLighting, .mBounceRays = settings.mBounceRays } },
                         .mAnisotropy = settings.mAnisotropy,
                         .mGamma = settings.mGamma,
@@ -288,7 +289,8 @@ namespace MWRender
         // session runs, so it does not belong in the periodic line; what that line carries is the
         // one word a reader of any single line needs, and the rest — at what pair of sizes — is here,
         // where it was chosen.
-        Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mRun.mProfile.mUpscale);
+        Log(Debug::Info) << "Ray tracing: upscaler " << Rtx::sUpscalerNames.name(setup.mRun.mProfile.mUpscaler)
+                         << ", upscale " << Rtx::sUpscaleNames.name(setup.mRun.mProfile.mUpscale);
 
         // **A switch the player turned on for what this renderer declines is said once, with the
         // declaration's reason**: a second eye, a shader chain. Said and not refused, because
@@ -305,6 +307,13 @@ namespace MWRender
 
         mRenderer = createBackend(setup.mBackend, options);
         mUpscale = setup.mRun.mProfile.mUpscale;
+
+        // **What `auto` came to, said where it was resolved**: a machine without NGX or without an
+        // NVIDIA card draws through FSR, and the line that named only the request would leave a
+        // reader comparing two pictures and not knowing which upscaler made each.
+        if (const Rtx::UpscalerKind resolved = mRenderer->getProfile().mUpscaler;
+            resolved != setup.mRun.mProfile.mUpscaler)
+            Log(Debug::Info) << "Ray tracing: upscaler resolved to " << Rtx::sUpscalerNames.name(resolved);
 
         Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
 

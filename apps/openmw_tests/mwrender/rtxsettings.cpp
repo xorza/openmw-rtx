@@ -19,6 +19,7 @@ namespace MWRender
         {
             return RtxSettingValues{
                 .mUpscale = Rtx::Upscale::Balanced,
+                .mUpscaler = Rtx::UpscalerKind::Dlss,
                 .mIndirectLighting = false,
                 .mBounceRays = 3,
                 .mDistantLandCells = 6.0f,
@@ -41,6 +42,7 @@ namespace MWRender
         {
             const RtxSettings derived = RtxSettings::derive(valid());
             EXPECT_EQ(derived.mUpscale, Rtx::Upscale::Balanced);
+            EXPECT_EQ(derived.mUpscaler, Rtx::UpscalerKind::Dlss);
             EXPECT_FALSE(derived.mIndirectLighting);
             EXPECT_EQ(derived.mBounceRays, 3u);
             // Cells and the viewing distance, which a worldspace's grid turns into units: six of

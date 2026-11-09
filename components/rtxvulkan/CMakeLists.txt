@@ -68,6 +68,7 @@ set(RTX_SHADERS
     shaders/trace/denoise/shadowmask.comp
     shaders/trace/denoise/shadowtiles.comp
     shaders/trace/denoise/specular.comp
+    shaders/upscale/dlssinputs.comp
     shaders/upscale/fsraccumulate.comp
     shaders/upscale/fsrchange.comp
     shaders/upscale/fsrchangepyramid.comp
@@ -252,6 +253,7 @@ set(RTX_VULKAN_FILES
     device/commands.hpp
     device/device.cpp
     device/device.hpp
+    device/dlss.hpp
     device/gputimer.cpp
     device/gputimer.hpp
     device/graveyard.cpp
@@ -390,6 +392,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/channeldigest.h
     shaders/shared/composite.h
     shaders/shared/counts.h
+    shaders/shared/dlss.h
     shaders/shared/exposure.h
     shaders/shared/fields.h
     shaders/shared/fogvolume.h
@@ -492,13 +495,33 @@ set(RTX_VULKAN_FILES
     trace/visibilitypass.hpp
     trace/wavepass.cpp
     trace/wavepass.hpp
+    upscale/dlssupscaler.hpp
     upscale/fsrframe.cpp
     upscale/fsrframe.hpp
+    upscale/fsrupscaler.cpp
+    upscale/fsrupscaler.hpp
+    upscale/upscaleinputs.hpp
     upscale/upscaler.cpp
     upscale/upscaler.hpp
     vulkanrenderer.cpp
     vulkanrenderer.hpp
 )
+
+if (OPENMW_RTX_DLSS)
+    list(APPEND RTX_VULKAN_FILES
+        device/dlss.cpp
+        device/ngx.cpp
+        device/ngx.hpp
+        device/ngxlibrary.hpp
+        upscale/dlssupscaler.cpp)
+    if (WIN32)
+        list(APPEND RTX_VULKAN_FILES device/ngxlibrarywin32.cpp)
+    else ()
+        list(APPEND RTX_VULKAN_FILES device/ngxlibraryposix.cpp)
+    endif ()
+else ()
+    list(APPEND RTX_VULKAN_FILES device/dlssstub.cpp upscale/dlssupscalerstub.cpp)
+endif ()
 
 add_library(openmw-rtx-vulkan STATIC ${RTX_VULKAN_FILES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "components\\rtxvulkan"
@@ -536,6 +559,11 @@ target_compile_definitions(openmw-rtx-vulkan-api INTERFACE VK_NO_PROTOTYPES VOLK
 # Vulkan is private: a host reaches the backend through `createrenderer.hpp`, which names no Vulkan
 # type. The tests link Vulkan themselves. Windows is where a breach fails; Linux's headers hide it.
 target_link_libraries(openmw-rtx-vulkan PUBLIC components PRIVATE openmw-rtx-spirv openmw-rtx-vulkan-api SDL3::SDL3)
+target_compile_definitions(openmw-rtx-vulkan PRIVATE OPENMW_RTX_DLSS=$<BOOL:${OPENMW_RTX_DLSS}>)
+if (OPENMW_RTX_DLSS AND WIN32)
+    # `RegGetValueW`, which names the DriverStore folder NGX's core lives in.
+    target_link_libraries(openmw-rtx-vulkan PRIVATE advapi32)
+endif ()
 
 add_dependencies(openmw-rtx-vulkan openmw-rtx-vulkan-shaders)
 

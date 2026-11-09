@@ -1,8 +1,10 @@
 #include "settingswindow.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <iterator>
 #include <optional>
 #include <span>
 #include <string>
@@ -28,6 +30,8 @@
 #include <components/misc/constants.hpp>
 #include <components/misc/display.hpp>
 #include <components/misc/strings/algorithm.hpp>
+#include <components/platform/dlss.hpp>
+#include <components/platform/gpu.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/rtx/common/menu.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -124,6 +128,12 @@ namespace
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
+    constexpr std::array<Rtx::MenuLabel<Rtx::UpscalerKind>, Rtx::sUpscalerMenu.size()> sUpscalerLabels{ {
+        { Rtx::UpscalerKind::Auto, "#{OMWEngine:RayTracingUpscalerAuto}" },
+        { Rtx::UpscalerKind::Fsr, "#{OMWEngine:RayTracingUpscalerFsr}" },
+        { Rtx::UpscalerKind::Dlss, "#{OMWEngine:RayTracingUpscalerDlss}" },
+    } };
+    static_assert(Rtx::followsMenu(sUpscalerLabels, Rtx::sUpscalerMenu));
     template <class Enum>
     void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel<Enum>> labels)
     {
@@ -282,10 +292,30 @@ namespace MWGui
         getWidget(mScriptAdapter, "ScriptAdapter");
         getWidget(mScriptDisabled, "ScriptDisabled");
         getWidget(mRayTracingUpscale, "RayTracingUpscaleList");
+        getWidget(mRayTracingUpscaler, "RayTracingUpscalerList");
 
         addMenuItems<Rtx::Upscale>(mRayTracingUpscale, sUpscaleLabels);
         mRayTracingUpscale->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscaleChanged);
+
+        const bool nvidia = Platform::Gpu::has(Platform::Gpu::sNvidia);
+        const bool installed = Platform::Dlss::installed();
+        mUpscalers.clear();
+        for (const Rtx::UpscalerKind kind : Rtx::sUpscalerMenu)
+            if (kind != Rtx::UpscalerKind::Dlss || (Platform::Dlss::sBuilt && nvidia && installed))
+                mUpscalers.push_back(kind);
+
+        std::vector<Rtx::MenuLabel<Rtx::UpscalerKind>> upscalerLabels;
+        for (const Rtx::UpscalerKind kind : mUpscalers)
+            for (const Rtx::MenuLabel<Rtx::UpscalerKind>& label : sUpscalerLabels)
+                if (label.mValue == kind)
+                {
+                    upscalerLabels.push_back(label);
+                    break;
+                }
+        addMenuItems<Rtx::UpscalerKind>(mRayTracingUpscaler, upscalerLabels);
+        mRayTracingUpscaler->eventComboChangePosition
+            += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscalerChanged);
 
         mMainWidget->castType<MyGUI::Window>()->eventWindowChangeCoord
             += MyGUI::newDelegate(this, &SettingsWindow::onWindowResize);
@@ -503,6 +533,20 @@ namespace MWGui
         apply();
     }
 
+    void SettingsWindow::onRayTracingUpscalerChanged(MyGUI::ComboBox* sender, size_t pos)
+    {
+        if (pos >= mUpscalers.size())
+            return;
+
+        const Rtx::UpscalerKind chosen = mUpscalers[pos];
+        if (Settings::rtx().mUpscaler.get() == chosen)
+            return;
+
+        Settings::rtx().mUpscaler.set(chosen);
+        apply();
+        MWBase::Environment::get().getWindowManager()->interactiveMessageBox(
+            "#{OMWEngine:ChangeRequiresRestart}", { "#{Interface:OK}" }, true);
+    }
     void SettingsWindow::onWindowModeChanged(MyGUI::ComboBox* sender, size_t pos)
     {
         if (pos == MyGUI::ITEM_NONE)
@@ -737,6 +781,10 @@ namespace MWGui
     {
         // The menu offers every mode the setting can hold
         mRayTracingUpscale->setIndexSelected(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value());
+
+        const auto upscaler = std::find(mUpscalers.begin(), mUpscalers.end(), Settings::rtx().mUpscaler.get());
+        mRayTracingUpscaler->setIndexSelected(
+            upscaler != mUpscalers.end() ? static_cast<std::size_t>(std::distance(mUpscalers.begin(), upscaler)) : 0);
         updateBounceRaysSlider();
     }
 

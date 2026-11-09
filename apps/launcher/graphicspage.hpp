@@ -3,7 +3,12 @@
 
 #include "ui_graphicspage.h"
 
+#include <vector>
+
+#include <components/rtx/frame/upscale.hpp>
 #include <components/settings/windowmode.hpp>
+
+class QNetworkAccessManager;
 
 namespace Files
 {
@@ -31,9 +36,17 @@ namespace Launcher
         void slotFullScreenChanged(int state);
         void slotStandardToggled(bool checked);
         void slotFramerateLimitToggled(bool checked);
+        void downloadDlss();
 
     private:
+        void buildUpscalerItems();
+        void refreshDlssState();
+        void setDlssItemEnabled(bool enabled);
+
         QVector<QStringList> mResolutionsPerScreen;
+        std::vector<Rtx::UpscalerKind> mUpscalers;
+        QNetworkAccessManager* mNetwork = nullptr;
+        bool mDlssInstalled = false;
         int mLoadedDistantLandCells = 0;
 
         static QStringList getAvailableResolutions(int screen);

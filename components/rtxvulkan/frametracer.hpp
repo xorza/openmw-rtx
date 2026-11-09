@@ -24,7 +24,7 @@ namespace Rtx
     {
     public:
         /// @param passes what the chain traces with, which outlives it.
-        FrameTracer(const Device& device, const TracePasses& passes, RadianceWidth radiance);
+        FrameTracer(const Device& device, const TracePasses& passes, RadianceWidth radiance, UpscalerKind upscaler);
 
         /// What the frame uses inside one stretch of it at `render` and `output` under `profile`, which
         /// its arena places: the chain's shared images, then the upscaler's where the profile upscales.
@@ -34,7 +34,7 @@ namespace Rtx
         /// What the chain, the arena of `declared` and the upscaler where `upscale` upscales take of
         /// the device at `render` and `output`.
         static VkDeviceSize bytesAt(const Device& device, VkExtent2D render, VkExtent2D output, Upscale upscale,
-            RadianceWidth radiance, std::span<const ArenaImage> declared);
+            UpscalerKind upscaler, RadianceWidth radiance, std::span<const ArenaImage> declared);
 
         /// What a move to `render` and `output` under `upscale` makes again, with the arena
         /// `declared`: the chain where it stands at another extent, the upscaler where it stands at
@@ -45,8 +45,8 @@ namespace Rtx
             bool mUpscaler = false;
             bool mArena = false;
         };
-        Moves movesTo(
-            VkExtent2D render, VkExtent2D output, Upscale upscale, const std::vector<ArenaImage>& declared) const;
+        Moves movesTo(VkExtent2D render, VkExtent2D output, Upscale upscale, UpscalerKind upscaler,
+            const std::vector<ArenaImage>& declared) const;
 
         /// Whether letting go of what `moves` makes again lets go of anything that stands, which the
         /// device is drained of first.
@@ -61,11 +61,13 @@ namespace Rtx
         /// Makes the arena of `declared` and places the chain and, where `upscale` upscales, the
         /// upscaler in it, where the declarations moved: the chain writes its sets anew, and a set a
         /// frame in flight reads is not written.
-        void resize(VkExtent2D render, VkExtent2D output, Upscale upscale, std::vector<ArenaImage>&& declared);
+        void resize(VkExtent2D render, VkExtent2D output, Upscale upscale, UpscalerKind upscaler,
+            std::vector<ArenaImage>&& declared);
 
         TraceChain& getChain() { return mChain; }
         const TraceChain& getChain() const { return mChain; }
         Upscaler& getUpscaler() { return mUpscaler; }
+        const Upscaler& getUpscaler() const { return mUpscaler; }
 
     private:
         const Device& mDevice;
@@ -76,9 +78,9 @@ namespace Rtx
 
         TraceChain mChain;
 
-        /// FSR, made with the renderer: seven compute pipelines and nothing it keeps until a mode
-        /// wants it, so a player who never upscales pays their compile once, from the cache. It
-        /// outlives a mode being turned off, so the mode and not this says whether a frame is
+        /// The selected upscaler, made with the renderer: its pipelines and nothing it keeps until
+        /// a mode wants it, so a player who never upscales pays their compile once, from the cache.
+        /// It outlives a mode being turned off, so the mode and not this says whether a frame is
         /// upscaled.
         Upscaler mUpscaler;
     };
