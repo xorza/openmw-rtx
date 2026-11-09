@@ -26,4 +26,8 @@ namespace Platform::LinuxText
     /// How many times the kernel stalled an allocation to compact memory, from its counters as
     /// `/proc/vmstat` writes them (`compact_stall`), or nothing where they name none.
     std::optional<std::uint64_t> compactionStalls(std::string_view vmstat);
+
+    /// The PCI id a device's sysfs file states, `vendor` or `device`: four hexadecimal digits after
+    /// `0x` and a line break, as the kernel writes them, or nothing where the text is not one.
+    std::optional<std::uint16_t> pciId(std::string_view text);
 }

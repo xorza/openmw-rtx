@@ -6,11 +6,9 @@
 
 namespace Rtx
 {
-    FrameTracer::FrameTracer(
-        const Device& device, const TracePasses& passes, const RadianceWidth radiance, const UpscalerKind upscaler)
+    FrameTracer::FrameTracer(const Device& device, const TracePasses& passes, const RadianceWidth radiance)
         : mDevice(device)
         , mChain(device, passes, sFrameSlots, radiance, TracePast::Kept)
-        , mUpscaler(device, upscaler)
     {
     }
 
@@ -35,28 +33,28 @@ namespace Rtx
     }
 
     FrameTracer::Moves FrameTracer::movesTo(const VkExtent2D render, const VkExtent2D output, const Upscale upscale,
-        const std::vector<ArenaImage>& declared) const
+        const std::vector<ArenaImage>& declared, const Upscaler& upscaler) const
     {
         const bool traceMoves = render.width != mChain.getWidth() || render.height != mChain.getHeight();
         return Moves{
             .mTrace = mChain.isBuilt() && traceMoves,
-            .mUpscaler = mUpscaler.isBuilt() && !(upscales(upscale) && mUpscaler.isAt(render, output)),
+            .mUpscaler = upscaler.isBuilt() && !(upscales(upscale) && upscaler.isAt(render, output)),
             .mArena = declared != mDeclared,
         };
     }
 
-    void FrameTracer::release(const Moves& moves)
+    void FrameTracer::release(const Moves& moves, Upscaler& upscaler)
     {
         if (moves.mTrace)
             mChain.release();
         if (moves.mUpscaler)
-            mUpscaler.release();
+            upscaler.release();
         if (moves.mArena)
             mArena = ImageArena();
     }
 
-    void FrameTracer::resize(
-        const VkExtent2D render, const VkExtent2D output, const Upscale upscale, std::vector<ArenaImage>&& declared)
+    void FrameTracer::resize(const VkExtent2D render, const VkExtent2D output, const Upscale upscale,
+        std::vector<ArenaImage>&& declared, Upscaler& upscaler)
     {
         if (declared == mDeclared)
             return;
@@ -68,7 +66,7 @@ namespace Rtx
         // An upscaler a mode turned off keeps nothing but its pipelines: its images went with the
         // mode, as `release` let them go.
         if (upscales(upscale))
-            mUpscaler.resize(upscale, render, output,
-                ArenaRun(mArena, TraceChain::getSharedCount(), Upscaler::getSharedCount(mUpscaler.getKind())));
+            upscaler.resize(upscale, render, output,
+                ArenaRun(mArena, TraceChain::getSharedCount(), Upscaler::getSharedCount(upscaler.getKind())));
     }
 }

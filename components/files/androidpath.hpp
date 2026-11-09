@@ -44,6 +44,10 @@ namespace Files
          */
         std::filesystem::path getCachePath() const;
 
+        /// The user's data kept on this machine alone, not synced with the profile: what a program
+        /// downloads and loads, such as the DLSS library.
+        std::filesystem::path getUserLocalDataPath() const;
+
         std::vector<std::filesystem::path> getInstallPaths() const;
     };
 

@@ -37,13 +37,13 @@ namespace Rtx
         }
     }
 
-    DenoisePasses::DenoisePasses(const Device& device)
+    DenoisePasses::DenoisePasses(const Device& device, const UpscalerKind upscaler)
         : mAccumulate(device)
         , mShadow(device)
         , mHistoryClamp(device)
         , mSpecular(device)
         , mPane(device)
-        , mFilter(device)
+        , mFilter(device, upscaler)
     {
     }
 

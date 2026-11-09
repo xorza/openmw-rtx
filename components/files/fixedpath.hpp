@@ -67,6 +67,7 @@ namespace Files
             , mLocalPath(mPath.getLocalPath())
             , mGlobalDataPath(mPath.getGlobalDataPath())
             , mCachePath(mPath.getCachePath())
+            , mUserLocalDataPath(mPath.getUserLocalDataPath())
         {
         }
 
@@ -93,6 +94,10 @@ namespace Files
 
         const std::filesystem::path& getCachePath() const { return mCachePath; }
 
+        /// The user's data kept on this machine alone: `%LOCALAPPDATA%` on Windows, the user data
+        /// folder elsewhere. Empty where the system names none.
+        const std::filesystem::path& getUserLocalDataPath() const { return mUserLocalDataPath; }
+
     private:
         PathType mPath;
 
@@ -104,6 +109,7 @@ namespace Files
         std::filesystem::path mGlobalDataPath; /**< Global application data path */
 
         std::filesystem::path mCachePath;
+        std::filesystem::path mUserLocalDataPath;
     };
 
 } /* namespace Files */

@@ -71,7 +71,10 @@ namespace Rtx::Shaders
 
     /// Whether the fill stands apart from the bounce (`ACCUMULATE_HOLDS_FILL`).
     const uint ATROUS_SPEC_FILL = 1u;
-    const uint ATROUS_SPEC_COUNT = 2u;
+
+    /// Whether the composing level writes `CHANNEL_UPSCALE_MASKS` (`Rtx::writesUpscaleMasks`).
+    const uint ATROUS_SPEC_UPSCALE_MASKS = 2u;
+    const uint ATROUS_SPEC_COUNT = 3u;
 
     /// Threads along each edge of a level's workgroup.
     const uint ATROUS_WORKGROUP = 8;
@@ -108,16 +111,12 @@ namespace Rtx::Shaders
         /// what no other level reads.
         uint mShadowed RTX_ZERO;
         uint mLobed RTX_ZERO;
-
-        /// Non-zero where the composing level writes the upscaler's masks: FSR, and only where a
-        /// mode runs it. False skips the write.
-        uint mUpscaleMasks RTX_ZERO;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(AtrousConstants) == 176, "AtrousConstants must be scalar-packed on every side");
+    static_assert(sizeof(AtrousConstants) == 172, "AtrousConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

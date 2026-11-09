@@ -163,16 +163,8 @@
 <context>
     <name>GraphicsPage</name>
     <message>
-        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
-        <translation>Upplösningen spelet renderar i, världen och gränssnittet tillsammans, skalad för att fylla fönstret. Nativ renderar i fönstrets egen storlek. I fönsterläge behåller fönstret storleken du senast drog det till.</translation>
-    </message>
-    <message>
         <source>Upscaling</source>
         <translation>Uppskalning</translation>
-    </message>
-    <message>
-        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
-        <translation>Hur långt under bildens upplösning strålspårningen sker. Av spårar varje pixel utan uppskalare; varje annat läge kör uppskalaren, som rekonstruerar bilden över flera bilder, och varje läge utom Av och Nativ spårar färre pixlar än det visar.</translation>
     </message>
     <message>
         <source>Off</source>
@@ -203,10 +195,6 @@
         <translation>Prestanda</translation>
     </message>
     <message>
-        <source>Cancel</source>
-        <translation type="obsolete">Avbryt</translation>
-    </message>
-    <message>
         <source>Balanced</source>
         <translation>Balanserad</translation>
     </message>
@@ -216,7 +204,11 @@
     </message>
     <message>
         <source>Ray Tracing Distant Land</source>
-        <translation>Avlägsen terräng vid strålspårning</translation>
+        <translation>Avlägsen terräng (strålspårning)</translation>
+    </message>
+    <message>
+        <source>How many cells around the player the ray tracer builds. This is separate from the view distance.</source>
+        <translation>Hur många celler runt spelaren strålspårningen bygger. Oberoende av siktavståndet.</translation>
     </message>
     <message>
         <source> cells</source>
@@ -243,24 +235,28 @@
         <translation>Fönster</translation>
     </message>
     <message>
+        <source>The resolution the game renders at, scaled to fit the window. Native uses the window&apos;s size. In windowed mode, the window keeps the size you last gave it.</source>
+        <translation>Upplösningen spelet renderas i, skalad till fönstret. Nativ använder fönstrets storlek. I fönsterläge behåller fönstret sin senaste storlek.</translation>
+    </message>
+    <message>
+        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
+        <translation>Hur många pixlar strålspårningen beräknar. Av och Nativ beräknar varje pixel; Nativ använder även uppskalningen som kantutjämning. Övriga lägen beräknar färre pixlar och skalar upp bilden.</translation>
+    </message>
+    <message>
         <source>Upscaler</source>
         <translation>Uppskalare</translation>
     </message>
     <message>
-        <source>Which upscaler reconstructs the frame. Auto uses NVIDIA DLSS when the card is NVIDIA and the DLSS runtime is installed, and AMD FSR otherwise. DLSS refuses to start where it cannot run; FSR never looks for DLSS. A change takes effect the next time OpenMW starts.</source>
-        <translation>Vilken uppskalare som rekonstruerar bilden. Automatisk använder NVIDIA DLSS när kortet är NVIDIA och DLSS-runtime är installerat, och annars AMD FSR. DLSS vägrar starta när det inte kan köras; FSR letar aldrig efter DLSS. En ändring träder i kraft nästa gång OpenMW startas.</translation>
+        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>Automatisk använder NVIDIA DLSS på ett NVIDIA-kort med DLSS installerat, annars AMD FSR. Om DLSS är valt men inte kan köras startar inte OpenMW. Gäller efter omstart.</translation>
     </message>
     <message>
-        <source>Download NVIDIA&apos;s DLSS library from NVIDIA&apos;s GitHub and place it where OpenMW can use it. NVIDIA&apos;s licence applies.</source>
-        <translation>Laddar ner NVIDIAs DLSS-bibliotek från NVIDIAs GitHub och placerar det där OpenMW kan använda det. NVIDIAs licens gäller.</translation>
+        <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>
+        <translation>Laddar ner DLSS-biblioteket från NVIDIAs GitHub. NVIDIAs licens gäller.</translation>
     </message>
     <message>
         <source>Download DLSS</source>
         <translation>Ladda ner DLSS</translation>
-    </message>
-    <message>
-        <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
-        <translation>Hur långt från ögat världen byggs, i celler. Strålspåraren bygger det strålarna kan nå, vilket är en annan fråga än kamerans synavstånd.</translation>
     </message>
     <message>
         <source>Disabled</source>
@@ -461,6 +457,42 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
 <context>
     <name>Launcher::GraphicsPage</name>
     <message>
+        <source>DLSS is installed.</source>
+        <translation>DLSS är installerat.</translation>
+    </message>
+    <message>
+        <source>DLSS is not installed. &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies to the download.</source>
+        <translation>DLSS är inte installerat. Nedladdningen omfattas av &lt;a href=&quot;%1&quot;&gt;NVIDIAs licens&lt;/a&gt;.</translation>
+    </message>
+    <message>
+        <source>Download DLSS</source>
+        <translation>Ladda ner DLSS</translation>
+    </message>
+    <message>
+        <source>Could not find a folder for DLSS.</source>
+        <translation>Ingen mapp för DLSS hittades.</translation>
+    </message>
+    <message>
+        <source>Could not create the DLSS folder: %1</source>
+        <translation>Det gick inte att skapa DLSS-mappen: %1</translation>
+    </message>
+    <message>
+        <source>Could not save DLSS: %1</source>
+        <translation>Det gick inte att spara DLSS: %1</translation>
+    </message>
+    <message>
+        <source>Downloading DLSS...</source>
+        <translation>Laddar ner DLSS...</translation>
+    </message>
+    <message>
+        <source>The downloaded file is larger than expected.</source>
+        <translation>Den nedladdade filen är större än väntat.</translation>
+    </message>
+    <message>
+        <source>The downloaded file has the wrong checksum.</source>
+        <translation>Den nedladdade filen har fel kontrollsumma.</translation>
+    </message>
+    <message>
         <source>Error receiving number of screens</source>
         <translation>Det gick inte att ta emot antalet skärmar</translation>
     </message>
@@ -473,44 +505,12 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
         <translation>Skärm </translation>
     </message>
     <message>
-        <source>DLSS runtime installed.</source>
-        <translation>DLSS-runtime installerad.</translation>
-    </message>
-    <message>
-        <source>Download NVIDIA DLSS</source>
-        <translation>Ladda ner NVIDIA DLSS</translation>
-    </message>
-    <message>
-        <source>DLSS is not installed. Download it from NVIDIA&apos;s GitHub to enable it; &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies.</source>
-        <translation>DLSS är inte installerat. Ladda ner det från NVIDIAs GitHub för att aktivera det; &lt;a href=&quot;%1&quot;&gt;NVIDIAs licens&lt;/a&gt; gäller.</translation>
-    </message>
-    <message>
         <source>Cancel</source>
-        <translation type="unfinished">Avbryt</translation>
-    </message>
-    <message>
-        <source>Downloading NVIDIA DLSS...</source>
-        <translation>Laddar ner NVIDIA DLSS...</translation>
+        <translation>Avbryt</translation>
     </message>
     <message>
         <source>The download failed: %1</source>
         <translation>Nedladdningen misslyckades: %1</translation>
-    </message>
-    <message>
-        <source>The downloaded file did not match NVIDIA&apos;s pinned checksum.</source>
-        <translation>Den nedladdade filen matchar inte NVIDIAs fastställda kontrollsumma.</translation>
-    </message>
-    <message>
-        <source>OpenMW could not find a folder to put the DLSS runtime in.</source>
-        <translation>OpenMW kunde inte hitta en mapp för DLSS-runtime.</translation>
-    </message>
-    <message>
-        <source>The DLSS folder could not be created: %1</source>
-        <translation>DLSS-mappen kunde inte skapas: %1</translation>
-    </message>
-    <message>
-        <source>The DLSS runtime could not be written: %1</source>
-        <translation>DLSS-runtime kunde inte skrivas: %1</translation>
     </message>
     <message>
         <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
@@ -1195,6 +1195,10 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
         <translation>Minsta storlek för objektpaging</translation>
     </message>
     <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Shows objects in distant cells, not only terrain. Takes effect after a restart.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Visar objekt i avlägsna celler, inte bara terräng. Gäller efter omstart.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
         <source>Audio Device</source>
         <translation>Ljudenhet</translation>
     </message>
@@ -1203,12 +1207,8 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
         <translation>HRTF-profil</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, the objects of the cells past the loaded ones stand in the world the ray tracer builds. If false, only the ground stands there. A change takes effect the next time OpenMW starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Distant Objects</source>
-        <translation type="unfinished"></translation>
+        <translation>Avlägsna objekt</translation>
     </message>
     <message>
         <source>Tooltip and Crosshair</source>

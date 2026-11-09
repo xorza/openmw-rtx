@@ -183,6 +183,18 @@
         <translation>Оконный</translation>
     </message>
     <message>
+        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
+        <translation>Сколько пикселей трассируется. «Выкл» и «Нативное» трассируют каждый пиксель; «Нативное» также использует масштабирование как сглаживание. Остальные режимы трассируют меньше пикселей и масштабируют кадр.</translation>
+    </message>
+    <message>
+        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>«Автоматически» использует NVIDIA DLSS на видеокарте NVIDIA с установленным DLSS, иначе AMD FSR. Если выбран DLSS и он не может работать, OpenMW не запустится. Вступает в силу после перезапуска.</translation>
+    </message>
+    <message>
+        <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>
+        <translation>Скачивает библиотеку DLSS с GitHub NVIDIA. Действует лицензия NVIDIA.</translation>
+    </message>
+    <message>
         <source>Disabled</source>
         <translation>Отключена</translation>
     </message>
@@ -193,6 +205,10 @@
     <message>
         <source>Adaptive</source>
         <translation>Адаптивная</translation>
+    </message>
+    <message>
+        <source>The resolution the game renders at, scaled to fit the window. Native uses the window&apos;s size. In windowed mode, the window keeps the size you last gave it.</source>
+        <translation>Разрешение, в котором отрисовывается игра, с масштабированием под окно. «Нативное» использует размер окна. В оконном режиме окно сохраняет последний размер.</translation>
     </message>
     <message>
         <source> FPS</source>
@@ -219,10 +235,6 @@
         <translation>Рамка окна</translation>
     </message>
     <message>
-        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
-        <translation>Разрешение, в котором игра выполняет рендеринг мира и интерфейса вместе, с масштабированием под окно. «Нативное» выполняет рендеринг в собственном размере окна. В оконном режиме окно сохраняет размер, до которого вы его в последний раз растянули.</translation>
-    </message>
-    <message>
         <source>Resolution</source>
         <translation>Разрешение экрана</translation>
     </message>
@@ -235,32 +247,16 @@
         <translation>Масштабирование</translation>
     </message>
     <message>
-        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
-        <translation>Насколько ниже разрешения кадра выполняется трассировка лучей. «Отключено» трассирует каждый пиксель без масштабировщика; любой другой режим запускает масштабировщик, который восстанавливает кадр по нескольким кадрам, и каждый режим, кроме «Отключено» и «Нативное», трассирует меньше пикселей, чем показывает.</translation>
-    </message>
-    <message>
         <source>Upscaler</source>
-        <translation>Апскейлер</translation>
-    </message>
-    <message>
-        <source>Which upscaler reconstructs the frame. Auto uses NVIDIA DLSS when the card is NVIDIA and the DLSS runtime is installed, and AMD FSR otherwise. DLSS refuses to start where it cannot run; FSR never looks for DLSS. A change takes effect the next time OpenMW starts.</source>
-        <translation>Какой апскейлер реконструирует кадр. Автоматически использует NVIDIA DLSS, когда карта NVIDIA и среда DLSS установлена, иначе AMD FSR. DLSS отказывается запускаться, если не может работать; FSR никогда не ищет DLSS. Изменение вступит в силу при следующем запуске OpenMW.</translation>
-    </message>
-    <message>
-        <source>Download NVIDIA&apos;s DLSS library from NVIDIA&apos;s GitHub and place it where OpenMW can use it. NVIDIA&apos;s licence applies.</source>
-        <translation>Скачивает библиотеку DLSS NVIDIA с GitHub NVIDIA и размещает её там, где OpenMW может её использовать. Применяется лицензия NVIDIA.</translation>
+        <translation>Метод масштабирования</translation>
     </message>
     <message>
         <source>Download DLSS</source>
         <translation>Скачать DLSS</translation>
     </message>
     <message>
-        <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
-        <translation>Насколько далеко от глаза строится мир, в ячейках. Трассировщик лучей строит то, чего могут достичь лучи, что отличается от дальности обзора камеры.</translation>
-    </message>
-    <message>
         <source>Off</source>
-        <translation>Отключено</translation>
+        <translation>Выкл</translation>
     </message>
     <message>
         <source>Ultra Performance</source>
@@ -287,12 +283,8 @@
         <translation>Производительность</translation>
     </message>
     <message>
-        <source>Cancel</source>
-        <translation type="obsolete">Отменить</translation>
-    </message>
-    <message>
         <source>Balanced</source>
-        <translation>Сбалансированное</translation>
+        <translation>Баланс</translation>
     </message>
     <message>
         <source>Quality</source>
@@ -300,7 +292,11 @@
     </message>
     <message>
         <source>Ray Tracing Distant Land</source>
-        <translation>Удалённый ландшафт при трассировке лучей</translation>
+        <translation>Дальний ландшафт (трассировка лучей)</translation>
+    </message>
+    <message>
+        <source>How many cells around the player the ray tracer builds. This is separate from the view distance.</source>
+        <translation>Сколько ячеек вокруг игрока строится для трассировки лучей. Не зависит от дальности обзора.</translation>
     </message>
     <message>
         <source> cells</source>
@@ -460,6 +456,42 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
 <context>
     <name>Launcher::GraphicsPage</name>
     <message>
+        <source>DLSS is installed.</source>
+        <translation>DLSS установлен.</translation>
+    </message>
+    <message>
+        <source>DLSS is not installed. &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies to the download.</source>
+        <translation>DLSS не установлен. На загрузку распространяется &lt;a href=&quot;%1&quot;&gt;лицензия NVIDIA&lt;/a&gt;.</translation>
+    </message>
+    <message>
+        <source>Download DLSS</source>
+        <translation>Скачать DLSS</translation>
+    </message>
+    <message>
+        <source>Could not find a folder for DLSS.</source>
+        <translation>Не найдена папка для DLSS.</translation>
+    </message>
+    <message>
+        <source>Could not create the DLSS folder: %1</source>
+        <translation>Не удалось создать папку DLSS: %1</translation>
+    </message>
+    <message>
+        <source>Could not save DLSS: %1</source>
+        <translation>Не удалось сохранить DLSS: %1</translation>
+    </message>
+    <message>
+        <source>Downloading DLSS...</source>
+        <translation>Загрузка DLSS...</translation>
+    </message>
+    <message>
+        <source>The downloaded file is larger than expected.</source>
+        <translation>Загруженный файл больше ожидаемого.</translation>
+    </message>
+    <message>
+        <source>The downloaded file has the wrong checksum.</source>
+        <translation>У загруженного файла неверная контрольная сумма.</translation>
+    </message>
+    <message>
         <source>Error receiving number of screens</source>
         <translation>Не удалось получить количество экранов</translation>
     </message>
@@ -472,48 +504,16 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
         <translation>Экран </translation>
     </message>
     <message>
-        <source>DLSS runtime installed.</source>
-        <translation>Среда DLSS установлена.</translation>
-    </message>
-    <message>
-        <source>Download NVIDIA DLSS</source>
-        <translation>Скачать NVIDIA DLSS</translation>
-    </message>
-    <message>
-        <source>DLSS is not installed. Download it from NVIDIA&apos;s GitHub to enable it; &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies.</source>
-        <translation>DLSS не установлен. Скачайте его с GitHub NVIDIA, чтобы включить; применяется &lt;a href=&quot;%1&quot;&gt;лицензия NVIDIA&lt;/a&gt;.</translation>
-    </message>
-    <message>
         <source>Cancel</source>
-        <translation type="unfinished">Отменить</translation>
-    </message>
-    <message>
-        <source>Downloading NVIDIA DLSS...</source>
-        <translation>Загрузка NVIDIA DLSS...</translation>
+        <translation>Отмена</translation>
     </message>
     <message>
         <source>The download failed: %1</source>
-        <translation>Не удалось загрузить: %1</translation>
-    </message>
-    <message>
-        <source>The downloaded file did not match NVIDIA&apos;s pinned checksum.</source>
-        <translation>Загруженный файл не совпадает с закреплённой контрольной суммой NVIDIA.</translation>
-    </message>
-    <message>
-        <source>OpenMW could not find a folder to put the DLSS runtime in.</source>
-        <translation>OpenMW не удалось найти папку для среды DLSS.</translation>
-    </message>
-    <message>
-        <source>The DLSS folder could not be created: %1</source>
-        <translation>Не удалось создать папку DLSS: %1</translation>
-    </message>
-    <message>
-        <source>The DLSS runtime could not be written: %1</source>
-        <translation>Не удалось записать среду DLSS: %1</translation>
+        <translation>Не удалось скачать: %1</translation>
     </message>
     <message>
         <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;Вызов SDL_GetDisplays завершился с ошибкой:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
+        <translation>&lt;br&gt;&lt;b&gt;Ошибка SDL_GetDisplays:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
     </message>
     <message>
         <source>Window border is available only in Windowed mode.</source>
@@ -1049,6 +1049,10 @@ Logs and settings changed through the launcher and in-game will be saved here.</
         <translation>Автоматически</translation>
     </message>
     <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Shows objects in distant cells, not only terrain. Takes effect after a restart.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Показывает объекты в дальних ячейках, а не только ландшафт. Вступает в силу после перезапуска.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
         <source>On</source>
         <translation>Включено</translation>
     </message>
@@ -1153,12 +1157,8 @@ Logs and settings changed through the launcher and in-game will be saved here.</
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Учителя выбирают навыки, которым учат, по базовым значениям навыка, благодаря чему моды могут использовать эффекты на усиление навыка торговли, не делая его предлагаемым навыком.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, the objects of the cells past the loaded ones stand in the world the ray tracer builds. If false, only the ground stands there. A change takes effect the next time OpenMW starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Distant Objects</source>
-        <translation type="unfinished"></translation>
+        <translation>Дальние объекты</translation>
     </message>
     <message>
         <source>Miscellaneous</source>

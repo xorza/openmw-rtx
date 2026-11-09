@@ -14,6 +14,7 @@
 #include <components/files/qtconversion.hpp>
 #include <components/misc/helpviewer.hpp>
 #include <components/misc/utf8qtextstream.hpp>
+#include <components/platform/dlss.hpp>
 #include <components/settings/settings.hpp>
 #include <components/version/version.hpp>
 
@@ -119,7 +120,8 @@ void Launcher::MainDialog::createPages()
         return;
 
     mDataFilesPage = new DataFilesPage(mCfgMgr, mGameSettings, mLauncherSettings, this);
-    mGraphicsPage = new GraphicsPage(this);
+    mGraphicsPage
+        = new GraphicsPage(Platform::Dlss::foldersIn(mCfgMgr.getUserLocalDataPath(), mCfgMgr.getLocalPath()), this);
     mImportPage = new ImportPage(mCfgMgr, mGameSettings, mLauncherSettings, this);
     mSettingsPage = new SettingsPage(mCfgMgr, mGameSettings, this);
 

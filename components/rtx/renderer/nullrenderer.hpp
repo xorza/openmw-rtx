@@ -81,6 +81,7 @@ namespace Rtx
         std::string describeDevice() const override;
         CardAddress getCardAddress() const override { return {}; }
         const RenderProfile& getProfile() const override { return mProfile; }
+        std::span<const UpscalerKind> getUpscalers() const override { return offeredUpscalers(false); }
         bool isValidating() const override { return false; }
         MemoryReport getMemoryReport() const override { return {}; }
         const SceneStats& getSceneStats() const override { return mStats; }

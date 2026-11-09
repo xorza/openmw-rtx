@@ -228,7 +228,7 @@ void main()
     // **The layers' half of the pane mask**, which the bounce's stages weigh against the whole
     // pixel's light: their own light, and how far apart they move from the surface behind them.
     StageRecord record = written;
-    if (frame.mUpscaleMasks != 0u)
+    if (UPSCALE_MASKS)
     {
         const vec3 paneOwn = armsStack.mGlow + armsStack.mThrough * panes.mGlow + paneDrawn;
         record.mPaneOwn = dot(paneOwn, LUMINANCE_WEIGHTS);

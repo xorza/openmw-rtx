@@ -26,6 +26,9 @@ namespace Rtx::Dlss::Ngx
     {
         Success = 0x1,
         Failure = 0xBAD00000,
+
+        /// What a core answers for a call it has no implementation of for the feature asked about.
+        NotImplemented = 0xBAD00012,
     };
 
     constexpr bool failed(const Result result)
@@ -57,16 +60,6 @@ namespace Rtx::Dlss::Ngx
         MaxQuality = 2,
         UltraPerformance = 3,
         Dlaa = 5,
-    };
-
-    enum class Support : int
-    {
-        Supported = 0,
-        CheckNotPresent = 1,
-        DriverVersionUnsupported = 2,
-        AdapterUnsupported = 4,
-        OperatingSystemUnsupported = 8,
-        NotImplemented = 16,
     };
 
     enum class ApplicationKind : int
@@ -160,13 +153,6 @@ namespace Rtx::Dlss::Ngx
         ApplicationIdentifier Identifier;
         const wchar_t* ApplicationDataPath;
         const FeatureCommonInfo* FeatureInfo;
-    };
-
-    struct FeatureRequirement
-    {
-        Support FeatureSupported;
-        unsigned int MinHWArchitecture;
-        char MinOSVersion[255];
     };
 
     struct ImageViewInfo
@@ -316,7 +302,6 @@ namespace Rtx::Dlss::Ngx
     static_assert(sizeof(FeatureCommonInfo) == 40);
     static_assert(offsetof(FeatureCommonInfo, InternalData) == 16);
     static_assert(offsetof(FeatureCommonInfo, Logging) == 24);
-    static_assert(sizeof(FeatureRequirement) == 264);
     static_assert(sizeof(ApplicationIdentifier) == 32);
     static_assert(sizeof(ImageViewInfo) == 48);
     static_assert(sizeof(Resource) == 56);
@@ -353,24 +338,25 @@ namespace Rtx::Dlss::Ngx
         Result (*GetFeatureDeviceExtensionRequirements)(
             VkInstance, VkPhysicalDevice, const FeatureDiscoveryInfo*, std::uint32_t*, VkExtensionProperties**)
             = nullptr;
-        Result (*GetFeatureRequirements)(VkInstance, VkPhysicalDevice, const FeatureDiscoveryInfo*, FeatureRequirement*)
-            = nullptr;
         Result (*InitWithProjectId)(const char*, Engine, const char*, const wchar_t*, VkInstance, VkPhysicalDevice,
             VkDevice, PFN_vkGetInstanceProcAddr, PFN_vkGetDeviceProcAddr, int, const FeatureCommonInfo*)
             = nullptr;
         Result (*GetCapabilityParameters)(Parameter**) = nullptr;
+        Result (*AllocateParameters)(Parameter**) = nullptr;
         Result (*DestroyParameters)(Parameter*) = nullptr;
+        /// The core's own signature and not the SDK's `Shutdown1(VkDevice)`, as `nvsdk_ngx_vk.h`
+        /// warns of: the core writes how many devices still hold NGX through the second argument,
+        /// and a caller that passes none has it write through whatever its register held.
         Result (*Shutdown)(VkDevice, int*) = nullptr;
         Result (*CreateFeature)(VkCommandBuffer, Feature, Parameter*, Handle**) = nullptr;
         Result (*EvaluateFeature)(VkCommandBuffer, const Handle*, const Parameter*, void*) = nullptr;
         Result (*ReleaseFeature)(Handle*) = nullptr;
-
-        bool isOpen() const;
+        Result (*RequiredExtensions)(unsigned int*, const char***, unsigned int*, const char***) = nullptr;
     };
 
-    /// The driver's core, loaded once, or null where the machine has none. The feature library
-    /// beside the executable is not opened here: NGX finds it itself, and the feature query says
-    /// whether it did.
+    /// The driver's core, loaded once with every entry point above resolved, or null where the
+    /// machine has none or its core lacks one. The feature library beside the executable is not
+    /// opened here: NGX finds it itself, and creating a feature says whether it did.
     const Api* api();
 
     /// The parameter names the interface publishes, and the values this backend sets. They are
@@ -407,11 +393,11 @@ namespace Rtx::Dlss::Ngx
 
     /// Sets the parameter map up as the SDK's DLSS create helper does, then creates the feature
     /// on `commands`.
-    Result createDlss(
-        VkCommandBuffer commands, Parameter* parameters, const DlssCreateParams& create, Handle** feature);
+    Result createDlss(const Api& api, VkCommandBuffer commands, Parameter& parameters, const DlssCreateParams& create,
+        Handle** feature);
 
     /// Sets the parameter map up as the SDK's DLSS evaluate helper does, then evaluates `feature`
     /// on `commands`.
-    Result evaluateDlss(
-        VkCommandBuffer commands, const Handle* feature, Parameter* parameters, const DlssEvalParams& evaluation);
+    Result evaluateDlss(const Api& api, VkCommandBuffer commands, const Handle* feature, Parameter& parameters,
+        const DlssEvalParams& evaluation);
 }

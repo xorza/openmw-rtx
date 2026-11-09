@@ -62,4 +62,19 @@ namespace
         EXPECT_EQ(Platform::LinuxText::compactionStalls("compact_fail 1\n"), std::nullopt);
         EXPECT_EQ(Platform::LinuxText::compactionStalls("compact_stall many\n"), std::nullopt);
     }
+
+    /// **A PCI id is `0x` and four hexadecimal digits, with the line break sysfs writes**: NVIDIA's
+    /// `0x10de` is 4318, upper case as well, and anything else is not one: no prefix, three or five
+    /// digits, a sign, a word, an empty file.
+    TEST(RtxPlatformLinuxTextTest, aPciIdIsFourHexadecimalDigitsAfterItsPrefix)
+    {
+        EXPECT_EQ(Platform::LinuxText::pciId("0x10de\n"), std::optional<std::uint16_t>(0x10DE));
+        EXPECT_EQ(Platform::LinuxText::pciId("0x10DE"), std::optional<std::uint16_t>(4318));
+        EXPECT_EQ(Platform::LinuxText::pciId("0x1002\n"), std::optional<std::uint16_t>(0x1002));
+        EXPECT_EQ(Platform::LinuxText::pciId("0xffff\n"), std::optional<std::uint16_t>(65535));
+
+        for (const std::string_view text :
+            { "", "\n", "10de\n", "0x10d\n", "0x10de0\n", "0x+10d", "0xgggg", "0x10de\n\n", "0X10de" })
+            EXPECT_EQ(Platform::LinuxText::pciId(text), std::nullopt) << '"' << text << '"';
+    }
 }

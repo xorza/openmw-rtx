@@ -25,9 +25,9 @@ namespace Rtx
         ///        developer feature: nobody enables it in a run they care about the frame rate of.
         /// @param surfaceExtensions what the window's surface needs, or empty for the headless path,
         ///        which is why `openmw-rtxtool` works over ssh.
-        /// @param extraExtensions what a feature needs besides, such as NGX's; enabled when the
-        ///        loader offers them and refused when it does not, since a feature that asked for
-        ///        one cannot run without it.
+        /// @param extraExtensions what a feature needs besides, such as NGX's: each enabled where
+        ///        the loader offers it and left out where it does not, so `auto` can fall back to
+        ///        the other upscaler; the feature then refuses where it is created, naming why.
         Instance(const ValidationOptions& validation, std::span<const char* const> surfaceExtensions,
             std::span<const std::string> extraExtensions = {});
 

@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/atrous.h>
@@ -25,7 +26,9 @@ namespace Rtx
     class AtrousPass
     {
     public:
-        explicit AtrousPass(const Device& device);
+        /// @param upscaler the run's upscaler, resolved: whether the composing level writes the masks
+        ///        only FSR reads (`writesUpscaleMasks`).
+        AtrousPass(const Device& device, UpscalerKind upscaler);
 
         /// Where the last level left the bounce and its fill.
         struct Filtered

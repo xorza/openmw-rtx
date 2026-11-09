@@ -32,6 +32,7 @@
 #include <vector>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -497,7 +498,7 @@ namespace Rtx
         return sSharedCount;
     }
 
-    void FsrUpscaler::resize(const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
+    void FsrUpscaler::resize(const Upscale, const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
     {
         assert(render.width > 0 && render.height > 0 && output.width >= render.width && output.height >= render.height);
         assert(shared.size() == sSharedCount && "the upscaler's shared images were not placed as it declared them");
@@ -553,6 +554,7 @@ namespace Rtx
         const GpuZone timed(timer, commands, FrameZone::Upscale);
 
         assert(mTargets != nullptr && "an upscale before a resize");
+        assert(inputs.mColour.mLeftAs.mLayout == VK_IMAGE_LAYOUT_GENERAL && "FSR samples the colour where it stands");
         Targets& targets = *mTargets;
 
         const bool reset = mFrame.isFresh();
@@ -568,7 +570,7 @@ namespace Rtx
 
         const Buffer& blocks = mBlocks.at(inputs.mSlot);
         const Shaders::FsrInputConstants inputConstants{
-            .mEyes = inputs.mEyes, .mNear = FsrFrame::sNear, .mFrame = inputs.mFrame
+            .mEyes = inputs.mEyes, .mNear = sUpscaleNear, .mFrame = inputs.mFrame
         };
         blocks.writeAt(Shaders::FSR_BLOCK_CONSTANTS, std::span(&constants, 1));
         blocks.writeAt(Shaders::FSR_BLOCK_PYRAMID, std::span(&pyramid.mConstants, 1));
@@ -589,7 +591,7 @@ namespace Rtx
                 case R::Surface:
                     return inputs.mSurface;
                 case R::Colour:
-                    return inputs.mColour;
+                    return inputs.mColour.mImage;
                 case R::Masks:
                     return inputs.mMasks;
                 case R::DilatedMotion:

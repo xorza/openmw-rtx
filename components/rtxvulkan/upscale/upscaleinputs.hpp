@@ -13,8 +13,9 @@ namespace Rtx
     struct UpscaleInputs
     {
         /// The frame at render resolution, as the trace chain composed it: denoised where the
-        /// denoisers ran, and the trace's own composite where nothing filtered it.
-        const Image& mColour;
+        /// denoisers ran, and the trace's own composite where nothing filtered it. With the use the
+        /// chain left it in, which an upscaler that reads it in another layout transitions from.
+        const HandedImage& mColour;
 
         /// `CHANNEL_SURFACE`: the distance from the eye along each pixel's ray in `g`, which the
         /// upscaler's depth is worked out from, and in its sign the eye the ray left.

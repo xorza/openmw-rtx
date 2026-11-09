@@ -14,6 +14,7 @@
 
 #include <osg/Vec2d>
 
+#include <components/platform/dlss.hpp>
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
@@ -167,6 +168,11 @@ namespace Rtx
         /// The user's cache directory (`ConfigurationManager::getCachePath`), because what goes here
         /// is regenerable and worth tens of megabytes. Empty keeps nothing.
         std::filesystem::path mCacheDirectory{};
+
+        /// Where DLSS's files are, as the host's configuration names them: the runtime folder the
+        /// launcher downloads the feature library into, and the game's own folder. Empty folders
+        /// leave DLSS uninstalled.
+        Platform::Dlss::Folders mDlss{};
 
         /// The frame's size: what `readPixels` gives back, and what a window shows scaled to fit.
         /// What it is traced at follows from `mRun.mProfile.mUpscale`.
@@ -596,6 +602,12 @@ namespace Rtx
         /// whatever a setting moved since. The one copy, so a stop that writes a picture by the
         /// same rules reads the rules the game draws by.
         virtual const RenderProfile& getProfile() const = 0;
+
+        /// The upscalers a menu may offer under this renderer, `offeredUpscalers`' answer for its
+        /// device: DLSS where the build has it, the card is NVIDIA's and the player's library is
+        /// installed. Asked by the settings window, which would otherwise ask the system's adapters
+        /// and not the one this renderer draws on.
+        virtual std::span<const UpscalerKind> getUpscalers() const = 0;
 
         /// Whether instrumentation is actually running, which a missing layer makes different from
         /// having asked. Anything quoting a frame time has to say so.

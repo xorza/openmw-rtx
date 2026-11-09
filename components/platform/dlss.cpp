@@ -1,32 +1,33 @@
 #include "dlss.hpp"
 
+#include <algorithm>
 #include <optional>
+#include <system_error>
+#include <vector>
 
-#include <components/platform/process.hpp>
-
-#include "dlsspaths.hpp"
+#include <components/platform/folder.hpp>
 
 namespace Platform::Dlss
 {
-    std::filesystem::path applicationDataDirectory()
+    Folders foldersIn(const std::filesystem::path& userLocalData, const std::filesystem::path& game)
     {
-        std::filesystem::path directory = runtimeDirectory();
-        if (directory.empty())
-            directory = std::filesystem::temp_directory_path();
-        std::error_code error;
-        std::filesystem::create_directories(directory, error);
-        return directory;
+        return Folders{ .mRuntime = userLocalData.empty() ? std::filesystem::path() : userLocalData / "dlss",
+            .mGame = game };
     }
 
-    std::filesystem::path executableDirectory()
+    bool installedIn(const Folders& folders)
     {
-        if (const std::optional<std::filesystem::path> executable = Process::executable(); executable.has_value())
-            return executable->parent_path();
-        return {};
-    }
+        const auto holdsLibrary = [](const std::filesystem::path& directory) {
+            if (directory.empty())
+                return false;
 
-    bool installed()
-    {
-        return !featureLibrary().empty();
+            const std::optional<std::vector<std::filesystem::directory_entry>> entries = listFolder(directory);
+            return entries.has_value()
+                && std::ranges::any_of(*entries, [](const std::filesystem::directory_entry& entry) {
+                       std::error_code error;
+                       return entry.is_regular_file(error) && isFeatureLibrary(entry.path().filename());
+                   });
+        };
+        return holdsLibrary(folders.mRuntime) || holdsLibrary(folders.mGame);
     }
 }

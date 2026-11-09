@@ -1,7 +1,7 @@
 #ifndef MWGUI_SETTINGS_H
 #define MWGUI_SETTINGS_H
 
-#include <vector>
+#include <span>
 
 #include <components/files/configurationmanager.hpp>
 #include <components/lua_ui/adapter.hpp>
@@ -14,7 +14,9 @@ namespace MWGui
     class SettingsWindow : public WindowBase
     {
     public:
-        SettingsWindow(Files::ConfigurationManager& cfgMgr);
+        /// @param upscalers what the renderer offers (`MWRender::Renderer::getUpscalers`), which
+        ///        outlives the window.
+        SettingsWindow(Files::ConfigurationManager& cfgMgr, std::span<const Rtx::UpscalerKind> upscalers);
 
         void onOpen() override;
 
@@ -54,7 +56,7 @@ namespace MWGui
         MyGUI::ComboBox* mRayTracingUpscale;
         MyGUI::ComboBox* mRayTracingUpscaler;
         MyGUI::ScrollBar* mRayTracingBounceRays;
-        std::vector<Rtx::UpscalerKind> mUpscalers;
+        std::span<const Rtx::UpscalerKind> mUpscalers;
 
         // controls
         MyGUI::ScrollView* mControlsBox;

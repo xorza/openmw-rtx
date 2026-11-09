@@ -1,53 +1,50 @@
 #include "gpu.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
-#include <fstream>
 #include <optional>
 #include <string>
+#include <vector>
+
+#include <components/platform/folder.hpp>
+#include <components/platform/linuxtext.hpp>
+#include <components/platform/wholefile.hpp>
 
 namespace Platform::Gpu
 {
     namespace
     {
-        std::optional<std::uint32_t> vendorAt(const std::filesystem::path& path)
-        {
-            std::ifstream file(path);
-            std::string text;
-            if (!(file >> text))
-                return std::nullopt;
-
-            try
-            {
-                return static_cast<std::uint32_t>(std::stoul(text, nullptr, 0));
-            }
-            catch (...)
-            {
-                return std::nullopt;
-            }
-        }
+        /// One page: what sysfs states as the size of every attribute it serves, the seven bytes of
+        /// `0x10de` and a line break among them, and the most one can hold.
+        constexpr std::size_t sIdFileBytesMax = 4096;
     }
 
     std::vector<std::uint32_t> vendors()
     {
         std::vector<std::uint32_t> found;
 
-        std::error_code error;
-        for (const std::filesystem::directory_entry& entry :
-            std::filesystem::directory_iterator("/sys/class/drm", error))
+        const std::optional<std::vector<std::filesystem::directory_entry>> cards = listFolder("/sys/class/drm");
+        if (!cards.has_value())
+            return found;
+
+        std::string text;
+        for (const std::filesystem::directory_entry& entry : *cards)
         {
-            const std::wstring name = entry.path().filename().wstring();
-            if (!name.starts_with(L"card") || name.find(L'-') != std::wstring::npos)
+            // `card0` is a device; `card0-HDMI-A-1` is one of its connectors.
+            const std::string name = entry.path().filename().native();
+            if (!name.starts_with("card") || name.find('-') != std::string::npos)
                 continue;
 
-            if (const std::optional<std::uint32_t> vendor = vendorAt(entry.path() / "device" / "vendor");
-                vendor.has_value())
+            if (!readWhole(entry.path() / "device" / "vendor", text, sIdFileBytesMax).isOk())
+                continue;
+            if (const std::optional<std::uint16_t> vendor = LinuxText::pciId(text); vendor.has_value())
                 found.push_back(*vendor);
         }
 
-        std::sort(found.begin(), found.end());
-        found.erase(std::unique(found.begin(), found.end()), found.end());
+        std::ranges::sort(found);
+        found.erase(std::ranges::unique(found).begin(), found.end());
         return found;
     }
-
 }

@@ -17,14 +17,16 @@ namespace Rtx
     class Device;
     struct TracePasses;
 
-    /// The world's frame on the device: its chain, the upscaler beside it and the arena both use
+    /// The world's frame on the device: its chain and the arena the chain and the upscaler use
     /// inside one stretch of a frame, laid over each other. What `PictureTracer` is for a picture,
-    /// for the frame, so the two are made, measured and let go of alike.
+    /// for the frame, so the two are made, measured and let go of alike. The upscaler is the
+    /// renderer's, handed in at each call that places or measures it: it is made before the trace's
+    /// kernels, which are specialized on the kind it resolved.
     class FrameTracer
     {
     public:
         /// @param passes what the chain traces with, which outlives it.
-        FrameTracer(const Device& device, const TracePasses& passes, RadianceWidth radiance, UpscalerKind upscaler);
+        FrameTracer(const Device& device, const TracePasses& passes, RadianceWidth radiance);
 
         /// What the frame uses inside one stretch of it at `render` and `output` under `profile`, which
         /// its arena places: the chain's shared images, then the upscaler's where the profile upscales.
@@ -45,8 +47,8 @@ namespace Rtx
             bool mUpscaler = false;
             bool mArena = false;
         };
-        Moves movesTo(
-            VkExtent2D render, VkExtent2D output, Upscale upscale, const std::vector<ArenaImage>& declared) const;
+        Moves movesTo(VkExtent2D render, VkExtent2D output, Upscale upscale, const std::vector<ArenaImage>& declared,
+            const Upscaler& upscaler) const;
 
         /// Whether letting go of what `moves` makes again lets go of anything that stands, which the
         /// device is drained of first.
@@ -56,17 +58,16 @@ namespace Rtx
         }
 
         /// Lets go of what `moves` makes again, the device drained of what read it.
-        void release(const Moves& moves);
+        void release(const Moves& moves, Upscaler& upscaler);
 
         /// Makes the arena of `declared` and places the chain and, where `upscale` upscales, the
         /// upscaler in it, where the declarations moved: the chain writes its sets anew, and a set a
         /// frame in flight reads is not written.
-        void resize(VkExtent2D render, VkExtent2D output, Upscale upscale, std::vector<ArenaImage>&& declared);
+        void resize(VkExtent2D render, VkExtent2D output, Upscale upscale, std::vector<ArenaImage>&& declared,
+            Upscaler& upscaler);
 
         TraceChain& getChain() { return mChain; }
         const TraceChain& getChain() const { return mChain; }
-        Upscaler& getUpscaler() { return mUpscaler; }
-        const Upscaler& getUpscaler() const { return mUpscaler; }
 
     private:
         const Device& mDevice;
@@ -76,11 +77,5 @@ namespace Rtx
         std::vector<ArenaImage> mDeclared;
 
         TraceChain mChain;
-
-        /// The selected upscaler, made with the renderer: its pipelines and nothing it keeps until
-        /// a mode wants it, so a player who never upscales pays their compile once, from the cache.
-        /// It outlives a mode being turned off, so the mode and not this says whether a frame is
-        /// upscaled.
-        Upscaler mUpscaler;
     };
 }

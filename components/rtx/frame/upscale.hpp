@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <span>
 #include <string_view>
 #include <utility>
 
@@ -16,9 +17,9 @@ namespace Rtx
     /// this chooses whose arithmetic turns the traced extent into the shown one.
     ///
     /// **`Auto` is a policy and not a third upscaler**: the backend resolves it once, where the
-    /// device is known, to DLSS where the build has NGX and the card is NVIDIA, and to FSR
-    /// everywhere else. The resolved value is what a `RenderProfile` carries after a renderer is
-    /// made, so a frame never asks the question twice.
+    /// device is known, to DLSS where the build has NGX, the card is NVIDIA and the player's
+    /// feature library is installed, and to FSR everywhere else. The resolved value is what a `RenderProfile` carries
+    /// after a renderer is made, so a frame never asks the question twice.
     enum class UpscalerKind
     {
         Auto,
@@ -34,23 +35,57 @@ namespace Rtx
         std::pair{ UpscalerKind::Dlss, std::string_view("dlss") },
     } };
 
-    /// The upscalers the launcher and the settings window offer, in the order both list them:
+    /// The upscalers the launcher and the settings window list, in the order both list them:
     /// `auto` first, then the two concrete choices. Every value `sUpscalerNames` spells, in its
     /// order, so a value added there stops the build until each menu gives it a label.
     inline constexpr std::array<UpscalerKind, sUpscalerNames.mNames.size()> sUpscalerMenu = sUpscalerNames.values();
+    static_assert(sUpscalerMenu.back() == UpscalerKind::Dlss, "DLSS last, so a menu without it is a prefix");
 
-    /// What `Auto` resolves to, from the facts the backend knows before it makes an upscaler: the
-    /// build has the backend, the device is an NVIDIA candidate, and the player's feature library is
-    /// installed. A concrete request is returned as it stands, so an explicit `Dlss` still tries
-    /// and fails by name rather than quietly drawing through FSR.
-    constexpr UpscalerKind resolveUpscaler(
-        const UpscalerKind requested, const bool compiled, const bool candidate, const bool installed)
+    /// The upscalers a menu offers: every one of `sUpscalerMenu`, DLSS only where `dlss` holds. A
+    /// prefix of the menu, so an interface's labels for it are the same prefix of its labels.
+    constexpr std::span<const UpscalerKind> offeredUpscalers(const bool dlss)
+    {
+        return std::span(sUpscalerMenu).first(dlss ? sUpscalerMenu.size() : sUpscalerMenu.size() - 1);
+    }
+
+    /// The facts `Auto` reads before an upscaler is made.
+    struct DlssReadiness
+    {
+        /// The build has the backend: `Platform::Dlss::sBuilt`.
+        bool mBuilt = false;
+
+        /// The device is an NVIDIA card the run asked about DLSS on.
+        bool mCandidate = false;
+
+        /// The player's feature library is installed.
+        bool mInstalled = false;
+    };
+
+    /// What `requested` resolves to. A concrete request is returned as it stands, so an explicit
+    /// `Dlss` still tries and fails by name rather than quietly drawing through FSR; `Auto` is DLSS
+    /// where every fact of `readiness` holds, and FSR elsewhere.
+    constexpr UpscalerKind resolveUpscaler(const UpscalerKind requested, const DlssReadiness& readiness)
     {
         if (requested != UpscalerKind::Auto)
             return requested;
 
-        return compiled && candidate && installed ? UpscalerKind::Dlss : UpscalerKind::Fsr;
+        return readiness.mBuilt && readiness.mCandidate && readiness.mInstalled ? UpscalerKind::Dlss
+                                                                                : UpscalerKind::Fsr;
     }
+
+    /// Whether the trace writes `CHANNEL_UPSCALE_MASKS` under `kind`, resolved: FSR reads the masks,
+    /// and DLSS has no input for them. A fact of the run, which the trace's kernels are specialized
+    /// on rather than branching on it per pixel.
+    constexpr bool writesUpscaleMasks(const UpscalerKind kind)
+    {
+        return kind == UpscalerKind::Fsr;
+    }
+
+    /// Where the near plane of the reversed, infinite depth both upscalers are handed stands, in
+    /// world units. A reversed float depth is precise in proportion at every distance, so the choice
+    /// moves no precision; a surface nearer than it reads as standing on it, which
+    /// `fsrcallbacks.glsl` and `dlssinputs.comp` clamp to.
+    inline constexpr float sUpscaleNear = 1.0f;
 
     /// What the launcher selects and saves for a stored kind: an explicit `Dlss` whose library is
     /// not installed becomes `Auto`, so a missing library cannot leave a setting the game must

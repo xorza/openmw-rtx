@@ -2,18 +2,15 @@
 
 namespace Rtx::Dlss
 {
-    std::vector<std::string> requiredInstanceExtensions()
+    Application::Application(const Platform::Dlss::Folders&) {}
+
+    std::vector<std::string> Application::requiredInstanceExtensions() const
     {
         return {};
     }
 
-    std::vector<std::string> requiredDeviceExtensions(VkInstance, VkPhysicalDevice)
+    std::vector<std::string> Application::requiredDeviceExtensions(VkInstance, VkPhysicalDevice) const
     {
         return {};
-    }
-
-    bool isSupported(VkInstance, VkPhysicalDevice)
-    {
-        return false;
     }
 }

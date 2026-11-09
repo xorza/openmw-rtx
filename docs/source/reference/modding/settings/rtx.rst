@@ -63,11 +63,12 @@ runs.
    part of OpenMW. The launcher's **Download DLSS** button links to `NVIDIA's licence
    <https://github.com/NVIDIA/DLSS/blob/v310.9.16/LICENSE.txt>`__ beside the button and fetches the
    pinned 310.9.16 library from NVIDIA's release, into OpenMW's user data folder: on Windows
-   :code:`Documents/My Games/openmw/dlss`, on Linux :code:`$XDG_DATA_HOME/openmw/dlss` (usually
+   :code:`%LOCALAPPDATA%/openmw/dlss`, on Linux :code:`$XDG_DATA_HOME/openmw/dlss` (usually
    :code:`~/.local/share/openmw/dlss`). The launcher disables the DLSS choice until the library is
-   installed. The game also looks beside its own executable, where a manually downloaded copy can
-   be placed; NGX itself looks there first. DLSS does not appear on a machine without an NVIDIA
-   display adapter.
+   installed, and does not list it on a machine without an NVIDIA display adapter. The game also
+   looks beside its own executable, where a manually downloaded copy can be placed; NGX itself
+   looks there first. The settings window lists DLSS where the card the game draws on is NVIDIA's
+   and the library is installed.
 
    DLSS uses the library's own default preset: this build sets no preset hints, so a newer library
    the player installs brings its own defaults. With 310.9.16 those are the transformer preset K for

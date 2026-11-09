@@ -7,9 +7,8 @@
 /// whether DLSS can be offered at all. One header over `gpu.cpp`, `gpuwin32.cpp` and `gpuposix.cpp`.
 namespace Platform::Gpu
 {
+    /// NVIDIA's PCI vendor id, which Vulkan's `vendorID` and DXGI's `VendorId` state as well.
     inline constexpr std::uint32_t sNvidia = 0x10DE;
-    inline constexpr std::uint32_t sAmd = 0x1002;
-    inline constexpr std::uint32_t sIntel = 0x8086;
 
     /// The vendor ids of the display adapters the system names, each once. Empty where the system
     /// does not say, which is not the same as a machine without a card.

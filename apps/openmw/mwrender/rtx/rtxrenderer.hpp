@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include <SDL3/SDL_video.h>
@@ -191,6 +192,7 @@ namespace MWRender
         void setVSync(SDLUtil::VSyncMode mode) noexcept override;
         void awaitPresented() noexcept override;
         const RenderSupport& support() const noexcept override;
+        std::span<const Rtx::UpscalerKind> getUpscalers() const noexcept override;
 
         std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(float scalingFactor,
             VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath) noexcept override;

@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/composite.h>
@@ -24,7 +25,9 @@ namespace Rtx
     class CompositePass
     {
     public:
-        explicit CompositePass(const Device& device);
+        /// @param upscaler the run's upscaler, resolved: whether the composite writes the masks only
+        ///        FSR reads (`writesUpscaleMasks`).
+        CompositePass(const Device& device, UpscalerKind upscaler);
 
         /// @param buffer must have been handed over, so its writes are visible to this read. Its
         ///        indirect, specular and pane channels are read only where `denoised` names them.

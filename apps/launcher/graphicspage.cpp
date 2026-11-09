@@ -15,8 +15,6 @@
 #include <QCheckBox>
 #include <QCoreApplication>
 #include <QCryptographicHash>
-#include <QEventLoop>
-#include <QFile>
 #include <QMessageBox>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -34,25 +32,19 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <iterator>
 #include <optional>
 #include <span>
 #include <string_view>
 #include <system_error>
-#include <vector>
 
 namespace
 {
     QString textOf(const std::string_view value)
     {
         return QString::fromUtf8(value.data(), static_cast<int>(value.size()));
-    }
-
-    bool matches(const QByteArray& data, const std::string_view sha256)
-    {
-        return QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex()
-            == QByteArray(sha256.data(), static_cast<int>(sha256.size()));
     }
 
     // In the context the .ui's own strings are translated in, which is where these came from
@@ -72,6 +64,7 @@ namespace
         { Rtx::UpscalerKind::Dlss, QT_TRANSLATE_NOOP("GraphicsPage", "NVIDIA DLSS") },
     } };
     static_assert(Rtx::followsMenu(sUpscalerLabels, Rtx::sUpscalerMenu));
+
     template <class Enum>
     void addMenuItems(QComboBox* box, std::span<const Rtx::MenuLabel<Enum>> labels)
     {
@@ -80,8 +73,9 @@ namespace
     }
 }
 
-Launcher::GraphicsPage::GraphicsPage(QWidget* parent)
+Launcher::GraphicsPage::GraphicsPage(const Platform::Dlss::Folders& dlss, QWidget* parent)
     : QWidget(parent)
+    , mDlssFolders(dlss)
 {
     setObjectName("GraphicsPage");
     setupUi(this);
@@ -106,35 +100,72 @@ Launcher::GraphicsPage::GraphicsPage(QWidget* parent)
     connect(downloadDlssButton, &QPushButton::clicked, this, &GraphicsPage::downloadDlss);
 }
 
+/// What one download of the DLSS library holds while it runs: the bytes go into the file and the
+/// hash as they arrive, so memory holds a chunk and not the library, and the file is committed only
+/// once the size and the checksum match NVIDIA's pinned release.
+struct Launcher::GraphicsPage::DlssDownload
+{
+    enum class Failure
+    {
+        None,
+        TooLarge,
+        NotWritten,
+    };
+
+    DlssDownload(const Platform::Dlss::Download& feature, const QString& target)
+        : mFeature(feature)
+        , mFile(target)
+    {
+    }
+
+    /// Takes what the reply has received into the file and the hash, and aborts the reply where it
+    /// passes the pinned size or the file refuses it.
+    void take()
+    {
+        const QByteArray chunk = mReply->readAll();
+        mReceived += static_cast<std::uint64_t>(chunk.size());
+
+        if (mReceived > mFeature.mBytes)
+            mFailure = Failure::TooLarge;
+        else if (mFile.write(chunk) != chunk.size())
+            mFailure = Failure::NotWritten;
+        else
+        {
+            mHash.addData(chunk);
+            return;
+        }
+
+        // Aborting ends the reply, whose `finished` may let go of this before `abort` returns:
+        // nothing of this is read after it.
+        mReply->abort();
+    }
+
+    Platform::Dlss::Download mFeature;
+    QSaveFile mFile;
+    QCryptographicHash mHash{ QCryptographicHash::Sha256 };
+    std::uint64_t mReceived = 0;
+    Failure mFailure = Failure::None;
+
+    /// Owned by the page's network manager and the page, and let go of with `deleteLater` once the
+    /// download ends, since either may be the sender of the signal that ends it.
+    QNetworkReply* mReply = nullptr;
+    QProgressDialog* mProgress = nullptr;
+};
+
+Launcher::GraphicsPage::~GraphicsPage() = default;
+
 void Launcher::GraphicsPage::buildUpscalerItems()
 {
-    mUpscalers.clear();
-    const bool nvidia = Platform::Gpu::has(Platform::Gpu::sNvidia);
-    for (const Rtx::UpscalerKind kind : Rtx::sUpscalerMenu)
-        if (kind != Rtx::UpscalerKind::Dlss || (Platform::Dlss::sBuilt && nvidia))
-            mUpscalers.push_back(kind);
-
-    std::vector<Rtx::MenuLabel<Rtx::UpscalerKind>> labels;
-    labels.reserve(mUpscalers.size());
-    for (const Rtx::UpscalerKind kind : mUpscalers)
-        for (const Rtx::MenuLabel<Rtx::UpscalerKind>& label : sUpscalerLabels)
-            if (label.mValue == kind)
-            {
-                labels.push_back(label);
-                break;
-            }
-
-    rayTracingUpscalerComboBox->clear();
-    addMenuItems<Rtx::UpscalerKind>(rayTracingUpscalerComboBox, labels);
+    mUpscalers = Rtx::offeredUpscalers(Platform::Dlss::sBuilt && Platform::Gpu::has(Platform::Gpu::sNvidia));
+    addMenuItems<Rtx::UpscalerKind>(rayTracingUpscalerComboBox, std::span(sUpscalerLabels).first(mUpscalers.size()));
     refreshDlssState();
 }
 
 void Launcher::GraphicsPage::refreshDlssState()
 {
-    const bool nvidia = Platform::Gpu::has(Platform::Gpu::sNvidia);
-    mDlssInstalled = Platform::Dlss::installed();
+    mDlssInstalled = Platform::Dlss::installedIn(mDlssFolders);
 
-    if (!Platform::Dlss::sBuilt || !nvidia)
+    if (std::ranges::find(mUpscalers, Rtx::UpscalerKind::Dlss) == mUpscalers.end())
     {
         downloadDlssButton->hide();
         dlssStatusLabel->hide();
@@ -145,15 +176,14 @@ void Launcher::GraphicsPage::refreshDlssState()
     downloadDlssButton->setVisible(!mDlssInstalled);
     dlssStatusLabel->setVisible(true);
     dlssStatusLabel->setText(mDlssInstalled
-            ? tr("DLSS runtime installed.")
-            : tr("DLSS is not installed. Download it from NVIDIA's GitHub to enable it; "
-                 "<a href=\"%1\">NVIDIA's licence</a> applies.")
+            ? tr("DLSS is installed.")
+            : tr("DLSS is not installed. <a href=\"%1\">NVIDIA's licence</a> applies to the download.")
                   .arg(textOf(Platform::Dlss::sLicenseUrl)));
 }
 
 void Launcher::GraphicsPage::setDlssItemEnabled(const bool enabled)
 {
-    const auto found = std::find(mUpscalers.begin(), mUpscalers.end(), Rtx::UpscalerKind::Dlss);
+    const auto found = std::ranges::find(mUpscalers, Rtx::UpscalerKind::Dlss);
     if (found == mUpscalers.end())
         return;
 
@@ -165,53 +195,13 @@ void Launcher::GraphicsPage::setDlssItemEnabled(const bool enabled)
 
 void Launcher::GraphicsPage::downloadDlss()
 {
-    if (mDlssInstalled)
+    if (mDlssInstalled || mDlssDownload != nullptr)
         return;
 
-    const Platform::Dlss::Download feature = Platform::Dlss::download();
-
-    QNetworkRequest request(QUrl(textOf(feature.mUrl)));
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
-    request.setTransferTimeout(60000);
-
-    QNetworkReply* reply = mNetwork->get(request);
-    QProgressDialog progress(tr("Downloading NVIDIA DLSS..."), tr("Cancel"), 0, 100, this);
-    progress.setWindowModality(Qt::WindowModal);
-    QObject::connect(
-        reply, &QNetworkReply::downloadProgress, &progress, [&progress](const qint64 received, const qint64 total) {
-            if (total > 0)
-                progress.setValue(static_cast<int>(received * 100 / total));
-        });
-    QObject::connect(&progress, &QProgressDialog::canceled, reply, &QNetworkReply::abort);
-
-    QEventLoop loop;
-    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    loop.exec();
-
-    const QByteArray downloaded = reply->readAll();
-    const QNetworkReply::NetworkError failure = reply->error();
-    const QString failureText = reply->errorString();
-    reply->deleteLater();
-
-    if (failure == QNetworkReply::OperationCanceledError)
-        return;
-    if (failure != QNetworkReply::NoError)
-    {
-        QMessageBox::critical(this, tr("Download NVIDIA DLSS"), tr("The download failed: %1").arg(failureText));
-        return;
-    }
-    if (!matches(downloaded, feature.mSha256))
-    {
-        QMessageBox::critical(
-            this, tr("Download NVIDIA DLSS"), tr("The downloaded file did not match NVIDIA's pinned checksum."));
-        return;
-    }
-
-    const std::filesystem::path directory = Platform::Dlss::runtimeDirectory();
+    const std::filesystem::path& directory = mDlssFolders.mRuntime;
     if (directory.empty())
     {
-        QMessageBox::critical(
-            this, tr("Download NVIDIA DLSS"), tr("OpenMW could not find a folder to put the DLSS runtime in."));
+        QMessageBox::critical(this, tr("Download DLSS"), tr("Could not find a folder for DLSS."));
         return;
     }
 
@@ -219,28 +209,108 @@ void Launcher::GraphicsPage::downloadDlss()
     std::filesystem::create_directories(directory, errorCode);
     if (errorCode)
     {
-        QMessageBox::critical(this, tr("Download NVIDIA DLSS"),
-            tr("The DLSS folder could not be created: %1").arg(QString::fromStdString(errorCode.message())));
+        QMessageBox::critical(this, tr("Download DLSS"),
+            tr("Could not create the DLSS folder: %1").arg(QString::fromStdString(errorCode.message())));
         return;
     }
 
-    const std::filesystem::path target = directory / feature.mFileName;
-    QSaveFile file(Files::pathToQString(target));
-    if (!file.open(QIODevice::WriteOnly) || file.write(downloaded) != downloaded.size() || !file.commit())
+    const Platform::Dlss::Download feature = Platform::Dlss::download();
+    auto download = std::make_unique<DlssDownload>(feature, Files::pathToQString(directory / feature.mFileName));
+    if (!download->mFile.open(QIODevice::WriteOnly))
     {
         QMessageBox::critical(
-            this, tr("Download NVIDIA DLSS"), tr("The DLSS runtime could not be written: %1").arg(file.errorString()));
+            this, tr("Download DLSS"), tr("Could not save DLSS: %1").arg(download->mFile.errorString()));
         return;
     }
-    QFile::setPermissions(Files::pathToQString(target),
-        QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ReadGroup | QFileDevice::ReadOther);
+
+    QNetworkRequest request(QUrl(textOf(feature.mUrl)));
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    request.setTransferTimeout(60000);
+    download->mReply = mNetwork->get(request);
+
+    download->mProgress = new QProgressDialog(tr("Downloading DLSS..."), tr("Cancel"), 0, 100, this);
+    download->mProgress->setWindowModality(Qt::WindowModal);
+    download->mProgress->setAutoReset(false);
+
+    QProgressDialog* const progress = download->mProgress;
+    const std::uint64_t pinned = feature.mBytes;
+    connect(download->mReply, &QNetworkReply::downloadProgress, progress, [progress, pinned](const qint64 received) {
+        progress->setValue(static_cast<int>(std::min<std::uint64_t>(received, pinned) * 100 / pinned));
+    });
+    connect(progress, &QProgressDialog::canceled, download->mReply, &QNetworkReply::abort);
+    connect(download->mReply, &QNetworkReply::readyRead, this, &GraphicsPage::readDlssDownload);
+    connect(download->mReply, &QNetworkReply::finished, this, &GraphicsPage::finishDlssDownload);
+
+    downloadDlssButton->setEnabled(false);
+    mDlssDownload = std::move(download);
+    progress->open();
+}
+
+void Launcher::GraphicsPage::readDlssDownload()
+{
+    if (mDlssDownload != nullptr && mDlssDownload->mFailure == DlssDownload::Failure::None)
+        mDlssDownload->take();
+}
+
+void Launcher::GraphicsPage::finishDlssDownload()
+{
+    if (mDlssDownload == nullptr)
+        return;
+
+    // The last bytes, which may come with the end and no `readyRead` of their own.
+    if (mDlssDownload->mFailure == DlssDownload::Failure::None
+        && mDlssDownload->mReply->error() == QNetworkReply::NoError)
+        mDlssDownload->take();
+
+    const std::unique_ptr<DlssDownload> download = std::move(mDlssDownload);
+    download->mReply->deleteLater();
+    // Hidden and not closed: a progress dialog that closes says it was cancelled.
+    download->mProgress->hide();
+    download->mProgress->deleteLater();
+    downloadDlssButton->setEnabled(true);
+
+    const QString title = tr("Download DLSS");
+    switch (download->mFailure)
+    {
+        case DlssDownload::Failure::TooLarge:
+            QMessageBox::critical(this, title, tr("The downloaded file is larger than expected."));
+            return;
+        case DlssDownload::Failure::NotWritten:
+            QMessageBox::critical(this, title, tr("Could not save DLSS: %1").arg(download->mFile.errorString()));
+            return;
+        case DlssDownload::Failure::None:
+            break;
+    }
+
+    const QNetworkReply::NetworkError failure = download->mReply->error();
+    if (failure == QNetworkReply::OperationCanceledError)
+        return;
+    if (failure != QNetworkReply::NoError)
+    {
+        QMessageBox::critical(this, title, tr("The download failed: %1").arg(download->mReply->errorString()));
+        return;
+    }
+
+    const std::string_view sha256 = download->mFeature.mSha256;
+    if (download->mReceived != download->mFeature.mBytes
+        || download->mHash.result().toHex() != QByteArray(sha256.data(), static_cast<qsizetype>(sha256.size())))
+    {
+        QMessageBox::critical(this, title, tr("The downloaded file has the wrong checksum."));
+        return;
+    }
+
+    if (!download->mFile.commit())
+    {
+        QMessageBox::critical(this, title, tr("Could not save DLSS: %1").arg(download->mFile.errorString()));
+        return;
+    }
 
     mDlssInstalled = true;
     setDlssItemEnabled(true);
     downloadDlssButton->hide();
-    dlssStatusLabel->setText(tr("DLSS runtime installed."));
+    dlssStatusLabel->setText(tr("DLSS is installed."));
 
-    const auto found = std::find(mUpscalers.begin(), mUpscalers.end(), Rtx::UpscalerKind::Dlss);
+    const auto found = std::ranges::find(mUpscalers, Rtx::UpscalerKind::Dlss);
     if (found != mUpscalers.end())
         rayTracingUpscalerComboBox->setCurrentIndex(static_cast<int>(std::distance(mUpscalers.begin(), found)));
 }
@@ -305,11 +375,11 @@ bool Launcher::GraphicsPage::loadSettings()
     rayTracingUpscaleComboBox->setCurrentIndex(
         static_cast<int>(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value()));
 
-    refreshDlssState();
-    const auto upscaler = std::find(
-        mUpscalers.begin(), mUpscalers.end(), Rtx::launcherUpscaler(Settings::rtx().mUpscaler.get(), mDlssInstalled));
+    // A kind the box does not list shows nothing chosen, and saving leaves the setting alone.
+    const auto upscaler
+        = std::ranges::find(mUpscalers, Rtx::launcherUpscaler(Settings::rtx().mUpscaler.get(), mDlssInstalled));
     rayTracingUpscalerComboBox->setCurrentIndex(
-        upscaler != mUpscalers.end() ? static_cast<int>(std::distance(mUpscalers.begin(), upscaler)) : 0);
+        upscaler != mUpscalers.end() ? static_cast<int>(std::distance(mUpscalers.begin(), upscaler)) : -1);
 
     // The box holds whole cells from the menu's fewest, so it shows nought or 4.5 as another value:
     // saveSettings writes the reach only when the player moved it

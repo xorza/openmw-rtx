@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 #include "accumulatepass.hpp"
@@ -36,7 +37,8 @@ namespace Rtx
     class DenoisePasses
     {
     public:
-        explicit DenoisePasses(const Device& device);
+        /// @param upscaler the run's upscaler, resolved: `AtrousPass` says what it changes.
+        DenoisePasses(const Device& device, UpscalerKind upscaler);
 
         /// Records every pass over `buffer`, which must have been handed over, and hands back where
         /// the light ended up — or, where `composes`, composes the frame over `CHANNEL_DIRECT` in the

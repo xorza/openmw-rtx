@@ -246,6 +246,7 @@ namespace MWRender
         // itself, and the seconds it saves at start are the player's.
         if (run == nullptr)
             options.mCacheDirectory = spec.mCachePath;
+        options.mDlss = spec.mDlss;
         // None whose traced extent truncates to nought, and none past the side every device chosen
         // makes an image at.
         constexpr auto smallest = static_cast<int>(Rtx::sSmallestFrameSide);
@@ -794,6 +795,11 @@ namespace MWRender
     const RenderSupport& RtxRenderer::support() const noexcept
     {
         return rtxSupport();
+    }
+
+    std::span<const Rtx::UpscalerKind> RtxRenderer::getUpscalers() const noexcept
+    {
+        return mRenderer->getUpscalers();
     }
 
     void RtxRenderer::applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept

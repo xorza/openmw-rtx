@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <iterator>
@@ -30,8 +31,6 @@
 #include <components/misc/constants.hpp>
 #include <components/misc/display.hpp>
 #include <components/misc/strings/algorithm.hpp>
-#include <components/platform/dlss.hpp>
-#include <components/platform/gpu.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/rtx/common/menu.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -134,6 +133,7 @@ namespace
         { Rtx::UpscalerKind::Dlss, "#{OMWEngine:RayTracingUpscalerDlss}" },
     } };
     static_assert(Rtx::followsMenu(sUpscalerLabels, Rtx::sUpscalerMenu));
+
     template <class Enum>
     void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel<Enum>> labels)
     {
@@ -245,12 +245,17 @@ namespace MWGui
         return nullptr;
     }
 
-    SettingsWindow::SettingsWindow(Files::ConfigurationManager& cfgMgr)
+    SettingsWindow::SettingsWindow(
+        Files::ConfigurationManager& cfgMgr, const std::span<const Rtx::UpscalerKind> upscalers)
         : WindowBase("openmw_settings_window.layout")
+        , mUpscalers(upscalers)
         , mKeyboardMode(true)
         , mCurrentPage(static_cast<size_t>(-1))
         , mCfgMgr(cfgMgr)
     {
+        assert(std::ranges::equal(mUpscalers, std::span(Rtx::sUpscalerMenu).first(mUpscalers.size()))
+            && "the renderer offered upscalers that are not a prefix of the menu");
+
         // One cell to a step, over the range the setting's own category states
         MyGUI::ScrollBar* distantLand;
         getWidget(distantLand, "RayTracingDistantLandSlider");
@@ -298,22 +303,7 @@ namespace MWGui
         mRayTracingUpscale->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscaleChanged);
 
-        const bool nvidia = Platform::Gpu::has(Platform::Gpu::sNvidia);
-        const bool installed = Platform::Dlss::installed();
-        mUpscalers.clear();
-        for (const Rtx::UpscalerKind kind : Rtx::sUpscalerMenu)
-            if (kind != Rtx::UpscalerKind::Dlss || (Platform::Dlss::sBuilt && nvidia && installed))
-                mUpscalers.push_back(kind);
-
-        std::vector<Rtx::MenuLabel<Rtx::UpscalerKind>> upscalerLabels;
-        for (const Rtx::UpscalerKind kind : mUpscalers)
-            for (const Rtx::MenuLabel<Rtx::UpscalerKind>& label : sUpscalerLabels)
-                if (label.mValue == kind)
-                {
-                    upscalerLabels.push_back(label);
-                    break;
-                }
-        addMenuItems<Rtx::UpscalerKind>(mRayTracingUpscaler, upscalerLabels);
+        addMenuItems<Rtx::UpscalerKind>(mRayTracingUpscaler, std::span(sUpscalerLabels).first(mUpscalers.size()));
         mRayTracingUpscaler->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscalerChanged);
 
@@ -547,6 +537,7 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->interactiveMessageBox(
             "#{OMWEngine:ChangeRequiresRestart}", { "#{Interface:OK}" }, true);
     }
+
     void SettingsWindow::onWindowModeChanged(MyGUI::ComboBox* sender, size_t pos)
     {
         if (pos == MyGUI::ITEM_NONE)
@@ -782,9 +773,11 @@ namespace MWGui
         // The menu offers every mode the setting can hold
         mRayTracingUpscale->setIndexSelected(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value());
 
-        const auto upscaler = std::find(mUpscalers.begin(), mUpscalers.end(), Settings::rtx().mUpscaler.get());
-        mRayTracingUpscaler->setIndexSelected(
-            upscaler != mUpscalers.end() ? static_cast<std::size_t>(std::distance(mUpscalers.begin(), upscaler)) : 0);
+        // A kind the renderer does not offer shows nothing chosen rather than another kind.
+        const auto upscaler = std::ranges::find(mUpscalers, Settings::rtx().mUpscaler.get());
+        mRayTracingUpscaler->setIndexSelected(upscaler != mUpscalers.end()
+                ? static_cast<std::size_t>(std::distance(mUpscalers.begin(), upscaler))
+                : MyGUI::ITEM_NONE);
         updateBounceRaysSlider();
     }
 

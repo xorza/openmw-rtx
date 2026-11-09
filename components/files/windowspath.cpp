@@ -140,6 +140,19 @@ namespace Files
         return getUserConfigPath() / "cache";
     }
 
+    std::filesystem::path WindowsPath::getUserLocalDataPath() const
+    {
+        // `%LOCALAPPDATA%` and not Documents, where the rest of the user's files are: Controlled
+        // Folder Access guards Documents and OneDrive may sync it, neither what a downloaded
+        // library wants.
+        PWSTR cString = nullptr;
+        std::filesystem::path localPath;
+        if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &cString)) && cString != nullptr)
+            localPath = std::filesystem::path(cString) / mName;
+        CoTaskMemFree(cString);
+        return localPath;
+    }
+
     std::vector<std::filesystem::path> WindowsPath::getInstallPaths() const
     {
         std::vector<std::filesystem::path> paths;

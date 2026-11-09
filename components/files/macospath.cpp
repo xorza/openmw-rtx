@@ -88,6 +88,11 @@ namespace Files
         return globalPath / mName;
     }
 
+    std::filesystem::path MacOsPath::getUserLocalDataPath() const
+    {
+        return getUserDataPath();
+    }
+
     std::filesystem::path MacOsPath::getCachePath() const
     {
         std::filesystem::path userPath(getUserHome());

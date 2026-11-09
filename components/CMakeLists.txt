@@ -624,7 +624,6 @@ if (WIN32)
         gpu
         gpuwin32
         dlss
-        dlsspaths
         dlsswin32
         )
 elseif (UNIX)
@@ -641,7 +640,6 @@ elseif (UNIX)
         gpu
         gpuposix
         dlss
-        dlsspaths
         dlssposix
         )
 else ()

@@ -17,6 +17,11 @@
 #include "physicaldevice.hpp"
 #include "requirements.hpp"
 
+namespace Rtx::Dlss
+{
+    class Application;
+}
+
 namespace Rtx
 {
     /// What a pipeline's compiler made it use: the statistics `VK_KHR_pipeline_executable_properties`
@@ -89,9 +94,10 @@ namespace Rtx
         /// driver offers them: `RunProfile::mZoneCounters`.
         bool mCounters = false;
 
-        /// Whether the device is asked for DLSS's extensions and whether NGX accepts the card. A
-        /// profile that may use DLSS sets this; one that only ever uses FSR leaves NGX untouched.
-        bool mDlss = false;
+        /// What NGX is asked for DLSS's extensions with, on an NVIDIA card, which outlives the
+        /// device. A profile that may use DLSS sets this; one that only ever uses FSR leaves it
+        /// null and NGX untouched.
+        const Dlss::Application* mDlss = nullptr;
     };
 
     /// Which `VkObjectType` a handle is, so that `Device::setName` takes the handle and never a
@@ -378,7 +384,7 @@ namespace Rtx
         /// device does not otherwise keep it (`Instance` outlives every device made on it).
         VkInstance mInstance = VK_NULL_HANDLE;
 
-        /// Whether NGX's feature check accepted this card and driver, when the run asked about DLSS.
+        /// Whether this is an NVIDIA card in a build with NGX, on a run that asked for DLSS.
         bool mDlssCandidate = false;
 
         /// Before every member made on it — `Root` says why.

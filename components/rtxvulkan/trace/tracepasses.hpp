@@ -1,5 +1,6 @@
 #pragma once
 
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/trace/denoise/compositepass.hpp>
 #include <components/rtxvulkan/trace/denoise/denoisepasses.hpp>
@@ -21,7 +22,9 @@ namespace Rtx
         /// @param textureLayout what every scene's texture array is shaped by, which the trace reads.
         /// @param counting `RendererOptions::mCounting`: whether the trace counts what its rays met.
         /// @param specialize `RenderProfile::mSpecializeKernels`.
-        TracePasses(const Device& device, const SetLayout& textureLayout, bool counting, bool specialize);
+        /// @param upscaler the run's upscaler, resolved, which the kernels are specialized on.
+        TracePasses(const Device& device, const SetLayout& textureLayout, bool counting, bool specialize,
+            UpscalerKind upscaler);
 
         SetLayout mChannels;
         SetLayout mFog;

@@ -1,58 +1,30 @@
 #include "dlss.hpp"
 
-#include <optional>
-#include <string>
-
-#include <components/platform/process.hpp>
-#include <components/platform/userhome.hpp>
-
-#include "dlsspaths.hpp"
-
 namespace Platform::Dlss
 {
-    Download download()
+    namespace
     {
-        return Download{
+        constexpr std::string_view sLibraryPrefix = "libnvidia-ngx-dlss.so.";
+
+        constexpr Download sDownload{
             .mUrl
             = "https://raw.githubusercontent.com/NVIDIA/DLSS/v310.9.16/lib/Linux_x86_64/rel/"
               "libnvidia-ngx-dlss.so.310.9.16",
             .mFileName = "libnvidia-ngx-dlss.so.310.9.16",
             .mSha256 = "30982c937afed85c96b8d313323de9a650a2eec6de1bb0f714b21750f4ce98f6",
+            .mBytes = 59481944,
         };
+        static_assert(sDownload.mUrl.find(sVersion) != std::string_view::npos, "a download of another release");
+        static_assert(sDownload.mFileName.starts_with(sLibraryPrefix), "a download NGX would not find");
     }
 
-    std::filesystem::path runtimeDirectory()
+    Download download()
     {
-        std::filesystem::path base;
-        if (const std::optional<std::filesystem::path> data = Process::environmentPath("XDG_DATA_HOME");
-            data.has_value() && !data->empty())
-            base = *data;
-        else if (const std::optional<std::filesystem::path> home = userHome(); home.has_value())
-            base = *home / ".local" / "share";
-
-        if (base.empty())
-            return {};
-        return base / "openmw" / "dlss";
+        return sDownload;
     }
 
-    std::filesystem::path featureLibrary()
+    bool isFeatureLibrary(const std::filesystem::path& fileName)
     {
-        const std::filesystem::path directories[] = { runtimeDirectory(), executableDirectory() };
-        for (const std::filesystem::path& directory : directories)
-        {
-            if (directory.empty())
-                continue;
-
-            std::error_code error;
-            for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(directory, error))
-            {
-                const std::wstring name = entry.path().filename().wstring();
-                if (name.starts_with(L"libnvidia-ngx-dlss.so."))
-                    return entry.path();
-            }
-        }
-
-        return {};
+        return fileName.native().starts_with(sLibraryPrefix);
     }
-
 }

@@ -7,6 +7,7 @@
 #include <osg/Vec3f>
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
@@ -71,7 +72,7 @@ namespace Rtx
             EXPECT_FLOAT_EQ(first.mTanHalfFov, 0.75f);
             EXPECT_FLOAT_EQ(first.mViewSpaceToMetres, 1.0f / Shaders::UNITS_PER_METRE);
             EXPECT_EQ(first.mDeviceToViewDepth.x(), -FLT_EPSILON);
-            EXPECT_EQ(first.mDeviceToViewDepth.y(), FsrFrame::sNear);
+            EXPECT_EQ(first.mDeviceToViewDepth.y(), sUpscaleNear);
             EXPECT_FLOAT_EQ(first.mDeviceToViewDepth.z(), 0.75f);
             EXPECT_FLOAT_EQ(first.mDeviceToViewDepth.w(), 0.5f);
             EXPECT_FALSE(state.readsSecond()) << "the SDK's first frame reads the first of each pair";
@@ -123,9 +124,9 @@ namespace Rtx
 
             for (const float z : { 1.0f, 30.0f, 700.0f, 20000.0f })
             {
-                const float device = FsrFrame::sNear / z;
+                const float device = sUpscaleNear / z;
                 const float view = constants.mDeviceToViewDepth.y() / (device - constants.mDeviceToViewDepth.x());
-                EXPECT_NEAR(view, z, z * (z * FLT_EPSILON / FsrFrame::sNear + 1e-6f)) << z;
+                EXPECT_NEAR(view, z, z * (z * FLT_EPSILON / sUpscaleNear + 1e-6f)) << z;
             }
         }
 

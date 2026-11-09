@@ -20,7 +20,7 @@ namespace Rtx
     ///   (`ffx_fsr3upscaler_common.h`, `GetUpsampleSample`'s source position; `Accumulate`'s
     ///   `fLrUvJittered` is the same with the sign the other way round). Both axes, because the trace's
     ///   `y` runs down the image as FSR's UV does.
-    /// - **The depth is reversed and infinite**, with its near plane at `sNear`: what
+    /// - **The depth is reversed and infinite**, with its near plane at `sUpscaleNear`: what
     ///   `fsrcallbacks.glsl` writes, and `setupDeviceDepthToViewSpaceDepthParams`'s branch for it.
     /// - **The field of view is the camera's own**: the eye's `mRight` and `mUp` are the half extents
     ///   of the image plane at unit distance, the tangents of the half angles FSR works out from a
@@ -28,11 +28,6 @@ namespace Rtx
     class FsrFrame
     {
     public:
-        /// Where the reversed depth's near plane stands, in world units. A reversed float depth is
-        /// precise in proportion at every distance, so the choice moves no precision; a surface
-        /// nearer than it reads as standing on it, which `fsrcallbacks.glsl` clamps to.
-        static constexpr float sNear = 1.0f;
-
         /// What one frame is: the extents, where the trace sampled in its pixel, how many phases its
         /// jitter cycles through, and how long since the last frame.
         struct Frame

@@ -143,7 +143,7 @@
         <item row="6" column="0">
          <widget class="QLabel" name="resolutionLabel">
           <property name="toolTip">
-           <string>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window's own size. In Windowed mode the window keeps the size you last dragged it to.</string>
+           <string>The resolution the game renders at, scaled to fit the window. Native uses the window's size. In windowed mode, the window keeps the size you last gave it.</string>
           </property>
           <property name="text">
            <string>Resolution</string>
@@ -195,7 +195,7 @@
         <item row="8" column="1">
          <widget class="QComboBox" name="rayTracingUpscaleComboBox">
           <property name="toolTip">
-           <string>How far below the frame's size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</string>
+           <string>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</string>
           </property>
          </widget>
         </item>
@@ -214,7 +214,7 @@
           <item>
            <widget class="QComboBox" name="rayTracingUpscalerComboBox">
             <property name="toolTip">
-             <string>Which upscaler reconstructs the frame. Auto uses NVIDIA DLSS when the card is NVIDIA and the DLSS runtime is installed, and AMD FSR otherwise. DLSS refuses to start where it cannot run; FSR never looks for DLSS. A change takes effect the next time OpenMW starts.</string>
+             <string>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</string>
             </property>
            </widget>
           </item>
@@ -226,7 +226,7 @@
                <bool>false</bool>
               </property>
               <property name="toolTip">
-               <string>Download NVIDIA's DLSS library from NVIDIA's GitHub and place it where OpenMW can use it. NVIDIA's licence applies.</string>
+               <string>Downloads the DLSS library from NVIDIA's GitHub. NVIDIA's licence applies.</string>
               </property>
               <property name="text">
                <string>Download DLSS</string>
@@ -266,7 +266,7 @@
         <item row="10" column="1">
          <widget class="QSpinBox" name="rayTracingDistantLandSpinBox">
           <property name="toolTip">
-           <string>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</string>
+           <string>How many cells around the player the ray tracer builds. This is separate from the view distance.</string>
           </property>
           <property name="suffix">
            <string> cells</string>

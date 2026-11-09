@@ -13,6 +13,8 @@
 
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/platform/dlss.hpp>
+#include <components/platform/gpu.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/common/extensionfilter.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
@@ -119,54 +121,45 @@ namespace Rtx
             mCode = std::make_unique<PipelineCodeFolder>(mReport.mCodeFolder);
 
         // **What NGX needs is asked before the device exists**, since its extensions cannot be
-        // enabled after `vkCreateDevice`. The check and the list are two calls to the same
-        // discovery record the upscaler later initialises with, so a card that fails here never
-        // reaches feature creation.
+        // enabled after `vkCreateDevice`, with the discovery record the upscaler later initialises
+        // with. **Tried on every NVIDIA card the build has NGX for**: the query NGX answers before
+        // a device exists can be inconclusive, and a false negative there must not silently cost an
+        // RTX card its upscaler. Feature creation is the real answer, and `Auto` falls back to FSR
+        // where it refuses.
         std::vector<std::string> dlssExtensions;
-        constexpr std::uint32_t sNvidiaVendor = 0x10DE;
-        if (mReport.mDlss && Dlss::sCompiled
-            && mPhysicalDevice.getProperties().mProperties2.properties.vendorID == sNvidiaVendor)
+        if (mReport.mDlss != nullptr && Platform::Dlss::sBuilt
+            && mPhysicalDevice.getProperties().mProperties2.properties.vendorID == Platform::Gpu::sNvidia)
         {
-            // **Tried on every NVIDIA card the build has NGX for**, even where the feature query
-            // is not sure: the query before a device exists is the SDK's own pre-device path, but
-            // a false negative there must not silently cost an RTX card its upscaler. Feature
-            // creation is the real answer, and `Auto` falls back to FSR if it refuses.
             mDlssCandidate = true;
-            dlssExtensions = Dlss::requiredDeviceExtensions(instance.getHandle(), mPhysicalDevice.getHandle());
 
             // **Only what the device offers is enabled**: an extension the driver lists but the card
-            // does not have makes `vkCreateDevice` fail, which would take `auto` down with it. Ask
-            // the device itself: `hasOptionalExtension` knows the renderer's own optional list, not
-            // the names NGX adds to it.
-            std::uint32_t offeredCount = 0;
-            if (vkEnumerateDeviceExtensionProperties(mPhysicalDevice.getHandle(), nullptr, &offeredCount, nullptr)
-                == VK_SUCCESS)
-            {
-                std::vector<VkExtensionProperties> offered(offeredCount);
-                if (vkEnumerateDeviceExtensionProperties(
-                        mPhysicalDevice.getHandle(), nullptr, &offeredCount, offered.data())
-                    == VK_SUCCESS)
-                {
-                    std::vector<std::string_view> offeredNames;
-                    offeredNames.reserve(offered.size());
-                    for (const VkExtensionProperties& candidate : offered)
-                        offeredNames.emplace_back(candidate.extensionName);
-                    dlssExtensions = filterOfferedExtensions(dlssExtensions, offeredNames);
-                }
-            }
-            const bool queried = Dlss::isSupported(instance.getHandle(), mPhysicalDevice.getHandle());
+            // does not have makes `vkCreateDevice` fail, which would take `auto` down with it. Asked
+            // of the device itself: `hasOptionalExtension` knows the renderer's own optional list,
+            // not the names NGX adds to it.
+            const std::vector<VkExtensionProperties> offered = enumerateVk<VkExtensionProperties>(
+                "vkEnumerateDeviceExtensionProperties", [&](std::uint32_t* count, VkExtensionProperties* into) {
+                    return vkEnumerateDeviceExtensionProperties(mPhysicalDevice.getHandle(), nullptr, count, into);
+                });
+            std::vector<std::string_view> offeredNames;
+            offeredNames.reserve(offered.size());
+            for (const VkExtensionProperties& extension : offered)
+                offeredNames.emplace_back(extension.extensionName);
+            dlssExtensions = filterOfferedExtensions(
+                mReport.mDlss->requiredDeviceExtensions(instance.getHandle(), mPhysicalDevice.getHandle()),
+                offeredNames);
 
             std::string named;
             for (const std::string& extension : dlssExtensions)
                 named += (named.empty() ? "" : ", ") + extension;
-            Log(Debug::Info) << "NVIDIA DLSS: trying (feature query " << (queried ? "supported" : "inconclusive") << ')'
-                             << (named.empty() ? "" : ", NGX asks for " + named);
+            Log(Debug::Info) << "NVIDIA DLSS: trying" << (named.empty() ? "" : ", NGX asks for " + named);
         }
 
         const std::span<const char* const> required = getRequiredDeviceExtensions();
         std::vector<const char*> extensions(required.begin(), required.end());
         for (const std::string& extension : dlssExtensions)
-            extensions.push_back(extension.c_str());
+            if (std::ranges::none_of(
+                    extensions, [&](const char* held) { return std::strcmp(held, extension.c_str()) == 0; }))
+                extensions.push_back(extension.c_str());
 
         // The swapchain rests on the surface, which the instance loads for a window and never
         // headless: one fact, stated where the instance was made, and read here rather than said

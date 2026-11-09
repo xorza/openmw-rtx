@@ -27,6 +27,9 @@
 #include "lib/census.glsl"
 #include "lib/pixels.glsl"
 
+/// Whether the frame's upscaler reads the masks this writes: FSR's does, and DLSS has no input for them.
+layout(constant_id = COMPOSITE_SPEC_UPSCALE_MASKS) const bool UPSCALE_MASKS = true;
+
 layout(local_size_x = COMPOSITE_WORKGROUP, local_size_y = COMPOSITE_WORKGROUP) in;
 
 /// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it.
@@ -140,7 +143,7 @@ void main()
         resolved = taken > 0.0 ? 0.5 * resolved + 0.5 * (other / taken) : resolved;
     }
 
-    if (frame.mUpscaleMasks != 0u)
+    if (UPSCALE_MASKS)
         storeUpscaleMasks(at, storedAt(at, frame.mWidth, fieldSwapOf(frame.mFrame)), resolved);
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame

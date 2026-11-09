@@ -28,6 +28,7 @@
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/dlss.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
@@ -99,6 +100,7 @@ namespace Rtx
         void skipFrame() override;
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }
+        std::span<const UpscalerKind> getUpscalers() const override { return mUpscalers; }
         JobProgress awaitKernels(KernelSet set, std::chrono::milliseconds patience) override;
         FrameTraced renderFrame(const FrameRequest& request) override;
         void holdAir(const AirClock& air) override;
@@ -161,6 +163,11 @@ namespace Rtx
 
         // Declaration order is destruction order reversed, and everything below the device is built
         // on it.
+
+        /// What NGX is told of the application, where the run may use DLSS: ahead of the instance,
+        /// whose extensions it is asked for, and outliving everything NGX is handed it with.
+        std::optional<Dlss::Application> mDlss;
+
         Instance mInstance;
 
         /// The window's surface, or null for no window: before the device, which is chosen for a
@@ -168,6 +175,20 @@ namespace Rtx
         std::unique_ptr<Surface> mSurface;
 
         Device mDevice;
+
+        /// Whether the player's DLSS feature library is installed, looked for once for the run:
+        /// what `Auto` resolves by, and what `getUpscalers` offers.
+        bool mDlssInstalled = false;
+
+        /// Before the trace's passes, whose kernels are specialized on the kind it resolved, and
+        /// before the profile, which carries that kind. Its pipelines are made with the renderer
+        /// whatever the mode, so a player who never upscales pays their compile once, from the
+        /// cache; it outlives a mode being turned off, so the mode and not this says whether a frame
+        /// is upscaled.
+        Upscaler mUpscaler;
+
+        /// `getUpscalers`' answer, a prefix of `sUpscalerMenu`.
+        std::span<const UpscalerKind> mUpscalers;
 
         /// Whether the frame this builds counts for the host. `RendererOptions::mCounting` says why
         /// the game's does not.
@@ -225,7 +246,7 @@ namespace Rtx
         TracePasses mTracePasses;
 
         /// What the frame is traced into, at the render extent — which is the output extent
-        /// wherever nothing upscales — and the upscaler beside it.
+        /// wherever nothing upscales.
         FrameTracer mFrame;
 
         /// What each frame is described with and carries to the next: the air's drift, what this

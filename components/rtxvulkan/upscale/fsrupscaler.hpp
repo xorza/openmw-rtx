@@ -9,6 +9,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -45,8 +46,9 @@ namespace Rtx
         /// Builds what the upscaler keeps for one pair of extents, releasing the last, and clears all
         /// of it: the frame after starts a history of its own. Once per resolution, and never per
         /// frame. Takes `shared`, the images `declareShared` declared at these extents as the frame's
-        /// arena placed them, whether the extents moved or not.
-        void resize(VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
+        /// arena placed them, whether the extents moved or not. The mode is DLSS's to read: FSR's
+        /// arithmetic follows from the extents alone.
+        void resize(Upscale mode, VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
 
         /// The images a reconstruction at these extents writes whole before it reads them and no
         /// later frame reads, which the frame's arena places (`ImageArena`), appended to `into`: in

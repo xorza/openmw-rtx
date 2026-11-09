@@ -14,6 +14,11 @@
 
 #include "upscaleinputs.hpp"
 
+namespace Rtx::Dlss
+{
+    class Application;
+}
+
 namespace Rtx
 {
     class Device;
@@ -26,19 +31,27 @@ namespace Rtx
     /// own command buffer, as FSR's dispatches are.
     ///
     /// **The library's own default preset applies**: no preset hints are set here, so a newer
-    /// library the player installs brings its own defaults. `describe()` names the backend rather
-    /// than a version, since the version is the player's library and not the build's.
+    /// library the player installs brings its own defaults.
+    ///
+    /// **The constructor is the answer to whether DLSS runs**: it opens NGX for the device and
+    /// creates a small feature, which loads the player's library, so every refusal is an
+    /// `Unsupported` there, where `Upscaler` can fall back from `auto`, and not at the first resize.
     class DlssUpscaler
     {
     public:
-        explicit DlssUpscaler(const Device& device);
+        /// Throws `Unsupported`, naming why, where the driver, the card or the library refuses.
+        /// @param application what NGX is told of the application, which outlives this; null in a
+        ///        run that never asked for DLSS, whose device is no candidate and is refused first.
+        DlssUpscaler(const Device& device, const Dlss::Application* application);
         ~DlssUpscaler();
 
         DlssUpscaler(const DlssUpscaler&) = delete;
         DlssUpscaler& operator=(const DlssUpscaler&) = delete;
 
-        /// Builds what one pair of extents keeps, releasing the last, and starts a history of its
-        /// own. Takes `shared`, the image `declareShared` declared, as the frame's arena placed it.
+        /// Builds what one pair of extents keeps, the feature at `mode`'s quality among it, and starts
+        /// a history of its own. Takes `shared`, the image `declareShared` declared, as the frame's
+        /// arena placed it. What stood before stands until the new feature is made, so a refusal
+        /// leaves the last extents' targets whole.
         void resize(Upscale mode, VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
 
         /// The one image a reconstruction at these extents writes and no later frame reads, which
@@ -65,22 +78,24 @@ namespace Rtx
         /// display. After `resize`.
         HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
 
-        /// One line for `info`: which DLSS this binary was built against.
+        /// One line for `info`: the backend, and no version, since the version is the player's
+        /// library and not the build's.
         static std::string_view describe();
 
     private:
         struct Context;
         struct Targets;
 
-        static std::unique_ptr<Context> makeContext(const Device& device);
+        static std::unique_ptr<Context> makeContext(const Device& device, const Dlss::Application* application);
 
         const Device& mDevice;
 
-        /// NGX's process-wide state for this device, made in the constructor: a configuration that
-        /// only ever runs FSR never constructs a DLSS upscaler and never loads the runtime.
+        /// NGX's state for this device, made in the constructor: a configuration that only ever
+        /// runs FSR never constructs a DLSS upscaler and never loads the runtime.
         std::unique_ptr<Context> mContext;
 
-        /// Empty until `resize`, and after `release`.
+        /// Empty until `resize`, and after `release`. After the context, so a feature is released
+        /// before NGX shuts down.
         std::unique_ptr<Targets> mTargets;
 
         bool mFresh = true;

@@ -268,13 +268,14 @@ namespace Rtx
     }
 
     VisibilityPass::VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
-        const SetLayout& volumeLayout, bool counting, const bool specialize)
+        const SetLayout& volumeLayout, bool counting, const bool specialize, const UpscalerKind upscaler)
         : mDevice(device)
         , mBlueNoise(uploadOnce(device, sBlueNoise, "blue noise"))
         , mSpecularAlbedo(uploadOnce(device, SpecularAlbedo::shared().getValues(), "specular albedo"))
         , mConstants(Buffer::deviceLocal(device, sizeof(Shaders::VisibilityConstants),
               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame constants"))
         , mCounting(counting ? 1u : 0u)
+        , mUpscaleMasks(writesUpscaleMasks(upscaler) ? 1u : 0u)
         , mSpecialize(specialize)
         , mChannelLayout(&channelLayout)
         , mVolumeLayout(&volumeLayout)
@@ -408,6 +409,7 @@ namespace Rtx
         // the trace.
         std::array<std::uint32_t, Shaders::SPEC_COUNT> specialization = wordsOf(variant);
         specialization[Shaders::SPEC_COUNTING] = mCounting;
+        specialization[Shaders::SPEC_UPSCALE_MASKS] = mUpscaleMasks;
         specialization[Shaders::SPEC_WATER_STAGE] = wanted.mKernel == Kernel::Water ? 1u : 0u;
 
         switch (wanted.mKernel)
@@ -443,6 +445,7 @@ namespace Rtx
                 {
                     std::array<std::uint32_t, Shaders::SPEC_COUNT> words = wordsOf(canonical);
                     words[Shaders::SPEC_COUNTING] = specialization[Shaders::SPEC_COUNTING];
+                    words[Shaders::SPEC_UPSCALE_MASKS] = specialization[Shaders::SPEC_UPSCALE_MASKS];
                     words[Shaders::SPEC_WATER_STAGE] = specialization[Shaders::SPEC_WATER_STAGE];
                     auto pipeline = std::make_unique<ComputePipeline<Shaders::StageConstants>>(mDevice, sBindings,
                         sharedSets(textureLayout), *mCode, stage.mModule, canonical.describe(stage.mName), words,
