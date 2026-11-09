@@ -411,12 +411,15 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
   three channels and an alpha at a normal's precision
   ([Microsoft](https://learn.microsoft.com/en-us/windows/win32/direct3d11/texture-block-compression-in-direct3d-11)).
   A block takes one mode, 5 with a height and 6 without, as DirectXTex narrows its search, at five times the full
-  search's speed ("Normal maps in BC7"). Refused: each map in its own format, a second loss for BC1; and BC3, a
+  search's speed ("Normal maps in BC7"), least squares on, by the user's decision: off, it was 1.31 times faster at a
+  sixth more angle (`docs/rtx/research/2026-11-09-content-preparation-cost.md`). Refused: each map in its own format, a second loss for BC1; and BC3, a
   normal at 5:6:5.
 - **A coarser level is encoded on the host, in the file's format** (BC1 to BC5), through rgbcx from bc7enc_rdo,
   approved by the user, whose BC1 matches Compressonator and libsquish
-  ([bc7enc_rdo](https://github.com/richgel999/bc7enc_rdo_devel/)). Refused: an encoder of our own; and encoders on the
-  device with a read-back.
+  ([bc7enc_rdo](https://github.com/richgel999/bc7enc_rdo_devel/)), at level 10, its author's level for when in doubt,
+  by the user's decision: level 8 was 2.1 times faster at 0.14 dB less, on the encode that is 62% of a large content
+  list's preparation (`docs/rtx/research/2026-11-09-content-preparation-cost.md`). Refused: an encoder of our own; encoders on the device with a read-back;
+  and a level streamed a band of rows at a time, where the field's compressors hold a level whole.
 - **A loose chain is whole in BC7** (`ChainForm::Bc7`), by the user's decision, through bc7enc from the same commit,
   perceptual weights for a colour and linear for data: vanilla moves by BC7's error, at most 28 of 255 on 0.08% of a
   picture's pixels ("Loose chains in BC7"). Refused: the loose form kept beside it for vanilla, a second route.
@@ -440,8 +443,10 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
 - **The store is filled on the loading screen, in the game's own process** (`Rtx::ContentPreparation`, inside
   `Renderer::awaitShaders`), by the user's decision: every model and land texture the content list names, walked as
   the cell reader walks it, on workers, as the game already compiles its kernels there and Godot's import runs in the
-  editor that uses it. Refused: a child tool that loads the content list again behind a pipe protocol, for a fault
-  isolation no pass needs; and a launcher tab, a second route.
+  editor that uses it. On every CPU the process may run on but one, by the user's decision, as Unity's job system
+  starts its workers up to the logical cores: the main thread only draws the screen and sleeps. Refused: a child tool
+  that loads the content list again behind a pipe protocol, for a fault isolation no pass needs; and a launcher tab, a
+  second route.
 - **The preparation is incremental by each file's stamp; the lookup is by content**: a manifest names each model's
   files and a digest of their sizes and times, so a start after one mod changed walks that mod again, as ccache's
   direct mode trusts a stat; the game keys every lookup by the bytes, so a stamp that lies costs a miss and never a

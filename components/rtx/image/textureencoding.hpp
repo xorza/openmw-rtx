@@ -1,7 +1,12 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
+#include <utility>
+
+#include <components/rtx/common/namedenum.hpp>
 
 namespace Rtx
 {
@@ -37,6 +42,17 @@ namespace Rtx
 
     inline constexpr std::size_t sTextureEncodingCount
         = static_cast<std::size_t>(TextureEncoding::ConvertedSpecular) + 1;
+
+    /// What a crash report names an encoding by (`ContentPreprocessor::chain`).
+    inline constexpr NamedEnum sTextureEncodings{ std::array{
+        std::pair{ TextureEncoding::Colour, std::string_view("colour") },
+        std::pair{ TextureEncoding::Data, std::string_view("data") },
+        std::pair{ TextureEncoding::Normal, std::string_view("normal") },
+        std::pair{ TextureEncoding::Painted, std::string_view("painted") },
+        std::pair{ TextureEncoding::ConvertedColour, std::string_view("converted colour") },
+        std::pair{ TextureEncoding::ConvertedSpecular, std::string_view("converted specular") },
+    } };
+    static_assert(sTextureEncodings.mNames.size() == sTextureEncodingCount);
 
     /// Whether `encoding`'s texels are display-encoded: a colour, painted, converted or as it stands.
     inline constexpr bool isColour(const TextureEncoding encoding)

@@ -3,7 +3,11 @@
 #include <chrono>
 #include <utility>
 
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/rtx/common/clock.hpp>
+#include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
+#include <components/sceneutil/embeddedimage.hpp>
 
 #include "contentkey.hpp"
 
@@ -95,11 +99,19 @@ namespace Rtx
 
     void ContentPreprocessor::chain(const ChainPass::Input& input, MadeChain& made, const ContentAsk ask)
     {
+        // A chain takes milliseconds to seconds of a thread, all of it inside the file's decode and the
+        // encoders, so a crash there names the file and how it is read.
+        const Crash::NoteScope noted("making the chain of \"{}\" as {}, {}",
+            SceneUtil::EmbeddedImage::nameOf(input.mImage), sTextureEncodings.name(input.mEncoding),
+            sTextureWraps.name(input.mWrap));
         run(mChain, input, made, ask);
     }
 
     void ContentPreprocessor::convert(const ConversionPass::Input& input, MadeChain& made, const ContentAsk ask)
     {
+        const Crash::NoteScope noted("converting \"{}\" with \"{}\" as {}, {}",
+            SceneUtil::EmbeddedImage::nameOf(input.mImage), SceneUtil::EmbeddedImage::nameOf(input.mPartner),
+            sTextureEncodings.name(input.mEncoding), sTextureWraps.name(input.mWrap));
         run(mConversion, input, made, ask);
     }
 

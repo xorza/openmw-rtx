@@ -14,6 +14,7 @@
 #include <osg/Switch>
 #include <osg/Transform>
 
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/constants.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/materialresolver.hpp>
@@ -142,6 +143,8 @@ namespace Rtx
 
     void TemplateWalk::take(const osg::Drawable& drawable)
     {
+        // Under the model's own note, so a fault in a part's read, fold or split names the part.
+        const Crash::NoteScope noted("reading the part \"{}\"", drawable.getName());
         const DrawableRead read = readDrawable(drawable, mKinds.of(drawable));
         if (read.mGeometry == nullptr)
             return;

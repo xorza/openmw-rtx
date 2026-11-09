@@ -33,23 +33,8 @@ time a slot draws its file before its chain lands.
 
 ## Decisions
 
-- **BC1 stays at rgbcx level 10**, by the user's decision: good looks rank above speed. rgbcx's author names level 10
-  for when in doubt (`extern/rgbcx/include/rgbcx/rgbcx.h`, line 35). On the bench's delit-like input, level 9 was
-  1.55× faster at −0.08 dB, level 8 2.14× at −0.14 dB, level 6 3.21× at −0.35 dB. Not measured: icbc, the BC1
-  encoder NVTT uses ([icbc](https://github.com/castano/icbc)), a new dependency.
-- **The BC7 search for normal maps stays one mode a block, least squares on**, by the user's decision. On 120 of the
-  PBR replacers' normal maps: least squares off was 1.31× faster at a mean normal error of 0.511° against 0.442°;
-  uber level 1 1.66× slower at 0.418°; mode 6 for every block 0.362° but a height RMSE of 1.71 against 0.49.
-- **All logical CPUs the process may run on, but one, prepare**, by the user's decision. Unity's job system starts
-  workers up to the logical core count
-  ([Unity](https://docs.unity3d.com/ScriptReference/Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobWorkerCount.html)), and
-  on the loading screen the main thread only draws and sleeps. Cold PBR preparation, unpinned: 16 threads 79.7 s, 24
-  67.0 s, 31 64.0 s; peak resident 5.6 to 6.1 GiB.
-- **A model stands only where the store holds every entry its walk made**, by the user's decision: the manifest keeps
-  each model's keys, each key once, and asks the store for each. The Remote Execution API's action cache holds the
-  same rule, a result returned only where the blobs it references stand
-  ([REAPI](https://github.com/bazelbuild/remote-apis/blob/main/build/bazel/remote/execution/v2/remote_execution.proto)),
-  as bazel-remote checks them on each get ([bazel-remote](https://github.com/buchgr/bazel-remote)).
+The BC1 level, the normal maps' BC7 search, the thread count and what the manifest trusts are decided and stand in
+`docs/rtx/architecture.md`, with their measurements in the research notes.
 
 Memory, by the user's decisions, each against the field's practice:
 
@@ -102,24 +87,6 @@ that must change no output is checked with `diff -rq --exclude=prepared.manifest
 store made before it and one made after: the entries are files named by their keys, and two cold vanilla stores made
 apart are the same byte for byte.
 
-### Batch 5: what a crash report names
-
-Files: `components/rtx/preprocess/contentpreprocessor.cpp`, `components/rtx/mirror/cells/templatewalk.cpp`.
-
-A preparation's crash report names the model or the ground layer (`preparing the model "…"`), and a texture only
-while it is described (`describing the texture "…"`, whose scope ends before the chain is built). The chain's
-build and encode, 98% of the preparation's time, run under the model's note alone, and the play's chain workers
-(`PreparedImages::serve`) under none.
-
-- [ ] `ContentPreprocessor::chain` and `convert`: a `Crash::NoteScope` naming the file, its encoding and wrap, and
-  for a conversion its partner: `preparing the model "…" > making the chain of "…" as painted`. In the preprocessor,
-  so the preparation, the reader and the chain workers each name what they make. A note allocates nothing, and a
-  chain takes milliseconds, so the cost does not show.
-- [ ] `TemplateWalk::take`: the drawable's name under the model's note, as `MeshResolver` names the mesh it adds, so a
-  fault in a shape's fold or split names the part.
-- [ ] Test: how the crash matrix lands a fault under a note decides it; the report of a fault inside a chain's
-  build names the model, the file and the encoding.
-
 ### Batch 6: a dispatcher bounded in memory
 
 Files: `components/rtx/prepare/contentpreparation.{hpp,cpp}`, a dispatcher beside it,
@@ -139,6 +106,12 @@ removal), `apps/openmw/mwrender/rtx/rtxrenderer.cpp`. The decisions are above, u
   backfilled); the predicted peak against the measured capacity for each encoding and format; a cold PBR run's
   resident peak under a budget set below today's, against the budget.
 - [ ] Measured: the three content lists cold, the time and the resident peak, before and after.
+
+## Changed
+
+- **What a crash report names**: the chain, the conversion and the part each carry a note, and no test lands a fault
+  inside a chain: the crash matrix has no way to fault inside a pass, and its tests already hold that a report names
+  the note a fault was under.
 
 ## Declined
 
