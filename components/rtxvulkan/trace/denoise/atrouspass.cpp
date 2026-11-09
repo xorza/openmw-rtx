@@ -125,6 +125,7 @@ namespace Rtx
             .mStep = 1,
             .mFixFrames = 0.0f,
             .mFrame = frame.mSampled.mFrame,
+            .mUpscaleMasks = frame.mSampled.mUpscaleMasks,
         };
         if (composing != nullptr)
         {

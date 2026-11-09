@@ -68,6 +68,12 @@ namespace Rtx
         sampled.mShow = static_cast<std::uint32_t>(options.mShow.value_or(profile.mShow));
         sampled.mLitEnvironmentMaps = options.mLitEnvironmentMaps.value_or(profile.mLitEnvironmentMaps) ? 1u : 0u;
 
+        // FSR is the only upscaler that reads the mask channel; DLSS has no input for it. The kind
+        // is resolved once for the run. An off upscale keeps the masks when FSR is the requested
+        // backend, because the harness's mask tests read them; no GPU upscaler is there to pay for
+        // writing them.
+        sampled.mUpscaleMasks = profile.mUpscaler == UpscalerKind::Fsr ? 1u : 0u;
+
         // The arms' eye samples where the world's does, or the two halves of one frame would be
         // reconstructed from two grids.
         sampled.mEyes.mArms.mJitter = sampled.mEyes.mWorld.mJitter;

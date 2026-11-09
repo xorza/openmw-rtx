@@ -140,7 +140,8 @@ void main()
         resolved = taken > 0.0 ? 0.5 * resolved + 0.5 * (other / taken) : resolved;
     }
 
-    storeUpscaleMasks(at, storedAt(at, frame.mWidth, fieldSwapOf(frame.mFrame)), resolved);
+    if (frame.mUpscaleMasks != 0u)
+        storeUpscaleMasks(at, storedAt(at, frame.mWidth, fieldSwapOf(frame.mFrame)), resolved);
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame
     // would add up rounded numbers and clip every sample past the display's range to the same value

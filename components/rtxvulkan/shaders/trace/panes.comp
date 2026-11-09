@@ -227,9 +227,12 @@ void main()
 
     // **The layers' half of the pane mask**, which the bounce's stages weigh against the whole
     // pixel's light: their own light, and how far apart they move from the surface behind them.
-    const vec3 paneOwn = armsStack.mGlow + armsStack.mThrough * panes.mGlow + paneDrawn;
     StageRecord record = written;
-    record.mPaneOwn = dot(paneOwn, LUMINANCE_WEIGHTS);
-    record.mPaneApart = motionsApart(nearest.mMotion.xy, endMotion.xy);
+    if (frame.mUpscaleMasks != 0u)
+    {
+        const vec3 paneOwn = armsStack.mGlow + armsStack.mThrough * panes.mGlow + paneDrawn;
+        record.mPaneOwn = dot(paneOwn, LUMINANCE_WEIGHTS);
+        record.mPaneApart = motionsApart(nearest.mMotion.xy, endMotion.xy);
+    }
     RTX_STORE_WORDS(stageRecord, stored, packStageRecord(record))
 }

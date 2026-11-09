@@ -259,6 +259,7 @@ namespace Rtx
                     .mAccumulate = what.mAccumulate,
                     .mLobed = inputs.mSubject.mMapped ? 1u : 0u,
                     .mFrame = what.mSampled.mFrame,
+                    .mUpscaleMasks = what.mSampled.mUpscaleMasks,
                 },
                 mComposed, what.mTimer);
 

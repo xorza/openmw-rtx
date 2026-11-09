@@ -133,7 +133,8 @@ void storeComposed(ivec2 at, ivec2 stored, vec3 bounce, vec3 fillShare)
     const vec3 light
         = resolvedLight(stored, imageLoad(direct, stored).rgb, bounce, fillShare, level.mShadowed, level.mLobed);
     RTX_STORE_COUNTED(composed, at, vec4(light, 1.0))
-    storeUpscaleMasks(at, stored, light);
+    if (level.mUpscaleMasks != 0u)
+        storeUpscaleMasks(at, stored, light);
 }
 #endif
 

@@ -488,9 +488,11 @@ namespace Rtx::Shaders
         /// upscaler, `Rtx::sampleFrame`.
         vec2 mPreviousJitter;
 
+        /// Non-zero where the frame's upscaler reads `CHANNEL_UPSCALE_MASKS`: FSR, and only where a
+        /// mode runs it. Under DLSS or `upscale = off` the trace and the composite skip that work.
         /// To the eight bytes `mTables` stands on, named so that every byte of the block is a field a
         /// copy carries and a comparison reads: an implicit pad is what neither does.
-        uint mPadding RTX_ZERO;
+        uint mUpscaleMasks RTX_ZERO;
 
         /// Where every table a hit reads is. `GpuTables` says why it rides here.
         ///

@@ -80,12 +80,16 @@ namespace Rtx::Shaders
 
         /// The frame's number, which says how its fields lie (`fieldSwapOf`).
         uint mFrame;
+
+        /// Non-zero where the upscaler reads `CHANNEL_UPSCALE_MASKS`: FSR, and only where a mode
+        /// runs it. False skips the mask the composite would otherwise write.
+        uint mUpscaleMasks RTX_ZERO;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(CompositeConstants) == 24, "CompositeConstants must be scalar-packed on every side");
+    static_assert(sizeof(CompositeConstants) == 28, "CompositeConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

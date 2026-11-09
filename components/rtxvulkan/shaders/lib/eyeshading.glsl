@@ -233,7 +233,7 @@ void stepEye(inout EyeRun run, WaterRun water, SeenPane pane, Surface surface, u
     }
 
     run.mAnswer.mMotion = run.mMotion;
-    if (run.mWater)
+    if (run.mWater && frame.mUpscaleMasks != 0u)
         run.mAnswer.mMisMoved
             = run.mImage.mShare * apartFrom(run.mImage, run.mMotion.xy, pixel, run.mDirection, run.mArms);
 

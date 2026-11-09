@@ -108,12 +108,16 @@ namespace Rtx::Shaders
         /// what no other level reads.
         uint mShadowed RTX_ZERO;
         uint mLobed RTX_ZERO;
+
+        /// Non-zero where the composing level writes the upscaler's masks: FSR, and only where a
+        /// mode runs it. False skips the write.
+        uint mUpscaleMasks RTX_ZERO;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(AtrousConstants) == 172, "AtrousConstants must be scalar-packed on every side");
+    static_assert(sizeof(AtrousConstants) == 176, "AtrousConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST
