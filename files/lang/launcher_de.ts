@@ -81,7 +81,7 @@
     </message>
     <message>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation>Abbrechen</translation>
     </message>
     <message>
         <source> MiB</source>
@@ -188,15 +188,15 @@
     </message>
     <message>
         <source>Auto</source>
-        <translation type="unfinished"></translation>
+        <translation>Automatisch</translation>
     </message>
     <message>
         <source>AMD FSR 3.1</source>
-        <translation type="unfinished"></translation>
+        <translation>AMD FSR 3.1</translation>
     </message>
     <message>
         <source>NVIDIA DLSS</source>
-        <translation type="unfinished"></translation>
+        <translation>NVIDIA DLSS</translation>
     </message>
     <message>
         <source>Performance</source>
@@ -240,23 +240,23 @@
     </message>
     <message>
         <source>Upscaler</source>
-        <translation type="unfinished"></translation>
+        <translation>Hochskalierer</translation>
     </message>
     <message>
         <source>Which upscaler reconstructs the frame. Auto uses NVIDIA DLSS when the card is NVIDIA and the DLSS runtime is installed, and AMD FSR otherwise. DLSS refuses to start where it cannot run; FSR never looks for DLSS. A change takes effect the next time OpenMW starts.</source>
-        <translation type="unfinished"></translation>
+        <translation>Welcher Hochskalierer das Bild rekonstruiert. Automatisch verwendet NVIDIA DLSS, wenn die Karte von NVIDIA ist und die DLSS-Laufzeit installiert ist, andernfalls AMD FSR. DLSS startet nicht, wenn es nicht laufen kann; FSR sucht nie nach DLSS. Eine Änderung wird beim nächsten Start von OpenMW wirksam.</translation>
     </message>
     <message>
         <source>Download NVIDIA&apos;s DLSS library from NVIDIA&apos;s GitHub and place it where OpenMW can use it. NVIDIA&apos;s licence applies.</source>
-        <translation type="unfinished"></translation>
+        <translation>Lädt die DLSS-Bibliothek von NVIDIA von NVIDIAs GitHub herunter und legt sie dort ab, wo OpenMW sie verwenden kann. Es gilt NVIDIAs Lizenz.</translation>
     </message>
     <message>
         <source>Download DLSS</source>
-        <translation type="unfinished"></translation>
+        <translation>DLSS herunterladen</translation>
     </message>
     <message>
         <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
-        <translation type="unfinished"></translation>
+        <translation>Wie weit von der Kamera entfernt die Welt aufgebaut wird, in Zellen. Der Raytracer baut, was Strahlen erreichen können, was eine andere Frage ist als die Sichtweite der Kamera.</translation>
     </message>
     <message>
         <source>Disabled</source>
@@ -471,43 +471,43 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
     </message>
     <message>
         <source>DLSS runtime installed.</source>
-        <translation type="unfinished"></translation>
+        <translation>DLSS-Laufzeit installiert.</translation>
     </message>
     <message>
         <source>Download NVIDIA DLSS</source>
-        <translation type="unfinished"></translation>
+        <translation>NVIDIA DLSS herunterladen</translation>
     </message>
     <message>
         <source>DLSS is not installed. Download it from NVIDIA&apos;s GitHub to enable it; &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies.</source>
-        <translation type="unfinished"></translation>
+        <translation>DLSS ist nicht installiert. Laden Sie es von NVIDIAs GitHub herunter, um es zu aktivieren; es gilt &lt;a href=&quot;%1&quot;&gt;NVIDIAs Lizenz&lt;/a&gt;.</translation>
     </message>
     <message>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation>Abbrechen</translation>
     </message>
     <message>
         <source>Downloading NVIDIA DLSS...</source>
-        <translation type="unfinished"></translation>
+        <translation>NVIDIA DLSS wird heruntergeladen...</translation>
     </message>
     <message>
         <source>The download failed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Download ist fehlgeschlagen: %1</translation>
     </message>
     <message>
         <source>The downloaded file did not match NVIDIA&apos;s pinned checksum.</source>
-        <translation type="unfinished"></translation>
+        <translation>Die heruntergeladene Datei stimmt nicht mit NVIDIAs festgelegter Prüfsumme überein.</translation>
     </message>
     <message>
         <source>OpenMW could not find a folder to put the DLSS runtime in.</source>
-        <translation type="unfinished"></translation>
+        <translation>OpenMW konnte keinen Ordner für die DLSS-Laufzeit finden.</translation>
     </message>
     <message>
         <source>The DLSS folder could not be created: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Der DLSS-Ordner konnte nicht erstellt werden: %1</translation>
     </message>
     <message>
         <source>The DLSS runtime could not be written: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Die DLSS-Laufzeit konnte nicht geschrieben werden: %1</translation>
     </message>
     <message>
         <source>Window border is available only in Windowed mode.</source>

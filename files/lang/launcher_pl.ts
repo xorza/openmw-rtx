@@ -240,23 +240,23 @@
     </message>
     <message>
         <source>Upscaler</source>
-        <translation type="unfinished"></translation>
+        <translation>Upscaler</translation>
     </message>
     <message>
         <source>Which upscaler reconstructs the frame. Auto uses NVIDIA DLSS when the card is NVIDIA and the DLSS runtime is installed, and AMD FSR otherwise. DLSS refuses to start where it cannot run; FSR never looks for DLSS. A change takes effect the next time OpenMW starts.</source>
-        <translation type="unfinished"></translation>
+        <translation>Który skaler rekonstruuje obraz. Automatycznie używa NVIDIA DLSS, gdy karta jest NVIDIA i środowisko DLSS jest zainstalowane, a w przeciwnym razie AMD FSR. DLSS odmawia uruchomienia, gdy nie może działać; FSR nigdy nie szuka DLSS. Zmiana zacznie obowiązywać przy następnym uruchomieniu OpenMW.</translation>
     </message>
     <message>
         <source>Download NVIDIA&apos;s DLSS library from NVIDIA&apos;s GitHub and place it where OpenMW can use it. NVIDIA&apos;s licence applies.</source>
-        <translation type="unfinished"></translation>
+        <translation>Pobiera bibliotekę DLSS NVIDIA z GitHub firmy NVIDIA i umieszcza ją tam, gdzie OpenMW może jej użyć. Obowiązuje licencja NVIDIA.</translation>
     </message>
     <message>
         <source>Download DLSS</source>
-        <translation type="unfinished"></translation>
+        <translation>Pobierz DLSS</translation>
     </message>
     <message>
         <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
-        <translation type="unfinished"></translation>
+        <translation>Jak daleko od oka budowany jest świat, w komórkach. Tracer promieni buduje to, co mogą osiągnąć promienie, co jest inną kwestią niż zasięg widzenia kamery.</translation>
     </message>
     <message>
         <source>Off</source>
@@ -272,15 +272,15 @@
     </message>
     <message>
         <source>Auto</source>
-        <translation type="unfinished"></translation>
+        <translation>Automatycznie</translation>
     </message>
     <message>
         <source>AMD FSR 3.1</source>
-        <translation type="unfinished"></translation>
+        <translation>AMD FSR 3.1</translation>
     </message>
     <message>
         <source>NVIDIA DLSS</source>
-        <translation type="unfinished"></translation>
+        <translation>NVIDIA DLSS</translation>
     </message>
     <message>
         <source>Performance</source>
@@ -475,15 +475,15 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
     </message>
     <message>
         <source>DLSS runtime installed.</source>
-        <translation type="unfinished"></translation>
+        <translation>Zainstalowano środowisko DLSS.</translation>
     </message>
     <message>
         <source>Download NVIDIA DLSS</source>
-        <translation type="unfinished"></translation>
+        <translation>Pobierz NVIDIA DLSS</translation>
     </message>
     <message>
         <source>DLSS is not installed. Download it from NVIDIA&apos;s GitHub to enable it; &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies.</source>
-        <translation type="unfinished"></translation>
+        <translation>DLSS nie jest zainstalowany. Pobierz go z GitHub firmy NVIDIA, aby go włączyć; obowiązuje &lt;a href=&quot;%1&quot;&gt;licencja NVIDIA&lt;/a&gt;.</translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -491,27 +491,27 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
     </message>
     <message>
         <source>Downloading NVIDIA DLSS...</source>
-        <translation type="unfinished"></translation>
+        <translation>Pobieranie NVIDIA DLSS...</translation>
     </message>
     <message>
         <source>The download failed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Pobieranie nie powiodło się: %1</translation>
     </message>
     <message>
         <source>The downloaded file did not match NVIDIA&apos;s pinned checksum.</source>
-        <translation type="unfinished"></translation>
+        <translation>Pobrany plik nie zgadza się z przypiętą sumą kontrolną NVIDIA.</translation>
     </message>
     <message>
         <source>OpenMW could not find a folder to put the DLSS runtime in.</source>
-        <translation type="unfinished"></translation>
+        <translation>OpenMW nie znalazł folderu, w którym można umieścić środowisko DLSS.</translation>
     </message>
     <message>
         <source>The DLSS folder could not be created: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Nie można utworzyć folderu DLSS: %1</translation>
     </message>
     <message>
         <source>The DLSS runtime could not be written: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Nie można zapisać środowiska DLSS: %1</translation>
     </message>
     <message>
         <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
