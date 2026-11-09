@@ -48,7 +48,10 @@ namespace Rtx
                 "        0x1.8p+0f,\n"
                 "    } };\n"
                 "}\n");
-            EXPECT_FALSE(std::filesystem::exists(TestingOpenMW::currentTestDirPath() / "floats.cpp.part"));
+            EXPECT_EQ(std::distance(std::filesystem::directory_iterator(TestingOpenMW::currentTestDirPath()),
+                          std::filesystem::directory_iterator()),
+                1)
+                << "the temporary went with the rename";
         }
 
         /// A byte in decimal, and a table written again over one that stands replaces it whole.
@@ -80,9 +83,7 @@ namespace Rtx
             }
             catch (const std::filesystem::filesystem_error& error)
             {
-                std::filesystem::path part = to;
-                part += ".part";
-                EXPECT_EQ(error.path1(), part);
+                EXPECT_EQ(error.path1(), to);
             }
             EXPECT_FALSE(std::filesystem::exists(to));
         }

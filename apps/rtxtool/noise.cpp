@@ -6,9 +6,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
-#include <fstream>
 #include <optional>
 #include <ostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -17,6 +17,7 @@
 
 #include <apps/rtxtool/instruments/jsontext.hpp>
 #include <apps/rtxtool/instruments/png.hpp>
+#include <apps/rtxtool/instruments/reportfile.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/pictureshelf.hpp>
 #include <components/debug/debugging.hpp>
@@ -49,11 +50,11 @@ namespace RtxTool
         return static_cast<std::uint32_t>(std::clamp<std::uint64_t>(held, 1, sNoiseBarFrames));
     }
 
-    Misc::Result<NoiseFrame, std::string> noiseFrameFor(
+    Result<NoiseFrame, std::string> noiseFrameFor(
         const std::uint32_t cut, const bool flies, const Rtx::FrameExtents& extents)
     {
         if (cut > 0 && flies)
-            return Misc::Err{ std::string(
+            return Err{ std::string(
                 "--cut takes the frame standing after a cut, and --strafe and --walk fly it in: name one") };
 
         if (flies)
@@ -140,10 +141,10 @@ namespace RtxTool
         return 1;
     }
 
-    Misc::Result<void, std::string> writeNoiseRecord(
+    Result<void, std::string> writeNoiseRecord(
         const std::filesystem::path& path, const std::span<const std::vector<NoiseFigures>> sides)
     {
-        std::ofstream file(path);
+        std::ostringstream file;
         file << "{\"sides\": [";
         for (std::size_t side = 0; side < sides.size(); ++side)
         {
@@ -162,11 +163,7 @@ namespace RtxTool
         }
         file << "\n]}\n";
 
-        // Closed and then asked, because a write the system reports late reports it at the close.
-        file.close();
-        if (!file)
-            return Misc::Err{ "could not write " + Files::pathToUnicodeString(path) };
-        return {};
+        return writeReport(path, file.view());
     }
 
     namespace
@@ -235,7 +232,7 @@ namespace RtxTool
 
         // Each leg's frame is held to the samples a shown pixel its history could hold
         // (`noiseFrameFor`), standing as well.
-        const Misc::Result<NoiseFrame, std::string> taken = noiseFrameFor(ask.mCut, flies, ask.mExtents);
+        const Result<NoiseFrame, std::string> taken = noiseFrameFor(ask.mCut, flies, ask.mExtents);
         if (!taken.isOk())
             throw std::runtime_error(taken.error());
         const NoiseFrame& leg = taken.value();

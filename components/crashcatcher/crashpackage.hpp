@@ -25,7 +25,7 @@ namespace Crash
     /// could not be read, a file of 4 GiB or more, which a zip without Zip64 cannot hold, or a folder
     /// that refused the write. The archive appears whole or not at all: it is written beside `zip`
     /// and renamed into place.
-    Misc::Result<void, std::string> writePackage(
+    Result<void, std::string> writePackage(
         const std::filesystem::path& zip, std::span<const PackageFile> files, const std::tm& local);
 
     /// What `writeSessionPackage` did.

@@ -274,8 +274,7 @@ namespace Rtx::Testing
                 return nullptr;
             }
 
-            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(
-                const VFS::Path::NormalizedView path) override
+            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(const VFS::Path::NormalizedView path) override
             {
                 return mImages.get(path);
             }
@@ -1835,9 +1834,9 @@ namespace Rtx::Testing
         {
         public:
             osg::ref_ptr<const osg::Node> getTemplate(VFS::Path::NormalizedView) override { return mFace; }
-            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView) override
+            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView) override
             {
-                return Misc::Err{ "no image reads from the file" };
+                return Err{ "no image reads from the file" };
             }
 
             osg::ref_ptr<osg::Group> mFace = [] {
@@ -1955,8 +1954,7 @@ namespace Rtx::Testing
         public:
             osg::ref_ptr<const osg::Node> getTemplate(VFS::Path::NormalizedView) override { return nullptr; }
 
-            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(
-                const VFS::Path::NormalizedView path) override
+            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(const VFS::Path::NormalizedView path) override
             {
                 if (!mHeldOnce)
                 {

@@ -328,7 +328,7 @@ namespace Rtx
         return sky;
     }
 
-    Misc::Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
+    Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
         VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ThreadContent& thread,
         std::vector<TextureHold>& holds)
     {
@@ -337,7 +337,7 @@ namespace Rtx
         // A gap in the content is refused rather than read as a night with no stars in it, which
         // reads as a renderer that forgot them. Before any hold, so a refusal leaves none behind.
         if (!scenes.getVFS()->exists(chosen))
-            return Misc::Err{ "the archives hold neither it nor \"" + std::string(fallback.value()) + '"' };
+            return Err{ "the archives hold neither it nor \"" + std::string(fallback.value()) + '"' };
 
         return readNightSky(scene, *scenes.getTemplate(chosen, false), thread, holds);
     }

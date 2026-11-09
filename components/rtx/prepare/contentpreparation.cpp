@@ -208,7 +208,7 @@ namespace Rtx
 
         // As the cell reader reads a layer: the diffuse as `layerEncodingOf` binds it, the normal map a
         // normal map, and where it may carry a height and does, the heights it spans.
-        const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> diffuse
+        const Result<osg::ref_ptr<const osg::Image>, std::string> diffuse
             = mContent.getImage(VFS::Path::NormalizedView(layer.mDiffuse.c_str()));
         if (diffuse.isOk() && diffuse.value() != nullptr)
             chain(hand,
@@ -219,7 +219,7 @@ namespace Rtx
         if (layer.mNormal.empty())
             return;
         hand.mFiles.push_back(layer.mNormal);
-        const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> normal
+        const Result<osg::ref_ptr<const osg::Image>, std::string> normal
             = mContent.getImage(VFS::Path::NormalizedView(layer.mNormal.c_str()));
         if (!normal.isOk() || normal.value() == nullptr)
             return;

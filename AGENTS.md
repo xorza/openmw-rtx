@@ -176,6 +176,9 @@ is not here is held to the rules above.
 - Faults the user approved fixing:
   - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1`
     holds for every error);
+  - `SettingsFileParser::saveSettingsFile` and `StateManager::saveGame` wrote `settings.cfg` and a save in place,
+    so a crash or a full disk during the write left a part of either: both now write through
+    `Platform::writeWhole`, synced, which the platform's I/O library holds (`openmw-platform-io`);
   - the SDL3 port truncated a window's size over its pixel density, where `SDLUtil::windowPoints`
     rounds;
   - `SDLUtil::InputWrapper` logged an unhandled event's type in hex without `std::dec` after it,

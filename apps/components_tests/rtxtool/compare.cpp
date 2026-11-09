@@ -55,7 +55,7 @@ namespace RtxTool
             std::filesystem::create_directories(root / "shot");
             std::filesystem::create_directories(root / "before");
 
-            const Misc::Result<void, std::string> itself = checkAgainst(root / "shot", root / "shot");
+            const Result<void, std::string> itself = checkAgainst(root / "shot", root / "shot");
             ASSERT_FALSE(itself.isOk()) << "a run compared against the directory it writes";
             EXPECT_EQ(itself.error(),
                 "--against=" + Files::pathToUnicodeString(root / "shot")
@@ -272,7 +272,7 @@ namespace RtxTool
         void writeTo(const std::filesystem::path& file, const PngImage& image)
         {
             std::filesystem::create_directories(file.parent_path());
-            const Misc::Result<void, std::string> written = writePng(file, image.mWidth, image.mHeight, image.mSamples);
+            const Result<void, std::string> written = writePng(file, image.mWidth, image.mHeight, image.mSamples);
             ASSERT_TRUE(written.isOk()) << written.error();
         }
 

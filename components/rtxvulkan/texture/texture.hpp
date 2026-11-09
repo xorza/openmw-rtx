@@ -61,7 +61,7 @@ namespace Rtx
         ///        down for one held to a smaller side.
         /// @param name what a capture calls it. Empty where the build names no objects.
         /// @param regions the caller's scratch, cleared and refilled here with one copy per level.
-        Misc::Result<void, std::string_view> standFile(const Device& device, Batch& batch, TextureArrival& arrival,
+        Result<void, std::string_view> standFile(const Device& device, Batch& batch, TextureArrival& arrival,
             const TextureData& data, std::uint32_t first, std::string_view name,
             std::vector<VkBufferImageCopy>& regions, MemoryUse use);
 
@@ -70,15 +70,15 @@ namespace Rtx
         /// `arrival`'s run, which records every copy ahead of every bake.
         ///
         /// @param format what the description says the bake is, which is its image's format.
-        Misc::Result<void, std::string_view> standBake(const Device& device, TextureArrival& arrival,
-            const Texture& source, TextureFormat format, std::string_view name);
+        Result<void, std::string_view> standBake(const Device& device, TextureArrival& arrival, const Texture& source,
+            TextureFormat format, std::string_view name);
 
         /// Stands a chunk's flattened ground in this one, which is empty, under the neutral map:
         /// `GROUND_COMPOSITE_EXTENT` square in BC7, with a chain to one texel, left undefined. Copied
         /// into by `TextureArray::bakeComposites`, in the placement after it arrives.
         ///
         /// @param format what the description says the composite is, which is its image's format.
-        Misc::Result<void, std::string_view> standComposite(
+        Result<void, std::string_view> standComposite(
             const Device& device, TextureArrival& arrival, TextureFormat format, std::string_view name);
 
         /// Stands one texel of `colour` in this one, which is empty, whole floats so the value is
@@ -317,7 +317,7 @@ namespace Rtx
 
         /// Stands what `texture` is made as in `into`, a file from level `first`, or says why the
         /// device had no room for it.
-        Misc::Result<void, std::string_view> make(Batch& batch, TextureArrival& arrival, Texture& into,
+        Result<void, std::string_view> make(Batch& batch, TextureArrival& arrival, Texture& into,
             const TextureData& texture, std::uint32_t first, std::string_view name);
 
         /// Stands one of `arrived` in its slot: a file from level `first`, a texture of another
@@ -387,7 +387,7 @@ namespace Rtx
 
         /// Makes the blocks and the canvas a composite of `source` is baked on, where either is
         /// missing, or says why the device has no room for one.
-        Misc::Result<void, std::string_view> makeCanvas(TextureSource source);
+        Result<void, std::string_view> makeCanvas(TextureSource source);
 
         /// One per `TextureWrap`, indexed by it: the sampler a slot is bound through is the one its
         /// file's wrap names, for the texture and for its shading map alike.

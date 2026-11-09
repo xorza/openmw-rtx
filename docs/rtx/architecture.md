@@ -346,7 +346,7 @@ source-tree test holds the order.
   back together: the denoiser, the jitter, the noise source, the texture level bias.
 
 Content the renderer cannot use is never an assert and never the end of a frame. Readers answer
-with a `Misc::Result`, and every refusal is reported once to `Rtx::Refusals`. A texture that is
+with a `Result`, and every refusal is reported once to `Rtx::Refusals`. A texture that is
 refused draws as a stand-in, and anything else refused is left out.
 
 ### The content store
@@ -922,6 +922,15 @@ ends crashes where it was found, so the crash report shows it.
   monitor starts in the game on Windows, as Chromium does for a hung renderer. Each started a report at a moment
   and on a thread nothing owned: a Windows game that ended during one freed Crashpad's lock under it, and the
   new thread waited on a loader lock the stall could hold. The monitor only rings, through the shared page.
+- **A file is read whole and written whole, through one primitive** (`Platform::readWhole`, `writeWhole`), as
+  Rust's `std::fs::read` and `write` and Go's `os.ReadFile` and `WriteFile` are; what is appended to is
+  `Platform::AppendFile`'s. A write goes to a temporary in the target's folder and is renamed over it, as Go's
+  `renameio`, LLVM's `writeToOutput` and Chromium's `ImportantFileWriter` write, so a reader, a crash or a full disk
+  finds the old file or the new one. `Durability::Synced` syncs the file before the rename and its folder after it
+  (`MOVEFILE_WRITE_THROUGH` on Windows) for what a person keeps, the settings and a save; `Whole` leaves a cache's
+  entries to their own digest. A failure is an `IoError` of cases a caller tells apart, the system's error kept for
+  the log. Refused: a stream left where a format streams, since every file read here fits in memory; and a file
+  abstraction with seeks, which no reader needs.
 
 ## Harness and tests
 

@@ -52,7 +52,7 @@ namespace Rtx::Testing
         for (VkDeviceSize size = VkDeviceSize{ 16 } << 20; size >= 256; size /= 16)
             while (true)
             {
-                Misc::Result<Buffer, std::string_view> filler = Buffer::tryMake(MemoryUse::Texture, device,
+                Result<Buffer, std::string_view> filler = Buffer::tryMake(MemoryUse::Texture, device,
                     BufferKind::DeviceLocal, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "content filler");
                 if (!filler.isOk())
                     break;

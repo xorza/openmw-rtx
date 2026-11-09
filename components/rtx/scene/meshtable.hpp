@@ -47,7 +47,7 @@ namespace Rtx
         /// two would be written across two allocations that are not next to each other. A vertex
         /// count comes out of a content file, so whoever reads one asks this before `add`, which
         /// asserts it.
-        static Misc::Result<void, std::string> checkFits(const MeshArrays& arrays);
+        static Result<void, std::string> checkFits(const MeshArrays& arrays);
 
         const BlockedValues<osg::Vec3f>& getPositions() const { return mPositions; }
         const BlockedValues<osg::Vec3f>& getNormals() const { return mNormals; }

@@ -71,21 +71,21 @@ namespace Rtx
         /// types that convert into each other is never ambiguous.
         TEST(RtxResultTypeTest, aResultHoldsAValueOrAnErrorAndSaysWhich)
         {
-            const Misc::Result<std::optional<int>, std::string_view> seven = 7;
+            const Result<std::optional<int>, std::string_view> seven = 7;
             ASSERT_TRUE(seven.isOk());
             EXPECT_EQ(seven.value(), std::optional<int>(7));
 
-            const Misc::Result<std::optional<int>, std::string_view> nothing = std::nullopt;
+            const Result<std::optional<int>, std::string_view> nothing = std::nullopt;
             ASSERT_TRUE(nothing.isOk()) << "nothing is a value, and not an error";
             EXPECT_FALSE(nothing.value().has_value());
 
-            const Misc::Result<std::optional<int>, std::string_view> refused = Misc::Err{ "no such number" };
+            const Result<std::optional<int>, std::string_view> refused = Err{ "no such number" };
             ASSERT_FALSE(refused.isOk());
             EXPECT_EQ(refused.error(), "no such number");
 
-            const Misc::Result<std::string_view, std::string_view> same = Misc::Err{ std::string_view("an error") };
+            const Result<std::string_view, std::string_view> same = Err{ std::string_view("an error") };
             EXPECT_FALSE(same.isOk()) << "two types alike, told apart by `Err`";
-            const Misc::Result<std::string_view, std::string_view> value = std::string_view("a value");
+            const Result<std::string_view, std::string_view> value = std::string_view("a value");
             EXPECT_TRUE(value.isOk());
         }
     }

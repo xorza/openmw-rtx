@@ -64,7 +64,7 @@ namespace RtxTool
         constexpr int sBoostedGold = 10'000'000;
     }
 
-    Misc::Result<void, std::string> Stager::stage(const Stop& stop, const SessionRequest& request) const
+    Result<void, std::string> Stager::stage(const Stop& stop, const SessionRequest& request) const
     {
         MWBase::World& world = *MWBase::Environment::get().getWorld();
 
@@ -77,7 +77,7 @@ namespace RtxTool
             const ESM::RefId found = cell.isExterior() ? world.findExteriorPosition(cell.getSpelling(), where)
                                                        : world.findInteriorPosition(cell.getSpelling(), where);
             if (found.empty())
-                return Misc::Err{ std::format(
+                return Err{ std::format(
                     "no {} is called \"{}\"", cell.isExterior() ? "exterior" : "interior", cell.getSpelling()) };
 
             // **Where the eye goes and not where the cell centres, where the stop says.** The
@@ -167,7 +167,7 @@ namespace RtxTool
 
         if (!stop.mStand.mArms.empty())
         {
-            if (const Misc::Result<void, std::string> armed = arm(world, stop.mStand.mArms); !armed.isOk())
+            if (const Result<void, std::string> armed = arm(world, stop.mStand.mArms); !armed.isOk())
                 return armed;
         }
         else
@@ -304,11 +304,11 @@ namespace RtxTool
         player.getClass().getContainerStore(player).add(MWWorld::ContainerStore::sGoldId, sBoostedGold);
     }
 
-    Misc::Result<void, std::string> Stager::arm(MWBase::World& world, const std::string& weapon)
+    Result<void, std::string> Stager::arm(MWBase::World& world, const std::string& weapon)
     {
         const ESM::RefId id = ESM::RefId::stringRefId(weapon);
         if (MWBase::Environment::get().getESMStore()->get<ESM::Weapon>().search(id) == nullptr)
-            return Misc::Err{ "no weapon is called \"" + weapon + '"' };
+            return Err{ "no weapon is called \"" + weapon + '"' };
 
         const MWWorld::Ptr player = world.getPlayerPtr();
         const MWWorld::ContainerStoreIterator given = player.getClass().getContainerStore(player).add(id, 1);

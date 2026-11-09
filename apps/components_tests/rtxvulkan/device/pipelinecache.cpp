@@ -102,7 +102,7 @@ namespace Rtx
                 ASSERT_EQ(saved.size(), 1u) << "the save wrote the cache's file while it stands";
 
                 const std::filesystem::path file = cacheDirectory / saved.front();
-                const Misc::Result<std::vector<std::uint8_t>, std::string_view> read
+                const Result<std::vector<std::uint8_t>, std::string_view> read
                     = PipelineCache::read(file, deviceProperties());
                 ASSERT_TRUE(read.isOk()) << "the saved file reads back: " << read.error();
 
@@ -138,7 +138,7 @@ namespace Rtx
             // Even a cache nothing was compiled into carries its header, which is all this reads.
             ASSERT_GE(blob.size(), std::size_t{ 32 }) << "a blob is at least a header";
 
-            const Misc::Result<void, std::string_view> accepted = PipelineCache::accepts(blob, deviceProperties());
+            const Result<void, std::string_view> accepted = PipelineCache::accepts(blob, deviceProperties());
             EXPECT_TRUE(accepted.isOk()) << "this driver's own blob: " << accepted.error();
         }
 
@@ -230,8 +230,7 @@ namespace Rtx
             ASSERT_EQ(files.size(), 1u) << "the destructor wrote the cache";
             const std::filesystem::path path = cacheDirectory / files.front();
 
-            const Misc::Result<std::vector<std::uint8_t>, std::string_view> whole
-                = PipelineCache::read(path, properties);
+            const Result<std::vector<std::uint8_t>, std::string_view> whole = PipelineCache::read(path, properties);
             ASSERT_TRUE(whole.isOk()) << whole.error();
             EXPECT_EQ(whole.value(), deviceBlob()) << "the body is the driver's blob as it stood";
 
@@ -246,8 +245,7 @@ namespace Rtx
                 const std::filesystem::path copy = scratch / "copy.pipelinecache";
                 std::ofstream(copy, std::ios::binary | std::ios::trunc)
                     .write(file.data(), static_cast<std::streamsize>(file.size()));
-                const Misc::Result<std::vector<std::uint8_t>, std::string_view> read
-                    = PipelineCache::read(copy, properties);
+                const Result<std::vector<std::uint8_t>, std::string_view> read = PipelineCache::read(copy, properties);
                 return read.isOk() ? std::string_view("read") : read.error();
             };
 
@@ -359,7 +357,7 @@ namespace Rtx
             }
 
             // A partial write a process was killed in the middle of, older than every cache.
-            const std::filesystem::path crashed = cacheDirectory / "rtx-crashed.1234.partial.pipelinecache";
+            const std::filesystem::path crashed = cacheDirectory / "rtx-crashed.pipelinecache.1234-0.partial";
             std::ofstream(crashed) << "half";
             std::filesystem::last_write_time(
                 crashed, std::filesystem::file_time_type::clock::now() - std::chrono::hours(24 * 30));

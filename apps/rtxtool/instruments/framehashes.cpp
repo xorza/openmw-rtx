@@ -6,19 +6,21 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
-#include <fstream>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
+#include <components/platform/wholefile.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/common/hashstate.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "digest.hpp"
+#include "reportfile.hpp"
 #include "wholenumber.hpp"
 
 namespace RtxTool
@@ -200,7 +202,7 @@ namespace RtxTool
             std::count_if(mFrames.begin(), mFrames.end(), [](const Frame& held) { return !held.mPictured; }));
     }
 
-    Misc::Result<void, std::string> FrameHashes::write(const std::filesystem::path& file) const
+    Result<void, std::string> FrameHashes::write(const std::filesystem::path& file) const
     {
         Crash::contract(countUnpictured() == 0, "frames were noted and never pictured; the ring was not drained");
 
@@ -208,9 +210,9 @@ namespace RtxTool
         // back: refused here, where the run still fails, and not at the next run's `--against`.
         for (const Frame& held : mFrames)
             if (held.mView.find(',') != std::string::npos)
-                return Misc::Err{ "the view \"" + held.mView + "\" holds a comma, which a hash row cannot" };
+                return Err{ "the view \"" + held.mView + "\" holds a comma, which a hash row cannot" };
 
-        std::ofstream out(file);
+        std::ostringstream out;
         out << headerLine() << '\n';
 
         for (const Frame& held : mFrames)
@@ -230,18 +232,16 @@ namespace RtxTool
         // **Answered, so the run fails and not only says so**: a reference that did not get
         // written and a command that still succeeded is the next run comparing against whatever
         // was at that path before.
-        // Closed and then asked, because a write the system reports late reports it at the close.
-        out.close();
-        if (!out)
-            return Misc::Err{ "could not write " + Files::pathToUnicodeString(file) };
-        return {};
+        return writeReport(file, out.view());
     }
 
     FrameHashes FrameHashes::read(const std::filesystem::path& file)
     {
-        std::ifstream in(file);
-        if (!in)
-            throw Rtx::InputError("could not read " + Files::pathToUnicodeString(file));
+        std::string text;
+        if (const Result<void, Platform::IoError> read = Platform::readWhole(file, text); !read.isOk())
+            throw Rtx::InputError(
+                "could not read " + Files::pathToUnicodeString(file) + ": " + read.error().mCode.message());
+        std::istringstream in(std::move(text));
 
         const auto fail = [&](const std::string& line) {
             return Rtx::InputError("cannot read " + Files::pathToUnicodeString(file) + ": " + line);

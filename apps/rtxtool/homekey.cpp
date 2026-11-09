@@ -4,8 +4,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <format>
-#include <fstream>
-#include <ios>
 #include <ostream>
 #include <string>
 #include <system_error>
@@ -23,6 +21,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
+#include <components/platform/appendfile.hpp>
 #include <components/platform/thread.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
@@ -66,10 +65,10 @@ namespace RtxTool
 
             if (!mKeys.empty())
             {
-                std::ofstream keys(mKeys, std::ios::app);
-                keys << '\n' << describeKey(*left);
-                keys.flush();
-                if (keys)
+                // Appended, so a key a film's earlier stops wrote stays (`Platform::AppendFile`).
+                const Platform::AppendFile keys = Platform::AppendFile::open(mKeys, false);
+                keys.write('\n' + describeKey(*left));
+                if (keys.isOpen())
                     Log(Debug::Info) << "Ray tracing session: a film's key appended to "
                                      << Files::pathToUnicodeString(mKeys);
                 else
@@ -175,8 +174,7 @@ namespace RtxTool
         for (std::uint32_t number = 1; path.empty() || std::filesystem::exists(path, error); ++number)
             path = mPictures / std::format("{}-{}.png", room.mId, number);
 
-        const Misc::Result<void, std::string> written
-            = writePng(path, room.mWidth, room.mHeight, room.mPixels, room.mNote);
+        const Result<void, std::string> written = writePng(path, room.mWidth, room.mHeight, room.mPixels, room.mNote);
         room.mSaid = written.isOk() ? std::format("# picture {}\n", Files::pathToUnicodeString(path))
                                     : std::format("# picture not written: {}\n", written.error());
     }

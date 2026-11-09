@@ -82,7 +82,7 @@ namespace Rtx
 
         /// The same, for an image something stands in for: why there is none where the device has
         /// no room for it as `use` — `MemoryAllocator::tryTake`.
-        static Misc::Result<Image, std::string_view> tryMake(
+        static Result<Image, std::string_view> tryMake(
             MemoryUse use, const Device& device, const ImageDescription& description, std::string_view name);
 
         /// Movable, because the channels of a g-buffer are built by a loop over a table rather

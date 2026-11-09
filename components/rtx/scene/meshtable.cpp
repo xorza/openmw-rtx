@@ -47,15 +47,15 @@ namespace Rtx
         }
     }
 
-    Misc::Result<void, std::string> MeshTable::checkFits(const MeshArrays& arrays)
+    Result<void, std::string> MeshTable::checkFits(const MeshArrays& arrays)
     {
         const std::span<const osg::Vec3f> positions = arrays.mPositions;
         const std::span<const std::uint32_t> indices = arrays.mIndices;
 
         if (positions.size() > sVertexBlock || indices.size() > sIndexBlock)
-            return Misc::Err{ "its " + std::to_string(positions.size()) + " vertices and "
-                + std::to_string(indices.size()) + " indices are past the " + std::to_string(sVertexBlock) + " and "
-                + std::to_string(sIndexBlock) + " one block of the shared buffers holds" };
+            return Err{ "its " + std::to_string(positions.size()) + " vertices and " + std::to_string(indices.size())
+                + " indices are past the " + std::to_string(sVertexBlock) + " and " + std::to_string(sIndexBlock)
+                + " one block of the shared buffers holds" };
 
         return {};
     }

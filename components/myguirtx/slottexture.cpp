@@ -130,8 +130,7 @@ namespace MyGUIRtx
             // packed ones and draws them white. RGBA8, rows tight, as the slot holds them.
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
-            const Misc::Result<Rtx::TextureData, std::string> described
-                = Rtx::describeFinestLevel(image, levels, texels);
+            const Result<Rtx::TextureData, std::string> described = Rtx::describeFinestLevel(image, levels, texels);
             if (described.isOk() && described.value().mBytes.size() >= bytes)
                 std::memcpy(into, described.value().mBytes.data(), bytes);
             else

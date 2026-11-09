@@ -26,10 +26,10 @@ namespace Rtx
         /// How wide `size` draws `moon`. `Fallback::Map` answers a key the configuration leaves out,
         /// and one that does not parse, with nought, and the game draws a quad of no extent for
         /// that; an error for a size below nought, or one that is not finite.
-        Misc::Result<float, std::string> radiusOf(Moon moon, float size)
+        Result<float, std::string> radiusOf(Moon moon, float size)
         {
             if (!(size >= 0.0f) || !std::isfinite(size))
-                return Misc::Err{ "Moons_" + std::string(sMoonNames.name(moon)) + "_Size is " + std::to_string(size)
+                return Err{ "Moons_" + std::string(sMoonNames.name(moon)) + "_Size is " + std::to_string(size)
                     + ", which is no size" };
 
             return moonAngularRadius(size);
@@ -41,7 +41,7 @@ namespace Rtx
     {
         // A moon of a size that is no size is refused and not drawn.
         const auto drawnWidth = [&](Moon moon, float size) {
-            const Misc::Result<float, std::string> radius = radiusOf(moon, size);
+            const Result<float, std::string> radius = radiusOf(moon, size);
             if (radius.isOk())
                 return radius.value();
 
@@ -62,7 +62,7 @@ namespace Rtx
             face.mRadius = drawnWidth(moon, sizes[at]);
 
             const VFS::Path::NormalizedView path = moonFaceOf(moon);
-            const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image = openImage(images, path);
+            const Result<osg::ref_ptr<const osg::Image>, std::string> image = openImage(images, path);
             TextureHold held = takeSkySheet(scene, path, image, TextureWrap::Clamp);
             face.mSlot = held.get();
             if (face.mSlot == sNoIndex)

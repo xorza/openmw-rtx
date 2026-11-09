@@ -97,7 +97,7 @@ namespace RtxTool
         /// Writes every row, or says which path it could not write. Dies where a row has no
         /// picture: a file with a hash of nothing in it would compare as a frame that moved, and
         /// the ring is what was not drained.
-        Misc::Result<void, std::string> write(const std::filesystem::path& file) const;
+        Result<void, std::string> write(const std::filesystem::path& file) const;
 
         std::size_t frameCount() const { return mFrames.size(); }
 

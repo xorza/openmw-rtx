@@ -152,31 +152,31 @@ namespace Crash
         return sInstalled.load(std::memory_order_acquire);
     }
 
-    Misc::Result<Installed, std::string_view> install(const Settings& settings)
+    Result<Installed, std::string_view> install(const Settings& settings)
     {
         static std::atomic<bool> tried{ false };
         if (tried.exchange(true))
-            return Misc::Err{ "install was called before, and a process installs once" };
+            return Err{ "install was called before, and a process installs once" };
 
         // **The checks that need no page first**, so a refusal has nothing to undo.
         // The monitor is this executable, started again in its own mode.
         const std::optional<std::filesystem::path> self = Platform::Process::executable();
         if (!self.has_value())
-            return Misc::Err{ "the system would not say which file this process runs" };
+            return Err{ "the system would not say which file this process runs" };
 
         // **The whole path, made here**: the monitor makes the last folder of it and no parent, and
         // on a fresh box the game starts before anything made the user data folder above it.
         std::error_code unmade;
         std::filesystem::create_directories(settings.mReportFolder, unmade);
         if (unmade)
-            return Misc::Err{ "its report folder could not be made" };
+            return Err{ "its report folder could not be made" };
 
         // A local until the monitor runs on it: a refusal from here on unmaps and unlinks it with
         // the local, and nothing reads a page with no monitor behind it.
         const std::uint32_t process = Platform::Process::currentId();
         SharedPage page = SharedPage::create(process);
         if (page.get() == nullptr)
-            return Misc::Err{ "the page it shares with its monitor could not be made" };
+            return Err{ "the page it shares with its monitor could not be made" };
 
         // Everything the monitor needs to know of this process, on its command line: it reads the
         // notes from here at a crash, as it reads the stacks, and the page by this process's id.
@@ -208,14 +208,14 @@ namespace Crash
         {
             case MonitorAnswer::Watching:
                 if (!started)
-                    return Misc::Err{ "its monitor did not start" };
+                    return Err{ "its monitor did not start" };
                 break;
             case MonitorAnswer::Unanswered:
-                return Misc::Err{ "its monitor did not start" };
+                return Err{ "its monitor did not start" };
             case MonitorAnswer::DatabaseUnopened:
-                return Misc::Err{ "its report folder could not be opened" };
+                return Err{ "its report folder could not be opened" };
             case MonitorAnswer::ReportUnwritable:
-                return Misc::Err{ "its report folder takes no new report" };
+                return Err{ "its report folder takes no new report" };
         }
 
         SharedPage* const kept = new SharedPage(std::move(page));

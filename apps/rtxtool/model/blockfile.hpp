@@ -65,14 +65,14 @@ namespace RtxTool
 
     /// Whether `hour` is an hour of the day, and why not where it is not: the rule a view file and
     /// the command line both refuse by, so a sky the line names is held to what a view's is.
-    Misc::Result<void, std::string_view> checkHour(float hour);
+    Result<void, std::string_view> checkHour(float hour);
 
     /// Whether `day` is a day of the game — days from the first, and never before it — and why not
     /// where it is not: the rule a view file and the command line both refuse by.
-    Misc::Result<void, std::string_view> checkDay(int day);
+    Result<void, std::string_view> checkDay(int day);
 
     /// Whether `weather` is one of the weathers the content files name, and why not where it is not.
-    Misc::Result<void, std::string_view> checkWeather(std::string_view weather);
+    Result<void, std::string_view> checkWeather(std::string_view weather);
 
     /// The ten weathers, as the content files spell them, comma separated: what a refusal or a
     /// help line lists.

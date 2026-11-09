@@ -303,7 +303,7 @@ namespace Rtx
             Resource::BgsmFileManager materials(&vfs, 0);
             Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, 0);
 
-            const Misc::Result<CloudShell, std::string> shell
+            const Result<CloudShell, std::string> shell
                 = readCloudShell(scenes, VFS::Path::NormalizedView("meshes/sky_clouds_01.nif"));
             ASSERT_FALSE(shell.isOk()) << "a missing cloud mesh was read as no deck";
             EXPECT_EQ(shell.error(), "the archives hold no such file");

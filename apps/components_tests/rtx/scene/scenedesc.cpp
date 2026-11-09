@@ -2274,7 +2274,7 @@ namespace Rtx
             const std::vector<osg::Vec3f> tooMany(MeshTable::sVertexBlock + 1);
             const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
 
-            const Misc::Result<void, std::string> pastABlock
+            const Result<void, std::string> pastABlock
                 = MeshTable::checkFits(MeshArrays{ .mPositions = tooMany, .mIndices = triangle });
             ASSERT_FALSE(pastABlock.isOk());
             EXPECT_EQ(pastABlock.error(),
@@ -2291,7 +2291,7 @@ namespace Rtx
 
             // A deforming mesh is asked the same of the deformer that poses it: a rig or a set of
             // targets of another length than its mesh is refused by name, before any row is made.
-            const Misc::Result<void, std::string> shortRig
+            const Result<void, std::string> shortRig
                 = SceneDesc::checkPoses(3, MeshArrays{ .mPositions = Testing::sUnitQuad });
             ASSERT_FALSE(shortRig.isOk()) << "a rig of three vertices on a quad";
             EXPECT_EQ(shortRig.error(), "it has 4 vertices on a rig or morph of 3");

@@ -252,7 +252,7 @@ namespace Rtx
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->setFileName("textures/tx_odd.dds");
             image->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
-            const Misc::Result<Rtx::TextureData, std::string> odd
+            const Result<Rtx::TextureData, std::string> odd
                 = describeImage(*image, Rtx::TextureEncoding::Colour, levels, texels);
             ASSERT_FALSE(odd.isOk());
             EXPECT_EQ(odd.error(), "its format is an unnamed pixel format (6407), which this renderer does not upload");
@@ -265,7 +265,7 @@ namespace Rtx
                 osg::ref_ptr<osg::Image> channels = new osg::Image;
                 channels->setFileName("textures/tx_b_n_argonian_m_n.dds");
                 channels->allocateImage(4, 4, 1, spelling, GL_UNSIGNED_BYTE);
-                const Misc::Result<Rtx::TextureData, std::string> asColour
+                const Result<Rtx::TextureData, std::string> asColour
                     = describeImage(*channels, Rtx::TextureEncoding::Colour, levels, texels);
                 ASSERT_FALSE(asColour.isOk()) << name;
                 EXPECT_EQ(asColour.error(),
@@ -282,7 +282,7 @@ namespace Rtx
             osg::ref_ptr<osg::Image> empty = new osg::Image;
             empty->setFileName("textures/tx_empty.dds");
             empty->setImage(0, 4, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, nullptr, osg::Image::NO_DELETE);
-            const Misc::Result<Rtx::TextureData, std::string> unsized
+            const Result<Rtx::TextureData, std::string> unsized
                 = describeImage(*empty, Rtx::TextureEncoding::Colour, levels, texels);
             ASSERT_FALSE(unsized.isOk()) << "an image of no size was described";
             EXPECT_EQ(unsized.error(), "it is 0 by 4 texels, which no device holds");
@@ -306,7 +306,7 @@ namespace Rtx
 
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
-            const Misc::Result<Rtx::TextureData, std::string> vast
+            const Result<Rtx::TextureData, std::string> vast
                 = describeImage(*image, Rtx::TextureEncoding::Colour, levels, texels);
             ASSERT_FALSE(vast.isOk()) << "a copy past a level's offset was described";
             EXPECT_EQ(vast.error(),
@@ -699,7 +699,7 @@ namespace Rtx
             padded->setFileName("textures/tx_padded.dds");
             padded->setImage(3, 1, 1, GL_RGBA, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, new unsigned char[8],
                 osg::Image::USE_NEW_DELETE, 4);
-            const Misc::Result<Rtx::TextureData, std::string> rows
+            const Result<Rtx::TextureData, std::string> rows
                 = describeImage(*padded, Rtx::TextureEncoding::Colour, levels, texels);
             ASSERT_FALSE(rows.isOk());
             EXPECT_EQ(rows.error(), "its level 0 is 8 bytes at byte 0, where A1R5G5B5 at 3 by 1 is 6 at byte 0");
@@ -714,7 +714,7 @@ namespace Rtx
             shifted->setImage(
                 2, 2, 1, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, new unsigned char[24], osg::Image::USE_NEW_DELETE);
             shifted->setMipmapLevels(osg::Image::MipmapDataType{ 20 });
-            const Misc::Result<Rtx::TextureData, std::string> offset
+            const Result<Rtx::TextureData, std::string> offset
                 = describeImage(*shifted, Rtx::TextureEncoding::Colour, levels, texels);
             ASSERT_FALSE(offset.isOk());
             EXPECT_EQ(offset.error(), "its level 1 is 4 bytes at byte 20, where RGBA8 at 1 by 1 is 4 at byte 16");

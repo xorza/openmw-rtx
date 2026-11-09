@@ -5,6 +5,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/strings/algorithm.hpp>
+#include <components/platform/wholefile.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -334,10 +335,11 @@ void Settings::SettingsFileParser::saveSettingsFile(
     if (changed)
     {
         Log(Debug::Info) << "Updating settings file: " << file;
-        std::ofstream ofstream;
-        ofstream.open(file);
-        ofstream << ostream.rdbuf();
-        ofstream.close();
+        // Written whole and synced, so a crash or a full disk leaves the old file and never a part.
+        const Result<void, Platform::IoError> saved
+            = Platform::writeWhole(file, ostream.view(), Platform::Durability::Synced);
+        if (!saved.isOk())
+            Log(Debug::Error) << "Failed to write settings file " << file << ": " << saved.error().mCode.message();
     }
 }
 

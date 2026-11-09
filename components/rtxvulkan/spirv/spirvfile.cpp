@@ -1,12 +1,12 @@
 #include "spirvfile.hpp"
 
 #include <cstddef>
-#include <fstream>
-#include <ios>
+#include <cstring>
 #include <string>
 
 #include <spirv/unified1/spirv.hpp>
 
+#include <components/platform/wholefile.hpp>
 #include <components/rtx/common/error.hpp>
 
 namespace Rtx
@@ -19,20 +19,16 @@ namespace Rtx
 
     std::vector<std::uint32_t> readSpirv(const std::filesystem::path& path)
     {
-        std::ifstream stream(path, std::ios::binary | std::ios::ate);
-        if (!stream)
-            throw InputError("cannot open " + spelledPath(path));
+        std::vector<std::byte> bytes;
+        if (const Result<void, Platform::IoError> read = Platform::readWhole(path, bytes); !read.isOk())
+            throw InputError("cannot read " + spelledPath(path) + ": " + read.error().mCode.message());
 
-        const std::streamsize size = stream.tellg();
-        if (size <= 0 || size % 4 != 0)
-            throw InputError(spelledPath(path) + " is " + std::to_string(size)
+        if (bytes.empty() || bytes.size() % 4 != 0)
+            throw InputError(spelledPath(path) + " is " + std::to_string(bytes.size())
                 + " bytes, which is not a whole number of SPIR-V words");
 
-        std::vector<std::uint32_t> words(static_cast<std::size_t>(size) / 4);
-        stream.seekg(0);
-        stream.read(reinterpret_cast<char*>(words.data()), size);
-        if (!stream)
-            throw InputError("cannot read " + spelledPath(path));
+        std::vector<std::uint32_t> words(bytes.size() / 4);
+        std::memcpy(words.data(), bytes.data(), bytes.size());
 
         if (words.front() != spv::MagicNumber)
             throw InputError(spelledPath(path) + " does not begin with the SPIR-V magic number");

@@ -101,7 +101,7 @@ namespace RtxTool
         bool writeAndKeep(RunRecord& record, PictureShelf* const shelf, const std::filesystem::path& file,
             const std::uint32_t width, const std::uint32_t height, const std::span<const Sample> samples)
         {
-            if (const Misc::Result<void, std::string> written = writePng(file, width, height, samples); !written.isOk())
+            if (const Result<void, std::string> written = writePng(file, width, height, samples); !written.isOk())
             {
                 record.note(written.error() + "\n");
                 record.fail();
@@ -215,7 +215,7 @@ namespace RtxTool
     void StopWriter::writeFrameTimes(
         const Writing& into, const std::filesystem::path& file, const FrameSamples& samples)
     {
-        const Misc::Result<void, std::string> written = RtxTool::writeFrameTimes(file, samples);
+        const Result<void, std::string> written = RtxTool::writeFrameTimes(file, samples);
         if (!written.isOk())
         {
             into.mRecord.note(written.error() + "\n");

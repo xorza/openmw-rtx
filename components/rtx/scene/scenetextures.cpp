@@ -126,7 +126,7 @@ namespace Rtx
                 kept.mFormat = row.mFormat;
             }
             else if (row.mKind == TextureKind::File)
-                kept.mImage = Misc::Err{ std::string(sNoImage) };
+                kept.mImage = Err{ std::string(sNoImage) };
             else if (row.mKind == TextureKind::SpriteLight)
             {
                 // Made on the device from the sprite texture's own slot, which the emitter holds
@@ -171,7 +171,7 @@ namespace Rtx
         {
             const TextureRow& row = scene.textures().getRows()[kept.mSlot];
 
-            const Misc::Result<TextureData, std::string> described = describeKept(kept);
+            const Result<TextureData, std::string> described = describeKept(kept);
             TextureData data;
             if (described.isOk())
                 data = described.value();
@@ -191,13 +191,13 @@ namespace Rtx
         Crash::contract(mTexels.capacity() == reservedTexels, "the laid texels grew while descriptions spanned them");
     }
 
-    Misc::Result<TextureData, std::string> SceneTextures::describeKept(const Kept& kept)
+    Result<TextureData, std::string> SceneTextures::describeKept(const Kept& kept)
     {
         if (kept.mStandsIn)
             return describeStandIn();
 
         if (!kept.mImage.isOk())
-            return Misc::Err{ kept.mImage.error() };
+            return Err{ kept.mImage.error() };
 
         if (const osg::Image* image = kept.mImage.value().get())
         {
@@ -217,7 +217,7 @@ namespace Rtx
                     .mName = SceneUtil::EmbeddedImage::nameOf(*image) };
             }
 
-            const Misc::Result<TextureData, std::string> read
+            const Result<TextureData, std::string> read
                 = describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
             if (!read.isOk() || kept.mMade == nullptr)
                 return read;
@@ -242,7 +242,7 @@ namespace Rtx
         {
             // A source the table no longer holds is a bake of nothing.
             if (*kept.mBakedFrom == sNoIndex)
-                return Misc::Err{ "the texture it bakes is no longer held" };
+                return Err{ "the texture it bakes is no longer held" };
 
             return TextureData{
                 .mSource = TextureSource::SpriteBake,

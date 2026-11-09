@@ -1,14 +1,13 @@
 #include <cstdint>
 #include <exception>
 #include <filesystem>
-#include <fstream>
-#include <ios>
 #include <iostream>
+#include <span>
 #include <stdexcept>
 #include <string_view>
-#include <system_error>
 #include <vector>
 
+#include <components/platform/wholefile.hpp>
 #include <components/rtx/common/error.hpp>
 
 #include "spirvfile.hpp"
@@ -21,24 +20,14 @@
 
 namespace
 {
-    /// Written beside the module and moved over it, so a build that stops halfway leaves the
-    /// module as it was or as rewritten and never part of either.
+    /// Written whole (`Platform::writeWhole`), so a build that stops halfway leaves the module as it
+    /// was or as rewritten and never part of either.
     void writeWords(const std::filesystem::path& path, const std::vector<std::uint32_t>& words)
     {
-        std::filesystem::path written = path;
-        written += ".pinning";
-        {
-            std::ofstream stream(written, std::ios::binary | std::ios::trunc);
-            stream.write(reinterpret_cast<const char*>(words.data()),
-                static_cast<std::streamsize>(words.size() * sizeof(std::uint32_t)));
-            if (!stream)
-                throw std::runtime_error("could not be written");
-        }
-
-        std::error_code failed;
-        std::filesystem::rename(written, path, failed);
-        if (failed)
-            throw std::runtime_error("could not be replaced: " + failed.message());
+        const Result<void, Platform::IoError> written
+            = Platform::writeWhole(path, std::as_bytes(std::span(words)), Platform::Durability::Whole);
+        if (!written.isOk())
+            throw std::runtime_error("could not be written: " + written.error().mCode.message());
     }
 }
 

@@ -6,8 +6,6 @@
 #include <cstdint>
 #include <exception>
 #include <filesystem>
-#include <fstream>
-#include <ios>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -20,7 +18,7 @@
 
 #include <components/files/conversion.hpp>
 #include <components/platform/folder.hpp>
-#include <components/platform/process.hpp>
+#include <components/platform/wholefile.hpp>
 
 namespace Crash
 {
@@ -74,7 +72,7 @@ namespace Crash
         }
 
         /// Where a local header keeps the CRC, which the sizes follow: known once the data is written.
-        constexpr std::streamoff sCrcAt = 14;
+        constexpr std::size_t sCrcAt = 14;
 
         void put16(std::string& into, std::uint16_t value)
         {
@@ -134,91 +132,65 @@ namespace Crash
         };
 
         /// Deflates `file` into `archive` after its local header, and fills the rest of `entry`.
-        Misc::Result<void, std::string> writeData(std::ofstream& archive, const PackageFile& file, Entry& entry,
-            std::vector<char>& in, std::vector<char>& out)
+        Result<void, std::string> writeData(std::string& archive, const PackageFile& file, Entry& entry,
+            std::vector<std::byte>& in, std::vector<char>& out)
         {
-            // **The size first, and every byte of it read**: a stream ends a read that failed as it ends
-            // one at the end of the file, and a short entry must not pass as a whole one.
-            std::error_code error;
-            const std::uintmax_t expected = std::filesystem::file_size(file.mSource, error);
-            if (error)
-                return Misc::Err{ Files::pathToUnicodeString(file.mSource) + " could not be read: " + error.message() };
-            if (expected > sLargest)
-                return Misc::Err{ file.mName + " is 4 GiB or more, which a zip without Zip64 cannot hold" };
-
-            std::ifstream source(file.mSource, std::ios::binary);
-            if (!source)
-                return Misc::Err{ Files::pathToUnicodeString(file.mSource) + " could not be read" };
+            // **Read whole, to its end** (`Platform::readWhole`): what the entry holds is what the
+            // file held, and a read that failed is no short entry passed as a whole one.
+            if (const Result<void, Platform::IoError> read = Platform::readWhole(file.mSource, in); !read.isOk())
+                return Err{ Files::pathToUnicodeString(file.mSource)
+                    + " could not be read: " + read.error().mCode.message() };
+            if (in.size() > sLargest)
+                return Err{ file.mName + " is 4 GiB or more, which a zip without Zip64 cannot hold" };
 
             Deflater deflater;
             if (!deflater.mStarted)
-                return Misc::Err{ "zlib would not start a deflate stream" };
+                return Err{ "zlib would not start a deflate stream" };
             z_stream& stream = deflater.mStream;
 
-            uLong crc = crc32(0, nullptr, 0);
-            std::uint64_t size = 0;
-            std::uint64_t compressed = 0;
+            const uLong crc
+                = crc32(crc32(0, nullptr, 0), reinterpret_cast<const Bytef*>(in.data()), static_cast<uInt>(in.size()));
+
+            // The whole input at once, and the output taken a buffer at a time until deflate leaves
+            // room in it: it has then ended the stream.
+            const std::size_t start = archive.size();
+            stream.next_in = reinterpret_cast<Bytef*>(in.data());
+            stream.avail_in = static_cast<uInt>(in.size());
             int result = Z_OK;
-            for (;;)
+            do
             {
-                source.read(in.data(), static_cast<std::streamsize>(in.size()));
-                const auto got = static_cast<uInt>(source.gcount());
-                size += got;
-                if (source.bad())
-                    return Misc::Err{ Files::pathToUnicodeString(file.mSource) + " could not be read to its end" };
-                if (size > expected)
-                    return Misc::Err{ Files::pathToUnicodeString(file.mSource) + " grew while it was read" };
-                crc = crc32(crc, reinterpret_cast<const Bytef*>(in.data()), got);
+                stream.next_out = reinterpret_cast<Bytef*>(out.data());
+                stream.avail_out = static_cast<uInt>(out.size());
+                result = deflate(&stream, Z_FINISH);
+                archive.append(out.data(), out.size() - stream.avail_out);
+            } while (stream.avail_out == 0);
 
-                const int flush = source.eof() ? Z_FINISH : Z_NO_FLUSH;
-                stream.next_in = reinterpret_cast<Bytef*>(in.data());
-                stream.avail_in = got;
-                // Until deflate leaves room in the output: it has then taken all the input, and, at
-                // the finish, ended the stream.
-                do
-                {
-                    stream.next_out = reinterpret_cast<Bytef*>(out.data());
-                    stream.avail_out = static_cast<uInt>(out.size());
-                    result = deflate(&stream, flush);
-                    const std::size_t made = out.size() - stream.avail_out;
-                    archive.write(out.data(), static_cast<std::streamsize>(made));
-                    compressed += made;
-                } while (stream.avail_out == 0);
-
-                if (flush == Z_FINISH)
-                    break;
-            }
-
-            if (size != expected)
-                return Misc::Err{ Files::pathToUnicodeString(file.mSource) + " could not be read to its end" };
             if (result != Z_STREAM_END)
-                return Misc::Err{ "zlib did not end the deflate stream of " + file.mName };
-            if (!archive)
-                return Misc::Err{ "the package could not be written: the disk refused " + file.mName };
+                return Err{ "zlib did not end the deflate stream of " + file.mName };
+            const std::uint64_t compressed = archive.size() - start;
             if (compressed > sLargest)
-                return Misc::Err{ file.mName + " deflates to 4 GiB or more, which a zip without Zip64 cannot hold" };
+                return Err{ file.mName + " deflates to 4 GiB or more, which a zip without Zip64 cannot hold" };
 
             entry.mCrc = static_cast<std::uint32_t>(crc);
             entry.mCompressed = static_cast<std::uint32_t>(compressed);
-            entry.mSize = static_cast<std::uint32_t>(size);
+            entry.mSize = static_cast<std::uint32_t>(in.size());
             return {};
         }
 
-        Misc::Result<void, std::string> writeArchive(const std::filesystem::path& part,
+        /// The whole package, made in memory: a crash's dump and logs are megabytes, and a package
+        /// written whole is one no reader finds half made.
+        Result<std::string, std::string> makeArchive(
             std::span<const PackageFile> files, std::uint32_t stamp, std::vector<Entry>& entries)
         {
-            std::ofstream archive(part, std::ios::binary | std::ios::trunc);
-            if (!archive)
-                return Misc::Err{ Files::pathToUnicodeString(part) + " could not be made" };
-
-            std::vector<char> in(1 << 16);
+            std::string archive;
+            std::vector<std::byte> in;
             std::vector<char> out(1 << 16);
             std::string header;
             for (const PackageFile& file : files)
             {
-                const std::streamoff offset = archive.tellp();
-                if (offset < 0 || static_cast<std::uint64_t>(offset) > sLargest)
-                    return Misc::Err{ "the package reached 4 GiB, which a zip without Zip64 cannot hold" };
+                const std::size_t offset = archive.size();
+                if (offset > sLargest)
+                    return Err{ std::string("the package reached 4 GiB, which a zip without Zip64 cannot hold") };
 
                 Entry& entry = entries.emplace_back();
                 entry.mFile = &file;
@@ -226,34 +198,29 @@ namespace Crash
                 entry.mOffset = static_cast<std::uint32_t>(offset);
 
                 // The CRC and the sizes as noughts for now, written over once the data is written.
-                header.clear();
-                put32(header, 0x04034b50);
-                put16(header, sVersion);
-                put16(header, entry.mFlags);
-                put16(header, sDeflated);
-                put32(header, stamp);
-                put32(header, 0);
-                put32(header, 0);
-                put32(header, 0);
-                put16(header, static_cast<std::uint16_t>(file.mName.size()));
-                put16(header, 0);
-                header += file.mName;
-                archive.write(header.data(), static_cast<std::streamsize>(header.size()));
+                put32(archive, 0x04034b50);
+                put16(archive, sVersion);
+                put16(archive, entry.mFlags);
+                put16(archive, sDeflated);
+                put32(archive, stamp);
+                put32(archive, 0);
+                put32(archive, 0);
+                put32(archive, 0);
+                put16(archive, static_cast<std::uint16_t>(file.mName.size()));
+                put16(archive, 0);
+                archive += file.mName;
 
-                if (Misc::Result<void, std::string> written = writeData(archive, file, entry, in, out); !written.isOk())
-                    return written;
+                if (Result<void, std::string> written = writeData(archive, file, entry, in, out); !written.isOk())
+                    return Err{ written.error() };
 
                 header.clear();
                 put32(header, entry.mCrc);
                 put32(header, entry.mCompressed);
                 put32(header, entry.mSize);
-                const std::streamoff end = archive.tellp();
-                archive.seekp(offset + sCrcAt);
-                archive.write(header.data(), static_cast<std::streamsize>(header.size()));
-                archive.seekp(end);
+                archive.replace(offset + sCrcAt, header.size(), header);
             }
 
-            const std::streamoff directory = archive.tellp();
+            const std::size_t directory = archive.size();
             header.clear();
             for (const Entry& entry : entries)
             {
@@ -275,8 +242,8 @@ namespace Crash
                 put32(header, entry.mOffset);
                 header += entry.mFile->mName;
             }
-            if (directory < 0 || static_cast<std::uint64_t>(directory) + header.size() > sLargest)
-                return Misc::Err{ "the package reached 4 GiB, which a zip without Zip64 cannot hold" };
+            if (static_cast<std::uint64_t>(directory) + header.size() > sLargest)
+                return Err{ std::string("the package reached 4 GiB, which a zip without Zip64 cannot hold") };
 
             const auto directorySize = static_cast<std::uint32_t>(header.size());
             put32(header, 0x06054b50);
@@ -287,40 +254,30 @@ namespace Crash
             put32(header, directorySize);
             put32(header, static_cast<std::uint32_t>(directory));
             put16(header, 0);
-            archive.write(header.data(), static_cast<std::streamsize>(header.size()));
-
-            archive.close();
-            if (!archive)
-                return Misc::Err{ Files::pathToUnicodeString(part) + " could not be written" };
-            return {};
+            archive += header;
+            return archive;
         }
     }
 
-    Misc::Result<void, std::string> writePackage(
+    Result<void, std::string> writePackage(
         const std::filesystem::path& zip, std::span<const PackageFile> files, const std::tm& local)
     {
         // A zip without Zip64 counts its entries in two bytes.
         if (files.size() > 0xFFFF)
-            return Misc::Err{ "a zip without Zip64 holds 65535 files at most" };
-
-        // Named after the process too, so two monitors that chose one name never write one file.
-        std::filesystem::path part = zip;
-        part += "." + std::to_string(Platform::Process::currentId()) + ".part";
+            return Err{ "a zip without Zip64 holds 65535 files at most" };
 
         std::vector<Entry> entries;
         entries.reserve(files.size());
-        Misc::Result<void, std::string> written = writeArchive(part, files, dosTime(local), entries);
+        const Result<std::string, std::string> archive = makeArchive(files, dosTime(local), entries);
+        if (!archive.isOk())
+            return Err{ archive.error() };
 
-        std::error_code error;
-        if (written.isOk())
-        {
-            std::filesystem::rename(part, zip, error);
-            if (!error)
-                return {};
-            written = Misc::Err{ Files::pathToUnicodeString(zip) + " could not be put in place: " + error.message() };
-        }
-        std::filesystem::remove(part, error);
-        return written;
+        // **Synced**: a package is what a person sends, and the monitor ends after it is written.
+        if (const Result<void, Platform::IoError> written
+            = Platform::writeWhole(zip, archive.value(), Platform::Durability::Synced);
+            !written.isOk())
+            return Err{ Files::pathToUnicodeString(zip) + " could not be written: " + written.error().mCode.message() };
+        return {};
     }
 
     namespace
@@ -421,7 +378,7 @@ namespace Crash
             std::error_code error;
             const std::filesystem::path absolute = std::filesystem::absolute(folder, error).lexically_normal();
             const std::filesystem::path zip = freePackagePath(error ? folder : absolute, application, local);
-            if (const Misc::Result<void, std::string> written = writePackage(zip, files, local); written.isOk())
+            if (const Result<void, std::string> written = writePackage(zip, files, local); written.isOk())
             {
                 package.mZip = zip;
                 pruneOldPackages(zip.parent_path(), application);

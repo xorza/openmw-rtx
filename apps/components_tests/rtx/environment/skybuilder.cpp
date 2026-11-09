@@ -621,7 +621,7 @@ namespace Rtx
             SceneDesc scene;
             ThreadContent thread;
             std::vector<TextureHold> holds;
-            const Misc::Result<NightSky, std::string> sky = readNightSky(
+            const Result<NightSky, std::string> sky = readNightSky(
                 scene, scenes, dome, VFS::Path::NormalizedView("meshes/sky_night_01.nif"), thread, holds);
             ASSERT_TRUE(sky.isOk()) << sky.error();
 
@@ -656,7 +656,7 @@ namespace Rtx
             ThreadContent thread;
             std::vector<TextureHold> holds;
 
-            const Misc::Result<NightSky, std::string> night
+            const Result<NightSky, std::string> night
                 = readNightSky(scene, scenes, VFS::Path::NormalizedView("meshes/sky_night_02.nif"),
                     VFS::Path::NormalizedView("meshes/sky_night_01.nif"), thread, holds);
             ASSERT_FALSE(night.isOk()) << "a missing star dome was read as no stars";

@@ -30,8 +30,7 @@ namespace Rtx
         mWrap = input.mWrap;
         mLevels.clear();
         mTexels.clear();
-        const Misc::Result<TextureData, std::string> read
-            = describeImage(input.mImage, input.mEncoding, mLevels, mTexels);
+        const Result<TextureData, std::string> read = describeImage(input.mImage, input.mEncoding, mLevels, mTexels);
         mFile = read.isOk() ? std::optional(read.value()) : std::nullopt;
         if (mFile.has_value())
             mFile->mWrap = input.mWrap;

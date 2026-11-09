@@ -8,7 +8,7 @@
 namespace Rtx
 {
     TextureHold takeSkySheet(SceneDesc& scene, const VFS::Path::NormalizedView path,
-        const Misc::Result<osg::ref_ptr<const osg::Image>, std::string>& image, const TextureWrap wrap)
+        const Result<osg::ref_ptr<const osg::Image>, std::string>& image, const TextureWrap wrap)
     {
         if (!image.isOk())
         {
@@ -16,7 +16,7 @@ namespace Rtx
             return TextureHold{};
         }
 
-        if (const Misc::Result<void, std::string> uploadable = checkUploadable(*image.value()); !uploadable.isOk())
+        if (const Result<void, std::string> uploadable = checkUploadable(*image.value()); !uploadable.isOk())
         {
             scene.refusals().refuse(Refused::SkyLayer, path.value(), uploadable.error());
             return TextureHold{};

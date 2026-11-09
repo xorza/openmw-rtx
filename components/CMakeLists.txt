@@ -474,6 +474,7 @@ add_library(openmw-rtx-tablemakers STATIC
     rtx/common/tablesource.cpp rtx/common/tablesource.hpp
     rtx/frame/bluenoisemaker.cpp rtx/frame/bluenoisemaker.hpp
     rtx/world/fognoisemaker.cpp rtx/world/fognoisemaker.hpp)
+target_link_libraries(openmw-rtx-tablemakers PUBLIC openmw-platform-io)
 
 function(rtx_make_table tool source table)
     add_executable(${tool} ${source})
@@ -602,9 +603,6 @@ add_component_dir(platform
     platform
     appendfile
     file
-    folder
-    linuxtext
-    process
     sharedmemory
     fifo
     library
@@ -614,10 +612,8 @@ add_component_dir(platform
 if (WIN32)
     add_component_dir(platform
         appendfilewin32
-        filesyncwin32
         filewin32
         localtimewin32
-        processwin32
         sharedmemorywin32
         fifowin32
         librarywin32
@@ -627,10 +623,8 @@ if (WIN32)
 elseif (UNIX)
     add_component_dir(platform
         appendfileposix
-        filesyncposix
         fileposix
         localtimeposix
-        processposix
         sharedmemoryposix
         fifoposix
         libraryposix
@@ -643,11 +637,22 @@ else ()
         )
 endif()
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    add_component_dir(platform
-        kernelfilelinux
-        )
+# **A file read and written whole, and the process it is written by**, a library of its own: the build's own
+# tools (`rtx_make_table`) write through it, and they link no more of the components than this.
+set(PLATFORM_IO_FILES
+    platform/folder.cpp platform/folder.hpp
+    platform/linuxtext.cpp platform/linuxtext.hpp
+    platform/process.hpp
+    platform/wholefile.cpp platform/wholefile.hpp platform/wholefilesystem.hpp)
+if (WIN32)
+    list(APPEND PLATFORM_IO_FILES platform/processwin32.cpp platform/wholefilewin32.cpp)
+elseif (UNIX)
+    list(APPEND PLATFORM_IO_FILES platform/processposix.cpp platform/wholefileposix.cpp)
 endif()
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(APPEND PLATFORM_IO_FILES platform/kernelfilelinux.cpp platform/kernelfilelinux.hpp)
+endif()
+add_library(openmw-platform-io STATIC ${PLATFORM_IO_FILES})
 
 add_component_dir(testing
     expecterror
@@ -755,6 +760,7 @@ target_link_libraries(components
     RecastNavigation::Detour
     RecastNavigation::Recast
 
+    openmw-platform-io
     Base64
     SQLite3::SQLite3
     smhasher

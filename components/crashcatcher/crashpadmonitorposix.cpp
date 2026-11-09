@@ -5,7 +5,6 @@
 #include <csignal>
 #include <cstdint>
 #include <cstdlib>
-#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -16,6 +15,8 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <components/platform/wholefile.hpp>
 
 #include "crashsummary.hpp"
 
@@ -54,19 +55,21 @@ namespace Crash::Monitor
         // The state follows the name in parentheses, which may hold anything, so after the last of
         // them: `T` stopped, `t` stopped by a tracer.
         const std::string folder = "/proc/" + std::to_string(mId);
-        std::ifstream stat(folder + "/stat");
-        std::string line;
-        std::getline(stat, line);
-        const std::size_t named = line.rfind(')');
-        if (named != std::string::npos && named + 2 < line.size() && (line[named + 2] == 'T' || line[named + 2] == 't'))
-            return true;
+        std::string text;
+        if (Platform::readWhole(folder + "/stat", text).isOk())
+        {
+            const std::size_t named = text.rfind(')');
+            if (named != std::string::npos && named + 2 < text.size()
+                && (text[named + 2] == 'T' || text[named + 2] == 't'))
+                return true;
+        }
 
         // A tracer that lets the game run stands at a breakpoint as often as not.
-        std::ifstream status(folder + "/status");
-        for (std::string field; std::getline(status, field);)
-            if (field.starts_with("TracerPid:"))
-                return std::strtol(field.c_str() + sizeof("TracerPid:") - 1, nullptr, 10) != 0;
-        return false;
+        if (!Platform::readWhole(folder + "/status", text).isOk())
+            return false;
+        constexpr std::string_view tracer = "\nTracerPid:";
+        const std::size_t at = text.find(tracer);
+        return at != std::string::npos && std::strtol(text.c_str() + at + tracer.size(), nullptr, 10) != 0;
     }
 
     std::string describeExitCode(std::uint32_t code)

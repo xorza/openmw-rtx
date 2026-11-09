@@ -7,8 +7,6 @@
 #include <cstddef>
 #include <cstring>
 #include <format>
-#include <fstream>
-#include <ios>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -18,7 +16,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/folder.hpp>
-#include <components/platform/process.hpp>
+#include <components/platform/wholefile.hpp>
 #include <components/rtx/common/digestwords.hpp>
 #include <components/rtx/common/hashstate.hpp>
 
@@ -28,9 +26,9 @@ namespace Rtx
     {
         /// What an entry's file opens with. **The payload's own length and digest**, as
         /// `PipelineCache` writes its own, because a file a power loss zeroed after its rename, or
-        /// one cut short, passes every check of the fields before them. No sync before the rename,
-        /// which `PipelineCache` makes for one file a session: the digest finds what a sync would
-        /// have kept, and thousands of entries a load would each wait on the disk.
+        /// one cut short, passes every check of the fields before them. Written `Durability::Whole`
+        /// and not synced, as `PipelineCache` syncs its one file a session: the digest finds what a
+        /// sync would have kept, and thousands of entries a load would each wait on the disk.
         struct EntryHeader
         {
             std::uint32_t mMagic;
@@ -46,8 +44,6 @@ namespace Rtx
 
         /// "RTXC", read as a little-endian word.
         constexpr std::uint32_t sMagic = 0x43585452u;
-
-        constexpr std::string_view sPartial = ".partial";
 
         DigestWords digestOf(std::span<const std::byte> payload)
         {
@@ -83,7 +79,7 @@ namespace Rtx
         };
 
         /// Lists every entry under `folder`, removes the least recently used until the rest is at
-        /// most `target` bytes, and removes a temporary file older than `ContentStore::sStaleAfter`.
+        /// most `target` bytes, and removes a temporary file older than `Platform::sPartialStaleAfter`.
         Swept sweepFolder(const std::filesystem::path& folder, std::uint64_t target)
         {
             Swept swept;
@@ -113,9 +109,9 @@ namespace Rtx
                     if (failed)
                         continue;
 
-                    if (name.ends_with(sPartial))
+                    if (name.ends_with(Platform::sPartialSuffix))
                     {
-                        if (now - time > ContentStore::sStaleAfter && std::filesystem::remove(file.path(), failed))
+                        if (now - time > Platform::sPartialStaleAfter && std::filesystem::remove(file.path(), failed))
                             ++swept.mStale;
                         continue;
                     }
@@ -177,14 +173,6 @@ namespace Rtx
     {
         const std::string name = std::format("{:016x}{:016x}", key.mHash[0], key.mHash[1]);
         return mDirectory / name.substr(0, 2) / name;
-    }
-
-    std::filesystem::path ContentStore::partialOf(const ContentKey& key, const std::uint64_t write) const
-    {
-        std::filesystem::path partial = pathOf(key);
-        partial += std::format(
-            ".{}-{:x}-{}{}", Platform::Process::currentId(), reinterpret_cast<std::uintptr_t>(this), write, sPartial);
-        return partial;
     }
 
     bool ContentStore::read(const ContentKey& key, const ContentPassId pass, const std::uint32_t version,
@@ -378,29 +366,40 @@ namespace Rtx
     bool ContentStore::readFile(const std::filesystem::path& path, const ContentKey& key, ContentPassId& pass,
         std::uint32_t& version, std::vector<std::byte>& payload)
     {
-        std::ifstream file(path, std::ios::binary | std::ios::ate);
-        if (!file)
+        // **Sized before it is read**: a file is untrusted, and one past the most a payload holds is
+        // refused unread rather than allocated for.
+        std::error_code failed;
+        const std::uintmax_t bytes = std::filesystem::file_size(path, failed);
+        if (failed)
             return false;
-
-        const std::streamoff bytes = file.tellg();
-        EntryHeader header{};
-        file.seekg(0);
-        if (bytes < static_cast<std::streamoff>(sizeof(header))
-            || !file.read(reinterpret_cast<char*>(&header), sizeof(header)) || header.mMagic != sMagic
-            || header.mFormat != sFormat || header.mKey != key.mHash
-            || header.mPass >= static_cast<std::uint32_t>(ContentPassId::Count) || header.mPayloadBytes > sPayloadMost
-            || header.mPayloadBytes != static_cast<std::uint64_t>(bytes) - sizeof(header))
+        if (bytes < sizeof(EntryHeader) || bytes - sizeof(EntryHeader) > sPayloadMost)
         {
-            file.close();
             refuse(path);
             return false;
         }
 
-        payload.resize(static_cast<std::size_t>(header.mPayloadBytes));
-        if (!file.read(reinterpret_cast<char*>(payload.data()), static_cast<std::streamsize>(payload.size()))
-            || digestOf(payload) != header.mDigest)
+        if (!Platform::readWhole(path, payload).isOk())
+            return false;
+
+        EntryHeader header{};
+        if (payload.size() < sizeof(header))
         {
-            file.close();
+            refuse(path);
+            return false;
+        }
+        std::memcpy(&header, payload.data(), sizeof(header));
+        if (header.mMagic != sMagic || header.mFormat != sFormat || header.mKey != key.mHash
+            || header.mPass >= static_cast<std::uint32_t>(ContentPassId::Count) || header.mPayloadBytes > sPayloadMost
+            || header.mPayloadBytes != payload.size() - sizeof(header))
+        {
+            refuse(path);
+            return false;
+        }
+
+        // The header taken off the front in place, a move of the payload and no second buffer.
+        payload.erase(payload.begin(), payload.begin() + static_cast<std::ptrdiff_t>(sizeof(header)));
+        if (digestOf(payload) != header.mDigest)
+        {
             refuse(path);
             return false;
         }
@@ -442,24 +441,14 @@ namespace Rtx
             .mDigest = digestOf(task.mPayload),
             .mPayloadBytes = task.mPayload.size() };
 
-        // **Through a temporary in the entry's own folder, renamed into place**, so a reader sees a
-        // whole entry or none, and two writers of one key, which write the same bytes, leave one.
-        const std::filesystem::path partial = partialOf(task.mKey, mPartials++);
-        {
-            std::ofstream file(partial, std::ios::binary | std::ios::trunc);
-            file.write(reinterpret_cast<const char*>(&header), sizeof(header));
-            file.write(reinterpret_cast<const char*>(task.mPayload.data()),
-                static_cast<std::streamsize>(task.mPayload.size()));
-            file.close();
-            failed = file.fail() ? std::make_error_code(std::errc::io_error) : std::error_code();
-        }
-        if (!failed)
-            std::filesystem::rename(partial, path, failed);
-        if (failed)
-        {
-            std::error_code ignored;
-            std::filesystem::remove(partial, ignored);
-        }
+        // **Written whole** (`Platform::writeWhole`), so a reader sees a whole entry or none, and two
+        // writers of one key, which write the same bytes, leave one.
+        const std::array<std::span<const std::byte>, 2> parts{ std::as_bytes(std::span(&header, 1)),
+            std::span<const std::byte>(task.mPayload) };
+        if (const Result<void, Platform::IoError> written
+            = Platform::writeWhole(path, parts, Platform::Durability::Whole);
+            !written.isOk())
+            failed = written.error().mCode;
 
         mMonitor.under([&] { ++(failed ? mStats.mDropped : mStats.mWritten); });
         if (failed)

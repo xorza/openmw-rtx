@@ -146,7 +146,7 @@ namespace RtxTool
         finish(request);
     }
 
-    bool RunRecord::wrote(const Misc::Result<void, std::string>& written)
+    bool RunRecord::wrote(const Result<void, std::string>& written)
     {
         if (written.isOk())
             return true;

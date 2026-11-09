@@ -5,9 +5,10 @@
 #include <charconv>
 #include <cmath>
 #include <cstddef>
-#include <fstream>
 #include <string>
 #include <system_error>
+
+#include <components/platform/wholefile.hpp>
 
 namespace Rtx
 {
@@ -65,18 +66,10 @@ namespace Rtx
             }
             text += "    } };\n}\n";
 
-            std::filesystem::path part = to;
-            part += ".part";
-            {
-                std::ofstream file(part, std::ios::binary | std::ios::trunc);
-                file.write(text.data(), static_cast<std::streamsize>(text.size()));
-                file.close();
-                // The filesystem's own error, which carries the path as it stands.
-                if (!file)
-                    throw std::filesystem::filesystem_error(
-                        "could not write the table", part, std::make_error_code(std::errc::io_error));
-            }
-            std::filesystem::rename(part, to);
+            // The filesystem's own error, which carries the path as it stands.
+            const Result<void, Platform::IoError> written = Platform::writeWhole(to, text, Platform::Durability::Whole);
+            if (!written.isOk())
+                throw std::filesystem::filesystem_error("could not write the table", to, written.error().mCode);
         }
     }
 

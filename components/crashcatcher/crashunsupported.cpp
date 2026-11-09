@@ -16,9 +16,9 @@ namespace Crash
 {
     void runMonitorIfAsked(int, char**) {}
 
-    Misc::Result<Installed, std::string_view> install(const Settings&)
+    Result<Installed, std::string_view> install(const Settings&)
     {
-        return Misc::Err{ "this build has no Crashpad" };
+        return Err{ "this build has no Crashpad" };
     }
 
     void setLogFile(const std::filesystem::path&) {}

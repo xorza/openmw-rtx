@@ -898,7 +898,7 @@ namespace RtxTool
         frame.mSize = parseSize(text("size"));
         frame.mFieldOfView = real("fov");
         frame.mDay = { variables["day"].as<int>(), named("day") };
-        if (const Misc::Result<void, std::string_view> checked = checkDay(frame.mDay.mValue); !checked.isOk())
+        if (const Result<void, std::string_view> checked = checkDay(frame.mDay.mValue); !checked.isOk())
             throw std::runtime_error(std::format("--day={} {}", frame.mDay.mValue, checked.error()));
         if (verb != Verbs::View)
             frame.mMaps = MapRules::Shipped;
@@ -953,7 +953,7 @@ namespace RtxTool
         if (named("hour"))
         {
             const float hour = real("hour");
-            if (const Misc::Result<void, std::string_view> checked = checkHour(hour); !checked.isOk())
+            if (const Result<void, std::string_view> checked = checkHour(hour); !checked.isOk())
                 throw std::runtime_error(std::format("--hour={} {}", hour, checked.error()));
             sky.mHour = hour;
         }

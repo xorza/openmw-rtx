@@ -34,7 +34,7 @@ namespace Rtx
     /// @param fallback the dome to read where the archives hold no `mesh`: Tribunal ships the
     ///        second one and Morrowind alone does not, and the rasterizer picks by the same test.
     /// @param thread what each sheet's mean is read through.
-    Misc::Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
+    Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
         VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ThreadContent& thread,
         std::vector<TextureHold>& holds);
 

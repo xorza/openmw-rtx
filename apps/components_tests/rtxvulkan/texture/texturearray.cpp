@@ -432,7 +432,7 @@ namespace Rtx
 
             const Testing::BudgetLimit oneBlock(
                 memory, Testing::budgetAbove(memory, MemoryUse::Texture, VkDeviceSize{ 65 } << 20));
-            Misc::Result<Image, std::string_view> opener = Image::tryMake(MemoryUse::Texture, device,
+            Result<Image, std::string_view> opener = Image::tryMake(MemoryUse::Texture, device,
                 ImageDescription{
                     .mWidth = 32, .mHeight = 32, .mFormat = VK_FORMAT_R16_UNORM, .mUsage = VK_IMAGE_USAGE_SAMPLED_BIT },
                 "block opener");

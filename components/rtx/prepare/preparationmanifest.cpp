@@ -1,13 +1,11 @@
 #include "preparationmanifest.hpp"
 
 #include <cstring>
-#include <fstream>
-#include <iterator>
 #include <string_view>
-#include <system_error>
 #include <type_traits>
 #include <utility>
 
+#include <components/platform/wholefile.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -75,8 +73,10 @@ namespace Rtx
 
     PreparationManifest PreparationManifest::read(const std::filesystem::path& path, const std::uint64_t signature)
     {
-        std::ifstream file(path, std::ios::binary);
-        const std::vector<char> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        // A manifest that does not read is an empty one, whatever kept it from reading.
+        std::string bytes;
+        if (!Platform::readWhole(path, bytes).isOk())
+            return {};
 
         Reader reader(bytes);
         std::uint32_t magic = 0;
@@ -144,16 +144,6 @@ namespace Rtx
                     return false;
         }
 
-        std::filesystem::path partial = path;
-        partial += ".partial";
-        {
-            std::ofstream file(partial, std::ios::binary | std::ios::trunc);
-            file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
-            if (!file)
-                return false;
-        }
-        std::error_code failed;
-        std::filesystem::rename(partial, path, failed);
-        return !failed;
+        return Platform::writeWhole(path, bytes, Platform::Durability::Whole).isOk();
     }
 }

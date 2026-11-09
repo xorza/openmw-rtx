@@ -169,17 +169,17 @@ namespace Rtx
         /// off a graph something else built, so a number that is not finite is data and the lamp is
         /// refused: the grid sized around it would double its cell for ever, and the light would
         /// shade every surface it reached to NaN.
-        Misc::Result<std::optional<Light>, std::string_view> finiteOnly(const Light& lamp)
+        Result<std::optional<Light>, std::string_view> finiteOnly(const Light& lamp)
         {
             if (!isFinite(lamp.mPosition) || !isFinite(lamp.mIntensity) || !std::isfinite(lamp.mReach)
                 || !std::isfinite(lamp.mSourceRadius) || !std::isfinite(lamp.mClearance))
-                return Misc::Err{ "a number it is made of is not finite" };
+                return Err{ "a number it is made of is not finite" };
 
             return lamp;
         }
     }
 
-    Misc::Result<std::optional<Light>, std::string_view> makeLight(
+    Result<std::optional<Light>, std::string_view> makeLight(
         const osg::Vec3f& colour, float radius, const osg::Vec3f& position)
     {
         // A light of no size lights nothing in the game either. One that is not a number at all
@@ -193,7 +193,7 @@ namespace Rtx
         // one. A colour that gives in one channel and takes in another is no record's.
         const bool takes = colour.x() < 0.0f || colour.y() < 0.0f || colour.z() < 0.0f;
         if (takes && (colour.x() > 0.0f || colour.y() > 0.0f || colour.z() > 0.0f))
-            return Misc::Err{ "it gives light in one colour and takes it away in another" };
+            return Err{ "it gives light in one colour and takes it away in another" };
 
         return finiteOnly(Light{
             .mPosition = position,
@@ -214,7 +214,7 @@ namespace Rtx
         });
     }
 
-    Misc::Result<std::optional<Light>, std::string_view> makeSpellLight(
+    Result<std::optional<Light>, std::string_view> makeSpellLight(
         const osg::Vec3f& colour, const float radius, const osg::Vec3f& position)
     {
         const osg::Vec3f clamped(std::min(colour.x(), 1.0f), std::min(colour.y(), 1.0f), std::min(colour.z(), 1.0f));
@@ -319,7 +319,7 @@ namespace Rtx
         mBall.expandBy(osg::BoundingSpheref(emitter.mCentre, emitter.mReach));
     }
 
-    Misc::Result<std::optional<Light>, std::string_view> Glow::makeLight() const
+    Result<std::optional<Light>, std::string_view> Glow::makeLight() const
     {
         // An effect of nothing, or of a point, glows nothing; a ball that is not a number is not
         // `valid` either, and goes on to be refused with the rest of what is not finite.
@@ -387,7 +387,7 @@ namespace Rtx
         return type;
     }
 
-    Misc::Result<std::optional<Light>, std::string_view> makeLight(
+    Result<std::optional<Light>, std::string_view> makeLight(
         const SceneUtil::LightCommon& record, const osg::Vec3f& position, const double simulationTime, const int id)
     {
         if (!castsWherePlaced(record))

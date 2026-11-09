@@ -100,7 +100,7 @@ namespace RtxTool
 
     private:
         /// Whether `written` holds; where not, says why in the report and fails the run.
-        bool wrote(const Misc::Result<void, std::string>& written);
+        bool wrote(const Result<void, std::string>& written);
 
         std::vector<BenchPlace> mPlaces;
         BenchHeader mHeader;

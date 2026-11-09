@@ -94,7 +94,7 @@ namespace Rtx
 
         mDiffuseLevels.clear();
         mDiffuseTexels.clear();
-        const Misc::Result<TextureData, std::string> readDiffuse
+        const Result<TextureData, std::string> readDiffuse
             = describeImage(diffuse, TextureEncoding::Painted, mDiffuseLevels, mDiffuseTexels);
         mDiffuse = readDiffuse.isOk() ? std::optional(readDiffuse.value()) : std::nullopt;
         if (mDiffuse.has_value())
@@ -102,7 +102,7 @@ namespace Rtx
 
         mSpecularLevels.clear();
         mSpecularTexels.clear();
-        const Misc::Result<TextureData, std::string> readSpecular
+        const Result<TextureData, std::string> readSpecular
             = describeImage(specular, TextureEncoding::Colour, mSpecularLevels, mSpecularTexels);
         mSpecular = readSpecular.isOk() ? std::optional(readSpecular.value()) : std::nullopt;
     }

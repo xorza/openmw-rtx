@@ -100,7 +100,7 @@ namespace Rtx
         /// Whether a deformer of `posed` vertices can pose `arrays`, and why not where they are
         /// of another length. Both counts come out of a content file, so whoever reads them asks
         /// this before `addMesh`, which asserts it.
-        static Misc::Result<void, std::string> checkPoses(Index posed, const MeshArrays& arrays);
+        static Result<void, std::string> checkPoses(Index posed, const MeshArrays& arrays);
 
         /// Poses one deforming mesh: its bone rows or its target weights as `packRig` or
         /// `packWeights` lays them, and the box the pose reaches — the whole of what the host says

@@ -68,13 +68,13 @@ namespace Rtx
                 return nullptr;
             }
 
-            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) override
+            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) override
             {
                 if (path.value() == "textures/tx_ground.dds")
                     return osg::ref_ptr<const osg::Image>(mGround);
                 if (path.value() == "textures/tx_rock_n.dds")
                     return osg::ref_ptr<const osg::Image>(mNormals);
-                return Misc::Err{ std::string("no image here") };
+                return Err{ std::string("no image here") };
             }
 
             std::uint64_t stampOf(VFS::Path::NormalizedView path) override

@@ -129,8 +129,7 @@ namespace RtxTool
     /// not where it cannot. The pictures are written over their references before the two
     /// directories are read, so one directory named twice judges every picture the same: `shot`
     /// and then `shot --against=shot` is the pair this refuses.
-    Misc::Result<void, std::string> checkAgainst(
-        const std::filesystem::path& out, const std::filesystem::path& against);
+    Result<void, std::string> checkAgainst(const std::filesystem::path& out, const std::filesystem::path& against);
 
     /// Says what moved in the pictures a run wrote into `wrote`, kept on `drawn` as they were written,
     /// since `against`: a directory an earlier run wrote on this machine, never a corpus in the tree,

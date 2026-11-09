@@ -45,7 +45,7 @@ namespace Rtx
     {
         /// A normal map's spread, `NormalSpreadPass`'s: a byte a texel from half the map's `width` by
         /// `height` down to one texel, sampled and written by the pass a level at a time.
-        Misc::Result<Image, std::string_view> makeSpreadMap(
+        Result<Image, std::string_view> makeSpreadMap(
             const Device& device, std::string_view name, MemoryUse use, std::uint32_t width, std::uint32_t height)
         {
             std::string spreadName;
@@ -123,7 +123,7 @@ namespace Rtx
         }
     }
 
-    Misc::Result<void, std::string_view> Texture::standFile(const Device& device, Batch& batch, TextureArrival& arrival,
+    Result<void, std::string_view> Texture::standFile(const Device& device, Batch& batch, TextureArrival& arrival,
         const TextureData& data, const std::uint32_t first, std::string_view name,
         std::vector<VkBufferImageCopy>& regions, const MemoryUse use)
     {
@@ -153,12 +153,12 @@ namespace Rtx
         // (`TextureData::getCompanion`); nothing beside any other texture, whose companion no read
         // reaches.
         const bool spread = data.getCompanion() == TextureCompanion::Spread;
-        Misc::Result<Image, std::string_view> companion
+        Result<Image, std::string_view> companion
             = spread ? makeSpreadMap(device, name, use, top.mWidth, top.mHeight) : Image();
         if (!companion.isOk())
-            return Misc::Err{ companion.error() };
+            return Err{ companion.error() };
 
-        Misc::Result<Image, std::string_view> image = Image::tryMake(use, device,
+        Result<Image, std::string_view> image = Image::tryMake(use, device,
             ImageDescription{ .mWidth = top.mWidth,
                 .mHeight = top.mHeight,
                 .mFormat = toVulkanFormat(data.mFormat),
@@ -166,7 +166,7 @@ namespace Rtx
                 .mMipLevels = levels },
             name);
         if (!image.isOk())
-            return Misc::Err{ image.error() };
+            return Err{ image.error() };
 
         // Every image is made, so nothing below can refuse: the texture stands from here, and what
         // makes it is the arrival's to record.
@@ -187,14 +187,14 @@ namespace Rtx
         return {};
     }
 
-    Misc::Result<void, std::string_view> Texture::standBake(const Device& device, TextureArrival& arrival,
+    Result<void, std::string_view> Texture::standBake(const Device& device, TextureArrival& arrival,
         const Texture& source, const TextureFormat format, std::string_view name)
     {
         assert(isEmpty() && "a texture stood over one that stands");
         assert(!source.isEmpty());
 
         const Image& from = source.mImage;
-        Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device,
+        Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device,
             ImageDescription{ .mWidth = from.getWidth(),
                 .mHeight = from.getHeight(),
                 .mFormat = writtenAs(format),
@@ -203,7 +203,7 @@ namespace Rtx
                 .mStorageFormat = sWrittenFormat },
             name);
         if (!image.isOk())
-            return Misc::Err{ image.error() };
+            return Err{ image.error() };
 
         mImage = std::move(image.value());
 
@@ -234,7 +234,7 @@ namespace Rtx
         mBytes = priceColour().standing();
     }
 
-    Misc::Result<void, std::string_view> Texture::standComposite(
+    Result<void, std::string_view> Texture::standComposite(
         const Device& device, TextureArrival& arrival, const TextureFormat format, std::string_view name)
     {
         assert(isEmpty() && "a texture stood over one that stands");
@@ -243,7 +243,7 @@ namespace Rtx
         Crash::contract(format == TextureFormat::Bc7Srgb || format == TextureFormat::Bc7Unorm,
             "a composite described in a format its encoder does not write");
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
-        Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device,
+        Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device,
             ImageDescription{ .mWidth = extent,
                 .mHeight = extent,
                 .mFormat = toVulkanFormat(format),
@@ -251,7 +251,7 @@ namespace Rtx
                 .mMipLevels = levelsTo1x1(extent, extent) },
             name);
         if (!image.isOk())
-            return Misc::Err{ image.error() };
+            return Err{ image.error() };
 
         mImage = std::move(image.value());
 
@@ -304,7 +304,7 @@ namespace Rtx
 
         // Essential, and the one texture made that way: it is what stands where the device had no
         // room for the texture itself.
-        [[maybe_unused]] const Misc::Result<void, std::string_view> stood = mStandIn.standFile(
+        [[maybe_unused]] const Result<void, std::string_view> stood = mStandIn.standFile(
             device, batch, arrival, describeStandIn(), 0, "stand-in", mRegionScratch, MemoryUse::Essential);
         assert(stood.isOk() && "essential memory refused rather than thrown");
         arrival.record(batch, passes, nullptr);
@@ -558,7 +558,7 @@ namespace Rtx
         return cost + (needed > held ? needed - held : 0);
     }
 
-    Misc::Result<void, std::string_view> TextureArray::make(Batch& batch, TextureArrival& arrival, Texture& into,
+    Result<void, std::string_view> TextureArray::make(Batch& batch, TextureArrival& arrival, Texture& into,
         const TextureData& texture, const std::uint32_t first, std::string_view name)
     {
         switch (texture.mSource)
@@ -566,7 +566,7 @@ namespace Rtx
             case TextureSource::GroundComposite:
             case TextureSource::GroundGloss:
             {
-                const Misc::Result<void, std::string_view> canvas = makeCanvas(texture.mSource);
+                const Result<void, std::string_view> canvas = makeCanvas(texture.mSource);
                 if (!canvas.isOk())
                     return canvas;
                 return into.standComposite(mDevice, arrival, texture.mFormat, name);
@@ -590,7 +590,7 @@ namespace Rtx
                 // has no room.
                 const auto last = static_cast<std::uint32_t>(texture.mLevels.size()) - 1;
                 std::uint32_t level = first;
-                Misc::Result<void, std::string_view> stood
+                Result<void, std::string_view> stood
                     = into.standFile(mDevice, batch, arrival, texture, level, name, mRegionScratch, MemoryUse::Texture);
                 while (!stood.isOk() && level < last)
                     stood = into.standFile(
@@ -635,8 +635,7 @@ namespace Rtx
         {
             // Every refusal `make` answers is the device's room: a file past the side is the one
             // that is not, and it is known above.
-            const Misc::Result<void, std::string_view> stood
-                = make(batch, arrival, slot.mTexture, texture, first, name);
+            const Result<void, std::string_view> stood = make(batch, arrival, slot.mTexture, texture, first, name);
             if (!stood.isOk())
             {
                 why = stood.error();
@@ -734,14 +733,13 @@ namespace Rtx
         owed.clear();
     }
 
-    Misc::Result<void, std::string_view> TextureArray::makeCanvas(const TextureSource source)
+    Result<void, std::string_view> TextureArray::makeCanvas(const TextureSource source)
     {
         if (!mCanvas.mBlocks.has_value())
         {
-            Misc::Result<Buffer, std::string_view> blocks
-                = GroundCompositePass::makeBlocks(mDevice, "composite blocks");
+            Result<Buffer, std::string_view> blocks = GroundCompositePass::makeBlocks(mDevice, "composite blocks");
             if (!blocks.isOk())
-                return Misc::Err{ blocks.error() };
+                return Err{ blocks.error() };
             mCanvas.mBlocks.emplace(std::move(blocks.value()));
             mHeld.mCanvasBytes += priceBlocks().standing();
         }
@@ -750,10 +748,10 @@ namespace Rtx
         std::optional<Image>& canvas = gloss ? mCanvas.mGloss : mCanvas.mAlbedo;
         if (!canvas.has_value())
         {
-            Misc::Result<Image, std::string_view> made
+            Result<Image, std::string_view> made
                 = GroundCompositePass::makeCanvas(mDevice, gloss, gloss ? "gloss canvas" : "composite canvas");
             if (!made.isOk())
-                return Misc::Err{ made.error() };
+                return Err{ made.error() };
             canvas.emplace(std::move(made.value()));
             mHeld.mCanvasBytes += priceCanvas().standing();
         }

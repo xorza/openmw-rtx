@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -37,7 +38,7 @@ namespace RtxTool
 
         /// One reading of the clocks and the temperature, or one that answered nothing where a file
         /// could not be read. No throttle reasons: those are NVML's bits.
-        GpuClock readClock() const;
+        GpuClock readClock();
 
         /// The level a `pp_dpm_sclk` or `pp_dpm_mclk` marks current, in MHz: the line with the `*`,
         /// "1: 2482Mhz *", or the sleep level's "S: 800Mhz *". Nothing where no line is marked.
@@ -54,5 +55,10 @@ namespace RtxTool
 
         /// Its hwmon's edge temperature, empty where the driver lists no hwmon.
         std::filesystem::path mTemperature;
+
+        /// What a reading reads into, with room for a sysfs file, which states its size as a page:
+        /// kept, so the watcher's thread allocates nothing beside a measured frame.
+        static constexpr std::size_t sReadBytes = 8192;
+        std::string mText;
     };
 }

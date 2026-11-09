@@ -263,7 +263,7 @@ namespace RtxTool
             return;
         }
 
-        const Misc::Result<void, std::string> written = writePng(stop.mActions.mFilm->mDirectory / frameName(number),
+        const Result<void, std::string> written = writePng(stop.mActions.mFilm->mDirectory / frameName(number),
             extents.mOutputWidth, extents.mOutputHeight, finished.mPixels);
         if (!written.isOk())
             mFailure = std::format("frame {} of the film: {}", number, written.error());
@@ -278,7 +278,7 @@ namespace RtxTool
         if (!row.has_value() || mRequest.mPictures.empty())
             return;
 
-        const Misc::Result<void, std::string> written
+        const Result<void, std::string> written
             = writePng(mRequest.mPictures / std::format("{}-{}.png", row->mView, row->mFrame), extents.mOutputWidth,
                 extents.mOutputHeight, finished.mPixels);
         if (!written.isOk() && mFailure.empty())

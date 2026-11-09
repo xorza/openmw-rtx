@@ -71,7 +71,7 @@ namespace Rtx
         /// `make`, for a buffer something stands in for: why there is none where the device has
         /// no room for it as `use` — `MemoryAllocator::tryTake`. The use first, as
         /// `Image::tryMake` takes it.
-        static Misc::Result<Buffer, std::string_view> tryMake(MemoryUse use, const Device& device, BufferKind kind,
+        static Result<Buffer, std::string_view> tryMake(MemoryUse use, const Device& device, BufferKind kind,
             VkDeviceSize size, VkBufferUsageFlags usage, std::string_view name);
 
         /// What a buffer of `size` bytes for `usage` takes of the memory it is made in: the size the

@@ -1,10 +1,11 @@
 #include "pipelinecode.hpp"
 
 #include <format>
-#include <fstream>
 #include <utility>
 
 #include <components/debug/debuglog.hpp>
+#include <components/misc/result.hpp>
+#include <components/platform/wholefile.hpp>
 
 namespace Rtx
 {
@@ -65,10 +66,10 @@ namespace Rtx
         const std::span<const PipelineCodeForm> forms) const
     {
         const std::filesystem::path path = pipelineCodeFile(mFolder, pipeline, copy, executable, executables);
-        std::ofstream file(path, std::ios::trunc);
-        file << pipelineCodeText(forms);
-        file.close();
-        if (file.fail())
-            Log(Debug::Warning) << "pipeline " << pipeline << ": its code could not be written to " << path;
+        if (const Result<void, Platform::IoError> written
+            = Platform::writeWhole(path, pipelineCodeText(forms), Platform::Durability::Whole);
+            !written.isOk())
+            Log(Debug::Warning) << "pipeline " << pipeline << ": its code could not be written to " << path << ": "
+                                << written.error().mCode.message();
     }
 }

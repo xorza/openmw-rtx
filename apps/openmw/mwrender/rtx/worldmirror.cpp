@@ -78,7 +78,7 @@ namespace MWRender
                 return mScenes.getTemplate(path, false);
             }
 
-            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) override
+            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) override
             {
                 return Rtx::openImage(*mScenes.getImageManager(), path);
             }

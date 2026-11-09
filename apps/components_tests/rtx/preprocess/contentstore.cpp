@@ -320,8 +320,7 @@ namespace Rtx
         }
 
         /// **Two stores writing one key leave one whole entry**, as a game and a tool may: each
-        /// writes through a temporary of its own and renames it into place. Two stores of one process
-        /// name their first write's temporary apart, and one store names its first and second apart.
+        /// writes whole (`Platform::writeWhole`), through a temporary of its own.
         TEST(RtxContentStoreTest, twoStoresWritingOneKeyLeaveOneWholeEntry)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
@@ -329,10 +328,6 @@ namespace Rtx
             {
                 ContentStore first(folder, ContentStore::sGameCap);
                 ContentStore second(folder, ContentStore::sGameCap);
-                EXPECT_NE(first.partialOf(sKey, 0), second.partialOf(sKey, 0));
-                EXPECT_NE(first.partialOf(sKey, 0), first.partialOf(sKey, 1));
-                EXPECT_EQ(first.partialOf(sKey, 0).parent_path(), first.pathOf(sKey).parent_path())
-                    << "in the entry's own folder, so the rename stays on one volume";
                 first.write(sKey, ContentPassId::AlphaSpan, 3, payload);
                 second.write(sKey, ContentPassId::AlphaSpan, 3, payload);
             }

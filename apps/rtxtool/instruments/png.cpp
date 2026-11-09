@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <fstream>
 #include <ios>
 #include <sstream>
 #include <string>
@@ -22,6 +21,8 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
+
+#include "reportfile.hpp"
 
 namespace RtxTool
 {
@@ -52,7 +53,7 @@ namespace RtxTool
         }
 
         /// `image` as a PNG at `path`, with `description` as its text where there is one.
-        Misc::Result<void, std::string> writeImage(
+        Result<void, std::string> writeImage(
             const std::filesystem::path& path, const osg::Image& image, const std::string_view description)
         {
             // zlib's fastest level: a 1080p frame in 60 ms against 260 at the plugin's default, for a
@@ -66,11 +67,11 @@ namespace RtxTool
             // which is the last twelve bytes of every PNG and after which a decoder reads nothing.
             osgDB::ReaderWriter* const png = osgDB::Registry::instance()->getReaderWriterForExtension("png");
             if (png == nullptr)
-                return Misc::Err{ "cannot write " + Files::pathToUnicodeString(path) + ": no PNG plugin" };
+                return Err{ "cannot write " + Files::pathToUnicodeString(path) + ": no PNG plugin" };
 
             std::ostringstream encoded(std::ios::binary);
             if (!png->writeImage(image, encoded, options.get()).success())
-                return Misc::Err{ "cannot write " + Files::pathToUnicodeString(path) };
+                return Err{ "cannot write " + Files::pathToUnicodeString(path) };
 
             std::string bytes = std::move(encoded).str();
             if (!description.empty())
@@ -81,17 +82,12 @@ namespace RtxTool
                 bytes.insert(bytes.size() - endChunk, textChunk("Description", description));
             }
 
-            std::ofstream file(path, std::ios::binary);
-            file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
-            file.close();
-            if (!file)
-                return Misc::Err{ "cannot write " + Files::pathToUnicodeString(path) };
-            return {};
+            return writeReport(path, bytes);
         }
     }
 
-    Misc::Result<void, std::string> writePng(const std::filesystem::path& path, std::uint32_t width,
-        std::uint32_t height, std::span<const std::uint8_t> pixels, const std::string_view description)
+    Result<void, std::string> writePng(const std::filesystem::path& path, std::uint32_t width, std::uint32_t height,
+        std::span<const std::uint8_t> pixels, const std::string_view description)
     {
         // The one conversion of a traced picture to OpenSceneGraph's rows, at its own size.
         const osg::ref_ptr<osg::Image> image
@@ -101,7 +97,7 @@ namespace RtxTool
         return writeImage(path, *image, description);
     }
 
-    Misc::Result<void, std::string> writePng(const std::filesystem::path& path, const std::uint32_t width,
+    Result<void, std::string> writePng(const std::filesystem::path& path, const std::uint32_t width,
         const std::uint32_t height, const std::span<const std::uint16_t> samples, const std::string_view description)
     {
         const std::size_t row = std::size_t{ width } * 4;
@@ -117,19 +113,19 @@ namespace RtxTool
         return writeImage(path, *image, description);
     }
 
-    Misc::Result<PngImage, std::string> readPng(const std::filesystem::path& path)
+    Result<PngImage, std::string> readPng(const std::filesystem::path& path)
     {
         if (!std::filesystem::exists(path))
-            return Misc::Err{ Files::pathToUnicodeString(path) + " is missing" };
+            return Err{ Files::pathToUnicodeString(path) + " is missing" };
 
         const osg::ref_ptr<osg::Image> image = osgDB::readRefImageFile(Files::pathToUnicodeString(path));
         if (image == nullptr || image->s() <= 0 || image->t() <= 0)
-            return Misc::Err{ Files::pathToUnicodeString(path) + " does not decode" };
+            return Err{ Files::pathToUnicodeString(path) + " does not decode" };
 
         const int channels = image->getPixelFormat() == GL_RGBA ? 4 : image->getPixelFormat() == GL_RGB ? 3 : 0;
         const GLenum type = image->getDataType();
         if ((type != GL_UNSIGNED_BYTE && type != GL_UNSIGNED_SHORT) || channels == 0)
-            return Misc::Err{ Files::pathToUnicodeString(path) + " is not eight- or sixteen-bit RGB or RGBA" };
+            return Err{ Files::pathToUnicodeString(path) + " is not eight- or sixteen-bit RGB or RGBA" };
 
         PngImage read{ static_cast<std::uint32_t>(image->s()), static_cast<std::uint32_t>(image->t()), {} };
         read.mSamples.resize(std::size_t{ read.mWidth } * read.mHeight * 4);

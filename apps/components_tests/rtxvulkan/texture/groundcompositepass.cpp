@@ -101,7 +101,7 @@ namespace Rtx
                 const auto canvasFor = [&](std::uint32_t output, bool isGloss) -> std::optional<Image> {
                     if ((outputs & output) == 0)
                         return std::nullopt;
-                    Misc::Result<Image, std::string_view> made
+                    Result<Image, std::string_view> made
                         = GroundCompositePass::makeCanvas(device, isGloss, "ground composite test");
                     EXPECT_TRUE(made.isOk());
                     return std::move(made.value());

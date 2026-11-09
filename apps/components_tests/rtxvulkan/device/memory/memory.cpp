@@ -70,7 +70,7 @@ namespace Rtx
 
             Bound bound;
             bound.mBuffer = Owned<VkBuffer, vkDestroyBuffer>::make(device, vkCreateBuffer, create, "vkCreateBuffer");
-            Misc::Result<DeviceMemory, std::string_view> memory
+            Result<DeviceMemory, std::string_view> memory
                 = device.getMemory().tryTake(bound.mBuffer.get(), properties, alignment, use);
             if (!memory.isOk())
             {

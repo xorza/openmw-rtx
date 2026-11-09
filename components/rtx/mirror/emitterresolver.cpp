@@ -59,7 +59,7 @@ namespace Rtx
         /// The image `shading` draws a system's sprites with, described into `described`: null for
         /// a surface that names none, which draws untextured, or why it names one this cannot draw —
         /// a system the game draws and this renderer leaves out.
-        Misc::Result<const osg::Image*, std::string_view> readSprite(
+        Result<const osg::Image*, std::string_view> readSprite(
             std::span<const Shading> shading, SurfaceDescription& described)
         {
             // **Nothing describing the surface is OpenGL's own state**: no texture and no material,
@@ -75,7 +75,7 @@ namespace Rtx
                 return sprite;
 
             if (SceneUtil::EmbeddedImage::nameOf(*sprite).empty())
-                return Misc::Err{ "its image is neither a file nor a model's own stamped image" };
+                return Err{ "its image is neither a file nor a model's own stamped image" };
 
             return sprite;
         }
@@ -88,7 +88,7 @@ namespace Rtx
         // this cannot name a sprite for draws nothing.
         SurfaceDescription described;
         const TextureUse& use = described.getTextureUse(SurfaceMap::Diffuse);
-        const Misc::Result<const osg::Image*, std::string_view> read = readSprite(shading, described);
+        const Result<const osg::Image*, std::string_view> read = readSprite(shading, described);
         if (!read.isOk())
             mScene.refusals().refuse(Refused::Emitter, particles.getName(), read.error());
         const osg::Image* sprite = read.isOk() ? read.value() : nullptr;
@@ -256,10 +256,10 @@ namespace Rtx
         // and draws nothing — no size, no alpha, an axis folded flat — draws nothing in the game
         // either.
         const auto readParticle
-            = [&](const osgParticle::Particle& particle) -> Misc::Result<std::optional<Sprite>, std::string_view> {
+            = [&](const osgParticle::Particle& particle) -> Result<std::optional<Sprite>, std::string_view> {
             const float radius = particle.getCurrentSize() * scale;
             if (!std::isfinite(radius))
-                return Misc::Err{ "a particle's size is not a finite number" };
+                return Err{ "a particle's size is not a finite number" };
             if (!(radius > 0.0f))
                 return std::nullopt;
 
@@ -279,13 +279,13 @@ namespace Rtx
             const float opacity = tinted ? vertex.a() * particle.getCurrentAlpha() * held.mOpacity : held.mOpacity;
             const float alpha = held.mBlend == BlendKind::AddWhole ? 1.0f : opacity * pending.mFade;
             if (!std::isfinite(alpha) || !isFinite(colour))
-                return Misc::Err{ "a particle's colour is not a finite number" };
+                return Err{ "a particle's colour is not a finite number" };
             if (!(alpha > 0.0f))
                 return std::nullopt;
 
             const osg::Vec3f stood = particle.getPosition() * place;
             if (!isFinite(stood))
-                return Misc::Err{ "a particle's place is not a finite number" };
+                return Err{ "a particle's place is not a finite number" };
 
             if (particle.getAngle() != angle)
             {
@@ -295,7 +295,7 @@ namespace Rtx
 
             const float along = axis.length2();
             if (!std::isfinite(along))
-                return Misc::Err{ "a particle's axis is not a finite number" };
+                return Err{ "a particle's axis is not a finite number" };
             if (oriented && !(along > 0.0f))
                 return std::nullopt;
 
@@ -323,7 +323,7 @@ namespace Rtx
             if (!particle->isAlive())
                 continue;
 
-            const Misc::Result<std::optional<Sprite>, std::string_view> sprite = readParticle(*particle);
+            const Result<std::optional<Sprite>, std::string_view> sprite = readParticle(*particle);
             if (!sprite.isOk())
             {
                 if (refused.empty())

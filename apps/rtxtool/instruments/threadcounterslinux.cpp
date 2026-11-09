@@ -3,17 +3,21 @@
 #include <array>
 #include <cassert>
 #include <cerrno>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
-#include <fstream>
 #include <optional>
 #include <span>
+#include <string>
+#include <system_error>
 #include <vector>
 
 #include <linux/perf_event.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+
+#include <components/platform/wholefile.hpp>
 
 namespace RtxTool
 {
@@ -26,11 +30,15 @@ namespace RtxTool
         /// other. Nothing where the kernel lists no such kind.
         std::optional<std::uint64_t> kindNumbered(const char* path)
         {
-            std::ifstream file(path);
+            std::string text;
+            if (!Platform::readWhole(path, text).isOk())
+                return std::nullopt;
+
             std::uint64_t type = 0;
-            if (file >> type)
-                return type;
-            return std::nullopt;
+            const char* const end = text.data() + text.size();
+            if (std::from_chars(text.data(), end, type).ec != std::errc())
+                return std::nullopt;
+            return type;
         }
 
         perf_event_attr eventOf(const std::uint64_t config, const bool countKernel)
