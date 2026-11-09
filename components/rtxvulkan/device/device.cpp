@@ -134,9 +134,26 @@ namespace Rtx
             dlssExtensions = Dlss::requiredDeviceExtensions(instance.getHandle(), mPhysicalDevice.getHandle());
 
             // **Only what the device offers is enabled**: an extension the driver lists but the card
-            // does not have makes `vkCreateDevice` fail, which would take `auto` down with it.
-            std::erase_if(dlssExtensions,
-                [&](const std::string& extension) { return !mPhysicalDevice.hasOptionalExtension(extension.c_str()); });
+            // does not have makes `vkCreateDevice` fail, which would take `auto` down with it. Ask
+            // the device itself: `hasOptionalExtension` knows the renderer's own optional list, not
+            // the names NGX adds to it.
+            std::uint32_t offeredCount = 0;
+            if (vkEnumerateDeviceExtensionProperties(mPhysicalDevice.getHandle(), nullptr, &offeredCount, nullptr)
+                == VK_SUCCESS)
+            {
+                std::vector<VkExtensionProperties> offered(offeredCount);
+                if (vkEnumerateDeviceExtensionProperties(
+                        mPhysicalDevice.getHandle(), nullptr, &offeredCount, offered.data())
+                    == VK_SUCCESS)
+                {
+                    std::erase_if(dlssExtensions, [&](const std::string& extension) {
+                        return std::none_of(
+                            offered.begin(), offered.end(), [&](const VkExtensionProperties& candidate) {
+                                return extension == candidate.extensionName;
+                            });
+                    });
+                }
+            }
             const bool queried = Dlss::isSupported(instance.getHandle(), mPhysicalDevice.getHandle());
 
             std::string named;
