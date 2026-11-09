@@ -54,18 +54,9 @@ time a slot draws its file before its chain lands.
 ## Plan
 
 Each batch is timed off the log's "Prepared … in … s, … s of CPU on … threads" and the pass lines under it. A batch
-that must change no output (3) is checked with `diff -rq --exclude=prepared.manifest` between a cold
+that must change no output is checked with `diff -rq --exclude=prepared.manifest` between a cold
 store made before it and one made after: the entries are files named by their keys, and two cold vanilla stores made
 apart are the same byte for byte.
-
-### Batch 3: threads and order
-
-Files: `components/platform/process*`, `components/rtx/prepare/contentpreparation.{hpp,cpp}`,
-`apps/openmw/mwrender/rtx/rtxrenderer.cpp`.
-
-- [ ] The CPUs the process may run on (`Platform::Process`, its affinity mask), and the preparation on all but one:
-  `hardware_concurrency()` counts every CPU the system has, so the harness, kept to 16, would run 31 threads on them.
-- [ ] The ground layers first: they hold the largest maps, and the PBR replacers' last 5 s ran 2.3 threads of 16.
 
 ### Batch 4: what the manifest trusts
 

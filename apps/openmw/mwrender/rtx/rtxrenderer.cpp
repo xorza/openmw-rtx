@@ -49,6 +49,7 @@
 #include <components/misc/presentation.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/myguirtx/rendermanager.hpp>
+#include <components/platform/process.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/clock.hpp>
@@ -645,10 +646,13 @@ namespace MWRender
 
         // **The content prepared beside the kernels' compile**, from the content list the screen
         // before this one loaded: every model it names walked into the store, so play reads what
-        // it would otherwise compute (`Rtx::ContentPreparation`).
+        // it would otherwise compute (`Rtx::ContentPreparation`). **On every CPU the process may run
+        // on but one**, the main thread's, which draws the screen and sleeps: the PBR replacers' cold
+        // preparation took 64 s on 31 threads where it took 80 on 16
+        // (`docs/rtx/research/2026-11-09-content-preparation-cost.md`, "Threads").
         if (const MWWorld::ESMStore* const store = MWBase::Environment::get().getESMStore())
             mMirror.startPreparing(getResources(), contentModels(*store), contentLayers(*store, getResources()),
-                std::max<std::size_t>(1, std::thread::hardware_concurrency() / 2));
+                std::max<std::size_t>(1, Platform::Process::usableCpuCount() - 1));
 
         Rtx::JobProgress progress = mRenderer->awaitKernels(mKernels, std::chrono::milliseconds::zero());
         if (!progress.isDone())

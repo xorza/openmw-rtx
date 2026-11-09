@@ -192,6 +192,7 @@ namespace Rtx
         /// written by the one thread that read it.
         std::vector<std::optional<PreparationManifest::Entry>> mWalked;
 
+        /// The next job to serve, in serving order: the layers, then the models (`serveJobs`).
         std::atomic<std::size_t> mNext{ 0 };
 
         const std::chrono::steady_clock::time_point mStarted = std::chrono::steady_clock::now();

@@ -137,6 +137,19 @@ sampled every 0.25 s up to the "Prepared" line; the two stores the same byte for
 The peak moves by 900 MiB between runs of one build, with which threads meet the largest maps at once; the ring is
 685 and 586 MiB under the run before it.
 
+## Every usable CPU but one, the ground layers first, landed
+
+The preparation on `Platform::Process::usableCpuCount() - 1` threads, 15 under the harness's 16 CPUs and 31 in the
+game on this machine's 32, and the ground layers served before the models. The PBR replacers' cold preparation
+under the harness: 77.8 and 81.8 s, its store the same byte for byte. Its busy threads a 5 s window, sampled at
+99 Hz, from the first window to the last:
+
+| window | 0 | 5–30 | 35 | 40–65 | 70 | 75 |
+|---|---|---|---|---|---|---|
+| busy threads of 15 | 14.5 | 15.0 | 12.6 | 14.5–15.0 | 14.2 | 10.0 |
+
+Before it, the models first, the last window ran 2.3 threads of 16.
+
 ## Scratch held per thread
 
 From `ChainBuild` and `ChainPass` at a 4096-square file: the chain's texels, four bytes each over every level,

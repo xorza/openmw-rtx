@@ -137,9 +137,12 @@ namespace Rtx
     {
         while (!stop.stopRequested())
         {
-            const std::size_t at = mNext.fetch_add(1);
-            if (at >= mWalked.size())
+            // **The ground layers first**, as a scheduler hands out its longest jobs first: they hold the
+            // largest maps, and served last they left the PBR replacers' last seconds to a few threads.
+            const std::size_t next = mNext.fetch_add(1);
+            if (next >= mWalked.size())
                 return;
+            const std::size_t at = next < mLayers.size() ? mModels.size() + next : next - mLayers.size();
             if (!mManifest.standsAsWalked(nameOf(at), mStamps))
             {
                 hand.mFiles.clear();

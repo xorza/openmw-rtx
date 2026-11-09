@@ -204,4 +204,15 @@ namespace Platform::Process
 
         return fastest.size();
     }
+
+    std::size_t usableCpuCount()
+    {
+        // The process's default CPU sets where it has any, which `keepToPerformanceCores` sets, and
+        // every active processor of every group where it has none.
+        ULONG count = 0;
+        GetProcessDefaultCpuSets(GetCurrentProcess(), nullptr, 0, &count);
+        if (count > 0)
+            return count;
+        return std::max<std::size_t>(1, GetActiveProcessorCount(ALL_PROCESSOR_GROUPS));
+    }
 }

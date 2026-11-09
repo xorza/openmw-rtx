@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <components/files/conversion.hpp>
+#include <components/misc/windows.hpp>
 #include <components/platform/process.hpp>
 #include <components/testing/util.hpp>
 
@@ -78,5 +79,14 @@ namespace
         EXPECT_FALSE(Platform::Process::isRunning(ended));
 
         EXPECT_FALSE(Platform::Process::isRunning(0));
+    }
+
+    /// **A process with no default CPU sets may run on every active processor**, of every group.
+    TEST(RtxPlatformProcessTest, aProcessWithNoCpuSetsMayRunOnEveryProcessor)
+    {
+        ULONG sets = 0;
+        GetProcessDefaultCpuSets(GetCurrentProcess(), nullptr, 0, &sets);
+        ASSERT_EQ(sets, 0u) << "the test binary holds default CPU sets";
+        EXPECT_EQ(Platform::Process::usableCpuCount(), GetActiveProcessorCount(ALL_PROCESSOR_GROUPS));
     }
 }
