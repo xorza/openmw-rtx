@@ -307,8 +307,9 @@ bool Launcher::GraphicsPage::loadSettings()
 
     refreshDlssState();
     const auto upscaler = std::find(mUpscalers.begin(), mUpscalers.end(), Settings::rtx().mUpscaler.get());
+    const bool usable = upscaler != mUpscalers.end() && (*upscaler != Rtx::UpscalerKind::Dlss || mDlssInstalled);
     rayTracingUpscalerComboBox->setCurrentIndex(
-        upscaler != mUpscalers.end() ? static_cast<int>(std::distance(mUpscalers.begin(), upscaler)) : 0);
+        usable ? static_cast<int>(std::distance(mUpscalers.begin(), upscaler)) : 0);
 
     // The box holds whole cells from the menu's fewest, so it shows nought or 4.5 as another value:
     // saveSettings writes the reach only when the player moved it
@@ -365,7 +366,14 @@ void Launcher::GraphicsPage::saveSettings()
             Settings::rtx().mUpscale.set(*chosen);
     if (const int chosenUpscaler = rayTracingUpscalerComboBox->currentIndex();
         chosenUpscaler >= 0 && chosenUpscaler < static_cast<int>(mUpscalers.size()))
-        Settings::rtx().mUpscaler.set(mUpscalers[static_cast<std::size_t>(chosenUpscaler)]);
+    {
+        const Rtx::UpscalerKind chosen = mUpscalers[static_cast<std::size_t>(chosenUpscaler)];
+        // A disabled entry can still be the model's current row after the library was removed;
+        // writing `dlss` there would leave a configuration the game must refuse to start. `auto`
+        // keeps the same intent and falls back to FSR until the library returns.
+        Settings::rtx().mUpscaler.set(
+            chosen == Rtx::UpscalerKind::Dlss && !mDlssInstalled ? Rtx::UpscalerKind::Auto : chosen);
+    }
     if (rayTracingDistantLandSpinBox->value() != mLoadedDistantLandCells)
         Settings::rtx().mDistantLandCells.set(static_cast<float>(rayTracingDistantLandSpinBox->value()));
 
