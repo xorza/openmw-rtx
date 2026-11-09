@@ -8,9 +8,9 @@
 #include <format>
 #include <mutex>
 #include <string_view>
-#include <thread>
 #include <vector>
 
+#include <components/platform/process.hpp>
 #include <components/platform/thread.hpp>
 
 namespace Rtx
@@ -84,7 +84,7 @@ namespace Rtx
 
         {
             const std::size_t taken = std::clamp<std::size_t>(
-                std::thread::hardware_concurrency() / (hands == Hands::Half ? 2 : 1), 1, count);
+                Platform::Process::usableCpuCount() / (hands == Hands::Half ? 2 : 1), 1, count);
 
             std::vector<Platform::Thread> others;
             others.reserve(taken - 1);

@@ -12,7 +12,6 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <thread>
 #include <utility>
 
 #include <MyGUI_ITexture.h>
@@ -217,7 +216,7 @@ namespace MWRender
         , mContentStore(
               setup.mContentStore.has_value() ? std::make_unique<Rtx::ContentStore>(*setup.mContentStore) : nullptr)
         , mPrepared(std::make_unique<Rtx::PreparedImages>(
-              mContentStore.get(), std::max<std::size_t>(1, std::thread::hardware_concurrency() / 2)))
+              mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
         , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get())
     {
         mSettled = setup.mSettled;

@@ -320,7 +320,11 @@ namespace Rtx
         if (std::find(hand.mMet.begin(), hand.mMet.end(), &image) != hand.mMet.end())
             return;
         hand.mMet.push_back(&image);
-        hand.mMetBytes += image.getTotalSizeInBytesIncludingMipmaps();
+
+        // An image with no pixels weighs nothing, and is not asked: OSG answers nought for its type
+        // of nought through `osg::notify`, whose one stream two preparation threads would write at once.
+        if (image.data() != nullptr)
+            hand.mMetBytes += image.getTotalSizeInBytesIncludingMipmaps();
     }
 
     void ContentPreparation::walkJob(Hand& hand, const std::size_t next)

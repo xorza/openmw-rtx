@@ -10,6 +10,7 @@
 
 #include <gtest/gtest.h>
 
+#include <components/platform/process.hpp>
 #include <components/platform/thread.hpp>
 #include <components/rtx/common/parallel.hpp>
 
@@ -151,7 +152,7 @@ namespace Rtx
         /// the caller cannot miss them all.
         TEST(RtxParallelTest, theCallerIsOneOfTheHands)
         {
-            const std::size_t count = 4 * std::max(1u, std::thread::hardware_concurrency());
+            const std::size_t count = 4 * Platform::Process::usableCpuCount();
             const std::thread::id caller = std::this_thread::get_id();
             std::atomic<std::size_t> byCaller{ 0 };
 
@@ -180,14 +181,14 @@ namespace Rtx
                 });
 
             EXPECT_EQ(hands.count(caller), 1u);
-            EXPECT_LE(hands.size(), std::max<std::size_t>(1, std::thread::hardware_concurrency() / 2));
+            EXPECT_LE(hands.size(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2));
         }
 
         /// **What a hand's equipment throws comes back as a body's would**, and that hand takes no
         /// index while the others take every one. The caller's equipment is the one that throws.
         TEST(RtxParallelTest, aThrowFromAHandsEquipmentComesBack)
         {
-            if (std::thread::hardware_concurrency() < 2)
+            if (Platform::Process::usableCpuCount() < 2)
                 GTEST_SKIP() << "one hand, which is the caller's";
 
             constexpr std::size_t count = 64;
