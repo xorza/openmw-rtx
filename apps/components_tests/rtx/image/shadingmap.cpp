@@ -344,6 +344,23 @@ namespace Rtx
             EXPECT_EQ(paintedLight(map, 0.0f, 0.0f, TextureWrap::Clamp), 0.0f);
             for (const TextureWrap wrap : { TextureWrap::Repeat, TextureWrap::ClampS, TextureWrap::Clamp })
                 EXPECT_EQ(paintedLight(map, 4.5f / 32.0f, 0.5f, wrap), 4.0f) << static_cast<int>(wrap);
+
+            // The placement behind those reads: at `u = 0` the cells minus one and nought, half of the way;
+            // minus one wraps to 31 where the axis repeats and holds at nought where it clamps; mid-cell four,
+            // none of the way to five.
+            const PaintedAxis repeats = paintedAxis(0.0f, false);
+            EXPECT_EQ(repeats.mLow, 31u);
+            EXPECT_EQ(repeats.mHigh, 0u);
+            EXPECT_EQ(repeats.mAcross, 0.5f);
+            const PaintedAxis clamps = paintedAxis(0.0f, true);
+            EXPECT_EQ(clamps.mLow, 0u);
+            EXPECT_EQ(clamps.mHigh, 0u);
+            EXPECT_EQ(clamps.mAcross, 0.5f);
+            const PaintedAxis mid = paintedAxis(4.5f / 32.0f, false);
+            EXPECT_EQ(mid.mLow, 4u);
+            EXPECT_EQ(mid.mHigh, 5u);
+            EXPECT_EQ(mid.mAcross, 0.0f);
+            EXPECT_EQ(paintedLight(map, mid, repeats), 4.0f) << "the column's cell, whichever row";
         }
     }
 }

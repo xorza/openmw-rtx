@@ -25,6 +25,7 @@
 #include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "colour.hpp"
 #include "textureformat.hpp"
 
 namespace Rtx
@@ -78,10 +79,8 @@ namespace Rtx
         /// nought and one: `LooseTexel` says why. A channel that is no number reads nought.
         std::byte channelByte(const ChannelType type, const std::byte* at)
         {
-            const auto unit = [](float value) {
-                const float held = std::isnan(value) ? 0.0f : std::clamp(value, 0.0f, 1.0f);
-                return static_cast<std::byte>(std::lround(held * 255.0f));
-            };
+            const auto unit
+                = [](float value) { return unitByte(std::isnan(value) ? 0.0f : std::clamp(value, 0.0f, 1.0f)); };
             const auto word = [&](std::size_t byte) { return std::to_integer<std::uint32_t>(at[byte]) << (8 * byte); };
 
             switch (type)

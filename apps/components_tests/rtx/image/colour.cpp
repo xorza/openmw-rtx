@@ -1,5 +1,9 @@
+#include <algorithm>
+#include <bit>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 
 #include <gtest/gtest.h>
 
@@ -67,6 +71,68 @@ namespace Rtx
             // power leg, which lands above what the linear one would have given.
             EXPECT_EQ(toLinear(std::uint8_t{ 10 }), 10.0f / 255.0f / 12.92f);
             EXPECT_GT(toLinear(std::uint8_t{ 11 }), 11.0f / 255.0f / 12.92f);
+        }
+
+        /// The byte `std::lround` held to the bytes gives, as a chain wrote it before: the same over every
+        /// 257th float from −3 to 3 of either sign; a half rounded away from nought, `0.5 * 255 = 127.5`
+        /// to 128; the ends; and the values no texel holds, a NaN nought and the infinities held.
+        TEST(RtxSrgbTest, aUnitIsTheByteLroundGives)
+        {
+            const auto lrounded
+                = [](float value) { return static_cast<std::byte>(std::clamp(std::lround(value * 255.0f), 0L, 255L)); };
+            const std::uint32_t most = std::bit_cast<std::uint32_t>(3.0f);
+            std::uint32_t differ = 0;
+            for (std::uint32_t bits = 0; bits <= most; bits += 257)
+                for (const std::uint32_t sign : { 0u, 0x80000000u })
+                {
+                    const float value = std::bit_cast<float>(bits | sign);
+                    differ += unitByte(value) != lrounded(value) ? 1 : 0;
+                }
+            EXPECT_EQ(differ, 0u);
+
+            EXPECT_EQ(unitByte(0.5f), std::byte{ 128 });
+            EXPECT_EQ(unitByte(0.0f), std::byte{ 0 });
+            EXPECT_EQ(unitByte(1.0f), std::byte{ 255 });
+            EXPECT_EQ(unitByte(std::numeric_limits<float>::quiet_NaN()), std::byte{ 0 });
+            EXPECT_EQ(unitByte(std::numeric_limits<float>::infinity()), std::byte{ 255 });
+            EXPECT_EQ(unitByte(-std::numeric_limits<float>::infinity()), std::byte{ 0 });
+        }
+
+        /// **The encoded byte off its table is the curve's**, `unitByte(toEncoded(x))`: on both sides of
+        /// every byte's first float, each found here by bisection on the bits; over every 1021st float
+        /// from nought to one and a half; below nought and past one, held; and a NaN nought.
+        TEST(RtxSrgbTest, anEncodedByteIsTheCurvesByte)
+        {
+            const auto curve = [](float linear) { return unitByte(toEncoded(linear)); };
+            for (std::uint32_t byte = 1; byte < 256; ++byte)
+            {
+                std::uint32_t low = 0;
+                std::uint32_t high = std::bit_cast<std::uint32_t>(1.0f);
+                while (low < high)
+                {
+                    const std::uint32_t middle = low + (high - low) / 2;
+                    if (std::to_integer<std::uint32_t>(curve(std::bit_cast<float>(middle))) >= byte)
+                        high = middle;
+                    else
+                        low = middle + 1;
+                }
+                const float first = std::bit_cast<float>(low);
+                const float before = std::bit_cast<float>(low - 1);
+                EXPECT_EQ(encodedByte(first), static_cast<std::byte>(byte)) << byte;
+                EXPECT_EQ(encodedByte(before), curve(before)) << byte;
+            }
+
+            std::uint32_t differ = 0;
+            for (std::uint32_t bits = 0; bits <= std::bit_cast<std::uint32_t>(1.5f); bits += 1021)
+            {
+                const float linear = std::bit_cast<float>(bits);
+                differ += encodedByte(linear) != curve(linear) ? 1 : 0;
+            }
+            EXPECT_EQ(differ, 0u);
+
+            EXPECT_EQ(encodedByte(-0.25f), std::byte{ 0 });
+            EXPECT_EQ(encodedByte(2.0f), std::byte{ 255 });
+            EXPECT_EQ(encodedByte(std::numeric_limits<float>::quiet_NaN()), std::byte{ 0 });
         }
     }
 

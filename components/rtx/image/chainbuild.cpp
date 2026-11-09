@@ -15,6 +15,7 @@
 #include "shadingmap.hpp"
 #include "texels.hpp"
 #include "textureformat.hpp"
+#include "texturewrap.hpp"
 
 namespace Rtx
 {
@@ -25,11 +26,6 @@ namespace Rtx
         constexpr std::uint32_t sEncodeLevel = 10;
 
         constexpr std::size_t sTexel = 4;
-
-        std::byte quantise(float value)
-        {
-            return static_cast<std::byte>(std::clamp(std::lround(value * 255.0f), 0L, 255L));
-        }
 
         bool isBc2(TextureFormat format)
         {
@@ -69,7 +65,7 @@ namespace Rtx
         /// A unit normal's component as the byte `2 c − 1` decodes back to it.
         std::byte quantiseNormal(float component)
         {
-            return quantise((component + 1.0f) * 0.5f);
+            return unitByte((component + 1.0f) * 0.5f);
         }
 
         /// The sixteen texels of block `bx`, `by` of `level`, RGBA, the edge's texel standing in for a
@@ -149,7 +145,7 @@ namespace Rtx
                         const osg::Vec3f& colour = mBand[std::size_t{ y - row } * level.mWidth + x];
                         const std::size_t into = mLevels[at].texelOffset(x, y, sTexel);
                         for (int channel = 0; channel < 3; ++channel)
-                            mTexels[into + static_cast<std::size_t>(channel)] = quantise(colour[channel]);
+                            mTexels[into + static_cast<std::size_t>(channel)] = unitByte(colour[channel]);
                         mTexels[into + 3] = static_cast<std::byte>(mAlpha.at(at, x, y));
                     }
             }
@@ -201,8 +197,8 @@ namespace Rtx
                     const std::size_t into = level.texelOffset(x, y, sTexel);
                     for (int channel = 0; channel < 3; ++channel)
                         mTexels[into + static_cast<std::size_t>(channel)]
-                            = quantise(encoded ? toEncoded(mean[channel]) : mean[channel]);
-                    mTexels[into + 3] = quantise(painted);
+                            = encoded ? encodedByte(mean[channel]) : unitByte(mean[channel]);
+                    mTexels[into + 3] = unitByte(painted);
                 }
         }
     }
@@ -213,15 +209,21 @@ namespace Rtx
 
         // **The light painted in, estimated off the finest level** (`ShadingMap`), and divided out of
         // every level read at its own texels' centres, in linear light.
+        // Each column placed once a level and each row once, and the four cells lerped at every texel.
         const ShadingMap map(read, mAlpha);
         for (std::size_t at = 0; at < read.mLevels.size(); ++at)
         {
             const MipLevel& level = mLevels[at];
+            mColumns.clear();
+            for (std::uint32_t x = 0; x < level.mWidth; ++x)
+                mColumns.push_back(paintedAxis((static_cast<float>(x) + 0.5f) / level.mWidth, clampsS(read.mWrap)));
             for (std::uint32_t y = 0; y < level.mHeight; ++y)
+            {
+                const PaintedAxis row
+                    = paintedAxis((static_cast<float>(y) + 0.5f) / level.mHeight, clampsT(read.mWrap));
                 for (std::uint32_t x = 0; x < level.mWidth; ++x)
                 {
-                    const float factor = paintedLight(map.getValues(), (static_cast<float>(x) + 0.5f) / level.mWidth,
-                        (static_cast<float>(y) + 0.5f) / level.mHeight, read.mWrap);
+                    const float factor = paintedLight(map.getValues(), mColumns[x], row);
                     const std::size_t into = level.texelOffset(x, y, sTexel);
                     osg::Vec3f light;
                     for (int channel = 0; channel < 3; ++channel)
@@ -229,8 +231,9 @@ namespace Rtx
                             std::to_integer<std::uint8_t>(mTexels[into + static_cast<std::size_t>(channel)]));
                     const osg::Vec3f divided = Rtx::delit(light, factor);
                     for (int channel = 0; channel < 3; ++channel)
-                        mTexels[into + static_cast<std::size_t>(channel)] = quantise(toEncoded(divided[channel]));
+                        mTexels[into + static_cast<std::size_t>(channel)] = encodedByte(divided[channel]);
                 }
+            }
         }
     }
 
@@ -260,7 +263,7 @@ namespace Rtx
                   const std::size_t into = level.texelOffset(x, y, sTexel);
                   for (int channel = 0; channel < 3; ++channel)
                       mTexels[into + static_cast<std::size_t>(channel)] = quantiseNormal(direction[channel]);
-                  mTexels[into + 3] = quantise(height);
+                  mTexels[into + 3] = unitByte(height);
               };
 
         // **Each level the box of the unit normals under it, stored as its direction**: the means are

@@ -19,14 +19,14 @@ The measurements are in `docs/rtx/research/2026-11-09-content-preparation-cost.m
 - **Memory**: a thread keeps the scratch of the largest file it met, about 200 MB at a 4096-square file, so 16
   threads hold 3 to 4 GB at the peak (4.7 GiB and 5.4 GiB resident).
 
-What a cold preparation would take after each batch, from the profile's shares and the thread counts measured on
-the PBR replacers (each to be measured as it lands):
+Cold preparations under the harness, held to the 16 CPUs of the performance cores, and what batch 3 would make of
+them from the thread counts measured on the PBR replacers:
 
-| after | Fullrest Repack | PBR replacers |
-|---|---|---|
-| now, as the game runs it (16 threads, unpinned) | about 350 s | 80 s |
-| batch 1, exact arithmetic | about 300 s | about 73 s |
-| batch 3, all CPUs but one | about 240 s | about 59 s |
+| after | vanilla | Fullrest Repack | PBR replacers |
+|---|---|---|---|
+| the start | 5.7 s | 364 s | 84 s |
+| batch 1, exact arithmetic (measured, the stores the same byte for byte) | 4.5 s | 319 s | 80 s |
+| batch 3, all CPUs but one, as the game runs it | — | about 245 s | about 61 s |
 
 The same code makes the chains in play (`PreparedImages`, the `chains` workers), so each batch also shortens the
 time a slot draws its file before its chain lands.
@@ -54,26 +54,9 @@ time a slot draws its file before its chain lands.
 ## Plan
 
 Each batch is timed off the log's "Prepared … in … s, … s of CPU on … threads" and the pass lines under it. A batch
-that must change no output (1, 2 and 3) is checked with `diff -rq --exclude=prepared.manifest` between a cold
+that must change no output (2 and 3) is checked with `diff -rq --exclude=prepared.manifest` between a cold
 store made before it and one made after: the entries are files named by their keys, and two cold vanilla stores made
 apart are the same byte for byte.
-
-### Batch 1: byte-exact arithmetic
-
-Files: `components/rtx/image/chainbuild.cpp`, `colour.{hpp,cpp}`, `shadingmap.{hpp,cpp}`, and the other
-`quantise`s under `components/rtx/image/`.
-
-- [ ] `quantise` as `int(double(value * 255.0f) + 0.5)` held to 0 and 255, one definition for every caller: the same
-  byte as `std::lround` for every float from −3 to 3, with no libm call. `quantiseNormal` goes through it.
-- [ ] `encodedByte(linear)`: `quantise(toEncoded(linear))` off 255 thresholds and a table of 4,096 starting bytes,
-  made once from `toEncoded` itself, so it is that function's answer on every platform; 9× faster and the same byte
-  for every float checked. The delight and the box of a display-encoded level read it.
-- [ ] `ChainBuild::delight`: the light factor by row and column (`paintedLight`'s placement, wrap and floor once a
-  column and once a row, its two lerps the same operations in the same order), in place of all of it at every
-  texel.
-- [ ] Test: `RtxPassVersionsTest` does not move; a cold store of each content list before and after is the same
-  byte for byte; a test of `encodedByte` against `quantise(toEncoded(x))` at every threshold and the floats
-  on each side of it.
 
 ### Batch 2: memory
 

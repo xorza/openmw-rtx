@@ -10,6 +10,7 @@
 #include <components/misc/bytebuffer.hpp>
 
 #include "alphaimage.hpp"
+#include "shadingmap.hpp"
 #include "texturedata.hpp"
 #include "textureencoding.hpp"
 
@@ -83,6 +84,9 @@ namespace Rtx
 
         AlphaImage mAlpha;
         std::vector<osg::Vec3f> mBand;
+
+        /// A painted colour's level's columns placed on its light (`delight`), refilled each level.
+        std::vector<PaintedAxis> mColumns;
 
         /// How many of the finest level's rows a normal map's build holds at once: a band of four the
         /// reader decodes, and the two before it the box of the level under reads.

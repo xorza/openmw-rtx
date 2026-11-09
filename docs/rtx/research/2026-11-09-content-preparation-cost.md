@@ -112,6 +112,17 @@ Checked over every float from −3 to 3, 2,155,872,258 values, against the build
 - `quantise(toEncoded(x))` read off 255 thresholds, each found once by bisection on the float's bits, and a table of
   4,096 starting bytes: no difference; 0.90 ns a value against 8.08 ns for `powf` and `lroundf`.
 
+## The byte-exact arithmetic, landed
+
+`unitByte` for `quantise`, `encodedByte` for `quantise(toEncoded(x))`, and the delight's light placed once a column
+and once a row. Cold, as above, each store the same byte for byte as the one made before, the manifest aside:
+
+| content | preparation | its threads' CPU |
+|---|---|---|
+| vanilla | 5.66 s → 4.50 s | 87.7 s → 68.5 s |
+| Fullrest Repack | 364 s → 319 s | — → 5,038 s |
+| PBR replacers | 84 s → 80 s | — → 1,217 s |
+
 ## Scratch held per thread
 
 From `ChainBuild` and `ChainPass` at a 4096-square file: the chain's texels, four bytes each over every level,

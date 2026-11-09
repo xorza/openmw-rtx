@@ -212,38 +212,36 @@ namespace Rtx
             value = std::clamp(value / mean, sFloor, sCeiling);
     }
 
-    float paintedLight(std::span<const float> map, float u, float v, const TextureWrap wrap)
+    PaintedAxis paintedAxis(const float at, const bool clamps)
     {
         constexpr int extent = static_cast<int>(ShadingMap::sExtent);
-        assert(map.size() == std::size_t{ extent } * extent);
 
         // Along an axis that clamps, the point is held inside the texture and a cell past the edge is
         // the edge's; along one that repeats, the point and the cells wrap. The half-texel back puts the
         // lowest cell at minus one, which the wrap takes to the far edge — the point of a tiling map.
-        const auto place = [](float at, bool clamps) {
-            return (clamps ? std::clamp(at, 0.0f, 1.0f) : at - std::floor(at)) * extent - 0.5f;
+        const float placed = (clamps ? std::clamp(at, 0.0f, 1.0f) : at - std::floor(at)) * extent - 0.5f;
+        const auto index = [clamps](int cell) {
+            return static_cast<std::uint32_t>(
+                clamps ? std::clamp(cell, 0, extent - 1) : (cell % extent + extent) % extent);
         };
-        const auto index = [](int at, bool clamps) {
-            return clamps ? std::clamp(at, 0, extent - 1) : (at % extent + extent) % extent;
-        };
+        const auto low = static_cast<int>(std::floor(placed));
+        return PaintedAxis{ .mLow = index(low), .mHigh = index(low + 1), .mAcross = placed - static_cast<float>(low) };
+    }
 
-        const bool clampS = clampsS(wrap);
-        const bool clampT = clampsT(wrap);
-        const float x = place(u, clampS);
-        const float y = place(v, clampT);
-        const auto lowX = static_cast<int>(std::floor(x));
-        const auto lowY = static_cast<int>(std::floor(y));
-        const float acrossX = x - static_cast<float>(lowX);
-        const float acrossY = y - static_cast<float>(lowY);
-        const auto cell = [&](int column, int row) {
-            return map[static_cast<std::size_t>(index(row, clampT)) * extent
-                + static_cast<std::size_t>(index(column, clampS))];
-        };
+    float paintedLight(std::span<const float> map, const PaintedAxis& across, const PaintedAxis& down)
+    {
+        constexpr std::size_t extent = ShadingMap::sExtent;
+        assert(map.size() == extent * extent);
 
-        const float top = std::lerp(cell(lowX, lowY), cell(lowX + 1, lowY), acrossX);
-        const float bottom = std::lerp(cell(lowX, lowY + 1), cell(lowX + 1, lowY + 1), acrossX);
+        const auto cell = [&](std::uint32_t column, std::uint32_t row) { return map[row * extent + column]; };
+        const float top = std::lerp(cell(across.mLow, down.mLow), cell(across.mHigh, down.mLow), across.mAcross);
+        const float bottom = std::lerp(cell(across.mLow, down.mHigh), cell(across.mHigh, down.mHigh), across.mAcross);
+        return std::lerp(top, bottom, down.mAcross);
+    }
 
-        return std::lerp(top, bottom, acrossY);
+    float paintedLight(std::span<const float> map, float u, float v, const TextureWrap wrap)
+    {
+        return paintedLight(map, paintedAxis(u, clampsS(wrap)), paintedAxis(v, clampsT(wrap)));
     }
 
     osg::Vec3f delit(const osg::Vec3f& light, const float factor)

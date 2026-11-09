@@ -180,20 +180,17 @@ namespace Rtx
                     const ConvertedTexel converted = convertTexel(light, highlight);
 
                     const std::size_t into = (std::size_t{ y } * own.mWidth + x) * 4;
-                    const auto byteOf = [](float unit) {
-                        return static_cast<std::byte>(std::clamp(std::lround(unit * 255.0f), 0L, 255L));
-                    };
                     if (colour)
                     {
                         for (int channel = 0; channel < 3; ++channel)
-                            mConverted[into + std::size_t(channel)] = byteOf(toEncoded(converted.mBase[channel]));
+                            mConverted[into + std::size_t(channel)] = encodedByte(converted.mBase[channel]);
                         mConverted[into + 3] = delit[from + 3];
                     }
                     else
                     {
                         const float exponent = static_cast<float>(mGloss.at(0, sx, sy));
-                        mConverted[into + 0] = byteOf(converted.mMetal);
-                        mConverted[into + 1] = byteOf(Shaders::roughnessOfExponent(exponent));
+                        mConverted[into + 0] = unitByte(converted.mMetal);
+                        mConverted[into + 1] = unitByte(Shaders::roughnessOfExponent(exponent));
                         mConverted[into + 2] = std::byte{ 255 };
                         mConverted[into + 3] = std::byte{ 255 };
                     }
