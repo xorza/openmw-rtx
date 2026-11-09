@@ -15,7 +15,7 @@
 
 namespace Rtx
 {
-    TraceMedia::TraceMedia(const Device& device, const FogNoise& fog)
+    TraceMedia::TraceMedia(const Device& device, const FogField fog)
         : mWaves(device)
         , mRipples(device)
         , mFog(device, fog)

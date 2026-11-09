@@ -1,4 +1,4 @@
-#include "bluenoise.hpp"
+#include "bluenoisemaker.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -11,6 +11,8 @@
 #include <vector>
 
 #include <components/rtx/shaders/scene.h>
+
+#include "bluenoise.hpp"
 
 namespace Rtx
 {
@@ -149,7 +151,7 @@ namespace Rtx
             // Settle: move the most crowded sample into the emptiest hole until the two are the same
             // place, which is the definition of nothing left to improve. Ulichney proves it stops;
             // the bound is here so that a mistake in the measure shows as an assertion rather than as
-            // a hang at startup.
+            // a hang in the build.
             std::size_t settling = 0;
             for (; settling < sCount; ++settling)
             {
@@ -194,9 +196,9 @@ namespace Rtx
         }
     }
 
-    BlueNoise::BlueNoise()
-        : mValues(sCount * Shaders::RANDOM_STREAMS)
+    std::vector<float> makeBlueNoise()
     {
+        std::vector<float> values(sCount * Shaders::RANDOM_STREAMS);
         for (std::uint32_t channel = 0; channel < Shaders::RANDOM_STREAMS; ++channel)
         {
             // A different arrangement to start from is the whole of what makes a channel its own.
@@ -208,14 +210,11 @@ namespace Rtx
             // stratified sequence `(i + 0.5) / count` dealt out over the tile: uniform by
             // construction, and never exactly zero or one.
             for (std::size_t i = 0; i < sCount; ++i)
-                mValues[i * Shaders::RANDOM_STREAMS + channel]
+                values[i * Shaders::RANDOM_STREAMS + channel]
                     = (static_cast<float>(rank[i]) + 0.5f) / static_cast<float>(sCount);
         }
-    }
 
-    const BlueNoise& BlueNoise::shared()
-    {
-        static const BlueNoise tile;
-        return tile;
+        assert(values.size() == sBlueNoiseValues);
+        return values;
     }
 }

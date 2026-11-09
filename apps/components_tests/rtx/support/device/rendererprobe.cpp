@@ -59,7 +59,7 @@ namespace Rtx::Testing
         mRenderer.mMedia.describeSea(sea);
     }
 
-    void RendererProbe::setFogField(const FogNoise& noise)
+    void RendererProbe::setFogField(const FogField noise)
     {
         mRenderer.drain();
         mRenderer.mMedia.describeFog(mRenderer.mDevice, noise);

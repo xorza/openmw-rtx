@@ -270,7 +270,7 @@ namespace Rtx
     VisibilityPass::VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
         const SetLayout& volumeLayout, bool counting, const bool specialize)
         : mDevice(device)
-        , mBlueNoise(uploadOnce(device, BlueNoise::shared().getValues(), "blue noise"))
+        , mBlueNoise(uploadOnce(device, sBlueNoise, "blue noise"))
         , mSpecularAlbedo(uploadOnce(device, SpecularAlbedo::shared().getValues(), "specular albedo"))
         , mConstants(Buffer::deviceLocal(device, sizeof(Shaders::VisibilityConstants),
               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame constants"))

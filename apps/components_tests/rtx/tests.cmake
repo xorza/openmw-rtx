@@ -18,6 +18,7 @@ set(RTX_TEST_FILES
     rtx/common/runs.cpp
     rtx/common/slots.cpp
     rtx/common/stepped.cpp
+    rtx/common/tablesource.cpp
     rtx/common/worker.cpp
     rtx/environment/atmospheremesh.cpp
     rtx/environment/cloudmesh.cpp

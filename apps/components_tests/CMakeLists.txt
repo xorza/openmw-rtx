@@ -138,6 +138,7 @@ target_link_libraries(components-tests
     GTest::GTest
     GMock::GMock
     components
+    openmw-rtx-tablemakers
 )
 
 # The system's half of the test support, one file a system (`rtx/support/testplatform.hpp`).

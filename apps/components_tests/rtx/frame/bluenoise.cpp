@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
 #include <complex>
 #include <cstddef>
@@ -13,6 +14,7 @@
 #include <gtest/gtest.h>
 
 #include <components/rtx/frame/bluenoise.hpp>
+#include <components/rtx/frame/bluenoisemaker.hpp>
 #include <components/rtx/shaders/scene.h>
 
 namespace Rtx
@@ -25,7 +27,7 @@ namespace Rtx
         /// One channel of the tile, as a plain field.
         std::vector<float> channel(std::uint32_t which)
         {
-            const std::span<const float> values = BlueNoise::shared().getValues();
+            const std::span<const float> values = sBlueNoise;
 
             std::vector<float> field(sCount);
             for (std::size_t i = 0; i < sCount; ++i)
@@ -115,7 +117,7 @@ namespace Rtx
         /// it inherits that. A generator that lost or repeated a rank would still look like noise.
         TEST(RtxBlueNoiseTest, everyChannelIsAPermutationOfTheSameStratifiedValues)
         {
-            const std::span<const float> values = BlueNoise::shared().getValues();
+            const std::span<const float> values = sBlueNoise;
             ASSERT_EQ(values.size(), sCount * Shaders::RANDOM_STREAMS);
 
             for (std::uint32_t which = 0; which < Shaders::RANDOM_STREAMS; ++which)
@@ -137,6 +139,19 @@ namespace Rtx
             }
         }
 
+        /// **The tile the build compiled in is the one the maker makes**, bit for bit: a table the
+        /// build kept from an older maker would trace other noise than the tests here hold to.
+        TEST(RtxBlueNoiseTest, theCompiledTileIsTheOneTheMakerMakes)
+        {
+            const std::vector<float> made = makeBlueNoise();
+            ASSERT_EQ(made.size(), sBlueNoiseValues);
+
+            const auto differs = std::ranges::mismatch(sBlueNoise, made, [](float compiled, float maker) {
+                return std::bit_cast<std::uint32_t>(compiled) == std::bit_cast<std::uint32_t>(maker);
+            }).in1;
+            EXPECT_EQ(differs, sBlueNoise.end()) << "the first value apart is " << (differs - sBlueNoise.begin());
+        }
+
         /// The tile is the same tile on every toolchain: its first two pixels and its last, rank by
         /// rank.
         ///
@@ -149,7 +164,7 @@ namespace Rtx
         {
             ASSERT_EQ(Shaders::RANDOM_STREAMS, 12u) << "the pinned ranks are twelve channels a pixel";
 
-            const std::span<const float> values = BlueNoise::shared().getValues();
+            const std::span<const float> values = sBlueNoise;
             const auto rankAt = [&](std::size_t pixel, std::uint32_t which) {
                 return static_cast<std::uint32_t>(
                     std::lround(values[pixel * Shaders::RANDOM_STREAMS + which] * static_cast<float>(sCount) - 0.5f));

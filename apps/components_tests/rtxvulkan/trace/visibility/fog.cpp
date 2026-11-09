@@ -35,7 +35,7 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
-#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/fognoise.hpp>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/moon.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -1360,20 +1360,18 @@ namespace Rtx::Testing
             constexpr float extinction = 8.9e-4f;
             constexpr float irradiance = 20.0f;
 
-            // The field the shader reads at each level, `FogNoise::shared`'s layout: two channels a
-            // texel, slice by slice. Banked, the lower half of the tile's height is full and the
-            // upper half empty; whole, every texel is full.
+            // The field the shader reads at each level, `sFogNoise`'s layout: two channels a texel,
+            // slice by slice. Banked, the lower half of the tile's height is full and the upper half
+            // empty; whole, every texel is full.
             const auto fieldOf = [](bool banked) {
-                FogNoise noise;
+                std::vector<std::uint8_t> noise(sFogFieldBytes);
                 for (std::uint32_t level = 0; level < Shaders::FOG_FIELD_LEVELS; ++level)
                 {
-                    noise.mOffsets.push_back(noise.mBytes.size());
-                    const std::uint32_t side = Shaders::FOG_FIELD_SIZE >> level;
-                    for (std::uint32_t z = 0; z < side; ++z)
-                    {
-                        const std::uint8_t value = !banked || 2 * z < side ? 255 : 0;
-                        noise.mBytes.insert(noise.mBytes.end(), std::size_t{ side } * side * 2, value);
-                    }
+                    const std::size_t side = fogFieldSideAt(level);
+                    const std::size_t slice = side * side * 2;
+                    for (std::size_t z = 0; z < side; ++z)
+                        std::fill_n(noise.begin() + static_cast<std::ptrdiff_t>(fogFieldOffsetAt(level) + z * slice),
+                            slice, !banked || 2 * z < side ? std::uint8_t{ 255 } : std::uint8_t{ 0 });
                 }
                 return noise;
             };
@@ -1381,12 +1379,13 @@ namespace Rtx::Testing
             struct Restored
             {
                 RendererProbe& mProbe;
-                ~Restored() { mProbe.setFogField(FogNoise::shared()); }
+                ~Restored() { mProbe.setFogField(sFogNoise); }
             } restored{ mProbe };
 
             const osg::Vec3f towards(0.6f, 0.0f, 0.8f);
             const auto look = [&](bool banked) {
-                mProbe.setFogField(fieldOf(banked));
+                const std::vector<std::uint8_t> field = fieldOf(banked);
+                mProbe.setFogField(FogField(field.data(), sFogFieldBytes));
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, 0.0f, eye), osg::Vec3f(0.0f, 1000.0f, eye), 10.0f, size, size, 100000.0f);

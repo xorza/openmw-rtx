@@ -13,12 +13,12 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/fognoise.hpp>
 #include <components/rtx/world/frameworld.hpp>
 
 namespace Rtx
 {
     class Device;
-    struct FogNoise;
     class Image;
     struct SeaState;
     struct TracePasses;
@@ -64,9 +64,9 @@ namespace Rtx::Testing
         /// (`WavePass::describe`).
         void setSea(const SeaState& sea);
 
-        /// The fog's field every trace reads, `FogNoise::shared`'s until told: for a test that states
+        /// The fog's field every trace reads, `sFogNoise` until told: for a test that states
         /// where the air is banked. Drains the frames in flight first, since each reads the field.
-        void setFogField(const FogNoise& noise);
+        void setFogField(FogField noise);
 
         /// Copies one of the last frame's g-buffer channels into `values`, tightly packed, widened
         /// to floats whatever the channel holds. The frame's, never a view scene's.

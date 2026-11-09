@@ -1,32 +1,9 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-#include <vector>
-
 #include <osg/Vec3f>
 
 namespace Rtx
 {
-    /// The fog's fractal field, drawn once into a wrapping volume with a chain of levels under it:
-    /// value noise off a hashed lattice costs eight hashes an octave at every step of a march at
-    /// every pixel, so a sampler reads it instead. One octave, wrapping on all three axes; the
-    /// fractal is the shader's, which reads this at three scales that never come back into step.
-    struct FogNoise
-    {
-        /// Every level end to end, the full one first, two channels a texel, slice by slice.
-        std::vector<std::uint8_t> mBytes;
-
-        /// Where each level begins in `mBytes`.
-        std::vector<std::size_t> mOffsets;
-
-        /// The one tile, drawn on first use and kept for the process, as `BlueNoise` and
-        /// `SpecularAlbedo` are: every renderer reads the same field, and a test states another by
-        /// value. Every level is normalised to one mean and one spread, so a coarse step loses the
-        /// detail and never the amount of air.
-        static const FogNoise& shared();
-    };
-
     /// The air in a cell, in the units the shader takes.
     struct Fog
     {

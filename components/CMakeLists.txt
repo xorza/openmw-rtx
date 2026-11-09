@@ -463,8 +463,33 @@ add_component_dir (rtx/view
     )
 
 add_component_dir (rtx/world
-    atmosphere fogbuilder frameworld moon skycontent skylight weather
+    atmosphere fogbuilder fognoise frameworld moon skycontent skylight weather
     )
+
+# What the ray tracer would otherwise compute at every start from no content, made by the build and
+# compiled in: each table's maker, a tool that writes the table as a source, and the source. The makers
+# are a library of their own, which the tools and the test holding each table to its maker link, so the
+# game carries no maker.
+add_library(openmw-rtx-tablemakers STATIC
+    rtx/common/tablesource.cpp rtx/common/tablesource.hpp
+    rtx/frame/bluenoisemaker.cpp rtx/frame/bluenoisemaker.hpp
+    rtx/world/fognoisemaker.cpp rtx/world/fognoisemaker.hpp)
+
+function(rtx_make_table tool source table)
+    add_executable(${tool} ${source})
+    target_link_libraries(${tool} PRIVATE openmw-rtx-tablemakers)
+    set(made "${CMAKE_CURRENT_BINARY_DIR}/${table}")
+    add_custom_command(
+        OUTPUT "${made}"
+        COMMAND ${tool} "${made}"
+        DEPENDS ${tool}
+        COMMENT "Making ${table}"
+        VERBATIM)
+    set(COMPONENT_FILES ${COMPONENT_FILES} "${made}" PARENT_SCOPE)
+endfunction()
+
+rtx_make_table(openmw-rtx-blue-noise rtx/frame/bluenoisetool.cpp rtxbluenoise.cpp)
+rtx_make_table(openmw-rtx-fog-noise rtx/world/fognoisetool.cpp rtxfognoise.cpp)
 
 add_component_dir (myguirtx
     additivelayer mirrortexture paintedmirror rendermanager sharedtexture slottexture texture

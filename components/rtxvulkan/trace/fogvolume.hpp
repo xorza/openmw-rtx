@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/world/fognoise.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -15,19 +16,18 @@
 namespace Rtx
 {
     class Device;
-    struct FogNoise;
 
     /// The fog's fractal field, on the device, drawn once for the run: what the weather, the hour
-    /// and the cell decide are numbers the shader already has. `Rtx::FogNoise::shared` says what is in it.
+    /// and the cell decide are numbers the shader already has. `Rtx::sFogNoise` says what is in it.
     class FogTile
     {
     public:
         /// Submits the upload of `noise` and waits for it. Not on the frame path.
-        FogTile(const Device& device, const FogNoise& noise);
+        FogTile(const Device& device, FogField noise);
 
         /// Draws `noise` over the field, every level, and waits for it: for a test that states the
         /// field a trace reads. Nothing may be in flight.
-        void describe(const Device& device, const FogNoise& noise);
+        void describe(const Device& device, FogField noise);
 
         /// The shape a coverage band is cut out of, and a second field decorrelated from it.
         const Image& getField() const { return mField; }

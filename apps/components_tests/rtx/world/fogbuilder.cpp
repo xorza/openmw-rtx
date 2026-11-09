@@ -16,6 +16,8 @@
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/fognoise.hpp>
+#include <components/rtx/world/fognoisemaker.hpp>
 #include <components/rtx/world/skylight.hpp>
 #include <components/settings/values.hpp>
 
@@ -28,25 +30,24 @@ namespace Rtx
 
         int sizeAt(int level)
         {
-            return std::max(sSize >> level, 1);
+            return static_cast<int>(fogFieldSideAt(static_cast<std::uint32_t>(level)));
         }
 
         /// One texel of one level, as the two numbers the sampler hands back.
-        osg::Vec2f texelAt(const FogNoise& noise, int level, int x, int y, int z)
+        osg::Vec2f texelAt(const FogField noise, int level, int x, int y, int z)
         {
             const int size = sizeAt(level);
             const auto wrap = [size](int v) { return ((v % size) + size) % size; };
 
-            const std::size_t at = noise.mOffsets[static_cast<std::size_t>(level)]
+            const std::size_t at = fogFieldOffsetAt(static_cast<std::uint32_t>(level))
                 + 2 * ((static_cast<std::size_t>(wrap(z)) * size + wrap(y)) * size + wrap(x));
 
-            return osg::Vec2f(
-                static_cast<float>(noise.mBytes[at]) / 255.0f, static_cast<float>(noise.mBytes[at + 1]) / 255.0f);
+            return osg::Vec2f(static_cast<float>(noise[at]) / 255.0f, static_cast<float>(noise[at + 1]) / 255.0f);
         }
 
         /// What `textureLod` gives at a wrapping coordinate: trilinear between the eight texels the
         /// point falls among, with the texel's own value sitting at its centre.
-        osg::Vec2f sampleAt(const FogNoise& noise, int level, const osg::Vec3f& uvw)
+        osg::Vec2f sampleAt(const FogField noise, int level, const osg::Vec3f& uvw)
         {
             const auto size = static_cast<float>(sizeAt(level));
             const osg::Vec3f grid(uvw.x() * size - 0.5f, uvw.y() * size - 0.5f, uvw.z() * size - 0.5f);
@@ -81,7 +82,7 @@ namespace Rtx
         /// @param level which level of the chain to read every scale at. The shader picks it from the
         ///        march's own stride; a test says it outright, so it can ask about a level the shader
         ///        would never choose.
-        float shapeAt(const FogNoise& noise, const osg::Vec3f& position, int level = 0)
+        float shapeAt(const FogField noise, const osg::Vec3f& position, int level = 0)
         {
             const auto read = [&](const osg::Vec3f& at, float tile) {
                 return sampleAt(noise, level, osg::Vec3f(at.x() / tile, at.y() / tile, at.z() / tile));
@@ -141,14 +142,6 @@ namespace Rtx
             return t * t * (3.0f - 2.0f * t);
         }
 
-        /// One draw for the whole file. The bake is deterministic and takes long enough that nine
-        /// tests each making their own would be the slowest thing in the suite.
-        const FogNoise& baked()
-        {
-            const FogNoise& noise = FogNoise::shared();
-            return noise;
-        }
-
         /// How many points the two tests below measure over.
         ///
         /// The band's own variance is about an eighth, so a random draw of this many would carry a
@@ -157,16 +150,15 @@ namespace Rtx
 
         /// What the field comes to at each of those points, taken once for the whole file.
         ///
-        /// **The same million, for the same reason `baked` is one bake.** Two tests below read this
-        /// sequence — one about the band cut over the field, one about the field's own spread — and
-        /// both the bake and the sequence are deterministic, so a second walk is a fifth of a second
-        /// spent on an answer already known.
+        /// **The same million for two tests**: one about the band cut over the field, one about the
+        /// field's own spread. The field and the sequence are both fixed, so a second walk is a fifth
+        /// of a second spent on an answer already known.
         const std::vector<float>& shapes()
         {
             static const std::vector<float> taken = [] {
                 std::vector<float> values(sHaltonCount);
                 for (std::uint32_t index = 1; index <= sHaltonCount; ++index)
-                    values[index - 1] = shapeAt(baked(), haltonAt(index));
+                    values[index - 1] = shapeAt(sFogNoise, haltonAt(index));
 
                 return values;
             }();
@@ -190,9 +182,7 @@ namespace Rtx
         /// at points no tap of the bake's own estimate landed on.
         TEST(RtxFogNoiseTest, everyLevelAMarchMayReadCarriesOneMeanAndOneSpread)
         {
-            const FogNoise& noise = baked();
-
-            ASSERT_EQ(noise.mOffsets.size(), static_cast<std::size_t>(sLevels));
+            const FogField noise = sFogNoise;
 
             constexpr std::uint32_t count = 200000;
             const int cap = static_cast<int>(Shaders::FOG_FIELD_COARSEST);
@@ -223,6 +213,17 @@ namespace Rtx
             }
         }
 
+        /// **The field the build compiled in is the one the maker makes**, byte for byte: a table
+        /// the build kept from an older maker would trace another fog than the tests here hold to.
+        TEST(RtxFogNoiseTest, theCompiledFieldIsTheOneTheMakerMakes)
+        {
+            const std::vector<std::uint8_t> made = makeFogNoise();
+            ASSERT_EQ(made.size(), sFogFieldBytes);
+
+            const auto differs = std::ranges::mismatch(sFogNoise, made).in1;
+            EXPECT_EQ(differs, sFogNoise.end()) << "the first byte apart is " << (differs - sFogNoise.begin());
+        }
+
         /// The tail the eight bits cannot hold is small enough to cost nothing.
         ///
         /// **A field normalised to a standard deviation runs past the range that stores it.** Half a
@@ -230,12 +231,12 @@ namespace Rtx
         /// and the spread the test above asserts. This is what says by how much.
         TEST(RtxFogNoiseTest, theTailTheStorageCannotHoldIsNegligible)
         {
-            const FogNoise& noise = baked();
+            const FogField noise = sFogNoise;
 
             std::size_t clipped = 0;
             const auto count = std::size_t{ 2 } * sSize * sSize * sSize;
             for (std::size_t at = 0; at < count; ++at)
-                if (noise.mBytes[at] == 0 || noise.mBytes[at] == 255)
+                if (noise[at] == 0 || noise[at] == 255)
                     ++clipped;
 
             EXPECT_LT(static_cast<double>(clipped) / static_cast<double>(count), 0.001)
@@ -258,7 +259,7 @@ namespace Rtx
         /// with every pair, a correct wrap reads as too smooth rather than as a seam.
         TEST(RtxFogNoiseTest, theTileWrapsWithNoSeamAcrossAnyFace)
         {
-            const FogNoise& noise = baked();
+            const FogField noise = sFogNoise;
 
             const int texelsPerCell = sSize / static_cast<int>(Shaders::FOG_FIELD_CELLS);
 
@@ -343,7 +344,7 @@ namespace Rtx
         /// under a twentieth of the tolerance. At 50 000 a level is 0.00166 out, nearly a tenth.
         TEST(RtxFogNoiseTest, everyLevelAMarchMayReadClearsTheShareTheDensityIsDividedBy)
         {
-            const FogNoise& noise = baked();
+            const FogField noise = sFogNoise;
 
             constexpr std::uint32_t count = 100000;
             const int cap = static_cast<int>(Shaders::FOG_FIELD_COARSEST);
