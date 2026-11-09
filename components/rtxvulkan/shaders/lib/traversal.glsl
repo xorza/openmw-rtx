@@ -226,9 +226,11 @@ vec4 darkAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec2 bary, Texture
 /// **A sphere-mapped sheet, added past the albedo and indexed by where the eye is**, in light, and nothing
 /// where `material` holds none.
 ///
+/// @param span what the triangle's vertex normals spread over (`sheetSpanOf`), taken where the caller held
+///        them and not fetched again here: a second fetch inside the surface's resolve held the bounce and
+///        the landing a wave short on AMD's Windows driver (`docs/rtx/research/2026-11-09-sheet-span.md`).
 /// @param shading the normal the surface shows the ray, in world space and unit.
-vec3 sheetAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec3 shading, vec3 direction, SurfaceCone cone,
-    float coneWidth)
+vec3 sheetAt(GpuMaterial material, SheetSpan span, vec3 shading, vec3 direction, SurfaceCone cone, float coneWidth)
 {
     if (!holdsTexture(material.mEnvironment))
         return vec3(0.0);
@@ -241,12 +243,8 @@ vec3 sheetAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec3 shading, vec
     const vec3 normalEye = vec3(dot(shading, right), dot(shading, up), -dot(shading, forward));
 
     // **Its own footprint and not the surface's**, which `spherePoint` says at length: a sheet
-    // indexed by the reflection is not read at the level the mesh's coordinates ask for. A second
-    // fetch of the triangle's normals, paid by the materials that wear a sheet, which are few.
-    vec3 normal[3];
-    triangleNormals(mesh, corner, normal);
-
-    const TexturePoint sheet = spherePoint(normal, normalEye, viewEye, cone, coneWidth);
+    // indexed by the reflection is not read at the level the mesh's coordinates ask for.
+    const TexturePoint sheet = spherePoint(span, normalEye, viewEye, cone, coneWidth);
     return SUNLIT_WHITE * sampleDiffuse(material.mEnvironment, sheet).rgb * material.mEnvironmentColour;
 }
 
@@ -1250,6 +1248,12 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     corners[2] = corners[0] + hit.mThirdTurn * side;
     surface.mLift = smoothLift(hit.mEdges, corners, hit.mBary) * float(!surface.mSheet);
 
+    // What a sphere-mapped sheet's footprint reads of the corners, taken while they stand (`sheetAt`), and
+    // only for a material that wears one, as the sheet is.
+    SheetSpan span = SheetSpan(false, 0.0);
+    if (holdsTexture(material.mEnvironment))
+        span = sheetSpanOf(corners);
+
     vec2 uv[3];
     triangleUvs(corner, uv);
 
@@ -1554,7 +1558,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     // **Light of its own, or colour the light falls on**, as the player set the rasterizer's `preLightEnv`:
     // there it joins the diffuse colour past the dark map and before the lighting multiplies, so here it
     // joins the albedo at the sheet's own colour, held at one so a bounce returns no more than it met.
-    const vec3 sheet = sheetAt(material, mesh, corner, surface.mNormal, direction, cone, surface.mFootprint);
+    const vec3 sheet = sheetAt(material, span, surface.mNormal, direction, cone, surface.mFootprint);
     const bool lit = frame.mLitEnvironmentMaps != 0u;
     surface.mEmitted += lit ? vec3(0.0) : sheet;
     surface.mAlbedo = lit ? min(surface.mAlbedo + sheet / SUNLIT_WHITE, vec3(1.0)) : surface.mAlbedo;

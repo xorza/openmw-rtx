@@ -208,6 +208,26 @@ TexturePoint texturePoint(vec2 uv[3], vec2 bary, vec4 transform, SurfaceCone con
     return point;
 }
 
+/// What a triangle's three vertex normals spread over, as a sphere-mapped sheet's footprint reads it
+/// (`spherePoint`): the cross of the unit tips' differences, its length doubling the tips' own triangle, or
+/// no span where a tip has no length.
+struct SheetSpan
+{
+    bool mSpanned;
+    float mSpread;
+};
+
+/// `normal`'s span: the triangle's three vertex normals, in one basis and not yet unit.
+///
+/// **Unit, because what the three tips span is a solid angle on the sphere** and a stored normal is not one.
+SheetSpan sheetSpanOf(const vec3 normal[3])
+{
+    const float shortest = min(min(dot(normal[0], normal[0]), dot(normal[1], normal[1])), dot(normal[2], normal[2]));
+    const vec3 tip = normalize(normal[0]);
+    const vec3 spread = cross(normalize(normal[1]) - tip, normalize(normal[2]) - tip);
+    return SheetSpan(shortest > 1e-8, length(spread));
+}
+
 /// Where a sphere-mapped sheet is read, and how coarse a level the ray's cone can tell apart there.
 ///
 /// **The sheet is parameterised by the reflection, so its footprint is the normal's and not the mesh's.**
@@ -221,38 +241,29 @@ TexturePoint texturePoint(vec2 uv[3], vec2 bary, vec4 transform, SurfaceCone con
 /// between the ray and that normal — the shading normal the sheet is reflected about, and not the plane's
 /// `SurfaceCone::mFacing`, which is how wide the ray's own footprint lies and a different question.
 ///
-/// **Solid angle is rotation invariant, so the normals never leave the mesh's own space.** Bringing them
-/// across would want the object-to-world matrix, and `Hit` refuses to carry one: twelve floats on every ray
-/// in the frame, for a sheet nearly no material has. A placement scaled unevenly would move the span, which
-/// is the assumption the whole tree already makes of a normal — `Hit::mShading` comes through the same
-/// matrix rather than its inverse transpose.
+/// **Solid angle is rotation invariant, so the normals may stand in any basis a placement rotates them
+/// into**: the world's, as `resolve` carries them off the hit (`Hit::mShading` and its turns), or the mesh's
+/// own, as a crossing in the media fetches them, which has no object-to-world matrix to bring them across
+/// with. A placement scaled unevenly would move the span, which is the assumption the whole tree already
+/// makes of a normal — `Hit::mShading` comes through the same matrix rather than its inverse transpose.
 ///
 /// **What this leaves out is the ray's own turn across the triangle**, which moves the reflection as much
 /// as the normal does.
 ///
-/// @param normal the triangle's three vertex normals, as `triangleNormals` hands them: the mesh's
-///        own space, and not yet unit.
+/// @param span what the triangle's three vertex normals spread over (`sheetSpanOf`).
 /// @param shading where the hit's own normal points, in the caller's basis and unit.
 /// @param direction the ray, in the caller's basis and unit.
-TexturePoint spherePoint(vec3 normal[3], vec3 shading, vec3 direction, SurfaceCone cone, float coneWidth)
+TexturePoint spherePoint(SheetSpan span, vec3 shading, vec3 direction, SurfaceCone cone, float coneWidth)
 {
     const vec3 r = reflect(direction, shading);
     const float m = 2.0 * sqrt(r.x * r.x + r.y * r.y + (r.z + 1.0) * (r.z + 1.0));
     const vec2 at = r.xy / m + 0.5;
-
-    // **Unit, because what the three tips span is a solid angle on the sphere** and a stored normal is not
-    // one.
-    const float shortest
-        = min(min(dot(normal[0], normal[0]), dot(normal[1], normal[1])), dot(normal[2], normal[2]));
-    if (!(shortest > 1e-8))
+    if (!span.mSpanned)
         return TexturePoint(at, TEXTURE_FINEST_BASE, vec2(0.0), vec2(0.0), false, TEXTURE_FINEST_BASE);
-
-    const vec3 tip = normalize(normal[0]);
-    const vec3 spread = cross(normalize(normal[1]) - tip, normalize(normal[2]) - tip);
 
     // Doubled, as `coneBaseOf` takes it: the tips' own triangle is half this cross, the solid angle
     // the reflections span is `4 cos` of that, and a sixteenth of it is sheet area.
-    const float sheetArea = 0.25 * abs(dot(direction, shading)) * length(spread);
+    const float sheetArea = 0.25 * abs(dot(direction, shading)) * span.mSpread;
 
     const float base = coneBaseOf(sheetArea, cone, coneWidth);
     return TexturePoint(at, base, vec2(0.0), vec2(0.0), false, base);

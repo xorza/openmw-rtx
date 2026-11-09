@@ -232,9 +232,10 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
         {
             // The surface's rule for the sheet, `resolve`'s: lit where the player asked for it.
             const vec3 shading = faceforward(plane, direction, plane);
-            const vec3 sheet = sheetAt(material, meshAt(crossing.mInstance.mMesh), crossing.mCorner, shading, direction,
-                                   crossing.mCone, crossing.mConeWidth)
-                * alpha;
+            vec3 normal[3];
+            triangleNormals(meshAt(crossing.mInstance.mMesh), crossing.mCorner, normal);
+            const vec3 sheet
+                = sheetAt(material, sheetSpanOf(normal), shading, direction, crossing.mCone, crossing.mConeWidth) * alpha;
             const bool lit = frame.mLitEnvironmentMaps != 0u;
             gathered.mSheet = addShare(gathered.mSheet, sharePart(lit ? vec3(0.0) : sheet));
             gathered.mUnlit = addShare(gathered.mUnlit, sharePart(lit ? sheet / SUNLIT_WHITE : vec3(0.0)));

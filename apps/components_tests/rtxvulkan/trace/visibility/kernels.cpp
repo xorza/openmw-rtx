@@ -143,14 +143,15 @@ namespace Rtx
             // water and media at what they hold since each walk resolves its hit once, after it ("A walk
             // resolves the surface it ends on once"). The whole tuple's `media` at 224 since a read pairs an
             // image with its sampler (`TEXTURE`), still four waves on an RDNA SIMD
-            // (`docs/rtx/research/2026-11-09-separate-samplers.md`).
+            // (`docs/rtx/research/2026-11-09-separate-samplers.md`). The landing at 144 since a sheet takes its
+            // span off the corners the hit carried (`docs/rtx/research/2026-11-09-sheet-span.md`).
             constexpr std::array<Ceiling, 6> sAmdWithoutDarkAlpha{ {
                 { "visibility", 0, 145, 2048 },
                 { "water", 0, 177, 2048 },
                 { "direct", 0, 160, 2048 },
                 { "media", 0, 192, 2048 },
                 { "panes", 80, 256, 2048 },
-                { "landing", 0, 160, 2048 },
+                { "landing", 0, 144, 2048 },
             } };
             constexpr std::array<Ceiling, 7> sAmdWhole{ {
                 { "visibility", 0, 145, 2048 },
@@ -158,43 +159,42 @@ namespace Rtx
                 { "direct", 0, 144, 2048 },
                 { "media", 0, 224, 2048 },
                 { "panes", 80, 256, 2048 },
-                { "landing", 0, 160, 2048 },
+                { "landing", 0, 144, 2048 },
                 { "bounce", 0, 144, 2048 },
             } };
             // Measured on a high-end NVIDIA laptop GPU, whose compiler holds a stage at 128 registers and
-            // keeps what does not fit in shared memory. `panes` at the whole tuple's 6272 bytes since a read
-            // pairs an image with its sampler (`docs/rtx/research/2026-11-09-separate-samplers.md`).
+            // keeps what does not fit in shared memory.
             constexpr std::array<Ceiling, 5> sNvidiaWithoutDarkAlpha{ {
-                { "water", 0, 128, 3456 },
+                { "water", 0, 128, 2944 },
                 { "direct", 0, 128, 1664 },
                 { "media", 0, 128, 6272 },
-                { "panes", 0, 168, 6272 },
+                { "panes", 0, 168, 5760 },
                 { "landing", 0, 128, 896 },
             } };
             constexpr std::array<Ceiling, 6> sNvidiaWhole{ {
-                { "water", 0, 128, 4224 },
+                { "water", 0, 128, 2944 },
                 { "direct", 0, 128, 1920 },
                 { "media", 0, 128, 6272 },
                 { "panes", 0, 168, 6272 },
                 { "landing", 0, 128, 896 },
                 { "fog integrate", 0, 128, 1792 },
             } };
-            // Measured on the handheld's integrated GPU under RADV.
-            constexpr std::array<Ceiling, 6> sRadvWithoutDarkAlpha{ {
-                { "visibility", 0, 160, 2048 },
+            // Measured on the handheld's integrated GPU under RADV. `visibility` at 144 and the landing under the
+            // rule since a sheet takes its span off the corners the hit carried
+            // (`docs/rtx/research/2026-11-09-sheet-span.md`).
+            constexpr std::array<Ceiling, 5> sRadvWithoutDarkAlpha{ {
+                { "visibility", 0, 144, 2048 },
                 { "water", 0, 160, 2048 },
                 { "direct", 0, 144, 2048 },
                 { "media", 0, 176, 2048 },
                 { "panes", 0, 256, 2048 },
-                { "landing", 0, 144, 2048 },
             } };
-            constexpr std::array<Ceiling, 6> sRadvWhole{ {
-                { "visibility", 0, 160, 2048 },
+            constexpr std::array<Ceiling, 5> sRadvWhole{ {
+                { "visibility", 0, 144, 2048 },
                 { "water", 0, 160, 2048 },
                 { "direct", 0, 144, 2048 },
                 { "media", 0, 192, 2048 },
                 { "panes", 0, 256, 2048 },
-                { "landing", 0, 144, 2048 },
             } };
             const std::array sDrivers{
                 DriverCeilings{ VK_DRIVER_ID_AMD_PROPRIETARY, { "", 0, 128, 2048 }, sAmdWithoutDarkAlpha, sAmdWhole },
