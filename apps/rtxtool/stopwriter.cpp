@@ -397,9 +397,9 @@ namespace RtxTool
             const Rtx::ContentStoreStats& store = *into.mReport.mWalked.mStore;
             into.mRecord.note(
                 std::format("  store   {:>7} found, {:>7} missed, {:>7} written, {:>7} dropped, "
-                            "{:>7} refused, {:>7} stamped, {:>7} evicted, {:>7} stale\n",
+                            "{:>7} refused, {:>7} stamped, {:>7} stale\n",
                     store.mFound, store.mMissed, store.mWritten, store.mDropped, store.mRefused, store.mStamped,
-                    store.mEvicted, store.mStale));
+                    store.mStale));
         }
 
         if (into.mReport.mWalked.mAgain.has_value())

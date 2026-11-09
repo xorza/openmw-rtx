@@ -124,7 +124,7 @@ namespace Rtx
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             {
-                ContentStore store(folder, ContentStore::sGameCap);
+                ContentStore store(folder);
                 ContentPreprocessor content(&store, StoreReach::Disk);
                 std::vector<std::uint32_t> kept;
                 foldCard(content, kept);
@@ -137,7 +137,7 @@ namespace Rtx
                 EXPECT_GT(stats.mFoundMs, 0.0) << "the hit's read and decode not counted";
             }
 
-            ContentStore next(folder, ContentStore::sGameCap);
+            ContentStore next(folder);
             ContentPreprocessor reader(&next, StoreReach::Disk);
             std::vector<std::uint32_t> kept;
             EXPECT_TRUE(foldCard(reader, kept).mSheet);
@@ -342,7 +342,7 @@ namespace Rtx
             TexelScratch scratch;
             const MeanTexel direct = meanTexel(*describeFinest(*painted, scratch), scratch);
             {
-                ContentStore store(folder, ContentStore::sGameCap);
+                ContentStore store(folder);
                 ContentPreprocessor content(&store, StoreReach::Disk);
                 const MeanTexel run = content.meanTexel(*painted);
                 const MeanTexel found = content.meanTexel(*painted);
@@ -357,7 +357,7 @@ namespace Rtx
                 EXPECT_EQ(stats.mKeyBytes, 2 * sFinestKeyBytes);
             }
 
-            ContentStore next(folder, ContentStore::sGameCap);
+            ContentStore next(folder);
             next.flush();
             ContentPreprocessor frame(&next, StoreReach::Memory);
             const MeanTexel found = frame.meanTexel(*painted);
@@ -377,14 +377,14 @@ namespace Rtx
             const ChainPass::Input input{ .mImage = *painted, .mEncoding = TextureEncoding::Normal };
             MadeChain made;
             {
-                ContentStore store(folder, ContentStore::sGameCap);
+                ContentStore store(folder);
                 ContentPreprocessor content(&store, StoreReach::Disk);
                 content.chain(input, made, ContentAsk::Stored);
                 ASSERT_EQ(made.mForm, ChainForm::Bc7) << "the store lacked it, so it ran";
                 EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 0u);
             }
 
-            ContentStore next(folder, ContentStore::sGameCap);
+            ContentStore next(folder);
             ContentPreprocessor content(&next, StoreReach::Disk);
             MadeChain untouched{ .mForm = ChainForm::Coarser, .mBytes = Misc::ByteBuffer{ std::byte{ 9 } } };
             content.chain(input, untouched, ContentAsk::Stored);
@@ -413,7 +413,7 @@ namespace Rtx
         /// walk stops at the first solid texel, runs every time and writes nothing.
         TEST(RtxContentPreprocessorTest, aPassTheStoreKeepsNothingOfMakesNoKey)
         {
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
             ContentPreprocessor content(&store, StoreReach::Disk);
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
             EXPECT_TRUE(content.reachesSolid(*painted));
@@ -479,7 +479,7 @@ namespace Rtx
         /// session reads the 28.
         TEST(RtxContentPreprocessorTest, aPayloadItsCodecCannotReadIsRunAgainAndReplaced)
         {
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
 
             TexelScratch scratch;
@@ -502,7 +502,7 @@ namespace Rtx
 
             store.flush();
             Misc::ByteBuffer filed;
-            ContentStore next(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            ContentStore next(TestingOpenMW::currentTestDirPath() / "store");
             ASSERT_TRUE(
                 next.read(digest.getKey(), ContentPassId::TexelMean, TexelMean::sVersion, StoreReach::Disk, filed));
             EXPECT_EQ(filed.size(), 28u) << "the broken file stood";
@@ -546,8 +546,7 @@ namespace Rtx
                     input, ShapePass::Output{ .mKept = kept, .mNormals = normals, .mSources = sources }))
                     << misfit.mName;
 
-                ContentStore store(
-                    TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)), ContentStore::sGameCap);
+                ContentStore store(TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)));
                 store.write(digest.getKey(), ContentPassId::Shape, ShapePass::sVersion, payload, StoreReach::Disk);
                 ContentPreprocessor content(&store, StoreReach::Memory);
                 std::vector<std::uint32_t> run;
@@ -576,7 +575,7 @@ namespace Rtx
         /// table one output; (0.5, 0.25, −1) comes back unit, and the hit hands back those very floats.
         TEST(RtxContentCacheTest, aKeptShapeIsHandedBackAsTheStoreReadsIt)
         {
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
             ContentCache cache(&store, StoreReach::Disk);
             const ShapePass::Input input{ .mPositions = sCard, .mTriangles = sDoubled, .mSplits = true };
             const ContentKey key{ .mHash = { 1, 2 } };

@@ -51,9 +51,7 @@ namespace Rtx
         /// whose file stood.
         std::uint64_t mStamped = 0;
 
-        /// Entries a sweep removed to bring the store under its cap, at the start or past the cap in
-        /// a session, and temporary files a sweep removed that a killed process left.
-        std::uint64_t mEvicted = 0;
+        /// Temporary files the start's sweep removed that a killed process left.
         std::uint64_t mStale = 0;
     };
 
@@ -69,9 +67,9 @@ namespace Rtx
     /// 256 folders named by the key's first byte, as ccache and Bazel's disk cache keep theirs
     /// (`docs/rtx/architecture.md`, "One file an entry, and every entry untrusted"). **Every file is
     /// untrusted data**: its own trailer states the pass, its version, its key and its payload's length
-    /// and digest, and a file that does not match is a miss and is deleted. **Bounded by a cap, the
-    /// least recently used leaving first**, by each file's time, which a hit sets once a session: at
-    /// the start, and again whenever a session's writes pass it. **Nothing here fails loudly**: a
+    /// and digest, and a file that does not match is a miss and is deleted. **No cap, by the user's
+    /// decision**: an entry stays until its file is refused or deleted by hand; each file's time, which
+    /// a hit sets once a session, ranks what the start loads into memory. **Nothing here fails loudly**: a
     /// directory that cannot be made or written is a store that misses.
     ///
     /// One for a process, shared by every thread's cache. Reads run on the asking thread; writes,
@@ -80,9 +78,6 @@ namespace Rtx
     class ContentStore
     {
     public:
-        /// The cap a game's store keeps to, by the user's decision.
-        static constexpr std::uint64_t sGameCap = std::uint64_t{ 16 } << 30;
-
         /// The most bytes of payload the queue holds, past which a write waits or is dropped (`write`). Tens of
         /// megabytes against the largest entry the passes make, so a burst of misses at a cell's arrival queues whole.
         static constexpr std::size_t sQueuedMost = std::size_t{ 64 } << 20;
@@ -101,16 +96,15 @@ namespace Rtx
         /// read, with room to spare.
         static constexpr std::size_t sResidentBytesMost = std::size_t{ 64 } << 20;
 
-        /// The most keys a session remembers stamping, past which a hit stamps its file again: the
-        /// store's own files at the cap, and the writes of a long session.
+        /// The most keys a session remembers stamping, past which a hit stamps its file again: ten times
+        /// the files a large content list's store holds, its writes included.
         static constexpr std::size_t sStampedMost = std::size_t{ 1 } << 20;
 
         /// The file format's version, in every trailer; a file of another is a miss.
         static constexpr std::uint32_t sFormat = 2;
 
         /// @param directory where the store stands, made if it is not there.
-        /// @param cap the most bytes of files it keeps after the start's sweep.
-        ContentStore(std::filesystem::path directory, std::uint64_t cap);
+        explicit ContentStore(std::filesystem::path directory);
 
         /// Finishes every write and stamp handed so far, then stops its thread.
         ~ContentStore();
@@ -180,7 +174,7 @@ namespace Rtx
 
         void serve(const Platform::StopToken& stop);
         void run(Task& task);
-        /// The start's work: the sweep to the cap, and the small entries loaded into memory.
+        /// The start's work: the sweep of stale temporaries, and the small entries loaded into memory.
         void start();
         void writeFile(const Task& task);
         void stampFile(const ContentKey& key);
@@ -206,7 +200,6 @@ namespace Rtx
         void refuse(const std::filesystem::path& path);
 
         const std::filesystem::path mDirectory;
-        const std::uint64_t mCap;
 
         /// What the store's thread and every asking thread share, under `mMonitor`.
         Monitor mMonitor;
@@ -221,9 +214,6 @@ namespace Rtx
         /// Whether a failed write was logged: the first is, and the rest are counted (`mDropped`), as a
         /// full disk fails every write after it. The store's thread alone.
         bool mWriteFailureLogged = false;
-
-        /// How many bytes of entries the store's thread counts in the folder: what it alone reads.
-        std::uint64_t mStoredBytes = 0;
 
         /// Last, for the reason `Worker` gives.
         Worker mWorker;

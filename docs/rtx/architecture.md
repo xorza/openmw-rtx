@@ -391,10 +391,12 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
 - **The frame reaches the store's memory alone** (`StoreReach`): an entry of 4 KiB or less is held once read or
   written and loaded at the start's sweep, bounded at 64 MiB; a larger one the frame computes as it did. Refused: a
   file read on the frame's thread.
-- **A size cap, least recently used by each file's time**, as ccache and bazel-remote evict: 16 GiB, by the user's
-  decision; a session's first hit of an entry sets its time on the store's thread, and the start's sweep removes the
-  oldest past the cap and temporary files a day old. Refused: a time set at every hit, a write on every read; and an
-  index file, a second record of what the folders state.
+- **No size cap**, by the user's decision: an entry stays until its file is refused or deleted by hand, since the
+  preparation trusts its manifest and a store that evicted a profile's chains made play compute them. The 16 GiB cap,
+  least recently used first as ccache and bazel-remote evict, held under the two large content lists' 14 GiB and no
+  more. A session's first hit of an entry sets its time on the store's thread, which ranks what the start loads into
+  memory, and the start's sweep removes temporary files a day old. Refused: a time set at every hit, a write on every
+  read; and an index file, a second record of what the folders state.
 - **Every normal and data map's chain is rebuilt, and a colour file keeps its own**, by the user's decision: 343 of
   the PBR install's data maps turn metal below level 0 and 381 normal maps go black, where colour chains are faulty in
   few texels ("The colour and data chains"), as Godot loads a DDS file's levels as they stand. Refused: colour chains a

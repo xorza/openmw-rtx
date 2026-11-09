@@ -135,7 +135,7 @@ namespace Rtx
         TEST(RtxContentPreparationTest, aModelIsWalkedOnceAndAgainOnlyOnceAFileItReadMoved)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            ContentStore store(folder, ContentStore::sGameCap);
+            ContentStore store(folder);
             TwoModels content;
             const PreparationSetup setup{ .mContent = content,
                 .mStamps = content,
@@ -197,7 +197,7 @@ namespace Rtx
         TEST(RtxContentPreparationTest, aGroundLayerIsReadAsTheGroundReaderReadsIt)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            ContentStore store(folder, ContentStore::sGameCap);
+            ContentStore store(folder);
             TwoModels content;
             const PreparationSetup setup{ .mContent = content,
                 .mStamps = content,

@@ -74,18 +74,16 @@ namespace Rtx
             ContentKey mKey;
         };
 
-        /// What a sweep kept, oldest first, and what it took away.
+        /// What a sweep found, oldest first, and how many temporaries it took away.
         struct Swept
         {
             std::vector<StoredFile> mKept;
-            std::uint64_t mBytes = 0;
-            std::uint64_t mEvicted = 0;
             std::uint64_t mStale = 0;
         };
 
-        /// Lists every entry under `folder`, removes the least recently used until the rest is at
-        /// most `target` bytes, and removes a temporary file older than `Platform::sPartialStaleAfter`.
-        Swept sweepFolder(const std::filesystem::path& folder, std::uint64_t target)
+        /// Lists every entry under `folder`, and removes a temporary file older than
+        /// `Platform::sPartialStaleAfter`.
+        Swept sweepFolder(const std::filesystem::path& folder)
         {
             Swept swept;
             const std::optional<std::vector<std::filesystem::directory_entry>> folders = Platform::listFolder(folder);
@@ -133,29 +131,18 @@ namespace Rtx
 
                     swept.mKept.push_back(
                         StoredFile{ .mTime = time, .mBytes = bytes, .mPath = file.path(), .mKey = key });
-                    swept.mBytes += bytes;
                 }
             }
 
-            // **The oldest first, until the rest is at the target**: an entry's time is its last use.
+            // **The oldest first**: an entry's time is its last use, and the start loads the newest.
             std::sort(swept.mKept.begin(), swept.mKept.end(),
                 [](const StoredFile& a, const StoredFile& b) { return a.mTime < b.mTime; });
-            std::size_t first = 0;
-            for (; first < swept.mKept.size() && swept.mBytes > target; ++first)
-            {
-                std::error_code failed;
-                std::filesystem::remove(swept.mKept[first].mPath, failed);
-                swept.mBytes -= swept.mKept[first].mBytes;
-                ++swept.mEvicted;
-            }
-            swept.mKept.erase(swept.mKept.begin(), swept.mKept.begin() + static_cast<std::ptrdiff_t>(first));
             return swept;
         }
     }
 
-    ContentStore::ContentStore(std::filesystem::path directory, const std::uint64_t cap)
+    ContentStore::ContentStore(std::filesystem::path directory)
         : mDirectory(std::move(directory))
-        , mCap(cap)
     {
         std::error_code failed;
         std::filesystem::create_directories(mDirectory, failed);
@@ -426,8 +413,7 @@ namespace Rtx
 
     void ContentStore::start()
     {
-        const Swept swept = sweepFolder(mDirectory, mCap);
-        mStoredBytes = swept.mBytes;
+        const Swept swept = sweepFolder(mDirectory);
 
         // **The tables sized once, here, at their bounds**, off the frame: a table that grows rehashes
         // under the lock, on the frame's thread or while it waits on the lock, and a session adds keys
@@ -435,7 +421,6 @@ namespace Rtx
         // resident entry costs at least its node. The cost is the buckets, about a million in each
         // table, 16 MiB together.
         mMonitor.under([&] {
-            mStats.mEvicted += swept.mEvicted;
             mStats.mStale += swept.mStale;
             mStamped.reserve(sStampedMost);
             mResident.reserve(sResidentBytesMost / residentBytesOf(0));
@@ -540,23 +525,6 @@ namespace Rtx
                 Log(Debug::Warning) << "Rtx: the content store could not write " << Files::pathToUnicodeString(path)
                                     << ", and counts every write that fails after it: " << failed.message();
             mWriteFailureLogged = true;
-            return;
-        }
-
-        // **Kept under the cap within a session as well as at its start**, as ccache keeps its
-        // limit at every compile: past the cap, the least recently used go until a tenth of it is
-        // free, so a session at the cap does not list the folders after every write. Two stores
-        // writing one key count it twice here, which only sweeps sooner, and the sweep counts the
-        // folders anew.
-        mStoredBytes += sizeof(EntryTrailer) + task.mPayload.size();
-        if (mStoredBytes > mCap)
-        {
-            const Swept swept = sweepFolder(mDirectory, mCap - mCap / 10);
-            mStoredBytes = swept.mBytes;
-            mMonitor.under([&] {
-                mStats.mEvicted += swept.mEvicted;
-                mStats.mStale += swept.mStale;
-            });
         }
     }
 

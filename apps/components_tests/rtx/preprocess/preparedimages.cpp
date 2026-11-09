@@ -80,7 +80,7 @@ namespace Rtx
         /// threads' figures, the second found.
         TEST(RtxPreparedImagesTest, aMapsImageIsPendingThenMadeAndHeldByWhatHoldsIt)
         {
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
             PreparedImages prepared(&store, 2);
             const osg::ref_ptr<osg::Image> file = makeBlockNormalMap();
 
@@ -124,7 +124,7 @@ namespace Rtx
         /// made before the first is let go of, so none takes its address and drops it through `find`.
         TEST(RtxPreparedImagesTest, aMadeImageNeverCollectedIsDroppedOnceItsFileIsGone)
         {
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
             PreparedImages prepared(&store, 1);
             osg::ref_ptr<osg::Image> gone = makeBlockNormalMap();
             EXPECT_TRUE(prepared.find(*gone, TextureEncoding::Data, TextureWrap::Repeat).mPending);
@@ -218,7 +218,7 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> blue = makeColour(0, 255, "textures/tx_blue.dds");
             ASSERT_TRUE(PreparedImages::prepares(*red, TextureEncoding::Colour));
 
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
             PreparedImages prepared(&store, 1);
             prepared.find(*red, TextureEncoding::Colour, TextureWrap::Repeat);
             prepared.flush();

@@ -212,9 +212,8 @@ namespace MWRender
               setup.mHeadless, setup.mWindowPixels)
         , mUpdateVisitor(new Rtx::PoseUpdate)
         , mStartTick(osg::Timer::instance()->tick())
-        , mContentStore(setup.mContentStore.has_value()
-                  ? std::make_unique<Rtx::ContentStore>(*setup.mContentStore, Rtx::ContentStore::sGameCap)
-                  : nullptr)
+        , mContentStore(
+              setup.mContentStore.has_value() ? std::make_unique<Rtx::ContentStore>(*setup.mContentStore) : nullptr)
         , mPrepared(std::make_unique<Rtx::PreparedImages>(
               mContentStore.get(), std::max<std::size_t>(1, std::thread::hardware_concurrency() / 2)))
         , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get())
@@ -336,8 +335,8 @@ namespace MWRender
             const Rtx::ContentStoreStats store = mContentStore->getStats();
             Log(Debug::Info) << "Rtx: the content store found " << store.mFound << " entries and missed "
                              << store.mMissed << "; wrote " << store.mWritten << ", dropped " << store.mDropped
-                             << ", refused " << store.mRefused << ", stamped " << store.mStamped << ", evicted "
-                             << store.mEvicted << " and swept " << store.mStale << " temporaries";
+                             << ", refused " << store.mRefused << ", stamped " << store.mStamped << " and swept "
+                             << store.mStale << " temporaries";
         }
     }
 
