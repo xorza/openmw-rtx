@@ -107,21 +107,29 @@ namespace Rtx
             std::uint32_t mChains = 0;
             std::uint32_t mSpans = 0;
             bool mWritten = false;
+            PreparationTimes mTimes;
+
+            /// From before the preparation was made to after `finish` returned, which its times lie within.
+            std::chrono::nanoseconds mAround{};
         };
 
         Prepared prepare(
             const PreparationSetup& setup, std::vector<std::string> models, std::vector<PreparationLayer> layers = {})
         {
+            const auto began = std::chrono::steady_clock::now();
             ContentPreparation preparation(setup, std::move(models), std::move(layers));
             while (!preparation.awaitProgress(std::chrono::milliseconds(100)).isDone())
             {
             }
             const bool written = preparation.finish();
+            const std::chrono::nanoseconds around = std::chrono::steady_clock::now() - began;
             return Prepared{ .mWalked = preparation.getWalked(),
                 .mShapes = preparation.getStats().at(ContentPassId::Shape).mAsked,
                 .mChains = preparation.getStats().at(ContentPassId::Chain).mAsked,
                 .mSpans = preparation.getStats().at(ContentPassId::AlphaSpan).mAsked,
-                .mWritten = written };
+                .mWritten = written,
+                .mTimes = preparation.getTimes(),
+                .mAround = around };
         }
 
         /// **A model is walked once, and again only once a file it read moved.** Two quads, each with
@@ -131,7 +139,8 @@ namespace Rtx
         /// one where the second model's diffuse moved walks it alone; a content list that no longer
         /// names it leaves it in the manifest, so a switch back walks nothing, until no run named it for
         /// 31 days. A model no file stands for is walked again once its stamp moves, as a mod that adds
-        /// it moves it.
+        /// it moves it. Each run says what it took: its two threads, and a time to its last job inside the
+        /// call, nought where it had no job.
         TEST(RtxContentPreparationTest, aModelIsWalkedOnceAndAgainOnlyOnceAFileItReadMoved)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
@@ -150,6 +159,13 @@ namespace Rtx
             EXPECT_EQ(first.mWalked, 2u);
             EXPECT_EQ(first.mShapes, 2u);
             EXPECT_EQ(first.mChains, 1u) << "the shared map made once a run";
+            EXPECT_EQ(first.mTimes.mThreads, 2u);
+            EXPECT_GT(first.mTimes.mWall, std::chrono::nanoseconds::zero());
+            EXPECT_LE(first.mTimes.mWall, first.mAround);
+
+            const Prepared none = prepare(setup, {});
+            EXPECT_EQ(none.mTimes.mWall, std::chrono::nanoseconds::zero()) << "no job, no time to the last";
+            EXPECT_EQ(none.mTimes.mThreads, 2u);
 
             const auto written = std::filesystem::last_write_time(setup.mManifest);
             std::filesystem::last_write_time(setup.mManifest, written - std::chrono::hours(1));

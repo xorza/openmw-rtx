@@ -83,6 +83,18 @@ namespace Rtx
         bool mDiffuseSpec = false;
     };
 
+    /// What a preparation took, once `finish` returned.
+    struct PreparationTimes
+    {
+        /// From the start to the last job done.
+        std::chrono::nanoseconds mWall{};
+
+        /// What its threads ran on a CPU, every one summed (`Platform::cpuTimeOfThisThread`).
+        std::chrono::nanoseconds mThreadsCpu{};
+
+        std::size_t mThreads = 0;
+    };
+
     /// The game's import step, run on its loading screen (`docs/rtx/architecture.md`, "The store is
     /// filled on the loading screen, in the game's own process"): every model the content names walked
     /// as the cell reader walks it, on threads of its own, so every pass that walk asks — the shapes
@@ -123,6 +135,9 @@ namespace Rtx
         /// How many models and layers were read, the rest found as they were, once `finish` returned.
         std::size_t getWalked() const { return mWalkedCount; }
 
+        /// What it took, once `finish` returned.
+        PreparationTimes getTimes() const { return mTimes; }
+
         /// What the preparation computes and how, which a manifest is kept under: a pass whose
         /// version moved, another mask or another layout is every model walked again.
         static std::uint64_t signatureOf(const PreparationSetup& setup);
@@ -130,7 +145,9 @@ namespace Rtx
     private:
         struct Hand;
 
+        /// `serveJobs`, its CPU time taken around it.
         void serve(Hand& hand, const Platform::StopToken& stop);
+        void serveJobs(Hand& hand, const Platform::StopToken& stop);
         void walk(Hand& hand, std::size_t at);
         void read(Hand& hand, const PreparationLayer& layer);
 
@@ -177,14 +194,18 @@ namespace Rtx
 
         std::atomic<std::size_t> mNext{ 0 };
 
-        /// What the threads share under it: how many jobs are done, which a waiter is woken by, and
-        /// the chains claimed.
+        const std::chrono::steady_clock::time_point mStarted = std::chrono::steady_clock::now();
+
+        /// What the threads share under it: how many jobs are done, which a waiter is woken by, when
+        /// the last was, and the chains claimed.
         Monitor mMonitor;
         std::uint32_t mMade = 0;
+        std::chrono::steady_clock::time_point mDone = mStarted;
         std::unordered_set<std::string> mClaimed;
 
         ContentStats mStats;
         std::size_t mWalkedCount = 0;
+        PreparationTimes mTimes;
 
         /// Each thread's walk and its worker, last, for the reason `Worker` gives.
         std::vector<std::unique_ptr<Hand>> mHands;

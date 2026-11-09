@@ -53,13 +53,10 @@ time a slot draws its file before its chain lands.
 
 ## Plan
 
-### Batch 0: measure in place
-
-- [ ] `WorldMirror::finishPreparing`: log the preparation's wall time, its threads' CPU time and each pass's
-  `ContentStats` beside "Prepared … of …", so the game and every verb report it. Today the time is read off the
-  log's stamps and the pass figures only reach a harness record, which `scene` writes no stop for.
-- [ ] A check that two stores hold the same entries byte for byte (a script under `tools/` or a harness option), for
-  batches 1, 2 and 3, which must change no output.
+Each batch is timed off the log's "Prepared … in … s, … s of CPU on … threads" and the pass lines under it. A batch
+that must change no output (1, 2 and 3) is checked with `diff -rq --exclude=prepared.manifest` between a cold
+store made before it and one made after: the entries are files named by their keys, and two cold vanilla stores made
+apart are the same byte for byte.
 
 ### Batch 1: byte-exact arithmetic
 
@@ -75,7 +72,7 @@ Files: `components/rtx/image/chainbuild.cpp`, `colour.{hpp,cpp}`, `shadingmap.{h
   column and once a row, its two lerps the same operations in the same order), in place of all of it at every
   texel.
 - [ ] Test: `RtxPassVersionsTest` does not move; a cold store of each content list before and after is the same
-  byte for byte (batch 0); a test of `encodedByte` against `quantise(toEncoded(x))` at every threshold and the floats
+  byte for byte; a test of `encodedByte` against `quantise(toEncoded(x))` at every threshold and the floats
   on each side of it.
 
 ### Batch 2: memory
@@ -88,7 +85,7 @@ Files: `components/rtx/image/chainbuild.{hpp,cpp}`, `components/rtx/preprocess/{
   under the finest level (67 MB at 4096).
 - [ ] `ContentCache::keep` for a `ContentAsk::Stored` ask: the made chain's bytes moved into the payload and not
   copied, a chain-sized buffer and copy fewer a chain (7.4 GiB copied on the Fullrest Repack).
-- [ ] Test: the stores byte for byte (batch 0); the peak resident before and after each content list's cold run.
+- [ ] Test: the stores byte for byte; the peak resident before and after each content list's cold run.
 
 ### Batch 3: threads and order
 
@@ -110,6 +107,24 @@ Files: `components/rtx/prepare/{preparationmanifest,contentpreparation}.{hpp,cpp
   matches; a key the store lacks is the model walked again. The issue in `.notes/ISSUES.md` goes.
 - [ ] Test: a model whose chain file is deleted is walked again at the next preparation and its chain stands after
   it; one whose entries all stand is not walked.
+
+### Batch 5: what a crash report names
+
+Files: `components/rtx/preprocess/contentpreprocessor.cpp`, `components/rtx/mirror/cells/templatewalk.cpp`.
+
+A preparation's crash report names the model or the ground layer (`preparing the model "…"`), and a texture only
+while it is described (`describing the texture "…"`, whose scope ends before the chain is built). The chain's
+build and encode, 98% of the preparation's time, run under the model's note alone, and the play's chain workers
+(`PreparedImages::serve`) under none.
+
+- [ ] `ContentPreprocessor::chain` and `convert`: a `Crash::NoteScope` naming the file, its encoding and wrap, and
+  for a conversion its partner: `preparing the model "…" > making the chain of "…" as painted`. In the preprocessor,
+  so the preparation, the reader and the chain workers each name what they make. A note allocates nothing, and a
+  chain takes milliseconds, so the cost does not show.
+- [ ] `TemplateWalk::take`: the drawable's name under the model's note, as `MeshResolver` names the mesh it adds, so a
+  fault in a shape's fold or split names the part.
+- [ ] Test: how the crash matrix lands a fault under a note decides it; the report of a fault inside a chain's
+  build names the model, the file and the encoding.
 
 ## Not proposed
 

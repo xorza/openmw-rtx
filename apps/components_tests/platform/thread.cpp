@@ -129,6 +129,25 @@ namespace Platform
             EXPECT_EQ(seen, ours);
         }
 
+        /// **A thread's CPU time is what it ran, not what it waited**: a sleep of 50 ms adds less than the
+        /// sleep, and a spin moves it by at least a millisecond within a second of the wall. Windows counts
+        /// it in ticks of 15.6 ms, so the spin's bound waits out a tick, and a tick's credit may pass the
+        /// wall the spin took, which no assertion here reads.
+        TEST(PlatformThreadTest, aThreadsCpuTimeCountsWorkAndNotASleep)
+        {
+            const std::chrono::nanoseconds beforeSleep = cpuTimeOfThisThread();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            EXPECT_LT(cpuTimeOfThisThread() - beforeSleep, std::chrono::milliseconds(50));
+
+            const auto began = std::chrono::steady_clock::now();
+            const std::chrono::nanoseconds beforeSpin = cpuTimeOfThisThread();
+            std::chrono::nanoseconds spun{};
+            while (spun < std::chrono::milliseconds(1)
+                && std::chrono::steady_clock::now() - began < std::chrono::seconds(1))
+                spun = cpuTimeOfThisThread() - beforeSpin;
+            EXPECT_GE(spun, std::chrono::milliseconds(1)) << "a second's spin ran no CPU";
+        }
+
         /// A stop ends the sleep at once and says so; one asked before the sleep ends it before it
         /// starts; a token made by default sleeps the period out. Bounds of a second, against a
         /// period of a minute, so a loaded machine cannot pass the wrong answer.

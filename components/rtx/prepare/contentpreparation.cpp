@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <utility>
 
 #include <osg/Image>
@@ -42,6 +43,10 @@ namespace Rtx
         PreparedModel mModel;
         MadeChain mChain;
         std::vector<std::string> mFiles;
+
+        /// What this thread ran on a CPU while it served, written by it alone before it ends.
+        std::chrono::nanoseconds mCpu{};
+
         Worker mWorker;
     };
 
@@ -123,6 +128,13 @@ namespace Rtx
 
     void ContentPreparation::serve(Hand& hand, const Platform::StopToken& stop)
     {
+        const std::chrono::nanoseconds started = Platform::cpuTimeOfThisThread();
+        serveJobs(hand, stop);
+        hand.mCpu = Platform::cpuTimeOfThisThread() - started;
+    }
+
+    void ContentPreparation::serveJobs(Hand& hand, const Platform::StopToken& stop)
+    {
         while (!stop.stopRequested())
         {
             const std::size_t at = mNext.fetch_add(1);
@@ -143,7 +155,10 @@ namespace Rtx
                     .mFiles = hand.mFiles,
                 };
             }
-            mMonitor.hand([&] { ++mMade; });
+            mMonitor.hand([&] {
+                if (++mMade == mWalked.size())
+                    mDone = std::chrono::steady_clock::now();
+            });
         }
     }
 
@@ -268,10 +283,14 @@ namespace Rtx
     {
         assert(awaitProgress(std::chrono::milliseconds::zero()).isDone()
             && "a preparation finished before its models were done");
+        mTimes = PreparationTimes{
+            .mWall = mMonitor.under([&] { return mDone; }) - mStarted, .mThreadsCpu = {}, .mThreads = mHands.size()
+        };
         for (const std::unique_ptr<Hand>& hand : mHands)
         {
             hand->mWorker.stop();
             mStats += hand->mWalk.takeStats();
+            mTimes.mThreadsCpu += hand->mCpu;
         }
 
         // Every job of this run filed or named, and what no run named for a month dropped: another
