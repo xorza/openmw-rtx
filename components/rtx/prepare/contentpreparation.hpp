@@ -18,7 +18,7 @@
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
+#include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/shader/automaps.hpp>
 
 #include "preparationmanifest.hpp"
@@ -51,9 +51,6 @@ namespace Rtx
         /// Which nodes a model's walk descends into: the frame walk's own, so the walk reads what
         /// the game's reads.
         osg::Node::NodeMask mMask = ~0u;
-
-        /// What a specular map's channels mean, which decides how its chain is made.
-        SpecularLayout mSpecular = SpecularLayout::Classic;
 
         /// The companion maps the loader adds beside a diffuse, whose files a model's walk then
         /// depends on whether or not they stand: a map a mod adds is a model walked again.
@@ -135,6 +132,9 @@ namespace Rtx
         /// `input`'s chain made where it is made at all and this run is the first to ask.
         void chain(Hand& hand, const ChainPass::Input& input);
 
+        /// `input`'s converted chain made where this run is the first to ask.
+        void convert(Hand& hand, const ConversionPass::Input& input);
+
         /// Whether this run is the first to ask for `name`'s chain as `encoding`: a map many models
         /// wear is made once a run.
         bool claim(std::string name);
@@ -144,7 +144,6 @@ namespace Rtx
         ContentStore& mStore;
         const std::filesystem::path mManifestPath;
         const osg::Node::NodeMask mMask;
-        const SpecularLayout mSpecular;
         const Shader::AutoMapRules mAutoMaps;
         const std::uint64_t mSignature;
 

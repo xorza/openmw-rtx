@@ -4,6 +4,7 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
+#include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 
 #include "contentcache.hpp"
@@ -54,8 +55,14 @@ namespace Rtx
         /// `AlphaSpan`: the lowest and the highest alpha `image` holds.
         AlphaRange alphaRange(const osg::Image& image);
 
+        /// `SpecularKind`: what `image`'s channels mean as a `_spec` map.
+        SpecularLayout specularLayout(const osg::Image& image);
+
         /// `ChainPass`: an image's chain made again, or made where it carried none, read as its input says.
         void chain(const ChainPass::Input& input, MadeChain& made);
+
+        /// `ConversionPass`: a classic pair's base colour or metal-roughness map.
+        void convert(const ConversionPass::Input& input, MadeChain& made);
 
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();
@@ -70,7 +77,9 @@ namespace Rtx
         TexelMean mMean{ mTexels };
         SolidFall mFall{ mTexels };
         AlphaSpan mSpan{ mTexels };
+        SpecularKind mKind{ mTexels };
         ChainPass mChain;
+        ConversionPass mConversion;
 
         ContentCache mCache;
         ContentStats mStats;

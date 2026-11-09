@@ -6,7 +6,6 @@
 #include <components/misc/presentation.hpp>
 #include <components/rtx/common/menu.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/sdlutil/sdldisplay.hpp>
 #include <components/settings/values.hpp>
 
@@ -36,13 +35,6 @@ namespace
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
-    constexpr std::array<Rtx::MenuLabel<Rtx::SpecularLayout>, Rtx::sSpecularLayoutMenu.size()> sSpecularLayoutLabels{ {
-        { Rtx::SpecularLayout::Classic,
-            QT_TRANSLATE_NOOP("GraphicsPage", "Classic (Highlight Colour and Glossiness)") },
-        { Rtx::SpecularLayout::MetalRoughness, QT_TRANSLATE_NOOP("GraphicsPage", "PBR (Metalness and Roughness)") },
-    } };
-    static_assert(Rtx::followsMenu(sSpecularLayoutLabels, Rtx::sSpecularLayoutMenu));
-
     template <class Enum>
     void addMenuItems(QComboBox* box, std::span<const Rtx::MenuLabel<Enum>> labels)
     {
@@ -63,7 +55,6 @@ Launcher::GraphicsPage::GraphicsPage(QWidget* parent)
     customHeightSpinBox->setMaximum(res.height());
 
     addMenuItems<Rtx::Upscale>(rayTracingUpscaleComboBox, sUpscaleLabels);
-    addMenuItems<Rtx::SpecularLayout>(rayTracingSpecularMapsComboBox, sSpecularLayoutLabels);
     rayTracingDistantLandSpinBox->setRange(static_cast<int>(Settings::RTXCategory::sMinDistantLandCellsInMenu),
         static_cast<int>(Settings::RTXCategory::sMaxDistantLandCells));
 
@@ -133,8 +124,6 @@ bool Launcher::GraphicsPage::loadSettings()
     // The list offers every mode the setting can hold
     rayTracingUpscaleComboBox->setCurrentIndex(
         static_cast<int>(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value()));
-    rayTracingSpecularMapsComboBox->setCurrentIndex(
-        static_cast<int>(Rtx::menuIndex(Rtx::sSpecularLayoutMenu, Settings::rtx().mSpecularMapLayout.get()).value()));
 
     // The box holds whole cells from the menu's fewest, so it shows nought or 4.5 as another value:
     // saveSettings writes the reach only when the player moved it
@@ -189,10 +178,6 @@ void Launcher::GraphicsPage::saveSettings()
         if (const std::optional<Rtx::Upscale> chosen
             = Rtx::menuValue(Rtx::sUpscaleMenu, static_cast<std::size_t>(chosenIndex)))
             Settings::rtx().mUpscale.set(*chosen);
-    if (const int chosenLayout = rayTracingSpecularMapsComboBox->currentIndex(); chosenLayout >= 0)
-        if (const std::optional<Rtx::SpecularLayout> chosen
-            = Rtx::menuValue(Rtx::sSpecularLayoutMenu, static_cast<std::size_t>(chosenLayout)))
-            Settings::rtx().mSpecularMapLayout.set(*chosen);
     if (rayTracingDistantLandSpinBox->value() != mLoadedDistantLandCells)
         Settings::rtx().mDistantLandCells.set(static_cast<float>(rayTracingDistantLandSpinBox->value()));
 

@@ -78,9 +78,21 @@ namespace Rtx
         return range;
     }
 
+    SpecularLayout ContentPreprocessor::specularLayout(const osg::Image& image)
+    {
+        SpecularLayout layout = SpecularLayout::MetalRoughness;
+        run(mKind, image, layout);
+        return layout;
+    }
+
     void ContentPreprocessor::chain(const ChainPass::Input& input, MadeChain& made)
     {
         run(mChain, input, made);
+    }
+
+    void ContentPreprocessor::convert(const ConversionPass::Input& input, MadeChain& made)
+    {
+        run(mConversion, input, made);
     }
 
     ContentPreprocessor::ContentPreprocessor(ContentStore* const store, const StoreReach reach)

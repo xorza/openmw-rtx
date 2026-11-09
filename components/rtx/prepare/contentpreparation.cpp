@@ -9,6 +9,7 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/worker.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
@@ -65,7 +66,6 @@ namespace Rtx
         , mStore(setup.mStore)
         , mManifestPath(setup.mManifest)
         , mMask(setup.mMask)
-        , mSpecular(setup.mSpecular)
         , mAutoMaps(setup.mAutoMaps)
         , mSignature(signatureOf(setup))
         , mModels(std::move(models))
@@ -105,8 +105,9 @@ namespace Rtx
         digest.add(TexelMean::sVersion);
         digest.add(AlphaSpan::sVersion);
         digest.add(ChainPass::sVersion);
+        digest.add(SpecularKind::sVersion);
+        digest.add(ConversionPass::sVersion);
         digest.add(setup.mMask);
-        digest.add(setup.mSpecular);
         digest.add(setup.mAutoMaps.mNormalMaps);
         digest.add(std::span<const char>(setup.mAutoMaps.mNormalMapPattern));
         digest.add(std::span<const char>(setup.mAutoMaps.mNormalHeightMapPattern));
@@ -158,6 +159,14 @@ namespace Rtx
                 if (!part.mMaterial.mDescribed.has_value())
                     continue;
                 const SurfaceDescription& described = *part.mMaterial.mDescribed;
+
+                // What the `_spec` map means, measured on it and kept, as the material resolver asks.
+                const osg::Image* const specular = described.getTexture(SurfaceMap::Specular);
+                const osg::Image* const diffuse = described.getTexture(SurfaceMap::Diffuse);
+                const SpecularLayout layout
+                    = specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty()
+                    ? hand.mChains.specularLayout(*specular)
+                    : SpecularLayout::MetalRoughness;
                 for (std::size_t map = 0; map < sSurfaceMapCount; ++map)
                 {
                     const osg::Image* const image = described.getTexture(static_cast<SurfaceMap>(map));
@@ -174,10 +183,16 @@ namespace Rtx
                             Shader::appendCompanionPaths(mAutoMaps, image->getFileName(), hand.mFiles);
                     }
 
-                    chain(hand,
-                        ChainPass::Input{ .mImage = *image,
-                            .mEncoding = described.encodingOf(surfaceMap, mSpecular),
-                            .mWrap = described.getTextureUse(surfaceMap).mWrap });
+                    const TextureEncoding encoding = described.encodingOf(surfaceMap, layout);
+                    const TextureWrap wrap = described.getTextureUse(surfaceMap).mWrap;
+                    if (isConverted(encoding))
+                        convert(hand,
+                            ConversionPass::Input{ .mImage = *image,
+                                .mPartner = encoding == TextureEncoding::ConvertedColour ? *specular : *diffuse,
+                                .mEncoding = encoding,
+                                .mWrap = wrap });
+                    else
+                        chain(hand, ChainPass::Input{ .mImage = *image, .mEncoding = encoding, .mWrap = wrap });
                 }
             }
 
@@ -198,7 +213,7 @@ namespace Rtx
         if (diffuse.isOk() && diffuse.value() != nullptr)
             chain(hand,
                 ChainPass::Input{ .mImage = *diffuse.value(),
-                    .mEncoding = layerEncodingOf(layer.mDiffuseSpec, mSpecular),
+                    .mEncoding = layerEncodingOf(layer.mDiffuseSpec),
                     .mWrap = TextureWrap::Repeat });
 
         if (layer.mNormal.empty())
@@ -225,6 +240,18 @@ namespace Rtx
             name += static_cast<char>('0' + static_cast<int>(input.mWrap));
         if (claim(std::move(name)))
             hand.mChains.chain(input, hand.mChain);
+    }
+
+    void ContentPreparation::convert(Hand& hand, const ConversionPass::Input& input)
+    {
+        // Claimed by both names, the encoding and the wrap: what the store keys it by.
+        std::string name(SceneUtil::EmbeddedImage::nameOf(input.mImage));
+        name += '|';
+        name += SceneUtil::EmbeddedImage::nameOf(input.mPartner);
+        name += static_cast<char>('0' + static_cast<int>(input.mEncoding));
+        name += static_cast<char>('0' + static_cast<int>(input.mWrap));
+        if (claim(std::move(name)))
+            hand.mChains.convert(input, hand.mChain);
     }
 
     bool ContentPreparation::claim(std::string name)

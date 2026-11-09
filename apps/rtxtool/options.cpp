@@ -674,15 +674,6 @@ namespace RtxTool
             "by the same ring. Not given, `settings-default.cfg`'s `[Terrain] object paging`, or "
             "the player's own under `view`");
 
-        option(sFramed, "maps", bpo::value<std::string>(),
-            std::format("what a model's companion maps are called and what its `_spec` map means: {}. "
-                        "Each takes the shipped name patterns; `shipped` reads a `_spec` map in "
-                        "`settings-default.cfg`'s `[RTX] specular map layout`, and `classic` and "
-                        "`metal-roughness` in that layout. Not given, `shipped`, or the player's own under "
-                        "`view`",
-                sMapRulesNames.list())
-                .c_str());
-
         option(sFramed, "grass", bpo::value<bool>()->implicit_value(true),
             "stand the plants the `--groundcover` files place, each an instance of its model, within "
             "`[Groundcover] rendering distance` of the eye; it is the game's `[Groundcover] enabled`. "
@@ -909,9 +900,7 @@ namespace RtxTool
         frame.mDay = { variables["day"].as<int>(), named("day") };
         if (const Misc::Result<void, std::string_view> checked = checkDay(frame.mDay.mValue); !checked.isOk())
             throw std::runtime_error(std::format("--day={} {}", frame.mDay.mValue, checked.error()));
-        if (named("maps"))
-            frame.mMaps = sMapRulesNames.require(text("maps"), "a map rule");
-        else if (verb != Verbs::View)
+        if (verb != Verbs::View)
             frame.mMaps = MapRules::Shipped;
         frame.mUpscale = { Rtx::sUpscaleNames.require(text("upscale"), "an upscale mode"), named("upscale") };
         if (named("grass"))

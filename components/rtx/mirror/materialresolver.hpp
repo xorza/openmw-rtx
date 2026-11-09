@@ -17,6 +17,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -24,7 +25,6 @@
 #include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/rowhold.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 
@@ -91,12 +91,10 @@ namespace Rtx
         ///        two answers.
         /// @param thread the thread's content, whose image facts are shared with the emitters for
         ///        the reason `EmitterResolver` gives.
-        /// @param specular what the `_spec` maps of materials mean — `WalkContext::mSpecular`.
-        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, ThreadContent& thread, SpecularLayout specular)
+        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, ThreadContent& thread)
             : mScene(scene)
             , mPass(pass)
             , mThread(thread)
-            , mSpecularLayout(specular)
         {
         }
 
@@ -199,10 +197,22 @@ namespace Rtx
             /// path to be refused. Per slot and not per image, because another wrap of the same
             /// file may stand already, and the table answers that one full or not.
             RefusedTakes mRefused;
-            static_assert(sTextureEncodingCount * sTextureWrapCount <= 16, "a refusal bit per slot");
+            static_assert(sTextureEncodingCount * sTextureWrapCount <= 32, "a refusal bit per slot");
 
             /// Its facts in the thread's cache, `ImageFactCache`, or null until a material asks.
             ImageFacts* mFacts = nullptr;
+
+            /// A converted slot this image stands in beside another partner than the one its slot in
+            /// `mSlots` was taken beside (`TextureRow::mPartner`): a diffuse paired with two classic
+            /// `_spec` maps, each pair its own base colour. Empty but in that case.
+            struct OtherPair
+            {
+                const osg::Image* mPartner;
+                TextureEncoding mEncoding;
+                TextureWrap mWrap;
+                TextureHold mSlot;
+            };
+            std::vector<OtherPair> mOtherPairs{};
         };
 
         /// Every image an animated material has worn, each held in `mTextureOf` for as long as the
@@ -399,7 +409,10 @@ namespace Rtx
         ///
         /// @param worn the material wearing it, where that material is rewritten by a controller,
         ///        which keeps the texture through the frames the controller shows another one.
-        Index takeTexture(const TextureUse& use, Worn* worn, TextureEncoding encoding = TextureEncoding::Colour);
+        /// @param partner a converted slot's other file (`isConverted`), which the slot is named for beside
+        ///        `use`'s; null for every other slot.
+        Index takeTexture(const TextureUse& use, Worn* worn, TextureEncoding encoding = TextureEncoding::Colour,
+            const osg::Image* partner = nullptr);
 
         /// What `image`'s texels say — `ImageFactCache::of`, found by the slot after the first ask.
         /// Asked only for a material the answer changes, because the first ask for a file walks its
@@ -440,7 +453,5 @@ namespace Rtx
 
         /// The extractor's. The ring's reader has its own and hands its answers over in the reading.
         ThreadContent& mThread;
-
-        const SpecularLayout mSpecularLayout;
     };
 }

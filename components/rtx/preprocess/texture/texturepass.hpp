@@ -7,6 +7,7 @@
 
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/alpharange.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
@@ -133,6 +134,16 @@ namespace Rtx
     /// no reader here decodes, which bounds whatever it holds.
     AlphaRange alphaSpanOf(const std::optional<TextureData>& finest, TexelScratch& scratch);
 
+    /// The most a classic `_spec` map's channels spread, on the mean: the Fullrest Repack's fourteen
+    /// spread 0.004 to 0.042, and the PBR installs' 3400 metal-roughness maps 0.151 at the least, so a
+    /// bound between them (`.notes/content-cache.md`, one specular layout).
+    inline constexpr double sClassicSpreadMost = 0.1;
+
+    /// What a `_spec` map's channels mean: classic where its texels' channels spread less than
+    /// `sClassicSpreadMost` on the mean. Metal-roughness for an image no reader here decodes, which
+    /// reads it as the data it would be.
+    SpecularLayout specularKindOf(const std::optional<TextureData>& finest, TexelScratch& scratch);
+
     /// Asked of a translucent material's own diffuse map, whose texels it walks up to the first
     /// solid one.
     using SolidReach = TexturePass<ContentPassId::SolidReach, 1, false, bool, solidReachOf>;
@@ -148,4 +159,7 @@ namespace Rtx
     /// Asked of a normal map whose alpha is a height, whose every texel it walks: the heights its relief
     /// spans, which bound the march through it.
     using AlphaSpan = TexturePass<ContentPassId::AlphaSpan, 1, true, AlphaRange, alphaSpanOf>;
+
+    /// Asked of every `_spec` map a material wears, whose every texel it reads.
+    using SpecularKind = TexturePass<ContentPassId::SpecularKind, 1, true, SpecularLayout, specularKindOf>;
 }

@@ -884,7 +884,7 @@ namespace Rtx
         {
             Rtx::SceneDesc scene;
             const std::array<Rtx::MaterialLayer, 2> layers{ Rtx::MaterialLayer{ .mDiffuse = 0 },
-                Rtx::MaterialLayer{ .mDiffuse = 1, .mFlags = Shaders::LAYER_CLASSIC } };
+                Rtx::MaterialLayer{ .mDiffuse = 1, .mFlags = Shaders::LAYER_AUTHORED } };
             scene.textures().add(VFS::Path::NormalizedView("textures/under.dds"));
             scene.textures().add(VFS::Path::NormalizedView("textures/over.dds"));
             Rtx::Material chunk;
@@ -1030,6 +1030,37 @@ namespace Rtx
             EXPECT_EQ(described.getDescriptions()[0].mSource, TextureSource::File);
             EXPECT_EQ(described.getDescriptions()[0].mFormat, TextureFormat::Bc7Unorm);
             EXPECT_EQ(described.getDescriptions()[0].mLevels.size(), 3u);
+            scene.drop(std::move(held));
+        }
+
+        /// **A classic `_spec` stands in until it is converted**, where its grey would read as a
+        /// metalness: a converted specular slot described with no service, or before its pair is made,
+        /// is the stand-in, and is refused nowhere.
+        TEST(RtxSceneTexturesTest, aClassicSpecularMapStandsInUntilItIsConverted)
+        {
+            constexpr VFS::Path::NormalizedView path("textures/tx_ore_spec.dds|textures/tx_ore.dds");
+            osg::ref_ptr<osg::Image> specular = new osg::Image;
+            specular->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            std::fill_n(specular->data(), 16, static_cast<unsigned char>(128));
+            specular->setFileName("textures/tx_ore_spec.dds");
+            osg::ref_ptr<osg::Image> diffuse = new osg::Image;
+            diffuse->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            std::fill_n(diffuse->data(), 16, static_cast<unsigned char>(128));
+            diffuse->setFileName("textures/tx_ore.dds");
+
+            Rtx::SceneDesc scene;
+            TextureHold held = scene.takeTexture(
+                path, *specular, TextureWrap::Repeat, TextureEncoding::ConvertedSpecular, nullptr, diffuse.get());
+            SceneTextures described;
+            described.describeAll(scene, nullptr, false);
+            ASSERT_EQ(described.getDescriptions().size(), 1u);
+            EXPECT_EQ(described.getDescriptions()[0].mSource, TextureSource::StandIn);
+            EXPECT_TRUE(described.getRefusals().empty());
+
+            PreparedImages prepared(nullptr, 1);
+            described.describeAll(scene, &prepared, true);
+            EXPECT_EQ(described.getDescriptions()[0].mSource, TextureSource::File) << "converted";
+            EXPECT_EQ(described.getDescriptions()[0].mFormat, TextureFormat::Bc7Unorm);
             scene.drop(std::move(held));
         }
 

@@ -13,8 +13,8 @@
 
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/common/stepped.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/sceneadopter.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/terrain/pagedcellref.hpp>
 
 #include "cellplacer.hpp"

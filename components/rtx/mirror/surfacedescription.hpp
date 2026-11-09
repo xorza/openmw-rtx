@@ -14,11 +14,11 @@
 
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/image/colour.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/scene/surface.hpp>
 
 namespace osg
@@ -288,12 +288,13 @@ namespace Rtx
 
         const TextureUse& getTextureUse(SurfaceMap map) const { return mTextures[static_cast<std::size_t>(map)]; }
 
-        /// What `map` is bound as, under `layout`: a normal map a normal map, a specular map data or, in
-        /// the classic layout, a colour as the artist saw it; a diffuse a painted colour, delit on the
-        /// host, unless a metal-roughness specular map makes it an authored base colour; and every other
-        /// map a colour, read as it stands. The one rule, which the material resolver binds by and the
-        /// loading screen's preparation makes the chains of.
-        TextureEncoding encodingOf(SurfaceMap map, SpecularLayout layout) const;
+        /// What `map` is bound as, its `_spec` map measured as `specular` (`specularLayoutOf`): a normal map
+        /// a normal map; a classic pair's diffuse and `_spec` its converted base colour and metal-roughness
+        /// map; a metal-roughness `_spec` data, beside an authored base colour, a colour read as it stands;
+        /// a diffuse with no `_spec` a painted colour, delit on the host; and every other map a colour. The
+        /// one rule, which the material resolver binds by and the loading screen's preparation makes the
+        /// chains of.
+        TextureEncoding encodingOf(SurfaceMap map, SpecularLayout specular) const;
 
         /// Repeating, which is what a caller that has no texture to read a wrap off means.
         void setTexture(SurfaceMap map, const osg::Image* image, TextureWrap wrap = TextureWrap::Repeat)

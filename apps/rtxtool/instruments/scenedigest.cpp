@@ -86,9 +86,9 @@ namespace RtxTool
         void forEachMaterialField(const Rtx::Material& material, Texture texture, Layers layers, Value value)
         {
             const auto& [kind, diffuse, emissive, emissiveUnit, environment, environmentColour, dark, darkUnit, normal,
-                specular, specularClassic, relief, diffuseColour, ambientColour, emissiveColour, opacity, alphaTest,
-                alphaMode, blend, vertexColour, twoSided, lampLit, textureTransform, run, flatten, layersMapped,
-                animated, neverSolid, darkBelowSolid, diffuseMean]
+                specular, relief, diffuseColour, ambientColour, emissiveColour, opacity, alphaTest, alphaMode, blend,
+                vertexColour, twoSided, lampLit, textureTransform, run, flatten, layersMapped, animated, neverSolid,
+                darkBelowSolid, diffuseMean]
                 = material;
 
             texture(diffuse);
@@ -121,8 +121,6 @@ namespace RtxTool
                 value(std::uint8_t{ 5 });
                 value(emissiveUnit);
             }
-            if (specularClassic)
-                value(std::uint8_t{ 6 });
             if (!lampLit)
                 value(std::uint8_t{ 7 });
             if (darkBelowSolid)
@@ -517,12 +515,13 @@ namespace RtxTool
         // **And every other field of the row, bound whole**, as `forEachMaterialField` binds a
         // material: the wrap reaches the sampler and the encoding and format how the texels decode,
         // so a slot read another way is a trace that moves over this column. A field added to
-        // `TextureRow` does not compile here until it is named. The image and its laid copy are the
-        // file's bytes, which the path already names; of the prepared image, whether there is one.
+        // `TextureRow` does not compile here until it is named. The image, its laid copy and a converted
+        // slot's partner are files' bytes, which the path already names; of the prepared image, whether
+        // there is one.
         Column textures(mScratch);
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {
-            const auto& [kind, path, groundOf, wrap, encoding, image, laid, prepared, format] = row;
+            const auto& [kind, path, groundOf, wrap, encoding, image, laid, partner, prepared, format] = row;
             const std::string_view name = path.value();
             textures.add(std::span<const char>(name.data(), name.size()));
             textures.add(static_cast<std::uint32_t>(name.size()));
@@ -536,6 +535,7 @@ namespace RtxTool
             textures.add(static_cast<std::uint32_t>(prepared != nullptr ? 1 : 0));
             static_cast<void>(image);
             static_cast<void>(laid);
+            static_cast<void>(partner);
         }
         take(ScenePart::Textures, textures.take());
 

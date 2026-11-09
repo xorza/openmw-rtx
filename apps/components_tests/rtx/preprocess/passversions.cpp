@@ -13,6 +13,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/image/alpharange.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/contentcodec.hpp>
@@ -20,6 +21,7 @@
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
+#include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 
 namespace Rtx
@@ -138,6 +140,13 @@ namespace Rtx
                     .mImage = *makeBlockImage(), .mEncoding = TextureEncoding::Painted, .mWrap = TextureWrap::ClampS },
                 own);
             ASSERT_EQ(own.mForm, ChainForm::Own);
+            const SpecularLayout kind = content.specularLayout(*makeImage(heights));
+            MadeChain converted;
+            content.convert(ConversionPass::Input{ .mImage = *painted,
+                                .mPartner = *makeImage(heights),
+                                .mEncoding = TextureEncoding::ConvertedSpecular },
+                converted);
+            ASSERT_EQ(converted.mForm, ChainForm::Bc7);
 
             struct Recorded
             {
@@ -152,6 +161,8 @@ namespace Rtx
                 Recorded{ "chain in BC7", ChainPass::sVersion, digestOf(chain) },
                 Recorded{ "coarser chain", ChainPass::sVersion, digestOf(coarser) },
                 Recorded{ "painted chain", ChainPass::sVersion, digestOf(own) },
+                Recorded{ "specular kind", SpecularKind::sVersion, digestOf(kind) },
+                Recorded{ "conversion", ConversionPass::sVersion, digestOf(converted) },
             };
             const std::array recorded{
                 Recorded{ "shape", 3, 0xea9852832b8ceb62 },
@@ -160,6 +171,8 @@ namespace Rtx
                 Recorded{ "chain in BC7", 5, 0xc9f191cc7fdae1aa },
                 Recorded{ "coarser chain", 5, 0x5f247501ba043a44 },
                 Recorded{ "painted chain", 5, 0xdc5310c2a2fefd7d },
+                Recorded{ "specular kind", 1, 0x5eac70df15eeb2ef },
+                Recorded{ "conversion", 1, 0xdd2dc0fc077e0eb3 },
             };
             for (std::size_t at = 0; at < computed.size(); ++at)
             {

@@ -76,7 +76,6 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lightcommon.hpp>
@@ -415,13 +414,11 @@ namespace Rtx::Testing
         static_assert(sPlacedCells == 69 && sPreparedCells == 101);
 
         /// A world with nothing on its graph and a ring beside it, walked from a fixed eye. Every
-        /// cell of the land has a record, so every cell stands two ground types. The frame thread's
-        /// walks read the `_spec` maps by `Layout`, which a run states once.
-        template <SpecularLayout Layout>
-        class CellRingTestOn : public ::testing::Test
+        /// cell of the land has a record, so every cell stands two ground types.
+        class RtxCellRingTest : public ::testing::Test
         {
         protected:
-            CellRingTestOn()
+            RtxCellRingTest()
             {
                 for (int x = -8; x <= 30; ++x)
                     for (int y = -8; y <= 30; ++y)
@@ -566,27 +563,24 @@ namespace Rtx::Testing
                 return material.mLayers.in(mScene.materials().getLayers())[1].mFlags;
             }
 
-            WalkContext mContext{ .mSpecular = Layout };
+            WalkContext mContext{};
             SceneDesc mScene;
             SceneExtractor mExtractor{ mScene, mContext, sWorldExtractorRoom };
             CellRing mRing{ mExtractor };
         };
 
-        using RtxCellRingTest = CellRingTestOn<SpecularLayout::Classic>;
-        using RtxCellRingMetalTest = CellRingTestOn<SpecularLayout::MetalRoughness>;
-
-        /// **A `_diffusespec` is what the layout says it is**: authored under the metal layout, as the
-        /// test below reads, and classic under the classic one.
-        TEST_F(RtxCellRingTest, aDiffusespecIsClassicUnderTheClassicLayout)
+        /// **A `_diffusespec` is an authored albedo** with its roughness in alpha, as the PBR packs ship
+        /// every one (`layerEncodingOf`), and bound as a colour read as it stands.
+        TEST_F(RtxCellRingTest, aDiffusespecIsAnAuthoredAlbedo)
         {
-            EXPECT_EQ(rockLayer(), Shaders::LAYER_CLASSIC | Shaders::LAYER_PARALLAX);
+            EXPECT_EQ(rockLayer(), Shaders::LAYER_AUTHORED | Shaders::LAYER_PARALLAX);
         }
 
         /// **A ring is walked by the extractor it adopts through and no other**: one made on another
         /// adopts its rows into that extractor's scene inside this one's walk.
         TEST_F(RtxCellRingTest, aRingIsWalkedOnlyByTheExtractorItAdoptsThrough)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Classic };
+            WalkContext context{};
             SceneDesc other;
             SceneExtractor stranger(other, context, sWorldExtractorRoom);
             expectAssertDies([&] { stranger.extractWorld(*mEmpty, 0, 1, mRing); },
@@ -622,7 +616,7 @@ namespace Rtx::Testing
         /// A reference stands where the game would stand its clone, on the mesh every copy shares;
         /// what the active grid holds is left to the game; every cell of the reach stands its
         /// ground on a row of the ring's own; and a second walk adds nothing.
-        TEST_F(RtxCellRingMetalTest, referencesStandWhereTheGameWouldStandThemOnOneMeshEach)
+        TEST_F(RtxCellRingTest, referencesStandWhereTheGameWouldStandThemOnOneMeshEach)
         {
             const Placed tree{ .mCell = osg::Vec2i(3, 0),
                 .mModel = "tree.nif",
@@ -684,7 +678,7 @@ namespace Rtx::Testing
                 EXPECT_EQ(material.mFlatten, GroundFlattening::Every);
 
                 // The rock's maps: its normal map in a slot of its own, tiled and read as data, and
-                // its `_diffusespec` authored under the layout that reads the alpha as a roughness.
+                // its `_diffusespec` authored, its alpha a roughness.
                 const std::span<const MaterialLayer> layers = material.mLayers.in(mScene.materials().getLayers());
                 EXPECT_EQ(layers[0].mNormal, sNoIndex);
                 EXPECT_EQ(layers[0].mFlags, 0u);
@@ -821,7 +815,7 @@ namespace Rtx::Testing
         /// (`CellWorld::mAbove`). Here the root states a material, the tree's root turns culling off
         /// and its sheet paints the bark — three links — and the walk meets them again in the clone
         /// the game stands under the root, and adds no material for it.
-        TEST_F(RtxCellRingMetalTest, aModelTheRingStandsAndTheWalkMeetsWearsOneMaterial)
+        TEST_F(RtxCellRingTest, aModelTheRingStandsAndTheWalkMeetsWearsOneMaterial)
         {
             mEmpty->getOrCreateStateSet()->setAttribute(new SceneUtil::Material);
             mContent.mTree->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);

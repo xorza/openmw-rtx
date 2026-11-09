@@ -98,13 +98,11 @@ namespace Rtx
         Index mDark = sNoIndex;
         std::uint8_t mDarkUnit = 0;
 
-        /// The companion maps: a tangent-space normal in the normal encoding, and a specular map in
-        /// the layout the player named — data under `SpecularLayout::MetalRoughness`, a colour and
-        /// an exponent under `Classic` (`mSpecularClassic`). `sNoIndex` where the content has none,
-        /// or, for the specular map, where the layout is `Ignore`.
+        /// The companion maps: a tangent-space normal in the normal encoding, and a metal-roughness
+        /// map, a classic one converted to it (`SurfaceDescription::encodingOf`). `sNoIndex` where the
+        /// content has none.
         Index mNormal = sNoIndex;
         Index mSpecular = sNoIndex;
-        bool mSpecularClassic = false;
 
         /// Where the normal map's alpha is a height the texture coordinates are shifted by toward the
         /// eye, as the rasterizer's `parallax.glsl` shifts them (`Shaders::MATERIAL_PARALLAX`), the

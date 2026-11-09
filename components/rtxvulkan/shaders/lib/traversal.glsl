@@ -1391,10 +1391,9 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
                 at.mAt += parallaxShift(layerEye, sampleDiffuse(layer.mNormal, at).a);
 
             const bool authored = HAS_MAPS && layerAuthored(layer, sceneTexels());
-            const bool classic = HAS_MAPS && layerClassic(layer, sceneTexels());
             const vec4 read = sampleDiffuse(layer.mDiffuse, at);
-            const vec4 shown = layerTexel(read, authored, classic);
-            addLayer(ground, showing, shown, read.a, authored, classic, HAS_MAPS);
+            const vec4 shown = layerTexel(read, authored);
+            addLayer(ground, showing, shown, authored, HAS_MAPS);
 
             if (HAS_MAPS)
             {
@@ -1443,34 +1442,30 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     // through `texturesAlong`, AMD's Windows driver hung the trace in the waterfall of this read wherever a
     // wave resolved a first-person surface while its other lanes went on with the peel, whether or not the
     // surface had a specular map (`docs/rtx/research/2026-10-22-amd-integrated-footprint-read-hang.md`).
-    if (HAS_MAPS && (ground.mReflecting > 0.0 || ground.mShining > 0.0))
+    if (HAS_MAPS && ground.mReflecting > 0.0)
     {
-        const vec3 gloss = groundGloss(ground);
-        surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x + gloss.z) * tint;
+        const vec2 gloss = groundGloss(ground);
+        surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x) * tint;
         surface.mRoughness = gloss.y;
     }
     else if (specularMap && surface.mGround)
     {
-        const vec3 gloss = sampleDiffuse(material.mSpecular, atLevel(point)).rgb;
-        surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x + gloss.z) * tint;
+        const vec2 gloss = sampleDiffuse(material.mSpecular, atLevel(point)).rg;
+        surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x) * tint;
         surface.mRoughness = gloss.y;
     }
     else if (specularMap)
     {
-        // **A `_spec` map is a metalness, a perceptual roughness and an occlusion.** The occlusion is of
-        // the relief no ray meets, since a ray stops at the mesh, and what real geometry occludes the traced
-        // bounce and `ambientReaching` already find. The scattering in its alpha is not read: the BC1 maps
-        // most of the content ships cannot carry it.
-        //
-        // **A classic map is a reflectance and an exponent** over a diffuse that is no base colour: no
-        // metal splits it, the highlight colour is the lobe's whole, and the exponent over 255 is a
-        // roughness by `roughnessOfExponent`'s match.
+        // **A `_spec` map is a metalness, a perceptual roughness and an occlusion**, a classic one
+        // converted to it with its diffuse on the host (`ConversionPass`). The occlusion is of the
+        // relief no ray meets, since a ray stops at the mesh, and what real geometry occludes the traced
+        // bounce and `ambientReaching` already find. The scattering in its alpha is not read: the BC1
+        // maps most of the content ships cannot carry it.
         const vec4 painted = sampleDiffuse(material.mSpecular, atLevel(point));
-        const bool classic = (material.mFlags & MATERIAL_SPECULAR_CLASSIC) != 0u;
-        const float metal = classic ? 0.0 : painted.x;
-        surface.mSpecular = (classic ? painted.rgb : mix(vec3(DIELECTRIC_F0), albedo, metal)) * tint;
-        surface.mRoughness = classic ? roughnessOfExponent(painted.a * 255.0) : painted.y;
-        surface.mOcclusion = classic ? 1.0 : painted.z;
+        const float metal = painted.x;
+        surface.mSpecular = mix(vec3(DIELECTRIC_F0), albedo, metal) * tint;
+        surface.mRoughness = painted.y;
+        surface.mOcclusion = painted.z;
         surface.mAlbedo *= 1.0 - metal;
         surface.mAmbientAlbedo *= 1.0 - metal;
     }

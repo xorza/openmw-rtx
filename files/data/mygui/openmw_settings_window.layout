@@ -436,18 +436,10 @@
                             <UserString key="SettingLabelCaption" value="RayTracingBounceRaysValue"/>
                         </Widget>
 
-                        <Widget type="TextBox" skin="NormalText" position="0 130 420 18" align="Left Top" name="RayTracingSpecularMapsText">
-                            <Property key="Caption" value="#{OMWEngine:RayTracingSpecularMaps}"/>
-                        </Widget>
-                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 150 420 24" align="Left Top" name="RayTracingSpecularMapsList"/>
-                        <Widget type="TextBox" skin="SandText" position="0 176 420 18" align="Left Top" name="RayTracingSpecularMapsHint">
-                            <Property key="Caption" value="#{OMWEngine:RayTracingSpecularMapsHint}"/>
-                        </Widget>
-
-                        <Widget type="TextBox" skin="NormalText" position="0 200 420 18" align="Left Top" name="RayTracingDistantLandText">
+                        <Widget type="TextBox" skin="NormalText" position="0 130 420 18" align="Left Top" name="RayTracingDistantLandText">
                             <Property key="Caption" value="#{OMWEngine:RayTracingDistantLand}"/>
                         </Widget>
-                        <Widget type="ScrollBar" skin="MW_HScroll" position="0 222 420 18" align="Left Top" name="RayTracingDistantLandSlider">
+                        <Widget type="ScrollBar" skin="MW_HScroll" position="0 152 420 18" align="Left Top" name="RayTracingDistantLandSlider">
                             <Property key="Page" value="1"/>
                             <Property key="WheelPage" value="1"/>
                             <UserString key="SettingType" value="Slider"/>
@@ -458,10 +450,10 @@
                             <UserString key="SettingLabelCaption" value="RayTracingDistantLandValue"/>
                         </Widget>
 
-                        <Widget type="TextBox" skin="NormalText" position="0 246 420 18" align="Left Top">
+                        <Widget type="TextBox" skin="NormalText" position="0 176 420 18" align="Left Top">
                             <Property key="Caption" value="#{OMWEngine:Anisotropy}"/>
                         </Widget>
-                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 266 420 24" align="Left Top" name="Anisotropy">
+                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 196 420 24" align="Left Top" name="Anisotropy">
                             <Property key="AddItem" value="#{Interface:Off}"/>
                             <Property key="AddItem" value="2x"/>
                             <Property key="AddItem" value="4x"/>

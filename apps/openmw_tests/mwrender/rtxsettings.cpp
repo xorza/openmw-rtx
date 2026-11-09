@@ -7,7 +7,6 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 
 namespace MWRender
@@ -30,7 +29,6 @@ namespace MWRender
                 .mGroundcoverDistance = 3072.0f,
                 .mGroundcoverDensity = 0.5f,
                 .mGroundcoverPointLighting = false,
-                .mSpecularMapLayout = Rtx::SpecularLayout::MetalRoughness,
                 .mAnisotropy = 8,
                 .mGamma = 1.5f,
                 .mLitEnvironmentMaps = true,
@@ -54,7 +52,6 @@ namespace MWRender
             EXPECT_EQ(derived.mMirror.mGroundcoverReach, 3072.0f);
             EXPECT_EQ(derived.mMirror.mGroundcoverDensity, 0.5f);
             EXPECT_FALSE(derived.mMirror.mGroundcoverLampLit);
-            EXPECT_EQ(derived.mMirror.mSpecularLayout, Rtx::SpecularLayout::MetalRoughness);
             EXPECT_EQ(derived.mAnisotropy, 8u);
             EXPECT_EQ(derived.mGamma, 1.5f);
             EXPECT_TRUE(derived.mLitEnvironmentMaps);

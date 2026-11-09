@@ -254,11 +254,9 @@ namespace RtxTool
             EXPECT_EQ(refusal({ "--length=0" }), "the argument ('0') for option '--length' is not a number >0");
         }
 
-        /// **A run takes the shipped map rules unless the line names others**, and never the
-        /// player's, so two machines trace one scene; `view` is the played game and takes the
-        /// player's unless the line names rules. A spelling no rule has is refused with the ones
-        /// there are, the player's among the refused.
-        TEST(RtxToolOptionsTest, aRunTakesTheShippedMapsUnlessTheLineOrAWindowSaysOtherwise)
+        /// **A run takes the shipped map names, and `view`, the played game, the player's**, so two
+        /// machines trace one scene. No line names others: what a `_spec` map means is measured on it.
+        TEST(RtxToolOptionsTest, aRunTakesTheShippedMapsAndAWindowThePlayers)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
             const auto maps = [&](const std::vector<std::string>& line, Verbs verb) {
@@ -268,22 +266,7 @@ namespace RtxTool
             EXPECT_EQ(maps({}, Verbs::Shot), MapRules::Shipped);
             EXPECT_EQ(maps({}, Verbs::Bench), MapRules::Shipped);
             EXPECT_EQ(maps({}, Verbs::View), std::nullopt);
-            EXPECT_EQ(maps({ "--maps=classic" }, Verbs::Noise), MapRules::Classic);
-            EXPECT_EQ(maps({ "--maps=metal-roughness" }, Verbs::Film), MapRules::MetalRoughness);
-            EXPECT_EQ(maps({ "--maps=shipped" }, Verbs::View), MapRules::Shipped);
-            for (const std::string spelling : { "mine", "player", "metal roughness" })
-            {
-                try
-                {
-                    maps({ "--maps=" + spelling }, Verbs::Shot);
-                    ADD_FAILURE() << spelling << " was not refused";
-                }
-                catch (const std::exception& error)
-                {
-                    EXPECT_EQ(std::string(error.what()),
-                        '"' + spelling + R"(" is not a map rule: shipped, classic or metal-roughness)");
-                }
-            }
+            EXPECT_THROW(maps({ "--maps=shipped" }, Verbs::Shot), std::exception) << "an option no command reads";
         }
 
         /// The build decides the level nobody named, and the level is spelled the way the table

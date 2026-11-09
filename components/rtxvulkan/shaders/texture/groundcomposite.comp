@@ -67,12 +67,11 @@ void main()
             continue;
 
         const bool authored = layerAuthored(layer, TexelTable(chunk.mTexels));
-        const bool classic = layerClassic(layer, TexelTable(chunk.mTexels));
         const vec2 at = layerUv(layer, chunkUv);
         const vec4 read = textureLod(
             textures[nonuniformEXT(layer.mDiffuse)], at, groundLod(layer.mDiffuse, layer, GROUND_COMPOSITE_EXTENT));
-        const vec4 shown = layerTexel(read, authored, classic);
-        addLayer(sum, showing, shown, read.a, authored, classic, true);
+        const vec4 shown = layerTexel(read, authored);
+        addLayer(sum, showing, shown, authored, true);
     }
 
     // Which of the two the bake writes is the dispatch's, so a branch here is uniform across it.
@@ -82,5 +81,5 @@ void main()
     // Data and not a picture: stored as it is, through a view with no curve over a format with
     // none. Where no layer shows, the ground is a Lambert surface.
     if ((chunk.mOutputs & GROUND_COMPOSITE_GLOSS) != 0u)
-        RTX_STORE_COUNTED(gloss, ivec2(texel), vec4(groundGloss(sum), 1.0))
+        RTX_STORE_COUNTED(gloss, ivec2(texel), vec4(groundGloss(sum), 0.0, 1.0))
 }

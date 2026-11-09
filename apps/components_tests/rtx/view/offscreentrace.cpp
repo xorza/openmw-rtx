@@ -67,7 +67,7 @@ namespace Rtx
         /// kind reserves room for its picture as it is made (`PictureRenderer::reservePicture`).
         TEST(RtxOffscreenTraceTest, aPictureOfTheWorldOwnsNoSceneAndOneOfASubjectDoes)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Classic };
+            WalkContext context{};
             Testing::CountingRenderer renderer;
             osg::ref_ptr<osg::Group> subject = new osg::Group;
             subject->addChild(Testing::makeQuad());
@@ -106,7 +106,7 @@ namespace Rtx
         /// white diffuse is pi, and a black ambient nought.
         TEST(RtxOffscreenTraceTest, aPictureHandsItsLightWhatItDrawsAndItsBackdrop)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Classic };
+            WalkContext context{};
             Testing::CountingRenderer renderer;
             OffscreenTrace world(renderer,
                 ViewRequest{ .mWidth = 64,
@@ -185,7 +185,7 @@ namespace Rtx
         /// in the doll on every frame of a slider drag.
         TEST(RtxOffscreenTraceTest, aRebuiltSubjectPlacesWhatArrivedAndHandsTheRoomToWhatComesNext)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Classic };
+            WalkContext context{};
             Testing::CountingRenderer renderer;
             Released releasing;
 
@@ -298,7 +298,7 @@ namespace Rtx
         /// doll's preprocessing out of every figure and ran its glow at nought.
         TEST(RtxOffscreenTraceTest, aSubjectsWalkSharesTheThreadsContentAndRunsAtTheWorldsClock)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Classic };
+            WalkContext context{};
             Testing::CountingRenderer renderer;
             Released releasing;
 
@@ -330,7 +330,7 @@ namespace Rtx
         TEST(RtxOffscreenTraceTest, aPictureAwaitsTheImagesBeingMadeUnlessSettled)
         {
             PreparedImages prepared(nullptr, 1);
-            WalkContext context{ .mPrepared = &prepared, .mSpecular = SpecularLayout::Classic };
+            WalkContext context{ .mPrepared = &prepared };
             Released releasing;
 
             const std::uint8_t bytes[] = { 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -365,7 +365,7 @@ namespace Rtx
             EXPECT_FALSE(trace.awaitsImages());
 
             PreparedImages fresh(nullptr, 1);
-            WalkContext freshContext{ .mPrepared = &fresh, .mSpecular = SpecularLayout::Classic };
+            WalkContext freshContext{ .mPrepared = &fresh };
             Testing::CountingRenderer settledRenderer;
             OffscreenTrace settled(settledRenderer, request, freshContext);
             ASSERT_TRUE(settled.rebuildSubject(*stampAt(3), releasing, true));
@@ -380,7 +380,7 @@ namespace Rtx
         /// acceleration structure in it.
         TEST(RtxOffscreenTraceTest, anEmptySubjectSaysThereIsNothingToTrace)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Classic };
+            WalkContext context{};
             Testing::CountingRenderer renderer;
             Released releasing;
 
@@ -401,7 +401,7 @@ namespace Rtx
         /// dropped wherever it appears below.
         TEST(RtxOffscreenTraceTest, theSubjectMaskKeepsTheWalkOutOfWhatItDoesNotName)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Classic };
+            WalkContext context{};
             Testing::CountingRenderer renderer;
             Released releasing;
 
@@ -464,7 +464,7 @@ namespace Rtx
         /// posed as every other. Before the first redraw there is no picture to pick from.
         TEST(RtxOffscreenTraceTest, aPickMeetsAPartPutOnSinceTheLastRedrawAndLogsNothing)
         {
-            WalkContext context{ .mSpecular = SpecularLayout::Classic };
+            WalkContext context{};
             Testing::CountingRenderer renderer;
             Released releasing;
 

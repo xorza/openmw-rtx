@@ -325,7 +325,7 @@ namespace Rtx
             // A table with no room left names the neutral texel: the device reads a layer's slot
             // with no test, as it reads a material's diffuse.
             const Index slot = mScene.textures().add(layer.mTexture->mPath, layer.mTexture->mImage.get(),
-                TextureWrap::Repeat, layerEncodingOf(layer.mDiffuseSpec, mSpecularLayout), layer.mTexture->mLaid.get());
+                TextureWrap::Repeat, layerEncodingOf(layer.mDiffuseSpec), layer.mTexture->mLaid.get());
             row.mDiffuse = slot != sNoIndex ? slot : Shaders::TEXTURE_NEUTRAL;
 
             // A normal map tiles with the diffuse; one the table has no room for is no normal map,
@@ -343,12 +343,9 @@ namespace Rtx
                 }
             }
 
-            // What a `_diffusespec` is, the layout says: an authored albedo and its roughness, or a
-            // classic diffuse and its highlight's strength.
-            if (layer.mDiffuseSpec && mSpecularLayout == SpecularLayout::MetalRoughness)
+            // A `_diffusespec` is an authored albedo and its roughness (`layerEncodingOf`).
+            if (layer.mDiffuseSpec)
                 row.mFlags |= Shaders::LAYER_AUTHORED;
-            if (layer.mDiffuseSpec && mSpecularLayout == SpecularLayout::Classic)
-                row.mFlags |= Shaders::LAYER_CLASSIC;
 
             mapped = mapped || row.mNormal != sNoIndex || row.mFlags != 0;
 

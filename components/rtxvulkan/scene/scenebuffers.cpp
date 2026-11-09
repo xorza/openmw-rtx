@@ -87,7 +87,6 @@ namespace Rtx
                             : 0u)
                     | (material.mRelief.has_value() ? Shaders::MATERIAL_PARALLAX : 0u)
                     | vertexColourFlag(material.mVertexColour)
-                    | (material.mSpecularClassic ? Shaders::MATERIAL_SPECULAR_CLASSIC : 0u)
                     | (material.mDarkBelowSolid ? Shaders::MATERIAL_DARK_ALPHA : 0u)
                     | (material.mLampLit ? 0u : Shaders::MATERIAL_NO_LAMPS)
                     | (material.isAdditive() && material.mBlend == BlendKind::AddWhole ? Shaders::MATERIAL_ADD_WHOLE

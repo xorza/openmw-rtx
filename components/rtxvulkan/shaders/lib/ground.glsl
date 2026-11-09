@@ -44,25 +44,13 @@ bool layerAuthored(GpuLayer layer, TexelTable texels)
     return (layer.mFlags & LAYER_AUTHORED) != 0u && holdsTexture(texels, layer.mDiffuse);
 }
 
-/// Whether `layer` is a classic `_diffusespec` (`LAYER_CLASSIC`) and its texture holds what it was,
-/// as `layerAuthored` asks it of an authored one.
-bool layerClassic(GpuLayer layer, TexelTable texels)
-{
-    return (layer.mFlags & LAYER_CLASSIC) != 0u && holdsTexture(texels, layer.mDiffuse);
-}
-
 /// What one layer shows where `texel` was read from it: its albedo in rgb, a painted colour delit on the
-/// host (`TextureEncoding::Painted`), and its perceptual roughness in alpha.
+/// host (`TextureEncoding::Painted`), and its perceptual roughness in alpha, a Lambert layer's one.
 ///
-/// @param authored,classic `layerAuthored` and `layerClassic`, which the trace asks only where
-///        `HAS_MAPS` says a layer can be.
-vec4 layerTexel(vec4 texel, bool authored, bool classic)
+/// @param authored `layerAuthored`, which the trace asks only where `HAS_MAPS` says a layer can be.
+vec4 layerTexel(vec4 texel, bool authored)
 {
-    if (authored)
-        return texel;
-
-    const float rough = classic ? roughnessOfExponent(CLASSIC_GROUND_EXPONENT) : 1.0;
-    return vec4(texel.rgb, rough);
+    return authored ? texel : vec4(texel.rgb, 1.0);
 }
 
 /// Where `chunkUv` of a chunk lands on one of its layers, which tiles across it.
@@ -113,26 +101,23 @@ float groundLod(uint slot, GpuLayer layer, uint extent)
 
 /// What a stack sums to, layer by layer in its own order — a float sum is the order it was added in, and
 /// the hit and the bake add in one: the albedo, and for the gloss the weight, the share of it on authored
-/// layers, which reflect `DIELECTRIC_F0`, the roughness over every layer with a Lambert one at one, and the
-/// reflectance the classic layers' alpha states.
+/// layers, which reflect `DIELECTRIC_F0`, and the roughness over every layer with a Lambert one at one.
 struct GroundSum
 {
     vec3 mAlbedo;
     float mWeights;
     float mReflecting;
     float mRoughness;
-    float mShining;
 };
 
 GroundSum noGround()
 {
-    return GroundSum(vec3(0.0), 0.0, 0.0, 0.0, 0.0);
+    return GroundSum(vec3(0.0), 0.0, 0.0, 0.0);
 }
 
-/// Adds a layer showing `showing` of itself: what `layerTexel` made of it, `shown`, and the file's
-/// own alpha, `readAlpha`, which a classic layer's reflectance is. The gloss's sums only where
-/// `maps` says, which the hit has as `HAS_MAPS` so a vanilla program carries none of them.
-void addLayer(inout GroundSum sum, float showing, vec4 shown, float readAlpha, bool authored, bool classic, bool maps)
+/// Adds a layer showing `showing` of itself: what `layerTexel` made of it, `shown`. The gloss's sums only
+/// where `maps` says the trace reads them.
+void addLayer(inout GroundSum sum, float showing, vec4 shown, bool authored, bool maps)
 {
     sum.mAlbedo += showing * shown.rgb;
     if (!maps)
@@ -142,16 +127,13 @@ void addLayer(inout GroundSum sum, float showing, vec4 shown, float readAlpha, b
     sum.mRoughness += showing * shown.a;
     if (authored)
         sum.mReflecting += showing;
-    if (classic)
-        sum.mShining += showing * readAlpha;
 }
 
-/// The stack's gloss: the share of its weight that reflects, its roughness and the classic layers'
-/// reflectance, over the weight — a Lambert surface where no layer shows.
-vec3 groundGloss(GroundSum sum)
+/// The stack's gloss: the share of its weight that reflects and its roughness, over the weight — a
+/// Lambert surface where no layer shows.
+vec2 groundGloss(GroundSum sum)
 {
-    return sum.mWeights > 0.0 ? vec3(sum.mReflecting, sum.mRoughness, sum.mShining) / sum.mWeights
-                              : vec3(0.0, 1.0, 0.0);
+    return sum.mWeights > 0.0 ? vec2(sum.mReflecting, sum.mRoughness) / sum.mWeights : vec2(0.0, 1.0);
 }
 
 #endif

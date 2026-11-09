@@ -1,7 +1,6 @@
 #pragma once
 
 #include <components/rtx/mirror/cells/cellgrid.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 
 namespace MWRender
 {
@@ -32,9 +31,5 @@ namespace MWRender
 
         /// `[Groundcover] point lighting`: whether the lamps light a plant.
         bool mGroundcoverLampLit = true;
-
-        /// `[RTX] specular map layout`: what the content's `_spec` maps mean, for every scene the
-        /// mirror and the pictures inside the interface read materials into.
-        Rtx::SpecularLayout mSpecularLayout = Rtx::SpecularLayout::Classic;
     };
 }

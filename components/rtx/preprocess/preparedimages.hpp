@@ -67,7 +67,10 @@ namespace Rtx
 
         /// `file`, read as `encoding` by a slot that addresses it as `wrap`, with its chain made again:
         /// made, or queued and pending, or nothing made of it. `prepares(encoding)` holds. Never waits.
-        PreparedImage find(const osg::Image& file, TextureEncoding encoding, TextureWrap wrap);
+        /// @param partner a converted slot's other file (`TextureRow::mPartner`), and null for every
+        ///        other slot.
+        PreparedImage find(
+            const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner = nullptr);
 
         /// Whether nothing is queued or being made: what a run that compares frames waits for, so
         /// every frame it compares draws the made chains.
@@ -81,13 +84,17 @@ namespace Rtx
         ContentStats takeStats();
 
     private:
-        using Key = std::tuple<const osg::Image*, TextureEncoding, TextureWrap>;
+        using Key = std::tuple<const osg::Image*, TextureEncoding, TextureWrap, const osg::Image*>;
 
         struct Entry
         {
             /// The file, watched so an entry of a file that is gone is never taken for another file
             /// a later allocation put at its address.
             osg::observer_ptr<const osg::Image> mFile;
+
+            /// A converted slot's other file, watched for the same reason; null for every other.
+            osg::observer_ptr<const osg::Image> mPartner{};
+
             bool mMade = false;
 
             /// Made, and nothing made of it: its own chain stands (`ChainPass`'s empty output).
@@ -102,6 +109,7 @@ namespace Rtx
         {
             Key mKey;
             osg::ref_ptr<const osg::Image> mFile;
+            osg::ref_ptr<const osg::Image> mPartner{};
         };
 
         struct Hand;

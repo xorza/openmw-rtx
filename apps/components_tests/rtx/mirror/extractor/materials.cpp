@@ -40,6 +40,7 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
@@ -55,7 +56,6 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -338,7 +338,7 @@ namespace Rtx::Testing
                     state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GREATER, test));
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Classic };
+                WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
@@ -434,7 +434,7 @@ namespace Rtx::Testing
             };
             const auto extractOne = [&](osg::Image& dark, bool blend) {
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Classic };
+                WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quadWearing(dark, blend), osg::Matrixf::identity(), 0);
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -484,7 +484,7 @@ namespace Rtx::Testing
                 state.setAttribute(colours);
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Classic };
+                WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
@@ -551,7 +551,7 @@ namespace Rtx::Testing
                     state.addUniform(new osg::Uniform("sun.ambient", osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f)));
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Classic };
+                WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -658,18 +658,18 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.refusals().count(Refused::Texture), 1u);
         }
 
-        /// **The companion maps reach the material, the specular map in the layout that names what
-        /// its channels mean.** A normal map with height and one without are one map. The metal
-        /// layout reads the specular map as data, and the classic one as a colour, its highlight
-        /// being one the artist saw. **The diffuse is a painted colour, delit on the host, but beside a
-        /// metal-roughness map**, which makes it an authored base colour, a colour read as it stands;
-        /// with no specular map at all it is painted. **A normal map bound with its height is parallax**, and not on a
-        /// cutout, whose hole the traversal finds with no eye to shift by; its relief spans the lowest
-        /// and the highest alpha its texels hold, here 30 and 200 of the four 30, 90, 200 and 120.
+        /// **The companion maps reach the material, the specular map as its channels show it.** A normal
+        /// map with height and one without are one map. A `_spec` map of grey texels is classic, and it
+        /// and its diffuse are bound as the converted pair, each slot named for both files; one whose
+        /// channels differ, `(0, 200, 255)`, is metal-roughness, read as data beside an authored base
+        /// colour, a colour read as it stands; with no specular map at all the diffuse is painted.
+        /// **A normal map bound with its height is parallax**, and not on a cutout, whose hole the traversal finds with
+        /// no eye to shift by; its relief spans the lowest and the highest alpha its texels hold, here 30 and 200 of
+        /// the four 30, 90, 200 and 120.
         TEST_F(RtxSceneExtractorTest, theCompanionMapsReachTheMaterialAsDataAndTheSpecularMapOnlyInItsLayout)
         {
-            const auto extractOne = [](SpecularLayout layout, TextureRole normalRole, bool cutout = false,
-                                        bool specular = true) {
+            const auto extractOne = [](std::optional<std::array<unsigned char, 4>> specularTexel,
+                                        TextureRole normalRole, bool cutout = false) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
                 paint(state, "textures/tx_a_steel.dds");
@@ -687,13 +687,20 @@ namespace Rtx::Testing
                 }
                 normalMap->setFileName("textures/tx_a_steel_nh.dds");
                 paint(state, *normalMap, normalRole);
-                if (specular)
-                    paint(state, "textures/tx_a_steel_spec.dds", TextureRole::Specular);
+                if (specularTexel.has_value())
+                {
+                    osg::ref_ptr<osg::Image> specularMap = new osg::Image;
+                    specularMap->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                    for (std::size_t texel = 0; texel < 4; ++texel)
+                        std::copy(specularTexel->begin(), specularTexel->end(), specularMap->data() + texel * 4);
+                    specularMap->setFileName("textures/tx_a_steel_spec.dds");
+                    paint(state, *specularMap, TextureRole::Specular);
+                }
                 if (cutout)
                     state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GEQUAL, 0.5f));
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = layout };
+                WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
@@ -702,22 +709,27 @@ namespace Rtx::Testing
                     std::vector<TextureRow>(scene.textures().getRows().begin(), scene.textures().getRows().end()) };
             };
 
-            const auto [classic, classicRows] = extractOne(SpecularLayout::Classic, TextureRole::NormalHeight);
+            constexpr std::array<unsigned char, 4> grey{ 128, 128, 128, 255 };
+            constexpr std::array<unsigned char, 4> metalRough{ 0, 200, 255, 255 };
+            const auto [classic, classicRows] = extractOne(grey, TextureRole::NormalHeight);
             ASSERT_NE(classic.mNormal, sNoIndex);
             EXPECT_EQ(classicRows[classic.mNormal].mPath, VFS::Path::NormalizedView("textures/tx_a_steel_nh.dds"));
             EXPECT_EQ(classicRows[classic.mNormal].mEncoding, TextureEncoding::Normal);
-            EXPECT_EQ(classicRows[classic.mDiffuse].mEncoding, TextureEncoding::Painted);
+            EXPECT_EQ(classicRows[classic.mDiffuse].mEncoding, TextureEncoding::ConvertedColour);
+            EXPECT_EQ(classicRows[classic.mDiffuse].mPath,
+                VFS::Path::NormalizedView("textures/tx_a_steel.dds|textures/tx_a_steel_spec.dds"));
             ASSERT_NE(classic.mSpecular, sNoIndex);
-            EXPECT_EQ(classicRows[classic.mSpecular].mPath, VFS::Path::NormalizedView("textures/tx_a_steel_spec.dds"));
-            EXPECT_EQ(classicRows[classic.mSpecular].mEncoding, TextureEncoding::Colour);
+            EXPECT_EQ(classicRows[classic.mSpecular].mPath,
+                VFS::Path::NormalizedView("textures/tx_a_steel_spec.dds|textures/tx_a_steel.dds"));
+            EXPECT_EQ(classicRows[classic.mSpecular].mEncoding, TextureEncoding::ConvertedSpecular);
+            EXPECT_NE(classicRows[classic.mSpecular].mPartner, nullptr) << "the diffuse beside it";
             EXPECT_EQ(classicRows.size(), 3u);
-            EXPECT_TRUE(classic.mSpecularClassic);
             ASSERT_TRUE(classic.mRelief.has_value()) << "a normal map with its height";
             EXPECT_EQ(classic.mRelief->mLow, 30u);
             EXPECT_EQ(classic.mRelief->mHigh, 200u);
             EXPECT_TRUE(classic.getTraversed().mRelief) << "a relief of more than one height";
 
-            const auto [read, readRows] = extractOne(SpecularLayout::MetalRoughness, TextureRole::Normal);
+            const auto [read, readRows] = extractOne(metalRough, TextureRole::Normal);
             ASSERT_NE(read.mNormal, sNoIndex);
             ASSERT_NE(read.mSpecular, sNoIndex);
             EXPECT_EQ(readRows[read.mSpecular].mPath, VFS::Path::NormalizedView("textures/tx_a_steel_spec.dds"));
@@ -726,15 +738,61 @@ namespace Rtx::Testing
             EXPECT_EQ(readRows.size(), 3u);
             EXPECT_FALSE(read.mRelief.has_value()) << "a normal map without one";
             EXPECT_FALSE(read.getTraversed().mRelief);
-            EXPECT_FALSE(read.mSpecularClassic);
+            EXPECT_EQ(readRows[read.mSpecular].mPartner, nullptr);
 
-            const auto [bare, bareRows] = extractOne(SpecularLayout::MetalRoughness, TextureRole::Normal, false, false);
+            const auto [bare, bareRows] = extractOne(std::nullopt, TextureRole::Normal);
             EXPECT_EQ(bare.mSpecular, sNoIndex);
             EXPECT_EQ(bareRows[bare.mDiffuse].mEncoding, TextureEncoding::Painted) << "no specular map, a picture";
 
-            const auto [cut, cutRows] = extractOne(SpecularLayout::Classic, TextureRole::NormalHeight, true);
+            const auto [cut, cutRows] = extractOne(grey, TextureRole::NormalHeight, true);
             EXPECT_TRUE(cut.isCutout());
             EXPECT_FALSE(cut.mRelief.has_value()) << "a cutout, shifted where it shades and not where it is cut";
+        }
+
+        /// **A diffuse paired with two classic `_spec` maps is two base colours**, one a pair: two quads
+        /// over one diffuse image, each beside a grey `_spec` of its own, take two converted colour slots,
+        /// each named for its pair, where a slot kept for the image alone handed the second quad the
+        /// first pair's colour.
+        TEST_F(RtxSceneExtractorTest, aDiffusePairedWithTwoClassicSpecularMapsIsTwoBaseColours)
+        {
+            osg::ref_ptr<osg::Image> diffuse = new osg::Image;
+            diffuse->setFileName("textures/tx_ore.dds");
+            const auto grey = [](const char* name) {
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                std::fill_n(image->data(), 16, static_cast<unsigned char>(128));
+                image->setFileName(name);
+                return image;
+            };
+            const osg::ref_ptr<osg::Image> first = grey("textures/tx_ore_a_spec.dds");
+            const osg::ref_ptr<osg::Image> second = grey("textures/tx_ore_b_spec.dds");
+
+            osg::ref_ptr<osg::Group> both = new osg::Group;
+            for (const osg::ref_ptr<osg::Image>& specular : { first, second })
+            {
+                osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                paint(*quad->getOrCreateStateSet(), *diffuse);
+                paint(*quad->getOrCreateStateSet(), *specular, TextureRole::Specular);
+                both->addChild(quad);
+            }
+
+            Rtx::SceneDesc scene;
+            WalkContext context{};
+            SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
+            extractor.extract(*both, osg::Matrixf::identity(), 0);
+
+            ASSERT_EQ(scene.materials().getRows().size(), 2u);
+            const auto& rows = scene.textures().getRows();
+            const Index firstColour = scene.materials().getRows()[0].mDiffuse;
+            const Index secondColour = scene.materials().getRows()[1].mDiffuse;
+            ASSERT_NE(firstColour, sNoIndex);
+            ASSERT_NE(secondColour, sNoIndex);
+            EXPECT_NE(firstColour, secondColour);
+            EXPECT_EQ(
+                rows[firstColour].mPath, VFS::Path::NormalizedView("textures/tx_ore.dds|textures/tx_ore_a_spec.dds"));
+            EXPECT_EQ(
+                rows[secondColour].mPath, VFS::Path::NormalizedView("textures/tx_ore.dds|textures/tx_ore_b_spec.dds"));
+            EXPECT_EQ(rows[secondColour].mPartner, second);
         }
 
         /// A controller that shows a different sheet every frame, out of `mSheets`, on the unit
@@ -1192,7 +1250,7 @@ namespace Rtx::Testing
                 parent->addChild(quad);
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Classic };
+                WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*parent, osg::Matrixf::identity(), 0);
 
@@ -1286,7 +1344,7 @@ namespace Rtx::Testing
                 surface.setEmissiveMultiplier(multiplier);
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Classic };
+                WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
@@ -1328,7 +1386,7 @@ namespace Rtx::Testing
                     root->addChild(makeLightSource(100.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f)));
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Classic };
+                WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*root, osg::Matrixf::identity(), 0);
 
@@ -1359,7 +1417,7 @@ namespace Rtx::Testing
                     quad->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
 
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Classic };
+                WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 

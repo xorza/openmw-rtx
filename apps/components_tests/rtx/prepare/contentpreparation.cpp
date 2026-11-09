@@ -172,9 +172,9 @@ namespace Rtx
             content.mStamps["meshes/missing.nif"] = 5;
             EXPECT_EQ(prepare(setup, withMissing).mWalked, 1u) << "a model whose file came";
 
-            // **And a manifest of another signature is none**: another layout walks both again.
+            // **And a manifest of another signature is none**: another mask walks both again.
             PreparationSetup data = setup;
-            data.mSpecular = SpecularLayout::MetalRoughness;
+            data.mMask = setup.mMask ^ 1u;
             EXPECT_EQ(prepare(data, both).mWalked, 2u);
         }
 

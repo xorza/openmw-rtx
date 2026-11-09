@@ -59,7 +59,7 @@ namespace Rtx
                     continue;
                 const TextureRow& row = scene.textures().getRows()[slot];
                 if (const osg::Image* const source = toPrepare(row))
-                    prepared->find(*source, row.mEncoding, row.mWrap);
+                    prepared->find(*source, row.mEncoding, row.mWrap, row.mPartner.get());
             }
             prepared->flush();
         }
@@ -92,11 +92,14 @@ namespace Rtx
             // as it stands while it is, and the slot named for its owner to stand again.
             const osg::Image* const source = toPrepare(row);
             const PreparedImage made = source != nullptr && prepared != nullptr
-                ? prepared->find(*source, row.mEncoding, row.mWrap)
+                ? prepared->find(*source, row.mEncoding, row.mWrap, row.mPartner.get())
                 : PreparedImage{ .mImage = row.mPrepared };
             if (made.mPending)
-                mPending.push_back(
-                    Pending{ .mSlot = slot, .mSource = source, .mEncoding = row.mEncoding, .mWrap = row.mWrap });
+                mPending.push_back(Pending{ .mSlot = slot,
+                    .mSource = source,
+                    .mEncoding = row.mEncoding,
+                    .mWrap = row.mWrap,
+                    .mPartner = row.mPartner });
             if (made.mImage != nullptr && row.mPrepared == nullptr)
                 mMade.push_back(Made{ .mSlot = slot, .mImage = made.mImage });
 
@@ -107,8 +110,10 @@ namespace Rtx
                 kept.mFormat = readFormat(file, row.mEncoding);
                 kept.mMade = made.mImage;
             }
-            else if (row.mKind == TextureKind::File && row.mEncoding == TextureEncoding::Normal && row.mImage != nullptr
-                && readFormat(*row.mImage, row.mEncoding) == TextureFormat::Bc5Unorm)
+            else if (row.mKind == TextureKind::File && row.mImage != nullptr
+                && (row.mEncoding == TextureEncoding::ConvertedSpecular
+                    || (row.mEncoding == TextureEncoding::Normal
+                        && readFormat(*row.mImage, row.mEncoding) == TextureFormat::Bc5Unorm)))
                 kept.mStandsIn = true;
             else if (row.mKind == TextureKind::File && row.mLaid != nullptr)
             {

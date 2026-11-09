@@ -79,7 +79,8 @@ namespace Rtx
                 const TextureRow& row = scene.textures().getRows()[pending.mSlot];
                 if ((row.mLaid != nullptr ? row.mLaid : row.mImage) != pending.mSource)
                     return true;
-                const PreparedImage made = handing.mPrepared->find(*pending.mSource, pending.mEncoding, pending.mWrap);
+                const PreparedImage made = handing.mPrepared->find(
+                    *pending.mSource, pending.mEncoding, pending.mWrap, pending.mPartner.get());
                 if (made.mPending)
                     return false;
                 if (made.mImage != nullptr)

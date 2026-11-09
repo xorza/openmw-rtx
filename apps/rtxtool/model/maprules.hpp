@@ -8,27 +8,17 @@
 
 namespace RtxTool
 {
-    /// What a model's companion maps are called and what a specular map's channels mean, as the line
-    /// names them; the ray tracer looks for both maps under every rule. Named, never read from the
-    /// player's `settings.cfg`, so two machines with the same content trace one scene.
+    /// What a model's companion maps are called: the shipped name patterns, which every run but the played
+    /// one takes, so two machines with the same content trace one scene; the played game takes the
+    /// player's (an empty `std::optional<MapRules>`). What a `_spec` map's channels mean is measured on
+    /// each map (`Rtx::specularLayoutOf`).
     enum class MapRules
     {
-        /// `settings-default.cfg`'s layout, by the shipped name patterns.
         Shipped,
-
-        /// The shipped name patterns, and a `_spec` map read as OpenMW's own layout
-        /// (`Rtx::SpecularLayout::Classic`).
-        Classic,
-
-        /// The shipped name patterns, and a `_spec` map read as the PBR packs' layout
-        /// (`Rtx::SpecularLayout::MetalRoughness`).
-        MetalRoughness,
     };
 
-    /// How a `MapRules` is spelled on a command line and in a report.
+    /// How a `MapRules` is spelled in a report.
     inline constexpr Rtx::NamedEnum sMapRulesNames{ std::array{
         std::pair{ MapRules::Shipped, std::string_view("shipped") },
-        std::pair{ MapRules::Classic, std::string_view("classic") },
-        std::pair{ MapRules::MetalRoughness, std::string_view("metal-roughness") },
     } };
 }

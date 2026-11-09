@@ -62,18 +62,20 @@ namespace Rtx
         return {};
     }
 
-    TextureEncoding SurfaceDescription::encodingOf(const SurfaceMap map, const SpecularLayout layout) const
+    TextureEncoding SurfaceDescription::encodingOf(const SurfaceMap map, const SpecularLayout specular) const
     {
+        const bool paired = getTexture(SurfaceMap::Diffuse) != nullptr && getTexture(SurfaceMap::Specular) != nullptr;
+        const bool classic = paired && specular == SpecularLayout::Classic;
         switch (map)
         {
             case SurfaceMap::Normal:
                 return TextureEncoding::Normal;
             case SurfaceMap::Specular:
-                return layout == SpecularLayout::Classic ? TextureEncoding::Colour : TextureEncoding::Data;
+                return classic ? TextureEncoding::ConvertedSpecular : TextureEncoding::Data;
             case SurfaceMap::Diffuse:
-                return getTexture(SurfaceMap::Specular) != nullptr && layout == SpecularLayout::MetalRoughness
-                    ? TextureEncoding::Colour
-                    : TextureEncoding::Painted;
+                if (classic)
+                    return TextureEncoding::ConvertedColour;
+                return getTexture(SurfaceMap::Specular) != nullptr ? TextureEncoding::Colour : TextureEncoding::Painted;
             default:
                 return TextureEncoding::Colour;
         }

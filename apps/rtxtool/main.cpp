@@ -46,7 +46,6 @@
 #include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/world/weather.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
 #include <components/settings/settings.hpp>
@@ -177,23 +176,6 @@ namespace RtxTool
             // it, as the companion maps' rules are.
             Settings::groundcover().mEnabled.set(grass);
 
-            // What a `_spec` map's channels mean under the rules the line named, or the player's.
-            const Rtx::SpecularLayout specularLayout = [&] {
-                if (!framed.mMaps.has_value())
-                    return Settings::rtx().mSpecularMapLayout.get();
-                switch (*framed.mMaps)
-                {
-                    case MapRules::Shipped:
-                        return Rtx::sSpecularLayoutNames.require(
-                            command.mShipped.get<std::string>("RTX", "specular map layout"), "a specular map layout");
-                    case MapRules::Classic:
-                        return Rtx::SpecularLayout::Classic;
-                    case MapRules::MetalRoughness:
-                        return Rtx::SpecularLayout::MetalRoughness;
-                }
-                Crash::fatal("map rules with no name");
-            }();
-
             const Rtx::SamplingSwitches& sampling = line.mReconstruction.mSampling;
             const MWRender::RtxSettings derived = MWRender::RtxSettings::derive(MWRender::RtxSettingValues{
                 .mUpscale = !watched || line.mUpscale.mNamed ? line.mUpscale.mValue : Settings::rtx().mUpscale.get(),
@@ -218,7 +200,6 @@ namespace RtxTool
                                                : command.mShipped.get<float>("Groundcover", "density"),
                 .mGroundcoverPointLighting = watched ? Settings::groundcover().mPointLighting.get()
                                                      : command.mShipped.get<bool>("Groundcover", "point lighting"),
-                .mSpecularMapLayout = specularLayout,
                 .mAnisotropy
                 = watched ? Settings::general().mAnisotropy.get() : command.mShipped.get<int>("General", "anisotropy"),
                 .mGamma = line.mGamma.has_value() ? *line.mGamma

@@ -176,9 +176,7 @@ namespace MWRender
     WorldMirror::WorldMirror(
         const MirrorKnobs& knobs, Rtx::ContentStore* const store, Rtx::PreparedImages* const prepared)
         : mStore(store)
-        , mWalk{ .mContent{ store, Rtx::StoreReach::Memory },
-            .mPrepared = prepared,
-            .mSpecular = knobs.mSpecularLayout }
+        , mWalk{ .mContent{ store, Rtx::StoreReach::Memory }, .mPrepared = prepared }
         , mGroundcoverReach(knobs.mGroundcoverReach)
         , mGroundcoverDensity(knobs.mGroundcoverDensity)
         , mGroundcoverLampLit(knobs.mGroundcoverLampLit)
@@ -222,8 +220,8 @@ namespace MWRender
     /// the run holds its sources by reference.
     struct WorldMirror::Preparing
     {
-        Preparing(Resource::ResourceSystem& resources, Rtx::ContentStore& store, const Rtx::SpecularLayout specular,
-            std::vector<std::string> models, std::vector<Rtx::PreparationLayer> layers, const std::size_t hands)
+        Preparing(Resource::ResourceSystem& resources, Rtx::ContentStore& store, std::vector<std::string> models,
+            std::vector<Rtx::PreparationLayer> layers, const std::size_t hands)
             : mContent(*resources.getSceneManager())
             , mStamps(*resources.getVFS())
             // With the world's own mask and with no state set above them: the scene's root is the
@@ -234,7 +232,6 @@ namespace MWRender
                        .mStore = store,
                        .mManifest = store.getDirectory() / "prepared.manifest",
                        .mMask = sWorldTraversal,
-                       .mSpecular = specular,
                        .mAutoMaps = resources.getSceneManager()->getAutoMaps(),
                        .mHands = hands },
                   std::move(models), std::move(layers))
@@ -251,8 +248,7 @@ namespace MWRender
     {
         assert(mPreparing == nullptr && "a preparation started over one that runs");
         if (mStore != nullptr)
-            mPreparing = std::make_unique<Preparing>(
-                resources, *mStore, mWalk.mSpecular, std::move(models), std::move(layers), hands);
+            mPreparing = std::make_unique<Preparing>(resources, *mStore, std::move(models), std::move(layers), hands);
     }
 
     Rtx::JobProgress WorldMirror::getPreparing() const

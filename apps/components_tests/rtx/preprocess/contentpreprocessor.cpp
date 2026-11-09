@@ -14,6 +14,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/image/alphaimage.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -26,6 +27,7 @@
 #include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
+#include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 #include <components/testing/util.hpp>
 
@@ -216,6 +218,61 @@ namespace Rtx
             const ContentStats stats = content.takeStats();
             EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 3u);
             EXPECT_EQ(stats.at(ContentPassId::TexelMean).mAsked, 2u);
+        }
+
+        /// **A `_spec` map's layout is its channels' spread**: four texels of `(100, 100, 125)` spread
+        /// `25 / 255 = 0.098` on the mean, under `sClassicSpreadMost`, so classic; of `(100, 100, 126)`,
+        /// `26 / 255 = 0.102`, metal-roughness; the painted test texture, whose channels differ,
+        /// metal-roughness; and a file no reader decodes metal-roughness, read as the data it would be.
+        TEST(RtxContentPreprocessorTest, aSpecularMapsLayoutIsItsChannelsSpread)
+        {
+            ContentPreprocessor content;
+            const auto texels = [](std::uint8_t blue) {
+                std::array<std::uint8_t, 16> bytes{};
+                for (std::size_t texel = 0; texel < 4; ++texel)
+                {
+                    bytes[texel * 4] = 100;
+                    bytes[texel * 4 + 1] = 100;
+                    bytes[texel * 4 + 2] = blue;
+                    bytes[texel * 4 + 3] = 255;
+                }
+                return bytes;
+            };
+            EXPECT_EQ(content.specularLayout(*makeImage(texels(125), "under.dds")), SpecularLayout::Classic);
+            EXPECT_EQ(content.specularLayout(*makeImage(texels(126), "over.dds")), SpecularLayout::MetalRoughness);
+            EXPECT_EQ(content.specularLayout(*makeImage(sPaint, "painted.dds")), SpecularLayout::MetalRoughness);
+
+            osg::ref_ptr<osg::Image> odd = new osg::Image;
+            odd->setFileName("odd.dds");
+            odd->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            EXPECT_EQ(content.specularLayout(*odd), SpecularLayout::MetalRoughness);
+            EXPECT_EQ(content.takeStats().at(ContentPassId::SpecularKind).mAsked, 4u);
+        }
+
+        /// **Khronos' converter, texel by texel**, every colour in linear light:
+        /// - a highlight under a dielectric's 0.04, `(0.02, 0.02, 0.02)`, over a diffuse of 0.5 is no metal,
+        ///   its base the diffuse over what the highlight leaves, `0.5 · 0.98 / 0.96 = 0.510417`;
+        /// - a white highlight over black is `b = 1 − 0.08 = 0.92`, `c = −0.96`, a discriminant of
+        ///   `0.8464 + 0.1536 = 1`, so a metalness of `(−0.92 + 1) / 0.08 = 1` and a base of the highlight;
+        /// - a grey highlight of 0.5 over a diffuse of 0.2, both their own perceived brightness, is
+        ///   `b = 0.2 · 0.5 / 0.96 + 0.5 − 0.08 = 0.524167`, `c = −0.46`, so a metalness of
+        ///   `(−0.524167 + sqrt(0.348351)) / 0.08 = 0.825575`, and both the diffuse's base,
+        ///   `0.2 · 0.5 / 0.96 / 0.174425 = 0.597200`, and the highlight's,
+        ///   `(0.5 − 0.04 · 0.174425) / 0.825575 = 0.597187`, come to 0.5972.
+        TEST(RtxContentPreprocessorTest, aClassicTexelIsConvertedAsKhronosConvertsIt)
+        {
+            const ConvertedTexel dielectric
+                = convertTexel(osg::Vec3f(0.5f, 0.5f, 0.5f), osg::Vec3f(0.02f, 0.02f, 0.02f));
+            EXPECT_EQ(dielectric.mMetal, 0.0f);
+            EXPECT_NEAR(dielectric.mBase.x(), 0.510417f, 1e-5f);
+
+            const ConvertedTexel metal = convertTexel(osg::Vec3f(), osg::Vec3f(1.0f, 1.0f, 1.0f));
+            EXPECT_NEAR(metal.mMetal, 1.0f, 1e-5f);
+            EXPECT_NEAR(metal.mBase.y(), 1.0f, 1e-5f);
+
+            const ConvertedTexel between = convertTexel(osg::Vec3f(0.2f, 0.2f, 0.2f), osg::Vec3f(0.5f, 0.5f, 0.5f));
+            EXPECT_NEAR(between.mMetal, 0.825575f, 1e-5f);
+            EXPECT_NEAR(between.mBase.z(), 0.5972f, 1e-4f);
         }
 
         /// What a texture pass's key reads of a two-by-two RGBA8 level: whether it described, its

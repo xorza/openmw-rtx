@@ -237,9 +237,10 @@ namespace Rtx
     }
 
     TextureHold SceneDesc::takeTexture(const VFS::Path::NormalizedView path, const osg::Image& image,
-        const TextureWrap wrap, const TextureEncoding encoding, const osg::Image* const laid)
+        const TextureWrap wrap, const TextureEncoding encoding, const osg::Image* const laid,
+        const osg::Image* const partner)
     {
-        return TextureHold(mTextures.take(path, image, wrap, encoding, laid));
+        return TextureHold(mTextures.take(path, image, wrap, encoding, laid, partner));
     }
 
     bool SceneDesc::isConsistent() const

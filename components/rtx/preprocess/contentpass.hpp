@@ -38,6 +38,13 @@ namespace Rtx
         /// A file's levels under its finest, made again from it — `ChainPass`.
         Chain,
 
+        /// What a `_spec` map's channels mean — `SpecularKind`.
+        SpecularKind,
+
+        /// A classic pair's base colour or metal-roughness map, made of its diffuse and its `_spec` —
+        /// `ConversionPass`.
+        Conversion,
+
         Count,
     };
 
@@ -50,6 +57,8 @@ namespace Rtx
         std::pair{ ContentPassId::SolidFall, std::string_view("solid fall") },
         std::pair{ ContentPassId::AlphaSpan, std::string_view("alpha span") },
         std::pair{ ContentPassId::Chain, std::string_view("chain") },
+        std::pair{ ContentPassId::SpecularKind, std::string_view("specular kind") },
+        std::pair{ ContentPassId::Conversion, std::string_view("conversion") },
     } };
 
     inline constexpr std::size_t sContentPassCount = sContentPasses.mNames.size();

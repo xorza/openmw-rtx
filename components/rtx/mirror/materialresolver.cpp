@@ -394,7 +394,8 @@ namespace Rtx
         return Resolved{ .mIndex = added->second.mRow.get(), .mKey = key };
     }
 
-    Index MaterialResolver::takeTexture(const TextureUse& use, Worn* const worn, const TextureEncoding encoding)
+    Index MaterialResolver::takeTexture(
+        const TextureUse& use, Worn* const worn, const TextureEncoding encoding, const osg::Image* const partner)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -419,15 +420,41 @@ namespace Rtx
             known = mTextureOf.add(image, HeldTexture{});
 
         HeldTexture& held = known->second;
-        TextureHold& slot = held.mSlots[static_cast<std::size_t>(encoding)][static_cast<std::size_t>(use.mWrap)];
+        TextureHold* taken = &held.mSlots[static_cast<std::size_t>(encoding)][static_cast<std::size_t>(use.mWrap)];
+
+        // A converted slot is its pair's: one taken beside another partner is that pair's, and this pair
+        // keeps one of its own beside it.
+        if (partner != nullptr && !taken->empty() && mScene.textures().getRows()[taken->get()].mPartner != partner)
+        {
+            const auto other = std::ranges::find_if(held.mOtherPairs, [&](const HeldTexture::OtherPair& pair) {
+                return pair.mPartner == partner && pair.mEncoding == encoding && pair.mWrap == use.mWrap;
+            });
+            taken = other != held.mOtherPairs.end()
+                ? &other->mSlot
+                : &held.mOtherPairs
+                       .emplace_back(HeldTexture::OtherPair{
+                           .mPartner = partner, .mEncoding = encoding, .mWrap = use.mWrap, .mSlot = {} })
+                       .mSlot;
+        }
+        TextureHold& slot = *taken;
         const std::uint64_t freed = mScene.textures().getFreedCount();
-        const auto bit = static_cast<std::uint16_t>(
+        const auto bit = static_cast<std::uint32_t>(
             1u << (static_cast<std::size_t>(encoding) * sTextureWrapCount + static_cast<std::size_t>(use.mWrap)));
         if (slot.empty() && !held.mRefused.stands(bit, freed))
         {
             // Held, because this entry is the reference. `mTextureOf` says why a slot the map names
             // has to be one nothing else can hand out.
-            slot = mScene.takeTexture(mThread.pathOf(*image), *image, use.mWrap, encoding, use.mLaid.get());
+            // A converted slot is named for both its files, which make it together.
+            if (partner != nullptr)
+            {
+                std::string both(mThread.pathOf(*image).value());
+                both += '|';
+                both += mThread.pathOf(*partner).value();
+                slot = mScene.takeTexture(
+                    VFS::Path::NormalizedView(both.c_str()), *image, use.mWrap, encoding, nullptr, partner);
+            }
+            else
+                slot = mScene.takeTexture(mThread.pathOf(*image), *image, use.mWrap, encoding, use.mLaid.get());
             if (slot.empty())
                 held.mRefused.refuse(bit, freed);
         }
@@ -525,8 +552,16 @@ namespace Rtx
         // twice for it is asking twice.
         const osg::Image* const diffuse = described->getTexture(SurfaceMap::Diffuse);
 
-        material.mDiffuse = takeTexture(described->getTextureUse(SurfaceMap::Diffuse), worn,
-            described->encodingOf(SurfaceMap::Diffuse, mSpecularLayout));
+        // **What the `_spec` map means, measured on it** (`specularLayoutOf`): a classic map makes, with
+        // its diffuse, a base colour and a metal-roughness map, each slot keyed by both files.
+        const osg::Image* const specular = described->getTexture(SurfaceMap::Specular);
+        const SpecularLayout layout = specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty()
+            ? mThread.specularLayoutOf(mThread.factsOf(*specular), *specular)
+            : SpecularLayout::MetalRoughness;
+
+        const TextureEncoding diffuseAs = described->encodingOf(SurfaceMap::Diffuse, layout);
+        material.mDiffuse = takeTexture(described->getTextureUse(SurfaceMap::Diffuse), worn, diffuseAs,
+            isConverted(diffuseAs) ? specular : nullptr);
         material.mEmissive = takeTexture(described->getTextureUse(SurfaceMap::Emissive), worn);
         material.mEmissiveUnit = described->mEmissiveUnit;
         material.mEnvironment = takeTexture(described->getTextureUse(SurfaceMap::Environment), worn);
@@ -534,11 +569,11 @@ namespace Rtx
         material.mDark = takeTexture(described->getTextureUse(SurfaceMap::Dark), worn);
         material.mDarkUnit = described->mDarkUnit;
 
-        material.mNormal = takeTexture(described->getTextureUse(SurfaceMap::Normal), worn,
-            described->encodingOf(SurfaceMap::Normal, mSpecularLayout));
-        material.mSpecularClassic = mSpecularLayout == SpecularLayout::Classic;
-        material.mSpecular = takeTexture(described->getTextureUse(SurfaceMap::Specular), worn,
-            described->encodingOf(SurfaceMap::Specular, mSpecularLayout));
+        material.mNormal = takeTexture(
+            described->getTextureUse(SurfaceMap::Normal), worn, described->encodingOf(SurfaceMap::Normal, layout));
+        const TextureEncoding specularAs = described->encodingOf(SurfaceMap::Specular, layout);
+        material.mSpecular = takeTexture(described->getTextureUse(SurfaceMap::Specular), worn, specularAs,
+            isConverted(specularAs) ? diffuse : nullptr);
 
         material.mAlphaTest = described->mAlphaTest;
         material.mAlphaMode = described->mAlphaMode;
@@ -678,6 +713,9 @@ namespace Rtx
         for (std::array<TextureHold, sTextureWrapCount>& slots : held.mSlots)
             for (TextureHold& slot : slots)
                 mScene.drop(std::move(slot));
+        for (HeldTexture::OtherPair& pair : held.mOtherPairs)
+            mScene.drop(std::move(pair.mSlot));
+        held.mOtherPairs.clear();
     }
 
 }

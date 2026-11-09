@@ -6,8 +6,8 @@
 
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/settings/values.hpp>
 
@@ -30,7 +30,6 @@ namespace MWRender
             .mGroundcoverDistance = Settings::groundcover().mRenderingDistance,
             .mGroundcoverDensity = Settings::groundcover().mDensity,
             .mGroundcoverPointLighting = Settings::groundcover().mPointLighting,
-            .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
             .mAnisotropy = Settings::general().mAnisotropy,
             .mGamma = Settings::video().mGamma,
             .mLitEnvironmentMaps = Settings::shaders().mApplyLightingToEnvironmentMaps,
@@ -60,7 +59,6 @@ namespace MWRender
                 .mGroundcoverReach = values.mGroundcover ? values.mGroundcoverDistance : 0.0f,
                 .mGroundcoverDensity = values.mGroundcoverDensity,
                 .mGroundcoverLampLit = values.mGroundcoverPointLighting,
-                .mSpecularLayout = values.mSpecularMapLayout,
             },
             .mAnisotropy = static_cast<std::uint32_t>(std::max(values.mAnisotropy, 1)),
             .mGamma = values.mGamma,

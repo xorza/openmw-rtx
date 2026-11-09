@@ -27,14 +27,28 @@ namespace Rtx
         Data = 1,
         Normal = 2,
         Painted = 3,
+
+        /// A classic pair's base colour and its metal-roughness map, each made on the host of the
+        /// pair's diffuse and its classic `_spec` together (`ConversionPass`), so a slot of one is keyed
+        /// by both files.
+        ConvertedColour = 4,
+        ConvertedSpecular = 5,
     };
 
-    inline constexpr std::size_t sTextureEncodingCount = static_cast<std::size_t>(TextureEncoding::Painted) + 1;
+    inline constexpr std::size_t sTextureEncodingCount
+        = static_cast<std::size_t>(TextureEncoding::ConvertedSpecular) + 1;
 
-    /// Whether `encoding`'s texels are display-encoded: a colour, painted or not.
+    /// Whether `encoding`'s texels are display-encoded: a colour, painted, converted or as it stands.
     inline constexpr bool isColour(const TextureEncoding encoding)
     {
-        return encoding == TextureEncoding::Colour || encoding == TextureEncoding::Painted;
+        return encoding == TextureEncoding::Colour || encoding == TextureEncoding::Painted
+            || encoding == TextureEncoding::ConvertedColour;
+    }
+
+    /// Whether a slot of `encoding` is made of two files: a classic pair's.
+    inline constexpr bool isConverted(const TextureEncoding encoding)
+    {
+        return encoding == TextureEncoding::ConvertedColour || encoding == TextureEncoding::ConvertedSpecular;
     }
 
     /// What stands beside a texture at its slot of the companion array.

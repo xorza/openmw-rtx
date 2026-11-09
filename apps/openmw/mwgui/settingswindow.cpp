@@ -31,7 +31,6 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/rtx/common/menu.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/sdlutil/sdldisplay.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
@@ -124,12 +123,6 @@ namespace
         { Rtx::Upscale::Native, "#{OMWEngine:RayTracingUpscaleNative}" },
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
-
-    constexpr std::array<Rtx::MenuLabel<Rtx::SpecularLayout>, Rtx::sSpecularLayoutMenu.size()> sSpecularLayoutLabels{ {
-        { Rtx::SpecularLayout::Classic, "#{OMWEngine:RayTracingSpecularMapsClassic}" },
-        { Rtx::SpecularLayout::MetalRoughness, "#{OMWEngine:RayTracingSpecularMapsMetalRoughness}" },
-    } };
-    static_assert(Rtx::followsMenu(sSpecularLayoutLabels, Rtx::sSpecularLayoutMenu));
 
     template <class Enum>
     void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel<Enum>> labels)
@@ -289,14 +282,10 @@ namespace MWGui
         getWidget(mScriptAdapter, "ScriptAdapter");
         getWidget(mScriptDisabled, "ScriptDisabled");
         getWidget(mRayTracingUpscale, "RayTracingUpscaleList");
-        getWidget(mRayTracingSpecularMaps, "RayTracingSpecularMapsList");
 
         addMenuItems<Rtx::Upscale>(mRayTracingUpscale, sUpscaleLabels);
         mRayTracingUpscale->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscaleChanged);
-        addMenuItems<Rtx::SpecularLayout>(mRayTracingSpecularMaps, sSpecularLayoutLabels);
-        mRayTracingSpecularMaps->eventComboChangePosition
-            += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingSpecularMapsChanged);
 
         mMainWidget->castType<MyGUI::Window>()->eventWindowChangeCoord
             += MyGUI::newDelegate(this, &SettingsWindow::onWindowResize);
@@ -511,16 +500,6 @@ namespace MWGui
             return;
 
         Settings::rtx().mUpscale.set(*chosen);
-        apply();
-    }
-
-    void SettingsWindow::onRayTracingSpecularMapsChanged(MyGUI::ComboBox* sender, size_t pos)
-    {
-        const std::optional<Rtx::SpecularLayout> chosen = Rtx::menuValue(Rtx::sSpecularLayoutMenu, pos);
-        if (!chosen.has_value())
-            return;
-
-        Settings::rtx().mSpecularMapLayout.set(*chosen);
         apply();
     }
 
@@ -758,8 +737,6 @@ namespace MWGui
     {
         // The menu offers every mode the setting can hold
         mRayTracingUpscale->setIndexSelected(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value());
-        mRayTracingSpecularMaps->setIndexSelected(
-            Rtx::menuIndex(Rtx::sSpecularLayoutMenu, Settings::rtx().mSpecularMapLayout.get()).value());
         updateBounceRaysSlider();
     }
 

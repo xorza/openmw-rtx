@@ -575,7 +575,7 @@ namespace Rtx::Testing
 
             const auto litAt = [&lamp](double seconds) {
                 Rtx::SceneDesc scene;
-                WalkContext context{ .mSpecular = SpecularLayout::Classic };
+                WalkContext context{};
                 SceneExtractor extractor(scene, context, sSubjectExtractorRoom);
                 extractor.setSimulationTime(seconds, 0.0);
                 extractor.extract(*lamp, osg::Matrixf::identity(), 0);

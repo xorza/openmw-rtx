@@ -409,7 +409,7 @@ add_component_dir (rtx/frame
     )
 
 add_component_dir (rtx/image
-    alphaimage chainbuild colour colourblock formatcensus imagedescription madeimage shadingmap
+    alphaimage chainbuild colour colourblock formatcensus imagedescription madeimage shadingmap specularlayout
     texels texturedata textureencoding textureformat texturewrap
     )
 
@@ -438,7 +438,7 @@ add_component_dir (rtx/preprocess/shape
     )
 
 add_component_dir (rtx/preprocess/texture
-    chainpass texturepass
+    chainpass conversionpass texturepass
     )
 
 add_component_dir (rtx/renderer
@@ -449,7 +449,7 @@ add_component_dir (rtx/renderer
 
 add_component_dir (rtx/scene
     compositequeue deformertable instancerecord light lightgrid material materialtable mesh
-    meshtable placementtable refusal refusals ripple rowhold scenedesc sceneroom scenetextures specularlayout sprite
+    meshtable placementtable refusal refusals ripple rowhold scenedesc sceneroom scenetextures sprite
     surface texturetable
     )
 

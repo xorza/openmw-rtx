@@ -16,9 +16,9 @@
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/scene/material.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/terrain/pagedcellref.hpp>
 
 #include "cellworld.hpp"
@@ -48,12 +48,8 @@ namespace Rtx
     class CellPlacer
     {
     public:
-        /// @param specular `[RTX] specular map layout`: whether a ground layer's `_diffusespec` is an
-        ///        authored albedo with its roughness in alpha or the classic map — the walk's own
-        ///        (`WalkContext::mSpecular`).
-        CellPlacer(SceneDesc& scene, SpecularLayout specular)
+        explicit CellPlacer(SceneDesc& scene)
             : mScene(scene)
-            , mSpecularLayout(specular)
         {
         }
 
@@ -296,8 +292,6 @@ namespace Rtx
         SceneDesc& mScene;
 
         float mMinSize = 0.0f;
-
-        const SpecularLayout mSpecularLayout;
 
         /// References a script has disabled, sorted.
         std::vector<ESM::RefNum> mDisabled;

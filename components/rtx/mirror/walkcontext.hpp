@@ -1,7 +1,6 @@
 #pragma once
 
 #include <components/rtx/preprocess/threadcontent.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 
 #include "mirrorpass.hpp"
 
@@ -22,8 +21,5 @@ namespace Rtx
         /// Where a scene this thread hands over finds its files' chains made (`PreparedImages`), or
         /// null for none: the world's and every picture's.
         PreparedImages* mPrepared = nullptr;
-
-        /// `[RTX] specular map layout`, told rather than read, so this library reads no settings.
-        const SpecularLayout mSpecular;
     };
 }

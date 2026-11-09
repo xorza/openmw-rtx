@@ -85,6 +85,10 @@ namespace Rtx
         /// `mImage` itself. `mImage` stays the file, which the format count and the name are of.
         osg::ref_ptr<const osg::Image> mLaid{};
 
+        /// A converted slot's other file (`isConverted`): its `_spec` beside a base colour, its diffuse
+        /// beside a metal-roughness map. Null for every other slot.
+        osg::ref_ptr<const osg::Image> mPartner{};
+
         /// The file's chain made again (`PreparedImages`), which the upload reads in place of both
         /// above once it is made; null until then, and for every other slot. Held here, so the slot
         /// decides how long it stays.
@@ -136,8 +140,11 @@ namespace Rtx
         ///        which the upload stands in for and refuses.
         /// @param laid `image` laid as the upload reads it (`layImage`), or null: kept beside it by
         ///        the add that takes the slot, so the hand-over widens nothing a reader laid.
+        /// @param partner a converted slot's other file, `TextureRow::mPartner`, whose path `path`
+        ///        names beside `image`'s.
         Index add(VFS::Path::NormalizedView path, const osg::Image* image, TextureWrap wrap = TextureWrap::Repeat,
-            TextureEncoding encoding = TextureEncoding::Colour, const osg::Image* laid = nullptr);
+            TextureEncoding encoding = TextureEncoding::Colour, const osg::Image* laid = nullptr,
+            const osg::Image* partner = nullptr);
 
         /// The same with no image, for a caller that describes its textures to the backend itself,
         /// as a test does.
@@ -214,7 +221,8 @@ namespace Rtx
         /// caller until it drops it: what a surface, a sprite, a sky layer and a moon turn their
         /// image into. `sNoIndex`, holding nothing, where `add` refuses it.
         Index take(VFS::Path::NormalizedView path, const osg::Image& image, TextureWrap wrap = TextureWrap::Repeat,
-            TextureEncoding encoding = TextureEncoding::Colour, const osg::Image* laid = nullptr);
+            TextureEncoding encoding = TextureEncoding::Colour, const osg::Image* laid = nullptr,
+            const osg::Image* partner = nullptr);
 
         /// Takes and gives back one name on a slot. A slot this never hands out — `sNoIndex`, and
         /// the neutral texel a layer names where the table had no room — is "none" and costs a
@@ -263,9 +271,9 @@ namespace Rtx
     {
     public:
         /// Whether take `bit` was refused and the table has freed nothing since.
-        bool stands(std::uint16_t bit, std::uint64_t freed) const { return mAt == freed && (mBits & bit) != 0; }
+        bool stands(std::uint32_t bit, std::uint64_t freed) const { return mAt == freed && (mBits & bit) != 0; }
 
-        void refuse(std::uint16_t bit, std::uint64_t freed)
+        void refuse(std::uint32_t bit, std::uint64_t freed)
         {
             if (mAt != freed)
                 mBits = 0;
@@ -275,7 +283,7 @@ namespace Rtx
         }
 
     private:
-        std::uint16_t mBits = 0;
+        std::uint32_t mBits = 0;
         std::uint64_t mAt = 0;
     };
 }

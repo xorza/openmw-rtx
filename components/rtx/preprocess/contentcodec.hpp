@@ -13,6 +13,7 @@
 #include <osg/Vec3f>
 
 #include <components/rtx/image/alpharange.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
@@ -117,6 +118,26 @@ namespace Rtx
                     if (!ContentBytes::take(from, (*colour)[channel]))
                         return false;
             return ContentBytes::take(from, mean.mAlpha) && from.empty();
+        }
+    };
+
+    /// What a `_spec` map's channels mean: one byte.
+    template <>
+    struct ContentCodec<SpecularLayout>
+    {
+        static void encode(const SpecularLayout& layout, std::vector<std::byte>& into)
+        {
+            ContentBytes::put(into, static_cast<std::uint8_t>(layout));
+        }
+
+        static bool decode(std::span<const std::byte> from, SpecularLayout& layout)
+        {
+            std::uint8_t stored = 0;
+            if (!ContentBytes::take(from, stored) || !from.empty()
+                || stored > static_cast<std::uint8_t>(SpecularLayout::MetalRoughness))
+                return false;
+            layout = static_cast<SpecularLayout>(stored);
+            return true;
         }
     };
 

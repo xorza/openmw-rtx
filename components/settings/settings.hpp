@@ -9,7 +9,6 @@
 
 #include <components/detournavigator/collisionshapetype.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -122,7 +121,6 @@ namespace Settings
         static void set(std::string_view setting, std::string_view category, WindowMode value);
         static void set(std::string_view setting, std::string_view category, SDLUtil::VSyncMode value);
         static void set(std::string_view setting, std::string_view category, Rtx::Upscale value);
-        static void set(std::string_view setting, std::string_view category, Rtx::SpecularLayout value);
 
     private:
         static std::set<std::pair<std::string_view, std::string_view>> sInitialized;
@@ -264,13 +262,6 @@ namespace Settings
     inline Rtx::Upscale Manager::getImpl<Rtx::Upscale>(std::string_view setting, std::string_view category)
     {
         return Rtx::sUpscaleNames.require(getString(setting, category), "an upscale mode");
-    }
-
-    template <>
-    inline Rtx::SpecularLayout Manager::getImpl<Rtx::SpecularLayout>(
-        std::string_view setting, std::string_view category)
-    {
-        return Rtx::sSpecularLayoutNames.require(getString(setting, category), "a specular map layout");
     }
 
     template <>

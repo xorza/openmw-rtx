@@ -4,7 +4,7 @@
 
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -80,7 +80,7 @@ namespace Settings
             EXPECT_THROW([&] { Values values(index); }(), std::runtime_error);
         }
 
-        /// **An upscale mode and a map layout are read by the one spelling list at load**, as the
+        /// **An upscale mode is read by the one spelling list at load**, as the
         /// documentation spells them, and refused where the list holds no such name: a typo traced
         /// under `off` would be a session of the wrong picture. Written back by the same name.
         TEST_F(SettingsValuesTest, constructorShouldReadAModeByItsSpellingAndRefuseOneItLacks)
@@ -91,13 +91,6 @@ namespace Settings
                 Index index;
                 Values values(index);
                 EXPECT_EQ(values.mRTX.mUpscale.get(), mode) << spelling;
-            }
-            for (const auto& [layout, spelling] : Rtx::sSpecularLayoutNames.mNames)
-            {
-                Manager::mUserSettings[std::make_pair("RTX", "specular map layout")] = std::string(spelling);
-                Index index;
-                Values values(index);
-                EXPECT_EQ(values.mRTX.mSpecularMapLayout.get(), layout) << spelling;
             }
 
             {
@@ -112,10 +105,6 @@ namespace Settings
                 Index index;
                 EXPECT_THROW([&] { Values values(index); }(), Rtx::InputError);
             }
-            Manager::mUserSettings[std::make_pair("RTX", "upscale")] = "quality";
-            Manager::mUserSettings[std::make_pair("RTX", "specular map layout")] = "Classic";
-            Index index;
-            EXPECT_THROW([&] { Values values(index); }(), Rtx::InputError);
         }
 
         TEST_F(SettingsValuesTest, constructorWithDefaultShouldDoLookup)

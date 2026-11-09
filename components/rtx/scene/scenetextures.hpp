@@ -64,6 +64,7 @@ namespace Rtx
             osg::ref_ptr<const osg::Image> mSource;
             TextureEncoding mEncoding;
             TextureWrap mWrap;
+            osg::ref_ptr<const osg::Image> mPartner;
         };
 
         std::span<const Pending> getPending() const { return mPending; }
@@ -120,7 +121,8 @@ namespace Rtx
             std::optional<Ground> mGround{};
 
             /// Whether the slot stands in until its chain is made: a normal map of two channels, which
-            /// the trace does not decode (`decodeNormal`).
+            /// the trace does not decode (`decodeNormal`), and a classic `_spec`, whose channels are no
+            /// metal-roughness map until it is converted.
             bool mStandsIn = false;
         };
 

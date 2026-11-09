@@ -15,6 +15,7 @@
 
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/common/jobprogress.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
@@ -35,7 +36,6 @@
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/terrain/pagedcellref.hpp>
 
 #include "mirrorknobs.hpp"

@@ -532,11 +532,6 @@ namespace Rtx::Shaders
     /// opacity of one: a lantern's glass is all there, and its texture says how much glass.
     const uint MATERIAL_TRANSLUCENT = 0x40u;
 
-    /// The specular map is a classic one — `Rtx::SpecularLayout::Classic`: a reflectance in RGB and
-    /// an exponent in A, beside a diffuse that is delit as a vanilla one is. Without it a specular
-    /// map is a metalness and a roughness over an authored base colour.
-    const uint MATERIAL_SPECULAR_CLASSIC = 0x80u;
-
     /// Which texture unit the dark map and the glow map are bound at, each in these bits of
     /// `mFlags` — `GpuMesh::mUnitStreams` says which stream that unit reads.
     const uint MATERIAL_DARK_UNIT_SHIFT = 8u;
@@ -897,11 +892,9 @@ namespace Rtx::Shaders
     };
 
     /// A ground layer whose diffuse is an authored albedo with the perceptual roughness in its
-    /// alpha — a `_diffusespec` under `SpecularLayout::MetalRoughness`, as Wareya's shaders read it.
-    /// **Not delit, and a dielectric**: the texture was painted as a surface and not as a picture
-    /// of one lit, and ground is no metal, so its reflectance at normal incidence is
-    /// `DIELECTRIC_F0`. Under the classic layout the same file is the plain diffuse OpenMW swaps
-    /// in, and this is not set.
+    /// alpha — a `_diffusespec`, as Wareya's shaders read it (`Rtx::layerEncodingOf`). **Not delit,
+    /// and a dielectric**: the texture was painted as a surface and not as a picture of one lit, and
+    /// ground is no metal, so its reflectance at normal incidence is `DIELECTRIC_F0`.
     const uint LAYER_AUTHORED = 0x01u;
 
     /// A ground layer whose normal map's alpha is a height, as `MATERIAL_PARALLAX` is for a
@@ -909,16 +902,6 @@ namespace Rtx::Shaders
     /// shifts the layer by it, and so does the stack here; a flattened chunk has no eye to shift
     /// toward.
     const uint LAYER_PARALLAX = 0x02u;
-
-    /// A ground layer whose diffuse is OpenMW's classic `_diffusespec` — `SpecularLayout::Classic`:
-    /// a vanilla picture in RGB, delit as any, and the highlight's strength in alpha, which is the
-    /// grey reflectance at normal incidence. The exponent is the one `terrain.frag` fixes,
-    /// `CLASSIC_GROUND_EXPONENT`.
-    const uint LAYER_CLASSIC = 0x04u;
-
-    /// The Blinn-Phong exponent the rasterizer lights every classic `_diffusespec` layer with,
-    /// `terrain.frag`'s 128.
-    const float CLASSIC_GROUND_EXPONENT = 128.0f;
 
     /// One layer of a terrain material: a tiling ground texture and the weights that place it.
     ///

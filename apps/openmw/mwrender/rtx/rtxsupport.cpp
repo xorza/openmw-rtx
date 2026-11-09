@@ -37,8 +37,8 @@ namespace MWRender
             = "This sets how the rasterizer merges distant objects. The ray tracer places each distant object whole.";
         constexpr std::string_view sAntialiasing = "The ray tracer's reconstruction resolves the edges.";
         constexpr std::string_view sCompanionMaps
-            = "The ray tracer reads every model's normal maps, and its specular maps in the layout [RTX] specular map "
-              "layout names.";
+            = "The ray tracer reads every model's normal maps and specular maps, each specular map in the layout its "
+              "channels show.";
         constexpr std::string_view sWater = "The ray tracer reflects and refracts each water surface by its own rays.";
 
         /// Every key the game's renderers read, the rasterizer's own and the shared files', and
@@ -100,7 +100,6 @@ namespace MWRender
             { "RTX", "bounce rays", {} },
             { "RTX", "distant land cells", {} },
             { "RTX", "indirect lighting", {} },
-            { "RTX", "specular map layout", {} },
             { "RTX", "upscale", {} },
             { "Shaders", "adjust coverage for alpha test", sAlphaTest },
             { "Shaders", "antialias alpha test", sAlphaTest },

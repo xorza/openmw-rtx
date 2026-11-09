@@ -18,11 +18,11 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/camera.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 
 #include "chainkeys.hpp"
 #include "emitterresolver.hpp"
@@ -242,8 +242,6 @@ namespace Rtx
         /// What this thread's walks share. Its preprocessor's counts are the thread's and not a
         /// walk's, so whoever owns the frame takes them once, after the frame's last walk.
         WalkContext& getContext() { return mContext; }
-
-        SpecularLayout getSpecularLayout() const override { return mContext.mSpecular; }
 
         /// Lets go of everything the walks stood and the ring held, for a world that is detached:
         /// the ring's holds are given back — the two releases read nothing of a walk — and then a
@@ -475,7 +473,7 @@ namespace Rtx
         MeshResolver mMeshes{ mScene, mPass, mContext.mContent.mPreprocessor };
 
         /// What the content says each surface is, and the textures those name.
-        MaterialResolver mMaterials{ mScene, mPass, mContext.mContent, mContext.mSpecular };
+        MaterialResolver mMaterials{ mScene, mPass, mContext.mContent };
 
         /// The keys the walk's chains of state sets fold to, which `mMaterials` holds its entries
         /// under, and the ring's readings as they are adopted.

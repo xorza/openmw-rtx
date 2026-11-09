@@ -69,6 +69,14 @@ namespace Rtx
             return *facts.mAlphaRange;
         }
 
+        /// What `image`'s channels mean as a `_spec` map, read into `facts` at the first ask.
+        SpecularLayout specularLayoutOf(ImageFacts& facts, const osg::Image& image)
+        {
+            if (!facts.mSpecularLayout.has_value())
+                facts.mSpecularLayout = mPreprocessor.specularLayout(image);
+            return *facts.mSpecularLayout;
+        }
+
         /// What a texel of `image` is worth on average, read into `facts` at the first ask.
         const MeanTexel& meanOf(ImageFacts& facts, const osg::Image& image)
         {

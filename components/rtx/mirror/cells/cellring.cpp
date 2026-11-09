@@ -75,7 +75,7 @@ namespace Rtx
 
     CellRing::CellRing(SceneAdopter& adopter)
         : mAdopter(adopter)
-        , mPlacer(adopter.getScene(), adopter.getSpecularLayout())
+        , mPlacer(adopter.getScene())
     {
     }
 

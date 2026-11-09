@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include <components/rtx/image/alpharange.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -36,6 +37,9 @@ namespace Rtx
 
         /// `ContentPreprocessor::alphaRange`.
         std::optional<AlphaRange> mAlphaRange;
+
+        /// `ContentPreprocessor::specularLayout`.
+        std::optional<SpecularLayout> mSpecularLayout;
     };
 
     /// The facts of every file this has been asked about, kept for the life of its thread's owner

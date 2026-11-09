@@ -167,6 +167,20 @@ screen is the import step, and its store is the game's input.
   estimate follows the slot's wrap, along an axis that repeats and one that clamps, so the made chain is keyed by
   it. Refused: every colour file delit, which flattens the PBR packs' authored base colours; and BC7 for every
   delit colour, which doubles every vanilla texture.
+- **One specular layout, a classic map converted** (item 12, by the user's decisions): the `[RTX] specular map layout`
+  setting, its menus, the harness's `--maps` layouts, `MATERIAL_SPECULAR_CLASSIC`, `LAYER_CLASSIC` and the classic
+  ground exponent are gone. A `_spec` map's layout is measured on it (`SpecularKind`): classic where its channels
+  spread less than 0.1 on the mean, as the Fullrest Repack's 14 classic maps spread 0.004 to 0.042 and the PBR installs'
+  3400 metal-roughness maps 0.151 at the least. A classic map and its diffuse are converted per texel by Khronos'
+  converter (`ConversionPass`): the metalness from the delit diffuse's and the highlight's perceived brightness, the
+  base colour rewritten, the roughness the exponent's, each a slot named for both files
+  ([Khronos](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows)).
+  A terrain `_diffusespec` is always an authored albedo with its roughness in alpha: its RGB is a colour in either
+  layout, no measure tells them apart, and no install read here holds a classic one. Refused: the layout kept as a load
+  option, a setting the item removes; every map read as metal-roughness, which reads a classic map's grey highlight as
+  metal; a metalness from the diffuse's mean, wrong where the diffuse varies under one map; a dielectric alone, which
+  drops a highlight of 0.1 to 0.87 to 0.04; and glTF-Transform's `metalRough`, which keeps a separate specular colour
+  (`KHR_materials_specular`), a second layout.
 - **A chain is built on a worker, never on the frame or the reader.** A 2048-square normal map's levels take tens of
   milliseconds to build and encode. A cold start of the PBR profile builds about 1500 of them. A build on the cell
   reader would hold up each cell by seconds, and a build on the frame would be a spike. Workers drain a bounded queue.
@@ -324,9 +338,6 @@ What it does otherwise than the item said:
 - **A normal map's block takes one BC7 mode**, mode 5 with a height and mode 6 without, where the full search made the
   cold start 270 s; bc7enc has no mode 4.
 
-The order is 13, then 12, by the user's decision: a converted classic material's base colour is solved from the
-delit diffuse, which item 13 makes.
-
 Item 13 is done: the trace reads every colour as it stands, and `ShadingPass`, the shading maps, `delitTexel`, the
 frame's `mDelight`, the harness's `--delight` and the shading zone are gone; a texture other than a normal map stands
 with nothing beside it. At `seyda-neen-ship` on `openmw-pbr`, a cold start prepares in 103 s where the build before
@@ -338,22 +349,13 @@ What it does otherwise than the item said:
 - **The estimate is read as the texture is addressed** (`paintedLight`), clamped along an axis the slot clamps, as
   the device read it through the texture's own sampler.
 
-12. **One specular layout**: every classic `_spec` map converted by preparation to metal-roughness, and the
-    `[RTX] specular map layout` setting, `MATERIAL_SPECULAR_CLASSIC` and `layerClassic` gone, by the user's decision.
-    - **A map's layout is detected per file**, by the user's decision: a map whose red, green and blue are near equal
-      (a mean spread under 0.1) is classic, and every other metal-roughness. The Fullrest Repack's 14 classic maps
-      spread 0.004 to 0.042, and the PBR installs' 3400 metal-roughness maps 0.151 at the least, 0.99 at the median.
-      Refused: the layout kept as a load option, a setting the item removes; and every map read as metal-roughness,
-      which reads a classic map's grey highlight as metal.
-    - **A classic pair is converted per texel by Khronos' converter**, by the user's decision: the metalness solved
-      from the delit diffuse's and the highlight's perceived brightness (`solveMetallic`), the base colour rewritten,
-      and the roughness the exponent's (`roughnessOfExponent`)
-      ([Khronos](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows)).
-      A pair is a material's diffuse and its `_spec`, so a converted texture is made a pair. Refused: a metalness from
-      the diffuse's mean, wrong where the diffuse varies under one map; and a dielectric alone, which drops a
-      highlight of 0.1 to 0.87 to 0.04. glTF-Transform's `metalRough` keeps a separate specular colour
-      (`KHR_materials_specular`), a second layout this item removes.
+Item 12 is done: the trace reads one specular layout, and a classic pair is converted on the host. What it does
+otherwise than the item said:
 
+- **A classic `_spec` stands in until it is converted**, where the trace would read its grey as a metalness; its diffuse
+  draws as it stands meanwhile, as a painted colour does.
+- **The harness's `--maps` option is gone**, since every rule it named took the shipped name patterns and a layout;
+  a run takes the shipped names, and the played game the player's.
 
 Kept, by the user's decisions: **loose formats widened on read** (`layImage`), where a stored copy is four times a
 file on disk and a read for a cheap conversion. Moved to `.notes/todo.txt`: **vertices packed for the device**, the

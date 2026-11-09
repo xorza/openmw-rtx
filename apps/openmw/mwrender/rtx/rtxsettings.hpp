@@ -3,7 +3,6 @@
 #include <cstdint>
 
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 
 #include "mirrorknobs.hpp"
 
@@ -29,7 +28,6 @@ namespace MWRender
         float mGroundcoverDistance = 0.0f;
         float mGroundcoverDensity = 0.0f;
         bool mGroundcoverPointLighting = true;
-        Rtx::SpecularLayout mSpecularMapLayout = Rtx::SpecularLayout::Classic;
         int mAnisotropy = 0;
         float mGamma = 1.0f;
         bool mLitEnvironmentMaps = false;

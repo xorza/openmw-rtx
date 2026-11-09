@@ -1,7 +1,6 @@
 #pragma once
 
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -45,10 +44,5 @@ namespace Settings
 
         /// How many bounce rays the eye's surface traces a frame: `Rtx::SamplingSwitches::mBounceRays`.
         SettingValue<int> mBounceRays{ mIndex, "RTX", "bounce rays", makeClampSanitizerInt(1, sMaxBounceRays) };
-
-        /// What the content's `_spec` maps mean, as `Rtx::sSpecularLayoutNames` spells the layouts:
-        /// `classic` or `metal roughness`, read by it at load. Read where the renderer is
-        /// made, because the maps are loaded with the models.
-        SettingValue<Rtx::SpecularLayout> mSpecularMapLayout{ mIndex, "RTX", "specular map layout" };
     };
 }

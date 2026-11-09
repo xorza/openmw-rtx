@@ -52,17 +52,24 @@ namespace Rtx
             hand->mWorker.stop();
     }
 
-    PreparedImage PreparedImages::find(const osg::Image& file, const TextureEncoding encoding, const TextureWrap wrap)
+    PreparedImage PreparedImages::find(
+        const osg::Image& file, const TextureEncoding encoding, const TextureWrap wrap, const osg::Image* const partner)
     {
         assert(prepares(file, encoding) && "a colour's own chain asked to be made again");
+        assert((partner != nullptr) == isConverted(encoding) && "a converted slot is two files, and no other slot is");
 
         bool queued = false;
         PreparedImage answer = mMonitor.under([&] {
-            // The wrap only where it decides what is made: a painted colour's estimate follows it.
-            const Key key{ &file, encoding, encoding == TextureEncoding::Painted ? wrap : TextureWrap::Repeat };
+            // The wrap only where it decides what is made: a painted colour's estimate follows it, and a
+            // converted slot's delit diffuse.
+            const bool delit = encoding == TextureEncoding::Painted || isConverted(encoding);
+            const Key key{ &file, encoding, delit ? wrap : TextureWrap::Repeat, partner };
             auto entry = mEntries.find(key);
             osg::ref_ptr<const osg::Image> standing;
-            if (entry != mEntries.end() && !entry->second.mFile.lock(standing))
+            osg::ref_ptr<const osg::Image> partnerStanding;
+            if (entry != mEntries.end()
+                && (!entry->second.mFile.lock(standing)
+                    || (partner != nullptr && !entry->second.mPartner.lock(partnerStanding))))
             {
                 mEntries.erase(entry);
                 entry = mEntries.end();
@@ -71,8 +78,8 @@ namespace Rtx
             if (entry == mEntries.end())
             {
                 sweep();
-                mEntries.emplace(key, Entry{ .mFile = &file });
-                mQueue.push_back(Job{ .mKey = key, .mFile = &file });
+                mEntries.emplace(key, Entry{ .mFile = &file, .mPartner = partner });
+                mQueue.push_back(Job{ .mKey = key, .mFile = &file, .mPartner = partner });
                 queued = true;
                 return PreparedImage{ .mPending = true };
             }
@@ -97,7 +104,7 @@ namespace Rtx
 
             // Made once and let go of by every texture since: made again, from the store.
             found.mMade = false;
-            mQueue.push_back(Job{ .mKey = key, .mFile = &file });
+            mQueue.push_back(Job{ .mKey = key, .mFile = &file, .mPartner = partner });
             queued = true;
             return PreparedImage{ .mPending = true };
         });
@@ -148,9 +155,15 @@ namespace Rtx
             },
             [&](const Platform::StopToken&) {
                 const osg::Image& file = *job.mFile;
-                const auto [image, encoding, wrap] = job.mKey;
-                hand.mContent.chain(
-                    ChainPass::Input{ .mImage = file, .mEncoding = encoding, .mWrap = wrap }, hand.mChain);
+                const auto [image, encoding, wrap, partner] = job.mKey;
+                if (job.mPartner != nullptr)
+                    hand.mContent.convert(
+                        ConversionPass::Input{
+                            .mImage = file, .mPartner = *job.mPartner, .mEncoding = encoding, .mWrap = wrap },
+                        hand.mChain);
+                else
+                    hand.mContent.chain(
+                        ChainPass::Input{ .mImage = file, .mEncoding = encoding, .mWrap = wrap }, hand.mChain);
 
                 // The made levels move into the image that holds them; the file's finest level stays
                 // the file's (`MadeImage`).

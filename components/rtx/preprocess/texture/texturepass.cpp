@@ -1,5 +1,6 @@
 #include "texturepass.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <optional>
@@ -68,5 +69,27 @@ namespace Rtx
     AlphaRange alphaSpanOf(const std::optional<TextureData>& finest, TexelScratch&)
     {
         return finest.has_value() ? alphaRange(*finest) : AlphaRange{};
+    }
+
+    SpecularLayout specularKindOf(const std::optional<TextureData>& finest, TexelScratch& scratch)
+    {
+        if (!finest.has_value() || !readsColour(*finest))
+            return SpecularLayout::MetalRoughness;
+
+        // **The mean of each texel's channels' spread, as stored**: a classic map's highlight is grey,
+        // its three channels near equal, where a metal-roughness map holds a metalness, a roughness and
+        // an occlusion apart (`.notes/content-cache.md`, one specular layout).
+        const TextureData& texture = *finest;
+        const MipLevel& level = texture.mLevels.front();
+        double spread = 0.0;
+        for (std::uint32_t row = 0; row < level.mHeight; row += 4)
+        {
+            readTexelBand(texture, level, row / 4, scratch.mColours);
+            for (const osg::Vec3f& texel : scratch.mColours)
+                spread += double(
+                    std::max({ texel.x(), texel.y(), texel.z() }) - std::min({ texel.x(), texel.y(), texel.z() }));
+        }
+        const double texels = double(level.mWidth) * level.mHeight;
+        return spread / texels < sClassicSpreadMost ? SpecularLayout::Classic : SpecularLayout::MetalRoughness;
     }
 }

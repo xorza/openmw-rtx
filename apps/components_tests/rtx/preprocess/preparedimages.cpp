@@ -237,6 +237,51 @@ namespace Rtx
             EXPECT_TRUE(Testing::isNear(texelOf(*made, 0), { 132, 130, 255, 255 }, 2)) << "a neutral estimate";
         }
 
+        /// **A classic pair is made into a base colour and a metal-roughness map, each of both files**:
+        /// a 2x2 RGBA8 diffuse of 128 and a classic `_spec` of 128 under an alpha of 255, both 0.215861 in
+        /// light. Khronos' converter solves `b = 0.215861 · 0.784139 / 0.96 + 0.215861 − 0.08 = 0.312179`,
+        /// `c = −0.175861`, a metalness of `(−0.312179 + sqrt(0.125594)) / 0.08 = 0.527663`, 135 of 255, and
+        /// a base of 0.37328 in light, 164 encoded; the exponent of 255 is a roughness of `(2 / 257)^(1/4) =
+        /// 0.297020`, 76, and the occlusion one. Both whole in BC7, the colour display-encoded, the map
+        /// linear, within BC7's step.
+        TEST(RtxPreparedImagesTest, aClassicPairIsMadeIntoABaseColourAndAMetalRoughnessMap)
+        {
+            const auto make = [](std::uint8_t alpha, const char* name) {
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                for (std::size_t texel = 0; texel < 4; ++texel)
+                {
+                    std::fill_n(image->data() + texel * 4, 3, static_cast<unsigned char>(128));
+                    image->data()[texel * 4 + 3] = alpha;
+                }
+                image->setFileName(name);
+                return image;
+            };
+            const osg::ref_ptr<osg::Image> diffuse = make(255, "textures/tx_ore.dds");
+            const osg::ref_ptr<osg::Image> specular = make(255, "textures/tx_ore_spec.dds");
+
+            PreparedImages prepared(nullptr, 1);
+            EXPECT_TRUE(
+                prepared.find(*diffuse, TextureEncoding::ConvertedColour, TextureWrap::Repeat, specular).mPending);
+            EXPECT_TRUE(
+                prepared.find(*specular, TextureEncoding::ConvertedSpecular, TextureWrap::Repeat, diffuse).mPending);
+            prepared.flush();
+            EXPECT_EQ(prepared.takeStats().at(ContentPassId::Conversion).mAsked, 2u);
+
+            const osg::ref_ptr<const MadeImage> colour
+                = prepared.find(*diffuse, TextureEncoding::ConvertedColour, TextureWrap::Repeat, specular).mImage;
+            ASSERT_NE(colour, nullptr);
+            EXPECT_EQ(colour->getWholeFormat(), TextureFormat::Bc7Srgb);
+            ASSERT_EQ(colour->getLevels().size(), 2u);
+            EXPECT_TRUE(Testing::isNear(texelOf(*colour, 0), { 164, 164, 164, 255 }, 2)) << "the base colour";
+
+            const osg::ref_ptr<const MadeImage> map
+                = prepared.find(*specular, TextureEncoding::ConvertedSpecular, TextureWrap::Repeat, diffuse).mImage;
+            ASSERT_NE(map, nullptr);
+            EXPECT_EQ(map->getWholeFormat(), TextureFormat::Bc7Unorm);
+            EXPECT_TRUE(Testing::isNear(texelOf(*map, 0), { 135, 76, 255, 255 }, 2)) << "metal, roughness, occlusion";
+        }
+
         /// **A file whose chain stands answers nothing made**: a BC5 map of data, whose two channels no
         /// host reader gives a meaning, is neither pending nor made once its ask is done.
         TEST(RtxPreparedImagesTest, aFileWhoseChainStandsAnswersNothingMade)
