@@ -163,6 +163,33 @@ that held every entry already:
 Warm, the store stamps 101,934 entries a start. Before the change, a warm start asked the store for no entry
 and took 0.15 s.
 
+## The reserve
+
+The memory at the preparation's start and its peak to the "Prepared" line, the manifest finding every job as it was
+and the kernels compiled before: the Fullrest Repack 1,327 MiB at the start and 1,378 MiB at the peak, 51 MB; on
+vanilla and the PBR replacers the preparation ended inside one sample of 0.1 s. A cold compile could not be had on
+this card: with `XDG_CACHE_HOME` and `__GL_SHADER_DISK_CACHE_PATH` moved to empty folders, the longest pipeline
+still compiled in 7 ms.
+
+## The dispatcher, landed
+
+Walks queue chain jobs, a dispatcher hands them out within a budget, and the loader's caches let go of each file as
+its last job ends. The PBR replacers on 15 threads under the harness:
+
+| run | preparation | its peak | counted at most | budget |
+|---|---|---|---|---|
+| cold, before | 77.8 to 81.8 s | 3,383 to 4,215 MiB | — | — |
+| cold | 77.4 s | 3,715 MiB | 3,211 MiB | 53,889 MiB |
+| cold, under a cgroup `MemoryMax` of 4 GiB | 78.5 s | 3,520 MiB | 2,560 MiB | 2,560 MiB |
+| every model walked against a full store, before | — | 7,269 MiB | — | — |
+| every model walked against a full store | 2.37 s | 1,968 MiB | 2,457 MiB | 53,852 MiB |
+
+Each cold store the same byte for byte as the one before. Cold, the three content lists after the batches, on 15
+threads under the harness: vanilla 5.9 to 6.1 s (the committed build beside it 5.9 s, run in turn), the Fullrest
+Repack 337.6 s and 4,235 MiB at the peak, the PBR replacers 82.9 s and 3,479 MiB. Vanilla's 4.5 s after the
+byte-exact batch did not come back on either build, its CPU time 86 s against 68.5 then. At the cold run's end the process fell from 3,589 to
+1,042 MiB, and the scene built after it peaked at 4,937 MiB, as a warm start's does at 4,250.
+
 ## Scratch held per thread
 
 From `ChainBuild` and `ChainPass` at a 4096-square file: the chain's texels, four bytes each over every level,

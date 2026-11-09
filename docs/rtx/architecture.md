@@ -447,6 +447,23 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
   starts its workers up to the logical cores: the main thread only draws the screen and sleeps. Refused: a child tool
   that loads the content list again behind a pipe protocol, for a fault isolation no pass needs; and a launcher tab, a
   second route.
+- **The preparation's memory is dispatched** (`Rtx::PreparationDispatcher`), by the user's decisions: a walk queues a
+  chain job for each map it claims, holding its image, and a free thread is handed the largest queued chain that fits
+  a budget read once at the start, the system's available memory (`Platform::availableMemory`) less a reserve of
+  1 GiB, on the thread whose kept scratch it grows least, as Ray holds a task until the running tasks' stated memory
+  leaves room ([Ray](https://docs.ray.io/en/latest/ray-core/scheduling/index.html)). A chain's peak is predicted off
+  its image's header, buffer by buffer (`ChainPass::scratchOf`), as Unreal's derived data states each build's
+  ([`GetRequiredMemory`](https://dev.epicgames.com/documentation/unreal-engine/API/Developer/DerivedDataCache/FBuildContext/GetRequiredMemory)),
+  and a debug assert holds what it kept to it. A head that does not fit is reserved the time the running jobs free
+  its room, and a smaller one backfills only where it ends by then or fits its spare (EASY, Lifka 1995,
+  [backfilling](https://dr-evt.readthedocs.io/en/latest/BACKFILLING_ALGORITHMS.html)); idle threads let go of their
+  scratch where a head fits through it, with a heap trim, since glibc keeps what an arena freed below its mapping
+  threshold; a chain past the budget runs alone, and is logged; and the loader's caches let go of each file as the
+  last job reading it ends (`Resource::SceneManager::letGo`). The budget bounds the preparation alone: it lets go of
+  everything before the world loads, and the scene built after it peaks on its own. Refused: a semaphore, which
+  blocks on its head; the process's resident size, which lags and stays high on what glibc keeps; a fixed fraction
+  of the memory; and the caches cleared once a second, which held a second of walks, 7.3 GiB at a PBR start whose
+  manifest walked every model again (`docs/rtx/research/2026-11-09-content-preparation-cost.md`).
 - **The preparation is incremental by each file's stamp; the lookup is by content**: a manifest names each model's
   files and a digest of their sizes and times, so a start after one mod changed walks that mod again, as ccache's
   direct mode trusts a stat; the game keys every lookup by the bytes, so a stamp that lies costs a miss and never a

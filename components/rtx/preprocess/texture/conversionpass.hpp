@@ -14,6 +14,8 @@
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+
+#include "chainscratch.hpp"
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 
 namespace Rtx
@@ -80,6 +82,17 @@ namespace Rtx
 
         /// Lets go of both images `digest` described (`ChainPass::release`).
         void release();
+
+        /// What a run of `input` holds of each buffer at most, read off its two images' headers alone
+        /// (`ChainPass::scratchOf`): both files laid, the `_spec`'s exponents, band and highlights, the
+        /// converted level, the larger of its two builds, and the chain it makes.
+        static ChainScratch scratchOf(const Input& input);
+
+        /// What its own buffers hold now, the build's aside.
+        ChainScratch capacity() const;
+
+        /// Gives its own buffers' room back.
+        void letGo();
 
     private:
         /// Describes `input`'s two files into the scratch, the diffuse as a painted colour and the

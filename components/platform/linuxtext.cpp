@@ -93,4 +93,51 @@ namespace Platform::LinuxText
         }
         return std::nullopt;
     }
+
+    std::optional<std::uint64_t> availableMemory(std::string_view meminfo)
+    {
+        constexpr std::string_view field = "MemAvailable:";
+        for (std::string_view rest = meminfo; !rest.empty();)
+        {
+            const std::size_t end = rest.find('\n');
+            std::string_view line = rest.substr(0, end);
+            rest = end == std::string_view::npos ? std::string_view() : rest.substr(end + 1);
+            if (!line.starts_with(field))
+                continue;
+
+            line.remove_prefix(field.size());
+            line.remove_prefix(std::min(line.find_first_not_of(' '), line.size()));
+            std::uint64_t kilobytes = 0;
+            const std::from_chars_result read = std::from_chars(line.data(), line.data() + line.size(), kilobytes);
+            if (read.ec != std::errc{} || std::string_view(read.ptr, line.data() + line.size()) != " kB")
+                return std::nullopt;
+            return kilobytes * 1024;
+        }
+        return std::nullopt;
+    }
+
+    std::optional<std::string_view> unifiedCgroup(std::string_view cgroup)
+    {
+        constexpr std::string_view prefix = "0::";
+        for (std::string_view rest = cgroup; !rest.empty();)
+        {
+            const std::size_t end = rest.find('\n');
+            const std::string_view line = rest.substr(0, end);
+            rest = end == std::string_view::npos ? std::string_view() : rest.substr(end + 1);
+            if (line.starts_with(prefix) && line.size() > prefix.size() && line[prefix.size()] == '/')
+                return line.substr(prefix.size());
+        }
+        return std::nullopt;
+    }
+
+    std::optional<std::uint64_t> cgroupBytes(std::string_view text)
+    {
+        while (!text.empty() && text.back() == '\n')
+            text.remove_suffix(1);
+        std::uint64_t bytes = 0;
+        const std::from_chars_result read = std::from_chars(text.data(), text.data() + text.size(), bytes);
+        if (text.empty() || read.ec != std::errc{} || read.ptr != text.data() + text.size())
+            return std::nullopt;
+        return bytes;
+    }
 }

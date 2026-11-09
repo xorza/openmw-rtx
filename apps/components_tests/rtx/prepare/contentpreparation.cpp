@@ -4,8 +4,12 @@
 #include <cstring>
 #include <filesystem>
 #include <map>
+#include <mutex>
 #include <optional>
+#include <set>
+#include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -79,6 +83,18 @@ namespace Rtx
                 return Err{ std::string("no image here") };
             }
 
+            void letGo(std::span<const std::string> paths) override
+            {
+                const std::lock_guard lock(mLetGoMutex);
+                mLetGo.insert(paths.begin(), paths.end());
+            }
+
+            std::set<std::string> takeLetGo()
+            {
+                const std::lock_guard lock(mLetGoMutex);
+                return std::exchange(mLetGo, {});
+            }
+
             std::uint64_t stampOf(VFS::Path::NormalizedView path) override
             {
                 const auto found = mStamps.find(std::string(path.value()));
@@ -88,6 +104,9 @@ namespace Rtx
             std::map<std::string, std::uint64_t> mStamps;
 
         private:
+            std::mutex mLetGoMutex;
+            std::set<std::string> mLetGo;
+
             osg::ref_ptr<osg::Node> modelOf(const osg::ref_ptr<osg::Geometry>& quad, const char* diffuse)
             {
                 Testing::paint(*quad->getOrCreateStateSet(), diffuse);
@@ -143,7 +162,7 @@ namespace Rtx
         /// names it leaves it in the manifest, so a switch back walks nothing, until no run named it for
         /// 31 days. A model no file stands for is walked again once its stamp moves, as a mod that adds
         /// it moves it. Each run says what it took: its two threads, and a time to its last job inside the
-        /// call, nought where it had no job.
+        /// call, nought where it had no job; and has the loader let go of every file a job read.
         TEST(RtxContentPreparationTest, aModelIsWalkedOnceAndAgainOnlyOnceAFileItReadMoved)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
@@ -162,6 +181,10 @@ namespace Rtx
             EXPECT_EQ(first.mWalked, 2u);
             EXPECT_EQ(first.mShapes, 2u);
             EXPECT_EQ(first.mChains, 1u) << "the shared map made once a run";
+            const std::set<std::string> letGo = content.takeLetGo();
+            for (const char* file :
+                { "meshes/a.nif", "meshes/b.nif", "textures/tx_a.dds", "textures/tx_b.dds", "textures/tx_rock_n.dds" })
+                EXPECT_TRUE(letGo.contains(file)) << file << ", every file a job read let go of once it ended";
             EXPECT_EQ(first.mTimes.mThreads, 2u);
             EXPECT_GT(first.mTimes.mWall, std::chrono::nanoseconds::zero());
             EXPECT_LE(first.mTimes.mWall, first.mAround);
@@ -186,8 +209,10 @@ namespace Rtx
 
             // **And a model whose entries the store lost is walked again**, and only it: the second model's
             // own entries deleted, as a store refuses a file, under a store opened again, which holds in
-            // memory none of what the first wrote. Its walk makes them again.
+            // memory none of what the first wrote. Its walk makes them again. The first store's writes
+            // finished first, which run on its own thread: one still queued is an entry no file holds yet.
             {
+                store.flush();
                 const PreparationManifest filed
                     = PreparationManifest::read(setup.mManifest, ContentPreparation::signatureOf(setup));
                 const std::optional<PreparationManifest::Entry> a = filed.find("meshes/a.nif");

@@ -15,6 +15,8 @@
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 
+#include "chainscratch.hpp"
+
 namespace Rtx
 {
     /// What a chain made of a file is (`MadeChain`).
@@ -110,6 +112,22 @@ namespace Rtx
         /// Lets go of the image `digest` described, which a run lets go of as it ends and the
         /// preprocessor once the store answered: held, it kept a file the scene let go of alive.
         void release();
+
+        /// What a run of `input` holds of each buffer at most, read off its image's header alone: the
+        /// file laid, the build, and the chain made in the largest form it could take, held once as the
+        /// output and once as the store's payload. Its own buffers' room, and the build's, never past it.
+        static ChainScratch scratchOf(const Input& input);
+
+        /// What the file's laid levels hold now (`ChainBuffer::File`); the build reports its own.
+        std::size_t capacity() const { return mTexels.capacity(); }
+
+        /// Gives the laid levels' room back.
+        void letGo()
+        {
+            release();
+            mLevels = {};
+            mTexels = {};
+        }
 
     private:
         /// Describes `input`'s image into the scratch, and holds it, unless it is the one described.

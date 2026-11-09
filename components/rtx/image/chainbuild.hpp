@@ -28,6 +28,30 @@ namespace Rtx
     class ChainBuild
     {
     public:
+        /// The bytes of each buffer a build holds that grows with the image, which a thread keeps between
+        /// builds: what `capacity` reads and `scratchOf` predicts. The buffers that grow with the count of
+        /// levels alone, a few hundred bytes, are left out.
+        struct Scratch
+        {
+            std::size_t mAlpha = 0;
+            std::size_t mTexels = 0;
+            std::size_t mBand = 0;
+            std::size_t mRing = 0;
+            std::size_t mColumns = 0;
+        };
+
+        /// What `build` of a file `width` by `height`, of `fileLevels` levels, read as `encoding`, to
+        /// `levels` levels holds of each buffer at its largest: what a thread's buffers grow to, at most,
+        /// where they held less.
+        static Scratch scratchOf(std::uint32_t width, std::uint32_t height, std::uint32_t fileLevels,
+            TextureEncoding encoding, std::uint32_t levels);
+
+        /// What each buffer holds now, its capacity, which no build gives back.
+        Scratch capacity() const;
+
+        /// Gives every buffer's room back.
+        void letGo();
+
         /// Whether `file`'s chain can be built: a BC1, BC2 or BC3 file, four loose bytes a texel, or a
         /// BC5 normal map, of more than a texel. Not BC4, nor a BC5 map of data, whose channels no reader
         /// here gives a meaning.

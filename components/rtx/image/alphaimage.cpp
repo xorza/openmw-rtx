@@ -175,6 +175,8 @@ namespace Rtx
         if (texels == 0)
             return;
 
+        // Reserved first, so the room is the texels on every standard library (`ChainBuild::scratchOf`).
+        mValues.reserve(texels);
         mValues.assign(texels, std::uint8_t{ 255 });
 
         for (std::uint32_t at = 0; at < mShape.getLevelCount(); ++at)

@@ -93,6 +93,10 @@ namespace Rtx
         /// What the reads computed from the content since the last take — `ContentPreprocessor`.
         ContentStats takeStats() { return mContent.mPreprocessor.takeStats(); }
 
+        /// `ContentPreprocessor::chainScratch` and `letGoChainScratch`, through this thread's content.
+        ChainScratch chainScratch() const { return mContent.mPreprocessor.chainScratch(); }
+        void letGoScratch() { mContent.mPreprocessor.letGoChainScratch(); }
+
         /// `ContentPreprocessor::collectKeys`, through this thread's content.
         void collectKeys(std::vector<ContentKey>* into) { mContent.mPreprocessor.collectKeys(into); }
 

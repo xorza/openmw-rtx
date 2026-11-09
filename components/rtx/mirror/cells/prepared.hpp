@@ -246,6 +246,30 @@ namespace Rtx
         /// without it, as the frame's walk stands one without a drawable it refuses.
         std::string mRefused;
 
+        /// The bytes its buffers hold room for, which a refill keeps.
+        std::size_t heldBytes() const
+        {
+            return mParts.capacity() * sizeof(PreparedPart) + mPositions.capacity() * sizeof(osg::Vec3f)
+                + mNormals.capacity() * sizeof(osg::Vec3f) + mTexCoords.capacity() * sizeof(osg::Vec2f)
+                + mSecondTexCoords.capacity() * sizeof(osg::Vec2f) + mColours.capacity() * sizeof(osg::Vec3f)
+                + mTangents.capacity() * sizeof(osg::Vec4f) + mIndices.capacity() * sizeof(std::uint32_t)
+                + mChains.capacity() * sizeof(const osg::StateSet*);
+        }
+
+        /// Gives its buffers' room back, where a preparation's thread is asked for it. Lent nowhere.
+        void letGoBuffers()
+        {
+            mParts = {};
+            mPositions = {};
+            mNormals = {};
+            mTexCoords = {};
+            mSecondTexCoords = {};
+            mColours = {};
+            mTangents = {};
+            mIndices = {};
+            mChains = {};
+        }
+
         /// What one of its parts comes to, as the frame adopts it. The spans are into this model's
         /// own storage, and live for as long as it is lent.
         MeshReading readingOf(const PreparedPart& part) const

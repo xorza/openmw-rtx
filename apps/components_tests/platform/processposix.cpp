@@ -17,8 +17,11 @@
 
 #include <gtest/gtest.h>
 
+#include <unistd.h>
+
 #include <components/files/conversion.hpp>
 #include <components/platform/linuxtext.hpp>
+#include <components/platform/memory.hpp>
 #include <components/platform/process.hpp>
 #include <components/testing/util.hpp>
 
@@ -147,5 +150,21 @@ namespace
                 std::exit(failure);
             },
             ::testing::ExitedWithCode(0), "");
+    }
+
+    /// **The memory the process may still take is stated on Linux, and no more than the machine has**:
+    /// more than nought and at most its physical pages; nothing on a system with no `/proc/meminfo`.
+    TEST(RtxPlatformProcessTest, theAvailableMemoryIsWhatTheMachineHasAtMost)
+    {
+        const std::optional<std::uint64_t> available = Platform::availableMemory();
+        if (!std::filesystem::exists("/proc/meminfo"))
+        {
+            EXPECT_FALSE(available.has_value());
+            return;
+        }
+        ASSERT_TRUE(available.has_value());
+        EXPECT_GT(*available, 0u);
+        EXPECT_LE(*available,
+            static_cast<std::uint64_t>(sysconf(_SC_PHYS_PAGES)) * static_cast<std::uint64_t>(sysconf(_SC_PAGESIZE)));
     }
 }

@@ -120,6 +120,21 @@ namespace Rtx
     {
     }
 
+    ChainScratch ContentPreprocessor::chainScratch() const
+    {
+        ChainScratch scratch = mConversion.capacity();
+        scratch[ChainBuffer::File] = mChain.capacity();
+        scratch.setBuild(mBuild.capacity());
+        return scratch;
+    }
+
+    void ContentPreprocessor::letGoChainScratch()
+    {
+        mChain.letGo();
+        mConversion.letGo();
+        mBuild.letGo();
+    }
+
     ContentStats ContentPreprocessor::takeStats()
     {
         return std::exchange(mStats, ContentStats{});

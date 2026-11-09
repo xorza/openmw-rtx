@@ -6,6 +6,7 @@
 
 #include <components/misc/result.hpp>
 #include <components/rtx/image/imagedescription.hpp>
+#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureformat.hpp>
 
 namespace Rtx
@@ -104,6 +105,45 @@ namespace Rtx
         }
 
         release();
+    }
+
+    ChainScratch ChainPass::scratchOf(const Input& input)
+    {
+        const osg::Image& image = input.mImage;
+        const TextureFormat format = readFormat(image, input.mEncoding);
+        ChainScratch scratch;
+        scratch[ChainBuffer::File] = laidBytes(image, format);
+
+        // A file the description refuses builds and makes nothing (`checkUploadable`).
+        if (image.s() <= 0 || image.t() <= 0 || (!isUploadable(format) && !isWidened(format)))
+            return scratch;
+
+        // As `run` builds: a file with no chain to a texel, and every other to its own count of levels.
+        const auto width = static_cast<std::uint32_t>(image.s());
+        const auto height = static_cast<std::uint32_t>(image.t());
+        const std::uint32_t fileLevels = std::max(levelCountOf(image), 1u);
+        const bool chainless = fileLevels == 1;
+        const std::uint32_t levels = chainless ? levelsTo1x1(width, height) : fileLevels;
+        const bool built = input.mEncoding != TextureEncoding::Colour || chainless;
+        if (built)
+            scratch.setBuild(ChainBuild::scratchOf(width, height, fileLevels, input.mEncoding, levels));
+
+        // Whole in BC7, or whole in the file's own block format, the larger: a loose file is made in BC7
+        // alone.
+        const TexelLayout bc7 = layoutOf(bc7FormatOf(input.mEncoding));
+        const TexelLayout own = layoutOf(format);
+        std::size_t asBc7 = 0;
+        std::size_t asOwn = 0;
+        for (std::uint32_t level = 0; level < (built ? levels : fileLevels); ++level)
+        {
+            const std::uint32_t across = std::max(width >> level, 1u);
+            const std::uint32_t down = std::max(height >> level, 1u);
+            asBc7 += bc7.levelBytes(across, down);
+            asOwn += own.levelBytes(across, down);
+        }
+        scratch[ChainBuffer::Made] = own.isBlocked() ? std::max(asBc7, asOwn) : asBc7;
+        scratch[ChainBuffer::Payload] = scratch[ChainBuffer::Made] + 1;
+        return scratch;
     }
 
     void ChainPass::release()

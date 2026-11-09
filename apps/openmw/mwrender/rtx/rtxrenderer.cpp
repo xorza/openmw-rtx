@@ -678,23 +678,17 @@ namespace MWRender
             listener.setLabel("#{OMWEngine:PreparingContent}");
             listener.setProgressRange(progress.mCount);
 
-            // **The caches emptied once a second and at the end**, so the models walked and let go of
-            // leave them and the walk's memory stays bounded: aged by their expiry instead, they kept
-            // every model a cold start of the PBR profile walks, 14.7 GB at the peak under the
-            // harness, whose stated step never ages them. Nothing of the world stands yet to be
-            // read again, and a walk still holding what it asked keeps it alive. Each wait sleeps until a
-            // job is done or the screen's frame is due, as the kernels' does.
+            // **Each file let go of by the loader's caches as the last job reading it ends**
+            // (`Rtx::ContentPreparation`, `Resource::SceneManager::letGo`), so the walk's memory stays
+            // within the jobs' own: cleared once a second instead, the caches held what a second of walks
+            // loaded, 7.3 GiB at the peak of a PBR start whose manifest walked every model again, and aged
+            // by their expiry, 14.7 GB. The clear at the end drops what a job's files did not name. Each
+            // wait sleeps until a job is done or the screen's frame is due, as the kernels' does.
             constexpr std::chrono::milliseconds patience{ 8 };
-            auto cleared = std::chrono::steady_clock::now();
             while (!progress.isDone())
             {
                 // Each report draws a frame, as above.
                 listener.setProgress(progress.mMade);
-                if (std::chrono::steady_clock::now() - cleared >= std::chrono::seconds(1))
-                {
-                    cleared = std::chrono::steady_clock::now();
-                    getResources().clearCache();
-                }
                 progress = mMirror.awaitPreparing(patience);
             }
             getResources().clearCache();

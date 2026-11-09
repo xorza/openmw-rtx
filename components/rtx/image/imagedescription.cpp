@@ -32,15 +32,6 @@ namespace Rtx
 {
     namespace
     {
-        /// How many of an image's levels a description keeps: as many as the file carries, and no
-        /// more than reach a single texel, because a header may count levels past the last one and
-        /// a device takes no image with more levels than its size has.
-        std::uint32_t keptLevels(const osg::Image& image)
-        {
-            return std::min(image.getNumMipmapLevels(),
-                levelsTo1x1(static_cast<std::uint32_t>(image.s()), static_cast<std::uint32_t>(image.t())));
-        }
-
         /// The byte nearest what a device samples from a `bits`-bit unsigned normalized channel,
         /// `value / (2^bits - 1)`. Not the bits repeated down the byte, which a BC1 endpoint is
         /// decoded by and which lands a step off that for fourteen of the five- and six-bit values.
@@ -171,6 +162,12 @@ namespace Rtx
         }
     }
 
+    std::uint32_t levelCountOf(const osg::Image& image)
+    {
+        return std::min(image.getNumMipmapLevels(),
+            levelsTo1x1(static_cast<std::uint32_t>(image.s()), static_cast<std::uint32_t>(image.t())));
+    }
+
     Result<osg::ref_ptr<const osg::Image>, std::string> openImage(
         Resource::ImageManager& images, const VFS::Path::NormalizedView path)
     {
@@ -249,7 +246,7 @@ namespace Rtx
 
     std::size_t laidBytes(const osg::Image& image, const TextureFormat format)
     {
-        return laidBytesOf(image, format, keptLevels(image));
+        return laidBytesOf(image, format, levelCountOf(image));
     }
 
     Result<TextureData, std::string> describeImage(const osg::Image& image, const TextureEncoding encoding,
@@ -353,6 +350,7 @@ namespace Rtx
             }
 
             const std::size_t from = texels.size();
+            texels.reserve(from + total);
             texels.resize(from + total);
             const std::span<std::byte> into = std::span(texels).subspan(from);
             std::size_t at = 0;
@@ -382,7 +380,7 @@ namespace Rtx
     Result<TextureData, std::string> describeImage(const osg::Image& image, const TextureFormat format,
         const TextureEncoding encoding, std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
     {
-        return describeLevels(image, format, encoding, keptLevels(image), levels, texels);
+        return describeLevels(image, format, encoding, levelCountOf(image), levels, texels);
     }
 
     Result<TextureData, std::string> describeFinestLevel(

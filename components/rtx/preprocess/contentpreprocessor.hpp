@@ -7,6 +7,7 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
+#include <components/rtx/preprocess/texture/chainscratch.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 
@@ -85,6 +86,13 @@ namespace Rtx
         /// or finds: what a preparation files a model's walk under, so a later start asks the store for
         /// each (`PreparationManifest`). Null, as made, for none.
         void collectKeys(std::vector<ContentKey>* into) { mKeysInto = into; }
+
+        /// What its chain and conversion buffers keep, the shared build's among them: every buffer of a
+        /// `ChainScratch` but the made chain, which the caller holds, and the payload, which the store frees.
+        ChainScratch chainScratch() const;
+
+        /// Gives back the room its chain and conversion buffers keep, the build's among them.
+        void letGoChainScratch();
 
     private:
         template <ContentPass Pass>

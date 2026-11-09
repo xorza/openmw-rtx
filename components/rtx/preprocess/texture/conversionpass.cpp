@@ -154,7 +154,10 @@ namespace Rtx
             // The highlight, display-encoded as the artist saw it, and the exponent in its alpha.
             const MipLevel& shine = specular.mLevels.front();
             mGloss.build(finestOf(specular));
+            mHighlights.clear();
+            mHighlights.reserve(std::size_t{ shine.mWidth } * shine.mHeight);
             mHighlights.resize(std::size_t{ shine.mWidth } * shine.mHeight);
+            mBand.reserve(std::size_t{ shine.mWidth } * 4);
             for (std::uint32_t row = 0; row < shine.mHeight; row += 4)
             {
                 readTexelBand(specular, shine, row / 4, mBand);
@@ -163,6 +166,7 @@ namespace Rtx
 
             // **Every texel of the slot's own file, with its partner's nearest.**
             const MipLevel& own = colour ? lit : shine;
+            mConverted.reserve(std::size_t{ own.mWidth } * own.mHeight * 4);
             mConverted.assign(std::size_t{ own.mWidth } * own.mHeight * 4, std::byte{ 0 });
             for (std::uint32_t y = 0; y < own.mHeight; ++y)
                 for (std::uint32_t x = 0; x < own.mWidth; ++x)
@@ -226,6 +230,88 @@ namespace Rtx
         }
 
         release();
+    }
+
+    ChainScratch ConversionPass::scratchOf(const Input& input)
+    {
+        const bool colour = input.mEncoding == TextureEncoding::ConvertedColour;
+        const osg::Image& diffuse = colour ? input.mImage : input.mPartner;
+        const osg::Image& specular = colour ? input.mPartner : input.mImage;
+        const TextureFormat diffuseFormat = readFormat(diffuse, TextureEncoding::Painted);
+
+        ChainScratch scratch;
+        scratch[ChainBuffer::DiffuseFile] = laidBytes(diffuse, diffuseFormat);
+        scratch[ChainBuffer::SpecularFile] = laidBytes(specular, readFormat(specular, TextureEncoding::Colour));
+        if (diffuse.s() <= 0 || diffuse.t() <= 0 || specular.s() <= 0 || specular.t() <= 0
+            || (!isUploadable(diffuseFormat) && !isWidened(diffuseFormat)))
+            return scratch;
+
+        const auto diffuseWidth = static_cast<std::uint32_t>(diffuse.s());
+        const auto diffuseHeight = static_cast<std::uint32_t>(diffuse.t());
+        const auto shineWidth = static_cast<std::uint32_t>(specular.s());
+        const auto shineHeight = static_cast<std::uint32_t>(specular.t());
+        const std::size_t shineTexels = std::size_t{ shineWidth } * shineHeight;
+        scratch[ChainBuffer::Gloss] = shineTexels;
+        scratch[ChainBuffer::SpecularBand] = std::size_t{ shineWidth } * 4 * sizeof(osg::Vec3f);
+        scratch[ChainBuffer::Highlights] = shineTexels * sizeof(osg::Vec3f);
+
+        // The converted level is the slot's own file's finest, and its chain is built to a texel over the
+        // diffuse's delit finest: the build holds the larger of the two.
+        const std::uint32_t ownWidth = colour ? diffuseWidth : shineWidth;
+        const std::uint32_t ownHeight = colour ? diffuseHeight : shineHeight;
+        const std::uint32_t levels = levelsTo1x1(ownWidth, ownHeight);
+        scratch[ChainBuffer::Converted] = std::size_t{ ownWidth } * ownHeight * 4;
+        ChainBuild::Scratch build = ChainBuild::scratchOf(
+            diffuseWidth, diffuseHeight, std::max(levelCountOf(diffuse), 1u), TextureEncoding::Painted, 1);
+        const ChainBuild::Scratch made = ChainBuild::scratchOf(ownWidth, ownHeight, 1, input.mEncoding, levels);
+        build.mAlpha = std::max(build.mAlpha, made.mAlpha);
+        build.mTexels = std::max(build.mTexels, made.mTexels);
+        build.mBand = std::max(build.mBand, made.mBand);
+        build.mRing = std::max(build.mRing, made.mRing);
+        build.mColumns = std::max(build.mColumns, made.mColumns);
+        scratch.setBuild(build);
+
+        // Whole in BC7, or whole in the diffuse's block format, the larger.
+        const TexelLayout bc7 = layoutOf(bc7FormatOf(input.mEncoding));
+        const TexelLayout own = layoutOf(diffuseFormat);
+        std::size_t asBc7 = 0;
+        std::size_t asOwn = 0;
+        for (std::uint32_t level = 0; level < levels; ++level)
+        {
+            const std::uint32_t across = std::max(ownWidth >> level, 1u);
+            const std::uint32_t down = std::max(ownHeight >> level, 1u);
+            asBc7 += bc7.levelBytes(across, down);
+            asOwn += own.levelBytes(across, down);
+        }
+        scratch[ChainBuffer::Made] = std::max(asBc7, colour && own.isBlocked() ? asOwn : 0);
+        scratch[ChainBuffer::Payload] = scratch[ChainBuffer::Made] + 1;
+        return scratch;
+    }
+
+    ChainScratch ConversionPass::capacity() const
+    {
+        ChainScratch scratch;
+        scratch[ChainBuffer::DiffuseFile] = mDiffuseTexels.capacity();
+        scratch[ChainBuffer::SpecularFile] = mSpecularTexels.capacity();
+        scratch[ChainBuffer::Gloss] = mGloss.capacity();
+        scratch[ChainBuffer::SpecularBand] = mBand.capacity() * sizeof(osg::Vec3f);
+        scratch[ChainBuffer::Highlights] = mHighlights.capacity() * sizeof(osg::Vec3f);
+        scratch[ChainBuffer::Converted] = mConverted.capacity();
+        return scratch;
+    }
+
+    void ConversionPass::letGo()
+    {
+        release();
+        mDiffuseLevels = {};
+        mDiffuseTexels = {};
+        mSpecularLevels = {};
+        mSpecularTexels = {};
+        mGloss = AlphaImage();
+        mBand = {};
+        mHighlights = {};
+        mConverted = {};
+        mConvertedLevel = {};
     }
 
     void ConversionPass::release()

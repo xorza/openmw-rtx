@@ -62,4 +62,33 @@ namespace
         EXPECT_EQ(Platform::LinuxText::compactionStalls("compact_fail 1\n"), std::nullopt);
         EXPECT_EQ(Platform::LinuxText::compactionStalls("compact_stall many\n"), std::nullopt);
     }
+
+    /// **The available memory is `MemAvailable`, in bytes**: 2 kB is 2048 bytes among the other fields,
+    /// and nothing where the field is missing, its value no number, or its unit not kilobytes.
+    TEST(RtxPlatformLinuxTextTest, theAvailableMemoryIsMemAvailableInBytes)
+    {
+        EXPECT_EQ(Platform::LinuxText::availableMemory("MemTotal:       65000000 kB\nMemFree:          100 kB\n"
+                                                       "MemAvailable:          2 kB\nBuffers:            1 kB\n"),
+            std::optional<std::uint64_t>(2048));
+        EXPECT_EQ(Platform::LinuxText::availableMemory("MemTotal:       65000000 kB\n"), std::nullopt);
+        EXPECT_EQ(Platform::LinuxText::availableMemory("MemAvailable: many kB\n"), std::nullopt);
+        EXPECT_EQ(Platform::LinuxText::availableMemory("MemAvailable: 2 MB\n"), std::nullopt);
+    }
+
+    /// **The cgroup is the v2 line's path, and its bytes a number or no limit**: `/user.slice/app` from a
+    /// list with a v1 line before it, the root as `/`, and nothing where no `0::` line names a path; a
+    /// limit of 1073741824 with its line break, nothing for `max`, an empty file or a word.
+    TEST(RtxPlatformLinuxTextTest, theCgroupIsTheUnifiedLinesPathAndItsBytesANumber)
+    {
+        EXPECT_EQ(Platform::LinuxText::unifiedCgroup("1:name=systemd:/x\n0::/user.slice/app\n"),
+            std::optional<std::string_view>("/user.slice/app"));
+        EXPECT_EQ(Platform::LinuxText::unifiedCgroup("0::/\n"), std::optional<std::string_view>("/"));
+        EXPECT_EQ(Platform::LinuxText::unifiedCgroup("1:name=systemd:/x\n"), std::nullopt);
+        EXPECT_EQ(Platform::LinuxText::unifiedCgroup("0::\n"), std::nullopt);
+
+        EXPECT_EQ(Platform::LinuxText::cgroupBytes("1073741824\n"), std::optional<std::uint64_t>(1073741824));
+        EXPECT_EQ(Platform::LinuxText::cgroupBytes("max\n"), std::nullopt);
+        EXPECT_EQ(Platform::LinuxText::cgroupBytes(""), std::nullopt);
+        EXPECT_EQ(Platform::LinuxText::cgroupBytes("12 bytes\n"), std::nullopt);
+    }
 }

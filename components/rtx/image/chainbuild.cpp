@@ -87,6 +87,51 @@ namespace Rtx
         }
     }
 
+    ChainBuild::Scratch ChainBuild::scratchOf(const std::uint32_t width, const std::uint32_t height,
+        const std::uint32_t fileLevels, const TextureEncoding encoding, const std::uint32_t levels)
+    {
+        // The levels `build` reads and lays out, as it reads and lays them: a painted colour's own up to
+        // `levels`, every other file's finest alone, and `levels` laid four bytes a texel.
+        const std::uint32_t read
+            = encoding == TextureEncoding::Painted ? std::min(levels, std::max(fileLevels, 1u)) : 1u;
+        const auto texelsOf = [&](std::uint32_t level) {
+            return std::size_t{ std::max(width >> level, 1u) } * std::max(height >> level, 1u);
+        };
+        Scratch scratch;
+        for (std::uint32_t level = 0; level < read; ++level)
+            scratch.mAlpha += texelsOf(level);
+        for (std::uint32_t level = 0; level < levels; ++level)
+            scratch.mTexels += texelsOf(level) * sTexel;
+        scratch.mBand = std::size_t{ width } * 4 * sizeof(osg::Vec3f);
+        if (encoding == TextureEncoding::Normal)
+            for (std::uint32_t level = 0; level < levels; ++level)
+                scratch.mRing += std::size_t{ sRingRows } * std::max(width >> level, 1u) * sizeof(osg::Vec3f);
+        if (encoding == TextureEncoding::Painted)
+            scratch.mColumns = std::size_t{ width } * sizeof(PaintedAxis);
+        return scratch;
+    }
+
+    ChainBuild::Scratch ChainBuild::capacity() const
+    {
+        return Scratch{ .mAlpha = mAlpha.capacity(),
+            .mTexels = mTexels.capacity(),
+            .mBand = mBand.capacity() * sizeof(osg::Vec3f),
+            .mRing = mRing.capacity() * sizeof(osg::Vec3f),
+            .mColumns = mColumns.capacity() * sizeof(PaintedAxis) };
+    }
+
+    void ChainBuild::letGo()
+    {
+        mAlpha = AlphaImage();
+        mBand = {};
+        mRing = {};
+        mRingAt = {};
+        mBoxed = {};
+        mColumns = {};
+        mTexels = {};
+        mLevels = {};
+    }
+
     bool ChainBuild::rebuilds(const TextureData& file)
     {
         const TextureFormat format = file.mFormat;
@@ -112,7 +157,10 @@ namespace Rtx
         first.mCoarser = {};
         mAlpha.build(first);
 
+        // Each buffer grown to the size this build needs and no more, as `scratchOf` predicts it: a band
+        // of the finest level's four rows, reserved before the reader resizes it.
         const MipLevel& top = first.mLevels.front();
+        mBand.reserve(std::size_t{ top.mWidth } * 4);
         mLevels.clear();
         std::size_t bytes = 0;
         for (std::uint32_t level = 0; level < levels; ++level)
@@ -123,6 +171,9 @@ namespace Rtx
             mLevels.push_back(laid);
             bytes += std::size_t{ laid.mWidth } * laid.mHeight * sTexel;
         }
+        // Reserved first, so the room is what this build needs on every standard library: MSVC's `assign`
+        // and `resize` grow by half again what they held, which `scratchOf` would not predict.
+        mTexels.reserve(bytes);
         mTexels.assign(bytes, std::byte{ 0 });
 
         if (file.mEncoding == TextureEncoding::Normal)
@@ -215,6 +266,7 @@ namespace Rtx
         {
             const MipLevel& level = mLevels[at];
             mColumns.clear();
+            mColumns.reserve(level.mWidth);
             for (std::uint32_t x = 0; x < level.mWidth; ++x)
                 mColumns.push_back(paintedAxis((static_cast<float>(x) + 0.5f) / level.mWidth, clampsS(read.mWrap)));
             for (std::uint32_t y = 0; y < level.mHeight; ++y)
@@ -252,6 +304,8 @@ namespace Rtx
             mRingAt.push_back(ringTexels);
             ringTexels += std::size_t{ sRingRows } * level.mWidth;
         }
+        mRing.clear();
+        mRing.reserve(ringTexels);
         mRing.resize(ringTexels);
         mBoxed.assign(mLevels.size(), 0);
         const auto meanAt = [&](std::size_t at, std::uint32_t x, std::uint32_t y) -> osg::Vec3f& {
