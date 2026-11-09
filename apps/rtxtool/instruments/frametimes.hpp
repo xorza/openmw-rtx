@@ -129,7 +129,7 @@ namespace RtxTool
     /// names in `sTimings`' order: the series the report summarises, for a question the summary
     /// cannot answer — whether a tail is one mode or two, and how far apart the frames that make
     /// it are. Says why where the file could not be written.
-    Misc::Result<void, std::string> writeFrameTimes(const std::filesystem::path& path, const FrameSamples& samples);
+    Result<void, std::string> writeFrameTimes(const std::filesystem::path& path, const FrameSamples& samples);
 
     /// Sorts `times` and summarises it. At least one time, which every caller has by construction.
     ///

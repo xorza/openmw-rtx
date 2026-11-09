@@ -186,6 +186,11 @@ namespace Rtx
         return known.mStage;
     }
 
+    std::span<const ModuleSpecConstant> ShaderCode::specConstantsOf(const std::string_view module) const
+    {
+        return readOf(module).mInterface.mSpecConstants;
+    }
+
     void ShaderCode::feed(
         const std::string_view module, const std::span<const VkVertexInputAttributeDescription> attributes) const
     {

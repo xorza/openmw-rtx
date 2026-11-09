@@ -95,10 +95,10 @@ namespace Rtx
         return Atmosphere{ .mRamp = ramp, .mZenithShare = zenithShareOf(ramp) };
     }
 
-    Misc::Result<Atmosphere, std::string> readAtmosphere(Resource::SceneManager& scenes, VFS::Path::NormalizedView mesh)
+    Result<Atmosphere, std::string> readAtmosphere(Resource::SceneManager& scenes, VFS::Path::NormalizedView mesh)
     {
         if (!scenes.getVFS()->exists(mesh))
-            return Misc::Err{ "the archives hold no such file" };
+            return Err{ "the archives hold no such file" };
 
         return readAtmosphere(*scenes.getTemplate(mesh, false));
     }

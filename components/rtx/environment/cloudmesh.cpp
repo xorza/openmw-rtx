@@ -238,12 +238,12 @@ namespace Rtx
         };
     }
 
-    Misc::Result<CloudShell, std::string> readCloudShell(Resource::SceneManager& scenes, VFS::Path::NormalizedView mesh)
+    Result<CloudShell, std::string> readCloudShell(Resource::SceneManager& scenes, VFS::Path::NormalizedView mesh)
     {
         // A gap in the content is refused rather than read as a mesh that hangs no layer, as
         // `readNightSky` refuses its.
         if (!scenes.getVFS()->exists(mesh))
-            return Misc::Err{ "the archives hold no such file" };
+            return Err{ "the archives hold no such file" };
 
         return readCloudShell(*scenes.getTemplate(mesh, false));
     }

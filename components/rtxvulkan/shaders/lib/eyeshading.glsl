@@ -88,9 +88,8 @@ struct EyeRun
     /// `RUN_IDLE` once `mAnswer` holds the answer.
     uint mStep;
 
-    /// The ray that found the surface, which eye cast it — one for the arms' and nought for the
-    /// world's — and which layer of the peel it is for.
-    vec3 mOrigin;
+    /// The direction of the ray that found the surface, which eye cast it — one for the arms' and
+    /// nought for the world's — and which layer of the peel it is for.
     vec3 mDirection;
     uint mArms;
     uint mLayer;
@@ -126,11 +125,10 @@ const uint EYE_WATER = 3u;
 ///        ray is answered, so the walk carries three numbers across the shading and not the hit's
 ///        transforms. A pane's is its own, which the pane filter reprojects its history by; the
 ///        pixel's motion stays the surface's behind the stack.
-EyeRun eyeRunOf(vec3 origin, vec3 direction, uint arms, uint layer, bool water, vec3 motion, float distance)
+EyeRun eyeRunOf(vec3 direction, uint arms, uint layer, bool water, vec3 motion, float distance)
 {
     EyeRun run;
     run.mStep = EYE_START;
-    run.mOrigin = origin;
     run.mDirection = direction;
     run.mArms = arms;
     run.mLayer = layer;

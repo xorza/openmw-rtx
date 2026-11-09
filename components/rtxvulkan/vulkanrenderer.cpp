@@ -36,7 +36,7 @@
 #include <components/rtx/shaders/digest.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/visibility.h>
-#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/fognoise.hpp>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/dlss.hpp>
@@ -147,7 +147,7 @@ namespace Rtx
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeKernels)
         , mFrame(mDevice, mTracePasses, mProfile.mRadianceWidth, mProfile.mUpscaler)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout)
-        , mMedia(mDevice, FogNoise::shared())
+        , mMedia(mDevice, sFogNoise)
         , mGui(mDevice)
         , mPictures(mDevice, mTracePasses, mProfile.mRadianceWidth)
         , mReservedUpscales(options.mRun.mReservedUpscales)

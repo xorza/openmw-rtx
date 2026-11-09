@@ -513,7 +513,7 @@ namespace Debug
             // Every application's reports carry the build they came from, the launcher's and the
             // editor's as well as the game's.
             Crash::annotate("version", Version::getOpenmwVersionDescription());
-            if (const Misc::Result<Crash::Installed, std::string_view> installed = Crash::install(settings);
+            if (const Result<Crash::Installed, std::string_view> installed = Crash::install(settings);
                 !installed.isOk())
                 Log(Debug::Warning) << "No crash catcher: " << installed.error();
             else

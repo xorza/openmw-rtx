@@ -276,7 +276,7 @@ namespace Rtx
             allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType, use);
     }
 
-    Misc::Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(const VkBuffer buffer,
+    Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(const VkBuffer buffer,
         const VkMemoryPropertyFlags properties, const VkDeviceSize alignment, const MemoryUse use)
     {
         if (isNeverRefused(use))
@@ -294,7 +294,7 @@ namespace Rtx
             });
     }
 
-    Misc::Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(
+    Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(
         const VkImage image, const VkMemoryPropertyFlags properties, const MemoryUse use)
     {
         if (isNeverRefused(use))
@@ -326,7 +326,7 @@ namespace Rtx
     }
 
     template <class Allocate>
-    Misc::Result<DeviceMemory, std::string_view> MemoryAllocator::tryAllocate(const Requirements& requirements,
+    Result<DeviceMemory, std::string_view> MemoryAllocator::tryAllocate(const Requirements& requirements,
         const VkDeviceSize alignment, const VkMemoryPropertyFlags properties, const MemoryUse use, Allocate&& allocate)
     {
         VmaAllocationCreateInfo create = askingFor(mMemory, properties, use);
@@ -368,13 +368,13 @@ namespace Rtx
         vmaGetHeapBudgets(mLibrary.get(), budgets);
         const VmaBudget& budget = budgets[heap];
         if (budget.usage + (own ? size : sBlockBytes) > ceilingOf(heap, use, budget.budget))
-            return Misc::Err{ sNoRoom };
+            return Err{ sNoRoom };
 
         // A driver refusing what its budget said it had is the same answer, and the one `tryTake`
         // exists to give.
         const VkResult result = allocate(create, &allocation, &placed);
         if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY)
-            return Misc::Err{ sNoRoom };
+            return Err{ sNoRoom };
 
         checkAllocated(result, properties);
         return hold(

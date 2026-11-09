@@ -149,7 +149,7 @@ namespace RtxTool
 
     void CardWatch::read()
     {
-        if (const AmdGpu* const amd = std::get_if<AmdGpu>(&mReader))
+        if (AmdGpu* const amd = std::get_if<AmdGpu>(&mReader))
             mClock.add(amd->readClock());
         Nvml* const nvml = std::get_if<Nvml>(&mReader);
         if (nvml == nullptr)

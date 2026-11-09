@@ -44,6 +44,7 @@
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/skinning.h>
+#include <components/rtx/shaders/tangent.h>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx
@@ -197,8 +198,43 @@ namespace Rtx
             ASSERT_EQ(meshes.getTangents().size(), meshes.getPositions().size());
 
             const MeshRange& range = scene.meshes().getRows()[withNormals];
-            EXPECT_EQ(scene.meshes().getNormals()[range.mVertices.mOffset], osg::Vec3f(0.0f, 0.0f, 1.0f));
-            EXPECT_EQ(scene.meshes().getNormals()[0], osg::Vec3f(0.0f, 0.0f, 0.0f));
+            // Packed as the tangents are: straight up is the square's middle, `0x3FFF` on both
+            // coordinates, the second fifteen bits up, and the present bit over them; a mesh with
+            // none holds the word nought, "the triangle's plane".
+            EXPECT_EQ(scene.meshes().getNormals()[range.mVertices.mOffset], 0x9FFFBFFFu);
+            EXPECT_EQ(Shaders::unpackNormal(scene.meshes().getNormals()[range.mVertices.mOffset]),
+                osg::Vec3f(0.0f, 0.0f, 1.0f));
+            EXPECT_EQ(scene.meshes().getNormals()[0], 0u);
+        }
+
+        /// **A colour is kept as three halves, past one and at the dark end alike**: 2.5 is
+        /// `0x4100`, 0.0003 the normal half `0x0CEA` and a third `0x3555`, the nearest halves, as
+        /// `unpackHalf2x16` reads them back on the device. Nothing is clamped: a content file's float
+        /// colour may stand past one, up to what a half holds.
+        TEST(RtxSceneDescTest, aColourIsKeptAsThreeHalves)
+        {
+            SceneDesc scene;
+            const std::array<osg::Vec3f, 4> colours{ osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f),
+                osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f), osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f),
+                osg::Vec3f(2.5f, 0.0003f, 1.0f / 3.0f) };
+            const Index slot = scene.addMesh(
+                MeshArrays{ .mPositions = Testing::sUnitQuad, .mColours = colours, .mIndices = Testing::sQuadIndices });
+
+            const Shaders::GpuVertexColour packed
+                = scene.meshes().getColours()[scene.meshes().getRows()[slot].mVertices.mOffset];
+            EXPECT_EQ(packed.mRedGreen, 0x0CEA4100u);
+            EXPECT_EQ(packed.mBlue, 0x3555u);
+
+            // Past the largest half, 65504, a channel would be an infinity, and the colour is read as
+            // white, "no tint", as one that is not a number is; just under it stays itself, `0x7BFF`.
+            const std::array<osg::Vec3f, 4> past{ osg::Vec3f(1e6f, 0.0f, 0.0f), osg::Vec3f(0.0f, 65504.0f, 0.0f),
+                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f) };
+            const Index pastSlot = scene.addMesh(
+                MeshArrays{ .mPositions = Testing::sUnitQuad, .mColours = past, .mIndices = Testing::sQuadIndices });
+            const std::uint32_t first = scene.meshes().getRows()[pastSlot].mVertices.mOffset;
+            EXPECT_EQ(scene.meshes().getColours()[first].mRedGreen, 0x3C003C00u);
+            EXPECT_EQ(scene.meshes().getColours()[first].mBlue, 0x3C00u);
+            EXPECT_EQ(scene.meshes().getColours()[first + 1].mRedGreen, 0x7BFF0000u);
         }
 
         TEST(RtxSceneDescTest, aTextureIsAddedOnceHoweverOftenItIsAskedFor)
@@ -285,10 +321,10 @@ namespace Rtx
             EXPECT_EQ(scene.meshes().getTriangleCount(), 4u);
             EXPECT_EQ(scene.meshes().getRows()[0].getTriangleCount(), 2u);
 
-            // 8 positions, 8 normals and 8 colours at 12 bytes, 8 texture coordinates at 8, 8 tangents
-            // and 12 indices at 4. The mesh brought neither normal, coordinate, colour nor tangent
-            // and the buffers hold one apiece regardless — `MeshTable::writeVertices` says why.
-            EXPECT_EQ(scene.meshes().getGeometryBytes(), 8u * 12u + 8u * 12u + 8u * 8u + 8u * 12u + 8u * 4u + 12u * 4u);
+            // 8 positions at 12 bytes, 8 colours at 8 and 8 texture coordinates at 8, 8 normals, 8
+            // tangents and 12 indices at 4. The mesh brought neither normal, coordinate, colour nor
+            // tangent and the buffers hold one apiece regardless — `MeshTable::writeVertices` says why.
+            EXPECT_EQ(scene.meshes().getGeometryBytes(), 8u * 12u + 8u * 8u + 8u * 8u + 8u * 4u + 8u * 4u + 12u * 4u);
 
             // **The triangles are the standing meshes'**, and not the index buffer's length: one
             // quad given back leaves two, though its six indices stay in the buffer as room, and
@@ -1526,8 +1562,11 @@ namespace Rtx
                 .mColours = colours,
                 .mTangents = tangents,
                 .mIndices = Testing::sQuadIndices });
-            ASSERT_EQ(meshes.getNormals()[meshes.getRows()[slot].mVertices.mOffset], osg::Vec3f(1.0f, 0.0f, 0.0f));
-            ASSERT_EQ(meshes.getColours()[meshes.getRows()[slot].mVertices.mOffset], osg::Vec3f(0.25f, 0.0f, 0.0f));
+            // Along x is the square's `(1, 0)`, steps `0x7FFE` and `0x3FFF`; a colour of a quarter is
+            // the half `0x3400` in the low half of the first word, and the other halves nought.
+            ASSERT_EQ(meshes.getNormals()[meshes.getRows()[slot].mVertices.mOffset], 0x9FFFFFFEu);
+            ASSERT_EQ(meshes.getColours()[meshes.getRows()[slot].mVertices.mOffset].mRedGreen, 0x00003400u);
+            ASSERT_EQ(meshes.getColours()[meshes.getRows()[slot].mVertices.mOffset].mBlue, 0u);
 
             // Packed as they are written: along y is the square's `(0, 1)`, steps `0x3FFF` and
             // `0x7FFE`, the second fifteen bits up, and the present bit over them.
@@ -1537,11 +1576,12 @@ namespace Rtx
             Testing::letGoMesh(scene, slot);
             EXPECT_EQ(Testing::addQuadMesh(scene), slot);
 
-            EXPECT_EQ(meshes.getNormals()[meshes.getRows()[slot].mVertices.mOffset], osg::Vec3f())
+            EXPECT_EQ(meshes.getNormals()[meshes.getRows()[slot].mVertices.mOffset], 0u)
                 << "the slot kept the last tenant's normals";
             EXPECT_EQ(meshes.getTexCoords()[0], osg::Vec2f());
-            EXPECT_EQ(meshes.getColours()[meshes.getRows()[slot].mVertices.mOffset], osg::Vec3f(1.0f, 1.0f, 1.0f))
-                << "the slot kept the last tenant's tint";
+            EXPECT_EQ(meshes.getColours()[meshes.getRows()[slot].mVertices.mOffset].mRedGreen, 0x3C003C00u)
+                << "the slot kept the last tenant's tint: white is the half `0x3C00` thrice";
+            EXPECT_EQ(meshes.getColours()[meshes.getRows()[slot].mVertices.mOffset].mBlue, 0x3C00u);
             EXPECT_EQ(meshes.getTangents()[meshes.getRows()[slot].mVertices.mOffset], 0u)
                 << "the slot kept the last tenant's tangents";
             EXPECT_FALSE(meshes.getRows()[slot].mTangents) << "the slot kept the last tenant's claim to tangents";
@@ -2274,7 +2314,7 @@ namespace Rtx
             const std::vector<osg::Vec3f> tooMany(MeshTable::sVertexBlock + 1);
             const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
 
-            const Misc::Result<void, std::string> pastABlock
+            const Result<void, std::string> pastABlock
                 = MeshTable::checkFits(MeshArrays{ .mPositions = tooMany, .mIndices = triangle });
             ASSERT_FALSE(pastABlock.isOk());
             EXPECT_EQ(pastABlock.error(),
@@ -2291,7 +2331,7 @@ namespace Rtx
 
             // A deforming mesh is asked the same of the deformer that poses it: a rig or a set of
             // targets of another length than its mesh is refused by name, before any row is made.
-            const Misc::Result<void, std::string> shortRig
+            const Result<void, std::string> shortRig
                 = SceneDesc::checkPoses(3, MeshArrays{ .mPositions = Testing::sUnitQuad });
             ASSERT_FALSE(shortRig.isOk()) << "a rig of three vertices on a quad";
             EXPECT_EQ(shortRig.error(), "it has 4 vertices on a rig or morph of 3");

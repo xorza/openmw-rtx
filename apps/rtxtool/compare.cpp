@@ -231,13 +231,13 @@ namespace RtxTool
         return worst / static_cast<double>(std::size_t{ picture.mWidth } * picture.mHeight);
     }
 
-    Misc::Result<void, std::string> checkAgainst(const std::filesystem::path& out, const std::filesystem::path& against)
+    Result<void, std::string> checkAgainst(const std::filesystem::path& out, const std::filesystem::path& against)
     {
         if (against.empty() || !std::filesystem::exists(against) || !std::filesystem::exists(out)
             || !std::filesystem::equivalent(out, against))
             return {};
 
-        return Misc::Err{ std::format(
+        return Err{ std::format(
             "--against={} is where this run writes; name another --out", Files::pathToUnicodeString(against)) };
     }
 
@@ -265,7 +265,7 @@ namespace RtxTool
         for (const WrittenPicture& picture : pictures)
         {
             const PngImage* const kept = drawn.find(wrote / picture.mFile);
-            const Misc::Result<PngImage, std::string> reference = readPng(against / picture.mFile);
+            const Result<PngImage, std::string> reference = readPng(against / picture.mFile);
             const FrameDifference difference = kept != nullptr && reference.isOk()
                 ? compareFrames(reference.value(), *kept)
                 : FrameDifference{ .mMismatched = true };

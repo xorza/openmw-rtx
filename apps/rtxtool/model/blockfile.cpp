@@ -4,14 +4,14 @@
 #include <array>
 #include <cstdint>
 #include <format>
-#include <fstream>
-#include <ios>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
 
 #include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <components/files/conversion.hpp>
+#include <components/platform/wholefile.hpp>
 #include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
 
@@ -159,9 +159,12 @@ namespace RtxTool
 
     BlockFile BlockFile::load(const std::filesystem::path& path)
     {
-        std::ifstream in(path);
-        if (!in)
-            throw std::runtime_error("cannot read " + Files::pathToUnicodeString(path));
+        std::string text;
+        if (const Result<void, Platform::IoError> read = Platform::readWhole(path, text, Platform::sUnbounded);
+            !read.isOk())
+            throw std::runtime_error(
+                "cannot read " + Files::pathToUnicodeString(path) + ": " + read.error().mCode.message());
+        std::istringstream in(std::move(text));
 
         return BlockFile(in, Files::pathToUnicodeString(path));
     }
@@ -214,29 +217,29 @@ namespace RtxTool
         return value;
     }
 
-    Misc::Result<void, std::string_view> checkHour(const float hour)
+    Result<void, std::string_view> checkHour(const float hour)
     {
         if (!(hour >= 0.0f) || !(hour < 24.0f))
-            return Misc::Err{ "is not from 0 up to but not including 24" };
+            return Err{ "is not from 0 up to but not including 24" };
 
         return {};
     }
 
-    Misc::Result<void, std::string_view> checkDay(const int day)
+    Result<void, std::string_view> checkDay(const int day)
     {
         if (day < 0)
-            return Misc::Err{ "is before the first day" };
+            return Err{ "is before the first day" };
 
         return {};
     }
 
-    Misc::Result<void, std::string_view> checkWeather(const std::string_view weather)
+    Result<void, std::string_view> checkWeather(const std::string_view weather)
     {
         // **Checked where it is read rather than at the frame**, for the reason a mistyped view id
         // is: a place that quietly stood under another sky reports a number against a frame nobody
         // asked for.
         if (!Rtx::weatherNamed(weather).has_value())
-            return Misc::Err{ "is none of the weathers the content files name" };
+            return Err{ "is none of the weathers the content files name" };
 
         return {};
     }
@@ -257,7 +260,7 @@ namespace RtxTool
     float BlockFile::hour(const BlockField& field) const
     {
         const float value = number(field);
-        if (const Misc::Result<void, std::string_view> checked = checkHour(value); !checked.isOk())
+        if (const Result<void, std::string_view> checked = checkHour(value); !checked.isOk())
             refuseValue(field, checked.error());
 
         return value;
@@ -305,7 +308,7 @@ namespace RtxTool
         const std::optional<int> value = wholeNumber<int>(field.mValue);
         if (!value.has_value())
             refuseValue(field, "is not a whole number of days");
-        if (const Misc::Result<void, std::string_view> checked = checkDay(*value); !checked.isOk())
+        if (const Result<void, std::string_view> checked = checkDay(*value); !checked.isOk())
             refuseValue(field, checked.error());
 
         return *value;

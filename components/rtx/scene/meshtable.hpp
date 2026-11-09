@@ -47,13 +47,13 @@ namespace Rtx
         /// two would be written across two allocations that are not next to each other. A vertex
         /// count comes out of a content file, so whoever reads one asks this before `add`, which
         /// asserts it.
-        static Misc::Result<void, std::string> checkFits(const MeshArrays& arrays);
+        static Result<void, std::string> checkFits(const MeshArrays& arrays);
 
         const BlockedValues<osg::Vec3f>& getPositions() const { return mPositions; }
-        const BlockedValues<osg::Vec3f>& getNormals() const { return mNormals; }
+        const BlockedValues<std::uint32_t>& getNormals() const { return mNormals; }
         const BlockedValues<osg::Vec2f>& getTexCoords() const { return mTexCoords; }
         const BlockedValues<osg::Vec2f>& getSecondTexCoords() const { return mSecondTexCoords; }
-        const BlockedValues<osg::Vec3f>& getColours() const { return mColours; }
+        const BlockedValues<Shaders::GpuVertexColour>& getColours() const { return mColours; }
         const BlockedValues<std::uint32_t>& getTangents() const { return mTangents; }
         const BlockedValues<std::uint32_t>& getIndices() const { return mIndices; }
 
@@ -129,13 +129,16 @@ namespace Rtx
         RunAllocator mSecondRuns{ sVertexBlock };
 
         BlockedValues<osg::Vec3f> mPositions{ sVertexBlock };
-        BlockedValues<osg::Vec3f> mNormals{ sVertexBlock };
+
+        /// One word a vertex, `Shaders::packNormal`'s, and nought — the triangle's plane — where the
+        /// mesh brought none.
+        BlockedValues<std::uint32_t> mNormals{ sVertexBlock };
         BlockedValues<osg::Vec2f> mTexCoords{ sVertexBlock };
 
-        /// The per-vertex colour, in linear light. White where a mesh brought none, so that a
-        /// hit multiplies by it whatever the content said and no shader branches on whether there
-        /// is one. `MeshArrays::mColours` says why it is linear here.
-        BlockedValues<osg::Vec3f> mColours{ sVertexBlock };
+        /// The per-vertex colour, in linear light, as halves (`Shaders::GpuVertexColour`). White
+        /// where a mesh brought none, so that a hit multiplies by it whatever the content said and no
+        /// shader branches on whether there is one. `MeshArrays::mColours` says why it is linear here.
+        BlockedValues<Shaders::GpuVertexColour> mColours{ sVertexBlock };
 
         /// One word a vertex, `Rtx::packTangent`'s, and nought where the mesh brought none.
         BlockedValues<std::uint32_t> mTangents{ sVertexBlock };

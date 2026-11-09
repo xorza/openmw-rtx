@@ -153,6 +153,11 @@ namespace Platform::Process
         return std::nullopt;
     }
 
+    std::optional<std::uint64_t> compactionStalls()
+    {
+        return std::nullopt;
+    }
+
     std::size_t keepToPerformanceCores()
     {
         const HANDLE process = GetCurrentProcess();

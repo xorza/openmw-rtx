@@ -86,6 +86,10 @@ namespace Rtx
         /// not fed: a location the two number apart reads nothing a vertex holds.
         void feed(std::string_view module, std::span<const VkVertexInputAttributeDescription> attributes) const;
 
+        /// The specialization constants `module`, one this read, reads: what the build's optimizer left of
+        /// those it declares, so a constant it never reads is none of them.
+        std::span<const ModuleSpecConstant> specConstantsOf(std::string_view module) const;
+
     private:
         /// Reads `module` onto the end of `mRead`.
         void readModule(std::string_view module);

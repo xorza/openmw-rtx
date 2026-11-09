@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <utility>
 
 #include <osg/Image>
@@ -29,21 +30,23 @@
 
 namespace Rtx
 {
-    /// One thread that walks models: the cell reader's walk, a preprocessor for the chains, the
-    /// scratch a model is read into, and the thread, last.
+    /// One thread that walks models: the cell reader's walk, whose content makes the chains as well,
+    /// the scratch a model and a chain are read into, and the thread, last.
     struct ContentPreparation::Hand
     {
         explicit Hand(ContentStore& store)
             : mWalk(nullptr, &store)
-            , mChains(&store, StoreReach::Disk)
         {
         }
 
         TemplateWalk mWalk;
-        ContentPreprocessor mChains;
         PreparedModel mModel;
         MadeChain mChain;
         std::vector<std::string> mFiles;
+
+        /// What this thread ran on a CPU while it served, written by it alone before it ends.
+        std::chrono::nanoseconds mCpu{};
+
         Worker mWorker;
     };
 
@@ -71,7 +74,8 @@ namespace Rtx
         , mModels(std::move(models))
         , mLayers(std::move(layers))
         , mLayerNames(namesOf(mLayers))
-        , mPrevious(PreparationManifest::read(setup.mManifest, mSignature))
+        , mManifest(PreparationManifest::read(setup.mManifest, mSignature))
+        , mDay(setup.mDay)
         , mWalked(mModels.size() + mLayers.size())
     {
         assert(setup.mHands >= 1 && "no thread to walk the models on");
@@ -88,9 +92,15 @@ namespace Rtx
             hand->mWorker.stop();
     }
 
-    JobProgress ContentPreparation::getProgress() const
+    JobProgress ContentPreparation::awaitProgress(const std::chrono::milliseconds patience)
     {
-        return JobProgress{ .mMade = mMade.load(), .mCount = static_cast<std::uint32_t>(mWalked.size()) };
+        const auto count = static_cast<std::uint32_t>(mWalked.size());
+        std::uint32_t made = 0;
+        mMonitor.awaitWithin(patience, [&] {
+            made = mMade;
+            return made == count;
+        });
+        return JobProgress{ .mMade = made, .mCount = count };
     }
 
     const std::string& ContentPreparation::nameOf(const std::size_t at) const
@@ -118,12 +128,19 @@ namespace Rtx
 
     void ContentPreparation::serve(Hand& hand, const Platform::StopToken& stop)
     {
+        const std::chrono::nanoseconds started = Platform::cpuTimeOfThisThread();
+        serveJobs(hand, stop);
+        hand.mCpu = Platform::cpuTimeOfThisThread() - started;
+    }
+
+    void ContentPreparation::serveJobs(Hand& hand, const Platform::StopToken& stop)
+    {
         while (!stop.stopRequested())
         {
             const std::size_t at = mNext.fetch_add(1);
             if (at >= mWalked.size())
                 return;
-            if (!mPrevious.standsAsWalked(nameOf(at), mStamps))
+            if (!mManifest.standsAsWalked(nameOf(at), mStamps))
             {
                 hand.mFiles.clear();
                 if (at < mModels.size())
@@ -138,7 +155,10 @@ namespace Rtx
                     .mFiles = hand.mFiles,
                 };
             }
-            mMade.fetch_add(1);
+            mMonitor.hand([&] {
+                if (++mMade == mWalked.size())
+                    mDone = std::chrono::steady_clock::now();
+            });
         }
     }
 
@@ -165,7 +185,7 @@ namespace Rtx
                 const osg::Image* const diffuse = described.getTexture(SurfaceMap::Diffuse);
                 const SpecularLayout layout
                     = specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty()
-                    ? hand.mChains.specularLayout(*specular)
+                    ? hand.mWalk.specularLayoutOf(*specular)
                     : SpecularLayout::MetalRoughness;
                 for (std::size_t map = 0; map < sSurfaceMapCount; ++map)
                 {
@@ -208,7 +228,7 @@ namespace Rtx
 
         // As the cell reader reads a layer: the diffuse as `layerEncodingOf` binds it, the normal map a
         // normal map, and where it may carry a height and does, the heights it spans.
-        const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> diffuse
+        const Result<osg::ref_ptr<const osg::Image>, std::string> diffuse
             = mContent.getImage(VFS::Path::NormalizedView(layer.mDiffuse.c_str()));
         if (diffuse.isOk() && diffuse.value() != nullptr)
             chain(hand,
@@ -219,7 +239,7 @@ namespace Rtx
         if (layer.mNormal.empty())
             return;
         hand.mFiles.push_back(layer.mNormal);
-        const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> normal
+        const Result<osg::ref_ptr<const osg::Image>, std::string> normal
             = mContent.getImage(VFS::Path::NormalizedView(layer.mNormal.c_str()));
         if (!normal.isOk() || normal.value() == nullptr)
             return;
@@ -239,7 +259,7 @@ namespace Rtx
         if (input.mEncoding == TextureEncoding::Painted)
             name += static_cast<char>('0' + static_cast<int>(input.mWrap));
         if (claim(std::move(name)))
-            hand.mChains.chain(input, hand.mChain);
+            hand.mWalk.storeChain(input, hand.mChain);
     }
 
     void ContentPreparation::convert(Hand& hand, const ConversionPass::Input& input)
@@ -251,7 +271,7 @@ namespace Rtx
         name += static_cast<char>('0' + static_cast<int>(input.mEncoding));
         name += static_cast<char>('0' + static_cast<int>(input.mWrap));
         if (claim(std::move(name)))
-            hand.mChains.convert(input, hand.mChain);
+            hand.mWalk.storeConversion(input, hand.mChain);
     }
 
     bool ContentPreparation::claim(std::string name)
@@ -261,33 +281,37 @@ namespace Rtx
 
     bool ContentPreparation::finish()
     {
-        assert(getProgress().isDone() && "a preparation finished before its models were done");
+        assert(awaitProgress(std::chrono::milliseconds::zero()).isDone()
+            && "a preparation finished before its models were done");
+        mTimes = PreparationTimes{
+            .mWall = mMonitor.under([&] { return mDone; }) - mStarted, .mThreadsCpu = {}, .mThreads = mHands.size()
+        };
         for (const std::unique_ptr<Hand>& hand : mHands)
         {
             hand->mWorker.stop();
             mStats += hand->mWalk.takeStats();
-            mStats += hand->mChains.takeStats();
+            mTimes.mThreadsCpu += hand->mCpu;
         }
 
-        // Every job of this run, read or as it was: what the content list no longer names leaves the
-        // manifest.
-        PreparationManifest next;
+        // Every job of this run filed or named, and what no run named for a month dropped: another
+        // content list's models stand through a switch to this one and back.
         mWalkedCount = 0;
         for (std::size_t at = 0; at < mWalked.size(); ++at)
         {
             if (mWalked[at].has_value())
             {
                 ++mWalkedCount;
-                next.keep(nameOf(at), std::move(*mWalked[at]));
+                mManifest.keep(nameOf(at), *mWalked[at], mDay);
             }
-            else if (const PreparationManifest::Entry* const kept = mPrevious.find(nameOf(at)))
-                next.keep(nameOf(at), *kept);
+            else
+                mManifest.name(nameOf(at), mDay);
         }
+        mManifest.dropUnnamed(mDay);
 
-        // **Not written where nothing moved**: every model stood as it was, and the manifest names
-        // no other, so the file on disk is the one this would write.
-        if (mWalkedCount == 0 && next.size() == mPrevious.size())
+        // **Not written where nothing moved**: every model stood as it was, named today already, and
+        // none was dropped, so the file on disk is the one this would write.
+        if (!mManifest.isChanged())
             return true;
-        return next.write(mManifestPath, mSignature);
+        return mManifest.write(mManifestPath, mSignature);
     }
 }

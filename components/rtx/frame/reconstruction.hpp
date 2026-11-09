@@ -24,7 +24,7 @@ namespace Rtx
     enum class NoiseSource
     {
         /// The blue-noise tile turned by the golden ratio each frame: an arrangement across the
-        /// screen, which is what makes one sample per pixel filter well. `Rtx::BlueNoise` says why
+        /// screen, which is what makes one sample per pixel filter well. `Rtx::sBlueNoise` says why
         /// the wavelet wants it.
         BlueNoiseTile,
 

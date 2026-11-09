@@ -106,9 +106,8 @@ namespace Rtx
         // A file that does not read keeps its place and its path, for the texture table to stand
         // in and refuse: left out, the ground under it would show another layer with nothing said.
         PreparedTexture& texture = mTextures.take([&](PreparedTexture& into) {
-            const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image = mContent.getImage(path);
+            const Result<osg::ref_ptr<const osg::Image>, std::string> image = mContent.getImage(path);
             into.mImage = image.isOk() ? image.value() : nullptr;
-            into.mLaid = into.mImage != nullptr ? mWalk.laidOf(*into.mImage) : nullptr;
             into.mPath = path;
         });
 
@@ -262,7 +261,7 @@ namespace Rtx
         // casts nothing wherever it is placed, so it is not carried.
         const osg::Vec3f anchor = anchorOf(ref.mRefId);
         const osg::Matrixf transform = transformOf(ref);
-        const Misc::Result<std::optional<Light>, std::string_view> made
+        const Result<std::optional<Light>, std::string_view> made
             = makeLight(*record, anchor * transform, 0.0, static_cast<int>(ref.mRefNum.mIndex));
         if (!made.isOk())
         {

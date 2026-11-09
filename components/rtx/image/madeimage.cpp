@@ -6,25 +6,21 @@
 
 namespace Rtx
 {
-    MadeImage::MadeImage(const osg::Image& file, const TexelLayout& laid, std::vector<std::byte> coarser)
+    MadeImage::MadeImage(const osg::Image& file, const TextureFormat format, Misc::ByteBuffer coarser)
         : mBytes(std::move(coarser))
     {
-        layLevels(static_cast<std::uint32_t>(file.s()), static_cast<std::uint32_t>(file.t()), 1, laid);
+        assert(!isWidened(format) && "a widened file's chain is made whole");
+        layLevels(static_cast<std::uint32_t>(file.s()), static_cast<std::uint32_t>(file.t()), 1, layoutOf(format));
     }
 
-    osg::ref_ptr<const MadeImage> MadeImage::whole(const TextureFormat format, const std::uint32_t width,
-        const std::uint32_t height, std::vector<std::byte> levels)
+    osg::ref_ptr<const MadeImage> MadeImage::whole(
+        const TextureFormat format, const std::uint32_t width, const std::uint32_t height, Misc::ByteBuffer levels)
     {
         osg::ref_ptr<MadeImage> made = new MadeImage;
         made->mWholeFormat = format;
         made->mBytes = std::move(levels);
         made->layLevels(width, height, 0, layoutOf(format));
         return made;
-    }
-
-    TexelLayout MadeImage::laidLayout(const TextureFormat format)
-    {
-        return layoutOf(isWidened(format) ? TextureFormat::Rgba8Unorm : format);
     }
 
     void MadeImage::layLevels(

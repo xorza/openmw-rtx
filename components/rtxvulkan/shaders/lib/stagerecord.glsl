@@ -74,4 +74,30 @@ StageRecord unpackStageRecord(uvec4 words)
         uintBitsToFloat(words.y), uintBitsToFloat(words.z), shares.x, shares.y);
 }
 
+/// What the trace hands the water's stage for a pixel whose eye met the sea (`STAGE_WATER_PENDING`): which
+/// eye, the layer the peel stood at, the turns it took, where its ray started, and what the panes and the
+/// arms let through. The first word as `packStageRecord` lays its kind and eye, the layer in its next
+/// thirteen bits and the turns above them; the floats as their bits.
+struct WaterPending
+{
+    uint mArms;
+    uint mLayer;
+    uint mTurns;
+    float mTmin;
+    float mPanesThrough;
+    float mArmsThrough;
+};
+
+uvec4 packWaterPending(WaterPending pending)
+{
+    return uvec4(STAGE_WATER_PENDING | pending.mArms << 2u | pending.mLayer << 3u | pending.mTurns << 16u,
+        floatBitsToUint(pending.mTmin), floatBitsToUint(pending.mPanesThrough), floatBitsToUint(pending.mArmsThrough));
+}
+
+WaterPending unpackWaterPending(uvec4 words)
+{
+    return WaterPending((words.x >> 2u) & 1u, (words.x >> 3u) & 0x1fffu, words.x >> 16u, uintBitsToFloat(words.y),
+        uintBitsToFloat(words.z), uintBitsToFloat(words.w));
+}
+
 #endif

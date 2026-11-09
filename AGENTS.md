@@ -176,6 +176,9 @@ is not here is held to the rules above.
 - Faults the user approved fixing:
   - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1`
     holds for every error);
+  - `SettingsFileParser::saveSettingsFile` and `StateManager::saveGame` wrote `settings.cfg` and a save in place,
+    so a crash or a full disk during the write left a part of either: both now write through
+    `Platform::writeWhole`, synced, which the platform's I/O library holds (`openmw-platform-io`);
   - the SDL3 port truncated a window's size over its pixel density, where `SDLUtil::windowPoints`
     rounds;
   - `SDLUtil::InputWrapper` logged an unhandled event's type in hex without `std::dec` after it,
@@ -209,6 +212,10 @@ is not here is held to the rules above.
     `PhysicsSystem::updateScale` scales an object at once, since a shape holds its own scale and the
     bounds are read next (`void reset in an interior reads that interior alone`, `void reset follows a
     collision object after it was added`);
+  - the cell preloader was never asked for what inserting an actor builds: `Npc::getModelsToPreload` now
+    lists the worn parts of an NPC the game never met out of its record's inventory (`MWClass::appendRecordWornParts`,
+    `anUnmetNpcListsThePartsItsRecordWears`), and `CreatureLevList::getModelsToPreload` every creature the list may
+    spawn, which made up to 57 of the 293 ms of a crossing's slow frames on a large content list;
   - `Scene::addPostponedPhysicsObjects` gave a script's placed object its physics and not its place in the
     navigation mesh, so actors planned their paths through it until its cell loaded again. It now takes the
     one route every other collision object takes (`addObject`), which the suite `test_script_placed` holds.

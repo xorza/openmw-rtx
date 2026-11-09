@@ -284,9 +284,11 @@ namespace RtxTool
         struct Corner
         {
             osg::Vec3f mPosition;
-            osg::Vec3f mNormal;
+            std::uint32_t mNormal = 0;
             osg::Vec2f mTexCoord;
-            osg::Vec3f mColour;
+
+            /// `Rtx::Shaders::GpuVertexColour`'s two words, which order as a pair.
+            std::array<std::uint32_t, 2> mColour{};
             std::uint32_t mTangent = 0;
 
             bool operator<(const Corner& other) const
@@ -320,9 +322,10 @@ namespace RtxTool
                 for (std::size_t corner = 0; corner < 3; ++corner)
                 {
                     const std::uint32_t vertex = mesh.mVertices.mOffset + indices[at + corner];
+                    const Rtx::Shaders::GpuVertexColour& colour = scene.meshes().getColours()[vertex];
                     corners[corner] = Corner{ scene.meshes().getPositions()[vertex],
                         scene.meshes().getNormals()[vertex], scene.meshes().getTexCoords()[vertex],
-                        scene.meshes().getColours()[vertex], scene.meshes().getTangents()[vertex] };
+                        { colour.mRedGreen, colour.mBlue }, scene.meshes().getTangents()[vertex] };
                 }
 
                 const std::size_t least
@@ -515,13 +518,13 @@ namespace RtxTool
         // **And every other field of the row, bound whole**, as `forEachMaterialField` binds a
         // material: the wrap reaches the sampler and the encoding and format how the texels decode,
         // so a slot read another way is a trace that moves over this column. A field added to
-        // `TextureRow` does not compile here until it is named. The image, its laid copy and a converted
+        // `TextureRow` does not compile here until it is named. The image and a converted
         // slot's partner are files' bytes, which the path already names; of the prepared image, whether
         // there is one.
         Column textures(mScratch);
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {
-            const auto& [kind, path, groundOf, wrap, encoding, image, laid, partner, prepared, format] = row;
+            const auto& [kind, path, groundOf, wrap, encoding, image, partner, prepared, format] = row;
             const std::string_view name = path.value();
             textures.add(std::span<const char>(name.data(), name.size()));
             textures.add(static_cast<std::uint32_t>(name.size()));
@@ -534,7 +537,6 @@ namespace RtxTool
             // Whether the slot reads its chain made again, which moves every level under the finest.
             textures.add(static_cast<std::uint32_t>(prepared != nullptr ? 1 : 0));
             static_cast<void>(image);
-            static_cast<void>(laid);
             static_cast<void>(partner);
         }
         take(ScenePart::Textures, textures.take());

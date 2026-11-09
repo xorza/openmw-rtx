@@ -77,7 +77,7 @@ namespace Rtx
                 if (!scene.textures().isLive(pending.mSlot))
                     return true;
                 const TextureRow& row = scene.textures().getRows()[pending.mSlot];
-                if ((row.mLaid != nullptr ? row.mLaid : row.mImage) != pending.mSource)
+                if (row.mImage != pending.mSource)
                     return true;
                 const PreparedImage made = handing.mPrepared->find(
                     *pending.mSource, pending.mEncoding, pending.mWrap, pending.mPartner.get());

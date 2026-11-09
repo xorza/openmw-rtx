@@ -29,7 +29,7 @@ namespace RtxTool
         /// Stages `stop` of `request`, and says why not where it cannot be: a cell nothing is called. Ends with
         /// the navmesh built whole and the renderer's history let go of, so the first frame drawn
         /// after this is drawn at the stop and from nothing before it.
-        Misc::Result<void, std::string> stage(const Stop& stop, const SessionRequest& request) const;
+        Result<void, std::string> stage(const Stop& stop, const SessionRequest& request) const;
 
         /// The days passed a new game starts on: the content's own `DaysPassed` global, from which a
         /// stop's day is counted, 16 Last Seed in Morrowind.
@@ -60,7 +60,7 @@ namespace RtxTool
 
         /// Gives the player `weapon`, the id of one the content holds, in the right hand and drawn,
         /// and says so where the content holds none of that id.
-        static Misc::Result<void, std::string> arm(MWBase::World& world, const std::string& weapon);
+        static Result<void, std::string> arm(MWBase::World& world, const std::string& weapon);
 
         /// Stands the player's hands at `state`, so a stop after an armed one stands as every stop
         /// before it did. Nothing where they stand so already.

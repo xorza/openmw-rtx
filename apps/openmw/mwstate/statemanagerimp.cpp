@@ -20,6 +20,7 @@
 
 #include <components/files/conversion.hpp>
 #include <components/misc/algorithm.hpp>
+#include <components/platform/wholefile.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/dialoguemanager.hpp"
@@ -330,12 +331,11 @@ void MWState::StateManager::saveGame(std::string_view description, const Slot* s
             throw std::runtime_error(
                 "Write operation failed (memory stream): " + std::generic_category().message(errno));
 
-        // All good, write to file
-        std::ofstream filestream(slot->mPath, std::ios::binary);
-        filestream << stream.rdbuf();
-
-        if (filestream.fail())
-            throw std::runtime_error("Write operation failed (file stream): " + std::generic_category().message(errno));
+        // All good, write to file: whole and synced, so a crash or a full disk leaves the old save and never a part
+        const Result<void, Platform::IoError> written
+            = Platform::writeWhole(slot->mPath, stream.view(), Platform::Durability::Synced);
+        if (!written.isOk())
+            throw std::runtime_error("Write operation failed (file stream): " + written.error().mCode.message());
 
         Settings::saves().mCharacter.set(Files::pathToUnicodeString(slot->mPath.parent_path().filename()));
         mLastSavegame = slot->mPath;

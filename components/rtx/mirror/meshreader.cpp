@@ -44,10 +44,10 @@ namespace Rtx
         /// What a drawable with no triangle reads as: nothing to place, or, where it draws lines or
         /// points, a refusal saying so — the rasterizer draws them, an `NiLines`, and a ray has no
         /// width of theirs to meet.
-        Misc::Result<bool, std::string> noTriangle(const osg::Geometry& geometry)
+        Result<bool, std::string> noTriangle(const osg::Geometry& geometry)
         {
             if (drawsLines(geometry))
-                return Misc::Err{ std::string("its lines and points have no width a ray can meet") };
+                return Err{ std::string("its lines and points have no width a ray can meet") };
             return false;
         }
 
@@ -133,10 +133,10 @@ namespace Rtx
         /// A geometry's `what` array of `named` elements, against its `vertices`: an array of another
         /// length is one this cannot match to the vertices, and a guess at which belongs to which
         /// is a wrong picture rather than a missing one.
-        Misc::Result<void, std::string> checkLength(std::string_view what, std::size_t named, std::size_t vertices)
+        Result<void, std::string> checkLength(std::string_view what, std::size_t named, std::size_t vertices)
         {
             if (named != vertices)
-                return Misc::Err{ "it has " + std::to_string(named) + ' ' + std::string(what) + " for "
+                return Err{ "it has " + std::to_string(named) + ' ' + std::string(what) + " for "
                     + std::to_string(vertices) + " vertices" };
 
             return {};
@@ -145,8 +145,7 @@ namespace Rtx
         /// @param scratch for an overall normal spread across the vertices, or normals that are not
         ///        all finite. Refilled here and borrowed by the returned span, so it has to outlive
         ///        the read.
-        Misc::Result<VertexArrays, std::string> readVertices(
-            const osg::Geometry& geometry, std::vector<osg::Vec3f>& scratch)
+        Result<VertexArrays, std::string> readVertices(const osg::Geometry& geometry, std::vector<osg::Vec3f>& scratch)
         {
             VertexArrays arrays;
 
@@ -158,7 +157,7 @@ namespace Rtx
 
             const osg::Vec3Array* positions = asVec3Array(vertices);
             if (positions == nullptr)
-                return Misc::Err{ "its vertices are not three floats each" };
+                return Err{ "its vertices are not three floats each" };
 
             arrays.mPositions = std::span(positions->asVector());
 
@@ -168,7 +167,7 @@ namespace Rtx
 
             const osg::Vec3Array* normals = asVec3Array(named);
             if (normals == nullptr)
-                return Misc::Err{ "its normals are not three floats each" };
+                return Err{ "its normals are not three floats each" };
 
             // One normal for the whole drawable is a normal: `SceneUtil::createWaterGeometry` binds
             // exactly this, and dropping it made the sea flat black and took the exposure with it.
@@ -182,10 +181,9 @@ namespace Rtx
                 return arrays;
             }
 
-            if (const Misc::Result<void, std::string> matched
-                = checkLength("normals", normals->size(), positions->size());
+            if (const Result<void, std::string> matched = checkLength("normals", normals->size(), positions->size());
                 !matched.isOk())
-                return Misc::Err{ matched.error() };
+                return Err{ matched.error() };
 
             arrays.mNormals = finiteOrNone(normals->asVector(), scratch);
             return arrays;
@@ -203,7 +201,7 @@ namespace Rtx
 
         /// The coordinates bound at `unit`, or null where none are. An error where they are of a
         /// type this does not read, or where they do not match the vertices — `checkLength`.
-        Misc::Result<const osg::Vec2Array*, std::string> readTexCoords(
+        Result<const osg::Vec2Array*, std::string> readTexCoords(
             const osg::Geometry& geometry, unsigned int unit, std::size_t vertices)
         {
             const osg::Array* named = geometry.getTexCoordArray(unit);
@@ -212,12 +210,11 @@ namespace Rtx
 
             const osg::Vec2Array* coords = asVec2Array(named);
             if (coords == nullptr)
-                return Misc::Err{ "its texture coordinates are not two floats each" };
+                return Err{ "its texture coordinates are not two floats each" };
 
-            if (const Misc::Result<void, std::string> matched
-                = checkLength("texture coordinates", coords->size(), vertices);
+            if (const Result<void, std::string> matched = checkLength("texture coordinates", coords->size(), vertices);
                 !matched.isOk())
-                return Misc::Err{ matched.error() };
+                return Err{ matched.error() };
 
             return coords;
         }
@@ -228,7 +225,7 @@ namespace Rtx
         ///
         /// @param scratch for tangents that are not all finite, borrowed as `readVertices` borrows
         ///        its own.
-        Misc::Result<std::span<const osg::Vec4f>, std::string> readTangents(
+        Result<std::span<const osg::Vec4f>, std::string> readTangents(
             const osg::Geometry& geometry, std::size_t vertices, std::vector<osg::Vec4f>& scratch)
         {
             const osg::Array* named = geometry.getTexCoordArray(Shader::sTangentUnit);
@@ -236,12 +233,12 @@ namespace Rtx
                 return std::span<const osg::Vec4f>();
 
             if (named->getType() != osg::Array::Vec4ArrayType)
-                return Misc::Err{ "its tangents are not four floats each" };
+                return Err{ "its tangents are not four floats each" };
 
             const auto* tangents = static_cast<const osg::Vec4Array*>(named);
-            if (const Misc::Result<void, std::string> matched = checkLength("tangents", tangents->size(), vertices);
+            if (const Result<void, std::string> matched = checkLength("tangents", tangents->size(), vertices);
                 !matched.isOk())
-                return Misc::Err{ matched.error() };
+                return Err{ matched.error() };
 
             return finiteOrNone(tangents->asVector(), scratch);
         }
@@ -256,7 +253,7 @@ namespace Rtx
         ///
         /// @param vertices how many the geometry holds, which an array that is not overall has to
         ///        match — `checkLength`.
-        Misc::Result<std::span<const osg::Vec3f>, std::string> readColours(
+        Result<std::span<const osg::Vec3f>, std::string> readColours(
             const osg::Geometry& geometry, const std::size_t vertices, std::vector<osg::Vec3f>& scratch)
         {
             const osg::Array* colours = geometry.getColorArray();
@@ -266,10 +263,9 @@ namespace Rtx
             const bool overall = colours->getBinding() == osg::Array::BIND_OVERALL;
             if (!overall)
             {
-                const Misc::Result<void, std::string> matched
-                    = checkLength("colours", colours->getNumElements(), vertices);
+                const Result<void, std::string> matched = checkLength("colours", colours->getNumElements(), vertices);
                 if (!matched.isOk())
-                    return Misc::Err{ matched.error() };
+                    return Err{ matched.error() };
             }
 
             const auto decoded = [](const auto& encoded) {
@@ -298,7 +294,7 @@ namespace Rtx
                     decodeAll(static_cast<const osg::Vec4ubArray&>(*colours));
                     break;
                 default:
-                    return Misc::Err{ "its colours are neither four floats nor four bytes each" };
+                    return Err{ "its colours are neither four floats nor four bytes each" };
             }
 
             return std::span<const osg::Vec3f>(scratch);
@@ -418,7 +414,7 @@ namespace Rtx
         ShapeFaces& faces = mFaces.emplace_back();
         faces.mGeometry = &geometry;
 
-        const Misc::Result<VertexArrays, std::string> vertices = readVertices(geometry, mBesideReadScratch);
+        const Result<VertexArrays, std::string> vertices = readVertices(geometry, mBesideReadScratch);
         if (!vertices.isOk() || vertices.value().mNormals.empty())
             return faces;
 
@@ -426,7 +422,7 @@ namespace Rtx
         if (!std::ranges::all_of(arrays.mPositions, [](const osg::Vec3f& position) { return isFinite(position); }))
             return faces;
 
-        const Misc::Result<bool, std::string> collected
+        const Result<bool, std::string> collected
             = collectTriangles(geometry, arrays.mPositions.size(), mBesideCollectScratch);
         if (!collected.isOk() || !collected.value())
             return faces;
@@ -496,7 +492,7 @@ namespace Rtx
         }
     }
 
-    Misc::Result<bool, std::string> MeshReader::collectTriangles(
+    Result<bool, std::string> MeshReader::collectTriangles(
         const osg::Geometry& geometry, const std::size_t vertices, std::vector<std::uint32_t>& into)
     {
         into.clear();
@@ -509,20 +505,20 @@ namespace Rtx
             return false;
 
         if (collector.mLargest >= vertices)
-            return Misc::Err{ "its triangles name vertex " + std::to_string(collector.mLargest) + " of "
+            return Err{ "its triangles name vertex " + std::to_string(collector.mLargest) + " of "
                 + std::to_string(vertices) };
 
         return true;
     }
 
-    Misc::Result<bool, std::string> MeshReader::read(
+    Result<bool, std::string> MeshReader::read(
         ContentPreprocessor& content, const DrawableRead& read, const osg::Node* const model, MeshReading& into)
     {
         const osg::Geometry& geometry = *read.mGeometry;
 
-        const Misc::Result<VertexArrays, std::string> vertices = readVertices(geometry, mReadNormalScratch);
+        const Result<VertexArrays, std::string> vertices = readVertices(geometry, mReadNormalScratch);
         if (!vertices.isOk())
-            return Misc::Err{ vertices.error() };
+            return Err{ vertices.error() };
 
         VertexArrays arrays = vertices.value();
 
@@ -532,7 +528,7 @@ namespace Rtx
         {
             const std::span<const osg::Vec3f> base = morphBase(*read.mMorph);
             if (base.size() != arrays.mPositions.size())
-                return Misc::Err{ "its base target has " + std::to_string(base.size()) + " vertices for "
+                return Err{ "its base target has " + std::to_string(base.size()) + " vertices for "
                     + std::to_string(arrays.mPositions.size()) };
 
             arrays.mPositions = base;
@@ -547,14 +543,14 @@ namespace Rtx
         // undefined, and a skin or a morph would pose it into a store that is not finite and a
         // refit that changes what is active.
         if (!std::ranges::all_of(arrays.mPositions, [](const osg::Vec3f& position) { return isFinite(position); }))
-            return Misc::Err{ std::string("its vertices are not finite numbers") };
+            return Err{ std::string("its vertices are not finite numbers") };
 
         const std::size_t count = arrays.mPositions.size();
 
         // Every array asked before the fold, so a face this refuses costs no fold.
-        const Misc::Result<const osg::Vec2Array*, std::string> texCoords = readTexCoords(geometry, 0, count);
+        const Result<const osg::Vec2Array*, std::string> texCoords = readTexCoords(geometry, 0, count);
         if (!texCoords.isOk())
-            return Misc::Err{ texCoords.error() };
+            return Err{ texCoords.error() };
 
         // **A second set is the first coordinates bound at any unit that are not unit nought's**,
         // and the units that bind it are noted for the material to look up its dark and glow maps'
@@ -575,9 +571,9 @@ namespace Rtx
             if (unit == Shader::sTangentUnit)
                 continue;
 
-            const Misc::Result<const osg::Vec2Array*, std::string> bound = readTexCoords(geometry, unit, count);
+            const Result<const osg::Vec2Array*, std::string> bound = readTexCoords(geometry, unit, count);
             if (!bound.isOk())
-                return Misc::Err{ bound.error() };
+                return Err{ bound.error() };
             if (bound.value() == nullptr || holdsSame(bound.value(), texCoords.value()))
                 continue;
             if (second == nullptr)
@@ -588,22 +584,21 @@ namespace Rtx
 
         // The source geometry's colours even for a morph, whose positions came from its base
         // target: a morph moves vertices and does not repaint them.
-        const Misc::Result<std::span<const osg::Vec3f>, std::string> colours
-            = readColours(geometry, count, mColourScratch);
+        const Result<std::span<const osg::Vec3f>, std::string> colours = readColours(geometry, count, mColourScratch);
         if (!colours.isOk())
-            return Misc::Err{ colours.error() };
+            return Err{ colours.error() };
 
-        const Misc::Result<std::span<const osg::Vec4f>, std::string> tangents
+        const Result<std::span<const osg::Vec4f>, std::string> tangents
             = readTangents(geometry, count, mReadTangentScratch);
         if (!tangents.isOk())
-            return Misc::Err{ tangents.error() };
+            return Err{ tangents.error() };
 
         // Shaped before the mesh is written, so the copy the content drew for a card's back never
         // reaches a structure. Once per drawable and never for a pose: a rig moves the two copies
         // together, so the pairs found in the bind pose are the pairs.
-        const Misc::Result<bool, std::string> collected = collectTriangles(geometry, count, mTriangleScratch);
+        const Result<bool, std::string> collected = collectTriangles(geometry, count, mTriangleScratch);
         if (!collected.isOk())
-            return Misc::Err{ collected.error() };
+            return Err{ collected.error() };
         if (!collected.value())
             return noTriangle(geometry);
 

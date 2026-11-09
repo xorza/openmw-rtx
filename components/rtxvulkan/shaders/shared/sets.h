@@ -26,7 +26,8 @@ namespace Rtx::Shaders
     /// number them.
     const uint SET_PASS = 0;
 
-    /// The bindless texture array and its shading maps — `TEXTURE_BIND_*` below.
+    /// The bindless texture array, its companions, a normal map's spread, and the samplers both are
+    /// read through — `TEXTURE_BIND_*` below.
     const uint SET_TEXTURES = 1;
 
     /// The channels the trace writes — `CHANNEL_*` in `gbuffer.h`.
@@ -38,15 +39,21 @@ namespace Rtx::Shaders
     /// How many sets any pipeline may name.
     const uint SET_COUNT = 4;
 
-    /// Where the texture set binds its three arrays: the textures, their shading maps at the same
-    /// slots, and the textures again through samplers that filter along a footprint.
+    /// Where the texture set binds its arrays: the textures, their companions at the same slots
+    /// (`TextureCompanion`, a normal map's spread), both as images alone, and the samplers a read
+    /// pairs either with.
     ///
-    /// **Named on both sides because a swap would be silent.** All are `TEXTURE_SLOTS` combined
-    /// image samplers, so a layout and a shader that disagreed on which is which would pass every
-    /// check the layers make, and the trace would sample companions as colour.
+    /// **Named on both sides because a swap would be silent.** Both image arrays are
+    /// `TEXTURE_SLOTS` sampled images, so a layout and a shader that disagreed on which is which
+    /// would pass every check the layers make, and the trace would sample companions as colour.
     const uint TEXTURE_BIND_IMAGES = 0;
     const uint TEXTURE_BIND_COMPANIONS = 1;
-    const uint TEXTURE_BIND_ALONG = 2;
+    const uint TEXTURE_BIND_SAMPLERS = 2;
+
+    /// The samplers at `TEXTURE_BIND_SAMPLERS`: one per wrap a file states (`Rtx::TextureWrap`),
+    /// indexed by it, and from `TEXTURE_SAMPLERS_ALONG` the same four filtering along a footprint.
+    const uint TEXTURE_SAMPLERS_ALONG = 4;
+    const uint TEXTURE_SAMPLERS = 8;
 
 #ifdef RTX_HOST
 }

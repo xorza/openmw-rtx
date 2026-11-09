@@ -78,7 +78,7 @@ namespace Rtx
         /// comparisons are cheaper than relying on every driver. Public because an offset off by
         /// four would reject every blob the driver ever wrote, with no symptom but a cache that
         /// never hit.
-        static Misc::Result<void, std::string_view> accepts(
+        static Result<void, std::string_view> accepts(
             std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties);
 
         /// The blob the file at `path` holds, where its own header says the device, the driver, the
@@ -86,7 +86,7 @@ namespace Rtx
         /// file; and why it was set aside where it cannot seed from it. Public for the reason
         /// `accepts` is: a reader that refused every file would show nothing but a cache that never
         /// hits.
-        static Misc::Result<std::vector<std::uint8_t>, std::string_view> read(
+        static Result<std::vector<std::uint8_t>, std::string_view> read(
             const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties);
 
     private:

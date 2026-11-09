@@ -46,6 +46,20 @@ namespace Rtx::Shaders
     /// naming the slot would not.
     const uint TEXTURE_STANDS_IN = 0x80000000u;
 
+    /// Where a slot's texel word holds the wrap its file states (`Rtx::TextureWrap`): the two bits
+    /// under `TEXTURE_STANDS_IN`, which pick the sampler every read of the slot goes through.
+    ///
+    /// **In the word a level's read loads already for `coneLod`**, and not in a table of its own,
+    /// which every read would load beside it.
+    const uint TEXTURE_WRAP_SHIFT = 29u;
+
+    /// The texel count under the wrap and `TEXTURE_STANDS_IN`.
+    const uint TEXTURE_TEXELS = 0x1FFFFFFFu;
+
+    /// The largest side a texture stands at, whatever the device takes: its square is the largest
+    /// count `TEXTURE_TEXELS` holds whole. A texture past it stands from its first level within it.
+    const uint TEXTURE_SIDE_MOST = 16384u;
+
     /// How many slots the bindless array holds, which is what the backend's descriptor count and
     /// the scene's table are both bounded by. A PBR pack gives a diffuse texture a normal and a
     /// specular slot beside it, about 3700 at the largest bench place against its 1233 on vanilla,
@@ -55,7 +69,7 @@ namespace Rtx::Shaders
     const uint TEXTURE_SLOTS = 8192u;
 
     /// The one slot the scene never hands out: one texel of `UNTEXTURED_ALBEDO` with an alpha of
-    /// one, stood by the backend when the array is made, under the neutral shading map.
+    /// one, stood by the backend when the array is made, with no normal spread beside it.
     ///
     /// **A texture and not a sentinel, so no reader tests for it.** A material with no diffuse
     /// read `NO_TEXTURE` before every sample it made, and the test was per material, which is per
@@ -646,6 +660,19 @@ namespace Rtx::Shaders
     const uint TANGENT_COORDINATE_BITS = 15u;
     const uint TANGENT_COORDINATE_MASK = (1u << TANGENT_COORDINATE_BITS) - 1u;
     const uint TANGENT_STEPS = TANGENT_COORDINATE_MASK / 2u;
+    const float TANGENT_STEP = 1.0f / float(TANGENT_STEPS);
+
+    /// A vertex's colour in linear light as the device reads it: red and green as two half floats in
+    /// one word, low half first as `packHalf2x16` lays them, and blue in the low half of the other.
+    /// Halves and not floats, a third of the bytes every hit reads, and not normalized words, because
+    /// a content file's float colour may stand past one and a half float holds every finite colour
+    /// to eleven bits. `Rtx::MeshTable` packs it on the host (`Rtx::toHalf`), and `unpackHalf2x16`
+    /// reads it back exactly.
+    struct GpuVertexColour
+    {
+        uint mRedGreen;
+        uint mBlue;
+    };
 
     /// The device's material table puts the untextured material a placement with none wears at
     /// row nought, for the table's life, and the scene's material `i` at row `i + 1`. First and not
@@ -887,7 +914,8 @@ namespace Rtx::Shaders
         /// `textureSize` was a texture-header read on every sample, and stated over the same
         /// integer so the level the shader takes its logarithm of is the number it always was.
         /// The backend's texture array owns and writes it, a slot at a time as textures arrive, with
-        /// `TEXTURE_STANDS_IN` over the count of a slot that draws the stand-in.
+        /// the wrap over it (`TEXTURE_WRAP_SHIFT`), and `TEXTURE_STANDS_IN` over both where the slot
+        /// draws the stand-in.
         uint64 mTextureTexels;
     };
 
@@ -1251,6 +1279,7 @@ namespace Rtx::Shaders
     // produces a plausible wrong image rather than an error. GLSL is pinned separately, by the
     // `--scalar-block-layout` the build hands the validator.
 #ifdef RTX_HOST
+    static_assert(sizeof(GpuVertexColour) == 8, "GpuVertexColour must be scalar-packed on every side");
     static_assert(sizeof(GpuMesh) == 28, "GpuMesh must be scalar-packed on every side");
     static_assert(sizeof(GpuInstance) == 160, "GpuInstance must be scalar-packed on every side");
     static_assert(INSTANCE_LAMP_BODY > (MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM),

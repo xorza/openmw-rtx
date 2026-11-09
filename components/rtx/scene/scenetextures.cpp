@@ -27,13 +27,12 @@ namespace Rtx
     {
         /// The image `row`'s chain is made from, or null where nothing is to be made of it: a file
         /// whose made image its slot does not hold yet, of a kind the service makes
-        /// (`PreparedImages::prepares`). Laid where a reader laid it.
+        /// (`PreparedImages::prepares`).
         const osg::Image* toPrepare(const TextureRow& row)
         {
-            const osg::Image* const source = row.mLaid != nullptr ? row.mLaid.get() : row.mImage.get();
-            return row.mKind == TextureKind::File && row.mPrepared == nullptr && source != nullptr
-                    && PreparedImages::prepares(*source, row.mEncoding)
-                ? source
+            return row.mKind == TextureKind::File && row.mPrepared == nullptr && row.mImage != nullptr
+                    && PreparedImages::prepares(*row.mImage, row.mEncoding)
+                ? row.mImage.get()
                 : nullptr;
         }
     }
@@ -59,7 +58,11 @@ namespace Rtx
                     continue;
                 const TextureRow& row = scene.textures().getRows()[slot];
                 if (const osg::Image* const source = toPrepare(row))
-                    prepared->find(*source, row.mEncoding, row.mWrap, row.mPartner.get());
+                {
+                    const PreparedImage found = prepared->find(*source, row.mEncoding, row.mWrap, row.mPartner.get());
+                    if (found.mImage != nullptr)
+                        mFound.push_back(found.mImage);
+                }
             }
             prepared->flush();
         }
@@ -75,7 +78,7 @@ namespace Rtx
         {
             // A free slot is not a texture. `SceneDesc` empties one the last thing naming it
             // gave back and leaves it in the table until something takes it over; describing it
-            // would build an image, a shading map and a binding for a slot no material can
+            // would build an image, a companion and a binding for a slot no material can
             // reach — and count it as a texture that arrived.
             if (!scene.textures().isLive(slot))
                 continue;
@@ -86,8 +89,7 @@ namespace Rtx
             Kept kept{ .mSlot = slot, .mEncoding = row.mEncoding };
 
             // The image the adder held, and never the file opened again: this runs on the frame an
-            // arrival lands on, and a path is a lock and a disk read. Laid where a reader laid it, so
-            // its texels are read as they stand rather than widened here.
+            // arrival lands on, and a path is a lock and a disk read.
             // **A normal or a data map's image with its chain made again**, where it is made; its file
             // as it stands while it is, and the slot named for its owner to stand again.
             const osg::Image* const source = toPrepare(row);
@@ -103,30 +105,26 @@ namespace Rtx
             if (made.mImage != nullptr && row.mPrepared == nullptr)
                 mMade.push_back(Made{ .mSlot = slot, .mImage = made.mImage });
 
+            // **A widened file stands in while its chain is made**, which is the whole of it in BC7
+            // (`ChainPass`): read as it stands, it would be widened here, on the frame an arrival lands
+            // on, into a copy nothing keeps.
             if (made.mImage != nullptr)
             {
-                const osg::Image& file = row.mLaid != nullptr ? *row.mLaid : *row.mImage;
-                kept.mImage = osg::ref_ptr<const osg::Image>(&file);
-                kept.mFormat = readFormat(file, row.mEncoding);
+                kept.mImage = row.mImage;
+                kept.mFormat = row.mFormat;
                 kept.mMade = made.mImage;
             }
             else if (row.mKind == TextureKind::File && row.mImage != nullptr
-                && (row.mEncoding == TextureEncoding::ConvertedSpecular
-                    || (row.mEncoding == TextureEncoding::Normal
-                        && readFormat(*row.mImage, row.mEncoding) == TextureFormat::Bc5Unorm)))
+                && (row.mEncoding == TextureEncoding::ConvertedSpecular || (made.mPending && isWidened(row.mFormat))
+                    || (row.mEncoding == TextureEncoding::Normal && row.mFormat == TextureFormat::Bc5Unorm)))
                 kept.mStandsIn = true;
-            else if (row.mKind == TextureKind::File && row.mLaid != nullptr)
-            {
-                kept.mImage = row.mLaid;
-                kept.mFormat = readFormat(*row.mLaid, row.mEncoding);
-            }
             else if (row.mKind == TextureKind::File && row.mImage != nullptr)
             {
                 kept.mImage = row.mImage;
                 kept.mFormat = row.mFormat;
             }
             else if (row.mKind == TextureKind::File)
-                kept.mImage = Misc::Err{ std::string(sNoImage) };
+                kept.mImage = Err{ std::string(sNoImage) };
             else if (row.mKind == TextureKind::SpriteLight)
             {
                 // Made on the device from the sprite texture's own slot, which the emitter holds
@@ -171,7 +169,7 @@ namespace Rtx
         {
             const TextureRow& row = scene.textures().getRows()[kept.mSlot];
 
-            const Misc::Result<TextureData, std::string> described = describeKept(kept);
+            const Result<TextureData, std::string> described = describeKept(kept);
             TextureData data;
             if (described.isOk())
                 data = described.value();
@@ -187,17 +185,19 @@ namespace Rtx
             mDescriptions.push_back(data);
         }
 
+        mFound.clear();
+
         Crash::contract(mLevels.capacity() == reserved, "the level table grew while descriptions spanned it");
         Crash::contract(mTexels.capacity() == reservedTexels, "the laid texels grew while descriptions spanned them");
     }
 
-    Misc::Result<TextureData, std::string> SceneTextures::describeKept(const Kept& kept)
+    Result<TextureData, std::string> SceneTextures::describeKept(const Kept& kept)
     {
         if (kept.mStandsIn)
             return describeStandIn();
 
         if (!kept.mImage.isOk())
-            return Misc::Err{ kept.mImage.error() };
+            return Err{ kept.mImage.error() };
 
         if (const osg::Image* image = kept.mImage.value().get())
         {
@@ -217,7 +217,7 @@ namespace Rtx
                     .mName = SceneUtil::EmbeddedImage::nameOf(*image) };
             }
 
-            const Misc::Result<TextureData, std::string> read
+            const Result<TextureData, std::string> read
                 = describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
             if (!read.isOk() || kept.mMade == nullptr)
                 return read;
@@ -242,7 +242,7 @@ namespace Rtx
         {
             // A source the table no longer holds is a bake of nothing.
             if (*kept.mBakedFrom == sNoIndex)
-                return Misc::Err{ "the texture it bakes is no longer held" };
+                return Err{ "the texture it bakes is no longer held" };
 
             return TextureData{
                 .mSource = TextureSource::SpriteBake,

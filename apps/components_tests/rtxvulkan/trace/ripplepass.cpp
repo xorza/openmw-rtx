@@ -14,7 +14,7 @@
 #include <apps/components_tests/rtx/support/device/readback.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/fognoise.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/shaders/shared/ripple.h>
@@ -339,7 +339,7 @@ namespace Rtx
             // The window stood first, at a clock that steps nothing; the traces of the placement then
             // all at one clock, the first of them stepping, and thirty steps after.
             const auto field = [&](const int traces) {
-                TraceMedia media(getDevice(), FogNoise::shared());
+                TraceMedia media(getDevice(), sFogNoise);
                 getPool().submitAndWait([&](VkCommandBuffer commands) {
                     media.stepRipples(commands, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
                     media.keepRipples(scene);

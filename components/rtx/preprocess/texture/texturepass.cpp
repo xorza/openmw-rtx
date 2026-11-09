@@ -78,7 +78,7 @@ namespace Rtx
 
         // **The mean of each texel's channels' spread, as stored**: a classic map's highlight is grey,
         // its three channels near equal, where a metal-roughness map holds a metalness, a roughness and
-        // an occlusion apart (`.notes/content-cache.md`, one specular layout).
+        // an occlusion apart (`docs/rtx/architecture.md`, "One specular layout, a classic map converted").
         const TextureData& texture = *finest;
         const MipLevel& level = texture.mLevels.front();
         double spread = 0.0;

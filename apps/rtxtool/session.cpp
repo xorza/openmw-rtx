@@ -112,7 +112,7 @@ namespace RtxTool
             }
         }
 
-        if (const Misc::Result<void, std::string> staged = mStager.stage(stop, mRequest); !staged.isOk())
+        if (const Result<void, std::string> staged = mStager.stage(stop, mRequest); !staged.isOk())
         {
             abandon(staged.error());
             return;

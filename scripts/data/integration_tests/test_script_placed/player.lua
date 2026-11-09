@@ -44,8 +44,19 @@ testing.registerLocalTestStep('the navigation ray stops at the pillar', function
     -- The ray runs along x = y and stops where the agent's half extent meets the pillar's 46.9. The mesh
     -- is voxels of "cell size" / "recast scale factor" = 0.2 / 0.0294 = 6.8 units.
     local reach = 46.9 + types.Actor.getPathfindingAgentBounds(self).halfExtents.x
-    testing.expectEqualWithDelta(hit.x, pillar.x - reach, 6.8, 'the ray stops at the pillar, x')
-    testing.expectEqualWithDelta(hit.y, pillar.y - reach, 6.8, 'the ray stops at the pillar, y')
+
+    -- What the physics meets along the same line, above the ground, so a failure says which of the two the
+    -- pillar is missing from: its collision, which the disable or the grid change gives it, or the mesh the
+    -- navigator builds from that collision.
+    local above = util.vector3(0, 0, 60)
+    local physical = nearby.castRay(from + above, to + above, { collisionType = nearby.COLLISION_TYPE.World })
+    local met = 'the physics meets nothing'
+    if physical.hit then
+        met = string.format('the physics meets %s at x %.1f',
+            physical.hitObject and physical.hitObject.recordId or 'an unnamed object', physical.hitPos.x)
+    end
+    testing.expectEqualWithDelta(hit.x, pillar.x - reach, 6.8, 'the ray stops at the pillar, x; ' .. met)
+    testing.expectEqualWithDelta(hit.y, pillar.y - reach, 6.8, 'the ray stops at the pillar, y; ' .. met)
 end)
 
 return {

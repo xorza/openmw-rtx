@@ -49,10 +49,10 @@ namespace Rtx
         return mMeshes.add(mDeformers, arrays, shape, deformer);
     }
 
-    Misc::Result<void, std::string> SceneDesc::checkPoses(const Index posed, const MeshArrays& arrays)
+    Result<void, std::string> SceneDesc::checkPoses(const Index posed, const MeshArrays& arrays)
     {
         if (posed != arrays.mPositions.size())
-            return Misc::Err{ "it has " + std::to_string(arrays.mPositions.size()) + " vertices on a rig or morph of "
+            return Err{ "it has " + std::to_string(arrays.mPositions.size()) + " vertices on a rig or morph of "
                 + std::to_string(posed) };
 
         return {};
@@ -237,10 +237,9 @@ namespace Rtx
     }
 
     TextureHold SceneDesc::takeTexture(const VFS::Path::NormalizedView path, const osg::Image& image,
-        const TextureWrap wrap, const TextureEncoding encoding, const osg::Image* const laid,
-        const osg::Image* const partner)
+        const TextureWrap wrap, const TextureEncoding encoding, const osg::Image* const partner)
     {
-        return TextureHold(mTextures.take(path, image, wrap, encoding, laid, partner));
+        return TextureHold(mTextures.take(path, image, wrap, encoding, partner));
     }
 
     bool SceneDesc::isConsistent() const

@@ -274,8 +274,7 @@ namespace Rtx::Testing
                 return nullptr;
             }
 
-            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(
-                const VFS::Path::NormalizedView path) override
+            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(const VFS::Path::NormalizedView path) override
             {
                 return mImages.get(path);
             }
@@ -1835,9 +1834,9 @@ namespace Rtx::Testing
         {
         public:
             osg::ref_ptr<const osg::Node> getTemplate(VFS::Path::NormalizedView) override { return mFace; }
-            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView) override
+            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView) override
             {
-                return Misc::Err{ "no image reads from the file" };
+                return Err{ "no image reads from the file" };
             }
 
             osg::ref_ptr<osg::Group> mFace = [] {
@@ -1919,10 +1918,7 @@ namespace Rtx::Testing
             EXPECT_EQ(*rock.mRelief, (AlphaRange{ .mLow = 128, .mHigh = 128 })) << "the grey every texel holds";
             EXPECT_FALSE(grass.mRelief.has_value());
             EXPECT_EQ(grass.mNormalTexture, nullptr);
-            EXPECT_EQ(grass.mTexture->mImage, looseGrass) << "the file was replaced rather than laid beside";
-            ASSERT_NE(grass.mTexture->mLaid, nullptr) << "a widened file was left to the hand-over";
-            EXPECT_EQ(grass.mTexture->mLaid->getPixelFormat(), static_cast<GLenum>(GL_RGBA));
-            EXPECT_EQ(rock.mTexture->mLaid, nullptr) << "a file uploaded as it is was laid";
+            EXPECT_EQ(grass.mTexture->mImage, looseGrass) << "the file is held as it was read";
 
             // What a cell holds is the one list `collectTextures` derives: each layer's diffuse,
             // then its normal map.
@@ -1955,8 +1951,7 @@ namespace Rtx::Testing
         public:
             osg::ref_ptr<const osg::Node> getTemplate(VFS::Path::NormalizedView) override { return nullptr; }
 
-            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(
-                const VFS::Path::NormalizedView path) override
+            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(const VFS::Path::NormalizedView path) override
             {
                 if (!mHeldOnce)
                 {

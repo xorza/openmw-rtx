@@ -61,7 +61,7 @@ namespace Rtx
         ///        down for one held to a smaller side.
         /// @param name what a capture calls it. Empty where the build names no objects.
         /// @param regions the caller's scratch, cleared and refilled here with one copy per level.
-        Misc::Result<void, std::string_view> standFile(const Device& device, Batch& batch, TextureArrival& arrival,
+        Result<void, std::string_view> standFile(const Device& device, Batch& batch, TextureArrival& arrival,
             const TextureData& data, std::uint32_t first, std::string_view name,
             std::vector<VkBufferImageCopy>& regions, MemoryUse use);
 
@@ -70,15 +70,15 @@ namespace Rtx
         /// `arrival`'s run, which records every copy ahead of every bake.
         ///
         /// @param format what the description says the bake is, which is its image's format.
-        Misc::Result<void, std::string_view> standBake(const Device& device, TextureArrival& arrival,
-            const Texture& source, TextureFormat format, std::string_view name);
+        Result<void, std::string_view> standBake(const Device& device, TextureArrival& arrival, const Texture& source,
+            TextureFormat format, std::string_view name);
 
         /// Stands a chunk's flattened ground in this one, which is empty, under the neutral map:
         /// `GROUND_COMPOSITE_EXTENT` square in BC7, with a chain to one texel, left undefined. Copied
         /// into by `TextureArray::bakeComposites`, in the placement after it arrives.
         ///
         /// @param format what the description says the composite is, which is its image's format.
-        Misc::Result<void, std::string_view> standComposite(
+        Result<void, std::string_view> standComposite(
             const Device& device, TextureArrival& arrival, TextureFormat format, std::string_view name);
 
         /// Stands one texel of `colour` in this one, which is empty, whole floats so the value is
@@ -93,19 +93,20 @@ namespace Rtx
         /// Whether the slot holds no texture.
         bool isEmpty() const { return mImage.isEmpty(); }
 
-        /// The texture and its companion as a sampled descriptor takes them, through `sampler`, from
-        /// the read-only layout an upload leaves them in.
-        VkDescriptorImageInfo describe(VkSampler sampler) const
+        /// The texture and its companion as a sampled image takes them, with no sampler, from the
+        /// read-only layout an upload leaves them in: a read pairs them with the sampler the
+        /// slot's wrap names (`TEXTURE_BIND_SAMPLERS`).
+        VkDescriptorImageInfo describe() const
         {
-            return mImage.describeSampled(sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            return mImage.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
 
         /// Whether something is measured beside the texture: a normal map's spread.
         bool hasCompanion() const { return !mCompanion.isEmpty(); }
 
-        VkDescriptorImageInfo describeCompanion(VkSampler sampler) const
+        VkDescriptorImageInfo describeCompanion() const
         {
-            return mCompanion.describeSampled(sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            return mCompanion.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
 
         // Read by the tests, the interface's pass, which draws with one, and the array, which
@@ -113,8 +114,8 @@ namespace Rtx
         VkImageView getView() const { return mImage.getView(); }
         const Image& getImage() const { return mImage; }
 
-        /// How the file said this is addressed past its edges, which picks the sampler the array
-        /// binds it through.
+        /// How the file said this is addressed past its edges, which picks the sampler a read of it
+        /// goes through (`TEXTURE_WRAP_SHIFT`).
         TextureWrap getWrap() const { return mWrap; }
 
         /// What the texture keeps on the device, its companion included: `TextureCost::standing`
@@ -317,7 +318,7 @@ namespace Rtx
 
         /// Stands what `texture` is made as in `into`, a file from level `first`, or says why the
         /// device had no room for it.
-        Misc::Result<void, std::string_view> make(Batch& batch, TextureArrival& arrival, Texture& into,
+        Result<void, std::string_view> make(Batch& batch, TextureArrival& arrival, Texture& into,
             const TextureData& texture, std::uint32_t first, std::string_view name);
 
         /// Stands one of `arrived` in its slot: a file from level `first`, a texture of another
@@ -328,7 +329,7 @@ namespace Rtx
 
         /// Queues a write of `image` into `set` at `binding[slot]`, behind the image info the write
         /// names by address.
-        static void queueWrite(VkDescriptorSet set, std::uint32_t binding, std::uint32_t slot,
+        static void queueWrite(VkDescriptorSet set, std::uint32_t binding, std::uint32_t slot, VkDescriptorType type,
             const VkDescriptorImageInfo& image, std::vector<VkDescriptorImageInfo>& images,
             std::vector<VkWriteDescriptorSet>& writes);
 
@@ -387,14 +388,13 @@ namespace Rtx
 
         /// Makes the blocks and the canvas a composite of `source` is baked on, where either is
         /// missing, or says why the device has no room for one.
-        Misc::Result<void, std::string_view> makeCanvas(TextureSource source);
+        Result<void, std::string_view> makeCanvas(TextureSource source);
 
-        /// One per `TextureWrap`, indexed by it: the sampler a slot is bound through is the one its
-        /// file's wrap names, for the texture and for its shading map alike.
+        /// One per `TextureWrap`, indexed by it: the sampler a read of a slot pairs its image with
+        /// is the one its file's wrap names, for the texture and for its companion alike.
         std::array<Sampler, sTextureWrapCount> mSamplers;
 
-        /// The same, filtering anisotropically, for the textures' third binding —
-        /// `TEXTURE_BIND_ALONG`.
+        /// The same, filtering anisotropically, from `TEXTURE_SAMPLERS_ALONG`.
         std::array<Sampler, sTextureWrapCount> mFootprintSamplers;
 
         /// The one texel every material with no diffuse names, at `TEXTURE_NEUTRAL` of every set:
@@ -422,7 +422,7 @@ namespace Rtx
         /// trace — a leaf's mask read at the wrong level, and a walk that did not repeat.
         SlotTable<std::uint32_t> mTexels;
 
-        /// One set per frame in flight, both bindings at the maximum the layout declares.
+        /// One set per frame in flight, each image array at the maximum the layout declares.
         DescriptorSets mSets;
 
         /// The last submit that bound each set: a set is bound by handle and carries no stamp of
@@ -432,6 +432,10 @@ namespace Rtx
 
         /// The slots each set has yet to be told, each once however often it was written.
         PerSlot<SlotSet> mOwed;
+
+        /// Whether each set has yet to be told the samplers: from its start, and after
+        /// `setAnisotropy` replaced the footprint's.
+        PerSlot<bool> mSamplersOwed{ [](FrameSlot) { return true; } };
 
         /// Which composites arrived and stand empty, whose ground each is and which of its two
         /// images: what the next placement bakes, one sum a chunk for whichever of its two it

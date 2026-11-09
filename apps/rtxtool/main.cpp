@@ -596,7 +596,7 @@ namespace RtxTool
             const std::filesystem::path out = outOf(command);
             std::filesystem::create_directories(out);
 
-            if (const Misc::Result<void, std::string> checked = checkAgainst(out, against); !checked.isOk())
+            if (const Result<void, std::string> checked = checkAgainst(out, against); !checked.isOk())
                 throw std::runtime_error(checked.error());
 
             // **What each picture is held to is where it came from.** A frame the wavelet composed and
@@ -664,7 +664,7 @@ namespace RtxTool
             if (!out.empty())
             {
                 std::filesystem::create_directories(out);
-                if (const Misc::Result<void, std::string> checked = checkAgainst(out, against); !checked.isOk())
+                if (const Result<void, std::string> checked = checkAgainst(out, against); !checked.isOk())
                     throw std::runtime_error(checked.error());
             }
             const bool hashing = !out.empty() || !against.empty();
@@ -873,7 +873,7 @@ namespace RtxTool
             }
 
             const std::span<const std::vector<NoiseFigures>> written(measured.data(), versus.has_value() ? 2 : 1);
-            if (const Misc::Result<void, std::string> wrote = writeNoiseRecord(record, written); !wrote.isOk())
+            if (const Result<void, std::string> wrote = writeNoiseRecord(record, written); !wrote.isOk())
             {
                 out() << wrote.error() << '\n';
                 return 1;

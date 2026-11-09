@@ -290,7 +290,7 @@ namespace Rtx::Testing
             // One whose triangles name a vertex it does not have is refused by name: four vertices,
             // and the second triangle ends at index four.
             osg::ref_ptr<osg::Geometry> past = makeIndexPastItsVertices();
-            const Misc::Result<bool, std::string> refused
+            const Result<bool, std::string> refused
                 = reader.read(content, readDrawable(*past, NodeKinds{}.of(*past)), nullptr, reading);
             ASSERT_FALSE(refused.isOk()) << "a triangle past its vertices was read";
             EXPECT_EQ(refused.error(), "its triangles name vertex 4 of 4");
@@ -299,7 +299,7 @@ namespace Rtx::Testing
             // nothing: nothing stands in for where a vertex is.
             osg::ref_ptr<osg::Geometry> unplaced = makeQuad();
             (*static_cast<osg::Vec3Array*>(unplaced->getVertexArray()))[2].y() = std::numeric_limits<float>::infinity();
-            const Misc::Result<bool, std::string> notFinite
+            const Result<bool, std::string> notFinite
                 = reader.read(content, readDrawable(*unplaced, NodeKinds{}.of(*unplaced)), nullptr, reading);
             ASSERT_FALSE(notFinite.isOk()) << "a vertex that is not finite was read";
             EXPECT_EQ(notFinite.error(), "its vertices are not finite numbers");
@@ -448,7 +448,7 @@ namespace Rtx::Testing
             MeshReading reading;
             for (const auto& [geometry, why] : broken)
             {
-                const Misc::Result<bool, std::string> refused
+                const Result<bool, std::string> refused
                     = reader.read(content, readDrawable(*geometry, NodeKinds{}.of(*geometry)), nullptr, reading);
                 ASSERT_FALSE(refused.isOk()) << "read a face that should be refused because " << why;
                 EXPECT_EQ(refused.error(), why);

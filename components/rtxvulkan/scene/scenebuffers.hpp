@@ -160,7 +160,7 @@ namespace Rtx
 
         /// The second set, in runs of their own: `Rtx::MeshRange::mSecondTexCoords`.
         BlockedBuffer mSecondTexCoords{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec2f) };
-        BlockedBuffer mColours{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+        BlockedBuffer mColours{ Shaders::VERTEX_BLOCK, sizeof(Shaders::GpuVertexColour) };
 
         /// The static meshes' positions, which the bottom levels were built over and a committed
         /// triangle's corners are read from (`GpuTables::mPositionBlocks`); a deforming mesh's run
@@ -207,7 +207,7 @@ namespace Rtx
         /// so a body the pass has not reached holds what a hit can read. **One posed copy and not one
         /// a frame in flight**: no frame reads another's normals, as it reads the poses for motion,
         /// and the pass writes them on the queue behind every frame that read the last.
-        JoinedBlocks mNormals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f), Shaders::POSED_FIRST_BLOCK };
+        JoinedBlocks mNormals{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t), Shaders::POSED_FIRST_BLOCK };
 
         /// `Rtx::packTangent`'s words, kept as the normals are.
         JoinedBlocks mTangents{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t), Shaders::POSED_FIRST_BLOCK };

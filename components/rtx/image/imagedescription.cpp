@@ -10,8 +10,6 @@
 #include <cstring>
 #include <exception>
 #include <limits>
-#include <memory>
-#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -27,6 +25,7 @@
 #include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "colour.hpp"
 #include "textureformat.hpp"
 
 namespace Rtx
@@ -80,10 +79,8 @@ namespace Rtx
         /// nought and one: `LooseTexel` says why. A channel that is no number reads nought.
         std::byte channelByte(const ChannelType type, const std::byte* at)
         {
-            const auto unit = [](float value) {
-                const float held = std::isnan(value) ? 0.0f : std::clamp(value, 0.0f, 1.0f);
-                return static_cast<std::byte>(std::lround(held * 255.0f));
-            };
+            const auto unit
+                = [](float value) { return unitByte(std::isnan(value) ? 0.0f : std::clamp(value, 0.0f, 1.0f)); };
             const auto word = [&](std::size_t byte) { return std::to_integer<std::uint32_t>(at[byte]) << (8 * byte); };
 
             switch (type)
@@ -153,28 +150,28 @@ namespace Rtx
         }
 
         /// `checkUploadable` of a format already read.
-        Misc::Result<void, std::string> checkFormat(const osg::Image& image, const TextureFormat format)
+        Result<void, std::string> checkFormat(const osg::Image& image, const TextureFormat format)
         {
             // A format of data alone that a colour slot read: named, since the file is a known
             // format in the wrong slot, and not one this renderer cannot upload.
             if (format == TextureFormat::Unnamed)
                 if (const TextureFormat data = readFormat(image, TextureEncoding::Data); data != TextureFormat::Unnamed)
-                    return Misc::Err{ "its format is " + std::string(nameOf(data))
+                    return Err{ "its format is " + std::string(nameOf(data))
                         + ", which holds no colour, where a colour is read" };
 
             if (!isUploadable(format) && !isWidened(format))
-                return Misc::Err{ "its format is " + std::string(nameOf(format)) + " ("
+                return Err{ "its format is " + std::string(nameOf(format)) + " ("
                     + std::to_string(image.getPixelFormat()) + "), which this renderer does not upload" };
 
             if (!image.valid() || image.s() < 0 || image.t() < 0)
-                return Misc::Err{ "it is " + std::to_string(image.s()) + " by " + std::to_string(image.t())
+                return Err{ "it is " + std::to_string(image.s()) + " by " + std::to_string(image.t())
                     + " texels, which no device holds" };
 
             return {};
         }
     }
 
-    Misc::Result<osg::ref_ptr<const osg::Image>, std::string> openImage(
+    Result<osg::ref_ptr<const osg::Image>, std::string> openImage(
         Resource::ImageManager& images, const VFS::Path::NormalizedView path)
     {
         osg::ref_ptr<const osg::Image> image;
@@ -184,13 +181,13 @@ namespace Rtx
         }
         catch (const std::exception& failed)
         {
-            return Misc::Err{ std::string(failed.what()) };
+            return Err{ std::string(failed.what()) };
         }
 
         // The manager answers a file it cannot read with its warning image, having logged why:
         // an image, and not the one the file holds.
         if (image == nullptr || image == images.getWarningImage())
-            return Misc::Err{ std::string(sNoImage) };
+            return Err{ std::string(sNoImage) };
 
         return image;
     }
@@ -217,7 +214,7 @@ namespace Rtx
         };
     }
 
-    Misc::Result<void, std::string> checkUploadable(const osg::Image& image, const TextureEncoding encoding)
+    Result<void, std::string> checkUploadable(const osg::Image& image, const TextureEncoding encoding)
     {
         return checkFormat(image, readFormat(image, encoding));
     }
@@ -255,7 +252,7 @@ namespace Rtx
         return laidBytesOf(image, format, keptLevels(image));
     }
 
-    Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, const TextureEncoding encoding,
+    Result<TextureData, std::string> describeImage(const osg::Image& image, const TextureEncoding encoding,
         std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
     {
         return describeImage(image, readFormat(image, encoding), encoding, levels, texels);
@@ -264,19 +261,18 @@ namespace Rtx
     namespace
     {
         /// `describeImage` of the first `count` levels, which is no more than the image keeps. What
-        /// is laid out is laid into `laidInto` where it is given, `laidBytesOf`'s size, and appended
-        /// to `texels` otherwise.
-        Misc::Result<TextureData, std::string> describeLevels(const osg::Image& image, const TextureFormat format,
+        /// is laid out is appended to `texels`.
+        Result<TextureData, std::string> describeLevels(const osg::Image& image, const TextureFormat format,
             const TextureEncoding encoding, const std::uint32_t count, std::vector<MipLevel>& levels,
-            std::vector<std::byte>& texels, const std::optional<std::span<std::byte>> laidInto = std::nullopt)
+            std::vector<std::byte>& texels)
         {
             // Every reader of an image's bytes on the processor comes through here first, so a crash
             // in one names the file.
             const std::string_view name = SceneUtil::EmbeddedImage::nameOf(image);
             const Crash::NoteScope noted("describing the texture \"{}\"", name);
 
-            if (const Misc::Result<void, std::string> uploadable = checkFormat(image, format); !uploadable.isOk())
-                return Misc::Err{ uploadable.error() };
+            if (const Result<void, std::string> uploadable = checkFormat(image, format); !uploadable.isOk())
+                return Err{ uploadable.error() };
 
             const TexelLayout layout = layoutOf(format);
             const auto width = static_cast<std::uint32_t>(image.s());
@@ -313,7 +309,7 @@ namespace Rtx
                 if (image.getMipmapOffset(level) != laid || ours != theirs(1))
                 {
                     levels.resize(first);
-                    return Misc::Err{ "its level " + std::to_string(level) + " is " + std::to_string(theirs(1))
+                    return Err{ "its level " + std::to_string(level) + " is " + std::to_string(theirs(1))
                         + " bytes at byte " + std::to_string(image.getMipmapOffset(level)) + ", where "
                         + std::string(nameOf(format)) + " at " + std::to_string(across) + " by " + std::to_string(down)
                         + " is " + std::to_string(ours) + " at byte " + std::to_string(laid) };
@@ -352,15 +348,13 @@ namespace Rtx
             if (total > std::numeric_limits<std::uint32_t>::max())
             {
                 levels.resize(first);
-                return Misc::Err{ "its levels laid out are " + std::to_string(total)
+                return Err{ "its levels laid out are " + std::to_string(total)
                     + " bytes, past what a level's 32-bit offset reaches" };
             }
 
-            assert((!laidInto.has_value() || laidInto->size() == total) && "laid into room of another size");
             const std::size_t from = texels.size();
-            if (!laidInto.has_value())
-                texels.resize(from + total);
-            const std::span<std::byte> into = laidInto.value_or(std::span(texels).subspan(from));
+            texels.resize(from + total);
+            const std::span<std::byte> into = std::span(texels).subspan(from);
             std::size_t at = 0;
             for (std::uint32_t level = 0; level < count; ++level)
             {
@@ -385,49 +379,13 @@ namespace Rtx
         }
     }
 
-    Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, const TextureFormat format,
+    Result<TextureData, std::string> describeImage(const osg::Image& image, const TextureFormat format,
         const TextureEncoding encoding, std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
     {
         return describeLevels(image, format, encoding, keptLevels(image), levels, texels);
     }
 
-    osg::ref_ptr<const osg::Image> layImage(const osg::Image& image, const TextureFormat format,
-        std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
-    {
-        if (!isWidened(format))
-            return nullptr;
-
-        // The encoding names the widened format and lays no byte differently: every widened
-        // format reads alike as a colour and as data (`readFormat`). **Widened straight into the
-        // image handed back**, its bytes allocated first at what the levels lay out to, where
-        // widening into scratch and copying wrote every byte twice.
-        levels.clear();
-        texels.clear();
-        const std::size_t bytes = laidBytes(image, format);
-        auto data = std::make_unique_for_overwrite<unsigned char[]>(bytes);
-        const Misc::Result<TextureData, std::string> described = describeLevels(image, format, TextureEncoding::Colour,
-            keptLevels(image), levels, texels, std::span(reinterpret_cast<std::byte*>(data.get()), bytes));
-        if (!described.isOk())
-            return nullptr;
-
-        const TextureData& laid = described.value();
-        osg::ref_ptr<osg::Image> made = new osg::Image;
-        made->setImage(static_cast<int>(laid.mWidth), static_cast<int>(laid.mHeight), 1, GL_RGBA8, GL_RGBA,
-            GL_UNSIGNED_BYTE, data.release(), osg::Image::USE_NEW_DELETE);
-
-        osg::Image::MipmapDataType offsets;
-        offsets.reserve(laid.mLevels.size() - 1);
-        for (const MipLevel& level : laid.mLevels.subspan(1))
-            offsets.push_back(level.mOffset);
-        made->setMipmapLevels(offsets);
-
-        made->setFileName(image.getFileName());
-        if (const SceneUtil::EmbeddedImage* const stamped = SceneUtil::EmbeddedImage::find(image))
-            made->setUserData(new SceneUtil::EmbeddedImage(*stamped));
-        return made;
-    }
-
-    Misc::Result<TextureData, std::string> describeFinestLevel(
+    Result<TextureData, std::string> describeFinestLevel(
         const osg::Image& image, std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
     {
         const TextureEncoding encoding = TextureEncoding::Colour;

@@ -227,9 +227,15 @@ layout(set = SET_PASS, binding = BIND_FRAME, scalar) uniform Frame
 // **A block is allocated once at its full size and never moved**, so a scene that grows keeps every address
 // already handed out and every acceleration structure built from one stays valid — which is what lets a
 // cell arriving append rather than rebuild the world.
-layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer NormalBlock
+layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer PositionBlock
 {
     vec3 at[];
+};
+
+// A vertex's normal as one word — `packNormal` in `tangent.h` — and nought where the mesh has none.
+layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer NormalBlock
+{
+    uint at[];
 };
 
 layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer TexCoordBlock
@@ -237,11 +243,11 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) read
     vec2 at[];
 };
 
-// The per-vertex colour, in linear light and white where a mesh brought none — `Rtx::MeshArrays`
-// says why the decode is the host's and not this side's.
+// The per-vertex colour, in linear light as halves (`GpuVertexColour`) and white where a mesh brought
+// none — `Rtx::MeshArrays` says why the decode is the host's and not this side's.
 layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer ColourBlock
 {
-    vec3 at[];
+    GpuVertexColour at[];
 };
 
 layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer IndexBlock
@@ -272,24 +278,23 @@ NormalBlock normalBlockOf(uint vertex)
     return NormalBlock(BlockTable(frame.mTables.mNormalBlocks).at[vertex / VERTEX_BLOCK]);
 }
 
-/// The static meshes' positions, laid out as the colours are: a `NormalBlock` reads one, by the
-/// global vertex id.
-NormalBlock positionBlockOf(uint vertex)
+/// The static meshes' positions, laid out as the colours are, by the global vertex id.
+PositionBlock positionBlockOf(uint vertex)
 {
-    return NormalBlock(BlockTable(frame.mTables.mPositionBlocks).at[vertex / VERTEX_BLOCK]);
+    return PositionBlock(BlockTable(frame.mTables.mPositionBlocks).at[vertex / VERTEX_BLOCK]);
 }
 
 /// The pose blocks are laid out as the normals are — `SlotBlocks` of `VERTEX_BLOCK` positions —
-/// so a `NormalBlock` reads one; what differs is the id, which is the mesh's bind offset plus
+/// so a `PositionBlock` reads one; what differs is the id, which is the mesh's bind offset plus
 /// the vertex's index within the mesh, and the table, this frame's copy or the last one's.
-NormalBlock poseBlockOf(uint posed)
+PositionBlock poseBlockOf(uint posed)
 {
-    return NormalBlock(BlockTable(frame.mTables.mPoseBlocks).at[posed / VERTEX_BLOCK]);
+    return PositionBlock(BlockTable(frame.mTables.mPoseBlocks).at[posed / VERTEX_BLOCK]);
 }
 
-NormalBlock previousPoseBlockOf(uint posed)
+PositionBlock previousPoseBlockOf(uint posed)
 {
-    return NormalBlock(BlockTable(frame.mTables.mPreviousPoseBlocks).at[posed / VERTEX_BLOCK]);
+    return PositionBlock(BlockTable(frame.mTables.mPreviousPoseBlocks).at[posed / VERTEX_BLOCK]);
 }
 
 TangentBlock tangentBlockOf(uint vertex)
@@ -429,7 +434,7 @@ TexelTable sceneTexels()
 /// How many texels the texture in `slot` holds, which is what its mip level owes its own size.
 uint textureTexelsAt(uint slot)
 {
-    return sceneTexels().at[slot] & ~TEXTURE_STANDS_IN;
+    return sceneTexels().at[slot] & TEXTURE_TEXELS;
 }
 
 /// Whether `slot` holds what was named for it, in this frame's array.

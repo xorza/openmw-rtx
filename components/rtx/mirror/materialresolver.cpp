@@ -261,12 +261,6 @@ namespace Rtx
             return reading;
         }
 
-        // On the reader's thread, which every caller of this is, so the frame that takes the
-        // textures over hands the laid images to the upload and widens none of them.
-        for (TextureUse& use : reading.mDescribed->mTextures)
-            if (use.mImage != nullptr)
-                use.mLaid = thread.laidOf(*use.mImage);
-
         // Off the description the material is copied from, so the reader walks the texels of
         // exactly the images `describe` would.
         const SurfaceDescription& described = *reading.mDescribed;
@@ -450,11 +444,11 @@ namespace Rtx
                 std::string both(mThread.pathOf(*image).value());
                 both += '|';
                 both += mThread.pathOf(*partner).value();
-                slot = mScene.takeTexture(
-                    VFS::Path::NormalizedView(both.c_str()), *image, use.mWrap, encoding, nullptr, partner);
+                slot
+                    = mScene.takeTexture(VFS::Path::NormalizedView(both.c_str()), *image, use.mWrap, encoding, partner);
             }
             else
-                slot = mScene.takeTexture(mThread.pathOf(*image), *image, use.mWrap, encoding, use.mLaid.get());
+                slot = mScene.takeTexture(mThread.pathOf(*image), *image, use.mWrap, encoding);
             if (slot.empty())
                 held.mRefused.refuse(bit, freed);
         }

@@ -89,8 +89,7 @@ namespace
             { "αρχείο.log", write("journal.txt", "Crash: SIGSEGV at 0x10 in thread 7\n") },
         };
         const std::filesystem::path zip = mFolder / "package.zip";
-        const Misc::Result<void, std::string> written
-            = Crash::writePackage(zip, files, localOf(2026, 9, 27, 14, 30, 13));
+        const Result<void, std::string> written = Crash::writePackage(zip, files, localOf(2026, 9, 27, 14, 30, 13));
         ASSERT_TRUE(written.isOk()) << written.error();
 
         std::vector<CrashTests::ZipEntry> entries;
@@ -139,7 +138,7 @@ namespace
         for (const Case& one : cases)
         {
             const std::filesystem::path zip = mFolder / "stamped.zip";
-            const Misc::Result<void, std::string> written = Crash::writePackage(zip, files, one.mLocal);
+            const Result<void, std::string> written = Crash::writePackage(zip, files, one.mLocal);
             ASSERT_TRUE(written.isOk()) << written.error();
             std::vector<CrashTests::ZipEntry> entries;
             ASSERT_EQ(CrashTests::readZip(zip, entries), std::nullopt);
@@ -149,9 +148,9 @@ namespace
     }
 
     /// **Every way a package fails says why, and leaves nothing behind**: a source that is gone, a
-    /// source that is a folder, which has no size to read to, a destination whose
-    /// folder is gone, and a destination a folder already holds, which fails at the rename, after
-    /// the whole archive was written. Neither the zip nor the part it was written as is left.
+    /// source that is a folder, which does not read, a destination whose folder is gone, and a
+    /// destination a folder already holds, which fails at the rename, after the whole archive was
+    /// written. Neither the zip nor the temporary it was written as is left.
     TEST_F(CrashPackageTest, everyFailureSaysWhyAndLeavesNothing)
     {
         const std::filesystem::path log = write("openmw.log", "log");
@@ -173,15 +172,15 @@ namespace
             { "a source that is a folder", { { "openmw.log", log }, { "folder.dmp", folder } }, mFolder / "b.zip",
                 Files::pathToUnicodeString(folder) + " could not be read" },
             { "a destination whose folder is gone", { { "openmw.log", log } }, mFolder / "absent" / "c.zip",
-                " could not be made" },
+                Files::pathToUnicodeString(mFolder / "absent" / "c.zip") + " could not be written" },
             { "a destination a folder holds", { { "openmw.log", log } }, mFolder / "taken.zip",
-                Files::pathToUnicodeString(mFolder / "taken.zip") + " could not be put in place" },
+                Files::pathToUnicodeString(mFolder / "taken.zip") + " could not be written" },
         };
 
         const std::vector<std::filesystem::path> before = contents();
         for (const Case& one : cases)
         {
-            const Misc::Result<void, std::string> written
+            const Result<void, std::string> written
                 = Crash::writePackage(one.mZip, one.mFiles, localOf(2026, 9, 27, 14, 30, 13));
             ASSERT_FALSE(written.isOk()) << one.mName;
             EXPECT_NE(written.error().find(one.mSays), std::string::npos) << one.mName << ": " << written.error();
@@ -418,7 +417,7 @@ namespace
         const Crash::SessionPackage refused
             = Crash::writeSessionPackage(mFolder / "absent", "OpenMW", log, { &dump, 1 }, local);
         EXPECT_EQ(refused.mZip, std::filesystem::path());
-        EXPECT_NE(refused.mFailure.find(" could not be made"), std::string::npos) << refused.mFailure;
+        EXPECT_NE(refused.mFailure.find(" could not be written"), std::string::npos) << refused.mFailure;
 
         EXPECT_EQ(contents(), before);
     }

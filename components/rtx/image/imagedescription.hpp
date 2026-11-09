@@ -34,7 +34,7 @@ namespace Rtx
     /// Whether this renderer uploads `image` as `encoding`, and why not where it does not: a format
     /// Morrowind does not produce, or an image of no size or no texels. The name is left to
     /// whoever reports it.
-    Misc::Result<void, std::string> checkUploadable(
+    Result<void, std::string> checkUploadable(
         const osg::Image& image, TextureEncoding encoding = TextureEncoding::Colour);
 
     /// How many bytes `describeImage` lays into its `texels` for `image`, which is what a
@@ -54,32 +54,23 @@ namespace Rtx
     /// backend completes a chain the file did not carry, on the device. An error, adding nothing,
     /// where `checkUploadable` answers one, or where the format's layout and OpenSceneGraph's
     /// count the image's bytes differently.
-    Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, TextureEncoding encoding,
+    Result<TextureData, std::string> describeImage(const osg::Image& image, TextureEncoding encoding,
         std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
 
     /// `describeImage` of an image whose format the caller has read already, as `encoding`
     /// (`readFormat`).
-    Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, TextureFormat format,
+    Result<TextureData, std::string> describeImage(const osg::Image& image, TextureFormat format,
         TextureEncoding encoding, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
-
-    /// `image` as `describeImage` lays it where `format` is one it widens: every level it keeps, the
-    /// first slice of a volume, each texel as RGBA8, in an image of its own under the same name. An
-    /// image `describeImage` spans where it is, so a thread off the frame pays the widening and the
-    /// frame's hand-over reads the bytes as they stand. Null where `format` is not widened, or where
-    /// `describeImage` refuses the image, which then answers for itself. `levels` and `texels` are
-    /// the caller's scratch, cleared and refilled.
-    osg::ref_ptr<const osg::Image> layImage(
-        const osg::Image& image, TextureFormat format, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
 
     /// `describeImage` of the finest level alone, as a colour, for a reader of nothing else: the
     /// coarser levels are neither held against OpenSceneGraph's count nor laid, and a volume's first
     /// slice of it is spanned where it lies.
-    Misc::Result<TextureData, std::string> describeFinestLevel(
+    Result<TextureData, std::string> describeFinestLevel(
         const osg::Image& image, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
 
     /// The image at `path`, or why nothing reads there — an error and not an exception, because a
     /// live scene graph names textures that were never files and a renderer that fell over on one
     /// would fall over on a cell. Never null.
-    Misc::Result<osg::ref_ptr<const osg::Image>, std::string> openImage(
+    Result<osg::ref_ptr<const osg::Image>, std::string> openImage(
         Resource::ImageManager& images, VFS::Path::NormalizedView path);
 }

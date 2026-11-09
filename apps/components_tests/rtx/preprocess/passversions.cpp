@@ -12,6 +12,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/misc/bytebuffer.hpp>
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
@@ -32,7 +33,7 @@ namespace Rtx
         template <class Output>
         std::uint64_t digestOf(const Output& output)
         {
-            std::vector<std::byte> payload;
+            Misc::ByteBuffer payload;
             ContentCodec<Output>::encode(output, payload);
             ContentDigest digest("guard", 0);
             digest.add(std::span<const std::byte>(payload));
@@ -99,7 +100,7 @@ namespace Rtx
         /// **Every stored pass's version is held to what it computes**: each runs over fixed inputs,
         /// and the digest of what its codec files is recorded beside its `sVersion`. An output that
         /// moves while the version stays fails here, so a forgotten bump cannot hand a store's old
-        /// output to a new build (`.notes/content-cache.md`, "A pass's version is held by a test").
+        /// output to a new build (`docs/rtx/architecture.md`, "A pass's version is held by a test").
         /// **Where this fails, raise the pass's `sVersion` and record both again**: the store files
         /// every output of the new version apart from the old.
         TEST(RtxPassVersionsTest, everyStoredPassComputesWhatItsVersionRecords)
@@ -165,14 +166,14 @@ namespace Rtx
                 Recorded{ "conversion", ConversionPass::sVersion, digestOf(converted) },
             };
             const std::array recorded{
-                Recorded{ "shape", 3, 0xea9852832b8ceb62 },
+                Recorded{ "shape", 4, 0xfe8b49f90aed1c6d },
                 Recorded{ "texel mean", 1, 0xfaa7e2c796ee8c55 },
                 Recorded{ "alpha span", 1, 0xb02496efa84a6d00 },
-                Recorded{ "chain in BC7", 5, 0xc9f191cc7fdae1aa },
-                Recorded{ "coarser chain", 5, 0x5f247501ba043a44 },
-                Recorded{ "painted chain", 5, 0xdc5310c2a2fefd7d },
+                Recorded{ "chain in BC7", 7, 0xfa7ed3b85133af96 },
+                Recorded{ "coarser chain", 7, 0xece598d212e9cf22 },
+                Recorded{ "painted chain", 7, 0xfa62c3fe1604e007 },
                 Recorded{ "specular kind", 1, 0x5eac70df15eeb2ef },
-                Recorded{ "conversion", 1, 0xdd2dc0fc077e0eb3 },
+                Recorded{ "conversion", 4, 0x3cf77b53dd5e0330 },
             };
             for (std::size_t at = 0; at < computed.size(); ++at)
             {

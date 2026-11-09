@@ -63,7 +63,7 @@ namespace Rtx
                 << textRefusal;
 
             const std::string missingRefusal = refusalOf(root / "missing.spv");
-            EXPECT_NE(missingRefusal.find("cannot open"), std::string::npos) << missingRefusal;
+            EXPECT_NE(missingRefusal.find("cannot read"), std::string::npos) << missingRefusal;
         }
     }
 }

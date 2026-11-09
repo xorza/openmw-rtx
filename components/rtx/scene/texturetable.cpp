@@ -39,7 +39,7 @@ namespace Rtx
     }
 
     Index TextureTable::add(const VFS::Path::NormalizedView path, const osg::Image* const image, const TextureWrap wrap,
-        const TextureEncoding encoding, const osg::Image* const laid, const osg::Image* const partner)
+        const TextureEncoding encoding, const osg::Image* const partner)
     {
         assert((partner != nullptr) == (isConverted(encoding) && image != nullptr)
             && "a converted slot is two files, and no other slot is");
@@ -60,7 +60,6 @@ namespace Rtx
             .mWrap = wrap,
             .mEncoding = encoding,
             .mImage = image,
-            .mLaid = laid,
             .mPartner = partner,
             .mFormat = format,
         });
@@ -81,9 +80,9 @@ namespace Rtx
     }
 
     Index TextureTable::take(const VFS::Path::NormalizedView path, const osg::Image& image, const TextureWrap wrap,
-        const TextureEncoding encoding, const osg::Image* const laid, const osg::Image* const partner)
+        const TextureEncoding encoding, const osg::Image* const partner)
     {
-        const Index slot = add(path, &image, wrap, encoding, laid, partner);
+        const Index slot = add(path, &image, wrap, encoding, partner);
         hold(slot);
         return slot;
     }

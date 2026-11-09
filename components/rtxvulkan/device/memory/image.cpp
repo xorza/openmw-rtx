@@ -119,14 +119,14 @@ namespace Rtx
         return requirements.memoryRequirements;
     }
 
-    Misc::Result<Image, std::string_view> Image::tryMake(
+    Result<Image, std::string_view> Image::tryMake(
         const MemoryUse use, const Device& device, const ImageDescription& description, const std::string_view name)
     {
         Image made(Unbound{}, device, description, name);
-        Misc::Result<DeviceMemory, std::string_view> memory
+        Result<DeviceMemory, std::string_view> memory
             = device.getMemory().tryTake(made.mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use);
         if (!memory.isOk())
-            return Misc::Err{ memory.error() };
+            return Err{ memory.error() };
 
         made.mMemory = std::move(memory.value());
         made.bind(made.mMemory.getHandle(), made.mMemory.getOffset(), name);

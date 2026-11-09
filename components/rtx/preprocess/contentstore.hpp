@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include <components/misc/bytebuffer.hpp>
 #include <components/rtx/common/monitor.hpp>
 #include <components/rtx/common/worker.hpp>
 
@@ -26,7 +27,7 @@ namespace Rtx
     /// A key's hash for the store's tables: its first word, since a key is a hash already.
     struct ContentKeyHash
     {
-        std::size_t operator()(const ContentKey& key) const { return static_cast<std::size_t>(key.mHash[0]); }
+        std::size_t operator()(const ContentKey& key) const noexcept { return static_cast<std::size_t>(key.mHash[0]); }
     };
 
     /// What a store did since it was made, for a report and a test.
@@ -38,7 +39,7 @@ namespace Rtx
         /// Asks no entry answered: no file, or one this refused.
         std::uint64_t mMissed = 0;
 
-        /// Files refused and deleted: a wrong header, length or digest, or a payload its pass could not
+        /// Files refused and deleted: a wrong trailer, length or digest, or a payload its pass could not
         /// read (`discard`).
         std::uint64_t mRefused = 0;
 
@@ -50,9 +51,7 @@ namespace Rtx
         /// whose file stood.
         std::uint64_t mStamped = 0;
 
-        /// Entries a sweep removed to bring the store under its cap, at the start or past the cap in
-        /// a session, and temporary files a sweep removed that a killed process left.
-        std::uint64_t mEvicted = 0;
+        /// Temporary files the start's sweep removed that a killed process left.
         std::uint64_t mStale = 0;
     };
 
@@ -66,12 +65,12 @@ namespace Rtx
 
     /// The content's derived data, kept on disk across sessions: one file per entry under its key, in
     /// 256 folders named by the key's first byte, as ccache and Bazel's disk cache keep theirs
-    /// (`.notes/content-cache.md`, the store's decisions). **Every file is untrusted data**: its own
-    /// header states the pass, its version, its key and its payload's length and digest, and a file
-    /// that does not match is a miss and is deleted. **Bounded by a cap, the least recently used
-    /// leaving first**, by each file's time, which a hit sets once a session: at the start, and
-    /// again whenever a session's writes pass it. **Nothing here fails
-    /// loudly**: a directory that cannot be made or written is a store that misses.
+    /// (`docs/rtx/architecture.md`, "One file an entry, and every entry untrusted"). **Every file is
+    /// untrusted data**: its own trailer states the pass, its version, its key and its payload's length
+    /// and digest, and a file that does not match is a miss and is deleted. **No cap, by the user's
+    /// decision**: an entry stays until its file is refused or deleted by hand; each file's time, which
+    /// a hit sets once a session, ranks what the start loads into memory. **Nothing here fails loudly**: a
+    /// directory that cannot be made or written is a store that misses.
     ///
     /// One for a process, shared by every thread's cache. Reads run on the asking thread; writes,
     /// stamps, the start's sweep and the loading of the small entries into memory run on a thread of
@@ -79,36 +78,33 @@ namespace Rtx
     class ContentStore
     {
     public:
-        /// The cap a game's store keeps to, by the user's decision.
-        static constexpr std::uint64_t sGameCap = std::uint64_t{ 16 } << 30;
-
-        /// The most bytes of payload the queue holds; a write past it is dropped. Tens of megabytes
-        /// against the largest entry the passes make, so a burst of misses at a cell's arrival
-        /// queues whole.
+        /// The most bytes of payload the queue holds, past which a write waits or is dropped (`write`). Tens of
+        /// megabytes against the largest entry the passes make, so a burst of misses at a cell's arrival queues whole.
         static constexpr std::size_t sQueuedMost = std::size_t{ 64 } << 20;
 
         /// The longest payload a file may say it holds before it is refused unread: past any pass's
-        /// output, so a header a fault wrote cannot ask for gigabytes.
+        /// output, so a trailer a fault wrote cannot ask for gigabytes.
         static constexpr std::uint64_t sPayloadMost = std::uint64_t{ 1 } << 30;
 
-        /// The largest payload held in memory once read or written, and loaded at start: a fact,
-        /// whose file read on the frame's thread would be a wait on the disk.
+        /// The largest payload held in memory once read or written, and loaded at start, but a shape's,
+        /// held at any size: a fact or a shape, whose file read on the frame's thread would be a wait on
+        /// the disk, and a shape the frame would otherwise compute again.
         static constexpr std::size_t sResidentMost = 4096;
 
-        /// The most bytes of payload held in memory, past which a small entry is read from its file
-        /// again: tens of thousands of facts of a few dozen bytes, with room to spare.
+        /// The most bytes held in memory, each entry's payload and its node in the table, past which an
+        /// entry is read from its file again: tens of thousands of facts and the shapes a few cells
+        /// read, with room to spare.
         static constexpr std::size_t sResidentBytesMost = std::size_t{ 64 } << 20;
 
-        /// How long a temporary file may stand before the sweep takes it for one a killed process
-        /// left: well past any write's length, so no live write is swept.
-        static constexpr std::chrono::hours sStaleAfter{ 24 };
+        /// The most keys a session remembers stamping, past which a hit stamps its file again: ten times
+        /// the files a large content list's store holds, its writes included.
+        static constexpr std::size_t sStampedMost = std::size_t{ 1 } << 20;
 
-        /// The file format's version, in every header; a file of another is a miss.
-        static constexpr std::uint32_t sFormat = 1;
+        /// The file format's version, in every trailer; a file of another is a miss.
+        static constexpr std::uint32_t sFormat = 2;
 
         /// @param directory where the store stands, made if it is not there.
-        /// @param cap the most bytes of files it keeps after the start's sweep.
-        ContentStore(std::filesystem::path directory, std::uint64_t cap);
+        explicit ContentStore(std::filesystem::path directory);
 
         /// Finishes every write and stamp handed so far, then stops its thread.
         ~ContentStore();
@@ -121,12 +117,19 @@ namespace Rtx
         /// The entry `key` filed for `pass` at `version`, into `payload`, answering whether a whole
         /// one was there within `reach`. A refused file is deleted.
         bool read(const ContentKey& key, ContentPassId pass, std::uint32_t version, StoreReach reach,
-            std::vector<std::byte>& payload);
+            Misc::ByteBuffer& payload);
 
-        /// Files `payload` under `key` for `pass` at `version`, on the store's thread. Dropped where
-        /// the queue holds `sQueuedMost`, which a later ask answers as a miss.
-        void write(
-            const ContentKey& key, ContentPassId pass, std::uint32_t version, std::span<const std::byte> payload);
+        /// Whether an entry stands under `key` within `reach`, held in memory or as a file, with nothing
+        /// of it read: one `stat`, and the session's stamp queued as a hit queues it. The file is not
+        /// checked, which its reader does: what a preparation asks, which needs the entry stored and
+        /// not its bytes.
+        bool holds(const ContentKey& key, StoreReach reach);
+
+        /// Files `payload` under `key` for `pass` at `version`, on the store's thread, once the queue has
+        /// room for it, `sQueuedMost`, or is empty: a writer that reaches the disk waits for room, and one
+        /// that reaches memory alone drops it, which a later ask answers as a miss.
+        void write(const ContentKey& key, ContentPassId pass, std::uint32_t version, Misc::ByteBuffer payload,
+            StoreReach reach);
 
         /// Deletes the entry `key` filed, whose payload its pass could not read, on the store's thread:
         /// a write of the output run in its place finds no file and writes it.
@@ -141,13 +144,6 @@ namespace Rtx
 
         /// Where the entry `key` stands.
         std::filesystem::path pathOf(const ContentKey& key) const;
-
-        /// The temporary this store's `write`th write goes through for `key` before its rename, named
-        /// for the process, the store and the write: no other writer of the folder, in this process or
-        /// another, names it while this one is live. A store of its own in the name, since two stores
-        /// in one process count their writes alike, and on Windows the second's open of a shared name
-        /// failed and its clean-up deleted the first's file under it.
-        std::filesystem::path partialOf(const ContentKey& key, std::uint64_t write) const;
 
     private:
         enum class TaskKind
@@ -164,7 +160,7 @@ namespace Rtx
             ContentKey mKey{};
             ContentPassId mPass = ContentPassId::Count;
             std::uint32_t mVersion = 0;
-            std::vector<std::byte> mPayload{};
+            Misc::ByteBuffer mPayload{};
         };
 
         /// What an entry is: its pass and version, which an ask holds against its own, and its
@@ -173,12 +169,12 @@ namespace Rtx
         {
             ContentPassId mPass;
             std::uint32_t mVersion;
-            std::vector<std::byte> mPayload;
+            Misc::ByteBuffer mPayload;
         };
 
         void serve(const Platform::StopToken& stop);
         void run(Task& task);
-        /// The start's work: the sweep to the cap, and the small entries loaded into memory.
+        /// The start's work: the sweep of stale temporaries, and the small entries loaded into memory.
         void start();
         void writeFile(const Task& task);
         void stampFile(const ContentKey& key);
@@ -186,9 +182,17 @@ namespace Rtx
         /// Reads the file at `path` for `key` into `pass`, `version` and `payload`, answering whether
         /// it was whole; refuses and deletes it where it was not. Nothing where there is no file.
         bool readFile(const std::filesystem::path& path, const ContentKey& key, ContentPassId& pass,
-            std::uint32_t& version, std::vector<std::byte>& payload);
+            std::uint32_t& version, Misc::ByteBuffer& payload);
 
-        /// Holds `payload` in memory under `key` where it is small enough (`sResidentMost`).
+        /// What an entry of `payloadBytes` costs `mResidentBytes`: its payload and its node.
+        static std::size_t residentBytesOf(std::size_t payloadBytes);
+
+        /// Whether a hit on `key` stamps its file now: true the first time this session, which notes the
+        /// key, and false after it; true every time for a key met once `sStampedMost` keys are noted,
+        /// since no more are remembered. Under the lock.
+        bool stampsOnce(const ContentKey& key);
+
+        /// Holds `payload` in memory under `key` where it is small enough or a shape (`sResidentMost`).
         /// Under the lock.
         void keepResident(
             const ContentKey& key, ContentPassId pass, std::uint32_t version, std::span<const std::byte> payload);
@@ -196,7 +200,6 @@ namespace Rtx
         void refuse(const std::filesystem::path& path);
 
         const std::filesystem::path mDirectory;
-        const std::uint64_t mCap;
 
         /// What the store's thread and every asking thread share, under `mMonitor`.
         Monitor mMonitor;
@@ -208,10 +211,9 @@ namespace Rtx
         std::size_t mResidentBytes = 0;
         ContentStoreStats mStats;
 
-        /// How many temporary files the store's thread has named, and how many bytes of entries it
-        /// counts in the folder: what it alone reads.
-        std::uint64_t mPartials = 0;
-        std::uint64_t mStoredBytes = 0;
+        /// Whether a failed write was logged: the first is, and the rest are counted (`mDropped`), as a
+        /// full disk fails every write after it. The store's thread alone.
+        bool mWriteFailureLogged = false;
 
         /// Last, for the reason `Worker` gives.
         Worker mWorker;

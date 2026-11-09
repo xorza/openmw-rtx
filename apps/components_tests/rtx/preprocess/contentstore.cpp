@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <components/files/conversion.hpp>
+#include <components/misc/bytebuffer.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstore.hpp>
@@ -33,9 +34,9 @@ namespace Rtx
         /// Past `ContentStore::sResidentMost`, so the store reads it from its file and not from memory.
         constexpr std::size_t sLarge = 5000;
 
-        std::vector<std::byte> payloadOf(std::size_t bytes, unsigned seed)
+        Misc::ByteBuffer payloadOf(std::size_t bytes, unsigned seed)
         {
-            std::vector<std::byte> payload(bytes);
+            Misc::ByteBuffer payload(bytes);
             for (std::size_t at = 0; at < bytes; ++at)
                 payload[at] = static_cast<std::byte>((at * 31 + seed) & 0xffu);
             return payload;
@@ -70,10 +71,10 @@ namespace Rtx
         TEST(RtxContentStoreTest, anEntryWrittenIsReadBackWholeByAnotherStoreOnTheSameFolder)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            const std::vector<std::byte> payload = payloadOf(sLarge, 7);
+            const Misc::ByteBuffer payload = payloadOf(sLarge, 7);
             {
-                ContentStore store(folder, ContentStore::sGameCap);
-                store.write(sKey, ContentPassId::AlphaSpan, 3, payload);
+                ContentStore store(folder);
+                store.write(sKey, ContentPassId::AlphaSpan, 3, payload, StoreReach::Disk);
                 store.flush();
                 EXPECT_EQ(store.getStats().mWritten, 1u);
                 EXPECT_EQ(store.pathOf(sKey), folder / "01" / "0123456789abcdeffedcba9876543210");
@@ -82,9 +83,9 @@ namespace Rtx
                 std::filesystem::file_size(folder / "01" / "0123456789abcdeffedcba9876543210"), sHeaderBytes + sLarge);
             EXPECT_EQ(countFiles(folder, ".partial"), 0u) << "the temporary was renamed into place";
 
-            ContentStore again(folder, ContentStore::sGameCap);
+            ContentStore again(folder);
             again.flush();
-            std::vector<std::byte> read;
+            Misc::ByteBuffer read;
             EXPECT_FALSE(again.read(sKey, ContentPassId::AlphaSpan, 3, StoreReach::Memory, read))
                 << "too large to be held in memory, so the frame's reach does not find it";
             ASSERT_TRUE(again.read(sKey, ContentPassId::AlphaSpan, 3, StoreReach::Disk, read));
@@ -102,21 +103,39 @@ namespace Rtx
         TEST(RtxContentStoreTest, aSmallEntryIsHeldInMemoryFromTheStart)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            const std::vector<std::byte> payload = payloadOf(16, 3);
+            const Misc::ByteBuffer payload = payloadOf(16, 3);
             {
-                ContentStore store(folder, ContentStore::sGameCap);
-                store.write(sKey, ContentPassId::TexelMean, 1, payload);
+                ContentStore store(folder);
+                store.write(sKey, ContentPassId::TexelMean, 1, payload, StoreReach::Disk);
             }
 
-            ContentStore again(folder, ContentStore::sGameCap);
+            ContentStore again(folder);
             again.flush();
             std::filesystem::remove(again.pathOf(sKey));
 
-            std::vector<std::byte> read;
+            Misc::ByteBuffer read;
             ASSERT_TRUE(again.read(sKey, ContentPassId::TexelMean, 1, StoreReach::Memory, read));
             EXPECT_EQ(read, payload);
             EXPECT_FALSE(again.read(sKey, ContentPassId::TexelMean, 2, StoreReach::Memory, read))
                 << "held for another version";
+        }
+
+        /// **A shape is held in memory at any size, and nothing else past `sResidentMost`**: one of 4097
+        /// bytes written is found by the frame's reach, which reads memory alone, and a texel mean of the
+        /// same size is not.
+        TEST(RtxContentStoreTest, aShapeIsHeldInMemoryAtAnySize)
+        {
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
+            const Misc::ByteBuffer large = payloadOf(ContentStore::sResidentMost + 1, 5);
+            const ContentKey shapeKey{ .mHash = { 11, 12 } };
+            const ContentKey meanKey{ .mHash = { 13, 14 } };
+            store.write(shapeKey, ContentPassId::Shape, 1, large, StoreReach::Disk);
+            store.write(meanKey, ContentPassId::TexelMean, 1, large, StoreReach::Disk);
+
+            Misc::ByteBuffer read;
+            ASSERT_TRUE(store.read(shapeKey, ContentPassId::Shape, 1, StoreReach::Memory, read));
+            EXPECT_EQ(read, large);
+            EXPECT_FALSE(store.read(meanKey, ContentPassId::TexelMean, 1, StoreReach::Memory, read));
         }
 
         /// **Every file is untrusted**: a file shorter than its header, one whose magic, format, key,
@@ -146,18 +165,18 @@ namespace Rtx
             {
                 const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / fault.mName;
                 {
-                    ContentStore store(folder, ContentStore::sGameCap);
-                    store.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 1));
+                    ContentStore store(folder);
+                    store.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 1), StoreReach::Disk);
                 }
 
-                ContentStore again(folder, ContentStore::sGameCap);
+                ContentStore again(folder);
                 again.flush();
                 const std::filesystem::path path = again.pathOf(sKey);
                 std::vector<char> bytes = readAll(path);
                 fault.mSpoil(bytes);
                 writeAll(path, bytes);
 
-                std::vector<std::byte> read;
+                Misc::ByteBuffer read;
                 EXPECT_FALSE(again.read(sKey, ContentPassId::AlphaSpan, fault.mAskedVersion, StoreReach::Disk, read))
                     << fault.mName;
                 EXPECT_FALSE(std::filesystem::exists(path)) << fault.mName;
@@ -165,11 +184,10 @@ namespace Rtx
             }
         }
 
-        /// **The sweep keeps the store under its cap, the least recently used leaving first**: three
-        /// entries of 5056 bytes, last used three, two and one hours ago, under a cap of two of them,
-        /// lose the oldest alone. A temporary file two days old is one a killed process left and
-        /// goes; one written now is a live write and stays.
-        TEST(RtxContentStoreTest, theSweepRemovesTheLeastRecentlyUsedPastTheCapAndStaleTemporaries)
+        /// **The sweep removes stale temporaries and no entry**: the store has no cap, so three entries
+        /// last used three, two and one hours ago all stay. A temporary file two days old is one a killed
+        /// process left and goes; one written now is a live write and stays.
+        TEST(RtxContentStoreTest, theSweepRemovesStaleTemporariesAndNoEntry)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             const auto now = std::filesystem::file_time_type::clock::now();
@@ -177,10 +195,10 @@ namespace Rtx
             std::filesystem::path middle;
             std::filesystem::path newest;
             {
-                ContentStore store(folder, ContentStore::sGameCap);
-                store.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 1));
-                store.write(sOther, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 2));
-                store.write(sThird, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 3));
+                ContentStore store(folder);
+                store.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 1), StoreReach::Disk);
+                store.write(sOther, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 2), StoreReach::Disk);
+                store.write(sThird, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 3), StoreReach::Disk);
                 store.flush();
                 oldest = store.pathOf(sKey);
                 middle = store.pathOf(sOther);
@@ -196,36 +214,14 @@ namespace Rtx
             writeAll(live, { 'x' });
             std::filesystem::last_write_time(stale, now - std::chrono::hours(48));
 
-            ContentStore swept(folder, 2 * (sHeaderBytes + sLarge));
+            ContentStore swept(folder);
             swept.flush();
-            EXPECT_FALSE(std::filesystem::exists(oldest));
+            EXPECT_TRUE(std::filesystem::exists(oldest));
             EXPECT_TRUE(std::filesystem::exists(middle));
             EXPECT_TRUE(std::filesystem::exists(newest));
             EXPECT_FALSE(std::filesystem::exists(stale));
             EXPECT_TRUE(std::filesystem::exists(live));
-
-            const ContentStoreStats stats = swept.getStats();
-            EXPECT_EQ(stats.mEvicted, 1u);
-            EXPECT_EQ(stats.mStale, 1u);
-        }
-
-        /// **The cap holds within a session too**: a store of a cap of two and a half entries that
-        /// writes three passes it at the third, and sweeps to nine tenths of the cap, 11 376 bytes,
-        /// which two of 5056 fit under and three do not, so one entry goes and two stay.
-        TEST(RtxContentStoreTest, aSessionsWritesPastTheCapSweepTheLeastRecentlyUsed)
-        {
-            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            const std::uint64_t cap = 5 * (sHeaderBytes + sLarge) / 2;
-            ContentStore store(folder, cap);
-            store.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 1));
-            store.write(sOther, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 2));
-            store.flush();
-            EXPECT_EQ(store.getStats().mEvicted, 0u) << "two entries are under the cap";
-
-            store.write(sThird, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 3));
-            store.flush();
-            EXPECT_EQ(store.getStats().mEvicted, 1u);
-            EXPECT_EQ(countFiles(folder, ""), 2u) << "two of the three entries stand";
+            EXPECT_EQ(swept.getStats().mStale, 1u);
         }
 
         /// **A hit stamps its file's time once a session**, so the next start's sweep counts it as
@@ -236,16 +232,16 @@ namespace Rtx
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             const auto now = std::filesystem::file_time_type::clock::now();
             {
-                ContentStore store(folder, ContentStore::sGameCap);
-                store.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 1));
+                ContentStore store(folder);
+                store.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 1), StoreReach::Disk);
             }
 
-            ContentStore again(folder, ContentStore::sGameCap);
+            ContentStore again(folder);
             again.flush();
             const std::filesystem::path path = again.pathOf(sKey);
             std::filesystem::last_write_time(path, now - std::chrono::hours(48));
 
-            std::vector<std::byte> read;
+            Misc::ByteBuffer read;
             ASSERT_TRUE(again.read(sKey, ContentPassId::AlphaSpan, 3, StoreReach::Disk, read));
             again.flush();
             EXPECT_GT(std::filesystem::last_write_time(path), now - std::chrono::minutes(1));
@@ -264,23 +260,23 @@ namespace Rtx
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             const auto now = std::filesystem::file_time_type::clock::now();
-            const std::vector<std::byte> first = payloadOf(sLarge, 1);
+            const Misc::ByteBuffer first = payloadOf(sLarge, 1);
             {
-                ContentStore store(folder, ContentStore::sGameCap);
-                store.write(sKey, ContentPassId::AlphaSpan, 3, first);
+                ContentStore store(folder);
+                store.write(sKey, ContentPassId::AlphaSpan, 3, first, StoreReach::Disk);
             }
 
-            ContentStore again(folder, ContentStore::sGameCap);
+            ContentStore again(folder);
             again.flush();
             const std::filesystem::path path = again.pathOf(sKey);
             std::filesystem::last_write_time(path, now - std::chrono::hours(48));
-            again.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 2));
+            again.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(sLarge, 2), StoreReach::Disk);
             again.flush();
 
             EXPECT_EQ(again.getStats().mWritten, 0u);
             EXPECT_EQ(again.getStats().mStamped, 1u);
             EXPECT_GT(std::filesystem::last_write_time(path), now - std::chrono::minutes(1));
-            std::vector<std::byte> read;
+            Misc::ByteBuffer read;
             ASSERT_TRUE(again.read(sKey, ContentPassId::AlphaSpan, 3, StoreReach::Disk, read));
             EXPECT_EQ(read, first);
         }
@@ -290,13 +286,13 @@ namespace Rtx
         TEST(RtxContentStoreTest, aDiscardedEntryIsGoneFromMemoryAndFromItsFolder)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            ContentStore store(folder, ContentStore::sGameCap);
-            store.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(16, 1));
+            ContentStore store(folder);
+            store.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(16, 1), StoreReach::Disk);
             store.flush();
             ASSERT_TRUE(std::filesystem::exists(store.pathOf(sKey)));
 
             store.discard(sKey);
-            std::vector<std::byte> read;
+            Misc::ByteBuffer read;
             EXPECT_FALSE(store.read(sKey, ContentPassId::AlphaSpan, 3, StoreReach::Memory, read)) << "held still";
             store.flush();
             EXPECT_FALSE(std::filesystem::exists(store.pathOf(sKey)));
@@ -304,42 +300,48 @@ namespace Rtx
             EXPECT_EQ(store.getStats().mRefused, 1u);
         }
 
-        /// **The queue is bounded**: a payload past what it holds is dropped and counted, and no file
-        /// is written for it.
-        TEST(RtxContentStoreTest, aWritePastTheQueuesBoundIsDropped)
+        /// **An empty queue admits any write, and a writer that reaches the disk never drops one**: one
+        /// payload past the queue's bound, the queue empty, is written; and two that together pass it,
+        /// written from a reach to the disk, are both written, the second waiting for room where the
+        /// first still stood in the queue.
+        TEST(RtxContentStoreTest, anEmptyQueueAdmitsAnyWriteAndADiskWriterNeverDrops)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            ContentStore store(folder, ContentStore::sGameCap);
-            store.write(sKey, ContentPassId::AlphaSpan, 3, payloadOf(ContentStore::sQueuedMost + 1, 0));
+            ContentStore store(folder);
+            store.write(
+                sKey, ContentPassId::AlphaSpan, 3, payloadOf(ContentStore::sQueuedMost + 1, 0), StoreReach::Memory);
             store.flush();
+            EXPECT_EQ(store.getStats().mWritten, 1u);
+            EXPECT_EQ(store.getStats().mDropped, 0u);
+            EXPECT_TRUE(std::filesystem::exists(store.pathOf(sKey)));
 
+            const std::size_t half = ContentStore::sQueuedMost / 2 + 1;
+            store.write(sOther, ContentPassId::AlphaSpan, 3, payloadOf(half, 1), StoreReach::Disk);
+            const ContentKey third{ .mHash = { 3, 4 } };
+            store.write(third, ContentPassId::AlphaSpan, 3, payloadOf(half, 2), StoreReach::Disk);
+            store.flush();
             const ContentStoreStats stats = store.getStats();
-            EXPECT_EQ(stats.mDropped, 1u);
-            EXPECT_EQ(stats.mWritten, 0u);
-            EXPECT_FALSE(std::filesystem::exists(store.pathOf(sKey)));
+            EXPECT_EQ(stats.mWritten, 3u);
+            EXPECT_EQ(stats.mDropped, 0u);
+            EXPECT_TRUE(std::filesystem::exists(store.pathOf(third)));
         }
 
         /// **Two stores writing one key leave one whole entry**, as a game and a tool may: each
-        /// writes through a temporary of its own and renames it into place. Two stores of one process
-        /// name their first write's temporary apart, and one store names its first and second apart.
+        /// writes whole (`Platform::writeWhole`), through a temporary of its own.
         TEST(RtxContentStoreTest, twoStoresWritingOneKeyLeaveOneWholeEntry)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            const std::vector<std::byte> payload = payloadOf(sLarge, 9);
+            const Misc::ByteBuffer payload = payloadOf(sLarge, 9);
             {
-                ContentStore first(folder, ContentStore::sGameCap);
-                ContentStore second(folder, ContentStore::sGameCap);
-                EXPECT_NE(first.partialOf(sKey, 0), second.partialOf(sKey, 0));
-                EXPECT_NE(first.partialOf(sKey, 0), first.partialOf(sKey, 1));
-                EXPECT_EQ(first.partialOf(sKey, 0).parent_path(), first.pathOf(sKey).parent_path())
-                    << "in the entry's own folder, so the rename stays on one volume";
-                first.write(sKey, ContentPassId::AlphaSpan, 3, payload);
-                second.write(sKey, ContentPassId::AlphaSpan, 3, payload);
+                ContentStore first(folder);
+                ContentStore second(folder);
+                first.write(sKey, ContentPassId::AlphaSpan, 3, payload, StoreReach::Disk);
+                second.write(sKey, ContentPassId::AlphaSpan, 3, payload, StoreReach::Disk);
             }
             EXPECT_EQ(countFiles(folder, ".partial"), 0u);
 
-            ContentStore reader(folder, ContentStore::sGameCap);
-            std::vector<std::byte> read;
+            ContentStore reader(folder);
+            Misc::ByteBuffer read;
             ASSERT_TRUE(reader.read(sKey, ContentPassId::AlphaSpan, 3, StoreReach::Disk, read));
             EXPECT_EQ(read, payload);
         }

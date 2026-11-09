@@ -298,7 +298,7 @@ add_component_dir (esm4
 )
 
 add_component_dir (misc
-    barrier budgetmeasurement color compression constants convert coordinateconverter display endianness float16 frameclock frameratelimiter framestats
+    barrier budgetmeasurement bytebuffer color compression constants convert coordinateconverter display endianness float16 frameclock frameratelimiter framestats
     guarded math mathutil messageformatparser notnullptr objectpool osgpluginchecker osguservalues presentation progressreporter resourcehelpers
     result rng strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream weakcache windows
     )
@@ -430,7 +430,7 @@ add_component_dir (rtx/prepare
     )
 
 add_component_dir (rtx/preprocess
-    contentcache contentcodec contentkey contentpass contentpreprocessor contentstats contentstore imagefactcache laidimagecache
+    contentcache contentcodec contentkey contentpass contentpreprocessor contentstats contentstore imagefactcache
     preparedimages threadcontent
     )
 
@@ -464,8 +464,34 @@ add_component_dir (rtx/view
     )
 
 add_component_dir (rtx/world
-    atmosphere fogbuilder frameworld moon skycontent skylight weather
+    atmosphere fogbuilder fognoise frameworld moon skycontent skylight weather
     )
+
+# What the ray tracer would otherwise compute at every start from no content, made by the build and
+# compiled in: each table's maker, a tool that writes the table as a source, and the source. The makers
+# are a library of their own, which the tools and the test holding each table to its maker link, so the
+# game carries no maker.
+add_library(openmw-rtx-tablemakers STATIC
+    rtx/common/tablesource.cpp rtx/common/tablesource.hpp
+    rtx/frame/bluenoisemaker.cpp rtx/frame/bluenoisemaker.hpp
+    rtx/world/fognoisemaker.cpp rtx/world/fognoisemaker.hpp)
+target_link_libraries(openmw-rtx-tablemakers PUBLIC openmw-platform-io)
+
+function(rtx_make_table tool source table)
+    add_executable(${tool} ${source})
+    target_link_libraries(${tool} PRIVATE openmw-rtx-tablemakers)
+    set(made "${CMAKE_CURRENT_BINARY_DIR}/${table}")
+    add_custom_command(
+        OUTPUT "${made}"
+        COMMAND ${tool} "${made}"
+        DEPENDS ${tool}
+        COMMENT "Making ${table}"
+        VERBATIM)
+    set(COMPONENT_FILES ${COMPONENT_FILES} "${made}" PARENT_SCOPE)
+endfunction()
+
+rtx_make_table(openmw-rtx-blue-noise rtx/frame/bluenoisetool.cpp rtxbluenoise.cpp)
+rtx_make_table(openmw-rtx-fog-noise rtx/world/fognoisetool.cpp rtxfognoise.cpp)
 
 add_component_dir (myguirtx
     additivelayer mirrortexture paintedmirror rendermanager sharedtexture slottexture texture
@@ -578,9 +604,6 @@ add_component_dir(platform
     platform
     appendfile
     file
-    folder
-    linuxtext
-    process
     sharedmemory
     fifo
     library
@@ -590,10 +613,9 @@ add_component_dir(platform
 if (WIN32)
     add_component_dir(platform
         appendfilewin32
-        filesyncwin32
         filewin32
+        heapwin32
         localtimewin32
-        processwin32
         sharedmemorywin32
         fifowin32
         librarywin32
@@ -608,10 +630,9 @@ if (WIN32)
 elseif (UNIX)
     add_component_dir(platform
         appendfileposix
-        filesyncposix
         fileposix
+        heapposix
         localtimeposix
-        processposix
         sharedmemoryposix
         fifoposix
         libraryposix
@@ -629,11 +650,22 @@ else ()
         )
 endif()
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    add_component_dir(platform
-        kernelfilelinux
-        )
+# **A file read and written whole, and the process it is written by**, a library of its own: the build's own
+# tools (`rtx_make_table`) write through it, and they link no more of the components than this.
+set(PLATFORM_IO_FILES
+    platform/folder.cpp platform/folder.hpp
+    platform/linuxtext.cpp platform/linuxtext.hpp
+    platform/process.hpp
+    platform/wholefile.cpp platform/wholefile.hpp platform/wholefilesystem.hpp)
+if (WIN32)
+    list(APPEND PLATFORM_IO_FILES platform/processwin32.cpp platform/wholefilewin32.cpp)
+elseif (UNIX)
+    list(APPEND PLATFORM_IO_FILES platform/processposix.cpp platform/wholefileposix.cpp)
 endif()
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(APPEND PLATFORM_IO_FILES platform/kernelfilelinux.cpp platform/kernelfilelinux.hpp)
+endif()
+add_library(openmw-platform-io STATIC ${PLATFORM_IO_FILES})
 
 add_component_dir(testing
     expecterror
@@ -742,6 +774,7 @@ target_link_libraries(components
     RecastNavigation::Detour
     RecastNavigation::Recast
 
+    openmw-platform-io
     Base64
     SQLite3::SQLite3
     smhasher

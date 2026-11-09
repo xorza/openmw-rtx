@@ -10,6 +10,8 @@
 #include <osg/Referenced>
 #include <osg/ref_ptr>
 
+#include <components/misc/bytebuffer.hpp>
+
 #include "texturedata.hpp"
 #include "textureformat.hpp"
 
@@ -24,17 +26,14 @@ namespace Rtx
     class MadeImage final : public osg::Referenced
     {
     public:
-        /// The levels after `file`'s finest, back to back, at `laid`: the layout `file` is described
-        /// at, a widened file's four bytes a texel (`laidLayout`). Holds nothing of `file`.
-        MadeImage(const osg::Image& file, const TexelLayout& laid, std::vector<std::byte> coarser);
+        /// The levels after `file`'s finest, back to back, in `format`, `file`'s own, which no widened
+        /// file is: its chain is made whole (`ChainPass`). Holds nothing of `file`.
+        MadeImage(const osg::Image& file, TextureFormat format, Misc::ByteBuffer coarser);
 
         /// The whole chain of a `width` by `height` file in `format`, every level back to back from the
         /// finest down to a texel.
         static osg::ref_ptr<const MadeImage> whole(
-            TextureFormat format, std::uint32_t width, std::uint32_t height, std::vector<std::byte> levels);
-
-        /// The layout `format`'s levels are described at: four bytes a texel where it is widened.
-        static TexelLayout laidLayout(TextureFormat format);
+            TextureFormat format, std::uint32_t width, std::uint32_t height, Misc::ByteBuffer levels);
 
         /// The format of a whole chain, or nothing for coarser levels, which are in their file's.
         std::optional<TextureFormat> getWholeFormat() const { return mWholeFormat; }
@@ -55,7 +54,7 @@ namespace Rtx
         void layLevels(std::uint32_t width, std::uint32_t height, std::uint32_t first, const TexelLayout& laid);
 
         std::optional<TextureFormat> mWholeFormat;
-        std::vector<std::byte> mBytes;
+        Misc::ByteBuffer mBytes;
         std::vector<MipLevel> mLevels;
         TexelLayout mLaid{};
     };

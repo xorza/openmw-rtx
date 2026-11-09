@@ -213,9 +213,8 @@ namespace MWRender
               setup.mHeadless, setup.mWindowPixels)
         , mUpdateVisitor(new Rtx::PoseUpdate)
         , mStartTick(osg::Timer::instance()->tick())
-        , mContentStore(setup.mContentStore.has_value()
-                  ? std::make_unique<Rtx::ContentStore>(*setup.mContentStore, Rtx::ContentStore::sGameCap)
-                  : nullptr)
+        , mContentStore(
+              setup.mContentStore.has_value() ? std::make_unique<Rtx::ContentStore>(*setup.mContentStore) : nullptr)
         , mPrepared(std::make_unique<Rtx::PreparedImages>(
               mContentStore.get(), std::max<std::size_t>(1, std::thread::hardware_concurrency() / 2)))
         , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get())
@@ -337,6 +336,17 @@ namespace MWRender
         // `Engine` has stopped the screenshot writer by now, so no write on the queue still holds
         // an image of a frame this owns the memory for. The members go in the order they are
         // declared for: the frozen texture, the backend, the window.
+
+        // **What the content store did, said once a session**, where its failures are counted and
+        // not each logged: a session's drops are a store that missed what it would have kept.
+        if (mContentStore != nullptr)
+        {
+            const Rtx::ContentStoreStats store = mContentStore->getStats();
+            Log(Debug::Info) << "Rtx: the content store found " << store.mFound << " entries and missed "
+                             << store.mMissed << "; wrote " << store.mWritten << ", dropped " << store.mDropped
+                             << ", refused " << store.mRefused << ", stamped " << store.mStamped << " and swept "
+                             << store.mStale << " temporaries";
+        }
     }
 
     void RtxRenderer::updateEye(osg::Camera& camera, osgUtil::UpdateVisitor& visitor)
@@ -667,7 +677,7 @@ namespace MWRender
             }
         }
 
-        progress = mMirror.getPreparing();
+        progress = mMirror.awaitPreparing(std::chrono::milliseconds::zero());
         if (!progress.isDone())
         {
             listener.setLabel("#{OMWEngine:PreparingContent}");
@@ -677,7 +687,9 @@ namespace MWRender
             // leave them and the walk's memory stays bounded: aged by their expiry instead, they kept
             // every model a cold start of the PBR profile walks, 14.7 GB at the peak under the
             // harness, whose stated step never ages them. Nothing of the world stands yet to be
-            // read again, and a walk still holding what it asked keeps it alive.
+            // read again, and a walk still holding what it asked keeps it alive. Each wait sleeps until a
+            // job is done or the screen's frame is due, as the kernels' does.
+            constexpr std::chrono::milliseconds patience{ 8 };
             auto cleared = std::chrono::steady_clock::now();
             while (!progress.isDone())
             {
@@ -688,7 +700,7 @@ namespace MWRender
                     cleared = std::chrono::steady_clock::now();
                     getResources().clearCache();
                 }
-                progress = mMirror.getPreparing();
+                progress = mMirror.awaitPreparing(patience);
             }
             getResources().clearCache();
         }
@@ -992,6 +1004,8 @@ namespace MWRender
             if (mWalked.mAgain.has_value())
                 mWalked.mSession += mWalked.mAgain->mPreprocessed;
             mWalked.mSession.mPrepared += mPrepared->takeStats();
+            if (mContentStore != nullptr)
+                mWalked.mStore = mContentStore->getStats();
         }
 
         // After the last walk, because a walk clears the frame's lists.

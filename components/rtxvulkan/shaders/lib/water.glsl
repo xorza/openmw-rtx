@@ -88,8 +88,9 @@ uint waterFieldOf(uvec2 pixel)
 /// waterline is the ground the dry pixel shows, faded into the water's.
 ///
 /// **A walk** (`visibility.comp`, `media.comp`): the plane, the waves and the Fresnel term worked out of
-/// the walk's surface when it starts, with the shore's ray; the path's ray, which resolves what it found
-/// into the walk's surface; and the leg it crossed, whose column under the water is its closed forms, or
+/// where the water stands when it starts, with the shore's ray; the path's ray, of whose answer the walk
+/// reads only whether and how far it met something, the stage resolving it after the walk; and the leg it
+/// crossed, whose column under the water is its closed forms, or
 /// for the media stage a walk of its own (`ColumnRun`), as the step's purpose says (`stepWater`).
 struct WaterRun
 {
@@ -110,7 +111,6 @@ struct WaterRun
     float mFootprint;
     float mBefore;
     bool mFromBelow;
-    vec3 mPlane;
     vec3 mNormal;
     float mLobe;
     float mFresnel;
@@ -132,7 +132,6 @@ struct WaterRun
     WorldRay mPath;
     bool mUnderwater;
     float mPathLobe;
-    RayAsk mPathAsk;
 
     /// What the path found and how far, the weight the light at its end arrives by — twice the
     /// path's share where the pixel splits, times what the leg let through — what the leg scattered
@@ -167,7 +166,6 @@ WaterRun waterRunOf(vec3 incident, Cone cone, uint field)
     run.mFootprint = 0.0;
     run.mBefore = 0.0;
     run.mFromBelow = false;
-    run.mPlane = vec3(0.0, 0.0, 1.0);
     run.mNormal = vec3(0.0, 0.0, 1.0);
     run.mLobe = 0.0;
     run.mFresnel = 0.0;
@@ -179,7 +177,6 @@ WaterRun waterRunOf(vec3 incident, Cone cone, uint field)
     run.mPath = WorldRay(vec3(0.0), vec3(0.0, 0.0, 1.0));
     run.mUnderwater = false;
     run.mPathLobe = 0.0;
-    run.mPathAsk = noRay();
     run.mFound = false;
     run.mDistance = 0.0;
     run.mWeight = vec3(0.0);
@@ -208,12 +205,22 @@ WaterShares waterSharesOf(WaterRun run)
                        : WaterShares(split * (1.0 - run.mShore), split * (1.0 - fresnel) * run.mShore);
 }
 
-/// @param surface the walk's surface: the water's own when the walk starts, and what the path found
-///        once its ray is answered.
+/// The ray the path follows from the water, asked once the shore is known: drawn, because a reflection is a
+/// picture of the world and shows the faces the world shows, from where it left and no further — the origin
+/// already stands off the plane (`leaveSurface`). Made again from the run by the stage that resolves what it
+/// found after the walk, so the walk carries no ask of its own.
+RayAsk waterPathAsk(WaterRun run)
+{
+    return traceAsk(
+        run.mPath, 0.0, Cone(run.mFootprint, run.mCone.mSpread + run.mPathLobe), solidMask(frame.mRayMask), true);
+}
+
+/// @param at where the water the walk starts from stands (`placedHitOf`), and what the path met once its
+///        ray is answered (`reachOf`): a walk reads no more of a surface than that.
 /// @param purpose `WATER_SHADES` or `WATER_MARCHES`, a constant of the kernel's call, so a kernel
 ///        that marches no leg holds no column's walk.
 void stepWater(
-    inout WaterRun run, inout ColumnRun column, Surface surface, RayAnswer answered, inout RayAsk ask, uint purpose)
+    inout WaterRun run, inout ColumnRun column, PlacedHit at, RayAnswer answered, inout RayAsk ask, uint purpose)
 {
     const vec3 incident = run.mIncident;
 
@@ -229,7 +236,7 @@ void stepWater(
 
         // Keyed off world position rather than anything interpolated, so one cell's surface continues
         // into the next without a seam at the boundary.
-        const WaterSurface sea = waterSurfaceAt(surface.mPosition.xy, surface.mFootprint);
+        const WaterSurface sea = waterSurfaceAt(at.mPosition.xy, at.mFootprint);
 
         // **The lost slopes as a roughness, the one a painted map states.** The cone they widen a
         // reflection by is the lobe's own, as a solid's is, and never wider than a diffuse bounce's.
@@ -257,17 +264,16 @@ void stepWater(
         run.mResponse = SurfaceResponse(packSurfaceNormal(normal), vec3(0.0), vec3(0.0), vec3(1.0));
 
         run.mFromBelow = fromBelow;
-        run.mPlane = plane;
         run.mNormal = normal;
         run.mLobe = lobe;
-        run.mPosition = surface.mPosition;
-        run.mRounding = surface.mRounding;
-        run.mFootprint = surface.mFootprint;
+        run.mPosition = at.mPosition;
+        run.mRounding = at.mRounding;
+        run.mFootprint = at.mFootprint;
 
         // How far the eye's own ray had come, which a leg leaving into the air carries on from and
         // what the image stands past: the hit's own distance, and not one taken back off six-figure
         // coordinates.
-        run.mBefore = surface.mDistance;
+        run.mBefore = at.mDistance;
 
         // **How much water is under *this pixel*, which is the whole of what a shore is.** Straight down
         // rather than along anything, and worth a ray of its own: the path cast below leaves at an angle,
@@ -285,10 +291,10 @@ void stepWater(
         if (!fromBelow)
         {
             const vec3 down = vec3(0.0, 0.0, -1.0);
-            const vec3 below = leaveSurface(surface.mPosition, plane * surface.mRounding, down);
-            run.mClearing = surface.mPosition.z - below.z;
+            const vec3 below = leaveSurface(at.mPosition, plane * at.mRounding, down);
+            run.mClearing = at.mPosition.z - below.z;
             ask = solidWithinAsk(WorldRay(below, down), 0.0, WATER_SHORE_FADE - run.mClearing,
-                Cone(surface.mFootprint, run.mCone.mSpread));
+                Cone(at.mFootprint, run.mCone.mSpread));
         }
         run.mStep = WATER_SHORE;
         return;
@@ -317,15 +323,12 @@ void stepWater(
         // displaced by a fifth of a radian from the dry pixel beside it — a hard line however faint the
         // surface over it has been made.
         const vec3 along = run.mMirror ? reflect(incident, run.mNormal) : normalize(mix(incident, bent, run.mShore));
-        run.mPath = WorldRay(leaveSurface(run.mPosition, run.mPlane * run.mRounding, along), along);
+        const vec3 plane = fromBelow ? vec3(0.0, 0.0, -1.0) : vec3(0.0, 0.0, 1.0);
+        run.mPath = WorldRay(leaveSurface(run.mPosition, plane * run.mRounding, along), along);
         run.mUnderwater = run.mMirror == fromBelow;
         run.mPathLobe = run.mMirror ? run.mLobe : refractedConeWidth(run.mLobe, WATER_IOR, fromBelow);
 
-        // Drawn, because a reflection is a picture of the world and shows the faces the world shows. From
-        // where it left and no further: the origin already stands off the plane (`leaveSurface`).
-        run.mPathAsk = traceAsk(run.mPath, 0.0, Cone(run.mFootprint, run.mCone.mSpread + run.mPathLobe),
-            solidMask(frame.mRayMask), true);
-        ask = run.mPathAsk;
+        ask = waterPathAsk(run);
         run.mStep = WATER_PATH;
         return;
     }
@@ -339,8 +342,8 @@ void stepWater(
         // through 2000 units at half of blue and drew the edge of the loaded terrain across the sea, which
         // is a line the water never had.
         const vec3 direction = run.mPath.mAlong;
-        run.mFound = surface.mHit;
-        run.mDistance = surface.mHit ? surface.mDistance : (direction.z < 0.0 ? WATER_UNBOUNDED_PATH : WATER_MAX_PATH);
+        run.mFound = at.mHit;
+        run.mDistance = at.mHit ? at.mDistance : (direction.z < 0.0 ? WATER_UNBOUNDED_PATH : WATER_MAX_PATH);
         run.mImage = imageOf(run.mFound, run.mDistance, run.mPath, run.mBefore,
             run.mMirror ? 1.0 : (fromBelow ? WATER_IOR : 1.0 / WATER_IOR));
 

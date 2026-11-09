@@ -45,7 +45,7 @@ namespace RtxTool
             EXPECT_EQ(texts[0].mKey, "Description");
             EXPECT_EQ(texts[0].mText, description);
 
-            const Misc::Result<PngImage, std::string> read = readPng(described);
+            const Result<PngImage, std::string> read = readPng(described);
             ASSERT_TRUE(read.isOk()) << read.error();
             EXPECT_EQ(read.value().mWidth, 2u);
             EXPECT_EQ(read.value().mHeight, 1u);
@@ -87,7 +87,7 @@ namespace RtxTool
             const std::filesystem::path deep = TestingOpenMW::outputFilePath("deep.png");
             ASSERT_TRUE(writePng(deep, 2, 1, samples, "a mean").isOk());
 
-            const Misc::Result<PngImage, std::string> read = readPng(deep);
+            const Result<PngImage, std::string> read = readPng(deep);
             ASSERT_TRUE(read.isOk()) << read.error();
             EXPECT_EQ(read.value().mWidth, 2u);
             EXPECT_EQ(read.value().mHeight, 1u);
@@ -117,9 +117,14 @@ namespace RtxTool
             constexpr std::array<std::uint8_t, 4> pixel{ 1, 2, 3, 255 };
 
             const std::filesystem::path nowhere = TestingOpenMW::outputFilePath("no-such-dir") / "picture.png";
-            EXPECT_EQ(writePng(nowhere, 1, 1, pixel).error(), "cannot write " + Files::pathToUnicodeString(nowhere));
-            EXPECT_EQ(writePng(nowhere, 1, 1, pixel, "described").error(),
-                "cannot write " + Files::pathToUnicodeString(nowhere));
+            // The file's name, then the system's own words for why, which are each system's to spell.
+            const std::string named = "could not write " + Files::pathToUnicodeString(nowhere) + ": ";
+            for (const std::string& refused :
+                { writePng(nowhere, 1, 1, pixel).error(), writePng(nowhere, 1, 1, pixel, "described").error() })
+            {
+                EXPECT_TRUE(refused.starts_with(named)) << refused;
+                EXPECT_GT(refused.size(), named.size()) << "the reason is missing";
+            }
 
             EXPECT_EQ(readPng(nowhere).error(), Files::pathToUnicodeString(nowhere) + " is missing");
 

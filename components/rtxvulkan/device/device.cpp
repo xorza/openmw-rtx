@@ -366,9 +366,32 @@ namespace Rtx
 
     namespace
     {
-        /// The statistics AMD's own driver reports a lane's scratch memory and registers under.
-        constexpr std::string_view sScratchStatistic = "scratchMemUsageInBytes";
-        constexpr std::string_view sRegisterStatistic = "numUsedVgprs";
+        /// The names a driver reports a pipeline's use under (`CompiledUse`), empty where it reports none.
+        struct StatisticNames
+        {
+            std::string_view mScratch;
+            std::string_view mRegisters;
+            std::string_view mShared;
+        };
+
+        StatisticNames statisticNamesOf(const VkDriverId driver)
+        {
+            switch (driver)
+            {
+                case VK_DRIVER_ID_AMD_PROPRIETARY:
+                    return StatisticNames{ .mScratch = "scratchMemUsageInBytes",
+                        .mRegisters = "numUsedVgprs",
+                        .mShared = "ldsUsageSizeInBytes" };
+                case VK_DRIVER_ID_MESA_RADV:
+                    return StatisticNames{ .mScratch = "Scratch size", .mRegisters = "VGPRs", .mShared = "LDS size" };
+                case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
+                    return StatisticNames{
+                        .mScratch = {}, .mRegisters = "Register Count", .mShared = "Shared Memory Size"
+                    };
+                default:
+                    return StatisticNames{};
+            }
+        }
 
         void raise(std::optional<std::uint64_t>& most, const std::uint64_t value)
         {
@@ -452,16 +475,20 @@ namespace Rtx
                     .name = {},
                     .description = {},
                     .subgroupSize = 0 });
+        const StatisticNames names = statisticNamesOf(mPhysicalDevice.getProperties().mVulkan12.driverID);
         for (std::uint32_t executable = 0; executable < executables.size(); ++executable)
         {
             use.mSubgroupSize = std::max(use.mSubgroupSize.value_or(0), executables[executable].subgroupSize);
             for (const VkPipelineExecutableStatisticKHR& statistic : statisticsOf(pipeline, executable))
             {
                 const std::string_view name = statistic.name;
-                if (name == sScratchStatistic)
-                    raise(use.mScratchBytes, unsignedOf(statistic));
-                else if (name == sRegisterStatistic)
-                    raise(use.mRegisters, unsignedOf(statistic));
+                const std::uint64_t value = unsignedOf(statistic);
+                if (name == names.mScratch)
+                    raise(use.mScratchBytes, value);
+                else if (name == names.mRegisters)
+                    raise(use.mRegisters, value);
+                else if (name == names.mShared)
+                    raise(use.mSharedBytes, value);
             }
         }
         return use;
@@ -534,8 +561,10 @@ namespace Rtx
             // speed of its scratch memory, which on an integrated card took a frame from
             // milliseconds to the better part of a second
             // (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`).
+            const StatisticNames names = statisticNamesOf(mPhysicalDevice.getProperties().mVulkan12.driverID);
             for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
-                if (std::string_view(statistic.name) == sScratchStatistic && unsignedOf(statistic) > 0)
+                if (!names.mScratch.empty() && std::string_view(statistic.name) == names.mScratch
+                    && unsignedOf(statistic) > 0)
                     Log(Debug::Warning) << "pipeline " << name << " uses " << unsignedOf(statistic)
                                         << " bytes of scratch memory a lane";
         }

@@ -8,9 +8,9 @@
 #include <cstdint>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <limits>
 #include <numeric>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -21,6 +21,8 @@
 #include <components/files/conversion.hpp>
 #include <components/platform/fifo.hpp>
 #include <components/rtx/renderer/framezone.hpp>
+
+#include "reportfile.hpp"
 
 namespace RtxTool
 {
@@ -103,11 +105,9 @@ namespace RtxTool
         return mP99 > 0.0 ? 1000.0 / mP99 : 0.0;
     }
 
-    Misc::Result<void, std::string> writeFrameTimes(const std::filesystem::path& path, const FrameSamples& samples)
+    Result<void, std::string> writeFrameTimes(const std::filesystem::path& path, const FrameSamples& samples)
     {
-        std::ofstream file(path);
-        if (!file)
-            return Misc::Err{ "cannot open " + Files::pathToUnicodeString(path) };
+        std::ostringstream file;
 
         for (const Rtx::Timing timing : Rtx::sTimings.values())
             file << (Rtx::indexOf(timing) == 0 ? "" : " ") << Rtx::sTimings.name(timing);
@@ -120,10 +120,7 @@ namespace RtxTool
             file << '\n';
         }
 
-        file.close();
-        if (!file)
-            return Misc::Err{ "cannot write " + Files::pathToUnicodeString(path) };
-        return {};
+        return writeReport(path, file.view());
     }
 
     FrameTimes summarise(std::vector<double>& times)

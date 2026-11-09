@@ -131,7 +131,7 @@ namespace Rtx
         // kept under the drawable, stamped as the walk meets it, so a file the renderer cannot
         // take is read once for as long as it stands rather than once a frame.
         MeshReading reading;
-        const Misc::Result<bool, std::string> readMesh = mReader.read(mContent, read, modelOf(path), reading);
+        const Result<bool, std::string> readMesh = mReader.read(mContent, read, modelOf(path), reading);
         if (!readMesh.isOk())
             return refuse(drawable, readMesh.error());
 
@@ -145,7 +145,7 @@ namespace Rtx
             return sNoIndex;
         }
 
-        const Misc::Result<Index, std::string> added = addMesh(read, reading);
+        const Result<Index, std::string> added = addMesh(read, reading);
         if (!added.isOk())
             return refuse(drawable, added.error());
 
@@ -246,12 +246,12 @@ namespace Rtx
         return sNoIndex;
     }
 
-    Misc::Result<Index, std::string> MeshResolver::addMesh(const DrawableRead& read, const MeshReading& reading)
+    Result<Index, std::string> MeshResolver::addMesh(const DrawableRead& read, const MeshReading& reading)
     {
         const Crash::NoteScope noted("adding the mesh \"{}\"", read.mGeometry->getName());
 
-        if (const Misc::Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
-            return Misc::Err{ fits.error() };
+        if (const Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
+            return Err{ fits.error() };
 
         if (read.mDeform == Deform::None)
             return mScene.addMesh(reading.mArrays, reading.mShape);
@@ -277,27 +277,27 @@ namespace Rtx
         DeformedMesh added;
         if (read.mDeform == Deform::Rig)
         {
-            const Misc::Result<RigSpec, std::string> rig = readRig(*read.mRig);
+            const Result<RigSpec, std::string> rig = readRig(*read.mRig);
             if (!rig.isOk())
-                return Misc::Err{ rig.error() };
+                return Err{ rig.error() };
 
-            const Misc::Result<void, std::string> posed
+            const Result<void, std::string> posed
                 = SceneDesc::checkPoses(rig.value().getVertexCount(), reading.mArrays);
             if (!posed.isOk())
-                return Misc::Err{ posed.error() };
+                return Err{ posed.error() };
 
             added = mScene.addMesh(reading.mArrays, reading.mShape, rig.value());
         }
         else
         {
-            const Misc::Result<MorphSpec, std::string> morph = readMorph(*read.mMorph);
+            const Result<MorphSpec, std::string> morph = readMorph(*read.mMorph);
             if (!morph.isOk())
-                return Misc::Err{ morph.error() };
+                return Err{ morph.error() };
 
-            const Misc::Result<void, std::string> posed
+            const Result<void, std::string> posed
                 = SceneDesc::checkPoses(morph.value().getVertexCount(), reading.mArrays);
             if (!posed.isOk())
-                return Misc::Err{ posed.error() };
+                return Err{ posed.error() };
 
             added = mScene.addMesh(reading.mArrays, reading.mShape, morph.value());
         }
@@ -424,7 +424,7 @@ namespace Rtx
         mScene.pose(mesh, mPoseScratch, first);
     }
 
-    Misc::Result<RigSpec, std::string> MeshResolver::readRig(const SceneUtil::RigGeometry& rig)
+    Result<RigSpec, std::string> MeshResolver::readRig(const SceneUtil::RigGeometry& rig)
     {
         const SceneUtil::RigGeometry::InfluenceData* skin = rig.getInfluenceData();
         assert(skin != nullptr);
@@ -442,7 +442,7 @@ namespace Rtx
         for (const auto& [weights, group] : skin->mInfluences)
         {
             if (weights.size() > Shaders::RUN_COUNT_MASK)
-                return Misc::Err{ "a vertex of it is skinned by " + std::to_string(weights.size()) + " bones, past the "
+                return Err{ "a vertex of it is skinned by " + std::to_string(weights.size()) + " bones, past the "
                     + std::to_string(Shaders::RUN_COUNT_MASK) + " a run word holds" };
 
             const auto first = static_cast<std::uint32_t>(mInfluenceScratch.size());
@@ -452,10 +452,10 @@ namespace Rtx
                 // at the index with no check of its own, so an index past the skin's bones reads
                 // another mesh's pose, and a weight that is not a number poses a vertex at none.
                 if (bone >= skin->mBones.size())
-                    return Misc::Err{ "its skin names bone " + std::to_string(bone) + " of "
+                    return Err{ "its skin names bone " + std::to_string(bone) + " of "
                         + std::to_string(skin->mBones.size()) };
                 if (!std::isfinite(weight))
-                    return Misc::Err{ std::string("its skin weighs a vertex by a number that is not finite") };
+                    return Err{ std::string("its skin weighs a vertex by a number that is not finite") };
 
                 mInfluenceScratch.push_back(Shaders::GpuInfluence{
                     .mBone = static_cast<std::uint32_t>(bone),
@@ -467,8 +467,7 @@ namespace Rtx
             for (const unsigned short vertex : group)
             {
                 if (vertex >= vertices)
-                    return Misc::Err{ "its skin names vertex " + std::to_string(vertex) + " of "
-                        + std::to_string(vertices) };
+                    return Err{ "its skin names vertex " + std::to_string(vertex) + " of " + std::to_string(vertices) };
 
                 mRunScratch[vertex] = run;
             }
@@ -481,7 +480,7 @@ namespace Rtx
         };
     }
 
-    Misc::Result<MorphSpec, std::string> MeshResolver::readMorph(const SceneUtil::MorphGeometry& morph)
+    Result<MorphSpec, std::string> MeshResolver::readMorph(const SceneUtil::MorphGeometry& morph)
     {
         const SceneUtil::MorphGeometry::MorphTargetList& targets = morph.getMorphTargetList();
         assert(targets.size() > 1);
@@ -502,7 +501,7 @@ namespace Rtx
             const auto read = offsets->begin();
             if (!std::all_of(read, read + static_cast<std::ptrdiff_t>(count),
                     [](const osg::Vec3f& offset) { return isFinite(offset); }))
-                return Misc::Err{ std::string("a target's offsets are not finite numbers") };
+                return Err{ std::string("a target's offsets are not finite numbers") };
 
             std::copy_n(read, count, mOffsetScratch.begin() + target * vertices);
         }

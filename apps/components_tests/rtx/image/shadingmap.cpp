@@ -12,6 +12,7 @@
 
 #include <apps/components_tests/rtx/support/statistics.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/shadingmap.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureformat.hpp>
@@ -101,7 +102,7 @@ namespace Rtx
             const Testing::TestTexture flat
                 = painted(256, 256, [](std::uint32_t, std::uint32_t) { return std::uint8_t{ 137 }; });
 
-            EXPECT_LT(furthestFromNeutral(ShadingMap(flat.mData)), 0.01f);
+            EXPECT_LT(furthestFromNeutral(ShadingMap(flat.mData, AlphaImage(flat.mData))), 0.01f);
         }
 
         /// Detail alternating every texel is not lighting, and a map that followed it would flatten
@@ -115,7 +116,7 @@ namespace Rtx
             const Testing::TestTexture checks = painted(256, 256,
                 [](std::uint32_t x, std::uint32_t y) { return static_cast<std::uint8_t>((x + y) % 2 ? 20 : 220); });
 
-            EXPECT_LT(furthestFromNeutral(ShadingMap(checks.mData)), 0.01f);
+            EXPECT_LT(furthestFromNeutral(ShadingMap(checks.mData, AlphaImage(checks.mData))), 0.01f);
         }
 
         /// **A texel nothing was painted on weighs nothing**, in every format with alpha. A grey of
@@ -133,7 +134,7 @@ namespace Rtx
                         for (std::size_t channel = 0; channel < 4; ++channel)
                             holes.mBytes[(std::size_t{ y } * 256 + x) * 4 + channel] = 0;
 
-            EXPECT_LT(furthestFromNeutral(ShadingMap(holes.mData)), 0.01f);
+            EXPECT_LT(furthestFromNeutral(ShadingMap(holes.mData, AlphaImage(holes.mData))), 0.01f);
         }
 
         /// **A clamped axis is blurred without its opposite edge.** A grey of 60 with its first
@@ -148,11 +149,11 @@ namespace Rtx
             constexpr std::size_t last = 16 * sSide + sSide - 1;
             constexpr std::size_t middle = 16 * sSide + 16;
 
-            const ShadingMap repeated(banner.mData);
+            const ShadingMap repeated(banner.mData, AlphaImage(banner.mData));
             EXPECT_GT(repeated.getValues()[last], 1.05f * repeated.getValues()[middle]) << "the wrap carried nothing";
 
             banner.mData.mWrap = TextureWrap::ClampS;
-            const ShadingMap clamped(banner.mData);
+            const ShadingMap clamped(banner.mData, AlphaImage(banner.mData));
             EXPECT_EQ(clamped.getValues()[last], clamped.getValues()[middle])
                 << "a clamped axis took the opposite edge";
             EXPECT_GT(clamped.getValues()[1], clamped.getValues()[middle]) << "and still blurs inside the texture";
@@ -178,7 +179,7 @@ namespace Rtx
                 return static_cast<std::uint8_t>(std::lround(120.0 + 60.0 * std::cos(angle)));
             });
 
-            const ShadingMap map(lit.mData);
+            const ShadingMap map(lit.mData, AlphaImage(lit.mData));
             const std::span<const float> values = map.getValues();
 
             EXPECT_NEAR(Testing::meanOf(values), 1.0f, 0.01f) << "the estimate moves light rather than adding it";
@@ -224,9 +225,12 @@ namespace Rtx
                 return texture;
             };
 
-            const ShadingMap blueFirst(ramped(0, TextureFormat::Bgra8Unorm).mData);
-            const ShadingMap blueThird(ramped(2, TextureFormat::Rgba8Unorm).mData);
-            const ShadingMap redFirst(ramped(0, TextureFormat::Rgba8Unorm).mData);
+            const auto mapOf = [](const Testing::TestTexture& texture) {
+                return ShadingMap(texture.mData, AlphaImage(texture.mData));
+            };
+            const ShadingMap blueFirst = mapOf(ramped(0, TextureFormat::Bgra8Unorm));
+            const ShadingMap blueThird = mapOf(ramped(2, TextureFormat::Rgba8Unorm));
+            const ShadingMap redFirst = mapOf(ramped(0, TextureFormat::Rgba8Unorm));
 
             const std::span<const float> first = blueFirst.getValues();
             const std::span<const float> third = blueThird.getValues();
@@ -245,7 +249,7 @@ namespace Rtx
             const Testing::TestTexture halves = painted(
                 256, 256, [](std::uint32_t x, std::uint32_t) { return static_cast<std::uint8_t>(x < 128 ? 3 : 250); });
 
-            const ShadingMap map(halves.mData);
+            const ShadingMap map(halves.mData, AlphaImage(halves.mData));
             for (const float value : map.getValues())
             {
                 EXPECT_GE(value, ShadingMap::sFloor);
@@ -282,7 +286,7 @@ namespace Rtx
                       return left ? (line < 2 ? 0x00 : 0x55) : (line == 0 ? 0x50 : 0x55);
                   });
 
-            const ShadingMap map(step.mData);
+            const ShadingMap map(step.mData, AlphaImage(step.mData));
             const std::span<const float> values = map.getValues();
             const std::size_t row = std::size_t{ sSide / 2 } * sSide;
 
@@ -305,7 +309,7 @@ namespace Rtx
             const Testing::TestTexture blank
                 = blocked(64, sMidGrey, sWhite, [](std::uint32_t, std::uint32_t) -> std::uint8_t { return 0xFF; });
 
-            EXPECT_EQ(furthestFromNeutral(ShadingMap(blank.mData)), 0.0f);
+            EXPECT_EQ(furthestFromNeutral(ShadingMap(blank.mData, AlphaImage(blank.mData))), 0.0f);
         }
 
         /// A texture too small to fill the grid, which most of Morrowind's smaller ones are.
@@ -320,17 +324,7 @@ namespace Rtx
             const Testing::TestTexture small
                 = painted(8, 8, [](std::uint32_t, std::uint32_t) { return std::uint8_t{ 90 }; });
 
-            EXPECT_LT(furthestFromNeutral(ShadingMap(small.mData)), 0.01f);
-        }
-
-        /// A map for a texture that would not load, which is the one every missing material gets.
-        TEST(RtxShadingMapTest, theDefaultMapChangesNothing)
-        {
-            const ShadingMap neutral;
-
-            EXPECT_EQ(neutral.getValues().size(), std::size_t{ sSide } * sSide);
-            for (const float value : neutral.getValues())
-                EXPECT_EQ(value, 1.0f);
+            EXPECT_LT(furthestFromNeutral(ShadingMap(small.mData, AlphaImage(small.mData))), 0.01f);
         }
 
         /// **The map is read as its texture is addressed**: a map whose every column holds its own
@@ -350,6 +344,23 @@ namespace Rtx
             EXPECT_EQ(paintedLight(map, 0.0f, 0.0f, TextureWrap::Clamp), 0.0f);
             for (const TextureWrap wrap : { TextureWrap::Repeat, TextureWrap::ClampS, TextureWrap::Clamp })
                 EXPECT_EQ(paintedLight(map, 4.5f / 32.0f, 0.5f, wrap), 4.0f) << static_cast<int>(wrap);
+
+            // The placement behind those reads: at `u = 0` the cells minus one and nought, half of the way;
+            // minus one wraps to 31 where the axis repeats and holds at nought where it clamps; mid-cell four,
+            // none of the way to five.
+            const PaintedAxis repeats = paintedAxis(0.0f, false);
+            EXPECT_EQ(repeats.mLow, 31u);
+            EXPECT_EQ(repeats.mHigh, 0u);
+            EXPECT_EQ(repeats.mAcross, 0.5f);
+            const PaintedAxis clamps = paintedAxis(0.0f, true);
+            EXPECT_EQ(clamps.mLow, 0u);
+            EXPECT_EQ(clamps.mHigh, 0u);
+            EXPECT_EQ(clamps.mAcross, 0.5f);
+            const PaintedAxis mid = paintedAxis(4.5f / 32.0f, false);
+            EXPECT_EQ(mid.mLow, 4u);
+            EXPECT_EQ(mid.mHigh, 5u);
+            EXPECT_EQ(mid.mAcross, 0.0f);
+            EXPECT_EQ(paintedLight(map, mid, repeats), 4.0f) << "the column's cell, whichever row";
         }
     }
 }

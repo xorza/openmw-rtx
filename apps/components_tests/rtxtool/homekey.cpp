@@ -122,7 +122,7 @@ namespace RtxTool
             EXPECT_EQ(descriptionOf(pictures / "pier-1.png"), describeStanding(noteOf(10)));
             EXPECT_EQ(descriptionOf(pictures / "pier-2.png"), describeStanding(noteOf(13)));
             EXPECT_FALSE(std::filesystem::exists(pictures / "pier-3.png"));
-            const Misc::Result<PngImage, std::string> first = readPng(pictures / "pier-1.png");
+            const Result<PngImage, std::string> first = readPng(pictures / "pier-1.png");
             ASSERT_TRUE(first.isOk()) << first.error();
             std::vector<std::uint16_t> widened;
             for (const std::uint8_t level : sPixels)

@@ -45,7 +45,7 @@ namespace Rtx
     {
         /// A normal map's spread, `NormalSpreadPass`'s: a byte a texel from half the map's `width` by
         /// `height` down to one texel, sampled and written by the pass a level at a time.
-        Misc::Result<Image, std::string_view> makeSpreadMap(
+        Result<Image, std::string_view> makeSpreadMap(
             const Device& device, std::string_view name, MemoryUse use, std::uint32_t width, std::uint32_t height)
         {
             std::string spreadName;
@@ -93,16 +93,29 @@ namespace Rtx
 
         /// The layout every array declares, sized to the maximum and not to the scene, because a
         /// pipeline outlives a cell and two set layouts are compatible only where they are
-        /// identically defined. The maximum is paid once: a combined image sampler is 4 B on NVIDIA
-        /// and 96 B in RADV, so a set's three arrays are 0.1 MB and 2.4 MB of pool.
+        /// identically defined. The maximum is paid once: a sampled image is 64 B in RADV, so a
+        /// set's two image arrays are 1 MB of pool.
         constexpr std::array<VkDescriptorSetLayoutBinding, 3> sBindings{
-            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_IMAGES, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_IMAGES, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
                 Shaders::TEXTURE_SLOTS, sStages, nullptr },
-            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_COMPANIONS, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_COMPANIONS, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
                 Shaders::TEXTURE_SLOTS, sStages, nullptr },
-            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_ALONG, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                Shaders::TEXTURE_SLOTS, sStages, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_SAMPLERS, VK_DESCRIPTOR_TYPE_SAMPLER,
+                Shaders::TEXTURE_SAMPLERS, sStages, nullptr },
         };
+
+        static_assert(Shaders::TEXTURE_SAMPLERS_ALONG == sTextureWrapCount);
+        static_assert(Shaders::TEXTURE_SAMPLERS == 2 * sTextureWrapCount);
+        static_assert(Shaders::TEXTURE_TEXELS >> Shaders::TEXTURE_WRAP_SHIFT == 0);
+        static_assert(sTextureWrapCount << Shaders::TEXTURE_WRAP_SHIFT == Shaders::TEXTURE_STANDS_IN);
+        static_assert(
+            std::uint64_t{ Shaders::TEXTURE_SIDE_MOST } * Shaders::TEXTURE_SIDE_MOST <= Shaders::TEXTURE_TEXELS);
+
+        /// `sampler` as a sampler descriptor takes it.
+        constexpr VkDescriptorImageInfo describeSampler(const VkSampler sampler)
+        {
+            return VkDescriptorImageInfo{ sampler, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED };
+        }
 
         /// One footprint sampler per `TextureWrap`, indexed by it, filtering by `anisotropy`.
         std::array<Sampler, sTextureWrapCount> makeFootprintSamplers(
@@ -123,7 +136,7 @@ namespace Rtx
         }
     }
 
-    Misc::Result<void, std::string_view> Texture::standFile(const Device& device, Batch& batch, TextureArrival& arrival,
+    Result<void, std::string_view> Texture::standFile(const Device& device, Batch& batch, TextureArrival& arrival,
         const TextureData& data, const std::uint32_t first, std::string_view name,
         std::vector<VkBufferImageCopy>& regions, const MemoryUse use)
     {
@@ -153,12 +166,12 @@ namespace Rtx
         // (`TextureData::getCompanion`); nothing beside any other texture, whose companion no read
         // reaches.
         const bool spread = data.getCompanion() == TextureCompanion::Spread;
-        Misc::Result<Image, std::string_view> companion
+        Result<Image, std::string_view> companion
             = spread ? makeSpreadMap(device, name, use, top.mWidth, top.mHeight) : Image();
         if (!companion.isOk())
-            return Misc::Err{ companion.error() };
+            return Err{ companion.error() };
 
-        Misc::Result<Image, std::string_view> image = Image::tryMake(use, device,
+        Result<Image, std::string_view> image = Image::tryMake(use, device,
             ImageDescription{ .mWidth = top.mWidth,
                 .mHeight = top.mHeight,
                 .mFormat = toVulkanFormat(data.mFormat),
@@ -166,7 +179,7 @@ namespace Rtx
                 .mMipLevels = levels },
             name);
         if (!image.isOk())
-            return Misc::Err{ image.error() };
+            return Err{ image.error() };
 
         // Every image is made, so nothing below can refuse: the texture stands from here, and what
         // makes it is the arrival's to record.
@@ -187,14 +200,14 @@ namespace Rtx
         return {};
     }
 
-    Misc::Result<void, std::string_view> Texture::standBake(const Device& device, TextureArrival& arrival,
+    Result<void, std::string_view> Texture::standBake(const Device& device, TextureArrival& arrival,
         const Texture& source, const TextureFormat format, std::string_view name)
     {
         assert(isEmpty() && "a texture stood over one that stands");
         assert(!source.isEmpty());
 
         const Image& from = source.mImage;
-        Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device,
+        Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device,
             ImageDescription{ .mWidth = from.getWidth(),
                 .mHeight = from.getHeight(),
                 .mFormat = writtenAs(format),
@@ -203,7 +216,7 @@ namespace Rtx
                 .mStorageFormat = sWrittenFormat },
             name);
         if (!image.isOk())
-            return Misc::Err{ image.error() };
+            return Err{ image.error() };
 
         mImage = std::move(image.value());
 
@@ -234,7 +247,7 @@ namespace Rtx
         mBytes = priceColour().standing();
     }
 
-    Misc::Result<void, std::string_view> Texture::standComposite(
+    Result<void, std::string_view> Texture::standComposite(
         const Device& device, TextureArrival& arrival, const TextureFormat format, std::string_view name)
     {
         assert(isEmpty() && "a texture stood over one that stands");
@@ -243,7 +256,7 @@ namespace Rtx
         Crash::contract(format == TextureFormat::Bc7Srgb || format == TextureFormat::Bc7Unorm,
             "a composite described in a format its encoder does not write");
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
-        Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device,
+        Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device,
             ImageDescription{ .mWidth = extent,
                 .mHeight = extent,
                 .mFormat = toVulkanFormat(format),
@@ -251,7 +264,7 @@ namespace Rtx
                 .mMipLevels = levelsTo1x1(extent, extent) },
             name);
         if (!image.isOk())
-            return Misc::Err{ image.error() };
+            return Err{ image.error() };
 
         mImage = std::move(image.value());
 
@@ -266,8 +279,8 @@ namespace Rtx
     SetLayout TextureArray::describeLayout(const Device& device)
     {
         // Partially bound because a scene with fewer textures than the array can hold leaves the
-        // tail unwritten. Update after bind, because an arrival writes this set while work that
-        // named it is still on the queue — legal as long as no pending command reads that
+        // tail unwritten, and the samplers before the first `sync`. Update after bind, because an arrival writes this
+        // set while work that named it is still on the queue — legal as long as no pending command reads that
         // descriptor, and a slot nothing has described is a slot no material names.
         constexpr VkDescriptorBindingFlags sBound
             = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
@@ -291,7 +304,7 @@ namespace Rtx
             makeContentSampler(device, "textures clamped along t", TextureWrap::ClampT),
             makeContentSampler(device, "textures clamped", TextureWrap::Clamp) }
         , mFootprintSamplers(makeFootprintSamplers(device, anisotropy))
-        , mSideLimit(device.getPhysicalDevice().getTextureSide())
+        , mSideLimit(std::min(device.getPhysicalDevice().getTextureSide(), Shaders::TEXTURE_SIDE_MOST))
         // Allocated at the maximum the layout declares, not at what this scene brought. Sizing the
         // set to the cell is what made a texture arriving mean a new set, a new pool and every
         // image uploaded again; the maximum's pool is paid once (`sBindings`). `write` then only
@@ -304,7 +317,7 @@ namespace Rtx
 
         // Essential, and the one texture made that way: it is what stands where the device had no
         // room for the texture itself.
-        [[maybe_unused]] const Misc::Result<void, std::string_view> stood = mStandIn.standFile(
+        [[maybe_unused]] const Result<void, std::string_view> stood = mStandIn.standFile(
             device, batch, arrival, describeStandIn(), 0, "stand-in", mRegionScratch, MemoryUse::Essential);
         assert(stood.isOk() && "essential memory refused rather than thrown");
         arrival.record(batch, passes, nullptr);
@@ -558,7 +571,7 @@ namespace Rtx
         return cost + (needed > held ? needed - held : 0);
     }
 
-    Misc::Result<void, std::string_view> TextureArray::make(Batch& batch, TextureArrival& arrival, Texture& into,
+    Result<void, std::string_view> TextureArray::make(Batch& batch, TextureArrival& arrival, Texture& into,
         const TextureData& texture, const std::uint32_t first, std::string_view name)
     {
         switch (texture.mSource)
@@ -566,7 +579,7 @@ namespace Rtx
             case TextureSource::GroundComposite:
             case TextureSource::GroundGloss:
             {
-                const Misc::Result<void, std::string_view> canvas = makeCanvas(texture.mSource);
+                const Result<void, std::string_view> canvas = makeCanvas(texture.mSource);
                 if (!canvas.isOk())
                     return canvas;
                 return into.standComposite(mDevice, arrival, texture.mFormat, name);
@@ -590,7 +603,7 @@ namespace Rtx
                 // has no room.
                 const auto last = static_cast<std::uint32_t>(texture.mLevels.size()) - 1;
                 std::uint32_t level = first;
-                Misc::Result<void, std::string_view> stood
+                Result<void, std::string_view> stood
                     = into.standFile(mDevice, batch, arrival, texture, level, name, mRegionScratch, MemoryUse::Texture);
                 while (!stood.isOk() && level < last)
                     stood = into.standFile(
@@ -635,8 +648,7 @@ namespace Rtx
         {
             // Every refusal `make` answers is the device's room: a file past the side is the one
             // that is not, and it is known above.
-            const Misc::Result<void, std::string_view> stood
-                = make(batch, arrival, slot.mTexture, texture, first, name);
+            const Result<void, std::string_view> stood = make(batch, arrival, slot.mTexture, texture, first, name);
             if (!stood.isOk())
             {
                 why = stood.error();
@@ -661,13 +673,15 @@ namespace Rtx
                 .mOutput = texture.mSource == TextureSource::GroundGloss ? Shaders::GROUND_COMPOSITE_GLOSS
                                                                          : Shaders::GROUND_COMPOSITE_ALBEDO });
 
-        // How many texels the slot now holds, for `coneLod`, and whether they are the stand-in's,
-        // which every reader of an optional map asks — `TEXTURE_STANDS_IN`. Owed to every copy
-        // beside the descriptor owed to every set.
-        const Image& stood = standingIn(slot).getImage();
-        const std::uint32_t texels = stood.getWidth() * stood.getHeight();
-        assert(texels < Shaders::TEXTURE_STANDS_IN && "a texel count that reaches the stand-in bit");
-        mTexels.write(texture.mSlot) = texels | (slot.mStandIn ? Shaders::TEXTURE_STANDS_IN : 0u);
+        // How many texels the slot now holds, for `coneLod`, the wrap that picks its sampler, and
+        // whether they are the stand-in's, which every reader of an optional map asks —
+        // `TEXTURE_STANDS_IN`. Owed to every copy beside the descriptor owed to every set.
+        const Texture& standing = standingIn(slot);
+        const std::uint32_t texels = standing.getImage().getWidth() * standing.getImage().getHeight();
+        assert(texels <= Shaders::TEXTURE_TEXELS && "a texel count that reaches the wrap");
+        mTexels.write(texture.mSlot) = texels
+            | (static_cast<std::uint32_t>(standing.getWrap()) << Shaders::TEXTURE_WRAP_SHIFT)
+            | (slot.mStandIn ? Shaders::TEXTURE_STANDS_IN : 0u);
 
         for (SlotSet& owed : mOwed.live())
             owed.addMakingRoom(texture.mSlot);
@@ -679,6 +693,7 @@ namespace Rtx
         // A set with descriptors owed names what it no longer holds: after `setAnisotropy`, a
         // sampler destroyed with the ones it replaced.
         assert(mOwed.at(slot).empty() && "a texture set sampled before `sync` paid what it owes");
+        assert(!mSamplersOwed.at(slot) && "a texture set sampled before `sync` wrote its samplers");
         mBound.at(slot).nameFor(mDevice.getTimeline().getNext());
         return mSets.get(slot.get());
     }
@@ -694,7 +709,8 @@ namespace Rtx
         mTexels.sync(slot);
 
         SlotSet& owed = mOwed.at(slot);
-        if (owed.empty())
+        bool& samplersOwed = mSamplersOwed.at(slot);
+        if (owed.empty() && !samplersOwed)
             return;
 
         assert(mBound.at(slot).isIdle(mDevice) && "a descriptor written under a submit still bound to it");
@@ -703,12 +719,27 @@ namespace Rtx
         // the scene's free list put them, and a run is no longer what they are. Reserved before
         // any write points into it, since a write names its image by address.
         const std::span<const Index> slots = owed.getSlots();
+        const std::size_t writes = 2 * slots.size() + (samplersOwed ? Shaders::TEXTURE_SAMPLERS : 0);
         mImageScratch.clear();
         mWriteScratch.clear();
-        mImageScratch.reserve(3 * slots.size());
-        mWriteScratch.reserve(3 * slots.size());
+        mImageScratch.reserve(writes);
+        mWriteScratch.reserve(writes);
 
         const VkDescriptorSet set = mSets.get(slot.get());
+        if (samplersOwed)
+        {
+            for (std::size_t wrap = 0; wrap < sTextureWrapCount; ++wrap)
+            {
+                const auto at = static_cast<std::uint32_t>(wrap);
+                queueWrite(set, Shaders::TEXTURE_BIND_SAMPLERS, at, VK_DESCRIPTOR_TYPE_SAMPLER,
+                    describeSampler(mSamplers[wrap].get()), mImageScratch, mWriteScratch);
+                queueWrite(set, Shaders::TEXTURE_BIND_SAMPLERS, Shaders::TEXTURE_SAMPLERS_ALONG + at,
+                    VK_DESCRIPTOR_TYPE_SAMPLER, describeSampler(mFootprintSamplers[wrap].get()), mImageScratch,
+                    mWriteScratch);
+            }
+            samplersOwed = false;
+        }
+
         for (const Index at : slots)
         {
             // Owed and since dropped: the slot holds nothing, and a descriptor left naming what has
@@ -718,15 +749,12 @@ namespace Rtx
             if (held.isEmpty())
                 continue;
 
-            const std::size_t wrap = static_cast<std::size_t>(held.getWrap());
-            const VkSampler sampler = mSamplers[wrap].get();
-            queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, at, held.describe(sampler), mImageScratch, mWriteScratch);
+            queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, at, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, held.describe(),
+                mImageScratch, mWriteScratch);
             // A companion only where a read reaches one, a normal map's: the binding is partially bound.
             if (held.hasCompanion())
-                queueWrite(set, Shaders::TEXTURE_BIND_COMPANIONS, at, held.describeCompanion(sampler), mImageScratch,
-                    mWriteScratch);
-            queueWrite(set, Shaders::TEXTURE_BIND_ALONG, at, held.describe(mFootprintSamplers[wrap].get()),
-                mImageScratch, mWriteScratch);
+                queueWrite(set, Shaders::TEXTURE_BIND_COMPANIONS, at, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    held.describeCompanion(), mImageScratch, mWriteScratch);
         }
 
         updateSets(mDevice, mWriteScratch);
@@ -734,14 +762,13 @@ namespace Rtx
         owed.clear();
     }
 
-    Misc::Result<void, std::string_view> TextureArray::makeCanvas(const TextureSource source)
+    Result<void, std::string_view> TextureArray::makeCanvas(const TextureSource source)
     {
         if (!mCanvas.mBlocks.has_value())
         {
-            Misc::Result<Buffer, std::string_view> blocks
-                = GroundCompositePass::makeBlocks(mDevice, "composite blocks");
+            Result<Buffer, std::string_view> blocks = GroundCompositePass::makeBlocks(mDevice, "composite blocks");
             if (!blocks.isOk())
-                return Misc::Err{ blocks.error() };
+                return Err{ blocks.error() };
             mCanvas.mBlocks.emplace(std::move(blocks.value()));
             mHeld.mCanvasBytes += priceBlocks().standing();
         }
@@ -750,10 +777,10 @@ namespace Rtx
         std::optional<Image>& canvas = gloss ? mCanvas.mGloss : mCanvas.mAlbedo;
         if (!canvas.has_value())
         {
-            Misc::Result<Image, std::string_view> made
+            Result<Image, std::string_view> made
                 = GroundCompositePass::makeCanvas(mDevice, gloss, gloss ? "gloss canvas" : "composite canvas");
             if (!made.isOk())
-                return Misc::Err{ made.error() };
+                return Err{ made.error() };
             canvas.emplace(std::move(made.value()));
             mHeld.mCanvasBytes += priceCanvas().standing();
         }
@@ -847,19 +874,12 @@ namespace Rtx
     {
         // The samplers replaced bury themselves: a frame in flight may still sample through them.
         mFootprintSamplers = makeFootprintSamplers(mDevice, anisotropy);
-
-        // Every slot and not only those that stand: `sync` passes over a slot that holds nothing,
-        // as it does one owed and since dropped.
-        for (SlotSet& owed : mOwed.live())
-        {
-            for (std::uint32_t slot = 0; slot < mSlots.size(); ++slot)
-                owed.addMakingRoom(slot);
-            owed.addMakingRoom(Shaders::TEXTURE_NEUTRAL);
-        }
+        for (bool& owed : mSamplersOwed.live())
+            owed = true;
     }
 
     void TextureArray::queueWrite(const VkDescriptorSet set, const std::uint32_t binding, const std::uint32_t slot,
-        const VkDescriptorImageInfo& image, std::vector<VkDescriptorImageInfo>& images,
+        const VkDescriptorType type, const VkDescriptorImageInfo& image, std::vector<VkDescriptorImageInfo>& images,
         std::vector<VkWriteDescriptorSet>& writes)
     {
         images.push_back(image);
@@ -870,7 +890,7 @@ namespace Rtx
             .dstBinding = binding,
             .dstArrayElement = slot,
             .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorType = type,
             .pImageInfo = &images.back(),
             .pBufferInfo = nullptr,
             .pTexelBufferView = nullptr,

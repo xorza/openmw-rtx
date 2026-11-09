@@ -76,6 +76,10 @@ namespace Platform
     /// The calling thread's name, as `nameThisThread` left it, or empty where it has none.
     std::string nameOfThisThread();
 
+    /// How long the calling thread ran on a CPU since it started, in its own code and in the system's for
+    /// it: what a pool of workers is busy for, which a wall clock cannot tell from a wait.
+    std::chrono::nanoseconds cpuTimeOfThisThread();
+
     /// A thread running `work`, handed a `StopToken` where it takes one. Destroyed or assigned
     /// over, it asks the work to stop and joins it.
     ///

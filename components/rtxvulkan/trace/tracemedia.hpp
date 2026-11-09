@@ -9,6 +9,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/fognoise.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 
@@ -21,7 +22,6 @@ namespace Rtx
     class DescriptorWrites;
     class Device;
     class DeviceScene;
-    struct FogNoise;
     class GpuTimer;
     class SceneDesc;
     struct TraceSubject;
@@ -32,8 +32,8 @@ namespace Rtx
     class TraceMedia
     {
     public:
-        /// @param fog the fog's field, `FogNoise::shared`'s unless a test states another.
-        TraceMedia(const Device& device, const FogNoise& fog);
+        /// @param fog the fog's field, `sFogNoise` unless a test states another.
+        TraceMedia(const Device& device, FogField fog);
 
         /// What a trace of `held` under `camera` reads, for the copy its last placement wrote, and
         /// what its launches bind beside it — but for the chain's own images, which
@@ -69,7 +69,7 @@ namespace Rtx
         void describeSea(const SeaState& sea) { mWaves.describe(sea); }
 
         /// Draws another fog field. Nothing may be in flight.
-        void describeFog(const Device& device, const FogNoise& fog) { mFog.describe(device, fog); }
+        void describeFog(const Device& device, const FogField fog) { mFog.describe(device, fog); }
 
         /// Copies what the world's scene says disturbed the water, at the two places the world's
         /// scene passes through: built and placed. A copy and not a span, because the scene's list

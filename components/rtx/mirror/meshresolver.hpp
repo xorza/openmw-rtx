@@ -144,7 +144,7 @@ namespace Rtx
         /// call of the scene's, and the identity entry added or moved only once they exist. An
         /// error, adding nothing, where the mesh is past a block or its skin or targets do not pose
         /// exactly its vertices, because a vertex count comes out of a content file.
-        Misc::Result<Index, std::string> addMesh(const DrawableRead& read, const MeshReading& reading);
+        Result<Index, std::string> addMesh(const DrawableRead& read, const MeshReading& reading);
 
         /// Refuses `drawable` to the scene for `why`, and keeps the refusal under it so it is read
         /// no more. Answers the index a refused drawable resolves to, which is none.
@@ -161,11 +161,11 @@ namespace Rtx
         /// Reads a skin into the scratch as the scene takes it: the groups flattened into a run
         /// per vertex. An error where the skin names a vertex the mesh has not got, or a vertex
         /// more bones than a run holds. The spec spans the scratch, good until the next read.
-        Misc::Result<RigSpec, std::string> readRig(const SceneUtil::RigGeometry& rig);
+        Result<RigSpec, std::string> readRig(const SceneUtil::RigGeometry& rig);
 
         /// The same for a morph's targets, laid end to end. An error where a target's offset is not
         /// a finite number, for the reason the reader refuses such a vertex.
-        Misc::Result<MorphSpec, std::string> readMorph(const SceneUtil::MorphGeometry& morph);
+        Result<MorphSpec, std::string> readMorph(const SceneUtil::MorphGeometry& morph);
 
         /// Poses `mesh` where the drawable deforms, and counts it. Nothing where it stands. A rig's
         /// rows are `RigGeometry::cull`'s own composition of each bone's inverse bind, its

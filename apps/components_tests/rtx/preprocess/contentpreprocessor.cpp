@@ -4,6 +4,8 @@
 #include <filesystem>
 #include <optional>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -11,14 +13,17 @@
 #include <osg/GL>
 #include <osg/Image>
 #include <osg/Vec3f>
+#include <osg/observer_ptr>
 #include <osg/ref_ptr>
 
+#include <components/misc/bytebuffer.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
+#include <components/rtx/preprocess/contentcache.hpp>
 #include <components/rtx/preprocess/contentcodec.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
@@ -29,6 +34,7 @@
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
+#include <components/rtx/shaders/tangent.h>
 #include <components/testing/util.hpp>
 
 namespace Rtx
@@ -118,7 +124,7 @@ namespace Rtx
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             {
-                ContentStore store(folder, ContentStore::sGameCap);
+                ContentStore store(folder);
                 ContentPreprocessor content(&store, StoreReach::Disk);
                 std::vector<std::uint32_t> kept;
                 foldCard(content, kept);
@@ -128,9 +134,10 @@ namespace Rtx
                 const PassStats stats = content.takeStats().at(ContentPassId::Shape);
                 EXPECT_EQ(stats.mAsked, 2u);
                 EXPECT_EQ(stats.mHits, 1u);
+                EXPECT_GT(stats.mFoundMs, 0.0) << "the hit's read and decode not counted";
             }
 
-            ContentStore next(folder, ContentStore::sGameCap);
+            ContentStore next(folder);
             ContentPreprocessor reader(&next, StoreReach::Disk);
             std::vector<std::uint32_t> kept;
             EXPECT_TRUE(foldCard(reader, kept).mSheet);
@@ -139,8 +146,10 @@ namespace Rtx
         }
 
         /// **A shape's codec writes every field and reads back exactly one**: kept triangles, normals,
-        /// the added vertices' sources and the three findings come back as they went, and a payload a
-        /// byte short, a byte long or with a fourth finding is no shape.
+        /// the added vertices' sources and the three findings come back as they went, the indices
+        /// sixteen bits each under 65536 and the normals as the device's words read back, and a payload
+        /// a byte short, a byte long or with a fifth flag is no shape. A vertex at 65536 files every
+        /// index at thirty-two bits.
         TEST(RtxContentCodecTest, aShapeIsReadBackAsItWentAndNothingElseIsAShape)
         {
             std::vector<std::uint32_t> kept{ 0, 1, 2, 2, 1, 3 };
@@ -151,10 +160,10 @@ namespace Rtx
                 .mNormals = normals,
                 .mSources = sources,
                 .mShape = FoldedShape{ .mSheet = false, .mFolded = true, .mPocketed = true } };
-            std::vector<std::byte> payload;
+            Misc::ByteBuffer payload;
             ContentCodec<ShapePass::Output>::encode(written, payload);
-            // 1 + (4 + 6 × 4) + (4 + 4 × 12) + (4 + 4)
-            EXPECT_EQ(payload.size(), 89u);
+            // 1 + (4 + 6 × 2) + (4 + 4 × 4) + (4 + 2)
+            EXPECT_EQ(payload.size(), 43u);
 
             std::vector<std::uint32_t> readKept{ 9 };
             std::vector<osg::Vec3f> readNormals;
@@ -162,31 +171,73 @@ namespace Rtx
             ShapePass::Output read{ .mKept = readKept, .mNormals = readNormals, .mSources = readSources };
             ASSERT_TRUE(ContentCodec<ShapePass::Output>::decode(payload, read));
             EXPECT_EQ(readKept, kept);
-            EXPECT_EQ(readNormals, normals);
+            ASSERT_EQ(readNormals.size(), normals.size());
+            for (std::size_t at = 0; at < normals.size(); ++at)
+                EXPECT_EQ(readNormals[at], Shaders::unpackNormal(Shaders::packNormal(normals[at]))) << at;
+            EXPECT_EQ(readNormals[0], osg::Vec3f(0, 0, 1)) << "an axis is a word exactly";
             EXPECT_EQ(readSources, sources);
             EXPECT_FALSE(read.mShape.mSheet);
             EXPECT_TRUE(read.mShape.mFolded);
             EXPECT_TRUE(read.mShape.mPocketed);
 
             EXPECT_FALSE(ContentCodec<ShapePass::Output>::decode(std::span(payload).first(payload.size() - 1), read));
-            std::vector<std::byte> longer = payload;
+            Misc::ByteBuffer longer = payload;
             longer.push_back(std::byte{ 0 });
             EXPECT_FALSE(ContentCodec<ShapePass::Output>::decode(longer, read));
-            std::vector<std::byte> fourth{ std::byte{ 8 } };
-            fourth.insert(fourth.end(), payload.begin() + 1, payload.end());
-            EXPECT_FALSE(ContentCodec<ShapePass::Output>::decode(fourth, read));
+            Misc::ByteBuffer fifth{ std::byte{ 16 | 8 } };
+            fifth.insert(fifth.end(), payload.begin() + 1, payload.end());
+            EXPECT_FALSE(ContentCodec<ShapePass::Output>::decode(fifth, read));
 
-            // **And a shape with no normals and no added vertex**, two empty runs: 1 + (4 + 24) + 4 + 4.
+            std::vector<std::uint32_t> wide{ 0, 1, 65536 };
+            std::vector<osg::Vec3f> noWideNormals;
+            std::vector<std::uint32_t> noWideSources;
+            Misc::ByteBuffer widePayload;
+            ContentCodec<ShapePass::Output>::encode(
+                ShapePass::Output{ .mKept = wide, .mNormals = noWideNormals, .mSources = noWideSources }, widePayload);
+            EXPECT_EQ(widePayload.size(), 1u + (4 + 3 * 4) + 4 + 4);
+            ASSERT_TRUE(ContentCodec<ShapePass::Output>::decode(widePayload, read));
+            EXPECT_EQ(readKept, wide);
+
+            // **And a shape with no normals and no added vertex**, two empty runs: 1 + (4 + 12) + 4 + 4.
             std::vector<osg::Vec3f> noNormals;
             std::vector<std::uint32_t> noSources;
-            std::vector<std::byte> bare;
+            Misc::ByteBuffer bare;
             ContentCodec<ShapePass::Output>::encode(
                 ShapePass::Output{ .mKept = kept, .mNormals = noNormals, .mSources = noSources }, bare);
-            EXPECT_EQ(bare.size(), 37u);
+            EXPECT_EQ(bare.size(), 25u);
             ASSERT_TRUE(ContentCodec<ShapePass::Output>::decode(bare, read));
             EXPECT_EQ(readKept, kept);
             EXPECT_TRUE(readNormals.empty());
             EXPECT_TRUE(readSources.empty());
+        }
+
+        /// **A made chain's payload is its bytes, then its form, and a read takes it whole**: three bytes
+        /// in BC7 encode as those three and the form's byte, 2 (`ChainForm::Bc7`), and decode back into
+        /// the very buffer the payload was, which is left empty, so a stored chain is never copied out
+        /// of what the store read. A form past `ChainForm::Own`, and an empty payload, are no chain.
+        TEST(RtxContentCodecTest, aMadeChainTakesItsPayloadWhole)
+        {
+            const MadeChain written{ .mForm = ChainForm::Bc7,
+                .mBytes = Misc::ByteBuffer{ std::byte{ 7 }, std::byte{ 8 }, std::byte{ 9 } } };
+            Misc::ByteBuffer payload;
+            ContentCodec<MadeChain>::encode(written, payload);
+            EXPECT_EQ(payload,
+                (Misc::ByteBuffer{ std::byte{ 7 }, std::byte{ 8 }, std::byte{ 9 },
+                    std::byte{ static_cast<std::uint8_t>(ChainForm::Bc7) } }));
+
+            const std::byte* const held = payload.data();
+            MadeChain read;
+            ASSERT_TRUE(ContentCodec<MadeChain>::decode(payload, read));
+            EXPECT_EQ(read.mForm, ChainForm::Bc7);
+            EXPECT_EQ(read.mBytes, written.mBytes);
+            EXPECT_EQ(read.mBytes.data(), held) << "the chain's bytes are the payload's buffer";
+            EXPECT_TRUE(payload.empty());
+
+            Misc::ByteBuffer pastOwn{ std::byte{ 7 }, std::byte{ static_cast<std::uint8_t>(ChainForm::Own) + 1 } };
+            EXPECT_FALSE(ContentCodec<MadeChain>::decode(pastOwn, read));
+            EXPECT_EQ(pastOwn.size(), 2u) << "a payload that is no chain is left as it was";
+            Misc::ByteBuffer empty;
+            EXPECT_FALSE(ContentCodec<MadeChain>::decode(empty, read));
         }
 
         /// The texture passes through the preprocessor answer what the readings of the described
@@ -291,7 +342,7 @@ namespace Rtx
             TexelScratch scratch;
             const MeanTexel direct = meanTexel(*describeFinest(*painted, scratch), scratch);
             {
-                ContentStore store(folder, ContentStore::sGameCap);
+                ContentStore store(folder);
                 ContentPreprocessor content(&store, StoreReach::Disk);
                 const MeanTexel run = content.meanTexel(*painted);
                 const MeanTexel found = content.meanTexel(*painted);
@@ -306,7 +357,7 @@ namespace Rtx
                 EXPECT_EQ(stats.mKeyBytes, 2 * sFinestKeyBytes);
             }
 
-            ContentStore next(folder, ContentStore::sGameCap);
+            ContentStore next(folder);
             next.flush();
             ContentPreprocessor frame(&next, StoreReach::Memory);
             const MeanTexel found = frame.meanTexel(*painted);
@@ -315,11 +366,54 @@ namespace Rtx
             EXPECT_EQ(frame.takeStats().at(ContentPassId::TexelMean).mHits, 1u);
         }
 
+        /// **A chain asked only to be stored is run where the store lacks it, and not read where it holds
+        /// it**: the first ask runs and files the chain, and a later one, in a session of its own, counts a
+        /// hit and leaves the output it was handed as it was, a coarser chain of one byte, nine; an ask for
+        /// the output then reads the bytes the run made.
+        TEST(RtxContentPreprocessorTest, aChainAskedOnlyToBeStoredIsNotReadWhereTheStoreHoldsIt)
+        {
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
+            const ChainPass::Input input{ .mImage = *painted, .mEncoding = TextureEncoding::Normal };
+            MadeChain made;
+            {
+                ContentStore store(folder);
+                ContentPreprocessor content(&store, StoreReach::Disk);
+                content.chain(input, made, ContentAsk::Stored);
+                ASSERT_EQ(made.mForm, ChainForm::Bc7) << "the store lacked it, so it ran";
+                EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 0u);
+            }
+
+            ContentStore next(folder);
+            ContentPreprocessor content(&next, StoreReach::Disk);
+            MadeChain untouched{ .mForm = ChainForm::Coarser, .mBytes = Misc::ByteBuffer{ std::byte{ 9 } } };
+            content.chain(input, untouched, ContentAsk::Stored);
+            EXPECT_EQ(untouched.mForm, ChainForm::Coarser);
+            EXPECT_EQ(untouched.mBytes, Misc::ByteBuffer{ std::byte{ 9 } });
+            EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u);
+
+            MadeChain read;
+            content.chain(input, read);
+            EXPECT_EQ(read.mForm, ChainForm::Bc7);
+            EXPECT_EQ(read.mBytes, made.mBytes);
+            EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u);
+
+            // **And a hit lets go of the image its key was read from**, as a run does: a file the
+            // scene let go of is not held by the thread that asked for its chain.
+            osg::ref_ptr<osg::Image> again = makeImage(sPaint, "painted.dds");
+            const osg::observer_ptr<osg::Image> watched(again);
+            content.chain(ChainPass::Input{ .mImage = *again, .mEncoding = TextureEncoding::Normal }, read);
+            EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 1u);
+            again = nullptr;
+            osg::ref_ptr<osg::Image> standing;
+            EXPECT_FALSE(watched.lock(standing)) << "the image the hit read its key from was held";
+        }
+
         /// **A pass the store keeps nothing of makes no key**, store or none: the solid reach, whose
         /// walk stops at the first solid texel, runs every time and writes nothing.
         TEST(RtxContentPreprocessorTest, aPassTheStoreKeepsNothingOfMakesNoKey)
         {
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
             ContentPreprocessor content(&store, StoreReach::Disk);
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
             EXPECT_TRUE(content.reachesSolid(*painted));
@@ -385,7 +479,7 @@ namespace Rtx
         /// session reads the 28.
         TEST(RtxContentPreprocessorTest, aPayloadItsCodecCannotReadIsRunAgainAndReplaced)
         {
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
 
             TexelScratch scratch;
@@ -393,8 +487,8 @@ namespace Rtx
             ContentDigest digest(sContentPasses.name(ContentPassId::TexelMean), TexelMean::sVersion);
             finest.describe(*painted);
             finest.addTo(digest);
-            const std::vector<std::byte> broken{ std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 } };
-            store.write(digest.getKey(), ContentPassId::TexelMean, TexelMean::sVersion, broken);
+            const Misc::ByteBuffer broken{ std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 } };
+            store.write(digest.getKey(), ContentPassId::TexelMean, TexelMean::sVersion, broken, StoreReach::Disk);
 
             ContentPreprocessor content(&store, StoreReach::Memory);
             const MeanTexel first = content.meanTexel(*painted);
@@ -407,23 +501,113 @@ namespace Rtx
             EXPECT_EQ(stats.mHits, 1u) << "the second, from the run's output";
 
             store.flush();
-            std::vector<std::byte> filed;
-            ContentStore next(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            Misc::ByteBuffer filed;
+            ContentStore next(TestingOpenMW::currentTestDirPath() / "store");
             ASSERT_TRUE(
                 next.read(digest.getKey(), ContentPassId::TexelMean, TexelMean::sVersion, StoreReach::Disk, filed));
             EXPECT_EQ(filed.size(), 28u) << "the broken file stood";
         }
 
-        /// A sum is pass by pass and figure by figure, and the whole is every key and every run:
-        /// 1 + 2 + 3 + 4 = 10 ms.
+        /// **A stored shape that reads whole and does not fit its input is run again and replaced**:
+        /// the digest says a file is intact, not that it is this input's, and a misfit written into the
+        /// mesh table would write or read past the mesh's run. The card has eight vertices: a kept
+        /// corner of 8 with no vertex added, a triangle cut short, an added vertex copying vertex 8,
+        /// and normals for seven of eight vertices are each a miss, the card's front kept as a run keeps
+        /// it, and the run's output filed in the misfit's place, so the next ask finds it.
+        TEST(RtxContentPreprocessorTest, aStoredShapeThatDoesNotFitItsInputIsRunAgain)
+        {
+            const ShapePass::Input input{ .mPositions = sCard, .mTriangles = sDoubled, .mSplits = true };
+            ContentDigest digest(sContentPasses.name(ContentPassId::Shape), ShapePass::sVersion);
+            ShapePass::digest(input, digest);
+
+            struct Misfit
+            {
+                std::string_view mName;
+                std::vector<std::uint32_t> mKept;
+                std::vector<osg::Vec3f> mNormals;
+                std::vector<std::uint32_t> mSources;
+            };
+            const std::vector<Misfit> misfits{
+                { "a corner past the vertices", { 0, 1, 8 }, {}, {} },
+                { "a triangle cut short", { 0, 1, 2, 0 }, {}, {} },
+                { "an added vertex copying none of the input's", { 0, 1, 8 }, {}, { 8 } },
+                { "normals for seven of eight vertices", { 0, 1, 2 }, std::vector<osg::Vec3f>(7), {} },
+            };
+            for (std::size_t at = 0; at < misfits.size(); ++at)
+            {
+                const Misfit& misfit = misfits[at];
+                std::vector<std::uint32_t> kept = misfit.mKept;
+                std::vector<osg::Vec3f> normals = misfit.mNormals;
+                std::vector<std::uint32_t> sources = misfit.mSources;
+                Misc::ByteBuffer payload;
+                ContentCodec<ShapePass::Output>::encode(
+                    ShapePass::Output{ .mKept = kept, .mNormals = normals, .mSources = sources }, payload);
+                EXPECT_FALSE(ShapePass::fits(
+                    input, ShapePass::Output{ .mKept = kept, .mNormals = normals, .mSources = sources }))
+                    << misfit.mName;
+
+                ContentStore store(TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)));
+                store.write(digest.getKey(), ContentPassId::Shape, ShapePass::sVersion, payload, StoreReach::Disk);
+                ContentPreprocessor content(&store, StoreReach::Memory);
+                std::vector<std::uint32_t> run;
+                foldCard(content, run);
+                EXPECT_EQ(run, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 })) << misfit.mName;
+                foldCard(content, run);
+                EXPECT_EQ(run, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 })) << misfit.mName;
+                const PassStats stats = content.takeStats().at(ContentPassId::Shape);
+                EXPECT_EQ(stats.mAsked, 2u) << misfit.mName;
+                EXPECT_EQ(stats.mHits, 1u) << misfit.mName << ": the second, from the run's output";
+            }
+
+            // And the card's own output fits it: every corner and every normal its run leaves.
+            std::vector<std::uint32_t> kept{ 0, 1, 2, 0, 2, 3 };
+            std::vector<osg::Vec3f> normals(8);
+            std::vector<std::uint32_t> sources;
+            EXPECT_TRUE(
+                ShapePass::fits(input, ShapePass::Output{ .mKept = kept, .mNormals = normals, .mSources = sources }));
+            normals.clear();
+            EXPECT_TRUE(
+                ShapePass::fits(input, ShapePass::Output{ .mKept = kept, .mNormals = normals, .mSources = sources }));
+        }
+
+        /// **A kept shape is handed back as the store reads it**: its normals become their words read
+        /// back (`ContentCodec<ShapePass::Output>::sRounds`), so a run and a later hit hand the mesh
+        /// table one output; (0.5, 0.25, −1) comes back unit, and the hit hands back those very floats.
+        TEST(RtxContentCacheTest, aKeptShapeIsHandedBackAsTheStoreReadsIt)
+        {
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
+            ContentCache cache(&store, StoreReach::Disk);
+            const ShapePass::Input input{ .mPositions = sCard, .mTriangles = sDoubled, .mSplits = true };
+            const ContentKey key{ .mHash = { 1, 2 } };
+
+            std::vector<std::uint32_t> kept{ 0, 1, 2 };
+            std::vector<osg::Vec3f> normals(8, osg::Vec3f(0.5f, 0.25f, -1.0f));
+            std::vector<std::uint32_t> sources;
+            ShapePass::Output output{ .mKept = kept, .mNormals = normals, .mSources = sources };
+            cache.keep<ShapePass>(key, output);
+            const osg::Vec3f rounded = Shaders::unpackNormal(Shaders::packNormal(osg::Vec3f(0.5f, 0.25f, -1.0f)));
+            EXPECT_EQ(normals[0], rounded);
+            EXPECT_NEAR(rounded.length(), 1.0f, 1e-6f);
+
+            std::vector<std::uint32_t> foundKept;
+            std::vector<osg::Vec3f> foundNormals;
+            std::vector<std::uint32_t> foundSources;
+            ShapePass::Output found{ .mKept = foundKept, .mNormals = foundNormals, .mSources = foundSources };
+            ASSERT_TRUE(cache.find<ShapePass>(key, input, found));
+            EXPECT_EQ(foundNormals, normals);
+            EXPECT_EQ(foundKept, kept);
+        }
+
+        /// A sum is pass by pass and figure by figure, and the whole is every key, every found output's
+        /// read and every run: 1 + 0.5 + 2 + 3 + 0.25 + 4 = 10.75 ms.
         TEST(RtxContentStatsTest, aSumIsPassByPassAndTheWholeIsEveryKeyAndRun)
         {
             ContentStats first;
             first.at(ContentPassId::Shape)
-                = PassStats{ .mAsked = 2, .mHits = 1, .mKeyMs = 1.0, .mRunMs = 2.0, .mKeyBytes = 10 };
+                = PassStats{ .mAsked = 2, .mHits = 1, .mKeyMs = 1.0, .mFoundMs = 0.5, .mRunMs = 2.0, .mKeyBytes = 10 };
 
             ContentStats second;
-            second.at(ContentPassId::Shape) = PassStats{ .mAsked = 1, .mKeyMs = 3.0, .mKeyBytes = 5 };
+            second.at(ContentPassId::Shape) = PassStats{ .mAsked = 1, .mKeyMs = 3.0, .mFoundMs = 0.25, .mKeyBytes = 5 };
             second.at(ContentPassId::TexelMean) = PassStats{ .mAsked = 4, .mRunMs = 4.0 };
 
             Preprocessed both{ .mOnFrame = first };
@@ -433,13 +617,14 @@ namespace Rtx
             EXPECT_EQ(fold.mAsked, 3u);
             EXPECT_EQ(fold.mHits, 1u);
             EXPECT_EQ(fold.mKeyMs, 4.0);
+            EXPECT_EQ(fold.mFoundMs, 0.75);
             EXPECT_EQ(fold.mRunMs, 2.0);
             EXPECT_EQ(fold.mKeyBytes, 15u);
             EXPECT_EQ(both.mOnFrame.at(ContentPassId::TexelMean).mAsked, 4u);
-            EXPECT_EQ(both.mOnFrame.getMs(), 10.0);
-            EXPECT_EQ(both.mOffFrame.getMs(), 7.0);
-            EXPECT_EQ(both.mPrepared.getMs(), 3.0) << "the chain threads' figures not summed";
-            EXPECT_EQ(both.mLoading.getMs(), 7.0) << "the loading screen's figures not summed";
+            EXPECT_EQ(both.mOnFrame.getMs(), 10.75);
+            EXPECT_EQ(both.mOffFrame.getMs(), 7.25);
+            EXPECT_EQ(both.mPrepared.getMs(), 3.5) << "the chain threads' figures not summed";
+            EXPECT_EQ(both.mLoading.getMs(), 7.25) << "the loading screen's figures not summed";
         }
     }
 }

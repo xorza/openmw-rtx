@@ -44,6 +44,7 @@ file(GLOB UNITTEST_SRC_FILES
     platform/sharedmemory.cpp
     platform/thread.cpp
     platform/userhome.cpp
+    platform/wholefile.cpp
     platform/uniquehold.cpp
 
     detournavigator/navigator.cpp
@@ -138,6 +139,7 @@ target_link_libraries(components-tests
     GTest::GTest
     GMock::GMock
     components
+    openmw-rtx-tablemakers
 )
 
 # The system's half of the test support, one file a system (`rtx/support/testplatform.hpp`).

@@ -26,7 +26,7 @@ set(RTX_SPIRV_PIN_FILES spirv/spirvinterface.cpp spirv/spirvinterface.hpp spirv/
 add_library(openmw-rtx-spirv STATIC ${RTX_SPIRV_PIN_FILES})
 # Public, because `spirvfile.hpp`'s one walk of a module's words names the opcodes in its interface.
 target_include_directories(openmw-rtx-spirv SYSTEM PUBLIC "${OPENMW_SPIRV_HEADERS}")
-target_link_libraries(openmw-rtx-spirv PRIVATE smhasher)
+target_link_libraries(openmw-rtx-spirv PRIVATE smhasher openmw-platform-io)
 add_executable(openmw-rtx-spirv-pin spirv/spirvpintool.cpp)
 target_link_libraries(openmw-rtx-spirv-pin PRIVATE openmw-rtx-spirv)
 set_target_properties(openmw-rtx-spirv-pin PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")

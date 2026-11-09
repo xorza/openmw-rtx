@@ -26,6 +26,8 @@ namespace Rtx::Shaders
     struct SkinConstants
     {
         uint64 mBindPositions;
+
+        /// `Rtx::Shaders::packNormal`'s words, posed and packed again as the tangents are.
         uint64 mBindNormals;
 
         /// `Rtx::packTangent`'s words: posed as the normals are, the handedness kept, and nought

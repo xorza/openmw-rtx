@@ -1,9 +1,7 @@
 #include "shaderdirectory.hpp"
 
 #include <algorithm>
-#include <exception>
-#include <fstream>
-#include <ios>
+#include <cstddef>
 #include <span>
 #include <string>
 #include <system_error>
@@ -11,7 +9,9 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
-#include <components/files/hash.hpp>
+#include <components/misc/bytebuffer.hpp>
+#include <components/misc/result.hpp>
+#include <components/platform/wholefile.hpp>
 #include <components/rtx/common/hashstate.hpp>
 
 namespace Rtx
@@ -36,27 +36,24 @@ namespace Rtx
         std::sort(files.begin(), files.end());
 
         HashState digest;
+        Misc::ByteBuffer bytes;
         for (const std::filesystem::path& file : files)
         {
-            std::ifstream stream(file, std::ios::binary);
-            if (!stream)
+            // A module that will not read is left out: a digest is a key, and a module that will
+            // not read is one the renderer reading it reports.
+            const std::string name = Files::pathToUnicodeString(file.filename());
+            if (const Result<void, Platform::IoError> read = Platform::readWhole(file, bytes, Platform::sUnbounded);
+                !read.isOk())
+            {
+                Log(Debug::Warning) << "Rtx: " << name
+                                    << " would not read for the shaders' digest: " << read.error().mCode.message();
                 continue;
+            }
 
             // The name as well as the contents, so that renaming a shader is a change and two files
             // trading contents is not the same set.
-            const std::string name = Files::pathToUnicodeString(file.filename());
             digest.add(std::span<const char>(name));
-
-            // `Files::getHash` throws where a read fails, and this may not: a digest is a key, and a
-            // module that will not read is one the renderer reading it reports.
-            try
-            {
-                digest.add(Files::getHash(name, stream));
-            }
-            catch (const std::exception& error)
-            {
-                Log(Debug::Warning) << "Rtx: " << name << " would not read for the shaders' digest: " << error.what();
-            }
+            digest.add(std::span<const std::byte>(bytes));
         }
 
         return digest.getWords();

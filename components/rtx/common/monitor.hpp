@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <utility>
@@ -60,6 +61,15 @@ namespace Rtx
             std::unique_lock<std::mutex> lock(mMutex);
             mToFrame.wait(lock, [&] { return ready() || (mIdle && mBusy == 0); });
             return ready();
+        }
+
+        /// The frame's side, for workers that keep loops of their own and `hand` what they finish:
+        /// waits until `ready` or until `patience` passed, and says which.
+        template <class Ready>
+        bool awaitWithin(std::chrono::milliseconds patience, Ready ready)
+        {
+            std::unique_lock<std::mutex> lock(mMutex);
+            return mToFrame.wait_for(lock, patience, ready);
         }
 
         /// A worker's whole loop: wait for work, pick it up, do it, and again until stopped. `ready`

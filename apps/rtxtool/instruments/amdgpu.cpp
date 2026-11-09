@@ -1,11 +1,8 @@
 #include "amdgpu.hpp"
 
-#include <array>
 #include <charconv>
 #include <cstddef>
 #include <format>
-#include <fstream>
-#include <ios>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -13,6 +10,7 @@
 #include <vector>
 
 #include <components/platform/folder.hpp>
+#include <components/platform/wholefile.hpp>
 
 namespace RtxTool
 {
@@ -21,16 +19,13 @@ namespace RtxTool
         /// PCI's number for AMD, as `device/vendor` spells it.
         constexpr std::string_view sAmdVendor = "0x1002";
 
-        /// The whole of a small sysfs file into `into`, or nothing where it cannot be read. A
-        /// buffer on the stack, since every file read here is a line or a handful of them.
-        std::optional<std::string_view> readSmall(const std::filesystem::path& path, std::array<char, 512>& into)
+        /// The whole of a sysfs file into `into`, or nothing where it cannot be read. `into` is the
+        /// reader's own, so a reading allocates nothing once it has been read once.
+        std::optional<std::string_view> readSmall(const std::filesystem::path& path, std::string& into)
         {
-            std::ifstream file(path, std::ios::binary);
-            if (!file)
+            if (!Platform::readWhole(path, into, Platform::sUnbounded).isOk())
                 return std::nullopt;
-
-            file.read(into.data(), static_cast<std::streamsize>(into.size()));
-            return std::string_view(into.data(), static_cast<std::size_t>(file.gcount()));
+            return std::string_view(into);
         }
 
         std::optional<std::uint32_t> leadingNumber(std::string_view text)
@@ -51,13 +46,14 @@ namespace RtxTool
         : mDevice(std::move(device))
         , mTemperature(std::move(temperature))
     {
+        mText.reserve(sReadBytes);
     }
 
     std::optional<AmdGpu> AmdGpu::at(const std::filesystem::path& devices, const Rtx::PciAddress& card)
     {
         const std::filesystem::path device = devices / folderName(card);
 
-        std::array<char, 512> text;
+        std::string text;
         const std::optional<std::string_view> vendor = readSmall(device / "vendor", text);
         if (!vendor.has_value() || !vendor->starts_with(sAmdVendor))
             return std::nullopt;
@@ -83,9 +79,9 @@ namespace RtxTool
         return std::format("{:04x}:{:02x}:{:02x}.{:x}", card.mDomain, card.mBus, card.mDevice, card.mFunction);
     }
 
-    GpuClock AmdGpu::readClock() const
+    GpuClock AmdGpu::readClock()
     {
-        std::array<char, 512> text;
+        std::string& text = mText;
         const std::optional<std::string_view> core = readSmall(mDevice / "pp_dpm_sclk", text);
         const std::optional<std::uint32_t> coreMhz = core.has_value() ? currentLevelMhz(*core) : std::nullopt;
         if (!coreMhz.has_value())

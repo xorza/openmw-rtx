@@ -139,7 +139,7 @@ void main()
         // walk reads it (`stepEye`).
         const PathEndLight light = paneLightOf(surface, pixel, peel.mLayer);
         const SeenPane pane = seenPaneOf(surface, light, pathEndSeenOf(light.mRays));
-        EyeRun eye = eyeRunOf(peel.mOrigin, peel.mDirection, uint(peel.mArms), peel.mLayer, false, motion,
+        EyeRun eye = eyeRunOf(peel.mDirection, uint(peel.mArms), peel.mLayer, false, motion,
             met.mDistance);
         stepEye(eye, waterRunOf(vec3(0.0, 0.0, -1.0), Cone(0.0, 0.0), WATER_MIRROR), pane, surface, pixel,
             PEEL_SHADES_LAYERS);

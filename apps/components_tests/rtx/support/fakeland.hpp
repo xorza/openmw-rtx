@@ -179,11 +179,11 @@ namespace Rtx::Testing
     class ImagesByPath
     {
     public:
-        Misc::Result<osg::ref_ptr<const osg::Image>, std::string> get(const VFS::Path::NormalizedView path)
+        Result<osg::ref_ptr<const osg::Image>, std::string> get(const VFS::Path::NormalizedView path)
         {
             ++mOpened;
             if (mLost.contains(path.value()))
-                return Misc::Err{ "no image reads from the file" };
+                return Err{ "no image reads from the file" };
 
             const auto found = mImages.find(path.value());
             if (found != mImages.end())

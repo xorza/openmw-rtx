@@ -147,7 +147,7 @@ namespace Rtx
             return;
 
         MeshReading reading;
-        const Misc::Result<bool, std::string> readMesh
+        const Result<bool, std::string> readMesh
             = mMeshes.read(mContent.mPreprocessor, read, modelOf(getNodePath()), reading);
         if (!readMesh.isOk())
         {
@@ -158,7 +158,7 @@ namespace Rtx
             return;
 
         // Here on the reader's thread, and not at the adoption, which is inside the frame's walk.
-        if (const Misc::Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
+        if (const Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
         {
             refuse(fits.error());
             return;

@@ -68,7 +68,7 @@ namespace Rtx
     {
         const VkDeviceSize bindVertices = reach.mBindVertices;
         mBindPositions.outgrowKeeping(batch, bindVertices * sizeof(osg::Vec3f));
-        mBindNormals.outgrowKeeping(batch, bindVertices * sizeof(osg::Vec3f));
+        mBindNormals.outgrowKeeping(batch, bindVertices * sizeof(std::uint32_t));
         mBindTangents.outgrowKeeping(batch, bindVertices * sizeof(std::uint32_t));
         mRuns.outgrowKeeping(batch, VkDeviceSize{ reach.mRigRuns } * sizeof(std::uint32_t));
         mInfluences.outgrowKeeping(batch, VkDeviceSize{ reach.mInfluences } * sizeof(Shaders::GpuInfluence));
@@ -90,9 +90,10 @@ namespace Rtx
             if (!mesh.deforms() || mesh.mVertices.mCount == 0)
                 continue;
 
-            const VkDeviceSize at = VkDeviceSize{ mesh.mBindOffset } * sizeof(osg::Vec3f);
-            stageInto(batch, mBindPositions.get(), at, std::as_bytes(scene.meshes().getMeshPositions(index)));
-            stageInto(batch, mBindNormals.get(), at, std::as_bytes(mesh.mVertices.in(scene.meshes().getNormals())));
+            stageInto(batch, mBindPositions.get(), VkDeviceSize{ mesh.mBindOffset } * sizeof(osg::Vec3f),
+                std::as_bytes(scene.meshes().getMeshPositions(index)));
+            stageInto(batch, mBindNormals.get(), VkDeviceSize{ mesh.mBindOffset } * sizeof(std::uint32_t),
+                std::as_bytes(mesh.mVertices.in(scene.meshes().getNormals())));
             stageInto(batch, mBindTangents.get(), VkDeviceSize{ mesh.mBindOffset } * sizeof(std::uint32_t),
                 std::as_bytes(mesh.mVertices.in(scene.meshes().getTangents())));
         }
@@ -157,7 +158,7 @@ namespace Rtx
 
     VkDeviceAddress SkinTables::getBindNormals(const MeshRange& mesh) const
     {
-        return mBindNormals.get().addressFor() + VkDeviceSize{ mesh.mBindOffset } * sizeof(osg::Vec3f);
+        return mBindNormals.get().addressFor() + VkDeviceSize{ mesh.mBindOffset } * sizeof(std::uint32_t);
     }
 
     VkDeviceAddress SkinTables::getBindTangents(const MeshRange& mesh) const

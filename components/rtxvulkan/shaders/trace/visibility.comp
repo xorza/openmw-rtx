@@ -91,18 +91,18 @@ TracedLists tracePixel(uvec2 pixel)
     if (WATER_STAGE)
     {
         const ivec2 kept = storedAt(ivec2(pixel), width, swap);
-        const uvec4 record = imageLoad(stageRecord, kept);
+        const WaterPending pending = unpackWaterPending(imageLoad(stageRecord, kept));
         const uvec4 hit = imageLoad(stageHit, kept);
         const vec4 from = imageLoad(stageRayFrom, kept);
         const vec4 along = imageLoad(stageRayAlong, kept);
-        peel.mArms = ((record.x >> 2u) & 1u) != 0u;
-        peel.mLayer = (record.x >> 3u) & 0x1fffu;
+        peel.mArms = pending.mArms != 0u;
+        peel.mLayer = pending.mLayer;
         peel.mOrigin = from.xyz;
         peel.mDirection = along.xyz;
-        peel.mTmin = uintBitsToFloat(record.y);
-        panesThrough = uintBitsToFloat(record.z);
-        armsThrough = uintBitsToFloat(record.w);
-        turns = record.x >> 16u;
+        peel.mTmin = pending.mTmin;
+        panesThrough = pending.mPanesThrough;
+        armsThrough = pending.mArmsThrough;
+        turns = pending.mTurns;
         met = SceneAnswer(1u, along.w, 0u, hit.x, hit.y, uintBitsToFloat(hit.zw), KIND_WATER);
         surface = resolveAsked(met, peelAsk(peel, pixel).mQuery);
         peelCut = false;
@@ -142,12 +142,13 @@ TracedLists tracePixel(uvec2 pixel)
         }
     }
 
-    // The ray the peel ended on, which the rest of the trace is the path of.
-    const bool arms = peel.mArms;
-    const vec3 origin = peel.mOrigin;
+    // The ray the peel ended on, which the rest of the trace is the path of. Read again from the stage's
+    // record by the water's stage once its walk ends, so the walk carries none of it (`WaterPending`).
+    bool arms = peel.mArms;
+    vec3 origin = peel.mOrigin;
     const vec3 direction = peel.mDirection;
-    const float tmin = peel.mTmin;
-    const uint layer = peel.mLayer;
+    float tmin = peel.mTmin;
+    uint layer = peel.mLayer;
 
     // **The surface shaded, or the sky where nothing was met.** A water path walks in a loop of its
     // own (`EYE_WATER`) from the water the eye met, whose turns come out of the same bound, in the
@@ -176,9 +177,12 @@ TracedLists tracePixel(uvec2 pixel)
         // **Measured to the texel the relief showed**, which moves with its own parallax, and not to the
         // triangle: a history fetched off the triangle's motion is another texel's (`Surface::mReliefDepth`).
         const float seen = HAS_RELIEF ? met.mDistance + surface.mReliefDepth : met.mDistance;
-        const vec3 motion = motionOf(pixel, origin, direction, seen, met.mInstance, met.mPrimitive, met.mBary,
-            eyeSpread(uint(arms)));
-        EyeRun eye = eyeRunOf(origin, direction, uint(arms), layer, water, motion, seen);
+        // The water's stage takes the motion after its walk, from the sea's stored hit, so the walk does not
+        // carry it.
+        const vec3 motion = WATER_STAGE ? vec3(0.0)
+                                        : motionOf(pixel, origin, direction, seen, met.mInstance, met.mPrimitive,
+                                            met.mBary, eyeSpread(uint(arms)));
+        EyeRun eye = eyeRunOf(direction, uint(arms), layer, water, motion, seen);
 
         // **No layer's visit and no solid's light here**: the layers' stage lights the layers, and the
         // direct stage the solid (`panes.comp`, `direct.comp`).
@@ -199,33 +203,50 @@ TracedLists tracePixel(uvec2 pixel)
             {
                 storeStageSolid(stored, met, peelAsk(peel, pixel).mQuery, surface.mRelief);
                 RTX_STORE_WORDS(stageRecord, stored,
-                    uvec4(STAGE_WATER_PENDING | uint(arms) << 2u | layer << 3u | turns << 16u, floatBitsToUint(tmin),
-                        floatBitsToUint(panesThrough), floatBitsToUint(armsThrough)))
+                    packWaterPending(WaterPending(uint(arms), layer, turns, tmin, panesThrough, armsThrough)))
                 return TracedLists(false, false, true);
             }
+            // **The walk carries no surface** (`PlacedHit`): it reads where the water stands and whether and
+            // how far its rays went, and the surface its path found is resolved once it ends.
             WaterRun water = waterRunOf(eye.mDirection, coneAt(eyeOf(eye.mArms)), waterFieldOf(pixel));
-            stepWater(water, column, surface, answered, ask, WATER_SHADES);
+            stepWater(water, column, placedHitOf(surface), answered, ask, WATER_SHADES);
             [[dont_unroll]] while ((ask.mTraced || water.mStep != RUN_IDLE) && turns < WALK_TURNS)
             {
                 ++turns;
                 answered = RayAnswer(false, unansweredScene());
                 if (ask.mTraced)
-                {
                     answered = RayAnswer(true, queryScene(ask.mQuery));
-                    if (ask.mResolved)
-                    {
-                        surface = resolveAsked(answered.mMet, ask.mQuery);
-                        storeStageSolid(stored, answered.mMet, ask.mQuery, surface.mRelief);
-                        detailed = ask.mQuery.mDetailed != 0u;
-                    }
-                }
                 ask = noRay();
-                stepWater(water, column, surface, answered, ask, WATER_SHADES);
+                stepWater(water, column, reachOf(answered.mMet), answered, ask, WATER_SHADES);
             }
             waterStep = water.mStep;
             waterCut = water.mStep != RUN_IDLE;
+
+            // What the walk did not carry, read again: the peel's ray and what its layers let through from
+            // the record, and the sea's hit, which the path's solid then writes over, for the motion.
+            {
+                const WaterPending pending = unpackWaterPending(imageLoad(stageRecord, stored));
+                const uvec4 hit = imageLoad(stageHit, stored);
+                arms = pending.mArms != 0u;
+                layer = pending.mLayer;
+                origin = imageLoad(stageRayFrom, stored).xyz;
+                tmin = pending.mTmin;
+                panesThrough = pending.mPanesThrough;
+                armsThrough = pending.mArmsThrough;
+                eye.mArms = pending.mArms;
+                eye.mMotion = motionOf(pixel, origin, direction, eye.mDistance, hit.x, hit.y, uintBitsToFloat(hit.zw),
+                    eyeSpread(pending.mArms));
+            }
+
+            // The path's last answer is what it met: a walk that shades ends at its path (`stepWater`).
             if (!waterCut)
+            {
+                const SceneQuery path = waterPathAsk(water).mQuery;
+                surface = resolveAsked(answered.mMet, path);
+                storeStageSolid(stored, answered.mMet, path, surface.mRelief);
+                detailed = path.mDetailed != 0u;
                 stepEye(eye, water, noPane(), surface, pixel, PEEL_SHADES_SURFACE);
+            }
         }
 
         answer = eye.mAnswer;

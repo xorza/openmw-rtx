@@ -1,9 +1,11 @@
 #include "thread.hpp"
 
+#include <chrono>
 #include <string>
 #include <string_view>
 
 #include <pthread.h>
+#include <time.h>
 
 // Each system's call for a thread's name: Linux's and FreeBSD's name any thread and Apple's only
 // the calling one.
@@ -33,5 +35,12 @@ namespace Platform
         pthread_getname_np(pthread_self(), name, sizeof(name));
 #endif
         return name;
+    }
+
+    std::chrono::nanoseconds cpuTimeOfThisThread()
+    {
+        timespec spent{};
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &spent);
+        return std::chrono::seconds(spent.tv_sec) + std::chrono::nanoseconds(spent.tv_nsec);
     }
 }

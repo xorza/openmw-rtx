@@ -113,7 +113,7 @@ namespace Rtx
 
     /// A range of one device allocation, and the allocator that hands it back. Not an allocation
     /// of its own: one `vkAllocateMemory` per image was 1554 for the cell the game starts in, most
-    /// for a shading map of two kilobytes; sub-allocated, that cell takes a couple of dozen.
+    /// for a companion of two kilobytes; sub-allocated, that cell takes a couple of dozen.
     ///
     /// **Buried as it goes**, as `Owned` is: a range let go or assigned over goes to the graveyard,
     /// which gives it back once every submit made so far and the next has run, so no owner frees
@@ -219,12 +219,11 @@ namespace Rtx
         /// block the frame's own memory opened would take room the frame had already been given,
         /// past every ceiling; in blocks of their own, what each use holds and what it may take
         /// are both exact to the block.
-        Misc::Result<DeviceMemory, std::string_view> tryTake(
+        Result<DeviceMemory, std::string_view> tryTake(
             VkBuffer buffer, VkMemoryPropertyFlags properties, VkDeviceSize alignment, MemoryUse use);
 
         /// The same for an image.
-        Misc::Result<DeviceMemory, std::string_view> tryTake(
-            VkImage image, VkMemoryPropertyFlags properties, MemoryUse use);
+        Result<DeviceMemory, std::string_view> tryTake(VkImage image, VkMemoryPropertyFlags properties, MemoryUse use);
 
         /// About how many bytes of video memory `use` may still take: what content's blocks have
         /// free, and the whole blocks its ceiling leaves room for. For a caller sizing what it asks
@@ -298,8 +297,8 @@ namespace Rtx
         /// `tryTake`'s one path for either resource: `allocate` asks the library with the flags it
         /// is handed, which place the resource at `alignment` at least.
         template <class Allocate>
-        Misc::Result<DeviceMemory, std::string_view> tryAllocate(const Requirements& requirements,
-            VkDeviceSize alignment, VkMemoryPropertyFlags properties, MemoryUse use, Allocate&& allocate);
+        Result<DeviceMemory, std::string_view> tryAllocate(const Requirements& requirements, VkDeviceSize alignment,
+            VkMemoryPropertyFlags properties, MemoryUse use, Allocate&& allocate);
 
         /// What the library placed, as a range counted for `use`.
         DeviceMemory hold(VmaAllocation_T* allocation, VkDeviceMemory handle, VkDeviceSize offset, void* mapped,

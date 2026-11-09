@@ -388,6 +388,7 @@ namespace Rtx::Shaders
     /// bits an axis, so a code is under 2^24 and a float holds it exactly.
     const uint SURFACE_NORMAL_STEPS = 2047u;
     const uint SURFACE_NORMAL_SPAN = 2u * SURFACE_NORMAL_STEPS + 1u;
+    const float SURFACE_NORMAL_STEP = 1.0f / float(SURFACE_NORMAL_STEPS);
 
     /// The code of a pixel with no surface: below every code a normal packs to, and so apart from
     /// all of them.
@@ -409,8 +410,8 @@ namespace Rtx::Shaders
     RTX_SHADER vec3 unpackSurfaceNormal(float packed)
     {
         const uint code = uint(max(packed, 0.0f));
-        const vec3 unit
-            = octahedralFromCode(code % SURFACE_NORMAL_SPAN, code / SURFACE_NORMAL_SPAN, SURFACE_NORMAL_STEPS);
+        const vec3 unit = octahedralFromCode(
+            code % SURFACE_NORMAL_SPAN, code / SURFACE_NORMAL_SPAN, SURFACE_NORMAL_STEPS, SURFACE_NORMAL_STEP);
         return packed >= 0.0f ? unit : vec3(0.0f, 0.0f, 0.0f);
     }
 

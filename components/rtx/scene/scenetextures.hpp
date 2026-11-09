@@ -108,7 +108,7 @@ namespace Rtx
 
             /// The file's image, or why none reads. Null for a slot that names no file. Its finest level
             /// alone where `mMade` is not null.
-            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> mImage = osg::ref_ptr<const osg::Image>();
+            Result<osg::ref_ptr<const osg::Image>, std::string> mImage = osg::ref_ptr<const osg::Image>();
 
             /// The file's chain made again, which the description takes its levels after the finest from.
             osg::ref_ptr<const MadeImage> mMade{};
@@ -127,7 +127,7 @@ namespace Rtx
         };
 
         /// What `kept` is described as, or why it gets the stand-in.
-        Misc::Result<TextureData, std::string> describeKept(const Kept& kept);
+        Result<TextureData, std::string> describeKept(const Kept& kept);
 
         // Refilled by every `describe` and never freed, so each settles at the busiest arrival so
         // far — which is where the room to grow one is least.
@@ -137,6 +137,10 @@ namespace Rtx
         std::vector<Kept> mKept;
         std::vector<Pending> mPending;
         std::vector<Made> mMade;
+
+        /// What a settled describe's first asks found made, held until each slot's own ask: an image
+        /// the service hands out once and then only watches, which nothing else held between the two.
+        std::vector<osg::ref_ptr<const MadeImage>> mFound;
 
         /// Every image's levels, back to back. One table rather than one vector each: a cell reaches
         /// a couple of hundred textures, and the descriptions want a span into something stable.

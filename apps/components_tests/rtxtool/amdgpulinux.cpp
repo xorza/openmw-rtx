@@ -37,7 +37,7 @@ namespace RtxTool
             card("0000:01:00.0", "0x10de\n", "1: 1500Mhz *\n");
 
             const Rtx::PciAddress atFirst{ .mDomain = 0, .mBus = 3, .mDevice = 0, .mFunction = 0 };
-            const std::optional<AmdGpu> one = AmdGpu::at(devices, atFirst);
+            std::optional<AmdGpu> one = AmdGpu::at(devices, atFirst);
             ASSERT_TRUE(one.has_value());
             const GpuClock read = one->readClock();
             ASSERT_TRUE(read.mRead);
@@ -46,7 +46,7 @@ namespace RtxTool
             EXPECT_EQ(read.mTemperatureC, std::optional<std::uint32_t>(61u)) << "61.4 degrees, rounded";
 
             const Rtx::PciAddress atSecond{ .mDomain = 0, .mBus = 0xa, .mDevice = 0, .mFunction = 0 };
-            const std::optional<AmdGpu> other = AmdGpu::at(devices, atSecond);
+            std::optional<AmdGpu> other = AmdGpu::at(devices, atSecond);
             ASSERT_TRUE(other.has_value());
             EXPECT_EQ(other->readClock().mCore.mLowestMhz, 500u) << "the second card's own clock";
             EXPECT_EQ(other->readClock().mTemperatureC, std::nullopt) << "a card with no hwmon has no temperature";

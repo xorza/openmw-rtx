@@ -20,5 +20,5 @@ namespace Rtx
     /// have without one. Asked before a slot is taken, because one the upload refused would stand
     /// in as an opaque grey.
     TextureHold takeSkySheet(SceneDesc& scene, VFS::Path::NormalizedView path,
-        const Misc::Result<osg::ref_ptr<const osg::Image>, std::string>& image, TextureWrap wrap = TextureWrap::Repeat);
+        const Result<osg::ref_ptr<const osg::Image>, std::string>& image, TextureWrap wrap = TextureWrap::Repeat);
 }

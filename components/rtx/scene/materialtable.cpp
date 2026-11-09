@@ -53,8 +53,8 @@ namespace Rtx
     void MaterialTable::holdTextures(TextureTable& textures, const Material& material)
     {
         // The trace reads what a normal map's levels lost beside it (`normalMapSlopes`), which only
-        // a slot taken as a normal map has: bound as any other data, it has the neutral shading map
-        // there, and that read as a loss is a gloss gone matt.
+        // a slot taken as a normal map has: bound as any other data, it has no spread there, and the
+        // companion a slot of no spread binds read as a loss is a gloss gone matt.
         Crash::contract(
             material.mNormal == sNoIndex || textures.getRows()[material.mNormal].mEncoding == TextureEncoding::Normal,
             "a material's normal map in a slot not taken as one");

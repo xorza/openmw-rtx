@@ -98,7 +98,7 @@ namespace Rtx
         ///
         /// @param model the model the drawable stands in (`modelOf`), whose other shapes the split
         ///        cuts its normals across — `CreaseSplit::Beside` — or null for none.
-        Misc::Result<bool, std::string> read(
+        Result<bool, std::string> read(
             ContentPreprocessor& content, const DrawableRead& read, const osg::Node* model, MeshReading& into);
 
     private:
@@ -115,7 +115,7 @@ namespace Rtx
 
         /// Collects `geometry`'s triangles into `into`, degenerate ones left out, and answers
         /// whether any is left. An error where one names a vertex at or past `vertices`.
-        static Misc::Result<bool, std::string> collectTriangles(
+        static Result<bool, std::string> collectTriangles(
             const osg::Geometry& geometry, std::size_t vertices, std::vector<std::uint32_t>& into);
 
         /// Fills the beside scratch with the triangles of `model`'s other shapes that stand where

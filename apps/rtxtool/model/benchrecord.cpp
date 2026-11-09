@@ -6,14 +6,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
-#include <fstream>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <variant>
 
 #include <apps/openmw/mwrender/rtx/mirrorknobs.hpp>
 #include <apps/rtxtool/instruments/jsontext.hpp>
+#include <apps/rtxtool/instruments/reportfile.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
@@ -532,10 +533,10 @@ namespace RtxTool
         return std::format("\n{} places, {} frames in {:.1f} s\n", places.size(), frames, lasted);
     }
 
-    Misc::Result<void, std::string> writeJson(
+    Result<void, std::string> writeJson(
         const std::filesystem::path& path, const BenchHeader& header, const std::span<const BenchPlace> places)
     {
-        std::ofstream file(path);
+        std::ostringstream file;
 
         file
             << "{\n"
@@ -618,9 +619,6 @@ namespace RtxTool
         // Checked as `FrameHashes::write` checks, for its reason: a record compared across commits
         // that was never written leaves the last one at its path to be compared as this one.
         // Closed and then asked, because a write the system reports late reports it at the close.
-        file.close();
-        if (!file)
-            return Misc::Err{ "could not write " + Files::pathToUnicodeString(path) };
-        return {};
+        return writeReport(path, file.view());
     }
 }

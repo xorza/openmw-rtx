@@ -3,9 +3,11 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -260,8 +262,9 @@ namespace Rtx
 
         /// One stage's kernels, a tuple each, every one pushed which depth it runs at
         /// (`Shaders::StageConstants`), which only the landing's reads.
-        using TupleKernels
-            = std::array<std::unique_ptr<ComputePipeline<Shaders::StageConstants>>, VisibilityVariant::sCount>;
+        /// A stage's kernel for each tuple: the pipeline of the tuple it reads alike (`canonicalOf`), which
+        /// the stage's own pool owns, so tuples that differ only in constants the stage never reads share one.
+        using TupleKernels = std::array<const ComputePipeline<Shaders::StageConstants>*, VisibilityVariant::sCount>;
 
         /// How many of `Kernel` are the trace's stages: `Visibility` to `Unbounced`.
         static constexpr std::size_t sStageCount = 8;
@@ -317,7 +320,12 @@ namespace Rtx
         {
             /// Each stage's kernels, by its `Kernel`, a pipeline per tuple: the media stage's for the
             /// tuples `hasMedia` names alone.
-            std::array<TupleKernels, sStageCount> mStages;
+            std::array<TupleKernels, sStageCount> mStages{};
+
+            /// The pipelines `mStages` names, each stage's by the index of the tuple it was made for.
+            std::array<std::array<std::unique_ptr<ComputePipeline<Shaders::StageConstants>>, VisibilityVariant::sCount>,
+                sStageCount>
+                mMadeStages;
 
             /// The same table for the launch that fills the froxels, made for the tuples without
             /// maps — `scatterPipelineFor` says why. A launch and not a dispatch, and so is the
@@ -359,6 +367,16 @@ namespace Rtx
         std::optional<ShaderCode> mCode;
 
         Kernels mKernels;
+
+        /// The tuple whose pipeline `stage` runs for `variant`: every constant the stage's module does not
+        /// read set as the full tuple sets it, a relief only beside maps, as every made tuple stands.
+        VisibilityVariant canonicalOf(Kernel stage, VisibilityVariant variant) const;
+
+        /// Which of each stage's canonical pipelines a hand is making, so a hand that wants one another
+        /// is making waits for it rather than making it again (`compile`).
+        std::mutex mCanonicalMutex;
+        std::condition_variable mCanonicalMade;
+        std::array<std::array<bool, VisibilityVariant::sCount>, sStageCount> mCanonicalClaimed{};
 
         /// Which tuples the background compile made whole, each set by the hand that made the
         /// tuple's last kernel after it wrote them, and read by the frame that picks its tuple

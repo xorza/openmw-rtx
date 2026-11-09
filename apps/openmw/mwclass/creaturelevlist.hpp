@@ -15,6 +15,11 @@ namespace MWClass
 
     public:
         std::string_view getName(const MWWorld::ConstPtr& ptr) const override;
+
+        void getModelsToPreload(
+            const MWWorld::ConstPtr& ptr, std::vector<VFS::Path::NormalizedView>& models) const override;
+        ///< Every creature the list may spawn: which one it spawns is drawn when its cell is met, and
+        /// the preloader's cache bounds what it holds.
         ///< \return name or ID; can return an empty string.
 
         bool hasToolTip(const MWWorld::ConstPtr& ptr) const override;

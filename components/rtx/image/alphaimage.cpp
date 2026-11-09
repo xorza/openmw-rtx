@@ -194,8 +194,7 @@ namespace Rtx
         scratch.mLevels.clear();
         scratch.mTexels.clear();
 
-        const Misc::Result<TextureData, std::string> read
-            = describeFinestLevel(image, scratch.mLevels, scratch.mTexels);
+        const Result<TextureData, std::string> read = describeFinestLevel(image, scratch.mLevels, scratch.mTexels);
         if (!read.isOk())
             return std::nullopt;
 

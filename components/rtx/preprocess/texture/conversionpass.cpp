@@ -48,14 +48,24 @@ namespace Rtx
             return std::min(static_cast<std::uint32_t>((static_cast<double>(at) + 0.5) * extent / of), extent - 1);
         }
 
-        void addLevels(const TextureData& file, ContentDigest& digest)
+        /// What the run reads of `file`: its format and its finest level, the one level a conversion
+        /// reads of either file.
+        void addFinest(const TextureData& file, ContentDigest& digest)
         {
             digest.add(file.mFormat);
-            digest.add(static_cast<std::uint32_t>(file.mLevels.size()));
             digest.add(file.mLevels.front().mWidth);
             digest.add(file.mLevels.front().mHeight);
-            for (std::uint32_t level = 0; level < file.mLevels.size(); ++level)
-                digest.add(file.bytesOf(level));
+            digest.add(file.bytesOf(0));
+        }
+
+        /// `file` with its finest level alone, as a reader of nothing else takes it.
+        TextureData finestOf(const TextureData& file)
+        {
+            TextureData finest = file;
+            finest.mLevels = file.mLevels.first(1);
+            finest.mBytes = file.mBytes.first(file.mLevels.front().mOffset + file.bytesOf(0).size());
+            finest.mCoarser = {};
+            return finest;
         }
     }
 
@@ -94,7 +104,7 @@ namespace Rtx
 
         mDiffuseLevels.clear();
         mDiffuseTexels.clear();
-        const Misc::Result<TextureData, std::string> readDiffuse
+        const Result<TextureData, std::string> readDiffuse
             = describeImage(diffuse, TextureEncoding::Painted, mDiffuseLevels, mDiffuseTexels);
         mDiffuse = readDiffuse.isOk() ? std::optional(readDiffuse.value()) : std::nullopt;
         if (mDiffuse.has_value())
@@ -102,7 +112,7 @@ namespace Rtx
 
         mSpecularLevels.clear();
         mSpecularTexels.clear();
-        const Misc::Result<TextureData, std::string> readSpecular
+        const Result<TextureData, std::string> readSpecular
             = describeImage(specular, TextureEncoding::Colour, mSpecularLevels, mSpecularTexels);
         mSpecular = readSpecular.isOk() ? std::optional(readSpecular.value()) : std::nullopt;
     }
@@ -118,8 +128,8 @@ namespace Rtx
 
         digest.add(input.mEncoding);
         digest.add(input.mWrap);
-        addLevels(*mDiffuse, digest);
-        addLevels(*mSpecular, digest);
+        addFinest(*mDiffuse, digest);
+        addFinest(*mSpecular, digest);
     }
 
     void ConversionPass::run(const Input& input, Output& output)
@@ -134,13 +144,16 @@ namespace Rtx
             const bool colour = input.mEncoding == TextureEncoding::ConvertedColour;
 
             // The diffuse delit, at its finest level, as a painted colour's chain is.
-            mDelit.build(diffuse, static_cast<std::uint32_t>(diffuse.mLevels.size()));
-            const MipLevel& lit = mDelit.getLevel(0);
-            const std::span<const std::byte> delit = mDelit.getTexels(0);
+            // **One build for both chains**: the delit diffuse is read into the converted level and whether
+            // it holds a cut before the build makes the converted chain over it.
+            mChain.build(diffuse, 1);
+            const bool cut = mChain.holdsCut(diffuse);
+            const MipLevel lit = mChain.getLevel(0);
+            const std::span<const std::byte> delit = mChain.getTexels(0);
 
             // The highlight, display-encoded as the artist saw it, and the exponent in its alpha.
             const MipLevel& shine = specular.mLevels.front();
-            mGloss.build(specular);
+            mGloss.build(finestOf(specular));
             mHighlights.resize(std::size_t{ shine.mWidth } * shine.mHeight);
             for (std::uint32_t row = 0; row < shine.mHeight; row += 4)
             {
@@ -167,20 +180,17 @@ namespace Rtx
                     const ConvertedTexel converted = convertTexel(light, highlight);
 
                     const std::size_t into = (std::size_t{ y } * own.mWidth + x) * 4;
-                    const auto byteOf = [](float unit) {
-                        return static_cast<std::byte>(std::clamp(std::lround(unit * 255.0f), 0L, 255L));
-                    };
                     if (colour)
                     {
                         for (int channel = 0; channel < 3; ++channel)
-                            mConverted[into + std::size_t(channel)] = byteOf(toEncoded(converted.mBase[channel]));
+                            mConverted[into + std::size_t(channel)] = encodedByte(converted.mBase[channel]);
                         mConverted[into + 3] = delit[from + 3];
                     }
                     else
                     {
                         const float exponent = static_cast<float>(mGloss.at(0, sx, sy));
-                        mConverted[into + 0] = byteOf(converted.mMetal);
-                        mConverted[into + 1] = byteOf(Shaders::roughnessOfExponent(exponent));
+                        mConverted[into + 0] = unitByte(converted.mMetal);
+                        mConverted[into + 1] = unitByte(Shaders::roughnessOfExponent(exponent));
                         mConverted[into + 2] = std::byte{ 255 };
                         mConverted[into + 3] = std::byte{ 255 };
                     }
@@ -201,7 +211,7 @@ namespace Rtx
             // A base colour in the diffuse's own block format where it has one and holds no cut, as a
             // painted colour is kept; every other in BC7.
             const bool blocked = layoutOf(diffuse.mFormat).isBlocked();
-            if (colour && blocked && !mDelit.holdsCut(diffuse))
+            if (colour && blocked && !cut)
             {
                 TextureData asFile = made;
                 asFile.mFormat = diffuse.mFormat;
@@ -215,7 +225,11 @@ namespace Rtx
             }
         }
 
-        // Let go of both images, as a texture pass does.
+        release();
+    }
+
+    void ConversionPass::release()
+    {
         mImage = nullptr;
         mPartner = nullptr;
         mDiffuse.reset();

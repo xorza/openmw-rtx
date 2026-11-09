@@ -84,7 +84,7 @@ namespace RtxTool
             EXPECT_DOUBLE_EQ(samples.at(Rtx::Timing::Frame)[1], 8.0);
 
             const std::filesystem::path file = TestingOpenMW::outputFilePath("frame-times.txt");
-            const Misc::Result<void, std::string> written = writeFrameTimes(file, samples);
+            const Result<void, std::string> written = writeFrameTimes(file, samples);
             ASSERT_TRUE(written.isOk()) << written.error();
 
             std::ifstream read(file);
@@ -96,7 +96,10 @@ namespace RtxTool
 
             // A directory nobody made is named rather than written past.
             const std::filesystem::path nowhere = TestingOpenMW::outputFilePath("no-such-dir") / "frame-times.txt";
-            EXPECT_EQ(writeFrameTimes(nowhere, samples).error(), "cannot open " + Files::pathToUnicodeString(nowhere));
+            const std::string refused = writeFrameTimes(nowhere, samples).error();
+            const std::string named = "could not write " + Files::pathToUnicodeString(nowhere) + ": ";
+            EXPECT_TRUE(refused.starts_with(named)) << refused;
+            EXPECT_GT(refused.size(), named.size()) << "the reason is missing";
 
             samples.clear();
             EXPECT_TRUE(samples.empty());

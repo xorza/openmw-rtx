@@ -67,6 +67,11 @@ C++ and as GLSL: `components/rtx/shaders/*.h` for what the core reads, and
 is read once and held to what the C++ beside it states (`spirvinterface.hpp`); a disagreement ends
 the process and names the module.
 
+- **What the program would compute at every start from no content is made by the build** and compiled
+  in, as the kernels are compiled: the blue noise tile and the fog's field, 136 ms and 53 ms of a
+  start's main thread, each written by a tool that runs its maker (`openmw-rtx-tablemakers`, which the
+  game does not link), and held to the maker by a test.
+
 ## The seam: `MWRender::Renderer`
 
 The one interface the game talks to. Read its header first.
@@ -235,6 +240,18 @@ source-tree test holds the order.
   languages. The lights are ordered by position each walk. Refused: lights ordered by a stable
   identity, or a slotted light table, since the ordering costs about 17 µs a frame at the
   lamp-heaviest places (`research/2026-10-22-light-ordering-share.md`).
+- **A vertex's normal and colour are packed for the device, once, where the mesh table is filled**
+  (`MeshTable::writeVertices`), by the user's decisions. The normal is the tangent's word, the direction on Cigolle
+  et al.'s octahedral map (JCGT 2014) in fifteen bits a coordinate and a bit for "present", so a zero normal stays
+  the triangle's plane; the colour is three half floats in two words (`Shaders::GpuVertexColour`), every finite
+  colour to eleven bits and none clamped, a channel past the largest half read as white. Positions and texture
+  coordinates stay floats: a position is what a bottom level is built from, and Vulkan's mandatory
+  acceleration-structure vertex formats would quantize a large mesh's. The decode multiplies by the steps'
+  reciprocal and selects where it branched: with a division and a branch, the guild's landing cost 21% more.
+  Device memory 44 MiB less at the ship, frames within the noise at the ship, at dawn and in the guild, and at most
+  0.2% of a picture's pixels moved by more than 8. Refused: two 16-bit `SNORM` coordinates for the normal, a second
+  format with no "none"; 16-bit `UNORM` for the colour, which clamps; and sRGB bytes as Unreal and Unity store
+  them, which round a float colour and decode nine sRGB values at every hit.
 - **`Rtx::SceneExtractor`** mirrors an OSG subtree into a `SceneDesc`. Its identity maps live
   across walks, so an object met again resolves to what was already uploaded, and a still frame
   costs what moved. What a walk did not meet is swept after it. Refused: a sweep kept to what it
@@ -257,10 +274,10 @@ source-tree test holds the order.
   hold — a shape's fold and the normals it smoothed across a hard edge split, a texture's alpha and
   mean. One lives on each thread that reads content (`Rtx::ThreadContent`): the frame's, which the
   world's walk, the sky and every picture's walk share inside the frame thread's `Rtx::WalkContext`
-  beside the traversal numbers and the specular layout, and the ring's reader's. Every
+  beside the traversal numbers, and the ring's reader's. Every
   pass states everything it reads, which is the key its output is filed under in the process's
   `Rtx::ContentStore`, a folder of files under the user's cache directory kept across sessions
-  (`.notes/content-cache.md`); a pass whose key would cost more than its run keeps nothing there
+  ("The content store" below); a pass whose key would cost more than its run keeps nothing there
   (`ContentPass::sStored`), and what each costs is counted into the walk's stats and the
   `preprocess` row of a frame. The frame's thread reaches the store's memory alone, so no frame
   waits on the disk.
@@ -269,8 +286,8 @@ source-tree test holds the order.
 - **The world a frame is told** (`world/`) turns a `WorldReading` into the frame's
   constants: sun, moons, sky, clouds, fog, water. What it draws with, the sky's sheets and the
   meshes they are laid on, is read out of the content once (`environment/`).
-- **Materials.** `ShadingMap` estimates the light painted into a vanilla texture, to divide it
-  out. Companion maps (`_n`, `_nh`, `_spec`) and tangents reach the material as data slots. The
+- **Materials.** `ShadingMap` estimates the light painted into a vanilla texture, which the host
+  divides out of the chain it stores. Companion maps (`_n`, `_nh`, `_spec`) and tangents reach the material as data slots. The
   surface model is glTF 2.0's metal-roughness (`shaders/brdf.h`), shared with the host, which
   integrates it once into the table the shader reads for energy compensation. A vanilla surface
   is that model with no specular reflectance.
@@ -332,9 +349,9 @@ source-tree test holds the order.
 - **The tuples that march a relief stand only beside the maps** (`HAS_RELIEF`), 48 made of the table's 64, since a
   relief is read through a normal map. Refused: the full product, sixteen tuples no frame asks for, compiled at every
   first start.
-- **A seabed's relief is marched under the sea**, which holds the sea's walk at 224 registers against the 219 it held:
-  on an RDNA SIMD both run four waves. Refused: the landing's shift there, which takes a seabed's relief away for
-  registers that cost no wave.
+- **A seabed's relief is marched under the sea**, which cost the sea's walk five registers, 219 to 224 where it was
+  measured: on an RDNA SIMD both ran four waves. Refused: the landing's shift there, which takes a seabed's relief
+  away for registers that cost no wave.
 - **No setting turns the march off**: it costs a close wall 3% of its frame on a high-end NVIDIA laptop GPU and 5% on
   a low-end AMD integrated one, and a far surface what the shift cost, since there the march is the shift
   (`research/2026-11-08-relief-cost-and-noise.md`). `--relief` is the harness's A/B alone (`SamplingSwitches::mRelief`).
@@ -343,8 +360,104 @@ source-tree test holds the order.
   back together: the denoiser, the jitter, the noise source, the texture level bias.
 
 Content the renderer cannot use is never an assert and never the end of a frame. Readers answer
-with a `Misc::Result`, and every refusal is reported once to `Rtx::Refusals`. A texture that is
+with a `Result`, and every refusal is reported once to `Rtx::Refusals`. A texture that is
 refused draws as a stand-in, and anything else refused is left out.
+
+### The content store
+
+What the preprocessor makes of the content is kept across sessions in `Rtx::ContentStore`, filled on the loading
+screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
+
+- **The store is the game's input.** Every form the renderer reads of a file and every derivation the host makes of
+  one is made on the loading screen and read from the store in play; the game computes only a miss, content the
+  loading screen could not know ahead, through the same pass, and counts it. Refused: a game that refuses content the
+  preparation did not see, which a script's spawn breaks; and a second, cheaper path for a miss.
+- **The device's derivations stay at arrival.** The normal spread, the sprite light bake and the ground composite cost
+  0.02 to 0.10 ms in the median frame that runs them and 1.10 ms at the worst, on frames whose slow ones are the
+  host's ("What the device's derivations cost at arrival"). Refused: each read back and stored, a device-output format
+  and a disk read for under a millisecond; Unreal's derived data cache keeps what minutes of offline work make.
+- **No acceleration structure is stored**: a serialized one is valid only where
+  `vkGetDeviceAccelerationStructureCompatibilityKHR` accepts it, so a driver update throws it away, and a static
+  structure builds in its arrival's frame.
+- **The key is the content** (`ContentKey`): the pass's name and version and every byte it reads, one 128-bit
+  MurmurHash3 at about 9.5 GB/s ("What the preprocessor costs a start"). Refused: a key of path, size and time, as
+  ccache's direct mode keys, which a file inside a BSA or a shadowed path makes quietly wrong; XXH3, a dependency for
+  a share this small; and a key for `SolidReach` and `SolidFall`, whose walks stop before a key would read every byte.
+- **One file an entry, and every entry untrusted**: 256 folders by the key's first byte, as ccache and Bazel's disk
+  cache keep theirs ([EngFlow](https://blog.engflow.com/2024/05/13/the-many-caches-of-bazel/)); a trailer states the
+  format, the pass, its version, the key and the payload's length and digest, and a file that does not match is a miss
+  and is deleted. A trailer and not a header, as Parquet ends its files with its footer, so a read drops it by a resize
+  and moves no byte of the payload. Written to a temporary name and renamed, so a reader sees a whole entry or none. Refused: SQLite, by
+  the user's decision; a pack file a pass, which two processes merge only under a lock; and a sync before each rename,
+  where the digest finds a body a power loss left unwritten.
+- **The frame reaches the store's memory alone** (`StoreReach`): an entry of 4 KiB or less is held once read or
+  written and loaded at the start's sweep, bounded at 64 MiB; a larger one the frame computes as it did. Refused: a
+  file read on the frame's thread.
+- **No size cap**, by the user's decision: an entry stays until its file is refused or deleted by hand, since the
+  preparation trusts its manifest and a store that evicted a profile's chains made play compute them. The 16 GiB cap,
+  least recently used first as ccache and bazel-remote evict, held under the two large content lists' 14 GiB and no
+  more. A session's first hit of an entry sets its time on the store's thread, which ranks what the start loads into
+  memory, and the start's sweep removes temporary files a day old. Refused: a time set at every hit, a write on every
+  read; and an index file, a second record of what the folders state.
+- **Every normal and data map's chain is rebuilt, and a colour file keeps its own**, by the user's decision: 343 of
+  the PBR install's data maps turn metal below level 0 and 381 normal maps go black, where colour chains are faulty in
+  few texels ("The colour and data chains"), as Godot loads a DDS file's levels as they stand. Refused: colour chains a
+  check flags rebuilt, since 579 of 582 match an ordinary filter made on purpose ("Which filter the flagged colour
+  chains match").
+- **The filter is a box of the level above, a normal averaged as a vector** (`ChainBuild`, `shared/halving.h`), in
+  linear light for a colour and weighed by alpha only where alpha is coverage, as Unreal's `SimpleAverage`; the normal
+  spread measures the shortened mean from the finest level (Toksvig). Refused: NVTT 3's slope-space filter, which puts
+  a level's direction in another space than the spread measured.
+- **A normal map is whole in BC7, in one encoding**, by the user's decision: each texel its unit normal in three
+  channels and its height in alpha, so the trace decodes every map one way; BC7 is the one block format that holds
+  three channels and an alpha at a normal's precision
+  ([Microsoft](https://learn.microsoft.com/en-us/windows/win32/direct3d11/texture-block-compression-in-direct3d-11)).
+  A block takes one mode, 5 with a height and 6 without, as DirectXTex narrows its search, at five times the full
+  search's speed ("Normal maps in BC7"). Refused: each map in its own format, a second loss for BC1; and BC3, a
+  normal at 5:6:5.
+- **A coarser level is encoded on the host, in the file's format** (BC1 to BC5), through rgbcx from bc7enc_rdo,
+  approved by the user, whose BC1 matches Compressonator and libsquish
+  ([bc7enc_rdo](https://github.com/richgel999/bc7enc_rdo_devel/)). Refused: an encoder of our own; and encoders on the
+  device with a read-back.
+- **A loose chain is whole in BC7** (`ChainForm::Bc7`), by the user's decision, through bc7enc from the same commit,
+  perceptual weights for a colour and linear for data: vanilla moves by BC7's error, at most 28 of 255 on 0.08% of a
+  picture's pixels ("Loose chains in BC7"). Refused: the loose form kept beside it for vanilla, a second route.
+- **A painted colour is stored delit, keyed by use** (`TextureEncoding::Painted`), by the user's decisions: a diffuse
+  with no metal-roughness map and an unauthored ground layer have every level divided by `ShadingMap`'s estimate,
+  read as the slot wraps, and encoded again in the file's own format, so a BC1 colour keeps four bits a texel; a file
+  used both ways is two slots, as an engine imports a texture once a use ("Colours stored delit"). Refused: every
+  colour delit, which flattens the replacers' base colours; and BC7 for every delit colour, twice vanilla's memory.
+- **One specular layout, a classic map converted**, by the user's decisions: a `_spec` map is classic where its
+  channels spread less than 0.1 on the mean (`SpecularKind`; the Fullrest Repack's 14 spread 0.004 to 0.042, the PBR
+  installs' 3400 at least 0.151), and a classic map and its diffuse are converted per texel as Khronos converts
+  specular-glossiness (`ConversionPass`,
+  [Khronos](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Archived/KHR_materials_pbrSpecularGlossiness/examples/convert-between-workflows)),
+  each slot named for both files. A terrain `_diffusespec` is an authored albedo. Refused: the layout as a setting;
+  every map read as metal-roughness, which reads a grey highlight as metal; a metalness from the diffuse's mean; and
+  `KHR_materials_specular`, a second layout.
+- **A chain is built on a worker**, never on the frame or the reader, which a 2048-square map's tens of milliseconds
+  would stall: a slot draws its file until its chain lands and is then made again, as a streaming engine draws what is
+  loaded, and the harness's settled world waits for the queue. Refused: a device completion for what the frame meets,
+  a second route (`MipChainPass` and `RgtcEncodePass` are gone).
+- **The store is filled on the loading screen, in the game's own process** (`Rtx::ContentPreparation`, inside
+  `Renderer::awaitShaders`), by the user's decision: every model and land texture the content list names, walked as
+  the cell reader walks it, on workers, as the game already compiles its kernels there and Godot's import runs in the
+  editor that uses it. Refused: a child tool that loads the content list again behind a pipe protocol, for a fault
+  isolation no pass needs; and a launcher tab, a second route.
+- **The preparation is incremental by each file's stamp; the lookup is by content**: a manifest names each model's
+  files and a digest of their sizes and times, so a start after one mod changed walks that mod again, as ccache's
+  direct mode trusts a stat; the game keys every lookup by the bytes, so a stamp that lies costs a miss and never a
+  wrong answer. Every content list's models stand in it until no run named them for 30 days, so a switch between
+  profiles walks neither again, each file's name held once and each file stamped once a run; a chain the store holds
+  is not read, one `stat`, and play reads it. Refused: a manifest a content list, a file each profile would add; an
+  age counted in runs, a write at every start.
+- **A pass's version is held by a test** (`RtxPassVersionsTest`): each pass's outputs over fixed inputs are digested
+  beside its `sVersion`, so a forgotten bump fails, and a version moves whenever an output for the same input moves,
+  an encoder's update included. Refused: the build's revision in every key, which empties the store at every build.
+- **A store that cannot be written is a store that misses**: a full disk or a failed rename is logged once, and the
+  game computes what it would have stored.
+- **The scene graph stays the renderer's one input**: the store holds what the mirror derives, not models that would
+  replace the walk, since upstream's reading is a small share of a load ("What a load costs the processor").
 
 ## The backend
 
@@ -390,6 +503,12 @@ at the top, over all of them.
   engine's update (`research/2026-10-22-crossing-worst-frames.md`); a defragmentation, since the
   pool holds at its high-water mark and does not creep
   (`research/2026-10-22-content-pool-after-a-long-walk.md`).
+- **A texture's image and its sampler stand apart, paired at each read by the wrap its texel word carries**
+  (`TEXTURE_WRAP_SHIFT`): AMD's Windows driver hung in the waterfall of a combined footprint array and passes the
+  pair, and a change of anisotropy writes eight samplers in place of a descriptor a slot
+  (`research/2026-11-09-separate-samplers.md`). The wrap rides in the word a level's read loads already, so a texture
+  stands at 16384 a side at most. Refused: a combined image sampler a slot and a filter, which kept the waterfall that
+  hung; a table of wraps, a second load at every read.
 - **The frame's targets are made at `createTargets` and counted from what makes them.** The
   reserve sums each owner's `bytesAt`, read off the descriptions it makes its images of, and the
   pictures' chain is made at the room its views asked (`PictureRenderer::reservePicture`), never on
@@ -611,8 +730,10 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   from 244 to 256, four waves at either, for the gather that carries the lamp's draw and not its
   ray (`research/2026-10-22-amd-integrated-spill-ceilings.md`). The whole tuple, which alone reads a
   see-through dark map's alpha (`HAS_DARK_ALPHA`), holds ceilings of its own past that rule, since nearly
-  no scene runs it for long; the same tuple without the read holds the rule's. A
-  spill is a cost measured and cut where it shows in the frame, as NVIDIA cut Indiana Jones' path
+  no scene runs it for long; the same tuple without the read holds the rule's. Each target driver holds ceilings
+  of its own, read by its own statistics' names (`CompiledUse`): AMD's own driver's, RADV's and NVIDIA's, whose
+  compiler holds a stage at 128 registers and keeps the rest in shared memory, which the gate holds as it holds a
+  spill. A spill is a cost measured and cut where it shows in the frame, as NVIDIA cut Indiana Jones' path
   tracer's; held at nought, it kept the gate red until a redesign and hid a new regression behind
   the old failure.
 - **A stage a kernel, in one fixed order, the channels between them**: `visibility`, `water`,
@@ -669,6 +790,12 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   did not move past its noise, and no picture moved (`research/2026-11-02-water-stage.md`). Refused:
   the peel traced again in `water`, which cost it a fifth more and the desk's frame 0.7 %; the split
   on AMD alone, two builds of one kernel, which every stage refuses.
+- **A walk resolves the surface it ends on once, after it** (`stepWater`, `waterPathAsk`): the water's and the media's
+  walks carry only where each hit lies (`PlacedHit`), and the water stage reads the peel's state back from its record
+  after the walk and asks the path's last ray again to resolve the surface it shades. On a low-end AMD integrated GPU
+  the water stage fell from 248 registers to 190 and the media from 248 to 216, the tuple without the dark alpha's read
+  to 177 and 192, and no picture moved (`research/2026-11-09-walks-resolve-once.md`). Refused: the surface resolved at
+  each step, which held a whole `Surface` live through the loop for the one step that shades it.
 - **The surface a pixel is the hit the trace stored**, resolved again by a stage with no traversal
   (`storeStageSolid`, `storedSolidOf`): the instance, the triangle and the barycentrics, with the
   ray's start, direction, footprint and distance, 48 bytes, as Falcor's visibility buffer keeps a
@@ -829,6 +956,15 @@ ends crashes where it was found, so the crash report shows it.
   monitor starts in the game on Windows, as Chromium does for a hung renderer. Each started a report at a moment
   and on a thread nothing owned: a Windows game that ended during one freed Crashpad's lock under it, and the
   new thread waited on a loader lock the stall could hold. The monitor only rings, through the shared page.
+- **A file is read whole and written whole, through one primitive** (`Platform::readWhole`, `writeWhole`), as
+  Rust's `std::fs::read` and `write` and Go's `os.ReadFile` and `WriteFile` are; what is appended to is
+  `Platform::AppendFile`'s. A write goes to a temporary in the target's folder and is renamed over it, as Go's
+  `renameio`, LLVM's `writeToOutput` and Chromium's `ImportantFileWriter` write, so a reader, a crash or a full disk
+  finds the old file or the new one. `Durability::Synced` syncs the file before the rename and its folder after it
+  (`MOVEFILE_WRITE_THROUGH` on Windows) for what a person keeps, the settings and a save; `Whole` leaves a cache's
+  entries to their own digest. A failure is an `IoError` of cases a caller tells apart, the system's error kept for
+  the log. Refused: a stream left where a format streams, since every file read here fits in memory; and a file
+  abstraction with seeks, which no reader needs.
 
 ## Harness and tests
 

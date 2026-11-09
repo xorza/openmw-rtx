@@ -1,5 +1,6 @@
 #include "shapepass.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <functional>
 
@@ -39,5 +40,16 @@ namespace Rtx
         CreaseSplit::Split split{ .mNormals = output.mNormals, .mSources = output.mSources };
         mSplit.split(input.mPositions, splits ? input.mNormals : std::span<const osg::Vec3f>(), output.mKept,
             input.mBeside, split);
+    }
+
+    bool ShapePass::fits(const Input& input, const Output& output)
+    {
+        const std::size_t vertices = input.mPositions.size();
+        const std::size_t made = vertices + output.mSources.size();
+        return output.mKept.size() % 3 == 0
+            && std::ranges::all_of(output.mKept, [made](const std::uint32_t corner) { return corner < made; })
+            && std::ranges::all_of(
+                output.mSources, [vertices](const std::uint32_t source) { return source < vertices; })
+            && (output.mNormals.empty() || output.mNormals.size() == made);
     }
 }

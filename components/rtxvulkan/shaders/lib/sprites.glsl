@@ -636,7 +636,7 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
         // one at `+right +up`, about a centre at half.
         const vec2 uv = crossing.mAt * 0.5 + 0.5;
 
-        const vec4 texel = textureLod(textures[nonuniformEXT(emitter.mTexture)], uv, lod);
+        const vec4 texel = textureLod(TEXTURE(sceneTexels(), emitter.mTexture), uv, lod);
 
         // **The rim is put back on a disc and left alone on a quad.** What the taper restores is a round
         // blob the mip chain averaged into the square it was cut to; a rain streak is authored as that
@@ -713,7 +713,7 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
                 // fade thins it: a wisp near the end of its life shadows itself less than the puff
                 // it was. The power is the same one the bake takes per texel, applied to the whole.
                 const vec4 shade
-                    = pow(textureLod(textures[nonuniformEXT(emitter.mLighting)], uv, lod), vec4(sprite.mAlpha));
+                    = pow(textureLod(TEXTURE(sceneTexels(), emitter.mLighting), uv, lod), vec4(sprite.mAlpha));
                 const float back = 1.0 - texel.a * sprite.mAlpha;
                 const vec3 facing = -direction;
 

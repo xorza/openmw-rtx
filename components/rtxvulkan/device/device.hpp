@@ -20,17 +20,26 @@
 namespace Rtx
 {
     /// What a pipeline's compiler made it use: the statistics `VK_KHR_pipeline_executable_properties`
-    /// reports under names each driver picks, of which AMD's own driver's are the ones read, and a
-    /// launch's stack, which every driver answers. A figure the driver does not give is nothing.
+    /// reports under names each driver picks, read by the target drivers' own names — AMD's own
+    /// driver's, RADV's and NVIDIA's — and a launch's stack, which every driver answers. A figure the
+    /// driver does not give is nothing.
     struct CompiledUse
     {
         /// The scratch memory a lane uses, in bytes — what the compiler spilled out of the
-        /// registers, and any array indexed at run time: `scratchMemUsageInBytes`.
+        /// registers, and any array indexed at run time: AMD's `scratchMemUsageInBytes` and RADV's
+        /// `Scratch size`, where its `Spilled VGPRs` land. NVIDIA's `Local Memory Size` reads 64 GiB for
+        /// every pipeline, and is not read. RADV's `Spilled SGPRs` are not a spill to memory: ACO keeps a
+        /// scalar register spilled in a vector register's lanes.
         std::optional<std::uint64_t> mScratchBytes;
 
         /// The vector registers a lane holds, which is how many waves share a SIMD's register file:
-        /// `numUsedVgprs`.
+        /// AMD's `numUsedVgprs`, RADV's `VGPRs` and NVIDIA's `Register Count`.
         std::optional<std::uint64_t> mRegisters;
+
+        /// The shared memory a workgroup holds, in bytes, what the kernel declares and what the
+        /// compiler put there of its own, a ray query's traversal among it: AMD's
+        /// `ldsUsageSizeInBytes`, RADV's `LDS size` and NVIDIA's `Shared Memory Size`.
+        std::optional<std::uint64_t> mSharedBytes;
 
         /// A launch's ray generation stack, in bytes a lane, which every driver answers: where a
         /// launch keeps what does not fit its registers. **What a launch is measured by on AMD's

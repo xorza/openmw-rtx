@@ -7,6 +7,7 @@
 
 #include <osg/Vec3f>
 
+#include "alphaimage.hpp"
 #include "texturewrap.hpp"
 
 namespace Rtx
@@ -45,13 +46,9 @@ namespace Rtx
         /// real albedo by it.
         static constexpr std::uint32_t sBlurPasses = 3;
 
-        /// A map that changes nothing, which is what a texture that would not load has to get: a
-        /// shader reading a missing one reads the array's stand-in, which is how every untextured
-        /// surface in the reference implementation came to be divided by two.
-        ShadingMap();
-
-        /// Estimates the map from the texture's largest level.
-        explicit ShadingMap(const TextureData& texture);
+        /// Estimates the map from the texture's largest level, weighed by `alpha`, the texture's own
+        /// (`AlphaImage`), which the caller decoded already: a chain build holds it for the build.
+        ShadingMap(const TextureData& texture, const AlphaImage& alpha);
 
         /// `sExtent * sExtent` factors, row by row, averaging one.
         std::span<const float> getValues() const { return mValues; }
@@ -60,12 +57,28 @@ namespace Rtx
         std::array<float, sCells> mValues;
     };
 
-    /// The map at a point, bilinear across it, addressed past its edges as its texture is: wrapping
-    /// along an axis the texture repeats, because Morrowind's textures tile and a clamp would seam
-    /// every wall that repeats, and held at the edge along one it clamps, as the estimate's blur is.
+    /// Where a point stands along one axis of the map: the two cells it lies between, as indices the
+    /// axis's wrap gives, and how far it is from the first toward the second. Apart from the lerp, so a
+    /// level's every column and row is placed once and not at each texel (`ChainBuild::delight`).
+    struct PaintedAxis
+    {
+        std::uint32_t mLow;
+        std::uint32_t mHigh;
+        float mAcross;
+    };
+
+    /// `at`, from nought to one across the texture, along an axis that clamps or repeats: **wrapping
+    /// along an axis the texture repeats**, because Morrowind's textures tile and a clamp would seam
+    /// every wall that repeats, **and held at the edge along one it clamps**, as the estimate's blur is.
+    PaintedAxis paintedAxis(float at, bool clamps);
+
+    /// The map at a point placed along both axes, bilinear across it.
     ///
     /// @param map `ShadingMap::sExtent` squared factors, which is what `ShadingMap::getValues`
     ///        holds.
+    float paintedLight(std::span<const float> map, const PaintedAxis& across, const PaintedAxis& down);
+
+    /// The map at `u`, `v`, addressed past its edges as a texture of `wrap` is: the two above.
     float paintedLight(std::span<const float> map, float u, float v, TextureWrap wrap);
 
     /// `light`, a colour in linear light, with the painted light `factor` divided out: **held at a

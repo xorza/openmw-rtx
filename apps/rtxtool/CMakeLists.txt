@@ -33,6 +33,8 @@ set(RTXTOOL_FILES
     instruments/nvml.hpp
     instruments/png.cpp
     instruments/png.hpp
+    instruments/reportfile.cpp
+    instruments/reportfile.hpp
     instruments/scenedigest.cpp
     instruments/scenedigest.hpp
     instruments/threadcounters.cpp

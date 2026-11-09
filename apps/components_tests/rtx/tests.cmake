@@ -9,6 +9,7 @@ set(RTX_TEST_FILES
     myguirtx/texture.cpp
     platform/linuxtext.cpp
     rtx/common/extensionfilter.cpp
+    rtx/common/halffloat.cpp
     rtx/common/hashstate.cpp
     rtx/common/job.cpp
     rtx/common/monitor.cpp
@@ -19,6 +20,7 @@ set(RTX_TEST_FILES
     rtx/common/runs.cpp
     rtx/common/slots.cpp
     rtx/common/stepped.cpp
+    rtx/common/tablesource.cpp
     rtx/common/worker.cpp
     rtx/environment/atmospheremesh.cpp
     rtx/environment/cloudmesh.cpp
@@ -36,7 +38,6 @@ set(RTX_TEST_FILES
     rtx/image/alphaimage.cpp
     rtx/image/chainbuild.cpp
     rtx/image/colour.cpp
-    rtx/image/mipchain.cpp
     rtx/image/shadingmap.cpp
     rtx/image/spritelight.cpp
     rtx/image/texels.cpp
@@ -67,9 +68,9 @@ set(RTX_TEST_FILES
     rtx/preprocess/contentpreprocessor.cpp
     rtx/preprocess/contentstore.cpp
     rtx/preprocess/preparedimages.cpp
-    rtx/preprocess/laidimagecache.cpp
     rtx/preprocess/passversions.cpp
     rtx/prepare/contentpreparation.cpp
+    rtx/prepare/preparationmanifest.cpp
     rtx/preprocess/shape/creasesplit.cpp
     rtx/preprocess/shape/shapefold.cpp
     rtx/renderer/framedescriber.cpp
@@ -185,8 +186,6 @@ set(RTX_TEST_SUPPORT
     rtx/support/instanceobstacle.hpp
     rtx/support/layers.hpp
     rtx/support/lobeintegrals.hpp
-    rtx/support/mipchain.cpp
-    rtx/support/mipchain.hpp
     rtx/support/ownedtexture.cpp
     rtx/support/ownedtexture.hpp
     rtx/support/pngtext.hpp
@@ -288,7 +287,7 @@ else()
     list(APPEND RTX_TEST_FILES platform/processposix.cpp rtxtool/perffifoposix.cpp)
 endif()
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    list(APPEND RTX_TEST_FILES platform/kernelfilelinux.cpp rtxtool/amdgpulinux.cpp)
+    list(APPEND RTX_TEST_FILES platform/kernelfilelinux.cpp platform/wholefilelinux.cpp rtxtool/amdgpulinux.cpp)
 endif()
 
 target_sources(components-tests PRIVATE ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT})

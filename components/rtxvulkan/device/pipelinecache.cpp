@@ -5,9 +5,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <fstream>
-#include <ios>
-#include <random>
 #include <span>
 #include <string>
 #include <string_view>
@@ -17,9 +14,10 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/bytebuffer.hpp>
 #include <components/misc/result.hpp>
-#include <components/platform/filesync.hpp>
 #include <components/platform/folder.hpp>
+#include <components/platform/wholefile.hpp>
 #include <components/rtx/common/digestwords.hpp>
 #include <components/rtx/common/hashstate.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
@@ -145,66 +143,66 @@ namespace Rtx
         }
     }
 
-    Misc::Result<void, std::string_view> PipelineCache::accepts(
+    Result<void, std::string_view> PipelineCache::accepts(
         std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties)
     {
         if (blob.size() < sHeaderBytes)
-            return Misc::Err{ sTooShort };
+            return Err{ sTooShort };
         if (blob.size() > sMostBytes)
-            return Misc::Err{ sTooLong };
+            return Err{ sTooLong };
         if (readWord(blob, 0) != sHeaderBytes || readWord(blob, sVersionAt) != VK_PIPELINE_CACHE_HEADER_VERSION_ONE)
-            return Misc::Err{ "has no header of the one version Vulkan defines" };
+            return Err{ "has no header of the one version Vulkan defines" };
         if (readWord(blob, sVendorAt) != properties.vendorID)
-            return Misc::Err{ "was written for another vendor's device" };
+            return Err{ "was written for another vendor's device" };
         if (readWord(blob, sDeviceAt) != properties.deviceID)
-            return Misc::Err{ "was written for another device" };
+            return Err{ "was written for another device" };
         if (std::memcmp(blob.data() + sUuidAt, properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
-            return Misc::Err{ "was written by another driver build" };
+            return Err{ "was written by another driver build" };
 
         return {};
     }
 
-    Misc::Result<std::vector<std::uint8_t>, std::string_view> PipelineCache::read(
+    Result<std::vector<std::uint8_t>, std::string_view> PipelineCache::read(
         const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties)
     {
-        std::error_code error;
-        if (!std::filesystem::exists(path, error) && !error)
-            return std::vector<std::uint8_t>{};
-
-        std::ifstream file(path, std::ios::binary | std::ios::ate);
-        if (!file)
-            return Misc::Err{ "could not be opened" };
-
-        // Every bound before the body is read, because the file this refuses for its size is the
-        // one it would be most expensive to read: `sMostBytes` says what has been seen in a
-        // directory nothing swept.
-        const std::streamoff bytes = file.tellg();
-        if (bytes < static_cast<std::streamoff>(sizeof(FileHeader)))
-            return Misc::Err{ "is shorter than its own header" };
+        // Bounded before the body is read, because the file this refuses for its size is the one it
+        // would be most expensive to read: `sMostBytes` says what has been seen in a directory
+        // nothing swept.
+        Misc::ByteBuffer file;
+        if (const Result<void, Platform::IoError> read
+            = Platform::readWhole(path, file, sizeof(FileHeader) + sMostBytes);
+            !read.isOk())
+        {
+            if (read.error().mFailure == Platform::IoFailure::NotFound)
+                return std::vector<std::uint8_t>{};
+            if (read.error().mFailure == Platform::IoFailure::TooLarge)
+                return Err{ sTooLong };
+            return Err{ "could not be read" };
+        }
+        if (file.size() < sizeof(FileHeader))
+            return Err{ "is shorter than its own header" };
 
         FileHeader header{};
-        file.seekg(0);
-        if (!file.read(reinterpret_cast<char*>(&header), sizeof(header)))
-            return Misc::Err{ "could not be read" };
+        std::memcpy(&header, file.data(), sizeof(header));
         if (header.mMagic != sMagic || header.mFormat != sFormat)
-            return Misc::Err{ "is in no format this renderer writes" };
+            return Err{ "is in no format this renderer writes" };
         if (header.mVendor != properties.vendorID || header.mDevice != properties.deviceID
             || header.mDriver != properties.driverVersion
             || std::memcmp(header.mUuid.data(), properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
-            return Misc::Err{ "was written on another device or driver" };
+            return Err{ "was written on another device or driver" };
         if (header.mBlobBytes > sMostBytes)
-            return Misc::Err{ sTooLong };
-        if (header.mBlobBytes != static_cast<std::uint64_t>(bytes) - sizeof(FileHeader))
-            return Misc::Err{ "holds another length than its header says" };
+            return Err{ sTooLong };
+        if (header.mBlobBytes != file.size() - sizeof(FileHeader))
+            return Err{ "holds another length than its header says" };
 
-        std::vector<std::uint8_t> data(static_cast<std::size_t>(header.mBlobBytes));
-        if (!file.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size())))
-            return Misc::Err{ "could not be read" };
+        const auto body = std::span(file).subspan(sizeof(FileHeader));
+        std::vector<std::uint8_t> data(body.size());
+        std::memcpy(data.data(), body.data(), body.size());
         if (digestOf(data) != header.mBlobDigest)
-            return Misc::Err{ "holds another body than its header says" };
+            return Err{ "holds another body than its header says" };
 
-        if (const Misc::Result<void, std::string_view> accepted = accepts(data, properties); !accepted.isOk())
-            return Misc::Err{ accepted.error() };
+        if (const Result<void, std::string_view> accepted = accepts(data, properties); !accepted.isOk())
+            return Err{ accepted.error() };
 
         return data;
     }
@@ -227,7 +225,7 @@ namespace Rtx
         std::vector<std::uint8_t> loaded;
         tearDown("the pipeline cache starts empty", [&] {
             sweep();
-            Misc::Result<std::vector<std::uint8_t>, std::string_view> found = read(mPath, properties);
+            Result<std::vector<std::uint8_t>, std::string_view> found = read(mPath, properties);
             if (found.isOk())
                 loaded = std::move(found.value());
             else
@@ -278,15 +276,29 @@ namespace Rtx
         if (!listed.has_value())
             return;
 
+        const std::filesystem::path::string_type partial = std::filesystem::path(Platform::sPartialSuffix).native();
+        const std::filesystem::file_time_type now = std::filesystem::file_time_type::clock::now();
         for (const std::filesystem::directory_entry& entry : *listed)
         {
             const std::filesystem::path::string_type name = entry.path().filename().native();
-            if (name == mine || !name.starts_with(prefix) || !name.ends_with(suffix))
+            if (name == mine || !name.starts_with(prefix))
+                continue;
+
+            // A temporary a process killed before its rename left (`Platform::writeWhole`), once it
+            // is old enough to be no live write's.
+            std::error_code ignored;
+            if (name.ends_with(partial) && entry.is_regular_file(ignored)
+                && now - entry.last_write_time(ignored) > Platform::sPartialStaleAfter)
+            {
+                std::filesystem::remove(entry.path(), ignored);
+                continue;
+            }
+
+            if (!name.ends_with(suffix))
                 continue;
 
             // A directory somebody named `rtx-something` is not this renderer's to remove, and
             // neither is a link: what is swept is the kind of thing `write` leaves.
-            std::error_code ignored;
             if (!entry.is_regular_file(ignored))
                 continue;
 
@@ -341,40 +353,18 @@ namespace Rtx
             return;
         }
 
-        // Through a temporary with a unique name: a test binary and a tool can be closing at the
-        // same moment, and two writing one path would interleave into a file with a valid header
-        // and a mixed body, which the header check cannot catch. The rename is atomic.
-        //
-        // **Named to end as a cache does**, `rtx-<key>.<n>.partial.pipelinecache`, so a partial
-        // that a process killed between its write and its rename left behind is one the sweep
-        // counts and ages out; under any other suffix it would stay for good, up to `sMostBytes` of it.
-        std::filesystem::path partial = mPath;
-        partial.replace_extension("." + std::to_string(std::random_device{}()) + ".partial" + std::string(sSuffix));
-
-        // **Closed before it is judged**, so a final flush that failed is a write that failed and
-        // not a short file renamed over the cache; and on the disk before the rename, or a power loss
-        // after it can leave the name on a body never written.
+        // **Written whole and synced** (`Platform::writeWhole`): a test binary and a tool can be
+        // closing at the same moment, and two writing one path in place would interleave into a
+        // file with a valid header and a mixed body, which the header check cannot catch; and on the
+        // disk before the rename, or a power loss after it can leave the name on a body never
+        // written. A temporary a process killed before its rename left is swept with the old caches.
         const FileHeader header = headerFor(data, mProperties);
-        std::ofstream file(partial, std::ios::binary | std::ios::trunc);
-        file.write(reinterpret_cast<const char*>(&header), sizeof(header));
-        file.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(bytes));
-        file.flush();
-        file.close();
-        const bool written = !file.fail() && Platform::syncFile(partial);
-
-        std::error_code failed;
-        if (written)
-            std::filesystem::rename(partial, mPath, failed);
-        if (written && !failed)
+        const std::array<std::span<const std::byte>, 2> parts{ std::as_bytes(std::span(&header, 1)),
+            std::as_bytes(std::span(data.data(), bytes)) };
+        if (Platform::writeWhole(mPath, parts, Platform::Durability::Synced).isOk())
         {
             mKeptBytes = bytes;
             mKeptDigest = digest;
         }
-
-        // Whether the write failed or the rename did, what must not be left behind is the temporary:
-        // a directory filling with abandoned near-copies of a megabyte is a worse fault than the one
-        // that started it.
-        if (!written || failed)
-            std::filesystem::remove(partial, failed);
     }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <span>
@@ -104,10 +105,10 @@ namespace MWRender
         void startPreparing(Resource::ResourceSystem& resources, std::vector<std::string> models,
             std::vector<Rtx::PreparationLayer> layers, std::size_t hands);
 
-        /// How far the preparation came: done where none runs.
-        Rtx::JobProgress getPreparing() const;
+        /// How far the preparation came, once it is done or `patience` passed: done where none runs.
+        Rtx::JobProgress awaitPreparing(std::chrono::milliseconds patience);
 
-        /// Once `getPreparing` is done: the manifest written, the threads ended, and what they
+        /// Once `awaitPreparing` says it is done: the manifest written, the threads ended, and what they
         /// computed, nothing where none ran.
         Rtx::ContentStats finishPreparing();
 

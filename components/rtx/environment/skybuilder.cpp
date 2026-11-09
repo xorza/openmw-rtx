@@ -55,8 +55,7 @@ namespace Rtx
 
         // Opened here, where the deck's mean and cover are read off the image anyway: a sheet the
         // upload cannot take takes no slot, which the device reads as no deck.
-        const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image
-            = openImage(*scenes.getImageManager(), path);
+        const Result<osg::ref_ptr<const osg::Image>, std::string> image = openImage(*scenes.getImageManager(), path);
         TextureHold deck = takeSkySheet(scene, path, image);
         if (deck.get() == sNoIndex)
             return at;
@@ -85,13 +84,13 @@ namespace Rtx
 
         // The shape the deck hangs on is the mesh's, both of its numbers: how high the layer is
         // in tiles of its own sheet, and how far it falls away over the ground it covers.
-        if (const Misc::Result<CloudShell, std::string> shell = readCloudShell(scenes, sources.mClouds); shell.isOk())
+        if (const Result<CloudShell, std::string> shell = readCloudShell(scenes, sources.mClouds); shell.isOk())
             loaded.mShell = shell.value();
         else
             scene.refusals().refuse(Refused::SkyLayer, sources.mClouds.value(), shell.error());
 
         // Where the fog colour fades to the sky colour is the atmosphere mesh's.
-        if (const Misc::Result<Atmosphere, std::string> atmosphere = readAtmosphere(scenes, sources.mAtmosphere);
+        if (const Result<Atmosphere, std::string> atmosphere = readAtmosphere(scenes, sources.mAtmosphere);
             atmosphere.isOk())
             loaded.mAtmosphere = atmosphere.value();
         else
@@ -99,7 +98,7 @@ namespace Rtx
 
         // The night sky is the mesh's, every number of it: which sheet the field wears, how much
         // sky a tile of it covers, where it fades out, and where the six patches sit.
-        if (const Misc::Result<NightSky, std::string> night
+        if (const Result<NightSky, std::string> night
             = readNightSky(scene, scenes, sources.mStars, sources.mStarsFallback, thread, holds);
             night.isOk())
             loaded.mNight = night.value();

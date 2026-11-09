@@ -28,18 +28,17 @@ namespace Rtx
     {
     public:
         /// @param textures the layout of the scene's texture set, bound at `SET_TEXTURES` — the
-        ///        layers' textures and their shading maps.
+        ///        layers' textures and their companions.
         GroundCompositePass(const Device& device, const SetLayout& textures);
 
         /// An image `record` bakes into: `GROUND_COMPOSITE_EXTENT` square with a chain to one texel, a
         /// storage view with no curve and both transfer usages for the chain's blits. The albedo's
         /// under the curve, so its chain is filtered in light; the gloss's as data. Or why the
         /// device has no room for it.
-        static Misc::Result<Image, std::string_view> makeCanvas(
-            const Device& device, bool gloss, std::string_view name);
+        static Result<Image, std::string_view> makeCanvas(const Device& device, bool gloss, std::string_view name);
 
         /// The blocks `encode` writes a canvas's chain through, or why the device has no room.
-        static Misc::Result<Buffer, std::string_view> makeBlocks(const Device& device, std::string_view name);
+        static Result<Buffer, std::string_view> makeBlocks(const Device& device, std::string_view name);
 
         /// Records `chunk`'s bake into its albedo and its gloss, every level of each: one sum into
         /// both first levels, the chains blitted below them in step. Each is met undefined and left

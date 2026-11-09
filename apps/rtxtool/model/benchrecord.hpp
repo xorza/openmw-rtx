@@ -307,6 +307,6 @@ namespace RtxTool
     ///
     /// Hand-written rather than through a library: this is numbers and the names of places, and the
     /// alternative is a dependency for the sake of a page.
-    Misc::Result<void, std::string> writeJson(
+    Result<void, std::string> writeJson(
         const std::filesystem::path& path, const BenchHeader& header, std::span<const BenchPlace> places);
 }

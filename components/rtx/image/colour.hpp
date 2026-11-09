@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 #include <osg/Vec3f>
@@ -35,6 +36,24 @@ namespace Rtx
 
     /// The same over the three channels of a colour, which is how most of them arrive.
     osg::Vec3f toLinear(const osg::Vec3f& encoded);
+
+    /// The byte nearest `value * 255`, held to nought and 255: `std::lround`'s answer for every finite
+    /// value, a NaN nought, and no libm call, which no compiler inlines and a chain asks once a channel.
+    /// In double, where the product and a half add exactly, so the cast rounds half away from nought as
+    /// `std::lround` does; asked as `>`, so a NaN never reaches the cast.
+    inline std::byte unitByte(float value)
+    {
+        const double scaled = static_cast<double>(value * 255.0f) + 0.5;
+        if (!(scaled > 0.0))
+            return std::byte{ 0 };
+        if (scaled >= 255.0)
+            return std::byte{ 255 };
+        return static_cast<std::byte>(static_cast<int>(scaled));
+    }
+
+    /// `unitByte(toEncoded(linear))`, read off where each byte starts, which are found once from those
+    /// two: the same byte for every float on every platform, at a ninth of `std::pow`'s cost.
+    std::byte encodedByte(float linear);
 
     /// A colour as the content files store one, decoded — the one crossing, and every colour
     /// entering this renderer takes it: the game states four components and the trace holds three

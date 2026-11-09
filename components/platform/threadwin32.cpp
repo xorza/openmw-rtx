@@ -1,6 +1,8 @@
 #include "thread.hpp"
 
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -28,5 +30,18 @@ namespace Platform
         WideCharToMultiByte(CP_UTF8, 0, wide, -1, name.data(), length, nullptr, nullptr);
         LocalFree(wide);
         return name;
+    }
+
+    std::chrono::nanoseconds cpuTimeOfThisThread()
+    {
+        // Each time in 100-nanosecond ticks, the kernel's and the user's apart.
+        FILETIME created{};
+        FILETIME exited{};
+        FILETIME kernel{};
+        FILETIME user{};
+        GetThreadTimes(GetCurrentThread(), &created, &exited, &kernel, &user);
+        const auto ticks
+            = [](const FILETIME& time) { return std::uint64_t{ time.dwHighDateTime } << 32 | time.dwLowDateTime; };
+        return std::chrono::nanoseconds(static_cast<std::int64_t>((ticks(kernel) + ticks(user)) * 100));
     }
 }

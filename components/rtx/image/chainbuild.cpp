@@ -15,6 +15,7 @@
 #include "shadingmap.hpp"
 #include "texels.hpp"
 #include "textureformat.hpp"
+#include "texturewrap.hpp"
 
 namespace Rtx
 {
@@ -25,11 +26,6 @@ namespace Rtx
         constexpr std::uint32_t sEncodeLevel = 10;
 
         constexpr std::size_t sTexel = 4;
-
-        std::byte quantise(float value)
-        {
-            return static_cast<std::byte>(std::clamp(std::lround(value * 255.0f), 0L, 255L));
-        }
 
         bool isBc2(TextureFormat format)
         {
@@ -69,7 +65,7 @@ namespace Rtx
         /// A unit normal's component as the byte `2 c − 1` decodes back to it.
         std::byte quantiseNormal(float component)
         {
-            return quantise((component + 1.0f) * 0.5f);
+            return unitByte((component + 1.0f) * 0.5f);
         }
 
         /// The sixteen texels of block `bx`, `by` of `level`, RGBA, the edge's texel standing in for a
@@ -149,7 +145,7 @@ namespace Rtx
                         const osg::Vec3f& colour = mBand[std::size_t{ y - row } * level.mWidth + x];
                         const std::size_t into = mLevels[at].texelOffset(x, y, sTexel);
                         for (int channel = 0; channel < 3; ++channel)
-                            mTexels[into + static_cast<std::size_t>(channel)] = quantise(colour[channel]);
+                            mTexels[into + static_cast<std::size_t>(channel)] = unitByte(colour[channel]);
                         mTexels[into + 3] = static_cast<std::byte>(mAlpha.at(at, x, y));
                     }
             }
@@ -201,8 +197,8 @@ namespace Rtx
                     const std::size_t into = level.texelOffset(x, y, sTexel);
                     for (int channel = 0; channel < 3; ++channel)
                         mTexels[into + static_cast<std::size_t>(channel)]
-                            = quantise(encoded ? toEncoded(mean[channel]) : mean[channel]);
-                    mTexels[into + 3] = quantise(painted);
+                            = encoded ? encodedByte(mean[channel]) : unitByte(mean[channel]);
+                    mTexels[into + 3] = unitByte(painted);
                 }
         }
     }
@@ -213,15 +209,21 @@ namespace Rtx
 
         // **The light painted in, estimated off the finest level** (`ShadingMap`), and divided out of
         // every level read at its own texels' centres, in linear light.
-        const ShadingMap map(read);
+        // Each column placed once a level and each row once, and the four cells lerped at every texel.
+        const ShadingMap map(read, mAlpha);
         for (std::size_t at = 0; at < read.mLevels.size(); ++at)
         {
             const MipLevel& level = mLevels[at];
+            mColumns.clear();
+            for (std::uint32_t x = 0; x < level.mWidth; ++x)
+                mColumns.push_back(paintedAxis((static_cast<float>(x) + 0.5f) / level.mWidth, clampsS(read.mWrap)));
             for (std::uint32_t y = 0; y < level.mHeight; ++y)
+            {
+                const PaintedAxis row
+                    = paintedAxis((static_cast<float>(y) + 0.5f) / level.mHeight, clampsT(read.mWrap));
                 for (std::uint32_t x = 0; x < level.mWidth; ++x)
                 {
-                    const float factor = paintedLight(map.getValues(), (static_cast<float>(x) + 0.5f) / level.mWidth,
-                        (static_cast<float>(y) + 0.5f) / level.mHeight, read.mWrap);
+                    const float factor = paintedLight(map.getValues(), mColumns[x], row);
                     const std::size_t into = level.texelOffset(x, y, sTexel);
                     osg::Vec3f light;
                     for (int channel = 0; channel < 3; ++channel)
@@ -229,17 +231,82 @@ namespace Rtx
                             std::to_integer<std::uint8_t>(mTexels[into + static_cast<std::size_t>(channel)]));
                     const osg::Vec3f divided = Rtx::delit(light, factor);
                     for (int channel = 0; channel < 3; ++channel)
-                        mTexels[into + static_cast<std::size_t>(channel)] = quantise(toEncoded(divided[channel]));
+                        mTexels[into + static_cast<std::size_t>(channel)] = encodedByte(divided[channel]);
                 }
+            }
         }
     }
 
     void ChainBuild::buildNormals(const TextureData& first)
     {
-        const MipLevel& top = first.mLevels.front();
-        mMeans.assign(mTexels.size() / sTexel, osg::Vec3f());
-        const auto meanAt = [&](const MipLevel& level, std::uint32_t x, std::uint32_t y) -> osg::Vec3f& {
-            return mMeans[level.texelOffset(x, y, sTexel) / sTexel];
+        const MipLevel& top = mLevels.front();
+        const std::size_t topTexels = std::size_t{ top.mWidth } * top.mHeight;
+
+        // **The finest level's unit normals a ring of rows, and the means of every level under it
+        // whole**: the finest is three quarters of a chain, and its means, read only by the level
+        // under it, are held for the few rows that level's box reads, as a band reader streams.
+        mRing.resize(std::size_t{ sRingRows } * top.mWidth);
+        mMeans.resize(mTexels.size() / sTexel - topTexels);
+        const auto ringAt = [&](std::uint32_t x, std::uint32_t y) -> osg::Vec3f& {
+            return mRing[std::size_t{ y % sRingRows } * top.mWidth + x];
+        };
+        const auto meanAt = [&](std::size_t at, std::uint32_t x, std::uint32_t y) -> osg::Vec3f& {
+            if (at == 0)
+                return ringAt(x, y);
+            return mMeans[mLevels[at].texelOffset(x, y, sTexel) / sTexel - topTexels];
+        };
+
+        // Each texel the direction of its mean, the height beside it.
+        const auto lay
+            = [&](const MipLevel& level, std::uint32_t x, std::uint32_t y, const osg::Vec3f& mean, float height) {
+                  const osg::Vec3f direction = unitNormal(mean);
+                  const std::size_t into = level.texelOffset(x, y, sTexel);
+                  for (int channel = 0; channel < 3; ++channel)
+                      mTexels[into + static_cast<std::size_t>(channel)] = quantiseNormal(direction[channel]);
+                  mTexels[into + 3] = unitByte(height);
+              };
+
+        // **Each level the box of the unit normals under it, stored as its direction**: the means are
+        // carried unnormalised, so a level is the mean of the finest texels it covers and not a mean of
+        // means each rounded to a byte and made unit again. The height beside them a plain box.
+        const auto box = [&](std::size_t at, std::uint32_t y) {
+            const MipLevel& level = mLevels[at];
+            const MipLevel& above = mLevels[at - 1];
+            const Shaders::AxisTaps down = Shaders::axisTaps(y, above.mHeight);
+            for (std::uint32_t x = 0; x < level.mWidth; ++x)
+            {
+                const Shaders::AxisTaps across = Shaders::axisTaps(x, above.mWidth);
+                osg::Vec3f mean;
+                float height = 0.0f;
+                for (const std::uint32_t dy : { 0u, 1u, 2u })
+                    for (const std::uint32_t dx : { 0u, 1u, 2u })
+                    {
+                        const float weight = across.mWeights[dx] * down.mWeights[dy];
+                        const std::uint32_t sx = std::min(across.mFirst + dx, above.mWidth - 1);
+                        const std::uint32_t sy = std::min(down.mFirst + dy, above.mHeight - 1);
+                        mean += meanAt(at - 1, sx, sy) * weight;
+                        height += std::to_integer<std::uint8_t>(mTexels[above.texelOffset(sx, sy, sTexel) + 3]) / 255.0f
+                            * weight;
+                    }
+                meanAt(at, x, y) = mean;
+                lay(level, x, y, mean, height);
+            }
+        };
+
+        // The finest rows a band at a time, and each row of the level under them once the rows its box
+        // reads stand: the row `y` reads `2 y` to `2 y + 2`, so the ring holds the two rows before a band.
+        std::uint32_t boxed = 0;
+        const auto standRows = [&](std::uint32_t from, std::uint32_t to) {
+            for (std::uint32_t y = from; y < to; ++y)
+                for (std::uint32_t x = 0; x < top.mWidth; ++x)
+                    lay(top, x, y, ringAt(x, y), mAlpha.at(0, x, y) / 255.0f);
+            if (mLevels.size() < 2)
+                return;
+            const MipLevel& under = mLevels[1];
+            while (boxed < under.mHeight
+                && (to == top.mHeight
+                    || std::min(Shaders::axisTaps(boxed, top.mHeight).mFirst + 2, top.mHeight - 1) < to))
+                box(1, boxed++);
         };
 
         // **Every texel of the finest level its unit normal**: three channels decoded as `2 c − 1`, and a
@@ -248,6 +315,7 @@ namespace Rtx
         {
             const TexelLayout layout = layoutOf(first.mFormat);
             for (std::uint32_t by = 0; by < (top.mHeight + 3) / 4; ++by)
+            {
                 for (std::uint32_t bx = 0; bx < (top.mWidth + 3) / 4; ++bx)
                 {
                     std::array<std::uint8_t, 64> block{};
@@ -259,60 +327,29 @@ namespace Rtx
                             const float across = block[at] / 255.0f * 2.0f - 1.0f;
                             const float along = block[at + 1] / 255.0f * 2.0f - 1.0f;
                             const float up = std::sqrt(std::max(1.0f - across * across - along * along, 0.0f));
-                            meanAt(top, x, y) = unitNormal(osg::Vec3f(across, along, up));
+                            ringAt(x, y) = unitNormal(osg::Vec3f(across, along, up));
                         }
                 }
+                standRows(by * 4, std::min(by * 4 + 4, top.mHeight));
+            }
         }
         else
             for (std::uint32_t row = 0; row < top.mHeight; row += 4)
             {
                 readTexelBand(first, top, row / 4, mBand);
-                for (std::uint32_t y = row; y < row + mBand.size() / top.mWidth; ++y)
+                const auto end = static_cast<std::uint32_t>(row + mBand.size() / top.mWidth);
+                for (std::uint32_t y = row; y < end; ++y)
                     for (std::uint32_t x = 0; x < top.mWidth; ++x)
                     {
                         const osg::Vec3f& stored = mBand[std::size_t{ y - row } * top.mWidth + x];
-                        meanAt(top, x, y) = unitNormal(stored * 2.0f - osg::Vec3f(1.0f, 1.0f, 1.0f));
+                        ringAt(x, y) = unitNormal(stored * 2.0f - osg::Vec3f(1.0f, 1.0f, 1.0f));
                     }
+                standRows(row, end);
             }
 
-        // **Each level the box of the unit normals under it, stored as its direction**: the means are
-        // carried unnormalised, so a level is the mean of the finest texels it covers and not a mean of
-        // means each rounded to a byte and made unit again. The height beside them a plain box.
-        for (std::size_t at = 0; at < mLevels.size(); ++at)
-        {
-            const MipLevel& level = mLevels[at];
-            for (std::uint32_t y = 0; y < level.mHeight; ++y)
-                for (std::uint32_t x = 0; x < level.mWidth; ++x)
-                {
-                    float height = 0.0f;
-                    if (at == 0)
-                        height = mAlpha.at(0, x, y) / 255.0f;
-                    else
-                    {
-                        const MipLevel& above = mLevels[at - 1];
-                        const Shaders::AxisTaps across = Shaders::axisTaps(x, above.mWidth);
-                        const Shaders::AxisTaps down = Shaders::axisTaps(y, above.mHeight);
-                        osg::Vec3f mean;
-                        for (const std::uint32_t dy : { 0u, 1u, 2u })
-                            for (const std::uint32_t dx : { 0u, 1u, 2u })
-                            {
-                                const float weight = across.mWeights[dx] * down.mWeights[dy];
-                                const std::uint32_t sx = std::min(across.mFirst + dx, above.mWidth - 1);
-                                const std::uint32_t sy = std::min(down.mFirst + dy, above.mHeight - 1);
-                                mean += meanAt(above, sx, sy) * weight;
-                                height += std::to_integer<std::uint8_t>(mTexels[above.texelOffset(sx, sy, sTexel) + 3])
-                                    / 255.0f * weight;
-                            }
-                        meanAt(level, x, y) = mean;
-                    }
-
-                    const osg::Vec3f direction = unitNormal(meanAt(level, x, y));
-                    const std::size_t into = level.texelOffset(x, y, sTexel);
-                    for (int channel = 0; channel < 3; ++channel)
-                        mTexels[into + static_cast<std::size_t>(channel)] = quantiseNormal(direction[channel]);
-                    mTexels[into + 3] = quantise(height);
-                }
-        }
+        for (std::size_t at = 2; at < mLevels.size(); ++at)
+            for (std::uint32_t y = 0; y < mLevels[at].mHeight; ++y)
+                box(at, y);
     }
 
     bool ChainBuild::holdsCut(const TextureData& finest) const
@@ -328,27 +365,23 @@ namespace Rtx
         return false;
     }
 
-    void ChainBuild::layOwnLevels(const TextureData& file)
+    void ChainBuild::encodeBc7(const TextureEncoding encoding, Misc::ByteBuffer& into) const
     {
-        assert(isLoose(file.mFormat) && "own levels laid of a file whose bytes are not its texels");
-        mLevels.clear();
-        mTexels.clear();
-        for (std::uint32_t at = 0; at < file.mLevels.size(); ++at)
-        {
-            const MipLevel& level = file.mLevels[at];
-            mLevels.push_back(MipLevel{ .mOffset = static_cast<std::uint32_t>(mTexels.size()),
-                .mWidth = level.mWidth,
-                .mHeight = level.mHeight });
-            const std::span<const std::byte> texels = file.bytesOf(at);
-            const std::size_t start = mTexels.size();
-            mTexels.insert(mTexels.end(), texels.begin(), texels.end());
-            if (isBgr(file.mFormat))
-                for (std::size_t texel = start; texel < mTexels.size(); texel += sTexel)
-                    std::swap(mTexels[texel], mTexels[texel + 2]);
-        }
+        encodeLevelsBc7(
+            encoding, mLevels, [&](std::uint32_t at) { return getTexels(at); }, false, into);
     }
 
-    void ChainBuild::encodeBc7(const TextureEncoding encoding, std::vector<std::byte>& into) const
+    void ChainBuild::encodeOwnBc7(const TextureData& file, Misc::ByteBuffer& into)
+    {
+        assert(isLoose(file.mFormat) && "own levels encoded of a file whose bytes are not its texels");
+        encodeLevelsBc7(
+            file.mEncoding, file.mLevels, [&](std::uint32_t at) { return file.bytesOf(at); }, isBgr(file.mFormat),
+            into);
+    }
+
+    template <class TexelsOf>
+    void ChainBuild::encodeLevelsBc7(const TextureEncoding encoding, const std::span<const MipLevel> levels,
+        const TexelsOf& texelsOf, const bool bgr, Misc::ByteBuffer& into)
     {
         initEncoders();
 
@@ -357,11 +390,18 @@ namespace Rtx
         if (!isSrgb(bc7FormatOf(encoding)))
             bc7enc_compress_block_params_init_linear_weights(&params);
 
+        // **The whole chain's room at once**: grown a level at a time, the buffer reallocated and copied
+        // at each level and kept up to twice the chain.
         const TexelLayout layout = layoutOf(bc7FormatOf(encoding));
-        for (std::uint32_t at = 0; at < getLevelCount(); ++at)
+        std::size_t total = 0;
+        for (const MipLevel& level : levels)
+            total += layout.levelBytes(level.mWidth, level.mHeight);
+        into.reserve(into.size() + total);
+
+        for (std::uint32_t at = 0; at < levels.size(); ++at)
         {
-            const MipLevel& level = mLevels[at];
-            const std::span<const std::byte> texels = getTexels(at);
+            const MipLevel& level = levels[at];
+            const std::span<const std::byte> texels = texelsOf(at);
             const std::uint32_t across = (level.mWidth + layout.mSide - 1) / layout.mSide;
             const std::uint32_t down = (level.mHeight + layout.mSide - 1) / layout.mSide;
             const std::size_t start = into.size();
@@ -369,15 +409,18 @@ namespace Rtx
             for (std::uint32_t by = 0; by < down; ++by)
                 for (std::uint32_t bx = 0; bx < across; ++bx)
                 {
-                    const std::array<std::uint8_t, 64> block = blockAt(texels, level, bx, by);
+                    std::array<std::uint8_t, 64> block = blockAt(texels, level, bx, by);
+                    if (bgr)
+                        for (std::size_t texel = 0; texel < 16; ++texel)
+                            std::swap(block[texel * sTexel], block[texel * sTexel + 2]);
 
                     // **A normal map's block in one mode**, as DirectXTex narrows its search by mode
                     // (`TEX_COMPRESS_BC7_QUICK`): mode 5 where it holds a height, whose alpha it keeps
                     // apart from the normal, and mode 6 where it holds none, which bc7enc tries first for
                     // an opaque block. Five times the full search's speed, a height's error less and a
-                    // normal's a tenth of a degree more on the mean (`.notes/content-cache.md`, normal
-                    // maps in one encoding). bc7enc tells the kinds apart by the same test, and asserts a
-                    // mode it can take for each.
+                    // normal's a tenth of a degree more on the mean (`docs/rtx/architecture.md`, "A normal map
+                    // is whole in BC7, in one encoding"). bc7enc tells the kinds apart by the same test,
+                    // and asserts a mode it can take for each.
                     if (encoding == TextureEncoding::Normal)
                     {
                         bool height = false;
@@ -397,32 +440,31 @@ namespace Rtx
         return std::span(mTexels).subspan(at.mOffset, std::size_t{ at.mWidth } * at.mHeight * sTexel);
     }
 
-    void ChainBuild::encode(const TextureData& file, const std::uint32_t from, std::vector<std::byte>& into) const
+    void ChainBuild::encode(const TextureData& file, const std::uint32_t from, Misc::ByteBuffer& into) const
     {
         assert(mLevels.size() >= file.mLevels.size() && "a chain encoded for a file it was not built of");
+        assert(!isLoose(file.mFormat) && "a loose file's chain is made in BC7");
         initEncoders();
 
+        // The room of every level encoded at once, for `encodeBc7`'s reason.
         const TextureFormat format = file.mFormat;
+        const std::size_t blockBytes = isBc1(format) ? 8 : 16;
+        const auto levelBytes = [&](const MipLevel& level) {
+            return std::size_t{ (level.mWidth + 3) / 4 } * ((level.mHeight + 3) / 4) * blockBytes;
+        };
+        std::size_t total = 0;
+        for (std::uint32_t at = from; at < getLevelCount(); ++at)
+            total += levelBytes(mLevels[at]);
+        into.reserve(into.size() + total);
+
         for (std::uint32_t at = from; at < getLevelCount(); ++at)
         {
             const MipLevel& level = mLevels[at];
             const std::span<const std::byte> texels = getTexels(at);
-
-            if (isLoose(format))
-            {
-                const std::size_t start = into.size();
-                into.insert(into.end(), texels.begin(), texels.end());
-                if (isBgr(format))
-                    for (std::size_t texel = start; texel < into.size(); texel += sTexel)
-                        std::swap(into[texel], into[texel + 2]);
-                continue;
-            }
-
             const std::uint32_t across = (level.mWidth + 3) / 4;
-            const std::uint32_t down = (level.mHeight + 3) / 4;
-            const std::size_t blockBytes = isBc1(format) ? 8 : 16;
             const std::size_t start = into.size();
-            into.resize(start + std::size_t{ across } * down * blockBytes);
+            into.resize(start + levelBytes(level));
+            const std::uint32_t down = (level.mHeight + 3) / 4;
             for (std::uint32_t by = 0; by < down; ++by)
                 for (std::uint32_t bx = 0; bx < across; ++bx)
                 {
@@ -436,13 +478,12 @@ namespace Rtx
                     else
                     {
                         // BC2's alpha is sixteen nibbles, texel by texel, the low one first; its
-                        // colour half a BC1 block that is always of four colours.
-                        for (std::size_t texel = 0; texel < 16; ++texel)
-                        {
-                            const auto nibble
-                                = static_cast<std::uint32_t>((block[texel * sTexel + 3] * 15u + 127u) / 255u);
-                            target[texel / 2] |= static_cast<std::byte>(nibble << (4 * (texel % 2)));
-                        }
+                        // colour half a BC1 block that is always of four colours. Each byte written
+                        // whole: the output grows with nothing written into it (`Misc::ByteBuffer`).
+                        const auto nibbleOf
+                            = [&](std::size_t texel) { return (block[texel * sTexel + 3] * 15u + 127u) / 255u; };
+                        for (std::size_t pair = 0; pair < 8; ++pair)
+                            target[pair] = static_cast<std::byte>(nibbleOf(2 * pair) | nibbleOf(2 * pair + 1) << 4);
                         rgbcx::encode_bc1(sEncodeLevel, target + 8, block.data(), false, false);
                     }
                 }

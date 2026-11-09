@@ -2,17 +2,17 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string_view>
 #include <vector>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/storageformat.h>
-#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/fognoise.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -23,7 +23,7 @@
 
 namespace Rtx
 {
-    FogTile::FogTile(const Device& device, const FogNoise& noise)
+    FogTile::FogTile(const Device& device, const FogField noise)
         : mField(MemoryUse::Essential, device,
             ImageDescription{ .mWidth = Shaders::FOG_FIELD_SIZE,
                 .mHeight = Shaders::FOG_FIELD_SIZE,
@@ -37,24 +37,23 @@ namespace Rtx
         describe(device, noise);
     }
 
-    void FogTile::describe(const Device& device, const FogNoise& noise)
+    void FogTile::describe(const Device& device, const FogField noise)
     {
-        Crash::contract(noise.mOffsets.size() == Shaders::FOG_FIELD_LEVELS, "a fog field with another chain");
-        std::size_t texels = 0;
-        for (std::uint32_t level = 0; level < Shaders::FOG_FIELD_LEVELS; ++level)
-            texels += std::size_t{ mField.getWidthAt(level) } * mField.getHeightAt(level) * mField.getDepthAt(level);
-        Crash::contract(noise.mBytes.size() == 2 * texels, "a fog field of another size");
-
         // Every level uploaded rather than halved from the one above, because each is stretched
-        // back to one spread (`FogNoise::shared`). Seventy-three kilobytes, once.
+        // back to one spread (`sFogNoise`). Seventy-three kilobytes, once.
         std::vector<VkBufferImageCopy> regions;
         regions.reserve(Shaders::FOG_FIELD_LEVELS);
         for (std::uint32_t level = 0; level < Shaders::FOG_FIELD_LEVELS; ++level)
-            regions.push_back(wholeLevel(noise.mOffsets[level], level,
+        {
+            assert(mField.getWidthAt(level) == fogFieldSideAt(level));
+            assert(mField.getHeightAt(level) == fogFieldSideAt(level));
+            assert(mField.getDepthAt(level) == fogFieldSideAt(level));
+            regions.push_back(wholeLevel(fogFieldOffsetAt(level), level,
                 VkExtent3D{ mField.getWidthAt(level), mField.getHeightAt(level), mField.getDepthAt(level) }));
+        }
 
         Batch batch(device.getPool());
-        uploadImage(batch, mField, std::as_bytes(std::span(noise.mBytes)), regions);
+        uploadImage(batch, mField, std::as_bytes(noise), regions);
         batch.flush();
     }
 

@@ -58,6 +58,8 @@
 #include "../mwworld/ptr.hpp"
 #include "../mwworld/worldmodel.hpp"
 
+#include "preloadmodels.hpp"
+
 #include "../mwrender/npcanimation.hpp"
 #include "../mwrender/objects.hpp"
 #include "../mwrender/renderinginterface.hpp"
@@ -463,28 +465,15 @@ namespace MWClass
                 MWWorld::ConstContainerStoreIterator equipped = invStore.getSlot(slot);
                 if (equipped != invStore.end())
                 {
-                    const auto addParts = [&](const std::vector<ESM::PartReference>& parts) {
-                        for (const ESM::PartReference& partRef : parts)
-                        {
-                            const ESM::RefId& partname
-                                = (female && !partRef.mFemale.empty()) || (!female && partRef.mMale.empty())
-                                ? partRef.mFemale
-                                : partRef.mMale;
-
-                            const ESM::BodyPart* part = esmStore->get<ESM::BodyPart>().search(partname);
-                            if (part && !part->mModel.empty())
-                                models.push_back(part->mModel.getNormalized());
-                        }
-                    };
                     if (equipped->getType() == ESM::Clothing::sRecordId)
                     {
                         const ESM::Clothing* clothes = equipped->get<ESM::Clothing>()->mBase;
-                        addParts(clothes->mParts.mParts);
+                        appendPartModels(*esmStore, clothes->mParts.mParts, female, models);
                     }
                     else if (equipped->getType() == ESM::Armor::sRecordId)
                     {
                         const ESM::Armor* armor = equipped->get<ESM::Armor>()->mBase;
-                        addParts(armor->mParts.mParts);
+                        appendPartModels(*esmStore, armor->mParts.mParts, female, models);
                     }
                     else
                     {
@@ -495,6 +484,8 @@ namespace MWClass
                 }
             }
         }
+        else
+            appendRecordWornParts(*esmStore, *npc->mBase, models);
 
         // preload body parts
         if (const ESM::Race* race = esmStore->get<ESM::Race>().search(npc->mBase->mRace))

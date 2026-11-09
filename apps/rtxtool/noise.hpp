@@ -98,8 +98,7 @@ namespace RtxTool
     /// teleport, before a history holds enough to tell a rare bright bounce from the light.
     ///
     /// A cut and a flight are two ways to take the frame, and a line naming both is refused.
-    Misc::Result<NoiseFrame, std::string> noiseFrameFor(
-        std::uint32_t cut, bool flies, const Rtx::FrameExtents& extents);
+    Result<NoiseFrame, std::string> noiseFrameFor(std::uint32_t cut, bool flies, const Rtx::FrameExtents& extents);
 
     /// What `noise` names the pictures of a place, after the place's own name: the reference, the
     /// bar, the bar's limit and the frame's mean. The frame is the place's name alone.
@@ -166,7 +165,7 @@ namespace RtxTool
     /// Writes what each side of a `noise` run measured to `path` as JSON — `{"sides": [[...], ...]}`,
     /// a side a list of its places' figures, the first side first — for a reader that is no person:
     /// `omw noise --ab` reads it, and never the report's sentences.
-    Misc::Result<void, std::string> writeNoiseRecord(
+    Result<void, std::string> writeNoiseRecord(
         const std::filesystem::path& path, std::span<const std::vector<NoiseFigures>> sides);
 
     /// What `planNoise` plans from: the places, the folder the pictures go to, and what the line

@@ -208,6 +208,26 @@ TexturePoint texturePoint(vec2 uv[3], vec2 bary, vec4 transform, SurfaceCone con
     return point;
 }
 
+/// What a triangle's three vertex normals spread over, as a sphere-mapped sheet's footprint reads it
+/// (`spherePoint`): the cross of the unit tips' differences, its length doubling the tips' own triangle, or
+/// no span where a tip has no length.
+struct SheetSpan
+{
+    bool mSpanned;
+    float mSpread;
+};
+
+/// `normal`'s span: the triangle's three vertex normals, in one basis and not yet unit.
+///
+/// **Unit, because what the three tips span is a solid angle on the sphere** and a stored normal is not one.
+SheetSpan sheetSpanOf(const vec3 normal[3])
+{
+    const float shortest = min(min(dot(normal[0], normal[0]), dot(normal[1], normal[1])), dot(normal[2], normal[2]));
+    const vec3 tip = normalize(normal[0]);
+    const vec3 spread = cross(normalize(normal[1]) - tip, normalize(normal[2]) - tip);
+    return SheetSpan(shortest > 1e-8, length(spread));
+}
+
 /// Where a sphere-mapped sheet is read, and how coarse a level the ray's cone can tell apart there.
 ///
 /// **The sheet is parameterised by the reflection, so its footprint is the normal's and not the mesh's.**
@@ -221,38 +241,29 @@ TexturePoint texturePoint(vec2 uv[3], vec2 bary, vec4 transform, SurfaceCone con
 /// between the ray and that normal — the shading normal the sheet is reflected about, and not the plane's
 /// `SurfaceCone::mFacing`, which is how wide the ray's own footprint lies and a different question.
 ///
-/// **Solid angle is rotation invariant, so the normals never leave the mesh's own space.** Bringing them
-/// across would want the object-to-world matrix, and `Hit` refuses to carry one: twelve floats on every ray
-/// in the frame, for a sheet nearly no material has. A placement scaled unevenly would move the span, which
-/// is the assumption the whole tree already makes of a normal — `Hit::mShading` comes through the same
-/// matrix rather than its inverse transpose.
+/// **Solid angle is rotation invariant, so the normals may stand in any basis a placement rotates them
+/// into**: the world's, as `resolve` carries them off the hit (`Hit::mShading` and its turns), or the mesh's
+/// own, as a crossing in the media fetches them, which has no object-to-world matrix to bring them across
+/// with. A placement scaled unevenly would move the span, which is the assumption the whole tree already
+/// makes of a normal — `Hit::mShading` comes through the same matrix rather than its inverse transpose.
 ///
 /// **What this leaves out is the ray's own turn across the triangle**, which moves the reflection as much
 /// as the normal does.
 ///
-/// @param normal the triangle's three vertex normals, as `triangleNormals` hands them: the mesh's
-///        own space, and not yet unit.
+/// @param span what the triangle's three vertex normals spread over (`sheetSpanOf`).
 /// @param shading where the hit's own normal points, in the caller's basis and unit.
 /// @param direction the ray, in the caller's basis and unit.
-TexturePoint spherePoint(vec3 normal[3], vec3 shading, vec3 direction, SurfaceCone cone, float coneWidth)
+TexturePoint spherePoint(SheetSpan span, vec3 shading, vec3 direction, SurfaceCone cone, float coneWidth)
 {
     const vec3 r = reflect(direction, shading);
     const float m = 2.0 * sqrt(r.x * r.x + r.y * r.y + (r.z + 1.0) * (r.z + 1.0));
     const vec2 at = r.xy / m + 0.5;
-
-    // **Unit, because what the three tips span is a solid angle on the sphere** and a stored normal is not
-    // one.
-    const float shortest
-        = min(min(dot(normal[0], normal[0]), dot(normal[1], normal[1])), dot(normal[2], normal[2]));
-    if (!(shortest > 1e-8))
+    if (!span.mSpanned)
         return TexturePoint(at, TEXTURE_FINEST_BASE, vec2(0.0), vec2(0.0), false, TEXTURE_FINEST_BASE);
-
-    const vec3 tip = normalize(normal[0]);
-    const vec3 spread = cross(normalize(normal[1]) - tip, normalize(normal[2]) - tip);
 
     // Doubled, as `coneBaseOf` takes it: the tips' own triangle is half this cross, the solid angle
     // the reflections span is `4 cos` of that, and a sixteenth of it is sheet area.
-    const float sheetArea = 0.25 * abs(dot(direction, shading)) * length(spread);
+    const float sheetArea = 0.25 * abs(dot(direction, shading)) * span.mSpread;
 
     const float base = coneBaseOf(sheetArea, cone, coneWidth);
     return TexturePoint(at, base, vec2(0.0), vec2(0.0), false, base);
@@ -290,18 +301,9 @@ vec2 parallaxShift(vec3 eye, float height)
 vec4 sampleDiffuse(uint slot, TexturePoint point)
 {
     if (point.mAnisotropic)
-        return textureGrad(texturesAlong[nonuniformEXT(slot)], point.mAt, point.mAcross, point.mAlong);
+        return textureGrad(TEXTURE_ALONG(sceneTexels(), slot), point.mAt, point.mAcross, point.mAlong);
 
-    return textureLod(textures[nonuniformEXT(slot)], point.mAt, coneLod(slot, point));
-}
-
-/// `point` read at the level of its footprint's long axis, through `textures`, and not along the
-/// footprint.
-TexturePoint atLevel(TexturePoint point)
-{
-    point.mAnisotropic = false;
-    point.mResolved = point.mBase;
-    return point;
+    return textureLod(TEXTURE(sceneTexels(), slot), point.mAt, coneLod(slot, point));
 }
 
 /// A tangent-space normal off a normal map, read at the level its cone can resolve and decoded as
@@ -319,7 +321,7 @@ float normalMapSlopes(uint slot, TexturePoint point)
     const float level = point.mResolved <= TEXTURE_FINEST_BASE
         ? 0.0
         : point.mResolved + 0.5 * log2(float(textureTexelsAt(slot)));
-    const float lost = textureLod(companions[nonuniformEXT(slot)], point.mAt, max(level - 1.0, 0.0)).r;
+    const float lost = textureLod(COMPANION(sceneTexels(), slot), point.mAt, max(level - 1.0, 0.0)).r;
     const float roughness = lost * clamp(level, 0.0, 1.0);
 
     return roughness * roughness * roughness * roughness;
@@ -392,7 +394,7 @@ float reliefHeightAt(ReliefMaps maps, vec2 at, float level)
     float height = 0.5 * maps.mFlat;
     [[unroll]] for (uint place = 0u; place < RELIEF_LAYERS; ++place)
         if (place < maps.mCount)
-            height += maps.mShares[place] * textureLod(textures[nonuniformEXT(maps.mSlots[place])], at, level).a;
+            height += maps.mShares[place] * textureLod(TEXTURE(sceneTexels(), maps.mSlots[place]), at, level).a;
     return height;
 }
 
@@ -524,7 +526,7 @@ float reliefLit(ReliefSite site, vec3 toLight, float spread)
 {
     const vec3 light = vec3(dot(site.mTangent, toLight), dot(site.mBitangent, toLight), dot(site.mNormal, toLight));
     const float top = site.mBounds.y * PARALLAX_SCALE + PARALLAX_BIAS;
-    const float start = textureLod(textures[nonuniformEXT(site.mMap)], site.mAt, site.mLevel).a * PARALLAX_SCALE
+    const float start = textureLod(TEXTURE(sceneTexels(), site.mMap), site.mAt, site.mLevel).a * PARALLAX_SCALE
         + PARALLAX_BIAS;
     const float depth = top - start;
     if (!(light.z > 0.0) || !(depth > 0.0))
@@ -549,7 +551,7 @@ float reliefLit(ReliefSite site, vec3 toLight, float spread)
     for (uint at = 1u; at <= count; ++at)
     {
         const float risen = float(at) * step;
-        const float stands = textureLod(textures[nonuniformEXT(site.mMap)], site.mAt + along * risen, read).a
+        const float stands = textureLod(TEXTURE(sceneTexels(), site.mMap), site.mAt + along * risen, read).a
                 * PARALLAX_SCALE
             + PARALLAX_BIAS;
         const float over = (stands - (start + risen)) * lean / span;

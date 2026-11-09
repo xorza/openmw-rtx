@@ -43,7 +43,7 @@ namespace Rtx
 
         /// The image at `path`, or why none reads there — `Rtx::openImage`'s answer. Safe from any
         /// thread, as the template is.
-        virtual Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) = 0;
+        virtual Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) = 0;
     };
 
     /// Where the world's cells are read from and what of them: the content, which worldspace of it

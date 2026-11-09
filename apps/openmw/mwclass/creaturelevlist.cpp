@@ -17,8 +17,17 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
 
+#include "preloadmodels.hpp"
+
 namespace MWClass
 {
+    void CreatureLevList::getModelsToPreload(
+        const MWWorld::ConstPtr& ptr, std::vector<VFS::Path::NormalizedView>& models) const
+    {
+        const MWWorld::LiveCellRef<ESM::CreatureLevList>* ref = ptr.get<ESM::CreatureLevList>();
+        appendLevelledCreatureModels(*MWBase::Environment::get().getESMStore(), *ref->mBase, models);
+    }
+
     class CreatureLevListCustomData : public MWWorld::TypedCustomData<CreatureLevListCustomData>
     {
     public:
