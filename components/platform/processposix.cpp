@@ -1,5 +1,6 @@
 #include "process.hpp"
 
+#include <algorithm>
 #include <cerrno>
 #include <charconv>
 #include <cstddef>
@@ -11,6 +12,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
 #include <vector>
 
 #include <signal.h>
@@ -37,7 +39,6 @@
 #include <pthread_np.h>
 #else
 #include <functional>
-#include <thread>
 #endif
 
 namespace Platform::Process
@@ -222,6 +223,18 @@ namespace Platform::Process
 #else
         return 0;
 #endif
+    }
+
+    std::size_t usableCpuCount()
+    {
+#if defined(__linux__)
+        // A mask past `CPU_SETSIZE`, a machine of more than 1024 CPUs, is refused, and every CPU counts.
+        cpu_set_t set;
+        CPU_ZERO(&set);
+        if (sched_getaffinity(0, sizeof(set), &set) == 0)
+            return std::max<std::size_t>(1, static_cast<std::size_t>(CPU_COUNT(&set)));
+#endif
+        return std::max<std::size_t>(1, std::thread::hardware_concurrency());
     }
 
     bool startedFromTerminal()

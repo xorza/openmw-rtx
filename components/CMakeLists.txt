@@ -426,7 +426,7 @@ add_component_dir (rtx/mirror/cells
     )
 
 add_component_dir (rtx/prepare
-    contentpreparation filestamps preparationmanifest
+    contentpreparation filestamps preparationdispatcher preparationmanifest
     )
 
 add_component_dir (rtx/preprocess
@@ -439,7 +439,7 @@ add_component_dir (rtx/preprocess/shape
     )
 
 add_component_dir (rtx/preprocess/texture
-    chainpass conversionpass texturepass
+    chainpass chainscratch conversionpass texturepass
     )
 
 add_component_dir (rtx/renderer
@@ -616,6 +616,7 @@ if (WIN32)
         filewin32
         heapwin32
         localtimewin32
+        memorywin32
         sharedmemorywin32
         fifowin32
         librarywin32
@@ -632,6 +633,7 @@ elseif (UNIX)
         fileposix
         heapposix
         localtimeposix
+        memoryposix
         sharedmemoryposix
         fifoposix
         libraryposix

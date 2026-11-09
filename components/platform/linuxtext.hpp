@@ -27,6 +27,18 @@ namespace Platform::LinuxText
     /// `/proc/vmstat` writes them (`compact_stall`), or nothing where they name none.
     std::optional<std::uint64_t> compactionStalls(std::string_view vmstat);
 
+    /// The bytes the kernel estimates it can hand out without swapping, from `/proc/meminfo`
+    /// (`MemAvailable`, in kilobytes), or nothing where it names none.
+    std::optional<std::uint64_t> availableMemory(std::string_view meminfo);
+
+    /// The process's cgroup v2, from `/proc/self/cgroup` (its `0::` line), as a path under the cgroup
+    /// file system's root, `/` for the root itself; nothing where it is in no v2 group.
+    std::optional<std::string_view> unifiedCgroup(std::string_view cgroup);
+
+    /// The bytes a cgroup v2 file states, `memory.max` or `memory.current`, one number and a line
+    /// break: nothing where it says `max`, no limit, or is not a number.
+    std::optional<std::uint64_t> cgroupBytes(std::string_view text);
+
     /// The PCI id a device's sysfs file states, `vendor` or `device`: four hexadecimal digits after
     /// `0x` and a line break, as the kernel writes them, or nothing where the text is not one.
     std::optional<std::uint16_t> pciId(std::string_view text);

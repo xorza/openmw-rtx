@@ -1226,6 +1226,19 @@ namespace Resource
         }
     }
 
+    void SceneManager::letGo(std::span<const std::string> paths)
+    {
+        for (const std::string& path : paths)
+        {
+            mCache->removeFromObjectCache(path);
+            mNifFileManager->removeFromCache(path);
+            mImageManager->removeFromCache(path);
+        }
+
+        std::lock_guard<std::mutex> lock(mSharedStateMutex);
+        mSharedStateManager->prune();
+    }
+
     void SceneManager::clearCache()
     {
         NodeResourceManager<std::string>::clearCache();

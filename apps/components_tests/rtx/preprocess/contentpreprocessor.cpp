@@ -1,6 +1,8 @@
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <optional>
 #include <span>
@@ -12,6 +14,7 @@
 
 #include <osg/GL>
 #include <osg/Image>
+#include <osg/Texture> // The S3TC formats, which Windows's and Apple's gl.h lack.
 #include <osg/Vec3f>
 #include <osg/observer_ptr>
 #include <osg/ref_ptr>
@@ -32,6 +35,8 @@
 #include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
+#include <components/rtx/preprocess/texture/chainpass.hpp>
+#include <components/rtx/preprocess/texture/chainscratch.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 #include <components/rtx/shaders/tangent.h>
@@ -78,6 +83,118 @@ namespace Rtx
             ShapePass::Output output{ .mKept = kept, .mNormals = normals, .mSources = sources };
             content.shape(ShapePass::Input{ .mPositions = sCard, .mTriangles = sDoubled, .mSplits = true }, output);
             return output.mShape;
+        }
+
+        /// `width` by `height` of loose RGBA8, mid grey and opaque, with no chain.
+        osg::ref_ptr<osg::Image> makeLoose(int width, int height)
+        {
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("textures/tx_loose.dds");
+            image->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            std::memset(image->data(), 128, image->getTotalSizeInBytes());
+            return image;
+        }
+
+        /// `width` by `height` of BC1 with `levels` levels, every block a black opaque one, as a file lays
+        /// its levels back to back.
+        osg::ref_ptr<osg::Image> makeBc1(std::uint32_t width, std::uint32_t height, std::uint32_t levels)
+        {
+            const TexelLayout layout = layoutOf(TextureFormat::Bc1RgbaSrgb);
+            osg::Image::MipmapDataType offsets;
+            std::size_t bytes = 0;
+            for (std::uint32_t level = 0; level < levels; ++level)
+            {
+                if (level > 0)
+                    offsets.push_back(static_cast<unsigned int>(bytes));
+                bytes += layout.levelBytes(std::max(width >> level, 1u), std::max(height >> level, 1u));
+            }
+            auto* data = new unsigned char[bytes]();
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setImage(static_cast<int>(width), static_cast<int>(height), 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
+                GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            image->setMipmapLevels(offsets);
+            image->setFileName("textures/tx_block.dds");
+            return image;
+        }
+
+        /// What a preprocessor and the chain it made hold, as a dispatcher reads a thread's.
+        ChainScratch heldBy(const ContentPreprocessor& content, const MadeChain& made)
+        {
+            ChainScratch held = content.chainScratch();
+            held[ChainBuffer::Made] = made.mBytes.capacity();
+            return held;
+        }
+
+        /// **A chain's scratch is predicted off its image's header, and its buffers grow to no more**: for
+        /// each file and encoding, run on a preprocessor that held nothing, every buffer it holds after is
+        /// within the prediction, and the buffers that grow with the texels are it exactly. A 32 by 16 loose
+        /// file as a colour, a normal map and a painted colour: chainless, built to a texel, six levels,
+        /// 683 texels, 2732 bytes laid; a 64-square BC1 of seven levels as a painted
+        /// colour, every level of its own read; the same with one level as data, built to a texel; and as a
+        /// colour with its chain, which stands and builds nothing; and a conversion either way within its own.
+        /// Then a 16-square file after a 64-square one grows nothing.
+        TEST(RtxContentPreprocessorTest, aChainsScratchIsPredictedOffItsHeaderAndGrowsToNoMore)
+        {
+            struct Case
+            {
+                osg::ref_ptr<osg::Image> mImage;
+                TextureEncoding mEncoding;
+                std::size_t mTexels;
+            };
+            const std::vector<Case> cases{
+                { makeLoose(32, 16), TextureEncoding::Colour, 2732 },
+                { makeLoose(32, 16), TextureEncoding::Normal, 2732 },
+                { makeLoose(32, 16), TextureEncoding::Painted, 2732 },
+                { makeBc1(64, 64, 7), TextureEncoding::Painted, 21844 },
+                { makeBc1(64, 64, 1), TextureEncoding::Data, 21844 },
+                { makeBc1(64, 64, 7), TextureEncoding::Colour, 0 },
+            };
+            for (const Case& tried : cases)
+            {
+                const ChainPass::Input input{ .mImage = *tried.mImage, .mEncoding = tried.mEncoding };
+                ContentPreprocessor content(nullptr);
+                MadeChain made;
+                content.chain(input, made);
+                const ChainScratch predicted = ChainPass::scratchOf(input);
+                const ChainScratch held = heldBy(content, made);
+                const auto encoding = static_cast<int>(tried.mEncoding);
+                EXPECT_TRUE(held.within(predicted)) << encoding;
+                EXPECT_EQ(predicted[ChainBuffer::Texels], tried.mTexels) << encoding;
+                for (const ChainBuffer exact : { ChainBuffer::File, ChainBuffer::Alpha, ChainBuffer::Texels,
+                         ChainBuffer::Band, ChainBuffer::Ring, ChainBuffer::Columns })
+                    EXPECT_EQ(held[exact], predicted[exact]) << encoding << " " << static_cast<int>(exact);
+                EXPECT_EQ(held[ChainBuffer::Payload], 0u) << "the store frees the payload";
+            }
+
+            // And a conversion, both ways, of a 64-square BC1 diffuse and a 32 by 16 loose `_spec`.
+            const osg::ref_ptr<osg::Image> diffuse = makeBc1(64, 64, 7);
+            const osg::ref_ptr<osg::Image> specular = makeLoose(32, 16);
+            for (const TextureEncoding encoding :
+                { TextureEncoding::ConvertedColour, TextureEncoding::ConvertedSpecular })
+            {
+                const bool colour = encoding == TextureEncoding::ConvertedColour;
+                const ConversionPass::Input input{ .mImage = colour ? *diffuse : *specular,
+                    .mPartner = colour ? *specular : *diffuse,
+                    .mEncoding = encoding };
+                ContentPreprocessor content(nullptr);
+                MadeChain made;
+                content.convert(input, made);
+                ASSERT_NE(made.mForm, ChainForm::Stands) << static_cast<int>(encoding);
+                EXPECT_TRUE(heldBy(content, made).within(ConversionPass::scratchOf(input)))
+                    << static_cast<int>(encoding);
+            }
+
+            ContentPreprocessor content(nullptr);
+            MadeChain made;
+            content.chain(
+                ChainPass::Input{ .mImage = *makeBc1(64, 64, 1), .mEncoding = TextureEncoding::Painted }, made);
+            const ChainScratch afterLarge = heldBy(content, made);
+            const osg::ref_ptr<osg::Image> smallImage = makeBc1(16, 16, 1);
+            const ChainPass::Input small{ .mImage = *smallImage, .mEncoding = TextureEncoding::Painted };
+            const ChainScratch predicted = ChainPass::scratchOf(small);
+            EXPECT_EQ(afterLarge.growthTo(predicted), predicted[ChainBuffer::Payload]) << "the payload alone";
+            content.chain(small, made);
+            EXPECT_EQ(heldBy(content, made).mBytes, afterLarge.mBytes) << "a smaller file grows nothing";
         }
 
         /// A shape asked through the preprocessor keeps the card's front and says it was a sheet,

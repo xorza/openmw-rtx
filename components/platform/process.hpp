@@ -97,6 +97,12 @@ namespace Platform::Process
     /// and which core the system picks changes from one run to the next.
     std::size_t keepToPerformanceCores();
 
+    /// How many logical CPUs this process may run its threads on: those its affinity, or on Windows its
+    /// default CPU sets, leave it, so a process `keepToPerformanceCores` kept counts those it kept, and
+    /// `std::thread::hardware_concurrency`, which counts every CPU the system has, where the system
+    /// says nothing narrower. At least one.
+    std::size_t usableCpuCount();
+
     /// Starts this process again, from the top, with glibc's `malloc` on transparent huge pages —
     /// `GLIBC_TUNABLES=glibc.malloc.hugetlb=1` — where the shell named no tunables of its own:
     /// Linux alone, and before any thread starts, since what replaces the process keeps none.

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <span>
 #include <string>
 
 #include <osg/Image>
@@ -44,6 +45,11 @@ namespace Rtx
         /// The image at `path`, or why none reads there — `Rtx::openImage`'s answer. Safe from any
         /// thread, as the template is.
         virtual Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) = 0;
+
+        /// Lets the source's caches go of `paths`, each a model or an image nothing more will ask for, as
+        /// normalised paths: what the preparation asks once the last job that read a file ends. Nothing
+        /// for a source that keeps no cache. Safe from any thread.
+        virtual void letGo(std::span<const std::string> paths) {}
     };
 
     /// Where the world's cells are read from and what of them: the content, which worldspace of it

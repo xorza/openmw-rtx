@@ -8,7 +8,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <string>
 #include <thread>
+#include <vector>
 
 namespace
 {
@@ -47,5 +49,27 @@ namespace
         }
         for (std::thread& thread : threads)
             thread.join();
+    }
+
+    /// **A path let go of is loaded again**: a template asked twice is the one the cache kept, and asked
+    /// after `letGo` names its path, a new one, while one another path names stays.
+    TEST(ResourceResourceSystem, scenemanager_letgo_drops_the_paths_it_names)
+    {
+        const VFS::Manager vfsManager;
+        const ToUTF8::Utf8Encoder encoder(ToUTF8::WINDOWS_1252);
+        Resource::ResourceSystem resourceSystem(&vfsManager, 1.0, &encoder.getStatelessEncoder());
+        Resource::SceneManager* sceneManager = resourceSystem.getSceneManager();
+        sceneManager->setShadersEnabled(false);
+
+        constexpr VFS::Path::NormalizedView first("meshes/first.nif");
+        constexpr VFS::Path::NormalizedView kept("meshes/kept.nif");
+        const osg::ref_ptr<const osg::Node> loaded = sceneManager->getTemplate(first);
+        const osg::ref_ptr<const osg::Node> keptLoaded = sceneManager->getTemplate(kept);
+        EXPECT_EQ(sceneManager->getTemplate(first), loaded) << "the cache's own";
+
+        const std::vector<std::string> letGo{ std::string(first.value()) };
+        sceneManager->letGo(letGo);
+        EXPECT_NE(sceneManager->getTemplate(first), loaded) << "loaded again";
+        EXPECT_EQ(sceneManager->getTemplate(kept), keptLoaded) << "a path not named stays";
     }
 }

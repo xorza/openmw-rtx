@@ -71,6 +71,7 @@ set(RTX_TEST_FILES
     rtx/preprocess/preparedimages.cpp
     rtx/preprocess/passversions.cpp
     rtx/prepare/contentpreparation.cpp
+    rtx/prepare/preparationdispatcher.cpp
     rtx/prepare/preparationmanifest.cpp
     rtx/preprocess/shape/creasesplit.cpp
     rtx/preprocess/shape/shapefold.cpp

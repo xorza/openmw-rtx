@@ -48,6 +48,9 @@ namespace Rtx
 
         bool isEmpty() const { return mShape.isEmpty(); }
 
+        /// The bytes its values hold room for, which a build grows and never gives back.
+        std::size_t capacity() const { return mValues.capacity(); }
+
         /// Alpha at a texel of a level, both of which must be inside the image. Defined here
         /// because a reader asks it for every texel of a level, and a call across a translation
         /// unit for a vector index is most of what that walk costs.

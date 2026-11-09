@@ -37,6 +37,11 @@ namespace Rtx
     Result<void, std::string> checkUploadable(
         const osg::Image& image, TextureEncoding encoding = TextureEncoding::Colour);
 
+    /// How many of an image's levels a description keeps: as many as the file carries, and no more than
+    /// reach a single texel, because a header may count levels past the last one and a device takes no
+    /// image with more levels than its size has.
+    std::uint32_t levelCountOf(const osg::Image& image);
+
     /// How many bytes `describeImage` lays into its `texels` for `image`, which is what a
     /// caller holding earlier descriptions reserves first: a sixteen-bit format widened, or a
     /// volume's first slices gathered. Nought for an image spanned where it is, and for one it

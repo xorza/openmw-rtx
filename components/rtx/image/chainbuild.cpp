@@ -87,6 +87,51 @@ namespace Rtx
         }
     }
 
+    ChainBuild::Scratch ChainBuild::scratchOf(const std::uint32_t width, const std::uint32_t height,
+        const std::uint32_t fileLevels, const TextureEncoding encoding, const std::uint32_t levels)
+    {
+        // The levels `build` reads and lays out, as it reads and lays them: a painted colour's own up to
+        // `levels`, every other file's finest alone, and `levels` laid four bytes a texel.
+        const std::uint32_t read
+            = encoding == TextureEncoding::Painted ? std::min(levels, std::max(fileLevels, 1u)) : 1u;
+        const auto texelsOf = [&](std::uint32_t level) {
+            return std::size_t{ std::max(width >> level, 1u) } * std::max(height >> level, 1u);
+        };
+        Scratch scratch;
+        for (std::uint32_t level = 0; level < read; ++level)
+            scratch.mAlpha += texelsOf(level);
+        for (std::uint32_t level = 0; level < levels; ++level)
+            scratch.mTexels += texelsOf(level) * sTexel;
+        scratch.mBand = std::size_t{ width } * 4 * sizeof(osg::Vec3f);
+        if (encoding == TextureEncoding::Normal)
+            for (std::uint32_t level = 0; level < levels; ++level)
+                scratch.mRing += std::size_t{ sRingRows } * std::max(width >> level, 1u) * sizeof(osg::Vec3f);
+        if (encoding == TextureEncoding::Painted)
+            scratch.mColumns = std::size_t{ width } * sizeof(PaintedAxis);
+        return scratch;
+    }
+
+    ChainBuild::Scratch ChainBuild::capacity() const
+    {
+        return Scratch{ .mAlpha = mAlpha.capacity(),
+            .mTexels = mTexels.capacity(),
+            .mBand = mBand.capacity() * sizeof(osg::Vec3f),
+            .mRing = mRing.capacity() * sizeof(osg::Vec3f),
+            .mColumns = mColumns.capacity() * sizeof(PaintedAxis) };
+    }
+
+    void ChainBuild::letGo()
+    {
+        mAlpha = AlphaImage();
+        mBand = {};
+        mRing = {};
+        mRingAt = {};
+        mBoxed = {};
+        mColumns = {};
+        mTexels = {};
+        mLevels = {};
+    }
+
     bool ChainBuild::rebuilds(const TextureData& file)
     {
         const TextureFormat format = file.mFormat;
@@ -112,7 +157,10 @@ namespace Rtx
         first.mCoarser = {};
         mAlpha.build(first);
 
+        // Each buffer grown to the size this build needs and no more, as `scratchOf` predicts it: a band
+        // of the finest level's four rows, reserved before the reader resizes it.
         const MipLevel& top = first.mLevels.front();
+        mBand.reserve(std::size_t{ top.mWidth } * 4);
         mLevels.clear();
         std::size_t bytes = 0;
         for (std::uint32_t level = 0; level < levels; ++level)
@@ -123,6 +171,9 @@ namespace Rtx
             mLevels.push_back(laid);
             bytes += std::size_t{ laid.mWidth } * laid.mHeight * sTexel;
         }
+        // Reserved first, so the room is what this build needs on every standard library: MSVC's `assign`
+        // and `resize` grow by half again what they held, which `scratchOf` would not predict.
+        mTexels.reserve(bytes);
         mTexels.assign(bytes, std::byte{ 0 });
 
         if (file.mEncoding == TextureEncoding::Normal)
@@ -215,6 +266,7 @@ namespace Rtx
         {
             const MipLevel& level = mLevels[at];
             mColumns.clear();
+            mColumns.reserve(level.mWidth);
             for (std::uint32_t x = 0; x < level.mWidth; ++x)
                 mColumns.push_back(paintedAxis((static_cast<float>(x) + 0.5f) / level.mWidth, clampsS(read.mWrap)));
             for (std::uint32_t y = 0; y < level.mHeight; ++y)
@@ -240,21 +292,26 @@ namespace Rtx
     void ChainBuild::buildNormals(const TextureData& first)
     {
         const MipLevel& top = mLevels.front();
-        const std::size_t topTexels = std::size_t{ top.mWidth } * top.mHeight;
 
-        // **The finest level's unit normals a ring of rows, and the means of every level under it
-        // whole**: the finest is three quarters of a chain, and its means, read only by the level
-        // under it, are held for the few rows that level's box reads, as a band reader streams.
-        mRing.resize(std::size_t{ sRingRows } * top.mWidth);
-        mMeans.resize(mTexels.size() / sTexel - topTexels);
-        const auto ringAt = [&](std::uint32_t x, std::uint32_t y) -> osg::Vec3f& {
-            return mRing[std::size_t{ y % sRingRows } * top.mWidth + x];
-        };
+        // **Every level's means a ring of rows**: a level's means are read only by the box of the level
+        // under it, which reads three rows of them, and each row of that level is boxed as soon as the
+        // rows it reads stand, so a ring of `sRingRows` holds what any box still reads, as a band reader
+        // streams. Whole, the means under a 4096-square map's finest level were 67 MB.
+        mRingAt.clear();
+        std::size_t ringTexels = 0;
+        for (const MipLevel& level : mLevels)
+        {
+            mRingAt.push_back(ringTexels);
+            ringTexels += std::size_t{ sRingRows } * level.mWidth;
+        }
+        mRing.clear();
+        mRing.reserve(ringTexels);
+        mRing.resize(ringTexels);
+        mBoxed.assign(mLevels.size(), 0);
         const auto meanAt = [&](std::size_t at, std::uint32_t x, std::uint32_t y) -> osg::Vec3f& {
-            if (at == 0)
-                return ringAt(x, y);
-            return mMeans[mLevels[at].texelOffset(x, y, sTexel) / sTexel - topTexels];
+            return mRing[mRingAt[at] + std::size_t{ y % sRingRows } * mLevels[at].mWidth + x];
         };
+        const auto ringAt = [&](std::uint32_t x, std::uint32_t y) -> osg::Vec3f& { return meanAt(0, x, y); };
 
         // Each texel the direction of its mean, the height beside it.
         const auto lay
@@ -293,20 +350,31 @@ namespace Rtx
             }
         };
 
-        // The finest rows a band at a time, and each row of the level under them once the rows its box
-        // reads stand: the row `y` reads `2 y` to `2 y + 2`, so the ring holds the two rows before a band.
-        std::uint32_t boxed = 0;
+        // Each row of the level under `at` boxed once the rows of `at` its box reads stand, below `to`,
+        // and each boxed row in turn boxing the level under it: the row `y` reads `2 y` to `2 y + 2`, so a
+        // ring holds the two rows before the finest's band of four, and a coarser level's rows come one
+        // at a time. At the end of a level every row under it is boxed, its last rows held to its edge.
+        const auto boxUnder = [&](const auto& self, std::size_t at, std::uint32_t to) -> void {
+            if (at + 1 >= mLevels.size())
+                return;
+            const std::uint32_t aboveHeight = mLevels[at].mHeight;
+            std::uint32_t& next = mBoxed[at + 1];
+            while (next < mLevels[at + 1].mHeight
+                && (to == aboveHeight
+                    || std::min(Shaders::axisTaps(next, aboveHeight).mFirst + 2, aboveHeight - 1) < to))
+            {
+                box(at + 1, next);
+                ++next;
+                self(self, at + 1, next);
+            }
+        };
+
+        // The finest rows a band at a time, laid from the ring with their height.
         const auto standRows = [&](std::uint32_t from, std::uint32_t to) {
             for (std::uint32_t y = from; y < to; ++y)
                 for (std::uint32_t x = 0; x < top.mWidth; ++x)
                     lay(top, x, y, ringAt(x, y), mAlpha.at(0, x, y) / 255.0f);
-            if (mLevels.size() < 2)
-                return;
-            const MipLevel& under = mLevels[1];
-            while (boxed < under.mHeight
-                && (to == top.mHeight
-                    || std::min(Shaders::axisTaps(boxed, top.mHeight).mFirst + 2, top.mHeight - 1) < to))
-                box(1, boxed++);
+            boxUnder(boxUnder, 0, to);
         };
 
         // **Every texel of the finest level its unit normal**: three channels decoded as `2 c − 1`, and a
@@ -346,10 +414,6 @@ namespace Rtx
                     }
                 standRows(row, end);
             }
-
-        for (std::size_t at = 2; at < mLevels.size(); ++at)
-            for (std::uint32_t y = 0; y < mLevels[at].mHeight; ++y)
-                box(at, y);
     }
 
     bool ChainBuild::holdsCut(const TextureData& finest) const

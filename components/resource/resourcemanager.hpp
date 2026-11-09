@@ -59,6 +59,10 @@ namespace Resource
         /// Clear all cache entries.
         void clearCache() override { mCache->clear(); }
 
+        /// Drops the entry `key` names, where the cache holds one: a holder keeps the object, and the
+        /// next ask loads it again.
+        void removeFromCache(const auto& key) { mCache->removeFromObjectCache(key); }
+
         /// How long to keep objects in cache after no longer being referenced.
         void setExpiryDelay(double expiryDelay) final { mExpiryDelay = expiryDelay; }
         double getExpiryDelay() const { return mExpiryDelay; }

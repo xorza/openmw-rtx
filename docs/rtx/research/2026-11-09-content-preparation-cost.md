@@ -123,6 +123,73 @@ and once a row. Cold, as above, each store the same byte for byte as the one mad
 | Fullrest Repack | 364 s → 319 s | — → 5,038 s |
 | PBR replacers | 84 s → 80 s | — → 1,217 s |
 
+## A normal map's means in a ring of rows, landed
+
+Each level's means a ring of eight rows, each row boxed as soon as the rows it reads stand, in place of 12 bytes a
+texel under the finest level. The PBR replacers' cold preparation, the two builds in turn, the resident peak
+sampled every 0.25 s up to the "Prepared" line; the two stores the same byte for byte:
+
+| build | peak, first pair | peak, second pair | preparation |
+|---|---|---|---|
+| before | 4,900 MiB | 3,969 MiB | 87.8 s, 81.2 s |
+| ring | 4,215 MiB | 3,383 MiB | 92.6 s, 81.3 s |
+
+The peak moves by 900 MiB between runs of one build, with which threads meet the largest maps at once; the ring is
+685 and 586 MiB under the run before it.
+
+## Every usable CPU but one, the ground layers first, landed
+
+The preparation on `Platform::Process::usableCpuCount() - 1` threads, 15 under the harness's 16 CPUs and 31 in the
+game on this machine's 32, and the ground layers served before the models. The PBR replacers' cold preparation
+under the harness: 77.8 and 81.8 s, its store the same byte for byte. Its busy threads a 5 s window, sampled at
+99 Hz, from the first window to the last:
+
+| window | 0 | 5–30 | 35 | 40–65 | 70 | 75 |
+|---|---|---|---|---|---|---|
+| busy threads of 15 | 14.5 | 15.0 | 12.6 | 14.5–15.0 | 14.2 | 10.0 |
+
+Before it, the models first, the last window ran 2.3 threads of 16.
+
+## Each model's store keys checked, landed
+
+The manifest keeps each model's keys and a start asks the store for each. On the Fullrest Repack, against a store
+that held every entry already:
+
+| start | preparation | manifest |
+|---|---|---|
+| the first, its manifest of the format before, every model walked and every entry found | 4.69 s, 27.9 s of CPU on 15 threads | 6.68 MB before |
+| warm, twice | 0.18 s and 0.17 s, 2.1 and 2.0 s of CPU | 9.06 MB |
+
+Warm, the store stamps 101,934 entries a start. Before the change, a warm start asked the store for no entry
+and took 0.15 s.
+
+## The reserve
+
+The memory at the preparation's start and its peak to the "Prepared" line, the manifest finding every job as it was
+and the kernels compiled before: the Fullrest Repack 1,327 MiB at the start and 1,378 MiB at the peak, 51 MB; on
+vanilla and the PBR replacers the preparation ended inside one sample of 0.1 s. A cold compile could not be had on
+this card: with `XDG_CACHE_HOME` and `__GL_SHADER_DISK_CACHE_PATH` moved to empty folders, the longest pipeline
+still compiled in 7 ms.
+
+## The dispatcher, landed
+
+Walks queue chain jobs, a dispatcher hands them out within a budget, and the loader's caches let go of each file as
+its last job ends. The PBR replacers on 15 threads under the harness:
+
+| run | preparation | its peak | counted at most | budget |
+|---|---|---|---|---|
+| cold, before | 77.8 to 81.8 s | 3,383 to 4,215 MiB | — | — |
+| cold | 77.4 s | 3,715 MiB | 3,211 MiB | 53,889 MiB |
+| cold, under a cgroup `MemoryMax` of 4 GiB | 78.5 s | 3,520 MiB | 2,560 MiB | 2,560 MiB |
+| every model walked against a full store, before | — | 7,269 MiB | — | — |
+| every model walked against a full store | 2.37 s | 1,968 MiB | 2,457 MiB | 53,852 MiB |
+
+Each cold store the same byte for byte as the one before. Cold, the three content lists after the batches, on 15
+threads under the harness: vanilla 5.9 to 6.1 s (the committed build beside it 5.9 s, run in turn), the Fullrest
+Repack 337.6 s and 4,235 MiB at the peak, the PBR replacers 82.9 s and 3,479 MiB. Vanilla's 4.5 s after the
+byte-exact batch did not come back on either build, its CPU time 86 s against 68.5 then. At the cold run's end the process fell from 3,589 to
+1,042 MiB, and the scene built after it peaked at 4,937 MiB, as a warm start's does at 4,250.
+
 ## Scratch held per thread
 
 From `ChainBuild` and `ChainPass` at a 4096-square file: the chain's texels, four bytes each over every level,

@@ -10,6 +10,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include <components/rtx/preprocess/contentkey.hpp>
+#include <components/rtx/preprocess/contentstore.hpp>
+
 namespace Rtx
 {
     class FileStamps;
@@ -24,6 +27,13 @@ namespace Rtx
     /// **Every content list's models, each until no run named it for `sUnnamedDaysMost` days**, so a
     /// switch between two profiles walks neither again. **Each name held once**: a model's files are
     /// indices into one table of the names, since most files are named by many models.
+    ///
+    /// **A model stands only where the store holds every entry its walk made or found**, as an action
+    /// cache returns a result only where the blobs it names stand (`docs/rtx/architecture.md`, "The
+    /// preparation is incremental by each file's stamp; the lookup is by content"): an entry the store
+    /// refused, or one deleted by hand, is the model walked again. A walk files the keys it asked the
+    /// store for; what a thread answered from its own facts, or a chain another model claimed that run,
+    /// is filed under the model that asked first. Each key held once, as the names are.
     class PreparationManifest
     {
     public:
@@ -32,6 +42,9 @@ namespace Rtx
         {
             std::uint64_t mDigest = 0;
             std::vector<std::string> mFiles;
+
+            /// The store's entries the walk made or found, each once.
+            std::vector<ContentKey> mKeys{};
         };
 
         /// How many days an entry stands that no run named: past them its content list is gone.
@@ -56,9 +69,10 @@ namespace Rtx
         /// `model`'s entry as it was filed, or nothing where it has none.
         std::optional<Entry> find(std::string_view model) const;
 
-        /// Whether `model`'s files stand as they did when it was walked. Safe from any thread while
-        /// nothing files an entry.
-        bool standsAsWalked(std::string_view model, FileStamps& stamps) const;
+        /// Whether `model`'s files stand as they did when it was walked, and `store` holds every entry
+        /// its walk made (`ContentStore::holds`, one `stat` an entry, which stamps it). Safe from any
+        /// thread while nothing files an entry.
+        bool standsAsWalked(std::string_view model, FileStamps& stamps, ContentStore& store) const;
 
         /// Files `entry` under `model`, over what was there, named on `day`.
         void keep(std::string_view model, const Entry& entry, std::uint32_t day);
@@ -80,17 +94,23 @@ namespace Rtx
         std::size_t size() const { return mEntries.size(); }
 
     private:
-        /// A model's entry: its digest, the day a run last named it, and its files' run in `mFiles`.
+        /// A model's entry: its digest, the day a run last named it, its files' run in `mFiles` and its
+        /// keys' run in `mKeyRuns`.
         struct Filed
         {
             std::uint64_t mDigest = 0;
             std::uint32_t mDay = 0;
             std::uint32_t mFirst = 0;
             std::uint32_t mCount = 0;
+            std::uint32_t mKeysFirst = 0;
+            std::uint32_t mKeysCount = 0;
         };
 
         /// `name`'s index in the table, added where it is not there.
         std::uint32_t intern(std::string_view name);
+
+        /// `key`'s index in the keys' table, added where it is not there.
+        std::uint32_t internKey(const ContentKey& key);
 
         std::optional<std::uint32_t> indexOf(std::string_view name) const;
 
@@ -104,6 +124,11 @@ namespace Rtx
         /// Every entry's files, a run each, as indices into `mNames`: an entry filed over leaves its
         /// old run, which the next write leaves out, so the runs hold at most each run's twice.
         std::vector<std::uint32_t> mFiles;
+
+        /// The keys, each once, and every entry's run of them as indices, as the names and the files.
+        std::vector<ContentKey> mKeys;
+        std::unordered_map<ContentKey, std::uint32_t, ContentKeyHash> mKeyIndex;
+        std::vector<std::uint32_t> mKeyRuns;
 
         bool mChanged = false;
     };

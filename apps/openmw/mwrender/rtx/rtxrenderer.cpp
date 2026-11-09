@@ -49,6 +49,7 @@
 #include <components/misc/presentation.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/myguirtx/rendermanager.hpp>
+#include <components/platform/process.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/clock.hpp>
@@ -655,10 +656,13 @@ namespace MWRender
 
         // **The content prepared beside the kernels' compile**, from the content list the screen
         // before this one loaded: every model it names walked into the store, so play reads what
-        // it would otherwise compute (`Rtx::ContentPreparation`).
+        // it would otherwise compute (`Rtx::ContentPreparation`). **On every CPU the process may run
+        // on but one**, the main thread's, which draws the screen and sleeps: the PBR replacers' cold
+        // preparation took 64 s on 31 threads where it took 80 on 16
+        // (`docs/rtx/research/2026-11-09-content-preparation-cost.md`, "Threads").
         if (const MWWorld::ESMStore* const store = MWBase::Environment::get().getESMStore())
             mMirror.startPreparing(getResources(), contentModels(*store), contentLayers(*store, getResources()),
-                std::max<std::size_t>(1, std::thread::hardware_concurrency() / 2));
+                std::max<std::size_t>(1, Platform::Process::usableCpuCount() - 1));
 
         Rtx::JobProgress progress = mRenderer->awaitKernels(mKernels, std::chrono::milliseconds::zero());
         if (!progress.isDone())
@@ -684,23 +688,17 @@ namespace MWRender
             listener.setLabel("#{OMWEngine:PreparingContent}");
             listener.setProgressRange(progress.mCount);
 
-            // **The caches emptied once a second and at the end**, so the models walked and let go of
-            // leave them and the walk's memory stays bounded: aged by their expiry instead, they kept
-            // every model a cold start of the PBR profile walks, 14.7 GB at the peak under the
-            // harness, whose stated step never ages them. Nothing of the world stands yet to be
-            // read again, and a walk still holding what it asked keeps it alive. Each wait sleeps until a
-            // job is done or the screen's frame is due, as the kernels' does.
+            // **Each file let go of by the loader's caches as the last job reading it ends**
+            // (`Rtx::ContentPreparation`, `Resource::SceneManager::letGo`), so the walk's memory stays
+            // within the jobs' own: cleared once a second instead, the caches held what a second of walks
+            // loaded, 7.3 GiB at the peak of a PBR start whose manifest walked every model again, and aged
+            // by their expiry, 14.7 GB. The clear at the end drops what a job's files did not name. Each
+            // wait sleeps until a job is done or the screen's frame is due, as the kernels' does.
             constexpr std::chrono::milliseconds patience{ 8 };
-            auto cleared = std::chrono::steady_clock::now();
             while (!progress.isDone())
             {
                 // Each report draws a frame, as above.
                 listener.setProgress(progress.mMade);
-                if (std::chrono::steady_clock::now() - cleared >= std::chrono::seconds(1))
-                {
-                    cleared = std::chrono::steady_clock::now();
-                    getResources().clearCache();
-                }
                 progress = mMirror.awaitPreparing(patience);
             }
             getResources().clearCache();

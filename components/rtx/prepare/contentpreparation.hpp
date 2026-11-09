@@ -1,28 +1,36 @@
 #pragma once
 
-#include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
+#include <osg/Image>
 #include <osg/Node>
+#include <osg/ref_ptr>
 
 #include <components/platform/thread.hpp>
 #include <components/rtx/common/jobprogress.hpp>
-#include <components/rtx/common/monitor.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/shader/automaps.hpp>
 
 #include "filestamps.hpp"
+#include "preparationdispatcher.hpp"
 #include "preparationmanifest.hpp"
 
 namespace osg
@@ -57,8 +65,12 @@ namespace Rtx
         /// depends on whether or not they stand: a map a mod adds is a model walked again.
         Shader::AutoMapRules mAutoMaps{};
 
-        /// How many threads walk the models.
+        /// How many threads walk the models and make the chains.
         std::size_t mHands = 1;
+
+        /// The bytes the jobs may hold together (`PreparationDispatcher`), or nothing for no bound, where
+        /// the system states no memory (`Platform::availableMemory`).
+        std::optional<std::uint64_t> mBudget{};
 
         /// Today, in days since the epoch in UTC: the day the manifest notes a model was named on, so
         /// a content list no run named for a month leaves it (`PreparationManifest::sUnnamedDaysMost`).
@@ -93,6 +105,10 @@ namespace Rtx
         std::chrono::nanoseconds mThreadsCpu{};
 
         std::size_t mThreads = 0;
+
+        /// The budget the jobs were dispatched within, if any, and the most they held of it, as counted.
+        std::optional<std::uint64_t> mBudget{};
+        std::uint64_t mHeldMost = 0;
     };
 
     /// The game's import step, run on its loading screen (`docs/rtx/architecture.md`, "The store is
@@ -101,7 +117,10 @@ namespace Rtx
     /// and the texture facts — and every chain its maps need is in the store before play, and play
     /// reads it there; and every ground layer's maps, as the ground reader reads them. A model or a
     /// layer whose files stand as the last preparation found them is not read again
-    /// (`PreparationManifest`).
+    /// (`PreparationManifest`). **A walk queues a chain job for each map it claims**, and the threads take
+    /// walks and chains as a dispatcher hands them out within a budget of memory (`PreparationDispatcher`,
+    /// `docs/rtx/architecture.md`, "The preparation's memory is dispatched"); the loader's caches let go of
+    /// each file as the last job reading it ends.
     ///
     /// Starts when made. Pinned: the threads reach every member.
     class ContentPreparation
@@ -145,24 +164,61 @@ namespace Rtx
     private:
         struct Hand;
 
+        /// A chain a walk claimed and queued, holding its images until it is made: a conversion's partner
+        /// beside its file, and the walk it is filed under (`mWalked`).
+        struct QueuedChain
+        {
+            osg::ref_ptr<const osg::Image> mImage;
+            osg::ref_ptr<const osg::Image> mPartner;
+            TextureEncoding mEncoding;
+            TextureWrap mWrap;
+            std::size_t mWalk;
+        };
+
         /// `serveJobs`, its CPU time taken around it.
         void serve(Hand& hand, const Platform::StopToken& stop);
+
+        /// Takes what the dispatcher hands this thread and does it, until every job is done or a stop.
         void serveJobs(Hand& hand, const Platform::StopToken& stop);
+
+        /// Walks job `at`, unless it stands as the last preparation found it, and queues the chains it
+        /// claimed.
+        void walkJob(Hand& hand, std::size_t at);
+
+        /// Makes the queued chain `chain`.
+        void makeChain(Hand& hand, std::size_t chain);
+
         void walk(Hand& hand, std::size_t at);
         void read(Hand& hand, const PreparationLayer& layer);
 
         /// A job's name in the manifest: a model's path, or a layer's files (`mLayerNames`).
         const std::string& nameOf(std::size_t at) const;
 
-        /// `input`'s chain made where it is made at all and this run is the first to ask.
+        /// `input`'s chain claimed for the walk where it is made at all and this run is the first to ask.
         void chain(Hand& hand, const ChainPass::Input& input);
 
-        /// `input`'s converted chain made where this run is the first to ask.
+        /// `input`'s converted chain claimed for the walk where this run is the first to ask.
         void convert(Hand& hand, const ConversionPass::Input& input);
 
         /// Whether this run is the first to ask for `name`'s chain as `encoding`: a map many models
         /// wear is made once a run.
         bool claim(std::string name);
+
+        /// Counts a job's use of `path`, a model or an image, which the loader's caches let go of once its
+        /// last use ends (`letGoOf`). Under the lock.
+        void use(const std::string& path);
+
+        /// Ends a use of `path`, and lists it in `letGo` where it was the last. Under the lock.
+        void endUse(const std::string& path, std::vector<std::string>& letGo);
+
+        /// Has the loader let go of every path in `paths`. Outside the lock.
+        void letGoOf(std::vector<std::string>& paths);
+
+        /// Seconds since the start, the dispatcher's clock.
+        double secondsNow() const;
+
+        /// Counts `image` among those the hand's walk met, once.
+        static void meet(Hand& hand, const osg::Image& image);
 
         ContentSource& mContent;
 
@@ -188,20 +244,34 @@ namespace Rtx
         /// The day this run names its models on (`PreparationSetup::mDay`).
         const std::uint32_t mDay;
 
+        /// `PreparationSetup::mBudget`.
+        const std::optional<std::uint64_t> mBudget;
+
         /// Each job's entry where this run read it, the models first and the layers after them,
         /// written by the one thread that read it.
         std::vector<std::optional<PreparationManifest::Entry>> mWalked;
 
-        std::atomic<std::size_t> mNext{ 0 };
-
         const std::chrono::steady_clock::time_point mStarted = std::chrono::steady_clock::now();
 
-        /// What the threads share under it: how many jobs are done, which a waiter is woken by, when
-        /// the last was, and the chains claimed.
-        Monitor mMonitor;
-        std::uint32_t mMade = 0;
-        std::chrono::steady_clock::time_point mDone = mStarted;
+        /// What the threads share under it: which job each takes, the chains queued and claimed, the paths
+        /// in use, how many walks are done and when the last job was, which a waiter is woken by.
+        std::mutex mMutex;
+        std::condition_variable mToHands;
+        std::condition_variable mToWaiter;
+        PreparationDispatcher mDispatcher;
+
+        /// In a deque, whose elements stand where they are as it grows: a thread makes a chain out of the
+        /// lock while a walk queues more.
+        std::deque<QueuedChain> mChains;
         std::unordered_set<std::string> mClaimed;
+        std::unordered_map<std::string, std::uint32_t> mUses;
+
+        /// Each chain's keys and the walk they are filed under, which `finish` adds to the walks' entries.
+        std::vector<std::pair<std::size_t, ContentKey>> mChainKeys;
+
+        std::uint32_t mMade = 0;
+        bool mFinished = false;
+        std::chrono::steady_clock::time_point mDone = mStarted;
 
         ContentStats mStats;
         std::size_t mWalkedCount = 0;

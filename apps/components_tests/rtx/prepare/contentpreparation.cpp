@@ -1,9 +1,15 @@
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <map>
+#include <mutex>
+#include <optional>
+#include <set>
+#include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -20,6 +26,7 @@
 #include <components/rtx/prepare/contentpreparation.hpp>
 #include <components/rtx/prepare/filestamps.hpp>
 #include <components/rtx/prepare/preparationmanifest.hpp>
+#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstore.hpp>
 #include <components/testing/util.hpp>
@@ -76,6 +83,18 @@ namespace Rtx
                 return Err{ std::string("no image here") };
             }
 
+            void letGo(std::span<const std::string> paths) override
+            {
+                const std::lock_guard lock(mLetGoMutex);
+                mLetGo.insert(paths.begin(), paths.end());
+            }
+
+            std::set<std::string> takeLetGo()
+            {
+                const std::lock_guard lock(mLetGoMutex);
+                return std::exchange(mLetGo, {});
+            }
+
             std::uint64_t stampOf(VFS::Path::NormalizedView path) override
             {
                 const auto found = mStamps.find(std::string(path.value()));
@@ -85,6 +104,9 @@ namespace Rtx
             std::map<std::string, std::uint64_t> mStamps;
 
         private:
+            std::mutex mLetGoMutex;
+            std::set<std::string> mLetGo;
+
             osg::ref_ptr<osg::Node> modelOf(const osg::ref_ptr<osg::Geometry>& quad, const char* diffuse)
             {
                 Testing::paint(*quad->getOrCreateStateSet(), diffuse);
@@ -140,7 +162,7 @@ namespace Rtx
         /// names it leaves it in the manifest, so a switch back walks nothing, until no run named it for
         /// 31 days. A model no file stands for is walked again once its stamp moves, as a mod that adds
         /// it moves it. Each run says what it took: its two threads, and a time to its last job inside the
-        /// call, nought where it had no job.
+        /// call, nought where it had no job; and has the loader let go of every file a job read.
         TEST(RtxContentPreparationTest, aModelIsWalkedOnceAndAgainOnlyOnceAFileItReadMoved)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
@@ -159,6 +181,10 @@ namespace Rtx
             EXPECT_EQ(first.mWalked, 2u);
             EXPECT_EQ(first.mShapes, 2u);
             EXPECT_EQ(first.mChains, 1u) << "the shared map made once a run";
+            const std::set<std::string> letGo = content.takeLetGo();
+            for (const char* file :
+                { "meshes/a.nif", "meshes/b.nif", "textures/tx_a.dds", "textures/tx_b.dds", "textures/tx_rock_n.dds" })
+                EXPECT_TRUE(letGo.contains(file)) << file << ", every file a job read let go of once it ended";
             EXPECT_EQ(first.mTimes.mThreads, 2u);
             EXPECT_GT(first.mTimes.mWall, std::chrono::nanoseconds::zero());
             EXPECT_LE(first.mTimes.mWall, first.mAround);
@@ -180,6 +206,38 @@ namespace Rtx
             const Prepared moved = prepare(setup, both);
             EXPECT_EQ(moved.mWalked, 1u) << "the model whose diffuse moved, and no other";
             EXPECT_EQ(moved.mShapes, 1u);
+
+            // **And a model whose entries the store lost is walked again**, and only it: the second model's
+            // own entries deleted, as a store refuses a file, under a store opened again, which holds in
+            // memory none of what the first wrote. Its walk makes them again. The first store's writes
+            // finished first, which run on its own thread: one still queued is an entry no file holds yet.
+            {
+                store.flush();
+                const PreparationManifest filed
+                    = PreparationManifest::read(setup.mManifest, ContentPreparation::signatureOf(setup));
+                const std::optional<PreparationManifest::Entry> a = filed.find("meshes/a.nif");
+                const std::optional<PreparationManifest::Entry> b = filed.find("meshes/b.nif");
+                ASSERT_TRUE(a.has_value());
+                ASSERT_TRUE(b.has_value());
+                std::vector<ContentKey> lost;
+                for (const ContentKey& key : b->mKeys)
+                    if (std::find(a->mKeys.begin(), a->mKeys.end(), key) == a->mKeys.end())
+                        lost.push_back(key);
+                ASSERT_FALSE(lost.empty()) << "the second model filed no entry of its own";
+                for (const ContentKey& key : lost)
+                    ASSERT_TRUE(std::filesystem::remove(store.pathOf(key)));
+
+                ContentStore reopened(folder);
+                const PreparationSetup lostSetup{ .mContent = content,
+                    .mStamps = content,
+                    .mStore = reopened,
+                    .mManifest = setup.mManifest,
+                    .mHands = 2 };
+                EXPECT_EQ(prepare(lostSetup, both).mWalked, 1u) << "the model whose entry was lost, and no other";
+                reopened.flush();
+                for (const ContentKey& key : lost)
+                    EXPECT_TRUE(std::filesystem::exists(reopened.pathOf(key)));
+            }
 
             prepare(setup, { "meshes/a.nif" });
             EXPECT_EQ(PreparationManifest::read(setup.mManifest, ContentPreparation::signatureOf(setup)).size(), 2u)

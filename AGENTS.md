@@ -219,6 +219,10 @@ is not here is held to the rules above.
   - `Scene::addPostponedPhysicsObjects` gave a script's placed object its physics and not its place in the
     navigation mesh, so actors planned their paths through it until its cell loaded again. It now takes the
     one route every other collision object takes (`addObject`), which the suite `test_script_placed` holds.
+- `Resource::SceneManager::letGo` and `GenericResourceManager::removeFromCache`: the ray tracer's preparation has
+  the loader's caches let go of a model or an image as the last job reading it ends, its template, its NIF file,
+  its image and the shared state no template uses (`docs/rtx/architecture.md`, "The preparation's memory is
+  dispatched"), where clearing them once a second held a second of walks.
 - The interface's fonts rasterized again while the game runs (`docs/rtx/architecture.md`, "A live
   scale and font size"): `Gui::FontLoader` keeps the TrueType fonts it makes and rasterizes them in
   place (`FontLoader::fit`), each the one way, the load's included, so a code point a face lacks

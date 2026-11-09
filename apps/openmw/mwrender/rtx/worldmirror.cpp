@@ -36,6 +36,7 @@
 #include <components/misc/result.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/platform/heap.hpp>
+#include <components/platform/memory.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/frame/camera.hpp>
@@ -87,6 +88,8 @@ namespace MWRender
             {
                 return Rtx::openImage(*mScenes.getImageManager(), path);
             }
+
+            void letGo(std::span<const std::string> paths) override { mScenes.letGo(paths); }
 
         private:
             Resource::SceneManager& mScenes;
@@ -221,6 +224,27 @@ namespace MWRender
                 mExtractor.setClassMask(held.mClass, held.mNodes);
     }
 
+    namespace
+    {
+        /// What the loading screen keeps beside the preparation, out of the memory the system leaves
+        /// the process (`Platform::availableMemory`): the store's queue of writes, 64 MiB at most, and the
+        /// screen's own growth past the preparation's start, 51 MB on the Fullrest Repack with the
+        /// kernels compiled before (`docs/rtx/research/2026-11-09-content-preparation-cost.md`, "The
+        /// reserve"), with the rest of the gigabyte for a compile still running. What comes after the
+        /// preparation is not reserved: the preparation lets go of everything before the world loads.
+        constexpr std::uint64_t sPreparationReserve = std::uint64_t{ 1 } << 30;
+
+        /// The bytes the preparation's jobs may hold together, read once at its start, or nothing where
+        /// the system states no memory.
+        std::optional<std::uint64_t> preparationBudget()
+        {
+            const std::optional<std::uint64_t> available = Platform::availableMemory();
+            if (!available.has_value())
+                return std::nullopt;
+            return *available - std::min(*available, sPreparationReserve);
+        }
+    }
+
     /// The preparation and what it reads, which outlive it: made together, gone together. Pinned:
     /// the run holds its sources by reference.
     struct WorldMirror::Preparing
@@ -239,6 +263,7 @@ namespace MWRender
                        .mMask = sWorldTraversal,
                        .mAutoMaps = resources.getSceneManager()->getAutoMaps(),
                        .mHands = hands,
+                       .mBudget = preparationBudget(),
                        .mDay = static_cast<std::uint32_t>(
                            std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now())
                                .time_since_epoch()
@@ -278,11 +303,18 @@ namespace MWRender
         const Rtx::PreparationTimes times = mPreparing->mRun.getTimes();
         const Rtx::ContentStats stats = mPreparing->mRun.getStats();
         using Seconds = std::chrono::duration<double>;
+        constexpr double mebibyte = 1024.0 * 1024.0;
         Log(Debug::Info) << std::format(
             "Prepared {} of {} models and ground layers in {:.2f} s, {:.1f} s of CPU on {} threads; the rest "
             "stood as the last preparation found them",
             mPreparing->mRun.getWalked(), mPreparing->mRun.awaitProgress(std::chrono::milliseconds::zero()).mCount,
             Seconds(times.mWall).count(), Seconds(times.mThreadsCpu).count(), times.mThreads);
+        if (times.mBudget.has_value())
+            Log(Debug::Info) << std::format("  its jobs held at most {:.0f} MiB of a budget of {:.0f} MiB",
+                static_cast<double>(times.mHeldMost) / mebibyte, static_cast<double>(*times.mBudget) / mebibyte);
+        else
+            Log(Debug::Info) << std::format("  its jobs held at most {:.0f} MiB, with no budget the system states",
+                static_cast<double>(times.mHeldMost) / mebibyte);
         for (const auto& [pass, name] : Rtx::sContentPasses.mNames)
         {
             const Rtx::PassStats& counted = stats.at(pass);
