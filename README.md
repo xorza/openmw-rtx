@@ -74,10 +74,10 @@ Requirements
   renderer takes its place.
 * An NVIDIA card with DLSS support may use DLSS Super Resolution instead of FSR. No NVIDIA code is
   built into or shipped with the game: the driver's NGX core is loaded at run time, and the DLSS
-  feature library is supplied by the player. The launcher's **Download DLSS** button fetches it
-  from NVIDIA's release after showing NVIDIA's licence and checking its SHA-256; a copy placed
-  beside the executable also works. `[RTX] upscaler = auto | fsr | dlss` chooses, and `auto` falls
-  back to FSR when that library is absent.
+  feature library is supplied by the player. The launcher's **Download DLSS** button links to
+  NVIDIA's licence beside it, fetches the library from NVIDIA's release and checks its SHA-256; a
+  copy placed beside the executable also works. `[RTX] upscaler = auto | fsr | dlss` chooses, and
+  `auto` falls back to FSR when that library is absent.
 
 Measured so far on a high-end NVIDIA laptop GPU, an AMD handheld under RADV, and a low-end AMD
 integrated GPU under AMD's Windows driver. On a slow GPU, `[RTX] indirect lighting` off saves the

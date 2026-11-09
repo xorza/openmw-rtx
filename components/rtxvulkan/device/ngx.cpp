@@ -108,12 +108,6 @@ namespace Rtx::Dlss::Ngx
         set(parameters, sPerfQualityValue, static_cast<int>(create.Feature.PerfQuality));
         set(parameters, sFeatureCreateFlags, create.Flags);
         set(parameters, sEnableOutputSubrects, create.OutputSubrects ? 1 : 0);
-        set(parameters, sDlssPresetDlaa, sPresetK);
-        set(parameters, sDlssPresetQuality, sPresetK);
-        set(parameters, sDlssPresetBalanced, sPresetK);
-        set(parameters, sDlssPresetPerformance, sPresetM);
-        set(parameters, sDlssPresetUltraQuality, sPresetK);
-        set(parameters, sDlssPresetUltraPerformance, sPresetL);
 
         return ngx->CreateFeature(commands, Feature::SuperSampling, parameters, feature);
     }

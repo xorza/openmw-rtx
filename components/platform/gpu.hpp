@@ -4,7 +4,7 @@
 #include <vector>
 
 /// What the system's display adapters are, as the launcher needs it before a Vulkan device exists:
-/// whether DLSS can be offered at all. One header over `gpuwin32.cpp` and `gpuposix.cpp`.
+/// whether DLSS can be offered at all. One header over `gpu.cpp`, `gpuwin32.cpp` and `gpuposix.cpp`.
 namespace Platform::Gpu
 {
     inline constexpr std::uint32_t sNvidia = 0x10DE;

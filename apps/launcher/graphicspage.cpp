@@ -15,21 +15,17 @@
 #include <QCheckBox>
 #include <QCoreApplication>
 #include <QCryptographicHash>
-#include <QDialog>
-#include <QDialogButtonBox>
 #include <QEventLoop>
 #include <QFile>
 #include <QMessageBox>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QPlainTextEdit>
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QSaveFile>
 #include <QScreen>
 #include <QStandardItemModel>
-#include <QVBoxLayout>
 #include <QtGlobal>
 
 #include <SDL3/SDL_video.h>
@@ -58,61 +54,6 @@ namespace
         return QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex()
             == QByteArray(sha256.data(), static_cast<int>(sha256.size()));
     }
-
-    QByteArray fetch(
-        QNetworkAccessManager& network, const QUrl& url, QWidget* parent, const QString& title, QString* error)
-    {
-        QNetworkRequest request(url);
-        request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
-        request.setTransferTimeout(30000);
-
-        QNetworkReply* reply = network.get(request);
-        QProgressDialog waiting(title, QCoreApplication::translate("GraphicsPage", "Cancel"), 0, 0, parent);
-        waiting.setWindowModality(Qt::WindowModal);
-        QObject::connect(reply, &QNetworkReply::finished, &waiting, &QProgressDialog::close);
-        QObject::connect(&waiting, &QProgressDialog::canceled, reply, &QNetworkReply::abort);
-
-        QEventLoop loop;
-        QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-        loop.exec();
-
-        const QByteArray data = reply->readAll();
-        if (reply->error() != QNetworkReply::NoError && error != nullptr)
-            *error = reply->errorString();
-        reply->deleteLater();
-        return data;
-    }
-
-    class LicenceDialog : public QDialog
-    {
-    public:
-        LicenceDialog(const QString& title, const QString& text, const QString& accept, const QString& button,
-            const QString& cancel, QWidget* parent)
-            : QDialog(parent)
-        {
-            setWindowTitle(title);
-
-            auto* layout = new QVBoxLayout(this);
-            auto* view = new QPlainTextEdit(text, this);
-            view->setReadOnly(true);
-            layout->addWidget(view);
-
-            auto* accepted = new QCheckBox(accept, this);
-            layout->addWidget(accepted);
-
-            auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-            buttons->button(QDialogButtonBox::Ok)->setText(button);
-            buttons->button(QDialogButtonBox::Cancel)->setText(cancel);
-            buttons->button(QDialogButtonBox::Ok)->setEnabled(false);
-            QObject::connect(
-                accepted, &QCheckBox::toggled, buttons->button(QDialogButtonBox::Ok), &QWidget::setEnabled);
-            QObject::connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-            QObject::connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-            layout->addWidget(buttons);
-
-            resize(760, 560);
-        }
-    };
 
     // In the context the .ui's own strings are translated in, which is where these came from
     constexpr std::array<Rtx::MenuLabel<Rtx::Upscale>, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
@@ -203,8 +144,11 @@ void Launcher::GraphicsPage::refreshDlssState()
     setDlssItemEnabled(mDlssInstalled);
     downloadDlssButton->setVisible(!mDlssInstalled);
     dlssStatusLabel->setVisible(true);
-    dlssStatusLabel->setText(mDlssInstalled ? tr("DLSS runtime installed.")
-                                            : tr("DLSS is not installed. Download it from NVIDIA to enable it."));
+    dlssStatusLabel->setText(mDlssInstalled
+            ? tr("DLSS runtime installed.")
+            : tr("DLSS is not installed. Download it from NVIDIA's GitHub to enable it; "
+                 "<a href=\"%1\">NVIDIA's licence</a> applies.")
+                  .arg(textOf(Platform::Dlss::sLicenseUrl)));
 }
 
 void Launcher::GraphicsPage::setDlssItemEnabled(const bool enabled)
@@ -224,30 +168,9 @@ void Launcher::GraphicsPage::downloadDlss()
     if (mDlssInstalled)
         return;
 
-    const std::optional<Platform::Dlss::Download> feature = Platform::Dlss::download();
-    if (!feature.has_value())
-    {
-        QMessageBox::critical(this, tr("Download NVIDIA DLSS"), tr("DLSS is not available on this system."));
-        return;
-    }
+    const Platform::Dlss::Download feature = Platform::Dlss::download();
 
-    QString error;
-    const QByteArray licence
-        = fetch(*mNetwork, QUrl(textOf(Platform::Dlss::sLicenseUrl)), this, tr("Loading NVIDIA's licence..."), &error);
-    if (licence.isEmpty() || !matches(licence, Platform::Dlss::sLicenseSha256))
-    {
-        QMessageBox::critical(this, tr("Download NVIDIA DLSS"),
-            error.isEmpty() ? tr("NVIDIA's licence did not match the pinned checksum.")
-                            : tr("NVIDIA's licence could not be loaded: %1").arg(error));
-        return;
-    }
-
-    LicenceDialog dialog(tr("NVIDIA DLSS licence"), QString::fromUtf8(licence), tr("I accept NVIDIA's licence"),
-        tr("Download"), tr("Cancel"), this);
-    if (dialog.exec() != QDialog::Accepted)
-        return;
-
-    QNetworkRequest request(QUrl(textOf(feature->mUrl)));
+    QNetworkRequest request(QUrl(textOf(feature.mUrl)));
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
     request.setTransferTimeout(60000);
 
@@ -277,7 +200,7 @@ void Launcher::GraphicsPage::downloadDlss()
         QMessageBox::critical(this, tr("Download NVIDIA DLSS"), tr("The download failed: %1").arg(failureText));
         return;
     }
-    if (!matches(downloaded, feature->mSha256))
+    if (!matches(downloaded, feature.mSha256))
     {
         QMessageBox::critical(
             this, tr("Download NVIDIA DLSS"), tr("The downloaded file did not match NVIDIA's pinned checksum."));
@@ -301,7 +224,7 @@ void Launcher::GraphicsPage::downloadDlss()
         return;
     }
 
-    const std::filesystem::path target = directory / feature->mFileName;
+    const std::filesystem::path target = directory / feature.mFileName;
     QSaveFile file(Files::pathToQString(target));
     if (!file.open(QIODevice::WriteOnly) || file.write(downloaded) != downloaded.size() || !file.commit())
     {

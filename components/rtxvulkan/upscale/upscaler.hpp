@@ -39,7 +39,7 @@ namespace Rtx
         /// What `Auto` came to, which the renderer writes into its profile.
         UpscalerKind getKind() const { return mKind; }
 
-        void resize(UpscalerKind kind, VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
+        void resize(UpscalerKind kind, Upscale mode, VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
 
         static void declareShared(
             UpscalerKind kind, VkExtent2D render, VkExtent2D output, std::vector<ArenaImage>& into);

@@ -4,10 +4,10 @@
 #extension GL_EXT_samplerless_texture_functions : require
 
 // The trace's checkerboard channels made the two full-resolution images DLSS reads: a reversed
-// device depth worked out from the surface's distance along its ray, and the motion vector of the
-// nearest surface in a 3x3 neighbourhood of it. The neighbourhood is FSR's own prepare-inputs
-// dilation (`ffx_fsr3upscaler_prepare_inputs.h`): a pixel the trace did not sample this frame still
-// has a neighbour that was, and a depth edge keeps the motion of the surface in front of it.
+// device depth worked out from the surface's distance along its ray, and the motion vector. The
+// fields are a permutation of the frame, not half of it, so every pixel has its own sample and no
+// dilation is needed; DLSS dilates the inputs internally, and a second 3x3 pass here would only
+// thicken edges before it runs.
 
 #include "camera.h"
 #include "gbuffer.h"
@@ -45,10 +45,9 @@ bool onFrame(ivec2 pixel)
 float depthAt(ivec2 pixel)
 {
     const uvec2 extent = frameExtent();
-    const ivec2 at = clamp(pixel, ivec2(0), ivec2(extent) - 1);
-    const ivec2 stored = channelAt(CHANNEL_SURFACE, at, extent.x, fieldSwapOf(cbDlss.mFrame));
+    const ivec2 stored = channelAt(CHANNEL_SURFACE, pixel, extent.x, fieldSwapOf(cbDlss.mFrame));
     const vec2 seen = imageLoad(r_surface, stored).rg;
-    if (!onFrame(pixel) || seen.x == SURFACE_NO_NORMAL)
+    if (seen.x == SURFACE_NO_NORMAL)
         return 0.0;
 
     const Camera eye = eyeOfPixel(seen.y, cbDlss.mEyes);
@@ -62,8 +61,7 @@ float depthAt(ivec2 pixel)
 vec2 motionAt(ivec2 pixel)
 {
     const uvec2 extent = frameExtent();
-    const ivec2 at = clamp(pixel, ivec2(0), ivec2(extent) - 1);
-    const ivec2 stored = channelAt(CHANNEL_MOTION, at, extent.x, fieldSwapOf(cbDlss.mFrame));
+    const ivec2 stored = channelAt(CHANNEL_MOTION, pixel, extent.x, fieldSwapOf(cbDlss.mFrame));
     return imageLoad(r_motion, stored).xy;
 }
 
@@ -74,28 +72,9 @@ void main()
     if (outsideOf(uvec2(pixel), extent))
         return;
 
-    const ivec2 offsets[9] = {
-        ivec2(0, 0), ivec2(1, 0), ivec2(0, 1), ivec2(0, -1), ivec2(-1, 0),
-        ivec2(-1, 1), ivec2(1, 1), ivec2(-1, -1), ivec2(1, -1),
-    };
+    const float depth = depthAt(pixel);
+    const vec2 motion = motionAt(pixel);
 
-    float depth[9];
-    for (int at = 0; at < 9; ++at)
-        depth[at] = depthAt(pixel + offsets[at]);
-
-    // Reversed depth: the nearest surface is the largest value. FSR's own rule, and its farthest
-    // bookkeeping is carried only because the loop is the same one.
-    float nearest = depth[0];
-    float farthest = depth[0];
-    ivec2 nearestAt = pixel;
-    for (int at = 1; at < 9; ++at)
-        if (onFrame(pixel + offsets[at]) && depth[at] > nearest)
-        {
-            farthest = min(farthest, depth[at]);
-            nearest = depth[at];
-            nearestAt = pixel + offsets[at];
-        }
-
-    RTX_STORE_COUNTED(rw_depth, pixel, vec4(nearest, 0.0, 0.0, 0.0))
-    RTX_STORE_COUNTED(rw_motion, pixel, vec4(motionAt(nearestAt), 0.0, 0.0))
+    RTX_STORE_COUNTED(rw_depth, pixel, vec4(depth, 0.0, 0.0, 0.0))
+    RTX_STORE_COUNTED(rw_motion, pixel, vec4(motion, 0.0, 0.0))
 }

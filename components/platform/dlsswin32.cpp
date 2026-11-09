@@ -1,7 +1,10 @@
 #include "dlss.hpp"
 
-#include <components/platform/process.hpp>
+#include <optional>
+
 #include <components/platform/userhome.hpp>
+
+#include "dlsspaths.hpp"
 
 // The shell's headers use `far`/`near` in their RPC annotations, so they come before the tree's
 // header takes those names away.
@@ -13,13 +16,6 @@ namespace Platform::Dlss
 {
     namespace
     {
-        std::filesystem::path executableDirectory()
-        {
-            if (const std::optional<std::filesystem::path> executable = Process::executable(); executable.has_value())
-                return executable->parent_path();
-            return {};
-        }
-
         std::filesystem::path documentsDirectory()
         {
             PWSTR documents = nullptr;
@@ -35,7 +31,7 @@ namespace Platform::Dlss
         }
     }
 
-    std::optional<Download> download()
+    Download download()
     {
         return Download{
             .mUrl = "https://raw.githubusercontent.com/NVIDIA/DLSS/v310.9.16/lib/Windows_x86_64/rel/nvngx_dlss.dll",
@@ -54,9 +50,7 @@ namespace Platform::Dlss
 
     std::filesystem::path featureLibrary()
     {
-        const std::optional<Download> feature = Platform::Dlss::download();
-        if (!feature.has_value())
-            return {};
+        const Download feature = Platform::Dlss::download();
 
         const std::filesystem::path directories[] = { runtimeDirectory(), executableDirectory() };
         for (const std::filesystem::path& directory : directories)
@@ -64,7 +58,7 @@ namespace Platform::Dlss
             if (directory.empty())
                 continue;
 
-            const std::filesystem::path candidate = directory / feature->mFileName;
+            const std::filesystem::path candidate = directory / feature.mFileName;
             if (std::filesystem::is_regular_file(candidate))
                 return candidate;
         }
@@ -72,8 +66,4 @@ namespace Platform::Dlss
         return {};
     }
 
-    bool installed()
-    {
-        return !featureLibrary().empty();
-    }
 }

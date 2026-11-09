@@ -56,7 +56,6 @@ namespace Rtx::Dlss::Ngx
         Balanced = 1,
         MaxQuality = 2,
         UltraPerformance = 3,
-        UltraQuality = 4,
         Dlaa = 5,
     };
 
@@ -405,21 +404,6 @@ namespace Rtx::Dlss::Ngx
     inline constexpr const char* sTransparencyMask = "TransparencyMask";
     inline constexpr const char* sExposureTexture = "ExposureTexture";
     inline constexpr const char* sBiasCurrentColorMask = "DLSS.Input.Bias.Current.Color.Mask";
-
-    /// The transformer presets the SDK's create wrapper would put in the map when the caller
-    /// left them out: K for quality, balanced and native, M for performance, L for ultra
-    /// performance. The high bit is the wrapper's own "default" mark and is passed through as it
-    /// passes it. Setting them here keeps the presets a build chose when the wrapper is no longer
-    /// there to set them.
-    inline constexpr unsigned int sPresetK = 0x8000000bu;
-    inline constexpr unsigned int sPresetL = 0x8000000cu;
-    inline constexpr unsigned int sPresetM = 0x8000000du;
-    inline constexpr const char* sDlssPresetDlaa = "DLSS.Hint.Render.Preset.DLAA";
-    inline constexpr const char* sDlssPresetQuality = "DLSS.Hint.Render.Preset.Quality";
-    inline constexpr const char* sDlssPresetBalanced = "DLSS.Hint.Render.Preset.Balanced";
-    inline constexpr const char* sDlssPresetPerformance = "DLSS.Hint.Render.Preset.Performance";
-    inline constexpr const char* sDlssPresetUltraQuality = "DLSS.Hint.Render.Preset.UltraQuality";
-    inline constexpr const char* sDlssPresetUltraPerformance = "DLSS.Hint.Render.Preset.UltraPerformance";
 
     /// Sets the parameter map up as the SDK's DLSS create helper does, then creates the feature
     /// on `commands`.

@@ -1,23 +1,16 @@
 #include "dlss.hpp"
 
+#include <optional>
 #include <string>
 
 #include <components/platform/process.hpp>
 #include <components/platform/userhome.hpp>
 
+#include "dlsspaths.hpp"
+
 namespace Platform::Dlss
 {
-    namespace
-    {
-        std::filesystem::path executableDirectory()
-        {
-            if (const std::optional<std::filesystem::path> executable = Process::executable(); executable.has_value())
-                return executable->parent_path();
-            return {};
-        }
-    }
-
-    std::optional<Download> download()
+    Download download()
     {
         return Download{
             .mUrl
@@ -62,8 +55,4 @@ namespace Platform::Dlss
         return {};
     }
 
-    bool installed()
-    {
-        return !featureLibrary().empty();
-    }
 }

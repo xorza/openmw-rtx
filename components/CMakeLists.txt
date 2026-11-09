@@ -598,7 +598,10 @@ if (WIN32)
         librarywin32
         threadwin32
         userhomewin32
+        gpu
         gpuwin32
+        dlss
+        dlsspaths
         dlsswin32
         )
 elseif (UNIX)
@@ -613,7 +616,10 @@ elseif (UNIX)
         libraryposix
         threadposix
         userhomeposix
+        gpu
         gpuposix
+        dlss
+        dlsspaths
         dlssposix
         )
 else ()

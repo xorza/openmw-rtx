@@ -247,7 +247,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Download NVIDIA&apos;s DLSS runtime from NVIDIA&apos;s release and place it where OpenMW can use it. NVIDIA&apos;s licence applies; the button shows it before downloading.</source>
+        <source>Download NVIDIA&apos;s DLSS library from NVIDIA&apos;s GitHub and place it where OpenMW can use it. NVIDIA&apos;s licence applies.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -288,7 +288,7 @@
     </message>
     <message>
         <source>Cancel</source>
-        <translation type="unfinished">Anuluj</translation>
+        <translation type="obsolete">Anuluj</translation>
     </message>
     <message>
         <source>Balanced</source>
@@ -478,39 +478,11 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>DLSS is not installed. Download it from NVIDIA to enable it.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Download NVIDIA DLSS</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>DLSS is not available on this system.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Loading NVIDIA&apos;s licence...</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>NVIDIA&apos;s licence did not match the pinned checksum.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>NVIDIA&apos;s licence could not be loaded: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>NVIDIA DLSS licence</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>I accept NVIDIA&apos;s licence</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Download</source>
+        <source>DLSS is not installed. Download it from NVIDIA&apos;s GitHub to enable it; &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

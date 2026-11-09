@@ -33,7 +33,7 @@ namespace Rtx
         return 0;
     }
 
-    void DlssUpscaler::resize(VkExtent2D, VkExtent2D, const ArenaRun&)
+    void DlssUpscaler::resize(Upscale, VkExtent2D, VkExtent2D, const ArenaRun&)
     {
         throw Unsupported("this build was made without NVIDIA DLSS support");
     }

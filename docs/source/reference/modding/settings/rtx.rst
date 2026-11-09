@@ -60,20 +60,20 @@ runs.
    The game links none of NVIDIA's SDK. The driver supplies NGX — :code:`_nvngx.dll` on Windows
    and :code:`libnvidia-ngx.so.1` on Linux — and the game opens it at run time. The feature
    library, :code:`nvngx_dlss.dll` on Windows or :code:`libnvidia-ngx-dlss.so.*` on Linux, is not
-   part of OpenMW. The launcher's **Download DLSS** button shows `NVIDIA's licence
-   <https://github.com/NVIDIA/DLSS/blob/v310.9.16/LICENSE.txt>`__ and fetches the pinned 310.9.16
-   library from NVIDIA's release after accepting it, into OpenMW's user data folder: on Windows
+   part of OpenMW. The launcher's **Download DLSS** button links to `NVIDIA's licence
+   <https://github.com/NVIDIA/DLSS/blob/v310.9.16/LICENSE.txt>`__ beside the button and fetches the
+   pinned 310.9.16 library from NVIDIA's release, into OpenMW's user data folder: on Windows
    :code:`Documents/My Games/openmw/dlss`, on Linux :code:`$XDG_DATA_HOME/openmw/dlss` (usually
    :code:`~/.local/share/openmw/dlss`). The launcher disables the DLSS choice until the library is
    installed. The game also looks beside its own executable, where a manually downloaded copy can
    be placed; NGX itself looks there first. DLSS does not appear on a machine without an NVIDIA
    display adapter.
 
-   DLSS keeps its default preset, so NVIDIA's over-the-air model updates reach a build that
-   predates them: quality, balanced and native use the transformer preset K, performance preset M,
-   and ultra performance preset L, which is DLSS 4.5 Super Resolution. Read once, where the
-   renderer is made: the launcher and the settings window offer all three, and the settings window
-   says a change needs a restart.
+   DLSS uses the library's own default preset: this build sets no preset hints, so a newer library
+   the player installs brings its own defaults. With 310.9.16 those are the transformer preset K for
+   DLAA, quality and balanced, M for performance, and L for ultra performance, which is DLSS 4.5
+   Super Resolution. Read once, where the renderer is made: the launcher and the settings window
+   offer all three upscalers, and the settings window says a change needs a restart.
 
 .. omw-setting::
    :title: indirect lighting

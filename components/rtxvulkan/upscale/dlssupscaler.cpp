@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <components/debug/debuglog.hpp>
+#include <components/platform/dlss.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -29,6 +30,7 @@
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/dlss.h>
 #include <components/rtxvulkan/trace/framestep.hpp>
+#include <components/version/version.hpp>
 
 #include "fsrframe.hpp"
 
@@ -60,21 +62,27 @@ namespace Rtx
             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT };
 
         /// The quality value NGX picks its default preset and memory budget from. The renderer's
-        /// modes are ratios; this is the nearest of NGX's own names, and the feature is still told
-        /// the actual traced extent, so a 1.7 balanced differs from NGX's 1.724 by a few pixels a
-        /// side and not by a model.
-        Ngx::Quality qualityOf(const VkExtent2D render, const VkExtent2D output)
+        /// mode is the fact; reading it back from the traced extent would be a second route to the
+        /// same answer, and a truncated extent can only make it less exact.
+        Ngx::Quality qualityOf(const Upscale mode)
         {
-            const float ratio = static_cast<float>(output.width) / static_cast<float>(render.width);
-            if (ratio <= 1.01f)
-                return Ngx::Quality::Dlaa;
-            if (ratio >= 2.9f)
-                return Ngx::Quality::UltraPerformance;
-            if (ratio >= 1.9f)
-                return Ngx::Quality::MaxPerformance;
-            if (ratio >= 1.6f)
-                return Ngx::Quality::Balanced;
+            switch (mode)
+            {
+                case Upscale::UltraPerformance:
+                    return Ngx::Quality::UltraPerformance;
+                case Upscale::Performance:
+                    return Ngx::Quality::MaxPerformance;
+                case Upscale::Balanced:
+                    return Ngx::Quality::Balanced;
+                case Upscale::Quality:
+                    return Ngx::Quality::MaxQuality;
+                case Upscale::Native:
+                    return Ngx::Quality::Dlaa;
+                case Upscale::Off:
+                    break;
+            }
 
+            assert(false && "a DLSS feature created with no upscale mode");
             return Ngx::Quality::MaxQuality;
         }
 
@@ -107,7 +115,7 @@ namespace Rtx
                 .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT };
         }
 
-        Ngx::Resource viewOf(const Image& image)
+        Ngx::Resource viewOf(const Image& image, const bool readWrite)
         {
             Ngx::Resource resource{};
             resource.Content.ImageView.ImageView = image.getView();
@@ -122,13 +130,13 @@ namespace Rtx
             resource.Content.ImageView.Width = image.getWidth();
             resource.Content.ImageView.Height = image.getHeight();
             resource.Type = Ngx::ResourceKind::ImageView;
-            resource.ReadWrite = (image.getUsage() & VK_IMAGE_USAGE_STORAGE_BIT) != 0;
+            resource.ReadWrite = readWrite;
             return resource;
         }
     }
 
-    /// NGX's process-wide state for one device, made where DLSS first builds its targets. A
-    /// configuration that only runs FSR never loads the runtime.
+    /// NGX's process-wide state for one device, made in the DLSS upscaler's constructor. A
+    /// configuration that only runs FSR never constructs one, so it never loads the runtime.
     struct DlssUpscaler::Context
     {
         explicit Context(const Device& device)
@@ -140,13 +148,13 @@ namespace Rtx
             })
         {
             mApi = Ngx::api();
-            if (mApi == nullptr)
-                throw Unsupported("NVIDIA DLSS needs the driver's NGX core, which this machine does not have");
+            assert(mApi != nullptr && "the DLSS upscaler was made without the driver's NGX core");
 
-            const std::wstring path = std::filesystem::temp_directory_path().wstring();
-            const Ngx::Result init = mApi->InitWithProjectId(Dlss::sProjectId, Ngx::Engine::Custom, "OpenMW RTX",
-                path.c_str(), device.getInstanceHandle(), device.getPhysicalDevice().getHandle(), device.getHandle(),
-                vkGetInstanceProcAddr, vkGetDeviceProcAddr, Ngx::sApiVersion, Dlss::featureInfo());
+            const std::wstring path = Platform::Dlss::applicationDataDirectory().wstring();
+            const Ngx::Result init = mApi->InitWithProjectId(Dlss::sProjectId, Ngx::Engine::Custom,
+                Version::getVersion().data(), path.c_str(), device.getInstanceHandle(),
+                device.getPhysicalDevice().getHandle(), device.getHandle(), vkGetInstanceProcAddr, vkGetDeviceProcAddr,
+                Ngx::sApiVersion, Dlss::featureInfo());
             if (Ngx::failed(init))
                 throw Unsupported("NVIDIA DLSS could not initialize NGX: " + resultText(init)
                     + "; install the DLSS runtime from the launcher, or put nvngx_dlss.dll (Windows) / "
@@ -177,6 +185,40 @@ namespace Rtx
             // A resize is frequent enough that the cache is not worth the memory a card's whole
             // frame budget would rather keep for the world.
             mParameters->Set(Ngx::sFreeMemoryOnRelease, 1);
+
+            // **A tiny feature is the real answer before `auto` commits**, as the query before a
+            // device exists can be inconclusive. It also loads the player's feature library, so a
+            // missing or unusable one is a refusal here, inside the constructor `auto` catches,
+            // rather than a fatal error at the first resize. The frame's own feature is still made
+            // at its extents; this one is released at once.
+            Ngx::DlssCreateParams probe{};
+            probe.Feature.Width = 128;
+            probe.Feature.Height = 128;
+            probe.Feature.TargetWidth = 128;
+            probe.Feature.TargetHeight = 128;
+            probe.Feature.PerfQuality = Ngx::Quality::Dlaa;
+            probe.Flags = Ngx::sDlssFlagIsHdr | Ngx::sDlssFlagMotionVectorsLowRes | Ngx::sDlssFlagDepthInverted
+                | Ngx::sDlssFlagAutoExposure;
+            probe.OutputSubrects = false;
+
+            Ngx::Handle* probeFeature = nullptr;
+            Ngx::Result probed = Ngx::Result::Failure;
+            mDevice.getPool().submitAndWait([&](VkCommandBuffer commands) {
+                probed = Ngx::createDlss(commands, mParameters, probe, &probeFeature);
+            });
+            if (Ngx::failed(probed) || probeFeature == nullptr)
+            {
+                if (probeFeature != nullptr)
+                    mApi->ReleaseFeature(probeFeature);
+                mApi->DestroyParameters(mParameters);
+                mParameters = nullptr;
+                int closed = 0;
+                mApi->Shutdown(device.getHandle(), &closed);
+                throw Unsupported("NVIDIA DLSS could not create a feature: " + resultText(probed)
+                    + "; install the DLSS runtime from the launcher, or put nvngx_dlss.dll (Windows) / "
+                      "libnvidia-ngx-dlss.so.* (Linux) beside the game");
+            }
+            mApi->ReleaseFeature(probeFeature);
         }
 
         ~Context()
@@ -225,9 +267,18 @@ namespace Rtx
         Ngx::Handle* mFeature = nullptr;
     };
 
+    std::unique_ptr<DlssUpscaler::Context> DlssUpscaler::makeContext(const Device& device)
+    {
+        // Checked before the context's pipeline and buffers are made: a machine without the
+        // driver's core should not pay for either before the refusal.
+        if (Ngx::api() == nullptr)
+            throw Unsupported("NVIDIA DLSS needs the driver's NGX core, which this machine does not have");
+        return std::make_unique<Context>(device);
+    }
+
     DlssUpscaler::DlssUpscaler(const Device& device)
         : mDevice(device)
-        , mContext(std::make_unique<Context>(device))
+        , mContext(makeContext(device))
     {
     }
 
@@ -250,7 +301,8 @@ namespace Rtx
         return Image::bytesFor(device, depthDescription(render)) + Image::bytesFor(device, motionDescription(render));
     }
 
-    void DlssUpscaler::resize(const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
+    void DlssUpscaler::resize(
+        const Upscale mode, const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
     {
         assert(render.width > 0 && render.height > 0 && output.width >= render.width && output.height >= render.height);
         assert(shared.size() == 1 && "the DLSS upscaler's shared image was not placed as it declared it");
@@ -270,7 +322,7 @@ namespace Rtx
         create.Feature.Height = render.height;
         create.Feature.TargetWidth = output.width;
         create.Feature.TargetHeight = output.height;
-        create.Feature.PerfQuality = qualityOf(render, output);
+        create.Feature.PerfQuality = qualityOf(mode);
 
         // Motion projects the surface at both ends without jitter: a stationary surface has zero
         // motion even as the trace samples a different subpixel. Marking it jittered makes NGX
@@ -354,10 +406,10 @@ namespace Rtx
             barriers.flush();
         }
 
-        Ngx::Resource colour = viewOf(inputs.mColour);
-        Ngx::Resource depth = viewOf(targets.mDepth);
-        Ngx::Resource motion = viewOf(targets.mMotion);
-        Ngx::Resource output = viewOf(targets.mShared[0]);
+        Ngx::Resource colour = viewOf(inputs.mColour, false);
+        Ngx::Resource depth = viewOf(targets.mDepth, false);
+        Ngx::Resource motion = viewOf(targets.mMotion, false);
+        Ngx::Resource output = viewOf(targets.mShared[0], true);
 
         Ngx::DlssEvalParams evaluation{};
         evaluation.Feature.Color = &colour;

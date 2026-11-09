@@ -226,7 +226,7 @@
                <bool>false</bool>
               </property>
               <property name="toolTip">
-               <string>Download NVIDIA's DLSS runtime from NVIDIA's release and place it where OpenMW can use it. NVIDIA's licence applies; the button shows it before downloading.</string>
+               <string>Download NVIDIA's DLSS library from NVIDIA's GitHub and place it where OpenMW can use it. NVIDIA's licence applies.</string>
               </property>
               <property name="text">
                <string>Download DLSS</string>
@@ -242,6 +242,12 @@
                <string/>
               </property>
               <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="textFormat">
+               <enum>Qt::RichText</enum>
+              </property>
+              <property name="openExternalLinks">
                <bool>true</bool>
               </property>
              </widget>

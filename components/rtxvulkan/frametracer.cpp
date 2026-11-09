@@ -69,7 +69,7 @@ namespace Rtx
         // An upscaler a mode turned off keeps nothing but its pipelines: its images went with the
         // mode, as `release` let them go.
         if (upscales(upscale))
-            mUpscaler.resize(upscaler, render, output,
+            mUpscaler.resize(upscaler, upscale, render, output,
                 ArenaRun(mArena, TraceChain::getSharedCount(), Upscaler::getSharedCount(upscaler)));
     }
 }

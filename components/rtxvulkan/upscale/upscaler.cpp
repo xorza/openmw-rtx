@@ -22,7 +22,7 @@ namespace Rtx
             // before a device exists can be inconclusive without it. Asking the same discovery the
             // launcher and the settings window ask keeps the menu, the picture and the log agreeing;
             // an explicit `dlss` still tries and fails by name.
-            if (Dlss::sCompiled && device.supportsDlss() && Platform::Dlss::installed())
+            if (Dlss::sCompiled && device.isDlssCandidate() && Platform::Dlss::installed())
             {
                 try
                 {
@@ -66,15 +66,15 @@ namespace Rtx
             mFsr = std::make_unique<FsrUpscaler>(mDevice);
     }
 
-    void Upscaler::resize(
-        const UpscalerKind kind, const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
+    void Upscaler::resize(const UpscalerKind kind, const Upscale mode, const VkExtent2D render, const VkExtent2D output,
+        const ArenaRun& shared)
     {
         if (kind != mKind || (kind == UpscalerKind::Fsr && mFsr == nullptr)
             || (kind == UpscalerKind::Dlss && mDlss == nullptr))
             ensure(kind);
 
         if (mKind == UpscalerKind::Dlss)
-            mDlss->resize(render, output, shared);
+            mDlss->resize(mode, render, output, shared);
         else
             mFsr->resize(render, output, shared);
     }

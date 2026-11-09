@@ -130,8 +130,13 @@ namespace Rtx
             // is not sure: the query before a device exists is the SDK's own pre-device path, but
             // a false negative there must not silently cost an RTX card its upscaler. Feature
             // creation is the real answer, and `Auto` falls back to FSR if it refuses.
-            mDlssSupported = true;
+            mDlssCandidate = true;
             dlssExtensions = Dlss::requiredDeviceExtensions(instance.getHandle(), mPhysicalDevice.getHandle());
+
+            // **Only what the device offers is enabled**: an extension the driver lists but the card
+            // does not have makes `vkCreateDevice` fail, which would take `auto` down with it.
+            std::erase_if(dlssExtensions,
+                [&](const std::string& extension) { return !mPhysicalDevice.hasOptionalExtension(extension.c_str()); });
             const bool queried = Dlss::isSupported(instance.getHandle(), mPhysicalDevice.getHandle());
 
             std::string named;

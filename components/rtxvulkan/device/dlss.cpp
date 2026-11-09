@@ -2,8 +2,10 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <string>
 
 #include <components/platform/dlss.hpp>
+#include <components/version/version.hpp>
 
 namespace Rtx::Dlss
 {
@@ -32,6 +34,14 @@ namespace Rtx::Dlss
 
     namespace
     {
+        /// The writable folder NGX logs to, the same one initialisation is given. A function-local
+        /// static because the discovery record only borrows the pointer for the call.
+        const std::wstring& applicationDataPath()
+        {
+            static const std::wstring sPath = Platform::Dlss::applicationDataDirectory().wstring();
+            return sPath;
+        }
+
         Ngx::FeatureDiscoveryInfo discovery(const Ngx::FeatureCommonInfo* featureInfo)
         {
             Ngx::FeatureDiscoveryInfo info{};
@@ -40,8 +50,8 @@ namespace Rtx::Dlss
             info.Identifier.IdentifierType = Ngx::ApplicationKind::Project;
             info.Identifier.Value.Project.ProjectId = sProjectId;
             info.Identifier.Value.Project.EngineType = Ngx::Engine::Custom;
-            info.Identifier.Value.Project.EngineVersion = "OpenMW RTX";
-            info.ApplicationDataPath = L".";
+            info.Identifier.Value.Project.EngineVersion = Version::getVersion().data();
+            info.ApplicationDataPath = applicationDataPath().c_str();
             info.FeatureInfo = featureInfo;
             return info;
         }

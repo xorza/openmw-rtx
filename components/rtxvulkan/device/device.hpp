@@ -180,9 +180,9 @@ namespace Rtx
         /// the instance outlives the device, as `Instance` says.
         VkInstance getInstanceHandle() const { return mInstance; }
 
-        /// Whether NGX accepted this card and driver for DLSS at start. False where the build has no
-        /// NGX, the card is not NVIDIA's, or the driver's feature check refused it.
-        bool supportsDlss() const { return mDlssSupported; }
+        /// Whether this is an NVIDIA card in a build with NGX, on a run that asked for DLSS. The
+        /// driver's own answer to whether it accepts the card comes later, at feature creation.
+        bool isDlssCandidate() const { return mDlssCandidate; }
 
         /// Where every buffer's and every image's memory comes from: one suballocator for the
         /// device, where an allocation per resource is a kernel call apiece for a cell's several
@@ -370,7 +370,7 @@ namespace Rtx
         VkInstance mInstance = VK_NULL_HANDLE;
 
         /// Whether NGX's feature check accepted this card and driver, when the run asked about DLSS.
-        bool mDlssSupported = false;
+        bool mDlssCandidate = false;
 
         /// Before every member made on it — `Root` says why.
         Root<VkDevice, vkDestroyDevice> mHandle;
