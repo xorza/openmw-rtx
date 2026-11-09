@@ -88,16 +88,18 @@ namespace Rtx
         /// A painted colour's level's columns placed on its light (`delight`), refilled each level.
         std::vector<PaintedAxis> mColumns;
 
-        /// How many of the finest level's rows a normal map's build holds at once: a band of four the
+        /// How many of a level's rows a normal map's build holds at once: the finest's band of four the
         /// reader decodes, and the two before it the box of the level under reads.
         static constexpr std::uint32_t sRingRows = 8;
 
-        /// A normal map's finest unit normals, `sRingRows` rows of them.
+        /// A normal map's means, `sRingRows` rows of each level, the levels back to back from `mRingAt`:
+        /// the finest's unit normals, and under it the unnormalised mean of the finest unit normals each
+        /// texel covers.
         std::vector<osg::Vec3f> mRing;
+        std::vector<std::size_t> mRingAt;
 
-        /// A normal map's means under its finest level, a texel each, laid as those levels are: the
-        /// unnormalised mean of the finest unit normals each covers.
-        std::vector<osg::Vec3f> mMeans;
+        /// How many rows of each level a normal map's build has boxed.
+        std::vector<std::uint32_t> mBoxed;
 
         /// Every level, back to back, four bytes a texel.
         std::vector<std::byte> mTexels;

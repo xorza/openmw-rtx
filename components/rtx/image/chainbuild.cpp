@@ -240,21 +240,24 @@ namespace Rtx
     void ChainBuild::buildNormals(const TextureData& first)
     {
         const MipLevel& top = mLevels.front();
-        const std::size_t topTexels = std::size_t{ top.mWidth } * top.mHeight;
 
-        // **The finest level's unit normals a ring of rows, and the means of every level under it
-        // whole**: the finest is three quarters of a chain, and its means, read only by the level
-        // under it, are held for the few rows that level's box reads, as a band reader streams.
-        mRing.resize(std::size_t{ sRingRows } * top.mWidth);
-        mMeans.resize(mTexels.size() / sTexel - topTexels);
-        const auto ringAt = [&](std::uint32_t x, std::uint32_t y) -> osg::Vec3f& {
-            return mRing[std::size_t{ y % sRingRows } * top.mWidth + x];
-        };
+        // **Every level's means a ring of rows**: a level's means are read only by the box of the level
+        // under it, which reads three rows of them, and each row of that level is boxed as soon as the
+        // rows it reads stand, so a ring of `sRingRows` holds what any box still reads, as a band reader
+        // streams. Whole, the means under a 4096-square map's finest level were 67 MB.
+        mRingAt.clear();
+        std::size_t ringTexels = 0;
+        for (const MipLevel& level : mLevels)
+        {
+            mRingAt.push_back(ringTexels);
+            ringTexels += std::size_t{ sRingRows } * level.mWidth;
+        }
+        mRing.resize(ringTexels);
+        mBoxed.assign(mLevels.size(), 0);
         const auto meanAt = [&](std::size_t at, std::uint32_t x, std::uint32_t y) -> osg::Vec3f& {
-            if (at == 0)
-                return ringAt(x, y);
-            return mMeans[mLevels[at].texelOffset(x, y, sTexel) / sTexel - topTexels];
+            return mRing[mRingAt[at] + std::size_t{ y % sRingRows } * mLevels[at].mWidth + x];
         };
+        const auto ringAt = [&](std::uint32_t x, std::uint32_t y) -> osg::Vec3f& { return meanAt(0, x, y); };
 
         // Each texel the direction of its mean, the height beside it.
         const auto lay
@@ -293,20 +296,31 @@ namespace Rtx
             }
         };
 
-        // The finest rows a band at a time, and each row of the level under them once the rows its box
-        // reads stand: the row `y` reads `2 y` to `2 y + 2`, so the ring holds the two rows before a band.
-        std::uint32_t boxed = 0;
+        // Each row of the level under `at` boxed once the rows of `at` its box reads stand, below `to`,
+        // and each boxed row in turn boxing the level under it: the row `y` reads `2 y` to `2 y + 2`, so a
+        // ring holds the two rows before the finest's band of four, and a coarser level's rows come one
+        // at a time. At the end of a level every row under it is boxed, its last rows held to its edge.
+        const auto boxUnder = [&](const auto& self, std::size_t at, std::uint32_t to) -> void {
+            if (at + 1 >= mLevels.size())
+                return;
+            const std::uint32_t aboveHeight = mLevels[at].mHeight;
+            std::uint32_t& next = mBoxed[at + 1];
+            while (next < mLevels[at + 1].mHeight
+                && (to == aboveHeight
+                    || std::min(Shaders::axisTaps(next, aboveHeight).mFirst + 2, aboveHeight - 1) < to))
+            {
+                box(at + 1, next);
+                ++next;
+                self(self, at + 1, next);
+            }
+        };
+
+        // The finest rows a band at a time, laid from the ring with their height.
         const auto standRows = [&](std::uint32_t from, std::uint32_t to) {
             for (std::uint32_t y = from; y < to; ++y)
                 for (std::uint32_t x = 0; x < top.mWidth; ++x)
                     lay(top, x, y, ringAt(x, y), mAlpha.at(0, x, y) / 255.0f);
-            if (mLevels.size() < 2)
-                return;
-            const MipLevel& under = mLevels[1];
-            while (boxed < under.mHeight
-                && (to == top.mHeight
-                    || std::min(Shaders::axisTaps(boxed, top.mHeight).mFirst + 2, top.mHeight - 1) < to))
-                box(1, boxed++);
+            boxUnder(boxUnder, 0, to);
         };
 
         // **Every texel of the finest level its unit normal**: three channels decoded as `2 c − 1`, and a
@@ -346,10 +360,6 @@ namespace Rtx
                     }
                 standRows(row, end);
             }
-
-        for (std::size_t at = 2; at < mLevels.size(); ++at)
-            for (std::uint32_t y = 0; y < mLevels[at].mHeight; ++y)
-                box(at, y);
     }
 
     bool ChainBuild::holdsCut(const TextureData& finest) const

@@ -123,6 +123,20 @@ and once a row. Cold, as above, each store the same byte for byte as the one mad
 | Fullrest Repack | 364 s → 319 s | — → 5,038 s |
 | PBR replacers | 84 s → 80 s | — → 1,217 s |
 
+## A normal map's means in a ring of rows, landed
+
+Each level's means a ring of eight rows, each row boxed as soon as the rows it reads stand, in place of 12 bytes a
+texel under the finest level. The PBR replacers' cold preparation, the two builds in turn, the resident peak
+sampled every 0.25 s up to the "Prepared" line; the two stores the same byte for byte:
+
+| build | peak, first pair | peak, second pair | preparation |
+|---|---|---|---|
+| before | 4,900 MiB | 3,969 MiB | 87.8 s, 81.2 s |
+| ring | 4,215 MiB | 3,383 MiB | 92.6 s, 81.3 s |
+
+The peak moves by 900 MiB between runs of one build, with which threads meet the largest maps at once; the ring is
+685 and 586 MiB under the run before it.
+
 ## Scratch held per thread
 
 From `ChainBuild` and `ChainPass` at a 4096-square file: the chain's texels, four bytes each over every level,

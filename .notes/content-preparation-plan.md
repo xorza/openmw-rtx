@@ -54,21 +54,9 @@ time a slot draws its file before its chain lands.
 ## Plan
 
 Each batch is timed off the log's "Prepared … in … s, … s of CPU on … threads" and the pass lines under it. A batch
-that must change no output (2 and 3) is checked with `diff -rq --exclude=prepared.manifest` between a cold
+that must change no output (3) is checked with `diff -rq --exclude=prepared.manifest` between a cold
 store made before it and one made after: the entries are files named by their keys, and two cold vanilla stores made
 apart are the same byte for byte.
-
-### Batch 2: memory
-
-Files: `components/rtx/image/chainbuild.{hpp,cpp}`, `components/rtx/preprocess/{contentcache,contentcodec}.hpp`.
-
-- [ ] A chain's finest level decoded, delit and encoded a band of rows at a time, as `buildNormals` already
-  streams its finest level: the 4096-square scratch of 89.5 MB becomes the coarser levels' 22 MB and a band.
-- [ ] A normal map's means a ring of rows on each level, as its finest level's are, in place of 12 bytes a texel
-  under the finest level (67 MB at 4096).
-- [ ] `ContentCache::keep` for a `ContentAsk::Stored` ask: the made chain's bytes moved into the payload and not
-  copied, a chain-sized buffer and copy fewer a chain (7.4 GiB copied on the Fullrest Repack).
-- [ ] Test: the stores byte for byte; the peak resident before and after each content list's cold run.
 
 ### Batch 3: threads and order
 
@@ -108,6 +96,15 @@ build and encode, 98% of the preparation's time, run under the model's note alon
   fault in a shape's fold or split names the part.
 - [ ] Test: how the crash matrix lands a fault under a note decides it; the report of a fault inside a chain's
   build names the model, the file and the encoding.
+
+## Declined
+
+- **A chain's finest level streamed a band at a time** (89.5 MB of scratch a thread at a 4096-square file): the
+  field's compressors hold a whole level (NVTT, DirectXTex, Compressonator), and the streaming build would be a
+  second route beside the whole one the conversion and the tests read, for a scratch bounded by the largest file.
+- **A stored ask's chain moved into its payload and not copied**: the form's byte appended after the move
+  reallocated a buffer reserved to the chain's size, a copy again, and the copy it saves is under 0.1% of the
+  Fullrest Repack's CPU.
 
 ## Not proposed
 
