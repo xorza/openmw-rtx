@@ -2,8 +2,9 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <memory>
+#include <optional>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -37,9 +38,9 @@ namespace Rtx
         Upscaler& operator=(const Upscaler&) = delete;
 
         /// What `Auto` came to, which the renderer writes into its profile.
-        UpscalerKind getKind() const { return mKind; }
+        UpscalerKind getKind() const;
 
-        void resize(UpscalerKind kind, Upscale mode, VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
+        void resize(Upscale mode, VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
 
         static void declareShared(
             UpscalerKind kind, VkExtent2D render, VkExtent2D output, std::vector<ArenaImage>& into);
@@ -48,26 +49,21 @@ namespace Rtx
 
         void release();
 
-        bool isBuilt(UpscalerKind kind) const;
-        bool isAt(UpscalerKind kind, VkExtent2D render, VkExtent2D output) const;
+        bool isBuilt() const;
+        bool isAt(VkExtent2D render, VkExtent2D output) const;
 
         void reset();
         bool isFresh() const;
 
-        HandedImage record(UpscalerKind kind, VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
+        HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
 
         /// One line for `info`: which upscaler this renderer has.
         std::string_view describe() const;
 
     private:
-        /// Makes `kind`'s upscaler if it is not the one standing, letting the other go. `Auto` is
-        /// never passed here: the constructor resolves it.
-        void ensure(UpscalerKind kind);
-
-        const Device& mDevice;
-        UpscalerKind mKind;
-
-        std::unique_ptr<FsrUpscaler> mFsr;
-        std::unique_ptr<DlssUpscaler> mDlss;
+        /// The one backend the constructor resolved, fixed for the run: a settings change asks for
+        /// a restart, so nothing swaps it afterwards. Held in place because both backends are pinned
+        /// to the device they were made on.
+        std::optional<std::variant<FsrUpscaler, DlssUpscaler>> mBackend;
     };
 }

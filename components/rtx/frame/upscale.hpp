@@ -39,6 +39,19 @@ namespace Rtx
     /// order, so a value added there stops the build until each menu gives it a label.
     inline constexpr std::array<UpscalerKind, sUpscalerNames.mNames.size()> sUpscalerMenu = sUpscalerNames.values();
 
+    /// What `Auto` resolves to, from the facts the backend knows before it makes an upscaler: the
+    /// build has the backend, the device is an NVIDIA candidate, and the player's feature library is
+    /// installed. A concrete request is returned as it stands, so an explicit `Dlss` still tries
+    /// and fails by name rather than quietly drawing through FSR.
+    constexpr UpscalerKind resolveUpscaler(
+        const UpscalerKind requested, const bool compiled, const bool candidate, const bool installed)
+    {
+        if (requested != UpscalerKind::Auto)
+            return requested;
+
+        return compiled && candidate && installed ? UpscalerKind::Dlss : UpscalerKind::Fsr;
+    }
+
     /// How the frame gets from the size it is traced at to the size it is shown at — a quality
     /// level rather than a ratio, because the ratio is the upscaler's: `upscaleRatio`.
     enum class Upscale

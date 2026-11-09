@@ -499,7 +499,7 @@ namespace Rtx::Shaders
         /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would
         /// pad the middle of a struct two languages have to agree on, and the offset asserted below
         /// pins where it landed. Everything above it is four-aligned and sums to a multiple of
-        /// eight, `mPadding` included: a four-byte field added above takes its place.
+        /// eight, `mUpscaleMasks` included: a four-byte field added above takes its place.
         GpuTables mTables;
     };
 

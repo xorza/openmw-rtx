@@ -45,8 +45,8 @@ namespace Rtx
             bool mUpscaler = false;
             bool mArena = false;
         };
-        Moves movesTo(VkExtent2D render, VkExtent2D output, Upscale upscale, UpscalerKind upscaler,
-            const std::vector<ArenaImage>& declared) const;
+        Moves movesTo(
+            VkExtent2D render, VkExtent2D output, Upscale upscale, const std::vector<ArenaImage>& declared) const;
 
         /// Whether letting go of what `moves` makes again lets go of anything that stands, which the
         /// device is drained of first.
@@ -61,8 +61,7 @@ namespace Rtx
         /// Makes the arena of `declared` and places the chain and, where `upscale` upscales, the
         /// upscaler in it, where the declarations moved: the chain writes its sets anew, and a set a
         /// frame in flight reads is not written.
-        void resize(VkExtent2D render, VkExtent2D output, Upscale upscale, UpscalerKind upscaler,
-            std::vector<ArenaImage>&& declared);
+        void resize(VkExtent2D render, VkExtent2D output, Upscale upscale, std::vector<ArenaImage>&& declared);
 
         TraceChain& getChain() { return mChain; }
         const TraceChain& getChain() const { return mChain; }

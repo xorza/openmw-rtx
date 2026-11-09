@@ -222,8 +222,7 @@ namespace Rtx
         // **Or for the most the modes the run named would take** (`RunProfile::mReservedUpscales`).
         std::vector<ArenaImage> declared;
         FrameTracer::declare(render, output, mProfile, declared);
-        const FrameTracer::Moves moves
-            = mFrame.movesTo(render, output, mProfile.mUpscale, mProfile.mUpscaler, declared);
+        const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared);
         VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, declared);
         for (const Upscale mode : mReservedUpscales)
         {
@@ -278,7 +277,7 @@ namespace Rtx
         }
 
         // **Placed again only where the arena moved**, which the device was drained for.
-        mFrame.resize(render, output, mProfile.mUpscale, mProfile.mUpscaler, std::move(declared));
+        mFrame.resize(render, output, mProfile.mUpscale, std::move(declared));
 
         mTarget.resize(mDevice, width, height);
 
@@ -834,7 +833,7 @@ namespace Rtx
             if (!reconstruction.upscaled())
                 return traced.mColour;
 
-            return upscaler.record(mProfile.mUpscaler, commands,
+            return upscaler.record(commands,
                 UpscaleInputs{
                     .mColour = traced.mColour.mImage,
                     .mSurface = channels.get(Channel::Surface),

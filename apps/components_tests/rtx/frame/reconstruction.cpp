@@ -249,5 +249,20 @@ namespace Rtx
             EXPECT_EQ(sNoiseSourceNames.named("auto"), std::nullopt)
                 << "auto is the harness's word for no override, and not a source";
         }
+
+        /// `auto` is a policy, and these are the three facts it reads before a backend is made: the
+        /// build has one, the card is an NVIDIA candidate, and the player's library is installed.
+        TEST(RtxUpscalerTest, autoChoosesDlssOnlyWhenTheBuildTheCardAndTheLibraryAgree)
+        {
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Auto, true, true, true), UpscalerKind::Dlss);
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Auto, false, true, true), UpscalerKind::Fsr)
+                << "a build without the backend";
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Auto, true, false, true), UpscalerKind::Fsr)
+                << "a card that is not NVIDIA's";
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Auto, true, true, false), UpscalerKind::Fsr)
+                << "no feature library";
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Fsr, true, true, true), UpscalerKind::Fsr);
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Dlss, true, true, true), UpscalerKind::Dlss);
+        }
     }
 }

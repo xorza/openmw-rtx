@@ -35,13 +35,12 @@ namespace Rtx
     }
 
     FrameTracer::Moves FrameTracer::movesTo(const VkExtent2D render, const VkExtent2D output, const Upscale upscale,
-        const UpscalerKind upscaler, const std::vector<ArenaImage>& declared) const
+        const std::vector<ArenaImage>& declared) const
     {
         const bool traceMoves = render.width != mChain.getWidth() || render.height != mChain.getHeight();
         return Moves{
             .mTrace = mChain.isBuilt() && traceMoves,
-            .mUpscaler
-            = mUpscaler.isBuilt(upscaler) && !(upscales(upscale) && mUpscaler.isAt(upscaler, render, output)),
+            .mUpscaler = mUpscaler.isBuilt() && !(upscales(upscale) && mUpscaler.isAt(render, output)),
             .mArena = declared != mDeclared,
         };
     }
@@ -56,8 +55,8 @@ namespace Rtx
             mArena = ImageArena();
     }
 
-    void FrameTracer::resize(const VkExtent2D render, const VkExtent2D output, const Upscale upscale,
-        const UpscalerKind upscaler, std::vector<ArenaImage>&& declared)
+    void FrameTracer::resize(
+        const VkExtent2D render, const VkExtent2D output, const Upscale upscale, std::vector<ArenaImage>&& declared)
     {
         if (declared == mDeclared)
             return;
@@ -69,7 +68,7 @@ namespace Rtx
         // An upscaler a mode turned off keeps nothing but its pipelines: its images went with the
         // mode, as `release` let them go.
         if (upscales(upscale))
-            mUpscaler.resize(upscaler, upscale, render, output,
-                ArenaRun(mArena, TraceChain::getSharedCount(), Upscaler::getSharedCount(upscaler)));
+            mUpscaler.resize(upscale, render, output,
+                ArenaRun(mArena, TraceChain::getSharedCount(), Upscaler::getSharedCount(mUpscaler.getKind())));
     }
 }
