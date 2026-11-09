@@ -9,3 +9,4 @@
 - atomic files (rename on finishwrite)
 - remove sqlite
 - check content hasmisses
+- all IO serial?
