@@ -19,43 +19,37 @@ The measurements are in `docs/rtx/research/2026-11-09-content-preparation-cost.m
 - **Memory**: a thread keeps the scratch of the largest file it met, about 200 MB at a 4096-square file, so 16
   threads hold 3 to 4 GB at the peak (4.7 GiB and 5.4 GiB resident).
 
-What a cold preparation would take after each batch, from the profile's shares (each to be measured as it lands):
+What a cold preparation would take after each batch, from the profile's shares and the thread counts measured on
+the PBR replacers (each to be measured as it lands):
 
 | after | Fullrest Repack | PBR replacers |
 |---|---|---|
-| now | 364 s | 84 s |
-| batch 1, exact arithmetic | about 310 s | about 77 s |
-| batch 2 at rgbcx level 8 | about 190 s | about 64 s |
-| batch 2 at rgbcx level 6 | about 155 s | about 60 s |
+| now, as the game runs it (16 threads, unpinned) | about 350 s | 80 s |
+| batch 1, exact arithmetic | about 300 s | about 73 s |
+| batch 3, all CPUs but one | about 240 s | about 59 s |
 
 The same code makes the chains in play (`PreparedImages`, the `chains` workers), so each batch also shortens the
 time a slot draws its file before its chain lands.
 
-## Decisions for you
+## Decisions
 
-- **D1, the BC1 encoder's effort** (batch 2). rgbcx's author says to use level 10 if in doubt
-  (`extern/rgbcx/include/rgbcx/rgbcx.h`, line 35); levels 5 and up compete with squish, NVTT and icbc. On the bench's
-  delit-like input:
-
-  | option | BC1 speed | PSNR against level 10 | Fullrest cold |
-  |---|---|---|---|
-  | level 10, as now | 1× | — | about 310 s after batch 1 |
-  | level 9 | 1.55× | −0.08 dB | about 230 s |
-  | level 8 (my pick) | 2.14× | −0.14 dB | about 190 s |
-  | level 6 | 3.21× | −0.35 dB | about 155 s |
-  | level 5 | 6.16× | −0.62 dB | about 120 s |
-  | icbc, Castaño's SIMD BC1 encoder | not measured | not measured | — |
-
-  Level 10 without 3-colour blocks is 3% faster than level 9 at 0.10 dB less, so level 9 stands for it. icbc is a
-  new dependency, and its SIMD width is a compile-time choice, so its output could differ between builds for other
-  instruction sets; it needs your approval before a measurement. Every option but the first moves `ChainPass::sVersion`
-  and `ConversionPass::sVersion`, and each store makes its chains again once.
-- **D2, the BC7 search for normal maps** (batch 3). It waits for a bench like D1's over the PBR replacers' normal
-  maps: `m_try_least_squares` off, and the error weights, against the angle error the "Normal maps in BC7" decision
-  measured.
-- **D3, how many threads prepare** (batch 5). The game takes `hardware_concurrency() / 2`, 16 on this machine of 8
-  performance and 16 efficient cores. The harness keeps to the performance cores, so only a timed start of the
-  game can tell what the other 15 add once the kernels are compiled.
+- **BC1 stays at rgbcx level 10**, by the user's decision: good looks rank above speed. rgbcx's author names level 10
+  for when in doubt (`extern/rgbcx/include/rgbcx/rgbcx.h`, line 35). On the bench's delit-like input, level 9 was
+  1.55× faster at −0.08 dB, level 8 2.14× at −0.14 dB, level 6 3.21× at −0.35 dB. Not measured: icbc, the BC1
+  encoder NVTT uses ([icbc](https://github.com/castano/icbc)), a new dependency.
+- **The BC7 search for normal maps stays one mode a block, least squares on**, by the user's decision. On 120 of the
+  PBR replacers' normal maps: least squares off was 1.31× faster at a mean normal error of 0.511° against 0.442°;
+  uber level 1 1.66× slower at 0.418°; mode 6 for every block 0.362° but a height RMSE of 1.71 against 0.49.
+- **All logical CPUs the process may run on, but one, prepare**, by the user's decision. Unity's job system starts
+  workers up to the logical core count
+  ([Unity](https://docs.unity3d.com/ScriptReference/Unity.Jobs.LowLevel.Unsafe.JobsUtility.JobWorkerCount.html)), and
+  on the loading screen the main thread only draws and sleeps. Cold PBR preparation, unpinned: 16 threads 79.7 s, 24
+  67.0 s, 31 64.0 s; peak resident 5.6 to 6.1 GiB.
+- **A model stands only where the store holds every entry its walk made**, by the user's decision: the manifest keeps
+  each model's keys, each key once, and asks the store for each. The Remote Execution API's action cache holds the
+  same rule, a result returned only where the blobs it references stand
+  ([REAPI](https://github.com/bazelbuild/remote-apis/blob/main/build/bazel/remote/execution/v2/remote_execution.proto)),
+  as bazel-remote checks them on each get ([bazel-remote](https://github.com/buchgr/bazel-remote)).
 
 ## Plan
 
@@ -65,7 +59,7 @@ time a slot draws its file before its chain lands.
   `ContentStats` beside "Prepared … of …", so the game and every verb report it. Today the time is read off the
   log's stamps and the pass figures only reach a harness record, which `scene` writes no stop for.
 - [ ] A check that two stores hold the same entries byte for byte (a script under `tools/` or a harness option), for
-  batches 1, 4 and 5, which must change no output.
+  batches 1, 2 and 3, which must change no output.
 
 ### Batch 1: byte-exact arithmetic
 
@@ -84,22 +78,7 @@ Files: `components/rtx/image/chainbuild.cpp`, `colour.{hpp,cpp}`, `shadingmap.{h
   byte for byte (batch 0); a test of `encodedByte` against `quantise(toEncoded(x))` at every threshold and the floats
   on each side of it.
 
-### Batch 2: the BC1 effort (D1)
-
-Files: `components/rtx/image/chainbuild.cpp`, `components/rtx/preprocess/texture/{chainpass,conversionpass}.hpp`.
-
-- [ ] `sEncodeLevel` as D1 decides, with the bench's figures in its comment; both pass versions moved; the
-  architecture's "A coarser level is encoded on the host" names the level and why.
-- [ ] Test: `RtxPassVersionsTest`'s new digests; `shot --views=all --upscale=off` against the pictures before, on
-  vanilla and the Fullrest Repack, and the cold preparation timed.
-
-### Batch 3: BC7 normal maps (D2)
-
-Files: `components/rtx/image/chainbuild.cpp` (`encodeLevelsBc7`).
-
-- [ ] The bench over the PBR replacers' normal maps, then the parameters D2 takes, `ChainPass::sVersion` moved.
-
-### Batch 4: memory
+### Batch 2: memory
 
 Files: `components/rtx/image/chainbuild.{hpp,cpp}`, `components/rtx/preprocess/{contentcache,contentcodec}.hpp`.
 
@@ -111,19 +90,26 @@ Files: `components/rtx/image/chainbuild.{hpp,cpp}`, `components/rtx/preprocess/{
   copied, a chain-sized buffer and copy fewer a chain (7.4 GiB copied on the Fullrest Repack).
 - [ ] Test: the stores byte for byte (batch 0); the peak resident before and after each content list's cold run.
 
-### Batch 5: scheduling (D3)
+### Batch 3: threads and order
 
-Files: `components/rtx/prepare/contentpreparation.{hpp,cpp}`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp`.
+Files: `components/platform/process*`, `components/rtx/prepare/contentpreparation.{hpp,cpp}`,
+`apps/openmw/mwrender/rtx/rtxrenderer.cpp`.
 
+- [ ] The CPUs the process may run on (`Platform::Process`, its affinity mask), and the preparation on all but one:
+  `hardware_concurrency()` counts every CPU the system has, so the harness, kept to 16, would run 31 threads on them.
 - [ ] The ground layers first: they hold the largest maps, and the PBR replacers' last 5 s ran 2.3 threads of 16.
-- [ ] The thread count D3 takes.
 
-### Batch 6: what the manifest trusts
+### Batch 4: what the manifest trusts
 
-- [ ] The issue in `.notes/ISSUES.md`: a model the manifest skips is not asked whether the store still holds its
-  chains. With no cap, only a refused or hand-deleted entry is lost so; a cap brought back makes it every sweep. The
-  shape of the fix needs its own research (the manifest keeping each
-  model's keys, or a `holds` a chain), as ccache's direct mode falls back when its result is gone.
+Files: `components/rtx/prepare/{preparationmanifest,contentpreparation}.{hpp,cpp}`,
+`components/rtx/preprocess/{contentpreprocessor,contentcache}.{hpp,cpp}`.
+
+- [ ] Each walk's store keys handed back to the preparation (what its asks found or kept), filed in the manifest
+  beside its files, each key once in a table as the names are, and the format moved.
+- [ ] `standsAsWalked` asks the store for each key (`ContentStore::holds`, which stamps it) after the stamps' digest
+  matches; a key the store lacks is the model walked again. The issue in `.notes/ISSUES.md` goes.
+- [ ] Test: a model whose chain file is deleted is walked again at the next preparation and its chain stands after
+  it; one whose entries all stand is not walked.
 
 ## Not proposed
 

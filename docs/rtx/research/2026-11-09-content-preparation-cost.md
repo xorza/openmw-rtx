@@ -77,6 +77,33 @@ moves its texels off the file's palette, then encoded on one core. The error is 
 The file's own block with its two endpoints scaled by the light at the block's centre and its selectors kept:
 233 Mtexel/s, RMSE 1.8300, 42.882 dB.
 
+## BC7 for normal maps
+
+120 of the PBR replacers' normal maps picked at random, BC1 and BC3, 16 to 2048 texels a side, 128.3 million texels:
+each finest level laid as `ChainBuild` lays it, the unit normal in three channels and the height in alpha, then
+encoded on one core with linear weights, mode 5 for a block with a height and 6 for one without. The error is the
+angle between the normal laid and the normal decoded, and the height's against the height laid.
+
+| search | Mtexel/s | mean angle | height RMSE |
+|---|---|---|---|
+| as the build searches, least squares on | 20.55 | 0.442° | 0.490 |
+| least squares off | 26.87 | 0.511° | 0.490 |
+| uber level 1 | 12.35 | 0.418° | 0.485 |
+| mode 6 for every block | 18.62 | 0.362° | 1.712 |
+
+## Threads
+
+The PBR replacers' cold preparation with the preparation's thread count set by hand and the harness's hold on the
+performance cores lifted, as the game runs:
+
+| threads | CPUs | preparation | peak resident |
+|---|---|---|---|
+| 8 | the 16 of the performance cores | 107.5 s | 5,694 MiB |
+| 16 | the 16 of the performance cores | 83.7 s | 5,397 MiB |
+| 16 | all 32 | 79.7 s | 5,633 MiB |
+| 24 | all 32 | 67.0 s | 6,029 MiB |
+| 31 | all 32 | 64.0 s | 6,114 MiB |
+
 ## Byte-exact arithmetic
 
 Checked over every float from −3 to 3, 2,155,872,258 values, against the build's functions:
