@@ -529,7 +529,6 @@ SceneAnswer queryScene(SceneQuery asked)
 struct RayAsk
 {
     bool mTraced;
-    bool mResolved;
     SceneQuery mQuery;
 };
 
@@ -547,18 +546,12 @@ const uint RUN_IDLE = 0u;
 
 RayAsk noRay()
 {
-    return RayAsk(false, false, SceneQuery(vec3(0.0), 0.0, vec3(0.0, 0.0, 1.0), 0.0, 0u, 0u, 0u, 0u, 0.0, 0.0, 0u, 0u));
+    return RayAsk(false, SceneQuery(vec3(0.0), 0.0, vec3(0.0, 0.0, 1.0), 0.0, 0u, 0u, 0u, 0u, 0.0, 0.0, 0u, 0u));
 }
 
 RayAsk rayOf(SceneQuery query)
 {
-    return RayAsk(true, false, query);
-}
-
-/// `query`, with what it meets resolved (`resolveAsked`).
-RayAsk resolvedRayOf(SceneQuery query)
-{
-    return RayAsk(true, true, query);
+    return RayAsk(true, query);
 }
 
 /// Traces `asked` where it asks a ray, and answers it: a request's synchronous form, for an asker
@@ -572,6 +565,19 @@ RayAnswer answerAsked(RayAsk asked)
 /// What `Hit::mRelief` holds where no march through the hit's relief was stored: `resolve` marches it. Past
 /// any march's answer, which a texture's side bounds (`reliefToward`).
 const float RELIEF_UNMARCHED = 3.0e38;
+
+/// Where `resolve` takes a hit's relief from, a constant of each call so a stage that reads stored hits
+/// compiles no march: `RELIEF_MARCHES`, the trace's, which marches a relief it finds unmarched; or
+/// `RELIEF_STORED`, a stage's, whose hit carries the march the trace stored, or is a landing, whose relief
+/// is held flat and so is its shift (`reliefToward`).
+const uint RELIEF_MARCHES = 0u;
+const uint RELIEF_STORED = 1u;
+
+/// What `reliefToward` answers a relief held flat, or met edge on: its shift alone, at `height`.
+vec2 reliefShiftOf(float height)
+{
+    return vec2(height * PARALLAX_SCALE + PARALLAX_BIAS, 0.0);
+}
 
 /// The triangle a traversal committed, placed in the world, before any material is read off it.
 ///
@@ -771,6 +777,45 @@ Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float
     }
 
     return hit;
+}
+
+/// Whether a ray met something, where the hit stands and how far it can stand off its triangle, the cone's
+/// width there and the distance: the part of `committedHit` a walk that only leaves a surface or measures how
+/// far it went reads (`stepWater`), with none of the normals or the tangent a `Surface` is resolved from.
+///
+/// **So a walk carries no `Surface` through the traversals it asks**: a resolved surface held across a ray
+/// query is twenty-odd scalars more of every live state in it, which held the water's kernel past its
+/// ceiling on AMD's Windows driver (248 registers of 244).
+struct PlacedHit
+{
+    bool mHit;
+    vec3 mPosition;
+    float mRounding;
+    float mFootprint;
+    float mDistance;
+};
+
+/// Where `met` stands, as `committedHit` places it: the same corners, the same placement and the same
+/// rounding, and nothing it reads beyond them.
+PlacedHit placedHitOf(SceneAnswer met, SceneQuery asked)
+{
+    PlacedHit placed = PlacedHit(false, vec3(0.0), 0.0, 0.0, 0.0);
+    if (met.mCommitted == 0u)
+        return placed;
+
+    const GpuInstance placement = instanceAt(met.mInstance);
+    const GpuMesh mesh = meshAt(placement.mMesh);
+    vec3 corners[3];
+    trianglePositions(mesh, triangleCorners(mesh, met.mPrimitive), corners);
+    Hit hit = noHit();
+    placeHit(hit, corners, met.mBary, toWorldOf(placement), toObjectOf(placement));
+    return PlacedHit(true, hit.mPosition, hit.mRounding, footprintOf(asked, met), met.mDistance);
+}
+
+/// Whether `met` met something and how far: all a walk's step past its start reads of a ray's answer.
+PlacedHit reachOf(SceneAnswer met)
+{
+    return PlacedHit(met.mCommitted != 0u, vec3(0.0), 0.0, 0.0, met.mDistance);
 }
 
 /// What a ray toward a light met: whether a surface stopped it outright, and what the surfaces it crossed
@@ -1124,7 +1169,8 @@ vec3 stepOf(Surface surface)
 ///        and relief read there moved nothing a 1024-frame reference could tell from its own noise,
 ///        at Balmora or in the census office. The albedo, the reflectance and the roughness are read
 ///        either way, because the energy the hit sends back is theirs.
-Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
+/// @param reliefSource `RELIEF_MARCHES` or `RELIEF_STORED`, a constant of the call.
+Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint reliefSource)
 {
     Surface surface = noSurface(origin);
 
@@ -1231,9 +1277,10 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
             const vec3 eye = vec3(dot(tangent, -direction), dot(bitangent, -direction), dot(normal, -direction));
             // A relief held flat is its shift (`reliefToward`).
             const vec2 bounds = hit.mMarches ? reliefBoundsOf(material.mRelief) : vec2(1.0, 0.0);
-            const vec2 shown = hit.mRelief != RELIEF_UNMARCHED
-                ? vec2(hit.mRelief, 0.0)
-                : reliefToward(reliefMapOf(material.mNormal), bounds, point, eye, sampleDiffuse(material.mNormal, point).a);
+            const float height = sampleDiffuse(material.mNormal, point).a;
+            const vec2 shown = hit.mRelief != RELIEF_UNMARCHED ? vec2(hit.mRelief, 0.0)
+                : reliefSource == RELIEF_STORED ? reliefShiftOf(height)
+                                                : reliefToward(reliefMapOf(material.mNormal), bounds, point, eye, height);
             surface.mRelief = shown.x;
             point.mAt += eye.xy * surface.mRelief;
             surface.mReliefSite = ReliefSite(
@@ -1360,7 +1407,8 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
                     bounds = vec2(min(bounds.x, 0.5), max(bounds.y, 0.5));
                 if (!hit.mMarches)
                     bounds = vec2(1.0, 0.0);
-                const vec2 shown = reliefToward(maps, bounds, sheet, layerEye, height);
+                const vec2 shown = reliefSource == RELIEF_STORED ? reliefShiftOf(height)
+                                                                 : reliefToward(maps, bounds, sheet, layerEye, height);
                 stackMarched = true;
                 stackToward = shown.x;
                 surface.mRelief = shown.x;
@@ -1437,11 +1485,6 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     // **Ground reflects as a dielectric, over the share of it that reflects at all** — a stack from its
     // layers, a flattened chunk from the gloss baked beside its composite — and the tint darkens it for the
     // same reason.
-    //
-    // **A specular map is read at its footprint's long axis, and not along the footprint** (`atLevel`):
-    // through `texturesAlong`, AMD's Windows driver hung the trace in the waterfall of this read wherever a
-    // wave resolved a first-person surface while its other lanes went on with the peel, whether or not the
-    // surface had a specular map (`docs/rtx/research/2026-10-22-amd-integrated-footprint-read-hang.md`).
     if (HAS_MAPS && ground.mReflecting > 0.0)
     {
         const vec2 gloss = groundGloss(ground);
@@ -1450,7 +1493,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
     }
     else if (specularMap && surface.mGround)
     {
-        const vec2 gloss = sampleDiffuse(material.mSpecular, atLevel(point)).rg;
+        const vec2 gloss = sampleDiffuse(material.mSpecular, point).rg;
         surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x) * tint;
         surface.mRoughness = gloss.y;
     }
@@ -1461,7 +1504,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed)
         // relief no ray meets, since a ray stops at the mesh, and what real geometry occludes the traced
         // bounce and `ambientReaching` already find. The scattering in its alpha is not read: the BC1
         // maps most of the content ships cannot carry it.
-        const vec4 painted = sampleDiffuse(material.mSpecular, atLevel(point));
+        const vec4 painted = sampleDiffuse(material.mSpecular, point);
         const float metal = painted.x;
         surface.mSpecular = mix(vec3(DIELECTRIC_F0), albedo, metal) * tint;
         surface.mRoughness = painted.y;
@@ -1533,22 +1576,29 @@ RayAsk traceAsk(WorldRay ray, float tmin, Cone cone, uint mask, bool draws)
     // No blanket opaque flag: the per-instance bits the build set from each material are what decide
     // whether traversal stops to ask, and forcing opacity here would override them and put every leaf
     // back inside the card it was painted on.
-    return resolvedRayOf(SceneQuery(ray.mFrom, tmin, ray.mAlong, frame.mReach, facingFor(draws), mask, MEET_BY_CHANCE,
+    return rayOf(SceneQuery(ray.mFrom, tmin, ray.mAlong, frame.mReach, facingFor(draws), mask, MEET_BY_CHANCE,
         draws ? 1u : 0u, cone.mWidth, cone.mSpread, 0u, 0u));
+}
+
+/// The same numbers off a surface already resolved, where the stage resolves it for its own shading.
+PlacedHit placedHitOf(Surface surface)
+{
+    return PlacedHit(surface.mHit, surface.mPosition, surface.mRounding, surface.mFootprint, surface.mDistance);
 }
 
 /// What `asked` met, resolved: its committed triangle, its cone opened over the distance it went, at the
 /// detail it asked for, or no surface where it met nothing.
 ///
-/// **Once in a walk**, at the traversal that answered: every surface a walk shades is resolved there, the
-/// eye's own among them, so the code that reads a material is in the walk once.
+/// **Once for every surface a stage shades**, so the code that reads a material is in a stage once: at the
+/// traversal that answered, the eye's own among them, or, for a walk that reads only whether and how far its
+/// rays went (`stepWater`), once after the walk, from the ask made again (`waterPathAsk`).
 Surface resolveAsked(SceneAnswer met, SceneQuery asked)
 {
     Hit hit = noHit();
     if (met.mCommitted != 0u)
         hit = committedHit(met.mInstance, met.mPrimitive, met.mBary, met.mDistance, footprintOf(asked, met));
 
-    return resolve(hit, asked.mFrom, asked.mAlong, asked.mDetailed != 0u);
+    return resolve(hit, asked.mFrom, asked.mAlong, asked.mDetailed != 0u, RELIEF_MARCHES);
 }
 
 #endif

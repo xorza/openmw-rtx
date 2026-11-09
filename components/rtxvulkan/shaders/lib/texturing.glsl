@@ -290,18 +290,9 @@ vec2 parallaxShift(vec3 eye, float height)
 vec4 sampleDiffuse(uint slot, TexturePoint point)
 {
     if (point.mAnisotropic)
-        return textureGrad(texturesAlong[nonuniformEXT(slot)], point.mAt, point.mAcross, point.mAlong);
+        return textureGrad(TEXTURE_ALONG(sceneTexels(), slot), point.mAt, point.mAcross, point.mAlong);
 
-    return textureLod(textures[nonuniformEXT(slot)], point.mAt, coneLod(slot, point));
-}
-
-/// `point` read at the level of its footprint's long axis, through `textures`, and not along the
-/// footprint.
-TexturePoint atLevel(TexturePoint point)
-{
-    point.mAnisotropic = false;
-    point.mResolved = point.mBase;
-    return point;
+    return textureLod(TEXTURE(sceneTexels(), slot), point.mAt, coneLod(slot, point));
 }
 
 /// A tangent-space normal off a normal map, read at the level its cone can resolve and decoded as
@@ -319,7 +310,7 @@ float normalMapSlopes(uint slot, TexturePoint point)
     const float level = point.mResolved <= TEXTURE_FINEST_BASE
         ? 0.0
         : point.mResolved + 0.5 * log2(float(textureTexelsAt(slot)));
-    const float lost = textureLod(companions[nonuniformEXT(slot)], point.mAt, max(level - 1.0, 0.0)).r;
+    const float lost = textureLod(COMPANION(sceneTexels(), slot), point.mAt, max(level - 1.0, 0.0)).r;
     const float roughness = lost * clamp(level, 0.0, 1.0);
 
     return roughness * roughness * roughness * roughness;
@@ -392,7 +383,7 @@ float reliefHeightAt(ReliefMaps maps, vec2 at, float level)
     float height = 0.5 * maps.mFlat;
     [[unroll]] for (uint place = 0u; place < RELIEF_LAYERS; ++place)
         if (place < maps.mCount)
-            height += maps.mShares[place] * textureLod(textures[nonuniformEXT(maps.mSlots[place])], at, level).a;
+            height += maps.mShares[place] * textureLod(TEXTURE(sceneTexels(), maps.mSlots[place]), at, level).a;
     return height;
 }
 
@@ -524,7 +515,7 @@ float reliefLit(ReliefSite site, vec3 toLight, float spread)
 {
     const vec3 light = vec3(dot(site.mTangent, toLight), dot(site.mBitangent, toLight), dot(site.mNormal, toLight));
     const float top = site.mBounds.y * PARALLAX_SCALE + PARALLAX_BIAS;
-    const float start = textureLod(textures[nonuniformEXT(site.mMap)], site.mAt, site.mLevel).a * PARALLAX_SCALE
+    const float start = textureLod(TEXTURE(sceneTexels(), site.mMap), site.mAt, site.mLevel).a * PARALLAX_SCALE
         + PARALLAX_BIAS;
     const float depth = top - start;
     if (!(light.z > 0.0) || !(depth > 0.0))
@@ -549,7 +540,7 @@ float reliefLit(ReliefSite site, vec3 toLight, float spread)
     for (uint at = 1u; at <= count; ++at)
     {
         const float risen = float(at) * step;
-        const float stands = textureLod(textures[nonuniformEXT(site.mMap)], site.mAt + along * risen, read).a
+        const float stands = textureLod(TEXTURE(sceneTexels(), site.mMap), site.mAt + along * risen, read).a
                 * PARALLAX_SCALE
             + PARALLAX_BIAS;
         const float over = (stands - (start + risen)) * lean / span;

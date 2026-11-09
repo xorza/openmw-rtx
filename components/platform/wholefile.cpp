@@ -32,17 +32,18 @@ namespace Platform
         }
     }
 
-    Result<void, IoError> readWhole(const std::filesystem::path& path, std::vector<std::byte>& into)
+    Result<void, IoError> readWhole(const std::filesystem::path& path, Misc::ByteBuffer& into, const std::size_t most)
     {
         into.clear();
         return WholeFileSystem::read(
-            path, WholeFileSystem::Sink{ .mGrow = &grow<std::vector<std::byte>>, .mBuffer = &into });
+            path, WholeFileSystem::Sink{ .mGrow = &grow<Misc::ByteBuffer>, .mBuffer = &into }, most);
     }
 
-    Result<void, IoError> readWhole(const std::filesystem::path& path, std::string& into)
+    Result<void, IoError> readWhole(const std::filesystem::path& path, std::string& into, const std::size_t most)
     {
         into.clear();
-        return WholeFileSystem::read(path, WholeFileSystem::Sink{ .mGrow = &grow<std::string>, .mBuffer = &into });
+        return WholeFileSystem::read(
+            path, WholeFileSystem::Sink{ .mGrow = &grow<std::string>, .mBuffer = &into }, most);
     }
 
     Result<void, IoError> writeWhole(const std::filesystem::path& path,

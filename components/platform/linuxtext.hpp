@@ -22,4 +22,8 @@ namespace Platform::LinuxText
     /// the list's order, or nothing where the text is not one. A number past the kernel's own limit
     /// of 8192 CPUs is not one either, so a range cannot ask for billions of entries.
     std::optional<std::vector<std::uint32_t>> parseCpuList(std::string_view text);
+
+    /// How many times the kernel stalled an allocation to compact memory, from its counters as
+    /// `/proc/vmstat` writes them (`compact_stall`), or nothing where they name none.
+    std::optional<std::uint64_t> compactionStalls(std::string_view vmstat);
 }

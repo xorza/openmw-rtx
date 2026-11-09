@@ -1,6 +1,7 @@
 #include "worldmirror.hpp"
 
 #include <cassert>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -33,6 +34,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/result.hpp>
 #include <components/nifosg/nifloader.hpp>
+#include <components/platform/heap.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/frame/camera.hpp>
@@ -233,7 +235,11 @@ namespace MWRender
                        .mManifest = store.getDirectory() / "prepared.manifest",
                        .mMask = sWorldTraversal,
                        .mAutoMaps = resources.getSceneManager()->getAutoMaps(),
-                       .mHands = hands },
+                       .mHands = hands,
+                       .mDay = static_cast<std::uint32_t>(
+                           std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now())
+                               .time_since_epoch()
+                               .count()) },
                   std::move(models), std::move(layers))
         {
         }
@@ -251,9 +257,9 @@ namespace MWRender
             mPreparing = std::make_unique<Preparing>(resources, *mStore, std::move(models), std::move(layers), hands);
     }
 
-    Rtx::JobProgress WorldMirror::getPreparing() const
+    Rtx::JobProgress WorldMirror::awaitPreparing(const std::chrono::milliseconds patience)
     {
-        return mPreparing != nullptr ? mPreparing->mRun.getProgress() : Rtx::JobProgress{};
+        return mPreparing != nullptr ? mPreparing->mRun.awaitProgress(patience) : Rtx::JobProgress{};
     }
 
     Rtx::ContentStats WorldMirror::finishPreparing()
@@ -264,10 +270,14 @@ namespace MWRender
         if (!mPreparing->mRun.finish())
             Log(Debug::Warning) << "The content's preparation could not write its manifest";
         Log(Debug::Info) << "Prepared " << mPreparing->mRun.getWalked() << " of "
-                         << mPreparing->mRun.getProgress().mCount
+                         << mPreparing->mRun.awaitProgress(std::chrono::milliseconds::zero()).mCount
                          << " models and ground layers; the rest stood as the last preparation found them";
         const Rtx::ContentStats stats = mPreparing->mRun.getStats();
         mPreparing.reset();
+
+        // **Its threads' freed memory back to the system, once** (`Platform::trimHeap`): their chain
+        // builds and models are gone with it, and glibc keeps what an arena freed until a trim.
+        Platform::trimHeap();
         return stats;
     }
 

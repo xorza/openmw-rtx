@@ -46,6 +46,20 @@ namespace Rtx::Shaders
     /// naming the slot would not.
     const uint TEXTURE_STANDS_IN = 0x80000000u;
 
+    /// Where a slot's texel word holds the wrap its file states (`Rtx::TextureWrap`): the two bits
+    /// under `TEXTURE_STANDS_IN`, which pick the sampler every read of the slot goes through.
+    ///
+    /// **In the word a level's read loads already for `coneLod`**, and not in a table of its own,
+    /// which every read would load beside it.
+    const uint TEXTURE_WRAP_SHIFT = 29u;
+
+    /// The texel count under the wrap and `TEXTURE_STANDS_IN`.
+    const uint TEXTURE_TEXELS = 0x1FFFFFFFu;
+
+    /// The largest side a texture stands at, whatever the device takes: its square is the largest
+    /// count `TEXTURE_TEXELS` holds whole. A texture past it stands from its first level within it.
+    const uint TEXTURE_SIDE_MOST = 16384u;
+
     /// How many slots the bindless array holds, which is what the backend's descriptor count and
     /// the scene's table are both bounded by. A PBR pack gives a diffuse texture a normal and a
     /// specular slot beside it, about 3700 at the largest bench place against its 1233 on vanilla,
@@ -55,7 +69,7 @@ namespace Rtx::Shaders
     const uint TEXTURE_SLOTS = 8192u;
 
     /// The one slot the scene never hands out: one texel of `UNTEXTURED_ALBEDO` with an alpha of
-    /// one, stood by the backend when the array is made, under the neutral shading map.
+    /// one, stood by the backend when the array is made, with no normal spread beside it.
     ///
     /// **A texture and not a sentinel, so no reader tests for it.** A material with no diffuse
     /// read `NO_TEXTURE` before every sample it made, and the test was per material, which is per
@@ -900,7 +914,8 @@ namespace Rtx::Shaders
         /// `textureSize` was a texture-header read on every sample, and stated over the same
         /// integer so the level the shader takes its logarithm of is the number it always was.
         /// The backend's texture array owns and writes it, a slot at a time as textures arrive, with
-        /// `TEXTURE_STANDS_IN` over the count of a slot that draws the stand-in.
+        /// the wrap over it (`TEXTURE_WRAP_SHIFT`), and `TEXTURE_STANDS_IN` over both where the slot
+        /// draws the stand-in.
         uint64 mTextureTexels;
     };
 

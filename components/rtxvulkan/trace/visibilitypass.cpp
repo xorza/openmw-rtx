@@ -421,11 +421,40 @@ namespace Rtx
             case Kernel::Landing:
             case Kernel::Unbounced:
             {
+                // **One pipeline for the tuples a stage reads alike**: a constant its module does not read
+                // compiles to the same kernel either way: the bounce's and the unbounced stage's read neither
+                // the sun nor the moons, and the media's no maps, 80 of the 324 stage pipelines a first start
+                // made.
+                // The first hand to want the canonical tuple's makes it; one that wants it meanwhile waits,
+                // and a hand never waits on one nobody is making.
                 const auto at = static_cast<std::size_t>(wanted.mKernel);
                 const Stage& stage = sTraceStages[at];
-                mKernels.mStages[at][variant.index()] = std::make_unique<ComputePipeline<Shaders::StageConstants>>(
-                    mDevice, sBindings, sharedSets(textureLayout), *mCode, stage.mModule, variant.describe(stage.mName),
-                    specialization, SubgroupSize::ThirtyTwo);
+                const VisibilityVariant canonical = canonicalOf(wanted.mKernel, variant);
+                const std::uint32_t made = canonical.index();
+                bool makes = false;
+                {
+                    std::unique_lock lock(mCanonicalMutex);
+                    if (!mCanonicalClaimed[at][made])
+                        makes = mCanonicalClaimed[at][made] = true;
+                    else
+                        mCanonicalMade.wait(lock, [&] { return mKernels.mMadeStages[at][made] != nullptr; });
+                }
+                if (makes)
+                {
+                    std::array<std::uint32_t, Shaders::SPEC_COUNT> words = wordsOf(canonical);
+                    words[Shaders::SPEC_COUNTING] = specialization[Shaders::SPEC_COUNTING];
+                    words[Shaders::SPEC_WATER_STAGE] = specialization[Shaders::SPEC_WATER_STAGE];
+                    auto pipeline = std::make_unique<ComputePipeline<Shaders::StageConstants>>(mDevice, sBindings,
+                        sharedSets(textureLayout), *mCode, stage.mModule, canonical.describe(stage.mName), words,
+                        SubgroupSize::ThirtyTwo);
+                    {
+                        const std::lock_guard lock(mCanonicalMutex);
+                        mKernels.mMadeStages[at][made] = std::move(pipeline);
+                    }
+                    mCanonicalMade.notify_all();
+                }
+                const std::lock_guard lock(mCanonicalMutex);
+                mKernels.mStages[at][variant.index()] = mKernels.mMadeStages[at][made].get();
                 return;
             }
             case Kernel::Scatter:
@@ -488,8 +517,8 @@ namespace Rtx
             mSpecializing.wait();
         for (std::size_t stage = 0; stage < sStageCount; ++stage)
             for (std::uint32_t tuple = 0; tuple < VisibilityVariant::sCount; ++tuple)
-                if (const auto& kernel = made.mStages[stage][tuple]; kernel != nullptr)
-                    out.push_back(NamedKernel{ sTraceStages[stage].mName, kernel.get(), tuple });
+                if (const auto* const kernel = made.mStages[stage][tuple]; kernel != nullptr)
+                    out.push_back(NamedKernel{ sTraceStages[stage].mName, kernel, tuple });
         for (std::uint32_t tuple = 0; tuple < VisibilityVariant::sCount; ++tuple)
             if (const auto& kernel = made.mScatter[tuple]; kernel != nullptr)
                 out.push_back(NamedKernel{ "fog scatter", kernel.get(), tuple });
@@ -532,10 +561,33 @@ namespace Rtx
     const ComputePipeline<Shaders::StageConstants>& VisibilityPass::kernelOf(
         const TupleKernels& stage, const VisibilityVariant variant)
     {
-        const std::unique_ptr<ComputePipeline<Shaders::StageConstants>>& held = stage[variant.index()];
+        const ComputePipeline<Shaders::StageConstants>* const held = stage[variant.index()];
         assert(held != nullptr && "a tuple `compileEvery` did not make");
 
         return *held;
+    }
+
+    VisibilityVariant VisibilityPass::canonicalOf(const Kernel stage, VisibilityVariant variant) const
+    {
+        const std::span<const ModuleSpecConstant> read
+            = mCode->specConstantsOf(sTraceStages[static_cast<std::size_t>(stage)].mModule);
+        const auto reads = [&](const std::uint32_t id) {
+            return std::ranges::any_of(read, [id](const ModuleSpecConstant& constant) { return constant.mId == id; });
+        };
+        const VisibilityVariant full{};
+        if (!reads(Shaders::SPEC_HAS_SUN))
+            variant.mSun = full.mSun;
+        if (!reads(Shaders::SPEC_HAS_MOONS))
+            variant.mMoons = full.mMoons;
+        if (!reads(Shaders::SPEC_HAS_SEA))
+            variant.mSea = full.mSea;
+        if (!reads(Shaders::SPEC_HAS_DARK_ALPHA))
+            variant.mDarkAlpha = full.mDarkAlpha;
+        if (!reads(Shaders::SPEC_HAS_MAPS))
+            variant.mMaps = full.mMaps;
+        if (!reads(Shaders::SPEC_HAS_RELIEF))
+            variant.mRelief = variant.mMaps;
+        return variant;
     }
 
     bool VisibilityPass::hasMedia(const VisibilityVariant variant)

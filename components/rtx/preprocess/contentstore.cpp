@@ -15,6 +15,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/bytebuffer.hpp>
 #include <components/platform/folder.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/rtx/common/digestwords.hpp>
@@ -24,12 +25,16 @@ namespace Rtx
 {
     namespace
     {
-        /// What an entry's file opens with. **The payload's own length and digest**, as
-        /// `PipelineCache` writes its own, because a file a power loss zeroed after its rename, or
+        /// What an entry's file ends with, after its payload. **The payload's own length and digest**,
+        /// as `PipelineCache` writes its own, because a file a power loss zeroed after its rename, or
         /// one cut short, passes every check of the fields before them. Written `Durability::Whole`
         /// and not synced, as `PipelineCache` syncs its one file a session: the digest finds what a
         /// sync would have kept, and thousands of entries a load would each wait on the disk.
-        struct EntryHeader
+        ///
+        /// **At the end and not the front**, as Parquet puts its footer: a read takes the whole file
+        /// into the buffer the payload is handed in, and drops the trailer by a resize, where a header
+        /// taken off the front moved every byte after it.
+        struct EntryTrailer
         {
             std::uint32_t mMagic;
             std::uint32_t mFormat;
@@ -40,7 +45,7 @@ namespace Rtx
             std::uint64_t mPayloadBytes;
         };
 
-        static_assert(sizeof(EntryHeader) == 56, "the header carries no padding");
+        static_assert(sizeof(EntryTrailer) == 56, "the trailer carries no padding");
 
         /// "RTXC", read as a little-endian word.
         constexpr std::uint32_t sMagic = 0x43585452u;
@@ -176,15 +181,13 @@ namespace Rtx
     }
 
     bool ContentStore::read(const ContentKey& key, const ContentPassId pass, const std::uint32_t version,
-        const StoreReach reach, std::vector<std::byte>& payload)
+        const StoreReach reach, Misc::ByteBuffer& payload)
     {
         const auto stampOnce = [&] {
-            if (mStamped.insert(key).second)
-            {
-                mQueue.push_back(Task{ .mKind = TaskKind::Stamp, .mKey = key });
-                return true;
-            }
-            return false;
+            if (!stampsOnce(key))
+                return false;
+            mQueue.push_back(Task{ .mKind = TaskKind::Stamp, .mKey = key });
+            return true;
         };
 
         bool stamp = false;
@@ -202,17 +205,23 @@ namespace Rtx
         if (resident)
             return true;
 
-        ContentPassId readPass = ContentPassId::Count;
-        std::uint32_t readVersion = 0;
-        const std::filesystem::path path = pathOf(key);
-        bool found = reach == StoreReach::Disk && readFile(path, key, readPass, readVersion, payload);
-
-        // The key is made of the pass's name and version, so a file under it that names another is
-        // a fault in the file, and not an entry of another pass.
-        if (found && (readPass != pass || readVersion != version))
+        // **The path made only where the ask reaches the disk**: three allocations, which a miss on the
+        // frame's thread, whose asks reach memory alone, would pay for nothing.
+        bool found = false;
+        if (reach == StoreReach::Disk)
         {
-            refuse(path);
-            found = false;
+            ContentPassId readPass = ContentPassId::Count;
+            std::uint32_t readVersion = 0;
+            const std::filesystem::path path = pathOf(key);
+            found = readFile(path, key, readPass, readVersion, payload);
+
+            // The key is made of the pass's name and version, so a file under it that names another is
+            // a fault in the file, and not an entry of another pass.
+            if (found && (readPass != pass || readVersion != version))
+            {
+                refuse(path);
+                found = false;
+            }
         }
 
         stamp = false;
@@ -232,32 +241,90 @@ namespace Rtx
         return found;
     }
 
+    bool ContentStore::holds(const ContentKey& key, const StoreReach reach)
+    {
+        const bool resident = mMonitor.under([&] { return mResident.contains(key); });
+        std::error_code failed;
+        const bool found
+            = resident || (reach == StoreReach::Disk && std::filesystem::is_regular_file(pathOf(key), failed));
+
+        bool stamp = false;
+        mMonitor.under([&] {
+            if (!found)
+            {
+                ++mStats.mMissed;
+                return;
+            }
+            ++mStats.mFound;
+            stamp = stampsOnce(key);
+            if (stamp)
+                mQueue.push_back(Task{ .mKind = TaskKind::Stamp, .mKey = key });
+        });
+        if (stamp)
+            mMonitor.give([] {});
+        return found;
+    }
+
     void ContentStore::write(const ContentKey& key, const ContentPassId pass, const std::uint32_t version,
-        const std::span<const std::byte> payload)
+        Misc::ByteBuffer payload, const StoreReach reach)
     {
         assert(payload.size() <= sPayloadMost && "a pass's output past what a stored file may hold");
 
-        bool queued = false;
-        mMonitor.under([&] {
-            keepResident(key, pass, version, payload);
-            if (payload.size() > sQueuedMost - std::min(mQueuedBytes, sQueuedMost))
+        // **Room in the queue, or an empty queue**: one payload past the bound still goes alone, and a
+        // writer that reaches the disk waits for room, where the frame's thread, which may wait on no
+        // disk, drops what has none.
+        const auto fits
+            = [&] { return mQueuedBytes == 0 || payload.size() <= sQueuedMost - std::min(mQueuedBytes, sQueuedMost); };
+
+        // **Moved into the queue under the lock, and copied nowhere**: the frame's thread asks the
+        // store's memory under the same lock, and a copy of a chain there held it for milliseconds.
+        bool resident = false;
+        while (true)
+        {
+            bool queued = false;
+            bool dropped = false;
+            mMonitor.under([&] {
+                if (!resident)
+                {
+                    keepResident(key, pass, version, payload);
+                    resident = true;
+                }
+                if (!fits())
+                {
+                    if (reach == StoreReach::Memory)
+                    {
+                        ++mStats.mDropped;
+                        dropped = true;
+                    }
+                    return;
+                }
+
+                // Written now, so its time is this session's: no stamp follows a later hit on it.
+                stampsOnce(key);
+                mQueuedBytes += payload.size();
+                mQueue.push_back(Task{ .mKind = TaskKind::Write,
+                    .mKey = key,
+                    .mPass = pass,
+                    .mVersion = version,
+                    .mPayload = std::move(payload) });
+                queued = true;
+            });
+            if (queued)
             {
-                ++mStats.mDropped;
+                mMonitor.give([] {});
                 return;
             }
+            if (dropped)
+                return;
 
-            // Written now, so its time is this session's: no stamp follows a later hit on it.
-            mStamped.insert(key);
-            mQueue.push_back(Task{ .mKind = TaskKind::Write,
-                .mKey = key,
-                .mPass = pass,
-                .mVersion = version,
-                .mPayload = std::vector<std::byte>(payload.begin(), payload.end()) });
-            mQueuedBytes += payload.size();
-            queued = true;
-        });
-        if (queued)
-            mMonitor.give([] {});
+            // No worker left to make room, as once the store is stopping: dropped, as the frame's thread
+            // drops, where a wait would spin for ever.
+            if (!mMonitor.await(fits))
+            {
+                mMonitor.under([&] { ++mStats.mDropped; });
+                return;
+            }
+        }
     }
 
     void ContentStore::discard(const ContentKey& key)
@@ -266,7 +333,7 @@ namespace Rtx
             const auto held = mResident.find(key);
             if (held != mResident.end())
             {
-                mResidentBytes -= held->second.mPayload.size();
+                mResidentBytes -= residentBytesOf(held->second.mPayload.size());
                 mResident.erase(held);
             }
             mQueue.push_back(Task{ .mKind = TaskKind::Discard, .mKey = key });
@@ -287,18 +354,36 @@ namespace Rtx
     void ContentStore::keepResident(const ContentKey& key, const ContentPassId pass, const std::uint32_t version,
         std::span<const std::byte> payload)
     {
-        if (payload.size() > sResidentMost)
+        // **A shape at any size**: the frame's thread asks memory alone, and a shape it misses it folds
+        // and splits again, about 140 large ones a session at the ship, 58 ms of frames.
+        if (payload.size() > sResidentMost && pass != ContentPassId::Shape)
             return;
 
         // **Over what was held under the key**, as two writers of one key replace it.
         const auto held = mResident.find(key);
-        const std::size_t replaced = held != mResident.end() ? held->second.mPayload.size() : 0;
-        if (mResidentBytes - replaced + payload.size() > sResidentBytesMost)
+        const std::size_t replaced = held != mResident.end() ? residentBytesOf(held->second.mPayload.size()) : 0;
+        const std::size_t bytes = residentBytesOf(payload.size());
+        if (mResidentBytes - replaced + bytes > sResidentBytesMost)
             return;
 
-        mResident.insert_or_assign(
-            key, Resident{ pass, version, std::vector<std::byte>(payload.begin(), payload.end()) });
-        mResidentBytes = mResidentBytes - replaced + payload.size();
+        mResident.insert_or_assign(key, Resident{ pass, version, Misc::ByteBuffer(payload.begin(), payload.end()) });
+        mResidentBytes = mResidentBytes - replaced + bytes;
+    }
+
+    std::size_t ContentStore::residentBytesOf(const std::size_t payloadBytes)
+    {
+        // A node of the table, its key, entry and next link, and a bucket's link beside it.
+        constexpr std::size_t node = sizeof(std::pair<const ContentKey, Resident>) + 2 * sizeof(void*);
+        return payloadBytes + node;
+    }
+
+    bool ContentStore::stampsOnce(const ContentKey& key)
+    {
+        if (mStamped.contains(key))
+            return false;
+        if (mStamped.size() < sStampedMost)
+            mStamped.insert(key);
+        return true;
     }
 
     void ContentStore::serve(const Platform::StopToken& stop)
@@ -315,7 +400,7 @@ namespace Rtx
             [&](const Platform::StopToken&) {
                 run(task);
                 // Let go of the payload, so an idle store holds no write's bytes.
-                task.mPayload = std::vector<std::byte>();
+                task.mPayload = Misc::ByteBuffer();
                 mMonitor.hand([&] { --mInFlight; });
             });
     }
@@ -343,17 +428,25 @@ namespace Rtx
     {
         const Swept swept = sweepFolder(mDirectory, mCap);
         mStoredBytes = swept.mBytes;
+
+        // **The tables sized once, here, at their bounds**, off the frame: a table that grows rehashes
+        // under the lock, on the frame's thread or while it waits on the lock, and a session adds keys
+        // that no file held at its start. Each bound is exact: `stampsOnce` notes no more keys, and every
+        // resident entry costs at least its node. The cost is the buckets, about a million in each
+        // table, 16 MiB together.
         mMonitor.under([&] {
             mStats.mEvicted += swept.mEvicted;
             mStats.mStale += swept.mStale;
+            mStamped.reserve(sStampedMost);
+            mResident.reserve(sResidentBytesMost / residentBytesOf(0));
         });
 
         // **The small entries into memory, newest first**, so an ask on the frame's thread finds a
         // fact without waiting on the disk (`StoreReach::Memory`), and the bound keeps the newest.
-        std::vector<std::byte> payload;
+        Misc::ByteBuffer payload;
         for (auto entry = swept.mKept.rbegin(); entry != swept.mKept.rend(); ++entry)
         {
-            if (entry->mBytes > sizeof(EntryHeader) + sResidentMost)
+            if (entry->mBytes > sizeof(EntryTrailer) + sResidentMost)
                 continue;
 
             ContentPassId pass = ContentPassId::Count;
@@ -364,48 +457,38 @@ namespace Rtx
     }
 
     bool ContentStore::readFile(const std::filesystem::path& path, const ContentKey& key, ContentPassId& pass,
-        std::uint32_t& version, std::vector<std::byte>& payload)
+        std::uint32_t& version, Misc::ByteBuffer& payload)
     {
-        // **Sized before it is read**: a file is untrusted, and one past the most a payload holds is
-        // refused unread rather than allocated for.
-        std::error_code failed;
-        const std::uintmax_t bytes = std::filesystem::file_size(path, failed);
-        if (failed)
+        // **Bounded before it is read**: a file is untrusted, and one past the most a payload holds is
+        // refused on its size, unread rather than allocated for.
+        if (const Result<void, Platform::IoError> read
+            = Platform::readWhole(path, payload, sizeof(EntryTrailer) + sPayloadMost);
+            !read.isOk())
+        {
+            if (read.error().mFailure == Platform::IoFailure::TooLarge)
+                refuse(path);
             return false;
-        if (bytes < sizeof(EntryHeader) || bytes - sizeof(EntryHeader) > sPayloadMost)
+        }
+
+        EntryTrailer trailer{};
+        if (payload.size() < sizeof(trailer))
+        {
+            refuse(path);
+            return false;
+        }
+        const std::size_t payloadBytes = payload.size() - sizeof(trailer);
+        std::memcpy(&trailer, payload.data() + payloadBytes, sizeof(trailer));
+        payload.resize(payloadBytes);
+        if (trailer.mMagic != sMagic || trailer.mFormat != sFormat || trailer.mKey != key.mHash
+            || trailer.mPass >= static_cast<std::uint32_t>(ContentPassId::Count)
+            || trailer.mPayloadBytes != payloadBytes || digestOf(payload) != trailer.mDigest)
         {
             refuse(path);
             return false;
         }
 
-        if (!Platform::readWhole(path, payload).isOk())
-            return false;
-
-        EntryHeader header{};
-        if (payload.size() < sizeof(header))
-        {
-            refuse(path);
-            return false;
-        }
-        std::memcpy(&header, payload.data(), sizeof(header));
-        if (header.mMagic != sMagic || header.mFormat != sFormat || header.mKey != key.mHash
-            || header.mPass >= static_cast<std::uint32_t>(ContentPassId::Count) || header.mPayloadBytes > sPayloadMost
-            || header.mPayloadBytes != payload.size() - sizeof(header))
-        {
-            refuse(path);
-            return false;
-        }
-
-        // The header taken off the front in place, a move of the payload and no second buffer.
-        payload.erase(payload.begin(), payload.begin() + static_cast<std::ptrdiff_t>(sizeof(header)));
-        if (digestOf(payload) != header.mDigest)
-        {
-            refuse(path);
-            return false;
-        }
-
-        pass = static_cast<ContentPassId>(header.mPass);
-        version = header.mVersion;
+        pass = static_cast<ContentPassId>(trailer.mPass);
+        version = trailer.mVersion;
         return true;
     }
 
@@ -433,7 +516,7 @@ namespace Rtx
 
         std::filesystem::create_directories(path.parent_path(), failed);
 
-        const EntryHeader header{ .mMagic = sMagic,
+        const EntryTrailer trailer{ .mMagic = sMagic,
             .mFormat = sFormat,
             .mPass = static_cast<std::uint32_t>(task.mPass),
             .mVersion = task.mVersion,
@@ -443,8 +526,8 @@ namespace Rtx
 
         // **Written whole** (`Platform::writeWhole`), so a reader sees a whole entry or none, and two
         // writers of one key, which write the same bytes, leave one.
-        const std::array<std::span<const std::byte>, 2> parts{ std::as_bytes(std::span(&header, 1)),
-            std::span<const std::byte>(task.mPayload) };
+        const std::array<std::span<const std::byte>, 2> parts{ std::span<const std::byte>(task.mPayload),
+            std::as_bytes(std::span(&trailer, 1)) };
         if (const Result<void, Platform::IoError> written
             = Platform::writeWhole(path, parts, Platform::Durability::Whole);
             !written.isOk())
@@ -452,14 +535,20 @@ namespace Rtx
 
         mMonitor.under([&] { ++(failed ? mStats.mDropped : mStats.mWritten); });
         if (failed)
+        {
+            if (!mWriteFailureLogged)
+                Log(Debug::Warning) << "Rtx: the content store could not write " << Files::pathToUnicodeString(path)
+                                    << ", and counts every write that fails after it: " << failed.message();
+            mWriteFailureLogged = true;
             return;
+        }
 
         // **Kept under the cap within a session as well as at its start**, as ccache keeps its
         // limit at every compile: past the cap, the least recently used go until a tenth of it is
         // free, so a session at the cap does not list the folders after every write. Two stores
         // writing one key count it twice here, which only sweeps sooner, and the sweep counts the
         // folders anew.
-        mStoredBytes += sizeof(EntryHeader) + task.mPayload.size();
+        mStoredBytes += sizeof(EntryTrailer) + task.mPayload.size();
         if (mStoredBytes > mCap)
         {
             const Swept swept = sweepFolder(mDirectory, mCap - mCap / 10);

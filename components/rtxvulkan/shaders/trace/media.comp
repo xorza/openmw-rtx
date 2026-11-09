@@ -70,7 +70,6 @@ void main()
     // met, or the whole column where a ray that went down met nothing (`tracePixel`).
     const RayAsk eyeRay = eyeAsk(eye.mFrom, eye.mAlong, record.mTmin, record.mArms, pixel);
     const SceneAnswer eyeMet = queryScene(eyeRay.mQuery);
-    const Surface met = resolveAsked(eyeMet, eyeRay.mQuery);
     const bool hit = eyeMet.mCommitted != 0u;
     const bool metWater = hit && eyeMet.mKind == KIND_WATER && HAS_SEA;
     const float air = hit ? eyeMet.mDistance : frame.mFar;
@@ -115,24 +114,21 @@ void main()
         if (metWater)
         {
             water = waterRunOf(eye.mAlong, cone, waterFieldOf(pixel));
-            stepWater(water, column, met, RayAnswer(false, unansweredScene()), ask, WATER_MARCHES);
+            const PlacedHit at = placedHitOf(eyeMet, eyeRay.mQuery);
+            stepWater(water, column, at, RayAnswer(false, unansweredScene()), ask, WATER_MARCHES);
         }
     }
 
-    // **The water's walk up to its leg**, which starts the leg's column.
-    Surface surface = met;
+    // **The water's walk up to its leg**, which starts the leg's column, and which resolves no surface: it
+    // reads only whether and how far its rays went (`PlacedHit`).
     [[dont_unroll]] while (water.mStep != RUN_IDLE && column.mStep == RUN_IDLE && turns < WALK_TURNS)
     {
         ++turns;
         RayAnswer answered = RayAnswer(false, unansweredScene());
         if (ask.mTraced)
-        {
             answered = RayAnswer(true, queryScene(ask.mQuery));
-            if (ask.mResolved)
-                surface = resolveAsked(answered.mMet, ask.mQuery);
-        }
         ask = noRay();
-        stepWater(water, column, surface, answered, ask, WATER_MARCHES);
+        stepWater(water, column, reachOf(answered.mMet), answered, ask, WATER_MARCHES);
     }
 
     // **The leg's march**, weighed by the share the walk gives its leg (`stepWater`'s last step),

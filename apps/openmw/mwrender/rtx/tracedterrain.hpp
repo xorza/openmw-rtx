@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <osg/Array>
+#include <osg/BoundingBox>
 #include <osg/Group>
 #include <osg/Vec2i>
 #include <osg/ref_ptr>
@@ -202,5 +203,10 @@ namespace MWRender
 
         /// The terrain's mask, which `enable` gives the borders back.
         const unsigned int mNodeMask;
+
+        /// The worldspace's land in cells and a cell's side, read once: the land's box walks every land
+        /// record, which every focus ray paid for, 0.13 ms a frame on a large content list.
+        const osg::BoundingBoxd mLand;
+        const double mCellSize;
     };
 }

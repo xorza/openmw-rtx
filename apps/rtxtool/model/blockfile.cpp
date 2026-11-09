@@ -160,7 +160,8 @@ namespace RtxTool
     BlockFile BlockFile::load(const std::filesystem::path& path)
     {
         std::string text;
-        if (const Result<void, Platform::IoError> read = Platform::readWhole(path, text); !read.isOk())
+        if (const Result<void, Platform::IoError> read = Platform::readWhole(path, text, Platform::sUnbounded);
+            !read.isOk())
             throw std::runtime_error(
                 "cannot read " + Files::pathToUnicodeString(path) + ": " + read.error().mCode.message());
         std::istringstream in(std::move(text));

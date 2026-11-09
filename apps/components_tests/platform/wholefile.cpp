@@ -4,11 +4,13 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+#include <components/misc/bytebuffer.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/testing/util.hpp>
 
@@ -40,13 +42,13 @@ namespace
             const std::array<std::span<const std::byte>, 3> parts{ bytesOf("ab"), bytesOf(""), bytesOf(zeroed) };
             ASSERT_TRUE(Platform::writeWhole(path, parts, durability).isOk());
 
-            std::vector<std::byte> read;
-            ASSERT_TRUE(Platform::readWhole(path, read).isOk());
+            Misc::ByteBuffer read;
+            ASSERT_TRUE(Platform::readWhole(path, read, Platform::sUnbounded).isOk());
             const std::string_view expected("abc\0d", 5);
             EXPECT_EQ(std::string_view(reinterpret_cast<const char*>(read.data()), read.size()), expected);
 
             std::string text;
-            ASSERT_TRUE(Platform::readWhole(path, text).isOk());
+            ASSERT_TRUE(Platform::readWhole(path, text, Platform::sUnbounded).isOk());
             EXPECT_EQ(text, expected) << "the string reader reads what the byte reader does";
 
             EXPECT_EQ(filesIn(folder), std::vector<std::filesystem::path>{ "parts.bin" })
@@ -64,7 +66,7 @@ namespace
         ASSERT_TRUE(Platform::writeWhole(path, std::string_view("short"), Platform::Durability::Synced).isOk());
 
         std::string text;
-        ASSERT_TRUE(Platform::readWhole(path, text).isOk());
+        ASSERT_TRUE(Platform::readWhole(path, text, Platform::sUnbounded).isOk());
         EXPECT_EQ(text, "short");
     }
 
@@ -83,9 +85,36 @@ namespace
         EXPECT_TRUE(filesIn(folder).empty()) << "a failed write left something behind";
 
         std::string text = "an earlier read";
-        const auto read = Platform::readWhole(path, text);
+        const auto read = Platform::readWhole(path, text, Platform::sUnbounded);
         ASSERT_FALSE(read.isOk());
         EXPECT_EQ(read.error().mFailure, Platform::IoFailure::NotFound) << read.error().mCode.message();
+        EXPECT_TRUE(text.empty());
+    }
+
+    /// **A read is bounded**: a file of exactly `most` bytes reads whole, and one a byte past it is
+    /// `TooLarge`, refused on the size the system states before its bytes are read, and leaves what it
+    /// was handed empty. Both buffers bound alike.
+    TEST(PlatformWholeFileTest, aFilePastTheBoundIsTooLarge)
+    {
+        const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "four.bin";
+        ASSERT_TRUE(Platform::writeWhole(path, std::string_view("1234"), Platform::Durability::Whole).isOk());
+
+        Misc::ByteBuffer bytes;
+        ASSERT_TRUE(Platform::readWhole(path, bytes, 4).isOk());
+        EXPECT_EQ(bytes.size(), 4u);
+
+        const auto past = Platform::readWhole(path, bytes, 3);
+        ASSERT_FALSE(past.isOk());
+        EXPECT_EQ(past.error().mFailure, Platform::IoFailure::TooLarge);
+        EXPECT_EQ(past.error().mCode, std::make_error_code(std::errc::file_too_large));
+        EXPECT_TRUE(bytes.empty());
+
+        std::string text;
+        ASSERT_TRUE(Platform::readWhole(path, text, 4).isOk());
+        EXPECT_EQ(text, "1234");
+        const auto pastText = Platform::readWhole(path, text, 0);
+        ASSERT_FALSE(pastText.isOk());
+        EXPECT_EQ(pastText.error().mFailure, Platform::IoFailure::TooLarge);
         EXPECT_TRUE(text.empty());
     }
 
@@ -102,11 +131,11 @@ namespace
         std::string text;
         text.reserve(8192);
         const std::size_t room = text.capacity();
-        ASSERT_TRUE(Platform::readWhole(folder / "small.txt", text).isOk());
+        ASSERT_TRUE(Platform::readWhole(folder / "small.txt", text, Platform::sUnbounded).isOk());
         EXPECT_EQ(text, "123");
         EXPECT_EQ(text.capacity(), room) << "the read gave back the room it was handed";
 
-        ASSERT_TRUE(Platform::readWhole(folder / "empty.txt", text).isOk());
+        ASSERT_TRUE(Platform::readWhole(folder / "empty.txt", text, Platform::sUnbounded).isOk());
         EXPECT_TRUE(text.empty());
     }
 
@@ -134,7 +163,7 @@ namespace
         EXPECT_EQ(failed[1], 0);
 
         std::string text;
-        ASSERT_TRUE(Platform::readWhole(path, text).isOk());
+        ASSERT_TRUE(Platform::readWhole(path, text, Platform::sUnbounded).isOk());
         EXPECT_TRUE(text == texts[0] || text == texts[1]) << "a mixed file of " << text.size() << " bytes";
         EXPECT_EQ(filesIn(folder), std::vector<std::filesystem::path>{ "shared.txt" });
     }

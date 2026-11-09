@@ -71,14 +71,13 @@ namespace Rtx
         /// where its centre lands. Block-compressed formats are read through their palettes: a
         /// block's sum is its palette weighted by how many texels chose each entry.
         template <class Sink>
-        void readTexels(const TextureData& texture, const Sink& sink)
+        void readTexels(const TextureData& texture, const AlphaImage& alpha, const Sink& sink)
         {
             assert(!texture.mLevels.empty());
             const MipLevel& level = texture.mLevels.front();
             const std::uint32_t width = std::max(level.mWidth, 1u);
             const std::uint32_t height = std::max(level.mHeight, 1u);
             const bool srgb = isSrgb(texture.mFormat);
-            const AlphaImage alpha(texture);
 
             const TexelLayout layout = layoutOf(texture.mFormat);
             if (layout.isBlocked())
@@ -110,12 +109,7 @@ namespace Rtx
         }
     }
 
-    ShadingMap::ShadingMap()
-    {
-        mValues.fill(1.0f);
-    }
-
-    ShadingMap::ShadingMap(const TextureData& texture)
+    ShadingMap::ShadingMap(const TextureData& texture, const AlphaImage& alpha)
     {
         assert(!texture.mLevels.empty());
 
@@ -135,7 +129,7 @@ namespace Rtx
 
         // Luminance is linear in the colour, so the luminance of a sum is the sum of luminances and
         // a block resolves once for every texel in it.
-        readTexels(texture, [&](std::uint32_t x, std::uint32_t y, const TexelSum& texels) {
+        readTexels(texture, alpha, [&](std::uint32_t x, std::uint32_t y, const TexelSum& texels) {
             const std::size_t cell = cellOf(x, y);
             // Rec. 709, in linear light, which is where a luminance means anything.
             sums[cell] += texels.mSum * Shaders::LUMINANCE_WEIGHTS;

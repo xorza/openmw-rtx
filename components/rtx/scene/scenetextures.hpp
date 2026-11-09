@@ -138,6 +138,10 @@ namespace Rtx
         std::vector<Pending> mPending;
         std::vector<Made> mMade;
 
+        /// What a settled describe's first asks found made, held until each slot's own ask: an image
+        /// the service hands out once and then only watches, which nothing else held between the two.
+        std::vector<osg::ref_ptr<const MadeImage>> mFound;
+
         /// Every image's levels, back to back. One table rather than one vector each: a cell reaches
         /// a couple of hundred textures, and the descriptions want a span into something stable.
         std::vector<MipLevel> mLevels;

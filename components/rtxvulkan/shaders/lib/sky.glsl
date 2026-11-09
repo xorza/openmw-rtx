@@ -59,11 +59,11 @@ vec4 cloudSheetAt(vec2 crossing, vec2 across, vec2 along)
     // With no test on the weather ahead: the host names the near sheet twice where the weather ahead has
     // none — `CloudDeck::mNext` — so the mix is one path however the weather stands.
     const vec2 bearing = frame.mClouds.mBearing;
-    const vec4 near = textureGrad(texturesAlong[nonuniformEXT(frame.mClouds.mTexture)], cloudUvAt(crossing, bearing),
+    const vec4 near = textureGrad(TEXTURE_ALONG(sceneTexels(), frame.mClouds.mTexture), cloudUvAt(crossing, bearing),
         cloudUvStep(across, bearing), cloudUvStep(along, bearing));
     const bool ahead = holdsTexture(frame.mClouds.mNext);
     const vec2 nextBearing = ahead ? frame.mClouds.mNextBearing : bearing;
-    const vec4 far = textureGrad(texturesAlong[nonuniformEXT(ahead ? frame.mClouds.mNext : frame.mClouds.mTexture)],
+    const vec4 far = textureGrad(TEXTURE_ALONG(sceneTexels(), (ahead ? frame.mClouds.mNext : frame.mClouds.mTexture)),
         cloudUvAt(crossing, nextBearing), cloudUvStep(across, nextBearing), cloudUvStep(along, nextBearing));
 
     return mix(near, far, frame.mClouds.mBlend);
@@ -220,7 +220,7 @@ vec3 skyPatches(vec3 direction)
         if (dot(at, at) >= 1.0)
             continue;
 
-        const vec4 texel = textureLod(textures[nonuniformEXT(sheet.mTexture)], 0.5 + 0.5 * at, 0.0);
+        const vec4 texel = textureLod(TEXTURE(sceneTexels(), sheet.mTexture), 0.5 + 0.5 * at, 0.0);
         painted += texel.rgb * (texel.a * NEBULA_RADIANCE);
     }
 
@@ -285,7 +285,7 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
         // `u` runs with the face's right and `v` against its up, which is the Y-down convention the
         // quad the game draws is authored in.
         const vec2 uv = vec2(0.5 + 0.5 * face.x, 0.5 - 0.5 * face.y);
-        const vec4 painted = textureLod(textures[nonuniformEXT(moon.mFace)], uv, 0.0);
+        const vec4 painted = textureLod(TEXTURE(sceneTexels(), moon.mFace), uv, 0.0);
 
         // **Multiplied by its own alpha, which the file does not do for us.** Past the edge of the painted
         // disc the colour climbs back toward the middle of its range, so sampling the colour and dropping

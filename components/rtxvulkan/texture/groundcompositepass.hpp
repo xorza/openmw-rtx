@@ -28,7 +28,7 @@ namespace Rtx
     {
     public:
         /// @param textures the layout of the scene's texture set, bound at `SET_TEXTURES` — the
-        ///        layers' textures and their shading maps.
+        ///        layers' textures and their companions.
         GroundCompositePass(const Device& device, const SetLayout& textures);
 
         /// An image `record` bakes into: `GROUND_COMPOSITE_EXTENT` square with a chain to one texel, a

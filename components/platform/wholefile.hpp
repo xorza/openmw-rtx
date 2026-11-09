@@ -4,12 +4,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <limits>
 #include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <vector>
 
+#include <components/misc/bytebuffer.hpp>
 #include <components/misc/result.hpp>
 
 /// **A file read whole and a file written whole**, the fork's one way to do either, over
@@ -31,6 +33,9 @@ namespace Platform
 
         /// The volume or the user's quota is full.
         NoSpace,
+
+        /// The file holds more than the read was bounded at (`readWhole`'s `most`).
+        TooLarge,
 
         Other,
     };
@@ -65,12 +70,18 @@ namespace Platform
     /// live write renames its own within the second.
     inline constexpr std::chrono::hours sPartialStaleAfter{ 24 };
 
+    /// No bound on what `readWhole` reads past what memory holds: a file the fork wrote itself.
+    inline constexpr std::size_t sUnbounded = std::numeric_limits<std::size_t>::max();
+
     /// Reads all of `path` into `into`, which is emptied first and keeps its capacity: read to the
     /// end, whatever size the system states, so a file under `/proc` or `/sys` reads as well.
-    Result<void, IoError> readWhole(const std::filesystem::path& path, std::vector<std::byte>& into);
+    /// @param most the most bytes the file may hold, past which it is `IoFailure::TooLarge`: refused
+    ///        on the size the system states, before anything is allocated for it, where it states one.
+    ///        An untrusted file's bound, so a file a fault wrote cannot ask for gigabytes.
+    Result<void, IoError> readWhole(const std::filesystem::path& path, Misc::ByteBuffer& into, std::size_t most);
 
     /// The same into a string, for text.
-    Result<void, IoError> readWhole(const std::filesystem::path& path, std::string& into);
+    Result<void, IoError> readWhole(const std::filesystem::path& path, std::string& into, std::size_t most);
 
     /// Writes `parts`, one after another, as the whole of `path`, through a temporary renamed over
     /// it; where `path` is a link, over the file it names. On a failure the temporary is removed and

@@ -1257,6 +1257,48 @@ namespace Rtx::Testing
                 EXPECT_NEAR(onFirst[channel], middle, 1e-4f * middle) << "channel " << channel;
         }
 
+        /// **A texture is read past its edge as its file wraps it**: through the sampler the slot's wrap
+        /// names, which its texel word carries (`TEXTURE_WRAP_SHIFT`).
+        ///
+        /// Every corner of the wall at `(1.25, 1.25)` on the quadrant sheet, two texels a side, so the
+        /// read is one point at level nought. Repeated, the point is `(0.25, 0.25)`, the red texel's
+        /// centre; clamped along `s`, it stops at the right column's centre and repeats along `t`, the
+        /// green texel; clamped along `t` alone, the blue one; clamped along both, the white one. What
+        /// the eye sees glows, black under it, so the pixel holds the texel times `EMISSIVE_INTENSITY`.
+        TEST_F(RtxVisibilityTest, aTextureIsReadPastItsEdgeAsItsFileWrapsIt)
+        {
+            constexpr std::uint32_t size = 9;
+            constexpr std::size_t centre = centreValueOf(size);
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const auto glowWrapped = [&](TextureWrap wrap) {
+                TestTexture sheet;
+                paintFlat(sheet, 2, sQuadrants, "sheet");
+                sheet.mData.mWrap = wrap;
+
+                const std::array<osg::Vec2f, 4> pastTheEdge{ osg::Vec2f(1.25f, 1.25f), osg::Vec2f(1.25f, 1.25f),
+                    osg::Vec2f(1.25f, 1.25f), osg::Vec2f(1.25f, 1.25f) };
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(
+                    MeshArrays{ .mPositions = sWallQuad, .mTexCoords = pastTheEdge, .mIndices = sQuadIndices });
+                const Index material = scene.addMaterial(
+                    Material{ .mEmissive = scene.textures().add(VFS::Path::NormalizedView("sheet.dds"), wrap),
+                        .mDiffuseColour = osg::Vec3f() });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                const Frame frame = shoot(scene, std::span(&sheet.mData, 1), camera, size);
+                EXPECT_EQ(frame.mHits, size * size);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2))
+                    / Shaders::EMISSIVE_INTENSITY;
+            };
+
+            EXPECT_EQ(glowWrapped(TextureWrap::Repeat), osg::Vec3f(1.0f, 0.0f, 0.0f));
+            EXPECT_EQ(glowWrapped(TextureWrap::ClampS), osg::Vec3f(0.0f, 1.0f, 0.0f));
+            EXPECT_EQ(glowWrapped(TextureWrap::ClampT), osg::Vec3f(0.0f, 0.0f, 1.0f));
+            EXPECT_EQ(glowWrapped(TextureWrap::Clamp), osg::Vec3f(1.0f, 1.0f, 1.0f));
+        }
+
         /// A surface that adds is met by no ray that shades, adds at the picture's own extent, and
         /// adds by its own alpha.
         ///

@@ -82,6 +82,7 @@ namespace RtxTool
         if (mPlaces.empty())
         {
             mHeader.mHugePageShare = Platform::Process::hugePageShare();
+            mCompactionStalls = Platform::Process::compactionStalls();
             mReport += describeHeader(mHeader);
         }
         mPlaces.push_back(std::move(place));
@@ -111,6 +112,16 @@ namespace RtxTool
     void RunRecord::finish(const SessionRequest& request)
     {
         mReport += describeTotal(mPlaces);
+
+        // **A run the kernel compacted memory under, said**: a heap on huge pages that the kernel compacts
+        // for one stalls the allocation that asked, 50–60 ms inside a crossing, which is the machine's
+        // and not the renderer's. Kept on huge pages, whose placement steadies every other figure.
+        const std::optional<std::uint64_t> stalls = Platform::Process::compactionStalls();
+        if (mCompactionStalls.has_value() && stalls.has_value() && *stalls > *mCompactionStalls)
+            mReport += std::format(
+                "\nthe kernel compacted memory {} times during the run, each a stalled allocation: "
+                "a worst frame may be one\n",
+                *stalls - *mCompactionStalls);
 
         // **What a `check` run came to, in one line.** A suite asks every check at each of several
         // places, so the verdict is otherwise something a reader counts by hand.

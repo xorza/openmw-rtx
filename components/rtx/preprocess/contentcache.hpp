@@ -1,7 +1,10 @@
 #pragma once
 
-#include <cstddef>
-#include <vector>
+#include <cassert>
+#include <span>
+#include <utility>
+
+#include <components/misc/bytebuffer.hpp>
 
 #include "contentcodec.hpp"
 #include "contentkey.hpp"
@@ -35,36 +38,60 @@ namespace Rtx
             return mStore != nullptr && Pass::sStored;
         }
 
-        /// Fills `output` with what `Pass` computed from the input filed under `key`, and says
-        /// whether it could. A payload its codec cannot read is a miss, and discarded, so the output
-        /// run again is filed in its place.
+        /// Fills `output` with what `Pass` computed from `input`, filed under `key`, and says whether
+        /// it could. A payload its codec cannot read is a miss, and discarded, so the output run again
+        /// is filed in its place; so is one that reads whole and does not fit `input`
+        /// (`Pass::fits`), since the digest says a file is intact and not that it is this input's.
         template <ContentPass Pass>
         requires StoredOutput<typename Pass::Output>
-        bool find(const ContentKey& key, typename Pass::Output& output)
+        bool find(const ContentKey& key, const typename Pass::Input& input, typename Pass::Output& output)
         {
             if (!mStore->read(key, Pass::sPass, Pass::sVersion, mReach, mPayload))
                 return false;
-            if (ContentCodec<typename Pass::Output>::decode(mPayload, output))
+            if (ContentCodec<typename Pass::Output>::decode(mPayload, output) && fits<Pass>(input, output))
                 return true;
             mStore->discard(key);
             return false;
         }
 
-        /// Keeps what `Pass` computed from the input filed under `key`.
+        /// Whether an entry for `Pass` stands under `key`, nothing of it read (`ContentStore::holds`).
+        bool stands(const ContentKey& key) { return mStore->holds(key, mReach); }
+
+        /// Keeps what `Pass` computed from the input filed under `key`: encoded into a payload of its
+        /// own, which the store's queue takes. Where the codec rounds (`sRounds`), `output` is read back
+        /// out of the payload first, so it is what a later hit hands over.
         template <ContentPass Pass>
         requires StoredOutput<typename Pass::Output>
-        void keep(const ContentKey& key, const typename Pass::Output& output)
+        void keep(const ContentKey& key, typename Pass::Output& output)
         {
-            mPayload.clear();
-            ContentCodec<typename Pass::Output>::encode(output, mPayload);
-            mStore->write(key, Pass::sPass, Pass::sVersion, mPayload);
+            using Codec = ContentCodec<typename Pass::Output>;
+            Misc::ByteBuffer payload;
+            Codec::encode(output, payload);
+            if constexpr (requires { Codec::sRounds; })
+            {
+                [[maybe_unused]] const bool read = Codec::decode(std::span<const std::byte>(payload), output);
+                assert(read && "an output its own codec cannot read back");
+            }
+            mStore->write(key, Pass::sPass, Pass::sVersion, std::move(payload), mReach);
         }
 
     private:
+        /// Whether `output` can be `input`'s, where the pass says what an output must hold of its input.
+        template <ContentPass Pass>
+        static bool fits(const typename Pass::Input& input, const typename Pass::Output& output)
+        {
+            if constexpr (requires { Pass::fits(input, output); })
+                return Pass::fits(input, output);
+            else
+                return true;
+        }
+
         ContentStore* mStore;
         StoreReach mReach;
 
-        /// A payload read or written, refilled for each.
-        std::vector<std::byte> mPayload;
+        /// A payload read, refilled for each, and taken whole by a decoder whose output keeps its bytes
+        /// (`ContentCodec<MadeChain>`): so it holds the largest of the small outputs a thread read, and
+        /// never a chain.
+        Misc::ByteBuffer mPayload;
     };
 }

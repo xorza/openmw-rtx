@@ -298,7 +298,7 @@ add_component_dir (esm4
 )
 
 add_component_dir (misc
-    barrier budgetmeasurement color compression constants convert coordinateconverter display endianness float16 frameclock frameratelimiter framestats
+    barrier budgetmeasurement bytebuffer color compression constants convert coordinateconverter display endianness float16 frameclock frameratelimiter framestats
     guarded math mathutil messageformatparser notnullptr objectpool osgpluginchecker osguservalues presentation progressreporter resourcehelpers
     result rng strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream weakcache windows
     )
@@ -429,7 +429,7 @@ add_component_dir (rtx/prepare
     )
 
 add_component_dir (rtx/preprocess
-    contentcache contentcodec contentkey contentpass contentpreprocessor contentstats contentstore imagefactcache laidimagecache
+    contentcache contentcodec contentkey contentpass contentpreprocessor contentstats contentstore imagefactcache
     preparedimages threadcontent
     )
 
@@ -613,6 +613,7 @@ if (WIN32)
     add_component_dir(platform
         appendfilewin32
         filewin32
+        heapwin32
         localtimewin32
         sharedmemorywin32
         fifowin32
@@ -624,6 +625,7 @@ elseif (UNIX)
     add_component_dir(platform
         appendfileposix
         fileposix
+        heapposix
         localtimeposix
         sharedmemoryposix
         fifoposix

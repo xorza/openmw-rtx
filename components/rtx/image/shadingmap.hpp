@@ -7,6 +7,7 @@
 
 #include <osg/Vec3f>
 
+#include "alphaimage.hpp"
 #include "texturewrap.hpp"
 
 namespace Rtx
@@ -45,13 +46,9 @@ namespace Rtx
         /// real albedo by it.
         static constexpr std::uint32_t sBlurPasses = 3;
 
-        /// A map that changes nothing, which is what a texture that would not load has to get: a
-        /// shader reading a missing one reads the array's stand-in, which is how every untextured
-        /// surface in the reference implementation came to be divided by two.
-        ShadingMap();
-
-        /// Estimates the map from the texture's largest level.
-        explicit ShadingMap(const TextureData& texture);
+        /// Estimates the map from the texture's largest level, weighed by `alpha`, the texture's own
+        /// (`AlphaImage`), which the caller decoded already: a chain build holds it for the build.
+        ShadingMap(const TextureData& texture, const AlphaImage& alpha);
 
         /// `sExtent * sExtent` factors, row by row, averaging one.
         std::span<const float> getValues() const { return mValues; }

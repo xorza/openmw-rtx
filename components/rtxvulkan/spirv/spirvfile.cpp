@@ -6,6 +6,7 @@
 
 #include <spirv/unified1/spirv.hpp>
 
+#include <components/misc/bytebuffer.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/rtx/common/error.hpp>
 
@@ -19,8 +20,9 @@ namespace Rtx
 
     std::vector<std::uint32_t> readSpirv(const std::filesystem::path& path)
     {
-        std::vector<std::byte> bytes;
-        if (const Result<void, Platform::IoError> read = Platform::readWhole(path, bytes); !read.isOk())
+        Misc::ByteBuffer bytes;
+        if (const Result<void, Platform::IoError> read = Platform::readWhole(path, bytes, Platform::sUnbounded);
+            !read.isOk())
             throw InputError("cannot read " + spelledPath(path) + ": " + read.error().mCode.message());
 
         if (bytes.empty() || bytes.size() % 4 != 0)

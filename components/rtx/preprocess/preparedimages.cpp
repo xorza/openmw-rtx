@@ -65,11 +65,7 @@ namespace Rtx
             const bool delit = encoding == TextureEncoding::Painted || isConverted(encoding);
             const Key key{ &file, encoding, delit ? wrap : TextureWrap::Repeat, partner };
             auto entry = mEntries.find(key);
-            osg::ref_ptr<const osg::Image> standing;
-            osg::ref_ptr<const osg::Image> partnerStanding;
-            if (entry != mEntries.end()
-                && (!entry->second.mFile.lock(standing)
-                    || (partner != nullptr && !entry->second.mPartner.lock(partnerStanding))))
+            if (entry != mEntries.end() && isGone(*entry))
             {
                 mEntries.erase(entry);
                 entry = mEntries.end();
@@ -129,17 +125,26 @@ namespace Rtx
         return mMonitor.under([&] { return std::exchange(mStats, ContentStats{}); });
     }
 
+    std::size_t PreparedImages::getEntryCount()
+    {
+        return mMonitor.under([&] { return mEntries.size(); });
+    }
+
+    bool PreparedImages::isGone(const std::pair<const Key, Entry>& entry)
+    {
+        // A queued job holds its files, so an entry whose file is gone is made, and no slot can ask
+        // for it again: what it holds, held or watched, is no longer anyone's to collect.
+        const bool paired = std::get<3>(entry.first) != nullptr;
+        osg::ref_ptr<const osg::Image> standing;
+        return !entry.second.mFile.lock(standing) || (paired && !entry.second.mPartner.lock(standing));
+    }
+
     void PreparedImages::sweep()
     {
         if (mEntries.size() < mSweepAt)
             return;
 
-        osg::ref_ptr<const osg::Image> file;
-        osg::ref_ptr<const MadeImage> made;
-        std::erase_if(mEntries, [&](const auto& entry) {
-            return entry.second.mMade && !entry.second.mFile.lock(file) && !entry.second.mWatched.lock(made)
-                && entry.second.mHeld == nullptr;
-        });
+        std::erase_if(mEntries, isGone);
         mSweepAt = std::max<std::size_t>(1024, 2 * mEntries.size());
     }
 
@@ -171,26 +176,31 @@ namespace Rtx
                 const auto width = static_cast<std::uint32_t>(file.s());
                 const auto height = static_cast<std::uint32_t>(file.t());
                 if (hand.mChain.mForm == ChainForm::Coarser)
-                    made = new MadeImage(
-                        file, MadeImage::laidLayout(readFormat(file, encoding)), std::move(hand.mChain.mBytes));
+                    made = new MadeImage(file, readFormat(file, encoding), std::move(hand.mChain.mBytes));
                 else if (hand.mChain.mForm == ChainForm::Bc7)
                     made = MadeImage::whole(bc7FormatOf(encoding), width, height, std::move(hand.mChain.mBytes));
                 else if (hand.mChain.mForm == ChainForm::Own)
                     made = MadeImage::whole(readFormat(file, encoding), width, height, std::move(hand.mChain.mBytes));
 
+                // **The image handed over and the job's files let go of under the lock, and no reference
+                // left on this thread** once the job counts as done: a waiter that `flush` let go may drop
+                // the last reference it holds and find the image or the file gone, which a reference here
+                // kept alive a moment longer.
                 const ContentStats stats = hand.mContent.takeStats();
                 mMonitor.hand([&] {
                     mStats += stats;
                     --mInFlight;
                     const auto entry = mEntries.find(job.mKey);
-                    if (entry == mEntries.end())
-                        return;
-                    entry->second.mMade = true;
-                    entry->second.mStands = made == nullptr;
-                    entry->second.mHeld = made;
-                    entry->second.mWatched = nullptr;
+                    if (entry != mEntries.end())
+                    {
+                        entry->second.mMade = true;
+                        entry->second.mStands = made == nullptr;
+                        entry->second.mHeld = made;
+                        entry->second.mWatched = nullptr;
+                    }
+                    made = nullptr;
+                    job = Job{};
                 });
-                job = Job{};
             });
     }
 }

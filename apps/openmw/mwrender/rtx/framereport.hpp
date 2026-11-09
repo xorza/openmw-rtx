@@ -9,6 +9,7 @@
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
@@ -45,6 +46,10 @@ namespace MWRender
         /// thread and on the ring's: what loading the places visited so far has cost, where a
         /// frame's own row is only that frame's share.
         Rtx::Preprocessed mSession;
+
+        /// What the content store did since it was made, or nothing where there is none: the drops,
+        /// refusals and evictions a session's figures are read beside.
+        std::optional<Rtx::ContentStoreStats> mStore;
     };
 
     /// What one traced frame came to, handed to whoever measures it: what it spent, what the device

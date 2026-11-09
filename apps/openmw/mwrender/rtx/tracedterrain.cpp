@@ -150,22 +150,27 @@ namespace MWRender
             }
         }
 
-        /// `walkCells` over the plane in cells, for `segment`, over the land `storage` has in
-        /// `worldspace` and `margin` cells past it on every side.
+        /// `walkCells` over the plane in cells, for `segment`, over `land`, the worldspace's land in cells
+        /// (`TracedTerrain::mLand`), and `margin` cells past it on every side.
         template <class Visit>
-        void walkLand(Terrain::Storage& storage, ESM::RefId worldspace, const osgUtil::LineSegmentIntersector& segment,
+        void walkLand(const osg::BoundingBoxd& land, double cellSize, const osgUtil::LineSegmentIntersector& segment,
             const double margin, Visit visit)
         {
-            const double cellSize = storage.getCellWorldSize(worldspace);
             const osg::Vec2d from(segment.getStart().x() / cellSize, segment.getStart().y() / cellSize);
             const osg::Vec2d to(segment.getEnd().x() / cellSize, segment.getEnd().y() / cellSize);
+            walkCells(from, to, osg::Vec2d(land.xMin() - margin, land.yMin() - margin),
+                osg::Vec2d(land.xMax() + margin, land.yMax() + margin), visit);
+        }
+
+        /// The land `storage` has in `worldspace`, in cells: a walk of every land record, read once.
+        osg::BoundingBoxd landOf(Terrain::Storage& storage, ESM::RefId worldspace)
+        {
             float minX = 0.0f;
             float maxX = 0.0f;
             float minY = 0.0f;
             float maxY = 0.0f;
             storage.getBounds(minX, maxX, minY, maxY, worldspace);
-            walkCells(from, to, osg::Vec2d(double{ minX } - margin, double{ minY } - margin),
-                osg::Vec2d(double{ maxX } + margin, double{ maxY } + margin), visit);
+            return osg::BoundingBoxd(minX, minY, 0.0, maxX, maxY, 0.0);
         }
     }
 
@@ -178,6 +183,8 @@ namespace MWRender
         , mDistance(distance)
         , mBorders(new osg::Group)
         , mNodeMask(nodeMask)
+        , mLand(landOf(storage, worldspace))
+        , mCellSize(storage.getCellWorldSize(worldspace))
     {
         mBorders->setNodeMask(nodeMask);
         worldRoot.addChild(mBorders);
@@ -337,7 +344,7 @@ namespace MWRender
         // Clipped to the land the storage has, so a segment of any length crosses no more cells than
         // the land holds.
         const bool nearestOnly = segment.getIntersectionLimit() != osgUtil::Intersector::NO_LIMIT;
-        walkLand(*mStorage, mWorldspace, segment, 0.0, [&](const osg::Vec2i& cell) {
+        walkLand(mLand, mCellSize, segment, 0.0, [&](const osg::Vec2i& cell) {
             if (findGrid(cell) != nullptr || !mDistance.standsGround(cell))
                 return true;
 
@@ -362,7 +369,7 @@ namespace MWRender
         // storage has and a cell past it, where a reference stands in the sea.
         mCarried = 0;
         mAsked.clear();
-        walkLand(*mStorage, mWorldspace, segment, 1.0, [&](const osg::Vec2i& crossed) {
+        walkLand(mLand, mCellSize, segment, 1.0, [&](const osg::Vec2i& crossed) {
             for (int dy = -1; dy <= 1; ++dy)
                 for (int dx = -1; dx <= 1; ++dx)
                 {

@@ -23,7 +23,7 @@ namespace RtxTool
         /// reader's own, so a reading allocates nothing once it has been read once.
         std::optional<std::string_view> readSmall(const std::filesystem::path& path, std::string& into)
         {
-            if (!Platform::readWhole(path, into).isOk())
+            if (!Platform::readWhole(path, into, Platform::sUnbounded).isOk())
                 return std::nullopt;
             return std::string_view(into);
         }

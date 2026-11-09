@@ -10,7 +10,8 @@
 namespace Rtx
 {
     template <ContentPass Pass>
-    void ContentPreprocessor::run(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output)
+    void ContentPreprocessor::run(
+        Pass& pass, const typename Pass::Input& input, typename Pass::Output& output, const ContentAsk ask)
     {
         PassStats& stats = mStats.at(Pass::sPass);
         ++stats.mAsked;
@@ -28,9 +29,14 @@ namespace Rtx
                 stats.mKeyMs += since(started, keyed);
                 stats.mKeyBytes += digest.getBytes();
 
-                if (mCache.find<Pass>(key, output))
+                if (ask == ContentAsk::Stored ? mCache.stands(key) : mCache.find<Pass>(key, input, output))
                 {
+                    // What the key was read from let go of, as a run lets it go: a pass that holds
+                    // its input's images between the key and the run says how.
+                    if constexpr (requires { pass.release(); })
+                        pass.release();
                     ++stats.mHits;
+                    stats.mFoundMs += since(keyed, std::chrono::steady_clock::now());
                     return;
                 }
 
@@ -85,14 +91,14 @@ namespace Rtx
         return layout;
     }
 
-    void ContentPreprocessor::chain(const ChainPass::Input& input, MadeChain& made)
+    void ContentPreprocessor::chain(const ChainPass::Input& input, MadeChain& made, const ContentAsk ask)
     {
-        run(mChain, input, made);
+        run(mChain, input, made, ask);
     }
 
-    void ContentPreprocessor::convert(const ConversionPass::Input& input, MadeChain& made)
+    void ContentPreprocessor::convert(const ConversionPass::Input& input, MadeChain& made, const ContentAsk ask)
     {
-        run(mConversion, input, made);
+        run(mConversion, input, made, ask);
     }
 
     ContentPreprocessor::ContentPreprocessor(ContentStore* const store, const StoreReach reach)

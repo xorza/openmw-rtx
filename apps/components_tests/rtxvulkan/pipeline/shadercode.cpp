@@ -51,6 +51,8 @@ namespace Rtx
         {
             switch (kind)
             {
+                case DescriptorKind::BareSampler:
+                    return VK_DESCRIPTOR_TYPE_SAMPLER;
                 case DescriptorKind::SampledImage:
                     return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
                 case DescriptorKind::CombinedImageSampler:

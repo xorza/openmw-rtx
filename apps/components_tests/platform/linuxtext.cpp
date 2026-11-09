@@ -50,4 +50,16 @@ namespace
         EXPECT_EQ(Platform::LinuxText::hugePageShare(rollup("8192", "lots", "0")), std::nullopt);
         EXPECT_EQ(Platform::LinuxText::hugePageShare(""), std::nullopt);
     }
+
+    /// **The compaction stalls are the `compact_stall` counter's**, among the kernel's others: 42 where it
+    /// says 42, and nothing where it names none or its value is not a number.
+    TEST(RtxPlatformLinuxTextTest, theCompactionStallsAreTheKernelsCounter)
+    {
+        EXPECT_EQ(
+            Platform::LinuxText::compactionStalls("compact_migrate_scanned 9\ncompact_stall 42\ncompact_fail 1\n"),
+            std::optional<std::uint64_t>(42));
+        EXPECT_EQ(Platform::LinuxText::compactionStalls("compact_stall 7"), std::optional<std::uint64_t>(7));
+        EXPECT_EQ(Platform::LinuxText::compactionStalls("compact_fail 1\n"), std::nullopt);
+        EXPECT_EQ(Platform::LinuxText::compactionStalls("compact_stall many\n"), std::nullopt);
+    }
 }

@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -12,15 +14,18 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/firsttexel.hpp>
+#include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
+#include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/testing/util.hpp>
 
 namespace Rtx
@@ -111,6 +116,30 @@ namespace Rtx
             EXPECT_EQ(madeAgain.at(ContentPassId::Chain).mHits, 1u) << "made again and not found";
             store.flush();
             EXPECT_GE(store.getStats().mFound, 1u) << "the second making read the store";
+        }
+
+        /// **An entry whose file is gone is swept, whatever it holds**: a map made and never collected,
+        /// whose file is let go of, is dropped by the sweep the 1024th entry starts, beside the 1023 whose
+        /// files stand. Kept, the table would remember 1025, and the made image with it. Every file is
+        /// made before the first is let go of, so none takes its address and drops it through `find`.
+        TEST(RtxPreparedImagesTest, aMadeImageNeverCollectedIsDroppedOnceItsFileIsGone)
+        {
+            ContentStore store(TestingOpenMW::currentTestDirPath() / "store", ContentStore::sGameCap);
+            PreparedImages prepared(&store, 1);
+            osg::ref_ptr<osg::Image> gone = makeBlockNormalMap();
+            EXPECT_TRUE(prepared.find(*gone, TextureEncoding::Data, TextureWrap::Repeat).mPending);
+            prepared.flush();
+
+            std::vector<osg::ref_ptr<osg::Image>> standing(1024);
+            for (osg::ref_ptr<osg::Image>& file : standing)
+                file = makeBlockNormalMap();
+            for (std::size_t at = 0; at < 1023; ++at)
+                prepared.find(*standing[at], TextureEncoding::Data, TextureWrap::Repeat);
+            EXPECT_EQ(prepared.getEntryCount(), 1024u) << "the sweep starts at 1024";
+
+            gone = nullptr;
+            prepared.find(*standing.back(), TextureEncoding::Data, TextureWrap::Repeat);
+            EXPECT_EQ(prepared.getEntryCount(), 1024u) << "1023 standing and the new one, the one gone dropped";
         }
 
         /// **A normal map's whole chain is made in BC7**: a 2x2 RGBA8 normal map whose second level is
@@ -280,6 +309,31 @@ namespace Rtx
             ASSERT_NE(map, nullptr);
             EXPECT_EQ(map->getWholeFormat(), TextureFormat::Bc7Unorm);
             EXPECT_TRUE(Testing::isNear(texelOf(*map, 0), { 135, 76, 255, 255 }, 2)) << "metal, roughness, occlusion";
+
+            // **Keyed by the finest levels alone**, the one level a conversion reads: a diffuse whose
+            // second level differs is the same key, and one whose finest differs another.
+            const auto chained = [&](unsigned char finest, unsigned char second) {
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                auto* data = new unsigned char[20];
+                std::fill_n(data, 16, finest);
+                std::fill_n(data + 16, 4, second);
+                image->setImage(2, 2, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+                image->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
+                image->setFileName("textures/tx_ore.dds");
+                return image;
+            };
+            const auto keyOf = [&](const osg::Image& image) {
+                ChainBuild build;
+                ConversionPass pass(build);
+                ContentDigest digest(sContentPasses.name(ConversionPass::sPass), ConversionPass::sVersion);
+                pass.digest(
+                    ConversionPass::Input{
+                        .mImage = image, .mPartner = *specular, .mEncoding = TextureEncoding::ConvertedColour },
+                    digest);
+                return digest.getKey();
+            };
+            EXPECT_EQ(keyOf(*chained(128, 9)), keyOf(*chained(128, 200))) << "the second level is not read";
+            EXPECT_NE(keyOf(*chained(128, 9)), keyOf(*chained(129, 9)));
         }
 
         /// **A file whose chain stands answers nothing made**: a BC5 map of data, whose two channels no
@@ -324,7 +378,8 @@ namespace Rtx
             EXPECT_TRUE(Testing::isNear(texelOf(*made, 1), { 255, 255, 255, 64 }, 2)) << "the coverage-weighed box";
 
             const auto keyOf = [](const osg::Image& image) {
-                ChainPass pass;
+                ChainBuild build;
+                ChainPass pass(build);
                 ContentDigest digest(sContentPasses.name(ChainPass::sPass), ChainPass::sVersion);
                 pass.digest(ChainPass::Input{ .mImage = image, .mEncoding = TextureEncoding::Colour }, digest);
                 return digest.getKey();
@@ -359,6 +414,91 @@ namespace Rtx
             ASSERT_EQ(made->getLevels().size(), 3u);
             EXPECT_EQ(made->getBytes().size(), 48u);
             EXPECT_TRUE(Testing::isNear(texelOf(*made, 2), { 255, 0, 0, 255 }, 2)) << "the box of red";
+        }
+
+        /// A `width` by `height` BC1 file of `levels` levels: every block white and opaque, or, where
+        /// `cut`, transparent black, a cut in BC1's one bit of alpha.
+        osg::ref_ptr<osg::Image> makeBc1(std::uint32_t width, std::uint32_t height, std::uint32_t levels, bool cut)
+        {
+            std::vector<unsigned char> bytes;
+            osg::Image::MipmapDataType offsets;
+            for (std::uint32_t level = 0; level < levels; ++level)
+            {
+                if (level > 0)
+                    offsets.push_back(static_cast<unsigned int>(bytes.size()));
+                const std::uint32_t across = (std::max(width >> level, 1u) + 3) / 4;
+                const std::uint32_t down = (std::max(height >> level, 1u) + 3) / 4;
+                for (std::uint32_t block = 0; block < across * down; ++block)
+                {
+                    // Colour nought at or under colour one is BC1's three colours and a transparent
+                    // black, which index three, set on every texel, names.
+                    const std::array<unsigned char, 8> white{ 0xff, 0xff, 0, 0, 0, 0, 0, 0 };
+                    const std::array<unsigned char, 8> hole{ 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+                    const std::array<unsigned char, 8>& written = cut ? hole : white;
+                    bytes.insert(bytes.end(), written.begin(), written.end());
+                }
+            }
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            auto* data = new unsigned char[bytes.size()];
+            std::memcpy(data, bytes.data(), bytes.size());
+            image->setImage(static_cast<int>(width), static_cast<int>(height), 1, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT,
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            image->setMipmapLevels(offsets);
+            image->setFileName("textures/tx_bc1.dds");
+            return image;
+        }
+
+        /// **What a chain is made into, at each of its pass's edges** (`ChainPass`): a chainless BC1 colour
+        /// of 512 texels on its long side, `sLargestBc7ChainSide`, is made whole in BC7 and one of 516 has
+        /// its levels made under its own; a painted colour with a cut is made in BC7, which holds the cut's
+        /// coverage; and a map of data with a chain and a cut stands as it is, since BC1 cannot hold the
+        /// coverage a box makes of a cut.
+        TEST(RtxPreparedImagesTest, aChainIsMadeIntoWhatEachEdgeOfItsPassSays)
+        {
+            ContentPreprocessor content;
+            const auto made = [&](const osg::Image& image, TextureEncoding encoding) {
+                MadeChain chain;
+                content.chain(ChainPass::Input{ .mImage = image, .mEncoding = encoding }, chain);
+                return chain.mForm;
+            };
+            ASSERT_EQ(sLargestBc7ChainSide, 512u) << "the edge this test stands at";
+            EXPECT_EQ(made(*makeBc1(512, 4, 1, false), TextureEncoding::Colour), ChainForm::Bc7);
+            EXPECT_EQ(made(*makeBc1(516, 4, 1, false), TextureEncoding::Colour), ChainForm::Coarser);
+            EXPECT_EQ(made(*makeBc1(8, 8, 2, true), TextureEncoding::Painted), ChainForm::Bc7);
+            EXPECT_EQ(made(*makeBc1(8, 8, 2, true), TextureEncoding::Data), ChainForm::Stands);
+            EXPECT_EQ(made(*makeBc1(8, 8, 2, false), TextureEncoding::Data), ChainForm::Coarser) << "no cut, made";
+        }
+
+        /// **A classic pair of two sizes is converted at the slot's own file's**: a 4x4 diffuse beside a 2x2
+        /// `_spec` makes a 4x4 base colour, three levels in BC7, and a 2x2 metal-roughness map, two, each
+        /// file reading the other's nearest texel.
+        TEST(RtxPreparedImagesTest, aClassicPairOfTwoSizesIsConvertedAtTheSlotsOwnFile)
+        {
+            const auto make = [](int side, const char* name) {
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->allocateImage(side, side, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+                image->setFileName(name);
+                return image;
+            };
+            const osg::ref_ptr<osg::Image> diffuse = make(4, "textures/tx_ore.dds");
+            const osg::ref_ptr<osg::Image> specular = make(2, "textures/tx_ore_spec.dds");
+
+            ContentPreprocessor content;
+            MadeChain colour;
+            content.convert(
+                ConversionPass::Input{
+                    .mImage = *diffuse, .mPartner = *specular, .mEncoding = TextureEncoding::ConvertedColour },
+                colour);
+            EXPECT_EQ(colour.mForm, ChainForm::Bc7);
+            EXPECT_EQ(colour.mBytes.size(), 3u * 16) << "4x4, 2x2 and 1x1, a block each";
+            MadeChain map;
+            content.convert(
+                ConversionPass::Input{
+                    .mImage = *specular, .mPartner = *diffuse, .mEncoding = TextureEncoding::ConvertedSpecular },
+                map);
+            EXPECT_EQ(map.mForm, ChainForm::Bc7);
+            EXPECT_EQ(map.mBytes.size(), 2u * 16) << "2x2 and 1x1, a block each";
         }
     }
 }

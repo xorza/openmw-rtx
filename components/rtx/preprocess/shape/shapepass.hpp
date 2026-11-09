@@ -56,11 +56,17 @@ namespace Rtx
         };
 
         static constexpr ContentPassId sPass = ContentPassId::Shape;
-        static constexpr std::uint32_t sVersion = 3;
+        static constexpr std::uint32_t sVersion = 4;
         static constexpr bool sStored = true;
 
         static void digest(const Input& input, ContentDigest& digest);
         void run(const Input& input, Output& output);
+
+        /// Whether a stored `output` can be `input`'s: whole triangles, every kept corner one of the
+        /// input's vertices or an added one, every added vertex a copy of an input's, and normals for
+        /// none or for every vertex. What the mesh table writes and reads past a mesh's run where it is
+        /// not (`ContentCache::find`).
+        static bool fits(const Input& input, const Output& output);
 
     private:
         /// Made by a `ContentPreprocessor` and by nothing else — `ShapeFold` says why.

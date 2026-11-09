@@ -56,7 +56,7 @@ namespace Crash::Monitor
         // them: `T` stopped, `t` stopped by a tracer.
         const std::string folder = "/proc/" + std::to_string(mId);
         std::string text;
-        if (Platform::readWhole(folder + "/stat", text).isOk())
+        if (Platform::readWhole(folder + "/stat", text, Platform::sUnbounded).isOk())
         {
             const std::size_t named = text.rfind(')');
             if (named != std::string::npos && named + 2 < text.size()
@@ -65,7 +65,7 @@ namespace Crash::Monitor
         }
 
         // A tracer that lets the game run stands at a breakpoint as often as not.
-        if (!Platform::readWhole(folder + "/status", text).isOk())
+        if (!Platform::readWhole(folder + "/status", text, Platform::sUnbounded).isOk())
             return false;
         constexpr std::string_view tracer = "\nTracerPid:";
         const std::size_t at = text.find(tracer);

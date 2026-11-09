@@ -59,7 +59,7 @@ namespace Platform::WholeFileSystem
         constexpr DWORD sReplaceWaitMs = 20;
     }
 
-    Result<void, IoError> read(const std::filesystem::path& path, const Sink sink)
+    Result<void, IoError> read(const std::filesystem::path& path, const Sink sink, const std::size_t most)
     {
         const UniqueHold<FileHandle> file(
             CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
@@ -71,9 +71,13 @@ namespace Platform::WholeFileSystem
         if (!GetFileSizeEx(file.get(), &size))
             return lastError();
 
+        const auto stated = static_cast<std::size_t>(std::max<LONGLONG>(size.QuadPart, 0));
+        if (stated > most)
+            return tooLarge();
+
         // Sized to what the system states and one more, so a file that ends where it said is read to
         // its end by one read past it; grown by half where it runs on.
-        std::size_t capacity = static_cast<std::size_t>(std::max<LONGLONG>(size.QuadPart, 0)) + 1;
+        std::size_t capacity = stated + 1;
         std::size_t filled = 0;
         std::byte* data = sink.mGrow(sink.mBuffer, capacity);
         while (true)
@@ -91,6 +95,8 @@ namespace Platform::WholeFileSystem
             if (got == 0)
                 break;
             filled += got;
+            if (filled > most)
+                return tooLarge();
         }
 
         sink.mGrow(sink.mBuffer, filled);

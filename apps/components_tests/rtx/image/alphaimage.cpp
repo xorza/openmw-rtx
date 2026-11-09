@@ -238,7 +238,7 @@ namespace Rtx
         /// An image read again is the texture it was handed and nothing of the one before, and it
         /// costs the heap nothing to say so.
         ///
-        /// **What lets `MipChain` and `SceneTextures` keep one of these.** Both read a cell's worth
+        /// **What lets `ChainBuild` and `SceneTextures` keep one of these.** Both read a cell's worth
         /// of textures through a single image; one that carried the last texture's levels through
         /// would weigh one texture's colours by another's alpha, and one that gave its room back
         /// would go to the heap once a texture on the frame the cell lands.

@@ -7,6 +7,7 @@ namespace Rtx
         mAsked += other.mAsked;
         mHits += other.mHits;
         mKeyMs += other.mKeyMs;
+        mFoundMs += other.mFoundMs;
         mRunMs += other.mRunMs;
         mKeyBytes += other.mKeyBytes;
 
@@ -17,7 +18,7 @@ namespace Rtx
     {
         double total = 0.0;
         for (const PassStats& pass : mPasses)
-            total += pass.mKeyMs + pass.mRunMs;
+            total += pass.mKeyMs + pass.mFoundMs + pass.mRunMs;
 
         return total;
     }

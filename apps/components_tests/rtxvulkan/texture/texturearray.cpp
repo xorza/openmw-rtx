@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -18,6 +19,7 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
@@ -316,9 +318,13 @@ namespace Rtx
         /// larger than a row: the second level is half that, within the side, and is what stands —
         /// four bytes a texel.
         ///
-        /// **The slot's texel word says which stands**: the level's count, and the stand-in's four by
-        /// four with `TEXTURE_STANDS_IN` over it — as it does for a slot described as the stand-in,
-        /// which is how the builder describes a file that does not read.
+        /// **The side is the device's, and never past `TEXTURE_SIDE_MOST`**, whose square the texel
+        /// word holds whole.
+        ///
+        /// **The slot's texel word says which stands**: the level's count under the file's wrap, and
+        /// the stand-in's four by four under its own wrap, `Repeat`, with `TEXTURE_STANDS_IN` over it
+        /// — as it does for a slot described as the stand-in, which is how the builder describes a
+        /// file that does not read.
         TEST_F(RtxTextureArrayTest, aTexturePastTheDevicesSideBeginsAtItsFirstLevelWithinIt)
         {
             Device& device = getDevice();
@@ -330,12 +336,15 @@ namespace Rtx
             setup.flush();
 
             const std::uint32_t limit = textures.getSideLimit();
+            EXPECT_EQ(limit, std::min(device.getPhysicalDevice().getTextureSide(), Shaders::TEXTURE_SIDE_MOST));
 
             Testing::TestTexture wide;
             Testing::paintLevels(wide, limit + 1, 1, 2, "wide");
+            wide.mData.mWrap = TextureWrap::ClampT;
             Testing::TestTexture single;
             Testing::paintLevels(single, limit + 1, 1, 1, "single");
             single.mData.mSlot = 1;
+            single.mData.mWrap = TextureWrap::Clamp;
             Testing::TestTexture unread;
             Testing::paintLevels(unread, 4, 4, 1, "unread");
             unread.mData.mSlot = 2;
@@ -362,7 +371,8 @@ namespace Rtx
             EXPECT_EQ(held.mBySource.mSpriteBakes + held.mBySource.mGroundComposites + held.mBySource.mGroundGloss, 0u);
             EXPECT_EQ(textures.getRoomHeld(), 0u) << "the device's side is not the room's";
 
-            EXPECT_EQ(textures.getTexels(0), (limit + 1) >> 1) << "the level that stands";
+            EXPECT_EQ(textures.getTexels(0), ((limit + 1) >> 1) | (2u << Shaders::TEXTURE_WRAP_SHIFT))
+                << "the level that stands, clamped along t";
             EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "past the side";
             EXPECT_EQ(textures.getTexels(2), Shaders::TEXTURE_STANDS_IN | 16u) << "described as the stand-in";
 

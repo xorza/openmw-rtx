@@ -238,7 +238,8 @@ namespace RtxTool
     FrameHashes FrameHashes::read(const std::filesystem::path& file)
     {
         std::string text;
-        if (const Result<void, Platform::IoError> read = Platform::readWhole(file, text); !read.isOk())
+        if (const Result<void, Platform::IoError> read = Platform::readWhole(file, text, Platform::sUnbounded);
+            !read.isOk())
             throw Rtx::InputError(
                 "could not read " + Files::pathToUnicodeString(file) + ": " + read.error().mCode.message());
         std::istringstream in(std::move(text));

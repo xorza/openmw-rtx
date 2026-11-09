@@ -151,7 +151,7 @@ namespace Rtx
         /// `TextureTable::take`. Empty where the table refuses it.
         TextureHold takeTexture(VFS::Path::NormalizedView path, const osg::Image& image,
             TextureWrap wrap = TextureWrap::Repeat, TextureEncoding encoding = TextureEncoding::Colour,
-            const osg::Image* laid = nullptr, const osg::Image* partner = nullptr);
+            const osg::Image* partner = nullptr);
 
         /// Places `instance` in a slot and returns it, holding its mesh and its material until the
         /// placement is dropped, so a placement on a freed row cannot exist. The slot is the

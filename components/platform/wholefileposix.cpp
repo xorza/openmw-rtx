@@ -56,7 +56,7 @@ namespace Platform::WholeFileSystem
         constexpr std::size_t sFirstRead = 4096;
     }
 
-    Result<void, IoError> read(const std::filesystem::path& path, const Sink sink)
+    Result<void, IoError> read(const std::filesystem::path& path, const Sink sink, const std::size_t most)
     {
         const HeldDescriptor file(::open(path.c_str(), O_RDONLY | O_CLOEXEC));
         if (!file.isOpen())
@@ -68,10 +68,13 @@ namespace Platform::WholeFileSystem
         if (fstat(file.get(), &status) != 0)
             return lastError();
 
+        const auto stated = static_cast<std::size_t>(std::max<off_t>(status.st_size, 0));
+        if (stated > most)
+            return tooLarge();
+
         // Sized to what the system states and one more, so a file that ends where it said is read to
         // its end by one read past it; grown by half where it runs on, as `/proc` files do.
-        std::size_t capacity
-            = std::max<std::size_t>(static_cast<std::size_t>(std::max<off_t>(status.st_size, 0)) + 1, sFirstRead);
+        std::size_t capacity = std::max<std::size_t>(stated + 1, sFirstRead);
         std::size_t filled = 0;
         std::byte* data = sink.mGrow(sink.mBuffer, capacity);
         while (true)
@@ -90,6 +93,8 @@ namespace Platform::WholeFileSystem
             if (got == 0)
                 break;
             filled += static_cast<std::size_t>(got);
+            if (filled > most)
+                return tooLarge();
         }
 
         sink.mGrow(sink.mBuffer, filled);

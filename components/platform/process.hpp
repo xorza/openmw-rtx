@@ -113,4 +113,9 @@ namespace Platform::Process
     /// `Platform::LinuxText::hugePageShare` of this process, now. Nothing on a system that is not Linux,
     /// or where the rollup cannot be read.
     std::optional<float> hugePageShare();
+
+    /// `Platform::LinuxText::compactionStalls` of the machine, now: what a run on huge pages reads
+    /// beside its frames, since a heap the kernel compacts for one stalls the frame that asked.
+    /// Nothing on a system that is not Linux, or where the counters cannot be read.
+    std::optional<std::uint64_t> compactionStalls();
 }

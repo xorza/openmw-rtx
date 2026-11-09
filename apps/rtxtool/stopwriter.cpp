@@ -247,8 +247,8 @@ namespace RtxTool
                 scene.placements().getCounts().mPlaced, stats.mDistantStatics, stats.mGroundCells, stats.mGroundcover,
                 scene.meshes().getRows().size(), scene.materials().getRows().size(), scene.textures().getRows().size(),
                 scene.meshes().getTriangleCount(), scene.meshes().getGeometryBytes() / 1024,
-                scene.meshes().getColours().size() * sizeof(osg::Vec3f) / 1024, spellHash(digestScene(scene)),
-                spellHash(digestLayout(digestParts(scene)))));
+                scene.meshes().getColours().size() * sizeof(Rtx::Shaders::GpuVertexColour) / 1024,
+                spellHash(digestScene(scene)), spellHash(digestLayout(digestParts(scene)))));
 
         // The images the standing slots keep, off the table that keeps them.
         const Rtx::FormatCensus& formats = scene.textures().getFormats();
@@ -387,10 +387,20 @@ namespace RtxTool
                 const Rtx::PassStats& counted = passes->at(pass);
                 into.mRecord.note(
                     std::format("  {:<8}{:<12} {:>7} asked, {:>7} found, {:>9.1f} ms keying "
-                                "{:>8.1f} MiB, {:>9.1f} ms running\n",
+                                "{:>8.1f} MiB, {:>9.1f} ms reading found, {:>9.1f} ms running\n",
                         thread, name, counted.mAsked, counted.mHits, counted.mKeyMs, Rtx::megabytes(counted.mKeyBytes),
-                        counted.mRunMs));
+                        counted.mFoundMs, counted.mRunMs));
             }
+
+        if (into.mReport.mWalked.mStore.has_value())
+        {
+            const Rtx::ContentStoreStats& store = *into.mReport.mWalked.mStore;
+            into.mRecord.note(
+                std::format("  store   {:>7} found, {:>7} missed, {:>7} written, {:>7} dropped, "
+                            "{:>7} refused, {:>7} stamped, {:>7} evicted, {:>7} stale\n",
+                    store.mFound, store.mMissed, store.mWritten, store.mDropped, store.mRefused, store.mStamped,
+                    store.mEvicted, store.mStale));
+        }
 
         if (into.mReport.mWalked.mAgain.has_value())
         {

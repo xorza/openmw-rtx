@@ -179,10 +179,17 @@ namespace MWRender
             return;
         }
 
+        // **One image a view, made once**: a map tile asks a copy of every picture it paints, and an
+        // image of its own each time was a quarter of a megabyte allocated a tile. Its reader paints
+        // out of it where it is handed (`PendingPaints::finish`) and keeps nothing of it.
         mCopyState = CopyState::Queued;
-        mCopy = new osg::Image;
-        mCopy->allocateImage(
-            static_cast<int>(mTrace.getWidth()), static_cast<int>(mTrace.getHeight()), 1, GL_RGBA, GL_UNSIGNED_BYTE);
+        const auto width = static_cast<int>(mTrace.getWidth());
+        const auto height = static_cast<int>(mTrace.getHeight());
+        if (mCopy == nullptr || mCopy->s() != width || mCopy->t() != height)
+        {
+            mCopy = new osg::Image;
+            mCopy->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+        }
         std::memset(mCopy->data(), 0, mCopy->getTotalSizeInBytes());
 
         // The copy is left by the trace that is told to leave one, so a picture already traced

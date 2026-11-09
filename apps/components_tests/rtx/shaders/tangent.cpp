@@ -106,6 +106,33 @@ namespace Rtx
                     }
         }
 
+        /// **A normal's word reads back to its direction**, which a stored shape's normals rest on
+        /// (`ShapePass::run`): decoded and packed again, a word names the direction it named, and a word
+        /// the packing made packs back to itself. Every code was checked once, 2³⁰ of them
+        /// (`docs/rtx/research/2026-11-09-normal-word-round-trip.md`); here every 97th along each axis,
+        /// and the square's four edges whole, where two codes name one direction.
+        TEST(RtxTangentTest, aNormalsWordReadsBackToItsDirection)
+        {
+            constexpr std::uint32_t last = 2 * Shaders::TANGENT_STEPS;
+            const auto check = [](std::uint32_t x, std::uint32_t y) {
+                const std::uint32_t word = Shaders::TANGENT_PRESENT | x | (y << Shaders::TANGENT_COORDINATE_BITS);
+                const osg::Vec3f direction = Shaders::unpackNormal(word);
+                const std::uint32_t packed = Shaders::packNormal(direction);
+                EXPECT_EQ(Shaders::unpackNormal(packed), direction) << x << ", " << y;
+                EXPECT_EQ(Shaders::packNormal(Shaders::unpackNormal(packed)), packed) << x << ", " << y;
+            };
+            for (std::uint32_t y = 0; y <= last; y += 97)
+                for (std::uint32_t x = 0; x <= last; x += 97)
+                    check(x, y);
+            for (std::uint32_t along = 0; along <= last; ++along)
+            {
+                check(along, 0);
+                check(along, last);
+                check(0, along);
+                check(last, along);
+            }
+        }
+
         /// **A normal is a tangent's word with no handedness**: the flipped bit never set, whichever
         /// way the normal points, and the direction read back as a tangent's is; a normal of no
         /// length is the word nought, which reads back as the zeros "the triangle's plane" is.

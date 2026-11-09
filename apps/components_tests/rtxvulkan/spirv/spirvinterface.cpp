@@ -140,8 +140,9 @@ namespace Rtx
                     "panes.comp.spv", "unbounced.comp.spv", "visibility.comp.spv" }));
         }
 
-        /// **The trace's own kinds read as theirs**: the scene's top-level structure, and the
-        /// bindless textures as an array of no stated length, which is a count of nought.
+        /// **The trace's own kinds read as theirs**: the scene's top-level structure, the bindless
+        /// textures as images in an array of no stated length, which is a count of nought, and the
+        /// samplers a read pairs them with, `TEXTURE_SAMPLERS` of them.
         TEST(RtxSpirvInterfaceTest, aStructureAndAnArrayOfNoLengthAreReadAsWhatTheyAre)
         {
             const std::vector<ModuleBinding> bindings = bindingsOf("visibility.comp.spv");
@@ -149,8 +150,11 @@ namespace Rtx
                 return bound.mKind == DescriptorKind::AccelerationStructure && bound.mCount == 1;
             })) << "no top-level structure";
             EXPECT_TRUE(std::ranges::any_of(bindings, [](const ModuleBinding& bound) {
-                return bound.mKind == DescriptorKind::CombinedImageSampler && bound.mCount == 0;
+                return bound.mKind == DescriptorKind::SampledImage && bound.mCount == 0;
             })) << "no array of textures of no length";
+            EXPECT_TRUE(std::ranges::any_of(bindings, [](const ModuleBinding& bound) {
+                return bound.mKind == DescriptorKind::BareSampler && bound.mCount == Shaders::TEXTURE_SAMPLERS;
+            })) << "no array of the textures' samplers";
 
             const std::vector<std::uint32_t> notAModule{ 1u, 2u, 3u, 4u, 5u };
             EXPECT_THROW(readInterface(notAModule), InputError);

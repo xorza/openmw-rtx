@@ -37,7 +37,6 @@ set(RTX_TEST_FILES
     rtx/image/alphaimage.cpp
     rtx/image/chainbuild.cpp
     rtx/image/colour.cpp
-    rtx/image/mipchain.cpp
     rtx/image/shadingmap.cpp
     rtx/image/spritelight.cpp
     rtx/image/texels.cpp
@@ -68,9 +67,9 @@ set(RTX_TEST_FILES
     rtx/preprocess/contentpreprocessor.cpp
     rtx/preprocess/contentstore.cpp
     rtx/preprocess/preparedimages.cpp
-    rtx/preprocess/laidimagecache.cpp
     rtx/preprocess/passversions.cpp
     rtx/prepare/contentpreparation.cpp
+    rtx/prepare/preparationmanifest.cpp
     rtx/preprocess/shape/creasesplit.cpp
     rtx/preprocess/shape/shapefold.cpp
     rtx/renderer/framedescriber.cpp
@@ -186,8 +185,6 @@ set(RTX_TEST_SUPPORT
     rtx/support/instanceobstacle.hpp
     rtx/support/layers.hpp
     rtx/support/lobeintegrals.hpp
-    rtx/support/mipchain.cpp
-    rtx/support/mipchain.hpp
     rtx/support/ownedtexture.cpp
     rtx/support/ownedtexture.hpp
     rtx/support/pngtext.hpp

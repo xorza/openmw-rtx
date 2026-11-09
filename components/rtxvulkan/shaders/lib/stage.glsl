@@ -159,7 +159,7 @@ RayAsk eyeAsk(vec3 origin, vec3 direction, float tmin, uint arms, uvec2 pixel)
 {
     const uint mask = arms != 0u ? frame.mRayMask & MASK_FIRST_PERSON : worldMask(frame.mRayMask);
     const Cone cone = coneAt(eyeOf(arms));
-    return resolvedRayOf(SceneQuery(origin, tmin, direction, frame.mFar, facingFor(true), mask, MEET_AS_SOLID, 1u,
+    return rayOf(SceneQuery(origin, tmin, direction, frame.mFar, facingFor(true), mask, MEET_AS_SOLID, 1u,
         cone.mWidth, cone.mSpread, 1u, pixelKey(pixel) + SEED_SOFT_EDGE));
 }
 
@@ -189,7 +189,7 @@ Surface storedHitOf(ivec2 stored, bool detailed, bool landing)
     if (HAS_RELIEF)
         committed.mRelief = imageLoad(stageRelief, stored).r;
     committed.mMarches = !landing;
-    return resolve(committed, from.xyz, along.xyz, detailed);
+    return resolve(committed, from.xyz, along.xyz, detailed, RELIEF_STORED);
 }
 
 /// The solid `record` names at the stored place `stored`, resolved off its stored hit as the trace resolved
@@ -243,7 +243,7 @@ Surface storedLandingOf(StageRecord record, ivec2 stored, uint ray)
     const vec4 along = imageLoad(landingRayAlong, stored);
     Hit landing = committedHit(hit.x, hit.y, uintBitsToFloat(hit.zw), along.w, from.w);
     landing.mMarches = false;
-    return resolve(landing, from.xyz, along.xyz, record.mBounceLobe);
+    return resolve(landing, from.xyz, along.xyz, record.mBounceLobe, RELIEF_STORED);
 }
 
 /// What the bounce hands its landing at the stored place `stored`, `STAGE_BOUNCE`: what light along

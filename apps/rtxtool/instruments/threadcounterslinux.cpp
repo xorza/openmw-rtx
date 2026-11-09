@@ -31,7 +31,7 @@ namespace RtxTool
         std::optional<std::uint64_t> kindNumbered(const char* path)
         {
             std::string text;
-            if (!Platform::readWhole(path, text).isOk())
+            if (!Platform::readWhole(path, text, Platform::sUnbounded).isOk())
                 return std::nullopt;
 
             std::uint64_t type = 0;

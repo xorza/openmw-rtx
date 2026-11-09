@@ -72,4 +72,25 @@ namespace Platform::LinuxText
             text.remove_prefix(comma + 1);
         }
     }
+
+    std::optional<std::uint64_t> compactionStalls(std::string_view vmstat)
+    {
+        constexpr std::string_view field = "compact_stall ";
+        for (std::string_view rest = vmstat; !rest.empty();)
+        {
+            const std::size_t end = rest.find('\n');
+            std::string_view line = rest.substr(0, end);
+            rest = end == std::string_view::npos ? std::string_view() : rest.substr(end + 1);
+            if (!line.starts_with(field))
+                continue;
+
+            line.remove_prefix(field.size());
+            std::uint64_t value = 0;
+            const std::from_chars_result read = std::from_chars(line.data(), line.data() + line.size(), value);
+            if (read.ec != std::errc{} || read.ptr != line.data() + line.size())
+                return std::nullopt;
+            return value;
+        }
+        return std::nullopt;
+    }
 }

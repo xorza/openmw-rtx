@@ -21,6 +21,16 @@ runs:
       with:
         python-version: "3.11"
 
+    - name: Linux packages cache
+      # The packages downloaded, keyed by the scripts that list them, so a run reaches the mirror for its
+      # indices and for what changed alone: a mirror that stalled between files ended a job at the limit
+      # (run 42553703270). The packages alone, and not the folder `partial` apt downloads into.
+      if: runner.os == 'Linux' && inputs.cache == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: apt-cache/*.deb
+        key: apt-${{ runner.os }}-${{ hashFiles('CI/install_ubuntu_deps.sh', 'CI/install_debian_deps.sh') }}
+
     - name: Linux packages
       # The slowest of 145 passing jobs took nine minutes, and a job run again on another runner took
       # two. What apt held at the limit is printed, as `-qq` and `/dev/null` hide it during the install.
@@ -36,6 +46,8 @@ runs:
           fi
           exit "$status"
         }
+        # The cache's save reads the packages as the runner's user, after apt wrote them as root.
+        sudo chown -R "$(id -u):$(id -g)" apt-cache
 
     - name: Vulkan SDK cache
       # The SDK alone: the rest of deps/ is small on Linux, or fetched by one job only.

@@ -26,6 +26,7 @@
 #include <apps/components_tests/rtx/support/shadowalpha.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <components/misc/bytebuffer.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
@@ -771,10 +772,12 @@ namespace Rtx::Testing
             };
             // Its coarser levels in bytes of their own under the file's finest level, as a slot
             // describes a chain the host made (`TextureData::mCoarser`).
+            // A loose file's built levels are its own bytes, four a texel.
             ChainBuild chain;
             chain.build(file, levelsTo1x1(extent, extent));
-            std::vector<std::byte> coarser;
-            chain.encode(file, 1, coarser);
+            Misc::ByteBuffer coarser;
+            for (std::uint32_t at = 1; at < chain.getLevelCount(); ++at)
+                coarser.insert(coarser.end(), chain.getTexels(at).begin(), chain.getTexels(at).end());
             std::vector<MipLevel> levels{ level };
             std::uint32_t laid = 0;
             for (std::uint32_t side = extent / 2; side >= 1; side /= 2)

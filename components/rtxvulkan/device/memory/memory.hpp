@@ -113,7 +113,7 @@ namespace Rtx
 
     /// A range of one device allocation, and the allocator that hands it back. Not an allocation
     /// of its own: one `vkAllocateMemory` per image was 1554 for the cell the game starts in, most
-    /// for a shading map of two kilobytes; sub-allocated, that cell takes a couple of dozen.
+    /// for a companion of two kilobytes; sub-allocated, that cell takes a couple of dozen.
     ///
     /// **Buried as it goes**, as `Owned` is: a range let go or assigned over goes to the graveyard,
     /// which gives it back once every submit made so far and the next has run, so no owner frees

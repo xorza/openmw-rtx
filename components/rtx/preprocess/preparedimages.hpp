@@ -36,8 +36,9 @@ namespace Rtx
         bool mPending = false;
     };
 
-    /// The normal and data maps with their chains made again from their finest levels (`ChainPass`),
-    /// made off the frame and the reader on threads of their own (`docs/rtx/architecture.md`, "A chain is
+    /// Files with their chains made again from their finest levels (`ChainPass`), every one `prepares`
+    /// names — a map's, a painted colour's, a file's that carries none, a loose file's — made off the
+    /// frame and the reader on threads of their own (`docs/rtx/architecture.md`, "A chain is
     /// built on a worker"): a slot draws its file as it stands until its image is made, and is then
     /// made again, as a streaming engine draws what is loaded until the rest arrives. A made image is
     /// held until it is first handed out, and watched after it, so the texture that holds it decides
@@ -83,6 +84,9 @@ namespace Rtx
         /// figures join once it is done.
         ContentStats takeStats();
 
+        /// How many asks the table remembers, made or queued: what a test of the sweep reads.
+        std::size_t getEntryCount();
+
     private:
         using Key = std::tuple<const osg::Image*, TextureEncoding, TextureWrap, const osg::Image*>;
 
@@ -116,8 +120,11 @@ namespace Rtx
 
         void serve(Hand& hand, const Platform::StopToken& stop);
 
-        /// Drops the entries whose file is gone and whose image nothing holds, once the table holds
-        /// twice what it held after the last sweep: a bound that grows with what is live.
+        /// Whether the entry's file, or a converted slot's partner, is gone.
+        static bool isGone(const std::pair<const Key, Entry>& entry);
+
+        /// Drops the entries whose files are gone (`isGone`), once the table holds twice what it held
+        /// after the last sweep: a bound that grows with what is live.
         void sweep();
 
         ContentStore* const mStore;

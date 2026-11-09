@@ -17,8 +17,10 @@ namespace Rtx
         std::uint32_t mHits = 0;
 
         /// What making the keys cost — every byte of the input read, and a texture described to
-        /// read it — and what the runs cost past that.
+        /// read it — what reading and decoding the outputs the cache found cost past that, and what the
+        /// runs cost past it, a miss's look in the cache among them.
         double mKeyMs = 0.0;
+        double mFoundMs = 0.0;
         double mRunMs = 0.0;
 
         /// How many bytes of input the keys were made of.

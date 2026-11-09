@@ -14,6 +14,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/bytebuffer.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/folder.hpp>
 #include <components/platform/wholefile.hpp>
@@ -164,24 +165,20 @@ namespace Rtx
     Result<std::vector<std::uint8_t>, std::string_view> PipelineCache::read(
         const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties)
     {
-        // Every bound before the body is read, because the file this refuses for its size is the
-        // one it would be most expensive to read: `sMostBytes` says what has been seen in a
-        // directory nothing swept.
-        std::error_code error;
-        const std::uintmax_t bytes = std::filesystem::file_size(path, error);
-        if (error == std::errc::no_such_file_or_directory)
-            return std::vector<std::uint8_t>{};
-        if (error)
-            return Err{ "could not be opened" };
-        if (bytes < sizeof(FileHeader))
-            return Err{ "is shorter than its own header" };
-        if (bytes - sizeof(FileHeader) > sMostBytes)
-            return Err{ sTooLong };
-
-        std::vector<std::byte> file;
-        if (const Result<void, Platform::IoError> read = Platform::readWhole(path, file); !read.isOk())
-            return Err{ read.error().mFailure == Platform::IoFailure::NotFound ? "went before it was read"
-                                                                               : "could not be read" };
+        // Bounded before the body is read, because the file this refuses for its size is the one it
+        // would be most expensive to read: `sMostBytes` says what has been seen in a directory
+        // nothing swept.
+        Misc::ByteBuffer file;
+        if (const Result<void, Platform::IoError> read
+            = Platform::readWhole(path, file, sizeof(FileHeader) + sMostBytes);
+            !read.isOk())
+        {
+            if (read.error().mFailure == Platform::IoFailure::NotFound)
+                return std::vector<std::uint8_t>{};
+            if (read.error().mFailure == Platform::IoFailure::TooLarge)
+                return Err{ sTooLong };
+            return Err{ "could not be read" };
+        }
         if (file.size() < sizeof(FileHeader))
             return Err{ "is shorter than its own header" };
 

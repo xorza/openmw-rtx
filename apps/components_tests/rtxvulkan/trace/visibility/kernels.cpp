@@ -101,20 +101,23 @@ namespace Rtx
         /// 80x45 frame of a low-end AMD integrated GPU in 650 ms
         /// (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`).
         ///
-        /// - **No scratch and 128 registers at most, but where a kernel holds more, at what it holds**,
-        ///   which only falls: the trace's stages, whose walks keep their records live through one
-        ///   loop ("The spill gate holds what each kernel spills"), measured on the integrated GPU, the one
-        ///   driver known to report scratch. A dispatch at 128 registers runs eight waves on an RDNA
-        ///   SIMD, which holds 1024 a lane across them, and one at 256 four, and a ray tracer lives on
-        ///   the waves that hide its memory. A count of a 32-lane wave's, which is what the trace's
-        ///   dispatch is pinned to (`SubgroupSize::ThirtyTwo`) and every driver that reports an
-        ///   executable says it ran.
-        /// - **A launch's stack at what each holds**, which only falls, every driver answering it: the
-        ///   most any driver reports, one ceiling for every card. RADV's, measured on the integrated GPU under
-        ///   Mesa 26.2.4, where NVIDIA's driver reported none for three of the four launches and 48
-        ///   bytes for the sprites' composite.
-        ///   AMD's driver reports a launch's registers as a stub of three, whatever it traces; the
-        ///   stack is where its spills show, as the 81 KB of the trace when it was a launch did.
+        /// - **Each target driver's own ceilings, each one that only falls**: AMD's own driver's, RADV's
+        ///   and NVIDIA's, each read by its own names (`CompiledUse`), since a count of one compiler's is no
+        ///   count of another's. A driver with none is a failure: the targets are those three.
+        /// - **No scratch and 128 registers at most, but where a kernel holds more, at
+        ///   what it holds**: the trace's stages, whose walks keep their records live through one loop ("The
+        ///   spill gate holds what each kernel spills"). A dispatch at 128 registers runs eight waves on an
+        ///   RDNA SIMD, which holds 1024 a lane across them, and one at 256 four, and a ray tracer lives on
+        ///   the waves that hide its memory. A count of a 32-lane wave's, which is what the trace's dispatch
+        ///   is pinned to (`SubgroupSize::ThirtyTwo`) and every driver that reports an executable says it ran.
+        /// - **The shared memory each holds**: what a kernel declares, and what the compiler keeps there of
+        ///   its own — a ray query's traversal, which AMD's driver gives 2048 bytes and NVIDIA's what each
+        ///   kernel's live state asks — so a rise is a cost the gate names, as a spill is.
+        /// - **A launch's stack at what each holds**, every driver answering it: the most any driver
+        ///   reports, one ceiling for every card. RADV's, measured on the integrated GPU under Mesa 26.2.4,
+        ///   where NVIDIA's driver reported none for three of the four launches and 48 bytes for the
+        ///   sprites' composite. AMD's driver reports a launch's registers as a stub of three, whatever it
+        ///   traces; the stack is where its spills show, as the 81 KB of the trace when it was a launch did.
         TEST_F(RtxVisibilityKernelsTest, noKernelSpillsPastItsCeiling)
         {
             struct Ceiling
@@ -122,37 +125,93 @@ namespace Rtx
                 std::string_view mName;
                 std::uint64_t mScratch;
                 std::uint64_t mRegisters;
+                std::uint64_t mShared;
             };
-            constexpr Ceiling sEveryOther{ "", 0, 128 };
-            // `direct` at 256 and not 244, a rise inside the waves it allowed (`docs/rtx/architecture.md`,
-            // "No kernel spills past its ceiling"). `visibility` at 145 since the water's walk left it
-            // for a stage of its own, which held 219 ("The sea's walk, a stage of its own"), and holds 224
-            // with the relief's march under the sea, inside the four waves 219 allowed.
-            constexpr std::array<Ceiling, 6> sWithoutDarkAlpha{ {
-                { "visibility", 0, 145 },
-                { "water", 0, 224 },
-                { "direct", 0, 256 },
-                { "media", 0, 256 },
-                { "panes", 80, 256 },
-                { "landing", 0, 256 },
+            struct DriverCeilings
+            {
+                VkDriverId mDriver;
+                Ceiling mEveryOther;
+                std::span<const Ceiling> mWithoutDarkAlpha;
+
+                /// The whole tuple, which a scene with a see-through dark map runs and every other scene only
+                /// until its own tuple lands, at what that read costs it (`HAS_DARK_ALPHA`).
+                std::span<const Ceiling> mWhole;
+            };
+
+            // Measured on a low-end AMD integrated GPU under AMD's Windows driver. `visibility` at 145 since
+            // the water's walk left it for a stage of its own ("The sea's walk, a stage of its own"), and the
+            // water and media at what they hold since each walk resolves its hit once, after it ("A walk
+            // resolves the surface it ends on once"). The whole tuple's `media` at 224 since a read pairs an
+            // image with its sampler (`TEXTURE`), still four waves on an RDNA SIMD
+            // (`docs/rtx/research/2026-11-09-separate-samplers.md`).
+            constexpr std::array<Ceiling, 6> sAmdWithoutDarkAlpha{ {
+                { "visibility", 0, 145, 2048 },
+                { "water", 0, 177, 2048 },
+                { "direct", 0, 160, 2048 },
+                { "media", 0, 192, 2048 },
+                { "panes", 80, 256, 2048 },
+                { "landing", 0, 160, 2048 },
             } };
-            // The whole tuple, which a scene with a see-through dark map runs and every other scene only
-            // until its own tuple lands, at what that read costs it (`HAS_DARK_ALPHA`).
-            constexpr std::array<Ceiling, 7> sWhole{ {
-                { "visibility", 0, 145 },
-                { "water", 0, 244 },
-                { "direct", 0, 256 },
-                { "media", 0, 256 },
-                { "panes", 256, 256 },
-                { "landing", 0, 256 },
-                { "bounce", 0, 144 },
+            constexpr std::array<Ceiling, 7> sAmdWhole{ {
+                { "visibility", 0, 145, 2048 },
+                { "water", 0, 190, 2048 },
+                { "direct", 0, 144, 2048 },
+                { "media", 0, 224, 2048 },
+                { "panes", 80, 256, 2048 },
+                { "landing", 0, 160, 2048 },
+                { "bounce", 0, 144, 2048 },
             } };
+            // Measured on a high-end NVIDIA laptop GPU, whose compiler holds a stage at 128 registers and
+            // keeps what does not fit in shared memory. `panes` at the whole tuple's 6272 bytes since a read
+            // pairs an image with its sampler (`docs/rtx/research/2026-11-09-separate-samplers.md`).
+            constexpr std::array<Ceiling, 5> sNvidiaWithoutDarkAlpha{ {
+                { "water", 0, 128, 3456 },
+                { "direct", 0, 128, 1664 },
+                { "media", 0, 128, 6272 },
+                { "panes", 0, 168, 6272 },
+                { "landing", 0, 128, 896 },
+            } };
+            constexpr std::array<Ceiling, 6> sNvidiaWhole{ {
+                { "water", 0, 128, 4224 },
+                { "direct", 0, 128, 1920 },
+                { "media", 0, 128, 6272 },
+                { "panes", 0, 168, 6272 },
+                { "landing", 0, 128, 896 },
+                { "fog integrate", 0, 128, 1792 },
+            } };
+            // Measured on the handheld's integrated GPU under RADV.
+            constexpr std::array<Ceiling, 6> sRadvWithoutDarkAlpha{ {
+                { "visibility", 0, 160, 2048 },
+                { "water", 0, 160, 2048 },
+                { "direct", 0, 144, 2048 },
+                { "media", 0, 176, 2048 },
+                { "panes", 0, 256, 2048 },
+                { "landing", 0, 144, 2048 },
+            } };
+            constexpr std::array<Ceiling, 6> sRadvWhole{ {
+                { "visibility", 0, 160, 2048 },
+                { "water", 0, 160, 2048 },
+                { "direct", 0, 144, 2048 },
+                { "media", 0, 192, 2048 },
+                { "panes", 0, 256, 2048 },
+                { "landing", 0, 144, 2048 },
+            } };
+            const std::array sDrivers{
+                DriverCeilings{ VK_DRIVER_ID_AMD_PROPRIETARY, { "", 0, 128, 2048 }, sAmdWithoutDarkAlpha, sAmdWhole },
+                DriverCeilings{ VK_DRIVER_ID_MESA_RADV, { "", 0, 128, 2048 }, sRadvWithoutDarkAlpha, sRadvWhole },
+                DriverCeilings{
+                    VK_DRIVER_ID_NVIDIA_PROPRIETARY, { "", 0, 128, 0 }, sNvidiaWithoutDarkAlpha, sNvidiaWhole },
+            };
             constexpr std::array<std::pair<std::string_view, std::uint64_t>, 4> sStacks{ {
                 { "fog scatter", 320 },
                 { "fog depth", 320 },
                 { "sprite composite", 672 },
                 { "sprite shelter", 320 },
             } };
+
+            const VkDriverId driver = getDevice().getPhysicalDevice().getProperties().mVulkan12.driverID;
+            const auto measured = std::ranges::find(sDrivers, driver, &DriverCeilings::mDriver);
+            ASSERT_NE(measured, sDrivers.end()) << "no ceilings measured for driver " << driver;
 
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, true);
             std::vector<VisibilityPass::NamedKernel> kernels;
@@ -172,10 +231,9 @@ namespace Rtx
                 if (kernel.mTuple != whole && kernel.mTuple != withoutDarkAlpha)
                     continue;
 
-                Ceiling ceiling = sEveryOther;
-                const std::span<const Ceiling> ceilings = kernel.mTuple == whole
-                    ? std::span<const Ceiling>(sWhole)
-                    : std::span<const Ceiling>(sWithoutDarkAlpha);
+                Ceiling ceiling = measured->mEveryOther;
+                const std::span<const Ceiling> ceilings
+                    = kernel.mTuple == whole ? measured->mWhole : measured->mWithoutDarkAlpha;
                 for (const Ceiling& stated : ceilings)
                 {
                     if (kernel.mName == stated.mName)
@@ -184,7 +242,8 @@ namespace Rtx
 
                 const CompiledUse use
                     = getDevice().compiledUseOf(kernel.mPipeline->getHandle(), kernel.mPipeline->getBindPoint());
-                if (use.mScratchBytes.has_value())
+                // A launch's stack is its scratch on RADV, a lane's stack a lane: held as its stack.
+                if (use.mScratchBytes.has_value() && !use.mStackBytes.has_value())
                 {
                     EXPECT_LE(*use.mScratchBytes, ceiling.mScratch) << "the " << kernel.mName << " kernel's scratch";
                 }
@@ -204,6 +263,12 @@ namespace Rtx
                     EXPECT_LE(*use.mRegisters, ceiling.mRegisters) << "the " << kernel.mName << " kernel's registers";
                 }
 
+                if (use.mSharedBytes.has_value())
+                {
+                    EXPECT_LE(*use.mSharedBytes, ceiling.mShared)
+                        << "the " << kernel.mName << " kernel's shared memory";
+                }
+
                 const bool stage = kernel.mName == "visibility" || kernel.mName == "water" || kernel.mName == "direct"
                     || kernel.mName == "media" || kernel.mName == "panes" || kernel.mName == "bounce"
                     || kernel.mName == "landing" || kernel.mName == "unbounced";
@@ -212,6 +277,38 @@ namespace Rtx
                     EXPECT_EQ(*use.mSubgroupSize, 32u) << "the " << kernel.mName << " kernel's lanes";
                 }
             }
+        }
+
+        /// **Tuples a stage reads alike share its pipeline** (`VisibilityPass::canonicalOf`): the unbounced
+        /// stage reads no sun and no moons, so a tuple without either runs the full tuple's pipeline, and it
+        /// reads the sea, so a tuple without one runs a pipeline of its own; the eye's stage reads every
+        /// constant, so no two of its tuples share one. Of the 324 stage pipelines listed, 80 are shared.
+        TEST_F(RtxVisibilityKernelsTest, tuplesAStageReadsAlikeShareItsPipeline)
+        {
+            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, true);
+            std::vector<VisibilityPass::NamedKernel> kernels;
+            pass.listKernels(kernels);
+            const auto of = [&](std::string_view name, VisibilityVariant tuple) {
+                const auto found = std::ranges::find_if(kernels, [&](const VisibilityPass::NamedKernel& kernel) {
+                    return kernel.mName == name && kernel.mTuple == tuple.index();
+                });
+                return found != kernels.end() ? found->mPipeline : nullptr;
+            };
+
+            const VisibilityVariant full{};
+            const Pipeline* const whole = of("unbounced", full);
+            ASSERT_NE(whole, nullptr);
+            EXPECT_EQ(of("unbounced", VisibilityVariant{ .mSun = false, .mMoons = false }), whole);
+            EXPECT_NE(of("unbounced", VisibilityVariant{ .mSea = false }), whole);
+            EXPECT_NE(of("visibility", VisibilityVariant{ .mSun = false }), of("visibility", full));
+
+            std::vector<const Pipeline*> distinct;
+            for (const VisibilityPass::NamedKernel& kernel : kernels)
+                distinct.push_back(kernel.mPipeline);
+            std::ranges::sort(distinct);
+            const auto [first, last] = std::ranges::unique(distinct);
+            distinct.erase(first, last);
+            EXPECT_EQ(kernels.size() - distinct.size(), 80u) << "the stage pipelines shared tuples save";
         }
 
         /// A kernel that cannot be made is thrown to every ask, the bounded one included, and not

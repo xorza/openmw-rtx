@@ -48,7 +48,7 @@ void main()
     float covered = 0.0;
     for (int y = 0; y < grid.y; ++y)
         for (int x = 0; x < grid.x; ++x)
-            covered += textureLod(textures[nonuniformEXT(emitter.mTexture)], (vec2(x, y) + 0.5) / vec2(grid),
+            covered += textureLod(TEXTURE(sceneTexels(), emitter.mTexture), (vec2(x, y) + 0.5) / vec2(grid),
                 float(coarsest))
                            .a;
     const float layerMean = covered / float(grid.x * grid.y);

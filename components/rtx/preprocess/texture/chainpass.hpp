@@ -8,6 +8,7 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <components/misc/bytebuffer.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -42,7 +43,7 @@ namespace Rtx
     struct MadeChain
     {
         ChainForm mForm = ChainForm::Stands;
-        std::vector<std::byte> mBytes{};
+        Misc::ByteBuffer mBytes{};
     };
 
     /// A file's chain made again from its finest level (`ChainBuild`), as a pass: what the store keeps
@@ -92,12 +93,23 @@ namespace Rtx
 
         using Output = MadeChain;
 
+        /// @param build the chain build this pass and the conversion share, which the preprocessor owns:
+        ///        one a thread, holding its largest chain's scratch, and not one a pass.
+        explicit ChainPass(ChainBuild& build)
+            : mChain(build)
+        {
+        }
+
         static constexpr ContentPassId sPass = ContentPassId::Chain;
-        static constexpr std::uint32_t sVersion = 5;
+        static constexpr std::uint32_t sVersion = 7;
         static constexpr bool sStored = true;
 
         void digest(const Input& input, ContentDigest& digest);
         void run(const Input& input, Output& output);
+
+        /// Lets go of the image `digest` described, which a run lets go of as it ends and the
+        /// preprocessor once the store answered: held, it kept a file the scene let go of alive.
+        void release();
 
     private:
         /// Describes `input`'s image into the scratch, and holds it, unless it is the one described.
@@ -109,6 +121,6 @@ namespace Rtx
         std::optional<TextureData> mFile;
         std::vector<MipLevel> mLevels;
         std::vector<std::byte> mTexels;
-        ChainBuild mChain;
+        ChainBuild& mChain;
     };
 }

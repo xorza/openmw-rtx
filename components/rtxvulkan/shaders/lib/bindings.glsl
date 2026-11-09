@@ -434,7 +434,7 @@ TexelTable sceneTexels()
 /// How many texels the texture in `slot` holds, which is what its mip level owes its own size.
 uint textureTexelsAt(uint slot)
 {
-    return sceneTexels().at[slot] & ~TEXTURE_STANDS_IN;
+    return sceneTexels().at[slot] & TEXTURE_TEXELS;
 }
 
 /// Whether `slot` holds what was named for it, in this frame's array.

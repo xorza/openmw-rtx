@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -21,6 +22,7 @@
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/shader/automaps.hpp>
 
+#include "filestamps.hpp"
 #include "preparationmanifest.hpp"
 
 namespace osg
@@ -32,7 +34,6 @@ namespace Rtx
 {
     class ContentSource;
     class ContentStore;
-    class FileStamps;
 
     /// What a preparation reads and where it keeps what it computes.
     struct PreparationSetup
@@ -58,6 +59,10 @@ namespace Rtx
 
         /// How many threads walk the models.
         std::size_t mHands = 1;
+
+        /// Today, in days since the epoch in UTC: the day the manifest notes a model was named on, so
+        /// a content list no run named for a month leaves it (`PreparationManifest::sUnnamedDaysMost`).
+        std::uint32_t mDay = 0;
     };
 
     /// One ground layer's files, as the ground reader finds them (`ESMTerrain::Storage::getLayerInfo`),
@@ -103,8 +108,10 @@ namespace Rtx
         ContentPreparation(ContentPreparation&&) = delete;
         ContentPreparation& operator=(ContentPreparation&&) = delete;
 
-        /// How many of the models and layers are done, read or found as they were.
-        JobProgress getProgress() const;
+        /// How many of the models and layers are done, read or found as they were, once they are all
+        /// done or `patience` passed: a waiter that sleeps between the workers' reports, as
+        /// `Renderer::awaitKernels` waits.
+        JobProgress awaitProgress(std::chrono::milliseconds patience);
 
         /// Once every model is done: the threads joined and the manifest written for what the run
         /// read, where anything moved. Answers whether the manifest on disk is this run's.
@@ -141,7 +148,9 @@ namespace Rtx
         bool claim(std::string name);
 
         ContentSource& mContent;
-        FileStamps& mStamps;
+
+        /// The setup's stamps, each file's asked once a run.
+        KeptStamps mStamps;
         ContentStore& mStore;
         const std::filesystem::path mManifestPath;
         const osg::Node::NodeMask mMask;
@@ -155,16 +164,23 @@ namespace Rtx
         /// adds beside a diffuse is a layer read again though the diffuse stands as it was.
         const std::vector<std::string> mLayerNames;
 
-        const PreparationManifest mPrevious;
+        /// What the last preparations read, which `finish` files this run into: read by every thread
+        /// while the models are walked, and written by `finish` alone, after them.
+        PreparationManifest mManifest;
+
+        /// The day this run names its models on (`PreparationSetup::mDay`).
+        const std::uint32_t mDay;
 
         /// Each job's entry where this run read it, the models first and the layers after them,
         /// written by the one thread that read it.
         std::vector<std::optional<PreparationManifest::Entry>> mWalked;
 
         std::atomic<std::size_t> mNext{ 0 };
-        std::atomic<std::uint32_t> mMade{ 0 };
 
+        /// What the threads share under it: how many jobs are done, which a waiter is woken by, and
+        /// the chains claimed.
         Monitor mMonitor;
+        std::uint32_t mMade = 0;
         std::unordered_set<std::string> mClaimed;
 
         ContentStats mStats;

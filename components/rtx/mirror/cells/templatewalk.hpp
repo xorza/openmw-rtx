@@ -12,10 +12,14 @@
 
 #include <components/misc/result.hpp>
 #include <components/rtx/image/alpharange.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/mirror/shading.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/texture/chainpass.hpp>
+#include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 
 #include "nightday.hpp"
@@ -61,14 +65,29 @@ namespace Rtx
         ///        frame's walk carries, so the two reach the same drawables.
         void read(const osg::Node& root, osg::Node::NodeMask mask, PreparedModel& into);
 
-        /// `ThreadContent::laidOf`, through this thread's content.
-        osg::ref_ptr<const osg::Image> laidOf(const osg::Image& image) { return mContent.laidOf(image); }
-
         /// `ThreadContent::alphaRangeOf`, through this thread's content: the heights a land layer's normal map
         /// spans.
         AlphaRange alphaRangeOf(const osg::Image& image)
         {
             return mContent.alphaRangeOf(mContent.factsOf(image), image);
+        }
+
+        /// `ThreadContent::specularLayoutOf`, through this thread's content: what a `_spec` map's channels
+        /// mean, read once an image.
+        SpecularLayout specularLayoutOf(const osg::Image& image)
+        {
+            return mContent.specularLayoutOf(mContent.factsOf(image), image);
+        }
+
+        /// `ContentPreprocessor::chain` and `convert`, through this thread's content, for what asks the
+        /// store to hold a chain (`ContentAsk::Stored`): one preprocessor a thread, its build shared.
+        void storeChain(const ChainPass::Input& input, MadeChain& scratch)
+        {
+            mContent.mPreprocessor.chain(input, scratch, ContentAsk::Stored);
+        }
+        void storeConversion(const ConversionPass::Input& input, MadeChain& scratch)
+        {
+            mContent.mPreprocessor.convert(input, scratch, ContentAsk::Stored);
         }
 
         /// What the reads computed from the content since the last take — `ContentPreprocessor`.

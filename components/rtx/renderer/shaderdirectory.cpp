@@ -9,6 +9,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/bytebuffer.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/rtx/common/hashstate.hpp>
@@ -35,13 +36,14 @@ namespace Rtx
         std::sort(files.begin(), files.end());
 
         HashState digest;
-        std::vector<std::byte> bytes;
+        Misc::ByteBuffer bytes;
         for (const std::filesystem::path& file : files)
         {
             // A module that will not read is left out: a digest is a key, and a module that will
             // not read is one the renderer reading it reports.
             const std::string name = Files::pathToUnicodeString(file.filename());
-            if (const Result<void, Platform::IoError> read = Platform::readWhole(file, bytes); !read.isOk())
+            if (const Result<void, Platform::IoError> read = Platform::readWhole(file, bytes, Platform::sUnbounded);
+                !read.isOk())
             {
                 Log(Debug::Warning) << "Rtx: " << name
                                     << " would not read for the shaders' digest: " << read.error().mCode.message();

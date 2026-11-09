@@ -93,16 +93,29 @@ namespace Rtx
 
         /// The layout every array declares, sized to the maximum and not to the scene, because a
         /// pipeline outlives a cell and two set layouts are compatible only where they are
-        /// identically defined. The maximum is paid once: a combined image sampler is 4 B on NVIDIA
-        /// and 96 B in RADV, so a set's three arrays are 0.1 MB and 2.4 MB of pool.
+        /// identically defined. The maximum is paid once: a sampled image is 64 B in RADV, so a
+        /// set's two image arrays are 1 MB of pool.
         constexpr std::array<VkDescriptorSetLayoutBinding, 3> sBindings{
-            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_IMAGES, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_IMAGES, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
                 Shaders::TEXTURE_SLOTS, sStages, nullptr },
-            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_COMPANIONS, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_COMPANIONS, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
                 Shaders::TEXTURE_SLOTS, sStages, nullptr },
-            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_ALONG, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                Shaders::TEXTURE_SLOTS, sStages, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_SAMPLERS, VK_DESCRIPTOR_TYPE_SAMPLER,
+                Shaders::TEXTURE_SAMPLERS, sStages, nullptr },
         };
+
+        static_assert(Shaders::TEXTURE_SAMPLERS_ALONG == sTextureWrapCount);
+        static_assert(Shaders::TEXTURE_SAMPLERS == 2 * sTextureWrapCount);
+        static_assert(Shaders::TEXTURE_TEXELS >> Shaders::TEXTURE_WRAP_SHIFT == 0);
+        static_assert(sTextureWrapCount << Shaders::TEXTURE_WRAP_SHIFT == Shaders::TEXTURE_STANDS_IN);
+        static_assert(
+            std::uint64_t{ Shaders::TEXTURE_SIDE_MOST } * Shaders::TEXTURE_SIDE_MOST <= Shaders::TEXTURE_TEXELS);
+
+        /// `sampler` as a sampler descriptor takes it.
+        constexpr VkDescriptorImageInfo describeSampler(const VkSampler sampler)
+        {
+            return VkDescriptorImageInfo{ sampler, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED };
+        }
 
         /// One footprint sampler per `TextureWrap`, indexed by it, filtering by `anisotropy`.
         std::array<Sampler, sTextureWrapCount> makeFootprintSamplers(
@@ -266,8 +279,8 @@ namespace Rtx
     SetLayout TextureArray::describeLayout(const Device& device)
     {
         // Partially bound because a scene with fewer textures than the array can hold leaves the
-        // tail unwritten. Update after bind, because an arrival writes this set while work that
-        // named it is still on the queue — legal as long as no pending command reads that
+        // tail unwritten, and the samplers before the first `sync`. Update after bind, because an arrival writes this
+        // set while work that named it is still on the queue — legal as long as no pending command reads that
         // descriptor, and a slot nothing has described is a slot no material names.
         constexpr VkDescriptorBindingFlags sBound
             = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
@@ -291,7 +304,7 @@ namespace Rtx
             makeContentSampler(device, "textures clamped along t", TextureWrap::ClampT),
             makeContentSampler(device, "textures clamped", TextureWrap::Clamp) }
         , mFootprintSamplers(makeFootprintSamplers(device, anisotropy))
-        , mSideLimit(device.getPhysicalDevice().getTextureSide())
+        , mSideLimit(std::min(device.getPhysicalDevice().getTextureSide(), Shaders::TEXTURE_SIDE_MOST))
         // Allocated at the maximum the layout declares, not at what this scene brought. Sizing the
         // set to the cell is what made a texture arriving mean a new set, a new pool and every
         // image uploaded again; the maximum's pool is paid once (`sBindings`). `write` then only
@@ -660,13 +673,15 @@ namespace Rtx
                 .mOutput = texture.mSource == TextureSource::GroundGloss ? Shaders::GROUND_COMPOSITE_GLOSS
                                                                          : Shaders::GROUND_COMPOSITE_ALBEDO });
 
-        // How many texels the slot now holds, for `coneLod`, and whether they are the stand-in's,
-        // which every reader of an optional map asks — `TEXTURE_STANDS_IN`. Owed to every copy
-        // beside the descriptor owed to every set.
-        const Image& stood = standingIn(slot).getImage();
-        const std::uint32_t texels = stood.getWidth() * stood.getHeight();
-        assert(texels < Shaders::TEXTURE_STANDS_IN && "a texel count that reaches the stand-in bit");
-        mTexels.write(texture.mSlot) = texels | (slot.mStandIn ? Shaders::TEXTURE_STANDS_IN : 0u);
+        // How many texels the slot now holds, for `coneLod`, the wrap that picks its sampler, and
+        // whether they are the stand-in's, which every reader of an optional map asks —
+        // `TEXTURE_STANDS_IN`. Owed to every copy beside the descriptor owed to every set.
+        const Texture& standing = standingIn(slot);
+        const std::uint32_t texels = standing.getImage().getWidth() * standing.getImage().getHeight();
+        assert(texels <= Shaders::TEXTURE_TEXELS && "a texel count that reaches the wrap");
+        mTexels.write(texture.mSlot) = texels
+            | (static_cast<std::uint32_t>(standing.getWrap()) << Shaders::TEXTURE_WRAP_SHIFT)
+            | (slot.mStandIn ? Shaders::TEXTURE_STANDS_IN : 0u);
 
         for (SlotSet& owed : mOwed.live())
             owed.addMakingRoom(texture.mSlot);
@@ -678,6 +693,7 @@ namespace Rtx
         // A set with descriptors owed names what it no longer holds: after `setAnisotropy`, a
         // sampler destroyed with the ones it replaced.
         assert(mOwed.at(slot).empty() && "a texture set sampled before `sync` paid what it owes");
+        assert(!mSamplersOwed.at(slot) && "a texture set sampled before `sync` wrote its samplers");
         mBound.at(slot).nameFor(mDevice.getTimeline().getNext());
         return mSets.get(slot.get());
     }
@@ -693,7 +709,8 @@ namespace Rtx
         mTexels.sync(slot);
 
         SlotSet& owed = mOwed.at(slot);
-        if (owed.empty())
+        bool& samplersOwed = mSamplersOwed.at(slot);
+        if (owed.empty() && !samplersOwed)
             return;
 
         assert(mBound.at(slot).isIdle(mDevice) && "a descriptor written under a submit still bound to it");
@@ -702,12 +719,27 @@ namespace Rtx
         // the scene's free list put them, and a run is no longer what they are. Reserved before
         // any write points into it, since a write names its image by address.
         const std::span<const Index> slots = owed.getSlots();
+        const std::size_t writes = 2 * slots.size() + (samplersOwed ? Shaders::TEXTURE_SAMPLERS : 0);
         mImageScratch.clear();
         mWriteScratch.clear();
-        mImageScratch.reserve(3 * slots.size());
-        mWriteScratch.reserve(3 * slots.size());
+        mImageScratch.reserve(writes);
+        mWriteScratch.reserve(writes);
 
         const VkDescriptorSet set = mSets.get(slot.get());
+        if (samplersOwed)
+        {
+            for (std::size_t wrap = 0; wrap < sTextureWrapCount; ++wrap)
+            {
+                const auto at = static_cast<std::uint32_t>(wrap);
+                queueWrite(set, Shaders::TEXTURE_BIND_SAMPLERS, at, VK_DESCRIPTOR_TYPE_SAMPLER,
+                    describeSampler(mSamplers[wrap].get()), mImageScratch, mWriteScratch);
+                queueWrite(set, Shaders::TEXTURE_BIND_SAMPLERS, Shaders::TEXTURE_SAMPLERS_ALONG + at,
+                    VK_DESCRIPTOR_TYPE_SAMPLER, describeSampler(mFootprintSamplers[wrap].get()), mImageScratch,
+                    mWriteScratch);
+            }
+            samplersOwed = false;
+        }
+
         for (const Index at : slots)
         {
             // Owed and since dropped: the slot holds nothing, and a descriptor left naming what has
@@ -717,15 +749,12 @@ namespace Rtx
             if (held.isEmpty())
                 continue;
 
-            const std::size_t wrap = static_cast<std::size_t>(held.getWrap());
-            const VkSampler sampler = mSamplers[wrap].get();
-            queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, at, held.describe(sampler), mImageScratch, mWriteScratch);
+            queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, at, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, held.describe(),
+                mImageScratch, mWriteScratch);
             // A companion only where a read reaches one, a normal map's: the binding is partially bound.
             if (held.hasCompanion())
-                queueWrite(set, Shaders::TEXTURE_BIND_COMPANIONS, at, held.describeCompanion(sampler), mImageScratch,
-                    mWriteScratch);
-            queueWrite(set, Shaders::TEXTURE_BIND_ALONG, at, held.describe(mFootprintSamplers[wrap].get()),
-                mImageScratch, mWriteScratch);
+                queueWrite(set, Shaders::TEXTURE_BIND_COMPANIONS, at, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                    held.describeCompanion(), mImageScratch, mWriteScratch);
         }
 
         updateSets(mDevice, mWriteScratch);
@@ -845,19 +874,12 @@ namespace Rtx
     {
         // The samplers replaced bury themselves: a frame in flight may still sample through them.
         mFootprintSamplers = makeFootprintSamplers(mDevice, anisotropy);
-
-        // Every slot and not only those that stand: `sync` passes over a slot that holds nothing,
-        // as it does one owed and since dropped.
-        for (SlotSet& owed : mOwed.live())
-        {
-            for (std::uint32_t slot = 0; slot < mSlots.size(); ++slot)
-                owed.addMakingRoom(slot);
-            owed.addMakingRoom(Shaders::TEXTURE_NEUTRAL);
-        }
+        for (bool& owed : mSamplersOwed.live())
+            owed = true;
     }
 
     void TextureArray::queueWrite(const VkDescriptorSet set, const std::uint32_t binding, const std::uint32_t slot,
-        const VkDescriptorImageInfo& image, std::vector<VkDescriptorImageInfo>& images,
+        const VkDescriptorType type, const VkDescriptorImageInfo& image, std::vector<VkDescriptorImageInfo>& images,
         std::vector<VkWriteDescriptorSet>& writes)
     {
         images.push_back(image);
@@ -868,7 +890,7 @@ namespace Rtx
             .dstBinding = binding,
             .dstArrayElement = slot,
             .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorType = type,
             .pImageInfo = &images.back(),
             .pBufferInfo = nullptr,
             .pTexelBufferView = nullptr,

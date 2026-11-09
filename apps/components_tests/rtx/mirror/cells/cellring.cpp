@@ -1918,10 +1918,7 @@ namespace Rtx::Testing
             EXPECT_EQ(*rock.mRelief, (AlphaRange{ .mLow = 128, .mHigh = 128 })) << "the grey every texel holds";
             EXPECT_FALSE(grass.mRelief.has_value());
             EXPECT_EQ(grass.mNormalTexture, nullptr);
-            EXPECT_EQ(grass.mTexture->mImage, looseGrass) << "the file was replaced rather than laid beside";
-            ASSERT_NE(grass.mTexture->mLaid, nullptr) << "a widened file was left to the hand-over";
-            EXPECT_EQ(grass.mTexture->mLaid->getPixelFormat(), static_cast<GLenum>(GL_RGBA));
-            EXPECT_EQ(rock.mTexture->mLaid, nullptr) << "a file uploaded as it is was laid";
+            EXPECT_EQ(grass.mTexture->mImage, looseGrass) << "the file is held as it was read";
 
             // What a cell holds is the one list `collectTextures` derives: each layer's diffuse,
             // then its normal map.

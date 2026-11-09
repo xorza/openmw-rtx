@@ -11,6 +11,7 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/shadingmap.hpp>
 #include <components/rtx/image/texels.hpp>
@@ -100,7 +101,7 @@ namespace RtxTool
             // sheet off the file, and none for a texture nothing delights.
             const std::optional<Rtx::ShadingMap> painted = texture.mEncoding != Rtx::TextureEncoding::Painted
                 ? std::nullopt
-                : std::optional<Rtx::ShadingMap>(std::in_place, texture);
+                : std::optional<Rtx::ShadingMap>(std::in_place, texture, Rtx::AlphaImage(texture));
 
             for (std::uint32_t y = 0; y < sThumbnail; ++y)
                 for (std::uint32_t x = 0; x < sThumbnail; ++x)

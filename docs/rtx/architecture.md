@@ -347,9 +347,9 @@ source-tree test holds the order.
 - **The tuples that march a relief stand only beside the maps** (`HAS_RELIEF`), 48 made of the table's 64, since a
   relief is read through a normal map. Refused: the full product, sixteen tuples no frame asks for, compiled at every
   first start.
-- **A seabed's relief is marched under the sea**, which holds the sea's walk at 224 registers against the 219 it held:
-  on an RDNA SIMD both run four waves. Refused: the landing's shift there, which takes a seabed's relief away for
-  registers that cost no wave.
+- **A seabed's relief is marched under the sea**, which cost the sea's walk five registers, 219 to 224 where it was
+  measured: on an RDNA SIMD both ran four waves. Refused: the landing's shift there, which takes a seabed's relief
+  away for registers that cost no wave.
 - **No setting turns the march off**: it costs a close wall 3% of its frame on a high-end NVIDIA laptop GPU and 5% on
   a low-end AMD integrated one, and a far surface what the shift cost, since there the march is the shift
   (`research/2026-11-08-relief-cost-and-noise.md`). `--relief` is the harness's A/B alone (`SamplingSwitches::mRelief`).
@@ -382,9 +382,10 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
   ccache's direct mode keys, which a file inside a BSA or a shadowed path makes quietly wrong; XXH3, a dependency for
   a share this small; and a key for `SolidReach` and `SolidFall`, whose walks stop before a key would read every byte.
 - **One file an entry, and every entry untrusted**: 256 folders by the key's first byte, as ccache and Bazel's disk
-  cache keep theirs ([EngFlow](https://blog.engflow.com/2024/05/13/the-many-caches-of-bazel/)); a header states the
+  cache keep theirs ([EngFlow](https://blog.engflow.com/2024/05/13/the-many-caches-of-bazel/)); a trailer states the
   format, the pass, its version, the key and the payload's length and digest, and a file that does not match is a miss
-  and is deleted. Written to a temporary name and renamed, so a reader sees a whole entry or none. Refused: SQLite, by
+  and is deleted. A trailer and not a header, as Parquet ends its files with its footer, so a read drops it by a resize
+  and moves no byte of the payload. Written to a temporary name and renamed, so a reader sees a whole entry or none. Refused: SQLite, by
   the user's decision; a pack file a pass, which two processes merge only under a lock; and a sync before each rename,
   where the digest finds a body a power loss left unwritten.
 - **The frame reaches the store's memory alone** (`StoreReach`): an entry of 4 KiB or less is held once read or
@@ -442,7 +443,10 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
 - **The preparation is incremental by each file's stamp; the lookup is by content**: a manifest names each model's
   files and a digest of their sizes and times, so a start after one mod changed walks that mod again, as ccache's
   direct mode trusts a stat; the game keys every lookup by the bytes, so a stamp that lies costs a miss and never a
-  wrong answer.
+  wrong answer. Every content list's models stand in it until no run named them for 30 days, so a switch between
+  profiles walks neither again, each file's name held once and each file stamped once a run; a chain the store holds
+  is not read, one `stat`, and play reads it. Refused: a manifest a content list, a file each profile would add; an
+  age counted in runs, a write at every start.
 - **A pass's version is held by a test** (`RtxPassVersionsTest`): each pass's outputs over fixed inputs are digested
   beside its `sVersion`, so a forgotten bump fails, and a version moves whenever an output for the same input moves,
   an encoder's update included. Refused: the build's revision in every key, which empties the store at every build.
@@ -495,6 +499,12 @@ at the top, over all of them.
   engine's update (`research/2026-10-22-crossing-worst-frames.md`); a defragmentation, since the
   pool holds at its high-water mark and does not creep
   (`research/2026-10-22-content-pool-after-a-long-walk.md`).
+- **A texture's image and its sampler stand apart, paired at each read by the wrap its texel word carries**
+  (`TEXTURE_WRAP_SHIFT`): AMD's Windows driver hung in the waterfall of a combined footprint array and passes the
+  pair, and a change of anisotropy writes eight samplers in place of a descriptor a slot
+  (`research/2026-11-09-separate-samplers.md`). The wrap rides in the word a level's read loads already, so a texture
+  stands at 16384 a side at most. Refused: a combined image sampler a slot and a filter, which kept the waterfall that
+  hung; a table of wraps, a second load at every read.
 - **The frame's targets are made at `createTargets` and counted from what makes them.** The
   reserve sums each owner's `bytesAt`, read off the descriptions it makes its images of, and the
   pictures' chain is made at the room its views asked (`PictureRenderer::reservePicture`), never on
@@ -716,8 +726,10 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   from 244 to 256, four waves at either, for the gather that carries the lamp's draw and not its
   ray (`research/2026-10-22-amd-integrated-spill-ceilings.md`). The whole tuple, which alone reads a
   see-through dark map's alpha (`HAS_DARK_ALPHA`), holds ceilings of its own past that rule, since nearly
-  no scene runs it for long; the same tuple without the read holds the rule's. A
-  spill is a cost measured and cut where it shows in the frame, as NVIDIA cut Indiana Jones' path
+  no scene runs it for long; the same tuple without the read holds the rule's. Each target driver holds ceilings
+  of its own, read by its own statistics' names (`CompiledUse`): AMD's own driver's, RADV's and NVIDIA's, whose
+  compiler holds a stage at 128 registers and keeps the rest in shared memory, which the gate holds as it holds a
+  spill. A spill is a cost measured and cut where it shows in the frame, as NVIDIA cut Indiana Jones' path
   tracer's; held at nought, it kept the gate red until a redesign and hid a new regression behind
   the old failure.
 - **A stage a kernel, in one fixed order, the channels between them**: `visibility`, `water`,
@@ -774,6 +786,12 @@ pipeline that also calls `traceRayEXT` (`research/2026-10-19-amd-windows-driver-
   did not move past its noise, and no picture moved (`research/2026-11-02-water-stage.md`). Refused:
   the peel traced again in `water`, which cost it a fifth more and the desk's frame 0.7 %; the split
   on AMD alone, two builds of one kernel, which every stage refuses.
+- **A walk resolves the surface it ends on once, after it** (`stepWater`, `waterPathAsk`): the water's and the media's
+  walks carry only where each hit lies (`PlacedHit`), and the water stage reads the peel's state back from its record
+  after the walk and asks the path's last ray again to resolve the surface it shades. On a low-end AMD integrated GPU
+  the water stage fell from 248 registers to 190 and the media from 248 to 216, the tuple without the dark alpha's read
+  to 177 and 192, and no picture moved (`research/2026-11-09-walks-resolve-once.md`). Refused: the surface resolved at
+  each step, which held a whole `Surface` live through the loop for the one step that shades it.
 - **The surface a pixel is the hit the trace stored**, resolved again by a stage with no traversal
   (`storeStageSolid`, `storedSolidOf`): the instance, the triangle and the barycentrics, with the
   ray's start, direction, footprint and distance, 48 bytes, as Falcor's visibility buffer keeps a

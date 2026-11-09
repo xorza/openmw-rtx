@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <span>
+#include <system_error>
 
 #include <components/misc/result.hpp>
 
@@ -20,8 +21,16 @@ namespace Platform::WholeFileSystem
         void* mBuffer;
     };
 
-    /// Reads all of `path` into `sink`, to the end, and sizes it to what was read.
-    Result<void, IoError> read(const std::filesystem::path& path, Sink sink);
+    /// Reads all of `path` into `sink`, to the end, and sizes it to what was read; a file past `most`
+    /// bytes is `tooLarge()`, on its stated size before the sink grows where it states one.
+    Result<void, IoError> read(const std::filesystem::path& path, Sink sink, std::size_t most);
+
+    /// What a read past its bound fails with.
+    inline Err<IoError> tooLarge()
+    {
+        return Err<IoError>{ IoError{
+            .mFailure = IoFailure::TooLarge, .mCode = std::make_error_code(std::errc::file_too_large) } };
+    }
 
     /// Makes `path`, which must not be there yet, holding `parts` one after another, and syncs it
     /// before it is closed where `synced`.

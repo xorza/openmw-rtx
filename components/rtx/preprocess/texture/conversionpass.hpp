@@ -44,7 +44,7 @@ namespace Rtx
     /// as a painted colour is kept, and in BC7 otherwise; a metal-roughness map in BC7.
     ///
     /// **The key is everything the run reads**: the encoding, the wrap the diffuse is delit under, and
-    /// each file's format, level count, finest extent and every level's bytes.
+    /// each file's format, finest extent and finest level's bytes, the one level it reads of either.
     class ConversionPass
     {
     public:
@@ -64,12 +64,22 @@ namespace Rtx
 
         using Output = MadeChain;
 
+        /// @param build the chain build this pass and `ChainPass` share (`ChainPass`'s reason), which
+        ///        delits the diffuse and then makes the converted chain.
+        explicit ConversionPass(ChainBuild& build)
+            : mChain(build)
+        {
+        }
+
         static constexpr ContentPassId sPass = ContentPassId::Conversion;
-        static constexpr std::uint32_t sVersion = 1;
+        static constexpr std::uint32_t sVersion = 4;
         static constexpr bool sStored = true;
 
         void digest(const Input& input, ContentDigest& digest);
         void run(const Input& input, Output& output);
+
+        /// Lets go of both images `digest` described (`ChainPass::release`).
+        void release();
 
     private:
         /// Describes `input`'s two files into the scratch, the diffuse as a painted colour and the
@@ -88,7 +98,6 @@ namespace Rtx
         std::vector<MipLevel> mSpecularLevels;
         std::vector<std::byte> mSpecularTexels;
 
-        ChainBuild mDelit;
         AlphaImage mGloss;
         std::vector<osg::Vec3f> mBand;
         std::vector<osg::Vec3f> mHighlights;
@@ -96,6 +105,6 @@ namespace Rtx
         /// The converted finest level, four bytes a texel, and the chain made of it.
         std::vector<std::byte> mConverted;
         std::vector<MipLevel> mConvertedLevel;
-        ChainBuild mChain;
+        ChainBuild& mChain;
     };
 }

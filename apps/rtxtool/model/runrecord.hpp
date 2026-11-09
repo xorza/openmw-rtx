@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -108,6 +109,10 @@ namespace RtxTool
         /// The report as it is built, so a launcher gets the whole of it rather than the log's
         /// timestamped halves.
         std::string mReport;
+
+        /// The kernel's compaction stalls when the first place loaded (`Platform::Process::compactionStalls`):
+        /// a run on huge pages whose count rose has frames a compaction stalled.
+        std::optional<std::uint64_t> mCompactionStalls;
 
         int mExitStatus = 0;
         bool mDiffered = false;

@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 #include <span>
 #include <utility>
 #include <vector>
@@ -15,8 +16,10 @@
 
 #include <rgbcx/rgbcx.h>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <components/misc/bytebuffer.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -53,6 +56,148 @@ namespace Rtx
             std::vector<std::byte>& texels)
         {
             return describeImage(image, encoding, levels, texels).value();
+        }
+
+        /// Adds one level to `texture`, painted from `bytes` or left blank where none are given.
+        void addLevel(Testing::TestTexture& texture, std::uint32_t width, std::uint32_t height,
+            std::initializer_list<std::uint8_t> bytes = {})
+        {
+            texture.mLevels.push_back(MipLevel{ static_cast<std::uint32_t>(texture.mBytes.size()), width, height });
+            if (bytes.size() > 0)
+                texture.mBytes.insert(texture.mBytes.end(), bytes);
+            else
+                texture.mBytes.resize(texture.mBytes.size() + std::size_t{ width } * height * 4);
+        }
+
+        /// One channel of one texel of a built level.
+        std::uint32_t channelAt(
+            const ChainBuild& chain, std::uint32_t level, std::uint32_t x, std::uint32_t y, std::size_t channel)
+        {
+            const MipLevel& which = chain.getLevel(level);
+            return std::to_integer<std::uint32_t>(
+                chain.getTexels(level)[(std::size_t{ y } * which.mWidth + x) * 4 + channel]);
+        }
+
+        /// **Every level built is the box of the one above it.** Four quads of one value apiece — 100,
+        /// 200, 0 and 40 — so the second level is those four numbers and the third is their mean,
+        /// `(100 + 200 + 0 + 40) / 4 = 85`. Opaque throughout, which is what makes the weighing below a
+        /// separate question from this one. The finest level is the file's own.
+        TEST(RtxChainBuildTest, everyLevelBuiltIsTheBoxOfTheOneAboveIt)
+        {
+            Testing::TestTexture four;
+            for (const std::uint8_t value : { 100, 200, 100, 200, 0, 40, 0, 40 })
+                for (int twice = 0; twice < 2; ++twice)
+                    for (const std::uint8_t byte : { value, value, value, std::uint8_t{ 255 } })
+                        four.mBytes.push_back(byte);
+            four.mLevels.push_back(MipLevel{ 0, 4, 4 });
+            four.describe(4, 4, "four");
+
+            ChainBuild chain;
+            chain.build(four.mData, levelsTo1x1(4, 4));
+            ASSERT_EQ(chain.getLevelCount(), 3u) << "4 by 4 runs down to one texel in three levels";
+            EXPECT_EQ(channelAt(chain, 0, 0, 0, 0), 100u);
+            EXPECT_EQ(channelAt(chain, 0, 3, 3, 0), 40u);
+            EXPECT_EQ(chain.getLevel(1).mWidth, 2u);
+            EXPECT_EQ(channelAt(chain, 1, 0, 0, 0), 100u);
+            EXPECT_EQ(channelAt(chain, 1, 1, 0, 0), 200u);
+            EXPECT_EQ(channelAt(chain, 1, 0, 1, 0), 0u);
+            EXPECT_EQ(channelAt(chain, 1, 1, 1, 0), 40u);
+            EXPECT_EQ(chain.getLevel(2).mWidth, 1u);
+            EXPECT_EQ(channelAt(chain, 2, 0, 0, 0), 85u) << "the mean of the four quads";
+            EXPECT_EQ(channelAt(chain, 2, 0, 0, 3), 255u) << "nothing was transparent, so nothing faded";
+        }
+
+        /// **A colour is weighed by the alpha carrying it, and the alpha is not.** A punch-through block
+        /// stores black where it painted nothing, so an even mean draws a dark rim round every leaf card
+        /// one level down: two white texels at full alpha beside two black ones at none come to white at
+        /// half alpha, where an even mean would come to 127. A quad with nothing painted in it still has
+        /// the even mean, 40; and data's alpha is a channel like the others, its box even, the white and
+        /// the black meeting at 127.5, which rounds to 128.
+        TEST(RtxChainBuildTest, aColourIsWeighedByTheAlphaCarryingItAndTheAlphaIsNot)
+        {
+            Testing::TestTexture pair;
+            addLevel(pair, 2, 2, { 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 });
+            pair.describe(2, 2, "pair");
+            ChainBuild chain;
+            chain.build(pair.mData, 2);
+            EXPECT_EQ(channelAt(chain, 1, 0, 0, 0), 255u) << "the black the transparent texels stored was averaged in";
+            EXPECT_EQ(channelAt(chain, 1, 0, 0, 3), 128u) << "half of it was painted";
+
+            Testing::TestTexture empty;
+            addLevel(empty, 2, 2, { 60, 60, 60, 0, 20, 20, 20, 0, 60, 60, 60, 0, 20, 20, 20, 0 });
+            empty.describe(2, 2, "empty");
+            chain.build(empty.mData, 2);
+            EXPECT_EQ(channelAt(chain, 1, 0, 0, 0), 40u);
+            EXPECT_EQ(channelAt(chain, 1, 0, 0, 3), 0u);
+
+            Testing::TestTexture data;
+            addLevel(data, 2, 2, { 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 });
+            data.describe(2, 2, "data");
+            data.mData.mEncoding = TextureEncoding::Data;
+            chain.build(data.mData, 2);
+            EXPECT_EQ(channelAt(chain, 1, 0, 0, 0), 128u) << "data was weighed by its alpha";
+            EXPECT_EQ(channelAt(chain, 1, 0, 0, 3), 128u);
+        }
+
+        /// **An odd extent is halved by the box of its own width**, three taps a texel, so its last texel is
+        /// read. Five texels along a line, the last of them 250 and the rest nought: level one is two texels,
+        /// `(2, 2, 1) / 5` over texels 0 to 2 and `(1, 2, 2) / 5` over 2 to 4, so nought and
+        /// `250 * 2 / 5 = 100`; level two is their mean, 50. Halved as two, texel 4 was never read.
+        TEST(RtxChainBuildTest, anOddExtentIsHalvedByTheBoxOfItsOwnWidth)
+        {
+            Testing::TestTexture line;
+            for (const std::uint8_t value : { 0, 0, 0, 0, 250 })
+                for (const std::uint8_t byte : { value, value, value, std::uint8_t{ 255 } })
+                    line.mBytes.push_back(byte);
+            line.mLevels.push_back(MipLevel{ 0, 5, 1 });
+            line.describe(5, 1, "line");
+
+            ChainBuild chain;
+            chain.build(line.mData, levelsTo1x1(5, 1));
+            ASSERT_EQ(chain.getLevelCount(), 3u) << "five texels run down to one in three levels";
+            ASSERT_EQ(chain.getLevel(1).mWidth, 2u);
+            EXPECT_EQ(channelAt(chain, 1, 0, 0, 0), 0u);
+            EXPECT_EQ(channelAt(chain, 1, 1, 0, 0), 100u) << "the last texel of an odd extent was dropped";
+            EXPECT_EQ(channelAt(chain, 2, 0, 0, 0), 50u);
+            EXPECT_EQ(channelAt(chain, 2, 0, 0, 3), 255u) << "the weights did not sum to one";
+        }
+
+        /// **A display-encoded texture is averaged in light and written back encoded**: half of nothing
+        /// and half of white meet at 188 in light and at 128 in bytes (`Rtx::toLinear`).
+        TEST(RtxChainBuildTest, aDisplayEncodedTextureIsAveragedInLight)
+        {
+            Testing::TestTexture pair;
+            addLevel(pair, 2, 2, { 255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255 });
+            pair.describe(2, 2, "pair", TextureFormat::Rgba8Srgb);
+            ChainBuild chain;
+            chain.build(pair.mData, 2);
+            EXPECT_EQ(channelAt(chain, 1, 0, 0, 0), 188u);
+        }
+
+        /// **A chain built again is the texture it was handed and nothing of the one before, and costs the
+        /// heap nothing where it already grew for its shape**: a 4x4 built to three levels, a 2x2 after it
+        /// to two, and the 4x4 again to three with no allocation, as a thread that makes chain after chain
+        /// keeps one build.
+        TEST(RtxChainBuildTest, aChainBuiltAgainIsTheNewTextureAndKeepsTheRoomOfTheLast)
+        {
+            Testing::TestTexture single;
+            addLevel(single, 4, 4);
+            single.describe(4, 4, "single");
+            Testing::TestTexture small;
+            addLevel(small, 2, 2);
+            small.describe(2, 2, "small");
+
+            ChainBuild chain;
+            chain.build(single.mData, 3);
+            ASSERT_EQ(chain.getLevelCount(), 3u);
+            chain.build(small.mData, 2);
+            EXPECT_EQ(chain.getLevelCount(), 2u) << "the last texture's levels came through";
+
+            const std::size_t before = Testing::getAllocationCount();
+            chain.build(single.mData, 3);
+            const std::size_t spent = Testing::getAllocationCount() - before;
+            EXPECT_EQ(spent, 0u) << "a rebuild reached the heap " << spent << " times";
+            EXPECT_EQ(chain.getLevelCount(), 3u);
         }
 
         /// **A normal map's chain is the direction of the mean of its unit normals, every level made**: a
@@ -93,13 +238,46 @@ namespace Rtx
 
             // Each level one BC7 block, its mode its first byte's lowest set bit: mode 5, which keeps the
             // height apart, for a block that holds one.
-            std::vector<std::byte> encoded;
+            Misc::ByteBuffer encoded;
             chain.encodeBc7(TextureEncoding::Normal, encoded);
             ASSERT_EQ(encoded.size(), 32u);
+            EXPECT_EQ(encoded.capacity(), 32u) << "the chain's room taken once, and no more";
             for (std::size_t block = 0; block < 2; ++block)
                 EXPECT_EQ(std::to_integer<unsigned>(encoded[block * 16]) & 0x3fu, 0x20u) << "block " << block;
             EXPECT_TRUE(Testing::isNear(
                 Testing::firstTexelOf(TextureFormat::Bc7Unorm, std::span(encoded).subspan(16)), texelOf(1, 0), 2));
+        }
+
+        /// **A normal map's chain is the same streamed through a ring of rows as built whole**: a 23x23
+        /// map of noise, odd so every box reads three rows and its windows cross the reader's bands of four,
+        /// makes the five levels down to a texel whose bytes, every level's, hash to what the build that kept
+        /// every finest mean made.
+        TEST(RtxChainBuildTest, aNormalMapsChainStreamedThroughItsRowsIsTheChainBuiltWhole)
+        {
+            constexpr std::uint32_t side = 23;
+            std::vector<std::uint8_t> bytes(std::size_t{ side } * side * 4);
+            std::uint32_t state = 12345;
+            for (std::uint8_t& byte : bytes)
+            {
+                state = state * 1664525u + 1013904223u;
+                byte = static_cast<std::uint8_t>(state >> 24);
+            }
+            const osg::ref_ptr<osg::Image> image = makeChained(GL_RGBA8, GL_RGBA, side, { bytes.size() }, bytes);
+            std::vector<MipLevel> levels;
+            std::vector<std::byte> texels;
+            const TextureData file = describe(*image, TextureEncoding::Normal, levels, texels);
+
+            ChainBuild chain;
+            chain.build(file, levelsTo1x1(side, side));
+            ASSERT_EQ(chain.getLevelCount(), 5u);
+            std::uint64_t hash = 14695981039346656037u;
+            for (std::uint32_t level = 0; level < chain.getLevelCount(); ++level)
+                for (const std::byte byte : chain.getTexels(level))
+                {
+                    hash ^= std::to_integer<std::uint8_t>(byte);
+                    hash *= 1099511628211u;
+                }
+            EXPECT_EQ(hash, 0xfa13c554e764e17du) << std::hex << hash;
         }
 
         /// **A map of two channels is given its blue, and a mean that points nowhere is made straight
@@ -141,7 +319,7 @@ namespace Rtx
                 EXPECT_EQ(std::to_integer<int>(first[3]), 255) << "level " << level << ", no height";
             }
 
-            std::vector<std::byte> opaque;
+            Misc::ByteBuffer opaque;
             chain.encodeBc7(TextureEncoding::Normal, opaque);
             EXPECT_EQ(std::to_integer<unsigned>(opaque[0]) & 0x7fu, 0x40u) << "mode 6 for a block with no height";
 
@@ -154,10 +332,10 @@ namespace Rtx
             EXPECT_EQ(std::to_integer<int>(up[2]), 255);
         }
 
-        /// **A colour's chain weighs it by its coverage, and the channels keep the file's order**: a
-        /// BGRA8 colour whose one solid texel is pure red, beside three holes of white, is made again
-        /// red under a quarter's alpha, written blue, green, red.
-        TEST(RtxChainBuildTest, aColoursChainWeighsItByCoverageInTheFilesOwnChannelOrder)
+        /// **A colour's chain weighs it by its coverage, read in the file's own channel order**: a BGRA8
+        /// colour whose one solid texel is pure red, beside three holes of white, is built again red
+        /// under a quarter's alpha, laid red, green, blue, as every built level is.
+        TEST(RtxChainBuildTest, aColoursChainWeighsItByCoverageReadInTheFilesOwnChannelOrder)
         {
             const std::vector<std::uint8_t> bytes{
                 0, 0, 255, 255, //
@@ -174,13 +352,39 @@ namespace Rtx
 
             ChainBuild chain;
             chain.build(file, 2);
-            std::vector<std::byte> built;
-            chain.encode(file, 1, built);
+            const std::span<const std::byte> built = chain.getTexels(1);
             ASSERT_EQ(built.size(), 4u);
-            EXPECT_EQ(std::to_integer<int>(built[0]), 0) << "blue";
+            EXPECT_EQ(std::to_integer<int>(built[0]), 255) << "red, the solid texel's alone";
             EXPECT_EQ(std::to_integer<int>(built[1]), 0) << "green";
-            EXPECT_EQ(std::to_integer<int>(built[2]), 255) << "red, the solid texel's alone";
+            EXPECT_EQ(std::to_integer<int>(built[2]), 0) << "blue";
             EXPECT_EQ(std::to_integer<int>(built[3]), 64) << "a quarter's coverage";
+        }
+
+        /// **A BC2 chain's alpha is written whole, into a buffer that held other bytes**: a 4x4 BC2 file
+        /// of white under sixteen alphas of nibble 8, 136 of 255, is made again under the same alpha, whose
+        /// nibble is (136 × 15 + 127) / 255 = 8: every one of the eight alpha bytes 0x88, though the
+        /// buffer encoded into held 0xFF where they land.
+        TEST(RtxChainBuildTest, aBc2ChainsAlphaIsWrittenWhole)
+        {
+            const std::vector<std::uint8_t> bytes{
+                0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0xff, 0xff, 0, 0, 0, 0, 0, 0, //
+                0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0xff, 0xff, 0, 0, 0, 0, 0, 0, //
+            };
+            const osg::ref_ptr<osg::Image> image
+                = makeChained(GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, 4, { 16, 16 }, bytes);
+            std::vector<MipLevel> levels;
+            std::vector<std::byte> texels;
+            const TextureData file = describe(*image, TextureEncoding::Data, levels, texels);
+            ASSERT_TRUE(ChainBuild::rebuilds(file));
+
+            ChainBuild chain;
+            chain.build(file, 2);
+            Misc::ByteBuffer built(16, std::byte{ 0xff });
+            built.clear();
+            chain.encode(file, 1, built);
+            ASSERT_EQ(built.size(), 16u);
+            for (std::size_t at = 0; at < 8; ++at)
+                EXPECT_EQ(std::to_integer<int>(built[at]), 0x88) << "alpha byte " << at;
         }
 
         /// **A block-compressed chain is encoded in the file's own format**: a BC3 map of data of one
@@ -210,9 +414,10 @@ namespace Rtx
 
             ChainBuild chain;
             chain.build(file, 2);
-            std::vector<std::byte> built;
+            Misc::ByteBuffer built;
             chain.encode(file, 1, built);
             ASSERT_EQ(built.size(), 16u);
+            EXPECT_EQ(built.capacity(), 16u) << "the chain's room taken once, and no more";
 
             std::array<std::uint8_t, 64> decoded{};
             rgbcx::unpack_bc3(built.data(), decoded.data());
@@ -254,9 +459,9 @@ namespace Rtx
         }
 
         /// **A loose file's own levels are encoded whole in BC7, weighed by its encoding**: a 4x4 BGRA8
-        /// file of two levels, its finest scattered colours and its second one colour, is laid in red, green, blue
-        /// and alpha, the file's (10, 20, 30, 255) its first texel, and encoded a block a level, 2 × 16 =
-        /// 32 bytes, its second level within BC7's step of that colour in either encoding. The scatter,
+        /// file of two levels, its finest scattered colours and its second one colour, is read where it lies in
+        /// red, green, blue and alpha, and encoded a block a level, 2 × 16 = 32 bytes, its second level, the
+        /// file's (60, 120, 180) blue first, within BC7's step of (180, 120, 60) in either encoding. The scatter,
         /// which no block holds exactly, is weighed as the eye sees a colour and channel for channel as
         /// data, so its blocks differ.
         TEST(RtxChainBuildTest, aLooseFilesOwnLevelsAreEncodedWholeInBc7WeighedByItsEncoding)
@@ -274,25 +479,18 @@ namespace Rtx
             const TextureData file = describe(*image, TextureEncoding::Colour, levels, texels);
             ASSERT_EQ(file.mFormat, TextureFormat::Bgra8Srgb);
 
-            ChainBuild chain;
-            chain.layOwnLevels(file);
-            ASSERT_EQ(chain.getLevelCount(), 2u);
-            const std::span<const std::byte> finest = chain.getTexels(0);
-            EXPECT_EQ(std::to_integer<int>(finest[0]), 10) << "red, from the file's third byte";
-            EXPECT_EQ(std::to_integer<int>(finest[1]), 20);
-            EXPECT_EQ(std::to_integer<int>(finest[2]), 30) << "blue, from the file's first byte";
-            EXPECT_EQ(std::to_integer<int>(finest[3]), 255);
-
-            std::vector<std::byte> colour;
-            chain.encodeBc7(TextureEncoding::Colour, colour);
-            std::vector<std::byte> data;
-            chain.encodeBc7(TextureEncoding::Data, data);
+            Misc::ByteBuffer colour;
+            ChainBuild::encodeOwnBc7(file, colour);
+            TextureData asData = file;
+            asData.mEncoding = TextureEncoding::Data;
+            Misc::ByteBuffer data;
+            ChainBuild::encodeOwnBc7(asData, data);
             ASSERT_EQ(colour.size(), 32u);
             ASSERT_EQ(data.size(), 32u);
-            EXPECT_NE(std::vector<std::byte>(colour.begin(), colour.begin() + 16),
-                std::vector<std::byte>(data.begin(), data.begin() + 16))
+            EXPECT_NE(Misc::ByteBuffer(colour.begin(), colour.begin() + 16),
+                Misc::ByteBuffer(data.begin(), data.begin() + 16))
                 << "the scatter weighed one way";
-            for (const std::vector<std::byte>* encoded : { &colour, &data })
+            for (const Misc::ByteBuffer* encoded : { &colour, &data })
                 EXPECT_TRUE(
                     Testing::isNear(Testing::firstTexelOf(TextureFormat::Bc7Srgb, std::span(*encoded).subspan(16)),
                         { 180, 120, 60, 255 }, 2));

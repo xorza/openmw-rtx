@@ -66,10 +66,11 @@ void main()
         if (showing <= 0.0)
             continue;
 
-        const bool authored = layerAuthored(layer, TexelTable(chunk.mTexels));
+        TexelTable texels = TexelTable(chunk.mTexels);
+        const bool authored = layerAuthored(layer, texels);
         const vec2 at = layerUv(layer, chunkUv);
         const vec4 read = textureLod(
-            textures[nonuniformEXT(layer.mDiffuse)], at, groundLod(layer.mDiffuse, layer, GROUND_COMPOSITE_EXTENT));
+            TEXTURE(texels, layer.mDiffuse), at, groundLod(layer.mDiffuse, layer, GROUND_COMPOSITE_EXTENT));
         const vec4 shown = layerTexel(read, authored);
         addLayer(sum, showing, shown, authored, true);
     }

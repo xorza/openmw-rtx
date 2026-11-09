@@ -68,7 +68,7 @@ vec3 starField(StarField stars, TexelTable texels, vec3 direction, float blur)
     const vec2 middle = floor(at - 0.5) + 0.5;
     const vec2 within = clamp((at - middle - 0.5) * max(1.0 / across, vec2(1.0)) + 0.5, 0.0, 1.0);
 
-    const vec4 sheet = textureLod(textures[nonuniformEXT(stars.mTexture)], (middle + within) / size, 0.0);
+    const vec4 sheet = textureLod(TEXTURE(texels, stars.mTexture), (middle + within) / size, 0.0);
 
     // **Premultiplied by its own alpha, which is how the engine lays this sheet on.**
     // `paintAtmosphereNight` hands the texture's alpha to a `(SRC_ALPHA, ONE_MINUS_SRC_ALPHA)` blend, and

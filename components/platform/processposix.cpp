@@ -158,6 +158,20 @@ namespace Platform::Process
 #endif
     }
 
+    std::optional<std::uint64_t> compactionStalls()
+    {
+#if defined(__linux__)
+        // The counters are some hundred and fifty short lines.
+        std::array<char, 16384> buffer;
+        const std::optional<std::string_view> vmstat = KernelFile::read("/proc/vmstat", buffer);
+        if (!vmstat.has_value())
+            return std::nullopt;
+        return LinuxText::compactionStalls(*vmstat);
+#else
+        return std::nullopt;
+#endif
+    }
+
     std::size_t keepToPerformanceCores()
     {
 #if defined(__linux__)

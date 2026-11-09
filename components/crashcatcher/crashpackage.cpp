@@ -17,6 +17,7 @@
 #include <zlib.h>
 
 #include <components/files/conversion.hpp>
+#include <components/misc/bytebuffer.hpp>
 #include <components/platform/folder.hpp>
 #include <components/platform/wholefile.hpp>
 
@@ -132,16 +133,19 @@ namespace Crash
         };
 
         /// Deflates `file` into `archive` after its local header, and fills the rest of `entry`.
-        Result<void, std::string> writeData(std::string& archive, const PackageFile& file, Entry& entry,
-            std::vector<std::byte>& in, std::vector<char>& out)
+        Result<void, std::string> writeData(
+            std::string& archive, const PackageFile& file, Entry& entry, Misc::ByteBuffer& in, std::vector<char>& out)
         {
             // **Read whole, to its end** (`Platform::readWhole`): what the entry holds is what the
             // file held, and a read that failed is no short entry passed as a whole one.
-            if (const Result<void, Platform::IoError> read = Platform::readWhole(file.mSource, in); !read.isOk())
+            if (const Result<void, Platform::IoError> read = Platform::readWhole(file.mSource, in, sLargest);
+                !read.isOk())
+            {
+                if (read.error().mFailure == Platform::IoFailure::TooLarge)
+                    return Err{ file.mName + " is 4 GiB or more, which a zip without Zip64 cannot hold" };
                 return Err{ Files::pathToUnicodeString(file.mSource)
                     + " could not be read: " + read.error().mCode.message() };
-            if (in.size() > sLargest)
-                return Err{ file.mName + " is 4 GiB or more, which a zip without Zip64 cannot hold" };
+            }
 
             Deflater deflater;
             if (!deflater.mStarted)
@@ -183,7 +187,7 @@ namespace Crash
             std::span<const PackageFile> files, std::uint32_t stamp, std::vector<Entry>& entries)
         {
             std::string archive;
-            std::vector<std::byte> in;
+            Misc::ByteBuffer in;
             std::vector<char> out(1 << 16);
             std::string header;
             for (const PackageFile& file : files)

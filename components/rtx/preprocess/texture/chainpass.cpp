@@ -72,22 +72,23 @@ namespace Rtx
             const bool painted = file.mEncoding == TextureEncoding::Painted;
             const bool normals = file.mEncoding == TextureEncoding::Normal;
 
-            // A colour's own chain stands, and is laid as it stands where it is loose; every other chain
-            // is built, a painted colour's from every level it carries.
+            // A colour's own chain stands, and is encoded as it stands where it is loose; every other
+            // chain is built, a painted colour's from every level it carries.
             const bool built = file.mEncoding != TextureEncoding::Colour || chainless;
             if (built)
                 mChain.build(file,
                     chainless ? levelsTo1x1(finest.mWidth, finest.mHeight)
                               : static_cast<std::uint32_t>(file.mLevels.size()));
-            else if (loose)
-                mChain.layOwnLevels(file);
 
             const bool cut = built && mChain.holdsCut(file);
             const bool small = std::max(finest.mWidth, finest.mHeight) <= sLargestBc7ChainSide;
             if (normals || loose || (chainless && small) || (cut && (chainless || painted)))
             {
                 output.mForm = ChainForm::Bc7;
-                mChain.encodeBc7(file.mEncoding, output.mBytes);
+                if (built)
+                    mChain.encodeBc7(file.mEncoding, output.mBytes);
+                else
+                    ChainBuild::encodeOwnBc7(file, output.mBytes);
             }
             else if (painted)
             {
@@ -102,7 +103,11 @@ namespace Rtx
             }
         }
 
-        // Let go of the image, as a texture pass does: the next ask describes its own.
+        release();
+    }
+
+    void ChainPass::release()
+    {
         mImage = nullptr;
         mFile.reset();
     }
