@@ -306,10 +306,10 @@ bool Launcher::GraphicsPage::loadSettings()
         static_cast<int>(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value()));
 
     refreshDlssState();
-    const auto upscaler = std::find(mUpscalers.begin(), mUpscalers.end(), Settings::rtx().mUpscaler.get());
-    const bool usable = upscaler != mUpscalers.end() && (*upscaler != Rtx::UpscalerKind::Dlss || mDlssInstalled);
+    const auto upscaler = std::find(
+        mUpscalers.begin(), mUpscalers.end(), Rtx::launcherUpscaler(Settings::rtx().mUpscaler.get(), mDlssInstalled));
     rayTracingUpscalerComboBox->setCurrentIndex(
-        usable ? static_cast<int>(std::distance(mUpscalers.begin(), upscaler)) : 0);
+        upscaler != mUpscalers.end() ? static_cast<int>(std::distance(mUpscalers.begin(), upscaler)) : 0);
 
     // The box holds whole cells from the menu's fewest, so it shows nought or 4.5 as another value:
     // saveSettings writes the reach only when the player moved it
@@ -367,12 +367,10 @@ void Launcher::GraphicsPage::saveSettings()
     if (const int chosenUpscaler = rayTracingUpscalerComboBox->currentIndex();
         chosenUpscaler >= 0 && chosenUpscaler < static_cast<int>(mUpscalers.size()))
     {
-        const Rtx::UpscalerKind chosen = mUpscalers[static_cast<std::size_t>(chosenUpscaler)];
         // A disabled entry can still be the model's current row after the library was removed;
-        // writing `dlss` there would leave a configuration the game must refuse to start. `auto`
-        // keeps the same intent and falls back to FSR until the library returns.
+        // writing `dlss` there would leave a configuration the game must refuse to start.
         Settings::rtx().mUpscaler.set(
-            chosen == Rtx::UpscalerKind::Dlss && !mDlssInstalled ? Rtx::UpscalerKind::Auto : chosen);
+            Rtx::launcherUpscaler(mUpscalers[static_cast<std::size_t>(chosenUpscaler)], mDlssInstalled));
     }
     if (rayTracingDistantLandSpinBox->value() != mLoadedDistantLandCells)
         Settings::rtx().mDistantLandCells.set(static_cast<float>(rayTracingDistantLandSpinBox->value()));

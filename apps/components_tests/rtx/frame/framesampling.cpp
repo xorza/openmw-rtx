@@ -56,6 +56,19 @@ namespace Rtx
             EXPECT_EQ(asked.mShow, static_cast<std::uint32_t>(SurfaceView::Shaded));
         }
 
+        /// The mask channel is FSR's input: the flag follows the resolved kind, so DLSS and an
+        /// off upscale with the FSR backend are the only cases the shaders have to tell apart.
+        TEST(RtxFrameSamplingTest, theMaskFlagFollowsTheResolvedUpscaler)
+        {
+            const RenderProfile fsr{ .mUpscale = Upscale::Balanced, .mUpscaler = UpscalerKind::Fsr };
+            const RenderProfile dlss{ .mUpscale = Upscale::Balanced, .mUpscaler = UpscalerKind::Dlss };
+            const auto sampled = [](const RenderProfile& profile) {
+                return sampleFrame(stated(), FrameOptions{}, profile, Reconstruction{}, InstanceCounts{}, nullptr);
+            };
+            EXPECT_EQ(sampled(fsr).mUpscaleMasks, 1u);
+            EXPECT_EQ(sampled(dlss).mUpscaleMasks, 0u);
+        }
+
         /// Every field the sampling writes comes from the sampling, and each from the input that
         /// decides it.
         ///

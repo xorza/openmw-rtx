@@ -264,5 +264,15 @@ namespace Rtx
             EXPECT_EQ(resolveUpscaler(UpscalerKind::Fsr, true, true, true), UpscalerKind::Fsr);
             EXPECT_EQ(resolveUpscaler(UpscalerKind::Dlss, true, true, true), UpscalerKind::Dlss);
         }
+
+        /// The launcher must not save `dlss` for a library that is not installed; that was the
+        /// configuration the game refused to start with.
+        TEST(RtxUpscalerTest, theLauncherDoesNotKeepDlssWithoutItsLibrary)
+        {
+            EXPECT_EQ(launcherUpscaler(UpscalerKind::Dlss, true), UpscalerKind::Dlss);
+            EXPECT_EQ(launcherUpscaler(UpscalerKind::Dlss, false), UpscalerKind::Auto);
+            EXPECT_EQ(launcherUpscaler(UpscalerKind::Fsr, false), UpscalerKind::Fsr);
+            EXPECT_EQ(launcherUpscaler(UpscalerKind::Auto, false), UpscalerKind::Auto);
+        }
     }
 }

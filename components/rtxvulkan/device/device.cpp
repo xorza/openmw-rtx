@@ -14,6 +14,7 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/common/extensionfilter.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
 #include "buffermarkers.hpp"
@@ -146,12 +147,11 @@ namespace Rtx
                         mPhysicalDevice.getHandle(), nullptr, &offeredCount, offered.data())
                     == VK_SUCCESS)
                 {
-                    std::erase_if(dlssExtensions, [&](const std::string& extension) {
-                        return std::none_of(
-                            offered.begin(), offered.end(), [&](const VkExtensionProperties& candidate) {
-                                return extension == candidate.extensionName;
-                            });
-                    });
+                    std::vector<std::string_view> offeredNames;
+                    offeredNames.reserve(offered.size());
+                    for (const VkExtensionProperties& candidate : offered)
+                        offeredNames.emplace_back(candidate.extensionName);
+                    dlssExtensions = filterOfferedExtensions(dlssExtensions, offeredNames);
                 }
             }
             const bool queried = Dlss::isSupported(instance.getHandle(), mPhysicalDevice.getHandle());

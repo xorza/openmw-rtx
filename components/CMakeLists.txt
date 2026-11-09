@@ -395,7 +395,8 @@ add_component_dir (sky
 # The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan
 # backend is its own library, `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share.
 add_component_dir (rtx/common
-    asserts cardaddress clock digestwords error finite hashstate index job jobprogress menu monitor namedenum parallel
+    asserts cardaddress clock digestwords error extensionfilter finite hashstate index job jobprogress menu monitor
+    namedenum parallel
     pointhash radicalinverse runs scratch slots stepped worker
     )
 

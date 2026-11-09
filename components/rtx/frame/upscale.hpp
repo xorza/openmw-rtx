@@ -52,6 +52,14 @@ namespace Rtx
         return compiled && candidate && installed ? UpscalerKind::Dlss : UpscalerKind::Fsr;
     }
 
+    /// What the launcher selects and saves for a stored kind: an explicit `Dlss` whose library is
+    /// not installed becomes `Auto`, so a missing library cannot leave a setting the game must
+    /// refuse to start.
+    constexpr UpscalerKind launcherUpscaler(const UpscalerKind saved, const bool installed)
+    {
+        return saved == UpscalerKind::Dlss && !installed ? UpscalerKind::Auto : saved;
+    }
+
     /// How the frame gets from the size it is traced at to the size it is shown at — a quality
     /// level rather than a ratio, because the ratio is the upscaler's: `upscaleRatio`.
     enum class Upscale
