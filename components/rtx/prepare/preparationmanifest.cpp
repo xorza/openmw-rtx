@@ -20,7 +20,7 @@ namespace Rtx
     namespace
     {
         constexpr std::uint32_t sMagic = 0x4d585452; // "RTXM"
-        constexpr std::uint32_t sFormat = 2;
+        constexpr std::uint32_t sFormat = 3;
 
         /// The most bytes a manifest is read at: a file is untrusted, and a profile's manifest of half a
         /// million names stands near twenty megabytes.
@@ -101,8 +101,9 @@ namespace Rtx
         if (!Platform::readWhole(path, bytes, sMostBytes).isOk())
             return {};
 
-        // The layout `write` lays: the header, the names a 16-bit length and its characters each, then
-        // the entries, each its model's name's index, its digest, its day and its files' indices.
+        // The layout `write` lays: the header, the names a 16-bit length and its characters each, the
+        // keys, then the entries, each its model's name's index, its digest, its day, its files' indices
+        // and its keys' indices.
         // **Every count no larger than the bytes left could hold**, and every index inside the names:
         // the file is untrusted, and a count read whole would be a gigantic allocation.
         Reader reader(bytes);
@@ -123,8 +124,18 @@ namespace Rtx
                 return {};
         }
 
+        std::uint32_t keys = 0;
+        if (!reader.take(keys) || keys > reader.left() / sizeof(ContentKey))
+            return {};
+        for (std::uint32_t at = 0; at < keys; ++at)
+        {
+            ContentKey key;
+            if (!reader.take(key.mHash) || manifest.internKey(key) != at)
+                return {};
+        }
+
         std::uint32_t entries = 0;
-        constexpr std::size_t entryBytesLeast = 4 + 8 + 4 + 4;
+        constexpr std::size_t entryBytesLeast = 4 + 8 + 4 + 4 + 4;
         if (!reader.take(entries) || entries > reader.left() / entryBytesLeast)
             return {};
         for (std::uint32_t at = 0; at < entries; ++at)
@@ -141,6 +152,16 @@ namespace Rtx
                 if (!reader.take(index) || index >= names)
                     return {};
                 manifest.mFiles.push_back(index);
+            }
+            if (!reader.take(filed.mKeysCount) || filed.mKeysCount > reader.left() / sizeof(std::uint32_t))
+                return {};
+            filed.mKeysFirst = static_cast<std::uint32_t>(manifest.mKeyRuns.size());
+            for (std::uint32_t key = 0; key < filed.mKeysCount; ++key)
+            {
+                std::uint32_t index = 0;
+                if (!reader.take(index) || index >= keys)
+                    return {};
+                manifest.mKeyRuns.push_back(index);
             }
             manifest.mEntries.insert_or_assign(model, filed);
         }
@@ -172,6 +193,14 @@ namespace Rtx
         return index;
     }
 
+    std::uint32_t PreparationManifest::internKey(const ContentKey& key)
+    {
+        const auto [found, added] = mKeyIndex.try_emplace(key, static_cast<std::uint32_t>(mKeys.size()));
+        if (added)
+            mKeys.push_back(key);
+        return found->second;
+    }
+
     std::optional<PreparationManifest::Entry> PreparationManifest::find(const std::string_view model) const
     {
         const std::optional<std::uint32_t> index = indexOf(model);
@@ -185,10 +214,14 @@ namespace Rtx
         entry.mFiles.reserve(found->second.mCount);
         for (std::uint32_t at = 0; at < found->second.mCount; ++at)
             entry.mFiles.push_back(mNames[mFiles[found->second.mFirst + at]]);
+        entry.mKeys.reserve(found->second.mKeysCount);
+        for (std::uint32_t at = 0; at < found->second.mKeysCount; ++at)
+            entry.mKeys.push_back(mKeys[mKeyRuns[found->second.mKeysFirst + at]]);
         return entry;
     }
 
-    bool PreparationManifest::standsAsWalked(const std::string_view model, FileStamps& stamps) const
+    bool PreparationManifest::standsAsWalked(
+        const std::string_view model, FileStamps& stamps, ContentStore& store) const
     {
         const std::optional<std::uint32_t> index = indexOf(model);
         if (!index.has_value())
@@ -199,7 +232,12 @@ namespace Rtx
 
         const auto names = std::span(mFiles).subspan(found->second.mFirst, found->second.mCount)
             | std::views::transform([&](const std::uint32_t at) -> const std::string& { return mNames[at]; });
-        return digestOfNames(names, stamps) == found->second.mDigest;
+        if (digestOfNames(names, stamps) != found->second.mDigest)
+            return false;
+        const std::span<const std::uint32_t> keys
+            = std::span(mKeyRuns).subspan(found->second.mKeysFirst, found->second.mKeysCount);
+        return std::ranges::all_of(
+            keys, [&](const std::uint32_t at) { return store.holds(mKeys[at], StoreReach::Disk); });
     }
 
     void PreparationManifest::keep(const std::string_view model, const Entry& entry, const std::uint32_t day)
@@ -208,11 +246,16 @@ namespace Rtx
         const auto first = static_cast<std::uint32_t>(mFiles.size());
         for (const std::string& file : entry.mFiles)
             mFiles.push_back(intern(file));
+        const auto keysFirst = static_cast<std::uint32_t>(mKeyRuns.size());
+        for (const ContentKey& key : entry.mKeys)
+            mKeyRuns.push_back(internKey(key));
         mEntries.insert_or_assign(index,
             Filed{ .mDigest = entry.mDigest,
                 .mDay = day,
                 .mFirst = first,
-                .mCount = static_cast<std::uint32_t>(entry.mFiles.size()) });
+                .mCount = static_cast<std::uint32_t>(entry.mFiles.size()),
+                .mKeysFirst = keysFirst,
+                .mKeysCount = static_cast<std::uint32_t>(entry.mKeys.size()) });
         mChanged = true;
     }
 
@@ -239,22 +282,27 @@ namespace Rtx
     {
         // The names the entries use, each once, in the order they are first met: a name an entry
         // filed over or dropped named alone stays behind.
+        // And the keys likewise.
         constexpr std::uint32_t unused = 0xffffffffu;
         std::vector<std::uint32_t> written(mNames.size(), unused);
         std::vector<std::uint32_t> order;
-        const auto use = [&](const std::uint32_t index) {
-            if (written[index] == unused)
-            {
-                written[index] = static_cast<std::uint32_t>(order.size());
-                order.push_back(index);
-            }
-            return written[index];
-        };
+        std::vector<std::uint32_t> keyWritten(mKeys.size(), unused);
+        std::vector<std::uint32_t> keyOrder;
+        const auto use
+            = [](std::vector<std::uint32_t>& numbered, std::vector<std::uint32_t>& met, const std::uint32_t index) {
+                  if (numbered[index] == unused)
+                  {
+                      numbered[index] = static_cast<std::uint32_t>(met.size());
+                      met.push_back(index);
+                  }
+              };
         for (const auto& [model, filed] : mEntries)
         {
-            use(model);
+            use(written, order, model);
             for (std::uint32_t at = 0; at < filed.mCount; ++at)
-                use(mFiles[filed.mFirst + at]);
+                use(written, order, mFiles[filed.mFirst + at]);
+            for (std::uint32_t at = 0; at < filed.mKeysCount; ++at)
+                use(keyWritten, keyOrder, mKeyRuns[filed.mKeysFirst + at]);
         }
 
         std::string bytes;
@@ -265,6 +313,10 @@ namespace Rtx
         for (const std::uint32_t index : order)
             if (!putText(bytes, mNames[index]))
                 return false;
+        put(bytes, static_cast<std::uint32_t>(keyOrder.size()));
+        for (const std::uint32_t index : keyOrder)
+            for (const std::uint64_t word : mKeys[index].mHash)
+                put(bytes, word);
         put(bytes, static_cast<std::uint32_t>(mEntries.size()));
         for (const auto& [model, filed] : mEntries)
         {
@@ -274,6 +326,9 @@ namespace Rtx
             put(bytes, filed.mCount);
             for (std::uint32_t at = 0; at < filed.mCount; ++at)
                 put(bytes, written[mFiles[filed.mFirst + at]]);
+            put(bytes, filed.mKeysCount);
+            for (std::uint32_t at = 0; at < filed.mKeysCount; ++at)
+                put(bytes, keyWritten[mKeyRuns[filed.mKeysFirst + at]]);
         }
 
         return Platform::writeWhole(path, bytes, Platform::Durability::Whole).isOk();

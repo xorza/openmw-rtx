@@ -447,8 +447,12 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
   direct mode trusts a stat; the game keys every lookup by the bytes, so a stamp that lies costs a miss and never a
   wrong answer. Every content list's models stand in it until no run named them for 30 days, so a switch between
   profiles walks neither again, each file's name held once and each file stamped once a run; a chain the store holds
-  is not read, one `stat`, and play reads it. Refused: a manifest a content list, a file each profile would add; an
-  age counted in runs, a write at every start.
+  is not read, one `stat`, and play reads it. **A model stands only where the store holds every entry its walk made
+  or found**, by the user's decision, as the Remote Execution API's action cache returns a result only where the
+  blobs it names stand: the manifest keeps each model's keys, each once, and a start asks the store for each, which
+  stamps it; the Fullrest Repack's warm start asks 102,000 and takes 0.18 s where it took 0.15. A key another
+  model's walk asked first that run, a chain claimed or a fact a thread held, is filed under that model. Refused: a
+  manifest a content list, a file each profile would add; an age counted in runs, a write at every start.
 - **A pass's version is held by a test** (`RtxPassVersionsTest`): each pass's outputs over fixed inputs are digested
   beside its `sVersion`, so a forgotten bump fails, and a version moves whenever an output for the same input moves,
   an encoder's update included. Refused: the build's revision in every key, which empties the store at every build.

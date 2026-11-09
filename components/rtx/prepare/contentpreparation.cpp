@@ -43,6 +43,7 @@ namespace Rtx
         PreparedModel mModel;
         MadeChain mChain;
         std::vector<std::string> mFiles;
+        std::vector<ContentKey> mKeys;
 
         /// What this thread ran on a CPU while it served, written by it alone before it ends.
         std::chrono::nanoseconds mCpu{};
@@ -143,19 +144,26 @@ namespace Rtx
             if (next >= mWalked.size())
                 return;
             const std::size_t at = next < mLayers.size() ? mModels.size() + next : next - mLayers.size();
-            if (!mManifest.standsAsWalked(nameOf(at), mStamps))
+            if (!mManifest.standsAsWalked(nameOf(at), mStamps, mStore))
             {
                 hand.mFiles.clear();
+                hand.mKeys.clear();
+                hand.mWalk.collectKeys(&hand.mKeys);
                 if (at < mModels.size())
                     walk(hand, at);
                 else
                     read(hand, mLayers[at - mModels.size()]);
+                hand.mWalk.collectKeys(nullptr);
 
                 std::sort(hand.mFiles.begin() + 1, hand.mFiles.end());
                 hand.mFiles.erase(std::unique(hand.mFiles.begin() + 1, hand.mFiles.end()), hand.mFiles.end());
+                std::sort(hand.mKeys.begin(), hand.mKeys.end(),
+                    [](const ContentKey& a, const ContentKey& b) { return a.mHash < b.mHash; });
+                hand.mKeys.erase(std::unique(hand.mKeys.begin(), hand.mKeys.end()), hand.mKeys.end());
                 mWalked[at] = PreparationManifest::Entry{
                     .mDigest = PreparationManifest::digestOf(hand.mFiles, mStamps),
                     .mFiles = hand.mFiles,
+                    .mKeys = hand.mKeys,
                 };
             }
             mMonitor.hand([&] {

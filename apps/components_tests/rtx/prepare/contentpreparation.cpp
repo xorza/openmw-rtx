@@ -1,8 +1,10 @@
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,6 +22,7 @@
 #include <components/rtx/prepare/contentpreparation.hpp>
 #include <components/rtx/prepare/filestamps.hpp>
 #include <components/rtx/prepare/preparationmanifest.hpp>
+#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstore.hpp>
 #include <components/testing/util.hpp>
@@ -180,6 +183,36 @@ namespace Rtx
             const Prepared moved = prepare(setup, both);
             EXPECT_EQ(moved.mWalked, 1u) << "the model whose diffuse moved, and no other";
             EXPECT_EQ(moved.mShapes, 1u);
+
+            // **And a model whose entries the store lost is walked again**, and only it: the second model's
+            // own entries deleted, as a store refuses a file, under a store opened again, which holds in
+            // memory none of what the first wrote. Its walk makes them again.
+            {
+                const PreparationManifest filed
+                    = PreparationManifest::read(setup.mManifest, ContentPreparation::signatureOf(setup));
+                const std::optional<PreparationManifest::Entry> a = filed.find("meshes/a.nif");
+                const std::optional<PreparationManifest::Entry> b = filed.find("meshes/b.nif");
+                ASSERT_TRUE(a.has_value());
+                ASSERT_TRUE(b.has_value());
+                std::vector<ContentKey> lost;
+                for (const ContentKey& key : b->mKeys)
+                    if (std::find(a->mKeys.begin(), a->mKeys.end(), key) == a->mKeys.end())
+                        lost.push_back(key);
+                ASSERT_FALSE(lost.empty()) << "the second model filed no entry of its own";
+                for (const ContentKey& key : lost)
+                    ASSERT_TRUE(std::filesystem::remove(store.pathOf(key)));
+
+                ContentStore reopened(folder);
+                const PreparationSetup lostSetup{ .mContent = content,
+                    .mStamps = content,
+                    .mStore = reopened,
+                    .mManifest = setup.mManifest,
+                    .mHands = 2 };
+                EXPECT_EQ(prepare(lostSetup, both).mWalked, 1u) << "the model whose entry was lost, and no other";
+                reopened.flush();
+                for (const ContentKey& key : lost)
+                    EXPECT_TRUE(std::filesystem::exists(reopened.pathOf(key)));
+            }
 
             prepare(setup, { "meshes/a.nif" });
             EXPECT_EQ(PreparationManifest::read(setup.mManifest, ContentPreparation::signatureOf(setup)).size(), 2u)

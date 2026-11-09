@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/texels.hpp>
@@ -9,6 +11,7 @@
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 
 #include "contentcache.hpp"
+#include "contentkey.hpp"
 #include "contentpass.hpp"
 #include "contentstats.hpp"
 #include "contentstore.hpp"
@@ -78,6 +81,11 @@ namespace Rtx
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();
 
+        /// Appends to `into`, until it is handed null, the key of every entry an ask of a stored pass makes
+        /// or finds: what a preparation files a model's walk under, so a later start asks the store for
+        /// each (`PreparationManifest`). Null, as made, for none.
+        void collectKeys(std::vector<ContentKey>* into) { mKeysInto = into; }
+
     private:
         template <ContentPass Pass>
         void run(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output,
@@ -96,5 +104,6 @@ namespace Rtx
 
         ContentCache mCache;
         ContentStats mStats;
+        std::vector<ContentKey>* mKeysInto = nullptr;
     };
 }

@@ -150,6 +150,19 @@ under the harness: 77.8 and 81.8 s, its store the same byte for byte. Its busy t
 
 Before it, the models first, the last window ran 2.3 threads of 16.
 
+## Each model's store keys checked, landed
+
+The manifest keeps each model's keys and a start asks the store for each. On the Fullrest Repack, against a store
+that held every entry already:
+
+| start | preparation | manifest |
+|---|---|---|
+| the first, its manifest of the format before, every model walked and every entry found | 4.69 s, 27.9 s of CPU on 15 threads | 6.68 MB before |
+| warm, twice | 0.18 s and 0.17 s, 2.1 and 2.0 s of CPU | 9.06 MB |
+
+Warm, the store stamps 101,934 entries a start. Before the change, a warm start asked the store for no entry
+and took 0.15 s.
+
 ## Scratch held per thread
 
 From `ChainBuild` and `ChainPass` at a 4096-square file: the chain's texels, four bytes each over every level,

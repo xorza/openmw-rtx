@@ -93,6 +93,9 @@ namespace Rtx
         /// What the reads computed from the content since the last take — `ContentPreprocessor`.
         ContentStats takeStats() { return mContent.mPreprocessor.takeStats(); }
 
+        /// `ContentPreprocessor::collectKeys`, through this thread's content.
+        void collectKeys(std::vector<ContentKey>* into) { mContent.mPreprocessor.collectKeys(into); }
+
         void apply(osg::Node& node) override;
         void apply(osg::Transform& node) override;
         void apply(osg::Drawable& drawable) override;

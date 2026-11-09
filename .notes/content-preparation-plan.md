@@ -51,24 +51,56 @@ time a slot draws its file before its chain lands.
   ([REAPI](https://github.com/bazelbuild/remote-apis/blob/main/build/bazel/remote/execution/v2/remote_execution.proto)),
   as bazel-remote checks them on each get ([bazel-remote](https://github.com/buchgr/bazel-remote)).
 
+Memory, by the user's decisions, each against the field's practice:
+
+- **A dispatcher, not a semaphore**: a free thread is handed the work that fits the budget, and waits only where
+  nothing does. Ray holds a task until the sum of the running tasks' stated memory leaves room for it
+  ([Ray](https://docs.ray.io/en/latest/ray-core/scheduling/index.html)); a semaphore blocks on its head.
+- **The unit is a walk and a chain**: a walk loads a model, claims its maps and queues one chain job for each, holding
+  its image; the chain, 98% of the CPU, is the job sized and ordered. Refused: a model as the job, whose maps are known
+  only once its template loads, so a cold run, the one that needs the bound, would dispatch on a guess. Unreal's
+  derived data gives each build its own peak, excluding its inputs
+  ([`FBuildContext::GetRequiredMemory`](https://dev.epicgames.com/documentation/unreal-engine/API/Developer/DerivedDataCache/FBuildContext/GetRequiredMemory)).
+- **A thread's memory is measured, its growth predicted**: each thread reports the capacity it keeps after a job, and
+  a chain's peak is computed from its image's extent, format and encoding; the dispatcher counts the kept capacity
+  and the growth past it. A debug assert holds the capacity after a job to the prediction. Refused: a prediction
+  alone, which a buffer added later escapes; the process's resident size alone (Dask's pause at 80%,
+  [Dask](https://distributed.dask.org/en/stable/worker-memory.html)), which lags and stays high on what glibc keeps.
+- **Scratch is routed, and released on need**: a large chain goes to a thread that holds large scratch already, and a
+  thread lets its scratch go only where a waiting chain fits through it. glibc maps each block past its mmap threshold
+  (32 MiB at most on 64-bit) and unmaps it on free ([mallopt(3)](https://man.archlinux.org/man/mallopt.3.raw)), so
+  the release reaches the system. Refused: a release after every large chain, against the persistent buffers; and
+  never, which fills the budget with each thread's largest file.
+- **Largest first, with a reservation for the head** (EASY backfill, Lifka 1995,
+  [backfilling](https://dr-evt.readthedocs.io/en/latest/BACKFILLING_ALGORITHMS.html)): a chain that does not fit is
+  reserved the time the running chains free its room, and a smaller one starts before it only where it ends by then,
+  its time estimated as its texels at its encoding's rate. An estimate orders, it never admits. Refused: greedy,
+  which leaves the large chains to a tail of their own; strict, which idles the threads as a semaphore would.
+- **The budget is read once, at the start**: the least of `MemAvailable`, a cgroup v2 `memory.max` less
+  `memory.current`, and on Windows the process's commit headroom (`ullAvailPageFile`) and `ullAvailPhys`, less a
+  reserve measured as the game's own peak on the loading screen, the kernels' compile included. A platform that
+  cannot say (macOS) dispatches by threads alone, as its API states. Bazel reads its budget once
+  ([Bazel](https://jmmv.dev/2019/12/bazel-local-resources.html)). Refused: a live read, which counts the running jobs
+  twice and stays low on what glibc keeps; a fixed fraction (Bazel's 0.67), a guess at both ends of the RAM range;
+  a pressure signal beside it, one more source a platform and runs less repeatable.
+- **A source image counts from its walk to its chain's end**: a walk is handed out where the budget holds the largest
+  model's images met so far and fewer chains are queued than the threads can take, its real size replacing the
+  allowance once loaded. The overshoot is at most one model's images a thread. Refused: a queue bounded by count,
+  whose bytes are not bounded; every walk first, which held 14.7 GB.
+- **A chain past the whole budget runs alone, and is logged**, the others' scratch released first, as Bazel admits an
+  action with nothing running and Unreal runs one "anyway"
+  ([Unreal](https://forums.unrealengine.com/t/beware-assetcompile-memory-estimate-is-greater-than-available/1918709)).
+  Refused: refusing it, which the play's chain workers would build anyway, or leave drawn as its file.
+- **The loader's cache lets go of a path when its last job ends**, through a per-path removal on the resource
+  managers (`ObjectCache::removeFromObjectCache`), a hook for the seam; the clear once a second goes. Refused: the
+  clear kept and its residue measured into the reserve, a periodic sweep a content list can outgrow.
+
 ## Plan
 
 Each batch is timed off the log's "Prepared … in … s, … s of CPU on … threads" and the pass lines under it. A batch
 that must change no output is checked with `diff -rq --exclude=prepared.manifest` between a cold
 store made before it and one made after: the entries are files named by their keys, and two cold vanilla stores made
 apart are the same byte for byte.
-
-### Batch 4: what the manifest trusts
-
-Files: `components/rtx/prepare/{preparationmanifest,contentpreparation}.{hpp,cpp}`,
-`components/rtx/preprocess/{contentpreprocessor,contentcache}.{hpp,cpp}`.
-
-- [ ] Each walk's store keys handed back to the preparation (what its asks found or kept), filed in the manifest
-  beside its files, each key once in a table as the names are, and the format moved.
-- [ ] `standsAsWalked` asks the store for each key (`ContentStore::holds`, which stamps it) after the stamps' digest
-  matches; a key the store lacks is the model walked again. The issue in `.notes/ISSUES.md` goes.
-- [ ] Test: a model whose chain file is deleted is walked again at the next preparation and its chain stands after
-  it; one whose entries all stand is not walked.
 
 ### Batch 5: what a crash report names
 
@@ -87,6 +119,26 @@ build and encode, 98% of the preparation's time, run under the model's note alon
   fault in a shape's fold or split names the part.
 - [ ] Test: how the crash matrix lands a fault under a note decides it; the report of a fault inside a chain's
   build names the model, the file and the encoding.
+
+### Batch 6: a dispatcher bounded in memory
+
+Files: `components/rtx/prepare/contentpreparation.{hpp,cpp}`, a dispatcher beside it,
+`components/rtx/preprocess/{contentpreprocessor,texture/chainpass,texture/conversionpass}.{hpp,cpp}`,
+`components/rtx/image/chainbuild.{hpp,cpp}`, `components/platform/process*`, `components/resource/` (the per-path
+removal), `apps/openmw/mwrender/rtx/rtxrenderer.cpp`. The decisions are above, under "Memory".
+
+- [ ] Measure first: the game's peak on the loading screen with no preparation, the kernels' compile included, on
+  each content list, into the research notes: the reserve.
+- [ ] `Platform::Process` (or a memory module beside it): the budget's inputs on Linux and Windows, none on macOS.
+- [ ] The peak a chain or a conversion would reach, from its image alone; the capacity a preprocessor keeps; the
+  scratch let go of on the dispatcher's ask.
+- [ ] Walk and chain jobs; the dispatcher's order, reservation, routing and admission of walks; the oversize chain
+  alone and logged.
+- [ ] The cache's per-path removal at a job's end, and the clear once a second gone.
+- [ ] Tests: each dispatch rule on a synthetic queue with exact budgets (what starts, what waits, what is
+  backfilled); the predicted peak against the measured capacity for each encoding and format; a cold PBR run's
+  resident peak under a budget set below today's, against the budget.
+- [ ] Measured: the three content lists cold, the time and the resident peak, before and after.
 
 ## Declined
 
