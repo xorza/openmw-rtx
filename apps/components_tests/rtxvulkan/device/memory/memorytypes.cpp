@@ -19,8 +19,8 @@ namespace Rtx
         constexpr VkMemoryPropertyFlags sReadBack = sStaging | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
 
         /// **Each request is placed in the types its promise names**, on every card in hand: video
-        /// memory in the types that are video memory and nothing else, the tables the host writes
-        /// in the window, staging in write-combined system memory, a read-back in cached system
+        /// memory in the types that are video memory and nothing else, staging in write-combined
+        /// system memory, a read-back in cached system
         /// memory. RADV lists two of each, a second that only buffers take, and four of AMD's
         /// device-coherent types after them, none of which any request is placed in.
         TEST(RtxMemoryTypesTest, eachRequestIsPlacedInTheTypesItsPromiseNames)
@@ -30,19 +30,16 @@ namespace Rtx
                 const char* mCard;
                 VkPhysicalDeviceMemoryProperties mMemory;
                 std::uint32_t mVideo;
-                std::uint32_t mHostWritten;
                 std::uint32_t mStaging;
                 std::uint32_t mReadBack;
             } cards[] = {
-                { "Turing", Testing::turingMemory(), 1u << 1, 1u << 4, 1u << 2, 1u << 3 },
-                { "Ada", Testing::adaMemory(), 1u << 1, 1u << 4, 1u << 2, 1u << 3 },
-                { "RDNA 2", Testing::rdna2Memory(), (1u << 0) | (1u << 1), (1u << 3) | (1u << 4), 1u << 2,
-                    (1u << 5) | (1u << 6) },
+                { "Turing", Testing::turingMemory(), 1u << 1, 1u << 2, 1u << 3 },
+                { "Ada", Testing::adaMemory(), 1u << 1, 1u << 2, 1u << 3 },
+                { "RDNA 2", Testing::rdna2Memory(), (1u << 0) | (1u << 1), 1u << 2, (1u << 5) | (1u << 6) },
             };
             for (const auto& card : cards)
             {
                 EXPECT_EQ(memoryTypesFor(card.mMemory, sVideo), card.mVideo) << card.mCard;
-                EXPECT_EQ(memoryTypesFor(card.mMemory, sHostWritten), card.mHostWritten) << card.mCard;
                 EXPECT_EQ(memoryTypesFor(card.mMemory, sStaging), card.mStaging) << card.mCard;
                 EXPECT_EQ(memoryTypesFor(card.mMemory, sReadBack), card.mReadBack) << card.mCard;
             }
@@ -58,7 +55,6 @@ namespace Rtx
             VkPhysicalDeviceMemoryProperties windowFirst = Testing::turingMemory();
             std::swap(windowFirst.memoryTypes[2], windowFirst.memoryTypes[4]);
             EXPECT_EQ(memoryTypesFor(windowFirst, sStaging), 1u << 4) << "staging in the window";
-            EXPECT_EQ(memoryTypesFor(windowFirst, sHostWritten), 1u << 2);
 
             VkPhysicalDeviceMemoryProperties shared{};
             shared.memoryHeapCount = 1;
@@ -104,37 +100,6 @@ namespace Rtx
             shared.memoryTypeCount = 1;
             shared.memoryTypes[0] = VkMemoryType{ sStaging, 0 };
             EXPECT_THROW(contentTypesOf(shared), Unsupported) << "no type is video memory";
-        }
-
-        /// **Host-written memory is video memory where its type stands on the heap content does**,
-        /// and nowhere else, whatever the heaps' sizes: the window resizable BAR makes of a card
-        /// and an integrated GPU's one heap are, and a couple of hundred megabytes beside the video
-        /// memory are not — the 214 MiB issue #49's driver gave a budget of nought among them.
-        TEST(RtxMemoryTypesTest, hostWrittenMemoryIsVideoMemoryOnlyOnTheVideoHeap)
-        {
-            EXPECT_FALSE(hostWrittenIsVideoMemory(Testing::turingMemory())) << "a Turing's 246 MiB window";
-            EXPECT_FALSE(hostWrittenIsVideoMemory(Testing::windowedAdaMemory())) << "issue #49's 214 MiB window";
-            EXPECT_FALSE(hostWrittenIsVideoMemory(Testing::rdna2Memory())) << "a Radeon's 256 MiB window";
-            EXPECT_TRUE(hostWrittenIsVideoMemory(Testing::adaMemory())) << "a card under resizable BAR";
-
-            // One heap, every type on it, as an integrated GPU states its memory.
-            VkPhysicalDeviceMemoryProperties shared{};
-            shared.memoryHeapCount = 1;
-            shared.memoryHeaps[0] = VkMemoryHeap{ 8589934592ull, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT };
-            shared.memoryTypeCount = 2;
-            shared.memoryTypes[0] = VkMemoryType{ sVideo, 0 };
-            shared.memoryTypes[1] = VkMemoryType{ sVideo | sStaging, 0 };
-            EXPECT_TRUE(hostWrittenIsVideoMemory(shared)) << "an integrated GPU's one heap";
-
-            // A window larger than the video memory beside it is still a window: the heap decides.
-            VkPhysicalDeviceMemoryProperties wide = Testing::turingMemory();
-            wide.memoryHeaps[2].size = 2 * wide.memoryHeaps[0].size;
-            EXPECT_FALSE(hostWrittenIsVideoMemory(wide)) << "a size decided what a heap should";
-
-            // And no type the host writes into at all is no window to write through.
-            VkPhysicalDeviceMemoryProperties walled = Testing::adaMemory();
-            walled.memoryTypeCount = 4;
-            EXPECT_FALSE(hostWrittenIsVideoMemory(walled)) << "a card with nothing the host writes into";
         }
     }
 }

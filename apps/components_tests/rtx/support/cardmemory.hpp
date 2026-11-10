@@ -29,21 +29,8 @@ namespace Rtx::Testing
         return memory;
     }
 
-    /// A desktop RTX 4090 under Windows 11 without resizable BAR, driver 621.14, with its heaps as
-    /// issue #49's `vulkaninfo` states them: 23.58 GiB of video memory, 47.77 GiB of system memory,
-    /// and a 214 MiB window whose budget the driver stated at nought. The report carried no memory
-    /// types; these are the ones NVIDIA lists under Linux (`turingMemory`), heap for heap.
-    inline VkPhysicalDeviceMemoryProperties windowedAdaMemory()
-    {
-        VkPhysicalDeviceMemoryProperties memory = turingMemory();
-        memory.memoryHeaps[0].size = 25314721792ull;
-        memory.memoryHeaps[1].size = 51290193920ull;
-        memory.memoryHeaps[2].size = 224395264ull;
-        return memory;
-    }
-
     /// A high-end NVIDIA laptop GPU, as `vulkaninfo` reports it under resizable BAR: one heap of
-    /// video memory, host-visible throughout, so the window the host writes into is the whole of it.
+    /// video memory, host-visible throughout.
     inline VkPhysicalDeviceMemoryProperties adaMemory()
     {
         VkPhysicalDeviceMemoryProperties memory{};

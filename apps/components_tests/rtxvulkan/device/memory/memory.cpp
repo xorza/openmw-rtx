@@ -318,34 +318,22 @@ namespace Rtx
             EXPECT_EQ(blocks, memory.getBlockCount()) << "the report left a block out";
         }
 
-        /// A heap is called host-visible in the report when it carries a type `Buffer::hostWritten`
-        /// could take a range out of, and not otherwise.
-        ///
-        /// **The question a Turing card fails.** Its host-visible video memory heap is 246 MiB
-        /// beside six gigabytes of ordinary video memory, so which heap is which is the whole of
-        /// what a residency decision reads.
-        TEST_F(RtxMemoryTest, aHostVisibleHeapIsTheOneAHostWrittenBufferCouldComeOutOf)
+        /// **Every heap the device states is in the report, as the device states it**: its size, and
+        /// whether it is video memory, which on a card with video memory of its own is what tells it
+        /// from the system's.
+        TEST_F(RtxMemoryTest, theReportStatesEveryHeapAsTheDeviceDoes)
         {
             const VkPhysicalDeviceMemoryProperties& properties
                 = getDevice().getPhysicalDevice().getProperties().mMemory;
 
-            std::vector<bool> expected(properties.memoryHeapCount, false);
-            for (std::uint32_t type = 0; type < properties.memoryTypeCount; ++type)
-                if ((properties.memoryTypes[type].propertyFlags & sHostWritten) == sHostWritten)
-                    expected[properties.memoryTypes[type].heapIndex] = true;
-
             const MemoryReport report = getDevice().getMemory().report();
             ASSERT_EQ(report.mHeapCount, properties.memoryHeapCount);
             for (std::uint32_t heap = 0; heap < report.mHeapCount; ++heap)
-                EXPECT_EQ(report.mHeaps[heap].mHostVisible, expected[heap]) << "heap " << heap;
-
-            // The report says which way the host's writes travel, and a device that took mapped writes
-            // has a heap they can go to, where staged writes need none.
-            EXPECT_EQ(report.mHostWrites, sHostWrites);
-            if constexpr (sHostWrites == HostWrites::Mapped)
             {
-                EXPECT_NE(std::find(expected.begin(), expected.end(), true), expected.end())
-                    << "no heap the host writes into, on a device a mapped build accepted";
+                EXPECT_EQ(report.mHeaps[heap].mSize, properties.memoryHeaps[heap].size) << "heap " << heap;
+                EXPECT_EQ(report.mHeaps[heap].mDeviceLocal,
+                    (properties.memoryHeaps[heap].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0)
+                    << "heap " << heap;
             }
         }
 

@@ -29,11 +29,9 @@ namespace Rtx
         DeviceLocal,
 
         /// Video memory the host rewrites — every table a frame writes, the interface's and the
-        /// debug lines' vertices — written through `Uploads` alone and never read by the host. What
-        /// it is follows the build's transport (`sHostWrites`): memory the host maps where writes
-        /// are mapped, write-combining and only as large as the window resizable BAR opens; video
-        /// memory alone where they are staged, a copy's destination. The owner keeps one per frame
-        /// in flight, so a write never lands under a submit still reading it.
+        /// debug lines' vertices — written through `Uploads` alone, by copies staged ahead of what
+        /// reads it, and never read by the host. The owner keeps one per frame in flight, so a write
+        /// never lands under a submit still reading it.
         HostWritten,
 
         /// Host memory a copy is staged through: written by the host once, read by the device
@@ -184,14 +182,18 @@ namespace Rtx
         /// caller that already holds them. Asserts that no submit still reads the buffer: a write
         /// into one a submit may still read goes through the queue, by `stageInto` or
         /// `updateInline`. A staging block's or a read-back buffer's: a host-written buffer is
-        /// written through `Uploads`, which knows how the build's writes travel.
+        /// written through `Uploads`.
         template <class T>
         std::span<T> writable(VkDeviceSize offset, VkDeviceSize count) const
         {
             assert(mKind != BufferKind::HostWritten && "a host-written buffer written past `Uploads`");
             assert(isIdle() && "a host write over a buffer a submit still reads");
 
-            return reach<T>(offset, count);
+            void* const mapped = mMemory.map();
+            assert(mapped != nullptr && "a write to a buffer the host cannot reach");
+            assert(offset + count * sizeof(T) <= mSize);
+
+            return std::span<T>(reinterpret_cast<T*>(static_cast<std::byte*>(mapped) + offset), count);
         }
 
         /// Copies `data` to `offset` bytes in.
@@ -215,8 +217,6 @@ namespace Rtx
         }
 
     private:
-        friend class Uploads;
-
         /// The handle alone, named and bound to nothing: what `make` and `tryMake` both begin
         /// with, before either knows whether there is room.
         Buffer(
@@ -225,21 +225,10 @@ namespace Rtx
         /// Binds `memory`, and takes the address where the buffer has one.
         void bind(DeviceMemory&& memory);
 
-        /// `count` elements at `offset`, with nothing said about who is reading.
-        template <class T>
-        std::span<T> reach(VkDeviceSize offset, VkDeviceSize count) const
-        {
-            void* const mapped = mMemory.map();
-            assert(mapped != nullptr && "a write to a buffer the host cannot reach");
-            assert(offset + count * sizeof(T) <= mSize);
-
-            return std::span<T>(reinterpret_cast<T*>(static_cast<std::byte*>(mapped) + offset), count);
-        }
-
         /// Whose timeline the stamp is read against. Null for an empty buffer.
         const Device* mDevice = nullptr;
 
-        /// Which holds the mapping: a table is rewritten every frame and mapping is not free, so the
+        /// Which holds the mapping of a buffer the host reaches: mapping is not free, so the
         /// allocation takes its pointer once and hands it out. Before the handle, so the handle is
         /// buried first as the buffer goes.
         DeviceMemory mMemory;

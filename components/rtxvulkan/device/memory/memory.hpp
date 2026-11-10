@@ -10,7 +10,6 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/misc/result.hpp>
-#include <components/rtx/renderer/hostwrites.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
 struct VmaAllocation_T;
@@ -20,11 +19,6 @@ struct VmaPool_T;
 namespace Rtx
 {
     class Device;
-    /// How this backend's host writes reach the device, on every device and decided here alone:
-    /// another transport is another build, which is what an A/B of the two and a comparison of
-    /// their pictures take. Both compile in every build (`docs/rtx/architecture.md`, "Host writes
-    /// travel one way").
-    inline constexpr HostWrites sHostWrites = HostWrites::Staged;
 
     /// Why the device's memory refused an allocation: the one case content is refused for, which the
     /// caller decides the fate of (a stand-in, a mesh left out).
@@ -52,12 +46,6 @@ namespace Rtx
         return (value + alignment - 1) / alignment * alignment;
     }
 
-    /// Video memory the host writes into and the device reads — one statement, because
-    /// `Buffer::hostWritten` asks for it, `MemoryAllocator::report` counts it, and a device
-    /// offering no such type is refused.
-    inline constexpr VkMemoryPropertyFlags sHostWritten = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-
     /// The memory types a request for `required` is placed in, as a mask of type indices: those
     /// whose placement — device-local, host-visible, coherent, cached — is exactly the request's,
     /// where the device has any, and otherwise every one that has what the request asks. Never
@@ -67,8 +55,8 @@ namespace Rtx
     /// **Stated in the request rather than left to the order the driver lists its types in**: the
     /// library takes the first type that has what is asked, so staging memory would be
     /// write-combined system memory only where a driver lists that type before its window, and a
-    /// driver that listed the window first would put every staging block in the 246 MiB the
-    /// host-written tables need. Nought where no type has what is asked.
+    /// driver that listed the window first would put every staging block in a window of 246 MiB.
+    /// Nought where no type has what is asked.
     std::uint32_t memoryTypesFor(const VkPhysicalDeviceMemoryProperties& memory, VkMemoryPropertyFlags required);
 
     /// Where content — every structure and every texture — is placed: the types `memoryTypesFor`
@@ -86,15 +74,6 @@ namespace Rtx
 
     /// `ContentTypes` of a device. Throws `Unsupported` where no type is video memory alone.
     ContentTypes contentTypesOf(const VkPhysicalDeviceMemoryProperties& memory);
-
-    /// Whether a type host-written memory is placed in (`sHostWritten`) stands on the heap content
-    /// does: whether the window the host writes into is the whole of video memory, as resizable BAR
-    /// and every integrated GPU make it, and not a window of a couple of hundred megabytes beside it,
-    /// whose budget a driver may state at nought. What `HostWrites::Mapped` needs of a device.
-    ///
-    /// **The heap and not its size**: a size compared with the video heap's needs a tolerance, and a
-    /// heap is the one answer the device states exactly.
-    bool hostWrittenIsVideoMemory(const VkPhysicalDeviceMemoryProperties& memory);
 
     /// What a range of memory is for, which says what becomes of the content where the device has
     /// no room for it — and so the order the room is given in. Each use stops where every use
@@ -308,8 +287,7 @@ namespace Rtx
         std::size_t getLiveCount() const;
 
         /// Every heap of the device, what this allocator took out of each, and what the driver says
-        /// is left. Walks every allocation for the host-written figures, so it is asked once a place
-        /// and never once a frame.
+        /// is left.
         MemoryReport report() const;
 
     private:

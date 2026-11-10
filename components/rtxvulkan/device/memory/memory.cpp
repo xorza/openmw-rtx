@@ -30,9 +30,7 @@ namespace Rtx
     namespace
     {
         /// The block a memory type is grown by. Sixty-four megabytes: what this fork's own allocator
-        /// settled on before the library took over, against the library's quarter of a gigabyte,
-        /// which on a card whose host-visible video memory is a couple of hundred megabytes is the
-        /// heap in one block.
+        /// settled on before the library took over, against the library's quarter of a gigabyte.
         constexpr VkDeviceSize sBlockBytes = 64 * 1024 * 1024;
 
         /// A request for memory of `properties` in the types `memoryTypesFor` names on `memory`,
@@ -60,19 +58,6 @@ namespace Rtx
                     "no memory type has properties " + std::to_string(properties) + " among those this device offers");
 
             checkVk(result, "vmaAllocateMemory");
-        }
-
-        /// Why `tryTake` refused: the one reason, because what stands in does not depend on
-        /// which use ran out first.
-
-        /// `ContentTypes` of a device, or nothing where no type is video memory.
-        std::optional<ContentTypes> findContentTypes(const VkPhysicalDeviceMemoryProperties& memory)
-        {
-            const std::uint32_t types = memoryTypesFor(memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-            if (types == 0)
-                return std::nullopt;
-
-            return ContentTypes{ .mTypes = types, .mHeap = memory.memoryTypes[std::countr_zero(types)].heapIndex };
         }
     }
 
@@ -229,25 +214,11 @@ namespace Rtx
 
     ContentTypes contentTypesOf(const VkPhysicalDeviceMemoryProperties& memory)
     {
-        const std::optional<ContentTypes> content = findContentTypes(memory);
-        if (!content.has_value())
+        const std::uint32_t types = memoryTypesFor(memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (types == 0)
             throw Unsupported("no memory type is video memory alone among those this device offers");
 
-        return *content;
-    }
-
-    bool hostWrittenIsVideoMemory(const VkPhysicalDeviceMemoryProperties& memory)
-    {
-        const std::optional<ContentTypes> content = findContentTypes(memory);
-        if (!content.has_value())
-            return false;
-
-        const std::uint32_t written = memoryTypesFor(memory, sHostWritten);
-        for (std::uint32_t type = 0; type < memory.memoryTypeCount; ++type)
-            if ((written & (1u << type)) != 0 && memory.memoryTypes[type].heapIndex == content->mHeap)
-                return true;
-
-        return false;
+        return ContentTypes{ .mTypes = types, .mHeap = memory.memoryTypes[std::countr_zero(types)].heapIndex };
     }
 
     MemoryAllocator::~MemoryAllocator()
@@ -547,26 +518,6 @@ namespace Rtx
                 use.mHeld = budgets[heap].usage;
             }
         }
-
-        // The host-written figures are per memory type, which the budgets do not split, so this is
-        // the walk over every allocation the header says a report is.
-        VmaTotalStatistics statistics{};
-        vmaCalculateStatistics(mLibrary.get(), &statistics);
-
-        for (std::uint32_t type = 0; type < mMemory.memoryTypeCount; ++type)
-        {
-            if ((mMemory.memoryTypes[type].propertyFlags & sHostWritten) != sHostWritten)
-                continue;
-
-            const std::uint32_t heap = mMemory.memoryTypes[type].heapIndex;
-            if (heap < out.mHeapCount)
-                out.mHeaps[heap].mHostVisible = true;
-
-            out.mHostWrittenReserved += statistics.memoryType[type].statistics.blockBytes;
-            out.mHostWrittenLive += statistics.memoryType[type].statistics.allocationBytes;
-        }
-
-        out.mHostWrites = sHostWrites;
 
         out.mUses = MemoryUses{ .mFrame = getHeld(mContent.mHeap, MemoryUse::Frame),
             .mFrameReserve = mFrameReserve,

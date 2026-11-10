@@ -37,12 +37,6 @@ namespace Rtx
             /// The queue family that can do everything this renderer submits.
             std::uint32_t mQueueFamily = 0;
 
-            /// The largest heap carrying memory the host writes into and the device reads: all of
-            /// video memory where the firmware maps it, and about 246 MiB where it does not. Reported,
-            /// and decided by nothing: what the build's transport needs of the memory is a heap and
-            /// not a size (`hostWrittenIsVideoMemory`).
-            VkDeviceSize mHostWrittenBytes = 0;
-
             /// Which of the options' extensions (`getOptionalExtensions`) this device offers, in the
             /// table's order: what it offers, and not what a device made on it takes, which the
             /// options' needs decide. The pointers are the static table's own, so they outlive

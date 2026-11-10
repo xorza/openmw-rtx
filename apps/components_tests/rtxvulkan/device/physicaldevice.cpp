@@ -12,7 +12,6 @@
 #include <apps/components_tests/rtx/support/cardmemory.hpp>
 #include <components/platform/gpu.hpp>
 #include <components/rtxvulkan/device/driverprofile.hpp>
-#include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 
@@ -27,13 +26,6 @@ namespace Rtx
             .timestampValidBits = 64,
             .minImageTransferGranularity = {},
         };
-
-        /// What a card whose host-written memory is a window beside its video memory is told under
-        /// the build's transport (`sHostWrites`): refused where writes are mapped, which need the
-        /// window to be the video memory, and taken where they are staged, which need no window.
-        constexpr std::string_view sWindowedObstacle = sHostWrites == HostWrites::Mapped
-            ? "host-written memory is a window, not the video memory: turn on resizable BAR"
-            : "";
 
         /// The extensions this build requires, as a device would list them back.
         std::vector<std::string> everyRequiredExtension()
@@ -64,7 +56,7 @@ namespace Rtx
         /// A high-end NVIDIA laptop GPU, as `openmw-rtxtool info` reports it.
         ///
         /// **One heap of video memory, host-visible throughout**, which is what resizable BAR makes
-        /// of a card — so the aperture the profile measures is the whole of it.
+        /// of a card.
         void describeAda(DeviceProperties& properties)
         {
             properties.mProperties2.properties.apiVersion = VK_MAKE_API_VERSION(0, 1, 4, 341);
@@ -137,12 +129,12 @@ namespace Rtx
             std::vector<VkBool32> mPresents;
         };
 
-        /// Two cards this fork targets, and the profile differs in exactly what their hardware does.
+        /// Two cards this fork targets are both taken, whatever window the host maps of their video
+        /// memory: an RTX 2060's 246 MiB beside it, and an Ada card's whole heap.
         ///
-        /// **The whole reason the type exists.** Neither card is asked, only described, and both
-        /// answers matter: an RTX 2060 runs the same trace, and its 246 MiB aperture is what a build
-        /// whose host writes are mapped refuses it for.
-        TEST(RtxPhysicalDeviceTest, twoCardsDifferExactlyWhereTheirHardwareDoes)
+        /// **The whole reason the type exists.** Neither card is asked, only described: what the
+        /// renderer would do on a card nobody here owns.
+        TEST(RtxPhysicalDeviceTest, twoCardsThisForkTargetsAreBothTaken)
         {
             Card turing(&describeTuring);
             Card ada(&describeAda);
@@ -150,16 +142,9 @@ namespace Rtx
             const PhysicalDevice::Profile onTuring = turing.profile();
             const PhysicalDevice::Profile onAda = ada.profile();
 
-            EXPECT_EQ(onTuring.mObstacle, sWindowedObstacle) << "an RTX 2060 and its window";
+            EXPECT_EQ(onTuring.mObstacle, "") << "an RTX 2060 was refused for its window";
             EXPECT_EQ(onAda.mObstacle, "") << "an Ada card was refused";
 
-            // 246 MiB against the whole of video memory, which is the difference resizable BAR
-            // makes: reported, and read by no decision (`PhysicalDevice::Profile::mHostWrittenBytes`).
-            EXPECT_EQ(onTuring.mHostWrittenBytes, 257949696ull);
-            EXPECT_EQ(onAda.mHostWrittenBytes, 17171480576ull);
-            EXPECT_NE(onTuring.mHostWrittenBytes, onAda.mHostWrittenBytes);
-
-            // What both agree on, so a difference above is the hardware's and not the fixture's.
             EXPECT_EQ(onTuring.mQueueFamily, 0u);
             EXPECT_EQ(onAda.mQueueFamily, 0u);
             EXPECT_EQ(onTuring.mTimestampBits, 64u);
@@ -196,13 +181,13 @@ namespace Rtx
         {
             Card card(&describeTuring);
             card.mQueues.front().queueFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
-            EXPECT_EQ(card.profile().mObstacle, sWindowedObstacle) << "a family that does not say it transfers";
+            EXPECT_EQ(card.profile().mObstacle, "") << "a family that does not say it transfers";
 
             card.mExtensions.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
             card.mQueues.push_back(sWholeQueue);
             card.mPresents = { VK_FALSE, VK_TRUE };
             const PhysicalDevice::Profile windowed = card.profile();
-            EXPECT_EQ(windowed.mObstacle, sWindowedObstacle);
+            EXPECT_EQ(windowed.mObstacle, "");
             EXPECT_EQ(windowed.mQueueFamily, 1u) << "the family that presents";
 
             card.mPresents = { VK_FALSE, VK_FALSE };
@@ -254,8 +239,7 @@ namespace Rtx
             for (std::size_t at = 0; at < profile.mOptionalExtensions.size(); ++at)
                 EXPECT_STREQ(profile.mOptionalExtensions[at], every[at]) << "the order the table states was not kept";
 
-            EXPECT_EQ(profile.mObstacle, sWindowedObstacle)
-                << "an optional extension decided whether the card qualifies";
+            EXPECT_EQ(profile.mObstacle, "") << "an optional extension decided whether the card qualifies";
         }
 
         /// Each thing a device can lack is named, and nothing else is.
@@ -285,9 +269,9 @@ namespace Rtx
                 // What a Radeon lists — its own memory types, AMD's device-coherent ones among them:
                 // everything the trace needs, under another vendor's driver. The renderer traces on it.
                 Card foreign(&describeRdna2);
-                EXPECT_EQ(foreign.profile().mObstacle, sWindowedObstacle);
+                EXPECT_EQ(foreign.profile().mObstacle, "");
                 foreign.mProperties.mVulkan12.driverID = VK_DRIVER_ID_AMD_PROPRIETARY;
-                EXPECT_EQ(foreign.profile().mObstacle, sWindowedObstacle);
+                EXPECT_EQ(foreign.profile().mObstacle, "");
             }
             {
                 Card short_(&describeTuring);
@@ -349,7 +333,7 @@ namespace Rtx
                 // AMD's 32 to 64 takes 32.
                 Card wide(&describeTuring);
                 wide.mProperties.mVulkan13.maxSubgroupSize = 64;
-                EXPECT_EQ(wide.profile().mObstacle, sWindowedObstacle);
+                EXPECT_EQ(wide.profile().mObstacle, "");
             }
             {
                 Card folding(&describeTuring);
@@ -375,35 +359,11 @@ namespace Rtx
                 EXPECT_EQ(split.profile().mObstacle, "no queue family with graphics and compute");
             }
             {
-                // No memory the host writes into at all: no window for mapped writes to go through,
-                // and nothing staged writes need.
+                // No video memory the host writes into at all, which staged writes do not need.
                 Card walled(&describeTuring);
                 walled.mProperties.mMemory.memoryTypeCount = 4;
-                const PhysicalDevice::Profile profile = walled.profile();
-                EXPECT_EQ(profile.mHostWrittenBytes, 0u);
-                EXPECT_EQ(profile.mObstacle, sWindowedObstacle);
+                EXPECT_EQ(walled.profile().mObstacle, "");
             }
-        }
-
-        /// A second aperture does not add to the first.
-        ///
-        /// **A buffer goes in one heap.** Two windows of 128 MiB hold no table a single 256 MiB one
-        /// would not, so the profile reports the largest rather than the sum — and a sum would say a
-        /// card had room it has nowhere.
-        TEST(RtxPhysicalDeviceTest, twoAperturesReportTheLargerAndNotTheirSum)
-        {
-            Card split(&describeTuring);
-            VkPhysicalDeviceMemoryProperties& memory = split.mProperties.mMemory;
-
-            memory.memoryHeaps[2].size = 134217728ull;
-            memory.memoryHeaps[memory.memoryHeapCount] = VkMemoryHeap{ 201326592ull, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT };
-            memory.memoryTypes[memory.memoryTypeCount] = VkMemoryType{ VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                    | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                memory.memoryHeapCount };
-            ++memory.memoryHeapCount;
-            ++memory.memoryTypeCount;
-
-            EXPECT_EQ(split.profile().mHostWrittenBytes, 201326592ull) << "two apertures were added together";
         }
     }
 }

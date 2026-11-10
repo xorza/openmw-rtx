@@ -1,19 +1,9 @@
 #include "memoryreport.hpp"
 
-#include <cstddef>
 #include <format>
-#include <string_view>
 
 namespace Rtx
 {
-    namespace
-    {
-        /// A heap's line up to its `reserved`, which the line under the heaps is padded to the
-        /// width of, so that its columns read down the page with theirs. The index takes two
-        /// places, which sixteen heaps need.
-        constexpr std::string_view sHeapPrefix = "  heap {:>2}  {:<12}  {:8.1f} MiB   ";
-    }
-
     std::string describeMemory(const MemoryReport& report)
     {
         std::string out;
@@ -21,13 +11,11 @@ namespace Rtx
         {
             const HeapUse& use = report.mHeaps[heap];
 
-            // **Both flags are named**, because resizable BAR makes the whole of video memory one
-            // heap the host writes into, and a label that read the host's flag alone called it the
-            // small window of a card without. The system's heap is named too, because on such a
-            // card it is the largest of the three and read as video memory it is a card with more
-            // room than it has.
-            const char* const kind = !use.mDeviceLocal ? "system" : use.mHostVisible ? "device+host" : "device-only";
-            out += std::format(sHeapPrefix, heap, kind, megabytes(use.mSize));
+            // The system's heap is named, because on a card with video memory of its own it can be the
+            // largest, and read as video memory it is a card with more room than it has. The index
+            // takes two places, which sixteen heaps need.
+            out += std::format(
+                "  heap {:>2}  {}  {:8.1f} MiB   ", heap, use.mDeviceLocal ? "device" : "system", megabytes(use.mSize));
             out += std::format("reserved {:7.1f}   live {:7.1f}", megabytes(use.mReserved), megabytes(use.mLive));
 
             // Nought from a driver that would not say, which is not the same answer as a budget of
@@ -37,16 +25,6 @@ namespace Rtx
 
             out += std::format("   {} blocks\n", use.mBlocks);
         }
-
-        // Under the heaps and in their columns, because it cuts across them. A card with
-        // resizable BAR states one heap that is host-visible throughout, so this is the only line
-        // that says what would have to fit in the small aperture of a card without it.
-        const std::size_t column = std::formatted_size(sHeapPrefix, 0u, "", 0.0);
-        const std::string label = report.mHostWrites.has_value()
-            ? std::format("  host-written, {}", sHostWritesNames.name(*report.mHostWrites))
-            : std::string("  host-written");
-        out += std::format("{:<{}}reserved {:7.1f}   live {:7.1f}\n", label, column,
-            megabytes(report.mHostWrittenReserved), megabytes(report.mHostWrittenLive));
 
         // What the video heap's `live` is made of, and why content stops where it does: the room
         // kept for the frame's largest targets, and what each kind of content may still take.

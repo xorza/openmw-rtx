@@ -28,12 +28,8 @@ namespace Rtx
             switch (kind)
             {
                 case BufferKind::DeviceLocal:
-                    return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
                 case BufferKind::HostWritten:
-                    if constexpr (sHostWrites == HostWrites::Mapped)
-                        return sHostWritten;
-                    else
-                        return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+                    return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
                 case BufferKind::Staging:
                     return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
                 case BufferKind::ReadBack:
@@ -77,14 +73,11 @@ namespace Rtx
             return owed;
         }
 
-        /// What a buffer of `kind` made for `usage` is made with: a host-written buffer whose writes
-        /// are staged is a copy's destination.
+        /// What a buffer of `kind` made for `usage` is made with: a host-written buffer is the
+        /// destination of the copies its writes are staged through.
         VkBufferUsageFlags usageOf(const BufferKind kind, const VkBufferUsageFlags usage)
         {
-            if (kind == BufferKind::HostWritten && sHostWrites == HostWrites::Staged)
-                return usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
-            return usage;
+            return kind == BufferKind::HostWritten ? usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT : usage;
         }
 
         /// A buffer of `size` bytes for `usage`, as one is made and as its memory is asked about.

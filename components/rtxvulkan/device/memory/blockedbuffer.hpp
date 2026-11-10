@@ -22,9 +22,8 @@ namespace Rtx
     /// so a cell arriving adds a block and every address already built into an acceleration
     /// structure stays good. Full blocks even where the scene stops part way, or the last would be
     /// made again on the next arrival. Device memory, staged through the batch a load is already
-    /// recording, because the memory the host writes into directly is a couple of hundred
-    /// megabytes on a card without resizable BAR. `Rtx::SceneDesc` never lets a mesh's run
-    /// straddle a block, so `addressOf` on a run's first element covers the whole run.
+    /// recording. `Rtx::SceneDesc` never lets a mesh's run straddle a block, so `addressOf` on a
+    /// run's first element covers the whole run.
     class BlockedBuffer
     {
     public:

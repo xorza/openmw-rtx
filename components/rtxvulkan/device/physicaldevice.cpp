@@ -19,7 +19,6 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/frameextents.hpp>
-#include <components/rtxvulkan/device/memory/memory.hpp>
 
 #include "requirements.hpp"
 #include "result.hpp"
@@ -111,18 +110,6 @@ namespace Rtx
                     appendListed(missing, required[at].mFor);
 
             return missing;
-        }
-
-        /// The largest heap holding a memory type a `Buffer::hostWritten` could come out of — the
-        /// largest and not the sum, because a buffer goes in one heap.
-        VkDeviceSize hostWrittenBytes(const VkPhysicalDeviceMemoryProperties& memory)
-        {
-            VkDeviceSize most = 0;
-            for (std::uint32_t type = 0; type < memory.memoryTypeCount; ++type)
-                if ((memory.memoryTypes[type].propertyFlags & sHostWritten) == sHostWritten)
-                    most = std::max(most, memory.memoryHeaps[memory.memoryTypes[type].heapIndex].size);
-
-            return most;
         }
 
         /// The queue family that can do everything this renderer submits, and presents to the window
@@ -237,7 +224,6 @@ namespace Rtx
     {
         Profile profile;
         profile.mDriver = DriverProfile::of(properties.mProperties2.properties.vendorID, properties.mVulkan12.driverID);
-        profile.mHostWrittenBytes = hostWrittenBytes(properties.mMemory);
 
         profile.mTextureSide = properties.mProperties2.properties.limits.maxImageDimension2D;
         for (const std::optional<VkImageFormatProperties>& taken : images)
@@ -355,23 +341,9 @@ namespace Rtx
         }
 
         if (!family.has_value())
-        {
             profile.mObstacle = presents.empty()
                 ? "no queue family with graphics and compute"
                 : "no queue family with graphics and compute that presents to the window";
-            return profile;
-        }
-
-        // **What the build's transport needs of the memory** (`sHostWrites`): mapped writes need the
-        // window the host writes into to be the whole of video memory, which a card without
-        // resizable BAR keeps at a couple of hundred megabytes and a driver may give a budget of
-        // nought (issue #49); staged writes need no such memory at all.
-        if constexpr (sHostWrites == HostWrites::Mapped)
-            if (!hostWrittenIsVideoMemory(properties.mMemory))
-            {
-                profile.mObstacle = "host-written memory is a window, not the video memory: turn on resizable BAR";
-                return profile;
-            }
 
         return profile;
     }
@@ -482,13 +454,7 @@ namespace Rtx
             << "driver:            " << mProperties->mVulkan12.driverName << ' ' << mProperties->mVulkan12.driverInfo
             << '\n'
             << "Vulkan:            " << versionString(base.apiVersion) << '\n'
-            << "device-local heap: " << sumDeviceLocalHeaps(mProperties->mMemory) / (1024 * 1024)
-            << " MiB\n"
-            // The heap a table the frame rewrites has to fit in, which on a card without
-            // resizable BAR is a couple of hundred megabytes of the line above rather than all of
-            // it. Printed beside it because the two look alike and only one of them bounds a scene.
-            << "host-written:      " << mProfile.mHostWrittenBytes / (1024 * 1024) << " MiB\n"
-            << "host writes:       " << sHostWritesNames.name(sHostWrites) << '\n'
+            << "device-local heap: " << sumDeviceLocalHeaps(mProperties->mMemory) / (1024 * 1024) << " MiB\n"
             << "queue family:      " << mProfile.mQueueFamily << '\n'
             << "subgroup size:     " << mProperties->mVulkan11.subgroupSize << '\n';
 

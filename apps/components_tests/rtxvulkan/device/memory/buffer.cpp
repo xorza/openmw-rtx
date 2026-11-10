@@ -56,11 +56,11 @@ namespace Rtx
             EXPECT_EQ(read[1], 9u);
         }
 
-        /// **Every write `Uploads` makes lands where it says, whichever way the build's writes
-        /// travel**: a span at an offset, bytes lent and filled in place, and runs out of a source
-        /// at offsets of their own — and nothing anywhere else, which the words left at nought say.
-        /// Read back on the queue, since the host never reads a host-written buffer. Under staged
-        /// writes, a copy left unordered is the contract `Uploads` holds its caller to.
+        /// **Every write `Uploads` makes lands where it says**: a span at an offset, bytes lent and
+        /// filled in place, and runs out of a source at offsets of their own — and nothing anywhere
+        /// else, which the words left at nought say. Read back on the queue, since the host never
+        /// reads a host-written buffer. A copy left unordered is the contract `Uploads` holds its
+        /// caller to.
         TEST_F(RtxBufferTest, uploadsLandWhereTheySay)
         {
             const Device& device = *mHarness.mDevice;
@@ -98,8 +98,8 @@ namespace Rtx
             std::memcpy(landed.data(), read.map(), sizeof(landed));
             EXPECT_EQ(landed, (std::array<std::uint32_t, sWords>{ 1, 2, 0, 3, 4, 0, 10, 11, 0, 0, 13, 0 }));
 
-            // A run reaching past its source, the source's last word and one beyond it, is refused by
-            // either transport before a byte is read.
+            // A run reaching past its source, the source's last word and one beyond it, is refused
+            // before a byte is read.
             Testing::expectAssertDies(
                 [&] {
                     Batch past(pool);
@@ -109,14 +109,13 @@ namespace Rtx
                 },
                 "a run past the end of what it is written from");
 
-            if constexpr (sHostWrites == HostWrites::Staged)
-                Testing::expectAssertDies(
-                    [&] {
-                        Batch unordered(pool);
-                        Uploads uploads(unordered);
-                        uploads.write(written, 0, std::span<const std::uint32_t>(first));
-                    },
-                    "staged writes nobody ordered ahead of what reads them");
+            Testing::expectAssertDies(
+                [&] {
+                    Batch unordered(pool);
+                    Uploads uploads(unordered);
+                    uploads.write(written, 0, std::span<const std::uint32_t>(first));
+                },
+                "staged writes nobody ordered ahead of what reads them");
         }
 
         /// A buffer moved out of takes its mapping, its size, its address and its stamp with it, and

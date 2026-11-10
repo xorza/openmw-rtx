@@ -5,4 +5,3 @@
 - all IO serial?
 - organize code
 - content preprocess note
-- remove rebar? -bench it

@@ -22,14 +22,11 @@ namespace Rtx
     /// once, as a sort leaves a debt.
     void appendRowRuns(std::span<const Index> rows, VkDeviceSize stride, std::vector<CopyRun>& into);
 
-    /// The one way the host writes a host-written buffer (`BufferKind::HostWritten`), whichever way
-    /// the build's writes travel (`sHostWrites`): copied into the buffer's mapping where they are
-    /// mapped, and staged into `batch` with the copy recorded there where they are staged. A caller
-    /// writes and orders and never asks which.
+    /// The one way the host writes a host-written buffer (`BufferKind::HostWritten`): staged into
+    /// `batch`, with the copy recorded there (`docs/rtx/architecture.md`, "Host writes are staged").
     ///
     /// **What a write is read by is recorded after `order`**: into `batch` itself, or into a
     /// recording `batch` is deferred ahead of (`Batch::defer`), which the pool submits first.
-    /// Mapped writes touch `batch` nowhere, so a frame of them opens no command buffer.
     class Uploads
     {
     public:
@@ -51,13 +48,12 @@ namespace Rtx
             writeBytes(into, offset, std::as_bytes(data));
         }
 
-        /// Writes `runs` of `source` into `into`, each where it says: one copy command for all of
-        /// them where they are staged.
+        /// Writes `runs` of `source` into `into`, each where it says, in one copy command.
         void writeRuns(const Buffer& into, std::span<const std::byte> source, std::span<const CopyRun> runs);
 
         /// `size` bytes landing at `offset` in `into`, lent for a caller that produces them in place:
-        /// the buffer's own mapping, or staging whose copy is recorded here. Written before the
-        /// recording that reads it is submitted, and never read: either is write-combined memory.
+        /// staging whose copy is recorded here. Written before the recording that reads it is
+        /// submitted, and never read: it is write-combined memory.
         std::span<std::byte> lend(const Buffer& into, VkDeviceSize offset, VkDeviceSize size);
 
         /// Makes what was written so far readable by whatever `batch` records next: the barrier staged

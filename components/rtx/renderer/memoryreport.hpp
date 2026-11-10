@@ -3,10 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <string>
-
-#include "hostwrites.hpp"
 
 namespace Rtx
 {
@@ -36,15 +33,9 @@ namespace Rtx
 
         std::uint32_t mBlocks = 0;
 
-        /// Whether the heap is video memory at all, as the device states it. A card without
-        /// resizable BAR has three: its video memory, the system's, and a window of the first the
-        /// host writes into — and only the flag tells the second from the first.
+        /// Whether the heap is video memory at all, as the device states it: on a card with video
+        /// memory of its own, the flag alone tells it from the system's, which can be the larger.
         bool mDeviceLocal = false;
-
-        /// Whether the device reads this heap and the host writes into it directly: the one heap
-        /// a card without resizable BAR keeps at a couple of hundred megabytes, and the whole of
-        /// video memory on a card with it.
-        bool mHostVisible = false;
     };
 
     /// What the renderer holds of its video memory by what each part is for, in the order the room
@@ -76,18 +67,6 @@ namespace Rtx
 
         std::array<HeapUse, sMaxHeaps> mHeaps{};
         std::uint32_t mHeapCount = 0;
-
-        /// What the renderer put in memory the host writes into and the device reads: the figure
-        /// a card without resizable BAR runs out of, and one no heap line can state on a box whose
-        /// whole 16 GiB is host-visible. A property of the memory type asked for, not of the heap.
-        std::uint64_t mHostWrittenReserved = 0;
-        std::uint64_t mHostWrittenLive = 0;
-
-        /// How the host's writes reach the device, which says what the two figures above can be:
-        /// nought on a card with video memory of its own where they are staged, since staged writes
-        /// ask for no such memory, and everything the renderer placed on a device whose video
-        /// memory is host-visible throughout, either way. Nothing from a renderer that does not say.
-        std::optional<HostWrites> mHostWrites;
 
         /// The video heap's memory by use.
         MemoryUses mUses{};

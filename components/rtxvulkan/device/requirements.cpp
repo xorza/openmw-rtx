@@ -122,8 +122,7 @@ namespace Rtx
                 .mFeature = &sFaultFeature },
             // What the driver says is left, which the heap's own size does not. A budget moves
             // with whatever else is on the card, and it is the figure a residency decision belongs
-            // against — most of all on a card whose host-visible heap is a couple of hundred
-            // megabytes. `MemoryAllocator` is what reads it.
+            // against. `MemoryAllocator` is what reads it.
             OptionalExtensions{ DeviceOption::MemoryBudget, sMemoryBudget, {} },
             // A priority on each allocation, which a driver that has to move video memory out
             // under pressure moves the lowest of first: content below what the frame holds —

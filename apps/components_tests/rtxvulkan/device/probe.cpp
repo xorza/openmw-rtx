@@ -92,8 +92,8 @@ namespace Rtx
             return rows;
         }
 
-        /// `bytes` in a host-written buffer, where the frame's tables are: mapped resizable-BAR video
-        /// memory under mapped writes, and a staged copy's destination under staged ones.
+        /// `bytes` in a host-written buffer, where the frame's tables are: video memory a staged copy
+        /// lands in.
         Buffer placeHostWritten(const Device&, CommandPool& pool, std::span<const std::byte> bytes)
         {
             return Testing::hostWritten(pool, bytes, sUsage);
