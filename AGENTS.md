@@ -377,6 +377,12 @@ the posture behind them does.
   `Testing::expectAssertDies`. What stays: a chain inside the one file that owns a system's
   difference, an include only one system has, and the headers GLSL and C++ both read, whose
   differences `shaders/portable.h` holds.
+- **GPU vendors stand behind one entity, as systems do.** What NVIDIA and AMD do differently — an
+  upscaler, a driver's fault the renderer works around, a card's sensors — is one interface with an
+  implementation file per vendor, chosen in one place: from the driver's identity once, at device
+  creation, or by CMake where a vendor's SDK is built in or not. Every other file asks a capability
+  or an interface, never a vendor ID, a driver ID or a vendor's name. A strong preference: a branch
+  on the vendor anywhere else carries its reason beside it.
 - **Comments say _why_**: an invariant, a workaround and its cause, a trade-off against the obvious
   alternative — never a restatement of the line under it. No decorative dividers. Stale narration
   in code you are editing is fixed with it; sweeping other files is a separate task.
