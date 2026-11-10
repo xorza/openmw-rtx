@@ -37,7 +37,7 @@ done
 export DEBIAN_FRONTEND=noninteractive
 # Into the folder `install_debian_deps.sh` downloads into, which CI keeps between runs.
 cache="${PWD}/apt-cache"
-apt-get -o dir::cache::archives="$cache" install -y ninja-build libgtest-dev libgmock-dev qt6-wayland zsync clang-format-14
+apt-get -o dir::cache::archives="$cache" install -y ninja-build libgtest-dev libgmock-dev qt6-wayland zsync
 apt-get -o dir::cache::archives="$cache" install -y libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
   libxss-dev libxtst-dev libxkbcommon-dev libwayland-dev libdecor-0-dev libegl-dev libgl-dev libdrm-dev \
   libgbm-dev libdbus-1-dev libibus-1.0-dev libudev-dev

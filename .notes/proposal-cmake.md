@@ -239,10 +239,12 @@ diagnostic after steps 9 and 12.
 3. **CMake 4.4.** Done: the 4.4.5 pins in `pins.py` for Linux and Windows, which `omw` fetches and puts first on
    every command's PATH (`deps.cmake`), the release image's own CMake and apt's gone, `cmake_minimum_required(VERSION
    4.4)` in the tree and the presets, and every check for an older CMake gone. The steps after it count on 4.4.
-4. **clang-format 23.1.5.** The wheel pins in `pins.py`, `omw format` on them, the CI jobs and `upstream.yml` on
-   `omw format`; `.clang-format` in 23's names, held by the dump test; `.gitattributes` and `LineEnding: LF`; the
-   merge driver, with a test that merges an upstream edit across a reformatted file without a conflict; then the
-   reformat commit and `.git-blame-ignore-revs`.
+4. **clang-format 23.1.5.** Done: the wheel pins in `pins.py`, which `omw format` reads on every system; CI, the
+   merge workflow and the deps script off apt's clang-format 14; `.clang-format` as LLVM's style and the tree's
+   changes, whose `--dump-config` under 23.1.5 equals the old file's but for `LineEnding: LF`; C++ LF in
+   `.gitattributes`; `omw merge-file`, the merge driver `upstream.yml` sets, tested on a reformat merged with an edit
+   made before it. Left: the reformat commit, the three CRLF sources renormalized with it, listed in
+   `.git-blame-ignore-revs`.
 5. **`openmw-checks`.** The `INTERFACE` target with the warnings each compiler takes, linked by every first-party
    target; the root's `add_compile_options` for warnings go. Test: a third-party target's compile command holds none
    of them, and a first-party one holds all.

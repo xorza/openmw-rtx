@@ -132,7 +132,7 @@ jobs:
             - name: Tools, before anything of upstream's is in the tree
               run: |
                   sudo apt-get update
-                  sudo apt-get install -y --no-install-recommends clang-format-14 bubblewrap socat
+                  sudo apt-get install -y --no-install-recommends bubblewrap socat
                   if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
                     sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
                   fi
@@ -141,6 +141,10 @@ jobs:
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                   git config core.hooksPath /dev/null
+                  # C++ merges through the pinned clang-format (`merge=clang-format` in .gitattributes),
+                  # so an upstream edit to a file the fork reformatted conflicts only where the edit does.
+                  git config merge.clang-format.name "C++ laid out by the pinned clang-format, then merged"
+                  git config merge.clang-format.driver "python3 omw merge-file %O %A %B %L %P"
                   echo "/UPSTREAM-MERGE.md" >> .git/info/exclude
                   echo "/.upstream-merge/" >> .git/info/exclude
 
@@ -333,7 +337,7 @@ jobs:
                          resolution is to delete a file, write its path as `conflicts.txt` spells it, on a
                          line of its own, into `.upstream-merge/removed.txt`; a path that `conflicts.txt` does
                          not name is not deleted. Leave the rest to the step after you: it stages the tree as
-                         you left it, formats the C++ you wrote with `clang-format-14`, which is what the
+                         you left it, formats the C++ you wrote with `omw format`, which is what the
                          `checks` job of `ci.yml` holds the tree to, and commits the merge with git's own
                          message.
                       4. Write your report to `UPSTREAM-MERGE.md` at the root of the checkout. It becomes the
@@ -411,18 +415,17 @@ jobs:
                     done < "$dir/removed.txt"
                   fi
 
-                  # Not a file with a marker, whose markers a format would reflow.
-                  { git diff -z --name-only; git ls-files -z --others --exclude-standard; } \
-                    | while IFS= read -r -d '' path; do
-                      case $path in
-                        extern/*) continue ;;
-                        *.cpp | *.hpp | *.h) ;;
-                        *) continue ;;
-                      esac
-                      if [ -f "$path" ] && ! grep -qE '^(<<<<<<<|>>>>>>>) ' -- "$path"; then
-                        clang-format-14 -i "./$path"
-                      fi
-                    done
+                  # Not a file with a marker, whose markers a format would reflow. `omw format` leaves alone
+                  # what is not a C++ source of the tree's own.
+                  formatted=()
+                  while IFS= read -r -d '' path; do
+                    if [ -f "$path" ] && ! grep -qE '^(<<<<<<<|>>>>>>>) ' -- "$path"; then
+                      formatted+=("$path")
+                    fi
+                  done < <({ git diff -z --name-only; git ls-files -z --others --exclude-standard; })
+                  if [ "${#formatted[@]}" -gt 0 ]; then
+                    python3 omw format "${formatted[@]}"
+                  fi
 
                   if git rev-parse -q --verify MERGE_HEAD > /dev/null; then
                     git add --all

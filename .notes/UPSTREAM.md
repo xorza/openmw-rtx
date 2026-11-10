@@ -271,3 +271,7 @@ made only on the user's explicit yes, after which it is added here.
 - CMake 4.4 at least (`cmake_minimum_required`), and every check for an older one gone: `omw`
   builds with Kitware's 4.4.5 on every system, which GitHub's runners and Ubuntu do not carry. The
   cost is a conflict with an upstream change to the lines around the checks.
+- clang-format 23.1.5 in place of 14, over upstream's sources as over the fork's, with C++ LF on every
+  clone: one formatter for one tree, the same on every system. The cost is a reformat of 198 of
+  upstream's files, which `omw merge-file` takes out of each merge: the merge workflow lays out the
+  base and both sides with the pinned clang-format before git merges them.

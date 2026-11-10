@@ -99,25 +99,27 @@ def windows_qt(version: str) -> Path:
     return qt
 
 
-def windows_clang_format_dir() -> Path:
-    return DEPS / f"clang-format-{pins.LLVM_RELEASE}"
+def clang_format_dir() -> Path:
+    return pinned_folder("clang-format", pins.CLANG_FORMAT[SYSTEM])
 
 
-def windows_clang_format() -> Path:
-    """**The formatter CI pins, out of LLVM's own Windows package.** Nothing installs clang-format 14
-    on Windows any more, but LLVM still serves the last 14 package, an NSIS installer 7-Zip reads
-    without running, and `bin/clang-format.exe` is one file of it. LLVM publishes a signature and no
-    checksum for that release, so the SHA-256 pinned is the one taken off the download this was
-    written against: the same bytes every time, and nothing else."""
-    found = windows_clang_format_dir() / "clang-format.exe"
+def clang_format() -> Path:
+    """**The clang-format every desk and CI formats with**, the one program out of the wheel `pins.py`
+    names for this system: one layout on every system, whatever the distribution packages. The wheel
+    is a zip, read here and never installed."""
+    folder = clang_format_dir()
+    found = folder / f"clang-format{EXE}"
     if found.is_file():
         return found
+    pin = pins.CLANG_FORMAT[SYSTEM]
+    wheel = DEPS / Path(pin.url).name
 
-    package = DEPS / Path(pins.LLVM.url).name
-    fetch.download_pin(pins.LLVM, package)
-    fetch.build_beside(found.parent, lambda partial: fetch.unpack_7z(package, partial, "bin/clang-format.exe",
-                                                                     flat=True))
-    package.unlink()
+    def fill(partial: Path) -> None:
+        fetch.download_pin(pin, wheel)
+        fetch.extract_member(wheel, found.name, partial)
+        wheel.unlink()
+
+    fetch.build_beside(folder, fill)
     return found
 
 
@@ -350,11 +352,11 @@ def sdk_environment(env: dict[str, str]) -> None:
 def pinned_names() -> set[str]:
     """Every name in deps/ that the pins give this system, through the same functions that name what
     each getter above leaves there, so pruning cannot take what a getter fetched."""
-    kept = [vulkan_sdk_dir(), cmake_dir(), appimage_tools_dir()]
+    kept = [vulkan_sdk_dir(), cmake_dir(), clang_format_dir(), appimage_tools_dir()]
     kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]
     if WINDOWS:
         tag = msvc_versions()["VCPKG_TAG"]
-        kept += [windows_set_dir(tag), windows_set_manifest(tag), windows_qt_dir(), windows_clang_format_dir()]
+        kept += [windows_set_dir(tag), windows_set_manifest(tag), windows_qt_dir()]
     return {path.name for path in kept}
 
 

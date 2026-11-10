@@ -18,12 +18,22 @@ AQT = Pin(
     "f9e9acc05975f2e70e4935ace76b41882cda4b53eb779c9bcf1d87a95029a6b0",
 )
 
-# LLVM's Windows package, for the clang-format CI pins.
-LLVM_RELEASE = "14.0.6"
-LLVM = Pin(
-    f"https://github.com/llvm/llvm-project/releases/download/llvmorg-{LLVM_RELEASE}/LLVM-{LLVM_RELEASE}-win64.exe",
-    "e8dbb2f7de8e37915273d65c1c2f2d96844b96bb8e8035f62c5182475e80b9fc",
-)
+# The clang-format every desk and CI formats with (`deps.clang_format`), by system: the PyPI wheels
+# built from LLVM's release, about 2 MB each, where LLVM's own packages carry it inside 0.9 to 1.9 GB.
+# The digests are PyPI's. Exact, since a point release moves the layout too.
+CLANG_FORMAT_VERSION = "23.1.5"
+CLANG_FORMAT = {
+    "linux": Pin(
+        "https://files.pythonhosted.org/packages/0e/cc/06adcfb7dfaea4d2c1929202021d4afcdc26915dc75fc0c72d63855da553/"
+        f"clang_format-{CLANG_FORMAT_VERSION}-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+        "d97ce49911ba8c89ef3f3c0735a9c7818e4780ab4812c67d1c5fcd829d16ae52",
+    ),
+    "windows": Pin(
+        "https://files.pythonhosted.org/packages/7b/67/b91fb3483ca5cdb468fa5e72d836736de5ec29154cc3f58718de6192bc12/"
+        f"clang_format-{CLANG_FORMAT_VERSION}-py2.py3-none-win_amd64.whl",
+        "18a4a1a698dd52ed4e288c97d99e93910f8f9d0128b266f65021ecf39c85d034",
+    ),
+}
 
 # The tools an AppImage is made with, by the name each is kept under in its folder of deps/
 # (`deps.appimage_tools`).
