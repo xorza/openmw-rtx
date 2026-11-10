@@ -78,10 +78,9 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   run and checked by `omw format`. Its layout is Rust built into a wheel for one CPython, so `omw` pins a wheel for
   each interpreter it runs under and PyYAML's pure-Python source beside it; nothing is installed. It took over the
   tab check upstream's lint made.
-- **Reformats out of blame, and a merge across them.** Each whole-tree reformat is listed in
-  `.git-blame-ignore-revs` ([git-blame](https://git-scm.com/docs/git-blame)); `omw merge-file`, git's merge driver
-  for C++, lays out base, ours and theirs with the pin before merging, so an upstream edit conflicts only where it
-  does. Refused: formatting the fork's files alone, two layouts in one tree.
+- **A merge across a reformat.** `omw merge-file`, git's merge driver for C++, lays out base, ours and theirs with
+  the pin before merging, so an upstream edit conflicts only where it does. Refused: formatting the fork's files
+  alone, two layouts in one tree.
 
 ## Systems and compilers
 
