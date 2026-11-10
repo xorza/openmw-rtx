@@ -653,6 +653,35 @@ namespace
         EXPECT_TRUE(queue.pop(mPlayerTile, processTime).has_value());
     }
 
+    TEST_F(DetourNavigatorJobQueueTest, pop_should_return_ready_delayed_nearer_to_player_before_farther_updating)
+    {
+        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        const std::chrono::steady_clock::time_point processTime = now + std::chrono::seconds(1);
+
+        std::list<Job> jobs;
+        JobQueue queue;
+        queue.push(jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(5, 0),
+                       ChangeType::update, mProcessTime),
+            now);
+        queue.push(jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(0, 0),
+                       ChangeType::update, processTime),
+            now);
+
+        // Before it is due, the delayed job waits and the farther one goes.
+        const auto early = queue.pop(mPlayerTile, now);
+        ASSERT_TRUE(early.has_value());
+        EXPECT_EQ((*early)->mChangedTile, TilePosition(5, 0));
+
+        queue.push(jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(5, 0),
+                       ChangeType::update, mProcessTime),
+            now);
+        const auto due = queue.pop(mPlayerTile, processTime);
+        ASSERT_TRUE(due.has_value());
+        EXPECT_EQ((*due)->mChangedTile, TilePosition(0, 0));
+        EXPECT_EQ(queue.getStats().mDelayed, 0);
+        EXPECT_EQ(queue.getStats().mUpdating, 1);
+    }
+
     TEST_F(DetourNavigatorJobQueueTest, update_should_move_ready_delayed_to_updating)
     {
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();

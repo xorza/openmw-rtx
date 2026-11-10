@@ -240,15 +240,16 @@ namespace DetourNavigator
             return result;
         }
 
-        if (const std::optional<JobIt> result = mUpdating.pop(playerTile))
-            return result;
+        // A delayed job that is due competes with every other update by its distance to the player. Taken only
+        // once no other update was queued, a tile near the player changed twice within the update interval
+        // waited behind every farther tile, and on a slow machine a new game queues the whole navmesh.
+        while (!mDelayed.empty() && mDelayed.front()->mProcessTime <= now)
+        {
+            mUpdating.push(mDelayed.front());
+            mDelayed.pop_front();
+        }
 
-        if (mDelayed.empty() || mDelayed.front()->mProcessTime > now)
-            return std::nullopt;
-
-        const JobIt result = mDelayed.front();
-        mDelayed.pop_front();
-        return result;
+        return mUpdating.pop(playerTile);
     }
 
     void JobQueue::update(TilePosition playerTile, int maxTiles, std::chrono::steady_clock::time_point now)

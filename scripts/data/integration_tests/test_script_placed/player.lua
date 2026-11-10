@@ -37,13 +37,16 @@ testing.registerLocalTestStep('the navigation ray is clear', function()
 end)
 
 testing.registerLocalTestStep('the navigation ray stops at the pillar', function(pillar)
-    local hit = castRayUntil(function(hit)
-        return not isClear(hit)
-    end)
-
     -- The ray runs along x = y and stops where the agent's half extent meets the pillar's 46.9. The mesh
     -- is voxels of "cell size" / "recast scale factor" = 0.2 / 0.0294 = 6.8 units.
     local reach = 46.9 + types.Actor.getPathfindingAgentBounds(self).halfExtents.x
+
+    -- Until it stops there, and not at the first stop: the pillar changes four tiles, each rebuilt on its own,
+    -- and a neighbour rebuilt before the pillar's own tile stops the ray at their border.
+    local hit = castRayUntil(function(hit)
+        return hit ~= nil and math.abs(hit.x - (pillar.x - reach)) <= 6.8
+            and math.abs(hit.y - (pillar.y - reach)) <= 6.8
+    end)
 
     -- What the physics meets along the same line, above the ground, so a failure says which of the two the
     -- pillar is missing from: its collision, which the disable or the grid change gives it, or the mesh the

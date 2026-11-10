@@ -232,6 +232,11 @@ is not here is held to the rules above.
     lists the worn parts of an NPC the game never met out of its record's inventory (`MWClass::appendRecordWornParts`,
     `anUnmetNpcListsThePartsItsRecordWears`), and `CreatureLevList::getModelsToPreload` every creature the list may
     spawn, which made up to 57 of the 293 ms of a crossing's slow frames on a large content list;
+  - the navmesh updater's queue took a delayed job only once no other update was queued, and moved due ones by
+    their distance to the player only when the player's tile changed: a tile near the player changed twice within
+    `min update interval ms` waited behind every farther tile, the whole navmesh after a new game on a slow
+    machine, so a placed object stayed out of the mesh for half a minute. `JobQueue::pop` now ranks a due delayed
+    job with the rest (`pop_should_return_ready_delayed_nearer_to_player_before_farther_updating`);
   - the launcher showed the language `launcher.cfg` named, or English where it named none, and wrote that
     language's encoding over the one `openmw.cfg` held at every Play: a Russian profile's first Play turned
     `win1251` into `win1252`, and the game drew its Cyrillic as Latin-1. The box now shows a language that
