@@ -9,8 +9,8 @@
 
 #include <volk.h>
 
+#include <components/misc/digestwords.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/common/digestwords.hpp>
 
 #include "owned.hpp"
 
@@ -111,6 +111,6 @@ namespace Rtx
         /// compiled nothing new since rewrites nothing. Not the blob: tens of megabytes held all
         /// session for one comparison at the end.
         std::size_t mKeptBytes = 0;
-        DigestWords mKeptDigest{};
+        Misc::DigestWords mKeptDigest{};
     };
 }

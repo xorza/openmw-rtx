@@ -7,7 +7,7 @@
 
 #include <components/platform/thread.hpp>
 
-namespace Rtx
+namespace Misc
 {
     /// The lock between a frame and the workers it keeps, and the two waits across it — the dance
     /// and not the data, which stays with its owner. Every operation is a template on what it

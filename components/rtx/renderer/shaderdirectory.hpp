@@ -2,7 +2,7 @@
 
 #include <filesystem>
 
-#include <components/rtx/common/digestwords.hpp>
+#include <components/misc/digestwords.hpp>
 
 namespace Rtx
 {
@@ -26,5 +26,5 @@ namespace Rtx
     /// one run's pipelines named may be named by the next. The modules without their source are
     /// under a megabyte and hash in a fifth of a millisecond once the system has read them, and the
     /// eight megabytes with it in one; nought where the directory cannot be read.
-    DigestWords digestShaders(const std::filesystem::path& directory);
+    Misc::DigestWords digestShaders(const std::filesystem::path& directory);
 }

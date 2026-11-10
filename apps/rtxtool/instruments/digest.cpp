@@ -4,7 +4,7 @@
 
 namespace RtxTool
 {
-    std::string spellHash(const Rtx::DigestWords& words)
+    std::string spellHash(const Misc::DigestWords& words)
     {
         return std::format("{:016x}{:016x}", words[0], words[1]);
     }

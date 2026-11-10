@@ -12,7 +12,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
-#include <components/rtx/common/digestwords.hpp>
+#include <components/misc/digestwords.hpp>
 #include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/shaders/digest.h>
@@ -65,9 +65,9 @@ namespace Rtx
         }
 
         /// The four lanes as `DigestPass::unpack` reads them, two words.
-        DigestWords wordsOf(const Lanes& lanes)
+        Misc::DigestWords wordsOf(const Lanes& lanes)
         {
-            return DigestWords{ lanes[0] | (std::uint64_t{ lanes[1] } << 32),
+            return Misc::DigestWords{ lanes[0] | (std::uint64_t{ lanes[1] } << 32),
                 lanes[2] | (std::uint64_t{ lanes[3] } << 32) };
         }
 
@@ -221,7 +221,7 @@ namespace Rtx
             EXPECT_EQ(digested.mFrame.mDenoiserTaken, 0u) << "no denoiser image was handed over";
             EXPECT_EQ(digested.mDenoiserLanesHeld, 0u) << "a stand-in folds nothing";
             for (std::size_t at = 0; at < sDenoiserImageCount; ++at)
-                EXPECT_EQ(digested.mFrame.mDenoiser[at], DigestWords{}) << at;
+                EXPECT_EQ(digested.mFrame.mDenoiser[at], Misc::DigestWords{}) << at;
         }
 
         TEST_F(RtxDigestPassTest, oneTexelMovesTheDigestAndOnlyItsImage)
@@ -312,9 +312,9 @@ namespace Rtx
             for (std::size_t at = 0; at < sDenoiserImageCount; ++at)
             {
                 const auto named = static_cast<DenoiserImage>(at);
-                const DigestWords expected = named == DenoiserImage::PaneMean ? wordsOf(fold(texels, width))
-                    : named == DenoiserImage::SkyShadowLevel0                 ? wordsOf(fold(wordTexels, width))
-                                                                              : DigestWords{};
+                const Misc::DigestWords expected = named == DenoiserImage::PaneMean ? wordsOf(fold(texels, width))
+                    : named == DenoiserImage::SkyShadowLevel0                       ? wordsOf(fold(wordTexels, width))
+                                                                                    : Misc::DigestWords{};
                 EXPECT_EQ(digested.mFrame.mDenoiser[at], expected) << sDenoiserImageNames.name(named);
             }
         }

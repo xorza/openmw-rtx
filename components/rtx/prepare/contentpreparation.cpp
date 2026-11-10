@@ -11,6 +11,8 @@
 
 #include <osg/Image>
 
+#include <components/contentstore/key.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/bytebuffer.hpp>
@@ -24,7 +26,6 @@
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/surfacedescription.hpp>
-#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
@@ -42,7 +43,7 @@ namespace Rtx
     /// thread, last.
     struct ContentPreparation::Hand
     {
-        explicit Hand(ContentStore& store)
+        explicit Hand(ContentStore::Store& store)
             : mWalk(nullptr, &store)
         {
         }
@@ -204,7 +205,7 @@ namespace Rtx
 
     std::uint64_t ContentPreparation::signatureOf(const PreparationSetup& setup)
     {
-        ContentDigest digest("preparation", 1);
+        ContentStore::Digest digest("preparation", 1);
         digest.add(ShapePass::sVersion);
         digest.add(TexelMean::sVersion);
         digest.add(AlphaSpan::sVersion);

@@ -10,6 +10,7 @@
 
 #include <osg/ref_ptr>
 
+#include <components/contentstore/store.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/specularlayout.hpp>
@@ -54,7 +55,7 @@ namespace Rtx
         ///        Read on this walk's thread, so nothing may write it while this stands.
         /// @param store the process's content store, or null for none (`CellWorld::mStore`), which
         ///        this thread reaches to the disk, being no frame's.
-        TemplateWalk(const osg::StateSet* above, ContentStore* store);
+        TemplateWalk(const osg::StateSet* above, ContentStore::Store* store);
 
         /// Walks `root` and appends one part to `into` for every drawable under it that holds a
         /// triangle, with its arrays appended to the model's buffers. A drawable this cannot take

@@ -50,7 +50,7 @@ namespace Rtx
 
         /// What the run reads of `file`: its format and its finest level, the one level a conversion
         /// reads of either file.
-        void addFinest(const TextureData& file, ContentDigest& digest)
+        void addFinest(const TextureData& file, ContentStore::Digest& digest)
         {
             digest.add(file.mFormat);
             digest.add(file.mLevels.front().mWidth);
@@ -123,7 +123,7 @@ namespace Rtx
             && readsColour(*mSpecular) && ChainBuild::buildsAt(mSpecular->mLevels.front());
     }
 
-    void ConversionPass::digest(const Input& input, ContentDigest& digest)
+    void ConversionPass::digest(const Input& input, ContentStore::Digest& digest)
     {
         describe(input);
         const bool converted = converts();

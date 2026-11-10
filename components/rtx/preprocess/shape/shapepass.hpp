@@ -6,7 +6,7 @@
 
 #include <osg/Vec3f>
 
-#include <components/rtx/preprocess/contentkey.hpp>
+#include <components/contentstore/key.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 
 #include "creasesplit.hpp"
@@ -59,7 +59,7 @@ namespace Rtx
         static constexpr std::uint32_t sVersion = 4;
         static constexpr bool sStored = true;
 
-        static void digest(const Input& input, ContentDigest& digest);
+        static void digest(const Input& input, ContentStore::Digest& digest);
         void run(const Input& input, Output& output);
 
         /// Whether a stored `output` can be `input`'s: whole triangles, every kept corner one of the

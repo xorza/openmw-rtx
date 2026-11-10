@@ -297,9 +297,14 @@ add_component_dir (esm4
     vertex
 )
 
+# What is derived from the content and kept on disk across sessions, an entry a file under its key.
+add_component_dir (contentstore
+    key store
+    )
+
 add_component_dir (misc
-    barrier budgetmeasurement bytebuffer color compression constants convert coordinateconverter display endianness float16 frameclock frameratelimiter framestats
-    guarded math mathutil messageformatparser notnullptr objectpool osgpluginchecker osguservalues presentation progressreporter resourcehelpers
+    barrier budgetmeasurement bytebuffer color compression constants convert coordinateconverter digestwords display endianness float16 frameclock frameratelimiter framestats
+    guarded hashstate math mathutil messageformatparser monitor notnullptr objectpool osgpluginchecker osguservalues presentation progressreporter resourcehelpers
     result rng strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream weakcache windows
     )
 
@@ -395,7 +400,7 @@ add_component_dir (sky
 # The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan
 # backend is its own library, `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share.
 add_component_dir (rtx/common
-    asserts cardaddress clock digestwords error finite hashstate index job jobprogress menu monitor
+    asserts cardaddress clock error finite index job jobprogress menu
     namedenum parallel
     pointhash radicalinverse runs scratch slots stepped ownedby
     )
@@ -430,7 +435,7 @@ add_component_dir (rtx/prepare
     )
 
 add_component_dir (rtx/preprocess
-    contentcache contentcodec contentkey contentpass contentpreprocessor contentstats contentstore imagefactcache
+    contentcache contentcodec contentpass contentpreprocessor contentstats imagefactcache
     preparedimages threadcontent
     )
 

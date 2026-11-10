@@ -65,7 +65,7 @@ namespace MWRender
         /// keyed on the modules, and the game's carry neither.
         std::optional<Rtx::ShaderSet> mShaders{};
 
-        /// Where the content store stands (`Rtx::ContentStore`), or nothing for none: a played
+        /// Where the content store stands (`ContentStore::Store`), or nothing for none: a played
         /// session's under the user's cache directory, the harness's where `--content-cache` says,
         /// and none for a test's renderer, which computes every ask.
         std::optional<std::filesystem::path> mContentStore{};

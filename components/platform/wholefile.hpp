@@ -68,7 +68,7 @@ namespace Platform
 
     /// What a temporary's name ends with: `<target's name>.<process>-<count>.partial`, in the
     /// target's folder. A process killed between a write and its rename leaves one, which the
-    /// folder's owner removes once it is old (`ContentStore`, `PipelineCache`).
+    /// folder's owner removes once it is old (`ContentStore::Store`, `PipelineCache`).
     inline constexpr std::string_view sPartialSuffix = ".partial";
 
     /// How old a temporary is before its folder's owner takes it for one a killed process left: a

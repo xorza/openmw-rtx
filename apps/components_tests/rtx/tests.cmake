@@ -10,9 +10,7 @@ set(RTX_TEST_FILES
     dlss/dlss.cpp
     platform/linuxtext.cpp
     rtx/common/halffloat.cpp
-    rtx/common/hashstate.cpp
     rtx/common/job.cpp
-    rtx/common/monitor.cpp
     rtx/common/namedenum.cpp
     rtx/common/ownedby.cpp
     rtx/common/parallel.cpp
@@ -64,9 +62,7 @@ set(RTX_TEST_FILES
     rtx/mirror/released.cpp
     rtx/mirror/shading.cpp
     rtx/mirror/statereading.cpp
-    rtx/preprocess/contentkey.cpp
     rtx/preprocess/contentpreprocessor.cpp
-    rtx/preprocess/contentstore.cpp
     rtx/preprocess/preparedimages.cpp
     rtx/preprocess/passversions.cpp
     rtx/prepare/contentpreparation.cpp

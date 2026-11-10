@@ -28,7 +28,7 @@ namespace RtxTool
         constexpr std::uint8_t sPixels[] = { 1, 2, 3, 4 };
         constexpr std::uint8_t sOtherPixels[] = { 1, 2, 3, 5 };
 
-        Rtx::DigestWords hashOf(const std::uint64_t seed)
+        Misc::DigestWords hashOf(const std::uint64_t seed)
         {
             return { seed, seed * 7 + 1 };
         }

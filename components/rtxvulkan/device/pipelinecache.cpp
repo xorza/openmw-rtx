@@ -15,11 +15,11 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/bytebuffer.hpp>
+#include <components/misc/digestwords.hpp>
+#include <components/misc/hashstate.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/folder.hpp>
 #include <components/platform/wholefile.hpp>
-#include <components/rtx/common/digestwords.hpp>
-#include <components/rtx/common/hashstate.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 
 #include "result.hpp"
@@ -57,16 +57,16 @@ namespace Rtx
             std::uint32_t mDriver;
             std::array<std::uint8_t, VK_UUID_SIZE> mUuid;
             std::uint64_t mBlobBytes;
-            DigestWords mBlobDigest;
+            Misc::DigestWords mBlobDigest;
         };
         static_assert(sizeof(FileHeader) == 64, "the file's header carries no padding");
 
         constexpr std::array<char, 8> sMagic{ 'O', 'M', 'W', 'R', 'T', 'X', 'P', 'C' };
         constexpr std::uint32_t sFormat = 1;
 
-        DigestWords digestOf(std::span<const std::uint8_t> blob)
+        Misc::DigestWords digestOf(std::span<const std::uint8_t> blob)
         {
-            HashState digest;
+            Misc::HashState digest;
             digest.add(blob);
             return digest.getWords();
         }
@@ -128,7 +128,7 @@ namespace Rtx
             if (failed)
                 return {};
 
-            const DigestWords shaders = digestShaders(shaderDirectory);
+            const Misc::DigestWords shaders = digestShaders(shaderDirectory);
 
             std::array<std::uint8_t, sizeof(shaders)> digest{};
             std::memcpy(digest.data(), shaders.data(), digest.size());
@@ -328,7 +328,7 @@ namespace Rtx
         // `shot` after the first, every test binary after the first. Rewriting a megabyte to record
         // no change is how a cache comes to cost more than it saves.
         data.resize(bytes);
-        const DigestWords digest = digestOf(data);
+        const Misc::DigestWords digest = digestOf(data);
         if (bytes == mKeptBytes && digest == mKeptDigest)
             return;
 

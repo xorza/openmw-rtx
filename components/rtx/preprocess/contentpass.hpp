@@ -7,9 +7,9 @@
 #include <string_view>
 #include <utility>
 
+#include <components/contentstore/key.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/rtx/common/namedenum.hpp>
-
-#include "contentkey.hpp"
 
 namespace Rtx
 {
@@ -63,10 +63,29 @@ namespace Rtx
 
     inline constexpr std::size_t sContentPassCount = sContentPasses.mNames.size();
 
+    /// The folder the ray tracer's store stands in under the user's cache directory, the game's and the
+    /// harness's both, so a measured run reads what the game wrote.
+    inline constexpr std::string_view sContentStoreFolder = "rtx-content";
+
+    /// The ray tracer's store: a pass a kind, held in memory where small, so the frame's thread finds a
+    /// fact without a wait on the disk, and a shape at any size, since a shape the frame misses it folds and
+    /// splits again, about 140 large ones a session at the ship, 58 ms of frames.
+    inline constexpr ContentStore::Policy sContentStorePolicy{
+        .mKindCount = static_cast<std::uint32_t>(ContentPassId::Count),
+        .mHolding
+        = ContentStore::Holding{ .mAtAnySize = std::uint64_t{ 1 } << static_cast<std::uint32_t>(ContentPassId::Shape) },
+    };
+
+    /// The kind a pass files its entries as in the ray tracer's store.
+    constexpr std::uint32_t storeKindOf(ContentPassId pass)
+    {
+        return static_cast<std::uint32_t>(pass);
+    }
+
     /// An entry the store holds: its key and the pass that filed it, which a key alone does not say.
     struct StoredKey
     {
-        ContentKey mKey{};
+        ContentStore::Key mKey{};
         ContentPassId mPass = ContentPassId::Count;
 
         bool operator==(const StoredKey& other) const = default;
@@ -90,8 +109,8 @@ namespace Rtx
     /// key reads every byte (`docs/rtx/research/2026-11-08-normal-map-chains.md`, "What the
     /// preprocessor costs a start").
     template <class Pass>
-    concept ContentPass
-        = requires(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output, ContentDigest& digest)
+    concept ContentPass = requires(
+        Pass& pass, const typename Pass::Input& input, typename Pass::Output& output, ContentStore::Digest& digest)
     {
         {
             Pass::sPass

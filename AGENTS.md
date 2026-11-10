@@ -55,6 +55,8 @@ and the headers hold the detail.
 - `components/rtxvulkan/` — the backend. What is true of an API lives here and nowhere else; the two
   places that stand one up name `VulkanRenderer` and nothing else does.
 - `components/myguirtx/` — MyGUI's backend.
+- `components/contentstore/` — what is derived from the content, kept on disk across sessions, which
+  the ray tracer owns a store of.
 - `apps/openmw/mwrender/` — the seam `MWRender::Renderer`, `GlRenderer` beside upstream's files, and
   the game-side owner in `rtx/`.
 - `apps/rtxtool/` — the harness: what a run visits and what a place came to in `model/`, and in

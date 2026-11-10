@@ -44,7 +44,7 @@
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/preprocess/contentstore.hpp>
+#include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/world/weather.hpp>

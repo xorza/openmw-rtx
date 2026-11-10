@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
+#include <components/misc/monitor.hpp>
 #include <components/platform/thread.hpp>
-#include <components/rtx/common/monitor.hpp>
 
 namespace MWRender
 {
@@ -123,7 +123,7 @@ namespace RtxTool
         std::uint64_t mPresses = 0;
         /// The room the writer picked up, from its `take` to the end of its turn: the writer's alone.
         Darkroom* mDeveloping = nullptr;
-        Rtx::Monitor mMonitor;
+        Misc::Monitor mMonitor;
 
         /// Last, so the thread is joined before the members it reads go.
         std::jthread mWriter;

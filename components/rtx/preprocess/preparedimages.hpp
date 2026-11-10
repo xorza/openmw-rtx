@@ -13,8 +13,8 @@
 #include <osg/observer_ptr>
 #include <osg/ref_ptr>
 
+#include <components/misc/monitor.hpp>
 #include <components/platform/thread.hpp>
-#include <components/rtx/common/monitor.hpp>
 #include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -22,10 +22,13 @@
 
 #include "contentstats.hpp"
 
+namespace ContentStore
+{
+    class Store;
+}
+
 namespace Rtx
 {
-    class ContentStore;
-
     /// What `PreparedImages::find` answers for a file.
     struct PreparedImage
     {
@@ -63,7 +66,7 @@ namespace Rtx
 
         /// @param store where the chains are found and kept, or null for none.
         /// @param hands how many threads make them.
-        PreparedImages(ContentStore* store, std::size_t hands);
+        PreparedImages(ContentStore::Store* store, std::size_t hands);
 
         /// Stops every thread, dropping what is queued.
         ~PreparedImages();
@@ -134,9 +137,9 @@ namespace Rtx
         /// after the last sweep: a bound that grows with what is live.
         void sweep();
 
-        ContentStore* const mStore;
+        ContentStore::Store* const mStore;
 
-        Monitor mMonitor;
+        Misc::Monitor mMonitor;
         std::map<Key, Entry> mEntries;
         std::size_t mSweepAt = 1024;
         std::deque<Job> mQueue;

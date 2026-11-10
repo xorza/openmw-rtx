@@ -11,7 +11,7 @@
 #include <components/sceneutil/embeddedimage.hpp>
 
 #include "contentpreprocessor.hpp"
-#include "contentstore.hpp"
+#include <components/contentstore/store.hpp>
 
 namespace Rtx
 {
@@ -19,8 +19,8 @@ namespace Rtx
     /// chain it makes, and the thread, last.
     struct PreparedImages::Hand
     {
-        explicit Hand(ContentStore* store)
-            : mContent(store, StoreReach::Disk)
+        explicit Hand(ContentStore::Store* store)
+            : mContent(store, ContentStore::Reach::Disk)
         {
         }
 
@@ -39,7 +39,7 @@ namespace Rtx
             || !layoutOf(format).isBlocked();
     }
 
-    PreparedImages::PreparedImages(ContentStore* const store, const std::size_t hands)
+    PreparedImages::PreparedImages(ContentStore::Store* const store, const std::size_t hands)
         : mStore(store)
     {
         assert(hands >= 1 && "no thread to make images on");

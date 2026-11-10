@@ -10,10 +10,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include <components/contentstore/key.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/misc/bytebuffer.hpp>
-#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
-#include <components/rtx/preprocess/contentstore.hpp>
 
 namespace Rtx
 {
@@ -73,12 +73,12 @@ namespace Rtx
 
         /// Whether `model`'s files stand as they did when it was walked, and `store` holds every entry
         /// its walk made: a shape read whole into the store's memory, where the frame, which reaches
-        /// nothing else, finds it (`StoreReach::Memory`); every other entry by its file
+        /// nothing else, finds it (`ContentStore::Reach::Memory`); every other entry by its file
         /// (`ContentStore::holds`, one `stat` an entry, which stamps it). Safe from any thread while
         /// nothing files an entry.
         /// @param scratch what a shape is read into, the caller's to keep.
         bool standsAsWalked(
-            std::string_view model, FileStamps& stamps, ContentStore& store, Misc::ByteBuffer& scratch) const;
+            std::string_view model, FileStamps& stamps, ContentStore::Store& store, Misc::ByteBuffer& scratch) const;
 
         /// Files `entry` under `model`, over what was there, named on `day`.
         void keep(std::string_view model, const Entry& entry, std::uint32_t day);
@@ -133,7 +133,7 @@ namespace Rtx
 
         /// The keys, each once, and every entry's run of them as indices, as the names and the files.
         std::vector<StoredKey> mKeys;
-        std::unordered_map<ContentKey, std::uint32_t, ContentKeyHash> mKeyIndex;
+        std::unordered_map<ContentStore::Key, std::uint32_t, ContentStore::KeyHash> mKeyIndex;
         std::vector<std::uint32_t> mKeyRuns;
 
         bool mChanged = false;

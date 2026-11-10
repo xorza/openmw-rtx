@@ -10,7 +10,7 @@
 
 #include "digestwords.hpp"
 
-namespace Rtx
+namespace Misc
 {
     template <class T>
     inline constexpr bool sIsSpan = false;

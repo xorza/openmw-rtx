@@ -14,6 +14,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/contentstore/store.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/image/specularlayout.hpp>
@@ -29,7 +30,6 @@
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/prepare/contentpreparation.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/framespend.hpp>
@@ -79,7 +79,7 @@ namespace MWRender
         ///        memory alone, and the cell reader its files too.
         /// @param prepared where the world's normal and data maps find their chains made again, or
         ///        null for none (`Rtx::PreparedImages`).
-        WorldMirror(const MirrorKnobs& knobs, Rtx::ContentStore* store, Rtx::PreparedImages* prepared);
+        WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* store, Rtx::PreparedImages* prepared);
 
         /// Asserts the scene empty: a world detached has given every row back, and the one that
         /// did not is named here rather than found at the next frame's horizon. Not while an
@@ -211,7 +211,7 @@ namespace MWRender
         SceneUtil::UnrefQueue* mReleasing = nullptr;
 
         /// The process's content store, or null: what the cell reader is handed (`CellWorld::mStore`).
-        Rtx::ContentStore* mStore;
+        ContentStore::Store* mStore;
 
         /// Shared by every walk on the frame thread: the world's and every traced view's.
         Rtx::WalkContext mWalk;

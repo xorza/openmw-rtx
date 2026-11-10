@@ -105,7 +105,7 @@ namespace RtxTool
     }
 
     /// A digest of every part, indexed by `ScenePart`.
-    using ScenePartDigests = std::array<Rtx::DigestWords, static_cast<std::size_t>(ScenePart::Count)>;
+    using ScenePartDigests = std::array<Misc::DigestWords, static_cast<std::size_t>(ScenePart::Count)>;
 
     /// Digests each part of a scene on its own: the scene as the renderer will read it, every
     /// table in order and the shared geometry buffers included. Answers "is this the same
@@ -145,7 +145,7 @@ namespace RtxTool
 
         void digestVertices(const Rtx::SceneDesc& scene);
 
-        void take(ScenePart part, const Rtx::DigestWords& words) { mParts[static_cast<std::size_t>(part)] = words; }
+        void take(ScenePart part, const Misc::DigestWords& words) { mParts[static_cast<std::size_t>(part)] = words; }
 
         /// Empty until the first digest.
         std::optional<Vertices> mVertices;
@@ -164,9 +164,9 @@ namespace RtxTool
     /// the vertex runs and slot numbers follow: each placement is digested from where it stands,
     /// what it wears and the multiset of its triangles, and no order can tell the sum. Blind to
     /// the layout, which is what `digestLayout` stands beside it for. Textures by their paths.
-    Rtx::DigestWords digestScene(const Rtx::SceneDesc& scene);
+    Misc::DigestWords digestScene(const Rtx::SceneDesc& scene);
 
     /// One number for the whole layout, for a caller with one line to print; a report with room
     /// for the columns names them instead.
-    Rtx::DigestWords digestLayout(const ScenePartDigests& parts);
+    Misc::DigestWords digestLayout(const ScenePartDigests& parts);
 }

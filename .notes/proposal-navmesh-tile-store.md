@@ -8,14 +8,14 @@ Temporary. When it lands, its lasting decisions go into `docs/rtx/architecture.m
 
 The navigator keeps the tiles it generates in SQLite: one `navmesh.db` a profile, in the user data folder, keyed by a
 blob compared byte for byte and by shape ids a second table hands out. The fork keeps everything else it derives from
-the content in `ContentStore`, one file an entry under a content key, where SQLite was refused by the user's decision.
-Two stores for one kind of thing, a dependency for one of them, and a cache no two profiles share although most of their
-tiles are the same.
+the content in `ContentStore::Store`, one file an entry under a content key, where SQLite was refused by the user's
+decision. Two stores for one kind of thing, a dependency for one of them, and a cache no two profiles share although
+most of their tiles are the same.
 
 ## Established practice
 
 - **Content-addressed disk caches**: ccache and Bazel's disk cache file each output under a hash of what made it, one
-  file an entry in folders by the hash's first byte, and evict by age or not at all. `ContentStore` is that shape
+  file an entry in folders by the hash's first byte, and evict by age or not at all. `ContentStore::Store` is that shape
   (`docs/rtx/architecture.md`, "One file an entry, and every entry untrusted").
 - **Navmesh tiles**: Recast's own demo saves every tile to one file (`all_tiles_navmesh.bin`), and Unity and Unreal bake
   navigation data into the level's assets at build time: a cache valid for one content, made offline. OpenMW's is the
@@ -25,29 +25,20 @@ tiles are the same.
 
 ## Decisions
 
-- **One store, in a component of its own.** `ContentStore`, `ContentKey` and `ContentDigest` move from
-  `components/rtx/preprocess` to `components/contentstore`; `HashState` and `DigestWords`, which the shaders' digest,
-  the SPIR-V tools and the harness hash with as well, and `Monitor`, which the store waits with, move to
-  `components/misc` under `Misc`. The navigator is a game component both renderers' games run, so it cannot read the
-  ray tracer's core. `DetourNavigator::NavMeshTileStore` owns the navigator's `ContentStore` and its key. Refused: the
-  navigator including `components/rtx`; a second, simpler file cache for the tiles, two ways to keep one kind of
-  thing.
-- **The owner names its kinds, and no byte of an existing entry moves.** The trailer's pass word becomes the owner's
-  kind, which the owner states the valid range of; the magic and the format (2) stay, so every entry the ray tracer's
-  store holds stays valid. Refused: a new format number, which empties every store; one registry of kinds across
-  owners, which separate folders make needless.
-- **Residency is the owner's.** The ray tracer's store keeps what it does: entries of 4 KiB or less, and a shape at any
-  size, held in memory, loaded at the start's sweep and stamped on a session's first hit. The tile store holds nothing
-  in memory, loads nothing at its start and stamps nothing: 95 to 98 % of tiles are 4 KiB or less, most of 142 MiB,
-  which would flood the 64 MiB the frame's facts are held in, and a stamp only ranks that load. Refused: one policy for
-  both.
+An item marked **Done** has landed, and its decisions stand in `docs/rtx/architecture.md`.
+
+- **Done: one store in a component of its own, its kinds and residency the owner's.** In `components/contentstore`
+  (`docs/rtx/architecture.md`, "One store, in a component of its own" and "The owner states its kinds and what is held
+  in memory"). The navigator's store has no `Holding`: 95 to 98 % of tiles are 4 KiB or less, most of 142 MiB, which would flood the 64 MiB the
+  frame's facts are held in, and a stamp only ranks that load. `DetourNavigator::NavMeshTileStore` owns the navigator's
+  `ContentStore::Store` and its key.
 - **A folder of its own, shared by every profile.** `<cache>/navmesh`, beside `rtx-content`, which the game,
   `openmw-navmeshtool`, the harness and the integration tests open alike, as they share the player's `navmesh.db` and
   `rtx-content` now: an entry is right for whoever reads it. A content key makes a tile two profiles share one entry.
   The harness's `--content-cache` keeps choosing the ray tracer's store alone, as it does today. Refused: the ray
   tracer's folder, whose start sweep would list 87,000 more files; the user data folder, since losing a cache costs time
   and nothing else; a harness switch for the tiles, whose generation moves no pixel of a run.
-- **The key is the tile's input, hashed where it stands.** `ContentDigest("navmesh tile", sTileVersion)` over the
+- **The key is the tile's input, hashed where it stands.** `ContentStore::Digest("navmesh tile", sTileVersion)` over the
   worldspace's text, the tile position, the recast settings, the agent's bounds, the water, the heightfields and the
   flat heightfields, and for each mesh source its area type, its shape's path and file hash, and its `ObjectTransform`.
   One function makes it, which the game and `openmw-navmeshtool` both call, and it allocates nothing. Refused: shape
@@ -67,8 +58,8 @@ tiles are the same.
   an entry for a tile that yields nothing: none of 364 jobs in a sample did, and an empty mesh ends before generation.
 - **The read stays off the updater; the write is the store's.** The database worker becomes the tile store's reader,
   on its thread and ranked by the player's tile as now, and computes the key once a job, which the job keeps for its
-  write. A generated tile goes to `ContentStore::write`, whose own thread and bounded queue write it, and the worker's
-  write queue goes. Only `add` and `remove` read the store, as now: a moved object regenerates. The profiler's
+  write. A generated tile goes to `ContentStore::Store::write`, whose own thread and bounded queue write it, and the
+  worker's write queue goes. Only `add` and `remove` read the store, as now: a moved object regenerates. The profiler's
   `NavMesh DbJobs` and `NavMesh DbCache` rows become `NavMesh Store` rows with the stats they read.
   `openmw-navmeshtool`'s transaction and job queue go, and it reports tiles found and written.
 - **No cap and no removal**, as the content store decided. A tile another content made stays, as rows stay now (20,131

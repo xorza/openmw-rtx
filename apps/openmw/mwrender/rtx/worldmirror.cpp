@@ -30,6 +30,7 @@
 #include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/weather.hpp>
+#include <components/contentstore/key.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -47,7 +48,6 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/prepare/contentpreparation.hpp>
 #include <components/rtx/prepare/filestamps.hpp>
-#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -112,7 +112,7 @@ namespace MWRender
                     return 0;
                 const std::string archive = mVfs.getArchive(VFS::Path::Normalized(path));
                 const auto time = mVfs.getLastModified(path).time_since_epoch().count();
-                Rtx::ContentDigest digest("stamp", 1);
+                ContentStore::Digest digest("stamp", 1);
                 digest.add(std::span<const char>(archive));
                 digest.add(time);
                 return digest.getKey().mHash[0];
@@ -182,9 +182,9 @@ namespace MWRender
     }
 
     WorldMirror::WorldMirror(
-        const MirrorKnobs& knobs, Rtx::ContentStore* const store, Rtx::PreparedImages* const prepared)
+        const MirrorKnobs& knobs, ContentStore::Store* const store, Rtx::PreparedImages* const prepared)
         : mStore(store)
-        , mWalk{ .mContent{ store, Rtx::StoreReach::Memory }, .mPrepared = prepared }
+        , mWalk{ .mContent{ store, ContentStore::Reach::Memory }, .mPrepared = prepared }
         , mGroundcoverReach(knobs.mGroundcoverReach)
         , mGroundcoverDensity(knobs.mGroundcoverDensity)
         , mGroundcoverLampLit(knobs.mGroundcoverLampLit)
@@ -249,7 +249,7 @@ namespace MWRender
     /// the run holds its sources by reference.
     struct WorldMirror::Preparing
     {
-        Preparing(Resource::ResourceSystem& resources, Rtx::ContentStore& store, std::vector<std::string> models,
+        Preparing(Resource::ResourceSystem& resources, ContentStore::Store& store, std::vector<std::string> models,
             std::vector<Rtx::PreparationLayer> layers, const std::size_t hands)
             : mContent(*resources.getSceneManager())
             , mStamps(*resources.getVFS())

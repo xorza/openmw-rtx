@@ -7,12 +7,12 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <components/contentstore/key.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 
 #include "chainpass.hpp"
@@ -77,7 +77,7 @@ namespace Rtx
         static constexpr std::uint32_t sVersion = 4;
         static constexpr bool sStored = true;
 
-        void digest(const Input& input, ContentDigest& digest);
+        void digest(const Input& input, ContentStore::Digest& digest);
         void run(const Input& input, Output& output);
 
         /// Where a chain of `form` made of `input`'s own file lays its levels, read off its header

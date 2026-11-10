@@ -14,6 +14,7 @@
 #include <osg/Switch>
 #include <osg/Transform>
 
+#include <components/contentstore/store.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/constants.hpp>
 #include <components/rtx/common/runs.hpp>
@@ -60,9 +61,9 @@ namespace Rtx
         }
     }
 
-    TemplateWalk::TemplateWalk(const osg::StateSet* const above, ContentStore* const store)
+    TemplateWalk::TemplateWalk(const osg::StateSet* const above, ContentStore::Store* const store)
         : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
-        , mContent(store, StoreReach::Disk)
+        , mContent(store, ContentStore::Reach::Disk)
         , mAbove(above)
     {
     }

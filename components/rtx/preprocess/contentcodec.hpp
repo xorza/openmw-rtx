@@ -182,7 +182,7 @@ namespace Rtx
     ///
     /// **Sixteen-bit indices where every vertex is under 65536**, which nearly every model's are, and a
     /// normal four bytes and not twelve: on the PBR profile's shapes, 69.3 MiB of payload came to 29.6,
-    /// and the entries held in memory (`ContentStore::sResidentMost`) from 77% to 92%. The normals come
+    /// and the entries held in memory (`ContentStore::Store::sResidentMost`) from 77% to 92%. The normals come
     /// back as their words read back, so a run's output is handed back so too (`sRounds`).
     template <>
     struct ContentCodec<ShapePass::Output>

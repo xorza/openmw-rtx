@@ -58,10 +58,10 @@ namespace Rtx
         constexpr auto sDenoiserWords = static_cast<std::uint32_t>(countHeldInWords());
         constexpr std::uint32_t sFloatImages = static_cast<std::uint32_t>(DigestPass::sImages) - sDenoiserWords;
 
-        DigestWords wordsAt(const std::uint32_t* words, const std::size_t image)
+        Misc::DigestWords wordsAt(const std::uint32_t* words, const std::size_t image)
         {
             const std::uint32_t* const lane = words + image * Shaders::DIGEST_LANES;
-            return DigestWords{ lane[0] | (std::uint64_t{ lane[1] } << 32),
+            return Misc::DigestWords{ lane[0] | (std::uint64_t{ lane[1] } << 32),
                 lane[2] | (std::uint64_t{ lane[3] } << 32) };
         }
     }
@@ -202,6 +202,6 @@ namespace Rtx
         for (std::size_t image = 0; image < into.mDenoiser.size(); ++image)
             into.mDenoiser[image] = (into.mDenoiserTaken & (1u << image)) != 0
                 ? wordsAt(words, lanesOf(static_cast<DenoiserImage>(image)))
-                : DigestWords{};
+                : Misc::DigestWords{};
     }
 }

@@ -12,10 +12,10 @@
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 
 #include "contentcache.hpp"
-#include "contentkey.hpp"
 #include "contentpass.hpp"
 #include "contentstats.hpp"
-#include "contentstore.hpp"
+#include <components/contentstore/key.hpp>
+#include <components/contentstore/store.hpp>
 
 namespace osg
 {
@@ -48,7 +48,8 @@ namespace Rtx
         /// @param store the process's store, or null for none (`ContentCache`): a test's, which
         ///        computes every ask.
         /// @param reach where this thread's asks may reach in it.
-        explicit ContentPreprocessor(ContentStore* store = nullptr, StoreReach reach = StoreReach::Memory);
+        explicit ContentPreprocessor(
+            ContentStore::Store* store = nullptr, ContentStore::Reach reach = ContentStore::Reach::Memory);
 
         ContentPreprocessor(const ContentPreprocessor&) = delete;
         ContentPreprocessor& operator=(const ContentPreprocessor&) = delete;

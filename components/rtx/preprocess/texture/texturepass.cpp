@@ -8,9 +8,9 @@
 
 #include <osg/Image>
 
+#include <components/contentstore/key.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/textureformat.hpp>
-#include <components/rtx/preprocess/contentkey.hpp>
 
 namespace Rtx
 {
@@ -33,7 +33,7 @@ namespace Rtx
         mImage = nullptr;
     }
 
-    void FinestTexels::addTo(ContentDigest& digest) const
+    void FinestTexels::addTo(ContentStore::Digest& digest) const
     {
         const bool described = mFinest.has_value();
         digest.add(described);

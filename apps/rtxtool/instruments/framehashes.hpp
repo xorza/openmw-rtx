@@ -178,11 +178,11 @@ namespace RtxTool
             Rtx::Upscale mUpscale = Rtx::Upscale::Off;
             bool mDenoised = false;
 
-            Rtx::DigestWords mHash{};
-            std::array<Rtx::DigestWords, sTracedColumns> mTraced{};
+            Misc::DigestWords mHash{};
+            std::array<Misc::DigestWords, sTracedColumns> mTraced{};
 
             /// What the denoiser left, nothing of an image its filter did not run on this frame.
-            std::array<std::optional<Rtx::DigestWords>, Rtx::sDenoiserImageCount> mDenoiser{};
+            std::array<std::optional<Misc::DigestWords>, Rtx::sDenoiserImageCount> mDenoiser{};
             ScenePartDigests mParts{};
 
             /// The renderer's own number for the frame, for `picture` alone; not written.

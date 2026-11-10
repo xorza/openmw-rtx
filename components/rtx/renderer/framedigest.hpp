@@ -3,7 +3,7 @@
 #include <array>
 #include <cstdint>
 
-#include <components/rtx/common/digestwords.hpp>
+#include <components/misc/digestwords.hpp>
 #include <components/rtx/shaders/digest.h>
 
 #include "denoiserimage.hpp"
@@ -20,13 +20,13 @@ namespace Rtx
     struct FrameDigest
     {
         /// The channels at their index (`indexOf`), the direct one holding the composed frame.
-        std::array<DigestWords, Shaders::DIGEST_IMAGES> mImages{};
+        std::array<Misc::DigestWords, Shaders::DIGEST_IMAGES> mImages{};
 
         /// What the denoiser left at each of its images (`DenoiserImage`), where the frame was
         /// denoised and the image's filter ran — a bit at the image's index in `mDenoiserTaken` —
         /// and nought where it was not: an image nothing wrote this frame holds a frame before's,
         /// which is no answer of this one's.
-        std::array<DigestWords, sDenoiserImageCount> mDenoiser{};
+        std::array<Misc::DigestWords, sDenoiserImageCount> mDenoiser{};
         std::uint32_t mDenoiserTaken = 0;
         static_assert(sDenoiserImageCount <= 32, "a denoiser image past the bits of mDenoiserTaken");
 

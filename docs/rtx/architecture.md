@@ -277,7 +277,7 @@ source-tree test holds the order.
   world's walk, the sky and every picture's walk share inside the frame thread's `Rtx::WalkContext`
   beside the traversal numbers, and the ring's reader's. Every
   pass states everything it reads, which is the key its output is filed under in the process's
-  `Rtx::ContentStore`, a folder of files under the user's cache directory kept across sessions
+  `ContentStore::Store`, a folder of files under the user's cache directory kept across sessions
   ("The content store" below); a pass whose key would cost more than its run keeps nothing there
   (`ContentPass::sStored`), and what each costs is counted into the walk's stats and the
   `preprocess` row of a frame. The frame's thread reaches the store's memory alone, so no frame
@@ -366,7 +366,7 @@ refused draws as a stand-in, and anything else refused is left out.
 
 ### The content store
 
-What the preprocessor makes of the content is kept across sessions in `Rtx::ContentStore`, filled on the loading
+What the preprocessor makes of the content is kept across sessions in `ContentStore::Store`, filled on the loading
 screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
 
 - **The store is the game's input.** Every form the renderer reads of a file and every derivation the host makes of
@@ -380,7 +380,7 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
 - **No acceleration structure is stored**: a serialized one is valid only where
   `vkGetDeviceAccelerationStructureCompatibilityKHR` accepts it, so a driver update throws it away, and a static
   structure builds in its arrival's frame.
-- **The key is the content** (`ContentKey`): the pass's name and version and every byte it reads, one 128-bit
+- **The key is the content** (`ContentStore::Key`): the pass's name and version and every byte it reads, one 128-bit
   MurmurHash3 at about 9.5 GB/s ("What the preprocessor costs a start"). Refused: a key of path, size and time, as
   ccache's direct mode keys, which a file inside a BSA or a shadowed path makes quietly wrong; XXH3, a dependency for
   a share this small; and a key for `SolidReach` and `SolidFall`, whose walks stop before a key would read every byte.
@@ -391,7 +391,16 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
   and moves no byte of the payload. Written to a temporary name and renamed, so a reader sees a whole entry or none. Refused: SQLite, by
   the user's decision; a pack file a pass, which two processes merge only under a lock; and a sync before each rename,
   where the digest finds a body a power loss left unwritten.
-- **The frame reaches the store's memory alone** (`StoreReach`): an entry of 4 KiB or less is held once read or
+- **One store, in a component of its own** (`components/contentstore`): the store and its key stand outside the ray
+  tracer, which owns one store as any other owner may, and `Misc::HashState`, `Misc::DigestWords` and `Misc::Monitor`,
+  which the store and the rest of the fork use alike, stand in `components/misc`. Refused: the store inside the ray
+  tracer's core, which a game component cannot read.
+- **The owner states its kinds and what is held in memory** (`ContentStore::Policy`): the trailer's kind word is the
+  owner's, a file of a kind it does not have is refused, and the magic and the format are as they were, so no entry the
+  store held before is lost. The ray tracer holds its small entries and its shapes at any size (`sContentStorePolicy`);
+  an owner whose every ask reaches the disk holds, loads and stamps nothing (no `Holding`). Refused: a new format,
+  which empties every store; one residency for every owner.
+- **The frame reaches the store's memory alone** (`ContentStore::Reach`): an entry of 4 KiB or less is held once read or
   written and loaded at the start's sweep, bounded at 64 MiB; a larger one the frame computes as it did. Refused: a
   file read on the frame's thread.
 - **No size cap**, by the user's decision: an entry stays until its file is refused or deleted by hand, since the

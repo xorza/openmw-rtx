@@ -11,10 +11,10 @@
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <components/misc/monitor.hpp>
 #include <components/platform/thread.hpp>
-#include <components/rtx/common/monitor.hpp>
 
-namespace Rtx
+namespace Misc
 {
     namespace
     {
@@ -72,7 +72,7 @@ namespace Rtx
         /// **Given before the start on purpose.** A worker that only ever looked at the queue when
         /// it was woken would sit there for ever with three pieces of work in front of it, and a
         /// test that gave after starting would race past that.
-        TEST(RtxMonitorTest, workGivenBeforeAWorkerStartsIsStillTaken)
+        TEST(MonitorTest, workGivenBeforeAWorkerStartsIsStillTaken)
         {
             Served served;
             served.give(1);
@@ -85,7 +85,7 @@ namespace Rtx
         }
 
         /// A stop breaks the wait and the loop comes back, which is what every join rests on.
-        TEST(RtxMonitorTest, aStopEndsALoopThatIsWaitingForWork)
+        TEST(MonitorTest, aStopEndsALoopThatIsWaitingForWork)
         {
             Served served;
             served.start();
@@ -102,9 +102,9 @@ namespace Rtx
         /// `std::terminate` is called on the worker's thread where it was thrown, and the crash
         /// catcher's report keeps that stack; a catch that carried the exception to the frame would
         /// hand over the message with the stack already unwound.
-        TEST(RtxMonitorTest, aTurnThatThrowsEndsTheProcessNamingWhatItThrew)
+        TEST(MonitorTest, aTurnThatThrowsEndsTheProcessNamingWhatItThrew)
         {
-            Testing::expectDies(
+            Rtx::Testing::expectDies(
                 [] {
                     Served served;
                     served.mTurn
@@ -120,7 +120,7 @@ namespace Rtx
         ///
         /// **The turn is what holds the join up.** A bake is tens of milliseconds, so a loop that
         /// went on from a wait the stop had already broken would make every shutdown wait one out.
-        TEST(RtxMonitorTest, aStopLeavesQueuedWorkWhereItIs)
+        TEST(MonitorTest, aStopLeavesQueuedWorkWhereItIs)
         {
             Served served;
             std::atomic<bool> running{ false };
@@ -151,7 +151,7 @@ namespace Rtx
         /// **A wait for what nothing will hand over ends, and says so.** With no worker serving it
         /// answers at once; with one that finished everything it was given and waits idle, as soon
         /// as the worker has looked; with what it waited for, true.
-        TEST(RtxMonitorTest, aWaitEndsWhereNoWorkerCanHelp)
+        TEST(MonitorTest, aWaitEndsWhereNoWorkerCanHelp)
         {
             Served unserved;
             EXPECT_FALSE(unserved.mMonitor.await([&] { return !unserved.mDone.empty(); })) << "nobody serves";
@@ -167,7 +167,7 @@ namespace Rtx
         /// **A worker in a turn is not idle**, so a wait goes on while it works rather than taking
         /// an idleness that came before the turn for its answer. The turn is held until the waiting
         /// thread has had a quarter of a second to answer wrongly.
-        TEST(RtxMonitorTest, aWaitOutlastsAWorkersTurn)
+        TEST(MonitorTest, aWaitOutlastsAWorkersTurn)
         {
             Served served;
             std::atomic<bool> turning{ false };

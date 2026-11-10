@@ -8,10 +8,10 @@
 
 #include <smhasher/MurmurHash3.h>
 
-#include <components/rtx/common/digestwords.hpp>
-#include <components/rtx/common/hashstate.hpp>
+#include <components/misc/digestwords.hpp>
+#include <components/misc/hashstate.hpp>
 
-namespace Rtx
+namespace Misc
 {
     namespace
     {
@@ -39,7 +39,7 @@ namespace Rtx
         /// and the harness's digests were each written to: one run from nothing is the hash with a
         /// seed of nought, two are the second hashed with the first as its seed, and an empty run
         /// is a step too. Read against the hash called directly.
-        TEST(RtxHashStateTest, eachRunIsHashedWithTheStateAsItsSeed)
+        TEST(HashStateTest, eachRunIsHashedWithTheStateAsItsSeed)
         {
             constexpr std::string_view first = "visibility.rgen";
             constexpr std::string_view second = "a second run, longer than one sixteen-byte block";

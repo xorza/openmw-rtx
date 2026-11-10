@@ -12,13 +12,13 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/contentstore/key.hpp>
 #include <components/misc/bytebuffer.hpp>
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/contentcodec.hpp>
-#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
@@ -35,7 +35,7 @@ namespace Rtx
         {
             Misc::ByteBuffer payload;
             ContentCodec<Output>::encode(output, payload);
-            ContentDigest digest("guard", 0);
+            ContentStore::Digest digest("guard", 0);
             digest.add(std::span<const std::byte>(payload));
             return digest.getKey().mHash[0];
         }

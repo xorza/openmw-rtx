@@ -4,6 +4,9 @@ include_directories(SYSTEM ${GMOCK_INCLUDE_DIRS})
 file(GLOB UNITTEST_SRC_FILES
     main.cpp
 
+    contentstore/key.cpp
+    contentstore/store.cpp
+
     crashcatcher/crashhangwatch.cpp
     crashcatcher/crashmonitor.cpp
     crashcatcher/crashnote.cpp
@@ -29,6 +32,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     misc/compression.cpp
     misc/frameclock.cpp
+    misc/hashstate.cpp
+    misc/monitor.cpp
     misc/presentation.cpp
     misc/progressreporter.cpp
     misc/testendianness.cpp

@@ -10,7 +10,7 @@
 
 #include <osg/Vec3f>
 
-#include <components/rtx/preprocess/contentkey.hpp>
+#include <components/contentstore/key.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
@@ -370,7 +370,7 @@ namespace Rtx
         TEST(RtxCreaseSplitTest, theShapePassIsKeyedOnTheNormalsWhetherItSplitsAndWhatIsBesideIt)
         {
             const AveragedCube cube;
-            const auto keyOf = [&](const bool splits, ContentDigest& digest) {
+            const auto keyOf = [&](const bool splits, ContentStore::Digest& digest) {
                 ShapePass::digest(ShapePass::Input{ .mPositions = cube.mPositions,
                                       .mNormals = cube.mNormals,
                                       .mTriangles = cube.mTriangles,
@@ -379,15 +379,15 @@ namespace Rtx
                 return digest.getKey();
             };
 
-            ContentDigest splitting("shape", ShapePass::sVersion);
-            const ContentKey split = keyOf(true, splitting);
+            ContentStore::Digest splitting("shape", ShapePass::sVersion);
+            const ContentStore::Key split = keyOf(true, splitting);
             EXPECT_EQ(splitting.getBytes(), 96u + 96u + 144u + 1u);
 
-            ContentDigest whole("shape", ShapePass::sVersion);
+            ContentStore::Digest whole("shape", ShapePass::sVersion);
             EXPECT_NE(keyOf(false, whole), split);
 
             // And what stands beside the shape, which a cube's own corners are, here.
-            ContentDigest besideIt("shape", ShapePass::sVersion);
+            ContentStore::Digest besideIt("shape", ShapePass::sVersion);
             ShapePass::digest(ShapePass::Input{ .mPositions = cube.mPositions,
                                   .mNormals = cube.mNormals,
                                   .mTriangles = cube.mTriangles,
