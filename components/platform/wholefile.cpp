@@ -46,6 +46,19 @@ namespace Platform
             path, WholeFileSystem::Sink{ .mGrow = &grow<std::string>, .mBuffer = &into }, most);
     }
 
+    Partial sweepStalePartial(const std::filesystem::directory_entry& entry, const std::filesystem::file_time_type now)
+    {
+        if (!entry.path().filename().native().ends_with(std::filesystem::path(sPartialSuffix).native()))
+            return Partial::None;
+
+        std::error_code failed;
+        const std::filesystem::file_time_type time = entry.last_write_time(failed);
+        if (!failed && entry.is_regular_file(failed) && now - time > sPartialStaleAfter
+            && std::filesystem::remove(entry.path(), failed))
+            return Partial::Removed;
+        return Partial::Live;
+    }
+
     Result<void, IoError> writeWhole(const std::filesystem::path& path,
         std::span<const std::span<const std::byte>> parts, const Durability durability)
     {
@@ -61,10 +74,10 @@ namespace Platform
         const std::filesystem::path& target = linked.empty() || unresolved ? path : linked;
 
         const std::filesystem::path temporary = temporaryFor(target);
-        Result<void, IoError> written = WholeFileSystem::create(temporary, parts, synced);
+        Result<void, IoError> written = WholeFileSystem::create(temporary, parts, synced, target);
         if (written.isOk())
             written = WholeFileSystem::replace(temporary, target, synced);
-        if (!written.isOk())
+        if (!written.isOk() && written.error().mFailure != IoFailure::NotDurable)
             WholeFileSystem::remove(temporary);
         return written;
     }

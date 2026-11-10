@@ -63,6 +63,15 @@ namespace Rtx
 
     inline constexpr std::size_t sContentPassCount = sContentPasses.mNames.size();
 
+    /// An entry the store holds: its key and the pass that filed it, which a key alone does not say.
+    struct StoredKey
+    {
+        ContentKey mKey{};
+        ContentPassId mPass = ContentPassId::Count;
+
+        bool operator==(const StoredKey& other) const = default;
+    };
+
     /// What `ContentPreprocessor` runs: a computation over content, with the one statement of what
     /// it reads that its key is made of.
     ///

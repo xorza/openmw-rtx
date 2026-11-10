@@ -19,7 +19,6 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/frameextents.hpp>
-#include <components/rtxvulkan/device/memory/hostwrites.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
 #include "requirements.hpp"
@@ -237,6 +236,7 @@ namespace Rtx
         std::span<const VkBool32> presents)
     {
         Profile profile;
+        profile.mDriver = DriverProfile::of(properties.mProperties2.properties.vendorID, properties.mVulkan12.driverID);
         profile.mHostWrittenBytes = hostWrittenBytes(properties.mMemory);
 
         profile.mTextureSide = properties.mProperties2.properties.limits.maxImageDimension2D;

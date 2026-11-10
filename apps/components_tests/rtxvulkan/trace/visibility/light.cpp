@@ -36,8 +36,8 @@
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
-#include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/scene/foldedshape.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -1352,7 +1352,7 @@ namespace Rtx::Testing
 
                 const float reflectance = (metal * base + (1.0f - metal) * Shaders::DIELECTRIC_F0) * tint;
                 const float alpha = Shaders::ggxAlpha(roughness);
-                const osg::Vec2f table = SpecularAlbedo::shared().at(eyeCosine, roughness);
+                const osg::Vec2f table = specularAlbedoAt(eyeCosine, roughness);
                 const float fresnel = Shaders::fresnelSchlick(
                     reflectance, Shaders::specularEdge(reflectance), Shaders::schlickWeight(toEye * halfway));
                 const float lobe = fresnel * Shaders::specularCompensation(reflectance, table.y())
@@ -1385,7 +1385,7 @@ namespace Rtx::Testing
             // nine-bit mantissa that `specularModulation` rounds to, `2^-9` of the brightest
             // channel, which sets the exponent the others share, and the host's 1e-4 above.
             const auto albedoOf = [&](float reflectance, float green) {
-                const osg::Vec2f table = SpecularAlbedo::shared().at(normal * toEye, roughness);
+                const osg::Vec2f table = specularAlbedoAt(normal * toEye, roughness);
                 return Shaders::specularAlbedoOf(reflectance, Shaders::specularEdge(green), table.x(), table.y())
                     * Shaders::specularCompensation(reflectance, table.y());
             };
@@ -1833,7 +1833,7 @@ namespace Rtx::Testing
                 const float toLight = normal * toLamp;
                 const float eyeCosine = normal * toEye;
                 const float alpha = Shaders::ggxAlpha(roughness);
-                const osg::Vec2f table = SpecularAlbedo::shared().at(eyeCosine, roughness);
+                const osg::Vec2f table = specularAlbedoAt(eyeCosine, roughness);
                 const float fresnel = Shaders::fresnelSchlick(
                     reflectance, Shaders::specularEdge(reflectance), Shaders::schlickWeight(toEye * halfway));
                 return irradiance * fresnel * Shaders::specularCompensation(reflectance, table.y())
@@ -1926,7 +1926,7 @@ namespace Rtx::Testing
                 const float toLightCosine = normal * toLight;
                 const float eyeCosine = normal * toEye;
                 const float alpha = Shaders::ggxAlpha(roughness);
-                const osg::Vec2f table = SpecularAlbedo::shared().at(eyeCosine, roughness);
+                const osg::Vec2f table = specularAlbedoAt(eyeCosine, roughness);
                 const float fresnel = Shaders::fresnelSchlick(
                     reflectance, Shaders::specularEdge(reflectance), Shaders::schlickWeight(toEye * halfway));
                 return irradiance * fresnel * Shaders::specularCompensation(reflectance, table.y())
@@ -3253,7 +3253,7 @@ namespace Rtx::Testing
             };
 
             const float roughness = static_cast<float>(sRoughness) / 255.0f;
-            const osg::Vec2f table = SpecularAlbedo::shared().at(1.0f, roughness);
+            const osg::Vec2f table = specularAlbedoAt(1.0f, roughness);
             const osg::Vec2f squareOn = lobeIntegrals(1.0f, roughness);
 
             const double white = shade(255);

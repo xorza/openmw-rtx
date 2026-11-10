@@ -11,14 +11,13 @@
 
 #include <volk.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/memorylimits.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
-#include <components/rtxvulkan/device/memory/hostwrites.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
@@ -71,11 +70,11 @@ namespace Rtx
 
             Bound bound;
             bound.mBuffer = Owned<VkBuffer, vkDestroyBuffer>::make(device, vkCreateBuffer, create, "vkCreateBuffer");
-            Result<DeviceMemory, std::string_view> memory
+            Result<DeviceMemory, MemoryRefusal> memory
                 = device.getMemory().tryTake(bound.mBuffer.get(), properties, alignment, use);
             if (!memory.isOk())
             {
-                EXPECT_EQ(memory.error(), "no device memory is left for it");
+                EXPECT_EQ(memory.error(), MemoryRefusal::NoRoom);
                 return std::nullopt;
             }
 

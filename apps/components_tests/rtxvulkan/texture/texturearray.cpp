@@ -12,11 +12,11 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/heldsubmit.hpp>
-#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
-#include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/heldsubmit.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -449,7 +449,7 @@ namespace Rtx
 
             const Testing::BudgetLimit oneBlock(
                 memory, Testing::budgetAbove(memory, MemoryUse::Texture, VkDeviceSize{ 65 } << 20));
-            Result<Image, std::string_view> opener = Image::tryMake(MemoryUse::Texture, device,
+            Result<Image, MemoryRefusal> opener = Image::tryMake(MemoryUse::Texture, device,
                 ImageDescription{
                     .mWidth = 32, .mHeight = 32, .mFormat = VK_FORMAT_R16_UNORM, .mUsage = VK_IMAGE_USAGE_SAMPLED_BIT },
                 "block opener");

@@ -7,17 +7,20 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <osg/Vec2f>
 #include <vulkan/vulkan_core.h>
 
 #include <components/crashcatcher/crashnote.hpp>
-#include <components/platform/dlss.hpp>
+#include <components/debug/debuglog.hpp>
+#include <components/dlss/dlss.hpp>
 #include <components/platform/gpu.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
@@ -41,7 +44,6 @@
 #include <components/rtx/world/fognoise.hpp>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
-#include <components/rtxvulkan/device/dlss.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
@@ -54,16 +56,17 @@
 #include <components/rtxvulkan/device/result.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/device/validation.hpp>
+#include <components/rtxvulkan/frame/gbuffer.hpp>
+#include <components/rtxvulkan/frame/tracepast.hpp>
 #include <components/rtxvulkan/present/presenter.hpp>
 #include <components/rtxvulkan/present/surface.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/placing.hpp>
 #include <components/rtxvulkan/shaders/shared/fields.h>
 #include <components/rtxvulkan/texture/texture.hpp>
-#include <components/rtxvulkan/trace/gbuffer.hpp>
-#include <components/rtxvulkan/trace/tracepast.hpp>
 #include <components/rtxvulkan/trace/tracerecording.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>
+#include <components/rtxvulkan/upscale/dlssapplication.hpp>
 #include <components/rtxvulkan/upscale/upscaler.hpp>
 
 namespace Rtx
@@ -75,7 +78,8 @@ namespace Rtx
         /// `FrameTracer::declare` declared among it, and the running sum and the deep picture a frame may ask
         /// for where the run sums.
         VkDeviceSize frameAt(const Device& device, const std::uint32_t width, const std::uint32_t height,
-            const VkExtent2D pictures, const RenderProfile& profile, const std::span<const ArenaImage> declared)
+            const VkExtent2D pictures, const RenderProfile& profile, const Upscaler& upscaler,
+            const std::span<const ArenaImage> declared)
         {
             const VkExtent2D output{ width, height };
             const FrameExtents extents = extentsFor(width, height, profile.mUpscale);
@@ -83,7 +87,7 @@ namespace Rtx
             VkDeviceSize bytes = PresentTarget::bytesAt(device, width, height)
                 + DisplayChain::bytesAt(device, width, height)
                 + FrameTracer::bytesAt(
-                    device, render, output, profile.mUpscale, profile.mUpscaler, profile.mRadianceWidth, declared);
+                    device, render, output, profile.mUpscale, upscaler, profile.mRadianceWidth, declared);
             if (pictures.width > 0)
                 bytes += PictureTracer::bytesAt(device, pictures, profile.mRadianceWidth);
 
@@ -114,29 +118,64 @@ namespace Rtx
         /// core is not to be loaded beside another vendor's driver for nothing.
         std::vector<std::string> dlssInstanceExtensionsFor(const std::optional<Dlss::Application>& application)
         {
-            if (!application.has_value() || !Platform::Gpu::has(Platform::Gpu::sNvidia))
+            if (!application.has_value() || !Platform::Gpu::has(Platform::Gpu::Vendor::Nvidia))
                 return {};
 
             return application->requiredInstanceExtensions();
+        }
+
+        /// Whether the frames report to the host (`RendererOptions::mReporting`).
+        bool measured(const RendererOptions& options)
+        {
+            return options.mReporting == Reporting::Measured;
         }
 
         /// What NGX is told of the application, where the run may use DLSS: a profile that only
         /// ever uses FSR makes none, and no folder is made for it.
         std::optional<Dlss::Application> dlssApplicationFor(const RendererOptions& options)
         {
-            if (!Platform::Dlss::sBuilt || options.mRun.mProfile.mUpscaler == UpscalerKind::Fsr)
+            if (!DlssLibrary::sBuilt || options.mRun.mProfile.mUpscaler == UpscalerChoice::Fsr)
                 return std::nullopt;
 
             return std::optional<Dlss::Application>(std::in_place, options.mDlss);
         }
 
-        /// The run's profile with its upscaler as `Auto` came to, so a frame never asks the
-        /// resolution twice and the shared images and the upscaler's own are one list.
-        RenderProfile resolvedProfile(const RenderProfile& asked, const Upscaler& upscaler)
+        /// What NGX asks of an NVIDIA device for DLSS, where the run may use DLSS. **Tried on every
+        /// NVIDIA card the build has NGX for**: the query NGX answers before a device exists can be
+        /// inconclusive, and a false negative there must not silently cost an RTX card its upscaler.
+        /// Feature creation is the real answer (`DlssUpscaler`).
+        std::function<std::vector<std::string>(VkInstance, VkPhysicalDevice, const DriverProfile&)> dlssExtensionsFor(
+            const std::optional<Dlss::Application>& application)
         {
-            RenderProfile resolved = asked;
-            resolved.mUpscaler = upscaler.getKind();
-            return resolved;
+            if (!application.has_value())
+                return nullptr;
+
+            const Dlss::Application& asked = *application;
+            return [&asked](const VkInstance instance, const VkPhysicalDevice device, const DriverProfile& driver) {
+                if (driver.mVendor != Platform::Gpu::Vendor::Nvidia)
+                    return std::vector<std::string>();
+
+                std::vector<std::string> names = asked.requiredDeviceExtensions(instance, device);
+                std::string named;
+                for (const std::string& extension : names)
+                    named += (named.empty() ? "" : ", ") + extension;
+                Log(Debug::Info) << "NVIDIA DLSS: trying" << (named.empty() ? "" : ", NGX asks for " + named);
+                return names;
+            };
+        }
+
+        /// Whether DLSS runs here, as far as the facts before an attempt say: the build, the device's
+        /// vendor and the player's library, asked in that order, whatever the run chose, so a run that
+        /// chose FSR still offers DLSS for the next start.
+        DlssAvailability dlssAvailabilityFor(const RendererOptions& options, const Device& device)
+        {
+            if (!DlssLibrary::sBuilt)
+                return DlssAvailability::Unbuilt;
+            if (device.getPhysicalDevice().getDriver().mVendor != Platform::Gpu::Vendor::Nvidia)
+                return DlssAvailability::NotNvidia;
+            if (!DlssLibrary::installedIn(options.mDlss))
+                return DlssAvailability::NotInstalled;
+            return DlssAvailability::Present;
         }
 
         /// Whether a queue family presents to `surface`, or nothing to ask for no window.
@@ -156,30 +195,26 @@ namespace Rtx
         , mSurface(options.mWindow != nullptr ? std::make_unique<Surface>(mInstance, options.mWindow) : nullptr)
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle(), presentsTo(mSurface.get())),
               options.mShaders, PipelineCacheSpec{ .mDirectory = options.mCacheDirectory },
-              DeviceReport{ .mStatistics
-                  = options.mPipelineStatistics ? PipelineStatistics::Captured : PipelineStatistics::Skipped,
+              DeviceReport{
+                  .mStatistics = measured(options) ? PipelineStatistics::Captured : PipelineStatistics::Skipped,
                   .mCodeFolder = options.mRun.mPipelineCode,
                   .mCounters = options.mRun.mZoneCounters,
-                  .mDlss = mDlss.has_value() ? &*mDlss : nullptr })
-        , mDlssInstalled(Platform::Dlss::sBuilt && Platform::Dlss::installedIn(options.mDlss))
-        , mUpscaler(mDevice, options.mRun.mProfile.mUpscaler,
-              DlssReadiness{ .mBuilt = Platform::Dlss::sBuilt,
-                  .mCandidate = mDevice.isDlssCandidate(),
-                  .mInstalled = mDlssInstalled },
+                  .mBreadcrumbs = options.mRun.mValidation.mBreadcrumbs,
+                  .mAskedExtensions = dlssExtensionsFor(mDlss) })
+        , mUpscaler(mDevice, options.mRun.mProfile.mUpscaler, dlssAvailabilityFor(options, mDevice),
               mDlss.has_value() ? &*mDlss : nullptr)
-        , mUpscalers(offeredUpscalers(mDlssInstalled
-              && mDevice.getPhysicalDevice().getProperties().mProperties2.properties.vendorID
-                  == Platform::Gpu::sNvidia))
-        , mCounting(options.mCounting)
-        , mProfile(resolvedProfile(options.mRun.mProfile, mUpscaler))
+        , mUpscalers(offeredUpscalers(offersDlss(mUpscaler.getDlss())))
+        , mCounting(measured(options))
+        , mProfile(options.mRun.mProfile)
         , mInverseGamma(1.0f / mProfile.mGamma)
         , mStress(mProfile.mStressOverlapMs > 0.0 ? std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs)
                                                   : nullptr)
-        , mRing(mDevice, options.mTiming, options.mReadingBack)
+        , mRing(mDevice, options.mReporting)
         , mReadBack(mDevice, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "picture read back")
         , mScenePasses(mDevice)
         , mArrival(mDevice)
-        , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeKernels, mProfile.mUpscaler)
+        , mTracePasses(
+              mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeKernels, mUpscaler.getMasks())
         , mFrame(mDevice, mTracePasses, mProfile.mRadianceWidth)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout)
         , mMedia(mDevice, sFogNoise)
@@ -252,17 +287,19 @@ namespace Rtx
         // and room kept for them was room an 8 GB card's textures stood smaller for at a 4K output.
         // **Or for the most the modes the run named would take** (`RunProfile::mReservedUpscales`).
         std::vector<ArenaImage> declared;
-        FrameTracer::declare(render, output, mProfile, declared);
+        FrameTracer::declare(render, output, mProfile, mUpscaler, declared);
         const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared, mUpscaler);
-        VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, declared);
+        VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, mUpscaler, declared);
         for (const Upscale mode : mReservedUpscales)
         {
             RenderProfile reserved = mProfile;
             reserved.mUpscale = mode;
             const FrameExtents its = extentsFor(width, height, mode);
             std::vector<ArenaImage> itsDeclared;
-            FrameTracer::declare(VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output, reserved, itsDeclared);
-            reserve = std::max(reserve, frameAt(mDevice, width, height, mPictureRoom, reserved, itsDeclared));
+            FrameTracer::declare(
+                VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output, reserved, mUpscaler, itsDeclared);
+            reserve
+                = std::max(reserve, frameAt(mDevice, width, height, mPictureRoom, reserved, mUpscaler, itsDeclared));
         }
 
         // **The world is built again where the reserve moving changes what it would stand as**, by the

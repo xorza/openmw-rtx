@@ -2,9 +2,13 @@
 
 #include <algorithm>
 #include <cassert>
+#include <optional>
 #include <utility>
 
+#include <components/debug/debuglog.hpp>
+#include <components/platform/memory.hpp>
 #include <components/rtx/image/textureformat.hpp>
+#include <components/sceneutil/embeddedimage.hpp>
 
 #include "contentpreprocessor.hpp"
 #include "contentstore.hpp"
@@ -22,7 +26,7 @@ namespace Rtx
 
         ContentPreprocessor mContent;
         MadeChain mChain;
-        Worker mWorker;
+        std::jthread mWorker;
     };
 
     bool PreparedImages::prepares(const osg::Image& file, const TextureEncoding encoding)
@@ -42,14 +46,19 @@ namespace Rtx
         for (std::size_t at = 0; at < hands; ++at)
         {
             Hand& hand = *mHands.emplace_back(std::make_unique<Hand>(mStore));
-            hand.mWorker.start("chains", [this, &hand](const Platform::StopToken& stop) { serve(hand, stop); });
+            hand.mWorker
+                = Platform::startThread("chains", [this, &hand](const std::stop_token& stop) { serve(hand, stop); });
         }
     }
 
     PreparedImages::~PreparedImages()
     {
+        // Every hand asked first and joined after, so none takes another job while the one before it
+        // is joined.
         for (const std::unique_ptr<Hand>& hand : mHands)
-            hand->mWorker.stop();
+            hand->mWorker.request_stop();
+        for (const std::unique_ptr<Hand>& hand : mHands)
+            hand->mWorker = std::jthread();
     }
 
     PreparedImage PreparedImages::find(
@@ -148,7 +157,22 @@ namespace Rtx
         mSweepAt = std::max<std::size_t>(1024, 2 * mEntries.size());
     }
 
-    void PreparedImages::serve(Hand& hand, const Platform::StopToken& stop)
+    bool PreparedImages::admits(const ChainScratch& scratch, const osg::Image& file)
+    {
+        // **A chain whose making needs more than the system has left is not made**, and its file's own
+        // chain draws: allocated on this thread, it ended the game. Asked as it starts and not as it is
+        // queued, since what the system has left moves with the world.
+        const std::optional<std::uint64_t> available = Platform::availableMemory();
+        if (!available.has_value() || scratch.total() <= *available)
+            return true;
+
+        Log(Debug::Warning) << "Ray tracing keeps the chain of \"" << SceneUtil::EmbeddedImage::nameOf(file)
+                            << "\" as it stands: making it again needs " << scratch.total() / (1024 * 1024)
+                            << " MiB, and the system has " << *available / (1024 * 1024) << " MiB left";
+        return false;
+    }
+
+    void PreparedImages::serve(Hand& hand, const std::stop_token& stop)
     {
         Job job;
         mMonitor.serve(
@@ -158,29 +182,36 @@ namespace Rtx
                 mQueue.pop_front();
                 ++mInFlight;
             },
-            [&](const Platform::StopToken&) {
+            [&](const std::stop_token&) {
                 const osg::Image& file = *job.mFile;
                 const auto [image, encoding, wrap, partner] = job.mKey;
+                std::optional<MadeLayout> layout;
                 if (job.mPartner != nullptr)
-                    hand.mContent.convert(
-                        ConversionPass::Input{
-                            .mImage = file, .mPartner = *job.mPartner, .mEncoding = encoding, .mWrap = wrap },
-                        hand.mChain);
+                {
+                    const ConversionPass::Input input{
+                        .mImage = file, .mPartner = *job.mPartner, .mEncoding = encoding, .mWrap = wrap
+                    };
+                    if (admits(ConversionPass::scratchOf(input), file))
+                    {
+                        hand.mContent.convert(input, hand.mChain);
+                        layout = ConversionPass::madeLayout(input, hand.mChain.mForm);
+                    }
+                }
                 else
-                    hand.mContent.chain(
-                        ChainPass::Input{ .mImage = file, .mEncoding = encoding, .mWrap = wrap }, hand.mChain);
+                {
+                    const ChainPass::Input input{ .mImage = file, .mEncoding = encoding, .mWrap = wrap };
+                    if (admits(ChainPass::scratchOf(input), file))
+                    {
+                        hand.mContent.chain(input, hand.mChain);
+                        layout = ChainPass::madeLayout(input, hand.mChain.mForm);
+                    }
+                }
 
                 // The made levels move into the image that holds them; the file's finest level stays
-                // the file's (`MadeImage`).
+                // the file's where they are coarser (`MadeImage`).
                 osg::ref_ptr<const MadeImage> made;
-                const auto width = static_cast<std::uint32_t>(file.s());
-                const auto height = static_cast<std::uint32_t>(file.t());
-                if (hand.mChain.mForm == ChainForm::Coarser)
-                    made = new MadeImage(file, readFormat(file, encoding), std::move(hand.mChain.mBytes));
-                else if (hand.mChain.mForm == ChainForm::Bc7)
-                    made = MadeImage::whole(bc7FormatOf(encoding), width, height, std::move(hand.mChain.mBytes));
-                else if (hand.mChain.mForm == ChainForm::Own)
-                    made = MadeImage::whole(readFormat(file, encoding), width, height, std::move(hand.mChain.mBytes));
+                if (layout.has_value())
+                    made = MadeImage::make(*layout, std::move(hand.mChain.mBytes));
 
                 // **The image handed over and the job's files let go of under the lock, and no reference
                 // left on this thread** once the job counts as done: a waiter that `flush` let go may drop

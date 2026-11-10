@@ -53,9 +53,15 @@ namespace Rtx
         void letGo();
 
         /// Whether `file`'s chain can be built: a BC1, BC2 or BC3 file, four loose bytes a texel, or a
-        /// BC5 normal map, of more than a texel. Not BC4, nor a BC5 map of data, whose channels no reader
-        /// here gives a meaning.
+        /// BC5 normal map, of more than a texel and built at its side (`buildsAt`). Not BC4, nor a BC5
+        /// map of data, whose channels no reader here gives a meaning.
         static bool rebuilds(const TextureData& file);
+
+        /// Whether a finest level `finest` is one a build lays: no side past what a slot holds
+        /// (`TEXTURE_SIDE_MOST`), so its texels, four bytes each with the levels under them, stay
+        /// within a level's 32-bit offset. A larger file stands on its own chain, which a slot holds
+        /// from its first level within the side.
+        static bool buildsAt(const MipLevel& finest);
 
         /// Decodes the first level of `file`, a description `rebuilds` holds, and boxes `levels` levels in
         /// all from it, each half the one above and at least a texel, as a file lays its own: four bytes a

@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include <components/rtxvulkan/trace/tracepast.hpp>
+#include <components/rtxvulkan/frame/tracepast.hpp>
 
 namespace Rtx
 {
@@ -12,23 +12,23 @@ namespace Rtx
     {
     }
 
-    void FrameTracer::declare(
-        const VkExtent2D render, const VkExtent2D output, const RenderProfile& profile, std::vector<ArenaImage>& into)
+    void FrameTracer::declare(const VkExtent2D render, const VkExtent2D output, const RenderProfile& profile,
+        const Upscaler& upscaler, std::vector<ArenaImage>& into)
     {
         TraceChain::declareShared(
             render.width, render.height, profile.mRadianceWidth, profile.mReconstruction.mSampling.mBounceRays, into);
         if (upscales(profile.mUpscale))
-            Upscaler::declareShared(profile.mUpscaler, render, output, into);
+            upscaler.declareShared(render, output, into);
     }
 
     VkDeviceSize FrameTracer::bytesAt(const Device& device, const VkExtent2D render, const VkExtent2D output,
-        const Upscale upscale, const UpscalerKind upscaler, const RadianceWidth radiance,
+        const Upscale upscale, const Upscaler& upscaler, const RadianceWidth radiance,
         const std::span<const ArenaImage> declared)
     {
         VkDeviceSize bytes = TraceChain::bytesAt(device, render.width, render.height, radiance, TracePast::Kept)
             + ImageArena::bytesFor(device, declared);
         if (upscales(upscale))
-            bytes += Upscaler::bytesAt(device, upscaler, render, output);
+            bytes += upscaler.bytesAt(render, output);
         return bytes;
     }
 
@@ -66,7 +66,7 @@ namespace Rtx
         // An upscaler a mode turned off keeps nothing but its pipelines: its images went with the
         // mode, as `release` let them go.
         if (upscales(upscale))
-            upscaler.resize(upscale, render, output,
-                ArenaRun(mArena, TraceChain::getSharedCount(), Upscaler::getSharedCount(upscaler.getKind())));
+            upscaler.resize(
+                upscale, render, output, ArenaRun(mArena, TraceChain::getSharedCount(), upscaler.getSharedCount()));
     }
 }

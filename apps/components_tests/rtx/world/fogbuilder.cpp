@@ -15,9 +15,9 @@
 #include <components/rtx/common/radicalinverse.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtx/tables/fognoisemaker.hpp>
 #include <components/rtx/world/fogbuilder.hpp>
 #include <components/rtx/world/fognoise.hpp>
-#include <components/rtx/world/fognoisemaker.hpp>
 #include <components/rtx/world/skylight.hpp>
 #include <components/settings/values.hpp>
 

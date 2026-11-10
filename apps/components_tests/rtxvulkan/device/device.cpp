@@ -12,7 +12,7 @@
 #include <volk.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -64,8 +64,7 @@ namespace Rtx
             const Device& device = *mHarness.mDevice;
             const Checkpoint checkpoint{ "probe", 9 };
             getPool().submitAndWait([&](VkCommandBuffer commands) { device.checkpoint(commands, &checkpoint); });
-            const bool marks
-                = sDebugNames && device.getPhysicalDevice().hasOptionalExtension(VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
+            const bool marks = device.getPhysicalDevice().hasOptionalExtension(VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
 
             const VkFenceCreateInfo unsignalled{
                 .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .pNext = nullptr, .flags = 0

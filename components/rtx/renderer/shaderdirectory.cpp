@@ -11,6 +11,7 @@
 #include <components/files/conversion.hpp>
 #include <components/misc/bytebuffer.hpp>
 #include <components/misc/result.hpp>
+#include <components/platform/folder.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/rtx/common/hashstate.hpp>
 
@@ -23,15 +24,11 @@ namespace Rtx
 
     DigestWords digestShaders(const std::filesystem::path& directory)
     {
-        // **Every step of the walk told its error, and none thrown**: the range-for advances with
-        // `operator++`, which throws on a directory that went or changed under the walk, where
-        // `increment` reports it, as a file it cannot read is reported and skipped below.
-        std::error_code failed;
         std::vector<std::filesystem::path> files;
-        for (std::filesystem::directory_iterator entry(directory, failed);
-             !failed && entry != std::filesystem::directory_iterator(); entry.increment(failed))
-            if (std::error_code typed; entry->is_regular_file(typed))
-                files.push_back(entry->path());
+        for (const std::filesystem::directory_entry& entry :
+            Platform::listFolder(directory).value_or(std::vector<std::filesystem::directory_entry>()))
+            if (std::error_code typed; entry.is_regular_file(typed))
+                files.push_back(entry.path());
 
         std::sort(files.begin(), files.end());
 

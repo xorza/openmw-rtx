@@ -9,9 +9,9 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/readback.hpp>
 #include <apps/components_tests/rtx/support/wavemoments.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/readback.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/shaders/wave.h>

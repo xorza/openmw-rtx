@@ -14,10 +14,10 @@
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "deformertable.hpp"
+#include "foldedshape.hpp"
 #include "light.hpp"
 #include "material.hpp"
 #include "materialtable.hpp"

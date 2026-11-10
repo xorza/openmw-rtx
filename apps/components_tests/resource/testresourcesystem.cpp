@@ -59,7 +59,7 @@ namespace
         const ToUTF8::Utf8Encoder encoder(ToUTF8::WINDOWS_1252);
         Resource::ResourceSystem resourceSystem(&vfsManager, 1.0, &encoder.getStatelessEncoder());
         Resource::SceneManager* sceneManager = resourceSystem.getSceneManager();
-        sceneManager->setShadersEnabled(false);
+        sceneManager->setModelPrograms(Resource::ModelPrograms::Left);
 
         constexpr VFS::Path::NormalizedView first("meshes/first.nif");
         constexpr VFS::Path::NormalizedView kept("meshes/kept.nif");

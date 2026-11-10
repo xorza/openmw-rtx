@@ -24,13 +24,13 @@
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
+#include <components/rtxvulkan/frame/gbuffer.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/pipeline/shadercode.hpp>
 #include <components/rtxvulkan/pipeline/tracepipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/traceconstants.h>
 
-#include "gbuffer.hpp"
 #include "tracesubject.hpp"
 
 namespace Rtx
@@ -112,10 +112,10 @@ namespace Rtx
         ///        were not finite — a harness facility, specialized away rather than branched on.
         /// @param specialize whether to make a kernel per tuple behind the full tuple's, or the full
         ///        tuple's alone and answer every frame with it — `RenderProfile::mSpecializeKernels`.
-        /// @param upscaler the run's upscaler, resolved: whether the kernels write what only FSR
-        ///        reads (`writesUpscaleMasks`), specialized away rather than branched on.
+        /// @param masks whether the kernels write the masks the upscaler reads, specialized away rather
+        ///        than branched on.
         VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
-            const SetLayout& volumeLayout, bool counting, bool specialize, UpscalerKind upscaler);
+            const SetLayout& volumeLayout, bool counting, bool specialize, UpscaleMasks masks);
 
         /// Where the blue-noise tile is, named for the next submit: what the frame block carries,
         /// and the tone pass's dither draws from.
@@ -378,11 +378,19 @@ namespace Rtx
         /// read set as the full tuple sets it, a relief only beside maps, as every made tuple stands.
         VisibilityVariant canonicalOf(Kernel stage, VisibilityVariant variant) const;
 
-        /// Which of each stage's canonical pipelines a hand is making, so a hand that wants one another
-        /// is making waits for it rather than making it again (`compile`).
+        /// Where each of a stage's canonical pipelines stands: a hand that wants one another is making
+        /// waits for it rather than making it again (`compile`), and one whose making failed wakes its
+        /// waiters to fail too, where they had waited for a pipeline nobody would make.
+        enum class Canonical : std::uint8_t
+        {
+            Unclaimed,
+            Making,
+            Made,
+            Failed,
+        };
         std::mutex mCanonicalMutex;
         std::condition_variable mCanonicalMade;
-        std::array<std::array<bool, VisibilityVariant::sCount>, sStageCount> mCanonicalClaimed{};
+        std::array<std::array<Canonical, VisibilityVariant::sCount>, sStageCount> mCanonical{};
 
         /// Which tuples the background compile made whole, each set by the hand that made the
         /// tuple's last kernel after it wrote them, and read by the frame that picks its tuple

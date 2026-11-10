@@ -1,6 +1,5 @@
 #include "upscaler.hpp"
 
-#include <cassert>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -11,21 +10,25 @@
 
 namespace Rtx
 {
-    Upscaler::Backend Upscaler::makeBackend(const Device& device, const UpscalerKind requested,
-        const DlssReadiness& readiness, const Dlss::Application* application)
+    Upscaler::Backend Upscaler::makeBackend(const Device& device, const UpscalerChoice choice,
+        DlssAvailability& availability, const Dlss::Application* application)
     {
         // Each backend is made in place and returned as it is, which the backends, pinned to their
         // device, need: a prvalue initialises the member with no move.
-        if (resolveUpscaler(requested, readiness) == UpscalerKind::Dlss)
+        if (chooseUpscaler(choice, availability) == UpscalerKind::Dlss)
         {
             try
             {
+                // Said before the backend is made, since it is made in the return: a refusal says
+                // otherwise below.
+                availability = DlssAvailability::Ready;
                 return Backend(std::in_place_type<DlssUpscaler>, device, application);
             }
-            catch (const Unsupported& refused)
+            catch (const UpscalerRefused& refused)
             {
-                if (requested == UpscalerKind::Dlss)
+                if (choice == UpscalerChoice::Dlss)
                     throw;
+                availability = DlssAvailability::Refused;
                 Log(Debug::Warning) << "NVIDIA DLSS could not start, so FSR is used: " << refused.what();
             }
         }
@@ -33,9 +36,11 @@ namespace Rtx
         return Backend(std::in_place_type<FsrUpscaler>, device);
     }
 
-    Upscaler::Upscaler(const Device& device, const UpscalerKind requested, const DlssReadiness& readiness,
+    Upscaler::Upscaler(const Device& device, const UpscalerChoice choice, const DlssAvailability availability,
         const Dlss::Application* application)
-        : mBackend(makeBackend(device, requested, readiness, application))
+        : mDevice(device)
+        , mDlss(availability)
+        , mBackend(makeBackend(device, choice, mDlss, application))
     {
     }
 
@@ -44,33 +49,33 @@ namespace Rtx
         return std::holds_alternative<DlssUpscaler>(mBackend) ? UpscalerKind::Dlss : UpscalerKind::Fsr;
     }
 
+    UpscaleMasks Upscaler::getMasks() const
+    {
+        return getKind() == UpscalerKind::Fsr ? UpscaleMasks::Written : UpscaleMasks::Skipped;
+    }
+
     void Upscaler::resize(const Upscale mode, const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
     {
         std::visit([&](auto& backend) { backend.resize(mode, render, output, shared); }, mBackend);
     }
 
-    void Upscaler::declareShared(
-        const UpscalerKind kind, const VkExtent2D render, const VkExtent2D output, std::vector<ArenaImage>& into)
+    void Upscaler::declareShared(const VkExtent2D render, const VkExtent2D output, std::vector<ArenaImage>& into) const
     {
-        assert(kind != UpscalerKind::Auto && "an upscaler kind that was never resolved");
-        if (kind == UpscalerKind::Dlss)
-            DlssUpscaler::declareShared(render, output, into);
-        else
-            FsrUpscaler::declareShared(render, output, into);
+        std::visit([&](const auto& backend) { std::decay_t<decltype(backend)>::declareShared(render, output, into); },
+            mBackend);
     }
 
-    std::size_t Upscaler::getSharedCount(const UpscalerKind kind)
+    std::size_t Upscaler::getSharedCount() const
     {
-        assert(kind != UpscalerKind::Auto && "an upscaler kind that was never resolved");
-        return kind == UpscalerKind::Dlss ? DlssUpscaler::getSharedCount() : FsrUpscaler::getSharedCount();
+        return std::visit(
+            [](const auto& backend) { return std::decay_t<decltype(backend)>::getSharedCount(); }, mBackend);
     }
 
-    VkDeviceSize Upscaler::bytesAt(
-        const Device& device, const UpscalerKind kind, const VkExtent2D render, const VkExtent2D output)
+    VkDeviceSize Upscaler::bytesAt(const VkExtent2D render, const VkExtent2D output) const
     {
-        assert(kind != UpscalerKind::Auto && "an upscaler kind that was never resolved");
-        return kind == UpscalerKind::Dlss ? DlssUpscaler::bytesAt(device, render, output)
-                                          : FsrUpscaler::bytesAt(device, render, output);
+        return std::visit(
+            [&](const auto& backend) { return std::decay_t<decltype(backend)>::bytesAt(mDevice, render, output); },
+            mBackend);
     }
 
     void Upscaler::release()

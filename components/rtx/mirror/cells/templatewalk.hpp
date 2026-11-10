@@ -98,7 +98,7 @@ namespace Rtx
         void letGoScratch() { mContent.mPreprocessor.letGoChainScratch(); }
 
         /// `ContentPreprocessor::collectKeys`, through this thread's content.
-        void collectKeys(std::vector<ContentKey>* into) { mContent.mPreprocessor.collectKeys(into); }
+        void collectKeys(std::vector<StoredKey>* into) { mContent.mPreprocessor.collectKeys(into); }
 
         void apply(osg::Node& node) override;
         void apply(osg::Transform& node) override;

@@ -8,8 +8,8 @@
 
 #include <components/rtx/frame/debuglines.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/sunglare.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 

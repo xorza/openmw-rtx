@@ -4,7 +4,7 @@
 #include <optional>
 
 /// What the system has of memory for this process to take, which each system states by its own call:
-/// one header over `memoryposix.cpp` and `memorywin32.cpp`.
+/// one header over `memorylinux.cpp` and `memorywin32.cpp`.
 namespace Platform
 {
     /// The bytes this process may still allocate before the system pages them out or refuses them: on

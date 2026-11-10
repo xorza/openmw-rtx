@@ -26,6 +26,7 @@
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
+#include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
 #include <apps/rtxtool/model/pictureshelf.hpp>
 #include <apps/rtxtool/model/viewfile.hpp>
@@ -53,7 +54,6 @@
 #include <components/version/version.hpp>
 
 #include "compare.hpp"
-#include "film.hpp"
 #include "framed.hpp"
 #include "harnessfolder.hpp"
 #include "hosted.hpp"
@@ -83,16 +83,6 @@ namespace RtxTool
 
             Settings::Manager::load(config);
             Crash::setHangLimit(std::chrono::seconds(Settings::general().mCrashHangSeconds));
-        }
-
-        /// Reports go to the unprefixed stream.
-        ///
-        /// `Debug::wrapApplication` routes `std::cout` through the log formatter, which stamps every
-        /// line with a time and a level. That is right for a game and wrong for a tool whose output
-        /// is meant to be read, diffed, or piped into something that parses it.
-        std::ostream& out()
-        {
-            return Debug::getRawStdout();
         }
 
         /// The layers a run that will be measured or compared gets, which is none unless it asked.
@@ -179,6 +169,7 @@ namespace RtxTool
             const Rtx::SamplingSwitches& sampling = line.mReconstruction.mSampling;
             const MWRender::RtxSettings derived = MWRender::RtxSettings::derive(MWRender::RtxSettingValues{
                 .mUpscale = !watched || line.mUpscale.mNamed ? line.mUpscale.mValue : Settings::rtx().mUpscale.get(),
+                .mUpscaler = line.mUpscaler,
                 .mIndirectLighting = watched && !line.mBouncesNamed.mIndirect ? Settings::rtx().mIndirectLighting.get()
                                                                               : sampling.mIndirect,
                 .mBounceRays = watched && !line.mBouncesNamed.mBounceRays ? Settings::rtx().mBounceRays.get()
@@ -233,18 +224,12 @@ namespace RtxTool
 
             Rtx::RenderProfile& profile = framed.mSetup.mRun.mProfile;
             profile.mRadianceWidth = policyOf(command.mVerb).radianceWidth();
-            profile.mUpscale = derived.mUpscale;
-            profile.mUpscaler = line.mUpscaler;
-            profile.mAnisotropy = derived.mAnisotropy;
-            profile.mGamma = derived.mGamma;
-            profile.mLitEnvironmentMaps = derived.mLitEnvironmentMaps;
             profile.mShow = line.mShow;
             profile.mExposure = line.mExposure;
             profile.mStressOverlapMs = line.mHold.mValue ? sCheckHoldMs : 0.0;
             profile.mSpecializeKernels = line.mVariants;
             profile.mReconstruction = line.mReconstruction;
-            profile.mReconstruction.mSampling.mIndirect = derived.mIndirectLighting;
-            profile.mReconstruction.mSampling.mBounceRays = derived.mBounceRays;
+            derived.applyTo(profile);
 
             // **What a window's line typed, written where its menu reads it**, so a slider opens at what
             // the frame traces and moves it from there, into this run's own settings file
@@ -482,17 +467,17 @@ namespace RtxTool
         {
             for (const Stop& view : loadViews(viewsFile()))
             {
-                out() << "  " << view.mName << "\n      " << view.mStand.mCell.getSpelling();
+                Debug::getRawStdout() << "  " << view.mName << "\n      " << view.mStand.mCell.getSpelling();
 
                 // A place that fixes a condition is a different frame from the same camera at noon
                 // under a clear sky, and this listing is how a view is found.
                 if (view.mSky.mHour.has_value())
-                    out() << " at " << describeHour(*view.mSky.mHour);
+                    Debug::getRawStdout() << " at " << describeHour(*view.mSky.mHour);
 
                 if (view.mSky.mWeather.has_value())
-                    out() << " in " << Rtx::nameOf(*view.mSky.mWeather);
+                    Debug::getRawStdout() << " in " << Rtx::nameOf(*view.mSky.mWeather);
 
-                out() << "\n      " << view.mNote << '\n';
+                Debug::getRawStdout() << "\n      " << view.mNote << '\n';
             }
 
             return 0;
@@ -503,8 +488,8 @@ namespace RtxTool
             if (command.mLine.mFolders)
             {
                 const Files::FixedPath<> game("openmw");
-                out() << "config " << Files::pathToUnicodeString(game.getUserConfigPath()) << '\n'
-                      << "data " << Files::pathToUnicodeString(game.getUserDataPath()) << '\n';
+                Debug::getRawStdout() << "config " << Files::pathToUnicodeString(game.getUserConfigPath()) << '\n'
+                                      << "data " << Files::pathToUnicodeString(game.getUserDataPath()) << '\n';
                 return 0;
             }
 
@@ -527,12 +512,12 @@ namespace RtxTool
                     .mHeight = 1,
                     .mRun = { .mValidation = validation },
                 });
-                out() << renderer->describeDevice();
+                Debug::getRawStdout() << renderer->describeDevice();
                 return 0;
             }
             catch (const Rtx::Unsupported& obstacle)
             {
-                out() << obstacle.what() << '\n';
+                Debug::getRawStdout() << obstacle.what() << '\n';
                 return 1;
             }
         }
@@ -619,7 +604,7 @@ namespace RtxTool
                     return out / written.back().mFile;
                 };
 
-                stop.mActions.mCapture = file("", frameRule);
+                stop.mActions.mCapture = Actions::Capture{ .mFile = file("", frameRule) };
                 if (!doll.empty())
                     stop.mActions.mDoll = Actions::Doll{ .mWho = doll, .mFile = file("-doll", PictureRule::Denoised) };
                 if (line.mMap)
@@ -756,7 +741,7 @@ namespace RtxTool
             // and targets of their own. Under the layers, this is what finds a barrier they miss.
             const std::filesystem::path out = outOf(command);
             std::filesystem::create_directories(out);
-            stops.front().mActions.mCapture = out / (stops.front().mName + ".png");
+            stops.front().mActions.mCapture = Actions::Capture{ .mFile = out / (stops.front().mName + ".png") };
             stops.front().mActions.mMapTile = out / (stops.front().mName + "-map.png");
             stops.front().mActions.mDoll = Actions::Doll{ "fargoth", out / (stops.front().mName + "-doll.png") };
 
@@ -789,7 +774,7 @@ namespace RtxTool
         /// is a sequence neither of the others draws from, so it shares no sample with them, and at
         /// no texture level epsilon; its exposure is measured as a played frame's is, and it is
         /// written as the renderer summed it, at sixteen bits a channel and undithered
-        /// (`Actions::mDeepCapture`), so no byte stands under the bias measured against it. The bar averages
+        /// (`Actions::Capture::Depth::Deep`), so no byte stands under the bias measured against it. The bar averages
         /// `sNoiseBarFrames` frames, unfiltered and as the run otherwise traces — or, flown in, as many as the frame's
         /// history could hold, `noiseBarFramesAfter`. The frame is the run's own, after the warm-up its history
         /// converges over, upscaled as the run is — or, with `--strafe` or `--walk`, after it flew into the place
@@ -867,7 +852,8 @@ namespace RtxTool
             int judged = judgeNoise(drawn, folder, plan.mSides, plan.mBarFrames, measured[0]);
             if (versus.has_value())
             {
-                out() << std::format("versus --{}{}{}\n", asked, plan.mOwnBar ? ", against a bar of its own" : "",
+                Debug::getRawStdout() << std::format("versus --{}{}{}\n", asked,
+                    plan.mOwnBar ? ", against a bar of its own" : "",
                     plan.mOwnReference ? " and a reference of its own" : "");
                 judged = std::max(judged, judgeNoise(drawn, folder, plan.mVersusSides, plan.mBarFrames, measured[1]));
             }
@@ -875,7 +861,7 @@ namespace RtxTool
             const std::span<const std::vector<NoiseFigures>> written(measured.data(), versus.has_value() ? 2 : 1);
             if (const Result<void, std::string> wrote = writeNoiseRecord(record, written); !wrote.isOk())
             {
-                out() << wrote.error() << '\n';
+                Debug::getRawStdout() << wrote.error() << '\n';
                 return 1;
             }
             return judged;
@@ -904,29 +890,18 @@ namespace RtxTool
 
             // **The step is the run's, and the film counts every length in it**: the world moves a
             // frame of film between two frames.
-            framed.mStep = 1.0f / line.mFramesPerSecond;
+            FilmPacing pacing = line.mPacing;
+            framed.mStep = pacing.mStep;
             framed.mSetup.mSettled = true;
             framed.mSetup.mRun.mProfile.mUpscale = sFilmUpscale;
 
-            FilmPacing pacing;
-            pacing.mStep = *framed.mStep;
-            pacing.mSpeed = line.mSpeed;
-            pacing.mEase = line.mEase;
-            pacing.mLength = line.mLength;
-            pacing.mPanSeconds = line.mPanSeconds;
-            pacing.mHourSeconds = line.mHourSeconds;
-            pacing.mCrossingSeconds = line.mCrossingSeconds;
-            pacing.mStillSeconds = line.mStillSeconds;
-            pacing.mCutDistance = line.mCutDistance;
             pacing.mFieldOfView = framed.mWindow.mFieldOfView;
             pacing.mAspect = static_cast<float>(framed.mWindow.mWidth) / static_cast<float>(framed.mWindow.mHeight);
             pacing.mDay = framed.mDay;
-            pacing.mWeatherHold = line.mWeatherHold;
-            pacing.mClock = line.mClock;
             pacing.mTurn = command.mLine.mSky.mTurn;
 
             const FilmPlan plan = planFilm(loadKeys(keys), pacing);
-            out() << describePlan(plan) << std::flush;
+            Debug::getRawStdout() << describePlan(plan) << std::flush;
             if (line.mPlan)
                 return 0;
 
@@ -934,7 +909,7 @@ namespace RtxTool
             const std::filesystem::path frames = directory / "frames";
             std::filesystem::create_directories(frames);
             if (const std::size_t cleared = clearFrames(frames); cleared > 0)
-                out() << std::format("cleared {} frames of the last film\n", cleared);
+                Debug::getRawStdout() << std::format("cleared {} frames of the last film\n", cleared);
 
             if (const int status = runHosted(command, framed, sessionFor(command, framed, stopsFor(plan, frames)));
                 status != 0)
@@ -945,19 +920,21 @@ namespace RtxTool
             const std::string encode = encodeCommand(frames, video, pacing.getRate());
             if (!line.mEncode)
             {
-                out() << "\nthe frames are in " << Files::pathToUnicodeString(frames) << "; to encode them:\n"
-                      << encode << '\n';
+                Debug::getRawStdout() << "\nthe frames are in " << Files::pathToUnicodeString(frames)
+                                      << "; to encode them:\n"
+                                      << encode << '\n';
                 return 0;
             }
 
-            out() << "\nencoding: " << encode << '\n' << std::flush;
+            Debug::getRawStdout() << "\nencoding: " << encode << '\n' << std::flush;
             if (!Platform::Process::runShell(encode).succeeded())
             {
-                out() << "the encoder failed; the frames are in " << Files::pathToUnicodeString(frames) << '\n';
+                Debug::getRawStdout() << "the encoder failed; the frames are in " << Files::pathToUnicodeString(frames)
+                                      << '\n';
                 return 1;
             }
 
-            out() << "the film is " << Files::pathToUnicodeString(video) << '\n';
+            Debug::getRawStdout() << "the film is " << Files::pathToUnicodeString(video) << '\n';
             return 0;
         }
 
@@ -998,18 +975,19 @@ namespace RtxTool
 
         void printUsage(const bpo::options_description& options)
         {
-            out() << "Drives the experimental ray tracing renderer without the game window.\n\n"
-                     "Usage: openmw-rtxtool <command> [options]\n\n"
-                     "Commands:\n";
+            Debug::getRawStdout() << "Drives the experimental ray tracing renderer without the game window.\n\n"
+                                     "Usage: openmw-rtxtool <command> [options]\n\n"
+                                     "Commands:\n";
 
             for (const Verb& verb : sVerbs)
-                out() << std::format("  {:<8} {}\n", verbName(verb.mVerb), verb.mSummary);
+                Debug::getRawStdout() << std::format("  {:<8} {}\n", verbName(verb.mVerb), verb.mSummary);
 
-            out() << "\nWith no arguments at all: a window on the ship at Seyda Neen, where the game starts.\n"
-                     "The player's configuration is read and never written: what the engine saves on its way\n"
-                     "out -- its settings, its log, its key bindings, its Lua storage -- goes to a directory of\n"
-                     "this tool's own under the cache path.\n\n"
-                  << options;
+            Debug::getRawStdout()
+                << "\nWith no arguments at all: a window on the ship at Seyda Neen, where the game starts.\n"
+                   "The player's configuration is read and never written: what the engine saves on its way\n"
+                   "out -- its settings, its log, its key bindings, its Lua storage -- goes to a directory of\n"
+                   "this tool's own under the cache path.\n\n"
+                << options;
         }
 
         int dispatch(int argc, char* argv[])
@@ -1079,7 +1057,7 @@ namespace RtxTool
 
             if (found == sVerbs.end())
             {
-                out() << "Unknown command: " << command << "\n\n";
+                Debug::getRawStdout() << "Unknown command: " << command << "\n\n";
                 printUsage(options.mDescription);
                 return 1;
             }
@@ -1090,7 +1068,7 @@ namespace RtxTool
             // Seyda Neen and reported it without a word.
             if (const std::string complaint = options.complainAbout(line, chosen); !complaint.empty())
             {
-                out() << complaint;
+                Debug::getRawStdout() << complaint;
                 return 1;
             }
 

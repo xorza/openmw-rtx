@@ -18,8 +18,8 @@
 #include <boost/program_options/variables_map.hpp>
 #include <osg/Vec3f>
 
-#include <apps/rtxtool/film.hpp>
 #include <apps/rtxtool/framed.hpp>
+#include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
 #include <apps/rtxtool/options.hpp>
 #include <apps/rtxtool/runfolder.hpp>
@@ -162,7 +162,7 @@ namespace RtxTool
         TEST(RtxToolOptionsTest, anUpscalerCanBeSelectedWithoutChangingTheQualityMode)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
-            EXPECT_EQ(lineOf(options, {}, Verbs::Bench).mFrame.mUpscaler, Rtx::UpscalerKind::Fsr);
+            EXPECT_EQ(lineOf(options, {}, Verbs::Bench).mFrame.mUpscaler, Rtx::UpscalerChoice::Fsr);
             for (const auto& [kind, name] : Rtx::sUpscalerNames.mNames)
             {
                 const ToolLine line
@@ -254,7 +254,7 @@ namespace RtxTool
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
             const auto length = [&](const std::vector<std::string>& line) {
-                return lineOf(options, line, Verbs::Film).mFilm.mLength;
+                return lineOf(options, line, Verbs::Film).mFilm.mPacing.mLength;
             };
             const auto refusal
                 = [&](const std::vector<std::string>& line) { return refusalOf(options, line, Verbs::Film); };

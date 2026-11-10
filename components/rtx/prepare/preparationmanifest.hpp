@@ -10,7 +10,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include <components/misc/bytebuffer.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
+#include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstore.hpp>
 
 namespace Rtx
@@ -43,8 +45,8 @@ namespace Rtx
             std::uint64_t mDigest = 0;
             std::vector<std::string> mFiles;
 
-            /// The store's entries the walk made or found, each once.
-            std::vector<ContentKey> mKeys{};
+            /// The store's entries the walk made or found, each once, with the pass that filed it.
+            std::vector<StoredKey> mKeys{};
         };
 
         /// How many days an entry stands that no run named: past them its content list is gone.
@@ -70,9 +72,13 @@ namespace Rtx
         std::optional<Entry> find(std::string_view model) const;
 
         /// Whether `model`'s files stand as they did when it was walked, and `store` holds every entry
-        /// its walk made (`ContentStore::holds`, one `stat` an entry, which stamps it). Safe from any
-        /// thread while nothing files an entry.
-        bool standsAsWalked(std::string_view model, FileStamps& stamps, ContentStore& store) const;
+        /// its walk made: a shape read whole into the store's memory, where the frame, which reaches
+        /// nothing else, finds it (`StoreReach::Memory`); every other entry by its file
+        /// (`ContentStore::holds`, one `stat` an entry, which stamps it). Safe from any thread while
+        /// nothing files an entry.
+        /// @param scratch what a shape is read into, the caller's to keep.
+        bool standsAsWalked(
+            std::string_view model, FileStamps& stamps, ContentStore& store, Misc::ByteBuffer& scratch) const;
 
         /// Files `entry` under `model`, over what was there, named on `day`.
         void keep(std::string_view model, const Entry& entry, std::uint32_t day);
@@ -110,7 +116,7 @@ namespace Rtx
         std::uint32_t intern(std::string_view name);
 
         /// `key`'s index in the keys' table, added where it is not there.
-        std::uint32_t internKey(const ContentKey& key);
+        std::uint32_t internKey(const StoredKey& key);
 
         std::optional<std::uint32_t> indexOf(std::string_view name) const;
 
@@ -126,7 +132,7 @@ namespace Rtx
         std::vector<std::uint32_t> mFiles;
 
         /// The keys, each once, and every entry's run of them as indices, as the names and the files.
-        std::vector<ContentKey> mKeys;
+        std::vector<StoredKey> mKeys;
         std::unordered_map<ContentKey, std::uint32_t, ContentKeyHash> mKeyIndex;
         std::vector<std::uint32_t> mKeyRuns;
 

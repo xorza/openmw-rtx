@@ -1,9 +1,9 @@
 #pragma once
 
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtxvulkan/denoise/compositepass.hpp>
+#include <components/rtxvulkan/denoise/denoisepasses.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
-#include <components/rtxvulkan/trace/denoise/compositepass.hpp>
-#include <components/rtxvulkan/trace/denoise/denoisepasses.hpp>
 
 #include "spritepasses.hpp"
 #include "visibilitypass.hpp"
@@ -20,11 +20,16 @@ namespace Rtx
     struct TracePasses
     {
         /// @param textureLayout what every scene's texture array is shaped by, which the trace reads.
-        /// @param counting `RendererOptions::mCounting`: whether the trace counts what its rays met.
+        /// @param counting `RendererOptions::mReporting`: whether the trace counts what its rays met.
         /// @param specialize `RenderProfile::mSpecializeKernels`.
-        /// @param upscaler the run's upscaler, resolved, which the kernels are specialized on.
-        TracePasses(const Device& device, const SetLayout& textureLayout, bool counting, bool specialize,
-            UpscalerKind upscaler);
+        /// @param masks whether the trace writes the masks the upscaler reads, which the kernels are
+        ///        specialized on (`Upscaler::getMasks`).
+        TracePasses(
+            const Device& device, const SetLayout& textureLayout, bool counting, bool specialize, UpscaleMasks masks);
+
+        /// Pinned: the visibility pass keeps the channel and volume layouts beside it by reference.
+        TracePasses(const TracePasses&) = delete;
+        TracePasses& operator=(const TracePasses&) = delete;
 
         SetLayout mChannels;
         SetLayout mFog;

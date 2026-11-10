@@ -12,6 +12,7 @@
 
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/pngtext.hpp>
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <apps/rtxtool/homekey.hpp>
 #include <apps/rtxtool/instruments/png.hpp>
@@ -22,8 +23,6 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
-
-#include "../rtx/support/pngtext.hpp"
 
 namespace RtxTool
 {

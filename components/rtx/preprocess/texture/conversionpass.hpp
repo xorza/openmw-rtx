@@ -15,8 +15,8 @@
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 
+#include "chainpass.hpp"
 #include "chainscratch.hpp"
-#include <components/rtx/preprocess/texture/chainpass.hpp>
 
 namespace Rtx
 {
@@ -80,6 +80,14 @@ namespace Rtx
         void digest(const Input& input, ContentDigest& digest);
         void run(const Input& input, Output& output);
 
+        /// Where a chain of `form` made of `input`'s own file lays its levels, read off its header
+        /// alone: whole to a texel, in BC7, or in the file's own block format for a base colour; nothing
+        /// for any other form (`ChainPass::madeLayout`).
+        static std::optional<MadeLayout> madeLayout(const Input& input, ChainForm form);
+
+        /// Whether `output` can be a run of `input`'s (`ChainPass::fits`).
+        static bool fits(const Input& input, const Output& output);
+
         /// Lets go of both images `digest` described (`ChainPass::release`).
         void release();
 
@@ -98,6 +106,10 @@ namespace Rtx
         /// Describes `input`'s two files into the scratch, the diffuse as a painted colour and the
         /// `_spec` as a colour, unless they are the ones described.
         void describe(const Input& input);
+
+        /// Whether the files described convert: a diffuse whose chain builds and a `_spec` read as a
+        /// colour, each at a side a build lays (`ChainBuild::buildsAt`).
+        bool converts() const;
 
         osg::ref_ptr<const osg::Image> mImage;
         osg::ref_ptr<const osg::Image> mPartner;

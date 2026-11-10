@@ -43,7 +43,7 @@ namespace Rtx::Testing
         std::string describeDevice() const override { return "a renderer that counts rather than draws"; }
         Rtx::CardAddress getCardAddress() const override { return {}; }
         const Rtx::RenderProfile& getProfile() const override { return mProfile; }
-        std::span<const Rtx::UpscalerKind> getUpscalers() const override { return Rtx::offeredUpscalers(false); }
+        std::span<const Rtx::UpscalerChoice> getUpscalers() const override { return Rtx::offeredUpscalers(false); }
         bool isValidating() const override { return false; }
 
         void setScene(

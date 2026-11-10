@@ -28,7 +28,7 @@
 #include <components/rtx/mirror/materialresolver.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/shape/shapefold.hpp>
+#include <components/rtx/scene/foldedshape.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/sceneutil/lightcommon.hpp>

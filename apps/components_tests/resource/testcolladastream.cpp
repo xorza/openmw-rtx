@@ -92,7 +92,7 @@ namespace
         const ToUTF8::Utf8Encoder encoder(ToUTF8::WINDOWS_1252);
         Resource::ResourceSystem resources(vfs.get(), 1.0, &encoder.getStatelessEncoder());
         Resource::SceneManager& scenes = *resources.getSceneManager();
-        scenes.setShadersEnabled(false);
+        scenes.setModelPrograms(Resource::ModelPrograms::Left);
 
         EXPECT_EQ(vertexCount(*scenes.getTemplate(largePath, false)), 3u);
         EXPECT_EQ(vertexCount(*scenes.getTemplate(smallPath, false)), 3u)

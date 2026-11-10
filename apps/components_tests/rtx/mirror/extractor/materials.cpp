@@ -962,7 +962,7 @@ namespace Rtx::Testing
             Resource::ResourceSystem resources(&vfs, 1.0, nullptr);
 
             // The ray tracer compiles none of the rasterizer's shaders, and neither does this.
-            resources.getSceneManager()->setShadersEnabled(false);
+            resources.getSceneManager()->setModelPrograms(Resource::ModelPrograms::Left);
 
             const auto frame = [&](osg::Group& root, unsigned int number, double seconds) {
                 osg::ref_ptr<osg::FrameStamp> stamp = new osg::FrameStamp;

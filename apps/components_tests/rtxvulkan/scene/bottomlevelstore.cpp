@@ -8,9 +8,9 @@
 #include <osg/Vec3f>
 #include <vulkan/vulkan_core.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/scene/mesh.hpp>

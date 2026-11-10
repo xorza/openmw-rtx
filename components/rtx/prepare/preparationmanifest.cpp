@@ -11,6 +11,7 @@
 
 #include <components/platform/wholefile.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
+#include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "filestamps.hpp"
@@ -20,7 +21,7 @@ namespace Rtx
     namespace
     {
         constexpr std::uint32_t sMagic = 0x4d585452; // "RTXM"
-        constexpr std::uint32_t sFormat = 3;
+        constexpr std::uint32_t sFormat = 4;
 
         /// The most bytes a manifest is read at: a file is untrusted, and a profile's manifest of half a
         /// million names stands near twenty megabytes.
@@ -125,12 +126,17 @@ namespace Rtx
         }
 
         std::uint32_t keys = 0;
-        if (!reader.take(keys) || keys > reader.left() / sizeof(ContentKey))
+        constexpr std::size_t keyBytes = sizeof(ContentKey) + sizeof(std::uint32_t);
+        if (!reader.take(keys) || keys > reader.left() / keyBytes)
             return {};
         for (std::uint32_t at = 0; at < keys; ++at)
         {
-            ContentKey key;
-            if (!reader.take(key.mHash) || manifest.internKey(key) != at)
+            StoredKey key;
+            std::uint32_t pass = 0;
+            if (!reader.take(key.mKey.mHash) || !reader.take(pass) || pass >= sContentPassCount)
+                return {};
+            key.mPass = static_cast<ContentPassId>(pass);
+            if (manifest.internKey(key) != at)
                 return {};
         }
 
@@ -193,9 +199,9 @@ namespace Rtx
         return index;
     }
 
-    std::uint32_t PreparationManifest::internKey(const ContentKey& key)
+    std::uint32_t PreparationManifest::internKey(const StoredKey& key)
     {
-        const auto [found, added] = mKeyIndex.try_emplace(key, static_cast<std::uint32_t>(mKeys.size()));
+        const auto [found, added] = mKeyIndex.try_emplace(key.mKey, static_cast<std::uint32_t>(mKeys.size()));
         if (added)
             mKeys.push_back(key);
         return found->second;
@@ -221,7 +227,7 @@ namespace Rtx
     }
 
     bool PreparationManifest::standsAsWalked(
-        const std::string_view model, FileStamps& stamps, ContentStore& store) const
+        const std::string_view model, FileStamps& stamps, ContentStore& store, Misc::ByteBuffer& scratch) const
     {
         const std::optional<std::uint32_t> index = indexOf(model);
         if (!index.has_value())
@@ -236,8 +242,12 @@ namespace Rtx
             return false;
         const std::span<const std::uint32_t> keys
             = std::span(mKeyRuns).subspan(found->second.mKeysFirst, found->second.mKeysCount);
-        return std::ranges::all_of(
-            keys, [&](const std::uint32_t at) { return store.holds(mKeys[at], StoreReach::Disk); });
+        return std::ranges::all_of(keys, [&](const std::uint32_t at) {
+            const StoredKey& key = mKeys[at];
+            if (key.mPass == ContentPassId::Shape)
+                return store.read(key.mKey, ContentPassId::Shape, ShapePass::sVersion, StoreReach::Disk, scratch);
+            return store.holds(key.mKey, StoreReach::Disk);
+        });
     }
 
     void PreparationManifest::keep(const std::string_view model, const Entry& entry, const std::uint32_t day)
@@ -247,7 +257,7 @@ namespace Rtx
         for (const std::string& file : entry.mFiles)
             mFiles.push_back(intern(file));
         const auto keysFirst = static_cast<std::uint32_t>(mKeyRuns.size());
-        for (const ContentKey& key : entry.mKeys)
+        for (const StoredKey& key : entry.mKeys)
             mKeyRuns.push_back(internKey(key));
         mEntries.insert_or_assign(index,
             Filed{ .mDigest = entry.mDigest,
@@ -315,8 +325,11 @@ namespace Rtx
                 return false;
         put(bytes, static_cast<std::uint32_t>(keyOrder.size()));
         for (const std::uint32_t index : keyOrder)
-            for (const std::uint64_t word : mKeys[index].mHash)
+        {
+            for (const std::uint64_t word : mKeys[index].mKey.mHash)
                 put(bytes, word);
+            put(bytes, static_cast<std::uint32_t>(mKeys[index].mPass));
+        }
         put(bytes, static_cast<std::uint32_t>(mEntries.size()));
         for (const auto& [model, filed] : mEntries)
         {

@@ -100,7 +100,7 @@ namespace MWRender
             Falling()
             {
                 // The box's shaders are the rasterizer's, and an empty archive holds none of them.
-                mScenes.setShadersEnabled(false);
+                mScenes.setModelPrograms(Resource::ModelPrograms::Left);
             }
         };
 

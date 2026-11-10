@@ -26,11 +26,13 @@
 
 #include "camera.h"
 #include "shared/fsr.h"
+#include "shared/upscaleinputs.h"
 #include "gbuffer.h"
 #include "shared/sets.h"
 
 #include "lib/census.glsl"
 #include "lib/pixels.glsl"
+#include "lib/upscaledepth.glsl"
 
 #include "fsr3upscaler/ffx_fsr3upscaler_resources.h"
 
@@ -115,20 +117,17 @@ FfxFloat32x2 SampleSPDMipLevel(FfxFloat32x2 fUV, FfxUInt32 mipLevel)
 layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_INPUT_DEPTH) uniform texture2D r_input_surface;
 layout (set = SET_PASS, binding = FSR_INPUTS_BIND_INPUTS, scalar) uniform cbInputs_t
 {
-    FsrInputConstants cbInputs;
+    UpscaleInputConstants cbInputs;
 };
 
-/// The device depth a rasterizer would have written at `iPxPos`, reversed and with its far plane at
-/// infinity, worked out from `CHANNEL_SURFACE`'s distance along the pixel's own ray: the view depth is that
-/// distance times the ray's cosine to the eye's forward axis, and the device depth the near plane over it.
+/// The depth every upscaler is handed (`upscaleDepth`), and nought off the frame.
 FfxFloat32 LoadInputDepth(FfxInt32x2 iPxPos)
 {
     const InputPixel at = InputPixelOf(iPxPos);
     const ivec2 stored = channelAt(CHANNEL_SURFACE, at.mStored, uint(RenderSize().x), fieldSwapOf(cbInputs.mFrame));
     const vec2 seen = texelFetch(r_input_surface, stored, 0).rg;
-    const Camera eye = eyeOfPixel(seen.y, cbInputs.mEyes);
-    const float along = surfaceDistance(seen.y) * dot(rayAt(eye, vec2(at.mStored)).mDirection, eye.mBasis.mForward);
-    return !at.mOnFrame || seen.x == SURFACE_NO_NORMAL ? 0.0 : cbInputs.mNear / max(along, cbInputs.mNear);
+    const float depth = upscaleDepth(seen, at.mStored, cbInputs.mEyes, cbInputs.mNear);
+    return at.mOnFrame ? depth : 0.0;
 }
 #endif
 

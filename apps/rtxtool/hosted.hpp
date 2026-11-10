@@ -1,11 +1,11 @@
 #pragma once
 
 #include <apps/rtxtool/model/benchrun.hpp>
-#include <apps/rtxtool/verbs.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 
 #include "framed.hpp"
 #include "toolline.hpp"
+#include "verbs.hpp"
 
 namespace Files
 {

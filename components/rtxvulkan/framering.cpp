@@ -26,15 +26,15 @@
 
 namespace Rtx
 {
-    FrameRecord::FrameRecord(const Device& device, const bool timing, const bool readingBack)
+    FrameRecord::FrameRecord(const Device& device, const Reporting reporting)
         : mPlaceCommands(device.getPool().lend(1))
         , mTraceCommands(device.getPool().lend(1))
-        , mTimer(device, timing)
+        , mTimer(device, reporting == Reporting::Measured)
         , mCounts(Buffer::readBack(device, sizeof(Shaders::FrameCounts),
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame counts"))
         , mDebugVertices(device, BufferKind::HostWritten, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "debug vertices")
     {
-        if (readingBack)
+        if (reporting == Reporting::Measured)
             mDigestLanes
                 = Buffer::readBack(device, DigestPass::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame digest");
         if (device.getCensus() != nullptr)
@@ -42,13 +42,13 @@ namespace Rtx
                 device, NotFiniteCensus::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame not-finite census");
     }
 
-    FrameRing::FrameRing(const Device& device, const bool timing, const bool readingBack)
+    FrameRing::FrameRing(const Device& device, const Reporting reporting)
         : mDevice(device)
         , mSlots([&](FrameSlot) {
-            return FrameRecord{ device, timing, readingBack };
+            return FrameRecord{ device, reporting };
         })
     {
-        if (readingBack)
+        if (reporting == Reporting::Measured)
             mDigest.emplace(device);
         for (GrowableBuffer& picture : mPictures)
             picture = GrowableBuffer(device, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame readback");

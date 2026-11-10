@@ -21,6 +21,7 @@
 
 #include <components/misc/bytebuffer.hpp>
 #include <components/rtx/image/alphaimage.hpp>
+#include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -685,6 +686,99 @@ namespace Rtx
             normals.clear();
             EXPECT_TRUE(
                 ShapePass::fits(input, ShapePass::Output{ .mKept = kept, .mNormals = normals, .mSources = sources }));
+        }
+
+        /// **A stored chain that reads whole and does not fit its file is run again and replaced**, as a
+        /// shape is: an 8 by 8 BC1 file of one level makes its chain whole in BC7 to a texel, 64 + 16 +
+        /// 16 + 16 = 112 bytes. A form's byte alone, 111 bytes, 113 bytes, coarser levels of a file of
+        /// one level, and nothing standing with a byte held are each a miss, and the run's 112 bytes are
+        /// filed in the misfit's place. Coarser levels of an 8 by 8 file of two levels are its 4 by 4
+        /// level, 8 bytes, and a painted one's own chain both levels, 32 + 8 = 40; a loose file has no
+        /// chain but BC7's.
+        TEST(RtxContentPreprocessorTest, aStoredChainThatDoesNotFitItsFileIsRunAgain)
+        {
+            const osg::ref_ptr<osg::Image> single = makeBc1(8, 8, 1);
+            const ChainPass::Input input{ .mImage = *single, .mEncoding = TextureEncoding::Colour };
+            ContentDigest digest(sContentPasses.name(ContentPassId::Chain), ChainPass::sVersion);
+            {
+                ChainBuild build;
+                ChainPass pass(build);
+                pass.digest(input, digest);
+                pass.release();
+            }
+
+            struct Misfit
+            {
+                std::string_view mName;
+                ChainForm mForm;
+                std::size_t mBytes;
+            };
+            const std::vector<Misfit> misfits{
+                { "a form's byte alone", ChainForm::Bc7, 0 },
+                { "a chain a byte short", ChainForm::Bc7, 111 },
+                { "a chain a byte long", ChainForm::Bc7, 113 },
+                { "coarser levels of a file of one level", ChainForm::Coarser, 8 },
+                { "nothing standing with a byte held", ChainForm::Stands, 1 },
+            };
+            for (std::size_t at = 0; at < misfits.size(); ++at)
+            {
+                const Misfit& misfit = misfits[at];
+                const MadeChain stored{ .mForm = misfit.mForm, .mBytes = Misc::ByteBuffer(misfit.mBytes) };
+                EXPECT_FALSE(ChainPass::fits(input, stored)) << misfit.mName;
+
+                Misc::ByteBuffer payload;
+                ContentCodec<MadeChain>::encode(stored, payload);
+                ContentStore store(TestingOpenMW::currentTestDirPath() / ("store" + std::to_string(at)));
+                store.write(digest.getKey(), ContentPassId::Chain, ChainPass::sVersion, payload, StoreReach::Disk);
+                ContentPreprocessor content(&store, StoreReach::Disk);
+                for (int ask = 0; ask < 2; ++ask)
+                {
+                    MadeChain made;
+                    content.chain(input, made);
+                    EXPECT_EQ(made.mForm, ChainForm::Bc7) << misfit.mName;
+                    EXPECT_EQ(made.mBytes.size(), 112u) << misfit.mName;
+                }
+                store.flush();
+                const PassStats stats = content.takeStats().at(ContentPassId::Chain);
+                EXPECT_EQ(stats.mAsked, 2u) << misfit.mName;
+                EXPECT_EQ(stats.mHits, 1u) << misfit.mName << ": the second, from the run's output";
+            }
+
+            EXPECT_TRUE(ChainPass::fits(input, MadeChain{ .mForm = ChainForm::Bc7, .mBytes = Misc::ByteBuffer(112) }));
+
+            const osg::ref_ptr<osg::Image> pair = makeBc1(8, 8, 2);
+            const ChainPass::Input data{ .mImage = *pair, .mEncoding = TextureEncoding::Data };
+            EXPECT_TRUE(ChainPass::fits(data, MadeChain{ .mForm = ChainForm::Coarser, .mBytes = Misc::ByteBuffer(8) }));
+            EXPECT_FALSE(
+                ChainPass::fits(data, MadeChain{ .mForm = ChainForm::Coarser, .mBytes = Misc::ByteBuffer(40) }));
+            const ChainPass::Input painted{ .mImage = *pair, .mEncoding = TextureEncoding::Painted };
+            EXPECT_TRUE(ChainPass::fits(painted, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(40) }));
+            EXPECT_FALSE(ChainPass::fits(painted, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(8) }));
+
+            const osg::ref_ptr<osg::Image> loose = makeLoose(8, 8);
+            const ChainPass::Input looseInput{ .mImage = *loose, .mEncoding = TextureEncoding::Colour };
+            EXPECT_FALSE(ChainPass::madeLayout(looseInput, ChainForm::Own).has_value());
+            EXPECT_FALSE(ChainPass::madeLayout(looseInput, ChainForm::Coarser).has_value());
+            EXPECT_FALSE(ChainPass::madeLayout(looseInput, ChainForm::Stands).has_value());
+            EXPECT_TRUE(ChainPass::madeLayout(looseInput, ChainForm::Bc7).has_value());
+
+            // A conversion makes its whole chain to a texel whatever its file carries: 8 by 8 to a
+            // texel in BC7, 112 bytes, or a base colour in its BC1, 32 + 8 + 8 + 8 = 56; a
+            // metal-roughness map has no form but BC7's.
+            const ConversionPass::Input colour{
+                .mImage = *pair, .mPartner = *pair, .mEncoding = TextureEncoding::ConvertedColour
+            };
+            EXPECT_TRUE(
+                ConversionPass::fits(colour, MadeChain{ .mForm = ChainForm::Bc7, .mBytes = Misc::ByteBuffer(112) }));
+            EXPECT_TRUE(
+                ConversionPass::fits(colour, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(56) }));
+            EXPECT_FALSE(
+                ConversionPass::fits(colour, MadeChain{ .mForm = ChainForm::Own, .mBytes = Misc::ByteBuffer(40) }));
+            const ConversionPass::Input metal{
+                .mImage = *pair, .mPartner = *pair, .mEncoding = TextureEncoding::ConvertedSpecular
+            };
+            EXPECT_FALSE(ConversionPass::madeLayout(metal, ChainForm::Own).has_value());
+            EXPECT_FALSE(ConversionPass::madeLayout(metal, ChainForm::Coarser).has_value());
         }
 
         /// **A kept shape is handed back as the store reads it**: its normals become their words read

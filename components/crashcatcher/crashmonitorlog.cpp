@@ -103,7 +103,7 @@ namespace Crash
             const std::filesystem::path log = path();
             if (!log.empty())
                 for (const std::string& block : blocks)
-                    Platform::AppendFile::open(log, false).write(block);
+                    Platform::AppendFile::open(log, Platform::AppendStart::Kept).write(block);
 
             lock.lock();
             mWriting = false;

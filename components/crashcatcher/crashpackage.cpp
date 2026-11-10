@@ -279,7 +279,7 @@ namespace Crash
         // **Synced**: a package is what a person sends, and the monitor ends after it is written.
         if (const Result<void, Platform::IoError> written
             = Platform::writeWhole(zip, archive.value(), Platform::Durability::Synced);
-            !written.isOk())
+            !written.isOk() && written.error().mFailure != Platform::IoFailure::NotDurable)
             return Err{ Files::pathToUnicodeString(zip) + " could not be written: " + written.error().mCode.message() };
         return {};
     }

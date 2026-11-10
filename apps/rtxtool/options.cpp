@@ -25,6 +25,7 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
+#include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
 #include <apps/rtxtool/model/skycrossing.hpp>
 #include <components/crashcatcher/crash.hpp>
@@ -44,7 +45,6 @@
 #include <components/rtx/world/weather.hpp>
 
 #include "compare.hpp"
-#include "film.hpp"
 #include "framed.hpp"
 #include "noise.hpp"
 #include "numbervalue.hpp"
@@ -142,7 +142,7 @@ namespace RtxTool
             if (text == "auto")
                 return Rtx::MeasuredExposure{ .mStart = Rtx::EyeStart::Settled };
 
-            const std::optional<float> value = parseFloat(text);
+            const std::optional<float> value = wholeNumber<float>(text);
             if (!value.has_value() || !(*value > 0.0f))
                 throw std::runtime_error(std::format("--exposure={} is neither auto nor a number over nought", text));
 
@@ -1015,27 +1015,28 @@ namespace RtxTool
 
         // The length sets the speed, so the two named are two answers to one question.
         ToolLine::Film& film = line.mFilm;
+        FilmPacing& pacing = film.mPacing;
         film.mPlan = on("plan");
-        film.mFramesPerSecond = real("fps");
-        film.mSpeed = real("speed");
+        pacing.mStep = 1.0f / real("fps");
+        pacing.mSpeed = real("speed");
         if (named("length"))
         {
             if (named("speed"))
                 throw std::runtime_error("--length sets the speed, so --speed cannot be named beside it");
-            film.mLength = FilmLength{ .mSeconds = real("length"), .mSource = FilmLengthSource::Named };
+            pacing.mLength = FilmLength{ .mSeconds = real("length"), .mSource = FilmLengthSource::Named };
         }
         else if (!named("speed"))
-            film.mLength
+            pacing.mLength
                 = FilmLength{ .mSeconds = FilmPacing::sLengthByDefault, .mSource = FilmLengthSource::ByDefault };
-        film.mEase = real("ease");
-        film.mPanSeconds = real("pan-seconds");
-        film.mHourSeconds = real("hour-seconds");
-        film.mCrossingSeconds = real("crossing");
+        pacing.mEase = real("ease");
+        pacing.mPanSeconds = real("pan-seconds");
+        pacing.mHourSeconds = real("hour-seconds");
+        pacing.mCrossingSeconds = real("crossing");
         if (named("clock"))
-            film.mClock = real("clock");
-        film.mWeatherHold = real("weather-hold");
-        film.mStillSeconds = real("still");
-        film.mCutDistance = real("cut-distance");
+            pacing.mClock = real("clock");
+        pacing.mWeatherHold = real("weather-hold");
+        pacing.mStillSeconds = real("still");
+        pacing.mCutDistance = real("cut-distance");
         film.mEncode = on("encode");
 
         ToolLine::Game& game = line.mGame;

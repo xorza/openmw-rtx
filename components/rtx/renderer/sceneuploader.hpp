@@ -5,10 +5,10 @@
 #include <vector>
 
 #include <components/rtx/preprocess/preparedimages.hpp>
-#include <components/rtx/scene/scenetextures.hpp>
 
 #include "framespend.hpp"
 #include "sceneholder.hpp"
+#include "scenetextures.hpp"
 #include "slot.hpp"
 
 namespace Rtx

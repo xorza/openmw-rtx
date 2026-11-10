@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -11,6 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/compare.hpp>
+#include <apps/rtxtool/instruments/jsontext.hpp>
 #include <apps/rtxtool/instruments/png.hpp>
 #include <apps/rtxtool/model/pictureshelf.hpp>
 #include <apps/rtxtool/noise.hpp>
@@ -456,6 +458,9 @@ namespace RtxTool
                 "{\"sides\": [\n  [\n    {\"place\": \"a\\\"b\", \"mean\": 1.0000, \"p99\": 2.0000, "
                 "\"barMean\": 1.5000, \"barP99\": 2.0000, \"bias\": 0.2500, \"barBias\": 0.1250, "
                 "\"fireflies\": 0.5000, \"clean\": true}\n  ],\n  [\n  ]\n]}\n");
+            EXPECT_EQ(jsonNumber(std::numeric_limits<double>::quiet_NaN()), "null")
+                << "a figure of no samples, which JSON has no number for";
+            EXPECT_EQ(jsonNumber(std::numeric_limits<double>::infinity()), "null");
 
             const PictureError tail = measureError(raisedAt(10, 10, 100, 2, 10), limit);
             EXPECT_DOUBLE_EQ(tail.mMean, 0.2);

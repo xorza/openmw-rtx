@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 
 namespace Rtx
@@ -13,5 +14,14 @@ namespace Rtx
         std::uint32_t mCount = 0;
 
         bool isDone() const { return mMade == mCount; }
+
+        /// `made` of `count`, held short of the count until `finished`, whatever the work counted:
+        /// the one rule every job's progress is read by. A finished job of no steps is done.
+        static constexpr JobProgress of(const std::uint32_t made, const std::uint32_t count, const bool finished)
+        {
+            if (finished)
+                return JobProgress{ .mMade = count, .mCount = count };
+            return JobProgress{ .mMade = std::min(made, count == 0 ? 0u : count - 1), .mCount = count };
+        }
     };
 }

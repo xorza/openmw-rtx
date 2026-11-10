@@ -7,6 +7,7 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
+#include <components/platform/folder.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -36,9 +37,8 @@ namespace Rtx
 
         // A directory that cannot be read names no module, and the first pipeline is refused by
         // name in `kernelOf`, as `ShaderCode` refuses it where nothing counts.
-        std::error_code failed;
         for (const std::filesystem::directory_entry& entry :
-            std::filesystem::directory_iterator(shaderDirectory, failed))
+            Platform::listFolder(shaderDirectory).value_or(std::vector<std::filesystem::directory_entry>()))
         {
             const std::string file = Files::pathToUnicodeString(entry.path().filename());
             if (!std::string_view(file).ends_with(sSpirv))

@@ -49,7 +49,7 @@ namespace Rtx
         // The thread reads the storages and the content without the lock, which is sound only
         // because it is stopped and joined here before any is replaced — and before the reader that
         // holds them goes. Nothing is given back: what the frame held dies with the reader.
-        mWorker.stop();
+        mWorker = std::jthread();
 
         mWanted.clear();
         mRequested.clear();
@@ -72,7 +72,7 @@ namespace Rtx
             return;
 
         mReader = std::make_unique<CellReader>(mWorld);
-        mWorker.start("cell reader", [this](const Platform::StopToken& stop) { work(stop); });
+        mWorker = Platform::startThread("cell reader", [this](const std::stop_token& stop) { work(stop); });
     }
 
     void CellSupply::ask(const CellRequest& request)
@@ -145,7 +145,7 @@ namespace Rtx
         mRecycling.clear();
     }
 
-    void CellSupply::work(const Platform::StopToken& stop)
+    void CellSupply::work(const std::stop_token& stop)
     {
         mMonitor.serve(
             stop, [&] { return !mWanted.empty() || !mReturned.empty(); },
@@ -158,7 +158,7 @@ namespace Rtx
                 // What a take carried before this ask was made, the ask knew of.
                 std::erase_if(mOnTheWay, [&](const Handed& handed) { return handed.mTakes < mReadingTakes; });
             },
-            [&](const Platform::StopToken& turn) {
+            [&](const std::stop_token& turn) {
                 recycle();
                 read(turn);
             });
@@ -182,12 +182,12 @@ namespace Rtx
         return newer;
     }
 
-    void CellSupply::read(const Platform::StopToken& stop)
+    void CellSupply::read(const std::stop_token& stop)
     {
         // The grass first: the cells around the eye, where a plant missing is seen at once.
         for (const osg::Vec2i& cell : mReading.mGrass)
         {
-            if (stop.stopRequested() || superseded())
+            if (stop.stop_requested() || superseded())
                 return;
 
             if (onTheWay(cell, true))
@@ -206,7 +206,7 @@ namespace Rtx
 
         for (const osg::Vec2i& cell : mReading.mCells)
         {
-            if (stop.stopRequested() || superseded())
+            if (stop.stop_requested() || superseded())
                 return;
 
             if (onTheWay(cell, false))

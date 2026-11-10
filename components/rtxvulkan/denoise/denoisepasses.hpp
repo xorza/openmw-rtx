@@ -1,0 +1,69 @@
+#pragma once
+
+#include <optional>
+
+#include <vulkan/vulkan_core.h>
+
+#include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/shaders/visibility.h>
+
+#include "accumulatepass.hpp"
+#include "atrouspass.hpp"
+#include "denoised.hpp"
+#include "historyclamppass.hpp"
+#include "panepass.hpp"
+#include "shadowpass.hpp"
+#include "specularpass.hpp"
+
+namespace Rtx
+{
+    class Device;
+    class DenoiseHistory;
+    class GBuffer;
+    class GpuTimer;
+    struct Reconstruction;
+
+    /// The denoiser: every pass it runs, one set of pipelines for every chain, and the order a frame
+    /// runs them in. What differs between chains is the history each keeps — `DenoiseHistory` —
+    /// which a frame hands in.
+    ///
+    /// **Five passes and one statement of how they meet.** The accumulator averages the bounce over
+    /// time and hands the cascade its variance; the shadow denoiser filters the sky's bit where the
+    /// sky has a source that lights, and the lamps' where the scene has a lamp; the glossy filter
+    /// averages the lobe's light where a surface wears a map; the pane filter averages the layers'
+    /// drawn light; and the wavelet spreads the bounce across the screen. The shadow denoiser and the
+    /// glossy filter read the surface the accumulator's history belongs to
+    /// (`AccumulateImages::mSurfaceBefore`).
+    class DenoisePasses
+    {
+    public:
+        /// @param masks whether the upscaler reads the masks: `AtrousPass` says what it changes.
+        DenoisePasses(const Device& device, UpscaleMasks masks);
+
+        /// Records every pass over `buffer`, which must have been handed over, and hands back where
+        /// the light ended up — or, where `composes`, composes the frame over `CHANNEL_DIRECT` in the
+        /// wavelet's last level and hands back nothing: the composite's work, done where the cascade
+        /// ends, for a frame nothing sums. The direct channel is then left as `Use::sComputeReadWrite`,
+        /// for the caller to order for what reads it next.
+        ///
+        /// @param sampled the camera the trace sampled: both eyes, the previous basis and the far
+        ///        plane.
+        /// @param mapped `TraceSubject::mMapped`: whether any surface of the frame has a lobe.
+        /// @param lamps `TraceSubject::mLamps`: whether the scene holds a lamp.
+        /// @param reconstruction what puts the frame back together, of which this reads the
+        ///        accumulator's and the wavelet's switches.
+        /// @param composed where the frame goes where the cascade composes it, writable by compute.
+        /// @param timer null where the run is not being timed, which a picture is not.
+        std::optional<Denoised> record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
+            const Shaders::VisibilityConstants& sampled, bool mapped, bool lamps, bool composes,
+            const Reconstruction& reconstruction, const Image& composed, GpuTimer* timer) const;
+
+    private:
+        AccumulatePass mAccumulate;
+        ShadowPass mShadow;
+        HistoryClampPass mHistoryClamp;
+        SpecularPass mSpecular;
+        PanePass mPane;
+        AtrousPass mFilter;
+    };
+}

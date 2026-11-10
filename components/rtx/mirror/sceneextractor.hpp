@@ -19,7 +19,6 @@
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/specularlayout.hpp>
-#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -28,6 +27,7 @@
 #include "emitterresolver.hpp"
 #include "extractionstats.hpp"
 #include "frozenroots.hpp"
+#include "lightbuilder.hpp"
 #include "materialresolver.hpp"
 #include "meshreader.hpp"
 #include "meshresolver.hpp"

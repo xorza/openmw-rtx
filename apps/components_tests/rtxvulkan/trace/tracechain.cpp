@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -11,10 +11,10 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
-#include <components/rtxvulkan/trace/gbuffer.hpp>
+#include <components/rtxvulkan/frame/gbuffer.hpp>
+#include <components/rtxvulkan/frame/tracepast.hpp>
 #include <components/rtxvulkan/trace/tracechain.hpp>
 #include <components/rtxvulkan/trace/tracepasses.hpp>
-#include <components/rtxvulkan/trace/tracepast.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx

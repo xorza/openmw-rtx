@@ -36,11 +36,11 @@ namespace Rtx
     ///
     /// **The constructor is the answer to whether DLSS runs**: it opens NGX for the device and
     /// creates a small feature, which loads the player's library, so every refusal is an
-    /// `Unsupported` there, where `Upscaler` can fall back from `auto`, and not at the first resize.
+    /// `UpscalerRefused` there, where `Upscaler` can fall back from `auto`, and not at the first resize.
     class DlssUpscaler
     {
     public:
-        /// Throws `Unsupported`, naming why, where the driver, the card or the library refuses.
+        /// Throws `UpscalerRefused`, naming why, where the driver, the card or the library refuses.
         /// @param application what NGX is told of the application, which outlives this; null in a
         ///        run that never asked for DLSS, whose device is no candidate and is refused first.
         DlssUpscaler(const Device& device, const Dlss::Application* application);
@@ -50,20 +50,21 @@ namespace Rtx
         DlssUpscaler& operator=(const DlssUpscaler&) = delete;
 
         /// Builds what one pair of extents keeps, the feature at `mode`'s quality among it, and starts
-        /// a history of its own. Takes `shared`, the image `declareShared` declared, as the frame's
-        /// arena placed it. What stood before stands until the new feature is made, so a refusal
-        /// leaves the last extents' targets whole.
+        /// a history of its own. Takes `shared`, the images `declareShared` declared, as the frame's
+        /// arena placed them. Throws `DeviceError` where NGX refuses the feature, which the constructor's
+        /// own feature showed it would make.
         void resize(Upscale mode, VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
 
-        /// The one image a reconstruction at these extents writes and no later frame reads, which
-        /// the frame's arena places: the upscaled output, which the display reads.
+        /// The images a reconstruction at these extents places in the frame's arena: the upscaled
+        /// output, which the display reads, and the depth and motion the resolve writes for NGX, which
+        /// nothing past the upscale reads.
         static void declareShared(VkExtent2D render, VkExtent2D output, std::vector<ArenaImage>& into);
 
         /// How many images `declareShared` declares.
         static std::size_t getSharedCount();
 
-        /// What `resize` to these extents builds in the device's memory, apart from the shared
-        /// image the arena holds.
+        /// What `resize` to these extents builds in the device's memory apart from the arena: nothing
+        /// the renderer allocates. NGX's own feature is the driver's, which no budget here sees.
         static VkDeviceSize bytesAt(const Device& device, VkExtent2D render, VkExtent2D output);
 
         /// Lets what `resize` built go, the feature included.

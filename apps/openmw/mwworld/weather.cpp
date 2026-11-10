@@ -682,7 +682,7 @@ namespace MWWorld
         mTimeSettings.mStarsPreSunriseFinish = Fallback::Map::getFloat("Weather_Stars_Pre-Sunrise_Finish");
         mTimeSettings.mStarsFadingDuration = Fallback::Map::getFloat("Weather_Stars_Fading_Duration");
 
-        WeatherSetting starSetting = { mTimeSettings.mStarsPreSunriseFinish,
+        Sky::WeatherSetting starSetting = { mTimeSettings.mStarsPreSunriseFinish,
             mTimeSettings.mStarsFadingDuration - mTimeSettings.mStarsPreSunriseFinish,
             mTimeSettings.mStarsPostSunsetStart,
             mTimeSettings.mStarsFadingDuration - mTimeSettings.mStarsPostSunsetStart };
@@ -1300,7 +1300,7 @@ namespace MWWorld
         result.mDLFogFactor = current.mDL.FogFactor;
         result.mDLFogOffset = current.mDL.FogOffset;
 
-        WeatherSetting setting = mTimeSettings.getSetting("Sun");
+        Sky::WeatherSetting setting = mTimeSettings.getSetting("Sun");
         float preSunsetTime = setting.mPreSunsetTime;
 
         if (gameHour >= mTimeSettings.mDayEnd - preSunsetTime)

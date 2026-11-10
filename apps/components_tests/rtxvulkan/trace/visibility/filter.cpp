@@ -14,11 +14,11 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <apps/components_tests/rtx/support/device/memorylimits.hpp>
-#include <apps/components_tests/rtx/support/device/rendererprobe.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/rendererprobe.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>

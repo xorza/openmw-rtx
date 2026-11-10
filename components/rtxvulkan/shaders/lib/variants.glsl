@@ -71,7 +71,7 @@ layout(constant_id = SPEC_HAS_DARK_ALPHA) const bool HAS_DARK_ALPHA = true;
 /// surface keeps the one shift it had, which is the march's answer where the relief is flat.
 layout(constant_id = SPEC_HAS_RELIEF) const bool HAS_RELIEF = true;
 
-/// Whether the frame's upscaler reads `CHANNEL_UPSCALE_MASKS` (`Rtx::writesUpscaleMasks`): FSR's does,
+/// Whether the frame's upscaler reads `CHANNEL_UPSCALE_MASKS` (`Rtx::UpscaleMasks`): FSR's does,
 /// and DLSS has no input for them. **A fact of the run and not of the frame**, so it is no part of the
 /// tuple: every kernel is made with the run's value. False takes out what only the masks read: the
 /// panes' share of the pixel's light and their motion apart from the surface behind them, and the

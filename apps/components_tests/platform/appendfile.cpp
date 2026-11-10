@@ -29,28 +29,28 @@ namespace
         }
 
         {
-            const Platform::AppendFile game = Platform::AppendFile::open(path, true);
+            const Platform::AppendFile game = Platform::AppendFile::open(path, Platform::AppendStart::Emptied);
             ASSERT_TRUE(game.isOpen());
             EXPECT_EQ(contentsOf(path), "") << "the old log was not emptied";
 
-            const Platform::AppendFile monitor = Platform::AppendFile::open(path, false);
+            const Platform::AppendFile monitor = Platform::AppendFile::open(path, Platform::AppendStart::Kept);
             ASSERT_TRUE(monitor.isOpen());
-            game.write("one\n");
-            monitor.write("two\n");
-            game.write("three\n");
+            EXPECT_TRUE(game.write("one\n"));
+            EXPECT_TRUE(monitor.write("two\n"));
+            EXPECT_TRUE(game.write("three\n"));
         }
         EXPECT_EQ(contentsOf(path), "one\ntwo\nthree\n");
 
         {
-            const Platform::AppendFile again = Platform::AppendFile::open(path, false);
-            again.write("four\n");
+            const Platform::AppendFile again = Platform::AppendFile::open(path, Platform::AppendStart::Kept);
+            EXPECT_TRUE(again.write("four\n"));
         }
         EXPECT_EQ(contentsOf(path), "one\ntwo\nthree\nfour\n") << "a file opened without emptying lost what it held";
         std::filesystem::remove(path);
 
         const Platform::AppendFile nowhere = Platform::AppendFile::open(
-            std::filesystem::temp_directory_path() / "openmw-no-such-folder" / "log", false);
+            std::filesystem::temp_directory_path() / "openmw-no-such-folder" / "log", Platform::AppendStart::Kept);
         EXPECT_FALSE(nowhere.isOpen());
-        nowhere.write("nothing\n");
+        EXPECT_FALSE(nowhere.write("nothing\n")) << "a write to no file landed";
     }
 }

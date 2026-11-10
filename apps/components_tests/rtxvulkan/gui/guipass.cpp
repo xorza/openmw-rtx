@@ -12,10 +12,10 @@
 
 #include <volk.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/readback.hpp>
 #include <apps/components_tests/rtx/support/guiquad.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/readback.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtxvulkan/device/commands.hpp>

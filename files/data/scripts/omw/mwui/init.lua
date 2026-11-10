@@ -154,7 +154,17 @@ local interface = {
     templates = TemplateOverrides(templates),
 }
 
+-- The box each template laid itself out in, as its own file made it: a box still that one follows the
+-- font size, and a box a mod gave it stays.
+local madeBoxes = {}
+for name, template in pairs(templates) do
+    if template.props ~= nil and template.props.size ~= nil then
+        madeBoxes[name] = template.props.size
+    end
+end
+
 -- A template still at the font size it was made at takes the new one, and a size a mod gave it stays.
+-- Its box's height is in lines of text, so it scales with the size.
 local function followFontSize(size)
     local was = constants.textNormalSize
     if size == was then
@@ -162,13 +172,14 @@ local function followFontSize(size)
     end
     constants.textNormalSize = size
     constants.textHeaderSize = size
-    local wasBox = util.vector2(150, 5 * was)
-    for _, template in pairs(templates) do
+    for name, template in pairs(templates) do
         local props = template.props
         if props ~= nil and props.textSize == was then
             props.textSize = size
-            if props.size == wasBox then
-                props.size = util.vector2(150, 5 * size)
+            local made = madeBoxes[name]
+            if made ~= nil and props.size == made then
+                props.size = util.vector2(made.x, made.y * size / was)
+                madeBoxes[name] = props.size
             end
         end
     end

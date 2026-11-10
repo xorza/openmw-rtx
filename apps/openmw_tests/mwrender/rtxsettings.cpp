@@ -5,6 +5,7 @@
 
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/shaders/gbuffer.h>
@@ -19,7 +20,7 @@ namespace MWRender
         {
             return RtxSettingValues{
                 .mUpscale = Rtx::Upscale::Balanced,
-                .mUpscaler = Rtx::UpscalerKind::Dlss,
+                .mUpscaler = Rtx::UpscalerChoice::Dlss,
                 .mIndirectLighting = false,
                 .mBounceRays = 3,
                 .mDistantLandCells = 6.0f,
@@ -42,7 +43,7 @@ namespace MWRender
         {
             const RtxSettings derived = RtxSettings::derive(valid());
             EXPECT_EQ(derived.mUpscale, Rtx::Upscale::Balanced);
-            EXPECT_EQ(derived.mUpscaler, Rtx::UpscalerKind::Dlss);
+            EXPECT_EQ(derived.mUpscaler, Rtx::UpscalerChoice::Dlss);
             EXPECT_FALSE(derived.mIndirectLighting);
             EXPECT_EQ(derived.mBounceRays, 3u);
             // Cells and the viewing distance, which a worldspace's grid turns into units: six of
@@ -57,6 +58,21 @@ namespace MWRender
             EXPECT_EQ(derived.mAnisotropy, 8u);
             EXPECT_EQ(derived.mGamma, 1.5f);
             EXPECT_TRUE(derived.mLitEnvironmentMaps);
+
+            // **And the profile both hosts trace under**, each field the setting's and nothing
+            // else of the profile touched: the denoiser and the radiance width stay as stated.
+            Rtx::RenderProfile profile{ .mRadianceWidth = Rtx::RadianceWidth::Shown };
+            profile.mReconstruction.mDenoise = false;
+            derived.applyTo(profile);
+            EXPECT_EQ(profile.mUpscale, Rtx::Upscale::Balanced);
+            EXPECT_EQ(profile.mUpscaler, Rtx::UpscalerChoice::Dlss);
+            EXPECT_FALSE(profile.mReconstruction.mSampling.mIndirect);
+            EXPECT_EQ(profile.mReconstruction.mSampling.mBounceRays, 3u);
+            EXPECT_EQ(profile.mAnisotropy, 8u);
+            EXPECT_EQ(profile.mGamma, 1.5f);
+            EXPECT_TRUE(profile.mLitEnvironmentMaps);
+            EXPECT_FALSE(profile.mReconstruction.mDenoise);
+            EXPECT_EQ(profile.mRadianceWidth, Rtx::RadianceWidth::Shown);
 
             RtxSettingValues handedBack = valid();
             handedBack.mDistantLandCells = 0.0f;

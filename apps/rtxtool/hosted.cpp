@@ -13,7 +13,6 @@
 #include <apps/openmw/engine.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/stopdescription.hpp>
-#include <apps/rtxtool/runfolder.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/fallback/fallback.hpp>
@@ -24,6 +23,7 @@
 #include <components/toutf8/toutf8.hpp>
 
 #include "harnessfolder.hpp"
+#include "runfolder.hpp"
 #include "session.hpp"
 #include "toolline.hpp"
 

@@ -14,8 +14,8 @@
 #include <osg/Vec3f>
 #include <volk.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/readback.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/readback.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/wave.h>

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <variant>
 
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
@@ -60,13 +61,15 @@ namespace Rtx
         std::size_t getHeldCount() const;
 
     private:
-        /// A handle or a range of memory: whichever was buried, the other empty.
-        struct Burial
+        /// A handle and what ends it.
+        struct BuriedHandle
         {
             EndHandle mEnd = nullptr;
             std::uint64_t mHandle = 0;
-            DeviceMemory mMemory;
         };
+
+        /// A handle or a range of memory: one buried thing.
+        using Burial = std::variant<BuriedHandle, DeviceMemory>;
 
         /// Ends everything stamped at or below `finished`, in the order it was buried.
         void freeThrough(std::uint64_t finished);

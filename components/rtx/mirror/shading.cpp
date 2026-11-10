@@ -5,10 +5,9 @@
 #include <osg/StateSet>
 #include <osg/Uniform>
 
-#include <components/rtx/mirror/surfacedescription.hpp>
-
 #include "chainkeys.hpp"
 #include "statereading.hpp"
+#include "surfacedescription.hpp"
 
 namespace Rtx
 {

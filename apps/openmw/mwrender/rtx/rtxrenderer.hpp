@@ -9,28 +9,20 @@
 
 #include <SDL3/SDL_video.h>
 #include <osg/Matrixd>
-#include <osg/Node>
 #include <osg/Timer>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/renderer.hpp>
-#include <components/esm3/refnum.hpp>
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/framepast.hpp>
-#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/mirror/cells/cellplacer.hpp>
-#include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/drawableposer.hpp>
 #include <components/rtx/mirror/released.hpp>
-#include <components/rtx/preprocess/contentstore.hpp>
-#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
-#include <components/rtx/shaders/visibility.h>
-#include <components/sdlutil/graphicslistener.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -72,8 +64,9 @@ namespace osgUtil
 
 namespace Rtx
 {
+    class ContentStore;
     class PoseUpdate;
-    class Renderer;
+    class PreparedImages;
 }
 
 namespace MyGUIRtx
@@ -192,7 +185,7 @@ namespace MWRender
         void setVSync(SDLUtil::VSyncMode mode) noexcept override;
         void awaitPresented() noexcept override;
         const RenderSupport& support() const noexcept override;
-        std::span<const Rtx::UpscalerKind> getUpscalers() const noexcept override;
+        std::span<const Rtx::UpscalerChoice> getUpscalers() const noexcept override;
 
         std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(float scalingFactor,
             VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath) noexcept override;

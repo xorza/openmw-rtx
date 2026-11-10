@@ -19,7 +19,7 @@ namespace Rtx
     DlssUpscaler::DlssUpscaler(const Device& device, const Dlss::Application*)
         : mDevice(device)
     {
-        throw Unsupported("this build was made without NVIDIA DLSS support");
+        throw UpscalerRefused("this build was made without NVIDIA DLSS support");
     }
 
     DlssUpscaler::~DlssUpscaler() = default;

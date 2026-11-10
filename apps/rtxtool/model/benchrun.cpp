@@ -3,16 +3,15 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <charconv>
 #include <cmath>
 #include <cstddef>
 #include <format>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <vector>
 
+#include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 
@@ -133,19 +132,6 @@ namespace RtxTool
         return rowOf(check).mCanAsk(stop, profile);
     }
 
-    namespace
-    {
-        std::optional<int> wholeNumber(std::string_view text)
-        {
-            text = trimmed(text);
-            int value = 0;
-            const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-            if (error != std::errc() || end != text.data() + text.size())
-                return std::nullopt;
-            return value;
-        }
-    }
-
     CellAddress::CellAddress(const std::string_view spelling)
         : mSpelling(spelling)
     {
@@ -153,8 +139,8 @@ namespace RtxTool
         if (comma == std::string_view::npos)
             return;
 
-        const std::optional<int> x = wholeNumber(spelling.substr(0, comma));
-        const std::optional<int> y = wholeNumber(spelling.substr(comma + 1));
+        const std::optional<int> x = wholeNumber<int>(trimmed(spelling.substr(0, comma)));
+        const std::optional<int> y = wholeNumber<int>(trimmed(spelling.substr(comma + 1)));
         if (x.has_value() && y.has_value())
             *this = exterior(*x, *y);
     }

@@ -13,15 +13,13 @@
 
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/platform/dlss.hpp>
 #include <components/platform/gpu.hpp>
 #include <components/rtx/common/error.hpp>
-#include <components/rtx/common/extensionfilter.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
 #include "buffermarkers.hpp"
 #include "commands.hpp"
-#include "dlss.hpp"
+#include "extensionfilter.hpp"
 #include "graveyard.hpp"
 #include "instance.hpp"
 #include "notfinitecensus.hpp"
@@ -120,22 +118,14 @@ namespace Rtx
         if (!mReport.mCodeFolder.empty())
             mCode = std::make_unique<PipelineCodeFolder>(mReport.mCodeFolder);
 
-        // **What NGX needs is asked before the device exists**, since its extensions cannot be
-        // enabled after `vkCreateDevice`, with the discovery record the upscaler later initialises
-        // with. **Tried on every NVIDIA card the build has NGX for**: the query NGX answers before
-        // a device exists can be inconclusive, and a false negative there must not silently cost an
-        // RTX card its upscaler. Feature creation is the real answer, and `Auto` falls back to FSR
-        // where it refuses.
-        std::vector<std::string> dlssExtensions;
-        if (mReport.mDlss != nullptr && Platform::Dlss::sBuilt
-            && mPhysicalDevice.getProperties().mProperties2.properties.vendorID == Platform::Gpu::sNvidia)
+        // **What else needs the device is asked before it exists**, since an extension cannot be
+        // enabled after `vkCreateDevice`. **Only what the device offers is enabled**: an extension the
+        // driver lists but the card does not have makes `vkCreateDevice` fail, which would take the
+        // renderer down with it. Asked of the device itself: `hasOptionalExtension` knows the
+        // renderer's own optional list, not the names another asks for.
+        std::vector<std::string> askedExtensions;
+        if (mReport.mAskedExtensions != nullptr)
         {
-            mDlssCandidate = true;
-
-            // **Only what the device offers is enabled**: an extension the driver lists but the card
-            // does not have makes `vkCreateDevice` fail, which would take `auto` down with it. Asked
-            // of the device itself: `hasOptionalExtension` knows the renderer's own optional list,
-            // not the names NGX adds to it.
             const std::vector<VkExtensionProperties> offered = enumerateVk<VkExtensionProperties>(
                 "vkEnumerateDeviceExtensionProperties", [&](std::uint32_t* count, VkExtensionProperties* into) {
                     return vkEnumerateDeviceExtensionProperties(mPhysicalDevice.getHandle(), nullptr, count, into);
@@ -144,19 +134,14 @@ namespace Rtx
             offeredNames.reserve(offered.size());
             for (const VkExtensionProperties& extension : offered)
                 offeredNames.emplace_back(extension.extensionName);
-            dlssExtensions = filterOfferedExtensions(
-                mReport.mDlss->requiredDeviceExtensions(instance.getHandle(), mPhysicalDevice.getHandle()),
+            askedExtensions = filterOfferedExtensions(mReport.mAskedExtensions(instance.getHandle(),
+                                                          mPhysicalDevice.getHandle(), mPhysicalDevice.getDriver()),
                 offeredNames);
-
-            std::string named;
-            for (const std::string& extension : dlssExtensions)
-                named += (named.empty() ? "" : ", ") + extension;
-            Log(Debug::Info) << "NVIDIA DLSS: trying" << (named.empty() ? "" : ", NGX asks for " + named);
         }
 
         const std::span<const char* const> required = getRequiredDeviceExtensions();
         std::vector<const char*> extensions(required.begin(), required.end());
-        for (const std::string& extension : dlssExtensions)
+        for (const std::string& extension : askedExtensions)
             if (std::ranges::none_of(
                     extensions, [&](const char* held) { return std::strcmp(held, extension.c_str()) == 0; }))
                 extensions.push_back(extension.c_str());
@@ -176,10 +161,12 @@ namespace Rtx
         // has none of.
         std::array<bool, sDeviceOptions> taken{};
         for (const OptionalExtensions& option : getOptionalExtensions())
-            taken[static_cast<std::size_t>(option.mOption)] = option.mRead
-                && std::all_of(option.mExtensions.begin(), option.mExtensions.end(),
+            taken[static_cast<std::size_t>(option.mOption)]
+                = std::all_of(option.mExtensions.begin(), option.mExtensions.end(),
                     [&](const char* const name) { return mPhysicalDevice.hasOptionalExtension(name); });
         taken[static_cast<std::size_t>(DeviceOption::PerformanceQuery)] &= mReport.mCounters;
+        taken[static_cast<std::size_t>(DeviceOption::Checkpoints)] &= mReport.mBreadcrumbs;
+        taken[static_cast<std::size_t>(DeviceOption::BufferMarkers)] &= mReport.mBreadcrumbs;
         const auto has = [&](const DeviceOption option) { return taken[static_cast<std::size_t>(option)]; };
 
         // Only what is still taken is chained, into the query and into the creation alike.
@@ -359,33 +346,6 @@ namespace Rtx
 
     namespace
     {
-        /// The names a driver reports a pipeline's use under (`CompiledUse`), empty where it reports none.
-        struct StatisticNames
-        {
-            std::string_view mScratch;
-            std::string_view mRegisters;
-            std::string_view mShared;
-        };
-
-        StatisticNames statisticNamesOf(const VkDriverId driver)
-        {
-            switch (driver)
-            {
-                case VK_DRIVER_ID_AMD_PROPRIETARY:
-                    return StatisticNames{ .mScratch = "scratchMemUsageInBytes",
-                        .mRegisters = "numUsedVgprs",
-                        .mShared = "ldsUsageSizeInBytes" };
-                case VK_DRIVER_ID_MESA_RADV:
-                    return StatisticNames{ .mScratch = "Scratch size", .mRegisters = "VGPRs", .mShared = "LDS size" };
-                case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
-                    return StatisticNames{
-                        .mScratch = {}, .mRegisters = "Register Count", .mShared = "Shared Memory Size"
-                    };
-                default:
-                    return StatisticNames{};
-            }
-        }
-
         void raise(std::optional<std::uint64_t>& most, const std::uint64_t value)
         {
             most = std::max(most.value_or(0), value);
@@ -468,7 +428,7 @@ namespace Rtx
                     .name = {},
                     .description = {},
                     .subgroupSize = 0 });
-        const StatisticNames names = statisticNamesOf(mPhysicalDevice.getProperties().mVulkan12.driverID);
+        const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
         for (std::uint32_t executable = 0; executable < executables.size(); ++executable)
         {
             use.mSubgroupSize = std::max(use.mSubgroupSize.value_or(0), executables[executable].subgroupSize);
@@ -554,7 +514,7 @@ namespace Rtx
             // speed of its scratch memory, which on an integrated card took a frame from
             // milliseconds to the better part of a second
             // (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`).
-            const StatisticNames names = statisticNamesOf(mPhysicalDevice.getProperties().mVulkan12.driverID);
+            const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
             for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
                 if (!names.mScratch.empty() && std::string_view(statistic.name) == names.mScratch
                     && unsignedOf(statistic) > 0)
@@ -623,6 +583,13 @@ namespace Rtx
 
     void Device::waitIdle() const
     {
+        // **The queue's last submit waited for on the clock first**, under its patience, so a device
+        // that stopped answering ends naming the wait (`Timeline::waitFor`), where
+        // `vkDeviceWaitIdle`, which has no timeout, hung the process silently. The idle after it is
+        // what the presentation engine's own work is waited out by, and finds the queue's done.
+        if (const std::uint64_t submitted = mTimeline->getNext() - 1; submitted > 0)
+            mTimeline->waitFor(submitted, "the queue going idle");
+
         const VkResult result = vkDeviceWaitIdle(mHandle.get());
 
         // Marked whatever the wait answered. A lost device ends the process below; any other

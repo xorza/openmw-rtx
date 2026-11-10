@@ -69,7 +69,8 @@ the process and names the module.
 
 - **What the program would compute at every start from no content is made by the build** and compiled
   in, as the kernels are compiled: the blue noise tile and the fog's field, 136 ms and 53 ms of a
-  start's main thread, each written by a tool that runs its maker (`openmw-rtx-tablemakers`, which the
+  start's main thread, and the specular albedo's table, 16.8 million draws over every processor at
+  each device's start, each written by a tool that runs its maker (`openmw-rtx-tablemakers`, which the
   game does not link), and held to the maker by a test.
 
 ## The seam: `MWRender::Renderer`
@@ -502,7 +503,7 @@ at the top, over all of them.
 | `texture/`          | the bindless array and the passes a texture is made with as it arrives |
 | `scene/`            | `DeviceScene`: its tables, structures, skinning and sprites             |
 | `trace/`            | `TraceChain` and its passes, the sea and the fog; the denoiser in `denoise/` |
-| `upscale/`          | `Upscaler`: FSR 3.1.4, ported, and `FsrFrame`, its constants            |
+| `upscale/`          | `Upscaler`: FSR 3.1.4, ported, or NVIDIA DLSS through NGX               |
 | `display/`          | `DisplayChain` and its passes                                           |
 | `present/`          | the swapchain and the present                                           |
 | `gui/`              | the interface's pass and textures                                       |
@@ -619,7 +620,10 @@ at the top, over all of them.
   swapchain scaled to fit (`Misc::present`).
 - **`Upscaler`** is FSR 3.1.4's seven passes, from AMD's own headers in `extern/fidelityfx/`, with
   the renderer's callbacks; it needs no extension. Its reactive and composition masks are the
-  trace's own (`CHANNEL_UPSCALE_MASKS`).
+  trace's own (`CHANNEL_UPSCALE_MASKS`). Or DLSS, through the driver's NGX core and the player's
+  feature library: `auto` takes it where every fact for it holds (`DlssAvailability`) and its first
+  feature is made, and falls back to FSR where NGX refuses (`UpscalerRefused`); an explicit `dlss`
+  that NGX refuses is a start that fails naming why. Both are handed one depth (`upscaledepth.glsl`).
 - **No reuse of the bounce.** ReSTIR GI's reservoirs ran here as a temporal and a spatial reuse,
   and were removed: once the denoiser kept a rare bright sample's light, they gained nothing at any
   place and added bias in the room they were kept for (`.notes/reuse.md`).
@@ -973,13 +977,15 @@ history. A setting that changes the extent or the upscaler takes effect at once.
   start waits for behind a "Compiling Shaders" step, then every other tuple over half the hands
   while the game runs ("Every driver draws its first frames on the full kernels"). A run of the
   harness waits for every tuple (`Rtx::KernelSet`), so two runs change kernel at no frame.
-- **One-shot batches** (`Rtx::runInParallel`) build what is made once over parallel hands and join
-  them before they return: the specular albedo's table (`SpecularAlbedo`), at its first use.
+- **One-shot batches** (`Rtx::runInParallel`) run a batch over parallel hands and join them before
+  they return: the kernel compile's.
 - **The driver** recompiles launches on its own threads. The pinned arithmetic makes both codes
   trace the same frame.
 
-`OwnedBy` asserts which thread owns a member. A worker that throws ends the process where it
-threw, and the crash report keeps its stack.
+Every thread is a `std::jthread` started named (`Platform::startThread`), and a pool asks each of
+its threads to stop before it joins any. `OwnedBy` asserts which thread owns a member. A worker that
+throws ends the process where it threw, and the crash report keeps its stack; a job carries an
+expected failure to the thread that waits for it, as `std::async` does.
 
 ## Contracts
 

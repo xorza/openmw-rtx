@@ -13,12 +13,14 @@
 #include <osg/observer_ptr>
 #include <osg/ref_ptr>
 
+#include <components/platform/thread.hpp>
 #include <components/rtx/common/monitor.hpp>
-#include <components/rtx/common/worker.hpp>
 #include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/texture/chainscratch.hpp>
+
+#include "contentstats.hpp"
 
 namespace Rtx
 {
@@ -53,6 +55,11 @@ namespace Rtx
         /// texel; and a loose file's, which is encoded to BC7 (`ChainPass`). A block colour's own chain
         /// stands as the file holds it.
         static bool prepares(const osg::Image& file, TextureEncoding encoding);
+
+        /// Whether a chain whose making holds `scratch` at most is made of `file`: not where it needs more
+        /// than the system has left (`Platform::availableMemory`), which is logged. The one rule the
+        /// loading screen's preparation and play's chains are both held to.
+        static bool admits(const ChainScratch& scratch, const osg::Image& file);
 
         /// @param store where the chains are found and kept, or null for none.
         /// @param hands how many threads make them.
@@ -118,7 +125,7 @@ namespace Rtx
 
         struct Hand;
 
-        void serve(Hand& hand, const Platform::StopToken& stop);
+        void serve(Hand& hand, const std::stop_token& stop);
 
         /// Whether the entry's file, or a converted slot's partner, is gone.
         static bool isGone(const std::pair<const Key, Entry>& entry);
@@ -136,7 +143,8 @@ namespace Rtx
         int mInFlight = 0;
         ContentStats mStats;
 
-        /// Each thread's own preprocessor and its worker, last, for the reason `Worker` gives.
+        /// Each thread's own preprocessor and its thread, last, so the threads are joined before the members they read
+        /// go.
         std::vector<std::unique_ptr<Hand>> mHands;
     };
 }

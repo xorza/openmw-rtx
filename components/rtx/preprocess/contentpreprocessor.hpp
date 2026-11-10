@@ -85,7 +85,7 @@ namespace Rtx
         /// Appends to `into`, until it is handed null, the key of every entry an ask of a stored pass makes
         /// or finds: what a preparation files a model's walk under, so a later start asks the store for
         /// each (`PreparationManifest`). Null, as made, for none.
-        void collectKeys(std::vector<ContentKey>* into) { mKeysInto = into; }
+        void collectKeys(std::vector<StoredKey>* into) { mKeysInto = into; }
 
         /// What its chain and conversion buffers keep, the shared build's among them: every buffer of a
         /// `ChainScratch` but the made chain, which the caller holds, and the payload, which the store frees.
@@ -112,6 +112,6 @@ namespace Rtx
 
         ContentCache mCache;
         ContentStats mStats;
-        std::vector<ContentKey>* mKeysInto = nullptr;
+        std::vector<StoredKey>* mKeysInto = nullptr;
     };
 }

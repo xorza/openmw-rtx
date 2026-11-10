@@ -21,7 +21,6 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
-#include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -33,6 +32,7 @@
 
 #include "extractionstats.hpp"
 #include "shading.hpp"
+#include "surfacedescription.hpp"
 
 namespace Rtx
 {
@@ -553,21 +553,21 @@ namespace Rtx
             ? mThread.specularLayoutOf(mThread.factsOf(*specular), *specular)
             : SpecularLayout::MetalRoughness;
 
-        const TextureEncoding diffuseAs = described->encodingOf(SurfaceMap::Diffuse, layout);
-        material.mDiffuse = takeTexture(described->getTextureUse(SurfaceMap::Diffuse), worn, diffuseAs,
-            isConverted(diffuseAs) ? specular : nullptr);
-        material.mEmissive = takeTexture(described->getTextureUse(SurfaceMap::Emissive), worn);
+        // Every map bound by the surface's one rule (`encodingOf`, `partnerOf`), which the loading
+        // screen's preparation binds by too.
+        const auto bound = [&](const SurfaceMap map) {
+            return takeTexture(described->getTextureUse(map), worn, described->encodingOf(map, layout),
+                described->partnerOf(map, layout));
+        };
+        material.mDiffuse = bound(SurfaceMap::Diffuse);
+        material.mEmissive = bound(SurfaceMap::Emissive);
         material.mEmissiveUnit = described->mEmissiveUnit;
-        material.mEnvironment = takeTexture(described->getTextureUse(SurfaceMap::Environment), worn);
+        material.mEnvironment = bound(SurfaceMap::Environment);
         material.mEnvironmentColour = decodeColour(described->mEnvironmentColour);
-        material.mDark = takeTexture(described->getTextureUse(SurfaceMap::Dark), worn);
+        material.mDark = bound(SurfaceMap::Dark);
         material.mDarkUnit = described->mDarkUnit;
-
-        material.mNormal = takeTexture(
-            described->getTextureUse(SurfaceMap::Normal), worn, described->encodingOf(SurfaceMap::Normal, layout));
-        const TextureEncoding specularAs = described->encodingOf(SurfaceMap::Specular, layout);
-        material.mSpecular = takeTexture(described->getTextureUse(SurfaceMap::Specular), worn, specularAs,
-            isConverted(specularAs) ? diffuse : nullptr);
+        material.mNormal = bound(SurfaceMap::Normal);
+        material.mSpecular = bound(SurfaceMap::Specular);
 
         material.mAlphaTest = described->mAlphaTest;
         material.mAlphaMode = described->mAlphaMode;

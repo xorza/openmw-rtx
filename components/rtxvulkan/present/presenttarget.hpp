@@ -5,7 +5,9 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/shaders/shared/tone.h>
 
 namespace Rtx
 {
@@ -25,6 +27,14 @@ namespace Rtx
     class PresentTarget
     {
     public:
+        /// What the shown picture is made in, and so what the curve writes and every pass drawn over
+        /// it — the lines, the interface — is compiled against. Not display-encoded by the hardware,
+        /// because the curve encoded it already.
+        static constexpr VkFormat sShownFormat = toVulkanFormat(TONE_TARGET_FORMAT);
+
+        /// What a summed frame's picture is written in beside it, `TONE_DEEP_FORMAT`.
+        static constexpr VkFormat sDeepFormat = toVulkanFormat(TONE_DEEP_FORMAT);
+
         /// Where both images rest between their users, said once: the curve leaves the picture
         /// here, the interface takes both from here and leaves them here, a present's blit and a
         /// read back take the shown image and the picture from here and leave them here. The
@@ -68,7 +78,7 @@ namespace Rtx
         ///
         /// The deep picture is the picture again at sixteen bits a channel, which the curve writes
         /// beside it for a summed frame alone, without the debug lines: made at the output extent
-        /// the first time one asks, in `TonePass::sDeepFormat`, and dropped by a new extent. **Made
+        /// the first time one asks, in `PresentTarget::sDeepFormat`, and dropped by a new extent. **Made
         /// on demand, because only a harness sums**: the frame at the window's extent and eight
         /// bytes a pixel is 133 megabytes at 7680 by 2160, which no player's frame reads.
         Image* beginPicture(const Device& device, bool deep);

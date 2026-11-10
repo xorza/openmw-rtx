@@ -509,7 +509,7 @@ namespace Resource
     void SceneManager::recreateShaders(
         osg::ref_ptr<osg::Node> node, const std::string& shaderPrefix, const osg::Program* programTemplate)
     {
-        if (!mShadersEnabled)
+        if (mPrograms == ModelPrograms::Left)
             return;
 
         osg::ref_ptr<Shader::ShaderVisitor> shaderVisitor(createShaderVisitor(shaderPrefix));
@@ -1022,7 +1022,7 @@ namespace Resource
                 mMinFilter, mMagFilter, mMaxAnisotropy);
             loaded->accept(setFilterSettingsControllerVisitor);
 
-            if (mShadersEnabled)
+            if (mPrograms == ModelPrograms::Rasterized)
             {
                 osg::ref_ptr<Shader::ShaderVisitor> shaderVisitor(createShaderVisitor());
                 loaded->accept(*shaderVisitor);

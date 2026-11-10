@@ -7,7 +7,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>

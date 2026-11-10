@@ -1,10 +1,11 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_FSR_H
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_FSR_H
 
-#include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/portable.h>
 #include <components/rtx/shaders/storageformat.h>
+
+#include "upscaleinputs.h"
 
 // What the FSR 3.1.4 port's passes are handed, for both sides that have to agree. Included verbatim
 // by both sides, for the reason `visibility.h` is. The passes are AMD's (`extern/fidelityfx/`); what
@@ -80,19 +81,6 @@ namespace Rtx::Shaders
         uint mWorkGroups;
         uvec2 mWorkGroupOffset;
         uvec2 mRenderSize;
-    };
-
-    /// What the port's input pass reads beside the SDK's block: the two eyes a pixel's ray can have
-    /// left, which a device depth is worked out through, and the near plane that depth is written
-    /// against.
-    struct FsrInputConstants
-    {
-        Eyes mEyes;
-        float mNear;
-
-        /// The frame's number, which says how the surface and motion channels' fields lie
-        /// (`fieldSwapOf`).
-        uint mFrame;
     };
 
     /// Where the three blocks sit in the frame's uniform buffer: each at a multiple of 256 bytes,
@@ -190,10 +178,9 @@ namespace Rtx::Shaders
 #ifdef RTX_HOST
     static_assert(sizeof(FsrConstants) == 148, "FsrConstants must be scalar-packed on every side");
     static_assert(sizeof(FsrPyramidConstants) == 24, "FsrPyramidConstants must be scalar-packed on every side");
-    static_assert(sizeof(FsrInputConstants) == 160, "FsrInputConstants must be scalar-packed on every side");
     static_assert(sizeof(FsrConstants) <= FSR_BLOCK_PYRAMID - FSR_BLOCK_CONSTANTS);
     static_assert(sizeof(FsrPyramidConstants) <= FSR_BLOCK_INPUTS - FSR_BLOCK_PYRAMID);
-    static_assert(sizeof(FsrInputConstants) <= FSR_BLOCKS_BYTES - FSR_BLOCK_INPUTS);
+    static_assert(sizeof(UpscaleInputConstants) <= FSR_BLOCKS_BYTES - FSR_BLOCK_INPUTS);
 #endif
 
 #ifdef RTX_HOST

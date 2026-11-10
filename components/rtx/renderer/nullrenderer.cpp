@@ -2,10 +2,12 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 
 namespace Rtx
 {
@@ -58,13 +60,12 @@ namespace Rtx
 
     SceneSlot NullRenderer::addViewScene()
     {
-        if (mFreeViews.empty())
+        const Index index = mFreeViews.take();
+        if (index == sNoIndex)
         {
             mViews.emplace_back(SceneHeld{});
             return SceneSlot::view(static_cast<std::uint32_t>(mViews.size() - 1));
         }
-        const std::uint32_t index = mFreeViews.back();
-        mFreeViews.pop_back();
         mViews[index] = SceneHeld{};
         return SceneSlot::view(index);
     }
@@ -73,7 +74,7 @@ namespace Rtx
     {
         assert(!slot.isWorld() && holds(slot) && "a view scene dropped that is not held");
         mViews[slot.getViewIndex()].reset();
-        mFreeViews.push_back(slot.getViewIndex());
+        mFreeViews.free(slot.getViewIndex());
     }
 
     NullRenderer::GuiTexture& NullRenderer::textureAt(const GuiSlot slot)
@@ -108,13 +109,12 @@ namespace Rtx
     GuiSlot NullRenderer::addGuiTexture(const std::uint32_t width, const std::uint32_t height)
     {
         const GuiTexture made{ .mWidth = width, .mHeight = height, .mHeld = true, .mCopied = false };
-        if (mFreeGuiTextures.empty())
+        const Index index = mFreeGuiTextures.take();
+        if (index == sNoIndex)
         {
             mGuiTextures.push_back(made);
             return GuiSlot::at(static_cast<std::uint32_t>(mGuiTextures.size() - 1));
         }
-        const std::uint32_t index = mFreeGuiTextures.back();
-        mFreeGuiTextures.pop_back();
         mGuiTextures[index] = made;
         return GuiSlot::at(index);
     }
@@ -142,7 +142,7 @@ namespace Rtx
     void NullRenderer::dropGuiTexture(const GuiSlot texture)
     {
         textureAt(texture) = GuiTexture{};
-        mFreeGuiTextures.push_back(texture.get());
+        mFreeGuiTextures.free(texture.get());
     }
 
     void NullRenderer::resize(const std::uint32_t width, const std::uint32_t height)
@@ -156,6 +156,12 @@ namespace Rtx
         mExtents = extentsFor(mExtents.mOutputWidth, mExtents.mOutputHeight, upscale);
     }
 
+    void NullRenderer::setGamma(const float gamma)
+    {
+        assert(gamma > 0.0f && std::isfinite(gamma) && "a gamma its reader should have refused");
+        mProfile.mGamma = gamma;
+    }
+
     void NullRenderer::setIndirectLighting(const bool traced)
     {
         mProfile.mReconstruction.mSampling.mIndirect = traced;
@@ -163,7 +169,7 @@ namespace Rtx
 
     void NullRenderer::setBounceRays(const std::uint32_t rays)
     {
-        assert(rays >= 1 && rays <= Shaders::MAX_BOUNCE_RAYS);
+        assert(rays >= 1 && rays <= Shaders::MAX_BOUNCE_RAYS && "a count its reader should have refused");
         mProfile.mReconstruction.mSampling.mBounceRays = rays;
     }
 

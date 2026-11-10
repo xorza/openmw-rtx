@@ -16,7 +16,7 @@ namespace Gui
     /// missed keeps the destroyed one (`docs/rtx/research/2026-10-31-mygui-font-lifetimes.md`).
     ///
     /// The texts are known through their factory: the fork's texts stand in MyGUI's sub-widget
-    /// factories under MyGUI's names, `EditText` and `SimpleText` (`registerTextFactories`), so
+    /// factories under MyGUI's names, `EditText` and `SimpleText` (`Users::Texts`), so
     /// every text any widget, skin, popup or script makes is one. A walk of the widget tree would miss
     /// a skin's own children and the widgets on no layer, and nothing at the draw can catch a missed
     /// text: one whose glyphs are laid out is drawn from its render item's vertices without being
@@ -55,10 +55,25 @@ namespace Gui
             std::size_t mIndex;
         };
 
-        explicit FontUsers(int textHeight)
-            : mTextHeight(textHeight)
+        /// Which users a registry holds, fixed as it is made, and so which of MyGUI's factories it
+        /// stands in.
+        enum class Users
         {
-        }
+            /// The texts, through `EditText` and `SimpleText`.
+            Texts,
+
+            /// The lists (`Gui::ListBox`), through `ListBox`. A list's refit makes lines, and so
+            /// texts: the lists' registry is not the texts'.
+            Lists,
+
+            /// What its owner enters by hand, as a book page does: no factory.
+            Entered,
+        };
+
+        /// Stands its factories, for `Texts` and `Lists`, in place of MyGUI's own, each user
+        /// entering this as it is made: once the factory manager exists, and before a skin or a
+        /// layout is loaded.
+        FontUsers(Users users, int textHeight);
 
         ~FontUsers();
 
@@ -66,16 +81,6 @@ namespace Gui
         FontUsers& operator=(const FontUsers&) = delete;
         FontUsers(FontUsers&&) = delete;
         FontUsers& operator=(FontUsers&&) = delete;
-
-        /// Stands the fork's texts in MyGUI's sub-widget factories, in place of MyGUI's own, each
-        /// entering this as it is made: once the factory manager exists, and before a skin is loaded.
-        void registerTextFactories();
-
-        /// Stands the fork's list (`Gui::ListBox`) in MyGUI's widget factory, in place of MyGUI's
-        /// own, each entering this as it is made: once the factory manager exists, and before a
-        /// layout is loaded. A list's refit makes lines, and so texts: the lists' registry is not
-        /// the texts'.
-        void registerListFactory();
 
         /// Every user drops, then every user is refitted at `textHeight`: after a font is rasterized
         /// again or set at another size, and before the next frame draws. No user of this registry

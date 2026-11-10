@@ -14,7 +14,7 @@
 
 #include <osg/Vec2d>
 
-#include <components/platform/dlss.hpp>
+#include <components/dlss/dlss.hpp>
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
@@ -22,9 +22,6 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/renderer/framezone.hpp>
-#include <components/rtx/renderer/shaderdirectory.hpp>
-#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/visibility.h>
@@ -32,10 +29,13 @@
 
 #include "framedigest.hpp"
 #include "framesinflight.hpp"
+#include "framezone.hpp"
 #include "guirenderer.hpp"
 #include "memoryreport.hpp"
 #include "picturerenderer.hpp"
+#include "shaderdirectory.hpp"
 #include "slot.hpp"
+#include "verticalsync.hpp"
 
 struct SDL_Window;
 
@@ -86,6 +86,12 @@ namespace Rtx
         std::pair{ ValidationLevel::Gpu, std::string_view("gpu") },
     } };
 
+    /// Whether the graphics API's validation runs without anyone asking: on outside a Release build,
+    /// off there because it costs half the frame rate and allocates on the frame path. The build decides
+    /// and no setting does, because a setting would put a developer's diagnostic in a player's
+    /// configuration file.
+    inline constexpr bool sValidationByDefault = OPENMW_RTX_VALIDATION_BY_DEFAULT;
+
     /// Developer instrumentation. Nobody enables any of this in a run they care about the frame rate
     /// of, and a backend reads whichever of it its API offers.
     struct ValidationOptions
@@ -106,13 +112,13 @@ namespace Rtx
         /// device that stops answering, or a machine that stops with it, whose log then ends on the
         /// submit that never finished. Each costs the overlap of the CPU with the GPU.
         bool mWatchSubmits = false;
-    };
 
-    /// Whether the graphics API's validation runs without anyone asking: on outside a Release build,
-    /// off there because it costs half the frame rate and allocates on the frame path. The build decides
-    /// and no setting does, because a setting would put a developer's diagnostic in a player's
-    /// configuration file.
-    inline constexpr bool sValidationByDefault = OPENMW_RTX_VALIDATION_BY_DEFAULT;
+        /// Whether the queue marks each zone it passes, so a lost device names the last zone each
+        /// stage reached (NVIDIA's checkpoints, AMD's buffer markers): one call a zone. On where the
+        /// build validates, and asked for by name in any other (`OPENMW_RTX_BREADCRUMBS`), so a shipped
+        /// build can report where its device was lost.
+        bool mBreadcrumbs = sValidationByDefault;
+    };
 
     /// What a run decides once of how the renderer works: the knobs the frames are traced under,
     /// which layers watch, and how much video memory it may take. One record, held whole by the
@@ -157,6 +163,18 @@ namespace Rtx
         bool mZoneCounters = false;
     };
 
+    /// What a renderer's frames report, chosen once as it is made: the four figures a report reads
+    /// and nothing a player does ever reads, made together or not at all.
+    enum class Reporting
+    {
+        /// None of them: the counts' atomics, the zones' timestamps, the digest's pass and buffers
+        /// and the pipelines' statistics are never made.
+        Played,
+
+        /// All of them.
+        Measured,
+    };
+
     struct RendererOptions
     {
         /// Where the build wrote the compiled shaders for whichever backend this is, and whether
@@ -172,7 +190,7 @@ namespace Rtx
         /// Where DLSS's files are, as the host's configuration names them: the runtime folder the
         /// launcher downloads the feature library into, and the game's own folder. Empty folders
         /// leave DLSS uninstalled.
-        Platform::Dlss::Folders mDlss{};
+        DlssLibrary::Folders mDlss{};
 
         /// The frame's size: what `readPixels` gives back, and what a window shows scaled to fit.
         /// What it is traced at follows from `mRun.mProfile.mUpscale`.
@@ -191,27 +209,14 @@ namespace Rtx
         /// its own setting over, and `Renderer::setVerticalSync` follows a change to it.
         VerticalSync mVerticalSync = VerticalSync::Off;
 
-        /// Whether the frame counts for the host the primary rays that hit anything —
-        /// `FrameResult::mHits`. On by default, so a reader who forgets it gets a number rather than a
-        /// silent nought; the game clears it. Not a knob of the run's picture, which is why it is
-        /// not in the profile.
-        bool mCounting = true;
-
-        /// Whether the frame times its zones on the device for the host — `FrameResult::mGpu`. On
-        /// by default, for the reason `mCounting` is; the game clears it. The zones are still
-        /// opened without it, and still name the work a lost device was on (`Device::checkpoint`):
-        /// what goes is the timestamps and the read of them.
-        bool mTiming = true;
-
-        /// Whether a frame may ask for its picture and its digest back (`FrameOptions::mReadBack`).
-        /// The digest's pass and a buffer a frame in flight are made at the start where it may, and
-        /// not where it may not. On by default, for the reason `mCounting` is; the game clears it.
-        bool mReadingBack = true;
-
-        /// Whether every pipeline is made to say what the driver's compiler made of it, which a
-        /// report logs and nothing in a played session reads. On by default, for the reason
-        /// `mCounting` is; the game clears it.
-        bool mPipelineStatistics = true;
+        /// What the frames report to the host: the hits each frame counts (`FrameResult::mHits`),
+        /// the zones it times on the device (`FrameResult::mGpu`), a picture and a digest a frame
+        /// may ask back (`FrameOptions::mReadBack`), and what the driver's compiler made of each
+        /// pipeline. Measured by default, so a reader who forgets it gets numbers rather than a
+        /// silent nought; the game plays. Not a knob of the run's picture, which is why it is not
+        /// in the profile. A played frame still opens its zones, which name the work a lost device
+        /// was on (`Device::checkpoint`): what goes is the timestamps and the read of them.
+        Reporting mReporting = Reporting::Measured;
     };
 
     /// What a backend reports about the scene it took. The harness's summary line, as a struct.
@@ -279,7 +284,7 @@ namespace Rtx
         + 2 * (Shaders::MAX_BOUNCE_RAYS - 1);
 
     /// Where the device spent a frame, in the order the work was recorded, or nothing where it
-    /// cannot write timestamps or the renderer was made not to time (`RendererOptions::mTiming`).
+    /// cannot write timestamps or the renderer was made to play (`RendererOptions::mReporting`).
     /// Owned by the report rather than borrowed from the timer that measured it: with
     /// `sFramesInFlight` in flight, the frame that takes this frame's slot begins its timer before
     /// this report is read.
@@ -402,7 +407,7 @@ namespace Rtx
     struct FrameResult
     {
         /// Primary rays that hit something: what tells "the cell rendered" from "the camera faced
-        /// away" without opening the image. Nought where `RendererOptions::mCounting` was cleared.
+        /// away" without opening the image. Nought where the renderer plays (`RendererOptions::mReporting`).
         std::uint32_t mHits = 0;
 
         /// What the frame wrote that was not finite, by shader module, with what the frames before
@@ -605,9 +610,9 @@ namespace Rtx
 
         /// The upscalers a menu may offer under this renderer, `offeredUpscalers`' answer for its
         /// device: DLSS where the build has it, the card is NVIDIA's and the player's library is
-        /// installed. Asked by the settings window, which would otherwise ask the system's adapters
-        /// and not the one this renderer draws on.
-        virtual std::span<const UpscalerKind> getUpscalers() const = 0;
+        /// installed, and not where this renderer's attempt at it was refused. Asked by the settings window, which
+        /// would otherwise ask the system's adapters and not the one this renderer draws on.
+        virtual std::span<const UpscalerChoice> getUpscalers() const = 0;
 
         /// Whether instrumentation is actually running, which a missing layer makes different from
         /// having asked. Anything quoting a frame time has to say so.

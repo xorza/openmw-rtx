@@ -236,7 +236,7 @@ namespace CrashTests
                 // fault came says so, and the matrix runs it again.
                 std::atomic<bool> waiting{ false };
                 std::atomic<bool> ended{ false };
-                Platform::Thread faulter("crash-tests", [&] {
+                std::jthread faulter = Platform::startThread("crash-tests", [&] {
                     const Crash::NoteScope faulting("faulting under a report");
                     waiting.store(true, std::memory_order_release);
                     while (!Crash::isReporting())
@@ -252,7 +252,8 @@ namespace CrashTests
                     std::this_thread::yield();
                 Crash::report("crash-tests asked under a fault");
                 ended.store(true, std::memory_order_release);
-                faulter.stop();
+                faulter.request_stop();
+                faulter.join();
                 Log(Debug::Warning) << "crash-tests: the fault missed the report";
                 return sInconclusive;
             }
@@ -620,10 +621,10 @@ namespace CrashTests
             const std::vector<Mode> modes = modesOfThisSystem();
             std::vector<Outcome> outcomes(modes.size());
             {
-                std::vector<Platform::Thread> running;
+                std::vector<std::jthread> running;
                 running.reserve(modes.size());
                 for (std::size_t at = 0; at < modes.size(); ++at)
-                    running.emplace_back("crash mode", [&, at] {
+                    running.push_back(Platform::startThread("crash mode", [&, at] {
                         // **A check that throws fails its mode, and says what threw**: on a thread of
                         // its own it would end the matrix with an abort that names nothing, which a
                         // gate once saw and no run since has shown.
@@ -637,7 +638,7 @@ namespace CrashTests
                                 .mWrong = std::string("the check threw: ") + thrown.what(),
                                 .mTook = {} };
                         }
-                    });
+                    }));
             }
 
             int failed = 0;

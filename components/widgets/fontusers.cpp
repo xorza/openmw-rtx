@@ -34,22 +34,28 @@ namespace Gui
         assert(mEntries.empty() && "a font user outlived its registry");
     }
 
-    void FontUsers::registerTextFactories()
+    FontUsers::FontUsers(const Users users, const int textHeight)
+        : mTextHeight(textHeight)
     {
-        // The category and the names `MyGUI::SubWidgetManager` registers MyGUI's own under.
         MyGUI::FactoryManager& factories = MyGUI::FactoryManager::getInstance();
-        factories.unregisterFactory("BasisSkin", "EditText");
-        factories.unregisterFactory("BasisSkin", "SimpleText");
-        factories.registerFactory("BasisSkin", "EditText", MyGUI::newDelegate(this, &FontUsers::makeText));
-        factories.registerFactory("BasisSkin", "SimpleText", MyGUI::newDelegate(this, &FontUsers::makeSimpleText));
-    }
-
-    void FontUsers::registerListFactory()
-    {
-        // The category and the name `MyGUI::WidgetManager` registers MyGUI's own under.
-        MyGUI::FactoryManager& factories = MyGUI::FactoryManager::getInstance();
-        factories.unregisterFactory("Widget", "ListBox");
-        factories.registerFactory("Widget", "ListBox", MyGUI::newDelegate(this, &FontUsers::makeList));
+        switch (users)
+        {
+            case Users::Texts:
+                // The category and the names `MyGUI::SubWidgetManager` registers MyGUI's own under.
+                factories.unregisterFactory("BasisSkin", "EditText");
+                factories.unregisterFactory("BasisSkin", "SimpleText");
+                factories.registerFactory("BasisSkin", "EditText", MyGUI::newDelegate(this, &FontUsers::makeText));
+                factories.registerFactory(
+                    "BasisSkin", "SimpleText", MyGUI::newDelegate(this, &FontUsers::makeSimpleText));
+                return;
+            case Users::Lists:
+                // The category and the name `MyGUI::WidgetManager` registers MyGUI's own under.
+                factories.unregisterFactory("Widget", "ListBox");
+                factories.registerFactory("Widget", "ListBox", MyGUI::newDelegate(this, &FontUsers::makeList));
+                return;
+            case Users::Entered:
+                return;
+        }
     }
 
     void FontUsers::refit(const int textHeight)

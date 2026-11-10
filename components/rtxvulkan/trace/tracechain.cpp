@@ -7,19 +7,19 @@
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/denoise/denoised.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/frame/framestep.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/scene/spritesource.hpp>
 #include <components/rtxvulkan/shaders/shared/composite.h>
 #include <components/rtxvulkan/shaders/shared/fields.h>
-#include <components/rtxvulkan/trace/denoise/denoised.hpp>
 
-#include "framestep.hpp"
 #include "tracemedia.hpp"
 #include "tracepasses.hpp"
 #include "tracerecording.hpp"

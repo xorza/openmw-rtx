@@ -5,7 +5,6 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
-#include <components/rtxvulkan/display/tonepass.hpp>
 
 namespace Rtx
 {
@@ -17,7 +16,7 @@ namespace Rtx
         {
             return ImageDescription{ .mWidth = width,
                 .mHeight = height,
-                .mFormat = TonePass::sTargetFormat,
+                .mFormat = PresentTarget::sShownFormat,
                 .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
                     | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT };
         }
@@ -27,7 +26,7 @@ namespace Rtx
         {
             return ImageDescription{ .mWidth = width,
                 .mHeight = height,
-                .mFormat = TonePass::sTargetFormat,
+                .mFormat = PresentTarget::sShownFormat,
                 .mUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
                     | VK_IMAGE_USAGE_TRANSFER_DST_BIT };
         }
@@ -37,7 +36,7 @@ namespace Rtx
         {
             return ImageDescription{ .mWidth = width,
                 .mHeight = height,
-                .mFormat = TonePass::sDeepFormat,
+                .mFormat = PresentTarget::sDeepFormat,
                 .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT };
         }
     }

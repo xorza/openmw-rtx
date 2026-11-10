@@ -20,9 +20,9 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>
+#include <components/rtxvulkan/frame/gbuffer.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/shaders/shared/tone.h>
-#include <components/rtxvulkan/trace/gbuffer.hpp>
 #include <components/rtxvulkan/trace/tracerecording.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>
 

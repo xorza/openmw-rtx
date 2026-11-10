@@ -10,7 +10,7 @@
 
 /// What this process does with itself that the operating systems spell differently: what it says
 /// to its environment, which process it is, where it was started from, and the commands it runs. One header over
-/// `processposix.cpp` and `processwin32.cpp`, the way `file.hpp` sits over its two, and no
+/// `processlinux.cpp` and `processwin32.cpp`, the way `file.hpp` sits over its two, and no
 /// `#ifdef` anywhere the ray tracer asks these questions.
 namespace Platform::Process
 {

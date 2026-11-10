@@ -105,7 +105,7 @@ namespace MWLua
 
         api["viewportToWorldVector"] = [camera, renderingManager](osg::Vec2f pos) -> osg::Vec3f {
             const osg::Vec2i frame = renderingManager->getRenderer().getPresentation().mFrame;
-            const double aspect = static_cast<double>(frame.x()) / frame.y();
+            const double aspect = frame.y() == 0 ? 1.0 : static_cast<double>(frame.x()) / frame.y();
             double fovTan = std::tan(osg::DegreesToRadians(renderingManager->getFieldOfView()) / 2);
             osg::Matrixf invertedViewMatrix;
             invertedViewMatrix.invert(camera->getViewMatrix());

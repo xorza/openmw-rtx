@@ -10,8 +10,7 @@
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
-
-#include "tracepast.hpp"
+#include <components/rtxvulkan/frame/tracepast.hpp>
 
 namespace Rtx
 {

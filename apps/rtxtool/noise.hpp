@@ -9,13 +9,14 @@
 #include <string_view>
 #include <vector>
 
-#include <apps/rtxtool/compare.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/pictureshelf.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/look.h>
+
+#include "compare.hpp"
 
 namespace RtxTool
 {

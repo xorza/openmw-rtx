@@ -184,7 +184,7 @@ namespace Settings
     }
 
     template <>
-    inline constexpr SettingValueType getSettingValueType<Rtx::UpscalerKind>()
+    inline constexpr SettingValueType getSettingValueType<Rtx::UpscalerChoice>()
     {
         return SettingValueType::Upscaler;
     }

@@ -16,7 +16,7 @@
 #include <components/misc/bytebuffer.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/heap.hpp>
-#include <components/rtx/common/worker.hpp>
+#include <components/platform/thread.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
@@ -51,7 +51,10 @@ namespace Rtx
         PreparedModel mModel;
         MadeChain mChain;
         std::vector<std::string> mFiles;
-        std::vector<ContentKey> mKeys;
+        std::vector<StoredKey> mKeys;
+
+        /// What a stored shape is read into as its model is found standing (`standsAsWalked`).
+        Misc::ByteBuffer mStood;
 
         /// Its number among the threads, which the dispatcher knows it by.
         std::size_t mIndex = 0;
@@ -68,7 +71,7 @@ namespace Rtx
         /// What this thread ran on a CPU while it served, written by it alone before it ends.
         std::chrono::nanoseconds mCpu{};
 
-        Worker mWorker;
+        std::jthread mWorker;
     };
 
     namespace
@@ -140,14 +143,19 @@ namespace Rtx
         {
             Hand& hand = *mHands.emplace_back(std::make_unique<Hand>(mStore));
             hand.mIndex = at;
-            hand.mWorker.start("prepare", [this, &hand](const Platform::StopToken& stop) { serve(hand, stop); });
+            hand.mWorker
+                = Platform::startThread("prepare", [this, &hand](const std::stop_token& stop) { serve(hand, stop); });
         }
     }
 
     ContentPreparation::~ContentPreparation()
     {
+        // Every hand asked first and joined after, so none takes another job while the one before it
+        // is joined.
         for (const std::unique_ptr<Hand>& hand : mHands)
-            hand->mWorker.stop();
+            hand->mWorker.request_stop();
+        for (const std::unique_ptr<Hand>& hand : mHands)
+            hand->mWorker = std::jthread();
     }
 
     JobProgress ContentPreparation::awaitProgress(const std::chrono::milliseconds patience)
@@ -157,8 +165,7 @@ namespace Rtx
         const auto count = static_cast<std::uint32_t>(mWalked.size());
         std::unique_lock lock(mMutex);
         mToWaiter.wait_for(lock, patience, [&] { return mFinished; });
-        const std::uint32_t made = mFinished ? count : std::min(mMade, count == 0 ? 0u : count - 1);
-        return JobProgress{ .mMade = made, .mCount = count };
+        return JobProgress::of(mMade, count, mFinished);
     }
 
     double ContentPreparation::secondsNow() const
@@ -213,23 +220,23 @@ namespace Rtx
         return digest.getKey().mHash[0];
     }
 
-    void ContentPreparation::serve(Hand& hand, const Platform::StopToken& stop)
+    void ContentPreparation::serve(Hand& hand, const std::stop_token& stop)
     {
         const std::chrono::nanoseconds started = Platform::cpuTimeOfThisThread();
         serveJobs(hand, stop);
         hand.mCpu = Platform::cpuTimeOfThisThread() - started;
     }
 
-    void ContentPreparation::serveJobs(Hand& hand, const Platform::StopToken& stop)
+    void ContentPreparation::serveJobs(Hand& hand, const std::stop_token& stop)
     {
         // Under the lock, or the wake could land between this thread's ask and its wait.
-        const Platform::StopCallback woken(stop, [this] {
+        const std::stop_callback woken(stop, [this] {
             const std::lock_guard lock(mMutex);
             mToHands.notify_all();
         });
 
         std::unique_lock lock(mMutex);
-        while (!stop.stopRequested())
+        while (!stop.stop_requested())
         {
             const Dispatch dispatch = mDispatcher.next(hand.mIndex, secondsNow());
             if (dispatch.mWakes)
@@ -283,15 +290,28 @@ namespace Rtx
                 }
                 case Dispatch::Kind::Chain:
                 {
+                    // **Alone past the budget, and not at all past what the system has left**: the chain
+                    // is the file's own, as play keeps it (`PreparedImages::admits`).
+                    const QueuedChain& queuedChain = mChains[dispatch.mJob];
+                    bool makes = true;
                     if (dispatch.mAlone)
+                    {
                         Log(Debug::Info) << "The content's preparation makes the chain of \""
-                                         << SceneUtil::EmbeddedImage::nameOf(*mChains[dispatch.mJob].mImage)
+                                         << SceneUtil::EmbeddedImage::nameOf(*queuedChain.mImage)
                                          << "\" alone: it needs more than the whole budget of memory";
+                        makes = PreparedImages::admits(needOf(*queuedChain.mImage, queuedChain.mPartner.get(),
+                                                           queuedChain.mEncoding, queuedChain.mWrap)
+                                                           .mScratch,
+                            *queuedChain.mImage);
+                    }
                     lock.unlock();
-                    makeChain(hand, dispatch.mJob);
+                    if (makes)
+                        makeChain(hand, dispatch.mJob);
+                    else
+                        hand.mKeys.clear();
                     lock.lock();
                     QueuedChain& made = mChains[dispatch.mJob];
-                    for (const ContentKey& key : hand.mKeys)
+                    for (const StoredKey& key : hand.mKeys)
                         mChainKeys.emplace_back(made.mWalk, key);
                     endUse(std::string(SceneUtil::EmbeddedImage::nameOf(*made.mImage)), hand.mLetGo);
                     if (made.mPartner != nullptr)
@@ -335,7 +355,7 @@ namespace Rtx
         hand.mFiles.clear();
         hand.mMet.clear();
         hand.mMetBytes = 0;
-        if (mManifest.standsAsWalked(nameOf(at), mStamps, mStore))
+        if (mManifest.standsAsWalked(nameOf(at), mStamps, mStore, hand.mStood))
             return;
 
         hand.mKeys.clear();
@@ -352,7 +372,7 @@ namespace Rtx
         std::sort(hand.mFiles.begin() + 1, hand.mFiles.end());
         hand.mFiles.erase(std::unique(hand.mFiles.begin() + 1, hand.mFiles.end()), hand.mFiles.end());
         std::sort(hand.mKeys.begin(), hand.mKeys.end(),
-            [](const ContentKey& a, const ContentKey& b) { return a.mHash < b.mHash; });
+            [](const StoredKey& a, const StoredKey& b) { return a.mKey.mHash < b.mKey.mHash; });
         hand.mKeys.erase(std::unique(hand.mKeys.begin(), hand.mKeys.end()), hand.mKeys.end());
         mWalked[at] = PreparationManifest::Entry{
             .mDigest = PreparationManifest::digestOf(hand.mFiles, mStamps),
@@ -399,7 +419,6 @@ namespace Rtx
 
                 // What the `_spec` map means, measured on it and kept, as the material resolver asks.
                 const osg::Image* const specular = described.getTexture(SurfaceMap::Specular);
-                const osg::Image* const diffuse = described.getTexture(SurfaceMap::Diffuse);
                 const SpecularLayout layout
                     = specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty()
                     ? hand.mWalk.specularLayoutOf(*specular)
@@ -423,12 +442,10 @@ namespace Rtx
 
                     const TextureEncoding encoding = described.encodingOf(surfaceMap, layout);
                     const TextureWrap wrap = described.getTextureUse(surfaceMap).mWrap;
-                    if (isConverted(encoding))
+                    if (const osg::Image* const partner = described.partnerOf(surfaceMap, layout))
                         convert(hand,
-                            ConversionPass::Input{ .mImage = *image,
-                                .mPartner = encoding == TextureEncoding::ConvertedColour ? *specular : *diffuse,
-                                .mEncoding = encoding,
-                                .mWrap = wrap });
+                            ConversionPass::Input{
+                                .mImage = *image, .mPartner = *partner, .mEncoding = encoding, .mWrap = wrap });
                     else
                         chain(hand, ChainPass::Input{ .mImage = *image, .mEncoding = encoding, .mWrap = wrap });
                 }
@@ -520,8 +537,10 @@ namespace Rtx
             .mBudget = mBudget,
             .mHeldMost = mDispatcher.getHeldMost() };
         for (const std::unique_ptr<Hand>& hand : mHands)
+            hand->mWorker.request_stop();
+        for (const std::unique_ptr<Hand>& hand : mHands)
         {
-            hand->mWorker.stop();
+            hand->mWorker = std::jthread();
             mStats += hand->mWalk.takeStats();
             mTimes.mThreadsCpu += hand->mCpu;
         }
@@ -533,9 +552,9 @@ namespace Rtx
         for (std::optional<PreparationManifest::Entry>& walked : mWalked)
             if (walked.has_value())
             {
-                std::vector<ContentKey>& keys = walked->mKeys;
+                std::vector<StoredKey>& keys = walked->mKeys;
                 std::sort(keys.begin(), keys.end(),
-                    [](const ContentKey& a, const ContentKey& b) { return a.mHash < b.mHash; });
+                    [](const StoredKey& a, const StoredKey& b) { return a.mKey.mHash < b.mKey.mHash; });
                 keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
             }
 

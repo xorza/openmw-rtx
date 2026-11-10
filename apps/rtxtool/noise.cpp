@@ -28,11 +28,6 @@ namespace RtxTool
 {
     namespace
     {
-        std::ostream& out()
-        {
-            return Debug::getRawStdout();
-        }
-
         /// Where the stop called `name` writes the picture `suffix` names, which is where the judge
         /// finds it on the shelf.
         std::filesystem::path noisePicture(
@@ -71,7 +66,7 @@ namespace RtxTool
         // A run that measured nothing has not shown that anything is as clean as its bar.
         if (places.empty())
         {
-            out() << "  no place was measured\n";
+            Debug::getRawStdout() << "  no place was measured\n";
             return 1;
         }
 
@@ -89,7 +84,7 @@ namespace RtxTool
             const auto unwritten = std::ranges::find(pictures, nullptr);
             if (unwritten != pictures.end())
             {
-                out() << std::format("  {:<28} {} was not written\n", place,
+                Debug::getRawStdout() << std::format("  {:<28} {} was not written\n", place,
                     Files::pathToUnicodeString(files[static_cast<std::size_t>(unwritten - pictures.begin())]));
                 ++missing;
                 continue;
@@ -108,7 +103,7 @@ namespace RtxTool
             if (frame.mMismatched || bar.mMismatched || !frameBias.has_value() || !barBias.has_value()
                 || !fireflies.has_value())
             {
-                out() << std::format("  {:<28} a picture is of another size than the others\n", place);
+                Debug::getRawStdout() << std::format("  {:<28} a picture is of another size than the others\n", place);
                 ++missing;
                 continue;
             }
@@ -122,7 +117,7 @@ namespace RtxTool
             if (!figures.clean())
                 ++noisier;
 
-            out() << std::format(
+            Debug::getRawStdout() << std::format(
                 "  {:<28} noise: frame mean {:.2f} p99 {:.2f}, {} averaged mean {:.2f} p99 {:.2f} — {}; "
                 "bias: frame {:.2f}, {} averaged {:.2f}; fireflies {:.2f} in a thousand\n",
                 place, frame.mMean, frame.mP99, barFrames, bar.mMean, bar.mP99,
@@ -132,12 +127,13 @@ namespace RtxTool
 
         if (noisier == 0 && missing == 0)
         {
-            out() << std::format("  every frame is as clean as {} frames averaged\n", barFrames);
+            Debug::getRawStdout() << std::format("  every frame is as clean as {} frames averaged\n", barFrames);
             return 0;
         }
 
-        out() << std::format("  {} of {} frames noisier than {} frames averaged, {} could not be measured\n", noisier,
-            places.size(), barFrames, missing);
+        Debug::getRawStdout() << std::format(
+            "  {} of {} frames noisier than {} frames averaged, {} could not be measured\n", noisier, places.size(),
+            barFrames, missing);
         return 1;
     }
 
@@ -153,11 +149,13 @@ namespace RtxTool
             {
                 const NoiseFigures& place = sides[side][at];
                 file << (at == 0 ? "\n    " : ",\n    ")
-                     << std::format(R"({{"place": {}, "mean": {:.4f}, "p99": {:.4f}, "barMean": {:.4f}, )"
-                                    R"("barP99": {:.4f}, "bias": {:.4f}, "barBias": {:.4f}, "fireflies": {:.4f}, )"
+                     << std::format(R"({{"place": {}, "mean": {}, "p99": {}, "barMean": {}, )"
+                                    R"("barP99": {}, "bias": {}, "barBias": {}, "fireflies": {}, )"
                                     R"("clean": {}}})",
-                            jsonString(place.mPlace), place.mNoise.mMean, place.mNoise.mP99, place.mBarNoise.mMean,
-                            place.mBarNoise.mP99, place.mBias, place.mBarBias, place.mFireflies, place.clean());
+                            jsonString(place.mPlace), jsonNumber(place.mNoise.mMean), jsonNumber(place.mNoise.mP99),
+                            jsonNumber(place.mBarNoise.mMean), jsonNumber(place.mBarNoise.mP99),
+                            jsonNumber(place.mBias), jsonNumber(place.mBarBias), jsonNumber(place.mFireflies),
+                            place.clean());
             }
             file << "\n  ]";
         }
@@ -222,7 +220,7 @@ namespace RtxTool
                   stop.mSchedule.mReconstruction = reconstruction;
                   stop.mSchedule.mExposure = exposure;
                   stop.mSchedule.mUpscale = upscale;
-                  stop.mActions.mCapture = noisePicture(folder, stop.mName, "");
+                  stop.mActions.mCapture = Actions::Capture{ .mFile = noisePicture(folder, stop.mName, "") };
                   return stop;
               };
 
@@ -283,7 +281,7 @@ namespace RtxTool
             {
                 Stop again = drawn;
                 again.mName = place.mName + std::string(suffix);
-                again.mActions.mCapture.clear();
+                again.mActions.mCapture.reset();
                 again.mActions.mMean = Actions::Mean{
                     .mFile = noisePicture(folder, place.mName, suffix),
                     .mOf = sNoiseMeanDraws,
@@ -305,7 +303,7 @@ namespace RtxTool
             {
                 Stop truth = picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, referenceOf(side),
                     std::nullopt, Rtx::Upscale::Off);
-                truth.mActions.mDeepCapture = true;
+                truth.mActions.mCapture->mDepth = Actions::Capture::Depth::Deep;
                 truth.mSchedule.mSampleOffset = offsetAt(0, 0);
                 into.push_back(std::move(truth));
             }

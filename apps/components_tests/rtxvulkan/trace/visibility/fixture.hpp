@@ -21,11 +21,11 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
@@ -33,7 +33,6 @@
 #include <components/rtx/frame/debuglines.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -47,6 +46,7 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/moon.hpp>
+#include <components/rtx/world/sunglare.hpp>
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/scene/skinpass.hpp>

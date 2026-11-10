@@ -10,6 +10,8 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 
+#include "memory.hpp"
+
 namespace Rtx
 {
     /// Where a run was put: which block, and the run inside it.
@@ -41,13 +43,13 @@ namespace Rtx
         /// first: where a run goes is best fit over a free list, and asking whether one would fit
         /// is that rule written a second time.
         ///
-        /// @param make `Result<Block, std::string_view>(std::uint32_t least, std::uint32_t slot)`:
+        /// @param make `Result<Block, MemoryRefusal>(std::uint32_t least, std::uint32_t slot)`:
         ///        a block holding at least `least` units, its `mCapacity` set, its `mRuns`
         ///        untouched, for the slot it will take — which a name can carry — or why the device
         ///        has none. Built whole before it joins the list, so a make that fails leaves the
         ///        list holding what it held.
         template <class Fits, class Make>
-        Result<BlockRun, std::string_view> take(const std::uint32_t units, Fits&& fits, Make&& make)
+        Result<BlockRun, MemoryRefusal> take(const std::uint32_t units, Fits&& fits, Make&& make)
         {
             std::size_t retired = mBlocks.size();
 
@@ -73,7 +75,7 @@ namespace Rtx
             const bool append = retired == mBlocks.size();
             const auto at = static_cast<std::uint32_t>(retired);
 
-            Result<Block, std::string_view> made = make(units, at);
+            Result<Block, MemoryRefusal> made = make(units, at);
             if (!made.isOk())
                 return Err{ made.error() };
 

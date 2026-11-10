@@ -27,7 +27,7 @@ namespace Rtx
     class GpuTimer
     {
     public:
-        /// @param timing whether the zones write timestamps at all — `RendererOptions::mTiming`.
+        /// @param timing whether the zones write timestamps at all — `RendererOptions::mReporting`.
         ///        Without it a zone is still filed, labelled and checkpointed, and a frame resolves
         ///        to no spans, as on a queue that cannot write timestamps.
         GpuTimer(const Device& device, bool timing);

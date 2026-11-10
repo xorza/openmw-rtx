@@ -176,10 +176,10 @@ namespace Rtx
         };
 
         /// `serveJobs`, its CPU time taken around it.
-        void serve(Hand& hand, const Platform::StopToken& stop);
+        void serve(Hand& hand, const std::stop_token& stop);
 
         /// Takes what the dispatcher hands this thread and does it, until every job is done or a stop.
-        void serveJobs(Hand& hand, const Platform::StopToken& stop);
+        void serveJobs(Hand& hand, const std::stop_token& stop);
 
         /// Walks job `at`, unless it stands as the last preparation found it, and queues the chains it
         /// claimed.
@@ -267,7 +267,7 @@ namespace Rtx
         std::unordered_map<std::string, std::uint32_t> mUses;
 
         /// Each chain's keys and the walk they are filed under, which `finish` adds to the walks' entries.
-        std::vector<std::pair<std::size_t, ContentKey>> mChainKeys;
+        std::vector<std::pair<std::size_t, StoredKey>> mChainKeys;
 
         std::uint32_t mMade = 0;
         bool mFinished = false;
@@ -277,7 +277,7 @@ namespace Rtx
         std::size_t mWalkedCount = 0;
         PreparationTimes mTimes;
 
-        /// Each thread's walk and its worker, last, for the reason `Worker` gives.
+        /// Each thread's walk and its thread, last, so the threads are joined before the members they read go.
         std::vector<std::unique_ptr<Hand>> mHands;
     };
 }

@@ -61,6 +61,7 @@
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/myguiplatform/myguirendermanager.hpp>
 #include <components/myguiplatform/myguitexture.hpp>
+#include <components/platform/process.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/resource/stats.hpp>
@@ -760,7 +761,7 @@ namespace MWRender
         return glSupport();
     }
 
-    std::span<const Rtx::UpscalerKind> GlRenderer::getUpscalers() const
+    std::span<const Rtx::UpscalerChoice> GlRenderer::getUpscalers() const
     {
         return Rtx::offeredUpscalers(false);
     }
@@ -1054,16 +1055,7 @@ namespace MWRender
     // Upstream's, from Engine::go.
     void GlRenderer::installStatsOverlay(const VFS::Manager& vfs)
     {
-#ifdef _WIN32
-        const auto* statsFile = _wgetenv(L"OPENMW_OSG_STATS_FILE");
-#else
-        const auto* statsFile = std::getenv("OPENMW_OSG_STATS_FILE");
-#endif
-
-        std::filesystem::path path;
-        if (statsFile != nullptr)
-            path = statsFile;
-
+        const std::filesystem::path path = Platform::Process::environmentPath("OPENMW_OSG_STATS_FILE").value_or("");
         if (!path.empty())
         {
             mStatsFile.open(path, std::ios_base::out);

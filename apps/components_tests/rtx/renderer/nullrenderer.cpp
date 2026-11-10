@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -16,6 +17,7 @@
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx
@@ -141,6 +143,13 @@ namespace Rtx
             EXPECT_EQ(renderer.addViewScene(), SceneSlot::view(0));
             EXPECT_EQ(renderer.describeHeld(SceneSlot::view(0)).mIdentity, 0u) << "a dropped scene held again";
             EXPECT_EQ(renderer.addViewScene(), SceneSlot::view(1));
+
+            // The lowest free slot first, not the last one dropped, as a device hands them
+            // (`SlotPool`): 0 is dropped before 1, and a list taken from the back would answer 1.
+            renderer.dropViewScene(SceneSlot::view(0));
+            renderer.dropViewScene(SceneSlot::view(1));
+            EXPECT_EQ(renderer.addViewScene(), SceneSlot::view(0));
+            EXPECT_EQ(renderer.addViewScene(), SceneSlot::view(1));
         }
 
         /// A picture's copy stands, as black, from the first trace that left one until its texture is
@@ -184,6 +193,12 @@ namespace Rtx
             const GuiSlot again = renderer.addGuiTexture(1, 1);
             EXPECT_EQ(again, GuiSlot::at(0)) << "a dropped slot not taken again";
             EXPECT_FALSE(renderer.takeGuiCopy(again, into)) << "a copy outlived its texture";
+
+            // The lowest free slot first, as for a view scene: 0 dropped before 1.
+            renderer.dropGuiTexture(again);
+            renderer.dropGuiTexture(second);
+            EXPECT_EQ(renderer.addGuiTexture(1, 1), GuiSlot::at(0));
+            EXPECT_EQ(renderer.addGuiTexture(1, 1), GuiSlot::at(1));
         }
 
         /// The extents follow the size and the upscaler as a device's do, and the picture read back
@@ -218,6 +233,14 @@ namespace Rtx
             EXPECT_FALSE(renderer.getProfile().mReconstruction.mSampling.mIndirect);
             EXPECT_EQ(renderer.getProfile().mReconstruction.mSampling.mBounceRays, 3u)
                 << "off keeps the slider's count for when it is back on";
+
+            // The setters' contracts hold here as on a device: a gamma of nought and a count past
+            // the most a kernel traces are a reader's to refuse.
+            renderer.setGamma(2.2f);
+            EXPECT_EQ(renderer.getProfile().mGamma, 2.2f);
+            Testing::expectAssertDies([&] { renderer.setGamma(0.0f); }, "a gamma its reader should have refused");
+            Testing::expectAssertDies([&] { renderer.setBounceRays(Shaders::MAX_BOUNCE_RAYS + 1); },
+                "a count its reader should have refused");
         }
     }
 }

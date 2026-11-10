@@ -121,7 +121,7 @@ namespace Settings
         static void set(std::string_view setting, std::string_view category, WindowMode value);
         static void set(std::string_view setting, std::string_view category, SDLUtil::VSyncMode value);
         static void set(std::string_view setting, std::string_view category, Rtx::Upscale value);
-        static void set(std::string_view setting, std::string_view category, Rtx::UpscalerKind value);
+        static void set(std::string_view setting, std::string_view category, Rtx::UpscalerChoice value);
 
     private:
         static std::set<std::pair<std::string_view, std::string_view>> sInitialized;
@@ -266,7 +266,8 @@ namespace Settings
     }
 
     template <>
-    inline Rtx::UpscalerKind Manager::getImpl<Rtx::UpscalerKind>(std::string_view setting, std::string_view category)
+    inline Rtx::UpscalerChoice Manager::getImpl<Rtx::UpscalerChoice>(
+        std::string_view setting, std::string_view category)
     {
         return Rtx::sUpscalerNames.require(getString(setting, category), "an upscaler");
     }

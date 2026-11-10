@@ -22,10 +22,10 @@ ELSEWHERE = {
     "components/crashcatcher/crashunsupported.cpp",
     # The DLSS pair a build chooses between: the real source where `OPENMW_RTX_DLSS` is on and the
     # stub where it is off. The stub keeps the same interface and refuses the DLSS choice by name.
-    "components/rtxvulkan/device/dlss.cpp",
-    "components/rtxvulkan/device/ngx.cpp",
+    "components/rtxvulkan/upscale/dlssapplication.cpp",
+    "components/rtxvulkan/upscale/ngx.cpp",
     "components/rtxvulkan/upscale/dlssupscaler.cpp",
-    "components/rtxvulkan/device/dlssstub.cpp",
+    "components/rtxvulkan/upscale/dlssapplicationstub.cpp",
     "components/rtxvulkan/upscale/dlssupscalerstub.cpp",
 }
 

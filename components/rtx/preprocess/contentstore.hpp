@@ -12,8 +12,8 @@
 #include <vector>
 
 #include <components/misc/bytebuffer.hpp>
+#include <components/platform/thread.hpp>
 #include <components/rtx/common/monitor.hpp>
-#include <components/rtx/common/worker.hpp>
 
 #include "contentkey.hpp"
 #include "contentpass.hpp"
@@ -96,8 +96,8 @@ namespace Rtx
         /// read, with room to spare.
         static constexpr std::size_t sResidentBytesMost = std::size_t{ 64 } << 20;
 
-        /// The most keys a session remembers stamping, past which a hit stamps its file again: ten times
-        /// the files a large content list's store holds, its writes included.
+        /// The most keys a session remembers stamping, past which a hit stamps nothing: ten times the
+        /// files a large content list's store holds, its writes included.
         static constexpr std::size_t sStampedMost = std::size_t{ 1 } << 20;
 
         /// The file format's version, in every trailer; a file of another is a miss.
@@ -172,7 +172,7 @@ namespace Rtx
             Misc::ByteBuffer mPayload;
         };
 
-        void serve(const Platform::StopToken& stop);
+        void serve(const std::stop_token& stop);
         void run(Task& task);
         /// The start's work: the sweep of stale temporaries, and the small entries loaded into memory.
         void start();
@@ -188,8 +188,8 @@ namespace Rtx
         static std::size_t residentBytesOf(std::size_t payloadBytes);
 
         /// Whether a hit on `key` stamps its file now: true the first time this session, which notes the
-        /// key, and false after it; true every time for a key met once `sStampedMost` keys are noted,
-        /// since no more are remembered. Under the lock.
+        /// key, and false after it; false for a key met once `sStampedMost` keys are noted, since no
+        /// more are remembered, and the time a stamp sets only ranks what a start loads. Under the lock.
         bool stampsOnce(const ContentKey& key);
 
         /// Holds `payload` in memory under `key` where it is small enough or a shape (`sResidentMost`).
@@ -215,7 +215,7 @@ namespace Rtx
         /// full disk fails every write after it. The store's thread alone.
         bool mWriteFailureLogged = false;
 
-        /// Last, for the reason `Worker` gives.
-        Worker mWorker;
+        /// Last, so the thread is joined before the members it reads go.
+        std::jthread mWorker;
     };
 }

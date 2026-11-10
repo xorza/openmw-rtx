@@ -5,6 +5,7 @@
 #include <format>
 
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
@@ -66,5 +67,16 @@ namespace MWRender
             .mGamma = values.mGamma,
             .mLitEnvironmentMaps = values.mLitEnvironmentMaps,
         };
+    }
+
+    void RtxSettings::applyTo(Rtx::RenderProfile& profile) const
+    {
+        profile.mUpscale = mUpscale;
+        profile.mUpscaler = mUpscaler;
+        profile.mReconstruction.mSampling.mIndirect = mIndirectLighting;
+        profile.mReconstruction.mSampling.mBounceRays = mBounceRays;
+        profile.mAnisotropy = mAnisotropy;
+        profile.mGamma = mGamma;
+        profile.mLitEnvironmentMaps = mLitEnvironmentMaps;
     }
 }

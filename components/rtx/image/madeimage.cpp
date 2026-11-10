@@ -2,40 +2,43 @@
 
 #include <algorithm>
 #include <cassert>
+#include <limits>
 #include <utility>
 
 namespace Rtx
 {
-    MadeImage::MadeImage(const osg::Image& file, const TextureFormat format, Misc::ByteBuffer coarser)
-        : mBytes(std::move(coarser))
+    std::size_t MadeLayout::bytes() const
     {
-        assert(!isWidened(format) && "a widened file's chain is made whole");
-        layLevels(static_cast<std::uint32_t>(file.s()), static_cast<std::uint32_t>(file.t()), 1, layoutOf(format));
-    }
-
-    osg::ref_ptr<const MadeImage> MadeImage::whole(
-        const TextureFormat format, const std::uint32_t width, const std::uint32_t height, Misc::ByteBuffer levels)
-    {
-        osg::ref_ptr<MadeImage> made = new MadeImage;
-        made->mWholeFormat = format;
-        made->mBytes = std::move(levels);
-        made->layLevels(width, height, 0, layoutOf(format));
-        return made;
-    }
-
-    void MadeImage::layLevels(
-        const std::uint32_t width, const std::uint32_t height, const std::uint32_t first, const TexelLayout& laid)
-    {
-        mLaid = laid;
+        const TexelLayout laid = layoutOf(mFormat);
         std::size_t bytes = 0;
-        for (std::uint32_t level = first; bytes < mBytes.size(); ++level)
+        for (std::uint32_t level = mFirst; level < mCount; ++level)
+            bytes += laid.levelBytes(std::max(mWidth >> level, 1u), std::max(mHeight >> level, 1u));
+        return bytes;
+    }
+
+    osg::ref_ptr<const MadeImage> MadeImage::make(const MadeLayout& layout, Misc::ByteBuffer bytes)
+    {
+        assert(layout.mFirst < layout.mCount && "a made chain of no level");
+        assert(layout.mCount <= levelsTo1x1(layout.mWidth, layout.mHeight) && "a level under a texel");
+        assert(bytes.size() == layout.bytes() && "a chain of another length than its levels");
+        assert((layout.mFirst == 0 || !isWidened(layout.mFormat)) && "a widened file's chain is made whole");
+        assert(bytes.size() <= std::numeric_limits<std::uint32_t>::max() && "a level past a 32-bit offset");
+
+        osg::ref_ptr<MadeImage> made = new MadeImage;
+        if (layout.mFirst == 0)
+            made->mWholeFormat = layout.mFormat;
+        made->mBytes = std::move(bytes);
+        made->mLaid = layoutOf(layout.mFormat);
+        made->mLevels.reserve(layout.mCount - layout.mFirst);
+        std::size_t offset = 0;
+        for (std::uint32_t level = layout.mFirst; level < layout.mCount; ++level)
         {
-            const MipLevel at{ .mOffset = static_cast<std::uint32_t>(bytes),
-                .mWidth = std::max(width >> level, 1u),
-                .mHeight = std::max(height >> level, 1u) };
-            mLevels.push_back(at);
-            bytes += laid.levelBytes(at.mWidth, at.mHeight);
+            const MipLevel at{ .mOffset = static_cast<std::uint32_t>(offset),
+                .mWidth = std::max(layout.mWidth >> level, 1u),
+                .mHeight = std::max(layout.mHeight >> level, 1u) };
+            made->mLevels.push_back(at);
+            offset += made->mLaid.levelBytes(at.mWidth, at.mHeight);
         }
-        assert(bytes == mBytes.size() && "a chain of another length than its levels");
+        return made;
     }
 }

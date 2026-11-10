@@ -107,6 +107,58 @@ namespace Rtx
         release();
     }
 
+    bool fillsLayout(const std::optional<MadeLayout>& layout, const MadeChain& chain)
+    {
+        if (!layout.has_value())
+            return chain.mForm == ChainForm::Stands && chain.mBytes.empty();
+        return chain.mBytes.size() == layout->bytes();
+    }
+
+    std::optional<MadeLayout> ChainPass::madeLayout(const Input& input, const ChainForm form)
+    {
+        const osg::Image& image = input.mImage;
+        if (form == ChainForm::Stands || image.s() <= 0 || image.t() <= 0)
+            return std::nullopt;
+
+        // As `run` builds: a file with no chain to a texel, and every other to its own count of levels.
+        const auto width = static_cast<std::uint32_t>(image.s());
+        const auto height = static_cast<std::uint32_t>(image.t());
+        const std::uint32_t fileLevels = std::max(levelCountOf(image), 1u);
+        const std::uint32_t count = fileLevels == 1 ? levelsTo1x1(width, height) : fileLevels;
+        const TextureFormat own = readFormat(image, input.mEncoding);
+        const MadeLayout whole{ .mWidth = width, .mHeight = height, .mFirst = 0, .mCount = count };
+        switch (form)
+        {
+            case ChainForm::Bc7:
+            {
+                MadeLayout bc7 = whole;
+                bc7.mFormat = bc7FormatOf(input.mEncoding);
+                return bc7;
+            }
+            case ChainForm::Own:
+            case ChainForm::Coarser:
+            {
+                // A loose file's chain is made in BC7 alone, and a widened one's is loose.
+                if (!layoutOf(own).isBlocked())
+                    return std::nullopt;
+                MadeLayout laid = whole;
+                laid.mFormat = own;
+                laid.mFirst = form == ChainForm::Coarser ? 1 : 0;
+                if (laid.mFirst >= laid.mCount)
+                    return std::nullopt;
+                return laid;
+            }
+            case ChainForm::Stands:
+                break;
+        }
+        return std::nullopt;
+    }
+
+    bool ChainPass::fits(const Input& input, const Output& output)
+    {
+        return fillsLayout(madeLayout(input, output.mForm), output);
+    }
+
     ChainScratch ChainPass::scratchOf(const Input& input)
     {
         const osg::Image& image = input.mImage;

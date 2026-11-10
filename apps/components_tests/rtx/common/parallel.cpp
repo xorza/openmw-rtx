@@ -25,7 +25,7 @@ namespace Rtx
             std::vector<std::atomic<int>> ran(count);
 
             runInParallel(
-                "parallel", count, Hands::Every, Platform::StopToken{}, [] { return 0; },
+                "parallel", count, Hands::Every, std::stop_token{}, [] { return 0; },
                 [&](std::size_t at) { ++ran[at]; });
 
             for (std::size_t at = 0; at < count; ++at)
@@ -43,7 +43,7 @@ namespace Rtx
 
             const auto run = [&] {
                 runInParallel(
-                    "parallel", count, Hands::Every, Platform::StopToken{}, [] { return 0; },
+                    "parallel", count, Hands::Every, std::stop_token{}, [] { return 0; },
                     [&](std::size_t at) {
                         if (at == 0)
                             throw std::runtime_error("nought");
@@ -102,7 +102,7 @@ namespace Rtx
             std::atomic<std::size_t> counted{ 0 };
 
             runInParallel(
-                "parallel", count, Hands::Every, Platform::StopToken{}, [] { return 0; }, Counting(counted));
+                "parallel", count, Hands::Every, std::stop_token{}, [] { return 0; }, Counting(counted));
 
             EXPECT_EQ(counted.load(), count) << "the hands shared one body and lost what it counted";
         }
@@ -113,7 +113,7 @@ namespace Rtx
             std::atomic<std::size_t> equipped{ 0 };
 
             runInParallel(
-                "parallel", 0, Hands::Every, Platform::StopToken{}, [&] { return ++equipped; },
+                "parallel", 0, Hands::Every, std::stop_token{}, [&] { return ++equipped; },
                 [](std::size_t) { FAIL() << "a body ran for no index"; });
 
             EXPECT_EQ(equipped.load(), 0u);
@@ -128,7 +128,7 @@ namespace Rtx
             std::atomic<std::size_t> ran{ 0 };
             std::atomic<bool> returned{ false };
 
-            Platform::Thread runner("runner", [&](Platform::StopToken stop) {
+            std::jthread runner = Platform::startThread("runner", [&](const std::stop_token& stop) {
                 runInParallel(
                     "parallel", count, Hands::Every, stop, [] { return 0; },
                     [&](std::size_t) {
@@ -141,7 +141,8 @@ namespace Rtx
                 std::this_thread::yield();
 
             const auto began = std::chrono::steady_clock::now();
-            runner.stop();
+            runner.request_stop();
+            runner.join();
             EXPECT_TRUE(returned);
             EXPECT_LT(std::chrono::steady_clock::now() - began, std::chrono::seconds(1));
             EXPECT_LT(ran.load(), count);
@@ -157,7 +158,7 @@ namespace Rtx
             std::atomic<std::size_t> byCaller{ 0 };
 
             runInParallel(
-                "parallel", count, Hands::Every, Platform::StopToken{}, [] { return 0; },
+                "parallel", count, Hands::Every, std::stop_token{}, [] { return 0; },
                 [&](std::size_t) {
                     if (std::this_thread::get_id() == caller)
                         ++byCaller;
@@ -171,7 +172,7 @@ namespace Rtx
             std::mutex held;
             std::set<std::thread::id> hands;
             runInParallel(
-                "parallel", count, Hands::Half, Platform::StopToken{}, [] { return 0; },
+                "parallel", count, Hands::Half, std::stop_token{}, [] { return 0; },
                 [&](std::size_t) {
                     {
                         const std::lock_guard<std::mutex> hold(held);
@@ -197,7 +198,7 @@ namespace Rtx
 
             const auto run = [&] {
                 runInParallel(
-                    "parallel", count, Hands::Every, Platform::StopToken{},
+                    "parallel", count, Hands::Every, std::stop_token{},
                     [caller] {
                         if (std::this_thread::get_id() == caller)
                             throw std::runtime_error("unequipped");

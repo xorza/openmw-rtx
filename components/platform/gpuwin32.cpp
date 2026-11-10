@@ -8,9 +8,9 @@
 
 namespace Platform::Gpu
 {
-    std::vector<std::uint32_t> vendors()
+    std::vector<Vendor> vendors()
     {
-        std::vector<std::uint32_t> found;
+        std::vector<Vendor> found;
 
         IDXGIFactory1* factory = nullptr;
         if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))) || factory == nullptr)
@@ -24,7 +24,7 @@ namespace Platform::Gpu
 
             DXGI_ADAPTER_DESC1 description{};
             if (SUCCEEDED(adapter->GetDesc1(&description)))
-                found.push_back(description.VendorId);
+                found.push_back(vendorOf(description.VendorId));
             adapter->Release();
         }
 

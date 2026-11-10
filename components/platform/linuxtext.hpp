@@ -6,7 +6,7 @@
 #include <vector>
 
 /// Text the Linux kernel writes about a process and its machine, read on every system: what reads
-/// it from the kernel is Linux's own (`processposix.cpp`), and what it says is plain text a test
+/// it from the kernel is Linux's own (`processlinux.cpp`), and what it says is plain text a test
 /// on any machine can hand it.
 namespace Platform::LinuxText
 {

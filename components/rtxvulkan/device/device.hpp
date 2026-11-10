@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -13,14 +14,10 @@
 
 #include <components/rtx/renderer/shaderdirectory.hpp>
 
+#include "driverprofile.hpp"
 #include "owned.hpp"
 #include "physicaldevice.hpp"
 #include "requirements.hpp"
-
-namespace Rtx::Dlss
-{
-    class Application;
-}
 
 namespace Rtx
 {
@@ -94,10 +91,13 @@ namespace Rtx
         /// driver offers them: `RunProfile::mZoneCounters`.
         bool mCounters = false;
 
-        /// What NGX is asked for DLSS's extensions with, on an NVIDIA card, which outlives the
-        /// device. A profile that may use DLSS sets this; one that only ever uses FSR leaves it
-        /// null and NGX untouched.
-        const Dlss::Application* mDlss = nullptr;
+        /// Whether the queue marks each zone it passes: `ValidationOptions::mBreadcrumbs`.
+        bool mBreadcrumbs = false;
+
+        /// The device extensions something besides the renderer needs of this device, asked once it is
+        /// chosen and before it is made, since none can be enabled after: an upscaler's runtime. Each
+        /// is enabled where the device offers it; null for none.
+        std::function<std::vector<std::string>(VkInstance, VkPhysicalDevice, const DriverProfile&)> mAskedExtensions{};
     };
 
     /// Which `VkObjectType` a handle is, so that `Device::setName` takes the handle and never a
@@ -186,6 +186,10 @@ namespace Rtx
             const PipelineCacheSpec& cache, const DeviceReport& report);
         ~Device();
 
+        /// Pinned: every resource holds it by reference, and its allocator its physical device's heaps.
+        Device(const Device&) = delete;
+        Device& operator=(const Device&) = delete;
+
         VkDevice getHandle() const { return mHandle.get(); }
         VkQueue getQueue() const { return mQueue; }
         std::uint32_t getQueueFamily() const { return mPhysicalDevice.getQueueFamily(); }
@@ -194,10 +198,6 @@ namespace Rtx
         /// The instance the device was made on, which NGX's Vulkan entry points ask for. Not owned:
         /// the instance outlives the device, as `Instance` says.
         VkInstance getInstanceHandle() const { return mInstance; }
-
-        /// Whether this is an NVIDIA card in a build with NGX, on a run that asked for DLSS. The
-        /// driver's own answer to whether it accepts the card comes later, at feature creation.
-        bool isDlssCandidate() const { return mDlssCandidate; }
 
         /// Where every buffer's and every image's memory comes from: one suballocator for the
         /// device, where an allocation per resource is a kernel call apiece for a cell's several
@@ -307,17 +307,14 @@ namespace Rtx
 
         /// Marks the queue's progress with `checkpoint`, which the queue reports as the last one
         /// each stage passed if the device is lost: NVIDIA's checkpoints, or AMD's buffer markers,
-        /// whichever the driver offers. Compiled to nothing in release, and nothing where the
-        /// driver offers neither.
+        /// whichever the driver offers, where the run asked for them (`DeviceReport::mBreadcrumbs`).
+        /// Nothing where it did not, or where the driver offers neither.
         void checkpoint(VkCommandBuffer commands, const Checkpoint* checkpoint) const
         {
-            if constexpr (sDebugNames)
-            {
-                if (mCmdSetCheckpoint != nullptr)
-                    mCmdSetCheckpoint(commands, checkpoint);
-                if (mMarkers != nullptr)
-                    writeMarker(commands, checkpoint);
-            }
+            if (mCmdSetCheckpoint != nullptr)
+                mCmdSetCheckpoint(commands, checkpoint);
+            if (mMarkers != nullptr)
+                writeMarker(commands, checkpoint);
         }
 
         /// Blocks until the queue has signalled `value` on the timeline, and then lets go of what
@@ -383,9 +380,6 @@ namespace Rtx
         /// The instance the device was made on, held as a handle because NGX asks for one and the
         /// device does not otherwise keep it (`Instance` outlives every device made on it).
         VkInstance mInstance = VK_NULL_HANDLE;
-
-        /// Whether this is an NVIDIA card in a build with NGX, on a run that asked for DLSS.
-        bool mDlssCandidate = false;
 
         /// Before every member made on it — `Root` says why.
         Root<VkDevice, vkDestroyDevice> mHandle;

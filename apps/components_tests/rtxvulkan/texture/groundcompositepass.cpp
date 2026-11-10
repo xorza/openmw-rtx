@@ -13,9 +13,9 @@
 #include <osg/Vec4f>
 #include <vulkan/vulkan_core.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/colour.hpp>
@@ -102,7 +102,7 @@ namespace Rtx
                 const auto canvasFor = [&](std::uint32_t output, bool isGloss) -> std::optional<Image> {
                     if ((outputs & output) == 0)
                         return std::nullopt;
-                    Result<Image, std::string_view> made
+                    Result<Image, MemoryRefusal> made
                         = GroundCompositePass::makeCanvas(device, isGloss, "ground composite test");
                     EXPECT_TRUE(made.isOk());
                     return std::move(made.value());

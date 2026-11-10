@@ -289,6 +289,18 @@ namespace Rtx
             // each level is read at its own offset for one slice, and every slice counts toward where
             // the next level begins. A player's crash in the staging copy was a 128 by 128 DXT3 file of
             // four slices staged at all four.
+            //
+            // **A level's offset is 32 bits**, which neither the bound on what is read nor the copy holds:
+            // RGBA8 of 32768 on a side lays four gigabytes at its finest, and widening multiplies a source
+            // by four for an eight-bit channel, so an eight-bit image of that side is a gigabyte read and
+            // four laid, its next level's offset past what the offset can name.
+            std::size_t laidTotal = 0;
+            for (std::uint32_t level = 0; level < count; ++level)
+                laidTotal += laidLevelBytes(format, std::max(width >> level, 1u), std::max(height >> level, 1u));
+            if (laidTotal > std::numeric_limits<std::uint32_t>::max())
+                return Err{ "its levels laid out are " + std::to_string(laidTotal)
+                    + " bytes, past what a level's 32-bit offset reaches" };
+
             const std::size_t first = levels.size();
             const auto depth = static_cast<std::uint32_t>(image.r());
             std::size_t kept = 0;
@@ -337,17 +349,6 @@ namespace Rtx
             // image, widened to RGBA8 where the format is one this widens. Every level begins where
             // the texels before it end, and the total is the one a caller reserved by.
             const std::size_t total = laidBytesOf(image, format, count);
-
-            // **A level's offset is 32 bits**, which the bound on the source does not hold for the
-            // copy: widening multiplies it, by four for an eight-bit channel, and an eight-bit image
-            // of 32768 on a side is a gigabyte read and four laid, its next level's offset past what
-            // the offset can name.
-            if (total > std::numeric_limits<std::uint32_t>::max())
-            {
-                levels.resize(first);
-                return Err{ "its levels laid out are " + std::to_string(total)
-                    + " bytes, past what a level's 32-bit offset reaches" };
-            }
 
             const std::size_t from = texels.size();
             texels.reserve(from + total);

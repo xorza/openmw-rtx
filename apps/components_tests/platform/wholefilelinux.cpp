@@ -32,6 +32,19 @@ namespace
         EXPECT_EQ(bounded.error().mFailure, Platform::IoFailure::TooLarge);
     }
 
+    /// **A replaced file keeps its permissions**, which a temporary made under the umask would give it
+    /// at the rename: one kept at 0600 stays at 0600, and a new file takes the umask's.
+    TEST(PlatformWholeFileLinuxTest, aReplacedFileKeepsItsPermissions)
+    {
+        const std::filesystem::path kept = TestingOpenMW::currentTestDirPath() / "kept.cfg";
+        ASSERT_TRUE(Platform::writeWhole(kept, std::string_view("old"), Platform::Durability::Synced).isOk());
+        std::filesystem::permissions(kept, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write);
+
+        ASSERT_TRUE(Platform::writeWhole(kept, std::string_view("new"), Platform::Durability::Synced).isOk());
+        EXPECT_EQ(std::filesystem::status(kept).permissions() & std::filesystem::perms::all,
+            std::filesystem::perms::owner_read | std::filesystem::perms::owner_write);
+    }
+
     /// **A write through a link writes the file it names and keeps the link**, as a write in place
     /// did: a settings file linked from a dotfiles folder stays linked, and the folder's file holds
     /// the new text. A link that names nothing is written over, as there is no file to keep.

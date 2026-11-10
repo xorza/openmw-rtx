@@ -12,7 +12,6 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
-#include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
@@ -24,6 +23,7 @@
 #include <components/rtx/world/nightsky.hpp>
 #include <components/rtx/world/skycontent.hpp>
 #include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/sunglare.hpp>
 
 namespace Rtx
 {

@@ -3,8 +3,6 @@
 set(RTXTOOL_FILES
     compare.cpp
     compare.hpp
-    film.cpp
-    film.hpp
     framed.cpp
     framed.hpp
     harnessfolder.cpp
@@ -54,6 +52,8 @@ set(RTXTOOL_FILES
     model/cameratrack.hpp
     model/cruise.cpp
     model/cruise.hpp
+    model/film.cpp
+    model/film.hpp
     model/maprules.hpp
     model/measurewindow.cpp
     model/measurewindow.hpp

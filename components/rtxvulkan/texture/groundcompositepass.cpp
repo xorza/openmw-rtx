@@ -83,7 +83,7 @@ namespace Rtx
         Image::buildMips(commands, std::span<const Image* const>(written.data(), count));
     }
 
-    Result<Image, std::string_view> GroundCompositePass::makeCanvas(
+    Result<Image, MemoryRefusal> GroundCompositePass::makeCanvas(
         const Device& device, const bool gloss, std::string_view name)
     {
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
@@ -98,7 +98,7 @@ namespace Rtx
             name);
     }
 
-    Result<Buffer, std::string_view> GroundCompositePass::makeBlocks(const Device& device, std::string_view name)
+    Result<Buffer, MemoryRefusal> GroundCompositePass::makeBlocks(const Device& device, std::string_view name)
     {
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
         return Buffer::tryMake(MemoryUse::Texture, device, BufferKind::DeviceLocal,

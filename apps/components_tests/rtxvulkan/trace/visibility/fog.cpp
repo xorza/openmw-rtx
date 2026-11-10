@@ -14,12 +14,12 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
-#include <apps/components_tests/rtx/support/device/rendererprobe.hpp>
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/halfstep.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/rendererprobe.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameoptions.hpp>

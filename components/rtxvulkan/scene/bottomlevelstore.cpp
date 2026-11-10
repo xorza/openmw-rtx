@@ -292,7 +292,7 @@ namespace Rtx
                 // refit or a rebuild reads, and the scratch it was counted into goes unread. A load's
                 // whole total is not asked for again once the device has refused it, and each structure
                 // after asks for its own room.
-                const Result<StructureRoom, std::string_view> room = storage.take(mDevice, mBuilding[at].mSize, wanted);
+                const Result<StructureRoom, MemoryRefusal> room = storage.take(mDevice, mBuilding[at].mSize, wanted);
                 if (!room.isOk())
                 {
                     row.mUpdatable = false;
@@ -301,7 +301,7 @@ namespace Rtx
                     wantedLoose = 0;
                     wantedKept = 0;
                     mRefusedRoom = true;
-                    refused.push_back(Refusal{ .mKind = Refused::Mesh, .mWhy = std::string(room.error()) });
+                    refused.push_back(Refusal{ .mKind = Refused::Mesh, .mWhy = std::string(describe(room.error())) });
                     continue;
                 }
 
@@ -555,7 +555,7 @@ namespace Rtx
             // copied.
             const bool tight = shrinks(state);
             const VkDeviceSize size = tight ? state.mTightSize : state.mBuiltSize;
-            const Result<StructureRoom, std::string_view> room = mStorage.take(mDevice, size, budget - taken);
+            const Result<StructureRoom, MemoryRefusal> room = mStorage.take(mDevice, size, budget - taken);
             if (!room.isOk())
                 break;
 

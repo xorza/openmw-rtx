@@ -1,7 +1,6 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_DLSS_H
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_DLSS_H
 
-#include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/portable.h>
 #include <components/rtx/shaders/storageformat.h>
@@ -19,16 +18,6 @@
 namespace Rtx::Shaders
 {
 #endif
-
-    /// The camera the trace sampled through and the near plane its reversed depth is written
-    /// against, as `FsrInputConstants` carries them: the two eyes a pixel's surface can name, the
-    /// frame whose field mapping wrote it, and the near plane.
-    struct DlssInputConstants
-    {
-        Eyes mEyes;
-        float mNear;
-        uint mFrame;
-    };
 
     /// The input resolve's bindings, in the order the host writes them.
     const uint DLSS_INPUTS_BIND_SURFACE = 0;

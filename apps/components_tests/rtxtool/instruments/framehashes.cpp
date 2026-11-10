@@ -1,0 +1,657 @@
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <gtest/gtest.h>
+
+#include <apps/components_tests/rtx/support/death.hpp>
+#include <apps/rtxtool/instruments/framehashes.hpp>
+#include <apps/rtxtool/instruments/scenedigest.hpp>
+#include <components/rtx/common/error.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framedigest.hpp>
+#include <components/rtx/renderer/renderer.hpp>
+#include <components/testing/util.hpp>
+
+namespace RtxTool
+{
+    namespace
+    {
+        constexpr std::uint8_t sPixels[] = { 1, 2, 3, 4 };
+        constexpr std::uint8_t sOtherPixels[] = { 1, 2, 3, 5 };
+
+        Rtx::DigestWords hashOf(const std::uint64_t seed)
+        {
+            return { seed, seed * 7 + 1 };
+        }
+
+        /// A digest for every part, each one different, so a column that moves cannot be confused
+        /// with its neighbour.
+        ScenePartDigests partsOf(const std::uint64_t seed)
+        {
+            ScenePartDigests parts{};
+            for (std::size_t at = 0; at < parts.size(); ++at)
+                parts[at] = hashOf(seed + at);
+
+            return parts;
+        }
+
+        /// The same for what the frame traced: every channel and the composite apart, and the
+        /// numbers handed to the reconstruction fixed unless a test moves one.
+        Rtx::FrameDigest digestOf(const std::uint64_t seed)
+        {
+            Rtx::FrameDigest digest;
+            for (std::size_t at = 0; at < digest.mImages.size(); ++at)
+                digest.mImages[at] = hashOf(seed + 1000 + at);
+            // Every denoiser image but the pane filter's, which a frame with no layers leaves.
+            for (std::size_t at = 0; at < digest.mDenoiser.size(); ++at)
+            {
+                const auto image = static_cast<Rtx::DenoiserImage>(at);
+                if (image == Rtx::DenoiserImage::PaneMean || image == Rtx::DenoiserImage::PaneFast)
+                    continue;
+                digest.mDenoiser[at] = hashOf(seed + 2000 + at);
+                digest.mDenoiserTaken |= 1u << at;
+            }
+            digest.mJitterX = 0.25f;
+            digest.mJitterY = -0.125f;
+            digest.mFrameDeltaMs = 16.0f;
+            return digest;
+        }
+
+        /// What comes back for one frame: the picture, the digest, and what reconstructed it.
+        struct Finished
+        {
+            std::uint64_t mFrame = 0;
+            std::span<const std::uint8_t> mPixels;
+            Rtx::FrameDigest mDigest;
+            Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+            bool mDenoised = false;
+
+            Rtx::FrameResult result() const
+            {
+                Rtx::FrameResult finished;
+                finished.mFrame = mFrame;
+                finished.mPixels = mPixels;
+                finished.mDigest = mDigest;
+                finished.mReconstruction.mUpscale = mUpscale;
+                finished.mReconstruction.mDenoised = mDenoised;
+                return finished;
+            }
+        };
+
+        void add(FrameHashes& run, const std::uint32_t frame, const std::span<const std::uint8_t> pixels,
+            const ScenePartDigests& parts, const Rtx::FrameDigest& digest = digestOf(100),
+            const Rtx::Upscale upscale = Rtx::Upscale::Off)
+        {
+            run.note("somewhere", frame, frame, parts);
+            run.picture(Finished{ frame, pixels, digest, upscale }.result());
+        }
+
+        FrameHashes runOf(const ScenePartDigests& parts, const std::span<const std::uint8_t> pixels,
+            const Rtx::FrameDigest& digest = digestOf(100), const Rtx::Upscale upscale = Rtx::Upscale::Off)
+        {
+            FrameHashes run;
+            add(run, 1, pixels, parts, digest, upscale);
+            return run;
+        }
+
+        FrameHashes plainRun(const Rtx::Upscale upscale = Rtx::Upscale::Off)
+        {
+            return runOf(partsOf(100), sPixels, digestOf(100), upscale);
+        }
+
+        /// One frame the wavelet composed, nothing upscaling it.
+        FrameHashes denoisedRunOf(const std::span<const std::uint8_t> pixels, const Rtx::FrameDigest& digest)
+        {
+            FrameHashes run;
+            run.note("somewhere", 1, 1, partsOf(100));
+            run.picture(Finished{ .mFrame = 1, .mPixels = pixels, .mDigest = digest, .mDenoised = true }.result());
+            return run;
+        }
+
+        FrameHashes::ViewDifference onlyView(const std::vector<FrameHashes::ViewDifference>& came)
+        {
+            EXPECT_EQ(came.size(), 1u);
+            return came.empty() ? FrameHashes::ViewDifference{} : came.front();
+        }
+
+        TEST(RtxFrameHashesTest, onlyThePartThatMovedIsNamed)
+        {
+            ScenePartDigests moved = partsOf(100);
+            moved[static_cast<std::size_t>(ScenePart::Textures)] = hashOf(4242);
+
+            const FrameHashes::ViewDifference difference = onlyView(runOf(moved, sPixels).against(plainRun()));
+
+            EXPECT_TRUE(difference.mDiffering.empty()) << "the picture was the same both times";
+            EXPECT_TRUE(difference.mTraceDiffering.empty()) << "the trace was the same both times";
+            EXPECT_EQ(difference.mSceneDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_FALSE(difference.same()) << "a scene that moved is a difference, picture or no picture";
+
+            for (std::size_t at = 0; at < difference.mPartsDiffering.size(); ++at)
+                EXPECT_EQ(difference.mPartsDiffering[at], at == static_cast<std::size_t>(ScenePart::Textures) ? 1u : 0u)
+                    << nameOf(static_cast<ScenePart>(at));
+
+            const std::string report = describeDifference(difference);
+            EXPECT_NE(report.find("textures 1"), std::string::npos) << report;
+            EXPECT_EQ(report.find("meshes"), std::string::npos) << report;
+        }
+
+        /// **A view the reference drew and this run did not is named**, with every frame of it
+        /// unmatched: a comparison states its own coverage, and a run of a smaller suite, or one
+        /// with a view taken out of `views.cfg`, otherwise passed on the views it had left. The
+        /// reference draws `b` twice, two frames and then one, and its entry counts all three.
+        TEST(RtxFrameHashesTest, aViewOnlyTheReferenceDrewIsNamedAsNotDrawn)
+        {
+            std::uint64_t submitted = 0;
+            const auto draw = [&](FrameHashes& run, const std::string_view view, const std::uint32_t frame) {
+                run.note(view, frame, ++submitted, partsOf(100));
+                run.picture(Finished{ submitted, sPixels, digestOf(100) }.result());
+            };
+
+            FrameHashes reference;
+            draw(reference, "a", 1);
+            draw(reference, "b", 1);
+            draw(reference, "b", 2);
+            draw(reference, "c", 1);
+            draw(reference, "b", 3);
+
+            FrameHashes run;
+            draw(run, "a", 1);
+            draw(run, "c", 1);
+
+            // A view this run drew in two stretches is one entry, its frames counted once.
+            FrameHashes twice;
+            draw(twice, "b", 1);
+            draw(twice, "a", 1);
+            draw(twice, "b", 2);
+            draw(twice, "c", 1);
+            draw(twice, "b", 3);
+            const std::vector<FrameHashes::ViewDifference> again = twice.against(reference);
+            ASSERT_EQ(again.size(), 3u);
+            EXPECT_EQ(again[0].mView, "b");
+            EXPECT_EQ(again[0].mFrames, 3u);
+            EXPECT_TRUE(again[0].same()) << again[0].mUnmatched << " unmatched";
+
+            const std::vector<FrameHashes::ViewDifference> came = run.against(reference);
+            ASSERT_EQ(came.size(), 3u);
+            EXPECT_EQ(came[0].mView, "a");
+            EXPECT_TRUE(came[0].same());
+            EXPECT_EQ(came[1].mView, "c");
+            EXPECT_TRUE(came[1].same());
+
+            EXPECT_EQ(came[2].mView, "b");
+            EXPECT_EQ(came[2].mFrames, 0u);
+            EXPECT_EQ(came[2].mUnmatched, 3u);
+            EXPECT_FALSE(came[2].same());
+            EXPECT_EQ(describeDifference(came[2]), "not drawn by this run, 3 frames of the reference's");
+        }
+
+        TEST(RtxFrameHashesTest, aPictureThatMovedAloneSaysTheSceneDidNot)
+        {
+            const FrameHashes::ViewDifference difference
+                = onlyView(runOf(partsOf(100), sOtherPixels).against(plainRun()));
+
+            EXPECT_EQ(difference.mDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_TRUE(difference.mReconstructedDiffering.empty()) << "nothing upscaled it, so the picture is ours";
+            EXPECT_TRUE(difference.mTraceDiffering.empty()) << "the trace was the same, so it is the display chain";
+            EXPECT_TRUE(difference.mSceneDiffering.empty()) << "no part of the scene moved";
+            EXPECT_FALSE(difference.same());
+
+            const std::string report = describeDifference(difference);
+            EXPECT_NE(report.find("the picture differs on 1 of 1 frames, at 1"), std::string::npos) << report;
+            EXPECT_NE(report.find("the scene was the same on every frame"), std::string::npos) << report;
+        }
+
+        TEST(RtxFrameHashesTest, aPictureThatMovedPastAnUpscalerIsReportedAndNeverAVerdict)
+        {
+            const FrameHashes::ViewDifference difference
+                = onlyView(runOf(partsOf(100), sOtherPixels, digestOf(100), Rtx::Upscale::Quality)
+                               .against(plainRun(Rtx::Upscale::Quality)));
+
+            EXPECT_TRUE(difference.mDiffering.empty()) << "the picture is the upscaler's";
+            EXPECT_EQ(difference.mReconstructedDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_TRUE(difference.same()) << "the trace and the scene were the same, which is the whole verdict";
+
+            const std::string report = describeDifference(difference);
+            EXPECT_NE(report.find("the trace and the scene the same on every one"), std::string::npos) << report;
+            EXPECT_NE(report.find("the reconstructed picture differs on 1"), std::string::npos) << report;
+            EXPECT_NE(report.find("not a verdict"), std::string::npos) << report;
+
+            // And either run past an upscaler is enough: a reference drawn without one and a run
+            // drawn with one are two configurations, which is its own finding.
+            const FrameHashes::ViewDifference mixed
+                = onlyView(runOf(partsOf(100), sOtherPixels, digestOf(100), Rtx::Upscale::Quality).against(plainRun()));
+            EXPECT_TRUE(mixed.mDiffering.empty());
+            EXPECT_EQ(mixed.mReconstructedDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_EQ(mixed.mConfigurationDiffering, 1u);
+            EXPECT_FALSE(mixed.same());
+            EXPECT_NE(describeDifference(mixed).find("reconstructed 1 frames differently"), std::string::npos)
+                << describeDifference(mixed);
+        }
+
+        /// **The composed frame of two denoised runs is the wavelet's, whose last bit is the card's.**
+        /// Moved there alone — the column, the picture, or both — it is reported and not a verdict.
+        /// Moved beside another column, it follows the trace and is named with it. Moved in two runs
+        /// the denoiser did not compose, it is a verdict as every column is. One run denoised and the
+        /// other not is two configurations.
+        TEST(RtxFrameHashesTest, aComposedFrameThatMovedAloneUnderTheDenoiserIsReportedAndNeverAVerdict)
+        {
+            Rtx::FrameDigest composed = digestOf(100);
+            composed.mImages[Rtx::indexOf(Rtx::Channel::Direct)] = hashOf(4242);
+            Rtx::FrameDigest traced = composed;
+            traced.mImages[Rtx::indexOf(Rtx::Channel::Albedo)] = hashOf(4243);
+            const FrameHashes reference = denoisedRunOf(sPixels, digestOf(100));
+
+            for (const bool pictureToo : { false, true })
+            {
+                SCOPED_TRACE(pictureToo);
+                const FrameHashes::ViewDifference alone
+                    = onlyView(denoisedRunOf(pictureToo ? sOtherPixels : sPixels, composed).against(reference));
+                EXPECT_EQ(alone.mDenoisedDiffering, std::vector<std::uint32_t>{ 1u });
+                EXPECT_TRUE(alone.mTraceDiffering.empty());
+                EXPECT_TRUE(alone.mDiffering.empty()) << "the picture is the composed frame's";
+                EXPECT_TRUE(alone.same());
+
+                const std::string report = describeDifference(alone);
+                EXPECT_NE(report.find("the trace and the scene the same on every one"), std::string::npos) << report;
+                EXPECT_NE(
+                    report.find("the composed frame differs on 1 frames where nothing else did"), std::string::npos)
+                    << report;
+                EXPECT_EQ(report.find("the composed frame", report.find("the composed frame") + 1), std::string::npos)
+                    << "said once: " << report;
+            }
+
+            // **The denoiser's images are named in the order the frame writes them**, whatever their
+            // counts, and one only one run wrote differs.
+            Rtx::FrameDigest filtered = composed;
+            filtered.mDenoiser[static_cast<std::size_t>(Rtx::DenoiserImage::WaveletHistory)] = hashOf(4244);
+            filtered.mDenoiser[static_cast<std::size_t>(Rtx::DenoiserImage::SkyShadowLevel1)] = hashOf(4245);
+            filtered.mDenoiser[static_cast<std::size_t>(Rtx::DenoiserImage::PaneMean)] = hashOf(4246);
+            filtered.mDenoiserTaken |= 1u << static_cast<std::size_t>(Rtx::DenoiserImage::PaneMean);
+            FrameHashes twoFrames = denoisedRunOf(sPixels, filtered);
+            twoFrames.note("somewhere", 2, 2, partsOf(100));
+            Rtx::FrameDigest secondFiltered = digestOf(100);
+            secondFiltered.mDenoiser[static_cast<std::size_t>(Rtx::DenoiserImage::WaveletHistory)] = hashOf(4247);
+            twoFrames.picture(
+                Finished{ .mFrame = 2, .mPixels = sPixels, .mDigest = secondFiltered, .mDenoised = true }.result());
+            FrameHashes twoReference = denoisedRunOf(sPixels, digestOf(100));
+            twoReference.note("somewhere", 2, 2, partsOf(100));
+            twoReference.picture(
+                Finished{ .mFrame = 2, .mPixels = sPixels, .mDigest = digestOf(100), .mDenoised = true }.result());
+
+            const FrameHashes::ViewDifference underneath = onlyView(twoFrames.against(twoReference));
+            for (std::size_t at = 0; at < Rtx::sDenoiserImageCount; ++at)
+            {
+                const auto image = static_cast<Rtx::DenoiserImage>(at);
+                const std::uint32_t expected = image == Rtx::DenoiserImage::WaveletHistory                  ? 2u
+                    : image == Rtx::DenoiserImage::SkyShadowLevel1 || image == Rtx::DenoiserImage::PaneMean ? 1u
+                                                                                                            : 0u;
+                EXPECT_EQ(underneath.mDenoiserDiffering[at], expected) << Rtx::sDenoiserImageNames.name(image);
+            }
+            EXPECT_TRUE(underneath.same()) << "the denoiser's images are never a verdict";
+            const std::string named = describeDifference(underneath);
+            EXPECT_NE(named.find("in the order the frame writes them — pane-mean 1, sky-shadow-level1 1, "
+                                 "wavelet-history 2, which is not a verdict"),
+                std::string::npos)
+                << named;
+
+            EXPECT_EQ(onlyView(runOf(partsOf(100), sPixels, filtered).against(plainRun())).mDenoiserDiffering,
+                (std::array<std::uint32_t, Rtx::sDenoiserImageCount>{}))
+                << "an undenoised frame's are not compared";
+
+            const FrameHashes::ViewDifference pictureAlone
+                = onlyView(denoisedRunOf(sOtherPixels, digestOf(100)).against(reference));
+            EXPECT_EQ(pictureAlone.mDenoisedDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_TRUE(pictureAlone.same());
+
+            const FrameHashes::ViewDifference withTrace
+                = onlyView(denoisedRunOf(sOtherPixels, traced).against(reference));
+            EXPECT_TRUE(withTrace.mDenoisedDiffering.empty()) << "the composed frame followed the trace";
+            EXPECT_EQ(withTrace.mTraceDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_TRUE(withTrace.mDiffering.empty());
+            EXPECT_FALSE(withTrace.same());
+            for (std::size_t column = 0; column < sTracedColumns; ++column)
+                EXPECT_EQ(withTrace.mTracedDiffering[column],
+                    column == Rtx::indexOf(Rtx::Channel::Albedo) || column == Rtx::indexOf(Rtx::Channel::Direct) ? 1u
+                                                                                                                 : 0u)
+                    << tracedName(column);
+
+            const FrameHashes::ViewDifference unfiltered
+                = onlyView(runOf(partsOf(100), sOtherPixels, composed).against(plainRun()));
+            EXPECT_TRUE(unfiltered.mDenoisedDiffering.empty());
+            EXPECT_EQ(unfiltered.mTraceDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_EQ(unfiltered.mDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_FALSE(unfiltered.same());
+
+            const FrameHashes::ViewDifference mixed
+                = onlyView(denoisedRunOf(sPixels, digestOf(100)).against(plainRun()));
+            EXPECT_EQ(mixed.mConfigurationDiffering, 1u);
+            EXPECT_TRUE(mixed.mDenoisedDiffering.empty()) << "only one of the two was denoised";
+            EXPECT_FALSE(mixed.same());
+        }
+
+        TEST(RtxFrameHashesTest, aTraceThatMovedIsTheVerdictWhateverThePictureDid)
+        {
+            Rtx::FrameDigest moved = digestOf(100);
+            moved.mImages[Rtx::indexOf(Rtx::Channel::Albedo)] = hashOf(4242);
+
+            // The same picture, past an upscaler: the trace column alone says the run moved.
+            const FrameHashes::ViewDifference difference = onlyView(
+                runOf(partsOf(100), sPixels, moved, Rtx::Upscale::Quality).against(plainRun(Rtx::Upscale::Quality)));
+
+            EXPECT_EQ(difference.mTraceDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_TRUE(difference.mDiffering.empty());
+            EXPECT_TRUE(difference.mReconstructedDiffering.empty());
+            EXPECT_FALSE(difference.same());
+
+            for (std::size_t column = 0; column < sTracedColumns; ++column)
+                EXPECT_EQ(difference.mTracedDiffering[column], column == Rtx::indexOf(Rtx::Channel::Albedo) ? 1u : 0u)
+                    << tracedName(column);
+
+            const std::string report = describeDifference(difference);
+            EXPECT_NE(report.find("the trace differs on 1 of 1 frames, at 1 — g-albedo 1"), std::string::npos)
+                << report;
+            EXPECT_EQ(report.find("g-surface"), std::string::npos) << report;
+            EXPECT_NE(report.find("the scene was the same on every frame"), std::string::npos) << report;
+        }
+
+        /// A still's probe, traced with its first frame's sample, moved where its surface or its
+        /// motion differs from that frame's — and not where only its light does, and not against
+        /// another view's frames, which stand somewhere else.
+        TEST(RtxFrameHashesTest, aStillsProbeMovedWhereItsSurfaceOrMotionDiffersFromTheFirstFrame)
+        {
+            Rtx::FrameDigest lit = digestOf(100);
+            lit.mImages[Rtx::indexOf(Rtx::Channel::Direct)] = hashOf(4242);
+            lit.mImages[Rtx::indexOf(Rtx::Channel::Indirect)] = hashOf(4243);
+            Rtx::FrameDigest deeper = lit;
+            deeper.mImages[Rtx::indexOf(Rtx::Channel::Surface)] = hashOf(4244);
+            Rtx::FrameDigest moving = digestOf(100);
+            moving.mImages[Rtx::indexOf(Rtx::Channel::Motion)] = hashOf(4245);
+
+            FrameHashes still;
+            add(still, 1, sPixels, partsOf(100));
+            add(still, 2, sOtherPixels, partsOf(100), deeper);
+            EXPECT_FALSE(still.probeMoved("somewhere", digestOf(100))) << "the first frame again";
+            EXPECT_FALSE(still.probeMoved("somewhere", lit)) << "the light moved and nothing else";
+            EXPECT_TRUE(still.probeMoved("somewhere", deeper)) << "the depth moved";
+            EXPECT_TRUE(still.probeMoved("somewhere", moving)) << "the motion moved";
+            EXPECT_FALSE(still.probeMoved("nowhere", deeper)) << "a view with no frames moved nothing";
+
+            // Another view first, with other depth: its first frame is its own, and this one's
+            // first frame is still frame 1.
+            FrameHashes elsewhereFirst;
+            elsewhereFirst.note("elsewhere", 1, 50, partsOf(100));
+            elsewhereFirst.picture(Finished{ 50, sPixels, deeper }.result());
+            add(elsewhereFirst, 1, sPixels, partsOf(100));
+            EXPECT_FALSE(elsewhereFirst.probeMoved("somewhere", digestOf(100)));
+            EXPECT_FALSE(elsewhereFirst.probeMoved("elsewhere", deeper));
+            EXPECT_TRUE(elsewhereFirst.probeMoved("elsewhere", digestOf(100)));
+        }
+
+        TEST(RtxFrameHashesTest, whatTheFrameHandedTheReconstructionIsAColumnOfItsOwn)
+        {
+            Rtx::FrameDigest jittered = digestOf(100);
+            jittered.mJitterX = -jittered.mJitterX;
+
+            const FrameHashes::ViewDifference difference
+                = onlyView(runOf(partsOf(100), sPixels, jittered).against(plainRun()));
+
+            EXPECT_EQ(difference.mTraceDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_EQ(difference.mTracedDiffering[sReconstructionColumn], 1u);
+            EXPECT_EQ(difference.mTracedDiffering[Rtx::indexOf(Rtx::Channel::Direct)], 0u)
+                << "the images were the same";
+            EXPECT_NE(describeDifference(difference).find("reconstruction 1"), std::string::npos)
+                << describeDifference(difference);
+
+            Rtx::FrameDigest reset = digestOf(100);
+            reset.mReset = 1;
+            EXPECT_EQ(onlyView(runOf(partsOf(100), sPixels, reset).against(plainRun())).mTraceDiffering,
+                std::vector<std::uint32_t>{ 1u })
+                << "a reset the reference did not send is a difference";
+        }
+
+        /// **A view whose name holds a comma is refused as the file is written**, which a row of
+        /// comma-separated fields cannot take back, so the run fails where it still can.
+        TEST(RtxFrameHashesTest, aViewNamedWithACommaIsRefusedAsItIsWritten)
+        {
+            FrameHashes hashes;
+            hashes.note("-2,-9", 1, 10, ScenePartDigests{});
+            Rtx::FrameResult finished;
+            finished.mFrame = 10;
+            finished.mDigest = Rtx::FrameDigest{};
+            ASSERT_TRUE(hashes.picture(finished).has_value());
+
+            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-comma.csv");
+            EXPECT_FALSE(hashes.write(file).isOk());
+        }
+
+        TEST(RtxFrameHashesTest, aRunSurvivesTheFileItIsWrittenTo)
+        {
+            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-test.csv");
+            std::filesystem::remove(file);
+
+            ASSERT_TRUE(plainRun(Rtx::Upscale::Quality).write(file).isOk());
+            const FrameHashes read = FrameHashes::read(file);
+
+            ASSERT_EQ(read.frameCount(), 1u);
+
+            const FrameHashes::ViewDifference against = onlyView(plainRun(Rtx::Upscale::Quality).against(read));
+            EXPECT_TRUE(against.same());
+            EXPECT_TRUE(against.mSceneDiffering.empty());
+            EXPECT_EQ(against.mConfigurationDiffering, 0u) << "what reconstructed the picture survived the file";
+
+            // Every column comes back: a run against the file that moved one is told so.
+            Rtx::FrameDigest moved = digestOf(100);
+            moved.mImages[Rtx::indexOf(Rtx::Channel::Direct)] = hashOf(4242);
+            EXPECT_EQ(onlyView(runOf(partsOf(100), sPixels, moved, Rtx::Upscale::Quality).against(read))
+                          .mTracedDiffering[Rtx::indexOf(Rtx::Channel::Direct)],
+                1u);
+            EXPECT_EQ(onlyView(plainRun().against(read)).mConfigurationDiffering, 1u);
+
+            // And whether the denoiser composed it comes back too.
+            const std::filesystem::path denoisedFile = TestingOpenMW::outputFilePath("hashes-denoised-test.csv");
+            ASSERT_TRUE(denoisedRunOf(sPixels, digestOf(100)).write(denoisedFile).isOk());
+            const FrameHashes denoisedRead = FrameHashes::read(denoisedFile);
+            EXPECT_EQ(
+                onlyView(denoisedRunOf(sPixels, digestOf(100)).against(denoisedRead)).mConfigurationDiffering, 0u);
+            EXPECT_EQ(onlyView(runOf(partsOf(100), sPixels).against(denoisedRead)).mConfigurationDiffering, 1u);
+
+            // And the denoiser's images, an unwritten one as unwritten: a run that wrote it differs.
+            EXPECT_EQ(onlyView(denoisedRunOf(sPixels, digestOf(100)).against(denoisedRead)).mDenoiserDiffering,
+                (std::array<std::uint32_t, Rtx::sDenoiserImageCount>{}));
+            Rtx::FrameDigest paned = digestOf(100);
+            paned.mDenoiserTaken |= 1u << static_cast<std::size_t>(Rtx::DenoiserImage::PaneMean);
+            paned.mDenoiser[static_cast<std::size_t>(Rtx::DenoiserImage::SpecularMean)] = hashOf(4243);
+            const FrameHashes::ViewDifference panedAgainst
+                = onlyView(denoisedRunOf(sPixels, paned).against(denoisedRead));
+            for (std::size_t at = 0; at < Rtx::sDenoiserImageCount; ++at)
+            {
+                const auto image = static_cast<Rtx::DenoiserImage>(at);
+                EXPECT_EQ(panedAgainst.mDenoiserDiffering[at],
+                    image == Rtx::DenoiserImage::PaneMean || image == Rtx::DenoiserImage::SpecularMean ? 1u : 0u)
+                    << Rtx::sDenoiserImageNames.name(image);
+            }
+            {
+                std::ifstream in(denoisedFile);
+                std::string row;
+                std::getline(in, row);
+                std::getline(in, row);
+                std::size_t unwritten = 0;
+                for (std::size_t at = row.find(",-,"); at != std::string::npos; at = row.find(",-,", at + 1))
+                    ++unwritten;
+                EXPECT_EQ(unwritten, 2u) << "the pane filter's two, spelled as unwritten: " << row;
+            }
+            std::filesystem::remove(denoisedFile);
+
+            std::string header;
+            {
+                std::ifstream in(file);
+                std::getline(in, header);
+            }
+            EXPECT_EQ(header.substr(0, 45), "hashes 7: view,frame,upscale,denoise,picture,");
+            EXPECT_NE(header.find(",g-direct,"), std::string::npos) << header;
+            EXPECT_NE(header.find(",g-puffs,g-shadowed,g-specular,g-pane,g-pane-albedo,g-pane-surface,g-pane-motion,"
+                                  "g-upscale-masks,g-fill,g-ambient-albedo,g-lift,g-specular-albedo,g-lamped,"
+                                  "reconstruction,accumulate-moments,pane-mean,"),
+                std::string::npos)
+                << header;
+            EXPECT_NE(header.find(",wavelet-blend,wavelet-fill-blend,positions,"), std::string::npos) << header;
+            EXPECT_NE(header.find(",textures,"), std::string::npos) << header;
+
+            std::filesystem::remove(file);
+        }
+
+        TEST(RtxFrameHashesTest, aRowIsNotedAtTheFrameAndPicturedWhenItComesBack)
+        {
+            FrameHashes run;
+            run.note("somewhere", 1, 100, partsOf(100));
+            run.note("somewhere", 2, 101, partsOf(100));
+            EXPECT_EQ(run.frameCount(), 2u);
+            EXPECT_EQ(run.countUnpictured(), 2u);
+
+            run.picture(Finished{ 99, sPixels, digestOf(100) }.result());
+            EXPECT_EQ(run.countUnpictured(), 2u) << "a picture for a frame nobody noted made a row";
+
+            run.picture(Finished{ 100, sPixels, digestOf(100) }.result());
+            run.picture(Finished{ 101, sOtherPixels, digestOf(100) }.result());
+            EXPECT_EQ(run.countUnpictured(), 0u);
+
+            FrameHashes plain;
+            add(plain, 1, sPixels, partsOf(100));
+            add(plain, 2, sPixels, partsOf(100));
+            EXPECT_EQ(onlyView(run.against(plain)).mDiffering, std::vector<std::uint32_t>{ 2u });
+
+            // **The reference's views in another order, and one frame more on each side.** A frame
+            // is found by its view and its number wherever that view stands in the file, a frame
+            // the reference lacks is unmatched, and a frame the run lacks is unmatched to the
+            // view's count too. The differing frame is still frame 2 of `somewhere`.
+            FrameHashes elsewhereFirst;
+            elsewhereFirst.note("elsewhere", 1, 50, partsOf(100));
+            elsewhereFirst.picture(Finished{ 50, sPixels, digestOf(100) }.result());
+            add(elsewhereFirst, 1, sPixels, partsOf(100));
+            add(elsewhereFirst, 2, sPixels, partsOf(100));
+            add(elsewhereFirst, 3, sPixels, partsOf(100));
+            run.note("somewhere", 4, 102, partsOf(100));
+            run.picture(Finished{ 102, sPixels, digestOf(100) }.result());
+
+            const std::vector<FrameHashes::ViewDifference> reordered = run.against(elsewhereFirst);
+            ASSERT_EQ(reordered.size(), 2u);
+            EXPECT_EQ(reordered.back().mView, "elsewhere") << "the view only the reference drew, after the run's";
+            EXPECT_EQ(reordered.back().mUnmatched, 1u);
+            EXPECT_EQ(reordered.front().mView, "somewhere");
+            EXPECT_EQ(reordered.front().mFrames, 3u);
+            EXPECT_EQ(reordered.front().mDiffering, std::vector<std::uint32_t>{ 2u });
+            EXPECT_EQ(reordered.front().mUnmatched, 2u) << "frame 4, which the reference lacks, and frame 3, which "
+                                                           "the run lacks: a count of 3 against 3 shares two";
+
+            // **Shifted, a view shares only its middle**: a reference of frames 1 to 10 against a run
+            // of 5 to 14 shares six, and each side has four the other lacks.
+            FrameHashes early;
+            FrameHashes late;
+            for (std::uint32_t frame = 1; frame <= 10; ++frame)
+                add(early, frame, sPixels, partsOf(100));
+            for (std::uint32_t frame = 5; frame <= 14; ++frame)
+                add(late, frame, sPixels, partsOf(100));
+            EXPECT_EQ(onlyView(late.against(early)).mUnmatched, 8u);
+
+            FrameHashes half;
+            half.note("somewhere", 1, 7, partsOf(100));
+            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-half.csv");
+            Rtx::Testing::expectDies(
+                [&] { static_cast<void>(half.write(file)); }, "frames were noted and never pictured");
+            std::filesystem::remove(file);
+        }
+
+        TEST(RtxFrameHashesTest, aFileWhoseViewIsOutOfFrameOrderIsRefused)
+        {
+            FrameHashes run;
+            add(run, 1, sPixels, partsOf(100));
+            add(run, 2, sPixels, partsOf(100));
+            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-order.csv");
+            ASSERT_TRUE(run.write(file).isOk());
+
+            std::ifstream in(file);
+            std::string header;
+            std::string first;
+            std::string second;
+            std::getline(in, header);
+            std::getline(in, first);
+            std::getline(in, second);
+            in.close();
+
+            std::ofstream out(file);
+            out << header << '\n' << second << '\n' << first << '\n';
+            out.close();
+
+            EXPECT_THROW(FrameHashes::read(file), Rtx::InputError) << "frame 2 before frame 1 of one view";
+            std::filesystem::remove(file);
+        }
+
+        /// **A number is read whole or the file is refused**: a frame of `1x`, and a picture's hash
+        /// whose last digit is no hexadecimal one, each read up to the stray character and kept
+        /// what came before it.
+        TEST(RtxFrameHashesTest, aFileWithAPartialNumberIsRefused)
+        {
+            FrameHashes run;
+            add(run, 1, sPixels, partsOf(100));
+            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-partial.csv");
+            ASSERT_TRUE(run.write(file).isOk());
+
+            std::string header;
+            std::string row;
+            {
+                std::ifstream in(file);
+                std::getline(in, header);
+                std::getline(in, row);
+            }
+            ASSERT_NO_THROW(FrameHashes::read(file));
+
+            const auto field = [&](std::size_t at) {
+                std::size_t from = 0;
+                for (std::size_t skipped = 0; skipped < at; ++skipped)
+                    from = row.find(',', from) + 1;
+                return std::pair(from, row.find(',', from) - from);
+            };
+            const auto [frameAt, frameLength] = field(1);
+            const auto [pictureAt, pictureLength] = field(4);
+            ASSERT_EQ(pictureLength, 32u);
+
+            std::string partialFrame = row;
+            partialFrame.insert(frameAt + frameLength, "x");
+            std::string partialHash = row;
+            partialHash[pictureAt + pictureLength - 1] = 'g';
+
+            for (const std::string& written : { partialFrame, partialHash })
+            {
+                {
+                    std::ofstream out(file);
+                    out << header << '\n' << written << '\n';
+                }
+                EXPECT_THROW(FrameHashes::read(file), Rtx::InputError) << written;
+            }
+            std::filesystem::remove(file);
+        }
+
+        TEST(RtxFrameHashesTest, aFileWhoseColumnsAreNotThisBuildsIsRefused)
+        {
+            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-old.csv");
+
+            {
+                std::ofstream out(file);
+                out << "hashes 3: view,frame,picture,positions\n";
+                out << "somewhere,1," << std::string(32, 'a') << ',' << std::string(32, 'b') << '\n';
+            }
+
+            EXPECT_THROW(FrameHashes::read(file), Rtx::InputError);
+            std::filesystem::remove(file);
+        }
+    }
+}

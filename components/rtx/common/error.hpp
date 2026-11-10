@@ -4,7 +4,7 @@
 
 namespace Rtx
 {
-    // **Three failures and no common base**, so a catch of one never takes another. A contract this
+    // **Four failures and no common base**, so a catch of one never takes another. A contract this
     // code broke is none of them: it is an assert, or `Crash::contract` where release must not go on.
 
     /// What the configuration or the installation supplied, and this renderer cannot run with: a
@@ -23,6 +23,16 @@ namespace Rtx
     /// and fail on a fault, where one type for both is a whole GPU suite reporting success after it
     /// ran nothing. Thrown only where the code asked what this machine can do and was told no.
     class Unsupported : public std::runtime_error
+    {
+    public:
+        using std::runtime_error::runtime_error;
+    };
+
+    /// The upscaler the player chose by name cannot run on this machine: its runtime, its driver or
+    /// its card refused it. Apart from `Unsupported`, which says the machine cannot ray trace at all,
+    /// so an `auto` choice falls back from this alone and a start that fails on it says which choice
+    /// to change.
+    class UpscalerRefused : public std::runtime_error
     {
     public:
         using std::runtime_error::runtime_error;

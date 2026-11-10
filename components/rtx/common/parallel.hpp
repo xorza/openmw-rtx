@@ -7,7 +7,9 @@
 #include <exception>
 #include <format>
 #include <mutex>
+#include <stop_token>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include <components/platform/process.hpp>
@@ -26,12 +28,11 @@ namespace Rtx
     };
 
     /// Runs `body(index)` for every index below `count`, over as many hands as there is work for, the
-    /// calling thread among them, and comes back when the last of them is done. One shot, unlike
-    /// `Rtx::Worker`. A hand takes the next index whenever it is free, so a turn that costs ten times
-    /// its neighbour delays nothing but itself. The first exception is rethrown and every index is
-    /// still attempted, because a caller that asked for a batch wants to know about the batch. Each
-    /// hand gets its own copy of both callables, as the standard's parallel algorithms do, so a body
-    /// with state of its own is not a data race.
+    /// calling thread among them, and comes back when the last of them is done. One shot. A hand takes the next index
+    /// whenever it is free, so a turn that costs ten times its neighbour delays nothing but itself. The first exception
+    /// is rethrown and every index is still attempted, because a caller that asked for a batch wants to know about the
+    /// batch. Each hand gets its own copy of both callables, as the standard's parallel algorithms do, so a body with
+    /// state of its own is not a data race.
     ///
     /// @param name what the hands' threads are called, numbered from one; the caller keeps its own.
     /// @param hands how many threads the batch may take.
@@ -42,8 +43,8 @@ namespace Rtx
     ///        thread that asked for the work. What it throws is kept as a body's is, and that hand
     ///        takes no index.
     template <class Equip, class Body>
-    void runInParallel(std::string_view name, const std::size_t count, const Hands hands,
-        const Platform::StopToken& stop, Equip equip, Body body)
+    void runInParallel(std::string_view name, const std::size_t count, const Hands hands, const std::stop_token& stop,
+        Equip equip, Body body)
     {
         if (count == 0)
             return;
@@ -64,7 +65,7 @@ namespace Rtx
                 // Held for the hand's whole run and read by nothing: what it is for is its life.
                 [[maybe_unused]] const auto held = ownEquip();
 
-                for (std::size_t index = next++; index < count && !stop.stopRequested(); index = next++)
+                for (std::size_t index = next++; index < count && !stop.stop_requested(); index = next++)
                 {
                     try
                     {
@@ -86,10 +87,11 @@ namespace Rtx
             const std::size_t taken = std::clamp<std::size_t>(
                 Platform::Process::usableCpuCount() / (hands == Hands::Half ? 2 : 1), 1, count);
 
-            std::vector<Platform::Thread> others;
+            std::vector<std::jthread> others;
             others.reserve(taken - 1);
             for (std::size_t at = 1; at < taken; ++at)
-                others.emplace_back(std::format("{} {}", name, at), [&hand, equip, body] { hand(equip, body); });
+                others.push_back(
+                    Platform::startThread(std::format("{} {}", name, at), [&hand, equip, body] { hand(equip, body); }));
 
             hand(equip, body);
         }

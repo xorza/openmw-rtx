@@ -4,13 +4,11 @@ namespace Gui
 {
     InterfaceFonts::InterfaceFonts(ToUTF8::FromType encoding, const VFS::Manager* vfs, MyGUIPlatform::DataManager& data,
         const FontFit& fit, bool exportFonts)
-        : mTexts(fit.mFontSize)
-        , mLists(fit.mFontSize)
-        , mPages(fit.mFontSize)
+        : mTexts(FontUsers::Users::Texts, fit.mFontSize)
+        , mLists(FontUsers::Users::Lists, fit.mFontSize)
+        , mPages(FontUsers::Users::Entered, fit.mFontSize)
         , mLoader(encoding, vfs, data, fit, exportFonts)
     {
-        mTexts.registerTextFactories();
-        mLists.registerListFactory();
     }
 
     void InterfaceFonts::fit(const FontFit& fit)

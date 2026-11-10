@@ -8,6 +8,7 @@
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/pipeline/graphicspipeline.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/present/presenttarget.hpp>
 
 namespace Rtx
 {
@@ -42,7 +43,7 @@ namespace Rtx
     class GuiPass
     {
     public:
-        /// Draws over the curve's picture, in `TonePass::sTargetFormat`.
+        /// Draws over the curve's picture, in `PresentTarget::sShownFormat`.
         explicit GuiPass(const Device& device);
 
         /// @param target what to draw, in `VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL` and made with

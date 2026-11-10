@@ -2,10 +2,10 @@
 
 #include "sdlinit.hpp"
 
+#include <components/dlss/dlss.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/misc/display.hpp>
 #include <components/misc/presentation.hpp>
-#include <components/platform/dlss.hpp>
 #include <components/platform/gpu.hpp>
 #include <components/rtx/common/menu.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -58,10 +58,10 @@ namespace
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
-    constexpr std::array<Rtx::MenuLabel<Rtx::UpscalerKind>, Rtx::sUpscalerMenu.size()> sUpscalerLabels{ {
-        { Rtx::UpscalerKind::Auto, QT_TRANSLATE_NOOP("GraphicsPage", "Auto") },
-        { Rtx::UpscalerKind::Fsr, QT_TRANSLATE_NOOP("GraphicsPage", "AMD FSR 3.1") },
-        { Rtx::UpscalerKind::Dlss, QT_TRANSLATE_NOOP("GraphicsPage", "NVIDIA DLSS") },
+    constexpr std::array<Rtx::MenuLabel<Rtx::UpscalerChoice>, Rtx::sUpscalerMenu.size()> sUpscalerLabels{ {
+        { Rtx::UpscalerChoice::Auto, QT_TRANSLATE_NOOP("GraphicsPage", "Auto") },
+        { Rtx::UpscalerChoice::Fsr, QT_TRANSLATE_NOOP("GraphicsPage", "AMD FSR 3.1") },
+        { Rtx::UpscalerChoice::Dlss, QT_TRANSLATE_NOOP("GraphicsPage", "NVIDIA DLSS") },
     } };
     static_assert(Rtx::followsMenu(sUpscalerLabels, Rtx::sUpscalerMenu));
 
@@ -73,7 +73,7 @@ namespace
     }
 }
 
-Launcher::GraphicsPage::GraphicsPage(const Platform::Dlss::Folders& dlss, QWidget* parent)
+Launcher::GraphicsPage::GraphicsPage(const DlssLibrary::Folders& dlss, QWidget* parent)
     : QWidget(parent)
     , mDlssFolders(dlss)
 {
@@ -112,7 +112,7 @@ struct Launcher::GraphicsPage::DlssDownload
         NotWritten,
     };
 
-    DlssDownload(const Platform::Dlss::Download& feature, const QString& target)
+    DlssDownload(const DlssLibrary::Download& feature, const QString& target)
         : mFeature(feature)
         , mFile(target)
     {
@@ -140,7 +140,7 @@ struct Launcher::GraphicsPage::DlssDownload
         mReply->abort();
     }
 
-    Platform::Dlss::Download mFeature;
+    DlssLibrary::Download mFeature;
     QSaveFile mFile;
     QCryptographicHash mHash{ QCryptographicHash::Sha256 };
     std::uint64_t mReceived = 0;
@@ -156,16 +156,16 @@ Launcher::GraphicsPage::~GraphicsPage() = default;
 
 void Launcher::GraphicsPage::buildUpscalerItems()
 {
-    mUpscalers = Rtx::offeredUpscalers(Platform::Dlss::sBuilt && Platform::Gpu::has(Platform::Gpu::sNvidia));
-    addMenuItems<Rtx::UpscalerKind>(rayTracingUpscalerComboBox, std::span(sUpscalerLabels).first(mUpscalers.size()));
+    mUpscalers = Rtx::offeredUpscalers(DlssLibrary::sBuilt && Platform::Gpu::has(Platform::Gpu::Vendor::Nvidia));
+    addMenuItems<Rtx::UpscalerChoice>(rayTracingUpscalerComboBox, std::span(sUpscalerLabels).first(mUpscalers.size()));
     refreshDlssState();
 }
 
 void Launcher::GraphicsPage::refreshDlssState()
 {
-    mDlssInstalled = Platform::Dlss::installedIn(mDlssFolders);
+    mDlssInstalled = DlssLibrary::installedIn(mDlssFolders);
 
-    if (std::ranges::find(mUpscalers, Rtx::UpscalerKind::Dlss) == mUpscalers.end())
+    if (std::ranges::find(mUpscalers, Rtx::UpscalerChoice::Dlss) == mUpscalers.end())
     {
         downloadDlssButton->hide();
         dlssStatusLabel->hide();
@@ -178,12 +178,12 @@ void Launcher::GraphicsPage::refreshDlssState()
     dlssStatusLabel->setText(mDlssInstalled
             ? tr("DLSS is installed.")
             : tr("DLSS is not installed. <a href=\"%1\">NVIDIA's licence</a> applies to the download.")
-                  .arg(textOf(Platform::Dlss::sLicenseUrl)));
+                  .arg(textOf(DlssLibrary::sLicenseUrl)));
 }
 
 void Launcher::GraphicsPage::setDlssItemEnabled(const bool enabled)
 {
-    const auto found = std::ranges::find(mUpscalers, Rtx::UpscalerKind::Dlss);
+    const auto found = std::ranges::find(mUpscalers, Rtx::UpscalerChoice::Dlss);
     if (found == mUpscalers.end())
         return;
 
@@ -214,7 +214,7 @@ void Launcher::GraphicsPage::downloadDlss()
         return;
     }
 
-    const Platform::Dlss::Download feature = Platform::Dlss::download();
+    const DlssLibrary::Download feature = DlssLibrary::download();
     auto download = std::make_unique<DlssDownload>(feature, Files::pathToQString(directory / feature.mFileName));
     if (!download->mFile.open(QIODevice::WriteOnly))
     {
@@ -310,7 +310,7 @@ void Launcher::GraphicsPage::finishDlssDownload()
     downloadDlssButton->hide();
     dlssStatusLabel->setText(tr("DLSS is installed."));
 
-    const auto found = std::ranges::find(mUpscalers, Rtx::UpscalerKind::Dlss);
+    const auto found = std::ranges::find(mUpscalers, Rtx::UpscalerChoice::Dlss);
     if (found != mUpscalers.end())
         rayTracingUpscalerComboBox->setCurrentIndex(static_cast<int>(std::distance(mUpscalers.begin(), found)));
 }

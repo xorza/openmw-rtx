@@ -6,9 +6,10 @@
 
 namespace Platform
 {
-    AppendFile AppendFile::open(const std::filesystem::path& path, const bool emptied)
+    AppendFile AppendFile::open(const std::filesystem::path& path, const AppendStart start)
     {
         AppendFile file;
+        const bool emptied = start == AppendStart::Emptied;
         // Shared with every other writer and reader: the game and its monitor hold it at once, and
         // a player reads it while the game runs.
         const HANDLE handle = CreateFileW(path.c_str(), FILE_APPEND_DATA | (emptied ? GENERIC_WRITE : 0),
@@ -22,7 +23,7 @@ namespace Platform
         if (emptied)
         {
             CloseHandle(handle);
-            return open(path, false);
+            return open(path, AppendStart::Kept);
         }
 
         file.mHold = UniqueHold<Closing>(reinterpret_cast<std::intptr_t>(handle));
@@ -34,7 +35,7 @@ namespace Platform
         CloseHandle(reinterpret_cast<HANDLE>(hold));
     }
 
-    void AppendFile::write(std::string_view bytes) const
+    bool AppendFile::write(std::string_view bytes) const
     {
         while (isOpen() && !bytes.empty())
         {
@@ -42,8 +43,9 @@ namespace Platform
             DWORD written = 0;
             if (!WriteFile(reinterpret_cast<HANDLE>(mHold.get()), bytes.data(), asked, &written, nullptr)
                 || written == 0)
-                return;
+                return false;
             bytes.remove_prefix(written);
         }
+        return isOpen();
     }
 }

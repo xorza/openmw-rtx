@@ -110,9 +110,8 @@ namespace RtxTool
         static bool writePicture(const Writing& into, const std::filesystem::path& file, std::uint32_t width,
             std::uint32_t height, std::span<const std::uint16_t> samples);
 
-        /// The last measured frame, as a PNG: as its bytes, or where `deep` its sum at sixteen bits a
-        /// channel (`Actions::mDeepCapture`).
-        void writeCapture(const Writing& into, const std::filesystem::path& file, bool deep);
+        /// The last measured frame, as a PNG at the capture's depth.
+        void writeCapture(const Writing& into, const Actions::Capture& capture);
 
         /// The last measured frame, added to `mean`, which is written once it holds its count.
         void addToMean(const Writing& into, const Actions::Mean& mean);

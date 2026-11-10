@@ -1,5 +1,6 @@
 #include "texture.hpp"
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
@@ -94,10 +95,8 @@ namespace MyGUIRtx
 
     void* Texture::lock(MyGUI::TextureUsage /*access*/)
     {
-        if (mNumElemBytes == 0)
-            throw std::runtime_error("Texture is not created");
-        if (mLocked)
-            throw std::runtime_error("Texture already locked");
+        assert(mNumElemBytes != 0 && "a texture locked before it was created");
+        assert(!mLocked && "a texture locked twice");
 
         mLocked = true;
 
@@ -115,8 +114,7 @@ namespace MyGUIRtx
 
     void Texture::unlock()
     {
-        if (!mLocked)
-            throw std::runtime_error("Texture not locked");
+        assert(mLocked && "a texture unlocked that was not locked");
 
         mLocked = false;
 

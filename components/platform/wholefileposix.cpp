@@ -101,12 +101,21 @@ namespace Platform::WholeFileSystem
         return {};
     }
 
-    Result<void, IoError> create(
-        const std::filesystem::path& path, const std::span<const std::span<const std::byte>> parts, const bool synced)
+    Result<void, IoError> create(const std::filesystem::path& path,
+        const std::span<const std::span<const std::byte>> parts, const bool synced,
+        const std::filesystem::path& replacing)
     {
         const int descriptor = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666);
         if (descriptor < 0)
             return lastError();
+
+        // **The replaced file's permissions**, which a temporary made under the umask would take from
+        // it at the rename: a settings file or a save the player kept to themselves stays so.
+        struct stat replaced
+        {
+        };
+        if (::stat(replacing.c_str(), &replaced) == 0)
+            ::fchmod(descriptor, replaced.st_mode & 07777);
 
         const auto writeAll = [&]() -> Result<void, IoError> {
             for (std::span<const std::byte> part : parts)
@@ -143,10 +152,11 @@ namespace Platform::WholeFileSystem
         // is the folder's write, not the file's.
         const std::filesystem::path folder = to.has_parent_path() ? to.parent_path() : std::filesystem::path(".");
         const HeldDescriptor held(::open(folder.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC));
-        if (!held.isOpen())
-            return lastError();
-        if (fsync(held.get()) != 0)
-            return lastError();
+        if (!held.isOpen() || fsync(held.get()) != 0)
+        {
+            Result<void, IoError> unsynced = lastError();
+            return Err<IoError>{ IoError{ .mFailure = IoFailure::NotDurable, .mCode = unsynced.error().mCode } };
+        }
         return {};
     }
 

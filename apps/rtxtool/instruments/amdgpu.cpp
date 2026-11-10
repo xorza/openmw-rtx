@@ -10,15 +10,14 @@
 #include <vector>
 
 #include <components/platform/folder.hpp>
+#include <components/platform/gpu.hpp>
+#include <components/platform/linuxtext.hpp>
 #include <components/platform/wholefile.hpp>
 
 namespace RtxTool
 {
     namespace
     {
-        /// PCI's number for AMD, as `device/vendor` spells it.
-        constexpr std::string_view sAmdVendor = "0x1002";
-
         /// The whole of a sysfs file into `into`, or nothing where it cannot be read. `into` is the
         /// reader's own, so a reading allocates nothing once it has been read once.
         std::optional<std::string_view> readSmall(const std::filesystem::path& path, std::string& into)
@@ -55,7 +54,8 @@ namespace RtxTool
 
         std::string text;
         const std::optional<std::string_view> vendor = readSmall(device / "vendor", text);
-        if (!vendor.has_value() || !vendor->starts_with(sAmdVendor))
+        const std::optional<std::uint16_t> id = vendor.has_value() ? Platform::LinuxText::pciId(*vendor) : std::nullopt;
+        if (!id.has_value() || Platform::Gpu::vendorOf(*id) != Platform::Gpu::Vendor::Amd)
             return std::nullopt;
 
         std::filesystem::path temperature;

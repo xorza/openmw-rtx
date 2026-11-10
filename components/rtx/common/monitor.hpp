@@ -1,8 +1,8 @@
 #pragma once
 
-#include <chrono>
 #include <condition_variable>
 #include <mutex>
+#include <stop_token>
 #include <utility>
 
 #include <components/platform/thread.hpp>
@@ -63,15 +63,6 @@ namespace Rtx
             return ready();
         }
 
-        /// The frame's side, for workers that keep loops of their own and `hand` what they finish:
-        /// waits until `ready` or until `patience` passed, and says which.
-        template <class Ready>
-        bool awaitWithin(std::chrono::milliseconds patience, Ready ready)
-        {
-            std::unique_lock<std::mutex> lock(mMutex);
-            return mToFrame.wait_for(lock, patience, ready);
-        }
-
         /// A worker's whole loop: wait for work, pick it up, do it, and again until stopped. `ready`
         /// and `take` share one lock hold, or a second worker would empty the queue between them;
         /// `turn` runs with the lock released, or a bake would put the workers in single file. A
@@ -83,10 +74,10 @@ namespace Rtx
         /// @param turn what to do about it, handed the stop token so a long turn can give up part
         ///        way. Outside the lock, and it reaches this monitor again for what it hands back.
         template <class Ready, class Take, class Turn>
-        void serve(const Platform::StopToken& stop, Ready ready, Take take, Turn turn)
+        void serve(const std::stop_token& stop, Ready ready, Take take, Turn turn)
         {
             // Under the lock, or the wake could land between a worker's check and its wait.
-            const Platform::StopCallback woken(stop, [this] {
+            const std::stop_callback woken(stop, [this] {
                 const std::lock_guard<std::mutex> lock(mMutex);
                 mToWorker.notify_all();
             });
@@ -104,7 +95,7 @@ namespace Rtx
                     }
 
                     mToWorker.wait(lock, [&] {
-                        if (stop.stopRequested() || ready())
+                        if (stop.stop_requested() || ready())
                             return true;
 
                         // Idle is said under the lock it is read under, and once per wait.
@@ -116,7 +107,7 @@ namespace Rtx
                         return false;
                     });
 
-                    if (stop.stopRequested())
+                    if (stop.stop_requested())
                     {
                         mIdle = true;
                         mToFrame.notify_all();

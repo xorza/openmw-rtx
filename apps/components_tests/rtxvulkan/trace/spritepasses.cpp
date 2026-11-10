@@ -16,9 +16,9 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/scene.h>

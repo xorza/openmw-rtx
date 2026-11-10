@@ -17,8 +17,6 @@
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
-#include "hostwrites.hpp"
-
 // The one translation unit that holds the library's body. Told the two entry points every other
 // function is looked up through, because no program links the loader: volk loads it, and its
 // pointers are not the prototypes the header's static path would name.
@@ -66,7 +64,6 @@ namespace Rtx
 
         /// Why `tryTake` refused: the one reason, because what stands in does not depend on
         /// which use ran out first.
-        constexpr std::string_view sNoRoom = "no device memory is left for it";
 
         /// `ContentTypes` of a device, or nothing where no type is video memory.
         std::optional<ContentTypes> findContentTypes(const VkPhysicalDeviceMemoryProperties& memory)
@@ -303,7 +300,7 @@ namespace Rtx
             allocation, placed.deviceMemory, placed.offset, placed.pMappedData, placed.size, placed.memoryType, use);
     }
 
-    Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(const VkBuffer buffer,
+    Result<DeviceMemory, MemoryRefusal> MemoryAllocator::tryTake(const VkBuffer buffer,
         const VkMemoryPropertyFlags properties, const VkDeviceSize alignment, const MemoryUse use)
     {
         if (isNeverRefused(use))
@@ -321,7 +318,7 @@ namespace Rtx
             });
     }
 
-    Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(
+    Result<DeviceMemory, MemoryRefusal> MemoryAllocator::tryTake(
         const VkImage image, const VkMemoryPropertyFlags properties, const MemoryUse use)
     {
         if (isNeverRefused(use))
@@ -353,7 +350,7 @@ namespace Rtx
     }
 
     template <class Allocate>
-    Result<DeviceMemory, std::string_view> MemoryAllocator::tryAllocate(const Requirements& requirements,
+    Result<DeviceMemory, MemoryRefusal> MemoryAllocator::tryAllocate(const Requirements& requirements,
         const VkDeviceSize alignment, const VkMemoryPropertyFlags properties, const MemoryUse use, Allocate&& allocate)
     {
         VmaAllocationCreateInfo create = askingFor(mMemory, properties, use);
@@ -395,13 +392,13 @@ namespace Rtx
         vmaGetHeapBudgets(mLibrary.get(), budgets);
         const VmaBudget& budget = budgets[heap];
         if (budget.usage + (own ? size : sBlockBytes) > ceilingOf(heap, use, budget.budget))
-            return Err{ sNoRoom };
+            return Err{ MemoryRefusal::NoRoom };
 
         // A driver refusing what its budget said it had is the same answer, and the one `tryTake`
         // exists to give.
         const VkResult result = allocate(create, &allocation, &placed);
         if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY)
-            return Err{ sNoRoom };
+            return Err{ MemoryRefusal::NoRoom };
 
         checkAllocated(result, properties);
         return hold(

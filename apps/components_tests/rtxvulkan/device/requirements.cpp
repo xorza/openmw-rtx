@@ -140,14 +140,6 @@ namespace Rtx
                 EXPECT_TRUE(options[static_cast<std::size_t>(alone)].mNeeds.empty())
                     << "an option core 1.4 carries alone names a need";
 
-            // Checkpoints and markers are set where the build names things, and taken only there.
-            for (const OptionalExtensions& option : options)
-            {
-                const bool breadcrumb
-                    = option.mOption == DeviceOption::Checkpoints || option.mOption == DeviceOption::BufferMarkers;
-                EXPECT_EQ(option.mRead, sDebugNames || !breadcrumb);
-            }
-
             const std::span<const char* const> required = getRequiredDeviceExtensions();
             for (const OptionalExtensions& option : options)
                 for (const char* const name : option.mExtensions)

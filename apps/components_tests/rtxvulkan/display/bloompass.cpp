@@ -9,9 +9,9 @@
 
 #include <volk.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
-#include <apps/components_tests/rtx/support/device/readback.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/readback.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/commands.hpp>

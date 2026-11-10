@@ -10,6 +10,7 @@
 
 #include <components/misc/bytebuffer.hpp>
 #include <components/rtx/image/chainbuild.hpp>
+#include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
@@ -47,6 +48,10 @@ namespace Rtx
         ChainForm mForm = ChainForm::Stands;
         Misc::ByteBuffer mBytes{};
     };
+
+    /// Whether `chain` fills `layout` exactly, or, with no layout, stands and holds no byte: the one
+    /// check of a made chain against its file (`ChainPass::fits`, `ConversionPass::fits`).
+    bool fillsLayout(const std::optional<MadeLayout>& layout, const MadeChain& chain);
 
     /// A file's chain made again from its finest level (`ChainBuild`), as a pass: what the store keeps
     /// for every normal and data map, since the replacers' own chains are made with filters that are
@@ -108,6 +113,16 @@ namespace Rtx
 
         void digest(const Input& input, ContentDigest& digest);
         void run(const Input& input, Output& output);
+
+        /// Where a chain of `form` made of `input`'s file lays its levels, read off the file's header
+        /// alone; nothing for `ChainForm::Stands`, and for a form no run of `input` makes in that shape:
+        /// coarser or own levels of a loose file, coarser levels of a file of one level.
+        static std::optional<MadeLayout> madeLayout(const Input& input, ChainForm form);
+
+        /// Whether `output` can be a run of `input`'s (`ContentCache::find`): its form lays levels for
+        /// the file and its bytes fill them exactly, or nothing stands and it holds no byte. An entry
+        /// whose digest holds and whose bytes are another file's laid nowhere past this.
+        static bool fits(const Input& input, const Output& output);
 
         /// Lets go of the image `digest` described, which a run lets go of as it ends and the
         /// preprocessor once the store answered: held, it kept a file the scene let go of alive.

@@ -140,6 +140,7 @@ namespace MWRender
             if (askedFor("OPENMW_RTX_GPU_VALIDATION"))
                 validation.mLevel = Rtx::ValidationLevel::Gpu;
             validation.mWatchSubmits = validation.mWatchSubmits || askedFor("OPENMW_RTX_WATCH_SUBMITS");
+            validation.mBreadcrumbs = validation.mBreadcrumbs || askedFor("OPENMW_RTX_BREADCRUMBS");
             return validation;
         }
 
@@ -174,18 +175,15 @@ namespace MWRender
             const RtxSettings settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
             const RtxBackend backend = askedBackend();
 
+            Rtx::RenderProfile profile{
+                .mExposure = Rtx::ExposureRule{},
+                .mRadianceWidth = Rtx::RadianceWidth::Shown,
+            };
+            settings.applyTo(profile);
+
             return RunSetup{
                 .mRun = {
-                    .mProfile = {
-                        .mUpscale = settings.mUpscale,
-                        .mUpscaler = settings.mUpscaler,
-                        .mReconstruction = Rtx::ReconstructionRequest{ .mSampling = { .mIndirect = settings.mIndirectLighting, .mBounceRays = settings.mBounceRays } },
-                        .mAnisotropy = settings.mAnisotropy,
-                        .mGamma = settings.mGamma,
-                        .mLitEnvironmentMaps = settings.mLitEnvironmentMaps,
-                        .mExposure = Rtx::ExposureRule{},
-                        .mRadianceWidth = Rtx::RadianceWidth::Shown,
-                    },
+                    .mProfile = profile,
                     .mValidation
                     = { .mLevel = Rtx::sValidationByDefault ? Rtx::ValidationLevel::On : Rtx::ValidationLevel::Off },
                 },
@@ -266,24 +264,13 @@ namespace MWRender
         options.mRun = setup.mRun;
         options.mRun.mValidation = askedValidation(setup.mRun.mValidation);
 
-        // **Counted exactly where a run is installed.** The counts are a report's figures — what
-        // tells "the cell rendered" from "the camera faced away from it", and what `check` asserts
-        // finite — and nothing a player does ever reads them, so a played session is specialized
-        // without the atomics rather than writing numbers to a buffer nobody looks at, once per
-        // pixel that hit anything. The census is the shaders' (`RunSetup::mShaders`).
-        options.mCounting = run != nullptr;
-
-        // **Timed where a run is installed, for the same reason**: a report is what reads the
-        // zones' timestamps, and a played session's report goes nowhere.
-        options.mTiming = run != nullptr;
-
-        // **Read back where a run is installed**, which is what asks for a frame's picture and its
-        // digest: a played session makes neither the digest's pass nor its buffers.
-        options.mReadingBack = run != nullptr;
-
-        // **And the pipelines report themselves where a run is installed**, whose log is what reads
-        // what the driver made of them: a played session asks the compiler for nothing it keeps.
-        options.mPipelineStatistics = run != nullptr;
+        // **Measured exactly where a run is installed.** The hit counts are a report's figures —
+        // what tells "the cell rendered" from "the camera faced away from it", and what `check`
+        // asserts finite — and so are the zones' timestamps, a frame's picture and digest read back,
+        // and what the driver made of each pipeline. Nothing a player does reads any of them, so a
+        // played session is specialized without the atomics and makes neither the digest's pass
+        // nor its buffers. The census is the shaders' (`RunSetup::mShaders`).
+        options.mReporting = run != nullptr ? Rtx::Reporting::Measured : Rtx::Reporting::Played;
 
         // **Said once, where it is decided.** What reconstructs the frame does not change while the
         // session runs, so it does not belong in the periodic line; what that line carries is the
@@ -308,13 +295,7 @@ namespace MWRender
         mRenderer = createBackend(setup.mBackend, options);
         mUpscale = setup.mRun.mProfile.mUpscale;
 
-        // **What `auto` came to, said where it was resolved**: a machine without NGX or without an
-        // NVIDIA card draws through FSR, and the line that named only the request would leave a
-        // reader comparing two pictures and not knowing which upscaler made each.
-        if (const Rtx::UpscalerKind resolved = mRenderer->getProfile().mUpscaler;
-            resolved != setup.mRun.mProfile.mUpscaler)
-            Log(Debug::Info) << "Ray tracing: upscaler resolved to " << Rtx::sUpscalerNames.name(resolved);
-
+        // What `auto` came to is the device's description's `upscaler` line.
         Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
 
         mWindow.apply(*mRenderer, getCamera(), getPresentation());
@@ -399,7 +380,7 @@ namespace MWRender
         mMirror.getRing().setSettled(mSettled.value_or(stated.has_value()));
 
         Resource::SceneManager& scene = *resources.getSceneManager();
-        scene.setShadersEnabled(false);
+        scene.setModelPrograms(Resource::ModelPrograms::Left);
         setAutoMaps(scene);
     }
 
@@ -660,7 +641,8 @@ namespace MWRender
         // preparation took 64 s on 31 threads where it took 80 on 16
         // (`docs/rtx/research/2026-11-09-content-preparation-cost.md`, "Threads").
         if (const MWWorld::ESMStore* const store = MWBase::Environment::get().getESMStore())
-            mMirror.startPreparing(getResources(), contentModels(*store), contentLayers(*store, getResources()),
+            mMirror.startPreparing(getResources(), contentModels(*store, getResources()),
+                contentLayers(*store, getResources()),
                 std::max<std::size_t>(1, Platform::Process::usableCpuCount() - 1));
 
         Rtx::JobProgress progress = mRenderer->awaitKernels(mKernels, std::chrono::milliseconds::zero());
@@ -794,7 +776,7 @@ namespace MWRender
         return rtxSupport();
     }
 
-    std::span<const Rtx::UpscalerKind> RtxRenderer::getUpscalers() const noexcept
+    std::span<const Rtx::UpscalerChoice> RtxRenderer::getUpscalers() const noexcept
     {
         return mRenderer->getUpscalers();
     }
@@ -1029,10 +1011,16 @@ namespace MWRender
         if (mMirror.getScene().placements().getCounts().mPlaced == 0)
             return;
 
+        // **Described first, since a refused eye collects no frame.** `RtxRun::frame` takes traced
+        // frames alone, so the answer for the frame behind, collected ahead of a frame that is then
+        // skipped, would reach no run: left in the ring, the next traced frame collects it.
+        std::optional<Rtx::FrameRequest> request = describeTrace(frame, view);
+
         mPhase.step(Phase::Placing, Phase::Walking);
         {
             const Crash::NoteScope placing("placing the scene");
-            finishBehind(report);
+            if (request.has_value())
+                finishBehind(report);
 
             // The frame behind is collected, so the tile copies it carried are there to paint: what
             // `TracedOverlay::paintTile` was asked before its picture had come back.
@@ -1055,7 +1043,6 @@ namespace MWRender
 
         mPhase.step(Phase::Tracing, Phase::Views);
         const Crash::NoteScope tracing("tracing");
-        std::optional<Rtx::FrameRequest> request = describeTrace(frame, view);
         if (!request.has_value())
         {
             mRenderer->skipFrame();

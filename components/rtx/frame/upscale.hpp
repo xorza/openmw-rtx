@@ -13,73 +13,47 @@
 
 namespace Rtx
 {
-    /// Which upscaler stands between the trace and the screen. The quality mode stays `Upscale`;
-    /// this chooses whose arithmetic turns the traced extent into the shown one.
+    /// Which upscaler the player asked for: `[RTX] upscaler`. The quality mode stays `Upscale`; this
+    /// chooses whose arithmetic turns the traced extent into the shown one.
     ///
     /// **`Auto` is a policy and not a third upscaler**: the backend resolves it once, where the
-    /// device is known, to DLSS where the build has NGX, the card is NVIDIA and the player's
-    /// feature library is installed, and to FSR everywhere else. The resolved value is what a `RenderProfile` carries
-    /// after a renderer is made, so a frame never asks the question twice.
-    enum class UpscalerKind
+    /// device is known, to DLSS where it runs and to FSR everywhere else. What it came to is the
+    /// backend's, which no frame asks twice.
+    enum class UpscalerChoice
     {
         Auto,
         Fsr,
         Dlss,
     };
 
-    /// How an `UpscalerKind` is spelled in a setting file and in a report — the one list of the
+    /// How an `UpscalerChoice` is spelled in a setting file and in a report — the one list of the
     /// names, as `sUpscaleNames` is for the modes.
     inline constexpr NamedEnum sUpscalerNames{ std::array{
-        std::pair{ UpscalerKind::Auto, std::string_view("auto") },
-        std::pair{ UpscalerKind::Fsr, std::string_view("fsr") },
-        std::pair{ UpscalerKind::Dlss, std::string_view("dlss") },
+        std::pair{ UpscalerChoice::Auto, std::string_view("auto") },
+        std::pair{ UpscalerChoice::Fsr, std::string_view("fsr") },
+        std::pair{ UpscalerChoice::Dlss, std::string_view("dlss") },
     } };
 
     /// The upscalers the launcher and the settings window list, in the order both list them:
     /// `auto` first, then the two concrete choices. Every value `sUpscalerNames` spells, in its
     /// order, so a value added there stops the build until each menu gives it a label.
-    inline constexpr std::array<UpscalerKind, sUpscalerNames.mNames.size()> sUpscalerMenu = sUpscalerNames.values();
-    static_assert(sUpscalerMenu.back() == UpscalerKind::Dlss, "DLSS last, so a menu without it is a prefix");
+    inline constexpr std::array<UpscalerChoice, sUpscalerNames.mNames.size()> sUpscalerMenu = sUpscalerNames.values();
+    static_assert(sUpscalerMenu.back() == UpscalerChoice::Dlss, "DLSS last, so a menu without it is a prefix");
 
     /// The upscalers a menu offers: every one of `sUpscalerMenu`, DLSS only where `dlss` holds. A
     /// prefix of the menu, so an interface's labels for it are the same prefix of its labels.
-    constexpr std::span<const UpscalerKind> offeredUpscalers(const bool dlss)
+    constexpr std::span<const UpscalerChoice> offeredUpscalers(const bool dlss)
     {
         return std::span(sUpscalerMenu).first(dlss ? sUpscalerMenu.size() : sUpscalerMenu.size() - 1);
     }
 
-    /// The facts `Auto` reads before an upscaler is made.
-    struct DlssReadiness
+    /// Whether the trace writes `CHANNEL_UPSCALE_MASKS`: what the upscaler that runs reads, which the
+    /// trace's kernels are specialized on rather than branching on it per pixel.
+    enum class UpscaleMasks
     {
-        /// The build has the backend: `Platform::Dlss::sBuilt`.
-        bool mBuilt = false;
-
-        /// The device is an NVIDIA card the run asked about DLSS on.
-        bool mCandidate = false;
-
-        /// The player's feature library is installed.
-        bool mInstalled = false;
+        Skipped,
+        Written,
     };
-
-    /// What `requested` resolves to. A concrete request is returned as it stands, so an explicit
-    /// `Dlss` still tries and fails by name rather than quietly drawing through FSR; `Auto` is DLSS
-    /// where every fact of `readiness` holds, and FSR elsewhere.
-    constexpr UpscalerKind resolveUpscaler(const UpscalerKind requested, const DlssReadiness& readiness)
-    {
-        if (requested != UpscalerKind::Auto)
-            return requested;
-
-        return readiness.mBuilt && readiness.mCandidate && readiness.mInstalled ? UpscalerKind::Dlss
-                                                                                : UpscalerKind::Fsr;
-    }
-
-    /// Whether the trace writes `CHANNEL_UPSCALE_MASKS` under `kind`, resolved: FSR reads the masks,
-    /// and DLSS has no input for them. A fact of the run, which the trace's kernels are specialized
-    /// on rather than branching on it per pixel.
-    constexpr bool writesUpscaleMasks(const UpscalerKind kind)
-    {
-        return kind == UpscalerKind::Fsr;
-    }
 
     /// Where the near plane of the reversed, infinite depth both upscalers are handed stands, in
     /// world units. A reversed float depth is precise in proportion at every distance, so the choice
@@ -90,9 +64,9 @@ namespace Rtx
     /// What the launcher selects and saves for a stored kind: an explicit `Dlss` whose library is
     /// not installed becomes `Auto`, so a missing library cannot leave a setting the game must
     /// refuse to start.
-    constexpr UpscalerKind launcherUpscaler(const UpscalerKind saved, const bool installed)
+    constexpr UpscalerChoice launcherUpscaler(const UpscalerChoice saved, const bool installed)
     {
-        return saved == UpscalerKind::Dlss && !installed ? UpscalerKind::Auto : saved;
+        return saved == UpscalerChoice::Dlss && !installed ? UpscalerChoice::Auto : saved;
     }
 
     /// How the frame gets from the size it is traced at to the size it is shown at — a quality

@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <components/files/conversion.hpp>
+#include <components/platform/folder.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/common/asserts.hpp>
 
@@ -44,9 +45,10 @@ namespace RtxTool
         for (const Stop& stop : request.mStops)
         {
             const Actions& actions = stop.mActions;
-            for (const std::filesystem::path& file :
-                { actions.mCapture, actions.mFrameTimes, actions.mSheet, actions.mMapTile })
+            for (const std::filesystem::path& file : { actions.mFrameTimes, actions.mSheet, actions.mMapTile })
                 removeEarlier(file);
+            if (actions.mCapture.has_value())
+                removeEarlier(actions.mCapture->mFile);
             if (actions.mMean.has_value())
                 removeEarlier(actions.mMean->mFile);
             if (actions.mDoll.has_value())
@@ -56,7 +58,8 @@ namespace RtxTool
         if (request.mPictures.empty() || !std::filesystem::is_directory(request.mPictures, ignored))
             return;
         std::vector<std::filesystem::path> pictured;
-        for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(request.mPictures))
+        for (const std::filesystem::directory_entry& entry :
+            Platform::listFolder(request.mPictures).value_or(std::vector<std::filesystem::directory_entry>()))
         {
             const std::string name = Files::pathToUnicodeString(entry.path().filename());
             const bool ofAStop = std::any_of(request.mStops.begin(), request.mStops.end(), [&](const Stop& stop) {

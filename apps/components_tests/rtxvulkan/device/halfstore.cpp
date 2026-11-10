@@ -9,9 +9,9 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <apps/components_tests/rtx/support/halfstep.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
 #include <components/rtx/common/halffloat.hpp>
 #include <components/rtx/shaders/storageformat.h>
 #include <components/rtxvulkan/device/commands.hpp>

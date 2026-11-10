@@ -15,7 +15,7 @@
 
 #include <volk.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtxvulkan/device/device.hpp>

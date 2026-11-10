@@ -395,9 +395,9 @@ add_component_dir (sky
 # The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan
 # backend is its own library, `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share.
 add_component_dir (rtx/common
-    asserts cardaddress clock digestwords error extensionfilter finite hashstate index job jobprogress menu monitor
+    asserts cardaddress clock digestwords error finite hashstate index job jobprogress menu monitor
     namedenum parallel
-    pointhash radicalinverse runs scratch slots stepped worker
+    pointhash radicalinverse runs scratch slots stepped ownedby
     )
 
 add_component_dir (rtx/environment
@@ -406,7 +406,7 @@ add_component_dir (rtx/environment
 
 add_component_dir (rtx/frame
     bluenoise camera debuglines frameextents frameoptions framepast framesampling reconstruction specularalbedo
-    spritelistsize sunglare surfaceview upscale
+    spritelistsize surfaceview upscale
     )
 
 add_component_dir (rtx/image
@@ -445,12 +445,12 @@ add_component_dir (rtx/preprocess/texture
 add_component_dir (rtx/renderer
     channel denoiserimage framedescriber framedigest frameimage framesinflight framespend framezone guirenderer
     hostwrites memoryreport
-    nullrenderer picturerenderer renderer sceneholder sceneuploader shaderdirectory slot verticalsync
+    nullrenderer picturerenderer renderer sceneholder scenetextures sceneuploader shaderdirectory slot verticalsync
     )
 
 add_component_dir (rtx/scene
-    compositequeue deformertable instancerecord light lightgrid material materialtable mesh
-    meshtable placementtable refusal refusals ripple rowhold scenedesc sceneroom scenetextures sprite
+    compositequeue deformertable foldedshape instancerecord light lightgrid material materialtable mesh
+    meshtable placementtable refusal refusals ripple rowhold scenedesc sceneroom sprite
     surface texturetable
     )
 
@@ -464,7 +464,7 @@ add_component_dir (rtx/view
     )
 
 add_component_dir (rtx/world
-    atmosphere fogbuilder fognoise frameworld moon skycontent skylight weather
+    atmosphere sunglare fogbuilder fognoise frameworld moon skycontent skylight weather
     )
 
 # What the ray tracer would otherwise compute at every start from no content, made by the build and
@@ -472,9 +472,10 @@ add_component_dir (rtx/world
 # are a library of their own, which the tools and the test holding each table to its maker link, so the
 # game carries no maker.
 add_library(openmw-rtx-tablemakers STATIC
-    rtx/common/tablesource.cpp rtx/common/tablesource.hpp
-    rtx/frame/bluenoisemaker.cpp rtx/frame/bluenoisemaker.hpp
-    rtx/world/fognoisemaker.cpp rtx/world/fognoisemaker.hpp)
+    rtx/tables/tablesource.cpp rtx/tables/tablesource.hpp
+    rtx/tables/bluenoisemaker.cpp rtx/tables/bluenoisemaker.hpp
+    rtx/tables/specularalbedomaker.cpp rtx/tables/specularalbedomaker.hpp
+    rtx/tables/fognoisemaker.cpp rtx/tables/fognoisemaker.hpp)
 target_link_libraries(openmw-rtx-tablemakers PUBLIC openmw-platform-io)
 
 function(rtx_make_table tool source table)
@@ -490,8 +491,9 @@ function(rtx_make_table tool source table)
     set(COMPONENT_FILES ${COMPONENT_FILES} "${made}" PARENT_SCOPE)
 endfunction()
 
-rtx_make_table(openmw-rtx-blue-noise rtx/frame/bluenoisetool.cpp rtxbluenoise.cpp)
-rtx_make_table(openmw-rtx-fog-noise rtx/world/fognoisetool.cpp rtxfognoise.cpp)
+rtx_make_table(openmw-rtx-blue-noise rtx/tables/bluenoisetool.cpp rtxbluenoise.cpp)
+rtx_make_table(openmw-rtx-fog-noise rtx/tables/fognoisetool.cpp rtxfognoise.cpp)
+rtx_make_table(openmw-rtx-specular-albedo rtx/tables/specularalbedotool.cpp rtxspecularalbedo.cpp)
 
 add_component_dir (myguirtx
     additivelayer mirrortexture paintedmirror rendermanager sharedtexture slottexture texture
@@ -624,8 +626,6 @@ if (WIN32)
         userhomewin32
         gpu
         gpuwin32
-        dlss
-        dlsswin32
         )
 elseif (UNIX)
     add_component_dir(platform
@@ -633,21 +633,45 @@ elseif (UNIX)
         fileposix
         heapposix
         localtimeposix
-        memoryposix
         sharedmemoryposix
         fifoposix
         libraryposix
-        threadposix
         userhomeposix
         gpu
-        gpuposix
-        dlss
-        dlssposix
         )
+    # **What only Linux answers**, its threads, its memory, its cards and its process, read from its
+    # own files and calls: the fork builds for Linux and Windows alone.
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        add_component_dir(platform
+            memorylinux
+            threadlinux
+            gpulinux
+            )
+    else ()
+        message(FATAL_ERROR "The platform's threads, memory, cards and process are written for Linux and Windows: "
+            "${CMAKE_SYSTEM_NAME} needs files of its own in components/platform")
+    endif()
 else ()
     add_component_dir(platform
         filestdio
         )
+endif()
+
+# **The DLSS feature library NVIDIA publishes, for the systems it publishes it for**: x86-64 Windows and Linux.
+add_component_dir(dlss
+    dlss
+    )
+if (WIN32)
+    add_component_dir(dlss
+        dlsswin32
+        )
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
+    add_component_dir(dlss
+        dlsslinux
+        )
+else ()
+    message(FATAL_ERROR "The DLSS library's download is stated for x86-64 Windows and Linux alone: "
+        "${CMAKE_SYSTEM_NAME} on ${CMAKE_SYSTEM_PROCESSOR} needs a file of its own in components/dlss")
 endif()
 
 # **A file read and written whole, and the process it is written by**, a library of its own: the build's own
@@ -660,7 +684,7 @@ set(PLATFORM_IO_FILES
 if (WIN32)
     list(APPEND PLATFORM_IO_FILES platform/processwin32.cpp platform/wholefilewin32.cpp)
 elseif (UNIX)
-    list(APPEND PLATFORM_IO_FILES platform/processposix.cpp platform/wholefileposix.cpp)
+    list(APPEND PLATFORM_IO_FILES platform/processlinux.cpp platform/wholefileposix.cpp)
 endif()
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(APPEND PLATFORM_IO_FILES platform/kernelfilelinux.cpp platform/kernelfilelinux.hpp)

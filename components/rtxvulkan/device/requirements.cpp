@@ -159,13 +159,13 @@ namespace Rtx
                 .mNeeds = sIdentifiedSwapchain,
                 .mFeature = &sPresentWaitFeature },
             // A marker the queue remembers passing, so a device loss names the last zone each
-            // stage reached rather than an address: `GpuTimer::open` sets one per zone in a build
-            // that names things, and `Device::describeFault` reads them back.
-            OptionalExtensions{ DeviceOption::Checkpoints, sCheckpoints, {}, sDebugNames },
+            // stage reached rather than an address: `GpuTimer::open` sets one per zone where the run
+            // asks (`DeviceReport::mBreadcrumbs`), and `Device::describeFault` reads them back.
+            OptionalExtensions{ DeviceOption::Checkpoints, sCheckpoints, {} },
             // The same for the drivers that have no checkpoints: AMD's own and RADV. A number
             // written at a stage and not a pointer, so the host keeps what each number names
             // (`MarkerRing`).
-            OptionalExtensions{ DeviceOption::BufferMarkers, sBufferMarkers, {}, sDebugNames },
+            OptionalExtensions{ DeviceOption::BufferMarkers, sBufferMarkers, {} },
             // The device's own counters of a stretch of work, which `ZoneCounters` reads around each
             // zone. Taken only where the run asks (`DeviceReport::mCounters`): the profiling lock
             // it holds is the whole device's.

@@ -10,7 +10,9 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/cardmemory.hpp>
-#include <components/rtxvulkan/device/memory/hostwrites.hpp>
+#include <components/platform/gpu.hpp>
+#include <components/rtxvulkan/device/driverprofile.hpp>
+#include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 
@@ -162,6 +164,27 @@ namespace Rtx
             EXPECT_EQ(onAda.mQueueFamily, 0u);
             EXPECT_EQ(onTuring.mTimestampBits, 64u);
             EXPECT_EQ(onTuring.mTextureSide, 32768u);
+        }
+
+        /// **A driver's profile is read off its vendor and its driver alone**: NVIDIA's and AMD's ids are
+        /// their vendors and an unlisted one is another's; each driver names its statistics its own way,
+        /// RADV and AMD's own differently on one card, and a driver that names none has none.
+        TEST(RtxPhysicalDeviceTest, aDriversProfileIsItsVendorAndItsStatisticsNames)
+        {
+            const DriverProfile nvidia = DriverProfile::of(0x10DE, VK_DRIVER_ID_NVIDIA_PROPRIETARY);
+            EXPECT_EQ(nvidia.mVendor, Platform::Gpu::Vendor::Nvidia);
+            EXPECT_EQ(nvidia.mStatistics.mRegisters, "Register Count");
+            EXPECT_TRUE(nvidia.mStatistics.mScratch.empty());
+
+            const DriverProfile radv = DriverProfile::of(0x1002, VK_DRIVER_ID_MESA_RADV);
+            EXPECT_EQ(radv.mVendor, Platform::Gpu::Vendor::Amd);
+            EXPECT_EQ(radv.mStatistics.mScratch, "Scratch size");
+            const DriverProfile amd = DriverProfile::of(0x1002, VK_DRIVER_ID_AMD_PROPRIETARY);
+            EXPECT_EQ(amd.mStatistics.mScratch, "scratchMemUsageInBytes");
+
+            const DriverProfile other = DriverProfile::of(0x5143, VK_DRIVER_ID_QUALCOMM_PROPRIETARY);
+            EXPECT_EQ(other.mVendor, Platform::Gpu::Vendor::Other);
+            EXPECT_TRUE(other.mStatistics.mRegisters.empty());
         }
 
         /// **A queue is chosen for what this renderer submits and, where there is a window, for

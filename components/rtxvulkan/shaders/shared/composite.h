@@ -41,7 +41,7 @@ namespace Rtx::Shaders
     const uint COMPOSITE_SHADOWED_LAMPS = 2u;
 
     /// Where `composite.comp`'s specialization constant sits: whether it writes
-    /// `CHANNEL_UPSCALE_MASKS` (`Rtx::writesUpscaleMasks`).
+    /// `CHANNEL_UPSCALE_MASKS` (`Rtx::UpscaleMasks`).
     const uint COMPOSITE_SPEC_UPSCALE_MASKS = 0u;
     const uint COMPOSITE_SPEC_COUNT = 1u;
 

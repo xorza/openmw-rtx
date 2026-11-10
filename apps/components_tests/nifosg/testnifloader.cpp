@@ -1,5 +1,5 @@
-#include "../nif/node.hpp"
 
+#include <apps/components_tests/nif/node.hpp>
 #include <components/nif/controller.hpp>
 #include <components/nif/data.hpp>
 #include <components/nif/node.hpp>

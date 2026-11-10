@@ -21,7 +21,6 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/rowhold.hpp>
@@ -30,6 +29,7 @@
 
 #include "mirroridentity.hpp"
 #include "mirrorpass.hpp"
+#include "surfacedescription.hpp"
 
 namespace osg
 {

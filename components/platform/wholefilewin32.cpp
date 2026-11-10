@@ -103,9 +103,10 @@ namespace Platform::WholeFileSystem
         return {};
     }
 
-    Result<void, IoError> create(
-        const std::filesystem::path& path, const std::span<const std::span<const std::byte>> parts, const bool synced)
+    Result<void, IoError> create(const std::filesystem::path& path,
+        const std::span<const std::span<const std::byte>> parts, const bool synced, const std::filesystem::path&)
     {
+        // A replaced file's permissions are its folder's on Windows, which the rename keeps.
         const HANDLE handle
             = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
         if (handle == INVALID_HANDLE_VALUE)

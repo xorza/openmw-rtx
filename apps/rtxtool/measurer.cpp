@@ -21,6 +21,7 @@
 #include <apps/rtxtool/instruments/png.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
+#include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
@@ -30,7 +31,6 @@
 #include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
 
-#include "film.hpp"
 #include "stager.hpp"
 #include "stopwriter.hpp"
 

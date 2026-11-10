@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
+#include <components/platform/thread.hpp>
 #include <components/rtx/common/monitor.hpp>
-#include <components/rtx/common/worker.hpp>
 
 namespace MWRender
 {
@@ -125,7 +125,7 @@ namespace RtxTool
         Darkroom* mDeveloping = nullptr;
         Rtx::Monitor mMonitor;
 
-        /// Last, for the reason `Rtx::Worker` gives.
-        Rtx::Worker mWriter;
+        /// Last, so the thread is joined before the members it reads go.
+        std::jthread mWriter;
     };
 }

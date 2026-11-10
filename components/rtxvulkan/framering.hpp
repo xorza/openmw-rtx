@@ -19,8 +19,7 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
-
-#include "digestpass.hpp"
+#include <components/rtxvulkan/frame/digestpass.hpp>
 
 namespace Rtx
 {
@@ -40,9 +39,9 @@ namespace Rtx
 
     struct FrameRecord
     {
-        /// @param timing whether its zones write timestamps — `RendererOptions::mTiming`.
-        /// @param readingBack whether it may carry a digest — `RendererOptions::mReadingBack`.
-        FrameRecord(const Device& device, bool timing, bool readingBack);
+        /// @param reporting whether its zones write timestamps and it may carry a digest
+        ///        (`RendererOptions::mReporting`).
+        FrameRecord(const Device& device, Reporting reporting);
 
         /// The placements' commands and the trace's, submitted apart because a picture inside
         /// the interface is traced between the two. Only the trace's value is waited on: it is
@@ -110,10 +109,10 @@ namespace Rtx
     class FrameRing
     {
     public:
-        /// @param timing whether a frame's zones write timestamps — `RendererOptions::mTiming`.
-        /// @param readingBack whether a frame may digest what it traced, `readDigest`, which the
-        ///        digest's pass is made for — `RendererOptions::mReadingBack`.
-        FrameRing(const Device& device, bool timing, bool readingBack);
+        /// @param reporting whether a frame's zones write timestamps, and whether a frame may digest
+        ///        what it traced, `readDigest`, which the digest's pass is made for
+        ///        (`RendererOptions::mReporting`).
+        FrameRing(const Device& device, Reporting reporting);
 
         FrameRing(const FrameRing&) = delete;
         FrameRing& operator=(const FrameRing&) = delete;

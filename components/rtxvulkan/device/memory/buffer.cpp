@@ -16,7 +16,7 @@
 
 #include "barriers.hpp"
 #include "bufferusage.hpp"
-#include "hostwrites.hpp"
+#include "memory.hpp"
 
 namespace Rtx
 {
@@ -184,11 +184,11 @@ namespace Rtx
         return made;
     }
 
-    Result<Buffer, std::string_view> Buffer::tryMake(const MemoryUse use, const Device& device, const BufferKind kind,
+    Result<Buffer, MemoryRefusal> Buffer::tryMake(const MemoryUse use, const Device& device, const BufferKind kind,
         const VkDeviceSize size, const VkBufferUsageFlags usage, const std::string_view name)
     {
         Buffer made(device, kind, size, usage, name);
-        Result<DeviceMemory, std::string_view> memory
+        Result<DeviceMemory, MemoryRefusal> memory
             = device.getMemory().tryTake(made.mHandle.get(), propertiesOf(kind), alignmentOwedBy(device, usage), use);
         if (!memory.isOk())
             return Err{ memory.error() };

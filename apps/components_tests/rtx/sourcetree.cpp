@@ -462,11 +462,11 @@ namespace Rtx
 
         const std::array<FolderOrder, 3> sFolderOrders{
             FolderOrder{ "components/rtx",
-                { "shaders", "common", "image", "preprocess", "scene", "frame", "world", "renderer", "mirror",
-                    "prepare", "environment", "view" } },
+                { "shaders", "common", "image", "scene", "preprocess", "frame", "world", "renderer", "mirror",
+                    "prepare", "environment", "view", "tables" } },
             FolderOrder{ "components/rtxvulkan",
-                { "shaders", "spirv", "device", "pipeline", "texture", "scene", "trace", "upscale", "display",
-                    "present", "gui", "" } },
+                { "shaders", "spirv", "device", "pipeline", "frame", "texture", "scene", "denoise", "trace", "upscale",
+                    "present", "display", "gui", "" } },
             FolderOrder{ "apps/rtxtool", { "instruments", "model", "" } },
         };
 
@@ -535,6 +535,11 @@ namespace Rtx
 
                         if (!included->mPath.starts_with(rooted))
                             continue;
+
+                        if (std::filesystem::path(included->mPath).parent_path()
+                            == file.parent_path().lexically_relative(sRoot))
+                            found.push_back(relative + ": <" + included->mPath
+                                + "> is in its own folder — quote it among the folder's own");
 
                         const std::string target = topFolderOf(included->mPath.substr(rooted.size()));
                         const std::optional<std::size_t> to = rankOf(target);
@@ -662,7 +667,7 @@ namespace Rtx
                 std::set<std::filesystem::path> reached;
                 reachedBy(file, reached);
                 return std::any_of(reached.begin(), reached.end(), [](const std::filesystem::path& one) {
-                    return genericName(one).find("/rtx/support/device/") != std::string::npos;
+                    return genericName(one).find("/rtxvulkan/support/device/") != std::string::npos;
                 });
             };
 

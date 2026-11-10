@@ -33,7 +33,7 @@ namespace Rtx
                 stats.mKeyMs += since(started, keyed);
                 stats.mKeyBytes += digest.getBytes();
                 if (mKeysInto != nullptr)
-                    mKeysInto->push_back(key);
+                    mKeysInto->push_back(StoredKey{ .mKey = key, .mPass = Pass::sPass });
 
                 if (ask == ContentAsk::Stored ? mCache.stands(key) : mCache.find<Pass>(key, input, output))
                 {

@@ -14,13 +14,14 @@
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/display/displaychain.hpp>
 #include <components/rtxvulkan/display/tonepass.hpp>
+#include <components/rtxvulkan/frame/tracepast.hpp>
 #include <components/rtxvulkan/gui/guitextures.hpp>
 #include <components/rtxvulkan/pipeline/graphicspipeline.hpp>
+#include <components/rtxvulkan/present/presenttarget.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/glare.h>
 #include <components/rtxvulkan/trace/tracemedia.hpp>
-#include <components/rtxvulkan/trace/tracepast.hpp>
 #include <components/rtxvulkan/trace/tracerecording.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>
 
@@ -42,7 +43,7 @@ namespace Rtx
         {
             return ImageDescription{ .mWidth = room.width,
                 .mHeight = room.height,
-                .mFormat = TonePass::sTargetFormat,
+                .mFormat = PresentTarget::sShownFormat,
                 .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT };
         }
 

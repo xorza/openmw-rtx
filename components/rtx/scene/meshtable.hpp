@@ -12,10 +12,10 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
-#include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/shaders/scene.h>
 
 #include "deformertable.hpp"
+#include "foldedshape.hpp"
 #include "mesh.hpp"
 
 namespace Rtx

@@ -21,6 +21,7 @@
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
@@ -365,35 +366,37 @@ namespace Rtx::Testing
             EXPECT_EQ(missed.mDeformed, 0u) << "and its pose was computed on the way past";
         }
 
-        /// A rig no update traversal has resolved is mirrored as it stands, and counted.
+        /// A rig no update traversal has resolved is mirrored as a rig in its bind pose, and counted.
         ///
         /// **The rasterizer draws such a rig in its bind pose too**: `RigGeometry::cull` finds no
         /// skeleton and returns before it skins. So this is what the game shows and not a loss — and
-        /// the count is what says a walk ran before the update it depends on.
-        TEST_F(RtxSceneExtractorTest, aRigWhoseSkeletonNoUpdateFoundIsMirroredAsItStands)
+        /// the count is what says a walk ran before the update it depends on. **A rig by its content**,
+        /// so a template, which no update reaches, reads as its clone does, and the update that finds
+        /// the skeleton poses the same slot rather than building another.
+        TEST_F(RtxSceneExtractorTest, aRigWhoseSkeletonNoUpdateFoundIsMirroredInItsBindPose)
         {
             RiggedQuad rigged;
             rigged.mBone->setMatrix(osg::Matrix::translate(0.0, 0.0, 5.0));
+            EXPECT_EQ(Rtx::readDrawable(*rigged.mRig, Rtx::NodeKind::RigGeometry).mDeform, Rtx::Deform::Rig)
+                << "a rig no update reached";
 
             const ExtractionStats stats = walk(*rigged.mSkeleton);
 
             EXPECT_EQ(stats.mMeshesAdded, 1u);
-            EXPECT_EQ(stats.mDeformed, 0u);
+            EXPECT_EQ(stats.mDeformed, 1u);
             EXPECT_EQ(stats.mUnskinned, 1u);
             ASSERT_EQ(mScene.meshes().getRows().size(), 1u);
-            EXPECT_EQ(mScene.deformers().kindOf(mScene.meshes().getRows()[0]), Rtx::Deform::None);
-            EXPECT_TRUE(mScene.deformers().getRows().empty());
+            EXPECT_EQ(mScene.deformers().kindOf(mScene.meshes().getRows()[0]), Rtx::Deform::Rig);
+            ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
             EXPECT_EQ(mScene.meshes().getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
                 << "the bind pose, where it stands";
 
-            // **And once the update finds it, it is a rig, and not the standing slot reused.** The
-            // standing mesh has no deformer and the rig's has none yet, and nothing equals nothing:
-            // compared as indices, the two agreed and the rig posed a slot with no deformer.
             rigged.update(1);
+            EXPECT_EQ(Rtx::readDrawable(*rigged.mRig, Rtx::NodeKind::RigGeometry).mDeform, Rtx::Deform::Rig);
             const ExtractionStats skinned = walk(*rigged.mSkeleton);
 
-            EXPECT_EQ(skinned.mMeshesReused, 0u) << "a standing slot was reused for a rig";
-            EXPECT_EQ(skinned.mMeshesAdded, 1u);
+            EXPECT_EQ(skinned.mMeshesReused, 1u) << "the rig's slot, posed by its skeleton now";
+            EXPECT_EQ(skinned.mMeshesAdded, 0u);
             EXPECT_EQ(skinned.mDeformed, 1u);
             EXPECT_EQ(skinned.mUnskinned, 0u);
             ASSERT_EQ(mScene.deformers().getRows().size(), 1u);

@@ -12,6 +12,7 @@
 
 #include <components/rtx/common/cardaddress.hpp>
 
+#include "driverprofile.hpp"
 #include "requirements.hpp"
 
 namespace Rtx
@@ -56,6 +57,9 @@ namespace Rtx
             /// is made as (`getRequiredTextureImages`), which is what `vkCreateImage` is valid
             /// against, and never more than `maxImageDimension2D`.
             std::uint32_t mTextureSide = 0;
+
+            /// What differs by the device's vendor and driver.
+            DriverProfile mDriver{};
         };
 
         /// Reads a device's own answers into the decisions this renderer makes from them. Nothing here
@@ -100,6 +104,9 @@ namespace Rtx
 
         /// The largest side a texture may have — `Profile::mTextureSide`.
         std::uint32_t getTextureSide() const { return mProfile.mTextureSide; }
+
+        /// What differs by the device's vendor and driver — `Profile::mDriver`.
+        const DriverProfile& getDriver() const { return mProfile.mDriver; }
 
         /// What a build's scratch has to be aligned to, read once here for the two builders that
         /// lay scratch out.

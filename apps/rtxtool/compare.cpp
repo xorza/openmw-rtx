@@ -25,11 +25,6 @@ namespace RtxTool
 {
     namespace
     {
-        std::ostream& out()
-        {
-            return Debug::getRawStdout();
-        }
-
         /// Whether the two have a picture each, of one size, so there is something to subtract.
         bool comparable(const PngImage& one, const PngImage& other)
         {
@@ -247,13 +242,13 @@ namespace RtxTool
         if (against.empty())
             return 0;
 
-        out() << std::format("{} {} against {}\n", pictures.size(), pictures.size() == 1 ? "picture" : "pictures",
-            Files::pathToUnicodeString(against));
+        Debug::getRawStdout() << std::format("{} {} against {}\n", pictures.size(),
+            pictures.size() == 1 ? "picture" : "pictures", Files::pathToUnicodeString(against));
 
         // Asked to compare and given nothing: "nothing moved" would be a pass that compared nothing.
         if (pictures.empty())
         {
-            out() << "  this run drew no picture to compare\n";
+            Debug::getRawStdout() << "  this run drew no picture to compare\n";
             return 1;
         }
 
@@ -280,7 +275,7 @@ namespace RtxTool
             const std::string said = !reference.isOk() ? "no reference: " + reference.error()
                 : kept == nullptr                      ? std::string("not written")
                                                        : describe(difference);
-            out() << std::format("  {:<36} {}{}\n", picture.mFile, said, note);
+            Debug::getRawStdout() << std::format("  {:<36} {}{}\n", picture.mFile, said, note);
 
             hashed += picture.mRule == PictureRule::Hashed ? 1 : 0;
             moved += verdict == PictureVerdict::Moved ? 1 : 0;
@@ -295,14 +290,14 @@ namespace RtxTool
 
         if (moved == 0 && unmatched == 0)
         {
-            out() << std::format("  {}{}{}\n",
+            Debug::getRawStdout() << std::format("  {}{}{}\n",
                 noisy == 0 ? "every picture judged here is the same" : "no picture judged here moved", noiseNote,
                 hashNote);
             return 0;
         }
 
-        out() << std::format("  {} of {} pictures moved, {} had nothing to compare against{}{}\n", moved, judged,
-            unmatched, noiseNote, hashNote);
+        Debug::getRawStdout() << std::format("  {} of {} pictures moved, {} had nothing to compare against{}{}\n",
+            moved, judged, unmatched, noiseNote, hashNote);
 
         return 1;
     }

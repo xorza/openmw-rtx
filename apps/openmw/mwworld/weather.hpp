@@ -61,12 +61,6 @@ namespace MWWorld
         InteriorDay = 2
     };
 
-    // Lifted to components/sky so a renderer can light an hour without the game
-    using WeatherSetting = Sky::WeatherSetting;
-    using TimeOfDaySettings = Sky::TimeOfDaySettings;
-    template <typename T>
-    using TimeOfDayInterpolator = Sky::TimeOfDayInterpolator<T>;
-
     /// Defines a single weather setting (according to INI)
     class Weather
     {
@@ -90,16 +84,16 @@ namespace MWWorld
         std::array<ESM::RefId, 4> mThunderSoundID;
 
         // Sky (atmosphere) color
-        TimeOfDayInterpolator<osg::Vec4f> mSkyColor;
+        Sky::TimeOfDayInterpolator<osg::Vec4f> mSkyColor;
         // Fog color
-        TimeOfDayInterpolator<osg::Vec4f> mFogColor;
+        Sky::TimeOfDayInterpolator<osg::Vec4f> mFogColor;
         // Ambient lighting color
-        TimeOfDayInterpolator<osg::Vec4f> mAmbientColor;
+        Sky::TimeOfDayInterpolator<osg::Vec4f> mAmbientColor;
         // Sun (directional) lighting color
-        TimeOfDayInterpolator<osg::Vec4f> mSunColor;
+        Sky::TimeOfDayInterpolator<osg::Vec4f> mSunColor;
 
         // Fog depth/density
-        TimeOfDayInterpolator<float> mLandFogDepth;
+        Sky::TimeOfDayInterpolator<float> mLandFogDepth;
 
         // Color modulation for the sun itself during sunset
         osg::Vec4f mSunDiscSunsetColor;
@@ -397,7 +391,7 @@ namespace MWWorld
         /// upstream's name, so the code that fills it reads as upstream's, and `update` moves the
         /// result upstream's `calculateWeatherResult` returns into its `mWeather`.
         MWRender::SkyState mSky;
-        TimeOfDaySettings& mTimeSettings = mSky.mTimes;
+        Sky::TimeOfDaySettings& mTimeSettings = mSky.mTimes;
 
         /// The record `mSky.mWeather` names, copied at each update and named in its place: the
         /// renderers read it while the Lua worker runs, and a global script writes a record's
@@ -405,12 +399,12 @@ namespace MWWorld
         Weather mShownWeather;
 
         // fading of night skydome
-        TimeOfDayInterpolator<float> mNightFade;
+        Sky::TimeOfDayInterpolator<float> mNightFade;
 
         float mHoursBetweenWeatherChanges;
 
         // underwater fog not really related to weather, but we handle it here because it's convenient
-        TimeOfDayInterpolator<float> mUnderwaterFog;
+        Sky::TimeOfDayInterpolator<float> mUnderwaterFog;
 
         WeatherStore* mWeatherStore;
         MoonModel mMasser;

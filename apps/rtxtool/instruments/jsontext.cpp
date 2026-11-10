@@ -1,5 +1,6 @@
 #include "jsontext.hpp"
 
+#include <cmath>
 #include <format>
 
 namespace RtxTool
@@ -34,5 +35,10 @@ namespace RtxTool
             }
         }
         return quoted + '"';
+    }
+
+    std::string jsonNumber(const double value)
+    {
+        return std::isfinite(value) ? std::format("{:.4f}", value) : std::string("null");
     }
 }

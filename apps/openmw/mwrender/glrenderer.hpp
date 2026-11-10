@@ -132,7 +132,7 @@ namespace MWRender
 
         void setVSync(SDLUtil::VSyncMode mode) override;
         const RenderSupport& support() const override;
-        std::span<const Rtx::UpscalerKind> getUpscalers() const override;
+        std::span<const Rtx::UpscalerChoice> getUpscalers() const override;
 
         void addCell(const MWWorld::CellStore* cell) override;
         void removeCell(const MWWorld::CellStore* cell) override;

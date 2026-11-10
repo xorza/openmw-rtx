@@ -425,7 +425,7 @@ namespace Debug
         // Emptied once and then opened to append, so every write lands at the end of the file: the
         // crash catcher's monitor appends its summaries from a process of its own, and a write at
         // this process's own offset would land over them.
-        logfile = Platform::AppendFile::open(logFile, true);
+        logfile = Platform::AppendFile::open(logFile, Platform::AppendStart::Emptied);
 
         Identity log(logfile);
 

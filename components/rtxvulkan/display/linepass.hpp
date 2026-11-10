@@ -5,6 +5,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtxvulkan/pipeline/graphicspipeline.hpp>
+#include <components/rtxvulkan/present/presenttarget.hpp>
 #include <components/rtxvulkan/shaders/shared/line.h>
 
 namespace Rtx
@@ -44,7 +45,7 @@ namespace Rtx
     class LinePass
     {
     public:
-        /// Draws over the curve's picture, in `TonePass::sTargetFormat`.
+        /// Draws over the curve's picture, in `PresentTarget::sShownFormat`.
         explicit LinePass(const Device& device);
 
         void record(VkCommandBuffer commands, const Lines& what, GpuTimer* timer) const;

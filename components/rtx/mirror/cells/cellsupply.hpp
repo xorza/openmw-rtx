@@ -8,7 +8,7 @@
 
 #include <components/platform/thread.hpp>
 #include <components/rtx/common/monitor.hpp>
-#include <components/rtx/common/worker.hpp>
+#include <components/rtx/common/ownedby.hpp>
 
 #include "cellworld.hpp"
 #include "readermemory.hpp"
@@ -124,11 +124,11 @@ namespace Rtx
     private:
         /// The reader's loop: a list at a time, until asked to stop. `Monitor::serve` is the loop,
         /// and this is what it takes and what it does.
-        void work(const Platform::StopToken& stop);
+        void work(const std::stop_token& stop);
 
         /// Reads the list `work` took, a cell at a time, and stops at the first sign of a newer
         /// one. On the thread, outside the lock but for what it hands over.
-        void read(const Platform::StopToken& stop);
+        void read(const std::stop_token& stop);
 
         /// Gives the reader what the frame gave back, taken out of `mReturned` under the lock into
         /// `mRecycling`. On the thread, outside the lock: putting a cell's memory away is the
@@ -202,7 +202,7 @@ namespace Rtx
         /// Owned here and used by the thread alone while it runs.
         std::unique_ptr<CellReader> mReader;
 
-        /// Last, for the reason `Worker` gives.
-        Worker mWorker;
+        /// Last, so the thread is joined before the members it reads go.
+        std::jthread mWorker;
     };
 }

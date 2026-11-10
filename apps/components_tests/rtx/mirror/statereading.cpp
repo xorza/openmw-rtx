@@ -28,6 +28,8 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <components/rtx/image/colour.hpp>
+#include <components/rtx/image/specularlayout.hpp>
+#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/statereading.hpp>
 #include <components/rtx/mirror/surfacedescription.hpp>
@@ -641,6 +643,39 @@ namespace Rtx
                 way.mSet(surface, *image);
                 EXPECT_EQ(surface.emits(), way.mEmits) << way.mName;
             }
+        }
+
+        /// **One rule binds every slot**, encoding and partner: a classic pair converts its diffuse
+        /// beside its `_spec` and its `_spec` beside its diffuse; under a metal-roughness layout the
+        /// diffuse is a colour and the `_spec` data, with no partner; a lone diffuse is painted; and no
+        /// other map has a partner.
+        TEST(RtxStateReadingTest, everySlotIsBoundByTheEncodingAndThePartnerOfOneRule)
+        {
+            const osg::ref_ptr<osg::Image> diffuse = new osg::Image;
+            const osg::ref_ptr<osg::Image> specular = new osg::Image;
+            const osg::ref_ptr<osg::Image> normal = new osg::Image;
+            SurfaceDescription paired;
+            paired.setTexture(SurfaceMap::Diffuse, diffuse.get());
+            paired.setTexture(SurfaceMap::Specular, specular.get());
+            paired.setTexture(SurfaceMap::Normal, normal.get());
+
+            EXPECT_EQ(
+                paired.encodingOf(SurfaceMap::Diffuse, SpecularLayout::Classic), TextureEncoding::ConvertedColour);
+            EXPECT_EQ(paired.partnerOf(SurfaceMap::Diffuse, SpecularLayout::Classic), specular.get());
+            EXPECT_EQ(
+                paired.encodingOf(SurfaceMap::Specular, SpecularLayout::Classic), TextureEncoding::ConvertedSpecular);
+            EXPECT_EQ(paired.partnerOf(SurfaceMap::Specular, SpecularLayout::Classic), diffuse.get());
+            EXPECT_EQ(paired.partnerOf(SurfaceMap::Normal, SpecularLayout::Classic), nullptr);
+
+            EXPECT_EQ(paired.encodingOf(SurfaceMap::Diffuse, SpecularLayout::MetalRoughness), TextureEncoding::Colour);
+            EXPECT_EQ(paired.partnerOf(SurfaceMap::Diffuse, SpecularLayout::MetalRoughness), nullptr);
+            EXPECT_EQ(paired.encodingOf(SurfaceMap::Specular, SpecularLayout::MetalRoughness), TextureEncoding::Data);
+            EXPECT_EQ(paired.partnerOf(SurfaceMap::Specular, SpecularLayout::MetalRoughness), nullptr);
+
+            SurfaceDescription lone;
+            lone.setTexture(SurfaceMap::Diffuse, diffuse.get());
+            EXPECT_EQ(lone.encodingOf(SurfaceMap::Diffuse, SpecularLayout::Classic), TextureEncoding::Painted);
+            EXPECT_EQ(lone.partnerOf(SurfaceMap::Diffuse, SpecularLayout::Classic), nullptr);
         }
 
         /// **A uniform is found by its name and keeps its flags**, and the lookup allocates nothing:

@@ -12,7 +12,7 @@
 #include <volk.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/bindingtable.hpp>
 #include <components/rtxvulkan/device/device.hpp>

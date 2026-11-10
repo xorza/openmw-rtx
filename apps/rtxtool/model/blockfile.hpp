@@ -19,11 +19,6 @@ namespace RtxTool
 {
     struct Stop;
 
-    /// The finite number `text` spells, or nothing where it spells anything else — the whole of the
-    /// text, so `speed = 1500u` is a refusal and not a run that flew at 1500. Read with no locale,
-    /// because a decimal point read where a comma is the separator flies at one.
-    std::optional<float> parseFloat(std::string_view text);
-
     /// The point `x,y,z` spells, with spaces around each number, or nothing where the text is
     /// anything else, empty text included. **It writes no refusal**: the caller knows what was
     /// being read and where, and quotes the text it was given whole.

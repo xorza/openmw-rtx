@@ -136,7 +136,7 @@ namespace MWRender
             Stood mStood;
 
             // The borders' shaders are the rasterizer's, and an empty archive holds none of them.
-            Making() { mScenes.setShadersEnabled(false); }
+            Making() { mScenes.setModelPrograms(Resource::ModelPrograms::Left); }
 
             TracedTerrain make()
             {

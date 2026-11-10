@@ -13,7 +13,6 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <components/platform/thread.hpp>
 #include <components/rtx/common/monitor.hpp>
-#include <components/rtx/common/worker.hpp>
 
 namespace Rtx
 {
@@ -22,7 +21,7 @@ namespace Rtx
         /// A queue over a monitor, which is the shape both of this renderer's workers take.
         ///
         /// **Held together rather than declared in each test**, so the worker is destroyed — and
-        /// so joined — before the queue it reads, which is the rule `Worker` states.
+        /// so joined — before the queue it reads.
         struct Served
         {
             Monitor mMonitor;
@@ -31,14 +30,14 @@ namespace Rtx
 
             /// What a turn does with what it took, so a test can make one throw or hold on the
             /// stop. Handed the token `serve` hands the turn.
-            std::function<void(int, Platform::StopToken)> mTurn = [](int, Platform::StopToken) {};
+            std::function<void(int, std::stop_token)> mTurn = [](int, std::stop_token) {};
 
-            /// **Last, for the reason `Worker` gives.**
-            Worker mWorker;
+            /// **Last**, so it is joined before the members it reads go.
+            std::jthread mWorker;
 
             void start()
             {
-                mWorker.start("served", [this](Platform::StopToken stop) {
+                mWorker = Platform::startThread("served", [this](const std::stop_token& stop) {
                     int took = 0;
 
                     mMonitor.serve(
@@ -47,7 +46,7 @@ namespace Rtx
                             took = mPending.front();
                             mPending.pop_front();
                         },
-                        [&](Platform::StopToken turn) {
+                        [&](std::stop_token turn) {
                             mTurn(took, turn);
                             mMonitor.hand([&] { mDone.push_back(took); });
                         });
@@ -95,7 +94,8 @@ namespace Rtx
             EXPECT_EQ(served.awaitDone(1), (std::vector<int>{ 7 }));
 
             // The join is the assertion: it returns only where the wait was broken.
-            served.mWorker.stop();
+            served.mWorker.request_stop();
+            served.mWorker.join();
         }
 
         /// **A turn that throws ends the process, and says what it threw.** Nothing catches it, so
@@ -108,7 +108,7 @@ namespace Rtx
                 [] {
                     Served served;
                     served.mTurn
-                        = [](int one, Platform::StopToken) { throw std::runtime_error("turn " + std::to_string(one)); };
+                        = [](int one, std::stop_token) { throw std::runtime_error("turn " + std::to_string(one)); };
                     served.start();
                     served.give(4);
                     served.awaitDone(1);
@@ -126,9 +126,9 @@ namespace Rtx
             std::atomic<bool> running{ false };
 
             // Held until the stop is asked for, which is what puts the next two behind it.
-            served.mTurn = [&](int, Platform::StopToken stop) {
+            served.mTurn = [&](int, std::stop_token stop) {
                 running = true;
-                while (!stop.stopRequested())
+                while (!stop.stop_requested())
                     std::this_thread::yield();
             };
             served.start();
@@ -140,7 +140,8 @@ namespace Rtx
             served.give(2);
             served.give(3);
 
-            served.mWorker.stop();
+            served.mWorker.request_stop();
+            served.mWorker.join();
 
             // Read without the lock, because the join is what makes this the only thread left.
             EXPECT_EQ(served.mDone, (std::vector<int>{ 1 })) << "a stopped loop took work nobody was left to collect";
@@ -171,7 +172,7 @@ namespace Rtx
             Served served;
             std::atomic<bool> turning{ false };
             std::atomic<bool> release{ false };
-            served.mTurn = [&](int, Platform::StopToken) {
+            served.mTurn = [&](int, std::stop_token) {
                 turning = true;
                 while (!release)
                     std::this_thread::yield();

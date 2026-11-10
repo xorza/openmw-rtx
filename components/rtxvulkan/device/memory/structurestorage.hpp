@@ -68,7 +68,7 @@ namespace Rtx
         /// @param least how large to make a new block where none of the existing ones can hold it:
         ///        what of the caller's build is still to place, this structure's room included. A
         ///        device with no room for that much makes one only as large as the structure.
-        Result<StructureRoom, std::string_view> take(const Device& device, VkDeviceSize bytes, VkDeviceSize least);
+        Result<StructureRoom, MemoryRefusal> take(const Device& device, VkDeviceSize bytes, VkDeviceSize least);
 
         /// Takes a structure's room back once the timeline passes `until`, which is the stamp its
         /// handle was buried with. `AccelerationStructure`'s end, and nothing else.

@@ -4,12 +4,14 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <limits>
 #include <mutex>
 
 #include <rgbcx/bc7enc.h>
 #include <rgbcx/rgbcx.h>
 
 #include <components/rtx/shaders/halving.h>
+#include <components/rtx/shaders/scene.h>
 
 #include "colour.hpp"
 #include "shadingmap.hpp"
@@ -137,8 +139,13 @@ namespace Rtx
         const TextureFormat format = file.mFormat;
         const MipLevel& finest = file.mLevels.front();
         const bool normalBc5 = format == TextureFormat::Bc5Unorm && file.mEncoding == TextureEncoding::Normal;
-        return std::size_t{ finest.mWidth } * finest.mHeight > 1 && file.levelsFit()
+        return std::size_t{ finest.mWidth } * finest.mHeight > 1 && buildsAt(finest) && file.levelsFit()
             && (isBc1(format) || isBc2(format) || isBc3(format) || isLoose(format) || normalBc5);
+    }
+
+    bool ChainBuild::buildsAt(const MipLevel& finest)
+    {
+        return std::max(finest.mWidth, finest.mHeight) <= Shaders::TEXTURE_SIDE_MOST;
     }
 
     void ChainBuild::build(const TextureData& file, const std::uint32_t levels)
@@ -173,6 +180,7 @@ namespace Rtx
         }
         // Reserved first, so the room is what this build needs on every standard library: MSVC's `assign`
         // and `resize` grow by half again what they held, which `scratchOf` would not predict.
+        assert(bytes <= std::numeric_limits<std::uint32_t>::max() && "a build past a level's 32-bit offset");
         mTexels.reserve(bytes);
         mTexels.assign(bytes, std::byte{ 0 });
 

@@ -46,7 +46,7 @@ namespace Rtx
         /// actor rather than a count of them.
         std::uint32_t mDeformed = 0;
 
-        /// Skinned drawables mirrored as they stand, because `SceneUtil::RigGeometry::getBones`
+        /// Skinned drawables posed in their bind pose, because `SceneUtil::RigGeometry::getBones`
         /// answered nothing. The rasterizer draws such a rig in its bind pose too; the number says
         /// a walk reached a rig before the update that should have found its skeleton.
         std::uint32_t mUnskinned = 0;

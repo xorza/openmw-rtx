@@ -104,7 +104,7 @@ namespace Settings
                 Values values(index);
                 values.mRTX.mUpscale.set(Rtx::Upscale::UltraPerformance);
                 EXPECT_EQ(Manager::mUserSettings.at({ "RTX", "upscale" }), "ultraperformance");
-                values.mRTX.mUpscaler.set(Rtx::UpscalerKind::Dlss);
+                values.mRTX.mUpscaler.set(Rtx::UpscalerChoice::Dlss);
                 EXPECT_EQ(Manager::mUserSettings.at({ "RTX", "upscaler" }), "dlss");
             }
 

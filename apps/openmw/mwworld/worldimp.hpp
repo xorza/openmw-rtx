@@ -156,10 +156,20 @@ namespace MWWorld
 
         void updateSoundListener();
 
-        /// `moveObject`, saying whether the reference was put somewhere else in one step rather
-        /// than walked there, which is what `RenderingManager::notifyJumped` is told.
+        /// How a reference reached where `moveObject` puts it, which is what
+        /// `RenderingManager::notifyJumped` is told.
+        enum class MoveKind
+        {
+            /// Stepped there, as physics walks it.
+            Walked,
+
+            /// Put somewhere else in one step.
+            Placed,
+        };
+
+        /// `moveObject`, saying how the reference got there.
         Ptr moveObject(const Ptr& ptr, CellStore* newCell, const osg::Vec3f& position, bool movePhysics,
-            bool keepActive, bool jumps);
+            bool keepActive, MoveKind kind);
 
         /// The cell a move to `position` lands `ptr` in.
         CellStore* cellForMove(const Ptr& ptr, const osg::Vec3f& position, bool moveToActive);

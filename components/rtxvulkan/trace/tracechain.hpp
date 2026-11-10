@@ -11,16 +11,16 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/denoiserimage.hpp>
+#include <components/rtxvulkan/denoise/denoisehistory.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
-#include <components/rtxvulkan/trace/denoise/denoisehistory.hpp>
+#include <components/rtxvulkan/frame/gbuffer.hpp>
+#include <components/rtxvulkan/frame/tracepast.hpp>
 
 #include "fogvolume.hpp"
-#include "gbuffer.hpp"
 #include "spritebin.hpp"
-#include "tracepast.hpp"
 
 namespace Rtx
 {

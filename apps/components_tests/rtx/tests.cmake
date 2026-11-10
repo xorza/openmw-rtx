@@ -7,22 +7,21 @@ set(RTX_TEST_FILES
     myguirtx/paintedmirror.cpp
     myguirtx/sharedtexture.cpp
     myguirtx/texture.cpp
-    platform/dlss.cpp
+    dlss/dlss.cpp
     platform/linuxtext.cpp
-    rtx/common/extensionfilter.cpp
     rtx/common/halffloat.cpp
     rtx/common/hashstate.cpp
     rtx/common/job.cpp
     rtx/common/monitor.cpp
     rtx/common/namedenum.cpp
+    rtx/common/ownedby.cpp
     rtx/common/parallel.cpp
     rtx/common/radicalinverse.cpp
-    rtx/common/result.cpp
+    rtxvulkan/device/result.cpp
     rtx/common/runs.cpp
     rtx/common/slots.cpp
     rtx/common/stepped.cpp
-    rtx/common/tablesource.cpp
-    rtx/common/worker.cpp
+    rtx/tables/tablesource.cpp
     rtx/environment/atmospheremesh.cpp
     rtx/environment/cloudmesh.cpp
     rtx/environment/skybuilder.cpp
@@ -87,7 +86,7 @@ set(RTX_TEST_FILES
     rtx/scene/lightgrid.cpp
     rtx/scene/refusals.cpp
     rtx/scene/scenedesc.cpp
-    rtx/scene/scenetextures.cpp
+    rtx/renderer/scenetextures.cpp
     rtx/shaders/brdf.cpp
     rtx/shaders/lights.cpp
     rtx/shaders/pixelgrid.cpp
@@ -101,35 +100,35 @@ set(RTX_TEST_FILES
     rtx/world/moon.cpp
     rtx/world/skylight.cpp
     rtx/world/sun.cpp
-    rtxtool/benchrecord.cpp
-    rtxtool/benchrun.cpp
-    rtxtool/benchspec.cpp
-    rtxtool/blockfile.cpp
-    rtxtool/camerapath.cpp
-    rtxtool/cameratrack.cpp
-    rtxtool/cardwatch.cpp
-    rtxtool/threadcounters.cpp
+    rtxtool/model/benchrecord.cpp
+    rtxtool/model/benchrun.cpp
+    rtxtool/model/benchspec.cpp
+    rtxtool/model/blockfile.cpp
+    rtxtool/model/camerapath.cpp
+    rtxtool/model/cameratrack.cpp
+    rtxtool/instruments/cardwatch.cpp
+    rtxtool/instruments/threadcounters.cpp
     rtxtool/compare.cpp
-    rtxtool/contactsheet.cpp
-    rtxtool/cruise.cpp
-    rtxtool/drivercache.cpp
-    rtxtool/film.cpp
+    rtxtool/instruments/contactsheet.cpp
+    rtxtool/model/cruise.cpp
+    rtxtool/instruments/drivercache.cpp
+    rtxtool/model/film.cpp
     rtxtool/framed.cpp
-    rtxtool/framehashes.cpp
-    rtxtool/frametimes.cpp
-    rtxtool/gpuclock.cpp
+    rtxtool/instruments/framehashes.cpp
+    rtxtool/instruments/frametimes.cpp
+    rtxtool/instruments/gpuclock.cpp
     rtxtool/homekey.cpp
     rtxtool/noise.cpp
     rtxtool/numbervalue.cpp
-    rtxtool/measurewindow.cpp
+    rtxtool/model/measurewindow.cpp
     rtxtool/options.cpp
     rtxtool/picturemean.cpp
-    rtxtool/png.cpp
-    rtxtool/runrecord.cpp
-    rtxtool/scenedigest.cpp
-    rtxtool/skycrossing.cpp
-    rtxtool/stopdescription.cpp
-    rtxtool/viewfile.cpp
+    rtxtool/instruments/png.cpp
+    rtxtool/model/runrecord.cpp
+    rtxtool/instruments/scenedigest.cpp
+    rtxtool/model/skycrossing.cpp
+    rtxtool/model/stopdescription.cpp
+    rtxtool/model/viewfile.cpp
     rtxvulkan/device/buffermarkers.cpp
     rtxvulkan/device/instance.cpp
     rtxvulkan/device/memory/formats.cpp
@@ -157,10 +156,12 @@ set(RTX_TEST_FILES
     rtxvulkan/spirv/spirvdigest.cpp
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp
-    rtxvulkan/trace/denoise/temporalturns.cpp
-    rtxvulkan/trace/gbufferstages.cpp
+    rtxvulkan/denoise/temporalturns.cpp
+    rtxvulkan/frame/gbufferstages.cpp
     rtxvulkan/trace/tuplequeue.cpp
+    rtxvulkan/device/extensionfilter.cpp
     rtxvulkan/upscale/fsrframe.cpp
+    rtxvulkan/upscale/upscaler.cpp
     sky/skyclock.cpp
     sky/sundisc.cpp
     widgets/listbox.cpp
@@ -185,8 +186,8 @@ set(RTX_TEST_SUPPORT
     rtx/support/guiquad.hpp
     rtx/support/halfstep.hpp
     rtx/support/heldimages.hpp
-    rtx/support/instanceobstacle.cpp
-    rtx/support/instanceobstacle.hpp
+    rtxvulkan/support/instanceobstacle.cpp
+    rtxvulkan/support/instanceobstacle.hpp
     rtx/support/layers.hpp
     rtx/support/lobeintegrals.hpp
     rtx/support/ownedtexture.cpp
@@ -203,22 +204,22 @@ set(RTX_TEST_SUPPORT
 )
 
 set(RTX_GPU_TEST_SUPPORT
-    rtx/support/device/harness.cpp
-    rtx/support/device/harness.hpp
-    rtx/support/device/heldsubmit.cpp
-    rtx/support/device/heldsubmit.hpp
-    rtx/support/device/hostwritten.cpp
-    rtx/support/device/hostwritten.hpp
-    rtx/support/device/memorylimits.cpp
-    rtx/support/device/memorylimits.hpp
-    rtx/support/device/readback.cpp
-    rtx/support/device/readback.hpp
-    rtx/support/device/rendererprobe.cpp
-    rtx/support/device/rendererprobe.hpp
+    rtxvulkan/support/device/harness.cpp
+    rtxvulkan/support/device/harness.hpp
+    rtxvulkan/support/device/heldsubmit.cpp
+    rtxvulkan/support/device/heldsubmit.hpp
+    rtxvulkan/support/device/hostwritten.cpp
+    rtxvulkan/support/device/hostwritten.hpp
+    rtxvulkan/support/device/memorylimits.cpp
+    rtxvulkan/support/device/memorylimits.hpp
+    rtxvulkan/support/device/readback.cpp
+    rtxvulkan/support/device/readback.hpp
+    rtxvulkan/support/device/rendererprobe.cpp
+    rtxvulkan/support/device/rendererprobe.hpp
 )
 
 set(RTX_GPU_TEST_FILES
-    rtxtool/cardwatchdevice.cpp
+    rtxtool/instruments/cardwatchdevice.cpp
     rtxvulkan/device/commands.cpp
     rtxvulkan/device/device.cpp
     rtxvulkan/device/gputimer.cpp
@@ -238,7 +239,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/device/unormround.cpp
     rtxvulkan/display/bloompass.cpp
     rtxvulkan/display/exposurepass.cpp
-    rtxvulkan/digestpass.cpp
+    rtxvulkan/frame/digestpass.cpp
     rtxvulkan/framering.cpp
     rtxvulkan/frames.cpp
     rtxvulkan/present/presentfence.cpp
@@ -289,11 +290,11 @@ set(RTX_GPU_TEST_FILES
 if (WIN32)
     list(APPEND RTX_TEST_FILES platform/processwin32.cpp)
 else()
-    list(APPEND RTX_TEST_FILES platform/processposix.cpp rtxtool/perffifoposix.cpp)
+    list(APPEND RTX_TEST_FILES platform/processlinux.cpp rtxtool/perffifoposix.cpp)
 endif()
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(APPEND RTX_TEST_FILES platform/gpulinux.cpp platform/kernelfilelinux.cpp platform/wholefilelinux.cpp
-        rtxtool/amdgpulinux.cpp)
+        rtxtool/instruments/amdgpulinux.cpp)
 endif()
 
 target_sources(components-tests PRIVATE ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT})

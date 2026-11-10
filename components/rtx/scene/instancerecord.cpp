@@ -8,10 +8,10 @@
 
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/common/index.hpp>
-#include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/skinning.h>
 
+#include "foldedshape.hpp"
 #include "material.hpp"
 #include "mesh.hpp"
 #include "placementtable.hpp"

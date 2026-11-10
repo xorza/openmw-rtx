@@ -4,9 +4,9 @@
 
 namespace Platform::Gpu
 {
-    bool has(const std::uint32_t vendor)
+    bool has(const Vendor vendor)
     {
-        const std::vector<std::uint32_t> all = vendors();
+        const std::vector<Vendor> all = vendors();
         return std::find(all.begin(), all.end(), vendor) != all.end();
     }
 }

@@ -14,11 +14,11 @@
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/rendererprobe.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/rendererprobe.hpp>
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -366,7 +366,7 @@ namespace Rtx
         }
 
         /// **A timer made not to time writes no timestamp and reports no zone**, for a session
-        /// nobody reads a report of (`RendererOptions::mTiming`): no query pool, and a zone recorded
+        /// nobody reads a report of (`RendererOptions::mReporting`): no query pool, and a zone recorded
         /// and submitted resolves to nothing. The same zone through a timer that times is one span.
         TEST_F(RtxGpuTimerReadTest, aTimerMadeNotToTimeReportsNoZone)
         {

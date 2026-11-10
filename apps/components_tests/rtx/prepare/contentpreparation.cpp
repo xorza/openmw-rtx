@@ -219,13 +219,13 @@ namespace Rtx
                 const std::optional<PreparationManifest::Entry> b = filed.find("meshes/b.nif");
                 ASSERT_TRUE(a.has_value());
                 ASSERT_TRUE(b.has_value());
-                std::vector<ContentKey> lost;
-                for (const ContentKey& key : b->mKeys)
+                std::vector<StoredKey> lost;
+                for (const StoredKey& key : b->mKeys)
                     if (std::find(a->mKeys.begin(), a->mKeys.end(), key) == a->mKeys.end())
                         lost.push_back(key);
                 ASSERT_FALSE(lost.empty()) << "the second model filed no entry of its own";
-                for (const ContentKey& key : lost)
-                    ASSERT_TRUE(std::filesystem::remove(store.pathOf(key)));
+                for (const StoredKey& key : lost)
+                    ASSERT_TRUE(std::filesystem::remove(store.pathOf(key.mKey)));
 
                 ContentStore reopened(folder);
                 const PreparationSetup lostSetup{ .mContent = content,
@@ -235,8 +235,8 @@ namespace Rtx
                     .mHands = 2 };
                 EXPECT_EQ(prepare(lostSetup, both).mWalked, 1u) << "the model whose entry was lost, and no other";
                 reopened.flush();
-                for (const ContentKey& key : lost)
-                    EXPECT_TRUE(std::filesystem::exists(reopened.pathOf(key)));
+                for (const StoredKey& key : lost)
+                    EXPECT_TRUE(std::filesystem::exists(reopened.pathOf(key.mKey)));
             }
 
             prepare(setup, { "meshes/a.nif" });

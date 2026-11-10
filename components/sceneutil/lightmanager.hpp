@@ -3,6 +3,7 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 #include <set>
 #include <unordered_map>
 
@@ -135,8 +136,8 @@ namespace SceneUtil
         // LightSource will affect objects within this radius
         float mRadius;
 
-        // The radius the content states, where that is not mRadius. Zero otherwise.
-        float mSourceRadius = 0.f;
+        // The radius the content states, where one was set apart from mRadius.
+        std::optional<float> mSourceRadius;
 
         int mId;
 
@@ -172,7 +173,7 @@ namespace SceneUtil
 
         /// The radius the content states. Not always getRadius(), which is a cut-off that
         /// Animation::setLightEffect widens threefold for a glow light.
-        float getSourceRadius() const { return mSourceRadius > 0.f ? mSourceRadius : mRadius; }
+        float getSourceRadius() const { return mSourceRadius.value_or(mRadius); }
 
         void setSourceRadius(float radius) { mSourceRadius = radius; }
 

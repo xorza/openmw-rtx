@@ -201,11 +201,6 @@ namespace Rtx
         std::span<const char* const> mExtensions;
         std::span<const char* const> mNeeds;
 
-        /// Whether this build reads the option at all. One it does not is never taken: an
-        /// extension enabled for nothing, and for checkpoints and markers a fault report that says
-        /// the queue passed none where none was set.
-        bool mRead = true;
-
         /// The feature the option is no use without, or nothing where its extensions are all it is.
         const OptionalFeature* mFeature = nullptr;
     };

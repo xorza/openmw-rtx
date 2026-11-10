@@ -8,7 +8,6 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
@@ -17,6 +16,7 @@
 #include "moon.hpp"
 #include "skycontent.hpp"
 #include "skylight.hpp"
+#include "sunglare.hpp"
 
 namespace Rtx
 {

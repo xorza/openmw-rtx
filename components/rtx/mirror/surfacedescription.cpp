@@ -80,4 +80,17 @@ namespace Rtx
                 return TextureEncoding::Colour;
         }
     }
+
+    const osg::Image* SurfaceDescription::partnerOf(const SurfaceMap map, const SpecularLayout specular) const
+    {
+        switch (encodingOf(map, specular))
+        {
+            case TextureEncoding::ConvertedColour:
+                return getTexture(SurfaceMap::Specular);
+            case TextureEncoding::ConvertedSpecular:
+                return getTexture(SurfaceMap::Diffuse);
+            default:
+                return nullptr;
+        }
+    }
 }

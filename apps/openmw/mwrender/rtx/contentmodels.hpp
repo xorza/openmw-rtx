@@ -19,8 +19,9 @@ namespace MWRender
 {
     /// Every model the loaded content names, each once, by its corrected path, sorted: what the loading
     /// screen prepares (`Rtx::ContentPreparation`). The models of every record a reference or an actor
-    /// stands, the body parts an actor is put together from among them.
-    std::vector<std::string> contentModels(const MWWorld::ESMStore& store);
+    /// stands, the body parts an actor is put together from among them; beside each, the `x` model an
+    /// animated object or an actor is loaded as where one stands (`correctActorModelPath`); and the sky's.
+    std::vector<std::string> contentModels(const MWWorld::ESMStore& store, Resource::ResourceSystem& resources);
 
     /// Every ground layer the loaded content names, each once by its diffuse, sorted, with the files
     /// the ground reader draws it with: the land textures and the default one, through the terrain

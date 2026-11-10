@@ -1,5 +1,5 @@
-#include "../nif/node.hpp"
 
+#include <apps/components_tests/nif/node.hpp>
 #include <components/bullethelpers/processtrianglecallback.hpp>
 #include <components/misc/convert.hpp>
 #include <components/nif/data.hpp>

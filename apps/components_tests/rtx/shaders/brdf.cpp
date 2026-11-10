@@ -49,11 +49,10 @@ namespace Rtx
             for (const float weight : { 0.0f, 0.25f, 1.0f })
                 EXPECT_EQ(Shaders::fresnelSchlick(0.0f, edge, weight), 0.0f) << weight;
 
-            const SpecularAlbedo& table = SpecularAlbedo::shared();
             for (const float roughness : { 0.0f, 0.3f, 1.0f })
                 for (const float cosine : { 0.0f, 0.5f, 1.0f })
                 {
-                    const osg::Vec2f cell = table.at(cosine, roughness);
+                    const osg::Vec2f cell = specularAlbedoAt(cosine, roughness);
                     EXPECT_EQ(Shaders::specularAlbedoOf(0.0f, edge, cell.x(), cell.y()), 0.0f)
                         << cosine << ' ' << roughness;
                     EXPECT_EQ(Shaders::specularCompensation(0.0f, cell.y()), 1.0f) << cosine << ' ' << roughness;

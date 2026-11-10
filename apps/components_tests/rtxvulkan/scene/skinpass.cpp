@@ -13,11 +13,11 @@
 #include <osg/Vec4f>
 #include <vulkan/vulkan_core.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/heldsubmit.hpp>
-#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/heldsubmit.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/deformertable.hpp>

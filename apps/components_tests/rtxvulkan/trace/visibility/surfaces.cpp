@@ -17,9 +17,6 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
-#include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/halfstep.hpp>
@@ -27,6 +24,9 @@
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/surfaceview.hpp>

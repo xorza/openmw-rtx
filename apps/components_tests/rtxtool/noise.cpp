@@ -145,8 +145,9 @@ namespace RtxTool
             EXPECT_TRUE(truth.mSchedule.mReconstruction->mJitter);
             EXPECT_EQ(truth.mSchedule.mReconstruction->mSampling.mNoise, Rtx::NoiseSource::WhiteHash);
             EXPECT_EQ(truth.mSchedule.mReconstruction->mSampling.mLampCandidates, 0u);
-            EXPECT_TRUE(truth.mActions.mDeepCapture);
-            EXPECT_EQ(truth.mActions.mCapture, std::filesystem::path("out") / "pier-reference.png");
+            ASSERT_TRUE(truth.mActions.mCapture.has_value());
+            EXPECT_EQ(truth.mActions.mCapture->mDepth, Actions::Capture::Depth::Deep);
+            EXPECT_EQ(truth.mActions.mCapture->mFile, std::filesystem::path("out") / "pier-reference.png");
 
             const Stop& bar = plan.mStops[1];
             EXPECT_EQ(bar.mName, "pier-averaged");
@@ -160,7 +161,7 @@ namespace RtxTool
             const Stop& lastLimit = plan.mStops[33];
             EXPECT_EQ(lastLimit.mName, "pier-averaged-limit");
             EXPECT_EQ(lastLimit.mSchedule.mSampleOffset, 33000188u);
-            EXPECT_TRUE(lastLimit.mActions.mCapture.empty());
+            EXPECT_FALSE(lastLimit.mActions.mCapture.has_value());
             ASSERT_TRUE(lastLimit.mActions.mMean.has_value());
             EXPECT_EQ(lastLimit.mActions.mMean->mFile, std::filesystem::path("out") / "pier-averaged-limit.png");
             EXPECT_EQ(lastLimit.mActions.mMean->mOf, 32u);
@@ -174,7 +175,9 @@ namespace RtxTool
             EXPECT_EQ(frame.mSchedule.mReconstruction, Rtx::ReconstructionRequest{});
             EXPECT_FALSE(frame.mSchedule.mUpscale.has_value()) << "the frame upscales as the run does";
             EXPECT_FALSE(frame.mSchedule.mRoute.has_value());
-            EXPECT_EQ(frame.mActions.mCapture, std::filesystem::path("out") / "pier.png");
+            ASSERT_TRUE(frame.mActions.mCapture.has_value());
+            EXPECT_EQ(frame.mActions.mCapture->mFile, std::filesystem::path("out") / "pier.png");
+            EXPECT_EQ(frame.mActions.mCapture->mDepth, Actions::Capture::Depth::Shown);
 
             const Stop& lastMean = plan.mStops[66];
             EXPECT_EQ(lastMean.mName, "pier-mean");

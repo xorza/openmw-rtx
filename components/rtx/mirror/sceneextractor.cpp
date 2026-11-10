@@ -28,7 +28,6 @@
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
-#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -37,6 +36,7 @@
 #include <components/sceneutil/skeleton.hpp>
 #include <components/sceneutil/stableidentity.hpp>
 
+#include "lightbuilder.hpp"
 #include "meshreader.hpp"
 #include "mirroridentity.hpp"
 #include "nodekind.hpp"

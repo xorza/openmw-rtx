@@ -6,7 +6,7 @@
 #include <memory>
 #include <span>
 
-#include <components/platform/dlss.hpp>
+#include <components/dlss/dlss.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/settings/windowmode.hpp>
 
@@ -28,7 +28,7 @@ namespace Launcher
     public:
         /// @param dlss where the DLSS library is looked for and downloaded to, as the configuration
         ///        names the folders.
-        explicit GraphicsPage(const Platform::Dlss::Folders& dlss, QWidget* parent = nullptr);
+        explicit GraphicsPage(const DlssLibrary::Folders& dlss, QWidget* parent = nullptr);
         ~GraphicsPage() override;
 
         void saveSettings();
@@ -56,9 +56,9 @@ namespace Launcher
 
         /// What the upscaler box lists, a prefix of `Rtx::sUpscalerMenu`: DLSS where the build has
         /// it and the machine has an NVIDIA adapter.
-        std::span<const Rtx::UpscalerKind> mUpscalers;
+        std::span<const Rtx::UpscalerChoice> mUpscalers;
 
-        Platform::Dlss::Folders mDlssFolders;
+        DlssLibrary::Folders mDlssFolders;
         QNetworkAccessManager* mNetwork = nullptr;
 
         /// The DLSS download under way, or nothing: one at a time.

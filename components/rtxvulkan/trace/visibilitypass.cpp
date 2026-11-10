@@ -16,6 +16,7 @@
 
 #include <volk.h>
 
+#include <components/rtx/common/error.hpp>
 #include <components/rtx/common/parallel.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/frame/bluenoise.hpp>
@@ -37,6 +38,7 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/validation.hpp>
+#include <components/rtxvulkan/frame/gbuffer.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
@@ -47,7 +49,6 @@
 #include <components/rtxvulkan/shaders/shared/traceconstants.h>
 
 #include "fogvolume.hpp"
-#include "gbuffer.hpp"
 #include "ripplepass.hpp"
 #include "spritebin.hpp"
 #include "tracemedia.hpp"
@@ -268,14 +269,14 @@ namespace Rtx
     }
 
     VisibilityPass::VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
-        const SetLayout& volumeLayout, bool counting, const bool specialize, const UpscalerKind upscaler)
+        const SetLayout& volumeLayout, bool counting, const bool specialize, const UpscaleMasks masks)
         : mDevice(device)
         , mBlueNoise(uploadOnce(device, sBlueNoise, "blue noise"))
-        , mSpecularAlbedo(uploadOnce(device, SpecularAlbedo::shared().getValues(), "specular albedo"))
+        , mSpecularAlbedo(uploadOnce(device, std::span<const float>(sSpecularAlbedo), "specular albedo"))
         , mConstants(Buffer::deviceLocal(device, sizeof(Shaders::VisibilityConstants),
               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame constants"))
         , mCounting(counting ? 1u : 0u)
-        , mUpscaleMasks(writesUpscaleMasks(upscaler) ? 1u : 0u)
+        , mUpscaleMasks(masks == UpscaleMasks::Written ? 1u : 0u)
         , mSpecialize(specialize)
         , mChannelLayout(&channelLayout)
         , mVolumeLayout(&volumeLayout)
@@ -314,7 +315,7 @@ namespace Rtx
 
         const auto count = static_cast<std::uint32_t>(drawing.size());
         mCompiling.start("kernel compile", count,
-            [this, &textureLayout, caller, drawing = std::move(drawing)](const Platform::StopToken& stop, Job& job) {
+            [this, &textureLayout, caller, drawing = std::move(drawing)](const std::stop_token& stop, Job& job) {
                 mCode.emplace(mDevice, sTraceModules);
                 runInParallel(
                     "compile hand", drawing.size(), Hands::Every, stop, [caller] { return AdoptedThread(caller); },
@@ -324,7 +325,7 @@ namespace Rtx
                     });
 
                 // A table stopped half way is not one to answer `kernels` with.
-                if (stop.stopRequested())
+                if (stop.stop_requested())
                     throw std::runtime_error("the kernel compile was stopped");
                 if (!mSpecialize)
                     mCode.reset();
@@ -338,9 +339,9 @@ namespace Rtx
         // tuple, whose compile they would slow. **A kernel a turn**, so a stop waits for one compile
         // and not a tuple's six or seven, and a tuple made when its last kernel lands.
         mSpecializing.start("tuple compile", VisibilityVariant::sMade - 1,
-            [this, &textureLayout, caller](const Platform::StopToken& stop, Job& job) {
+            [this, &textureLayout, caller](const std::stop_token& stop, Job& job) {
                 while (!mCompiling.waitFor(std::chrono::milliseconds(100)).isDone())
-                    if (stop.stopRequested())
+                    if (stop.stop_requested())
                         throw std::runtime_error("the tuple compile was stopped");
 
                 // The sky's tuples after the dark ones: the order matters less than the tuple a
@@ -394,7 +395,7 @@ namespace Rtx
                         }
                     });
 
-                if (stop.stopRequested())
+                if (stop.stop_requested())
                     throw std::runtime_error("the tuple compile was stopped");
                 mCode.reset();
             });
@@ -436,10 +437,19 @@ namespace Rtx
                 bool makes = false;
                 {
                     std::unique_lock lock(mCanonicalMutex);
-                    if (!mCanonicalClaimed[at][made])
-                        makes = mCanonicalClaimed[at][made] = true;
+                    Canonical& state = mCanonical[at][made];
+                    if (state == Canonical::Unclaimed)
+                    {
+                        state = Canonical::Making;
+                        makes = true;
+                    }
                     else
-                        mCanonicalMade.wait(lock, [&] { return mKernels.mMadeStages[at][made] != nullptr; });
+                    {
+                        mCanonicalMade.wait(lock, [&] { return state != Canonical::Making; });
+                        if (state == Canonical::Failed)
+                            throw DeviceError("the trace's " + canonical.describe(stage.mName)
+                                + " pipeline failed on another compile hand");
+                    }
                 }
                 if (makes)
                 {
@@ -447,12 +457,26 @@ namespace Rtx
                     words[Shaders::SPEC_COUNTING] = specialization[Shaders::SPEC_COUNTING];
                     words[Shaders::SPEC_UPSCALE_MASKS] = specialization[Shaders::SPEC_UPSCALE_MASKS];
                     words[Shaders::SPEC_WATER_STAGE] = specialization[Shaders::SPEC_WATER_STAGE];
-                    auto pipeline = std::make_unique<ComputePipeline<Shaders::StageConstants>>(mDevice, sBindings,
-                        sharedSets(textureLayout), *mCode, stage.mModule, canonical.describe(stage.mName), words,
-                        SubgroupSize::ThirtyTwo);
+                    std::unique_ptr<ComputePipeline<Shaders::StageConstants>> pipeline;
+                    try
+                    {
+                        pipeline = std::make_unique<ComputePipeline<Shaders::StageConstants>>(mDevice, sBindings,
+                            sharedSets(textureLayout), *mCode, stage.mModule, canonical.describe(stage.mName), words,
+                            SubgroupSize::ThirtyTwo);
+                    }
+                    catch (...)
+                    {
+                        {
+                            const std::lock_guard lock(mCanonicalMutex);
+                            mCanonical[at][made] = Canonical::Failed;
+                        }
+                        mCanonicalMade.notify_all();
+                        throw;
+                    }
                     {
                         const std::lock_guard lock(mCanonicalMutex);
                         mKernels.mMadeStages[at][made] = std::move(pipeline);
+                        mCanonical[at][made] = Canonical::Made;
                     }
                     mCanonicalMade.notify_all();
                 }

@@ -7,7 +7,9 @@
 #include <cstdint>
 #include <exception>
 #include <future>
+#include <stop_token>
 #include <string_view>
+#include <thread>
 #include <utility>
 
 #include <components/platform/thread.hpp>
@@ -19,7 +21,7 @@ namespace Rtx
     /// One task on a thread of its own: started once, counted as it goes, its end and what it threw
     /// waited for from any thread, and asked to stop when this goes — the work hears it through the
     /// token it is handed, and should give up at the next step rather than finish. Declare it last
-    /// in whatever owns it, for the reason `Rtx::Worker` gives.
+    /// in whatever owns it, so it is joined before the members its work reads go.
     class Job
     {
     public:
@@ -42,8 +44,8 @@ namespace Rtx
             mCount = count;
             std::promise<void> promise;
             mDone = promise.get_future().share();
-            mThread = Platform::Thread(name,
-                [this, work = std::move(work), promise = std::move(promise)](const Platform::StopToken& stop) mutable {
+            mThread = Platform::startThread(name,
+                [this, work = std::move(work), promise = std::move(promise)](const std::stop_token& stop) mutable {
                     // Nothing after the work inside the `try`: for work that always throws, MSVC
                     // calls whatever follows it unreachable, and the build treats that as an error.
                     std::exception_ptr failed;
@@ -74,14 +76,10 @@ namespace Rtx
         /// it, and the steps made so far, short of the count, where it did not.
         JobProgress waitFor(const std::chrono::milliseconds patience) const
         {
-            if (mDone.wait_for(patience) == std::future_status::ready)
-            {
+            const bool finished = mDone.wait_for(patience) == std::future_status::ready;
+            if (finished)
                 wait();
-                return JobProgress{ .mMade = mCount, .mCount = mCount };
-            }
-
-            const std::uint32_t made = mMade.load(std::memory_order_relaxed);
-            return JobProgress{ .mMade = std::min(made, mCount - 1), .mCount = mCount };
+            return JobProgress::of(mMade.load(std::memory_order_relaxed), mCount, finished);
         }
 
     private:
@@ -92,6 +90,6 @@ namespace Rtx
         std::shared_future<void> mDone;
 
         /// Last, so it is joined before anything the work writes goes.
-        Platform::Thread mThread;
+        std::jthread mThread;
     };
 }

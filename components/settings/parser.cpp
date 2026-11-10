@@ -338,7 +338,11 @@ void Settings::SettingsFileParser::saveSettingsFile(
         // Written whole and synced, so a crash or a full disk leaves the old file and never a part.
         const Result<void, Platform::IoError> saved
             = Platform::writeWhole(file, ostream.view(), Platform::Durability::Synced);
-        if (!saved.isOk())
+        if (!saved.isOk() && saved.error().mFailure == Platform::IoFailure::NotDurable)
+            Log(Debug::Warning) << "Wrote settings file " << file
+                                << ", which the system could not confirm on the disk: "
+                                << saved.error().mCode.message();
+        else if (!saved.isOk())
             Log(Debug::Error) << "Failed to write settings file " << file << ": " << saved.error().mCode.message();
     }
 }

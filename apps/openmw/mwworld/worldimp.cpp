@@ -1003,11 +1003,12 @@ namespace MWWorld
     {
         // Physics placed outright is a reference put somewhere else in one step; physics stepped
         // is a reference walking there.
-        return moveObject(ptr, newCell, position, movePhysics, keepActive, movePhysics);
+        return moveObject(
+            ptr, newCell, position, movePhysics, keepActive, movePhysics ? MoveKind::Placed : MoveKind::Walked);
     }
 
-    MWWorld::Ptr World::moveObject(
-        const Ptr& ptr, CellStore* newCell, const osg::Vec3f& position, bool movePhysics, bool keepActive, bool jumps)
+    MWWorld::Ptr World::moveObject(const Ptr& ptr, CellStore* newCell, const osg::Vec3f& position, bool movePhysics,
+        bool keepActive, MoveKind kind)
     {
         ESM::Position pos = ptr.getRefData().getPosition();
         std::memcpy(pos.pos, &position, sizeof(osg::Vec3f));
@@ -1106,7 +1107,7 @@ namespace MWWorld
         if (haveToMove && newPtr.getRefData().getBaseNode())
         {
             mRendering->moveObject(newPtr, position);
-            if (jumps)
+            if (kind == MoveKind::Placed)
                 mRendering->notifyJumped(newPtr);
             if (movePhysics)
             {
@@ -1158,7 +1159,7 @@ namespace MWWorld
             actor->adjustPosition(vec);
         if (ptr.getClass().isActor())
             return moveObject(ptr, newpos, false, moveToActive && ptr != getPlayerPtr());
-        return moveObject(ptr, cellForMove(ptr, newpos, false), newpos, true, false, false);
+        return moveObject(ptr, cellForMove(ptr, newpos, false), newpos, true, false, MoveKind::Walked);
     }
 
     void World::scaleObject(const Ptr& ptr, float scale, bool force)

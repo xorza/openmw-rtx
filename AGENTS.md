@@ -173,6 +173,23 @@ is not here is held to the rules above.
   duration (`files/data-mw/scripts/omw/surfacelight/`), as the user asked: vanilla lit only the
   actor a bolt struck, and a bolt that struck a wall lit nothing. Built-in scripts, so it is on in
   every game, through upstream's own projectile hit handler and no engine code.
+- The launcher's DLSS download, into the folder `getUserLocalDataPath` names on each of the five
+  path classes: NVIDIA's feature library is the player's to install, and a per-user folder is one
+  the game may write to on every system.
+- The sky's clocks in `components/sky` (the time of day, the clouds' scroll, the stars' roll) and
+  `SkyManager` split from `Precipitation`: the ray tracer lights an hour and draws the rain with no
+  rasterizer standing, and each reads the one rule the rasterizer reads.
+- The small hooks the mirror reads the game's state through, each an accessor or a stamp of state
+  upstream already keeps: `Terrain::World::getActiveGrid`; `LightController`'s type and colour and
+  `LightSource`'s controller, source radius and const light; `RigGeometry`'s skeleton, influences,
+  bones and skin matrix; `Skeleton::markReached`, which the mirror's pose walk stamps as a cull would;
+  `PaintedTexture`, `ImageRegion` and `OffscreenFraming`, a map tile's picture as both renderers paint
+  it; `Animation`'s glow fade and the glow light's source radius; `World::getStormDirection`; and the
+  terrain's height solved in double, so the ray tracer's ground and the game's agree on every build of
+  OSG.
+- `components/settings` naming the core's `Upscale` and `MAX_BOUNCE_RAYS`, which its `[RTX]` category
+  stores and sanitizes; and `add_component_dir` listing a folder's `.h` files, the headers GLSL reads
+  as well.
 - Faults the user approved fixing:
   - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1`
     holds for every error);
@@ -183,9 +200,6 @@ is not here is held to the rules above.
     rounds;
   - `SDLUtil::InputWrapper` logged an unhandled event's type in hex without `std::dec` after it,
     which left every later number in the log in hex;
-  - `NavMeshDb` committed each tile under a rollback journal at full synchronisation, several fsyncs
-    a tile; it now journals into a write-ahead log at normal synchronisation, where a tile a crash
-    loses is generated again;
   - `openmw_settings_window.layout` gave the `ScriptBox` widget its `name` attribute twice, which an
     XML parser refuses;
   - `Debug::wrapApplication`'s fatal error box read only whether a terminal started the game, not

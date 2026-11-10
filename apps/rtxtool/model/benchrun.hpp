@@ -338,14 +338,23 @@ namespace RtxTool
     /// What a stop writes, and when.
     struct Actions
     {
-        /// Where the last measured frame is written as a PNG, or empty for none.
-        std::filesystem::path mCapture;
+        /// Where the last measured frame is written as a PNG, and at what depth.
+        struct Capture
+        {
+            std::filesystem::path mFile;
 
-        /// Whether the capture is the sum's own picture at sixteen bits a channel
-        /// (`Rtx::Renderer::readDeepPixels`), undithered, rather than the frame's bytes as shown:
-        /// a reference's, which a bias is measured against and whose byte would stand under it.
-        /// Only a stop that sums (`Schedule::mAccumulate`) has one.
-        bool mDeepCapture = false;
+            /// The frame's bytes as shown, or the sum's own picture at sixteen bits a channel
+            /// (`Rtx::Renderer::readDeepPixels`), undithered: a reference's, which a bias is measured
+            /// against and whose byte would stand under it. Only a stop that sums
+            /// (`Schedule::mAccumulate`) takes a deep one.
+            enum class Depth
+            {
+                Shown,
+                Deep,
+            };
+            Depth mDepth = Depth::Shown;
+        };
+        std::optional<Capture> mCapture;
 
         /// A mean the last measured frame is added to, which the stop that adds the `mOf`th writes
         /// to `mFile` as a PNG: what a picture converges to, which no one stop draws. The stops one

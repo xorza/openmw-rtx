@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <apps/components_tests/rtx/support/instanceobstacle.hpp>
+#include <apps/components_tests/rtxvulkan/support/instanceobstacle.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/loaderlayers.hpp>

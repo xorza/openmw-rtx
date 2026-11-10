@@ -276,7 +276,6 @@ namespace Rtx
         if (!listed.has_value())
             return;
 
-        const std::filesystem::path::string_type partial = std::filesystem::path(Platform::sPartialSuffix).native();
         const std::filesystem::file_time_type now = std::filesystem::file_time_type::clock::now();
         for (const std::filesystem::directory_entry& entry : *listed)
         {
@@ -284,19 +283,13 @@ namespace Rtx
             if (name == mine || !name.starts_with(prefix))
                 continue;
 
-            // A temporary a process killed before its rename left (`Platform::writeWhole`), once it
-            // is old enough to be no live write's.
-            std::error_code ignored;
-            if (name.ends_with(partial) && entry.is_regular_file(ignored)
-                && now - entry.last_write_time(ignored) > Platform::sPartialStaleAfter)
-            {
-                std::filesystem::remove(entry.path(), ignored);
+            if (Platform::sweepStalePartial(entry, now) != Platform::Partial::None)
                 continue;
-            }
 
             if (!name.ends_with(suffix))
                 continue;
 
+            std::error_code ignored;
             // A directory somebody named `rtx-something` is not this renderer's to remove, and
             // neither is a link: what is swept is the kind of thing `write` leaves.
             if (!entry.is_regular_file(ignored))

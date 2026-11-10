@@ -127,10 +127,10 @@ namespace
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
-    constexpr std::array<Rtx::MenuLabel<Rtx::UpscalerKind>, Rtx::sUpscalerMenu.size()> sUpscalerLabels{ {
-        { Rtx::UpscalerKind::Auto, "#{OMWEngine:RayTracingUpscalerAuto}" },
-        { Rtx::UpscalerKind::Fsr, "#{OMWEngine:RayTracingUpscalerFsr}" },
-        { Rtx::UpscalerKind::Dlss, "#{OMWEngine:RayTracingUpscalerDlss}" },
+    constexpr std::array<Rtx::MenuLabel<Rtx::UpscalerChoice>, Rtx::sUpscalerMenu.size()> sUpscalerLabels{ {
+        { Rtx::UpscalerChoice::Auto, "#{OMWEngine:RayTracingUpscalerAuto}" },
+        { Rtx::UpscalerChoice::Fsr, "#{OMWEngine:RayTracingUpscalerFsr}" },
+        { Rtx::UpscalerChoice::Dlss, "#{OMWEngine:RayTracingUpscalerDlss}" },
     } };
     static_assert(Rtx::followsMenu(sUpscalerLabels, Rtx::sUpscalerMenu));
 
@@ -246,7 +246,7 @@ namespace MWGui
     }
 
     SettingsWindow::SettingsWindow(
-        Files::ConfigurationManager& cfgMgr, const std::span<const Rtx::UpscalerKind> upscalers)
+        Files::ConfigurationManager& cfgMgr, const std::span<const Rtx::UpscalerChoice> upscalers)
         : WindowBase("openmw_settings_window.layout")
         , mUpscalers(upscalers)
         , mKeyboardMode(true)
@@ -303,7 +303,7 @@ namespace MWGui
         mRayTracingUpscale->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscaleChanged);
 
-        addMenuItems<Rtx::UpscalerKind>(mRayTracingUpscaler, std::span(sUpscalerLabels).first(mUpscalers.size()));
+        addMenuItems<Rtx::UpscalerChoice>(mRayTracingUpscaler, std::span(sUpscalerLabels).first(mUpscalers.size()));
         mRayTracingUpscaler->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscalerChanged);
 
@@ -528,7 +528,7 @@ namespace MWGui
         if (pos >= mUpscalers.size())
             return;
 
-        const Rtx::UpscalerKind chosen = mUpscalers[pos];
+        const Rtx::UpscalerChoice chosen = mUpscalers[pos];
         if (Settings::rtx().mUpscaler.get() == chosen)
             return;
 

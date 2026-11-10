@@ -95,6 +95,7 @@ namespace Rtx
     void GpuTimer::open(VkCommandBuffer commands, const FrameZone zone)
     {
         const std::string_view name = sFrameZoneNames.name(zone);
+        assert(name.data()[name.size()] == '\0' && "a zone's name is a literal, so the label reads it whole");
         mDevice.beginLabel(commands, name.data());
 
         assert(mOpen == mZones.size() && "a zone was opened while another was still open");

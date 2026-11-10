@@ -16,7 +16,7 @@ namespace MWGui
     public:
         /// @param upscalers what the renderer offers (`MWRender::Renderer::getUpscalers`), which
         ///        outlives the window.
-        SettingsWindow(Files::ConfigurationManager& cfgMgr, std::span<const Rtx::UpscalerKind> upscalers);
+        SettingsWindow(Files::ConfigurationManager& cfgMgr, std::span<const Rtx::UpscalerChoice> upscalers);
 
         void onOpen() override;
 
@@ -56,7 +56,7 @@ namespace MWGui
         MyGUI::ComboBox* mRayTracingUpscale;
         MyGUI::ComboBox* mRayTracingUpscaler;
         MyGUI::ScrollBar* mRayTracingBounceRays;
-        std::span<const Rtx::UpscalerKind> mUpscalers;
+        std::span<const Rtx::UpscalerChoice> mUpscalers;
 
         // controls
         MyGUI::ScrollView* mControlsBox;

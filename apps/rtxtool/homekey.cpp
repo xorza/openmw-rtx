@@ -35,7 +35,7 @@ namespace RtxTool
 
     HomeKey::~HomeKey()
     {
-        if (mWriter.isRunning())
+        if (mWriter.joinable())
             mMonitor.await([this] { return !anyIn(RoomState::Waiting) && !anyIn(RoomState::Developing); });
         collect();
     }
@@ -66,9 +66,8 @@ namespace RtxTool
             if (!mKeys.empty())
             {
                 // Appended, so a key a film's earlier stops wrote stays (`Platform::AppendFile`).
-                const Platform::AppendFile keys = Platform::AppendFile::open(mKeys, false);
-                keys.write('\n' + describeKey(*left));
-                if (keys.isOpen())
+                const Platform::AppendFile keys = Platform::AppendFile::open(mKeys, Platform::AppendStart::Kept);
+                if (keys.write('\n' + describeKey(*left)))
                     Log(Debug::Info) << "Ray tracing session: a film's key appended to "
                                      << Files::pathToUnicodeString(mKeys);
                 else
@@ -109,10 +108,10 @@ namespace RtxTool
             filled.mState = RoomState::Waiting;
         });
 
-        if (mWriter.isRunning())
+        if (mWriter.joinable())
             return;
 
-        mWriter.start("home key", [this](const Platform::StopToken& stop) {
+        mWriter = Platform::startThread("home key", [this](const std::stop_token& stop) {
             mMonitor.serve(
                 stop, [this] { return anyIn(RoomState::Waiting); },
                 [this] {
@@ -120,7 +119,7 @@ namespace RtxTool
                     Crash::contract(mDeveloping != nullptr, "the Home writer picked up a picture with none waiting");
                     mDeveloping->mState = RoomState::Developing;
                 },
-                [this](const Platform::StopToken&) {
+                [this](const std::stop_token&) {
                     develop(*mDeveloping);
                     mMonitor.hand([this] { mDeveloping->mState = RoomState::Developed; });
                 });

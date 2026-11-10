@@ -117,13 +117,18 @@ namespace Rtx
         mSpecular = readSpecular.isOk() ? std::optional(readSpecular.value()) : std::nullopt;
     }
 
+    bool ConversionPass::converts() const
+    {
+        return mDiffuse.has_value() && mSpecular.has_value() && ChainBuild::rebuilds(*mDiffuse)
+            && readsColour(*mSpecular) && ChainBuild::buildsAt(mSpecular->mLevels.front());
+    }
+
     void ConversionPass::digest(const Input& input, ContentDigest& digest)
     {
         describe(input);
-        const bool converts = mDiffuse.has_value() && mSpecular.has_value() && ChainBuild::rebuilds(*mDiffuse)
-            && readsColour(*mSpecular);
-        digest.add(converts);
-        if (!converts)
+        const bool converted = converts();
+        digest.add(converted);
+        if (!converted)
             return;
 
         digest.add(input.mEncoding);
@@ -137,7 +142,7 @@ namespace Rtx
         describe(input);
         output.mForm = ChainForm::Stands;
         output.mBytes.clear();
-        if (mDiffuse.has_value() && mSpecular.has_value() && ChainBuild::rebuilds(*mDiffuse) && readsColour(*mSpecular))
+        if (converts())
         {
             const TextureData& diffuse = *mDiffuse;
             const TextureData& specular = *mSpecular;
@@ -230,6 +235,34 @@ namespace Rtx
         }
 
         release();
+    }
+
+    std::optional<MadeLayout> ConversionPass::madeLayout(const Input& input, const ChainForm form)
+    {
+        const osg::Image& image = input.mImage;
+        if (image.s() <= 0 || image.t() <= 0)
+            return std::nullopt;
+
+        const auto width = static_cast<std::uint32_t>(image.s());
+        const auto height = static_cast<std::uint32_t>(image.t());
+        MadeLayout laid{ .mWidth = width, .mHeight = height, .mFirst = 0, .mCount = levelsTo1x1(width, height) };
+        if (form == ChainForm::Bc7)
+        {
+            laid.mFormat = bc7FormatOf(input.mEncoding);
+            return laid;
+        }
+
+        // A base colour in the diffuse's own block format, as `run` keeps it.
+        const TextureFormat own = readFormat(image, input.mEncoding);
+        if (form != ChainForm::Own || input.mEncoding != TextureEncoding::ConvertedColour || !layoutOf(own).isBlocked())
+            return std::nullopt;
+        laid.mFormat = own;
+        return laid;
+    }
+
+    bool ConversionPass::fits(const Input& input, const Output& output)
+    {
+        return fillsLayout(madeLayout(input, output.mForm), output);
     }
 
     ChainScratch ConversionPass::scratchOf(const Input& input)

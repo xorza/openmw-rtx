@@ -37,6 +37,11 @@ namespace Platform
         /// The file holds more than the read was bounded at (`readWhole`'s `most`).
         TooLarge,
 
+        /// A synced write whose new file stands under its name, and which the system could not
+        /// confirm on the disk: its folder's sync failed after the rename. A reader finds the new
+        /// file; a power loss now may leave the old one.
+        NotDurable,
+
         Other,
     };
 
@@ -70,6 +75,24 @@ namespace Platform
     /// live write renames its own within the second.
     inline constexpr std::chrono::hours sPartialStaleAfter{ 24 };
 
+    /// What a folder's entry is to `writeWhole`'s temporaries.
+    enum class Partial : std::uint8_t
+    {
+        /// No temporary: the owner's own file.
+        None,
+
+        /// A temporary young enough to be a live write's.
+        Live,
+
+        /// A temporary a killed process left, removed.
+        Removed,
+    };
+
+    /// Removes `entry` where it is a temporary a killed process left (`sPartialSuffix`, older than
+    /// `sPartialStaleAfter` at `now`), and says what it was: the one sweep of a folder `writeWhole`
+    /// writes into, which its owner runs over its listing.
+    Partial sweepStalePartial(const std::filesystem::directory_entry& entry, std::filesystem::file_time_type now);
+
     /// No bound on what `readWhole` reads past what memory holds: a file the fork wrote itself.
     inline constexpr std::size_t sUnbounded = std::numeric_limits<std::size_t>::max();
 
@@ -84,8 +107,9 @@ namespace Platform
     Result<void, IoError> readWhole(const std::filesystem::path& path, std::string& into, std::size_t most);
 
     /// Writes `parts`, one after another, as the whole of `path`, through a temporary renamed over
-    /// it; where `path` is a link, over the file it names. On a failure the temporary is removed and
-    /// `path` stands as it was.
+    /// it; where `path` is a link, over the file it names. A file replaced keeps its permissions. On
+    /// a failure the temporary is removed and `path` stands as it was, but for `IoFailure::NotDurable`,
+    /// where the new file stands.
     Result<void, IoError> writeWhole(
         const std::filesystem::path& path, std::span<const std::span<const std::byte>> parts, Durability durability);
 

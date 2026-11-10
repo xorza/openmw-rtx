@@ -14,8 +14,8 @@
 #include <gtest/gtest.h>
 
 #include <components/rtx/frame/bluenoise.hpp>
-#include <components/rtx/frame/bluenoisemaker.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtx/tables/bluenoisemaker.hpp>
 
 namespace Rtx
 {

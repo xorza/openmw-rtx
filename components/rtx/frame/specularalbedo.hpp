@@ -1,45 +1,34 @@
 #pragma once
 
-#include <span>
-#include <vector>
+#include <array>
+#include <cstddef>
 
 #include <osg/Vec2f>
 
+#include <components/rtx/shaders/brdf.h>
+
 namespace Rtx
 {
-    /// The GGX lobe of `shaders/brdf.h` integrated over the hemisphere, once, into a
-    /// `SPECULAR_TABLE_SIZE` square of nodes over the square root of the cosine to the eye and the
-    /// perceptual roughness. Two integrals a node: `∫ w D V (n.l) dl` with `w` Schlick's weight, and
-    /// `∫ D V (n.l) dl`.
+    /// How many values `sSpecularAlbedo` holds: two a node of a `SPECULAR_TABLE_SIZE` square.
+    inline constexpr std::size_t sSpecularAlbedoValues
+        = std::size_t{ Shaders::SPECULAR_TABLE_SIZE } * Shaders::SPECULAR_TABLE_SIZE * 2;
+
+    /// The GGX lobe of `shaders/brdf.h` integrated over the hemisphere into a `SPECULAR_TABLE_SIZE`
+    /// square of nodes over the square root of the cosine to the eye and the perceptual roughness. Two
+    /// integrals a node: `∫ w D V (n.l) dl` with `w` Schlick's weight, and `∫ D V (n.l) dl`, node by
+    /// node along the cosine and row by row along the roughness, the pair one lookup reads together.
     /// `specularAlbedoOf` makes a surface's directional albedo out of the pair for any reflectance,
     /// and `specularCompensation` its scale for the energy one scattering event loses.
     ///
     /// **Integrated rather than fitted.** The fits in use — Karis's, and the split-sum fit of Ray
     /// Tracing Gems ch. 32 — are fits to a lobe with another masking term, and a compensation off a
     /// lobe the shader does not draw puts back energy it did not lose. The table is the integral of
-    /// the functions the shader calls, and a test holds it to a quadrature of its own.
-    class SpecularAlbedo
-    {
-    public:
-        /// The one table, built on first use a row a thread, in about 15 ms: paid once and not per
-        /// pipeline.
-        static const SpecularAlbedo& shared();
+    /// the functions the shader calls, and a test holds it to a quadrature of its own. Made by the
+    /// build (`makeSpecularAlbedo`) and compiled in, so no start spends the 16.8 million draws it takes.
+    extern const std::array<float, sSpecularAlbedoValues> sSpecularAlbedo;
 
-        SpecularAlbedo(const SpecularAlbedo&) = delete;
-        SpecularAlbedo& operator=(const SpecularAlbedo&) = delete;
-
-        /// The two integrals a node, node by node along the cosine and row by row along the
-        /// roughness. Interleaved, so the pair one lookup reads sits together.
-        std::span<const float> getValues() const { return mValues; }
-
-        /// What the shader's lookup answers at `cosine` and `roughness`: the four nodes around the
-        /// point blended, in the square root of the cosine. Read by the tests and by nothing else,
-        /// which hold the device to it.
-        osg::Vec2f at(float cosine, float roughness) const;
-
-    private:
-        SpecularAlbedo();
-
-        std::vector<float> mValues;
-    };
+    /// What the shader's lookup answers at `cosine` and `roughness`: the four nodes around the point
+    /// blended, in the square root of the cosine. Read by the tests and by nothing else, which hold the
+    /// device to it.
+    osg::Vec2f specularAlbedoAt(float cosine, float roughness);
 }

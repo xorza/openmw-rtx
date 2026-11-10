@@ -17,9 +17,9 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/dlss/dlss.hpp>
 #include <components/misc/frameratelimiter.hpp>
 #include <components/misc/presentation.hpp>
-#include <components/platform/dlss.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/sdlutil/graphicslistener.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -104,7 +104,7 @@ namespace MWRender
         std::filesystem::path mCachePath;
 
         /// Where DLSS's files are: the runtime folder in the user's local data, and the game's own.
-        Platform::Dlss::Folders mDlss;
+        DlssLibrary::Folders mDlss;
     };
 
     class Renderer;
@@ -453,7 +453,7 @@ namespace MWRender
         /// The upscalers the settings window offers under this renderer: the ones its device can
         /// run (`Rtx::offeredUpscalers`), in the menu's order. Asked of the renderer and not of the
         /// system's adapters, which name a card this renderer may not draw on.
-        virtual std::span<const Rtx::UpscalerKind> getUpscalers() const = 0;
+        virtual std::span<const Rtx::UpscalerChoice> getUpscalers() const = 0;
 
         /// Settings the player changed in the menu, as `Settings::Manager` reports them, of which
         /// the renderer is handed the ones its `support` honours.

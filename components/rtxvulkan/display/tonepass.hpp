@@ -7,6 +7,7 @@
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/present/presenttarget.hpp>
 #include <components/rtxvulkan/shaders/shared/tone.h>
 
 namespace Rtx
@@ -51,7 +52,8 @@ namespace Rtx
         /// The scene's texture descriptor set, bound at `SET_TEXTURES`.
         VkDescriptorSet mTextures = VK_NULL_HANDLE;
 
-        /// The displayable image, in `VK_IMAGE_LAYOUT_GENERAL`: `sTargetFormat`, or `sDeepFormat`.
+        /// The displayable image, in `VK_IMAGE_LAYOUT_GENERAL`: `PresentTarget::sShownFormat`, or
+        /// `PresentTarget::sDeepFormat`.
         const Image& mTarget;
 
         /// How much of the target to encode from its top-left corner — a corner of it for a
@@ -69,14 +71,6 @@ namespace Rtx
     class TonePass
     {
     public:
-        /// What the curve writes the finished picture in, and so what every pass drawn over it —
-        /// the lines, the interface — is compiled against, and what the targets are made in. Not
-        /// display-encoded by the hardware, because the curve encoded it already.
-        static constexpr VkFormat sTargetFormat = toVulkanFormat(TONE_TARGET_FORMAT);
-
-        /// What a summed frame's picture is written in beside it, `TONE_DEEP_FORMAT`.
-        static constexpr VkFormat sDeepFormat = toVulkanFormat(TONE_DEEP_FORMAT);
-
         /// @param textureLayout the scene's bindless textures, which this samples the star sheet
         ///        out of — `ToneConstants::mStars` says why the field is drawn here.
         TonePass(const Device& device, const SetLayout& textureLayout);

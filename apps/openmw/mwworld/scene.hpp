@@ -189,9 +189,9 @@ namespace MWWorld
         ///< Add an object that already exists in the world model to the scene.
 
         void removeObjectFromScene(const Ptr& ptr, bool keepActive = false);
+        ///< Remove an object from the scene, but not from the world model.
 
         void updateLowestPoint(const MWPhysics::Object& object);
-        ///< Remove an object from the scene, but not from the world model.
 
         void addPostponedPhysicsObjects(const DetourNavigator::UpdateGuard* navigatorUpdateGuard = nullptr);
 

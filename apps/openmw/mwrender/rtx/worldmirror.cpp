@@ -298,6 +298,10 @@ namespace MWRender
         if (!mPreparing->mRun.finish())
             Log(Debug::Warning) << "The content's preparation could not write its manifest";
 
+        // **The store's start swept and loaded before the first frame asks its memory**, which the frame
+        // reaches alone: an entry still on its way from the disk was one the frame computed again.
+        mStore->flush();
+
         // **What it took, said once**, in the game as under every verb: the wall against the threads'
         // CPU says whether they waited, and the passes say on what the CPU went.
         const Rtx::PreparationTimes times = mPreparing->mRun.getTimes();

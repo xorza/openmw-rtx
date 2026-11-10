@@ -27,44 +27,65 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/terrain/storage.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "../terrainstorage.hpp"
+#include "skyreader.hpp"
 
 namespace MWRender
 {
     namespace
     {
         template <class Record>
-        void addModels(const MWWorld::ESMStore& store, std::vector<std::string>& into)
+        void addModels(const MWWorld::ESMStore& store, const VFS::Manager& vfs, std::vector<std::string>& into)
         {
             for (const Record& record : store.get<Record>())
-                if (!record.mModel.empty())
-                    into.emplace_back(Misc::ResourceHelpers::correctMeshPath(record.mModel.getNormalized()).value());
+            {
+                if (record.mModel.empty())
+                    continue;
+                const VFS::Path::Normalized model
+                    = Misc::ResourceHelpers::correctMeshPath(record.mModel.getNormalized());
+                into.emplace_back(model.value());
+
+                // The model `Objects` loads for an animated object or an actor where its `x` sibling
+                // stands, which is another file than the one the record names.
+                const VFS::Path::Normalized animated = Misc::ResourceHelpers::correctActorModelPath(model, &vfs);
+                if (animated != model)
+                    into.emplace_back(animated.value());
+            }
         }
     }
 
-    std::vector<std::string> contentModels(const MWWorld::ESMStore& store)
+    std::vector<std::string> contentModels(const MWWorld::ESMStore& store, Resource::ResourceSystem& resources)
     {
+        const VFS::Manager& vfs = *resources.getVFS();
         std::vector<std::string> models;
-        addModels<ESM::Activator>(store, models);
-        addModels<ESM::Potion>(store, models);
-        addModels<ESM::Apparatus>(store, models);
-        addModels<ESM::Armor>(store, models);
-        addModels<ESM::BodyPart>(store, models);
-        addModels<ESM::Book>(store, models);
-        addModels<ESM::Clothing>(store, models);
-        addModels<ESM::Container>(store, models);
-        addModels<ESM::Creature>(store, models);
-        addModels<ESM::Door>(store, models);
-        addModels<ESM::Ingredient>(store, models);
-        addModels<ESM::Light>(store, models);
-        addModels<ESM::Lockpick>(store, models);
-        addModels<ESM::Miscellaneous>(store, models);
-        addModels<ESM::NPC>(store, models);
-        addModels<ESM::Probe>(store, models);
-        addModels<ESM::Repair>(store, models);
-        addModels<ESM::Static>(store, models);
-        addModels<ESM::Weapon>(store, models);
+        addModels<ESM::Activator>(store, vfs, models);
+        addModels<ESM::Potion>(store, vfs, models);
+        addModels<ESM::Apparatus>(store, vfs, models);
+        addModels<ESM::Armor>(store, vfs, models);
+        addModels<ESM::BodyPart>(store, vfs, models);
+        addModels<ESM::Book>(store, vfs, models);
+        addModels<ESM::Clothing>(store, vfs, models);
+        addModels<ESM::Container>(store, vfs, models);
+        addModels<ESM::Creature>(store, vfs, models);
+        addModels<ESM::Door>(store, vfs, models);
+        addModels<ESM::Ingredient>(store, vfs, models);
+        addModels<ESM::Light>(store, vfs, models);
+        addModels<ESM::Lockpick>(store, vfs, models);
+        addModels<ESM::Miscellaneous>(store, vfs, models);
+        addModels<ESM::NPC>(store, vfs, models);
+        addModels<ESM::Probe>(store, vfs, models);
+        addModels<ESM::Repair>(store, vfs, models);
+        addModels<ESM::Static>(store, vfs, models);
+        addModels<ESM::Weapon>(store, vfs, models);
+
+        std::vector<VFS::Path::Normalized> sky;
+        std::vector<VFS::Path::Normalized> skyTextures;
+        SkyReader::listAssets(vfs, sky, skyTextures);
+        for (const VFS::Path::Normalized& model : sky)
+            models.emplace_back(model.value());
 
         std::sort(models.begin(), models.end());
         models.erase(std::unique(models.begin(), models.end()), models.end());

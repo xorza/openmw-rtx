@@ -1,12 +1,12 @@
 #include <cstdint>
 #include <cstring>
-#include <stdexcept>
 
 #include <gtest/gtest.h>
 
 #include <MyGUI_RenderFormat.h>
 
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <components/myguirtx/texture.hpp>
 
 namespace MyGUIRtx
@@ -43,7 +43,9 @@ namespace MyGUIRtx
             EXPECT_EQ(renderer.mGuiSent, 0u) << "a refused slot was sent";
 
             Texture unmade("unmade", renderer, nullptr);
-            EXPECT_THROW(unmade.lock(MyGUI::TextureUsage::Write), std::runtime_error);
+            Rtx::Testing::expectAssertDies(
+                [&] { unmade.lock(MyGUI::TextureUsage::Write); }, "a texture locked before it was created");
+            Rtx::Testing::expectAssertDies([&] { unmade.unlock(); }, "a texture unlocked that was not locked");
         }
     }
 }

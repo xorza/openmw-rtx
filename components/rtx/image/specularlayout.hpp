@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include <components/rtx/image/textureencoding.hpp>
+#include "textureencoding.hpp"
 
 namespace Rtx
 {

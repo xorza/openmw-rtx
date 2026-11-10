@@ -32,16 +32,16 @@ namespace Rtx
     {
         // The stamp is read under the lock, so the queue holds its burials in stamp order whatever
         // thread made them.
+        if (handle == 0)
+            return;
         const std::lock_guard<std::mutex> lock(mLock);
-        mHeld.hold(mDevice.getTimeline().getNext(),
-            Burial{ .mEnd = handle != 0 ? end : nullptr, .mHandle = handle, .mMemory = {} });
+        mHeld.hold(mDevice.getTimeline().getNext(), Burial(BuriedHandle{ .mEnd = end, .mHandle = handle }));
     }
 
     void Graveyard::bury(DeviceMemory&& memory)
     {
         const std::lock_guard<std::mutex> lock(mLock);
-        mHeld.hold(
-            mDevice.getTimeline().getNext(), Burial{ .mEnd = nullptr, .mHandle = 0, .mMemory = std::move(memory) });
+        mHeld.hold(mDevice.getTimeline().getNext(), Burial(std::move(memory)));
     }
 
     void Graveyard::collect()
@@ -67,9 +67,10 @@ namespace Rtx
         const std::lock_guard<std::mutex> lock(mLock);
 
         mHeld.releaseThrough(finished, [&](Burial& burial) {
-            if (burial.mEnd != nullptr)
-                burial.mEnd(mDevice, burial.mHandle);
-            burial.mMemory.releaseNow();
+            if (BuriedHandle* const buried = std::get_if<BuriedHandle>(&burial))
+                buried->mEnd(mDevice, buried->mHandle);
+            else
+                std::get<DeviceMemory>(burial).releaseNow();
         });
     }
 }

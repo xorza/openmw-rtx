@@ -1,0 +1,16 @@
+#include "dlssapplication.hpp"
+
+namespace Rtx::Dlss
+{
+    Application::Application(const DlssLibrary::Folders&) {}
+
+    std::vector<std::string> Application::requiredInstanceExtensions() const
+    {
+        return {};
+    }
+
+    std::vector<std::string> Application::requiredDeviceExtensions(VkInstance, VkPhysicalDevice) const
+    {
+        return {};
+    }
+}

@@ -42,10 +42,11 @@
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>
+#include <components/rtxvulkan/frame/framestep.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/fsr.h>
-#include <components/rtxvulkan/trace/framestep.hpp>
+#include <components/rtxvulkan/shaders/shared/upscaleinputs.h>
 
 namespace Rtx
 {
@@ -571,7 +572,7 @@ namespace Rtx
         const FsrFrame::Pyramid& pyramid = targets.mPyramid;
 
         const Buffer& blocks = mBlocks.at(inputs.mSlot);
-        const Shaders::FsrInputConstants inputConstants{
+        const Shaders::UpscaleInputConstants inputConstants{
             .mEyes = inputs.mEyes, .mNear = sUpscaleNear, .mFrame = inputs.mFrame
         };
         uploads.write(blocks, Shaders::FSR_BLOCK_CONSTANTS, std::span(&constants, 1));
@@ -655,7 +656,7 @@ namespace Rtx
                 case R::Pyramid:
                     return { blocks.getHandle(), Shaders::FSR_BLOCK_PYRAMID, sizeof(Shaders::FsrPyramidConstants) };
                 case R::Inputs:
-                    return { blocks.getHandle(), Shaders::FSR_BLOCK_INPUTS, sizeof(Shaders::FsrInputConstants) };
+                    return { blocks.getHandle(), Shaders::FSR_BLOCK_INPUTS, sizeof(Shaders::UpscaleInputConstants) };
                 default:
                     break;
             }

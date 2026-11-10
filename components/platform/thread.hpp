@@ -3,68 +3,17 @@
 #include <chrono>
 #include <cstddef>
 #include <exception>
-#include <functional>
-#include <memory>
+#include <stop_token>
 #include <string>
 #include <string_view>
 #include <thread>
 #include <type_traits>
 #include <utility>
 
-/// A thread that is asked to stop and joined when it goes, and the token its work asks: what
-/// `std::jthread` and `<stop_token>` are. The libc++ of Xcode 16 keeps those behind
-/// `-fexperimental-library`, which libc++ dropped only in LLVM 20, so one implementation over
-/// `std::thread` serves every system.
+/// What each system names and measures of a thread, and how every thread here starts: a
+/// `std::jthread`, named, under the terminate handler of the thread that made it.
 namespace Platform
 {
-    struct StopState;
-
-    /// Whether a stop was asked of the thread this came from. A copy asks the same thread, and a
-    /// token made by default is never stopped.
-    class StopToken
-    {
-    public:
-        StopToken() = default;
-
-        bool stopRequested() const;
-
-    private:
-        friend class StopCallback;
-        friend class Thread;
-        friend bool sleepUnlessStopped(const StopToken& stop, std::chrono::nanoseconds period);
-
-        explicit StopToken(std::shared_ptr<StopState> state);
-
-        std::shared_ptr<StopState> mState;
-    };
-
-    /// Runs `onStop` once a stop is asked of `token`'s thread, on the thread that asks, or at once
-    /// where it was asked already: how a wait on a condition variable hears of the stop. Its
-    /// destruction waits out a call in progress, so `onStop` may reach what outlives this.
-    ///
-    /// **`onStop` runs under the token's own lock**, so it must not make or drop another callback
-    /// of the same token, which `std::stop_callback` would allow: that waits on the lock it holds.
-    class StopCallback
-    {
-    public:
-        StopCallback(const StopToken& token, std::function<void()> onStop);
-        ~StopCallback();
-
-        StopCallback(const StopCallback&) = delete;
-        StopCallback& operator=(const StopCallback&) = delete;
-
-    private:
-        friend struct StopState;
-
-        std::shared_ptr<StopState> mState;
-        std::function<void()> mOnStop;
-    };
-
-    /// Sleeps `period`, or until a stop is asked of `stop`'s thread, and says whether it slept the
-    /// whole of it: a periodic thread's wait, which a stop ends at once rather than a period later.
-    /// A token made by default sleeps the period out.
-    bool sleepUnlessStopped(const StopToken& stop, std::chrono::nanoseconds period);
-
     /// How much of a thread's name every system keeps: Linux's limit, applied everywhere, so a thread
     /// reads the same in a report from any system.
     inline constexpr std::size_t sThreadNameLength = 15;
@@ -80,49 +29,29 @@ namespace Platform
     /// it: what a pool of workers is busy for, which a wall clock cannot tell from a wait.
     std::chrono::nanoseconds cpuTimeOfThisThread();
 
-    /// A thread running `work`, handed a `StopToken` where it takes one. Destroyed or assigned
-    /// over, it asks the work to stop and joins it.
+    /// Sleeps `period`, or until a stop is asked of `stop`, and says whether it slept the whole of it:
+    /// a periodic thread's wait, which a stop ends at once rather than a period later. A token with no
+    /// stop state sleeps the period out.
+    bool sleepUnlessStopped(const std::stop_token& stop, std::chrono::nanoseconds period);
+
+    /// A thread running `work`, handed its `std::stop_token` where it takes one.
     ///
     /// **Every thread starts named, and under the terminate handler of the thread that made it.**
     /// MSVC keeps that handler per thread and starts each new one on the default, which aborts and
     /// says nothing; elsewhere the process has one and setting it changes nothing. What needs the
     /// copy is a test's death handler, set on the thread that runs the statement. The crash catcher
     /// sets its own on every thread the loader starts, and needs none.
-    class Thread
+    template <class Work>
+    std::jthread startThread(std::string_view name, Work work)
     {
-    public:
-        Thread() = default;
-
-        template <class Work>
-        Thread(std::string_view name, Work work)
-            : mState(makeState())
-        {
-            mThread = std::thread([name = std::string(name), onTerminate = std::get_terminate(), work = std::move(work),
-                                      stop = StopToken(mState)]() mutable {
-                std::set_terminate(onTerminate);
-                nameThisThread(name);
-                if constexpr (std::is_invocable_v<Work&, StopToken>)
-                    work(stop);
-                else
-                    work();
-            });
-        }
-
-        ~Thread() { stop(); }
-
-        Thread(Thread&& other) noexcept = default;
-        Thread& operator=(Thread&& other) noexcept;
-
-        bool joinable() const { return mThread.joinable(); }
-
-        /// Asks the work to stop and joins it. Nothing where nothing runs. Never from the thread
-        /// itself, which would wait on its own end.
-        void stop();
-
-    private:
-        static std::shared_ptr<StopState> makeState();
-
-        std::shared_ptr<StopState> mState;
-        std::thread mThread;
-    };
+        return std::jthread([name = std::string(name), onTerminate = std::get_terminate(), work = std::move(work)](
+                                std::stop_token stop) mutable {
+            std::set_terminate(onTerminate);
+            nameThisThread(name);
+            if constexpr (std::is_invocable_v<Work&, std::stop_token>)
+                work(std::move(stop));
+            else
+                work();
+        });
+    }
 }

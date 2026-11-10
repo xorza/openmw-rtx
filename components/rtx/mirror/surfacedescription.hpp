@@ -290,6 +290,12 @@ namespace Rtx
         /// chains of.
         TextureEncoding encodingOf(SurfaceMap map, SpecularLayout specular) const;
 
+        /// The other file `map` is made with where its encoding converts a classic pair
+        /// (`isConverted`): the `_spec` beside a converted colour, the diffuse beside a converted
+        /// specular; nothing for any other. With `encodingOf`, the one rule every slot is bound by,
+        /// which the material resolver and the loading screen's preparation both read.
+        const osg::Image* partnerOf(SurfaceMap map, SpecularLayout specular) const;
+
         /// Repeating, which is what a caller that has no texture to read a wrap off means.
         void setTexture(SurfaceMap map, const osg::Image* image, TextureWrap wrap = TextureWrap::Repeat)
         {

@@ -11,6 +11,7 @@
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/sky/timeofday.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
@@ -66,7 +67,7 @@ namespace
     template <class T>
     struct BaseTimeOfDayInterpolator
     {
-        using Interpolator = MWWorld::TimeOfDayInterpolator<T>;
+        using Interpolator = Sky::TimeOfDayInterpolator<T>;
         using Getter = Interpolator(MWWorld::Weather::*);
 
         MWLua::MutableRecord<MWWorld::Weather> mWeather;
@@ -128,7 +129,7 @@ namespace
     }
 
     template <class T>
-    void setInterpolatorFromTable(MWWorld::TimeOfDayInterpolator<T>& interpolator, const sol::object value)
+    void setInterpolatorFromTable(Sky::TimeOfDayInterpolator<T>& interpolator, const sol::object value)
     {
         if (value == sol::nil)
             interpolator.blank();
@@ -174,11 +175,11 @@ namespace
 namespace sol
 {
     template <>
-    struct is_automagical<MWWorld::TimeOfDayInterpolator<float>> : std::false_type
+    struct is_automagical<Sky::TimeOfDayInterpolator<float>> : std::false_type
     {
     };
     template <>
-    struct is_automagical<MWWorld::TimeOfDayInterpolator<osg::Vec4f>> : std::false_type
+    struct is_automagical<Sky::TimeOfDayInterpolator<osg::Vec4f>> : std::false_type
     {
     };
     template <>
@@ -202,7 +203,7 @@ namespace MWLua
         template <class T>
         struct RecordType<BaseTimeOfDayInterpolator<T>>
         {
-            using Record = MWWorld::TimeOfDayInterpolator<T>;
+            using Record = Sky::TimeOfDayInterpolator<T>;
             constexpr static bool isMutable = true;
 
             static const Record& asRecord(const BaseTimeOfDayInterpolator<T>& rec) { return rec.find(); }
@@ -468,8 +469,8 @@ namespace MWLua
         sol::table api(lua, sol::create);
 
         addUserType<MWWorld::Weather>(lua, "Weather");
-        createFloatInterpolator<MWWorld::TimeOfDayInterpolator<float>>(lua, "TimeOfDayInterpolatorFloat");
-        createColorInterpolator<MWWorld::TimeOfDayInterpolator<osg::Vec4f>>(lua, "TimeOfDayInterpolatorColor");
+        createFloatInterpolator<Sky::TimeOfDayInterpolator<float>>(lua, "TimeOfDayInterpolatorFloat");
+        createColorInterpolator<Sky::TimeOfDayInterpolator<osg::Vec4f>>(lua, "TimeOfDayInterpolatorColor");
 
         api["changeWeather"] = [](std::string_view regionId, const MWWorld::Weather& weather) {
             ESM::RefId region = ESM::RefId::deserializeText(regionId);

@@ -32,12 +32,14 @@ namespace Platform::WholeFileSystem
             .mFailure = IoFailure::TooLarge, .mCode = std::make_error_code(std::errc::file_too_large) } };
     }
 
-    /// Makes `path`, which must not be there yet, holding `parts` one after another, and syncs it
-    /// before it is closed where `synced`.
-    Result<void, IoError> create(
-        const std::filesystem::path& path, std::span<const std::span<const std::byte>> parts, bool synced);
+    /// Makes `path`, which must not be there yet, holding `parts` one after another, with the
+    /// permissions of `replacing` where that file stands, and syncs it before it is closed where
+    /// `synced`.
+    Result<void, IoError> create(const std::filesystem::path& path, std::span<const std::span<const std::byte>> parts,
+        bool synced, const std::filesystem::path& replacing);
 
-    /// Renames `from` over `to`, replacing a file there, and makes the rename durable where `synced`.
+    /// Renames `from` over `to`, replacing a file there, and makes the rename durable where `synced`:
+    /// `IoFailure::NotDurable` where the rename landed and that could not be confirmed.
     Result<void, IoError> replace(const std::filesystem::path& from, const std::filesystem::path& to, bool synced);
 
     /// Removes `path` where it is there; nothing is reported, since this cleans up after a failure

@@ -11,6 +11,7 @@
 
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
+#include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/multidircollection.hpp>
@@ -20,8 +21,6 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/weather.hpp>
-
-#include "film.hpp"
 
 namespace RtxTool
 {
@@ -78,7 +77,7 @@ namespace RtxTool
 
             /// `--upscaler`: which backend runs, FSR by default so a measured picture does not
             /// change with the card it was measured on.
-            Rtx::UpscalerKind mUpscaler = Rtx::UpscalerKind::Fsr;
+            Rtx::UpscalerChoice mUpscaler = Rtx::UpscalerChoice::Fsr;
 
             std::optional<bool> mGrass;
             std::optional<float> mDistantCells;
@@ -190,25 +189,17 @@ namespace RtxTool
             std::optional<Rtx::ReconstructionRequest> mVersus;
         };
 
-        /// What paces a film, `FilmPacing` but for what the run frames.
+        /// What a film's line states.
         struct Film
         {
             bool mPlan = false;
-            float mFramesPerSecond = 0.0f;
-            float mSpeed = 0.0f;
 
-            /// `--length`, or `FilmPacing::sLengthByDefault` where neither it nor `--speed` is
-            /// named, or nothing where `--speed` is.
-            std::optional<FilmLength> mLength;
+            /// How the film is paced, as the line names it: the step one over `--fps`, and
+            /// `--length` or `FilmPacing::sLengthByDefault` where neither it nor `--speed` is named.
+            /// The frame's field of view and aspect, the day and the weathers' turn are the run's,
+            /// set where the run is framed.
+            FilmPacing mPacing;
 
-            float mEase = 0.0f;
-            float mPanSeconds = 0.0f;
-            float mHourSeconds = 0.0f;
-            float mCrossingSeconds = 0.0f;
-            std::optional<float> mClock;
-            float mWeatherHold = 0.0f;
-            float mStillSeconds = 0.0f;
-            float mCutDistance = 0.0f;
             bool mEncode = false;
         };
 

@@ -102,7 +102,7 @@ namespace MWRender
             void setVSync(SDLUtil::VSyncMode) override {}
             osg::Timer_t getStartTick() const override { return 0; }
             const RenderSupport& support() const override { return sSupport; }
-            std::span<const Rtx::UpscalerKind> getUpscalers() const override { return Rtx::offeredUpscalers(false); }
+            std::span<const Rtx::UpscalerChoice> getUpscalers() const override { return Rtx::offeredUpscalers(false); }
             std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(
                 float, VFS::Path::NormalizedView, const std::filesystem::path&) override
             {

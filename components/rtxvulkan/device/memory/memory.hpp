@@ -10,6 +10,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/misc/result.hpp>
+#include <components/rtx/renderer/hostwrites.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
 struct VmaAllocation_T;
@@ -19,6 +20,30 @@ struct VmaPool_T;
 namespace Rtx
 {
     class Device;
+    /// How this backend's host writes reach the device, on every device and decided here alone:
+    /// another transport is another build, which is what an A/B of the two and a comparison of
+    /// their pictures take. Both compile in every build (`docs/rtx/architecture.md`, "Host writes
+    /// travel one way").
+    inline constexpr HostWrites sHostWrites = HostWrites::Staged;
+
+    /// Why the device's memory refused an allocation: the one case content is refused for, which the
+    /// caller decides the fate of (a stand-in, a mesh left out).
+    enum class MemoryRefusal : std::uint8_t
+    {
+        NoRoom,
+    };
+
+    /// What a refusal says in a log and a report.
+    constexpr std::string_view describe(const MemoryRefusal refusal)
+    {
+        switch (refusal)
+        {
+            case MemoryRefusal::NoRoom:
+                break;
+        }
+        return "no device memory is left for it";
+    }
+
     class MemoryAllocator;
 
     /// `value` rounded up to the next multiple of `alignment`.
@@ -228,11 +253,11 @@ namespace Rtx
         /// block the frame's own memory opened would take room the frame had already been given,
         /// past every ceiling; in blocks of their own, what each use holds and what it may take
         /// are both exact to the block.
-        Result<DeviceMemory, std::string_view> tryTake(
+        Result<DeviceMemory, MemoryRefusal> tryTake(
             VkBuffer buffer, VkMemoryPropertyFlags properties, VkDeviceSize alignment, MemoryUse use);
 
         /// The same for an image.
-        Result<DeviceMemory, std::string_view> tryTake(VkImage image, VkMemoryPropertyFlags properties, MemoryUse use);
+        Result<DeviceMemory, MemoryRefusal> tryTake(VkImage image, VkMemoryPropertyFlags properties, MemoryUse use);
 
         /// About how many bytes of video memory `use` may still take: what content's blocks have
         /// free, and the whole blocks its ceiling leaves room for. For a caller sizing what it asks
@@ -306,7 +331,7 @@ namespace Rtx
         /// `tryTake`'s one path for either resource: `allocate` asks the library with the flags it
         /// is handed, which place the resource at `alignment` at least.
         template <class Allocate>
-        Result<DeviceMemory, std::string_view> tryAllocate(const Requirements& requirements, VkDeviceSize alignment,
+        Result<DeviceMemory, MemoryRefusal> tryAllocate(const Requirements& requirements, VkDeviceSize alignment,
             VkMemoryPropertyFlags properties, MemoryUse use, Allocate&& allocate);
 
         /// What the library placed, as a range counted for `use`.

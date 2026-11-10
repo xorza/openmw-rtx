@@ -63,6 +63,7 @@
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/scenetextures.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -70,7 +71,6 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/scene/scenetextures.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -131,8 +131,8 @@ namespace RtxTool
     {
         const Writing into{ context, report, record, shelf };
 
-        if (!actions.mCapture.empty())
-            writeCapture(into, actions.mCapture, actions.mDeepCapture);
+        if (actions.mCapture.has_value())
+            writeCapture(into, *actions.mCapture);
 
         if (actions.mMean.has_value())
             addToMean(into, *actions.mMean);
@@ -186,13 +186,14 @@ namespace RtxTool
             extents.mOutputWidth, extents.mOutputHeight, mean.mOf));
     }
 
-    void StopWriter::writeCapture(const Writing& into, const std::filesystem::path& file, const bool deep)
+    void StopWriter::writeCapture(const Writing& into, const Actions::Capture& capture)
     {
+        const std::filesystem::path& file = capture.mFile;
         Rtx::Renderer& renderer = into.mContext.mBackend;
         const Rtx::FrameExtents extents = renderer.getExtents();
 
         const auto write = [&] {
-            if (!deep)
+            if (capture.mDepth == Actions::Capture::Depth::Shown)
             {
                 renderer.readPixels(mPixels);
                 return writePicture(into, file, extents.mOutputWidth, extents.mOutputHeight, mPixels);

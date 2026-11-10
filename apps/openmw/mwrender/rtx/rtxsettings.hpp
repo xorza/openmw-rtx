@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 
 #include "mirrorknobs.hpp"
@@ -18,7 +19,7 @@ namespace MWRender
     struct RtxSettingValues
     {
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
-        Rtx::UpscalerKind mUpscaler = Rtx::UpscalerKind::Auto;
+        Rtx::UpscalerChoice mUpscaler = Rtx::UpscalerChoice::Auto;
         bool mIndirectLighting = true;
         int mBounceRays = 1;
         float mDistantLandCells = 0.0f;
@@ -44,8 +45,8 @@ namespace MWRender
     {
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
 
-        /// `RenderProfile::mUpscaler`: the setting, its `Auto` resolved where the renderer is made.
-        Rtx::UpscalerKind mUpscaler = Rtx::UpscalerKind::Auto;
+        /// `RenderProfile::mUpscaler`: the setting.
+        Rtx::UpscalerChoice mUpscaler = Rtx::UpscalerChoice::Auto;
 
         /// `SamplingSwitches::mIndirect`: the setting.
         bool mIndirectLighting = true;
@@ -68,5 +69,9 @@ namespace MWRender
         /// a count of bounce rays outside one to `Shaders::MAX_BOUNCE_RAYS`: a setting refused rather than
         /// defaulted, so a typo is said at once and not traced under for a session.
         static RtxSettings derive(const RtxSettingValues& values);
+
+        /// Writes what the settings decide of a profile into `profile`, and nothing else of it: the
+        /// one mapping both hosts make, the game at its start and the harness over its own line.
+        void applyTo(Rtx::RenderProfile& profile) const;
     };
 }

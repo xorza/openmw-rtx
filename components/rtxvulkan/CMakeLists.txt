@@ -232,6 +232,7 @@ set(RTX_SHADER_LIB
     shaders/lib/traversal.glsl
     shaders/lib/turns.glsl
     shaders/lib/underwater.glsl
+    shaders/lib/upscaledepth.glsl
     shaders/lib/variants.glsl
     shaders/lib/water.glsl
     shaders/lib/wavelines.glsl
@@ -253,7 +254,11 @@ set(RTX_VULKAN_FILES
     device/commands.hpp
     device/device.cpp
     device/device.hpp
-    device/dlss.hpp
+    upscale/dlssapplication.hpp
+    device/extensionfilter.cpp
+    device/extensionfilter.hpp
+    device/driverprofile.cpp
+    device/driverprofile.hpp
     device/gputimer.cpp
     device/gputimer.hpp
     device/graveyard.cpp
@@ -283,7 +288,6 @@ set(RTX_VULKAN_FILES
     device/memory/frameslots.hpp
     device/memory/growablebuffer.cpp
     device/memory/growablebuffer.hpp
-    device/memory/hostwrites.hpp
     device/memory/image.cpp
     device/memory/image.hpp
     device/memory/imagearena.cpp
@@ -317,8 +321,8 @@ set(RTX_VULKAN_FILES
     device/zonecounters.hpp
     device/validation.cpp
     device/validation.hpp
-    digestpass.cpp
-    digestpass.hpp
+    frame/digestpass.cpp
+    frame/digestpass.hpp
     display/bloompass.cpp
     display/bloompass.hpp
     display/displaychain.cpp
@@ -430,6 +434,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/traceconstants.h
     shaders/shared/unormmean.h
     shaders/shared/unormround.h
+    shaders/shared/upscaleinputs.h
     shaders/shared/wavetransform.h
     texture/bc7encodepass.cpp
     texture/bc7encodepass.hpp
@@ -449,32 +454,32 @@ set(RTX_VULKAN_FILES
     texture/texturecost.cpp
     texture/texturecost.hpp
     texture/texturepasses.hpp
-    trace/denoise/accumulatepass.cpp
-    trace/denoise/accumulatepass.hpp
-    trace/denoise/atrouspass.cpp
-    trace/denoise/atrouspass.hpp
-    trace/denoise/compositepass.cpp
-    trace/denoise/compositepass.hpp
-    trace/denoise/denoised.hpp
-    trace/denoise/denoiseframe.hpp
-    trace/denoise/denoisehistory.cpp
-    trace/denoise/denoisehistory.hpp
-    trace/denoise/denoisepasses.cpp
-    trace/denoise/denoisepasses.hpp
-    trace/denoise/historyclamppass.cpp
-    trace/denoise/historyclamppass.hpp
-    trace/denoise/panepass.cpp
-    trace/denoise/panepass.hpp
-    trace/denoise/shadowpass.cpp
-    trace/denoise/shadowpass.hpp
-    trace/denoise/specularpass.cpp
-    trace/denoise/specularpass.hpp
-    trace/denoise/temporalturns.hpp
+    denoise/accumulatepass.cpp
+    denoise/accumulatepass.hpp
+    denoise/atrouspass.cpp
+    denoise/atrouspass.hpp
+    denoise/compositepass.cpp
+    denoise/compositepass.hpp
+    denoise/denoised.hpp
+    denoise/denoiseframe.hpp
+    denoise/denoisehistory.cpp
+    denoise/denoisehistory.hpp
+    denoise/denoisepasses.cpp
+    denoise/denoisepasses.hpp
+    denoise/historyclamppass.cpp
+    denoise/historyclamppass.hpp
+    denoise/panepass.cpp
+    denoise/panepass.hpp
+    denoise/shadowpass.cpp
+    denoise/shadowpass.hpp
+    denoise/specularpass.cpp
+    denoise/specularpass.hpp
+    denoise/temporalturns.hpp
     trace/fogvolume.cpp
     trace/fogvolume.hpp
-    trace/framestep.hpp
-    trace/gbuffer.cpp
-    trace/gbuffer.hpp
+    frame/framestep.hpp
+    frame/gbuffer.cpp
+    frame/gbuffer.hpp
     trace/ripplepass.cpp
     trace/ripplepass.hpp
     trace/spritebin.cpp
@@ -489,7 +494,7 @@ set(RTX_VULKAN_FILES
     trace/tracemedia.hpp
     trace/tracepasses.cpp
     trace/tracepasses.hpp
-    trace/tracepast.hpp
+    frame/tracepast.hpp
     trace/tracerecording.hpp
     trace/tracesubject.hpp
     trace/tuplequeue.cpp
@@ -512,18 +517,18 @@ set(RTX_VULKAN_FILES
 
 if (OPENMW_RTX_DLSS)
     list(APPEND RTX_VULKAN_FILES
-        device/dlss.cpp
-        device/ngx.cpp
-        device/ngx.hpp
-        device/ngxlibrary.hpp
+        upscale/dlssapplication.cpp
+        upscale/ngx.cpp
+        upscale/ngx.hpp
+        upscale/ngxlibrary.hpp
         upscale/dlssupscaler.cpp)
     if (WIN32)
-        list(APPEND RTX_VULKAN_FILES device/ngxlibrarywin32.cpp)
+        list(APPEND RTX_VULKAN_FILES upscale/ngxlibrarywin32.cpp)
     else ()
-        list(APPEND RTX_VULKAN_FILES device/ngxlibraryposix.cpp)
+        list(APPEND RTX_VULKAN_FILES upscale/ngxlibraryposix.cpp)
     endif ()
 else ()
-    list(APPEND RTX_VULKAN_FILES device/dlssstub.cpp upscale/dlssupscalerstub.cpp)
+    list(APPEND RTX_VULKAN_FILES upscale/dlssapplicationstub.cpp upscale/dlssupscalerstub.cpp)
 endif ()
 
 add_library(openmw-rtx-vulkan STATIC ${RTX_VULKAN_FILES})

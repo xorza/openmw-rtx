@@ -8,7 +8,7 @@
 
 #include <volk.h>
 
-#include "hostwrites.hpp"
+#include "memory.hpp"
 
 namespace Rtx
 {

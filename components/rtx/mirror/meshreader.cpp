@@ -308,7 +308,9 @@ namespace Rtx
 
         if (const auto* rig = as<const SceneUtil::RigGeometry>(kind, NodeKind::RigGeometry, drawable))
         {
-            const bool skinned = rig->getInfluenceData() != nullptr && !rig->getBones().empty();
+            // **Skinned by its content, not by whether an update found its skeleton yet**, so a template,
+            // which no update reaches, and its clone in the scene read as one shape under one key.
+            const bool skinned = rig->getInfluenceData() != nullptr;
             return DrawableRead{ .mGeometry = rig->getSourceGeometry().get(),
                 .mDeform = skinned ? Deform::Rig : Deform::None,
                 .mRig = rig };

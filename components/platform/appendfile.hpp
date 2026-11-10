@@ -8,6 +8,16 @@
 
 namespace Platform
 {
+    /// What an append file holds as it is opened.
+    enum class AppendStart : std::uint8_t
+    {
+        /// What it held, every write after it.
+        Kept,
+
+        /// Nothing: emptied first.
+        Emptied,
+    };
+
     /// **A file every write lands at the end of, whoever else writes it**, over
     /// `appendfileposix.cpp` and `appendfilewin32.cpp`: `O_APPEND` on POSIX, and on Windows a handle
     /// opened for `FILE_APPEND_DATA` alone, since the C runtime's append moves to the end and then
@@ -16,14 +26,14 @@ namespace Platform
     class AppendFile
     {
     public:
-        /// `path` opened to append, and emptied first where `emptied`. Closed where the system
-        /// refused.
-        static AppendFile open(const std::filesystem::path& path, bool emptied);
+        /// `path` opened to append, from `start`. Closed where the system refused.
+        static AppendFile open(const std::filesystem::path& path, AppendStart start);
 
         bool isOpen() const { return mHold.isOpen(); }
 
-        /// Writes `bytes` at the end, in one write where the system takes it whole.
-        void write(std::string_view bytes) const;
+        /// Writes `bytes` at the end, in one write where the system takes it whole, and says whether all
+        /// of it landed: not where the file is closed or the system refused a write.
+        bool write(std::string_view bytes) const;
 
     private:
         /// A descriptor or a handle, and -1 for none.

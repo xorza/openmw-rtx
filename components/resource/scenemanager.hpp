@@ -52,6 +52,15 @@ namespace Shader
 
 namespace Resource
 {
+    /// Whether a loaded model is given the shader programs the rasterizer draws it with.
+    enum class ModelPrograms
+    {
+        Rasterized,
+
+        /// None: for a renderer that compiles no GLSL.
+        Left,
+    };
+
     /// @brief Handles loading and caching of scenes, e.g. .nif files or .osg files
     /// @note Some methods of the scene manager can be used from any thread, see the methods documentation for more
     /// details.
@@ -190,13 +199,13 @@ namespace Resource
 
         void setWeatherParticleOcclusion(bool value) { mWeatherParticleOcclusion = value; }
 
-        /// Whether a loaded model is given the shader programs the rasterizer draws it with. Off for
+        /// Whether a loaded model is given the shader programs the rasterizer draws it with. Left for
         /// a renderer that compiles no GLSL: the visitor runs createProgram on every drawable and
         /// moves the material into its removedState, and that state is what such a renderer reads
         /// as the loader left it. Nothing outside this class can stop the visitor, which is built
-        /// here from this manager's own shader manager, so the flag is the one way to say so. The
+        /// here from this manager's own shader manager, so this is the one way to say so. The
         /// companion maps of `setAutoMaps` are attached either way.
-        void setShadersEnabled(bool enabled) { mShadersEnabled = enabled; }
+        void setModelPrograms(ModelPrograms programs) { mPrograms = programs; }
 
     private:
         osg::ref_ptr<Shader::ShaderVisitor> createShaderVisitor(const std::string& shaderPrefix = "objects");
@@ -229,7 +238,7 @@ namespace Resource
         bool mAdjustCoverageForAlphaTest = false;
         bool mSupportsNormalsRT = false;
         bool mWeatherParticleOcclusion = false;
-        bool mShadersEnabled = true;
+        ModelPrograms mPrograms = ModelPrograms::Rasterized;
         bool mUnRefImageDataAfterApply = false;
 
         SceneManager(const SceneManager&) = delete;

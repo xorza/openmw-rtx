@@ -7,7 +7,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <components/platform/gpu.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -75,7 +76,7 @@ namespace Rtx
 
             StressPass four(device, 4.0);
             StressPass twentyFour(device, 24.0);
-            if (card.getProperties().mProperties2.properties.vendorID == 0x10de)
+            if (card.getDriver().mVendor == Platform::Gpu::Vendor::Nvidia)
             {
                 EXPECT_EQ(card.timestampMs(1), 1.0e-6) << "NVIDIA's clock counts nanoseconds";
             }

@@ -41,11 +41,6 @@ namespace RtxTool
         }
     }
 
-    std::optional<float> parseFloat(std::string_view text)
-    {
-        return wholeNumber<float>(text);
-    }
-
     std::optional<osg::Vec3f> parseVec3(std::string_view text)
     {
         std::array<std::string_view, 3> pieces;
@@ -55,7 +50,7 @@ namespace RtxTool
         osg::Vec3f result;
         for (std::size_t axis = 0; axis < pieces.size(); ++axis)
         {
-            const std::optional<float> value = parseFloat(pieces[axis]);
+            const std::optional<float> value = wholeNumber<float>(pieces[axis]);
             if (!value.has_value())
                 return std::nullopt;
 
@@ -72,7 +67,7 @@ namespace RtxTool
             return std::nullopt;
 
         const std::optional<double> seconds = wholeNumber<double>(pieces[0]);
-        const std::optional<float> scroll = parseFloat(pieces[1]);
+        const std::optional<float> scroll = wholeNumber<float>(pieces[1]);
         const std::optional<double> x = wholeNumber<double>(pieces[2]);
         const std::optional<double> y = wholeNumber<double>(pieces[3]);
         if (!seconds.has_value() || !scroll.has_value() || !x.has_value() || !y.has_value())
@@ -192,7 +187,7 @@ namespace RtxTool
 
     float BlockFile::number(const BlockField& field) const
     {
-        const std::optional<float> value = parseFloat(field.mValue);
+        const std::optional<float> value = wholeNumber<float>(field.mValue);
         if (!value.has_value())
             refuseValue(field, "is not a number");
 

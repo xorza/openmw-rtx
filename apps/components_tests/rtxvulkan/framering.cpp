@@ -9,7 +9,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -62,7 +62,7 @@ namespace Rtx
         /// the queue.
         TEST_F(RtxFrameRingTest, theSlotHandedOutForRecordingIsNotOneAFrameInFlightHolds)
         {
-            FrameRing ring(getDevice(), true, false);
+            FrameRing ring(getDevice(), Reporting::Measured);
 
             // Filled to the brim: nothing collects, so every frame stays in flight, exactly as
             // a watched window (`view`) leaves the ring.
@@ -106,7 +106,7 @@ namespace Rtx
             // The device's graveyard is shared with every test before this one and with what the
             // ring made, so it is emptied after both: the counts below are of this test's burials
             // alone.
-            FrameRing ring(getDevice(), true, false);
+            FrameRing ring(getDevice(), Reporting::Measured);
             Graveyard& graveyard = getDevice().getGraveyard();
             getDevice().waitIdle();
             getDevice().collectIdle();
@@ -170,7 +170,7 @@ namespace Rtx
         TEST_F(RtxFrameRingTest, aPictureStandsPastTheFrameThatTakesItsSlot)
         {
             const Device& device = getDevice();
-            FrameRing ring(device, true, false);
+            FrameRing ring(device, Reporting::Measured);
 
             constexpr std::array<std::uint8_t, 4> picture{ 1, 2, 3, 4 };
             constexpr std::array<std::uint8_t, 4> other{ 5, 6, 7, 8 };
@@ -242,7 +242,7 @@ namespace Rtx
 
             for (const bool traced : { true, false })
             {
-                FrameRing ring(getDevice(), true, false);
+                FrameRing ring(getDevice(), Reporting::Measured);
                 FrameRecord& frame = ring.begin();
                 EXPECT_THROW(
                     {
@@ -271,7 +271,7 @@ namespace Rtx
         /// after three of them is the one report, under the number it was submitted with.
         TEST_F(RtxFrameRingTest, aSkippedFrameClosesAndComesBackWithNoReport)
         {
-            FrameRing ring(getDevice(), true, false);
+            FrameRing ring(getDevice(), Reporting::Measured);
 
             constexpr std::uint64_t skipped = 3;
             for (std::uint64_t at = 0; at < skipped; ++at)

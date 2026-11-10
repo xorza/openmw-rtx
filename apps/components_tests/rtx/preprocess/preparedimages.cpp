@@ -25,7 +25,9 @@
 #include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
+#include <components/rtx/preprocess/texture/chainscratch.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/testing/util.hpp>
 
 namespace Rtx
@@ -467,6 +469,36 @@ namespace Rtx
             EXPECT_EQ(made(*makeBc1(8, 8, 2, true), TextureEncoding::Painted), ChainForm::Bc7);
             EXPECT_EQ(made(*makeBc1(8, 8, 2, true), TextureEncoding::Data), ChainForm::Stands);
             EXPECT_EQ(made(*makeBc1(8, 8, 2, false), TextureEncoding::Data), ChainForm::Coarser) << "no cut, made";
+
+            // A file past the side a slot holds is built at no level, so its own chain stands: a build
+            // of 32768 on a side would lay four gigabytes, past a level's 32-bit offset.
+            ASSERT_EQ(Shaders::TEXTURE_SIDE_MOST, 16384u) << "the edge this test stands at";
+            EXPECT_EQ(made(*makeBc1(16384, 4, 1, false), TextureEncoding::Data), ChainForm::Coarser);
+            EXPECT_EQ(made(*makeBc1(16388, 4, 1, false), TextureEncoding::Data), ChainForm::Stands);
+
+            // And a classic pair whose `_spec` is past it converts nothing, where one within it does.
+            const osg::ref_ptr<osg::Image> diffuse = makeBc1(8, 8, 1, false);
+            const auto converted = [&](const osg::Image& specular) {
+                MadeChain chain;
+                content.convert(
+                    ConversionPass::Input{
+                        .mImage = *diffuse, .mPartner = specular, .mEncoding = TextureEncoding::ConvertedColour },
+                    chain);
+                return chain.mForm;
+            };
+            EXPECT_EQ(converted(*makeBc1(16388, 4, 1, false)), ChainForm::Stands);
+            EXPECT_NE(converted(*makeBc1(16384, 4, 1, false)), ChainForm::Stands);
+        }
+
+        /// **A chain whose making needs more than the system has left is not made**, and one that needs
+        /// nothing is: an exabyte against any machine's memory.
+        TEST(RtxPreparedImagesTest, aChainPastWhatTheSystemHasLeftIsNotMade)
+        {
+            const osg::ref_ptr<osg::Image> file = makeBc1(8, 8, 1, false);
+            ChainScratch vast;
+            vast[ChainBuffer::File] = std::size_t{ 1 } << 60;
+            EXPECT_FALSE(PreparedImages::admits(vast, *file));
+            EXPECT_TRUE(PreparedImages::admits(ChainScratch{}, *file));
         }
 
         /// **A classic pair of two sizes is converted at the slot's own file's**: a 4x4 diffuse beside a 2x2

@@ -151,9 +151,6 @@ namespace Rtx
 
         const Index mesh = added.value();
 
-        if (read.mRig != nullptr && read.mDeform == Deform::None)
-            ++stats.mUnskinned;
-
         file(drawable, mesh);
         ++stats.mMeshesAdded;
 
@@ -348,6 +345,19 @@ namespace Rtx
             const SceneUtil::RigGeometry& rig = *read.mRig;
             const SceneUtil::RigGeometry::InfluenceData& skin = *rig.getInfluenceData();
             const std::span<SceneUtil::Bone* const> bones = rig.getBones();
+
+            // **No skeleton found yet stands the rig in its bind pose**, as `RigGeometry::cull`, finding
+            // none, draws its source: every bone and the skin's transform the identity, which the
+            // blend of a skin's weights leaves where the source has it.
+            if (bones.empty())
+            {
+                mBoneScratch.assign(skin.mBones.size(), toGpuBone(osg::Matrixf::identity()));
+                packRig(toGpuBone(osg::Matrixf::identity()), mBoneScratch, mPoseScratch);
+                mScene.pose(mesh, mPoseScratch, reachOf(rig));
+                ++stats.mUnskinned;
+                ++stats.mDeformed;
+                return;
+            }
             assert(bones.size() == skin.mBones.size());
 
             // `RigGeometry::cull`'s arithmetic, row for row: each bone's rows, and the skin's

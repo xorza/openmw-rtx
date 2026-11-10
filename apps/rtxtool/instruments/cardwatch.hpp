@@ -8,9 +8,9 @@
 #include <variant>
 #include <vector>
 
+#include <components/platform/thread.hpp>
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/monitor.hpp>
-#include <components/rtx/common/worker.hpp>
 
 #include "amdgpu.hpp"
 #include "gpuclock.hpp"
@@ -185,8 +185,8 @@ namespace RtxTool
         /// Set by `start` and taken by the worker's next turn, or by `stop` where none came.
         std::atomic<bool> mStartAsked{ false };
 
-        /// Last, for the reason `Worker` gives.
-        Rtx::Worker mWorker;
+        /// Last, so the thread is joined before the members it reads go.
+        std::jthread mWorker;
     };
 
     /// The share as one line of the report, without the indent and the line break, so a caller

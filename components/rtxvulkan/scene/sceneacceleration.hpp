@@ -55,6 +55,10 @@ namespace Rtx
         SceneAcceleration(const Device& device, Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
             std::uint32_t slots, std::uint32_t placementRoom);
 
+        /// Pinned: the top-level build keeps a pointer to its geometry, a member beside it.
+        SceneAcceleration(const SceneAcceleration&) = delete;
+        SceneAcceleration& operator=(const SceneAcceleration&) = delete;
+
         /// Builds every mesh's structure, writes every row, and builds the top level, in one submit
         /// with each stage ending in the barrier the next one needs. Once, after the constructor.
         /// `scene` must place at least one instance: a top-level structure over nothing has no

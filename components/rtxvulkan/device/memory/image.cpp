@@ -119,11 +119,11 @@ namespace Rtx
         return requirements.memoryRequirements;
     }
 
-    Result<Image, std::string_view> Image::tryMake(
+    Result<Image, MemoryRefusal> Image::tryMake(
         const MemoryUse use, const Device& device, const ImageDescription& description, const std::string_view name)
     {
         Image made(Unbound{}, device, description, name);
-        Result<DeviceMemory, std::string_view> memory
+        Result<DeviceMemory, MemoryRefusal> memory
             = device.getMemory().tryTake(made.mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use);
         if (!memory.isOk())
             return Err{ memory.error() };

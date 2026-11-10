@@ -28,14 +28,12 @@
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/dlss.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/display/displaychain.hpp>
-#include <components/rtxvulkan/frametracer.hpp>
 #include <components/rtxvulkan/gui/guidrawer.hpp>
 #include <components/rtxvulkan/present/presenttarget.hpp>
 #include <components/rtxvulkan/scene/scenepasses.hpp>
@@ -46,9 +44,11 @@
 #include <components/rtxvulkan/trace/tracechain.hpp>
 #include <components/rtxvulkan/trace/tracemedia.hpp>
 #include <components/rtxvulkan/trace/tracepasses.hpp>
+#include <components/rtxvulkan/upscale/dlssapplication.hpp>
 #include <components/rtxvulkan/upscale/upscaler.hpp>
 
 #include "framering.hpp"
+#include "frametracer.hpp"
 #include "picturetracer.hpp"
 
 namespace Rtx::Testing
@@ -100,7 +100,7 @@ namespace Rtx
         void skipFrame() override;
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }
-        std::span<const UpscalerKind> getUpscalers() const override { return mUpscalers; }
+        std::span<const UpscalerChoice> getUpscalers() const override { return mUpscalers; }
         JobProgress awaitKernels(KernelSet set, std::chrono::milliseconds patience) override;
         FrameTraced renderFrame(const FrameRequest& request) override;
         void holdAir(const AirClock& air) override;
@@ -176,21 +176,18 @@ namespace Rtx
 
         Device mDevice;
 
-        /// Whether the player's DLSS feature library is installed, looked for once for the run:
-        /// what `Auto` resolves by, and what `getUpscalers` offers.
-        bool mDlssInstalled = false;
-
-        /// Before the trace's passes, whose kernels are specialized on the kind it resolved, and
-        /// before the profile, which carries that kind. Its pipelines are made with the renderer
+        /// Before the trace's passes, whose kernels are specialized on the masks it reads, and before
+        /// the menu, which offers DLSS by what its attempt came to. Its pipelines are made with the renderer
         /// whatever the mode, so a player who never upscales pays their compile once, from the
         /// cache; it outlives a mode being turned off, so the mode and not this says whether a frame
         /// is upscaled.
         Upscaler mUpscaler;
 
-        /// `getUpscalers`' answer, a prefix of `sUpscalerMenu`.
-        std::span<const UpscalerKind> mUpscalers;
+        /// `getUpscalers`' answer, a prefix of `sUpscalerMenu`: DLSS where it runs or was not tried and
+        /// every fact for it holds (`offersDlss`).
+        std::span<const UpscalerChoice> mUpscalers;
 
-        /// Whether the frame this builds counts for the host. `RendererOptions::mCounting` says why
+        /// Whether the frame this builds counts for the host. `RendererOptions::mReporting` says why
         /// the game's does not.
         bool mCounting = false;
 

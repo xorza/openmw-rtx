@@ -7,17 +7,12 @@
 #include <optional>
 #include <utility>
 
+#include <components/platform/gpu.hpp>
 #include <components/platform/process.hpp>
+#include <components/platform/thread.hpp>
 
 namespace RtxTool
 {
-    namespace
-    {
-        /// The PCI vendors whose cards a reader reads.
-        constexpr std::uint32_t sNvidia = 0x10de;
-        constexpr std::uint32_t sAmd = 0x1002;
-    }
-
     void CardTally::take(const std::uint32_t pid, const std::string_view name)
     {
         ++mSamples;
@@ -82,18 +77,21 @@ namespace RtxTool
 
     void CardWatch::watch(const Rtx::CardAddress& card)
     {
-        if (mWorker.isRunning())
+        if (mWorker.joinable())
             return;
 
         open(card);
         mMonitor.under([&] { close(); });
-        mWorker.repeat("card watch", mPeriod, [this] {
-            mMonitor.under([this] {
-                if (mStartAsked.load(std::memory_order_acquire))
-                    beginAsked();
-                else
-                    read();
-            });
+        // At once and every period after it, until stopped: a stop ends the period's wait at once.
+        mWorker = Platform::startThread("card watch", [this](const std::stop_token& stop) {
+            do
+                mMonitor.under([this] {
+                    if (mStartAsked.load(std::memory_order_acquire))
+                        beginAsked();
+                    else
+                        read();
+                });
+            while (Platform::sleepUnlessStopped(stop, mPeriod));
         });
     }
 
@@ -105,12 +103,12 @@ namespace RtxTool
             return;
         }
 
-        switch (card.mVendor)
+        switch (Platform::Gpu::vendorOf(card.mVendor))
         {
-            case sNvidia:
+            case Platform::Gpu::Vendor::Nvidia:
                 mReader.emplace<Nvml>(*card.mPci);
                 return;
-            case sAmd:
+            case Platform::Gpu::Vendor::Amd:
                 if (std::optional<AmdGpu> amd = AmdGpu::at(std::filesystem::path(AmdGpu::sDevices), *card.mPci))
                     mReader.emplace<AmdGpu>(std::move(*amd));
                 else

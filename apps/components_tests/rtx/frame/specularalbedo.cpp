@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -9,6 +10,7 @@
 #include <apps/components_tests/rtx/support/lobeintegrals.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
 #include <components/rtx/shaders/brdf.h>
+#include <components/rtx/tables/specularalbedomaker.hpp>
 
 namespace Rtx
 {
@@ -53,13 +55,12 @@ namespace Rtx
         /// from the distribution alone is 4.1e-3 off at the grazing node, and fails it.
         TEST(RtxSpecularAlbedoTest, theTableIsTheIntegralOfTheLobe)
         {
-            const SpecularAlbedo& table = SpecularAlbedo::shared();
             for (const std::uint32_t row : { 32u, 48u, 63u })
                 for (const std::uint32_t column : { 4u, 21u, 42u, 63u })
                 {
                     const float roughness = Shaders::specularTableRoughness(row);
                     const float cosine = Shaders::specularTableCosine(column);
-                    const osg::Vec2f read = table.at(cosine, roughness);
+                    const osg::Vec2f read = specularAlbedoAt(cosine, roughness);
                     const osg::Vec2f expected = Testing::lobeIntegrals(cosine, roughness);
 
                     EXPECT_NEAR(read.x(), expected.x(), 5e-4) << "climbing at " << cosine << ' ' << roughness;
@@ -74,11 +75,10 @@ namespace Rtx
         /// should not be: the whole falls to 0.89 at a cosine of 0.002, which the nodes there hold.
         TEST(RtxSpecularAlbedoTest, theSmoothestLobeIsAMirror)
         {
-            const SpecularAlbedo& table = SpecularAlbedo::shared();
             for (std::uint32_t column = firstColumnFrom(0.2f); column < Shaders::SPECULAR_TABLE_SIZE; ++column)
             {
                 const float cosine = Shaders::specularTableCosine(column);
-                const osg::Vec2f read = table.at(cosine, Shaders::specularTableRoughness(0));
+                const osg::Vec2f read = specularAlbedoAt(cosine, Shaders::specularTableRoughness(0));
 
                 EXPECT_NEAR(read.x(), std::pow(1.0f - cosine, 5.0f), 2.5e-4) << cosine;
                 EXPECT_NEAR(read.y(), 1.0f, 2.5e-4) << cosine;
@@ -92,18 +92,26 @@ namespace Rtx
         /// them by far more; toward grazing the lobes part by up to 0.31.
         TEST(RtxSpecularAlbedoTest, theRayTracingGemsFitLandsNearTheTableAwayFromGrazing)
         {
-            const SpecularAlbedo& table = SpecularAlbedo::shared();
             for (std::uint32_t row = 0; row < Shaders::SPECULAR_TABLE_SIZE; ++row)
                 for (std::uint32_t column = firstColumnFrom(0.5f); column < Shaders::SPECULAR_TABLE_SIZE; ++column)
                 {
                     const float roughness = Shaders::specularTableRoughness(row);
                     const float cosine = Shaders::specularTableCosine(column);
-                    const osg::Vec2f read = table.at(cosine, roughness);
+                    const osg::Vec2f read = specularAlbedoAt(cosine, roughness);
                     const osg::Vec2f fitted = splitSumFit(roughness * roughness, cosine);
 
                     EXPECT_NEAR(fitted.x(), read.y() - read.x(), 0.06) << "scale at " << cosine << ' ' << roughness;
                     EXPECT_NEAR(fitted.y(), read.x(), 0.06) << "bias at " << cosine << ' ' << roughness;
                 }
+        }
+
+        /// The compiled table is the one its maker makes, to the bit: what the build wrote, against a
+        /// run of the maker now.
+        TEST(RtxSpecularAlbedoTest, theCompiledTableIsTheMadeOne)
+        {
+            const std::vector<float> made = makeSpecularAlbedo();
+            ASSERT_EQ(made.size(), sSpecularAlbedo.size());
+            EXPECT_TRUE(std::equal(made.begin(), made.end(), sSpecularAlbedo.begin()));
         }
     }
 }

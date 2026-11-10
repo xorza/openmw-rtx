@@ -11,11 +11,11 @@
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
+#include <components/rtx/common/slots.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtx/scene/refusal.hpp>
 
 #include "framesinflight.hpp"
@@ -25,6 +25,7 @@
 #include "renderer.hpp"
 #include "sceneholder.hpp"
 #include "slot.hpp"
+#include "verticalsync.hpp"
 
 namespace Rtx
 {
@@ -66,7 +67,7 @@ namespace Rtx
         void setUpscale(Upscale upscale) override;
         void setVerticalSync(VerticalSync) override {}
         void setAnisotropy(std::uint32_t anisotropy) override { mProfile.mAnisotropy = anisotropy; }
-        void setGamma(float gamma) override { mProfile.mGamma = gamma; }
+        void setGamma(float gamma) override;
         void setIndirectLighting(bool traced) override;
         void setBounceRays(std::uint32_t rays) override;
         JobProgress awaitKernels(KernelSet, std::chrono::milliseconds) override { return {}; }
@@ -81,7 +82,7 @@ namespace Rtx
         std::string describeDevice() const override;
         CardAddress getCardAddress() const override { return {}; }
         const RenderProfile& getProfile() const override { return mProfile; }
-        std::span<const UpscalerKind> getUpscalers() const override { return offeredUpscalers(false); }
+        std::span<const UpscalerChoice> getUpscalers() const override { return offeredUpscalers(false); }
         bool isValidating() const override { return false; }
         MemoryReport getMemoryReport() const override { return {}; }
         const SceneStats& getSceneStats() const override { return mStats; }
@@ -125,10 +126,10 @@ namespace Rtx
 
         /// Every view scene's, by its index, and the indices given back for the next to take.
         std::vector<std::optional<SceneHeld>> mViews;
-        std::vector<std::uint32_t> mFreeViews;
+        SlotPool mFreeViews;
 
         std::vector<GuiTexture> mGuiTextures;
-        std::vector<std::uint32_t> mFreeGuiTextures;
+        SlotPool mFreeGuiTextures;
 
         /// What `lendGuiTexture` hands out, grown to the largest rectangle lent and never shrunk.
         std::vector<std::uint8_t> mLending;

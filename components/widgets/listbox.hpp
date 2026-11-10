@@ -7,7 +7,7 @@
 namespace Gui
 {
     /// MyGUI's list, standing in MyGUI's `ListBox` factory under its name
-    /// (`FontUsers::registerListFactory`), so every list a layout, a skin or a combo box makes is
+    /// (`FontUsers::Users::Lists`), so every list a layout, a skin or a combo box makes is
     /// one. **Its lines stand a line of the interface's text high**, its registry's text height and
     /// a pixel above and below, and follow a fit to another font size; a list whose skin states its
     /// own `HeightLine` keeps it.

@@ -23,11 +23,12 @@
 #include <osg/Uniform>
 #include <osg/Vec4f>
 
-#include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/texturetype.hpp>
 #include <components/sceneutil/util.hpp>
+
+#include "surfacedescription.hpp"
 
 namespace Rtx
 {

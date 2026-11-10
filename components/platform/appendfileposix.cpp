@@ -7,9 +7,10 @@
 
 namespace Platform
 {
-    AppendFile AppendFile::open(const std::filesystem::path& path, const bool emptied)
+    AppendFile AppendFile::open(const std::filesystem::path& path, const AppendStart start)
     {
         AppendFile file;
+        const bool emptied = start == AppendStart::Emptied;
         const int flags = O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC | (emptied ? O_TRUNC : 0);
         file.mHold = UniqueHold<Closing>(::open(path.c_str(), flags, 0644));
         return file;
@@ -20,7 +21,7 @@ namespace Platform
         ::close(static_cast<int>(hold));
     }
 
-    void AppendFile::write(std::string_view bytes) const
+    bool AppendFile::write(std::string_view bytes) const
     {
         while (isOpen() && !bytes.empty())
         {
@@ -28,8 +29,9 @@ namespace Platform
             if (written < 0 && errno == EINTR)
                 continue;
             if (written <= 0)
-                return;
+                return false;
             bytes.remove_prefix(static_cast<std::size_t>(written));
         }
+        return isOpen();
     }
 }

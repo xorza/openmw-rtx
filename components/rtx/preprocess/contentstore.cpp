@@ -112,10 +112,10 @@ namespace Rtx
                     if (failed)
                         continue;
 
-                    if (name.ends_with(Platform::sPartialSuffix))
+                    if (const Platform::Partial partial = Platform::sweepStalePartial(file, now);
+                        partial != Platform::Partial::None)
                     {
-                        if (now - time > Platform::sPartialStaleAfter && std::filesystem::remove(file.path(), failed))
-                            ++swept.mStale;
+                        swept.mStale += partial == Platform::Partial::Removed ? 1 : 0;
                         continue;
                     }
 
@@ -151,14 +151,14 @@ namespace Rtx
                                 << " could not be made, and will miss: " << failed.message();
 
         mQueue.push_back(Task{ .mKind = TaskKind::Start });
-        mWorker.start("content store", [this](const Platform::StopToken& stop) { serve(stop); });
+        mWorker = Platform::startThread("content store", [this](const std::stop_token& stop) { serve(stop); });
         mMonitor.give([] {});
     }
 
     ContentStore::~ContentStore()
     {
         flush();
-        mWorker.stop();
+        mWorker = std::jthread();
     }
 
     std::filesystem::path ContentStore::pathOf(const ContentKey& key) const
@@ -366,14 +366,14 @@ namespace Rtx
 
     bool ContentStore::stampsOnce(const ContentKey& key)
     {
-        if (mStamped.contains(key))
+        // Past the bound a hit stamps nothing: each stamp is a task on the queue, and a key no longer
+        // remembered would queue one at every hit.
+        if (mStamped.size() >= sStampedMost)
             return false;
-        if (mStamped.size() < sStampedMost)
-            mStamped.insert(key);
-        return true;
+        return mStamped.insert(key).second;
     }
 
-    void ContentStore::serve(const Platform::StopToken& stop)
+    void ContentStore::serve(const std::stop_token& stop)
     {
         Task task{ .mKind = TaskKind::Start };
         mMonitor.serve(
@@ -384,7 +384,7 @@ namespace Rtx
                 mQueuedBytes -= task.mPayload.size();
                 ++mInFlight;
             },
-            [&](const Platform::StopToken&) {
+            [&](const std::stop_token&) {
                 run(task);
                 // Let go of the payload, so an idle store holds no write's bytes.
                 task.mPayload = Misc::ByteBuffer();
@@ -432,6 +432,12 @@ namespace Rtx
         for (auto entry = swept.mKept.rbegin(); entry != swept.mKept.rend(); ++entry)
         {
             if (entry->mBytes > sizeof(EntryTrailer) + sResidentMost)
+                continue;
+
+            // Not read where it could not be kept: a store that only grows would read every small
+            // file at every start, past the bound, for nothing.
+            const std::size_t costs = residentBytesOf(entry->mBytes - sizeof(EntryTrailer));
+            if (mMonitor.under([&] { return mResidentBytes + costs > sResidentBytesMost; }))
                 continue;
 
             ContentPassId pass = ContentPassId::Count;

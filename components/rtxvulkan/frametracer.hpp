@@ -21,7 +21,7 @@ namespace Rtx
     /// inside one stretch of a frame, laid over each other. What `PictureTracer` is for a picture,
     /// for the frame, so the two are made, measured and let go of alike. The upscaler is the
     /// renderer's, handed in at each call that places or measures it: it is made before the trace's
-    /// kernels, which are specialized on the kind it resolved.
+    /// kernels, which are specialized on the masks it reads.
     class FrameTracer
     {
     public:
@@ -30,13 +30,13 @@ namespace Rtx
 
         /// What the frame uses inside one stretch of it at `render` and `output` under `profile`, which
         /// its arena places: the chain's shared images, then the upscaler's where the profile upscales.
-        static void declare(
-            VkExtent2D render, VkExtent2D output, const RenderProfile& profile, std::vector<ArenaImage>& into);
+        static void declare(VkExtent2D render, VkExtent2D output, const RenderProfile& profile,
+            const Upscaler& upscaler, std::vector<ArenaImage>& into);
 
         /// What the chain, the arena of `declared` and the upscaler where `upscale` upscales take of
         /// the device at `render` and `output`.
         static VkDeviceSize bytesAt(const Device& device, VkExtent2D render, VkExtent2D output, Upscale upscale,
-            UpscalerKind upscaler, RadianceWidth radiance, std::span<const ArenaImage> declared);
+            const Upscaler& upscaler, RadianceWidth radiance, std::span<const ArenaImage> declared);
 
         /// What a move to `render` and `output` under `upscale` makes again, with the arena
         /// `declared`: the chain where it stands at another extent, the upscaler where it stands at
