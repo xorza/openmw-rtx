@@ -162,7 +162,7 @@ jobs:
 
       - name: Install
         if: matrix.tested && matrix.flavour == 'full'
-        run: cmake --install build-full --prefix "$RUNNER_TEMP/install"
+        run: python omw full exec cmake --install . --prefix "$RUNNER_TEMP/install"
 
       - name: Integration tests
         # Over the null backend in SDL's offscreen window: no device and no display. A pass takes a

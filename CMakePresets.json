@@ -1,5 +1,6 @@
 {
     "version": 10,
+    "cmakeMinimumRequired": { "major": 4, "minor": 4, "patch": 0 },
     "$comment": [
         "How the tree is configured and tested, as CMake, an IDE and `omw` read it. A visible preset is",
         "`<flavour>-<system>` and inherits the flavour, the system and `common`, in that order: the earlier one wins",

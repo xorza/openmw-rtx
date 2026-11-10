@@ -129,6 +129,43 @@ def pinned_folder(name: str, *pinned: pins.Pin) -> Path:
     return DEPS / f"{name}-{digest}"
 
 
+def cmake_dir() -> Path:
+    return pinned_folder("cmake", pins.CMAKE[SYSTEM])
+
+
+def cmake() -> Path:
+    """**The CMake every build of the driver configures, builds, tests and installs with**, Kitware's
+    own of the version `pins.py` names, fetched once whole: one CMake on every desk, on CI, whose
+    runners carry an older one, and in the release container, whose Ubuntu carries an older one still.
+    Its `bin` goes first on the PATH of every command (`cmake_environment`)."""
+    folder = cmake_dir()
+    if folder.is_dir():
+        return folder
+    pin = pins.CMAKE[SYSTEM]
+    archive = DEPS / Path(pin.url).name
+    fetch.download_pin(pin, archive)
+    # Kitware's archive holds one folder named after itself, which takes the pinned name.
+    inner = archive.name.removesuffix(".zip").removesuffix(".tar.gz")
+
+    def unpack(partial: Path) -> None:
+        if WINDOWS:
+            with zipfile.ZipFile(archive) as opened:
+                opened.extractall(partial)
+        else:
+            with tarfile.open(archive) as opened:
+                opened.extractall(partial, filter="data")
+
+    fetch.build_beside(folder, unpack, within=inner)
+    archive.unlink()
+    return folder
+
+
+def cmake_environment(env: dict[str, str]) -> None:
+    """The pinned CMake first on the PATH, fetched if it is not there yet: `cmake` and `ctest`, which
+    every command names bare, are then its own."""
+    prepend_path(env, "PATH", cmake() / "bin")
+
+
 def appimage_tools_dir() -> Path:
     return pinned_folder("appimage", *pins.APPIMAGE_TOOLS.values())
 
@@ -313,7 +350,7 @@ def sdk_environment(env: dict[str, str]) -> None:
 def pinned_names() -> set[str]:
     """Every name in deps/ that the pins give this system, through the same functions that name what
     each getter above leaves there, so pruning cannot take what a getter fetched."""
-    kept = [vulkan_sdk_dir(), appimage_tools_dir()]
+    kept = [vulkan_sdk_dir(), cmake_dir(), appimage_tools_dir()]
     kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]
     if WINDOWS:
         tag = msvc_versions()["VCPKG_TAG"]
@@ -342,8 +379,8 @@ def prune() -> None:
 
 def bootstrap() -> None:
     """The Vulkan SDK, run once to prove it: a tool left out, or one that needs a library it did not
-    bring, stops here by name and not in the middle of a configure. Then deps/ shed of what no pin
-    names."""
+    bring, stops here by name and not in the middle of a configure. Then the pinned CMake, and deps/
+    shed of what no pin names."""
     sdk = vulkan_sdk()
     env = dict(os.environ)
     sdk_environment(env)
@@ -353,4 +390,5 @@ def bootstrap() -> None:
             raise Refusal(f"{sdk} holds no {tool}")
         subprocess.run([found, "--version"], check=True, env=env, stdout=subprocess.DEVNULL)
     print(f"Vulkan SDK: {sdk}")
+    print(f"CMake: {cmake()}")
     prune()

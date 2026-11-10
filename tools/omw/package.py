@@ -11,7 +11,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from omw import deps, pins
+from omw import deps
 from omw.build import Build
 from omw.system import (
     ROOT,
@@ -152,12 +152,10 @@ class Container:
 
 def prepare_container(flavour: str) -> Container:
     """The release-base image made, which the layers it keeps make a moment's work after the first,
-    the SDK `omw bootstrap` fetches into deps/, which the desk shares, and the container's build of
-    `flavour` given a folder."""
+    the SDK and CMake `omw bootstrap` fetches into deps/, which the desk shares, and the container's
+    build of `flavour` given a folder."""
     docker = require("docker", "a release is built on Ubuntu 24.04, and on another system in a container: docker")
-    run([docker, "build", "--tag", RELEASE_IMAGE,
-         "--build-arg", f"CMAKE_URL={pins.CMAKE_LINUX.url}", "--build-arg", f"CMAKE_SHA256={pins.CMAKE_LINUX.sha256}",
-         "--file", ROOT / "CI" / "release-base.Dockerfile", ROOT / "CI"])
+    run([docker, "build", "--tag", RELEASE_IMAGE, "--file", ROOT / "CI" / "release-base.Dockerfile", ROOT / "CI"])
     for kept in (flavour, "ccache"):
         (CONTAINER_DIR / kept).mkdir(parents=True, exist_ok=True)
     container = Container(docker, user_and_group(), flavour)

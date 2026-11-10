@@ -84,9 +84,17 @@ VULKAN_LOADER_WINDOWS = Pin(
     f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_WINDOWS_VERSION}/windows/VulkanRT-X64-{VULKAN_SDK_WINDOWS_VERSION}-Components.zip",
     "a14672efed15aafc7f5a16572d35cd3a3416eadf670aeee3cdf50ee32d5fbf83",
 )
-# The CMake the release-base container builds with (`CI/release-base.Dockerfile`): the tree's floor,
-# 3.31, which Ubuntu 24.04's own 3.28 is under. CI's runner image carries a newer CMake of its own.
-CMAKE_LINUX = Pin(
-    "https://github.com/Kitware/CMake/releases/download/v3.31.12/cmake-3.31.12-linux-x86_64.tar.gz",
-    "0dc2e9a6860f06bf10bd8fadc03e35d9eeb4df46e33763a7e480e987758f385c",
-)
+# The CMake every build of the driver's configures with, on the desk, on CI and in the release container
+# (`deps.cmake`), by system: the release `cmake_minimum_required` names. The digests are Kitware's own
+# (`cmake-<version>-SHA-256.txt`).
+CMAKE_VERSION = "4.4.5"
+CMAKE = {
+    "linux": Pin(
+        f"https://github.com/Kitware/CMake/releases/download/v{CMAKE_VERSION}/cmake-{CMAKE_VERSION}-linux-x86_64.tar.gz",
+        "ed85135c5a5135b45e50423cb406dea04ca3338da0b8ef3c9ede963559680be0",
+    ),
+    "windows": Pin(
+        f"https://github.com/Kitware/CMake/releases/download/v{CMAKE_VERSION}/cmake-{CMAKE_VERSION}-windows-x86_64.zip",
+        "326c826486d46a23cf9d5a1c9ee3a567d427bdd02c4a34071937a2a675cff004",
+    ),
+}

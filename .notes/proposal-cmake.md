@@ -236,8 +236,9 @@ diagnostic after steps 9 and 12.
    every `APPLE` branch and `__APPLE__`/`Q_OS_MAC` line; `androidmain.cpp`, `androidpath.{cpp,hpp}`, gl4es's manual
    start, ICU's Android cross-build and every `ANDROID` branch. Upstream's user manual keeps its macOS and Android
    sections.
-3. **CMake 4.4.** The 4.4.5 pins in `pins.py` for Linux and Windows, `omw` and the release image on them,
-   `cmake_minimum_required(VERSION 4.4)`, and every check for an older CMake gone. The steps after it count on 4.4.
+3. **CMake 4.4.** Done: the 4.4.5 pins in `pins.py` for Linux and Windows, which `omw` fetches and puts first on
+   every command's PATH (`deps.cmake`), the release image's own CMake and apt's gone, `cmake_minimum_required(VERSION
+   4.4)` in the tree and the presets, and every check for an older CMake gone. The steps after it count on 4.4.
 4. **clang-format 23.1.5.** The wheel pins in `pins.py`, `omw format` on them, the CI jobs and `upstream.yml` on
    `omw format`; `.clang-format` in 23's names, held by the dump test; `.gitattributes` and `LineEnding: LF`; the
    merge driver, with a test that merges an upstream edit across a reformatted file without a conflict; then the

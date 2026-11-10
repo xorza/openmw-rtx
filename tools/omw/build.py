@@ -174,12 +174,13 @@ class Build:
     @property
     def env(self) -> dict[str, str]:
         """The environment every command of this flavour runs under: the Vulkan SDK `omw bootstrap`
-        fetched, MSVC's and the versions the Windows presets read, and the test preset's own — the
+        fetched, the pinned CMake, MSVC's and the versions the Windows presets read, and the test preset's own — the
         sanitizers' options, without which the asan build has no device and a race in the tsan build
         does not fail the run."""
         if self._env is None:
             env = msvc_environment() if WINDOWS else dict(os.environ)
             deps.sdk_environment(env)
+            deps.cmake_environment(env)
             if WINDOWS:
                 versions = deps.msvc_versions()
                 env["VCPKG_TAG"] = versions["VCPKG_TAG"]

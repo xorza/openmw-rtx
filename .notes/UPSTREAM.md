@@ -268,3 +268,6 @@ made only on the user's explicit yes, after which it is added here.
   so each comes from the system on Linux and from vcpkg on Windows; and the FreeBSD, OpenBSD and
   MinGW branches. Upstream's user manual (`docs/source`) keeps its macOS
   and Android sections.
+- CMake 4.4 at least (`cmake_minimum_required`), and every check for an older one gone: `omw`
+  builds with Kitware's 4.4.5 on every system, which GitHub's runners and Ubuntu do not carry. The
+  cost is a conflict with an upstream change to the lines around the checks.

@@ -1,5 +1,5 @@
 # 3.31 for `CMakePresets.json` version 10, the first that takes a `$comment`.
-cmake_minimum_required(VERSION 3.31)
+cmake_minimum_required(VERSION 4.4)
 
 project(OpenMW)
 
@@ -34,10 +34,6 @@ option(OPENMW_DEPLOY_RUNTIME_DEPENDENCIES "Deploy runtime dependency libraries. 
 
 set(runtime_dependency_arguments)
 if (OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
-    if (CMAKE_VERSION VERSION_LESS 3.21)
-        message(FATAL_ERROR "OPENMW_DEPLOY_RUNTIME_DEPENDENCIES requires at least CMake 3.21")
-    endif()
-    # when the version check is made obsolete, we can just pass this whether or not we're using it
     set(runtime_dependency_arguments RUNTIME_DEPENDENCY_SET openmw-dependencies)
 endif ()
 
@@ -585,13 +581,9 @@ if(OPENMW_LTO_BUILD)
 endif()
 
 if (OPENMW_LOCAL_INSTALL AND UNIX)
-    if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
-        # file(RELATIVE_PATH ...) can't handle pure lexical relativity, but cmake_path only came with 3.20.0
-        cmake_path(RELATIVE_PATH CMAKE_INSTALL_LIBDIR BASE_DIRECTORY "${CMAKE_INSTALL_BINDIR}" OUTPUT_VARIABLE origin_relative_libdir)
-        set(CMAKE_INSTALL_RPATH "$ORIGIN/${origin_relative_libdir}")
-    else()
-        message(WARNING "CMake is too old to work out how to adjust RPATH, please do so manually or update to something newer than 2017.")
-    endif()
+    # file(RELATIVE_PATH ...) can't handle pure lexical relativity.
+    cmake_path(RELATIVE_PATH CMAKE_INSTALL_LIBDIR BASE_DIRECTORY "${CMAKE_INSTALL_BINDIR}" OUTPUT_VARIABLE origin_relative_libdir)
+    set(CMAKE_INSTALL_RPATH "$ORIGIN/${origin_relative_libdir}")
 endif()
 
 # Extern
