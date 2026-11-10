@@ -1,0 +1,8 @@
+# gersemi, the CMake files' formatter, which `omw format` runs and the gate checks: the C++'s width and indent,
+# and a call that wraps one item a line, so a list gains and loses a line an item. The tree's own functions and
+# macros are read for their keywords; Qt's and CMake modules' unknown commands keep a plain layout unwarned.
+line_length: 120
+indent: 4
+list_expansion: favour-expansion
+definitions: [cmake, components, apps]
+warn_about_unknown_commands: false

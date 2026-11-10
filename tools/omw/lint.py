@@ -23,7 +23,6 @@ from omw.system import (
     SYSTEMS,
     Refusal,
     on_path,
-    read_text,
     report,
     require,
     working_tree_files,
@@ -65,25 +64,12 @@ def command_for(tool: Pinned, ci: bool = CI) -> list[str]:
                   f"`pipx install {tool.name}=={tool.version}`")
 
 
-def tabbed(name: str, text: str) -> list[str]:
-    """Each line of `text`, the CMake file `name`, that a tab indents, which upstream refuses."""
-    return [f"{name}:{number}: indented with a tab; CMake files are indented with spaces"
-            for number, line in enumerate(text.splitlines(), 1) if re.match(r"\s*\t", line)]
-
-
 NAMED = re.compile(r"/[a-z0-9]+\.(cpp|hpp|h)$")
 
 
 def misnamed(names: list[str]) -> list[str]:
     """Each source of `names` upstream's convention refuses: lower case and digits alone, in a folder."""
     return [f"{name}: a source is named in lower case and digits alone" for name in names if not NAMED.search(name)]
-
-
-def _cmake() -> list[str]:
-    """Upstream's rule for the top-level `CMakeLists.txt` and every `.cmake` file: indented with
-    spaces."""
-    return [line for name in working_tree_files(":(exclude)extern/", "CMakeLists.txt", "*.cmake")
-            for line in tabbed(name, read_text(ROOT / name))]
 
 
 def _names() -> list[str]:
@@ -157,7 +143,6 @@ def _workflows() -> list[str]:
 
 
 CHECKS: dict[str, Callable[[], list[str]]] = {
-    "cmake": _cmake,
     "names": _names,
     "translations": _translations,
     "driver": _driver,

@@ -56,16 +56,13 @@ jobs:
           python-version: "3.11"
 
       # Through the driver, which the gate runs too, so a tree the gate passes passes here.
-      - name: CMake files indented with spaces
-        run: python omw lint cmake
-
       - name: File names
         run: python omw lint names
 
       - name: Qt translations
         run: LUPDATE=/usr/lib/qt6/bin/lupdate python omw lint translations
 
-      - name: clang-format
+      - name: clang-format and gersemi
         run: python omw format --check
 
       - name: The driver, linted and type-checked

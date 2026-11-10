@@ -8,14 +8,15 @@ function (openmw_rtx_layer name below)
     cmake_parse_arguments(PARSE_ARGV 2 layer "" "" "SOURCES;HEADERS")
     if (layer_SOURCES)
         add_library(openmw-rtx-${name} STATIC)
-        target_sources(openmw-rtx-${name} PRIVATE ${layer_SOURCES})
-        set(scope PUBLIC)
+        target_sources(openmw-rtx-${name}
+            PRIVATE ${layer_SOURCES}
+            PUBLIC FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES ${layer_HEADERS})
+        target_link_libraries(openmw-rtx-${name} PUBLIC ${below})
     else ()
         add_library(openmw-rtx-${name} INTERFACE)
-        set(scope INTERFACE)
+        target_sources(openmw-rtx-${name} INTERFACE FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES ${layer_HEADERS})
+        target_link_libraries(openmw-rtx-${name} INTERFACE ${below})
     endif ()
-    target_sources(openmw-rtx-${name} ${scope} FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES ${layer_HEADERS})
-    target_link_libraries(openmw-rtx-${name} ${scope} ${below})
 endfunction ()
 
 openmw_rtx_layer(shaders openmw-components

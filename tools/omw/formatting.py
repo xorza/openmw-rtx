@@ -1,20 +1,20 @@
 """`omw format [--check] [file...]`: the C++ sources of the working tree through the pinned
-clang-format (`deps.clang_format`), rewritten in place — or, with `--check`, left alone and every
-difference reported, which is what the gate asks. And `omw merge-file`, git's merge driver for those
-sources, which `upstream.yml` configures."""
+clang-format (`deps.clang_format`) and its CMake files through the pinned gersemi (`deps.gersemi`),
+rewritten in place — or, with `--check`, left alone and every difference reported, which is what the
+gate asks. And `omw merge-file`, git's merge driver for the C++, which `upstream.yml` configures."""
 
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from omw import deps
-from omw.system import CXX_SOURCES, ROOT, Refusal, jobs, working_tree_files
+from omw.system import CMAKE_SOURCES, CXX_SOURCES, ROOT, Refusal, jobs, working_tree_files
 
 
 def format_tree(args: list[str]) -> int:
     """**Rewrites unless asked to check**, as `cargo fmt` does, so the verb does the work its name
-    says; the check is the gate's. **Every C++ source of the tree, or those named**: a named file
-    that is no such source, a vendored one or another language's, is left alone, so a caller can
+    says; the check is the gate's. **Every C++ source and CMake file of the tree, or those named**: a
+    named file that is neither, a vendored one or another language's, is left alone, so a caller can
     hand over every file it changed.
 
     **Every source in the working tree, and not every one git tracks.** `git ls-files` names a file
@@ -31,9 +31,11 @@ def format_tree(args: list[str]) -> int:
     clang_format = str(deps.clang_format())
 
     sources = working_tree_files(*CXX_SOURCES)
+    cmake = working_tree_files(*CMAKE_SOURCES)
     if named:
         wanted = {Path(name).as_posix().removeprefix("./") for name in named}
         sources = [source for source in sources if source in wanted]
+        cmake = [file for file in cmake if file in wanted]
     batches = [sources[at:at + 64] for at in range(0, len(sources), 64)]
 
     def formatted(batch: list[str]) -> int:
@@ -41,6 +43,12 @@ def format_tree(args: list[str]) -> int:
 
     with ThreadPoolExecutor(max_workers=jobs()) as pool:
         failed = sum(1 for code in pool.map(formatted, batches) if code != 0)
+    # gersemi takes every file at once and spreads them over its own workers. Without its cache, which
+    # would be state kept outside the tree.
+    if cmake:
+        cmake_mode = ["--check", "--diff"] if check else ["--in-place"]
+        failed += subprocess.run([*deps.gersemi(), *cmake_mode, "--no-cache", "--quiet", *cmake], cwd=ROOT,
+                                 check=False).returncode != 0
     return 1 if failed else 0
 
 

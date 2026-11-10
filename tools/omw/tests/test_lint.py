@@ -4,15 +4,11 @@ import unittest
 from unittest import mock
 
 from omw import lint
-from omw.lint import Pinned, command_for, misnamed, tabbed, version_of
+from omw.lint import Pinned, command_for, misnamed, version_of
 from omw.system import Refusal
 
 
 class LintTest(unittest.TestCase):
-    def test_a_tab_that_indents_is_named_and_one_inside_a_line_is_not(self):
-        text = "set(A 1)\n\tset(B 2)\n  \tset(C 3)\nset(D\t4)\n"
-        self.assertEqual([line.split(":")[1] for line in tabbed("x.cmake", text)], ["2", "3"])
-
     def test_a_source_is_named_in_lower_case_and_digits_in_a_folder(self):
         names = ["apps/a/foo2.cpp", "apps/a/FooBar.hpp", "apps/a/foo_bar.h", "apps/a/foo.h", "top.cpp"]
         self.assertEqual([line.split(":")[0] for line in misnamed(names)],
@@ -45,7 +41,7 @@ class LintTest(unittest.TestCase):
 
     def test_a_check_nobody_has_is_refused_before_any_runs_and_a_refusal_leaves_the_findings_before_it(self):
         with self.assertRaisesRegex(Refusal, "no check is called style"):
-            lint.lint(["cmake", "style"])
+            lint.lint(["names", "style"])
 
         def refused() -> list[str]:
             raise Refusal("zizmor 1.30.1, the version CI pins, is not on the PATH")

@@ -321,6 +321,10 @@ made only on the user's explicit yes, after which it is added here.
   renamed (`BUILD_OPENMW` is `OPENMW_BUILD_GAME`, `BUILD_OPENCS` `OPENMW_BUILD_CS`): one style for one
   tree, since GitLab's pipeline, the names' only outside reader, is gone. The cost is a conflict with an
   upstream change that adds or reads an option, which the merge renames.
+- Every CMake file laid out by gersemi 0.29.2 (`.gersemirc`), upstream's among them, as clang-format lays out
+  the C++, and the commit listed in `.git-blame-ignore-revs`; `omw lint cmake`, upstream's tab check, goes, since
+  the layout holds it. The cost is a conflict with every upstream change to a CMake file, which the rewrite of
+  every one already costs.
 - `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
   `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
   stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.

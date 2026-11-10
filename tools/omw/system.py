@@ -26,6 +26,9 @@ UPSTREAM = "upstream/master"
 CI = os.environ.get("CI", "").lower() in ("true", "1")
 # The tree's own C++, which the formatting and the file names are checked over: `extern/` is vendored.
 CXX_SOURCES = (":(exclude)extern/", "*.cpp", "*.hpp", "*.h")
+# The CMake files the tree formats: every one but those of the libraries vendored under `extern/`, and the
+# Doxygen templates `docs/` names `.cmake`, which are no CMake.
+CMAKE_SOURCES = ("*CMakeLists.txt", "*.cmake", ":(exclude)extern/*/*", ":(exclude)docs/*.cmake")
 
 
 class Refusal(Exception):

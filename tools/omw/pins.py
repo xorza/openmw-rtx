@@ -35,6 +35,71 @@ CLANG_FORMAT = {
     ),
 }
 
+# gersemi, the CMake files' formatter (`deps.gersemi`), by system and by the CPython it runs under: its
+# layout is computed in Rust, built into each wheel for one interpreter's ABI, so the wheel follows the
+# Python that runs the driver, 3.10 and later. The digests are PyPI's. Exact, as clang-format's is.
+GERSEMI_VERSION = "0.29.2"
+GERSEMI = {
+    ("linux", "cp310"): Pin(
+        "https://files.pythonhosted.org/packages/d7/d6/25dfffc7f8f6dbca98cf76059efaa0525d7ab1b3f97de5ec9e42afc298e1/"
+        f"gersemi-{GERSEMI_VERSION}-cp310-cp310-manylinux_2_28_x86_64.whl",
+        "f26b4cb7c1d9b9ab21109c9ebe226616f7c9e2ae9773056769d5421207e21e3d",
+    ),
+    ("linux", "cp311"): Pin(
+        "https://files.pythonhosted.org/packages/76/73/771113af6c910d6d2b2fcb6b5acda563093cca54b72ff86666e77700f253/"
+        f"gersemi-{GERSEMI_VERSION}-cp311-cp311-manylinux_2_28_x86_64.whl",
+        "144ef0cabad485eedc03786814e1a2b651043427f99867d5aba7086b9d30d9a4",
+    ),
+    ("linux", "cp312"): Pin(
+        "https://files.pythonhosted.org/packages/62/a0/3e8f12e8277eb679c660addb6fb45d0e150ba74d752f3582e32553347b50/"
+        f"gersemi-{GERSEMI_VERSION}-cp312-cp312-manylinux_2_28_x86_64.whl",
+        "45fff157fa8bd6920d043aed45f6d8d6ac5bf7b986d042bae6bfed896c888ecd",
+    ),
+    ("linux", "cp313"): Pin(
+        "https://files.pythonhosted.org/packages/3b/c7/f6461fe5fd173fe40798b20cf47dae1e102bfea6a55dcf045898f41effe4/"
+        f"gersemi-{GERSEMI_VERSION}-cp313-cp313-manylinux_2_28_x86_64.whl",
+        "6a13296e33c027b4e438ec20602594b4ce36774712ba99a4ea23fcf47fd5e973",
+    ),
+    ("linux", "cp314"): Pin(
+        "https://files.pythonhosted.org/packages/04/53/f2815b34359959172a6931932adde8e631de727a697a858265690030b55b/"
+        f"gersemi-{GERSEMI_VERSION}-cp314-cp314-manylinux_2_28_x86_64.whl",
+        "a8a851f3af50e185beff001e4666b24f4bb24b3f2810671eb4d04b30fff7066c",
+    ),
+    ("windows", "cp310"): Pin(
+        "https://files.pythonhosted.org/packages/0b/ab/6ba9db916104b7de493d450a513735ab024892079185b71177b295245774/"
+        f"gersemi-{GERSEMI_VERSION}-cp310-cp310-win_amd64.whl",
+        "5f5b7c1e66d13caea2810fe39ce11493e769beb236fd435925e9fa5a80d4e3ab",
+    ),
+    ("windows", "cp311"): Pin(
+        "https://files.pythonhosted.org/packages/b0/41/8552036195824b40ee18ec208227f8aeb7c2c2289116df5b36317512b129/"
+        f"gersemi-{GERSEMI_VERSION}-cp311-cp311-win_amd64.whl",
+        "a738e05edd342cc63a3df188eec185cd0fde4e0c8cf52026c409bf5b55c26401",
+    ),
+    ("windows", "cp312"): Pin(
+        "https://files.pythonhosted.org/packages/74/55/8bc4a494b369d463115c9071d9e13c1f341adfa9ae23dee568c0dc36e3d0/"
+        f"gersemi-{GERSEMI_VERSION}-cp312-cp312-win_amd64.whl",
+        "76b0d29af1412045b0be37d3e7c240146638bcaecab6e7e7866644a54a283b6a",
+    ),
+    ("windows", "cp313"): Pin(
+        "https://files.pythonhosted.org/packages/7e/e5/5161c7486b26353b5d0e49bcbaac370223824866a8c4045f680b7184f0ec/"
+        f"gersemi-{GERSEMI_VERSION}-cp313-cp313-win_amd64.whl",
+        "5f394ea9b2301e4834cfb072ee312d691aa71e16fe7c722f08368310aac220b9",
+    ),
+    ("windows", "cp314"): Pin(
+        "https://files.pythonhosted.org/packages/2f/a3/def49b8e304277a7c28b2c5f9c538bedb71f972c73449d505e9fa769af43/"
+        f"gersemi-{GERSEMI_VERSION}-cp314-cp314-win_amd64.whl",
+        "50d60f5470cf80baa07bdf993e5d9add610032d14d83e4baa6f9d248cd2811c0",
+    ),
+}
+
+# PyYAML, which gersemi reads its configuration with: the source release's pure-Python package, one for
+# every interpreter, where each wheel carries a C extension built for one.
+PYYAML = Pin(
+    "https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/"
+    "pyyaml-6.0.3.tar.gz",
+    "d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f",
+)
+
 # The tools an AppImage is made with, by the name each is kept under in its folder of deps/
 # (`deps.appimage_tools`).
 APPIMAGE_TOOLS = {

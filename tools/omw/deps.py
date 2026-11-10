@@ -123,6 +123,46 @@ def clang_format() -> Path:
     return found
 
 
+def gersemi_pin() -> pins.Pin:
+    """The gersemi wheel for this system and the CPython running the driver, whose ABI its Rust is
+    built for. Refused for an interpreter `pins.py` names no wheel for."""
+    tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
+    pin = pins.GERSEMI.get((SYSTEM, tag))
+    if pin is None:
+        raise Refusal(f"pins.py names no gersemi wheel for Python {sys.version_info.major}.{sys.version_info.minor} "
+                      f"on {SYSTEM}: CPython 3.10 to 3.14")
+    return pin
+
+
+def gersemi() -> list[str]:
+    """**The gersemi every desk and CI formats the CMake files with**, as the command that runs it: the
+    wheel `pins.py` names for this system and interpreter, unpacked whole beside PyYAML's pure-Python
+    package and run by this same interpreter, isolated, with that folder alone added to its path. The
+    wheels are zips, read here and never installed; a Python of another version is another folder."""
+    pin = gersemi_pin()
+    folder = pinned_folder("gersemi", pin, pins.PYYAML)
+    if not (folder / "gersemi").is_dir():
+        def fill(partial: Path) -> None:
+            wheel = DEPS / Path(pin.url).name
+            fetch.download_pin(pin, wheel)
+            with zipfile.ZipFile(wheel) as zipped:
+                zipped.extractall(partial)
+            wheel.unlink()
+            source = DEPS / Path(pins.PYYAML.url).name
+            fetch.download_pin(pins.PYYAML, source)
+            with tarfile.open(source) as tarred:
+                members = [member for member in tarred.getmembers() if "/lib/yaml/" in member.name]
+                tarred.extractall(partial / "pyyaml", members=members, filter="data")
+            source.unlink()
+            (next((partial / "pyyaml").glob("*/lib/yaml"))).rename(partial / "yaml")
+            shutil.rmtree(partial / "pyyaml")
+
+        fetch.build_beside(folder, fill)
+    return [sys.executable, "-I", "-c",
+            "import sys; sys.path.insert(0, sys.argv.pop(1)); from gersemi.__main__ import main; sys.exit(main())",
+            str(folder)]
+
+
 def pinned_folder(name: str, *pinned: pins.Pin) -> Path:
     """**Where tools fetched by `pinned` stand, named after their digests**, as the SDK's folder is
     after its version: a pin changed is a folder not there yet, so a desk that has the old tool, and
