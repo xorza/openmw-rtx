@@ -80,6 +80,9 @@ class PruneTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, folder)
         with mock.patch.object(deps, "DEPS", folder):
             kept = sorted(deps.pinned_names())
+            # Every getter's folder, the formatters' among them, which a prune once took.
+            self.assertIn(deps.clang_format_dir().name, kept)
+            self.assertIn(deps.gersemi_dir().name, kept)
             for name in kept:
                 (folder / name).mkdir()
             (folder / "vulkan-sdk-0.0.1-00000000").mkdir()

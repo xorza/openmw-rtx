@@ -134,13 +134,18 @@ def gersemi_pin() -> pins.Pin:
     return pin
 
 
+def gersemi_dir() -> Path:
+    """Where this interpreter's gersemi stands: another Python's is another folder, as its wheel is."""
+    return pinned_folder("gersemi", gersemi_pin(), pins.PYYAML)
+
+
 def gersemi() -> list[str]:
     """**The gersemi every desk and CI formats the CMake files with**, as the command that runs it: the
     wheel `pins.py` names for this system and interpreter, unpacked whole beside PyYAML's pure-Python
     package and run by this same interpreter, isolated, with that folder alone added to its path. The
     wheels are zips, read here and never installed; a Python of another version is another folder."""
     pin = gersemi_pin()
-    folder = pinned_folder("gersemi", pin, pins.PYYAML)
+    folder = gersemi_dir()
     if not (folder / "gersemi").is_dir():
         def fill(partial: Path) -> None:
             wheel = DEPS / Path(pin.url).name
@@ -392,7 +397,7 @@ def sdk_environment(env: dict[str, str]) -> None:
 def pinned_names() -> set[str]:
     """Every name in deps/ that the pins give this system, through the same functions that name what
     each getter above leaves there, so pruning cannot take what a getter fetched."""
-    kept = [vulkan_sdk_dir(), cmake_dir(), clang_format_dir(), appimage_tools_dir()]
+    kept = [vulkan_sdk_dir(), cmake_dir(), clang_format_dir(), gersemi_dir(), appimage_tools_dir()]
     kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]
     if WINDOWS:
         tag = msvc_versions()["VCPKG_TAG"]
