@@ -535,27 +535,6 @@ add_library(openmw-rtx-vulkan STATIC ${RTX_VULKAN_FILES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "components\\rtxvulkan"
     FILES ${RTX_VULKAN_FILES} ${RTX_SPIRV_PIN_FILES})
 
-include(FetchContent)
-
-# volk, which loads the Vulkan loader when the first instance is made rather than when the program
-# starts: no program imports it, so the game starts on a machine with no loader or an old one and says
-# why it cannot draw there, and the ray tracer refuses the loader by name (`Instance`). The system's
-# package if installed, the pinned release otherwise; the header alone, its body compiled in
-# `device/instance.cpp`. `SYSTEM`: its warnings are not ours. **A system's volk at the pinned header
-# version or later**, which volk's own version is: an older one lacks the Vulkan 1.4 entry points the
-# backend calls (`vkCmdPushDescriptorSet`), and would be taken and then fail to compile.
-set(VOLK_HEADERS_ONLY ON)
-set(VOLK_PULL_IN_VULKAN OFF)
-set(RTX_VOLK_VERSION 357)
-FetchContent_Declare(volk
-    URL https://github.com/zeux/volk/archive/refs/tags/vulkan-sdk-1.4.${RTX_VOLK_VERSION}.0.tar.gz
-    URL_HASH SHA512=44feaf57236d8f52d4bde05cf4ba59de5df4730b6c8dc38c278a3aa13d02d4bb48e11660832232f7122c2d55b65d60fe9b5f8fe6725ee63d5d5213e5275b7110
-    SOURCE_DIR fetched/volk
-    SYSTEM
-    FIND_PACKAGE_ARGS ${RTX_VOLK_VERSION} CONFIG QUIET
-)
-FetchContent_MakeAvailable(volk)
-
 # How everything that calls Vulkan reaches it: the headers' types and volk's function pointers, and
 # no prototypes, so a call that bypasses volk fails to compile rather than importing the loader. In
 # `namespace volk`, because a pointer named `vkCreateDevice` in C is a symbol a layer the loader opens
@@ -574,18 +553,6 @@ endif ()
 
 add_dependencies(openmw-rtx-vulkan openmw-rtx-vulkan-shaders)
 
-# Vulkan Memory Allocator, behind `device/memory/memory.hpp`: the system's package if installed, the
-# pinned release otherwise, as `extern/` takes Bullet and MyGUI, and a system's only at the pinned
-# version or a later one of its major. `SYSTEM`: its warnings are not ours.
-set(RTX_VMA_VERSION 3.4.0)
-FetchContent_Declare(VulkanMemoryAllocator
-    URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v${RTX_VMA_VERSION}.tar.gz
-    URL_HASH SHA512=563acbcd8912d10d92c23715eba7acf0e7c1683af36021f415b36f359c2cce065f3906e395c32282a8410ec5c8179fbcb6412935c6629a49357475d4b4410e2a
-    SOURCE_DIR fetched/vma
-    SYSTEM
-    FIND_PACKAGE_ARGS ${RTX_VMA_VERSION} CONFIG QUIET
-)
-FetchContent_MakeAvailable(VulkanMemoryAllocator)
 target_link_libraries(openmw-rtx-vulkan PRIVATE GPUOpen::VulkanMemoryAllocator)
 
 # Object names cost one call per object, never per frame, and make a capture readable. 0 or 1, so

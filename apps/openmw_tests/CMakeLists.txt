@@ -83,8 +83,8 @@ target_sources(openmw-tests PRIVATE
     ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/testplatform$<IF:$<BOOL:${WIN32}>,win32,posix>.cpp)
 
 target_link_libraries(openmw-tests
-    GTest::GTest
-    GMock::GMock
+    GTest::gtest
+    GTest::gmock
     openmw-lib
 )
 

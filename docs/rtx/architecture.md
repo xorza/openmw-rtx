@@ -405,8 +405,8 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
   position, the recast settings, the agent's bounds, the water and the heights by value, and each source's model path,
   file hash, area and transform, so a mod that replaces a mesh, moves an object or edits the land keys a new tile; the
   sources each a digest, sorted, since the mesh lists them in the order the objects were added. The code between the
-  bytes and the tile is `sTileVersion`, which `DetourNavigatorTileVersionTest` holds; Recast is the commit `extern/`
-  pins on every system, since a distribution's build makes other tiles under the same version (OpenMW's Ubuntu
+  bytes and the tile is `sTileVersion`, which `DetourNavigatorTileVersionTest` holds; Recast is the commit
+  `cmake/Dependencies.cmake` pins on every system, since a distribution's build makes other tiles under the same version (OpenMW's Ubuntu
   package did). A source with no file hash keys
   nothing. No cap and no removal, as above, and one setting, `enable nav mesh disk cache`, for reads and writes; the
   old `navmesh.db` is left where it stands. Refused: SQLite, a dependency for one store, keyed by a blob and shape ids

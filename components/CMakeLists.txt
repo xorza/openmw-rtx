@@ -777,11 +777,7 @@ target_link_libraries(components
     ZLIB::ZLIB
     )
 
-if(yaml-cpp_VERSION VERSION_GREATER_EQUAL 0.8.0)
-    target_link_libraries(components yaml-cpp::yaml-cpp)
-else()
-    target_link_libraries(components yaml-cpp)
-endif()
+target_link_libraries(components yaml-cpp::yaml-cpp)
 
 target_link_libraries(components ${BULLET_LIBRARIES})
 

@@ -309,8 +309,8 @@ openmw_add_executable(rtx-gpu-tests main.cpp rtx/support/allocations.cpp
                       ${RTX_GPU_TEST_FILES} ${RTX_GPU_TEST_SUPPORT} ${RTX_TEST_SUPPORT})
 target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatform$<IF:$<BOOL:${WIN32}>,win32,posix>.cpp)
 target_link_libraries(rtx-gpu-tests
-    GTest::GTest
-    GMock::GMock
+    GTest::gtest
+    GTest::gmock
     components
     openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-spirv openmw-rtx-vulkan-api
 )

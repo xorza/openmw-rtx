@@ -125,18 +125,6 @@ include(escape_regex_control_characters)
 
 configure_file ("${OpenMW_SOURCE_DIR}/docs/mainpage.hpp.cmake" "${OpenMW_BINARY_DIR}/docs/mainpage.hpp")
 
-option(OPENMW_USE_SYSTEM_RECASTNAVIGATION "Use system provided recastnavigation library" OFF)
-if(OPENMW_USE_SYSTEM_RECASTNAVIGATION)
-    set(_recastnavigation_static_default OFF)
-    find_package(RecastNavigation REQUIRED CONFIG)
-else()
-    set(_recastnavigation_static_default ON)
-endif()
-option(RECASTNAVIGATION_STATIC "Build recastnavigation static libraries" ${_recastnavigation_static_default})
-
-option(OPENMW_USE_SYSTEM_BENCHMARK "Use system Google Benchmark library." OFF)
-option(OPENMW_USE_SYSTEM_GOOGLETEST "Use system Google Test library." OFF)
-
 option(OPENMW_UNITY_BUILD "Use fewer compilation units to speed up compile time" FALSE)
 option(OPENMW_LTO_BUILD "Build OpenMW with Link-Time Optimization (Needs ~2GB of RAM)" OFF)
 
@@ -197,23 +185,7 @@ if (MSVC)
     endif()
 endif()
 
-# SDL3: the system's where it has one, and the pinned release built static otherwise, as Ubuntu 24.04
-# and upstream's vcpkg set have none. Static, so a package carries it inside the binaries. Ahead of
-# the tree's own definitions, which are not SDL's: Windows's `NOGDI` and `NOMB` take out what SDL's
-# video is built on.
-include(FetchContent)
-FetchContent_Declare(SDL3
-    URL https://github.com/libsdl-org/SDL/releases/download/release-3.4.16/SDL3-3.4.16.tar.gz
-    URL_HASH SHA512=74a5ee1e5bba138a8daa710e200ac3585c60f696311c46252d86bc685c55e8271cd0d68439f8e13ca515b702d46ef58914d0f7b2352019870a5763ed79739e9a
-    SOURCE_DIR fetched/sdl3
-    SYSTEM
-    FIND_PACKAGE_ARGS 3.4 CONFIG
-)
-block(SCOPE_FOR VARIABLES)
-    set(SDL_SHARED OFF)
-    set(SDL_STATIC ON)
-    FetchContent_MakeAvailable(SDL3)
-endblock()
+include(cmake/Dependencies.cmake)
 
 include(GNUInstallDirs)
 set(SYSCONFDIR_SUFFIX "openmw" CACHE PATH "Suffix for CMAKE_INSTALL_SYSCONFDIR")
@@ -295,22 +267,6 @@ set(USED_OSG_PLUGINS
     osgdb_tga)
 
 find_package(ICU REQUIRED COMPONENTS uc i18n data)
-
-option(OPENMW_USE_SYSTEM_YAML_CPP "Use system yaml-cpp library instead of internal." ON)
-if(OPENMW_USE_SYSTEM_YAML_CPP)
-    set(_yaml_cpp_static_default OFF)
-else()
-    set(_yaml_cpp_static_default ON)
-endif()
-option(YAML_CPP_STATIC "Link static build of yaml-cpp into the binaries" ${_yaml_cpp_static_default})
-if (OPENMW_USE_SYSTEM_YAML_CPP)
-    find_package(yaml-cpp REQUIRED)
-endif()
-
-if ((BUILD_COMPONENTS_TESTS OR BUILD_OPENCS_TESTS OR BUILD_OPENMW_TESTS) AND OPENMW_USE_SYSTEM_GOOGLETEST)
-    find_package(GTest 1.10 REQUIRED)
-    find_package(GMock 1.10 REQUIRED)
-endif()
 
 add_subdirectory(extern)
 

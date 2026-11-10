@@ -273,8 +273,13 @@ diagnostic after steps 10 and 13.
    every folder is added, a target that compiles a third party's source opting out (`OPENMW_CHECKS OFF`); the root's
    `add_compile_options` for warnings gone. Held by `omw`'s listing step, after every build and in the gate: a
    first-party source compiled without the checks, or a third party's with them, is a finding.
-7. **Dependencies in one file.** `cmake/Dependencies.cmake` with `FIND_PACKAGE_ARGS`; the presets set the try-find
-   mode; the four fetch sites, the `OPENMW_USE_SYSTEM_*` switches and the find modules a config package replaces go.
+7. **Dependencies in one file.** Done: `cmake/Dependencies.cmake` declares every fetched project, SDL3, Recast,
+   yaml-cpp, Google Test, Google Benchmark, volk, VMA and Crashpad (through `extern/crashpad.cmake`), each `SYSTEM`
+   and `EXCLUDE_FROM_ALL`, and with `FIND_PACKAGE_ARGS` all but Recast, which stays pinned for the tile version and
+   Crashpad, which no system ships; the Windows preset sets `FETCHCONTENT_TRY_FIND_PACKAGE_MODE` to `NEVER`; the
+   four `OPENMW_USE_SYSTEM_*` switches, `RECASTNAVIGATION_STATIC`, `YAML_CPP_STATIC` and `FindGMock.cmake` go, and
+   the tests link Google Test's own `GTest::gtest` and `GTest::gmock`. Kept: `FindLZ4.cmake`, as Arch's lz4 ships no
+   CMake package, where Ubuntu's and vcpkg's do.
 8. **The ray tracer.** `components/rtxvulkan` and `apps/rtxtool` as `target_sources` lists, functions,
    current-folder paths, no `CACHE INTERNAL` (the shader folders as properties of `openmw-rtx-vulkan-shaders`); the
    core out of `components` into `components/rtx/CMakeLists.txt`, a library a layer group.

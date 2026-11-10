@@ -4,13 +4,12 @@ if (OPENMW_CRASHPAD)
     # because GitHub's leaves the submodules out; each goes where the submodule would have been.
     # Populated without being added, so that the two are in place before Crashpad's own
     # CMakeLists reads them.
-    include(FetchContent)
     FetchContent_Declare(crashpad
         URL https://github.com/getsentry/crashpad/archive/000e3ad7a51c89e49bc00eca9846aa0485cccc96.zip
         URL_HASH SHA512=7070b2f7a6a6b10ae1aff3418dc943c995522c56882aaca7bb5830f432f3c907c96c5505dc7086d1598b1e4d5c27bb53d99fff1de2f85f66ccd1e9c2baff987d
         SOURCE_DIR fetched/crashpad
         SOURCE_SUBDIR added-below
-        PATCH_COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/crashpadpatch.cmake
+        PATCH_COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_LIST_DIR}/crashpadpatch.cmake
     )
     FetchContent_MakeAvailable(crashpad)
 
@@ -35,7 +34,7 @@ if (OPENMW_CRASHPAD)
     set(CRASHPAD_ENABLE_INSTALL_DEV OFF CACHE BOOL "" FORCE)
     # As a system's headers, because Chromium's are written against Chromium's warnings and not this
     # tree's.
-    add_subdirectory(${crashpad_SOURCE_DIR} ${crashpad_BINARY_DIR} SYSTEM)
+    add_subdirectory(${crashpad_SOURCE_DIR} ${crashpad_BINARY_DIR} EXCLUDE_FROM_ALL SYSTEM)
 
     # `capture_context_linux.S` states nothing of the stack, and a linker that meets an object
     # without the note makes the whole executable's stack executable, as Ubuntu 24.04's does.
@@ -44,5 +43,5 @@ if (OPENMW_CRASHPAD)
     endif()
 
     # For `components/crashcatcher/link.cmake`, which builds one of its files into every executable.
-    set(CRASHPAD_SOURCE_DIR ${crashpad_SOURCE_DIR} PARENT_SCOPE)
+    set(CRASHPAD_SOURCE_DIR ${crashpad_SOURCE_DIR})
 endif()

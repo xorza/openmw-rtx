@@ -137,8 +137,8 @@ source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
 
 target_link_libraries(components-tests
-    GTest::GTest
-    GMock::GMock
+    GTest::gtest
+    GTest::gmock
     components
     openmw-rtx-tablemakers
 )
