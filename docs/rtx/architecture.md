@@ -535,8 +535,9 @@ at the top, over all of them.
   megabytes, which Windows gave a budget of nought and the game could not start in
   (`research/2026-11-09-host-written-window-on-windows.md`), and Turing has no resizable BAR at all;
   VMA's "advanced data uploading" and D3D12's GPU upload heaps make the same split. Mapped writes stay
-  a constant away, measurably faster on a crossing (`research/2026-11-10-staged-host-writes-cost.md`),
-  and a mapped build refuses a card whose window is not its video heap, as FFmpeg turns its host
+  a constant away, measurably faster on a crossing (`research/2026-11-10-staged-host-writes-cost.md`)
+  and by about 0.1 ms on a card with resizable BAR, and one figure with staged writes on AMD's
+  integrated parts (`research/2026-11-10-host-writes-on-three-machines.md`), and a mapped build refuses a card whose window is not its video heap, as FFmpeg turns its host
   transfers off. Refused: a choice by device, and VMA's fall back a buffer, two transports at once;
   one shared device copy updated by copy and barrier (Unreal's GPUScene), which changes every debt
   and waits out the frame before on the queue; a copy inline before each reader, a barrier inside
