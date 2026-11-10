@@ -10,6 +10,7 @@
 #include <iterator>
 #include <optional>
 #include <set>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -602,23 +603,44 @@ namespace Rtx
             EXPECT_TRUE(found.empty()) << joined(found);
         }
 
-        /// The files `rtx/tests.cmake` names in its list `list`, as paths.
-        std::vector<std::filesystem::path> listedIn(const std::string_view list)
+        /// The files `rtx/tests.cmake` names for `name`, a target its `target_sources` calls add to or a
+        /// list its `set` makes, as paths: every call's, without the keywords and the variables a call
+        /// names.
+        std::vector<std::filesystem::path> listedIn(const std::string_view name)
         {
             const std::filesystem::path tests = sRoot / "apps" / "components_tests";
-            const std::string opening = "set(" + std::string(list);
+            const std::string named = std::string(name);
+            const std::set<std::string, std::less<>> keywords
+                = { "PRIVATE", "PUBLIC", "INTERFACE", "FILE_SET", "HEADERS", "BASE_DIRS", "FILES" };
 
             std::vector<std::filesystem::path> files;
             bool inside = false;
             for (const std::string& line : linesOf(tests / "rtx" / "tests.cmake"))
             {
-                const std::string_view entry = std::string_view(line).substr(skipSpace(line, 0));
+                std::string_view rest = std::string_view(line).substr(skipSpace(line, 0));
                 if (!inside)
-                    inside = entry == opening;
-                else if (entry.starts_with(')'))
-                    break;
-                else if (!entry.empty())
-                    files.push_back(tests / entry);
+                {
+                    bool opens = false;
+                    for (const std::string_view command : { "set(", "target_sources(" })
+                        if (rest.starts_with(command) && rest.substr(command.size()).starts_with(named))
+                        {
+                            const std::string_view after = rest.substr(command.size() + named.size());
+                            opens = after.empty() || after.front() == ' ' || after.front() == ')';
+                            if (opens)
+                                rest = after;
+                        }
+                    if (!opens)
+                        continue;
+                    inside = true;
+                }
+
+                const std::size_t close = rest.find(')');
+                std::istringstream words{ std::string(rest.substr(0, close)) };
+                for (std::string word; words >> word;)
+                    if (!keywords.contains(word) && !word.starts_with('$') && !word.starts_with('"'))
+                        files.push_back(tests / word);
+                if (close != std::string_view::npos)
+                    inside = false;
             }
 
             return files;
@@ -671,16 +693,24 @@ namespace Rtx
                 });
             };
 
+            // What `rtx-gpu-tests` lists beside its tests: the shared `main`, and the support of both binaries
+            // and of the device.
+            const auto isSupport = [](const std::filesystem::path& file) {
+                const std::string name = genericName(file);
+                return file.filename() == "main.cpp" || name.find("/rtx/support/") != std::string::npos
+                    || name.find("/rtxvulkan/support/") != std::string::npos;
+            };
+
             std::vector<std::string> found;
-            const std::vector<std::filesystem::path> device = listedIn("RTX_GPU_TEST_FILES");
-            ASSERT_FALSE(device.empty()) << "tests.cmake lists no device tests: the list was renamed";
+            const std::vector<std::filesystem::path> device = listedIn("rtx-gpu-tests");
+            ASSERT_FALSE(device.empty()) << "tests.cmake lists no files of rtx-gpu-tests: the target was renamed";
             for (const std::filesystem::path& file : device)
             {
-                if (file.extension() != ".cpp")
+                if (file.extension() != ".cpp" || isSupport(file))
                     continue;
                 if (!reachesDevice(file))
                     found.push_back(
-                        Files::pathToUnicodeString(file.filename()) + " opens no device: list it in RTX_TEST_FILES");
+                        Files::pathToUnicodeString(file.filename()) + " opens no device: list it in components-tests");
 
                 const std::vector<std::string> lines = linesOf(file);
                 for (std::size_t at = 0; at < lines.size(); ++at)
@@ -692,11 +722,13 @@ namespace Rtx
                 }
             }
 
-            for (const std::string_view list : { "RTX_TEST_FILES", "RTX_TEST_SUPPORT" })
+            const std::vector<std::filesystem::path> host = listedIn("components-tests");
+            ASSERT_FALSE(host.empty()) << "tests.cmake lists no files of components-tests: the target was renamed";
+            for (const std::string_view list : { "components-tests", "RTX_TEST_SUPPORT", "RTX_TEST_SUPPORT_HEADERS" })
                 for (const std::filesystem::path& file : listedIn(list))
                     if (reachesDevice(file))
                         found.push_back(Files::pathToUnicodeString(file.filename()) + " reaches the device's support: list it in "
-                                                                   "RTX_GPU_TEST_FILES");
+                                                                   "rtx-gpu-tests");
 
             EXPECT_TRUE(found.empty()) << joined(found);
         }
