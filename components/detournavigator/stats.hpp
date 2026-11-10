@@ -40,6 +40,8 @@ namespace DetourNavigator
         JobQueueStats mWaiting;
         std::size_t mPushed = 0;
         std::size_t mProcessing = 0;
+        /// Tiles the store answered, and generated tiles handed to it to write, which it writes or counts as
+        /// failed on its own thread.
         std::size_t mStoreHits = 0;
         std::size_t mStoreWrites = 0;
         std::size_t mPosted = 0;

@@ -32,7 +32,7 @@ namespace DetourNavigator
     public:
         /// What a key and the tile it names are made by: the key's layout, the recast mesh builder, the
         /// collision a model's file makes, and Recast and Detour. `DetourNavigatorTileVersionTest` holds it.
-        static constexpr std::uint32_t sTileVersion = 1;
+        static constexpr std::uint32_t sTileVersion = 2;
 
         /// @param directory where the store stands, made if it is not there.
         explicit NavMeshTileStore(std::filesystem::path directory);

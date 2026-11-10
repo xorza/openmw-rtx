@@ -118,6 +118,42 @@ namespace DetourNavigator
             }
         }
 
+        /// **The objects' order is no part of the key**: the recast mesh lists a tile's sources as its index
+        /// finds them, which follows the order the objects were added in, and two starts that load one content
+        /// add them in different orders. Two crates added in either order key one tile.
+        TEST(DetourNavigatorTileStoreTest, theOrderObjectsWereAddedInIsNoPartOfTheKey)
+        {
+            const TileInput input;
+            const btBoxShape first(btVector3(100, 100, 20));
+            const btBoxShape second(btVector3(40, 40, 60));
+            const auto keyAdding
+                = [&](const btBoxShape& a, const std::string& aHash, const btBoxShape& b, const std::string& bHash) {
+                      TileCachedRecastMeshManager manager(input.mSettings.mRecast);
+                      manager.setWorldspace(input.mWorldspace, nullptr);
+                      const auto add = [&](const btBoxShape& box, const std::string& hash, float x) {
+                          auto shape = std::make_shared<Resource::BulletShape>();
+                          shape->mFileName = VFS::Path::Normalized(input.mPath);
+                          shape->mFileHash = hash;
+                          ObjectTransform transform{};
+                          transform.mPosition.pos[0] = x;
+                          transform.mScale = 1;
+                          const CollisionShape collision(
+                              std::make_shared<Resource::BulletShapeInstance>(shape), box, transform);
+                          manager.addObject(ObjectId(&box), collision,
+                              btTransform(btMatrix3x3::getIdentity(), btVector3(x, 0, 0)), AreaType_ground, nullptr);
+                      };
+                      add(a, aHash, &a == &first ? 0.f : 300.f);
+                      add(b, bHash, &b == &first ? 0.f : 300.f);
+                      const std::shared_ptr<RecastMesh> mesh = manager.getMesh(input.mWorldspace, input.mTilePosition);
+                      return NavMeshTileStore::keyOf(
+                          input.mSettings.mRecast, input.mAgentBounds, input.mWorldspace, input.mTilePosition, *mesh);
+                  };
+            const std::optional<ContentStore::Key> forward = keyAdding(first, "first", second, "second");
+            const std::optional<ContentStore::Key> backward = keyAdding(second, "second", first, "first");
+            ASSERT_TRUE(forward.has_value());
+            EXPECT_EQ(forward, backward);
+        }
+
         /// **A source with no file hash keys nothing**: its path alone would keep the tile of a file a mod
         /// replaced under the same name.
         TEST(DetourNavigatorTileStoreTest, aSourceWithNoFileHashKeysNothing)
@@ -192,9 +228,9 @@ namespace DetourNavigator
             ContentStore::Digest digest("guard", 0);
             digest.add(std::span<const std::byte>(tile));
 
-            constexpr std::uint32_t recordedVersion = 1;
+            constexpr std::uint32_t recordedVersion = 2;
             constexpr std::uint64_t recordedTile = 0x1227044d8b7b87b1;
-            constexpr std::uint64_t recordedKey = 0xbcf095726a696f7a;
+            constexpr std::uint64_t recordedKey = 0x7aac888bc481659b;
             EXPECT_EQ(NavMeshTileStore::sTileVersion, recordedVersion)
                 << "a version raised without its digests recorded again";
             EXPECT_EQ(digest.getKey().mHash[0], recordedTile)

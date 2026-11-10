@@ -1,5 +1,6 @@
 #include "navmeshtilestore.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <exception>
 #include <span>
@@ -10,6 +11,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/bytebuffer.hpp>
 #include <components/misc/compression.hpp>
+#include <components/misc/digestwords.hpp>
 #include <components/resource/bulletshape.hpp>
 
 #include "agentbounds.hpp"
@@ -104,18 +106,25 @@ namespace DetourNavigator
         addMesh(digest, recastMesh);
 
         // **A source is its model's path and the hash of its file's bytes**, which a mod that replaces the file
-        // moves, and the transform it stands at; its triangles are what the two make.
-        digest.add(static_cast<std::uint64_t>(recastMesh.getMeshSources().size()));
+        // moves, and the transform it stands at; its triangles are what the two make. **Each its own digest, in
+        // their order**, as the water and the heights are sorted: the mesh lists its sources as its index finds
+        // them, which follows the order the objects were added in, and two starts add them in two orders.
+        std::vector<Misc::DigestWords> sources;
+        sources.reserve(recastMesh.getMeshSources().size());
         for (const MeshSource& source : recastMesh.getMeshSources())
         {
             if (source.mShape->mFileHash.empty())
                 return std::nullopt;
-            digest.add(source.mAreaType);
-            digest.add(std::span<const char>(source.mShape->mFileName.value()));
-            digest.add(std::span<const char>(source.mShape->mFileHash));
-            digest.add(source.mObjectTransform.mPosition);
-            digest.add(source.mObjectTransform.mScale);
+            ContentStore::Digest sourceDigest("navmesh tile source", sTileVersion);
+            sourceDigest.add(source.mAreaType);
+            sourceDigest.add(std::span<const char>(source.mShape->mFileName.value()));
+            sourceDigest.add(std::span<const char>(source.mShape->mFileHash));
+            sourceDigest.add(source.mObjectTransform.mPosition);
+            sourceDigest.add(source.mObjectTransform.mScale);
+            sources.push_back(sourceDigest.getKey().mHash);
         }
+        std::sort(sources.begin(), sources.end());
+        digest.add(std::span<const Misc::DigestWords>(sources));
         return digest.getKey();
     }
 

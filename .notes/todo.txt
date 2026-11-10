@@ -1,6 +1,5 @@
-- reduce vendor specific code / hide behind interface
 - bake distant land into one mesh
-- remove sqlite
 - check content hasmisses
 - all IO serial?
 - clangd problem
+- measure the navmesh tile store on the Windows laptop against SQLite: a new game to its last tile job, cold and warm
