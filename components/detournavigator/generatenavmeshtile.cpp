@@ -1,10 +1,9 @@
 #include "generatenavmeshtile.hpp"
 
-#include "dbrefgeometryobject.hpp"
 #include "makenavmesh.hpp"
 #include "navmeshdata.hpp"
+#include "navmeshtilestore.hpp"
 #include "preparednavmeshdata.hpp"
-#include "serialization.hpp"
 #include "settings.hpp"
 
 #include <components/debug/debuglog.hpp>
@@ -21,18 +20,24 @@ namespace DetourNavigator
 {
     namespace
     {
-        struct Ignore
+        /// Tells the consumer a tile is done with as the work ends, by whichever way it ends but a cancel.
+        struct Provide
         {
             ESM::RefId mWorldspace;
-            const TilePosition& mTilePosition;
             std::shared_ptr<NavMeshTileConsumer> mConsumer;
 
-            ~Ignore() noexcept
+            ~Provide() noexcept
             {
                 if (mConsumer != nullptr)
-                    mConsumer->ignore(mWorldspace, mTilePosition);
+                    mConsumer->provide(mWorldspace);
             }
         };
+
+        void reportPolyCount(NavMeshTileConsumer& consumer, const NavMeshData& tileData)
+        {
+            const dtMeshHeader& header = *reinterpret_cast<dtMeshHeader*>(tileData.mValue.get());
+            consumer.updateStats(NavMeshTileConsumerStats{ .mPolyCount = header.polyCount });
+        }
     }
 
     GenerateNavMeshTile::GenerateNavMeshTile(ESM::RefId worldspace, const TilePosition& tilePosition,
@@ -62,7 +67,7 @@ namespace DetourNavigator
             if (consumer == nullptr)
                 return;
 
-            Ignore ignore{ mWorldspace, mTilePosition, consumer };
+            Provide provide{ mWorldspace, consumer };
 
             const std::shared_ptr<const RecastMeshProvider> recastMeshProvider = mRecastMeshProvider.lock();
 
@@ -74,29 +79,21 @@ namespace DetourNavigator
             if (recastMesh == nullptr || isEmpty(*recastMesh))
                 return;
 
-            const std::vector<DbRefGeometryObject> objects = makeDbRefGeometryObjects(
-                recastMesh->getMeshSources(), [&](const MeshSource& v) { return consumer->resolveMeshSource(v); });
-            std::vector<std::byte> input = serialize(mSettings.mRecast, mAgentBounds, *recastMesh, objects);
-            const std::optional<NavMeshTileInfo> info = consumer->find(mWorldspace, mTilePosition, input);
+            const std::optional<ContentStore::Key> key
+                = NavMeshTileStore::keyOf(mSettings.mRecast, mAgentBounds, mWorldspace, mTilePosition, *recastMesh);
 
-            if (info.has_value() && info->mVersion == navMeshFormatVersion)
+            // A stored tile is read only where its polygons are counted, and otherwise only found.
+            if (key.has_value() && mCollectStats)
             {
-                consumer->identity(mWorldspace, mTilePosition, info->mTileId);
-
-                if (mCollectStats)
+                if (const std::unique_ptr<PreparedNavMeshData> stored = consumer->read(*key))
                 {
-                    const NavMeshData tileData
-                        = makeNavMeshTileData(*info->mData, {}, mAgentBounds, mTilePosition, mSettings.mRecast);
-                    const dtMeshHeader& header = *reinterpret_cast<dtMeshHeader*>(tileData.mValue.get());
-
-                    consumer->updateStats(NavMeshTileConsumerStats{
-                        .mPolyCount = header.polyCount,
-                    });
+                    reportPolyCount(
+                        *consumer, makeNavMeshTileData(*stored, {}, mAgentBounds, mTilePosition, mSettings.mRecast));
+                    return;
                 }
-
-                ignore.mConsumer = nullptr;
-                return;
             }
+            else if (key.has_value() && consumer->holds(*key))
+                return;
 
             const std::unique_ptr<PreparedNavMeshData> data
                 = prepareNavMeshTileData(*recastMesh, mWorldspace, mTilePosition, mAgentBounds, mSettings.mRecast);
@@ -107,21 +104,11 @@ namespace DetourNavigator
             // Verify generated data before consuming.
             const NavMeshData tileData = makeNavMeshTileData(*data, {}, mAgentBounds, mTilePosition, mSettings.mRecast);
 
-            if (info.has_value())
-                consumer->update(mWorldspace, mTilePosition, info->mTileId, navMeshFormatVersion, *data);
-            else
-                consumer->insert(mWorldspace, mTilePosition, navMeshFormatVersion, input, *data);
+            if (key.has_value())
+                consumer->write(*key, *data);
 
             if (mCollectStats)
-            {
-                const dtMeshHeader& header = *reinterpret_cast<dtMeshHeader*>(tileData.mValue.get());
-
-                consumer->updateStats(NavMeshTileConsumerStats{
-                    .mPolyCount = header.polyCount,
-                });
-            }
-
-            ignore.mConsumer = nullptr;
+                reportPolyCount(*consumer, tileData);
         }
         catch (const std::exception& e)
         {

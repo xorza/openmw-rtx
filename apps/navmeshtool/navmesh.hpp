@@ -6,7 +6,7 @@
 
 namespace DetourNavigator
 {
-    class NavMeshDb;
+    class NavMeshTileStore;
     struct Settings;
     struct AgentBounds;
 }
@@ -23,7 +23,6 @@ namespace NavMeshTool
 
     struct GenerateAllNavMeshTilesOptions
     {
-        bool mRemoveUnusedTiles;
         bool mWriteBinaryLog;
         bool mCollectStats;
     };
@@ -32,7 +31,6 @@ namespace NavMeshTool
     {
         Ok,
         Cancelled,
-        NotEnoughSpace,
     };
 
     struct GenerateTilesStats
@@ -44,9 +42,11 @@ namespace NavMeshTool
     {
         Status mStatus;
         std::size_t mProvided;
-        std::size_t mInserted;
-        std::size_t mUpdated;
-        std::size_t mDeleted;
+
+        /// Tiles the store held, tiles written to it, and writes that failed, which the store logged.
+        std::size_t mFound;
+        std::size_t mWritten;
+        std::size_t mUnwritten;
         GenerateTilesStats mStats;
     };
 
@@ -55,7 +55,7 @@ namespace NavMeshTool
     public:
         NavMeshTilesGenerator(const DetourNavigator::AgentBounds& agentBounds,
             const DetourNavigator::Settings& settings, const GenerateAllNavMeshTilesOptions& options,
-            DetourNavigator::NavMeshDb& db, SceneUtil::WorkQueue& workQueue);
+            DetourNavigator::NavMeshTileStore& store, SceneUtil::WorkQueue& workQueue);
 
         Status addWorldspace(WorldspaceData&& data);
 

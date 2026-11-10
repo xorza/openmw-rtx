@@ -96,18 +96,6 @@
         <translation>Anuluj</translation>
     </message>
     <message>
-        <source>Remove Unused Tiles</source>
-        <translation>Usuń nieużywane kafelki</translation>
-    </message>
-    <message>
-        <source>Max Size</source>
-        <translation>Maksymalny rozmiar</translation>
-    </message>
-    <message>
-        <source> MiB</source>
-        <translation> MiB</translation>
-    </message>
-    <message>
         <source>Content List</source>
         <translation>Lista treści</translation>
     </message>

@@ -569,8 +569,8 @@ void OMW::Engine::prepareEngine()
     mEnvironment.setSoundManager(*mSoundManager);
 
     // Create the world
-    mWorld = std::make_unique<MWWorld::World>(
-        mResourceSystem.get(), mActivationDistanceOverride, mCellName, mCfgMgr.getUserDataPath());
+    mWorld = std::make_unique<MWWorld::World>(mResourceSystem.get(), mActivationDistanceOverride, mCellName,
+        mCfgMgr.getUserDataPath(), mCfgMgr.getCachePath());
     mEnvironment.setWorld(*mWorld);
     mEnvironment.setWorldModel(mWorld->getWorldModel());
     mEnvironment.setESMStore(mWorld->getStore());

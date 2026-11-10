@@ -52,6 +52,7 @@ file(GLOB UNITTEST_SRC_FILES
     platform/wholefile.cpp
     platform/uniquehold.cpp
 
+    detournavigator/navmeshtilestore.cpp
     detournavigator/navigator.cpp
     detournavigator/settingsutils.cpp
     detournavigator/recastmeshbuilder.cpp
@@ -59,7 +60,6 @@ file(GLOB UNITTEST_SRC_FILES
     detournavigator/recastmeshobject.cpp
     detournavigator/navmeshtilescache.cpp
     detournavigator/tilecachedrecastmeshmanager.cpp
-    detournavigator/navmeshdb.cpp
     detournavigator/serialization.cpp
     detournavigator/asyncnavmeshupdater.cpp
 
@@ -83,10 +83,6 @@ file(GLOB UNITTEST_SRC_FILES
     shader/parselinks.cpp
     shader/shadermanager.cpp
 
-    sqlite3/db.cpp
-    sqlite3/request.cpp
-    sqlite3/statement.cpp
-    sqlite3/transaction.cpp
 
     esmloader/load.cpp
     esmloader/esmdata.cpp

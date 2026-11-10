@@ -188,8 +188,6 @@ else()
 endif()
 option(RECASTNAVIGATION_STATIC "Build recastnavigation static libraries" ${_recastnavigation_static_default})
 
-option(OPENMW_USE_SYSTEM_SQLITE3 "Use system provided SQLite3 library" ON)
-
 option(OPENMW_USE_SYSTEM_BENCHMARK "Use system Google Benchmark library." OFF)
 option(OPENMW_USE_SYSTEM_GOOGLETEST "Use system Google Test library." OFF)
 

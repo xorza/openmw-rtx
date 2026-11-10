@@ -523,7 +523,6 @@ add_component_dir(detournavigator
     changetype
     collisionshapetype
     commulativeaabb
-    dbrefgeometryobject
     debug
     exceptions
     findrandompointaroundcircle
@@ -540,10 +539,9 @@ add_component_dir(detournavigator
     navigatorutils
     navmeshcacheitem
     navmeshdata
-    navmeshdb
-    navmeshdbutils
     navmeshmanager
     navmeshtilescache
+    navmeshtilestore
     navmeshtileview
     objectid
     objecttransform
@@ -589,13 +587,6 @@ add_component_dir(serialization
     osgyaml
     sizeaccumulator
     )
-
-add_component_dir(sqlite3
-    db
-    request
-    statement
-    transaction
-)
 
 add_component_dir(esmloader
     lessbyid
@@ -756,13 +747,6 @@ endif()
 
 include_directories(${BULLET_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
 
-if (OPENMW_USE_SYSTEM_SQLITE3)
-    find_package(SQLite3 REQUIRED)
-    if(NOT TARGET SQLite3::SQLite3) # CMake < 4.3
-        add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
-    endif()
-endif()
-
 add_library(components STATIC ${COMPONENT_FILES})
 target_compile_definitions(components PUBLIC OPENMW_RTX_DLSS=$<BOOL:${OPENMW_RTX_DLSS}>)
 
@@ -805,7 +789,6 @@ target_link_libraries(components
 
     openmw-platform-io
     Base64
-    SQLite3::SQLite3
     smhasher
     rgbcx
     ${ICU_LIBRARIES}

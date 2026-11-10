@@ -198,7 +198,7 @@ namespace MWWorld
     }
 
     World::World(Resource::ResourceSystem* resourceSystem, int activationDistanceOverride, const std::string& startCell,
-        const std::filesystem::path& userDataPath)
+        const std::filesystem::path& userDataPath, const std::filesystem::path& cachePath)
         : mResourceSystem(resourceSystem)
         , mLocalScripts(mStore)
         , mWorldModel(mStore, mReaders)
@@ -209,6 +209,7 @@ namespace MWWorld
         , mScriptsEnabled(true)
         , mDiscardMovements(true)
         , mUserDataPath(userDataPath)
+        , mCachePath(cachePath)
         , mActivationDistanceOverride(activationDistanceOverride)
         , mStartCell(startCell)
         , mSwimHeightScale(0.f)
@@ -252,7 +253,7 @@ namespace MWWorld
         {
             auto navigatorSettings = DetourNavigator::makeSettingsFromSettingsManager(maxRecastLogLevel);
             navigatorSettings.mRecast.mSwimHeightScale = mSwimHeightScale;
-            mNavigator = DetourNavigator::makeNavigator(navigatorSettings, mUserDataPath);
+            mNavigator = DetourNavigator::makeNavigator(navigatorSettings, mCachePath);
         }
         else
         {

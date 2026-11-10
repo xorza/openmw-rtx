@@ -143,11 +143,6 @@ namespace Launcher
                     std::max(mProgress, progress) };
             }
         };
-
-        int getMaxNavMeshDbFileSizeMiB()
-        {
-            return static_cast<int>(Settings::navigator().mMaxNavmeshdbFileSize / (1024 * 1024));
-        }
     }
 }
 
@@ -335,8 +330,6 @@ void Launcher::DataFilesPage::buildDirectoryPickerContextMenu()
 
 bool Launcher::DataFilesPage::loadSettings()
 {
-    ui.navMeshMaxSizeSpinBox->setValue(getMaxNavMeshDbFileSizeMiB());
-
     QStringList profiles = mLauncherSettings.getContentLists();
     QString currentProfile = mLauncherSettings.getCurrentContentListName();
 
@@ -514,9 +507,6 @@ void Launcher::DataFilesPage::populateFileViews(const QString& contentModelName)
 
 void Launcher::DataFilesPage::saveSettings(const QString& profile)
 {
-    Settings::navigator().mMaxNavmeshdbFileSize.set(
-        static_cast<std::uint64_t>(std::max(0, ui.navMeshMaxSizeSpinBox->value())) * 1024 * 1024);
-
     QString profileName = profile;
 
     if (profileName.isEmpty())
@@ -1082,8 +1072,6 @@ void Launcher::DataFilesPage::startNavMeshTool()
     mNavMeshToolProgress = NavMeshToolProgress{};
 
     QStringList arguments({ "--write-binary-log" });
-    if (ui.navMeshRemoveUnusedTilesCheckBox->checkState() == Qt::Checked)
-        arguments.append("--remove-unused-tiles");
 
     if (!mNavMeshToolInvoker->startProcess(QLatin1String("openmw-navmeshtool"), arguments))
         return;

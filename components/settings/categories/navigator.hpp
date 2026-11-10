@@ -61,8 +61,6 @@ namespace Settings
         SettingValue<int> mWaitUntilMinDistanceToPlayer{ mIndex, "Navigator", "wait until min distance to player",
             makeMaxSanitizerInt(0) };
         SettingValue<bool> mEnableNavMeshDiskCache{ mIndex, "Navigator", "enable nav mesh disk cache" };
-        SettingValue<bool> mWriteToNavmeshdb{ mIndex, "Navigator", "write to navmeshdb" };
-        SettingValue<std::uint64_t> mMaxNavmeshdbFileSize{ mIndex, "Navigator", "max navmeshdb file size" };
         SettingValue<bool> mWaitForAllJobsOnExit{ mIndex, "Navigator", "wait for all jobs on exit" };
     };
 }

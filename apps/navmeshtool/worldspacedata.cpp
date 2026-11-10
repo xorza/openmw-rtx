@@ -1,6 +1,5 @@
 ﻿#include "worldspacedata.hpp"
 
-#include <components/bullethelpers/aabb.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/debug.hpp>
@@ -26,8 +25,6 @@
 #include <components/settings/settings.hpp>
 #include <components/vfs/manager.hpp>
 
-#include <LinearMath/btVector3.h>
-
 #include <osg/Vec2i>
 #include <osg/ref_ptr>
 
@@ -37,7 +34,6 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -195,34 +191,12 @@ namespace NavMeshTool
             bool operator()(const osg::Vec2i& lhs, const ESM::Land& rhs) const { return lhs < GetXY{}(rhs); }
         };
 
-        btAABB getAabb(const osg::Vec2i& cellPosition, btScalar minHeight, btScalar maxHeight)
-        {
-            btAABB aabb;
-            aabb.m_min = btVector3(static_cast<btScalar>(cellPosition.x() * ESM::Land::REAL_SIZE),
-                static_cast<btScalar>(cellPosition.y() * ESM::Land::REAL_SIZE), minHeight);
-            aabb.m_max = btVector3(static_cast<btScalar>((cellPosition.x() + 1) * ESM::Land::REAL_SIZE),
-                static_cast<btScalar>((cellPosition.y() + 1) * ESM::Land::REAL_SIZE), maxHeight);
-            return aabb;
-        }
-
-        void mergeOrAssign(const btAABB& aabb, btAABB& target, bool& initialized)
-        {
-            if (initialized)
-                return target.merge(aabb);
-
-            target.m_min = aabb.m_min;
-            target.m_max = aabb.m_max;
-            initialized = true;
-        }
-
-        std::tuple<HeightfieldShape, float, float> makeHeightfieldShape(const std::optional<ESM::Land>& land,
-            const osg::Vec2i& cellPosition, std::vector<std::vector<float>>& heightfields,
-            std::vector<std::unique_ptr<ESM::Land::LandData>>& landDatas)
+        HeightfieldShape makeHeightfieldShape(const std::optional<ESM::Land>& land, const osg::Vec2i& cellPosition,
+            std::vector<std::vector<float>>& heightfields, std::vector<std::unique_ptr<ESM::Land::LandData>>& landDatas)
         {
             if (!land.has_value() || osg::Vec2i(land->mX, land->mY) != cellPosition
                 || (land->mDataTypes & ESM::Land::DATA_VHGT) == 0)
-                return { HeightfieldPlane{ static_cast<float>(ESM::Land::DEFAULT_HEIGHT) },
-                    static_cast<float>(ESM::Land::DEFAULT_HEIGHT), static_cast<float>(ESM::Land::DEFAULT_HEIGHT) };
+                return HeightfieldPlane{ static_cast<float>(ESM::Land::DEFAULT_HEIGHT) };
 
             ESM::Land::LandData& landData = *landDatas.emplace_back(std::make_unique<ESM::Land::LandData>());
             land->loadData(ESM::Land::DATA_VHGT, landData);
@@ -232,7 +206,7 @@ namespace NavMeshTool
             surface.mMinHeight = landData.mMinHeight;
             surface.mMaxHeight = landData.mMaxHeight;
             surface.mSize = static_cast<std::size_t>(ESM::Land::LAND_SIZE);
-            return { surface, landData.mMinHeight, landData.mMaxHeight };
+            return surface;
         }
 
         template <class T>
@@ -340,8 +314,6 @@ namespace NavMeshTool
         : mWorldspace(worldspace)
         , mTilesData(std::make_shared<TilesData>(settings))
     {
-        mAabb.m_min = btVector3(0, 0, 0);
-        mAabb.m_max = btVector3(0, 0, 0);
     }
 
     std::unordered_map<ESM::RefId, std::vector<std::size_t>> collectWorldspaceCells(
@@ -419,11 +391,9 @@ namespace NavMeshTool
             {
                 const auto it
                     = std::lower_bound(esmData.mLands.begin(), esmData.mLands.end(), cellPosition, LessByXY{});
-                const auto [heightfieldShape, minHeight, maxHeight]
+                const HeightfieldShape heightfieldShape
                     = makeHeightfieldShape(it == esmData.mLands.end() ? std::optional<ESM::Land>() : *it, cellPosition,
                         data.mTilesData->mHeightfields, data.mTilesData->mLandData);
-
-                mergeOrAssign(getAabb(cellPosition, minHeight, maxHeight), data.mAabb, data.mAabbInitialized);
 
                 manager.addHeightfield(cellPosition, ESM::Land::REAL_SIZE, heightfieldShape, guard.get());
 
@@ -441,11 +411,6 @@ namespace NavMeshTool
                         return;
 
                     const btTransform& transform = object.getCollisionObject().getWorldTransform();
-                    const btAABB aabb
-                        = BulletHelpers::getAabb(*object.getCollisionObject().getCollisionShape(), transform);
-                    mergeOrAssign(aabb, data.mAabb, data.mAabbInitialized);
-                    if (const btCollisionShape* avoid = object.getShapeInstance()->mAvoidCollisionShape.get())
-                        data.mAabb.merge(BulletHelpers::getAabb(*avoid, transform));
 
                     const ObjectId objectId(++objectsCounter);
                     const CollisionShape shape(object.getShapeInstance(),

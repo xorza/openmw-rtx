@@ -244,3 +244,9 @@ made only on the user's explicit yes, after which it is added here.
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.
+- The navigator's tiles in the content store (`DetourNavigator::NavMeshTileStore`), and SQLite out of the build: the
+  fork keeps what it derives from the content in one store, every profile shares the tiles they share, and the store's
+  key covers the code by a version a test holds (`DetourNavigatorTileVersionTest`). `openmw-navmeshtool` writes the
+  store the game reads, and loses `--remove-unused-tiles` and the vacuum; the launcher loses their controls, and
+  `[Navigator]` loses `write to navmeshdb` and `max navmeshdb file size`. The cost is a conflict with every upstream
+  change to the navigator's database worker, its input serialization or `openmw-navmeshtool`.

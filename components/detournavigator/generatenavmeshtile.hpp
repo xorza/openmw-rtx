@@ -6,6 +6,8 @@
 #include "recastmeshprovider.hpp"
 #include "tileposition.hpp"
 
+#include <components/contentstore/key.hpp>
+#include <components/esm/refid.hpp>
 #include <components/sceneutil/workqueue.hpp>
 
 #include <cstdint>
@@ -21,14 +23,6 @@ namespace DetourNavigator
     struct NavMeshTileConsumer;
     struct OffMeshConnection;
     struct Settings;
-    struct MeshSource;
-
-    struct NavMeshTileInfo
-    {
-        std::int64_t mTileId;
-        std::int64_t mVersion;
-        std::unique_ptr<PreparedNavMeshData> mData;
-    };
 
     struct NavMeshTileConsumerStats
     {
@@ -39,23 +33,16 @@ namespace DetourNavigator
     {
         virtual ~NavMeshTileConsumer() = default;
 
-        virtual std::int64_t resolveMeshSource(const MeshSource& source) = 0;
+        /// Whether the store holds the tile under `key`, with nothing of it read.
+        virtual bool holds(const ContentStore::Key& key) = 0;
 
-        virtual std::optional<NavMeshTileInfo> find(
-            ESM::RefId worldspace, const TilePosition& tilePosition, const std::vector<std::byte>& input)
-            = 0;
+        /// The tile the store holds under `key`, or nothing.
+        virtual std::unique_ptr<PreparedNavMeshData> read(const ContentStore::Key& key) = 0;
 
-        virtual void ignore(ESM::RefId worldspace, const TilePosition& tilePosition) = 0;
+        virtual void write(const ContentStore::Key& key, const PreparedNavMeshData& data) = 0;
 
-        virtual void identity(ESM::RefId worldspace, const TilePosition& tilePosition, std::int64_t tileId) = 0;
-
-        virtual void insert(ESM::RefId worldspace, const TilePosition& tilePosition, std::int64_t version,
-            const std::vector<std::byte>& input, PreparedNavMeshData& data)
-            = 0;
-
-        virtual void update(ESM::RefId worldspace, const TilePosition& tilePosition, std::int64_t tileId,
-            std::int64_t version, PreparedNavMeshData& data)
-            = 0;
+        /// A tile of `worldspace` is done with: found, written, or with nothing to keep. Once a tile.
+        virtual void provide(ESM::RefId worldspace) = 0;
 
         virtual void cancel(std::string_view reason) = 0;
 

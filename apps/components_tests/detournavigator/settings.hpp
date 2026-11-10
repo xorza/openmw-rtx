@@ -41,7 +41,6 @@ namespace DetourNavigator
             result.mDetour.mMaxPolys = 4096;
             result.mMaxTilesNumber = 1024;
             result.mMinUpdateInterval = std::chrono::milliseconds(50);
-            result.mWriteToNavMeshDb = true;
             return result;
         }
     }

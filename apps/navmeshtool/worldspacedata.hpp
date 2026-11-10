@@ -9,7 +9,6 @@
 #include <components/resource/bulletshape.hpp>
 
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
-#include <BulletCollision/Gimpact/btBoxCollision.h>
 #include <LinearMath/btVector3.h>
 
 #include <memory>
@@ -89,8 +88,6 @@ namespace NavMeshTool
     struct WorldspaceData
     {
         ESM::RefId mWorldspace;
-        btAABB mAabb;
-        bool mAabbInitialized = false;
         std::vector<DetourNavigator::TilePosition> mTiles;
         std::shared_ptr<TilesData> mTilesData;
 

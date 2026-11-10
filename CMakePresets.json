@@ -56,7 +56,7 @@
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
             "$comment": [
                 "Upstream's prebuilt vcpkg set, which `omw` fetches into deps/ at the tag CI/deps_versions.msvc.sh",
-                "pins (VCPKG_TAG). It lacks recastnavigation, Google Test, SQLite and yaml-cpp, which CMake fetches,",
+                "pins (VCPKG_TAG). It lacks recastnavigation, Google Test and yaml-cpp, which CMake fetches,",
                 "and Qt, so no launcher, and SDL3, which CMake builds. vcpkg's DLL copying is off, since `omw` copies",
                 "the whole runtime. Precompiled headers are off: ccache cannot cache through them (593 of 623 backend",
                 "compiles missed). `RelWithDebInfo` is `-O2 -Z7`: CMake's carries `/DNDEBUG`, and `-Z7` is the debug",
@@ -72,7 +72,6 @@
                 "LuaJit_LIBRARY": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/lib/lua51.lib",
                 "OPENMW_USE_SYSTEM_RECASTNAVIGATION": "OFF",
                 "OPENMW_USE_SYSTEM_GOOGLETEST": "OFF",
-                "OPENMW_USE_SYSTEM_SQLITE3": "OFF",
                 "OPENMW_USE_SYSTEM_YAML_CPP": "OFF",
                 "BUILD_LAUNCHER": "OFF",
                 "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O2 -Z7",

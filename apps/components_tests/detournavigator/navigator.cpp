@@ -4,11 +4,12 @@
 #include <components/bullethelpers/heightfield.hpp>
 #include <components/detournavigator/navigatorimpl.hpp>
 #include <components/detournavigator/navigatorutils.hpp>
-#include <components/detournavigator/navmeshdb.hpp>
+#include <components/detournavigator/navmeshtilestore.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/rng.hpp>
 #include <components/resource/bulletshape.hpp>
+#include <components/testing/util.hpp>
 
 #include <osg/io_utils>
 #include <osg/ref_ptr>
@@ -54,7 +55,7 @@ namespace
     {
         Settings mSettings = makeSettings();
         std::unique_ptr<Navigator> mNavigator = std::make_unique<NavigatorImpl>(
-            mSettings, std::make_unique<NavMeshDb>(":memory:", std::numeric_limits<std::uint64_t>::max()));
+            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"));
         const osg::Vec3f mPlayerPosition{ 256, 256, 0 };
         const ESM::RefId mWorldspace = ESM::RefId::stringRefId("sys::default");
         const AgentBounds mAgentBounds{ CollisionShapeType::Aabb, { 29, 29, 66 } };
@@ -214,7 +215,7 @@ namespace
     {
         mSettings.mWaitUntilMinDistanceToPlayer = 0;
         mNavigator.reset(new NavigatorImpl(
-            mSettings, std::make_unique<NavMeshDb>(":memory:", std::numeric_limits<std::uint64_t>::max())));
+            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh")));
 
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -639,7 +640,7 @@ namespace
     {
         mSettings.mAsyncNavMeshUpdaterThreads = 2;
         mNavigator.reset(new NavigatorImpl(
-            mSettings, std::make_unique<NavMeshDb>(":memory:", std::numeric_limits<std::uint64_t>::max())));
+            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh")));
 
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -1404,7 +1405,8 @@ namespace
         Settings settings = makeSettings();
         settings.mMaxTilesNumber = 1;
         settings.mWaitUntilMinDistanceToPlayer = 1;
-        NavigatorImpl navigator(settings, std::make_unique<NavMeshDb>(":memory:", settings.mMaxDbFileSize));
+        NavigatorImpl navigator(
+            settings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"));
         const AgentBounds agentBounds{ CollisionShapeType::Aabb, { 29, 29, 66 } };
         ASSERT_TRUE(navigator.addAgent(agentBounds));
 

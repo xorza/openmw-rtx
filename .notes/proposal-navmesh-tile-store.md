@@ -25,58 +25,60 @@ most of their tiles are the same.
 
 ## Decisions
 
-An item marked **Done** has landed, and its decisions stand in `docs/rtx/architecture.md`.
+An item marked **Done** has landed, and its decisions stand in `docs/rtx/architecture.md` ("The content store").
+The measurement under Tests is open; the proposal goes once it is taken.
 
 - **Done: one store in a component of its own, its kinds and residency the owner's.** In `components/contentstore`
   (`docs/rtx/architecture.md`, "One store, in a component of its own" and "The owner states its kinds and what is held
-  in memory"). The navigator's store has no `Holding`: 95 to 98 % of tiles are 4 KiB or less, most of 142 MiB, which would flood the 64 MiB the
-  frame's facts are held in, and a stamp only ranks that load. `DetourNavigator::NavMeshTileStore` owns the navigator's
-  `ContentStore::Store` and its key.
-- **A folder of its own, shared by every profile.** `<cache>/navmesh`, beside `rtx-content`, which the game,
+  in memory"). The navigator's store has no `Holding`: 95 to 98 % of tiles are 4 KiB or less, most of 142 MiB, which
+  would flood the 64 MiB the frame's facts are held in, and a stamp only ranks that load.
+  `DetourNavigator::NavMeshTileStore` owns the navigator's `ContentStore::Store` and its key.
+- **Done: a folder of its own, shared by every profile.** `<cache>/navmesh`, beside `rtx-content`, which the game,
   `openmw-navmeshtool`, the harness and the integration tests open alike, as they share the player's `navmesh.db` and
   `rtx-content` now: an entry is right for whoever reads it. A content key makes a tile two profiles share one entry.
   The harness's `--content-cache` keeps choosing the ray tracer's store alone, as it does today. Refused: the ray
   tracer's folder, whose start sweep would list 87,000 more files; the user data folder, since losing a cache costs time
   and nothing else; a harness switch for the tiles, whose generation moves no pixel of a run.
-- **The key is the tile's input, hashed where it stands.** `ContentStore::Digest("navmesh tile", sTileVersion)` over the
-  worldspace's text, the tile position, the recast settings, the agent's bounds, the water, the heightfields and the
-  flat heightfields, and for each mesh source its area type, its shape's path and file hash, and its `ObjectTransform`.
-  One function makes it, which the game and `openmw-navmeshtool` both call, and it allocates nothing. Refused: shape
+- **Done: the key is the tile's input, hashed where it stands.** `ContentStore::Digest("navmesh tile", sTileVersion)`
+  over the worldspace's text, the tile position, the recast settings, the agent's bounds, the water, the heightfields
+  and the flat heightfields, and for each mesh source its area type, its shape's path and file hash, and its
+  `ObjectTransform`. One function makes it, which the game and `openmw-navmeshtool` both call, and it allocates nothing
+  but the worldspace's text. Refused: shape
   ids, which existed to shorten a blob a table compared and need that table; the serialized blob as the key, an
   allocation a job for bytes that are hashed anyway.
-- **One version for the tile, held by a test.** `recastMeshVersion` and `navMeshFormatVersion` become one `sTileVersion`
-  in the key; the payload keeps its own magic and version, and a payload its codec refuses is discarded. A test
-  generates tiles from fixed inputs and digests them beside `sTileVersion`, as `RtxPassVersionsTest` holds the passes:
-  a change to `BulletNifLoader`, the recast mesh builder, Recast or Detour that moves a tile fails it until the version
-  moves. Refused: the build's revision in the key, which empties the store at every build.
-- **A source with no file hash is not stored.** Its tile is generated and not written, and the count is reported. A path
+- **Done: one version for the tile, held by a test.** `recastMeshVersion` and `navMeshFormatVersion` become one
+  `sTileVersion` in the key; the payload keeps its own magic and version, and a payload its codec refuses is discarded.
+  A test generates tiles from fixed inputs and digests them beside `sTileVersion`, as `RtxPassVersionsTest` holds the
+  passes: a change to `BulletNifLoader`, the recast mesh builder, Recast or Detour that moves a tile fails it until the
+  version moves. Refused: the build's revision in the key, which empties the store at every build.
+- **Done: a source with no file hash is not stored.** Its tile is generated and not written. A path
   alone would keep a replaced file's tile. Every model the game loads carries a hash today (`NIFFile`, `SceneManager`),
   so this is a guard and not a path the content takes.
-- **The payload is the tile as now.** `PreparedNavMeshData` serialized and LZ4-compressed (`Misc::compress`), a mean of
-  1.7 KiB. `mUserId`, which held the row's id, is 1 for a tile the store answered or took and 0 otherwise: the tile
+- **Done: the payload is the tile as now.** `PreparedNavMeshData` serialized and LZ4-compressed (`Misc::compress`), a
+  mean of 1.7 KiB. `mUserId`, which held the row's id, is 1 for a tile the store answered and 0 otherwise: the tile
   view's comparison and the rasterizer's debug view, which draws a cached tile brighter, are its only readers. Refused:
   an entry for a tile that yields nothing: none of 364 jobs in a sample did, and an empty mesh ends before generation.
-- **The read stays off the updater; the write is the store's.** The database worker becomes the tile store's reader,
-  on its thread and ranked by the player's tile as now, and computes the key once a job, which the job keeps for its
-  write. A generated tile goes to `ContentStore::Store::write`, whose own thread and bounded queue write it, and the
+- **Done: the read stays off the updater; the write is the store's.** The database worker becomes the tile store's
+  reader, on its thread and ranked by the player's tile as now, and computes the key once a job, which the job keeps for
+  its write. A generated tile goes to `ContentStore::Store::write`, whose own thread and bounded queue write it, and the
   worker's write queue goes. Only `add` and `remove` read the store, as now: a moved object regenerates. The profiler's
   `NavMesh DbJobs` and `NavMesh DbCache` rows become `NavMesh Store` rows with the stats they read.
   `openmw-navmeshtool`'s transaction and job queue go, and it reports tiles found and written.
-- **No cap and no removal**, as the content store decided. A tile another content made stays, as rows stay now (20,131
-  positions of the vanilla cache hold more than one input). `--remove-unused-tiles`, the vacuum, the launcher's
+- **Done: no cap and no removal**, as the content store decided. A tile another content made stays, as rows stay now
+  (20,131 positions of the vanilla cache hold more than one input). `--remove-unused-tiles`, the vacuum, the launcher's
   check box and size limit and their strings go. Refused: removing unused tiles, which a store every profile shares
   cannot know.
-- **One setting.** `[Navigator] enable nav mesh disk cache` turns the store on, for reads and writes;
+- **Done: one setting.** `[Navigator] enable nav mesh disk cache` turns the store on, for reads and writes;
   `write to navmeshdb` and `max navmeshdb file size` go from the settings, `settings-default.cfg`, the launcher and the
   settings documentation. Refused: a read-only mode, a second switch for one store.
-- **The old database is left alone.** The game no longer opens `navmesh.db` and does not delete it; the release notes
-  say it can go. Refused: deleting a file in the player's user data folder unasked.
-- **The animated pose stays out of the key**, as upstream has it; the issue log holds it.
-- **SQLite leaves the build.** `components/sqlite3`, its tests, the fetched amalgamation, `OPENMW_USE_SYSTEM_SQLITE3`,
-  the `find_package`, the presets' entry and the CI's packages go, with `navmeshdb*`, `navmeshdbutils*`,
-  `DbRefGeometryObject` and the shape and tile id types.
-- **The cache path reaches the navigator.** `makeNavigator` takes the cache path where it took the user data path, which
-  `World` is handed by the engine as the renderer is (`Files::ConfigurationManager::getCachePath`).
+- **Done: the old database is left alone.** The game no longer opens `navmesh.db` and does not delete it; the release
+  notes say it can go. Refused: deleting a file in the player's user data folder unasked.
+- **Done: the animated pose stays out of the key**, as upstream has it; the issue log holds it.
+- **Done: sQLite leaves the build.** `components/sqlite3`, its tests, the fetched amalgamation,
+  `OPENMW_USE_SYSTEM_SQLITE3`, the `find_package`, the presets' entry and the CI's packages go, with `navmeshdb*`,
+  `navmeshdbutils*`, `DbRefGeometryObject` and the shape and tile id types.
+- **Done: the cache path reaches the navigator.** `makeNavigator` takes the cache path where it took the user data path,
+  which `World` is handed by the engine as the renderer is (`Files::ConfigurationManager::getCachePath`).
 
 ## Upstream changes
 
@@ -95,6 +97,6 @@ upstream change to the navigator's database worker, its input serialization or `
   refuses is discarded and regenerated, a source with no hash is not written.
 - `openmw-navmeshtool` fills the store the game then reads with no generation.
 - The version test above.
-- Measured on the Windows laptop and here, SQLite against files: the time from a new game to its last tile job, with an
-  empty cache and a full one. A file a read is an open on Windows, which an antivirus scan can slow, where SQLite reads
-  inside one open file.
+- **Open:** measured on the Windows laptop and here, SQLite against files: the time from a new game to its last tile
+  job, with an empty cache and a full one. A file a read is an open on Windows, which an antivirus scan can slow, where
+  SQLite reads inside one open file.

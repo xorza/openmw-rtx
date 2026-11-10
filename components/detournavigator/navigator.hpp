@@ -200,7 +200,8 @@ namespace DetourNavigator
         virtual float getMaxNavmeshAreaRealRadius() const = 0;
     };
 
-    std::unique_ptr<Navigator> makeNavigator(const Settings& settings, const std::filesystem::path& userDataPath);
+    /// A navigator whose tiles are kept under `cachePath` where `settings` ask for the disk cache.
+    std::unique_ptr<Navigator> makeNavigator(const Settings& settings, const std::filesystem::path& cachePath);
 
     std::unique_ptr<Navigator> makeNavigatorStub();
 }

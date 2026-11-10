@@ -18,16 +18,11 @@ namespace DetourNavigator
         std::size_t mDelayed = 0;
     };
 
-    struct DbJobQueueStats
+    struct TileStoreStats
     {
-        std::size_t mReadingJobs = 0;
-        std::size_t mWritingJobs = 0;
-    };
-
-    struct DbWorkerStats
-    {
-        DbJobQueueStats mJobs;
-        std::size_t mGetTileCount = 0;
+        /// Jobs queued for the store's reader, and reads it made.
+        std::size_t mReading = 0;
+        std::size_t mReads = 0;
     };
 
     struct NavMeshTilesCacheStats
@@ -45,9 +40,10 @@ namespace DetourNavigator
         JobQueueStats mWaiting;
         std::size_t mPushed = 0;
         std::size_t mProcessing = 0;
-        std::size_t mDbGetTileHits = 0;
+        std::size_t mStoreHits = 0;
+        std::size_t mStoreWrites = 0;
         std::size_t mPosted = 0;
-        std::optional<DbWorkerStats> mDb;
+        std::optional<TileStoreStats> mStore;
         NavMeshTilesCacheStats mCache;
     };
 

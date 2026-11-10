@@ -96,18 +96,6 @@
         <translation></translation>
     </message>
     <message>
-        <source>Remove Unused Tiles</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>Max Size</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source> MiB</source>
-        <translation></translation>
-    </message>
-    <message>
         <source>Content List</source>
         <translation></translation>
     </message>

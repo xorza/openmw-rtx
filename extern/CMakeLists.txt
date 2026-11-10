@@ -167,24 +167,6 @@ if(NOT OPENMW_USE_SYSTEM_RECASTNAVIGATION)
     FetchContent_MakeAvailable(recastnavigation)
 endif()
 
-if (NOT OPENMW_USE_SYSTEM_SQLITE3)
-    include(FetchContent)
-    FetchContent_Declare(sqlite3
-        URL https://www.sqlite.org/2023/sqlite-amalgamation-3410100.zip
-        URL_HASH SHA512=7de291709e88fffc693cf24ac675950cfc35c1bf7631cfea95167105720a05cf37fb943c57c5c985db2eeaa57b31894b3c0df98a7bd2939b5746fc5a24b5ae87
-        SOURCE_DIR fetched/sqlite3
-    )
-    FetchContent_MakeAvailable(sqlite3)
-
-    add_library(sqlite3 STATIC ${sqlite3_SOURCE_DIR}/sqlite3.c)
-    target_include_directories(sqlite3 INTERFACE ${sqlite3_SOURCE_DIR}/)
-    if (UNIX)
-        target_link_libraries(sqlite3 ${CMAKE_DL_LIBS})
-    endif()
-
-    add_library(SQLite3::SQLite3 ALIAS sqlite3)
-endif()
-
 add_subdirectory(smhasher)
 add_subdirectory(rgbcx)
 

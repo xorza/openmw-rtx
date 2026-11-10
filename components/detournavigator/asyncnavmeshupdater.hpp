@@ -5,14 +5,16 @@
 #include "changetype.hpp"
 #include "guardednavmeshcacheitem.hpp"
 #include "navmeshcacheitem.hpp"
-#include "navmeshdb.hpp"
 #include "navmeshtilescache.hpp"
+#include "navmeshtilestore.hpp"
 #include "offmeshconnectionsmanager.hpp"
 #include "sharednavmeshcacheitem.hpp"
 #include "stats.hpp"
 #include "tilecachedrecastmeshmanager.hpp"
 #include "tileposition.hpp"
 #include "waitconditiontype.hpp"
+
+#include <components/contentstore/key.hpp>
 
 #include <boost/geometry/geometries/point.hpp>
 #include <boost/geometry/index/rtree.hpp>
@@ -42,7 +44,7 @@ namespace DetourNavigator
     enum class JobState
     {
         Initial,
-        WithDbResult,
+        WithStoreResult,
     };
 
     struct Job
@@ -55,9 +57,12 @@ namespace DetourNavigator
         std::chrono::steady_clock::time_point mProcessTime;
         ChangeType mChangeType;
         JobState mState = JobState::Initial;
-        std::vector<std::byte> mInput;
         std::shared_ptr<RecastMesh> mRecastMesh;
-        std::optional<TileData> mCachedTileData;
+
+        /// The key the store files the tile under, once the store's reader made it: nothing where a source has
+        /// no file hash, and the tile is generated and not stored.
+        std::optional<ContentStore::Key> mKey;
+        std::unique_ptr<PreparedNavMeshData> mStoredNavMeshData;
         std::unique_ptr<PreparedNavMeshData> mGeneratedNavMeshData;
 
         Job(const AgentBounds& agentBounds, std::weak_ptr<GuardedNavMeshCacheItem> navMeshCacheItem,
@@ -129,7 +134,8 @@ namespace DetourNavigator
 
     std::ostream& operator<<(std::ostream& stream, JobStatus value);
 
-    class DbJobQueue
+    /// The jobs the store's reader is handed, nearest the player first.
+    class TileStoreJobQueue
     {
     public:
         void push(JobIt job);
@@ -140,28 +146,28 @@ namespace DetourNavigator
 
         void stop();
 
-        DbJobQueueStats getStats() const;
+        std::size_t size() const;
 
     private:
         mutable std::mutex mMutex;
         std::condition_variable mHasJob;
         SpatialJobQueue mReading;
-        std::deque<JobIt> mWriting;
         TilePosition mPlayerTile;
         bool mShouldStop = false;
     };
 
     class AsyncNavMeshUpdater;
 
-    class DbWorker
+    /// Reads a job's tile from the store on a thread of its own, off the updater's, which a read would wait
+    /// on the disk on, and hands the job back with what it found.
+    class TileStoreReader
     {
     public:
-        DbWorker(AsyncNavMeshUpdater& updater, std::unique_ptr<NavMeshDb>&& db, TileVersion version,
-            const RecastSettings& recastSettings, bool writeToDb);
+        TileStoreReader(AsyncNavMeshUpdater& updater, NavMeshTileStore& store, const RecastSettings& recastSettings);
 
-        ~DbWorker();
+        ~TileStoreReader();
 
-        DbWorkerStats getStats() const;
+        TileStoreStats getStats() const;
 
         void enqueueJob(JobIt job);
 
@@ -172,30 +178,22 @@ namespace DetourNavigator
     private:
         AsyncNavMeshUpdater& mUpdater;
         const RecastSettings& mRecastSettings;
-        const std::unique_ptr<NavMeshDb> mDb;
-        const TileVersion mVersion;
-        bool mWriteToDb;
-        TileId mNextTileId;
-        ShapeId mNextShapeId;
-        DbJobQueue mQueue;
+        NavMeshTileStore& mStore;
+        TileStoreJobQueue mQueue;
         std::atomic_bool mShouldStop{ false };
-        std::atomic_size_t mGetTileCount{ 0 };
+        std::atomic_size_t mReads{ 0 };
         std::thread mThread;
 
         inline void run() noexcept;
 
-        inline void processJob(JobIt job);
-
-        inline void processReadingJob(JobIt job);
-
-        inline void processWritingJob(JobIt job);
+        inline void read(Job& job);
     };
 
     class AsyncNavMeshUpdater
     {
     public:
         AsyncNavMeshUpdater(const Settings& settings, TileCachedRecastMeshManager& recastMeshManager,
-            OffMeshConnectionsManager& offMeshConnectionsManager, std::unique_ptr<NavMeshDb>&& db);
+            OffMeshConnectionsManager& offMeshConnectionsManager, std::unique_ptr<NavMeshTileStore>&& store);
         ~AsyncNavMeshUpdater();
 
         void post(const AgentBounds& agentBounds, const SharedNavMeshCacheItem& navMeshCacheItem,
@@ -230,8 +228,11 @@ namespace DetourNavigator
         std::map<std::tuple<AgentBounds, TilePosition>, std::chrono::steady_clock::time_point> mLastUpdates;
         std::set<std::tuple<AgentBounds, TilePosition>> mPresentTiles;
         std::vector<std::thread> mThreads;
-        std::unique_ptr<DbWorker> mDbWorker;
-        std::atomic_size_t mDbGetTileHits{ 0 };
+        /// Before its reader, which reads it until it stops.
+        std::unique_ptr<NavMeshTileStore> mStore;
+        std::unique_ptr<TileStoreReader> mStoreReader;
+        std::atomic_size_t mStoreHits{ 0 };
+        std::atomic_size_t mStoreWrites{ 0 };
         std::atomic_size_t mPostedCount{ 0 };
 
         void process() noexcept;
@@ -242,7 +243,7 @@ namespace DetourNavigator
 
         inline JobStatus processInitialJob(Job& job, GuardedNavMeshCacheItem& navMeshCacheItem);
 
-        inline JobStatus processJobWithDbResult(Job& job, GuardedNavMeshCacheItem& navMeshCacheItem);
+        inline JobStatus processJobWithStoreResult(Job& job, GuardedNavMeshCacheItem& navMeshCacheItem);
 
         inline JobStatus handleUpdateNavMeshStatus(UpdateNavMeshStatus status, const Job& job,
             const GuardedNavMeshCacheItem& navMeshCacheItem, const RecastMesh& recastMesh);

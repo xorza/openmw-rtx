@@ -1,9 +1,7 @@
 #include "asyncnavmeshupdater.hpp"
-#include "dbrefgeometryobject.hpp"
 #include "debug.hpp"
 #include "makenavmesh.hpp"
-#include "navmeshdbutils.hpp"
-#include "serialization.hpp"
+#include "navmeshtilestore.hpp"
 #include "settings.hpp"
 #include "version.hpp"
 
@@ -56,24 +54,18 @@ namespace DetourNavigator
             return std::make_tuple(job.mAgentBounds, job.mChangedTile);
         }
 
-        std::unique_ptr<DbWorker> makeDbWorker(
-            AsyncNavMeshUpdater& updater, std::unique_ptr<NavMeshDb>&& db, const Settings& settings)
+        std::unique_ptr<TileStoreReader> makeStoreReader(
+            AsyncNavMeshUpdater& updater, NavMeshTileStore* store, const Settings& settings)
         {
-            if (db == nullptr)
+            if (store == nullptr)
                 return nullptr;
-            return std::make_unique<DbWorker>(updater, std::move(db), TileVersion(navMeshFormatVersion),
-                settings.mRecast, settings.mWriteToNavMeshDb);
+            return std::make_unique<TileStoreReader>(updater, *store, settings.mRecast);
         }
 
         std::size_t getNextJobId()
         {
             static std::atomic_size_t nextJobId{ 1 };
             return nextJobId.fetch_add(1);
-        }
-
-        bool isWritingDbJob(const Job& job)
-        {
-            return job.mGeneratedNavMeshData != nullptr;
         }
 
         std::string makeRevision(const Version& version)
@@ -274,13 +266,14 @@ namespace DetourNavigator
     }
 
     AsyncNavMeshUpdater::AsyncNavMeshUpdater(const Settings& settings, TileCachedRecastMeshManager& recastMeshManager,
-        OffMeshConnectionsManager& offMeshConnectionsManager, std::unique_ptr<NavMeshDb>&& db)
+        OffMeshConnectionsManager& offMeshConnectionsManager, std::unique_ptr<NavMeshTileStore>&& store)
         : mSettings(settings)
         , mRecastMeshManager(recastMeshManager)
         , mOffMeshConnectionsManager(offMeshConnectionsManager)
         , mShouldStop()
         , mNavMeshTilesCache(settings.mMaxNavMeshTilesCacheSize)
-        , mDbWorker(makeDbWorker(*this, std::move(db), mSettings))
+        , mStore(std::move(store))
+        , mStoreReader(makeStoreReader(*this, mStore.get(), mSettings))
     {
         for (std::size_t i = 0; i < mSettings.get().mAsyncNavMeshUpdaterThreads; ++i)
             mThreads.emplace_back([&] { process(); });
@@ -344,8 +337,8 @@ namespace DetourNavigator
 
         lock.unlock();
 
-        if (playerTileChanged && mDbWorker != nullptr)
-            mDbWorker->update(playerTile);
+        if (playerTileChanged && mStoreReader != nullptr)
+            mStoreReader->update(playerTile);
     }
 
     void AsyncNavMeshUpdater::wait(WaitConditionType waitConditionType, Loading::Listener* listener)
@@ -364,8 +357,8 @@ namespace DetourNavigator
     void AsyncNavMeshUpdater::stop()
     {
         mShouldStop = true;
-        if (mDbWorker != nullptr)
-            mDbWorker->stop();
+        if (mStoreReader != nullptr)
+            mStoreReader->stop();
         std::unique_lock<std::mutex> lock(mMutex);
         mWaiting.clear();
         mHasJob.notify_all();
@@ -441,10 +434,11 @@ namespace DetourNavigator
             result.mPushed = mPushed.size();
         }
         result.mProcessing = mProcessingTiles.lockConst()->size();
-        if (mDbWorker != nullptr)
-            result.mDb = mDbWorker->getStats();
+        if (mStoreReader != nullptr)
+            result.mStore = mStoreReader->getStats();
         result.mCache = mNavMeshTilesCache.getStats();
-        result.mDbGetTileHits = mDbGetTileHits.load(std::memory_order_relaxed);
+        result.mStoreHits = mStoreHits.load(std::memory_order_relaxed);
+        result.mStoreWrites = mStoreWrites.load(std::memory_order_relaxed);
         result.mPosted = mPostedCount.load(std::memory_order_relaxed);
         return result;
     }
@@ -466,10 +460,13 @@ namespace DetourNavigator
                     {
                         case JobStatus::Done:
                             unlockTile(job->mId, job->mAgentBounds, job->mChangedTile);
+                            // On the store's own thread and queue, which a write is handed to.
                             if (job->mGeneratedNavMeshData != nullptr)
-                                mDbWorker->enqueueJob(job);
-                            else
-                                removeJob(job);
+                            {
+                                mStore->write(*job->mKey, *job->mGeneratedNavMeshData);
+                                mStoreWrites.fetch_add(1, std::memory_order_relaxed);
+                            }
+                            removeJob(job);
                             break;
                         case JobStatus::Fail:
                             unlockTile(job->mId, job->mAgentBounds, job->mChangedTile);
@@ -477,7 +474,7 @@ namespace DetourNavigator
                             break;
                         case JobStatus::MemoryCacheMiss:
                         {
-                            mDbWorker->enqueueJob(job);
+                            mStoreReader->enqueueJob(job);
                             break;
                         }
                     }
@@ -527,8 +524,8 @@ namespace DetourNavigator
         {
             case JobState::Initial:
                 return processInitialJob(job, *navMeshCacheItem);
-            case JobState::WithDbResult:
-                return processJobWithDbResult(job, *navMeshCacheItem);
+            case JobState::WithStoreResult:
+                return processJobWithStoreResult(job, *navMeshCacheItem);
         }
 
         return JobStatus::Done;
@@ -582,7 +579,7 @@ namespace DetourNavigator
         }
         else
         {
-            if (job.mChangeType != ChangeType::update && mDbWorker != nullptr)
+            if (job.mChangeType != ChangeType::update && mStoreReader != nullptr)
             {
                 job.mRecastMesh = std::move(recastMesh);
                 return JobStatus::MemoryCacheMiss;
@@ -621,21 +618,15 @@ namespace DetourNavigator
         return handleUpdateNavMeshStatus(status, job, navMeshCacheItem, *recastMesh);
     }
 
-    JobStatus AsyncNavMeshUpdater::processJobWithDbResult(Job& job, GuardedNavMeshCacheItem& navMeshCacheItem)
+    JobStatus AsyncNavMeshUpdater::processJobWithStoreResult(Job& job, GuardedNavMeshCacheItem& navMeshCacheItem)
     {
-        Log(Debug::Debug) << "Processing job with db result " << job.mId;
+        Log(Debug::Debug) << "Processing job with store result " << job.mId;
 
-        std::unique_ptr<PreparedNavMeshData> preparedNavMeshData;
+        std::unique_ptr<PreparedNavMeshData> preparedNavMeshData = std::move(job.mStoredNavMeshData);
         bool generatedNavMeshData = false;
 
-        if (job.mCachedTileData.has_value() && job.mCachedTileData->mVersion == navMeshFormatVersion)
-        {
-            preparedNavMeshData = std::make_unique<PreparedNavMeshData>();
-            if (deserialize(job.mCachedTileData->mData, *preparedNavMeshData))
-                ++mDbGetTileHits;
-            else
-                preparedNavMeshData = nullptr;
-        }
+        if (preparedNavMeshData != nullptr)
+            mStoreHits.fetch_add(1, std::memory_order_relaxed);
 
         if (preparedNavMeshData == nullptr)
         {
@@ -666,8 +657,8 @@ namespace DetourNavigator
 
         const JobStatus result = handleUpdateNavMeshStatus(status, job, navMeshCacheItem, *job.mRecastMesh);
 
-        if (result == JobStatus::Done && job.mChangeType != ChangeType::update && mDbWorker != nullptr
-            && mSettings.get().mWriteToNavMeshDb && generatedNavMeshData)
+        if (result == JobStatus::Done && job.mChangeType != ChangeType::update && job.mKey.has_value()
+            && generatedNavMeshData)
             job.mGeneratedNavMeshData = std::make_unique<PreparedNavMeshData>(*preparedNavMeshDataPtr);
 
         return result;
@@ -807,96 +798,71 @@ namespace DetourNavigator
         mJobs.erase(job);
     }
 
-    void DbJobQueue::push(JobIt job)
+    void TileStoreJobQueue::push(JobIt job)
     {
         const std::lock_guard lock(mMutex);
-        if (isWritingDbJob(*job))
-            mWriting.push_back(job);
-        else
-            mReading.push(job);
+        mReading.push(job);
         mHasJob.notify_all();
     }
 
-    std::optional<JobIt> DbJobQueue::pop()
+    std::optional<JobIt> TileStoreJobQueue::pop()
     {
         std::unique_lock lock(mMutex);
-
-        const auto hasJob = [&] { return mShouldStop || mReading.size() > 0 || mWriting.size() > 0; };
-
-        mHasJob.wait(lock, hasJob);
-
+        mHasJob.wait(lock, [&] { return mShouldStop || mReading.size() > 0; });
         if (mShouldStop)
             return std::nullopt;
-
-        if (const std::optional<JobIt> job = mReading.pop(mPlayerTile))
-            return job;
-
-        if (mWriting.empty())
-            return std::nullopt;
-
-        const JobIt job = mWriting.front();
-        mWriting.pop_front();
-
-        return job;
+        return mReading.pop(mPlayerTile);
     }
 
-    void DbJobQueue::update(TilePosition playerTile)
+    void TileStoreJobQueue::update(TilePosition playerTile)
     {
         const std::lock_guard lock(mMutex);
         mPlayerTile = playerTile;
     }
 
-    void DbJobQueue::stop()
+    void TileStoreJobQueue::stop()
     {
         const std::lock_guard lock(mMutex);
         mReading.clear();
-        mWriting.clear();
         mShouldStop = true;
         mHasJob.notify_all();
     }
 
-    DbJobQueueStats DbJobQueue::getStats() const
+    std::size_t TileStoreJobQueue::size() const
     {
         const std::lock_guard lock(mMutex);
-        return DbJobQueueStats{
-            .mReadingJobs = mReading.size(),
-            .mWritingJobs = mWriting.size(),
-        };
+        return mReading.size();
     }
 
-    DbWorker::DbWorker(AsyncNavMeshUpdater& updater, std::unique_ptr<NavMeshDb>&& db, TileVersion version,
-        const RecastSettings& recastSettings, bool writeToDb)
+    TileStoreReader::TileStoreReader(
+        AsyncNavMeshUpdater& updater, NavMeshTileStore& store, const RecastSettings& recastSettings)
         : mUpdater(updater)
         , mRecastSettings(recastSettings)
-        , mDb(std::move(db))
-        , mVersion(version)
-        , mWriteToDb(writeToDb)
-        , mNextTileId(mDb->getMaxTileId() + 1)
-        , mNextShapeId(mDb->getMaxShapeId() + 1)
+        , mStore(store)
         , mThread([this] { run(); })
     {
     }
 
-    DbWorker::~DbWorker()
+    TileStoreReader::~TileStoreReader()
     {
         stop();
     }
 
-    void DbWorker::enqueueJob(JobIt job)
+    void TileStoreReader::enqueueJob(JobIt job)
     {
-        Log(Debug::Debug) << "Enqueueing db job " << job->mId << " by thread=" << std::this_thread::get_id();
+        Log(Debug::Debug) << "Enqueueing store job " << job->mId << " by thread=" << std::this_thread::get_id();
         mQueue.push(job);
     }
 
-    DbWorkerStats DbWorker::getStats() const
+    TileStoreStats TileStoreReader::getStats() const
     {
-        return DbWorkerStats{
-            .mJobs = mQueue.getStats(),
-            .mGetTileCount = mGetTileCount.load(std::memory_order_relaxed),
+        return TileStoreStats{
+            .mReading = mQueue.size(),
+            .mReads = mReads.load(std::memory_order_relaxed),
         };
     }
 
-    void DbWorker::stop()
+    void TileStoreReader::stop()
     {
         mShouldStop = true;
         mQueue.stop();
@@ -904,166 +870,26 @@ namespace DetourNavigator
             mThread.join();
     }
 
-    void DbWorker::run() noexcept
+    void TileStoreReader::run() noexcept
     {
         while (!mShouldStop)
         {
-            try
+            if (const std::optional<JobIt> job = mQueue.pop())
             {
-                if (const auto job = mQueue.pop())
-                    processJob(*job);
-            }
-            catch (const std::exception& e)
-            {
-                Log(Debug::Error) << "DbWorker exception: " << e.what();
+                read(**job);
+                (*job)->mState = JobState::WithStoreResult;
+                mUpdater.enqueueJob(*job);
             }
         }
     }
 
-    void DbWorker::processJob(JobIt job)
+    void TileStoreReader::read(Job& job)
     {
-        const auto process = [&](auto f) {
-            try
-            {
-                f(job);
-            }
-            catch (const std::exception& e)
-            {
-                Log(Debug::Error) << "DbWorker exception while processing job " << job->mId << ": " << e.what();
-                if (mWriteToDb)
-                {
-                    const std::string_view message(e.what());
-                    if (message.find("database or disk is full") != std::string_view::npos)
-                    {
-                        mWriteToDb = false;
-                        Log(Debug::Warning)
-                            << "Writes to navmeshdb are disabled because file size limit is reached or disk is full";
-                    }
-                    else if (message.find("database is locked") != std::string_view::npos)
-                    {
-                        mWriteToDb = false;
-                        Log(Debug::Warning)
-                            << "Writes to navmeshdb are disabled to avoid concurrent writes from multiple processes";
-                    }
-                    else if (message.find("UNIQUE constraint failed: tiles.tile_id") != std::string_view::npos)
-                    {
-                        Log(Debug::Warning) << "Found duplicate navmeshdb tile_id, please report the "
-                                               "issue to https://gitlab.com/OpenMW/openmw/-/issues, attach openmw.log: "
-                                            << mNextTileId;
-                        try
-                        {
-                            mNextTileId = TileId(mDb->getMaxTileId() + 1);
-                            Log(Debug::Info) << "Updated navmeshdb tile_id to: " << mNextTileId;
-                        }
-                        catch (const std::exception& exception)
-                        {
-                            mWriteToDb = false;
-                            Log(Debug::Warning) << "Failed to update next tile_id, writes to navmeshdb are disabled: "
-                                                << exception.what();
-                        }
-                    }
-                }
-            }
-        };
-
-        if (isWritingDbJob(*job))
-        {
-            process([&](JobIt it) { processWritingJob(it); });
-            mUpdater.removeJob(job);
-            return;
-        }
-
-        process([&](JobIt it) { processReadingJob(it); });
-        job->mState = JobState::WithDbResult;
-        mUpdater.enqueueJob(job);
-    }
-
-    void DbWorker::processReadingJob(JobIt job)
-    {
-        ++mGetTileCount;
-
-        Log(Debug::Debug) << "Processing db read job " << job->mId;
-
-        if (job->mInput.empty())
-        {
-            Log(Debug::Debug) << "Serializing input for job " << job->mId;
-            if (mWriteToDb)
-            {
-                const auto objects = makeDbRefGeometryObjects(job->mRecastMesh->getMeshSources(),
-                    [&](const MeshSource& v) { return resolveMeshSource(*mDb, v, mNextShapeId); });
-                job->mInput = serialize(mRecastSettings, job->mAgentBounds, *job->mRecastMesh, objects);
-            }
-            else
-            {
-                struct HandleResult
-                {
-                    const RecastSettings& mRecastSettings;
-                    Job& mJob;
-
-                    bool operator()(const std::vector<DbRefGeometryObject>& objects) const
-                    {
-                        mJob.mInput = serialize(mRecastSettings, mJob.mAgentBounds, *mJob.mRecastMesh, objects);
-                        return true;
-                    }
-
-                    bool operator()(const MeshSource& meshSource) const
-                    {
-                        Log(Debug::Debug) << "No object for mesh source (fileName=\"" << meshSource.mShape->mFileName
-                                          << "\", areaType=" << meshSource.mAreaType
-                                          << ", fileHash=" << Misc::StringUtils::toHex(meshSource.mShape->mFileHash)
-                                          << ") for job " << mJob.mId;
-                        return false;
-                    }
-                };
-
-                const auto result = makeDbRefGeometryObjects(job->mRecastMesh->getMeshSources(),
-                    [&](const MeshSource& v) { return resolveMeshSource(*mDb, v); });
-                if (!std::visit(HandleResult{ mRecastSettings, *job }, result))
-                    return;
-            }
-        }
-
-        job->mCachedTileData = mDb->getTileData(job->mWorldspace, job->mChangedTile, job->mInput);
-    }
-
-    void DbWorker::processWritingJob(JobIt job)
-    {
-        if (!mWriteToDb)
-        {
-            Log(Debug::Debug) << "Ignored db write job " << job->mId;
-            return;
-        }
-
-        Log(Debug::Debug) << "Processing db write job " << job->mId;
-
-        if (job->mInput.empty())
-        {
-            Log(Debug::Debug) << "Serializing input for job " << job->mId;
-            const std::vector<DbRefGeometryObject> objects
-                = makeDbRefGeometryObjects(job->mRecastMesh->getMeshSources(),
-                    [&](const MeshSource& v) { return resolveMeshSource(*mDb, v, mNextShapeId); });
-            job->mInput = serialize(mRecastSettings, job->mAgentBounds, *job->mRecastMesh, objects);
-        }
-
-        if (const auto& cachedTileData = job->mCachedTileData)
-        {
-            Log(Debug::Debug) << "Update db tile by job " << job->mId;
-            job->mGeneratedNavMeshData->mUserId = static_cast<unsigned>(cachedTileData->mTileId);
-            mDb->updateTile(cachedTileData->mTileId, mVersion, serialize(*job->mGeneratedNavMeshData));
-            return;
-        }
-
-        const auto cached = mDb->findTile(job->mWorldspace, job->mChangedTile, job->mInput);
-        if (cached.has_value() && cached->mVersion == mVersion)
-        {
-            Log(Debug::Debug) << "Ignore existing db tile by job " << job->mId;
-            return;
-        }
-
-        job->mGeneratedNavMeshData->mUserId = static_cast<unsigned>(mNextTileId);
-        Log(Debug::Debug) << "Insert db tile by job " << job->mId;
-        mDb->insertTile(mNextTileId, job->mWorldspace, job->mChangedTile, mVersion, job->mInput,
-            serialize(*job->mGeneratedNavMeshData));
-        ++mNextTileId;
+        mReads.fetch_add(1, std::memory_order_relaxed);
+        Log(Debug::Debug) << "Processing store read job " << job.mId;
+        job.mKey = NavMeshTileStore::keyOf(
+            mRecastSettings, job.mAgentBounds, job.mWorldspace, job.mChangedTile, *job.mRecastMesh);
+        if (job.mKey.has_value())
+            job.mStoredNavMeshData = mStore.read(*job.mKey);
     }
 }

@@ -1,6 +1,7 @@
 #include "navigator.hpp"
 #include "navigatorimpl.hpp"
 #include "navigatorstub.hpp"
+#include "navmeshtilestore.hpp"
 #include "recastglobalallocator.hpp"
 
 #include <components/debug/debuglog.hpp>
@@ -8,26 +9,19 @@
 
 namespace DetourNavigator
 {
-    std::unique_ptr<Navigator> makeNavigator(const Settings& settings, const std::filesystem::path& userDataPath)
+    std::unique_ptr<Navigator> makeNavigator(const Settings& settings, const std::filesystem::path& cachePath)
     {
         DetourNavigator::RecastGlobalAllocator::init();
 
-        std::unique_ptr<NavMeshDb> db;
+        std::unique_ptr<NavMeshTileStore> store;
         if (settings.mEnableNavMeshDiskCache)
         {
-            const std::string path = Files::pathToUnicodeString(userDataPath / "navmesh.db");
-            Log(Debug::Info) << "Using " << path << " to store navigation mesh cache";
-            try
-            {
-                db = std::make_unique<NavMeshDb>(path, settings.mMaxDbFileSize);
-            }
-            catch (const std::exception& e)
-            {
-                Log(Debug::Error) << e.what() << ", navigation mesh disk cache will be disabled";
-            }
+            const std::filesystem::path folder = cachePath / sNavMeshTileStoreFolder;
+            Log(Debug::Info) << "Using " << Files::pathToUnicodeString(folder) << " to store navigation mesh tiles";
+            store = std::make_unique<NavMeshTileStore>(folder);
         }
 
-        return std::make_unique<NavigatorImpl>(settings, std::move(db));
+        return std::make_unique<NavigatorImpl>(settings, std::move(store));
     }
 
     std::unique_ptr<Navigator> makeNavigatorStub()
