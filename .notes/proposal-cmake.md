@@ -311,7 +311,11 @@ diagnostic after steps 10 and 13.
     `AUTORCC`; the navmesh tool one executable, its library linked by nothing else; coverage a setting of
     `openmw-checks`, in place of a block a target; MSVC's `/cgthreads1` reaches `mwlua/objectbindings.cpp`, which
     the old list named without its extension.
-11. **Tests.** Every test binary with `target_sources` lists in its folder; `cmake/Tests.cmake` registers them.
+11. **Tests.** Done: every test binary and benchmark names its files in `target_sources` lists in its folder, headers
+    as file sets, in place of `file(GLOB)` over names, which dropped a missing file without a word (it had dropped
+    `detournavigator/serialization.cpp`); the system's half of the test support chosen by `if (WIN32)`; links in
+    the keyword form, without `CMAKE_THREAD_LIBS_INIT` or Google Test's old include variables, which its targets
+    carry. `cmake/Tests.cmake` registers them.
 12. **The root and the presets.** The root split into `cmake/{Options,Checks,Install,Package}.cmake`, the options
     renamed `OPENMW_*`; build and workflow presets; the sanitizer option; `omw` calls the presets.
 13. **clangd.** `.clangd`'s flag list shrinks to what `$<CXX_COMPILER_ID:GNU>` adds; the sweep.

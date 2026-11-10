@@ -1,303 +1,228 @@
 # The ray tracer's tests, included once `components-tests` exists. `rtx-gpu-tests` holds what opens a
 # device and fails where there is none, so a box without a driver cannot pass by skipping.
-# `RTX_TEST_SUPPORT` goes into both binaries, `RTX_GPU_TEST_SUPPORT` into the second.
-set(RTX_TEST_FILES
-    fontloader/fontfit.cpp
-    myguirtx/guiinstance.cpp
-    myguirtx/paintedmirror.cpp
-    myguirtx/sharedtexture.cpp
-    myguirtx/texture.cpp
-    dlss/dlss.cpp
-    platform/linuxtext.cpp
-    rtx/common/halffloat.cpp
-    rtx/common/job.cpp
-    rtx/common/namedenum.cpp
-    rtx/common/ownedby.cpp
-    rtx/common/parallel.cpp
-    rtx/common/radicalinverse.cpp
-    rtxvulkan/device/result.cpp
-    rtx/common/runs.cpp
-    rtx/common/slots.cpp
-    rtx/common/stepped.cpp
-    rtx/tables/tablesource.cpp
-    rtx/environment/atmospheremesh.cpp
-    rtx/environment/cloudmesh.cpp
-    rtx/environment/skybuilder.cpp
-    rtx/environment/starmesh.cpp
-    rtx/environment/wavecascade.cpp
-    rtx/environment/wavespectrum.cpp
-    rtx/frame/bluenoise.cpp
-    rtx/frame/camera.cpp
-    rtx/frame/framepast.cpp
-    rtx/frame/framesampling.cpp
-    rtx/frame/reconstruction.cpp
-    rtx/frame/specularalbedo.cpp
-    rtx/frame/spritelistsize.cpp
-    rtx/image/alphaimage.cpp
-    rtx/image/chainbuild.cpp
-    rtx/image/colour.cpp
-    rtx/image/shadingmap.cpp
-    rtx/image/spritelight.cpp
-    rtx/image/texels.cpp
-    rtx/mirror/cells/cellgrid.cpp
-    rtx/mirror/cells/cellring.cpp
-    rtx/mirror/cells/groundreader.cpp
-    rtx/mirror/cells/templatewalk.cpp
-    rtx/mirror/drawableposer.cpp
-    rtx/mirror/frozenroots.cpp
-    rtx/mirror/extractor/fixture.hpp
-    rtx/mirror/extractor/lights.cpp
-    rtx/mirror/extractor/materials.cpp
-    rtx/mirror/extractor/particles.cpp
-    rtx/mirror/extractor/frozen.cpp
-    rtx/mirror/extractor/retire.cpp
-    rtx/mirror/extractor/skinning.cpp
-    rtx/mirror/extractor/stats.cpp
-    rtx/mirror/extractor/walk.cpp
-    rtx/mirror/lightbuilder.cpp
-    rtx/mirror/meshreader.cpp
-    rtx/mirror/mirroridentity.cpp
-    rtx/mirror/nifsurface.cpp
-    rtx/mirror/nodekind.cpp
-    rtx/mirror/released.cpp
-    rtx/mirror/shading.cpp
-    rtx/mirror/statereading.cpp
-    rtx/preprocess/contentpreprocessor.cpp
-    rtx/preprocess/preparedimages.cpp
-    rtx/preprocess/passversions.cpp
-    rtx/prepare/contentpreparation.cpp
-    rtx/prepare/preparationdispatcher.cpp
-    rtx/prepare/preparationmanifest.cpp
-    rtx/preprocess/shape/creasesplit.cpp
-    rtx/preprocess/shape/shapefold.cpp
-    rtx/renderer/framedescriber.cpp
-    rtx/renderer/frameimage.cpp
-    rtx/renderer/memoryreport.cpp
-    rtx/renderer/notfinite.cpp
-    rtx/renderer/nullrenderer.cpp
-    rtx/renderer/sceneuploader.cpp
-    rtx/renderer/shaderdirectory.cpp
-    rtx/scene/compositequeue.cpp
-    rtx/scene/instancerecord.cpp
-    rtx/scene/lightgrid.cpp
-    rtx/scene/refusals.cpp
-    rtx/scene/scenedesc.cpp
-    rtx/renderer/scenetextures.cpp
-    rtx/shaders/brdf.cpp
-    rtx/shaders/lights.cpp
-    rtx/shaders/pixelgrid.cpp
-    rtx/shaders/sharedconstants.cpp
-    rtx/shaders/tangent.cpp
-    rtx/sourcetree.cpp
-    rtx/support/halfstep.cpp
-    rtx/view/offscreentrace.cpp
-    rtx/world/fogbuilder.cpp
-    rtx/world/frameworld.cpp
-    rtx/world/moon.cpp
-    rtx/world/skylight.cpp
-    rtx/world/sun.cpp
-    rtxtool/model/benchrecord.cpp
-    rtxtool/model/benchrun.cpp
-    rtxtool/model/benchspec.cpp
-    rtxtool/model/blockfile.cpp
-    rtxtool/model/camerapath.cpp
-    rtxtool/model/cameratrack.cpp
-    rtxtool/instruments/cardwatch.cpp
-    rtxtool/instruments/threadcounters.cpp
-    rtxtool/compare.cpp
-    rtxtool/instruments/contactsheet.cpp
-    rtxtool/model/cruise.cpp
-    rtxtool/instruments/drivercache.cpp
-    rtxtool/model/film.cpp
-    rtxtool/framed.cpp
-    rtxtool/instruments/framehashes.cpp
-    rtxtool/instruments/frametimes.cpp
-    rtxtool/instruments/gpuclock.cpp
-    rtxtool/homekey.cpp
-    rtxtool/noise.cpp
-    rtxtool/numbervalue.cpp
-    rtxtool/model/measurewindow.cpp
-    rtxtool/options.cpp
-    rtxtool/picturemean.cpp
-    rtxtool/instruments/png.cpp
-    rtxtool/model/runrecord.cpp
-    rtxtool/instruments/scenedigest.cpp
-    rtxtool/model/skycrossing.cpp
-    rtxtool/model/stopdescription.cpp
-    rtxtool/model/viewfile.cpp
-    rtxvulkan/device/buffermarkers.cpp
-    rtxvulkan/device/instance.cpp
-    rtxvulkan/device/memory/formats.cpp
-    rtxvulkan/device/memory/imagearena.cpp
-    rtxvulkan/device/memory/memorypriority.cpp
-    rtxvulkan/device/memory/memorytypes.cpp
-    rtxvulkan/device/memory/uploads.cpp
-    rtxvulkan/device/physicaldevice.cpp
-    rtxvulkan/device/pipelinecode.cpp
-    rtxvulkan/device/requirements.cpp
-    rtxvulkan/device/stagingfit.cpp
-    rtxvulkan/device/zonecounters.cpp
-    rtxvulkan/pipeline/dispatch.cpp
-    rtxvulkan/scene/backlog.cpp
-    rtxvulkan/scene/sceneacceleration.cpp
-    rtxvulkan/scene/sceneslots.cpp
-    rtxvulkan/shaders/accumulate.cpp
-    rtxvulkan/shaders/exposure.cpp
-    rtxvulkan/shaders/fields.cpp
-    rtxvulkan/shaders/medium.cpp
-    rtxvulkan/shaders/sharedconstants.cpp
-    rtxvulkan/shaders/shadow.cpp
-    rtxvulkan/pipeline/passbindings.cpp
-    rtxvulkan/spirv/spirvinterface.cpp
-    rtxvulkan/spirv/spirvdigest.cpp
-    rtxvulkan/spirv/spirvfile.cpp
-    rtxvulkan/spirv/spirvpin.cpp
-    rtxvulkan/denoise/temporalturns.cpp
-    rtxvulkan/frame/gbufferstages.cpp
-    rtxvulkan/trace/tuplequeue.cpp
-    rtxvulkan/device/extensionfilter.cpp
-    rtxvulkan/upscale/fsrframe.cpp
-    rtxvulkan/upscale/upscaler.cpp
-    sky/skyclock.cpp
-    sky/sundisc.cpp
-    widgets/listbox.cpp
-    widgets/settlingscrollbar.cpp
-    widgets/trackedtext.cpp
+# `RTX_TEST_SUPPORT` and its headers go into both binaries.
+target_sources(components-tests
+    PRIVATE
+        dlss/dlss.cpp
+        fontloader/fontfit.cpp
+        myguirtx/guiinstance.cpp
+        myguirtx/paintedmirror.cpp
+        myguirtx/sharedtexture.cpp
+        myguirtx/texture.cpp
+        platform/linuxtext.cpp
+        rtx/common/halffloat.cpp
+        rtx/common/job.cpp
+        rtx/common/namedenum.cpp
+        rtx/common/ownedby.cpp
+        rtx/common/parallel.cpp
+        rtx/common/radicalinverse.cpp
+        rtx/common/runs.cpp
+        rtx/common/slots.cpp
+        rtx/common/stepped.cpp
+        rtx/environment/atmospheremesh.cpp
+        rtx/environment/cloudmesh.cpp
+        rtx/environment/skybuilder.cpp
+        rtx/environment/starmesh.cpp
+        rtx/environment/wavecascade.cpp
+        rtx/environment/wavespectrum.cpp
+        rtx/frame/bluenoise.cpp
+        rtx/frame/camera.cpp
+        rtx/frame/framepast.cpp
+        rtx/frame/framesampling.cpp
+        rtx/frame/reconstruction.cpp
+        rtx/frame/specularalbedo.cpp
+        rtx/frame/spritelistsize.cpp
+        rtx/image/alphaimage.cpp
+        rtx/image/chainbuild.cpp
+        rtx/image/colour.cpp
+        rtx/image/shadingmap.cpp
+        rtx/image/spritelight.cpp
+        rtx/image/texels.cpp
+        rtx/mirror/cells/cellgrid.cpp
+        rtx/mirror/cells/cellring.cpp
+        rtx/mirror/cells/groundreader.cpp
+        rtx/mirror/cells/templatewalk.cpp
+        rtx/mirror/drawableposer.cpp
+        rtx/mirror/extractor/frozen.cpp
+        rtx/mirror/extractor/lights.cpp
+        rtx/mirror/extractor/materials.cpp
+        rtx/mirror/extractor/particles.cpp
+        rtx/mirror/extractor/retire.cpp
+        rtx/mirror/extractor/skinning.cpp
+        rtx/mirror/extractor/stats.cpp
+        rtx/mirror/extractor/walk.cpp
+        rtx/mirror/frozenroots.cpp
+        rtx/mirror/lightbuilder.cpp
+        rtx/mirror/meshreader.cpp
+        rtx/mirror/mirroridentity.cpp
+        rtx/mirror/nifsurface.cpp
+        rtx/mirror/nodekind.cpp
+        rtx/mirror/released.cpp
+        rtx/mirror/shading.cpp
+        rtx/mirror/statereading.cpp
+        rtx/prepare/contentpreparation.cpp
+        rtx/prepare/preparationdispatcher.cpp
+        rtx/prepare/preparationmanifest.cpp
+        rtx/preprocess/contentpreprocessor.cpp
+        rtx/preprocess/passversions.cpp
+        rtx/preprocess/preparedimages.cpp
+        rtx/preprocess/shape/creasesplit.cpp
+        rtx/preprocess/shape/shapefold.cpp
+        rtx/renderer/framedescriber.cpp
+        rtx/renderer/frameimage.cpp
+        rtx/renderer/memoryreport.cpp
+        rtx/renderer/notfinite.cpp
+        rtx/renderer/nullrenderer.cpp
+        rtx/renderer/scenetextures.cpp
+        rtx/renderer/sceneuploader.cpp
+        rtx/renderer/shaderdirectory.cpp
+        rtx/scene/compositequeue.cpp
+        rtx/scene/instancerecord.cpp
+        rtx/scene/lightgrid.cpp
+        rtx/scene/refusals.cpp
+        rtx/scene/scenedesc.cpp
+        rtx/shaders/brdf.cpp
+        rtx/shaders/lights.cpp
+        rtx/shaders/pixelgrid.cpp
+        rtx/shaders/sharedconstants.cpp
+        rtx/shaders/tangent.cpp
+        rtx/sourcetree.cpp
+        rtx/support/halfstep.cpp
+        rtx/tables/tablesource.cpp
+        rtx/view/offscreentrace.cpp
+        rtx/world/fogbuilder.cpp
+        rtx/world/frameworld.cpp
+        rtx/world/moon.cpp
+        rtx/world/skylight.cpp
+        rtx/world/sun.cpp
+        rtxtool/compare.cpp
+        rtxtool/framed.cpp
+        rtxtool/homekey.cpp
+        rtxtool/instruments/cardwatch.cpp
+        rtxtool/instruments/contactsheet.cpp
+        rtxtool/instruments/drivercache.cpp
+        rtxtool/instruments/framehashes.cpp
+        rtxtool/instruments/frametimes.cpp
+        rtxtool/instruments/gpuclock.cpp
+        rtxtool/instruments/png.cpp
+        rtxtool/instruments/scenedigest.cpp
+        rtxtool/instruments/threadcounters.cpp
+        rtxtool/model/benchrecord.cpp
+        rtxtool/model/benchrun.cpp
+        rtxtool/model/benchspec.cpp
+        rtxtool/model/blockfile.cpp
+        rtxtool/model/camerapath.cpp
+        rtxtool/model/cameratrack.cpp
+        rtxtool/model/cruise.cpp
+        rtxtool/model/film.cpp
+        rtxtool/model/measurewindow.cpp
+        rtxtool/model/runrecord.cpp
+        rtxtool/model/skycrossing.cpp
+        rtxtool/model/stopdescription.cpp
+        rtxtool/model/viewfile.cpp
+        rtxtool/noise.cpp
+        rtxtool/numbervalue.cpp
+        rtxtool/options.cpp
+        rtxtool/picturemean.cpp
+        rtxvulkan/denoise/temporalturns.cpp
+        rtxvulkan/device/buffermarkers.cpp
+        rtxvulkan/device/extensionfilter.cpp
+        rtxvulkan/device/instance.cpp
+        rtxvulkan/device/memory/formats.cpp
+        rtxvulkan/device/memory/imagearena.cpp
+        rtxvulkan/device/memory/memorypriority.cpp
+        rtxvulkan/device/memory/memorytypes.cpp
+        rtxvulkan/device/memory/uploads.cpp
+        rtxvulkan/device/physicaldevice.cpp
+        rtxvulkan/device/pipelinecode.cpp
+        rtxvulkan/device/requirements.cpp
+        rtxvulkan/device/result.cpp
+        rtxvulkan/device/stagingfit.cpp
+        rtxvulkan/device/zonecounters.cpp
+        rtxvulkan/frame/gbufferstages.cpp
+        rtxvulkan/pipeline/dispatch.cpp
+        rtxvulkan/pipeline/passbindings.cpp
+        rtxvulkan/scene/backlog.cpp
+        rtxvulkan/scene/sceneacceleration.cpp
+        rtxvulkan/scene/sceneslots.cpp
+        rtxvulkan/shaders/accumulate.cpp
+        rtxvulkan/shaders/exposure.cpp
+        rtxvulkan/shaders/fields.cpp
+        rtxvulkan/shaders/medium.cpp
+        rtxvulkan/shaders/shadow.cpp
+        rtxvulkan/shaders/sharedconstants.cpp
+        rtxvulkan/spirv/spirvdigest.cpp
+        rtxvulkan/spirv/spirvfile.cpp
+        rtxvulkan/spirv/spirvinterface.cpp
+        rtxvulkan/spirv/spirvpin.cpp
+        rtxvulkan/trace/tuplequeue.cpp
+        rtxvulkan/upscale/fsrframe.cpp
+        rtxvulkan/upscale/upscaler.cpp
+        sky/skyclock.cpp
+        sky/sundisc.cpp
+        widgets/listbox.cpp
+        widgets/settlingscrollbar.cpp
+        widgets/trackedtext.cpp
+    PRIVATE FILE_SET HEADERS FILES
+        rtx/mirror/extractor/fixture.hpp
 )
 
 set(RTX_TEST_SUPPORT
+    rtx/support/fallbackseed.cpp
+    rtx/support/firsttexel.cpp
+    rtx/support/guiinstance.cpp
+    rtx/support/ownedtexture.cpp
+    rtx/support/spritelightbake.cpp
+    rtxvulkan/support/instanceobstacle.cpp
+)
+set(RTX_TEST_SUPPORT_HEADERS
     rtx/support/cardmemory.hpp
     rtx/support/countingrenderer.hpp
     rtx/support/death.hpp
     rtx/support/displaycurve.hpp
     rtx/support/fakeland.hpp
-    rtx/support/fallbackseed.cpp
-    rtx/support/firsttexel.cpp
     rtx/support/firsttexel.hpp
     rtx/support/geometry.hpp
     rtx/support/graph.hpp
     rtx/support/graphlight.hpp
-    rtx/support/guiinstance.cpp
     rtx/support/guiinstance.hpp
     rtx/support/guiquad.hpp
     rtx/support/halfstep.hpp
     rtx/support/heldimages.hpp
-    rtxvulkan/support/instanceobstacle.cpp
-    rtxvulkan/support/instanceobstacle.hpp
     rtx/support/layers.hpp
     rtx/support/lobeintegrals.hpp
-    rtx/support/ownedtexture.cpp
     rtx/support/ownedtexture.hpp
     rtx/support/pngtext.hpp
     rtx/support/sceneholds.hpp
-    rtx/support/spritelightbake.cpp
     rtx/support/spritelightbake.hpp
     rtx/support/statistics.hpp
-    rtx/support/testplatform.hpp
     rtx/support/testcamera.hpp
+    rtx/support/testplatform.hpp
     rtx/support/testtexture.hpp
     rtx/support/wavemoments.hpp
+    rtxvulkan/support/instanceobstacle.hpp
 )
-
-set(RTX_GPU_TEST_SUPPORT
-    rtxvulkan/support/device/harness.cpp
-    rtxvulkan/support/device/harness.hpp
-    rtxvulkan/support/device/heldsubmit.cpp
-    rtxvulkan/support/device/heldsubmit.hpp
-    rtxvulkan/support/device/hostwritten.cpp
-    rtxvulkan/support/device/hostwritten.hpp
-    rtxvulkan/support/device/memorylimits.cpp
-    rtxvulkan/support/device/memorylimits.hpp
-    rtxvulkan/support/device/readback.cpp
-    rtxvulkan/support/device/readback.hpp
-    rtxvulkan/support/device/rendererprobe.cpp
-    rtxvulkan/support/device/rendererprobe.hpp
-)
-
-set(RTX_GPU_TEST_FILES
-    rtxtool/instruments/cardwatchdevice.cpp
-    rtxvulkan/device/commands.cpp
-    rtxvulkan/device/device.cpp
-    rtxvulkan/device/gputimer.cpp
-    rtxvulkan/device/memory/barriers.cpp
-    rtxvulkan/device/memory/buffer.cpp
-    rtxvulkan/device/memory/image.cpp
-    rtxvulkan/device/memory/imagearenadevice.cpp
-    rtxvulkan/device/memory/memory.cpp
-    rtxvulkan/device/memory/slottable.cpp
-    rtxvulkan/device/memory/structurestorage.cpp
-    rtxvulkan/device/pipelinecache.cpp
-    rtxvulkan/device/halfstore.cpp
-    rtxvulkan/device/probe.cpp
-    rtxvulkan/device/readstamp.cpp
-    rtxvulkan/device/share.cpp
-    rtxvulkan/device/sharedexponent.cpp
-    rtxvulkan/device/unormround.cpp
-    rtxvulkan/display/bloompass.cpp
-    rtxvulkan/display/exposurepass.cpp
-    rtxvulkan/frame/digestpass.cpp
-    rtxvulkan/framering.cpp
-    rtxvulkan/frames.cpp
-    rtxvulkan/present/presentfence.cpp
-    rtxvulkan/present/presenter.cpp
-    rtxvulkan/gui/guipass.cpp
-    rtxvulkan/gui/guitextures.cpp
-    rtxvulkan/pipeline/computepipeline.cpp
-    rtxvulkan/pipeline/shadercode.cpp
-    rtxvulkan/pipeline/tracepipeline.cpp
-    rtxvulkan/scene/bottomlevelstore.cpp
-    rtxvulkan/scene/skinpass.cpp
-    rtxvulkan/scene/toplevelpackpass.cpp
-    rtxvulkan/spirv/pinnedarithmetic.cpp
-    rtxvulkan/texture/bc7encodepass.cpp
-    rtxvulkan/texture/groundcompositepass.cpp
-    rtxvulkan/texture/normalspreadpass.cpp
-    rtxvulkan/texture/spritelightpass.cpp
-    rtxvulkan/texture/texturearrival.cpp
-    rtxvulkan/texture/texturearray.cpp
-    rtxvulkan/trace/fogvolume.cpp
-    rtxvulkan/trace/ripplepass.cpp
-    rtxvulkan/trace/spritepasses.cpp
-    rtxvulkan/trace/stresspass.cpp
-    rtxvulkan/trace/tracechain.cpp
-    rtxvulkan/trace/visibility/filter.cpp
-    rtxvulkan/trace/visibility/fixture.hpp
-    rtxvulkan/trace/visibility/fog.cpp
-    rtxvulkan/trace/visibility/frame.cpp
-    rtxvulkan/trace/visibility/framecost.cpp
-    rtxvulkan/trace/visibility/kernels.cpp
-    rtxvulkan/trace/visibility/light.cpp
-    rtxvulkan/trace/visibility/pane.cpp
-    rtxvulkan/trace/visibility/sea.cpp
-    rtxvulkan/trace/visibility/shadow.cpp
-    rtxvulkan/trace/visibility/specular.cpp
-    rtxvulkan/trace/visibility/trail.cpp
-    rtxvulkan/trace/visibility/sky.cpp
-    rtxvulkan/trace/visibility/sprites.cpp
-    rtxvulkan/trace/visibility/surfaces.cpp
-    rtxvulkan/trace/visibility/upscale.cpp
-    rtxvulkan/trace/visibility/water.cpp
-    rtxvulkan/trace/wavefield.cpp
-    rtxvulkan/trace/wavepass.cpp
-)
+target_sources(components-tests PRIVATE ${RTX_TEST_SUPPORT} PRIVATE FILE_SET HEADERS FILES ${RTX_TEST_SUPPORT_HEADERS})
 
 # One `Platform::Process` test per system, and the fifo and sysfs where the system has them: a PCI
 # card's folder in sysfs is a name Windows does not allow.
 if (WIN32)
-    list(APPEND RTX_TEST_FILES platform/processwin32.cpp)
-else()
-    list(APPEND RTX_TEST_FILES platform/processlinux.cpp rtxtool/perffifoposix.cpp)
-endif()
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    list(APPEND RTX_TEST_FILES platform/gpulinux.cpp platform/kernelfilelinux.cpp platform/wholefilelinux.cpp
-        rtxtool/instruments/amdgpulinux.cpp)
-endif()
-
-target_sources(components-tests PRIVATE ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT})
+    target_sources(components-tests PRIVATE platform/processwin32.cpp)
+elseif (LINUX)
+    target_sources(components-tests
+        PRIVATE
+            platform/gpulinux.cpp
+            platform/kernelfilelinux.cpp
+            platform/processlinux.cpp
+            platform/wholefilelinux.cpp
+            rtxtool/instruments/amdgpulinux.cpp
+            rtxtool/perffifoposix.cpp
+    )
+endif ()
 
 # Vulkan too, for the tests that reach into the backend's headers, and the SPIR-V library, whose
 # headers carry the opcodes the tests that write a module by hand spell.
-target_link_libraries(components-tests openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-spirv openmw-rtx-vulkan-api)
+target_link_libraries(components-tests PRIVATE openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-spirv openmw-rtx-vulkan-api)
 
 # Where the build wrote the shaders, told to the two test binaries alone: a build-tree path is no
 # fact about the backend.
@@ -305,22 +230,109 @@ target_compile_definitions(components-tests PRIVATE OPENMW_RTX_SHADER_DIR="${RTX
     OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}")
 
 # The same `main.cpp`, which sets up the settings' defaults both binaries read.
-add_executable(rtx-gpu-tests main.cpp rtx/support/allocations.cpp
-                      ${RTX_GPU_TEST_FILES} ${RTX_GPU_TEST_SUPPORT} ${RTX_TEST_SUPPORT})
-target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatform$<IF:$<BOOL:${WIN32}>,win32,posix>.cpp)
+add_executable(rtx-gpu-tests)
+target_sources(rtx-gpu-tests
+    PRIVATE
+        main.cpp
+        rtx/support/allocations.cpp
+        rtxtool/instruments/cardwatchdevice.cpp
+        rtxvulkan/device/commands.cpp
+        rtxvulkan/device/device.cpp
+        rtxvulkan/device/gputimer.cpp
+        rtxvulkan/device/halfstore.cpp
+        rtxvulkan/device/memory/barriers.cpp
+        rtxvulkan/device/memory/buffer.cpp
+        rtxvulkan/device/memory/image.cpp
+        rtxvulkan/device/memory/imagearenadevice.cpp
+        rtxvulkan/device/memory/memory.cpp
+        rtxvulkan/device/memory/slottable.cpp
+        rtxvulkan/device/memory/structurestorage.cpp
+        rtxvulkan/device/pipelinecache.cpp
+        rtxvulkan/device/probe.cpp
+        rtxvulkan/device/readstamp.cpp
+        rtxvulkan/device/share.cpp
+        rtxvulkan/device/sharedexponent.cpp
+        rtxvulkan/device/unormround.cpp
+        rtxvulkan/display/bloompass.cpp
+        rtxvulkan/display/exposurepass.cpp
+        rtxvulkan/frame/digestpass.cpp
+        rtxvulkan/framering.cpp
+        rtxvulkan/frames.cpp
+        rtxvulkan/gui/guipass.cpp
+        rtxvulkan/gui/guitextures.cpp
+        rtxvulkan/pipeline/computepipeline.cpp
+        rtxvulkan/pipeline/shadercode.cpp
+        rtxvulkan/pipeline/tracepipeline.cpp
+        rtxvulkan/present/presenter.cpp
+        rtxvulkan/present/presentfence.cpp
+        rtxvulkan/scene/bottomlevelstore.cpp
+        rtxvulkan/scene/skinpass.cpp
+        rtxvulkan/scene/toplevelpackpass.cpp
+        rtxvulkan/spirv/pinnedarithmetic.cpp
+        rtxvulkan/support/device/harness.cpp
+        rtxvulkan/support/device/heldsubmit.cpp
+        rtxvulkan/support/device/hostwritten.cpp
+        rtxvulkan/support/device/memorylimits.cpp
+        rtxvulkan/support/device/readback.cpp
+        rtxvulkan/support/device/rendererprobe.cpp
+        rtxvulkan/texture/bc7encodepass.cpp
+        rtxvulkan/texture/groundcompositepass.cpp
+        rtxvulkan/texture/normalspreadpass.cpp
+        rtxvulkan/texture/spritelightpass.cpp
+        rtxvulkan/texture/texturearray.cpp
+        rtxvulkan/texture/texturearrival.cpp
+        rtxvulkan/trace/fogvolume.cpp
+        rtxvulkan/trace/ripplepass.cpp
+        rtxvulkan/trace/spritepasses.cpp
+        rtxvulkan/trace/stresspass.cpp
+        rtxvulkan/trace/tracechain.cpp
+        rtxvulkan/trace/visibility/filter.cpp
+        rtxvulkan/trace/visibility/fog.cpp
+        rtxvulkan/trace/visibility/frame.cpp
+        rtxvulkan/trace/visibility/framecost.cpp
+        rtxvulkan/trace/visibility/kernels.cpp
+        rtxvulkan/trace/visibility/light.cpp
+        rtxvulkan/trace/visibility/pane.cpp
+        rtxvulkan/trace/visibility/sea.cpp
+        rtxvulkan/trace/visibility/shadow.cpp
+        rtxvulkan/trace/visibility/sky.cpp
+        rtxvulkan/trace/visibility/specular.cpp
+        rtxvulkan/trace/visibility/sprites.cpp
+        rtxvulkan/trace/visibility/surfaces.cpp
+        rtxvulkan/trace/visibility/trail.cpp
+        rtxvulkan/trace/visibility/upscale.cpp
+        rtxvulkan/trace/visibility/water.cpp
+        rtxvulkan/trace/wavefield.cpp
+        rtxvulkan/trace/wavepass.cpp
+        ${RTX_TEST_SUPPORT}
+    PRIVATE FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES
+        rtxvulkan/support/device/harness.hpp
+        rtxvulkan/support/device/heldsubmit.hpp
+        rtxvulkan/support/device/hostwritten.hpp
+        rtxvulkan/support/device/memorylimits.hpp
+        rtxvulkan/support/device/readback.hpp
+        rtxvulkan/support/device/rendererprobe.hpp
+        rtxvulkan/trace/visibility/fixture.hpp
+        ${RTX_TEST_SUPPORT_HEADERS}
+)
+if (WIN32)
+    target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatformwin32.cpp)
+else ()
+    target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatformposix.cpp)
+endif ()
 target_link_libraries(rtx-gpu-tests
-    GTest::gtest
-    GTest::gmock
-    openmw-components
-    openmw-myguirtx
-    openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-spirv openmw-rtx-vulkan-api
+    PRIVATE
+        GTest::gtest
+        GTest::gmock
+        openmw-components
+        openmw-myguirtx
+        openmw-rtx-vulkan
+        openmw-rtxtool-lib
+        openmw-rtx-spirv
+        openmw-rtx-vulkan-api
 )
 target_compile_definitions(rtx-gpu-tests
     PRIVATE OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
             OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}"
             OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}"
             OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}")
-if (UNIX)
-    target_link_libraries(rtx-gpu-tests ${CMAKE_THREAD_LIBS_INIT})
-endif()
-

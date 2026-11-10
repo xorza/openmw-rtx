@@ -301,6 +301,9 @@ made only on the user's explicit yes, after which it is added here.
   upstream's wrappers, Qt's resources through `AUTORCC`, `openmw-navmeshtool` without its library, and
   `BUILD_WITH_CODE_COVERAGE` a setting of the checks target. The cost is a conflict with every upstream change
   to an app's list, which the merge resolves by naming the file in its list.
+- The test binaries and benchmarks in the same form: files named in `target_sources` lists in place of
+  `file(GLOB)` over names, links in the keyword form. The cost is a conflict with every upstream change to a
+  test list, which the merge resolves by naming the file in its list.
 - `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
   `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
   stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.

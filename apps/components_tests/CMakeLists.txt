@@ -1,169 +1,132 @@
-include_directories(SYSTEM ${GTEST_INCLUDE_DIRS})
-include_directories(SYSTEM ${GMOCK_INCLUDE_DIRS})
+# Upstream's component tests and the ray tracer's host tests in one binary; what opens a device in
+# `rtx-gpu-tests` (`rtx/tests.cmake`), and the crash catcher's own process in `crash-tests`
+# (`crashcatcher/tests.cmake`).
 
-file(GLOB UNITTEST_SRC_FILES
-    main.cpp
-
-    contentstore/key.cpp
-    contentstore/store.cpp
-
-    crashcatcher/crashhangwatch.cpp
-    crashcatcher/crashmonitor.cpp
-    crashcatcher/crashnote.cpp
-    crashcatcher/crashpackage.cpp
-    crashcatcher/crashsummary.cpp
-
-    esm/testfixedstring.cpp
-    esm/testgameformat.cpp
-    esm/testrefid.cpp
-    esm/variant.cpp
-
-    lua/testasync.cpp
-    lua/testconfiguration.cpp
-    lua/testinputactions.cpp
-    lua/testl10n.cpp
-    lua/testlua.cpp
-    lua/testscriptscontainer.cpp
-    lua/testserialization.cpp
-    lua/teststorage.cpp
-    lua/testuicontent.cpp
-    lua/testutilpackage.cpp
-    lua/testyaml.cpp
-
-    misc/compression.cpp
-    misc/frameclock.cpp
-    misc/hashstate.cpp
-    misc/monitor.cpp
-    misc/presentation.cpp
-    misc/progressreporter.cpp
-    misc/testendianness.cpp
-    misc/testmathutil.cpp
-    misc/testresourcehelpers.cpp
-    misc/teststringops.cpp
-
-    nifloader/testbulletnifloader.cpp
-
-    platform/appendfile.cpp
-    platform/folder.cpp
-    platform/localtime.cpp
-    platform/sharedmemory.cpp
-    platform/thread.cpp
-    platform/userhome.cpp
-    platform/wholefile.cpp
-    platform/uniquehold.cpp
-
-    detournavigator/navmeshtilestore.cpp
-    detournavigator/navigator.cpp
-    detournavigator/settingsutils.cpp
-    detournavigator/recastmeshbuilder.cpp
-    detournavigator/gettilespositions.cpp
-    detournavigator/recastmeshobject.cpp
-    detournavigator/navmeshtilescache.cpp
-    detournavigator/tilecachedrecastmeshmanager.cpp
-    detournavigator/serialization.cpp
-    detournavigator/asyncnavmeshupdater.cpp
-
-    serialization/binaryreader.cpp
-    serialization/binarywriter.cpp
-    serialization/sizeaccumulator.cpp
-    serialization/integration.cpp
-
-    settings/migration.cpp
-    settings/parser.cpp
-    settings/shadermanager.cpp
-    settings/testvalues.cpp
-
-    sdlutil/sdlcursormanager.cpp
-    sdlutil/sdlinputwrapper.cpp
-    sdlutil/sdlvideowrapper.cpp
-
-    shader/automaps.cpp
-    shader/parsedefines.cpp
-    shader/parsefors.cpp
-    shader/parselinks.cpp
-    shader/shadermanager.cpp
-
-
-    esmloader/load.cpp
-    esmloader/esmdata.cpp
-    esmloader/record.cpp
-
-    files/conversiontests.cpp
-    files/hash.cpp
-
-    toutf8/toutf8.cpp
-
-    esm4/includes.cpp
-
-    fx/lexer.cpp
-    fx/technique.cpp
-
-    esm3/readerscache.cpp
-    esm3/testsaveload.cpp
-    esm3/testesmwriter.cpp
-    esm3/testinfoorder.cpp
-    esm3/testcstringids.cpp
-
-    nifosg/testcontroller.cpp
-    nifosg/testnifloader.cpp
-
-    esmterrain/testgridsampling.cpp
-
-    terrain/refstack.cpp
-
-    rtx/support/allocations.cpp
-    rtx/support/allocations.hpp
-
-    resource/testmultiobjectcache.cpp
-    resource/testobjectcache.cpp
-    resource/testcolladastream.cpp
-    resource/testresourcesystem.cpp
-
-    vfs/testpathutil.cpp
-
-    sceneutil/osgacontroller.cpp
-    sceneutil/paintedtexture.cpp
-    sceneutil/userdata.cpp
-
-    bsa/testbsafile.cpp
-    bsa/testcompressedbsafile.cpp
-
-    nif/node.hpp
-    nif/testphysics.cpp
+add_executable(components-tests)
+target_sources(components-tests
+    PRIVATE
+        bsa/testbsafile.cpp
+        bsa/testcompressedbsafile.cpp
+        contentstore/key.cpp
+        contentstore/store.cpp
+        crashcatcher/crashhangwatch.cpp
+        crashcatcher/crashmonitor.cpp
+        crashcatcher/crashnote.cpp
+        crashcatcher/crashpackage.cpp
+        crashcatcher/crashsummary.cpp
+        detournavigator/asyncnavmeshupdater.cpp
+        detournavigator/gettilespositions.cpp
+        detournavigator/navigator.cpp
+        detournavigator/navmeshtilescache.cpp
+        detournavigator/navmeshtilestore.cpp
+        detournavigator/recastmeshbuilder.cpp
+        detournavigator/recastmeshobject.cpp
+        detournavigator/settingsutils.cpp
+        detournavigator/tilecachedrecastmeshmanager.cpp
+        esm/testfixedstring.cpp
+        esm/testgameformat.cpp
+        esm/testrefid.cpp
+        esm/variant.cpp
+        esm3/readerscache.cpp
+        esm3/testcstringids.cpp
+        esm3/testesmwriter.cpp
+        esm3/testinfoorder.cpp
+        esm3/testsaveload.cpp
+        esm4/includes.cpp
+        esmloader/esmdata.cpp
+        esmloader/load.cpp
+        esmloader/record.cpp
+        esmterrain/testgridsampling.cpp
+        files/conversiontests.cpp
+        files/hash.cpp
+        fx/lexer.cpp
+        fx/technique.cpp
+        lua/testasync.cpp
+        lua/testconfiguration.cpp
+        lua/testinputactions.cpp
+        lua/testl10n.cpp
+        lua/testlua.cpp
+        lua/testscriptscontainer.cpp
+        lua/testserialization.cpp
+        lua/teststorage.cpp
+        lua/testuicontent.cpp
+        lua/testutilpackage.cpp
+        lua/testyaml.cpp
+        main.cpp
+        misc/compression.cpp
+        misc/frameclock.cpp
+        misc/hashstate.cpp
+        misc/monitor.cpp
+        misc/presentation.cpp
+        misc/progressreporter.cpp
+        misc/testendianness.cpp
+        misc/testmathutil.cpp
+        misc/testresourcehelpers.cpp
+        misc/teststringops.cpp
+        nif/testphysics.cpp
+        nifloader/testbulletnifloader.cpp
+        nifosg/testcontroller.cpp
+        nifosg/testnifloader.cpp
+        platform/appendfile.cpp
+        platform/folder.cpp
+        platform/localtime.cpp
+        platform/sharedmemory.cpp
+        platform/thread.cpp
+        platform/uniquehold.cpp
+        platform/userhome.cpp
+        platform/wholefile.cpp
+        resource/testcolladastream.cpp
+        resource/testmultiobjectcache.cpp
+        resource/testobjectcache.cpp
+        resource/testresourcesystem.cpp
+        rtx/support/allocations.cpp
+        sceneutil/osgacontroller.cpp
+        sceneutil/paintedtexture.cpp
+        sceneutil/userdata.cpp
+        sdlutil/sdlcursormanager.cpp
+        sdlutil/sdlinputwrapper.cpp
+        sdlutil/sdlvideowrapper.cpp
+        serialization/binaryreader.cpp
+        serialization/binarywriter.cpp
+        serialization/integration.cpp
+        serialization/sizeaccumulator.cpp
+        settings/migration.cpp
+        settings/parser.cpp
+        settings/shadermanager.cpp
+        settings/testvalues.cpp
+        shader/automaps.cpp
+        shader/parsedefines.cpp
+        shader/parsefors.cpp
+        shader/parselinks.cpp
+        shader/shadermanager.cpp
+        terrain/refstack.cpp
+        toutf8/toutf8.cpp
+        vfs/testpathutil.cpp
+    PRIVATE FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES
+        nif/node.hpp
+        rtx/support/allocations.hpp
 )
-
-source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
-
-add_executable(components-tests ${UNITTEST_SRC_FILES})
-
-target_link_libraries(components-tests
-    GTest::gtest
-    GTest::gmock
-    openmw-components
-    openmw-myguirtx
-    openmw-rtx-tablemakers
-)
-
 # The system's half of the test support, one file a system (`rtx/support/testplatform.hpp`).
-target_sources(components-tests PRIVATE rtx/support/testplatform$<IF:$<BOOL:${WIN32}>,win32,posix>.cpp)
-
-include(rtx/tests.cmake)
-
+if (WIN32)
+    target_sources(components-tests PRIVATE
+        rtx/support/testplatformwin32.cpp
+        "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest")
+else ()
+    target_sources(components-tests PRIVATE rtx/support/testplatformposix.cpp)
+endif ()
 if (USE_QT)
     target_sources(components-tests PRIVATE config/testlaunchersettings.cpp)
-    target_link_libraries(components-tests openmw-components-qt)
-endif()
+    target_link_libraries(components-tests PRIVATE openmw-components-qt)
+endif ()
 
-if (WIN32)
-    target_sources(components-tests PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
-endif()
-
-include(crashcatcher/tests.cmake)
-
-# Fix for not visible pthreads functions for linker with glibc 2.15
-if (UNIX)
-    target_link_libraries(components-tests ${CMAKE_THREAD_LIBS_INIT})
-endif()
+target_link_libraries(components-tests
+    PRIVATE
+        GTest::gtest
+        GTest::gmock
+        openmw-components
+        openmw-myguirtx
+        openmw-rtx-tablemakers
+)
 
 set(TEMPLATE_OMWGAME_URL https://gitlab.com/OpenMW/example-suite/-/raw/8966dab24692555eec720c854fb0f73d108070cd/data/template.omwgame CACHE STRING "URL for template.omwgame. Use file:// URL for local file in offline builds.")
 file(DOWNLOAD
@@ -192,4 +155,7 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
         <string>
         <vector>
     )
-endif()
+endif ()
+
+include(rtx/tests.cmake)
+include(crashcatcher/tests.cmake)

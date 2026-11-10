@@ -11,7 +11,7 @@ set(RTX_TEST_OUTPUT_DIR "${PROJECT_BINARY_DIR}/test-output")
 set(OPENMW_TEST_COMPILE_OPTIONS "" CACHE STRING "Compile options added to the test binaries alone")
 
 function(openmw_add_test name target)
-    cmake_parse_arguments(TEST "" "" "LABELS;ARGS" ${ARGN})
+    cmake_parse_arguments(PARSE_ARGV 2 TEST "" "" "LABELS;ARGS")
     if (NOT TARGET ${target})
         return()
     endif()
