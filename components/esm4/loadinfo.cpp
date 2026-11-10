@@ -32,7 +32,7 @@
 #include <components/esm/refid.hpp>
 
 #include "reader.hpp"
-//#include "writer.hpp"
+// #include "writer.hpp"
 
 void ESM4::DialogInfo::load(ESM4::Reader& reader)
 {

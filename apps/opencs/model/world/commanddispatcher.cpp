@@ -228,8 +228,7 @@ void CSMWorld::CommandDispatcher::executeDelete()
         if (mId.getType() == UniversalId::Type_Referenceables)
         {
             macro.push(new CSMWorld::DeleteCommand(model, id,
-                static_cast<CSMWorld::UniversalId::Type>(
-                    model
+                static_cast<CSMWorld::UniversalId::Type>(model
                         .data(model.index(model.getModelIndex(id, columnIndex).row(),
                             model.findColumnIndex(CSMWorld::Columns::ColumnId_RecordType)))
                         .toInt())));

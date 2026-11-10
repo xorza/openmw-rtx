@@ -42,14 +42,18 @@ namespace ContentStore
         /// Adds a run of values, bytes as they stand. `T` carries no padding, whose bytes are
         /// whatever the memory held and would make one input two keys.
         template <class T>
-        requires std::is_trivially_copyable_v<T>
-        void add(std::span<const T> values) { addBytes(std::as_bytes(values)); }
+            requires std::is_trivially_copyable_v<T>
+        void add(std::span<const T> values)
+        {
+            addBytes(std::as_bytes(values));
+        }
 
         /// Adds one value, as a run of one. Never a span, by `Misc::HashState::add`'s guard: a span is
         /// trivially copyable too, and taken as a value it would key its address and not what it
         /// spans.
         template <class T>
-        requires(std::is_trivially_copyable_v<T> && !Misc::sIsSpan<T>) void add(const T& value)
+            requires(std::is_trivially_copyable_v<T> && !Misc::sIsSpan<T>)
+        void add(const T& value)
         {
             add(std::span<const T>(&value, 1));
         }

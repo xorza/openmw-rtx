@@ -324,16 +324,16 @@ namespace MWRender
                 else
                     pass.mStateSet->setTextureAttribute(PostProcessor::Unit_LastShader,
                         const_cast<osg::Texture*>(mFbos[lastShader - GL_COLOR_ATTACHMENT0_EXT]
-                                                      ->getAttachment(osg::Camera::COLOR_BUFFER0)
-                                                      .getTexture()));
+                                ->getAttachment(osg::Camera::COLOR_BUFFER0)
+                                .getTexture()));
 
                 if (lastDraw == 0)
                     pass.mStateSet->setTextureAttribute(PostProcessor::Unit_LastPass, mTextureScene);
                 else
                     pass.mStateSet->setTextureAttribute(PostProcessor::Unit_LastPass,
                         const_cast<osg::Texture*>(mFbos[lastDraw - GL_COLOR_ATTACHMENT0_EXT]
-                                                      ->getAttachment(osg::Camera::COLOR_BUFFER0)
-                                                      .getTexture()));
+                                ->getAttachment(osg::Camera::COLOR_BUFFER0)
+                                .getTexture()));
 
                 if (pass.mRenderTarget)
                 {

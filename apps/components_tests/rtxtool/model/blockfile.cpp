@@ -163,7 +163,7 @@ namespace RtxTool
             catch (const std::runtime_error& error)
             {
                 EXPECT_TRUE(std::string_view(error.what())
-                                .ends_with(":5: a second view called \"zulu\", which line 1 already defines"))
+                        .ends_with(":5: a second view called \"zulu\", which line 1 already defines"))
                     << error.what();
             }
         }

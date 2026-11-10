@@ -111,7 +111,7 @@ namespace Crash
                 if (const auto database = valueOf(argument, sDatabase))
                     read.mDatabase = Files::pathFromUnicodeString(*database);
                 else if (const auto annotation = valueOf(argument, sAnnotation);
-                         annotation && annotation->starts_with(sProduct))
+                    annotation && annotation->starts_with(sProduct))
                     read.mApplication = annotation->substr(sProduct.size());
                 handler.push_back(argument);
             }

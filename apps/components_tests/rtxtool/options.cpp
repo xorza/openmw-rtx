@@ -550,7 +550,7 @@ namespace RtxTool
             EXPECT_EQ(own.parent_path(), config.getCachePath() / "rtxtool");
             EXPECT_EQ(ownSavesFolder(config), own / "saves") << "a run's saves outside its own directory";
             EXPECT_TRUE(Files::pathToUnicodeString(own.filename())
-                            .ends_with(std::format("-{}", Platform::Process::currentId())));
+                    .ends_with(std::format("-{}", Platform::Process::currentId())));
         }
 
         /// **Only the directory of a run whose process has ended is swept**: process nought, which no

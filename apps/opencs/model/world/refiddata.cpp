@@ -51,7 +51,7 @@ CSMWorld::RefIdData::RefIdData()
 CSMWorld::RefIdData::LocalIndex CSMWorld::RefIdData::globalToLocalIndex(int index) const
 {
     for (std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator iter(mRecordContainers.begin());
-         iter != mRecordContainers.end(); ++iter)
+        iter != mRecordContainers.end(); ++iter)
     {
         if (index < iter->second->getSize())
             return LocalIndex(index, iter->first);
@@ -72,7 +72,7 @@ int CSMWorld::RefIdData::localToGlobalIndex(const LocalIndex& index) const
     int globalIndex = index.first;
 
     for (std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator iter(mRecordContainers.begin());
-         iter != end; ++iter)
+        iter != end; ++iter)
         globalIndex += iter->second->getSize();
 
     return globalIndex;
@@ -210,7 +210,7 @@ int CSMWorld::RefIdData::getAppendIndex(UniversalId::Type type) const
     int index = 0;
 
     for (std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator iter(mRecordContainers.begin());
-         iter != mRecordContainers.end(); ++iter)
+        iter != mRecordContainers.end(); ++iter)
     {
         index += iter->second->getSize();
 

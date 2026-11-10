@@ -65,7 +65,7 @@ namespace Rtx
         };
 
         template <class T>
-        requires std::is_arithmetic_v<T>
+            requires std::is_arithmetic_v<T>
         void put(std::string& into, const T value)
         {
             into.append(reinterpret_cast<const char*>(&value), sizeof(T));

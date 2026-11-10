@@ -210,7 +210,7 @@ void CSMWorld::ModifyCommand::redo()
         CSMWorld::IdTree* tree = &dynamic_cast<CSMWorld::IdTree&>(*mModel);
         setText("Modify "
             + tree->nestedHeaderData(mIndex.parent().column(), mIndex.column(), Qt::Horizontal, Qt::DisplayRole)
-                  .toString());
+                .toString());
     }
     else
     {

@@ -44,7 +44,7 @@ namespace MWGui
             constexpr std::string_view member = "mFontSize";
             constexpr std::string_view accessor = "gui()";
             for (std::size_t at = source.find(member); at != std::string_view::npos;
-                 at = source.find(member, at + member.size()))
+                at = source.find(member, at + member.size()))
             {
                 std::string_view before = source.substr(0, at);
                 const auto trimSpace = [&] {

@@ -82,7 +82,7 @@ namespace Rtx
         for (std::size_t at = 0; at < chains.size(); ++at)
         {
             for (const osg::Callback* callback = chains[at]; callback != nullptr;
-                 callback = callback->getNestedCallback())
+                callback = callback->getNestedCallback())
             {
                 if (shape.mCount == sMostCallbacks)
                 {

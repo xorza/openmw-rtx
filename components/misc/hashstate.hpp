@@ -45,13 +45,17 @@ namespace Misc
         /// A run of values, bytes as they stand. `T` carries no padding, whose bytes are whatever
         /// the memory held and would make one input two digests.
         template <class T>
-        requires std::is_trivially_copyable_v<T>
-        void add(std::span<const T> values) { add(std::as_bytes(values)); }
+            requires std::is_trivially_copyable_v<T>
+        void add(std::span<const T> values)
+        {
+            add(std::as_bytes(values));
+        }
 
         /// One value, as a run of one. Never a span: a span is trivially copyable too, and taken as
         /// a value it would hash its address and not what it spans.
         template <class T>
-        requires(std::is_trivially_copyable_v<T> && !sIsSpan<T>) void add(const T& value)
+            requires(std::is_trivially_copyable_v<T> && !sIsSpan<T>)
+        void add(const T& value)
         {
             add(std::span<const T>(&value, 1));
         }

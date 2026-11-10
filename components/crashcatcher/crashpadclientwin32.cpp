@@ -264,5 +264,5 @@ namespace Crash::Client
 #pragma comment(linker, "/INCLUDE:openmwCrashThreadStart")
 #endif
 #pragma section(".CRT$XLY", long, read)
-extern "C" __declspec(
-    allocate(".CRT$XLY")) const PIMAGE_TLS_CALLBACK openmwCrashThreadStart = Crash::Client::onThreadStart;
+extern "C" __declspec(allocate(".CRT$XLY")) const PIMAGE_TLS_CALLBACK openmwCrashThreadStart
+    = Crash::Client::onThreadStart;

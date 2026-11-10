@@ -885,10 +885,10 @@ namespace MWPhysics
         , mSwimLevel(waterlevel
               - (actor.getRenderingHalfExtents().z() * 2
                   * MWBase::Environment::get()
-                        .getESMStore()
-                        ->get<ESM::GameSetting>()
-                        .find("fSwimHeightScale")
-                        ->mValue.getFloat()))
+                      .getESMStore()
+                      ->get<ESM::GameSetting>()
+                      .find("fSwimHeightScale")
+                      ->mValue.getFloat()))
         , mSlowFall(slowFall)
         , mRotation()
         , mMovement(actor.velocity())

@@ -484,7 +484,7 @@ namespace Rtx
             }
         }
         else if (const osg::StateAttribute::GLModeValue blend = stateSet.getMode(GL_BLEND);
-                 blend != osg::StateAttribute::INHERIT && SurfaceLocks::takes(locks.mBlend, blend))
+            blend != osg::StateAttribute::INHERIT && SurfaceLocks::takes(locks.mBlend, blend))
             material.mAlphaMode = (blend & osg::StateAttribute::ON) ? AlphaMode::Blend
                 : material.mAlphaTest.cuts()                        ? AlphaMode::Cutout
                                                                     : AlphaMode::Opaque;

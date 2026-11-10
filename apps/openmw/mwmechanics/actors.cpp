@@ -189,7 +189,7 @@ namespace
                 MWWorld::ContainerStoreIterator gem = container.end();
                 float gemCapacity = std::numeric_limits<float>::max();
                 for (auto it = container.begin(MWWorld::ContainerStore::Type_Miscellaneous); it != container.end();
-                     ++it)
+                    ++it)
                 {
                     if (it->getClass().isSoulGem(*it))
                     {

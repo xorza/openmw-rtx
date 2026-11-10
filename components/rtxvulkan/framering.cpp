@@ -44,9 +44,7 @@ namespace Rtx
 
     FrameRing::FrameRing(const Device& device, const Reporting reporting)
         : mDevice(device)
-        , mSlots([&](FrameSlot) {
-            return FrameRecord{ device, reporting };
-        })
+        , mSlots([&](FrameSlot) { return FrameRecord{ device, reporting }; })
     {
         if (reporting == Reporting::Measured)
             mDigest.emplace(device);

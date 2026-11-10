@@ -68,8 +68,7 @@ namespace MWLua
             Action_None,
             Action_Enable,
             Action_Disable
-        } mQueuedAction
-            = Action_None;
+        } mQueuedAction = Action_None;
     };
 
     template <class T>

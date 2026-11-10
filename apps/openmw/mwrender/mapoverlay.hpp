@@ -52,8 +52,7 @@ namespace MWRender
         /// Clears the overlay and paints `source` of `image` into `destination`, filtered: a save
         /// written at another map size or over another region of cells.
         virtual void paintImage(const SceneUtil::ImageRegion& destination, osg::ref_ptr<osg::Image> image,
-            const SceneUtil::ImageRegion& source)
-            = 0;
+            const SceneUtil::ImageRegion& source) = 0;
 
         /// Every pixel becomes `image`'s, which is the overlay's own size and format: a save written
         /// at this map's size.

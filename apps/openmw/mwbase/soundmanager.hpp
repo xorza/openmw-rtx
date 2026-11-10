@@ -161,34 +161,29 @@ namespace MWBase
         /// decoder's read method.
 
         virtual Sound* playSound(const ESM::RefId& soundId, float volume, float pitch, Type type = Type::Sfx,
-            PlayMode mode = PlayMode::Normal, float offset = 0)
-            = 0;
+            PlayMode mode = PlayMode::Normal, float offset = 0) = 0;
         ///< Play a sound, independently of 3D-position
         ///< @param offset Number of seconds into the sound to start playback.
 
         virtual Sound* playSound(VFS::Path::NormalizedView fileName, float volume, float pitch, Type type = Type::Sfx,
-            PlayMode mode = PlayMode::Normal, float offset = 0)
-            = 0;
+            PlayMode mode = PlayMode::Normal, float offset = 0) = 0;
         ///< Play a sound, independently of 3D-position
         ///< @param offset Number of seconds into the sound to start playback.
 
         virtual Sound* playSound3D(const MWWorld::ConstPtr& reference, const ESM::RefId& soundId, float volume,
-            float pitch, Type type = Type::Sfx, PlayMode mode = PlayMode::Normal, float offset = 0)
-            = 0;
+            float pitch, Type type = Type::Sfx, PlayMode mode = PlayMode::Normal, float offset = 0) = 0;
         ///< Play a 3D sound attached to an MWWorld::Ptr. Will be updated automatically with the Ptr's position, unless
         ///< Play_NoTrack is specified.
         ///< @param offset Number of seconds into the sound to start playback.
 
         virtual Sound* playSound3D(const MWWorld::ConstPtr& reference, VFS::Path::NormalizedView fileName, float volume,
-            float pitch, Type type = Type::Sfx, PlayMode mode = PlayMode::Normal, float offset = 0)
-            = 0;
+            float pitch, Type type = Type::Sfx, PlayMode mode = PlayMode::Normal, float offset = 0) = 0;
         ///< Play a 3D sound attached to an MWWorld::Ptr. Will be updated automatically with the Ptr's position, unless
         ///< Play_NoTrack is specified.
         ///< @param offset Number of seconds into the sound to start playback.
 
         virtual Sound* playSound3D(const osg::Vec3f& initialPos, const ESM::RefId& soundId, float volume, float pitch,
-            Type type = Type::Sfx, PlayMode mode = PlayMode::Normal, float offset = 0)
-            = 0;
+            Type type = Type::Sfx, PlayMode mode = PlayMode::Normal, float offset = 0) = 0;
         ///< Play a 3D sound at \a initialPos. If the sound should be moving, it must be updated using
         ///< Sound::setPosition.
 
@@ -231,8 +226,7 @@ namespace MWBase
         virtual void resumePlayback() = 0;
 
         virtual void setListenerPosDir(
-            const osg::Vec3f& pos, const osg::Vec3f& dir, const osg::Vec3f& up, bool underwater)
-            = 0;
+            const osg::Vec3f& pos, const osg::Vec3f& dir, const osg::Vec3f& up, bool underwater) = 0;
 
         virtual void setListenerVel(const osg::Vec3f& vel) = 0;
 

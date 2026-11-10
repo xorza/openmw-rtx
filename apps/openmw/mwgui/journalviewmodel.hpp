@@ -79,8 +79,8 @@ namespace MWGui
             std::string_view questName, std::function<void(JournalEntry const&)> visitor) const = 0;
 
         /// provides the name of the topic specified by its id
-        virtual void visitTopicName(
-            const MWDialogue::Topic& topic, std::function<void(std::string_view)> visitor) const = 0;
+        virtual void visitTopicName(const MWDialogue::Topic& topic, std::function<void(std::string_view)> visitor) const
+            = 0;
 
         /// walks over the topics whose names start with the character
         virtual void visitTopicNamesStartingWith(

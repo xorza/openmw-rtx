@@ -34,11 +34,9 @@ namespace Rtx
     constexpr VkPushConstantRange pushRangeOf(const VkShaderStageFlags stages)
     {
         static_assert(sizeof(Constants) <= sPushConstantsFloor, "a push block past what Vulkan 1.4 guarantees");
-        return VkPushConstantRange{
-            .stageFlags = stages,
+        return VkPushConstantRange{ .stageFlags = stages,
             .offset = 0,
-            .size = std::is_same_v<Constants, NoConstants> ? 0u : static_cast<std::uint32_t>(sizeof(Constants))
-        };
+            .size = std::is_same_v<Constants, NoConstants> ? 0u : static_cast<std::uint32_t>(sizeof(Constants)) };
     }
 
     /// The map entries a stage's specialization words need, and the `VkSpecializationInfo` over

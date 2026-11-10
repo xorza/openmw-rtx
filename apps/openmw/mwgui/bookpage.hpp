@@ -76,8 +76,7 @@ namespace MWGui
         /// to be created even if an existing instance is present.
         virtual Style* createHotStyle(Style* baseStyle, const MyGUI::Colour& normalColour,
             const MyGUI::Colour& hoverColour, const MyGUI::Colour& activeColour, TypesetBook::InteractiveId id,
-            bool unique = true)
-            = 0;
+            bool unique = true) = 0;
 
         /// Insert a line break into the document. Newline characters in the input
         /// text have the same affect. The margin parameter adds additional space

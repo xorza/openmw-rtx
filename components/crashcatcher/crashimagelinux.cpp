@@ -233,12 +233,8 @@ namespace Crash
         // **The keeper's own disposition of `SIGCHLD`**: one inherited as ignored has the kernel reap
         // every child itself and send no `SIGCHLD`, and the keeper, waiting for one, would outlive the
         // application and hold the mount. The application takes back what it inherited.
-        struct sigaction inherited
-        {
-        };
-        struct sigaction reaped
-        {
-        };
+        struct sigaction inherited{};
+        struct sigaction reaped{};
         reaped.sa_handler = SIG_DFL;
         sigemptyset(&reaped.sa_mask);
         sigaction(SIGCHLD, &reaped, &inherited);

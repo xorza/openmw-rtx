@@ -159,10 +159,10 @@ namespace
                 sounds.emplace(magicEffect->mBoltSound);
             else
                 sounds.emplace(MWBase::Environment::get()
-                                   .getESMStore()
-                                   ->get<ESM::Skill>()
-                                   .find(magicEffect->mData.mSchool)
-                                   ->mSchool->mBoltSound);
+                        .getESMStore()
+                        ->get<ESM::Skill>()
+                        .find(magicEffect->mData.mSchool)
+                        ->mSchool->mBoltSound);
             projectileEffects.mList.push_back(effect);
         }
 

@@ -1769,7 +1769,7 @@ namespace Rtx::Testing
             {
                 const Index slot = at == clampedSlot
                     ? textures.add(VFS::Path::NormalizedView("textures/tx_banner.dds"), TextureWrap::Clamp,
-                        TextureEncoding::Painted)
+                          TextureEncoding::Painted)
                     : textures.add(VFS::Path::Normalized("textures/tx_" + std::to_string(at) + ".dds"));
                 ASSERT_EQ(slot, at);
                 holds.texture(slot);

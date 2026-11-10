@@ -32,7 +32,7 @@ namespace Rtx
 
     GroundCompositePass::GroundCompositePass(const Device& device, const SetLayout& textures)
         : mPipeline(device, sBindings, SharedSetLayouts{ .mTextures = &textures }, "groundcomposite.comp.spv",
-            "ground composite")
+              "ground composite")
         , mEncode(device)
         , mNoTarget(makeStandIn(
               device, toVulkanFormat(TEXTURE_WRITTEN_FORMAT), VK_IMAGE_USAGE_STORAGE_BIT, "no ground target"))

@@ -746,7 +746,7 @@ namespace Rtx
             = [threshold2](const Placement& placement) { return placement.mRadius * placement.mRadius >= threshold2; };
         const std::size_t wanted = shown
             ? static_cast<std::size_t>(
-                std::partition_point(placements.begin(), placements.end(), clears) - placements.begin())
+                  std::partition_point(placements.begin(), placements.end(), clears) - placements.begin())
             : 0;
 
         for (std::size_t at = cell.mShown; at < wanted; ++at)

@@ -253,9 +253,13 @@ namespace Rtx
         TEST(RtxCreaseSplitTest, aCreaseAcrossAUvSeamChangesTheNormalsAndAddsNoVertex)
         {
             const std::array<osg::Vec3f, 8> positions{
-                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 1.0f, 0.0f),
+                osg::Vec3f(0.0f, 0.0f, 0.0f),
+                osg::Vec3f(1.0f, 0.0f, 0.0f),
+                osg::Vec3f(1.0f, 1.0f, 0.0f),
                 osg::Vec3f(0.0f, 1.0f, 0.0f), // the floor, facing +z
-                osg::Vec3f(0.0f, 1.0f, 0.0f), osg::Vec3f(1.0f, 1.0f, 0.0f), osg::Vec3f(1.0f, 1.0f, 1.0f),
+                osg::Vec3f(0.0f, 1.0f, 0.0f),
+                osg::Vec3f(1.0f, 1.0f, 0.0f),
+                osg::Vec3f(1.0f, 1.0f, 1.0f),
                 osg::Vec3f(0.0f, 1.0f, 1.0f), // the wall, facing -y
             };
             const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f);
@@ -319,7 +323,7 @@ namespace Rtx
 
             EXPECT_TRUE(shape(content, floor, floorNormals, triangles, true,
                 CreaseSplit::Beside{ .mPositions = onward, .mNormals = onwardNormals, .mTriangles = triangles })
-                            .mNormals.empty())
+                    .mNormals.empty())
                 << "a flat floor beside it is no crease";
         }
 

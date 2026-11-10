@@ -110,17 +110,10 @@ namespace Rtx
     /// preprocessor costs a start").
     template <class Pass>
     concept ContentPass = requires(
-        Pass& pass, const typename Pass::Input& input, typename Pass::Output& output, ContentStore::Digest& digest)
-    {
-        {
-            Pass::sPass
-            } -> std::convertible_to<ContentPassId>;
-        {
-            Pass::sVersion
-            } -> std::convertible_to<std::uint32_t>;
-        {
-            Pass::sStored
-            } -> std::convertible_to<bool>;
+        Pass& pass, const typename Pass::Input& input, typename Pass::Output& output, ContentStore::Digest& digest) {
+        { Pass::sPass } -> std::convertible_to<ContentPassId>;
+        { Pass::sVersion } -> std::convertible_to<std::uint32_t>;
+        { Pass::sStored } -> std::convertible_to<bool>;
         pass.digest(input, digest);
         pass.run(input, output);
     };

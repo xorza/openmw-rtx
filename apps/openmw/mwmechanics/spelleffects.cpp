@@ -666,14 +666,14 @@ namespace MWMechanics
                 if (!target.getClass().hasInventoryStore(target))
                     return ESM::ActiveEffect::Flag_Invalid;
                 addBoundItem(ESM::RefId::stringRefId(world->getStore()
-                                                         .get<ESM::GameSetting>()
-                                                         .find("sMagicBoundRightGauntletID")
-                                                         ->mValue.getString()),
+                                     .get<ESM::GameSetting>()
+                                     .find("sMagicBoundRightGauntletID")
+                                     ->mValue.getString()),
                     target);
                 addBoundItem(ESM::RefId::stringRefId(world->getStore()
-                                                         .get<ESM::GameSetting>()
-                                                         .find("sMagicBoundLeftGauntletID")
-                                                         ->mValue.getString()),
+                                     .get<ESM::GameSetting>()
+                                     .find("sMagicBoundLeftGauntletID")
+                                     ->mValue.getString()),
                     target);
             }
             else if (effect.mEffectId == ESM::MagicEffect::BoundDagger
@@ -1100,14 +1100,14 @@ namespace MWMechanics
             else if (effect.mEffectId == ESM::MagicEffect::BoundGloves)
             {
                 removeBoundItem(ESM::RefId::stringRefId(world->getStore()
-                                                            .get<ESM::GameSetting>()
-                                                            .find("sMagicBoundRightGauntletID")
-                                                            ->mValue.getString()),
+                                        .get<ESM::GameSetting>()
+                                        .find("sMagicBoundRightGauntletID")
+                                        ->mValue.getString()),
                     target);
                 removeBoundItem(ESM::RefId::stringRefId(world->getStore()
-                                                            .get<ESM::GameSetting>()
-                                                            .find("sMagicBoundLeftGauntletID")
-                                                            ->mValue.getString()),
+                                        .get<ESM::GameSetting>()
+                                        .find("sMagicBoundLeftGauntletID")
+                                        ->mValue.getString()),
                     target);
             }
             else if (effect.mEffectId == ESM::MagicEffect::BoundDagger

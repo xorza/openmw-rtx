@@ -680,7 +680,7 @@ namespace SceneUtil
         // where the clone is no controller, as OSG clones a class that declares no clone of its own.
         const osg::Callback* theirs = copy.getUpdateCallback();
         for (osg::Callback* mine = getUpdateCallback(); mine != nullptr && theirs != nullptr;
-             mine = mine->getNestedCallback(), theirs = theirs->getNestedCallback())
+            mine = mine->getNestedCallback(), theirs = theirs->getNestedCallback())
             if (theirs == copy.mController)
                 mController = dynamic_cast<LightController*>(mine);
     }

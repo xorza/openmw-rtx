@@ -57,10 +57,7 @@ namespace MWSound
             return static_cast<size_t>(static_cast<ssize_t>(mAudioClock * mAudioContext->sample_rate) - clockDelay);
         }
 
-        std::string getStreamName()
-        {
-            return std::string();
-        }
+        std::string getStreamName() { return std::string(); }
 
     private:
         // MovieAudioDecoder overrides

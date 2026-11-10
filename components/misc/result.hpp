@@ -27,13 +27,15 @@ class [[nodiscard]] Result
 {
 public:
     template <class U>
-    requires std::constructible_from<T, U&&> Result(U&& value)
+        requires std::constructible_from<T, U&&>
+    Result(U&& value)
         : mState(std::in_place_index<0>, std::forward<U>(value))
     {
     }
 
     template <class F>
-    requires std::constructible_from<E, F&&> Result(Err<F> error)
+        requires std::constructible_from<E, F&&>
+    Result(Err<F> error)
         : mState(std::in_place_index<1>, std::move(error.mError))
     {
     }
@@ -73,7 +75,8 @@ public:
     Result() = default;
 
     template <class F>
-    requires std::constructible_from<E, F&&> Result(Err<F> error)
+        requires std::constructible_from<E, F&&>
+    Result(Err<F> error)
         : mError(std::move(error.mError))
     {
     }

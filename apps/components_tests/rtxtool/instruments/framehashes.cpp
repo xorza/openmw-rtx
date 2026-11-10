@@ -214,7 +214,7 @@ namespace RtxTool
         {
             const FrameHashes::ViewDifference difference
                 = onlyView(runOf(partsOf(100), sOtherPixels, digestOf(100), Rtx::Upscale::Quality)
-                               .against(plainRun(Rtx::Upscale::Quality)));
+                        .against(plainRun(Rtx::Upscale::Quality)));
 
             EXPECT_TRUE(difference.mDiffering.empty()) << "the picture is the upscaler's";
             EXPECT_EQ(difference.mReconstructedDiffering, std::vector<std::uint32_t>{ 1u });

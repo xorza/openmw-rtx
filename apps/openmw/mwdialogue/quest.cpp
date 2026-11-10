@@ -37,7 +37,7 @@ namespace MWDialogue
         const ESM::Dialogue* dialogue = MWBase::Environment::get().getESMStore()->get<ESM::Dialogue>().find(mTopic);
 
         for (ESM::Dialogue::InfoContainer::const_iterator iter(dialogue->mInfo.begin()); iter != dialogue->mInfo.end();
-             ++iter)
+            ++iter)
             if (iter->mQuestStatus == ESM::DialInfo::QS_Name)
                 return iter->mResponse;
 

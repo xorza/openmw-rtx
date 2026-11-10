@@ -179,7 +179,7 @@ namespace Shader
 
                 std::string types;
                 for (unsigned int unit = boundType.empty() ? 1 : 2; unit < stateSet->getTextureAttributeList().size();
-                     ++unit)
+                    ++unit)
                 {
                     const Bound bound = boundAt(*stateSet, unit);
                     types += bound.mType + "=" + bound.mFile + " ";

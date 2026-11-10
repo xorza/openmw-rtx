@@ -265,15 +265,13 @@ namespace MWBase
         virtual void modRegion(ESM::RefId regionid, const std::map<ESM::RefId, uint8_t>& chances) = 0;
         virtual const std::map<ESM::RefId, uint8_t>& getRegionWeatherChances(ESM::RefId regionid) const = 0;
 
-        virtual void changeToInteriorCell(
-            std::string_view cellName, const ESM::Position& position, bool adjustPlayerPos, bool changeEvent = true)
-            = 0;
+        virtual void changeToInteriorCell(std::string_view cellName, const ESM::Position& position,
+            bool adjustPlayerPos, bool changeEvent = true) = 0;
         ///< Move to interior cell.
         ///< @param changeEvent If false, do not trigger cell change flag or detect worldspace changes
 
         virtual void changeToCell(
-            const ESM::RefId& cellId, const ESM::Position& position, bool adjustPlayerPos, bool changeEvent = true)
-            = 0;
+            const ESM::RefId& cellId, const ESM::Position& position, bool adjustPlayerPos, bool changeEvent = true) = 0;
         ///< @param changeEvent If false, do not trigger cell change flag or detect worldspace changes
 
         virtual MWWorld::Ptr getFocusObject() = 0;
@@ -297,14 +295,12 @@ namespace MWBase
         virtual void deleteObject(const MWWorld::Ptr& ptr) = 0;
         virtual void undeleteObject(const MWWorld::Ptr& ptr) = 0;
 
-        virtual MWWorld::Ptr moveObject(
-            const MWWorld::Ptr& ptr, const osg::Vec3f& position, bool movePhysics = true, bool moveToActive = false)
-            = 0;
+        virtual MWWorld::Ptr moveObject(const MWWorld::Ptr& ptr, const osg::Vec3f& position, bool movePhysics = true,
+            bool moveToActive = false) = 0;
         ///< @return an updated Ptr in case the Ptr's cell changes
 
         virtual MWWorld::Ptr moveObject(const MWWorld::Ptr& ptr, MWWorld::CellStore* newCell,
-            const osg::Vec3f& position, bool movePhysics = true, bool keepActive = false)
-            = 0;
+            const osg::Vec3f& position, bool movePhysics = true, bool keepActive = false) = 0;
         ///< @return an updated Ptr
 
         virtual MWWorld::Ptr moveObjectBy(const MWWorld::Ptr& ptr, const osg::Vec3f& vec, bool moveToActive) = 0;
@@ -313,17 +309,14 @@ namespace MWBase
         virtual void scaleObject(const MWWorld::Ptr& ptr, float scale, bool force = false) = 0;
 
         virtual void rotateObject(
-            const MWWorld::Ptr& ptr, const osg::Vec3f& rot, RotationFlags flags = RotationFlag_inverseOrder)
-            = 0;
+            const MWWorld::Ptr& ptr, const osg::Vec3f& rot, RotationFlags flags = RotationFlag_inverseOrder) = 0;
 
         virtual MWWorld::Ptr placeObject(
-            const MWWorld::ConstPtr& ptr, MWWorld::CellStore* cell, const ESM::Position& pos)
-            = 0;
+            const MWWorld::ConstPtr& ptr, MWWorld::CellStore* cell, const ESM::Position& pos) = 0;
         ///< Place an object. Makes a copy of the Ptr.
 
         virtual MWWorld::Ptr safePlaceObject(const MWWorld::ConstPtr& ptr, const MWWorld::ConstPtr& referenceObject,
-            MWWorld::CellStore* referenceCell, int direction, float distance)
-            = 0;
+            MWWorld::CellStore* referenceCell, int direction, float distance) = 0;
         ///< Place an object in a safe place next to \a referenceObject. \a direction and \a distance specify the wanted
         ///< placement
         /// relative to \a referenceObject (but the object may be placed somewhere else if the wanted location is
@@ -354,8 +347,7 @@ namespace MWBase
         ///< \return Resulting mode
 
         virtual MWWorld::Ptr placeObject(
-            const MWWorld::Ptr& object, float cursorX, float cursorY, int amount, bool copy = true)
-            = 0;
+            const MWWorld::Ptr& object, float cursorX, float cursorY, int amount, bool copy = true) = 0;
         ///< copy and place an object into the gameworld at the specified cursor position
         /// @param object
         /// @param cursor X (relative 0-1)
@@ -363,8 +355,7 @@ namespace MWBase
         /// @param number of objects to place
 
         virtual MWWorld::Ptr dropObjectOnGround(
-            const MWWorld::Ptr& actor, const MWWorld::Ptr& object, int amount, bool copy = true)
-            = 0;
+            const MWWorld::Ptr& actor, const MWWorld::Ptr& object, int amount, bool copy = true) = 0;
         ///< copy and place an object into the gameworld at the given actor's position
         /// @param actor giving the dropped object position
         /// @param object
@@ -437,8 +428,7 @@ namespace MWBase
         ///< get Line of Sight (morrowind stupid implementation)
 
         virtual float getDistToNearestRayHit(
-            const osg::Vec3f& from, const osg::Vec3f& dir, float maxDist, bool includeWater = false)
-            = 0;
+            const osg::Vec3f& from, const osg::Vec3f& dir, float maxDist, bool includeWater = false) = 0;
 
         virtual void enableActorCollision(const MWWorld::Ptr& actor, bool enable) = 0;
 
@@ -500,11 +490,9 @@ namespace MWBase
 
         virtual void launchMagicBolt(const ESM::RefId& spellId, const MWWorld::Ptr& caster,
             const osg::Vec3f& fallbackDirection, ESM::RefNum item,
-            const std::optional<MWMechanics::MovingTarget>& movingTarget)
-            = 0;
+            const std::optional<MWMechanics::MovingTarget>& movingTarget) = 0;
         virtual void launchProjectile(MWWorld::Ptr& actor, MWWorld::Ptr& projectile, const osg::Vec3f& worldPos,
-            const osg::Quat& orient, MWWorld::Ptr& bow, float speed, float attackStrength, float attackWindUp)
-            = 0;
+            const osg::Quat& orient, MWWorld::Ptr& bow, float speed, float attackStrength, float attackWindUp) = 0;
         virtual void updateProjectilesCasters() = 0;
 
         virtual void applyLoopingParticles(const MWWorld::Ptr& ptr) const = 0;
@@ -554,8 +542,7 @@ namespace MWBase
 
         virtual void spawnEffect(VFS::Path::NormalizedView model, const std::string& textureOverride,
             const osg::Vec3f& worldPos, float scale = 1.f, bool isMagicVFX = true, bool useAmbientLight = true,
-            std::string_view effectId = {}, bool loop = false)
-            = 0;
+            std::string_view effectId = {}, bool loop = false) = 0;
 
         virtual void removeEffect(std::string_view effectId) = 0;
 
@@ -573,8 +560,7 @@ namespace MWBase
         /// Return a vector aiming the actor's weapon towards a target.
         /// @note The length of the vector is the distance between actor and target.
         virtual osg::Vec3f aimToTarget(
-            const MWWorld::ConstPtr& actor, const MWWorld::ConstPtr& target, bool isRangedCombat)
-            = 0;
+            const MWWorld::ConstPtr& actor, const MWWorld::ConstPtr& target, bool isRangedCombat) = 0;
 
         virtual void addContainerScripts(const MWWorld::Ptr& reference, MWWorld::CellStore* cell) = 0;
         virtual void removeContainerScripts(const MWWorld::Ptr& reference) = 0;

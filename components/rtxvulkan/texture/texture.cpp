@@ -811,8 +811,8 @@ namespace Rtx
             // Up to one of each: a chunk queued twice over before a placement baked it is two sums,
             // which is what it was before the pair shared one.
             for (; at < mPendingComposites.size() && mPendingComposites[at].mMaterial == material
-                 && (outputs & mPendingComposites[at].mOutput) == 0;
-                 ++at)
+                && (outputs & mPendingComposites[at].mOutput) == 0;
+                ++at)
             {
                 // Arrived and since dropped, before any placement baked it: the slot holds nothing,
                 // and a bake of nothing is nothing to record.

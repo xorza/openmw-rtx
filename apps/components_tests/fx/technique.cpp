@@ -151,17 +151,17 @@ namespace
 
         TechniqueTest()
             : mVFS(TestingOpenMW::createTestVFS({
-                { techniquePropertiesPath, &techniqueProperties },
-                { rendertargetPropertiesPath, &rendertargetProperties },
-                { uniformPropertiesPath, &uniformProperties },
-                { missingSamplerSourcePath, &missingSamplerSource },
-                { repeatedSharedBlockPath, &repeatedSharedBlock },
-                { invalidNumberInfPath, &invalidNumberInf },
-                { invalidNumberNegativeInfPath, &invalidNumberNegativeInf },
-                { invalidNumberUnsignedLongPath, &invalidNumberUnsignedLong },
-                { invalidNumberHexFloatPath, &invalidNumberHexFloat },
-                { invalidNumberDoublePath, &invalidNumberDouble },
-            }))
+                  { techniquePropertiesPath, &techniqueProperties },
+                  { rendertargetPropertiesPath, &rendertargetProperties },
+                  { uniformPropertiesPath, &uniformProperties },
+                  { missingSamplerSourcePath, &missingSamplerSource },
+                  { repeatedSharedBlockPath, &repeatedSharedBlock },
+                  { invalidNumberInfPath, &invalidNumberInf },
+                  { invalidNumberNegativeInfPath, &invalidNumberNegativeInf },
+                  { invalidNumberUnsignedLongPath, &invalidNumberUnsignedLong },
+                  { invalidNumberHexFloatPath, &invalidNumberHexFloat },
+                  { invalidNumberDoublePath, &invalidNumberDouble },
+              }))
             , mImageManager(mVFS.get(), 0)
         {
         }

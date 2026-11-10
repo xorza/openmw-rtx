@@ -169,7 +169,7 @@ namespace Rtx
                 Rtx::TextureFormat::Bc5Unorm);
             EXPECT_FALSE(describeImage(
                 *makeBlock(GL_COMPRESSED_RED_GREEN_RGTC2_EXT), Rtx::TextureEncoding::Colour, levels, texels)
-                             .isOk())
+                    .isOk())
                 << "two channels are no colour";
 
             // One channel the same, its 4 × 4 block the eight bytes OpenSceneGraph counts too.

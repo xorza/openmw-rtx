@@ -56,7 +56,7 @@ namespace MWClass
                         models.push_back(creature->mModel.getNormalized());
                 }
                 else if (const ESM::CreatureLevList* nested = store.get<ESM::CreatureLevList>().search(item.mId);
-                         nested != nullptr && std::ranges::find(lists, nested) == lists.end())
+                    nested != nullptr && std::ranges::find(lists, nested) == lists.end())
                     lists.push_back(nested);
             }
     }

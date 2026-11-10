@@ -175,12 +175,12 @@ namespace RtxTool
                 .mBounceRays = watched && !line.mBouncesNamed.mBounceRays ? Settings::rtx().mBounceRays.get()
                                                                           : static_cast<int>(sampling.mBounceRays),
                 .mDistantLandCells = line.mDistantCells.has_value() ? *line.mDistantCells
-                    : watched                                       ? Settings::rtx().mDistantLandCells.get()
+                    : watched ? Settings::rtx().mDistantLandCells.get()
                               : command.mShipped.get<float>("RTX", "distant land cells"),
                 .mViewingDistance = watched ? Settings::camera().mViewingDistance.get()
                                             : command.mShipped.get<float>("Camera", "viewing distance"),
                 .mObjectPaging = line.mDistantStatics.has_value() ? *line.mDistantStatics
-                    : watched                                     ? Settings::terrain().mObjectPaging.get()
+                    : watched ? Settings::terrain().mObjectPaging.get()
                               : command.mShipped.get<bool>("Terrain", "object paging"),
                 .mObjectPagingMinSize = watched ? Settings::terrain().mObjectPagingMinSize.get()
                                                 : command.mShipped.get<float>("Terrain", "object paging min size"),

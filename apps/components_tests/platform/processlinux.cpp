@@ -78,7 +78,7 @@ namespace
         const std::filesystem::path written = TestingOpenMW::outputFilePath("ended-shell-id");
         ASSERT_TRUE(Platform::Process::runShell(
             "echo $$ > " + Platform::Process::shellWord(Files::pathToUnicodeString(written)))
-                        .succeeded());
+                .succeeded());
         std::uint32_t ended = 0;
         std::ifstream(written) >> ended;
         ASSERT_NE(ended, 0u) << "the shell wrote no id";

@@ -48,7 +48,7 @@ namespace MWRender
         MWWorld::ContainerStore& store = mPtr.getClass().getContainerStore(mPtr);
 
         for (MWWorld::ConstContainerStoreIterator iter = store.cbegin(MWWorld::ContainerStore::Type_Light);
-             iter != store.cend(); ++iter)
+            iter != store.cend(); ++iter)
         {
             const ESM::Light* light = iter->get<ESM::Light>()->mBase;
             if (!(light->mData.mFlags & ESM::Light::Carry))

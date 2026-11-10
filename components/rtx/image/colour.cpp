@@ -109,8 +109,8 @@ namespace Rtx
         // where the curve is steepest. Asked as `>`, so a NaN stays at nought, as the encode answers it.
         const EncodedStarts& starts = encodedStarts();
         const std::size_t bucket = linear > 0.0f
-            ? std::min(
-                static_cast<std::size_t>(std::min(linear, 1.0f) * EncodedStarts::sBuckets), EncodedStarts::sBuckets - 1)
+            ? std::min(static_cast<std::size_t>(std::min(linear, 1.0f) * EncodedStarts::sBuckets),
+                  EncodedStarts::sBuckets - 1)
             : 0;
         std::uint32_t byte = starts.mBucket[bucket];
         while (byte < 255 && linear >= starts.mLeast[byte + 1])

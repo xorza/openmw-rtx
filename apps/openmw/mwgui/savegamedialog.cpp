@@ -420,7 +420,7 @@ namespace MWGui
         mCurrentSlot = nullptr;
         size_t i = 0;
         for (MWState::Character::SlotIterator it = mCurrentCharacter->begin(); it != mCurrentCharacter->end();
-             ++it, ++i)
+            ++it, ++i)
         {
             if (i == pos)
                 mCurrentSlot = &*it;

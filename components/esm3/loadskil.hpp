@@ -75,7 +75,6 @@ namespace ESM
             Armorer_Repair = 0,
             Athletics_RunOneSecond = 0,
             Athletics_SwimOneSecond = 1,
-
         };
 
         struct SKDTstruct

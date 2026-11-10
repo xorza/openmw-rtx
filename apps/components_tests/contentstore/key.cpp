@@ -57,10 +57,7 @@ namespace ContentStore
         }
 
         template <class T>
-        constexpr bool sAddable = requires(Digest& digest, const T& value)
-        {
-            digest.add(value);
-        };
+        constexpr bool sAddable = requires(Digest& digest, const T& value) { digest.add(value); };
 
         /// A value is a run of one, and the bytes a key counts are the input's alone: the three
         /// values above are twelve bytes, and the pass's name and version and the lengths add none.

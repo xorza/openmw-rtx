@@ -29,8 +29,8 @@ namespace Rtx
 
     NotFiniteCensus::NotFiniteCensus(const Device& device, const std::filesystem::path& shaderDirectory)
         : mWords(Buffer::readBack(device, sBytes,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            "not-finite census"))
+              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+              "not-finite census"))
     {
         // Nought before the first frame clears it: a module may count while the renderer loads.
         std::memset(mWords.map(), 0, sBytes);

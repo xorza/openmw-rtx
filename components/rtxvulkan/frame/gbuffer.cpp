@@ -263,7 +263,7 @@ namespace Rtx
     GBuffer::GBuffer(const Device& device, const SetLayout& layout, const std::uint32_t width,
         const std::uint32_t height, const RadianceWidth radiance, const TracePast past, const ArenaRun& stages)
         : mStageTiles(Buffer::make(MemoryUse::Frame, device, BufferKind::DeviceLocal, stageTilesBytes(width, height),
-            sTileUsage, "stage tiles"))
+              sTileUsage, "stage tiles"))
         , mSet(device, sBindings, layout.get(), past == TracePast::Kept ? 2 : 1)
     {
         static_assert(sHeldChannels.size() == std::tuple_size_v<decltype(mOthers)>, "a held channel with no image");

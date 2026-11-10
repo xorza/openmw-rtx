@@ -197,7 +197,7 @@ namespace MWScript
         scripts.emplace_back(ESM::RefId::stringRefId("main"));
 
         for (MWWorld::Store<ESM::StartScript>::iterator iter = mStore.get<ESM::StartScript>().begin();
-             iter != mStore.get<ESM::StartScript>().end(); ++iter)
+            iter != mStore.get<ESM::StartScript>().end(); ++iter)
         {
             scripts.push_back(iter->mId);
         }

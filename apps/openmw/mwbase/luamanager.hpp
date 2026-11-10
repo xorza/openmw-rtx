@@ -78,33 +78,27 @@ namespace MWBase
         virtual void objectTeleported(const MWWorld::Ptr& ptr) = 0;
         virtual void itemConsumed(const MWWorld::Ptr& consumable, const MWWorld::Ptr& actor) = 0;
         virtual void objectDropped(const MWWorld::Ptr& object, const MWWorld::Ptr& actor, const osg::Vec3f& position,
-            const osg::Quat& rotation)
-            = 0;
+            const osg::Quat& rotation) = 0;
         virtual void objectPlaced(const MWWorld::Ptr& object, const MWWorld::Ptr& actor, const osg::Vec3f& position,
-            const osg::Quat& rotation)
-            = 0;
+            const osg::Quat& rotation) = 0;
         virtual void objectActivated(const MWWorld::Ptr& object, const MWWorld::Ptr& actor) = 0;
         virtual void useItem(const MWWorld::Ptr& object, const MWWorld::Ptr& actor, bool force) = 0;
         virtual void animationTextKey(const MWWorld::Ptr& actor, const std::string& key) = 0;
         virtual void playAnimation(const MWWorld::Ptr& object, const std::string& groupname,
             const MWRender::AnimPriority& priority, int blendMask, bool autodisable, float speedmult,
-            std::string_view start, std::string_view stop, float startpoint, uint32_t loops, bool loopfallback)
-            = 0;
+            std::string_view start, std::string_view stop, float startpoint, uint32_t loops, bool loopfallback) = 0;
         virtual void animationEnded(const MWWorld::Ptr& actor, std::string_view groupname, float time, float completion,
-            std::string_view startKey, std::string_view stopKey)
-            = 0;
+            std::string_view startKey, std::string_view stopKey) = 0;
         virtual void jailTimeServed(const MWWorld::Ptr& actor, int days) = 0;
         virtual void skillLevelUp(const MWWorld::Ptr& actor, ESM::RefId skillId, std::string_view source) = 0;
         virtual void skillUse(const MWWorld::Ptr& actor, ESM::RefId skillId, int useType, float scale) = 0;
         virtual void onHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const MWWorld::Ptr& weapon,
             const MWWorld::Ptr& ammo, int attackType, float attackStrength, float attackWindUp, float damage,
-            bool isHealth, const osg::Vec3f& hitPos, bool successful, MWMechanics::DamageSourceType)
-            = 0;
+            bool isHealth, const osg::Vec3f& hitPos, bool successful, MWMechanics::DamageSourceType) = 0;
         virtual void exteriorCreated(MWWorld::CellStore& cell) = 0;
         virtual void actorDied(const MWWorld::Ptr& actor) = 0;
         virtual void onDialogueResponse(
-            const MWWorld::Ptr& actor, const ESM::DialInfo& info, const ESM::Dialogue& record)
-            = 0;
+            const MWWorld::Ptr& actor, const ESM::DialInfo& info, const ESM::Dialogue& record) = 0;
         virtual void questUpdated(const ESM::RefId& questId, int stage) = 0;
         // `arg` is either forwarded from MWGui::pushGuiMode or empty
         virtual void uiModeChanged(const MWWorld::Ptr& arg) = 0;
@@ -115,11 +109,9 @@ namespace MWBase
         virtual void savePermanentStorage(const std::filesystem::path& userConfigPath) = 0;
         virtual void applyMagicEffects(ESM::RefId id, const MWWorld::Ptr& caster, ESM::RefNum item,
             const MWWorld::Ptr& target, const std::vector<ESM::IndexedENAMstruct>& effects, bool ignoreReflect,
-            bool ignoreSpellAbsorption, bool stackable, bool isReflect)
-            = 0;
+            bool ignoreSpellAbsorption, bool stackable, bool isReflect) = 0;
         virtual void magicProjectileHit(ESM::RefId spellId, const MWWorld::Ptr& caster, ESM::RefNum item,
-            const MWWorld::Ptr& victim, const osg::Vec3f& position, const osg::Vec3f& normal)
-            = 0;
+            const MWWorld::Ptr& victim, const osg::Vec3f& position, const osg::Vec3f& normal) = 0;
         // TODO: notify LuaManager about other events
         // virtual void objectOnHit(const MWWorld::Ptr &ptr, float damage, bool ishealth, const MWWorld::Ptr &object,
         //                          const MWWorld::Ptr &attacker, const osg::Vec3f &hitPosition, bool successful,
@@ -193,8 +185,7 @@ namespace MWBase
         virtual void seedRandom(unsigned seed) = 0;
 
         virtual void handleConsoleCommand(
-            const std::string& consoleMode, const std::string& command, const MWWorld::Ptr& selectedPtr)
-            = 0;
+            const std::string& consoleMode, const std::string& command, const MWWorld::Ptr& selectedPtr) = 0;
 
         virtual std::string formatResourceUsageStats() const = 0;
     };

@@ -31,7 +31,7 @@
 #include <stdexcept>
 
 #include "reader.hpp"
-//#include "writer.hpp"
+// #include "writer.hpp"
 
 void ESM4::PlacedGrenade::load(ESM4::Reader& reader)
 {

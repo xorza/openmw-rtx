@@ -55,8 +55,8 @@ namespace LuaUtil
         {
         public:
             virtual ~Listener() = default;
-            virtual void valueChanged(
-                std::string_view section, std::string_view key, const sol::object& value) const = 0;
+            virtual void valueChanged(std::string_view section, std::string_view key, const sol::object& value) const
+                = 0;
             virtual void sectionReplaced(std::string_view section, const sol::optional<sol::table>& values) const = 0;
         };
         void setListener(const Listener* listener) { mListener = listener; }

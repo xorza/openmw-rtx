@@ -22,7 +22,7 @@ namespace MWDialogue
         const ESM::Dialogue* dialogue = MWBase::Environment::get().getESMStore()->get<ESM::Dialogue>().find(topic);
 
         for (ESM::Dialogue::InfoContainer::const_iterator iter(dialogue->mInfo.begin()); iter != dialogue->mInfo.end();
-             ++iter)
+            ++iter)
             if (iter->mId == mInfoId)
             {
                 if (actor.isEmpty())
@@ -89,7 +89,7 @@ namespace MWDialogue
         const ESM::Dialogue* dialogue = MWBase::Environment::get().getESMStore()->get<ESM::Dialogue>().find(topic);
 
         for (ESM::Dialogue::InfoContainer::const_iterator iter(dialogue->mInfo.begin()); iter != dialogue->mInfo.end();
-             ++iter)
+            ++iter)
             if (iter->mData.mJournalIndex == index)
             {
                 return iter->mId;

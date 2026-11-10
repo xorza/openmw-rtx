@@ -260,17 +260,14 @@ namespace MWBase
         virtual void exitCurrentGuiMode() = 0;
 
         virtual void messageBox(std::string_view message,
-            enum MWGui::ShowInDialogueMode showInDialogueMode = MWGui::ShowInDialogueMode_IfPossible)
-            = 0;
+            enum MWGui::ShowInDialogueMode showInDialogueMode = MWGui::ShowInDialogueMode_IfPossible) = 0;
         /// Puts message into a queue to show on the next update. Thread safe alternative for messageBox.
         virtual void scheduleMessageBox(std::string message,
-            enum MWGui::ShowInDialogueMode showInDialogueMode = MWGui::ShowInDialogueMode_IfPossible)
-            = 0;
+            enum MWGui::ShowInDialogueMode showInDialogueMode = MWGui::ShowInDialogueMode_IfPossible) = 0;
         virtual void staticMessageBox(std::string_view message) = 0;
         virtual void removeStaticMessageBox() = 0;
         virtual void interactiveMessageBox(std::string_view message, const std::vector<std::string>& buttons = {},
-            bool block = false, int defaultFocus = -1)
-            = 0;
+            bool block = false, int defaultFocus = -1) = 0;
 
         /// returns the index of the pressed button or -1 if no button was pressed
         /// (->MessageBoxmanager->InteractiveMessageBox)
@@ -309,8 +306,7 @@ namespace MWBase
 
         /// Registers a hardware cursor using a texture from the virtual filesystem.
         virtual void createLuaCursor(const std::string& name, const std::string& path, int width, int height,
-            int hotspotX, int hotspotY, double rotation)
-            = 0;
+            int hotspotX, int hotspotY, double rotation) = 0;
         virtual void removeLuaCursor(const std::string& name) = 0;
         /// An empty name removes the override and restores widget-selected cursors.
         virtual void setLuaCursorOverride(const std::string& name) = 0;

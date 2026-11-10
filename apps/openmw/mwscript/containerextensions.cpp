@@ -462,8 +462,8 @@ namespace MWScript
                 int count = 0;
                 const MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
                 for (MWWorld::ConstContainerStoreIterator it
-                     = invStore.cbegin(MWWorld::ContainerStore::Type_Miscellaneous);
-                     it != invStore.cend(); ++it)
+                    = invStore.cbegin(MWWorld::ContainerStore::Type_Miscellaneous);
+                    it != invStore.cend(); ++it)
                 {
                     if (it->getCellRef().getSoul() == name)
                         count += it->getCellRef().getCount();

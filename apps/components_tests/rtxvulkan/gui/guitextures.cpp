@@ -572,7 +572,7 @@ namespace Rtx
             Shaders::VisibilityConstants camera = constantsFor(makeOrthographicCameraFromView(
                 osg::Matrixf::lookAt(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(), osg::Vec3f(0.0f, 1.0f, 0.0f)),
                 200.0f, 200.0f, extent, extent, 1.0f, 10000.0f)
-                                                                   .value());
+                    .value());
 
             // Travelling straight down onto a sheet that faces up, so it is lit square on and the
             // picture is something rather than a coverage mask with nothing in it.

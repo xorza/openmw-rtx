@@ -87,7 +87,7 @@ namespace Rtx
             .mImage = BlockChain::of(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT,
                 levelsTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT),
                 Shaders::BC7_BLOCK_BYTES)
-                          .mBytes,
+                .mBytes,
         };
     }
 
@@ -102,7 +102,7 @@ namespace Rtx
         return TextureCost{ .mImage = BlockChain::of(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT,
                                 levelsTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT),
                                 Shaders::BC7_BLOCK_BYTES)
-                                          .mBytes };
+                                .mBytes };
     }
 
     TextureCost priceColour()

@@ -22,7 +22,7 @@ namespace ESM
     void Locals::save(ESMWriter& esm) const
     {
         for (std::vector<std::pair<std::string, Variant>>::const_iterator iter(mVariables.begin());
-             iter != mVariables.end(); ++iter)
+            iter != mVariables.end(); ++iter)
         {
             esm.writeHNString("LOCA", iter->first);
             iter->second.write(esm, Variant::Format_Local);

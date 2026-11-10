@@ -40,7 +40,11 @@ namespace Rtx
         }
 
         /// For an ending that needs nothing but the handle: `Root`.
-        explicit Handled(Handle handle) requires std::is_empty_v<Ending> : mHandle(handle) {}
+        explicit Handled(Handle handle)
+            requires std::is_empty_v<Ending>
+            : mHandle(handle)
+        {
+        }
 
         ~Handled() { reset(); }
 

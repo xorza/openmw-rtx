@@ -27,8 +27,8 @@ namespace Terrain
     TerrainGrid::TerrainGrid(osg::Group* parent, osg::Group* compileRoot, Resource::ResourceSystem* resourceSystem,
         Storage* storage, unsigned int nodeMask, ESM::RefId worldspace, double expiryDelay, unsigned int preCompileMask,
         unsigned int borderMask)
-        : Terrain::World(
-            parent, compileRoot, resourceSystem, storage, nodeMask, preCompileMask, borderMask, worldspace, expiryDelay)
+        : Terrain::World(parent, compileRoot, resourceSystem, storage, nodeMask, preCompileMask, borderMask, worldspace,
+              expiryDelay)
         , mNumSplits(ESM::isEsm4Ext(worldspace) ? 2 : 4)
     {
     }

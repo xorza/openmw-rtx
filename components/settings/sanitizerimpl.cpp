@@ -51,8 +51,8 @@ namespace Settings
 
             explicit MaxStrict(const osg::Vec3f& max)
                 : mMax(std::nextafter(max.x(), std::numeric_limits<float>::max()),
-                    std::nextafter(max.y(), std::numeric_limits<float>::max()),
-                    std::nextafter(max.z(), std::numeric_limits<float>::max()))
+                      std::nextafter(max.y(), std::numeric_limits<float>::max()),
+                      std::nextafter(max.z(), std::numeric_limits<float>::max()))
             {
             }
 

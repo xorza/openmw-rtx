@@ -297,17 +297,13 @@ namespace MWLua
             if constexpr (Types::RecordType<T>::isMutable)
             {
                 record["height"] = sol::property(
-                    [](const MutableRecord<ESM::Race>& rec) {
-                        return RaceHeightWeight{ rec, HeightWeight::Height };
-                    },
+                    [](const MutableRecord<ESM::Race>& rec) { return RaceHeightWeight{ rec, HeightWeight::Height }; },
                     [](MutableRecord<ESM::Race>& rec, const sol::object& value) {
                         ESM::Race& race = rec.find();
                         setHWFromTable(race, HeightWeight::Height, value);
                     });
                 record["weight"] = sol::property(
-                    [](const MutableRecord<ESM::Race>& rec) {
-                        return RaceHeightWeight{ rec, HeightWeight::Weight };
-                    },
+                    [](const MutableRecord<ESM::Race>& rec) { return RaceHeightWeight{ rec, HeightWeight::Weight }; },
                     [](MutableRecord<ESM::Race>& rec, const sol::object& value) {
                         ESM::Race& race = rec.find();
                         setHWFromTable(race, HeightWeight::Weight, value);
@@ -417,18 +413,19 @@ namespace MWLua
                         throw std::runtime_error(std::format("cannot add more than {} skill bonuses", bonuses.size()));
                 };
                 skillsT[sol::meta_function::pairs] = [&](sol::this_state ts, const RaceSkills& obj) {
-                    return std::make_tuple(sol::as_function([index = size_t{}](const RaceSkills& skills) mutable
-                                               -> std::pair<std::optional<ESM::RefId>, std::optional<int>> {
-                        const auto& bonuses = skills.find();
-                        while (index < bonuses.size())
-                        {
-                            const auto& bonus = bonuses[index];
-                            ++index;
-                            if (!bonus.mSkill.empty())
-                                return { bonus.mSkill, bonus.mBonus };
-                        }
-                        return { {}, {} };
-                    }),
+                    return std::make_tuple(
+                        sol::as_function([index = size_t{}](const RaceSkills& skills) mutable
+                                             -> std::pair<std::optional<ESM::RefId>, std::optional<int>> {
+                            const auto& bonuses = skills.find();
+                            while (index < bonuses.size())
+                            {
+                                const auto& bonus = bonuses[index];
+                                ++index;
+                                if (!bonus.mSkill.empty())
+                                    return { bonus.mSkill, bonus.mBonus };
+                            }
+                            return { {}, {} };
+                        }),
                         obj, sol::nil);
                 };
 
@@ -458,22 +455,23 @@ namespace MWLua
                           setAttributesFromTable(values, attribute, value);
                       };
                 attributesT[sol::meta_function::pairs] = [](const MutableRaceAttributes& obj) {
-                    return std::make_tuple(sol::as_function([](sol::this_state ts,
-                                                                const MutableRaceAttributes& attributes,
-                                                                const sol::object& key) mutable
-                                               -> std::optional<std::tuple<ESM::RefId, IndexedMutableRaceAttributes>> {
-                        const auto& map = attributes.find();
-                        auto it = map.begin();
-                        if (key != sol::nil)
-                        {
-                            it = map.find(ESM::RefId::deserializeText(key.as<std::string_view>()));
-                            if (it != map.end())
-                                ++it;
-                        }
-                        if (it == map.end())
-                            return {};
-                        return std::make_tuple(it->first, IndexedMutableRaceAttributes{ attributes.mRace, it->first });
-                    }),
+                    return std::make_tuple(
+                        sol::as_function([](sol::this_state ts, const MutableRaceAttributes& attributes,
+                                             const sol::object& key) mutable
+                                             -> std::optional<std::tuple<ESM::RefId, IndexedMutableRaceAttributes>> {
+                            const auto& map = attributes.find();
+                            auto it = map.begin();
+                            if (key != sol::nil)
+                            {
+                                it = map.find(ESM::RefId::deserializeText(key.as<std::string_view>()));
+                                if (it != map.end())
+                                    ++it;
+                            }
+                            if (it == map.end())
+                                return {};
+                            return std::make_tuple(
+                                it->first, IndexedMutableRaceAttributes{ attributes.mRace, it->first });
+                        }),
                         obj, sol::nil);
                 };
 
@@ -529,9 +527,8 @@ namespace MWLua
                     }
                     return res;
                 });
-                record["attributes"] = sol::readonly_property([lua](const ESM::Race& rec) -> RaceAttributes {
-                    return { rec, lua };
-                });
+                record["attributes"]
+                    = sol::readonly_property([lua](const ESM::Race& rec) -> RaceAttributes { return { rec, lua }; });
 
                 auto attributesT = lua.new_usertype<RaceAttributes>("ESM3_RaceAttributes");
                 const auto& store = MWBase::Environment::get().getESMStore()->get<ESM::Attribute>();

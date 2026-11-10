@@ -25,13 +25,13 @@ namespace Rtx
 {
     FogTile::FogTile(const Device& device, const FogField noise)
         : mField(MemoryUse::Essential, device,
-            ImageDescription{ .mWidth = Shaders::FOG_FIELD_SIZE,
-                .mHeight = Shaders::FOG_FIELD_SIZE,
-                .mFormat = VK_FORMAT_R8G8_UNORM,
-                .mUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                .mMipLevels = Shaders::FOG_FIELD_LEVELS,
-                .mDepth = Shaders::FOG_FIELD_SIZE },
-            "fog field")
+              ImageDescription{ .mWidth = Shaders::FOG_FIELD_SIZE,
+                  .mHeight = Shaders::FOG_FIELD_SIZE,
+                  .mFormat = VK_FORMAT_R8G8_UNORM,
+                  .mUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                  .mMipLevels = Shaders::FOG_FIELD_LEVELS,
+                  .mDepth = Shaders::FOG_FIELD_SIZE },
+              "fog field")
         , mSampler(makeContentSampler(device, "fog field"))
     {
         describe(device, noise);

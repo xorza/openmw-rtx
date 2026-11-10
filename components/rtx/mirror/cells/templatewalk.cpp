@@ -203,8 +203,7 @@ namespace Rtx
         osg::Switch* const branches = node.asSwitch();
         if (branches == nullptr || branches->getName() != Constants::NightDayLabel)
         {
-            descendInWorld(
-                node, mKinds.of(node), *this, [](osg::Sequence&) {}, [](unsigned int) {});
+            descendInWorld(node, mKinds.of(node), *this, [](osg::Sequence&) {}, [](unsigned int) {});
             return;
         }
 

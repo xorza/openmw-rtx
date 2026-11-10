@@ -335,7 +335,7 @@ namespace Shader
             std::initializer_list<const osg::StateSet::AttributeList*>{ &attributes, &removedAttributes })
         {
             for (osg::StateSet::AttributeList::const_iterator it = attributeMap->begin(); it != attributeMap->end();
-                 ++it)
+                ++it)
             {
                 if (addedState && attributeMap != &removedAttributes && addedState->hasAttribute(it->first))
                     continue;
@@ -436,7 +436,7 @@ namespace Shader
             defineMap[std::string(name) + std::string("UV")] = "0";
         }
         for (std::map<int, std::string>::const_iterator texIt = reqs.mTextures.begin(); texIt != reqs.mTextures.end();
-             ++texIt)
+            ++texIt)
         {
             defineMap[texIt->second] = "1";
             defineMap[texIt->second + std::string("UV")] = std::to_string(texIt->first);

@@ -243,7 +243,7 @@ namespace Rtx
         mComposed.transition(commands, Use::sUndefined, Use::sComputeWrite);
         const std::optional<Denoised> resolved = denoised
             ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled, inputs.mSubject.mMapped,
-                inputs.mSubject.mLamps, composesInCascade, what.mReconstruction, mComposed, what.mTimer)
+                  inputs.mSubject.mLamps, composesInCascade, what.mReconstruction, mComposed, what.mTimer)
             : Denoised::unfiltered(*mChannels, what.mSampled.mBounceRays != 0);
         assert(resolved.has_value() != composesInCascade
             && "the cascade composed where it was not asked, or not where it was");

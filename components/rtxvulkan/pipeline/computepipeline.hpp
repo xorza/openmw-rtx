@@ -61,11 +61,11 @@ namespace Rtx
             const SharedSetLayouts& shared, std::string_view module, std::string_view name,
             std::span<const std::uint32_t> specialization = {}, SubgroupSize lanes = SubgroupSize::Driver)
             : TypedPipeline<Constants>(
-                PipelineLayout(device, bindings, pushRangeOf<Constants>(VK_SHADER_STAGE_COMPUTE_BIT), shared),
-                [&](const PipelineLayout& layout) {
-                    return makeComputePipeline(device, layout, module, name, specialization, lanes);
-                },
-                VK_PIPELINE_BIND_POINT_COMPUTE)
+                  PipelineLayout(device, bindings, pushRangeOf<Constants>(VK_SHADER_STAGE_COMPUTE_BIT), shared),
+                  [&](const PipelineLayout& layout) {
+                      return makeComputePipeline(device, layout, module, name, specialization, lanes);
+                  },
+                  VK_PIPELINE_BIND_POINT_COMPUTE)
         {
         }
 
@@ -74,11 +74,11 @@ namespace Rtx
             const SharedSetLayouts& shared, const ShaderCode& code, std::string_view module, std::string_view name,
             std::span<const std::uint32_t> specialization = {}, SubgroupSize lanes = SubgroupSize::Driver)
             : TypedPipeline<Constants>(
-                PipelineLayout(device, bindings, pushRangeOf<Constants>(VK_SHADER_STAGE_COMPUTE_BIT), shared),
-                [&](const PipelineLayout& layout) {
-                    return makeComputePipeline(device, layout, code, module, name, specialization, lanes);
-                },
-                VK_PIPELINE_BIND_POINT_COMPUTE)
+                  PipelineLayout(device, bindings, pushRangeOf<Constants>(VK_SHADER_STAGE_COMPUTE_BIT), shared),
+                  [&](const PipelineLayout& layout) {
+                      return makeComputePipeline(device, layout, code, module, name, specialization, lanes);
+                  },
+                  VK_PIPELINE_BIND_POINT_COMPUTE)
         {
         }
     };

@@ -93,8 +93,7 @@ namespace DetourNavigator
 
         // Updates bounds for recast mesh and navmesh tiles, removes tiles outside the range.
         virtual void updateBounds(ESM::RefId worldspace, const std::optional<CellGridBounds>& cellGridBounds,
-            const osg::Vec3f& playerPosition, const UpdateGuard* guard)
-            = 0;
+            const osg::Vec3f& playerPosition, const UpdateGuard* guard) = 0;
 
         /**
          * @brief addObject is used to add complex object with allowed to walk and avoided to walk shapes
@@ -103,8 +102,7 @@ namespace DetourNavigator
          * @param transform allows to setup objects geometry according to its world state
          */
         virtual void addObject(
-            const ObjectId id, const ObjectShapes& shapes, const btTransform& transform, const UpdateGuard* guard)
-            = 0;
+            const ObjectId id, const ObjectShapes& shapes, const btTransform& transform, const UpdateGuard* guard) = 0;
 
         /**
          * @brief addObject is used to add doors.
@@ -113,8 +111,7 @@ namespace DetourNavigator
          * @param transform allows to setup objects geometry according to its world state.
          */
         virtual void addObject(
-            const ObjectId id, const DoorShapes& shapes, const btTransform& transform, const UpdateGuard* guard)
-            = 0;
+            const ObjectId id, const DoorShapes& shapes, const btTransform& transform, const UpdateGuard* guard) = 0;
 
         /**
          * @brief updateObject replace object geometry by given data.
@@ -123,8 +120,7 @@ namespace DetourNavigator
          * @param transform allows to setup objects geometry according to its world state.
          */
         virtual void updateObject(
-            const ObjectId id, const ObjectShapes& shapes, const btTransform& transform, const UpdateGuard* guard)
-            = 0;
+            const ObjectId id, const ObjectShapes& shapes, const btTransform& transform, const UpdateGuard* guard) = 0;
 
         /**
          * @brief updateObject replace object geometry by given data.
@@ -133,8 +129,7 @@ namespace DetourNavigator
          * @param transform allows to setup objects geometry according to its world state.
          */
         virtual void updateObject(
-            const ObjectId id, const DoorShapes& shapes, const btTransform& transform, const UpdateGuard* guard)
-            = 0;
+            const ObjectId id, const DoorShapes& shapes, const btTransform& transform, const UpdateGuard* guard) = 0;
 
         /**
          * @brief removeObject to make it no more available at the scene.
@@ -157,8 +152,7 @@ namespace DetourNavigator
         virtual void removeWater(const osg::Vec2i& cellPosition, const UpdateGuard* guard) = 0;
 
         virtual void addHeightfield(
-            const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard)
-            = 0;
+            const osg::Vec2i& cellPosition, int cellSize, const HeightfieldShape& shape, const UpdateGuard* guard) = 0;
 
         virtual void removeHeightfield(const osg::Vec2i& cellPosition, const UpdateGuard* guard) = 0;
 

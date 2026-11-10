@@ -75,8 +75,8 @@ namespace Crash
         /// The text `std::format` makes of `format` and `arguments`, formatted on the stack and cut
         /// to what a note holds. A subject goes in quotes: `"reading the model \"{}\""`.
         template <class... Arguments>
-        requires(sizeof...(Arguments) > 0) explicit NoteScope(
-            std::format_string<Arguments...> format, Arguments&&... arguments)
+            requires(sizeof...(Arguments) > 0)
+        explicit NoteScope(std::format_string<Arguments...> format, Arguments&&... arguments)
         {
             char text[sNoteCapacity];
             const auto written

@@ -64,7 +64,7 @@ namespace osg
 CSVRender::TerrainShapeMode::TerrainShapeMode(
     WorldspaceWidget* worldspaceWidget, osg::Group* parentNode, QWidget* parent)
     : EditMode(worldspaceWidget, Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-shape"), Mask_Terrain,
-        "Terrain land editing", parent)
+          "Terrain land editing", parent)
     , mParentNode(parentNode)
 {
 }

@@ -88,8 +88,7 @@ namespace RtxTool
             const auto& [kind, diffuse, emissive, emissiveUnit, environment, environmentColour, dark, darkUnit, normal,
                 specular, relief, diffuseColour, ambientColour, emissiveColour, opacity, alphaTest, alphaMode, blend,
                 vertexColour, twoSided, lampLit, textureTransform, run, flatten, layersMapped, animated, neverSolid,
-                darkBelowSolid, diffuseMean]
-                = material;
+                darkBelowSolid, diffuseMean] = material;
 
             texture(diffuse);
             texture(emissive);
@@ -191,8 +190,7 @@ namespace RtxTool
         auto fieldsOf(const Rtx::MeshRange& mesh)
         {
             const auto& [vertices, indices, secondTexCoords, unitStreams, tangents, shape, deformer, bindOffset,
-                poseOffset, posed, bounds]
-                = mesh;
+                poseOffset, posed, bounds] = mesh;
             return std::tie(vertices, indices, secondTexCoords, unitStreams, shape, deformer, bindOffset, poseOffset,
                 posed, bounds);
         }
@@ -417,11 +415,9 @@ namespace RtxTool
     void SceneDigester::digestVertices(const Rtx::SceneDesc& scene)
     {
         const Rtx::MeshTable& meshes = scene.meshes();
-        const Vertices now{
-            .mRevision = meshes.getRevision(),
+        const Vertices now{ .mRevision = meshes.getRevision(),
             .mLengths = { meshes.getPositions().size(), meshes.getNormals().size(), meshes.getTexCoords().size(),
-                meshes.getSecondTexCoords().size(), meshes.getColours().size(), meshes.getIndices().size() }
-        };
+                meshes.getSecondTexCoords().size(), meshes.getColours().size(), meshes.getIndices().size() } };
         if (mVertices == now)
             return;
 
@@ -499,8 +495,7 @@ namespace RtxTool
         for (const Rtx::MaterialLayer& layer : scene.materials().getLayers())
         {
             const auto& [diffuse, maskOffset, maskWidth, maskHeight, diffuseTransform, maskTransform, normal, flags,
-                padding]
-                = layer;
+                padding] = layer;
             layers.addFields(std::tie(diffuse, maskOffset, maskWidth, maskHeight, diffuseTransform, maskTransform));
             if (normal != Rtx::sNoIndex)
                 layers.addFields(std::tuple(std::uint8_t{ 1 }, normal));

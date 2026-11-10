@@ -71,10 +71,7 @@ namespace Resource
     // The two things a value type may or may not be able to do. Named, because an
     // inline requires-expression on the member declaration formats unreadably.
     template <class T>
-    concept ReleasesGLObjects = requires(T value, osg::State* state)
-    {
-        value->releaseGLObjects(state);
-    };
+    concept ReleasesGLObjects = requires(T value, osg::State* state) { value->releaseGLObjects(state); };
 
     template <class T>
     concept HoldsOsgObject = std::is_convertible_v<decltype(std::declval<T>().get()), osg::Object*>;
@@ -196,7 +193,8 @@ namespace Resource
         /** call releaseGLObjects on all objects attached to the object cache.
             Constrained, so instantiating the cache with a value type that has no such
             method is not an error — it simply does not offer this. */
-        void releaseGLObjects(osg::State* state) requires ReleasesGLObjects<ValueType>
+        void releaseGLObjects(osg::State* state)
+            requires ReleasesGLObjects<ValueType>
         {
             std::lock_guard<std::mutex> lock(mMutex);
             for (const auto& [k, v] : mItems)
@@ -205,7 +203,8 @@ namespace Resource
 
         /** call node->accept(nv); for all nodes in the objectCache. Constrained for
             the same reason as releaseGLObjects. */
-        void accept(osg::NodeVisitor& nv) requires HoldsOsgObject<ValueType>
+        void accept(osg::NodeVisitor& nv)
+            requires HoldsOsgObject<ValueType>
         {
             std::lock_guard<std::mutex> lock(mMutex);
             for (const auto& [k, v] : mItems)

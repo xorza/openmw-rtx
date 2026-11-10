@@ -16,10 +16,7 @@ namespace Misc
     namespace
     {
         template <class T>
-        concept Hashable = requires(HashState state, const T& value)
-        {
-            state.add(value);
-        };
+        concept Hashable = requires(HashState state, const T& value) { state.add(value); };
 
         /// A value is hashed as its bytes, a run of values as theirs, and a span that is not a run
         /// of constants does not compile: taken as a value, it would hash its address.

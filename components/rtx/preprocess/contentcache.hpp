@@ -43,7 +43,7 @@ namespace Rtx
         /// is filed in its place; so is one that reads whole and does not fit `input`
         /// (`Pass::fits`), since the digest says a file is intact and not that it is this input's.
         template <ContentPass Pass>
-        requires StoredOutput<typename Pass::Output>
+            requires StoredOutput<typename Pass::Output>
         bool find(const ContentStore::Key& key, const typename Pass::Input& input, typename Pass::Output& output)
         {
             if (!mStore->read(key, storeKindOf(Pass::sPass), Pass::sVersion, mReach, mPayload))
@@ -61,7 +61,7 @@ namespace Rtx
         /// own, which the store's queue takes. Where the codec rounds (`sRounds`), `output` is read back
         /// out of the payload first, so it is what a later hit hands over.
         template <ContentPass Pass>
-        requires StoredOutput<typename Pass::Output>
+            requires StoredOutput<typename Pass::Output>
         void keep(const ContentStore::Key& key, typename Pass::Output& output)
         {
             using Codec = ContentCodec<typename Pass::Output>;

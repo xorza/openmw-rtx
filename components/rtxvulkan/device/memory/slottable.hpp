@@ -204,9 +204,7 @@ namespace Rtx
     {
     public:
         SlotBlocks(std::uint32_t blockSize, std::uint32_t stride)
-            : mCopies([=](FrameSlot) {
-                return BlockedBuffer{ blockSize, stride };
-            })
+            : mCopies([=](FrameSlot) { return BlockedBuffer{ blockSize, stride }; })
         {
         }
 

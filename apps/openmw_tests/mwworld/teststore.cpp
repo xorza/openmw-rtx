@@ -511,10 +511,7 @@ namespace
     static_assert(ESM::HasStringId<ESM::Dialogue>);
 
     template <class T>
-    concept CanSave = requires(T& record, ESM::ESMWriter& writer)
-    {
-        record.save(writer, bool());
-    };
+    concept CanSave = requires(T& record, ESM::ESMWriter& writer) { record.save(writer, bool()); };
 
     template <class T>
     struct HasSaveFunction : std::bool_constant<CanSave<T>>

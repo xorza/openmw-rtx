@@ -101,7 +101,7 @@ namespace Rtx
         {
             const ChainScratch scratch = partner != nullptr
                 ? ConversionPass::scratchOf(ConversionPass::Input{
-                    .mImage = image, .mPartner = *partner, .mEncoding = encoding, .mWrap = wrap })
+                      .mImage = image, .mPartner = *partner, .mEncoding = encoding, .mWrap = wrap })
                 : ChainPass::scratchOf(ChainPass::Input{ .mImage = image, .mEncoding = encoding, .mWrap = wrap });
             std::uint64_t images = image.getTotalSizeInBytesIncludingMipmaps();
             if (partner != nullptr)

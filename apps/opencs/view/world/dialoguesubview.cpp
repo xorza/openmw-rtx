@@ -198,11 +198,10 @@ void CSVWorld::DialogueDelegateDispatcher::setEditorData(QWidget* editor, const 
     CSMWorld::ColumnBase::Display display = CSMWorld::ColumnBase::Display_None;
     if (index.parent().isValid())
     {
-        display
-            = static_cast<CSMWorld::ColumnBase::Display>(static_cast<CSMWorld::IdTree*>(mTable)
-                                                             ->nestedHeaderData(index.parent().column(), index.column(),
-                                                                 Qt::Horizontal, CSMWorld::ColumnBase::Role_Display)
-                                                             .toInt());
+        display = static_cast<CSMWorld::ColumnBase::Display>(static_cast<CSMWorld::IdTree*>(mTable)
+                ->nestedHeaderData(
+                    index.parent().column(), index.column(), Qt::Horizontal, CSMWorld::ColumnBase::Role_Display)
+                .toInt());
     }
     else
     {

@@ -79,7 +79,7 @@ namespace MWMechanics
 
     AiFollow::AiFollow(const ESM::AiSequence::AiFollow* follow)
         : TypedAiPackage<AiFollow>(
-            makeDefaultOptions().withShouldCancelPreviousAi(!follow->mCommanded).withRepeat(follow->mRepeat))
+              makeDefaultOptions().withShouldCancelPreviousAi(!follow->mCommanded).withRepeat(follow->mRepeat))
         , mAlwaysFollow(follow->mAlwaysFollow)
         , mDuration(follow->mData.mDuration)
         , mRemainingDuration(follow->mRemainingDuration)

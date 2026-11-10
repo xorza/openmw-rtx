@@ -214,7 +214,7 @@ namespace
     public:
         SkyRTT(osg::Vec2f size, osg::Group* earlyRenderBinRoot)
             : RTTNode(static_cast<int>(size.x()), static_cast<int>(size.y()), 0, false, 1, StereoAwareness::Aware,
-                MWRender::shouldAddMSAAIntermediateTarget())
+                  MWRender::shouldAddMSAAIntermediateTarget())
             , mEarlyRenderBinRoot(earlyRenderBinRoot)
         {
             setDepthBufferInternalFormat(GL_DEPTH24_STENCIL8);

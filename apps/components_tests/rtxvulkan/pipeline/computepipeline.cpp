@@ -62,10 +62,8 @@ namespace Rtx
             ValidationLog* log = instance.getValidationLog();
             ASSERT_NE(log, nullptr) << "the layers are what this test reads its answer from";
 
-            constexpr std::array<VkDescriptorSetLayoutBinding, 1> bindings{
-                VkDescriptorSetLayoutBinding{
-                    0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr }
-            };
+            constexpr std::array<VkDescriptorSetLayoutBinding, 1> bindings{ VkDescriptorSetLayoutBinding{
+                0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr } };
             // Pushed a float, so the layout the unwind has to give back holds a push range too.
             EXPECT_THROW(ComputePipeline<float>(*device, bindings, {}, "no-such.comp.spv", "scratch"), InputError);
 
@@ -86,14 +84,13 @@ namespace Rtx
         /// left unwritten dies, and so does an array given one image of its two.
         TEST_F(RtxComputePipelineTest, descriptorWritesTakeTheTableTheyAreMadeAgainst)
         {
-            constexpr std::array<VkDescriptorSetLayoutBinding, 3> bindings{
-                VkDescriptorSetLayoutBinding{
-                    0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            constexpr std::array<VkDescriptorSetLayoutBinding, 3> bindings{ VkDescriptorSetLayoutBinding{ 0,
+                                                                                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1,
+                                                                                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
                 VkDescriptorSetLayoutBinding{
                     1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
                 VkDescriptorSetLayoutBinding{
-                    2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 2, VK_SHADER_STAGE_COMPUTE_BIT, nullptr }
-            };
+                    2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 2, VK_SHADER_STAGE_COMPUTE_BIT, nullptr } };
             const SetLayout layout = makeSetLayout(getDevice(), bindings);
 
             // Never handed to Vulkan: a handle to compare against, not a set.

@@ -158,7 +158,7 @@ namespace MWRender
     public:
         CharacterPreviewRTTNode(const OffscreenViewSpec& spec)
             : RTTNode(spec.mWidth, spec.mHeight, Settings::video().mAntialiasing, false, 0,
-                StereoAwareness::Unaware_MultiViewShaders, shouldAddMSAAIntermediateTarget())
+                  StereoAwareness::Unaware_MultiViewShaders, shouldAddMSAAIntermediateTarget())
             , mAspectRatio(static_cast<float>(spec.mWidth) / static_cast<float>(spec.mHeight))
             , fovYDegrees(std::get<SceneUtil::Perspective>(spec.mFraming.mProjection).mFieldOfView)
             , znear(spec.mFraming.mNear)
@@ -527,7 +527,7 @@ namespace MWRender
 
     LocalMapRenderToTexture::LocalMapRenderToTexture(const OffscreenViewSpec& spec)
         : RTTNode(spec.mWidth, spec.mHeight, 0, false, 0, StereoAwareness::Unaware_MultiViewShaders,
-            shouldAddMSAAIntermediateTarget())
+              shouldAddMSAAIntermediateTarget())
         , mSceneRoot(&spec.mScene)
         , mActive(true)
         , mMask(spec.mMask)
