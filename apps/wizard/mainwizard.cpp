@@ -188,21 +188,7 @@ void Wizard::MainWizard::runSettingsImporter()
         arguments.append(QStringLiteral("--game-files"));
 
     arguments.append(QStringLiteral("--encoding"));
-
-    // Set encoding
-    const QString language(field(QStringLiteral("installation.language")).toString());
-    if (language == QStringLiteral("Polish"))
-    {
-        arguments.append(QStringLiteral("win1250"));
-    }
-    else if (language == QStringLiteral("Russian"))
-    {
-        arguments.append(QStringLiteral("win1251"));
-    }
-    else
-    {
-        arguments.append(QStringLiteral("win1252"));
-    }
+    arguments.append(Config::encodingOfLanguage(field(QStringLiteral("installation.language")).toString()));
 
     // Import fonts
     if (field(QStringLiteral("installation.import-fonts")).toBool())
@@ -296,19 +282,7 @@ void Wizard::MainWizard::writeSettings()
     // Write the encoding and language settings
     const QString language(field(QStringLiteral("installation.language")).toString());
     mLauncherSettings.setLanguage(language);
-
-    if (language == QStringLiteral("Polish"))
-    {
-        mGameSettings.setValue(QStringLiteral("encoding"), { "win1250" });
-    }
-    else if (language == QStringLiteral("Russian"))
-    {
-        mGameSettings.setValue(QStringLiteral("encoding"), { "win1251" });
-    }
-    else
-    {
-        mGameSettings.setValue(QStringLiteral("encoding"), { "win1252" });
-    }
+    mGameSettings.setValue(QStringLiteral("encoding"), { Config::encodingOfLanguage(language) });
 
     // Write the installation path so that openmw can find them
     const QString path(field(QStringLiteral("installation.path")).toString());

@@ -1,6 +1,7 @@
 #include <components/config/launchersettings.hpp>
 
 #include <QString>
+#include <QStringList>
 #include <QTextStream>
 
 #include <gtest/gtest.h>
@@ -240,5 +241,34 @@ thing=5
 
         EXPECT_EQ(written.count("watchdog="), 1);
         EXPECT_TRUE(written.contains("watchdog=true\n"));
+    }
+
+    TEST(LauncherSettingsTest, aLanguageReadsTheEncodingOfItsContent)
+    {
+        EXPECT_EQ(Config::encodingOfLanguage("Polish"), "win1250");
+        EXPECT_EQ(Config::encodingOfLanguage("Russian"), "win1251");
+        EXPECT_EQ(Config::encodingOfLanguage("English"), "win1252");
+        EXPECT_EQ(Config::encodingOfLanguage("French"), "win1252");
+        EXPECT_EQ(Config::encodingOfLanguage(""), "win1252");
+    }
+
+    /// The launcher shows the language the game's encoding reads: a Russian profile with no `launcher.cfg`
+    /// of its own, or one naming English, kept win1251 only where the box opens on Russian.
+    TEST(LauncherSettingsTest, theShownLanguageReadsTheGamesEncoding)
+    {
+        const QStringList languages{ "English", "French", "Polish", "Russian" };
+
+        EXPECT_EQ(Config::languageForEncoding(languages, "Russian", "win1251"), "Russian");
+        EXPECT_EQ(Config::languageForEncoding(languages, "English", "win1251"), "Russian");
+        EXPECT_EQ(Config::languageForEncoding(languages, "", "win1251"), "Russian");
+        EXPECT_EQ(Config::languageForEncoding(languages, "Russian", "win1250"), "Polish");
+
+        // A stored language that reads the encoding stands over the first that does.
+        EXPECT_EQ(Config::languageForEncoding(languages, "French", "win1252"), "French");
+        EXPECT_EQ(Config::languageForEncoding(languages, "", "win1252"), "English");
+        EXPECT_EQ(Config::languageForEncoding(languages, "Klingon", "win1252"), "English");
+
+        // An encoding no language reads leaves the stored language as it is.
+        EXPECT_EQ(Config::languageForEncoding(languages, "Polish", "utf8"), "Polish");
     }
 }

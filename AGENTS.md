@@ -232,6 +232,11 @@ is not here is held to the rules above.
     lists the worn parts of an NPC the game never met out of its record's inventory (`MWClass::appendRecordWornParts`,
     `anUnmetNpcListsThePartsItsRecordWears`), and `CreatureLevList::getModelsToPreload` every creature the list may
     spawn, which made up to 57 of the 293 ms of a crossing's slow frames on a large content list;
+  - the launcher showed the language `launcher.cfg` named, or English where it named none, and wrote that
+    language's encoding over the one `openmw.cfg` held at every Play: a Russian profile's first Play turned
+    `win1251` into `win1252`, and the game drew its Cyrillic as Latin-1. The box now shows a language that
+    reads the game's encoding (`Config::languageForEncoding`), and the launcher and the wizard read one
+    table of a language's encoding (`Config::encodingOfLanguage`);
   - `Scene::addPostponedPhysicsObjects` gave a script's placed object its physics and not its place in the
     navigation mesh, so actors planned their paths through it until its cell loaded again. It now takes the
     one route every other collision object takes (`addObject`), which the suite `test_script_placed` holds.

@@ -1,5 +1,7 @@
 #include "launchersettings.hpp"
 
+#include <algorithm>
+
 #include <QDebug>
 #include <QDir>
 #include <QMultiMap>
@@ -478,4 +480,22 @@ void Config::LauncherSettings::clear()
     mImporter = Importer{};
     mReadKeys.clear();
     mUnknownSections.clear();
+}
+
+QString Config::encodingOfLanguage(const QString& language)
+{
+    if (language == QLatin1String("Polish"))
+        return QStringLiteral("win1250");
+    if (language == QLatin1String("Russian"))
+        return QStringLiteral("win1251");
+    return QStringLiteral("win1252");
+}
+
+QString Config::languageForEncoding(const QStringList& languages, const QString& stored, const QString& encoding)
+{
+    if (languages.contains(stored) && encodingOfLanguage(stored) == encoding)
+        return stored;
+    const auto reads = std::find_if(languages.begin(), languages.end(),
+        [&](const QString& language) { return encodingOfLanguage(language) == encoding; });
+    return reads != languages.end() ? *reads : stored;
 }

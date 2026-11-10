@@ -2,6 +2,7 @@
 #include "maindialog.hpp"
 
 #include <QClipboard>
+#include <QComboBox>
 #include <QDebug>
 #include <QDesktopServices>
 #include <QFileDialog>
@@ -348,17 +349,15 @@ bool Launcher::DataFilesPage::loadSettings()
     if (!currentProfile.isEmpty())
         addProfile(currentProfile, true);
 
-    auto language = mLauncherSettings.getLanguage();
+    QComboBox* const languageBox = mSelector->languageBox();
+    QStringList languages;
+    for (int i = 0; i < languageBox->count(); ++i)
+        languages.push_back(languageBox->itemData(i).toString());
 
-    for (int i = 0; i < mSelector->languageBox()->count(); ++i)
-    {
-        QString languageItem = mSelector->languageBox()->itemData(i).toString();
-        if (language == languageItem)
-        {
-            mSelector->languageBox()->setCurrentIndex(i);
-            break;
-        }
-    }
+    const QString language = Config::languageForEncoding(
+        languages, mLauncherSettings.getLanguage(), mGameSettings.value("encoding", { "win1252" }).value);
+    if (const int at = languageBox->findData(language); at != -1)
+        languageBox->setCurrentIndex(at);
 
     return true;
 }
@@ -556,18 +555,7 @@ void Launcher::DataFilesPage::saveSettings(const QString& profile)
 
     mLauncherSettings.setLanguage(language);
 
-    if (language == QLatin1String("Polish"))
-    {
-        mGameSettings.setValue(QLatin1String("encoding"), { "win1250" });
-    }
-    else if (language == QLatin1String("Russian"))
-    {
-        mGameSettings.setValue(QLatin1String("encoding"), { "win1251" });
-    }
-    else
-    {
-        mGameSettings.setValue(QLatin1String("encoding"), { "win1252" });
-    }
+    mGameSettings.setValue(QLatin1String("encoding"), { Config::encodingOfLanguage(language) });
 }
 
 QList<Config::SettingValue> Launcher::DataFilesPage::selectedDirectoriesPaths() const

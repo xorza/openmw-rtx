@@ -131,5 +131,15 @@ namespace Config
 
         const Profile* findProfile(const QString& name) const;
     };
+
+    /// The encoding the game reads a language's content in, as `openmw.cfg` names it: Polish and
+    /// Russian have one of their own, and every other language reads win1252.
+    QString encodingOfLanguage(const QString& language);
+
+    /// The language of `languages` the launcher shows for a game that reads `encoding`: `stored` where
+    /// it is one of them and reads that encoding, else the first that does, else `stored`. A language only
+    /// chooses the encoding, which `openmw.cfg` holds, so a profile whose `launcher.cfg` names another
+    /// language or none keeps the encoding it has.
+    QString languageForEncoding(const QStringList& languages, const QString& stored, const QString& encoding);
 }
 #endif // LAUNCHERSETTINGS_HPP
