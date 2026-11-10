@@ -982,23 +982,22 @@ set_property(SOURCE mwmechanics/character.cpp APPEND PROPERTY COMPILE_OPTIONS
 set_property(SOURCE mwlua/dialoguebindings.cpp mwlua/magicbindings.cpp mwlua/objectbindings.cpp mwlua/stats.cpp
     mwworld/esmstore.cpp APPEND PROPERTY COMPILE_OPTIONS $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>)
 
-# `mwsound/ffmpegdecoder.hpp` names FFmpeg's types.
-target_include_directories(openmw-lib SYSTEM PUBLIC ${FFmpeg_INCLUDE_DIRS})
+# `PUBLIC`: `mwsound/ffmpegdecoder.hpp` names FFmpeg's types, and the game's headers OpenSceneGraph's,
+# MyGUI's and SDL's.
 target_link_libraries(openmw-lib
     PUBLIC
-        ${OSGPARTICLE_LIBRARIES}
-        ${OSGVIEWER_LIBRARIES}
-        ${OSGGA_LIBRARIES}
-        ${OSGSHADOW_LIBRARIES}
-        ${OSGDB_LIBRARIES}
-        ${OSGUTIL_LIBRARIES}
-        ${OSG_LIBRARIES}
+        OpenSceneGraph::osgParticle
+        OpenSceneGraph::osgViewer
+        OpenSceneGraph::osgGA
+        OpenSceneGraph::osgShadow
+        OpenSceneGraph::osgDB
+        OpenSceneGraph::osgUtil
+        OpenSceneGraph::osg
         Boost::program_options
-        ${OPENAL_LIBRARY}
-        ${FFmpeg_LIBRARIES}
-        ${MyGUI_LIBRARIES}
+        OpenAL::OpenAL
+        FFmpeg::FFmpeg
+        MyGUI::MyGUI
         SDL3::SDL3
-        ${RecastNavigation_LIBRARIES}
         osg-ffmpeg-videoplayer
         oics
         openmw-components
@@ -1007,7 +1006,7 @@ target_link_libraries(openmw-lib
         Threads::Threads
 )
 if (USE_SYSTEM_TINYXML)
-    target_link_libraries(openmw-lib PUBLIC ${TinyXML_LIBRARIES})
+    target_link_libraries(openmw-lib PUBLIC TinyXML::TinyXML)
 endif ()
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)

@@ -19,4 +19,4 @@ add_library(${OSGQT_LIBRARY} STATIC ${OSGQT_SOURCE_FILES})
 target_include_directories(${OSGQT_LIBRARY} SYSTEM PUBLIC include)
 target_include_directories(${OSGQT_LIBRARY} PRIVATE include/osgQt)
 
-target_link_libraries(${OSGQT_LIBRARY} Qt::Core Qt::OpenGL Qt::OpenGLWidgets)
+target_link_libraries(${OSGQT_LIBRARY} PUBLIC Qt::Core Qt::OpenGL Qt::OpenGLWidgets OpenSceneGraph::osgViewer)

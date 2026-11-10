@@ -498,12 +498,12 @@ set_target_properties(openmw-cs-lib PROPERTIES
     AUTOUIC_SEARCH_PATHS ui)
 target_link_libraries(openmw-cs-lib
     PUBLIC
-        ${OSGVIEWER_LIBRARIES}
-        ${OSGFX_LIBRARIES}
-        ${OSGGA_LIBRARIES}
-        ${OSGUTIL_LIBRARIES}
-        ${OSGTEXT_LIBRARIES}
-        ${OSG_LIBRARIES}
+        OpenSceneGraph::osgViewer
+        OpenSceneGraph::osgFX
+        OpenSceneGraph::osgGA
+        OpenSceneGraph::osgUtil
+        OpenSceneGraph::osgText
+        OpenSceneGraph::osg
         osgQt
         Boost::program_options
         openmw-components-qt

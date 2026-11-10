@@ -45,7 +45,7 @@ add_dependencies(openmw-launcher qm-files)
 target_link_libraries(openmw-launcher
     PRIVATE
         SDL3::SDL3
-        ${OPENAL_LIBRARY}
+        OpenAL::OpenAL
         openmw-components-qt
         Qt::Widgets
         Qt::Core

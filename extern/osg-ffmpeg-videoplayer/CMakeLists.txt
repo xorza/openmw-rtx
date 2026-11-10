@@ -16,10 +16,9 @@ set(OSG_FFMPEG_VIDEOPLAYER_SOURCE_FILES
 )
 
 add_library(${OSG_FFMPEG_VIDEOPLAYER_LIBRARY} STATIC ${OSG_FFMPEG_VIDEOPLAYER_SOURCE_FILES})
-target_link_libraries(${OSG_FFMPEG_VIDEOPLAYER_LIBRARY} ${FFmpeg_LIBRARIES})
-target_link_libraries(${OSG_FFMPEG_VIDEOPLAYER_LIBRARY} ${OSG_LIBRARIES})
+target_link_libraries(${OSG_FFMPEG_VIDEOPLAYER_LIBRARY} PUBLIC FFmpeg::FFmpeg OpenSceneGraph::osg)
 
-target_include_directories(${OSG_FFMPEG_VIDEOPLAYER_LIBRARY} SYSTEM PUBLIC include ${FFmpeg_INCLUDE_DIRS})
+target_include_directories(${OSG_FFMPEG_VIDEOPLAYER_LIBRARY} SYSTEM PUBLIC include)
 target_include_directories(${OSG_FFMPEG_VIDEOPLAYER_LIBRARY} PRIVATE include/osg-ffmpeg-videoplayer)
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)

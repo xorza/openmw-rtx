@@ -312,6 +312,11 @@ made only on the user's explicit yes, after which it is added here.
   `vcredist` bundling, the Visual Studio generator's compiler override and the branches for compilers below
   the floor. The cost is a conflict with every upstream change to the root, which the merge places in the
   file that now holds it.
+- Every setting on a target: the found packages as imported targets carrying their headers and the
+  definitions those need, sol3 a target in `extern/`, and Windows's header trims and MSVC's options an
+  interface target every tree-built target links, in place of the directory-wide `include_directories`,
+  `add_compile_definitions` and `add_compile_options`; `OPENMW_MP_BUILD`, which only the Visual Studio
+  generator read, goes. The cost is a conflict with an upstream change to a link list or a found package.
 - `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
   `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
   stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.

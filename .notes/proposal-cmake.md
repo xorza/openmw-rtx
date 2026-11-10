@@ -325,8 +325,15 @@ diagnostic after steps 10 and 13.
       API reference in `docs/`; the version from `project(VERSION)`; paths from `PROJECT_*` everywhere. Gone:
       CPack, the Visual Studio generator's compiler override, the MSVC 19.15 and `CMAKE_CL_64` branches below the
       floor, the `stdint.h` probe, and the game's console flags as directory-wide properties, now its target's.
-    - 12b. Targets own every setting: the directory-wide `include_directories`, `add_compile_definitions` and
-      `add_compile_options` onto targets.
+    - 12b. Done: targets own every setting. Each found package without a target of its own gets an imported
+      one in `cmake/Dependencies.cmake` (`OpenSceneGraph::<library>`, `Bullet::Bullet`, `MyGUI::MyGUI`,
+      `Lua::Lua`, `FFmpeg::FFmpeg`, `TinyXML::TinyXML`), carrying the definitions its headers need
+      (`BT_USE_DOUBLE_PRECISION`, `MYGUI_DONT_USE_OBSOLETE`, `OSG_HAS_MULTIVIEW`, `NO_LUAJIT`,
+      `__STDC_CONSTANT_MACROS`); ICU, OpenAL and OpenGL link their find modules' own; sol3 is a target in
+      `extern/`, its configuration ahead of its own `config.hpp`. Windows's header trims and MSVC's `/bigobj`,
+      `/utf-8` and `/Zc:__cplusplus` are `openmw-system`, which `openmw_link_tree` links into every target
+      under `components/`, `apps/` and `extern/` and no fetched project, which builds as its own CI does.
+      `OPENMW_MP_BUILD` goes: Ninja runs the compiles in parallel.
     - 12c. Every option `OPENMW_*`, the presets, CI and `omw` with them.
     - 12d. `OPENMW_SANITIZER=address|thread` in place of the presets' flags; build and workflow presets; `omw`
       calls them.

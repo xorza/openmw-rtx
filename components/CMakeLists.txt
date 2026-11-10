@@ -1425,8 +1425,6 @@ set_property(SOURCE detournavigator/tilecachedrecastmeshmanager.cpp lua/utilpack
     APPEND PROPERTY COMPILE_OPTIONS $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>)
 
 target_compile_definitions(openmw-components PUBLIC
-    BT_USE_DOUBLE_PRECISION
-    MYGUI_DONT_USE_OBSOLETE=ON
     OPENMW_RTX_DLSS=$<BOOL:${OPENMW_RTX_DLSS}>
     # Vulkan's validation layers on unless Release, read as `Rtx::sValidationByDefault`: here, so the game
     # and the harness agree. 0 or 1, so the constant needs no `#ifdef`.
@@ -1435,23 +1433,23 @@ target_compile_definitions(openmw-components PUBLIC
 
 target_link_libraries(openmw-components
     PUBLIC
-        ${OSGPARTICLE_LIBRARIES}
-        ${OSGVIEWER_LIBRARIES}
-        ${OSGSHADOW_LIBRARIES}
-        ${OSGANIMATION_LIBRARIES}
-        ${OSGGA_LIBRARIES}
-        ${OSGTEXT_LIBRARIES}
-        ${OSGDB_LIBRARIES}
-        ${OSGUTIL_LIBRARIES}
-        ${OSGSIM_LIBRARIES}
-        ${OSG_LIBRARIES}
-        ${OPENTHREADS_LIBRARIES}
+        OpenSceneGraph::osgParticle
+        OpenSceneGraph::osgViewer
+        OpenSceneGraph::osgShadow
+        OpenSceneGraph::osgAnimation
+        OpenSceneGraph::osgGA
+        OpenSceneGraph::osgText
+        OpenSceneGraph::osgDB
+        OpenSceneGraph::osgUtil
+        OpenSceneGraph::osgSim
+        OpenSceneGraph::osg
         Boost::program_options
         Boost::iostreams
         SDL3::SDL3
-        ${OPENGL_gl_LIBRARY}
-        ${MyGUI_LIBRARIES}
-        ${LUA_LIBRARIES}
+        OpenGL::GL
+        MyGUI::MyGUI
+        sol3
+        Lua::Lua
         LZ4::LZ4
         RecastNavigation::DebugUtils
         RecastNavigation::Detour
@@ -1460,10 +1458,12 @@ target_link_libraries(openmw-components
         Base64
         smhasher
         rgbcx
-        ${ICU_LIBRARIES}
+        ICU::uc
+        ICU::i18n
+        ICU::data
         ZLIB::ZLIB
         yaml-cpp::yaml-cpp
-        ${BULLET_LIBRARIES}
+        Bullet::Bullet
         # `dlopen` for `platform/libraryposix.cpp`, on the C libraries that keep it out of libc.
         ${CMAKE_DL_LIBS}
         Threads::Threads

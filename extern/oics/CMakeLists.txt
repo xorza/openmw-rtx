@@ -17,7 +17,7 @@ target_include_directories(oics SYSTEM PUBLIC include)
 target_include_directories(oics PRIVATE include/oics)
 
 if(USE_SYSTEM_TINYXML)
-    target_link_libraries(oics ${TinyXML_LIBRARIES})
+    target_link_libraries(oics TinyXML::TinyXML)
 else()
     add_library(local_tinyxml STATIC
         tinyxml/tinyxml.cpp

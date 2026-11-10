@@ -122,12 +122,9 @@ FetchContent_MakeAvailable(VulkanMemoryAllocator)
 include("${CMAKE_CURRENT_LIST_DIR}/../extern/crashpad.cmake")
 endblock()
 
-# What the tree finds and never fetches, after the fetched projects, whose builds take none of the tree's
-# definitions below: Windows's `NOGDI` and `NOMB` take out what SDL's video is built on.
-
-if (MSVC)
-    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/utf-8>)
-endif ()
+# What the tree finds and never fetches. A package whose find module defines no target gets one here, an
+# imported interface target carrying its headers, its libraries and the definitions its headers need, so
+# what links it compiles against it and nothing else does; imported, so its headers are a system's.
 
 set(OpenGL_GL_PREFERENCE LEGACY) # GL2; GLVND's is for GL3 and up.
 find_package(OpenGL REQUIRED)
@@ -163,29 +160,18 @@ foreach (floor AVFORMAT:58.12.100 AVCODEC:58.18.100 AVUTIL:56.14.100 SWSCALE:5.1
         message(FATAL_ERROR "FFmpeg's ${library} is ${FFmpeg_${library}_VERSION}, older than ${version}: FFmpeg 4.0 is required")
     endif ()
 endforeach ()
+add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
+target_include_directories(FFmpeg::FFmpeg INTERFACE ${FFmpeg_INCLUDE_DIRS})
+target_link_libraries(FFmpeg::FFmpeg INTERFACE ${FFmpeg_LIBRARIES})
 # Required for building the FFmpeg headers
-add_compile_definitions(__STDC_CONSTANT_MACROS)
+target_compile_definitions(FFmpeg::FFmpeg INTERFACE __STDC_CONSTANT_MACROS)
 
 if (USE_SYSTEM_TINYXML)
     find_package(TinyXML REQUIRED)
-    add_compile_definitions(TIXML_USE_STL)
-    include_directories(SYSTEM ${TinyXML_INCLUDE_DIRS})
-endif ()
-
-if (WIN32)
-    # Get rid of useless crud from windows.h
-    add_compile_definitions(
-        NOMINMAX # name conflict with std::min, std::max
-        WIN32_LEAN_AND_MEAN
-        NOMB # name conflict with MWGui::MessageBox
-        NOGDI # name conflict with osgAnimation::MorphGeometry::RELATIVE
-    )
-    # Put Win32 API into UTF-16 mode
-    # We really don't care, but targets linking with Qt 6 (not 5 and earlier) inherit this, and mixing and matching stops us reusing precompiled headers
-    add_compile_definitions(
-        _UNICODE
-        UNICODE
-    )
+    add_library(TinyXML::TinyXML INTERFACE IMPORTED)
+    target_include_directories(TinyXML::TinyXML INTERFACE ${TinyXML_INCLUDE_DIRS})
+    target_link_libraries(TinyXML::TinyXML INTERFACE ${TinyXML_LIBRARIES})
+    target_compile_definitions(TinyXML::TinyXML INTERFACE TIXML_USE_STL)
 endif ()
 
 # Bullet 2.87 at least, for `btIDebugDraw::clearLines` (2.86 already needed for `btCapsuleShape` fixes),
@@ -211,6 +197,15 @@ include(CheckBulletPrecision)
 if (NOT HAS_DOUBLE_PRECISION_BULLET)
     message(FATAL_ERROR "Bullet does not uses double precision")
 endif ()
+add_library(Bullet::Bullet INTERFACE IMPORTED)
+target_include_directories(Bullet::Bullet INTERFACE ${BULLET_INCLUDE_DIRS})
+target_link_libraries(Bullet::Bullet INTERFACE ${BULLET_LIBRARIES})
+target_compile_definitions(Bullet::Bullet INTERFACE BT_USE_DOUBLE_PRECISION)
+
+add_library(MyGUI::MyGUI INTERFACE IMPORTED)
+target_include_directories(MyGUI::MyGUI INTERFACE ${MyGUI_INCLUDE_DIRS})
+target_link_libraries(MyGUI::MyGUI INTERFACE ${MyGUI_LIBRARIES})
+target_compile_definitions(MyGUI::MyGUI INTERFACE MYGUI_DONT_USE_OBSOLETE=ON)
 
 set(USED_OSG_PLUGINS
     osgdb_bmp
@@ -251,10 +246,17 @@ if (OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
         DESTINATION "${osg_plugin_destination}/osgPlugins-${OPENSCENEGRAPH_VERSION}"
         RUNTIME_DEPENDENCY_SET openmw-dependencies)
 endif ()
-include_directories(BEFORE SYSTEM ${OPENSCENEGRAPH_INCLUDE_DIRS})
+# One target a library of OpenSceneGraph's, each with the headers; `osg` with the multiview definition.
 include(CheckOsgMultiview)
+foreach (library OpenThreads osg osgAnimation osgDB osgGA osgFX osgParticle osgText osgUtil osgShadow osgSim osgViewer)
+    string(TOUPPER ${library} upper)
+    add_library(OpenSceneGraph::${library} INTERFACE IMPORTED)
+    target_include_directories(OpenSceneGraph::${library} INTERFACE ${OPENSCENEGRAPH_INCLUDE_DIRS})
+    target_link_libraries(OpenSceneGraph::${library} INTERFACE ${${upper}_LIBRARIES})
+endforeach ()
+target_link_libraries(OpenSceneGraph::osg INTERFACE OpenSceneGraph::OpenThreads)
 if (HAVE_MULTIVIEW)
-    add_compile_definitions(OSG_HAS_MULTIVIEW)
+    target_compile_definitions(OpenSceneGraph::osg INTERFACE OSG_HAS_MULTIVIEW)
 endif ()
 
 if (USE_LUAJIT)
@@ -263,20 +265,13 @@ if (USE_LUAJIT)
     set(LUA_LIBRARIES ${LuaJit_LIBRARIES})
 else ()
     find_package(Lua REQUIRED)
-    add_compile_definitions(NO_LUAJIT)
 endif ()
 if (NOT WIN32)
     include(CheckLuaCustomAllocator)
 endif ()
-
-include_directories(
-    BEFORE SYSTEM
-    ${MyGUI_INCLUDE_DIRS}
-    ${OPENAL_INCLUDE_DIR}
-    ${OPENGL_INCLUDE_DIR}
-    ${BULLET_INCLUDE_DIRS}
-    ${LUA_INCLUDE_DIR}
-    "${PROJECT_SOURCE_DIR}/extern/sol3"
-    "${PROJECT_SOURCE_DIR}/extern/sol_config"
-    ${ICU_INCLUDE_DIRS}
-)
+add_library(Lua::Lua INTERFACE IMPORTED)
+target_include_directories(Lua::Lua INTERFACE ${LUA_INCLUDE_DIR})
+target_link_libraries(Lua::Lua INTERFACE ${LUA_LIBRARIES})
+if (NOT USE_LUAJIT)
+    target_compile_definitions(Lua::Lua INTERFACE NO_LUAJIT)
+endif ()

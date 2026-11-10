@@ -61,19 +61,9 @@ endif ()
 # measured the nested parallelism slower.
 set(CMAKE_AUTOGEN_PARALLEL 1)
 
-if (MSVC)
-    # Every MSVC option set ahead of the fetched projects is the C and C++ compiler's, and says so: a
-    # directory's options reach each language in it, and MASM, which Crashpad assembles two files with,
-    # reads `/Zc:__cplusplus` as `/Zs`, a syntax check that writes no object.
-    if (OPENMW_MP_BUILD)
-        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/MP>)
-    endif ()
-    # `/bigobj` for sol3's bindings, whose templates pass the default count of sections.
-    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/bigobj> $<$<COMPILE_LANGUAGE:C,CXX>:/Zc:__cplusplus>)
-    # `/Z7`: ccache cannot cache a compile that writes a shared PDB.
-    if (CMAKE_C_COMPILER_LAUNCHER STREQUAL "ccache" OR CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache")
-        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
-    endif ()
+# `/Z7`: ccache cannot cache a compile that writes a shared PDB.
+if (MSVC AND (CMAKE_C_COMPILER_LAUNCHER STREQUAL "ccache" OR CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache"))
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
 endif ()
 
 if (OPENMW_LTO_BUILD)
@@ -88,7 +78,6 @@ if (OPENMW_LTO_BUILD)
 endif ()
 
 include(cmake/Dependencies.cmake)
-include_directories(".")
 
 # Every program and its resources in one folder of the build, which the install copies from.
 set(OPENMW_RESOURCES_ROOT "${PROJECT_BINARY_DIR}")
@@ -189,4 +178,4 @@ file(CONFIGURE OUTPUT "${PROJECT_BINARY_DIR}/omw-folders.json" CONTENT [[{
 }
 ]] @ONLY)
 
-openmw_link_checks("${PROJECT_SOURCE_DIR}")
+openmw_link_tree("${PROJECT_SOURCE_DIR}")
