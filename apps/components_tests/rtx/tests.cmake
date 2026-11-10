@@ -1,7 +1,8 @@
 # The ray tracer's tests, included once `components-tests` exists. `rtx-gpu-tests` holds what opens a
 # device and fails where there is none, so a box without a driver cannot pass by skipping.
 # `RTX_TEST_SUPPORT` and its headers go into both binaries.
-target_sources(components-tests
+target_sources(
+    components-tests
     PRIVATE
         dlss/dlss.cpp
         fontloader/fontfit.cpp
@@ -163,8 +164,10 @@ target_sources(components-tests
         widgets/listbox.cpp
         widgets/settlingscrollbar.cpp
         widgets/trackedtext.cpp
-    PRIVATE FILE_SET HEADERS FILES
-        rtx/mirror/extractor/fixture.hpp
+    PRIVATE
+        FILE_SET HEADERS
+            FILES
+                rtx/mirror/extractor/fixture.hpp
 )
 
 set(RTX_TEST_SUPPORT
@@ -206,10 +209,11 @@ target_sources(components-tests PRIVATE ${RTX_TEST_SUPPORT} PRIVATE FILE_SET HEA
 
 # One `Platform::Process` test per system, and the fifo and sysfs where the system has them: a PCI
 # card's folder in sysfs is a name Windows does not allow.
-if (WIN32)
+if(WIN32)
     target_sources(components-tests PRIVATE platform/processwin32.cpp)
-elseif (LINUX)
-    target_sources(components-tests
+elseif(LINUX)
+    target_sources(
+        components-tests
         PRIVATE
             platform/gpulinux.cpp
             platform/kernelfilelinux.cpp
@@ -218,20 +222,32 @@ elseif (LINUX)
             rtxtool/instruments/amdgpulinux.cpp
             rtxtool/perffifoposix.cpp
     )
-endif ()
+endif()
 
 # Vulkan too, for the tests that reach into the backend's headers, and the SPIR-V library, whose
 # headers carry the opcodes the tests that write a module by hand spell.
-target_link_libraries(components-tests PRIVATE openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-spirv openmw-rtx-vulkan-api)
+target_link_libraries(
+    components-tests
+    PRIVATE
+        openmw-rtx-vulkan
+        openmw-rtxtool-lib
+        openmw-rtx-spirv
+        openmw-rtx-vulkan-api
+)
 
 # Where the build wrote the shaders, told to the two test binaries alone: a build-tree path is no
 # fact about the backend.
-target_compile_definitions(components-tests PRIVATE OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}"
-    OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}")
+target_compile_definitions(
+    components-tests
+    PRIVATE
+        OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}"
+        OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}"
+)
 
 # The same `main.cpp`, which sets up the settings' defaults both binaries read.
 add_executable(rtx-gpu-tests)
-target_sources(rtx-gpu-tests
+target_sources(
+    rtx-gpu-tests
     PRIVATE
         main.cpp
         rtx/support/allocations.cpp
@@ -305,22 +321,27 @@ target_sources(rtx-gpu-tests
         rtxvulkan/trace/wavefield.cpp
         rtxvulkan/trace/wavepass.cpp
         ${RTX_TEST_SUPPORT}
-    PRIVATE FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES
-        rtxvulkan/support/device/harness.hpp
-        rtxvulkan/support/device/heldsubmit.hpp
-        rtxvulkan/support/device/hostwritten.hpp
-        rtxvulkan/support/device/memorylimits.hpp
-        rtxvulkan/support/device/readback.hpp
-        rtxvulkan/support/device/rendererprobe.hpp
-        rtxvulkan/trace/visibility/fixture.hpp
-        ${RTX_TEST_SUPPORT_HEADERS}
+    PRIVATE
+        FILE_SET HEADERS
+            BASE_DIRS
+                "${PROJECT_SOURCE_DIR}"
+            FILES
+                rtxvulkan/support/device/harness.hpp
+                rtxvulkan/support/device/heldsubmit.hpp
+                rtxvulkan/support/device/hostwritten.hpp
+                rtxvulkan/support/device/memorylimits.hpp
+                rtxvulkan/support/device/readback.hpp
+                rtxvulkan/support/device/rendererprobe.hpp
+                rtxvulkan/trace/visibility/fixture.hpp
+                ${RTX_TEST_SUPPORT_HEADERS}
 )
-if (WIN32)
+if(WIN32)
     target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatformwin32.cpp)
-else ()
+else()
     target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatformposix.cpp)
-endif ()
-target_link_libraries(rtx-gpu-tests
+endif()
+target_link_libraries(
+    rtx-gpu-tests
     PRIVATE
         GTest::gtest
         GTest::gmock
@@ -331,8 +352,11 @@ target_link_libraries(rtx-gpu-tests
         openmw-rtx-spirv
         openmw-rtx-vulkan-api
 )
-target_compile_definitions(rtx-gpu-tests
-    PRIVATE OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
-            OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}"
-            OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}"
-            OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}")
+target_compile_definitions(
+    rtx-gpu-tests
+    PRIVATE
+        OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
+        OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}"
+        OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}"
+        OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}"
+)

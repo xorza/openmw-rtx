@@ -5,36 +5,43 @@
 add_library(openmw-lib STATIC)
 target_sources(openmw-lib PUBLIC FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}")
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         engine.cpp
         options.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        doc.hpp
-        engine.hpp
-        options.hpp
-        profile.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                doc.hpp
+                engine.hpp
+                options.hpp
+                profile.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwbase/environment.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwbase/dialoguemanager.hpp
-        mwbase/environment.hpp
-        mwbase/inputmanager.hpp
-        mwbase/journal.hpp
-        mwbase/luamanager.hpp
-        mwbase/mechanicsmanager.hpp
-        mwbase/rotationflags.hpp
-        mwbase/scriptmanager.hpp
-        mwbase/soundmanager.hpp
-        mwbase/statemanager.hpp
-        mwbase/windowmanager.hpp
-        mwbase/world.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwbase/dialoguemanager.hpp
+                mwbase/environment.hpp
+                mwbase/inputmanager.hpp
+                mwbase/journal.hpp
+                mwbase/luamanager.hpp
+                mwbase/mechanicsmanager.hpp
+                mwbase/rotationflags.hpp
+                mwbase/scriptmanager.hpp
+                mwbase/soundmanager.hpp
+                mwbase/statemanager.hpp
+                mwbase/windowmanager.hpp
+                mwbase/world.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwclass/activator.cpp
         mwclass/actor.cpp
@@ -63,39 +70,42 @@ target_sources(openmw-lib
         mwclass/repair.cpp
         mwclass/static.cpp
         mwclass/weapon.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwclass/activator.hpp
-        mwclass/actor.hpp
-        mwclass/apparatus.hpp
-        mwclass/armor.hpp
-        mwclass/bodypart.hpp
-        mwclass/book.hpp
-        mwclass/classes.hpp
-        mwclass/classmodel.hpp
-        mwclass/clothing.hpp
-        mwclass/container.hpp
-        mwclass/creature.hpp
-        mwclass/creaturelevlist.hpp
-        mwclass/door.hpp
-        mwclass/esm4base.hpp
-        mwclass/esm4npc.hpp
-        mwclass/ingredient.hpp
-        mwclass/itemlevlist.hpp
-        mwclass/light.hpp
-        mwclass/light4.hpp
-        mwclass/lockpick.hpp
-        mwclass/misc.hpp
-        mwclass/nameorid.hpp
-        mwclass/npc.hpp
-        mwclass/potion.hpp
-        mwclass/preloadmodels.hpp
-        mwclass/probe.hpp
-        mwclass/repair.hpp
-        mwclass/static.hpp
-        mwclass/weapon.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwclass/activator.hpp
+                mwclass/actor.hpp
+                mwclass/apparatus.hpp
+                mwclass/armor.hpp
+                mwclass/bodypart.hpp
+                mwclass/book.hpp
+                mwclass/classes.hpp
+                mwclass/classmodel.hpp
+                mwclass/clothing.hpp
+                mwclass/container.hpp
+                mwclass/creature.hpp
+                mwclass/creaturelevlist.hpp
+                mwclass/door.hpp
+                mwclass/esm4base.hpp
+                mwclass/esm4npc.hpp
+                mwclass/ingredient.hpp
+                mwclass/itemlevlist.hpp
+                mwclass/light.hpp
+                mwclass/light4.hpp
+                mwclass/lockpick.hpp
+                mwclass/misc.hpp
+                mwclass/nameorid.hpp
+                mwclass/npc.hpp
+                mwclass/potion.hpp
+                mwclass/preloadmodels.hpp
+                mwclass/probe.hpp
+                mwclass/repair.hpp
+                mwclass/static.hpp
+                mwclass/weapon.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwdialogue/dialoguemanagerimp.cpp
         mwdialogue/filter.cpp
@@ -106,19 +116,22 @@ target_sources(openmw-lib
         mwdialogue/scripttest.cpp
         mwdialogue/selectwrapper.cpp
         mwdialogue/topic.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwdialogue/dialoguemanagerimp.hpp
-        mwdialogue/filter.hpp
-        mwdialogue/journalentry.hpp
-        mwdialogue/journalimp.hpp
-        mwdialogue/keywordsearch.hpp
-        mwdialogue/quest.hpp
-        mwdialogue/scripttest.hpp
-        mwdialogue/selectwrapper.hpp
-        mwdialogue/topic.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwdialogue/dialoguemanagerimp.hpp
+                mwdialogue/filter.hpp
+                mwdialogue/journalentry.hpp
+                mwdialogue/journalimp.hpp
+                mwdialogue/keywordsearch.hpp
+                mwdialogue/quest.hpp
+                mwdialogue/scripttest.hpp
+                mwdialogue/selectwrapper.hpp
+                mwdialogue/topic.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwgui/alchemywindow.cpp
         mwgui/backgroundimage.cpp
@@ -202,96 +215,99 @@ target_sources(openmw-lib
         mwgui/windowbase.cpp
         mwgui/windowmanagerimp.cpp
         mwgui/windowpinnablebase.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwgui/alchemywindow.hpp
-        mwgui/backgroundimage.hpp
-        mwgui/birth.hpp
-        mwgui/bookpage.hpp
-        mwgui/bookwindow.hpp
-        mwgui/charactercreation.hpp
-        mwgui/class.hpp
-        mwgui/companionitemmodel.hpp
-        mwgui/companionwindow.hpp
-        mwgui/confirmationdialog.hpp
-        mwgui/console.hpp
-        mwgui/container.hpp
-        mwgui/containeritemmodel.hpp
-        mwgui/controllerbuttonsoverlay.hpp
-        mwgui/controllers.hpp
-        mwgui/countdialog.hpp
-        mwgui/cursor.hpp
-        mwgui/debugwindow.hpp
-        mwgui/dialogue.hpp
-        mwgui/draganddrop.hpp
-        mwgui/enchantingdialog.hpp
-        mwgui/exposedwindow.hpp
-        mwgui/formatting.hpp
-        mwgui/hud.hpp
-        mwgui/inventoryitemmodel.hpp
-        mwgui/inventorytabsoverlay.hpp
-        mwgui/inventorywindow.hpp
-        mwgui/itemchargeview.hpp
-        mwgui/itemmodel.hpp
-        mwgui/itemselection.hpp
-        mwgui/itemtransfer.hpp
-        mwgui/itemview.hpp
-        mwgui/itemwidget.hpp
-        mwgui/jailscreen.hpp
-        mwgui/journalbooks.hpp
-        mwgui/journalviewmodel.hpp
-        mwgui/journalwindow.hpp
-        mwgui/keyboardnavigation.hpp
-        mwgui/layout.hpp
-        mwgui/levelupdialog.hpp
-        mwgui/loadingscreen.hpp
-        mwgui/mainmenu.hpp
-        mwgui/mapwindow.hpp
-        mwgui/merchantrepair.hpp
-        mwgui/messagebox.hpp
-        mwgui/mode.hpp
-        mwgui/pickpocketitemmodel.hpp
-        mwgui/postprocessorhud.hpp
-        mwgui/quickkeysmenu.hpp
-        mwgui/race.hpp
-        mwgui/recharge.hpp
-        mwgui/referenceinterface.hpp
-        mwgui/repair.hpp
-        mwgui/resourceskin.hpp
-        mwgui/review.hpp
-        mwgui/savegamedialog.hpp
-        mwgui/screenfader.hpp
-        mwgui/scrollwindow.hpp
-        mwgui/settings.hpp
-        mwgui/settingswindow.hpp
-        mwgui/sortfilteritemmodel.hpp
-        mwgui/soulgemdialog.hpp
-        mwgui/spellbuyingwindow.hpp
-        mwgui/spellcreationdialog.hpp
-        mwgui/spellicons.hpp
-        mwgui/spellmodel.hpp
-        mwgui/spellview.hpp
-        mwgui/spellwindow.hpp
-        mwgui/statswatcher.hpp
-        mwgui/statswindow.hpp
-        mwgui/textcolours.hpp
-        mwgui/textinput.hpp
-        mwgui/timeadvancer.hpp
-        mwgui/tooltips.hpp
-        mwgui/tradeitemmodel.hpp
-        mwgui/tradewindow.hpp
-        mwgui/trainingwindow.hpp
-        mwgui/travelwindow.hpp
-        mwgui/videowidget.hpp
-        mwgui/waitdialog.hpp
-        mwgui/weightedsearch.hpp
-        mwgui/widgets.hpp
-        mwgui/windowbase.hpp
-        mwgui/windowmanagerimp.hpp
-        mwgui/windowpinnablebase.hpp
-        mwgui/worlditemmodel.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwgui/alchemywindow.hpp
+                mwgui/backgroundimage.hpp
+                mwgui/birth.hpp
+                mwgui/bookpage.hpp
+                mwgui/bookwindow.hpp
+                mwgui/charactercreation.hpp
+                mwgui/class.hpp
+                mwgui/companionitemmodel.hpp
+                mwgui/companionwindow.hpp
+                mwgui/confirmationdialog.hpp
+                mwgui/console.hpp
+                mwgui/container.hpp
+                mwgui/containeritemmodel.hpp
+                mwgui/controllerbuttonsoverlay.hpp
+                mwgui/controllers.hpp
+                mwgui/countdialog.hpp
+                mwgui/cursor.hpp
+                mwgui/debugwindow.hpp
+                mwgui/dialogue.hpp
+                mwgui/draganddrop.hpp
+                mwgui/enchantingdialog.hpp
+                mwgui/exposedwindow.hpp
+                mwgui/formatting.hpp
+                mwgui/hud.hpp
+                mwgui/inventoryitemmodel.hpp
+                mwgui/inventorytabsoverlay.hpp
+                mwgui/inventorywindow.hpp
+                mwgui/itemchargeview.hpp
+                mwgui/itemmodel.hpp
+                mwgui/itemselection.hpp
+                mwgui/itemtransfer.hpp
+                mwgui/itemview.hpp
+                mwgui/itemwidget.hpp
+                mwgui/jailscreen.hpp
+                mwgui/journalbooks.hpp
+                mwgui/journalviewmodel.hpp
+                mwgui/journalwindow.hpp
+                mwgui/keyboardnavigation.hpp
+                mwgui/layout.hpp
+                mwgui/levelupdialog.hpp
+                mwgui/loadingscreen.hpp
+                mwgui/mainmenu.hpp
+                mwgui/mapwindow.hpp
+                mwgui/merchantrepair.hpp
+                mwgui/messagebox.hpp
+                mwgui/mode.hpp
+                mwgui/pickpocketitemmodel.hpp
+                mwgui/postprocessorhud.hpp
+                mwgui/quickkeysmenu.hpp
+                mwgui/race.hpp
+                mwgui/recharge.hpp
+                mwgui/referenceinterface.hpp
+                mwgui/repair.hpp
+                mwgui/resourceskin.hpp
+                mwgui/review.hpp
+                mwgui/savegamedialog.hpp
+                mwgui/screenfader.hpp
+                mwgui/scrollwindow.hpp
+                mwgui/settings.hpp
+                mwgui/settingswindow.hpp
+                mwgui/sortfilteritemmodel.hpp
+                mwgui/soulgemdialog.hpp
+                mwgui/spellbuyingwindow.hpp
+                mwgui/spellcreationdialog.hpp
+                mwgui/spellicons.hpp
+                mwgui/spellmodel.hpp
+                mwgui/spellview.hpp
+                mwgui/spellwindow.hpp
+                mwgui/statswatcher.hpp
+                mwgui/statswindow.hpp
+                mwgui/textcolours.hpp
+                mwgui/textinput.hpp
+                mwgui/timeadvancer.hpp
+                mwgui/tooltips.hpp
+                mwgui/tradeitemmodel.hpp
+                mwgui/tradewindow.hpp
+                mwgui/trainingwindow.hpp
+                mwgui/travelwindow.hpp
+                mwgui/videowidget.hpp
+                mwgui/waitdialog.hpp
+                mwgui/weightedsearch.hpp
+                mwgui/widgets.hpp
+                mwgui/windowbase.hpp
+                mwgui/windowmanagerimp.hpp
+                mwgui/windowpinnablebase.hpp
+                mwgui/worlditemmodel.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwinput/actionmanager.cpp
         mwinput/bindingsmanager.cpp
@@ -302,20 +318,23 @@ target_sources(openmw-lib
         mwinput/keyboardmanager.cpp
         mwinput/mousemanager.cpp
         mwinput/sensormanager.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwinput/actionmanager.hpp
-        mwinput/actions.hpp
-        mwinput/bindingsmanager.hpp
-        mwinput/controllermanager.hpp
-        mwinput/controlswitch.hpp
-        mwinput/gyromanager.hpp
-        mwinput/inputmanagerimp.hpp
-        mwinput/keyboardmanager.hpp
-        mwinput/mousemanager.hpp
-        mwinput/sensormanager.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwinput/actionmanager.hpp
+                mwinput/actions.hpp
+                mwinput/bindingsmanager.hpp
+                mwinput/controllermanager.hpp
+                mwinput/controlswitch.hpp
+                mwinput/gyromanager.hpp
+                mwinput/inputmanagerimp.hpp
+                mwinput/keyboardmanager.hpp
+                mwinput/mousemanager.hpp
+                mwinput/sensormanager.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwlua/animationbindings.cpp
         mwlua/birthsignbindings.cpp
@@ -382,62 +401,65 @@ target_sources(openmw-lib
         mwlua/weatherbindings.cpp
         mwlua/worker.cpp
         mwlua/worldbindings.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwlua/animationbindings.hpp
-        mwlua/birthsignbindings.hpp
-        mwlua/camerabindings.hpp
-        mwlua/cellbindings.hpp
-        mwlua/classbindings.hpp
-        mwlua/contentbindings.hpp
-        mwlua/context.hpp
-        mwlua/corebindings.hpp
-        mwlua/coremwscriptbindings.hpp
-        mwlua/debugbindings.hpp
-        mwlua/dialoguebindings.hpp
-        mwlua/engineevents.hpp
-        mwlua/factionbindings.hpp
-        mwlua/globalscripts.hpp
-        mwlua/idcollectionbindings.hpp
-        mwlua/inputbindings.hpp
-        mwlua/inputprocessor.hpp
-        mwlua/itemdata.hpp
-        mwlua/landbindings.hpp
-        mwlua/loadscripts.hpp
-        mwlua/localscripts.hpp
-        mwlua/luabindings.hpp
-        mwlua/luaevents.hpp
-        mwlua/luamanagerimp.hpp
-        mwlua/magicbindings.hpp
-        mwlua/magictypebindings.hpp
-        mwlua/markupbindings.hpp
-        mwlua/menuscripts.hpp
-        mwlua/mwscriptbindings.hpp
-        mwlua/nearbybindings.hpp
-        mwlua/object.hpp
-        mwlua/objectbindings.hpp
-        mwlua/objectlists.hpp
-        mwlua/objectvariant.hpp
-        mwlua/playerscripts.hpp
-        mwlua/postprocessingbindings.hpp
-        mwlua/racebindings.hpp
-        mwlua/recordstore.hpp
-        mwlua/regionbindings.hpp
-        mwlua/soundbindings.hpp
-        mwlua/stats.hpp
-        mwlua/types/actor.hpp
-        mwlua/types/modelproperty.hpp
-        mwlua/types/servicesoffered.hpp
-        mwlua/types/types.hpp
-        mwlua/types/usertypeutil.hpp
-        mwlua/uibindings.hpp
-        mwlua/userdataserializer.hpp
-        mwlua/vfsbindings.hpp
-        mwlua/weatherbindings.hpp
-        mwlua/worker.hpp
-        mwlua/worldbindings.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwlua/animationbindings.hpp
+                mwlua/birthsignbindings.hpp
+                mwlua/camerabindings.hpp
+                mwlua/cellbindings.hpp
+                mwlua/classbindings.hpp
+                mwlua/contentbindings.hpp
+                mwlua/context.hpp
+                mwlua/corebindings.hpp
+                mwlua/coremwscriptbindings.hpp
+                mwlua/debugbindings.hpp
+                mwlua/dialoguebindings.hpp
+                mwlua/engineevents.hpp
+                mwlua/factionbindings.hpp
+                mwlua/globalscripts.hpp
+                mwlua/idcollectionbindings.hpp
+                mwlua/inputbindings.hpp
+                mwlua/inputprocessor.hpp
+                mwlua/itemdata.hpp
+                mwlua/landbindings.hpp
+                mwlua/loadscripts.hpp
+                mwlua/localscripts.hpp
+                mwlua/luabindings.hpp
+                mwlua/luaevents.hpp
+                mwlua/luamanagerimp.hpp
+                mwlua/magicbindings.hpp
+                mwlua/magictypebindings.hpp
+                mwlua/markupbindings.hpp
+                mwlua/menuscripts.hpp
+                mwlua/mwscriptbindings.hpp
+                mwlua/nearbybindings.hpp
+                mwlua/object.hpp
+                mwlua/objectbindings.hpp
+                mwlua/objectlists.hpp
+                mwlua/objectvariant.hpp
+                mwlua/playerscripts.hpp
+                mwlua/postprocessingbindings.hpp
+                mwlua/racebindings.hpp
+                mwlua/recordstore.hpp
+                mwlua/regionbindings.hpp
+                mwlua/soundbindings.hpp
+                mwlua/stats.hpp
+                mwlua/types/actor.hpp
+                mwlua/types/modelproperty.hpp
+                mwlua/types/servicesoffered.hpp
+                mwlua/types/types.hpp
+                mwlua/types/usertypeutil.hpp
+                mwlua/uibindings.hpp
+                mwlua/userdataserializer.hpp
+                mwlua/vfsbindings.hpp
+                mwlua/weatherbindings.hpp
+                mwlua/worker.hpp
+                mwlua/worldbindings.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwmechanics/activespells.cpp
         mwmechanics/actors.cpp
@@ -487,76 +509,79 @@ target_sources(openmw-lib
         mwmechanics/summoning.cpp
         mwmechanics/weaponpriority.cpp
         mwmechanics/weapontype.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwmechanics/activespells.hpp
-        mwmechanics/actor.hpp
-        mwmechanics/actors.hpp
-        mwmechanics/actorutil.hpp
-        mwmechanics/aiactivate.hpp
-        mwmechanics/aiavoiddoor.hpp
-        mwmechanics/aibreathe.hpp
-        mwmechanics/aicast.hpp
-        mwmechanics/aicombat.hpp
-        mwmechanics/aicombataction.hpp
-        mwmechanics/aiescort.hpp
-        mwmechanics/aiface.hpp
-        mwmechanics/aifollow.hpp
-        mwmechanics/aipackage.hpp
-        mwmechanics/aipackagetypeid.hpp
-        mwmechanics/aipursue.hpp
-        mwmechanics/aisequence.hpp
-        mwmechanics/aisetting.hpp
-        mwmechanics/aistate.hpp
-        mwmechanics/aistatefwd.hpp
-        mwmechanics/aitemporarybase.hpp
-        mwmechanics/aitimer.hpp
-        mwmechanics/aitravel.hpp
-        mwmechanics/aiwander.hpp
-        mwmechanics/alchemy.hpp
-        mwmechanics/attacktype.hpp
-        mwmechanics/autocalcspell.hpp
-        mwmechanics/character.hpp
-        mwmechanics/combat.hpp
-        mwmechanics/creaturecustomdataresetter.hpp
-        mwmechanics/creaturestats.hpp
-        mwmechanics/damagesourcetype.hpp
-        mwmechanics/difficultyscaling.hpp
-        mwmechanics/disease.hpp
-        mwmechanics/drawstate.hpp
-        mwmechanics/enchanting.hpp
-        mwmechanics/greetingstate.hpp
-        mwmechanics/inventory.hpp
-        mwmechanics/levelledlist.hpp
-        mwmechanics/magiceffects.hpp
-        mwmechanics/mechanicsmanagerimp.hpp
-        mwmechanics/movement.hpp
-        mwmechanics/movingtarget.hpp
-        mwmechanics/npcstats.hpp
-        mwmechanics/objects.hpp
-        mwmechanics/obstacle.hpp
-        mwmechanics/pathfinding.hpp
-        mwmechanics/pathgrid.hpp
-        mwmechanics/pickpocket.hpp
-        mwmechanics/recharge.hpp
-        mwmechanics/repair.hpp
-        mwmechanics/security.hpp
-        mwmechanics/setbaseaisetting.hpp
-        mwmechanics/spellcasting.hpp
-        mwmechanics/spelleffects.hpp
-        mwmechanics/spelllist.hpp
-        mwmechanics/spellpriority.hpp
-        mwmechanics/spellresistance.hpp
-        mwmechanics/spells.hpp
-        mwmechanics/spellutil.hpp
-        mwmechanics/stat.hpp
-        mwmechanics/steering.hpp
-        mwmechanics/summoning.hpp
-        mwmechanics/typedaipackage.hpp
-        mwmechanics/weaponpriority.hpp
-        mwmechanics/weapontype.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwmechanics/activespells.hpp
+                mwmechanics/actor.hpp
+                mwmechanics/actors.hpp
+                mwmechanics/actorutil.hpp
+                mwmechanics/aiactivate.hpp
+                mwmechanics/aiavoiddoor.hpp
+                mwmechanics/aibreathe.hpp
+                mwmechanics/aicast.hpp
+                mwmechanics/aicombat.hpp
+                mwmechanics/aicombataction.hpp
+                mwmechanics/aiescort.hpp
+                mwmechanics/aiface.hpp
+                mwmechanics/aifollow.hpp
+                mwmechanics/aipackage.hpp
+                mwmechanics/aipackagetypeid.hpp
+                mwmechanics/aipursue.hpp
+                mwmechanics/aisequence.hpp
+                mwmechanics/aisetting.hpp
+                mwmechanics/aistate.hpp
+                mwmechanics/aistatefwd.hpp
+                mwmechanics/aitemporarybase.hpp
+                mwmechanics/aitimer.hpp
+                mwmechanics/aitravel.hpp
+                mwmechanics/aiwander.hpp
+                mwmechanics/alchemy.hpp
+                mwmechanics/attacktype.hpp
+                mwmechanics/autocalcspell.hpp
+                mwmechanics/character.hpp
+                mwmechanics/combat.hpp
+                mwmechanics/creaturecustomdataresetter.hpp
+                mwmechanics/creaturestats.hpp
+                mwmechanics/damagesourcetype.hpp
+                mwmechanics/difficultyscaling.hpp
+                mwmechanics/disease.hpp
+                mwmechanics/drawstate.hpp
+                mwmechanics/enchanting.hpp
+                mwmechanics/greetingstate.hpp
+                mwmechanics/inventory.hpp
+                mwmechanics/levelledlist.hpp
+                mwmechanics/magiceffects.hpp
+                mwmechanics/mechanicsmanagerimp.hpp
+                mwmechanics/movement.hpp
+                mwmechanics/movingtarget.hpp
+                mwmechanics/npcstats.hpp
+                mwmechanics/objects.hpp
+                mwmechanics/obstacle.hpp
+                mwmechanics/pathfinding.hpp
+                mwmechanics/pathgrid.hpp
+                mwmechanics/pickpocket.hpp
+                mwmechanics/recharge.hpp
+                mwmechanics/repair.hpp
+                mwmechanics/security.hpp
+                mwmechanics/setbaseaisetting.hpp
+                mwmechanics/spellcasting.hpp
+                mwmechanics/spelleffects.hpp
+                mwmechanics/spelllist.hpp
+                mwmechanics/spellpriority.hpp
+                mwmechanics/spellresistance.hpp
+                mwmechanics/spells.hpp
+                mwmechanics/spellutil.hpp
+                mwmechanics/stat.hpp
+                mwmechanics/steering.hpp
+                mwmechanics/summoning.hpp
+                mwmechanics/typedaipackage.hpp
+                mwmechanics/weaponpriority.hpp
+                mwmechanics/weapontype.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwphysics/actor.cpp
         mwphysics/actorconvexcallback.cpp
@@ -572,29 +597,32 @@ target_sources(openmw-lib
         mwphysics/projectileconvexcallback.cpp
         mwphysics/stepper.cpp
         mwphysics/trace.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwphysics/actor.hpp
-        mwphysics/actorconvexcallback.hpp
-        mwphysics/closestnotmerayresultcallback.hpp
-        mwphysics/collisiontype.hpp
-        mwphysics/constants.hpp
-        mwphysics/contacttestresultcallback.hpp
-        mwphysics/contacttestwrapper.h
-        mwphysics/hasspherecollisioncallback.hpp
-        mwphysics/heightfield.hpp
-        mwphysics/movementsolver.hpp
-        mwphysics/mtphysics.hpp
-        mwphysics/object.hpp
-        mwphysics/physicssystem.hpp
-        mwphysics/projectile.hpp
-        mwphysics/projectileconvexcallback.hpp
-        mwphysics/ptrholder.hpp
-        mwphysics/raycasting.hpp
-        mwphysics/stepper.hpp
-        mwphysics/trace.h
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwphysics/actor.hpp
+                mwphysics/actorconvexcallback.hpp
+                mwphysics/closestnotmerayresultcallback.hpp
+                mwphysics/collisiontype.hpp
+                mwphysics/constants.hpp
+                mwphysics/contacttestresultcallback.hpp
+                mwphysics/contacttestwrapper.h
+                mwphysics/hasspherecollisioncallback.hpp
+                mwphysics/heightfield.hpp
+                mwphysics/movementsolver.hpp
+                mwphysics/mtphysics.hpp
+                mwphysics/object.hpp
+                mwphysics/physicssystem.hpp
+                mwphysics/projectile.hpp
+                mwphysics/projectileconvexcallback.hpp
+                mwphysics/ptrholder.hpp
+                mwphysics/raycasting.hpp
+                mwphysics/stepper.hpp
+                mwphysics/trace.h
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwrender/actoranimation.cpp
         mwrender/actorspaths.cpp
@@ -672,105 +700,108 @@ target_sources(openmw-lib
         mwrender/water.cpp
         mwrender/waterawaretransparentbin.cpp
         mwrender/weaponanimation.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwrender/actoranimation.hpp
-        mwrender/actorspaths.hpp
-        mwrender/actorutil.hpp
-        mwrender/animation.hpp
-        mwrender/animationpriority.hpp
-        mwrender/animblendcontroller.hpp
-        mwrender/blendmask.hpp
-        mwrender/bonegroup.hpp
-        mwrender/bulletdebugdraw.hpp
-        mwrender/camera.hpp
-        mwrender/cell.hpp
-        mwrender/characterpreview.hpp
-        mwrender/creatureanimation.hpp
-        mwrender/distortion.hpp
-        mwrender/effectmanager.hpp
-        mwrender/esm4npcanimation.hpp
-        mwrender/fogmanager.hpp
-        mwrender/framedescriber.hpp
-        mwrender/glground.hpp
-        mwrender/glmapoverlay.hpp
-        mwrender/globalmap.hpp
-        mwrender/gloffscreenview.hpp
-        mwrender/glrenderer.hpp
-        mwrender/glsupport.hpp
-        mwrender/glwindow.hpp
-        mwrender/glworld.hpp
-        mwrender/ground.hpp
-        mwrender/groundcover.hpp
-        mwrender/groundcoverdensity.hpp
-        mwrender/groundcovershapes.hpp
-        mwrender/landmanager.hpp
-        mwrender/localmap.hpp
-        mwrender/luminancecalculator.hpp
-        mwrender/mapoverlay.hpp
-        mwrender/navmesh.hpp
-        mwrender/npcanimation.hpp
-        mwrender/objectpaging.hpp
-        mwrender/objects.hpp
-        mwrender/objectstorage.hpp
-        mwrender/offscreenview.hpp
-        mwrender/opaqueblit.hpp
-        mwrender/pathgrid.hpp
-        mwrender/pingpongcanvas.hpp
-        mwrender/pingpongcull.hpp
-        mwrender/pixels.hpp
-        mwrender/postprocessor.hpp
-        mwrender/precipitationocclusion.hpp
-        mwrender/recastmesh.hpp
-        mwrender/renderbin.hpp
-        mwrender/renderer.hpp
-        mwrender/renderinginterface.hpp
-        mwrender/renderingmanager.hpp
-        mwrender/rendermode.hpp
-        mwrender/rendersupport.hpp
-        mwrender/ripplerules.hpp
-        mwrender/ripples.hpp
-        mwrender/ripplesimulation.hpp
-        mwrender/rotatecontroller.hpp
-        mwrender/rtx/classmasks.hpp
-        mwrender/rtx/contentmodels.hpp
-        mwrender/rtx/debugwalk.hpp
-        mwrender/rtx/framereport.hpp
-        mwrender/rtx/frametimer.hpp
-        mwrender/rtx/mirrorknobs.hpp
-        mwrender/rtx/pendingpaints.hpp
-        mwrender/rtx/rippleemitters.hpp
-        mwrender/rtx/rtxbackend.hpp
-        mwrender/rtx/rtxrenderer.hpp
-        mwrender/rtx/rtxrun.hpp
-        mwrender/rtx/rtxsettings.hpp
-        mwrender/rtx/rtxsupport.hpp
-        mwrender/rtx/rtxwindow.hpp
-        mwrender/rtx/skyreader.hpp
-        mwrender/rtx/tracedground.hpp
-        mwrender/rtx/tracedgroundcover.hpp
-        mwrender/rtx/tracedoverlay.hpp
-        mwrender/rtx/tracedterrain.hpp
-        mwrender/rtx/tracedview.hpp
-        mwrender/rtx/viewqueue.hpp
-        mwrender/rtx/viewschedule.hpp
-        mwrender/rtx/worldmirror.hpp
-        mwrender/sceneframe.hpp
-        mwrender/screenshotmanager.hpp
-        mwrender/searules.hpp
-        mwrender/sky.hpp
-        mwrender/skystate.hpp
-        mwrender/skyutil.hpp
-        mwrender/terrainstorage.hpp
-        mwrender/texturereport.hpp
-        mwrender/transparentpass.hpp
-        mwrender/util.hpp
-        mwrender/vismask.hpp
-        mwrender/water.hpp
-        mwrender/waterawaretransparentbin.hpp
-        mwrender/weaponanimation.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwrender/actoranimation.hpp
+                mwrender/actorspaths.hpp
+                mwrender/actorutil.hpp
+                mwrender/animation.hpp
+                mwrender/animationpriority.hpp
+                mwrender/animblendcontroller.hpp
+                mwrender/blendmask.hpp
+                mwrender/bonegroup.hpp
+                mwrender/bulletdebugdraw.hpp
+                mwrender/camera.hpp
+                mwrender/cell.hpp
+                mwrender/characterpreview.hpp
+                mwrender/creatureanimation.hpp
+                mwrender/distortion.hpp
+                mwrender/effectmanager.hpp
+                mwrender/esm4npcanimation.hpp
+                mwrender/fogmanager.hpp
+                mwrender/framedescriber.hpp
+                mwrender/glground.hpp
+                mwrender/glmapoverlay.hpp
+                mwrender/globalmap.hpp
+                mwrender/gloffscreenview.hpp
+                mwrender/glrenderer.hpp
+                mwrender/glsupport.hpp
+                mwrender/glwindow.hpp
+                mwrender/glworld.hpp
+                mwrender/ground.hpp
+                mwrender/groundcover.hpp
+                mwrender/groundcoverdensity.hpp
+                mwrender/groundcovershapes.hpp
+                mwrender/landmanager.hpp
+                mwrender/localmap.hpp
+                mwrender/luminancecalculator.hpp
+                mwrender/mapoverlay.hpp
+                mwrender/navmesh.hpp
+                mwrender/npcanimation.hpp
+                mwrender/objectpaging.hpp
+                mwrender/objects.hpp
+                mwrender/objectstorage.hpp
+                mwrender/offscreenview.hpp
+                mwrender/opaqueblit.hpp
+                mwrender/pathgrid.hpp
+                mwrender/pingpongcanvas.hpp
+                mwrender/pingpongcull.hpp
+                mwrender/pixels.hpp
+                mwrender/postprocessor.hpp
+                mwrender/precipitationocclusion.hpp
+                mwrender/recastmesh.hpp
+                mwrender/renderbin.hpp
+                mwrender/renderer.hpp
+                mwrender/renderinginterface.hpp
+                mwrender/renderingmanager.hpp
+                mwrender/rendermode.hpp
+                mwrender/rendersupport.hpp
+                mwrender/ripplerules.hpp
+                mwrender/ripples.hpp
+                mwrender/ripplesimulation.hpp
+                mwrender/rotatecontroller.hpp
+                mwrender/rtx/classmasks.hpp
+                mwrender/rtx/contentmodels.hpp
+                mwrender/rtx/debugwalk.hpp
+                mwrender/rtx/framereport.hpp
+                mwrender/rtx/frametimer.hpp
+                mwrender/rtx/mirrorknobs.hpp
+                mwrender/rtx/pendingpaints.hpp
+                mwrender/rtx/rippleemitters.hpp
+                mwrender/rtx/rtxbackend.hpp
+                mwrender/rtx/rtxrenderer.hpp
+                mwrender/rtx/rtxrun.hpp
+                mwrender/rtx/rtxsettings.hpp
+                mwrender/rtx/rtxsupport.hpp
+                mwrender/rtx/rtxwindow.hpp
+                mwrender/rtx/skyreader.hpp
+                mwrender/rtx/tracedground.hpp
+                mwrender/rtx/tracedgroundcover.hpp
+                mwrender/rtx/tracedoverlay.hpp
+                mwrender/rtx/tracedterrain.hpp
+                mwrender/rtx/tracedview.hpp
+                mwrender/rtx/viewqueue.hpp
+                mwrender/rtx/viewschedule.hpp
+                mwrender/rtx/worldmirror.hpp
+                mwrender/sceneframe.hpp
+                mwrender/screenshotmanager.hpp
+                mwrender/searules.hpp
+                mwrender/sky.hpp
+                mwrender/skystate.hpp
+                mwrender/skyutil.hpp
+                mwrender/terrainstorage.hpp
+                mwrender/texturereport.hpp
+                mwrender/transparentpass.hpp
+                mwrender/util.hpp
+                mwrender/vismask.hpp
+                mwrender/water.hpp
+                mwrender/waterawaretransparentbin.hpp
+                mwrender/weaponanimation.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwscript/aiextensions.cpp
         mwscript/animationextensions.cpp
@@ -794,33 +825,36 @@ target_sources(openmw-lib
         mwscript/userextensions.cpp
         mwscript/visibilitygates.cpp
         mwscript/visibilityrun.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwscript/aiextensions.hpp
-        mwscript/animationextensions.hpp
-        mwscript/cellextensions.hpp
-        mwscript/compilercontext.hpp
-        mwscript/consoleextensions.hpp
-        mwscript/containerextensions.hpp
-        mwscript/controlextensions.hpp
-        mwscript/dialogueextensions.hpp
-        mwscript/extensions.hpp
-        mwscript/globalscripts.hpp
-        mwscript/guiextensions.hpp
-        mwscript/interpretercontext.hpp
-        mwscript/locals.hpp
-        mwscript/miscextensions.hpp
-        mwscript/ref.hpp
-        mwscript/scriptmanagerimp.hpp
-        mwscript/skyextensions.hpp
-        mwscript/soundextensions.hpp
-        mwscript/statsextensions.hpp
-        mwscript/transformationextensions.hpp
-        mwscript/userextensions.hpp
-        mwscript/visibilitygates.hpp
-        mwscript/visibilityrun.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwscript/aiextensions.hpp
+                mwscript/animationextensions.hpp
+                mwscript/cellextensions.hpp
+                mwscript/compilercontext.hpp
+                mwscript/consoleextensions.hpp
+                mwscript/containerextensions.hpp
+                mwscript/controlextensions.hpp
+                mwscript/dialogueextensions.hpp
+                mwscript/extensions.hpp
+                mwscript/globalscripts.hpp
+                mwscript/guiextensions.hpp
+                mwscript/interpretercontext.hpp
+                mwscript/locals.hpp
+                mwscript/miscextensions.hpp
+                mwscript/ref.hpp
+                mwscript/scriptmanagerimp.hpp
+                mwscript/skyextensions.hpp
+                mwscript/soundextensions.hpp
+                mwscript/statsextensions.hpp
+                mwscript/transformationextensions.hpp
+                mwscript/userextensions.hpp
+                mwscript/visibilitygates.hpp
+                mwscript/visibilityrun.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwsound/ffmpegdecoder.cpp
         mwsound/headcache.cpp
@@ -832,41 +866,47 @@ target_sources(openmw-lib
         mwsound/soundmanagerimp.cpp
         mwsound/warmqueue.cpp
         mwsound/watersoundupdater.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwsound/alext.h
-        mwsound/constants.hpp
-        mwsound/efx.h
-        mwsound/efxpresets.h
-        mwsound/ffmpegdecoder.hpp
-        mwsound/headcache.hpp
-        mwsound/loudness.hpp
-        mwsound/movieaudiofactory.hpp
-        mwsound/openaloutput.hpp
-        mwsound/regionsoundselector.hpp
-        mwsound/sound.hpp
-        mwsound/soundbuffer.hpp
-        mwsound/sounddecoder.hpp
-        mwsound/soundmanagerimp.hpp
-        mwsound/soundoutput.hpp
-        mwsound/type.hpp
-        mwsound/warmqueue.hpp
-        mwsound/watersoundupdater.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwsound/alext.h
+                mwsound/constants.hpp
+                mwsound/efx.h
+                mwsound/efxpresets.h
+                mwsound/ffmpegdecoder.hpp
+                mwsound/headcache.hpp
+                mwsound/loudness.hpp
+                mwsound/movieaudiofactory.hpp
+                mwsound/openaloutput.hpp
+                mwsound/regionsoundselector.hpp
+                mwsound/sound.hpp
+                mwsound/soundbuffer.hpp
+                mwsound/sounddecoder.hpp
+                mwsound/soundmanagerimp.hpp
+                mwsound/soundoutput.hpp
+                mwsound/type.hpp
+                mwsound/warmqueue.hpp
+                mwsound/watersoundupdater.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwstate/character.cpp
         mwstate/charactermanager.cpp
         mwstate/quicksavemanager.cpp
         mwstate/statemanagerimp.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwstate/character.hpp
-        mwstate/charactermanager.hpp
-        mwstate/quicksavemanager.hpp
-        mwstate/statemanagerimp.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwstate/character.hpp
+                mwstate/charactermanager.hpp
+                mwstate/quicksavemanager.hpp
+                mwstate/statemanagerimp.hpp
 )
 
-target_sources(openmw-lib
+target_sources(
+    openmw-lib
     PRIVATE
         mwworld/action.cpp
         mwworld/actionalchemy.cpp
@@ -913,78 +953,104 @@ target_sources(openmw-lib
         mwworld/weather.cpp
         mwworld/worldimp.cpp
         mwworld/worldmodel.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        mwworld/action.hpp
-        mwworld/actionalchemy.hpp
-        mwworld/actionapply.hpp
-        mwworld/actiondoor.hpp
-        mwworld/actioneat.hpp
-        mwworld/actionequip.hpp
-        mwworld/actionharvest.hpp
-        mwworld/actionopen.hpp
-        mwworld/actionread.hpp
-        mwworld/actionrepair.hpp
-        mwworld/actionsoulgem.hpp
-        mwworld/actiontake.hpp
-        mwworld/actiontalk.hpp
-        mwworld/actionteleport.hpp
-        mwworld/actiontrap.hpp
-        mwworld/cell.hpp
-        mwworld/cellpreloader.hpp
-        mwworld/cellref.hpp
-        mwworld/cellreflist.hpp
-        mwworld/cellstore.hpp
-        mwworld/cellvisitors.hpp
-        mwworld/class.hpp
-        mwworld/containerstore.hpp
-        mwworld/contentloader.hpp
-        mwworld/customdata.hpp
-        mwworld/datetimemanager.hpp
-        mwworld/doorstate.hpp
-        mwworld/duration.hpp
-        mwworld/esmloader.hpp
-        mwworld/esmstore.hpp
-        mwworld/failedaction.hpp
-        mwworld/globals.hpp
-        mwworld/globalvariablename.hpp
-        mwworld/groundcoverstore.hpp
-        mwworld/inventorystore.hpp
-        mwworld/livecellref.hpp
-        mwworld/localscripts.hpp
-        mwworld/lowestpoints.hpp
-        mwworld/magiceffects.hpp
-        mwworld/manualref.hpp
-        mwworld/movementdirection.hpp
-        mwworld/nullaction.hpp
-        mwworld/player.hpp
-        mwworld/positioncellgrid.hpp
-        mwworld/projectilemanager.hpp
-        mwworld/ptr.hpp
-        mwworld/ptrregistry.hpp
-        mwworld/refdata.hpp
-        mwworld/registeredclass.hpp
-        mwworld/scene.hpp
-        mwworld/spellcaststate.hpp
-        mwworld/store.hpp
-        mwworld/timestamp.hpp
-        mwworld/weather.hpp
-        mwworld/worldimp.hpp
-        mwworld/worldmodel.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                mwworld/action.hpp
+                mwworld/actionalchemy.hpp
+                mwworld/actionapply.hpp
+                mwworld/actiondoor.hpp
+                mwworld/actioneat.hpp
+                mwworld/actionequip.hpp
+                mwworld/actionharvest.hpp
+                mwworld/actionopen.hpp
+                mwworld/actionread.hpp
+                mwworld/actionrepair.hpp
+                mwworld/actionsoulgem.hpp
+                mwworld/actiontake.hpp
+                mwworld/actiontalk.hpp
+                mwworld/actionteleport.hpp
+                mwworld/actiontrap.hpp
+                mwworld/cell.hpp
+                mwworld/cellpreloader.hpp
+                mwworld/cellref.hpp
+                mwworld/cellreflist.hpp
+                mwworld/cellstore.hpp
+                mwworld/cellvisitors.hpp
+                mwworld/class.hpp
+                mwworld/containerstore.hpp
+                mwworld/contentloader.hpp
+                mwworld/customdata.hpp
+                mwworld/datetimemanager.hpp
+                mwworld/doorstate.hpp
+                mwworld/duration.hpp
+                mwworld/esmloader.hpp
+                mwworld/esmstore.hpp
+                mwworld/failedaction.hpp
+                mwworld/globals.hpp
+                mwworld/globalvariablename.hpp
+                mwworld/groundcoverstore.hpp
+                mwworld/inventorystore.hpp
+                mwworld/livecellref.hpp
+                mwworld/localscripts.hpp
+                mwworld/lowestpoints.hpp
+                mwworld/magiceffects.hpp
+                mwworld/manualref.hpp
+                mwworld/movementdirection.hpp
+                mwworld/nullaction.hpp
+                mwworld/player.hpp
+                mwworld/positioncellgrid.hpp
+                mwworld/projectilemanager.hpp
+                mwworld/ptr.hpp
+                mwworld/ptrregistry.hpp
+                mwworld/refdata.hpp
+                mwworld/registeredclass.hpp
+                mwworld/scene.hpp
+                mwworld/spellcaststate.hpp
+                mwworld/store.hpp
+                mwworld/timestamp.hpp
+                mwworld/weather.hpp
+                mwworld/worldimp.hpp
+                mwworld/worldmodel.hpp
 )
 
 # GCC reports an uninitialised value inside sol3's stack code inlined here, which no change to these
 # files removes; each loses only the check that fires.
-set_property(SOURCE mwlua/contentbindings.cpp APPEND PROPERTY COMPILE_OPTIONS $<$<CXX_COMPILER_ID:GNU>:-Wno-uninitialized>)
-set_property(SOURCE mwmechanics/character.cpp APPEND PROPERTY COMPILE_OPTIONS
-    $<$<CXX_COMPILER_ID:GNU>:-Wno-maybe-uninitialized>)
+set_property(
+    SOURCE
+        mwlua/contentbindings.cpp
+    APPEND
+    PROPERTY
+        COMPILE_OPTIONS
+            $<$<CXX_COMPILER_ID:GNU>:-Wno-uninitialized>
+)
+set_property(
+    SOURCE
+        mwmechanics/character.cpp
+    APPEND
+    PROPERTY
+        COMPILE_OPTIONS
+            $<$<CXX_COMPILER_ID:GNU>:-Wno-maybe-uninitialized>
+)
 # MSVC's four code generation threads a file take more than CI's 8 GB beside another `cl.exe` on these;
 # one thread costs a third more build time, so only the hungriest take it.
-set_property(SOURCE mwlua/dialoguebindings.cpp mwlua/magicbindings.cpp mwlua/objectbindings.cpp mwlua/stats.cpp
-    mwworld/esmstore.cpp APPEND PROPERTY COMPILE_OPTIONS $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>)
+set_property(
+    SOURCE
+        mwlua/dialoguebindings.cpp
+        mwlua/magicbindings.cpp
+        mwlua/objectbindings.cpp
+        mwlua/stats.cpp
+        mwworld/esmstore.cpp
+    APPEND
+    PROPERTY
+        COMPILE_OPTIONS
+            $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>
+)
 
 # `PUBLIC`: `mwsound/ffmpegdecoder.hpp` names FFmpeg's types, and the game's headers OpenSceneGraph's,
 # MyGUI's and SDL's.
-target_link_libraries(openmw-lib
+target_link_libraries(
+    openmw-lib
     PUBLIC
         OpenSceneGraph::osgParticle
         OpenSceneGraph::osgViewer
@@ -1005,58 +1071,71 @@ target_link_libraries(openmw-lib
         openmw-myguirtx
         Threads::Threads
 )
-if (OPENMW_SYSTEM_TINYXML)
+if(OPENMW_SYSTEM_TINYXML)
     target_link_libraries(openmw-lib PUBLIC TinyXML::TinyXML)
-endif ()
+endif()
 
-if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(openmw-lib PRIVATE
-        <boost/program_options/options_description.hpp>
-
-        <sol/sol.hpp>
-
-        <osg/StateSet>
-        <osg/Node>
-        <osg/Drawable>
-        <osg/Camera>
-
-        <osgViewer/Viewer>
-
-        <MyGUI_Widget.h>
-
-        <algorithm>
-        <filesystem>
-        <fstream>
-        <functional>
-        <memory>
-        <string>
-        <string_view>
-        <vector>
+if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
+    target_precompile_headers(
+        openmw-lib
+        PRIVATE
+            <boost/program_options/options_description.hpp>
+            <sol/sol.hpp>
+            <osg/StateSet>
+            <osg/Node>
+            <osg/Drawable>
+            <osg/Camera>
+            <osgViewer/Viewer>
+            <MyGUI_Widget.h>
+            <algorithm>
+            <filesystem>
+            <fstream>
+            <functional>
+            <memory>
+            <string>
+            <string_view>
+            <vector>
     )
-endif ()
+endif()
 
-if (OPENMW_BUILD_GAME)
+if(OPENMW_BUILD_GAME)
     add_executable(openmw main.cpp)
-    if (WIN32)
-        target_sources(openmw PRIVATE
-            "${PROJECT_SOURCE_DIR}/files/windows/openmw.rc"
-            "${PROJECT_SOURCE_DIR}/files/windows/openmw.exe.manifest")
-    endif ()
+    if(WIN32)
+        target_sources(
+            openmw
+            PRIVATE
+                "${PROJECT_SOURCE_DIR}/files/windows/openmw.rc"
+                "${PROJECT_SOURCE_DIR}/files/windows/openmw.exe.manifest"
+        )
+    endif()
     target_link_libraries(openmw PRIVATE openmw-lib)
     # `osgAnimation::MatrixLinearSampler`'s dynamic casts work under Clang only with the executable's
     # symbols exported; whether the failure is the standard's behaviour is unclear.
-    if (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
-        set_target_properties(openmw PROPERTIES ENABLE_EXPORTS ON)
-    endif ()
+    if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+        set_target_properties(
+            openmw
+            PROPERTIES
+                ENABLE_EXPORTS
+                    ON
+        )
+    endif()
     # The console a Windows build opens beside the game: in Debug and RelWithDebInfo where
     # `OPENMW_DEBUG_CONSOLE` asks for it, and never in Release, whose output goes to `openmw.log`.
-    if (MSVC)
-        if (OPENMW_DEBUG_CONSOLE)
+    if(MSVC)
+        if(OPENMW_DEBUG_CONSOLE)
             set(console CONSOLE)
-        else ()
+        else()
             set(console WINDOWS)
-        endif ()
-        target_link_options(openmw PRIVATE $<IF:$<CONFIG:Debug,RelWithDebInfo>,/SUBSYSTEM:${console},/SUBSYSTEM:WINDOWS>)
-    endif ()
-    install(TARGETS openmw ${runtime_dependency_arguments})
-endif ()
+        endif()
+        target_link_options(
+            openmw
+            PRIVATE
+                $<IF:$<CONFIG:Debug,RelWithDebInfo>,/SUBSYSTEM:${console},/SUBSYSTEM:WINDOWS>
+        )
+    endif()
+    install(
+        TARGETS
+            openmw
+            ${runtime_dependency_arguments}
+    )
+endif()

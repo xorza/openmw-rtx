@@ -40,19 +40,27 @@ include(FindPackageHandleStandardArgs)
 # Checks for the given component by invoking pkgconfig etc.
 macro(_internal_find_component _component _pkgconfig _library _header)
     set(_package_component FFmpeg_${_component})
-    libfind_pkg_detect(${_package_component} ${_pkgconfig}
-        FIND_PATH ${_header}
-            HINTS $ENV{FFMPEG_HOME}
-            PATH_SUFFIXES include ffmpeg
-        FIND_LIBRARY ${_library}
-            HINTS $ENV{FFMPEG_HOME}
-            PATH_SUFFIXES lib
+    libfind_pkg_detect(
+        ${_package_component}
+        ${_pkgconfig}
+        FIND_PATH
+        ${_header}
+        HINTS
+        $ENV{FFMPEG_HOME}
+        PATH_SUFFIXES
+        include
+        ffmpeg
+        FIND_LIBRARY
+        ${_library}
+        HINTS
+        $ENV{FFMPEG_HOME}
+        PATH_SUFFIXES
+        lib
     )
-    set(${_package_component}_DEFINITIONS  ${${_package_component}_PKGCONF_CFLAGS_OTHER})
-    set(${_package_component}_VERSION      ${${_package_component}_PKGCONF_VERSION})
+    set(${_package_component}_DEFINITIONS ${${_package_component}_PKGCONF_CFLAGS_OTHER})
+    set(${_package_component}_VERSION ${${_package_component}_PKGCONF_VERSION})
     libfind_process(${_package_component})
 endmacro()
-
 
 # setter for 'hashmap'
 macro(hashmap_set _table _key) # ARGN
@@ -61,7 +69,7 @@ endmacro()
 
 # check for key in 'hashmap'
 macro(hashmap_exists _table _key _out_var)
-    if (DEFINED ${_table}_${_key})
+    if(DEFINED ${_table}_${_key})
         set(${_out_var} TRUE)
     else()
         set(${_out_var} FALSE)
@@ -73,39 +81,87 @@ macro(hashmap_get _table _key _out_var)
     set(${_out_var} ${${_table}_${_key}})
 endmacro()
 
-
 # fill 'hashmap' named find_args
-hashmap_set(find_args AVCODEC  libavcodec  avcodec  libavcodec/avcodec.h)
-hashmap_set(find_args AVFORMAT libavformat avformat libavformat/avformat.h)
-hashmap_set(find_args AVDEVICE libavdevice avdevice libavdevice/avdevice.h)
-hashmap_set(find_args AVUTIL   libavutil   avutil   libavutil/avutil.h)
-hashmap_set(find_args SWSCALE  libswscale  swscale  libswscale/swscale.h)
-hashmap_set(find_args POSTPROC libpostproc postproc libpostproc/postprocess.h)
-hashmap_set(find_args SWRESAMPLE  libswresample  swresample  libswresample/swresample.h)
-hashmap_set(find_args AVRESAMPLE  libavresample  avresample  libavresample/avresample.h)
+hashmap_set(
+    find_args
+    AVCODEC
+    libavcodec
+    avcodec
+    libavcodec/avcodec.h
+)
+hashmap_set(
+    find_args
+    AVFORMAT
+    libavformat
+    avformat
+    libavformat/avformat.h
+)
+hashmap_set(
+    find_args
+    AVDEVICE
+    libavdevice
+    avdevice
+    libavdevice/avdevice.h
+)
+hashmap_set(
+    find_args
+    AVUTIL
+    libavutil
+    avutil
+    libavutil/avutil.h
+)
+hashmap_set(
+    find_args
+    SWSCALE
+    libswscale
+    swscale
+    libswscale/swscale.h
+)
+hashmap_set(
+    find_args
+    POSTPROC
+    libpostproc
+    postproc
+    libpostproc/postprocess.h
+)
+hashmap_set(
+    find_args
+    SWRESAMPLE
+    libswresample
+    swresample
+    libswresample/swresample.h
+)
+hashmap_set(
+    find_args
+    AVRESAMPLE
+    libavresample
+    avresample
+    libavresample/avresample.h
+)
 
 # Check if the required components were found and add their stuff to the FFmpeg_* vars.
-foreach (_component ${FFmpeg_FIND_COMPONENTS})
+foreach(_component ${FFmpeg_FIND_COMPONENTS})
     hashmap_exists(find_args ${_component} _known_component)
-    if (NOT _known_component)
+    if(NOT _known_component)
         message(FATAL_ERROR "Unknown component '${_component}'")
     endif()
     hashmap_get(find_args ${_component} _component_find_args)
     _internal_find_component(${_component} ${_component_find_args})
     set(_package_component FFmpeg_${_component})
-    if (${_package_component}_FOUND)
+    if(${_package_component}_FOUND)
         list(APPEND FFmpeg_LIBRARIES ${${_package_component}_LIBRARIES})
         list(APPEND FFmpeg_INCLUDE_DIRS ${${_package_component}_INCLUDE_DIRS})
         list(APPEND FFmpeg_DEFINITIONS ${${_package_component}_DEFINITIONS})
-    endif ()
-endforeach ()
+    endif()
+endforeach()
 
 # Build the include path with duplicates removed.
-if (FFmpeg_INCLUDE_DIRS)
+if(FFmpeg_INCLUDE_DIRS)
     list(REMOVE_DUPLICATES FFmpeg_INCLUDE_DIRS)
 endif()
 
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(FFmpeg
+find_package_handle_standard_args(
+    FFmpeg
     FOUND_VAR FFmpeg_FOUND
     HANDLE_COMPONENTS
     REQUIRED_VARS

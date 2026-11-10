@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 4.4)
 
-project(OpenMW VERSION 0.53.0 LANGUAGES C CXX)
+project(
+    OpenMW
+    VERSION 0.53.0
+    LANGUAGES
+        C
+        CXX
+)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,15 +17,15 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 # Every preset names ccache, and a box without it compiles without it rather than failing every
 # compile: a release's runner keeps no cache and has none installed.
-foreach (language C CXX)
-    if (CMAKE_${language}_COMPILER_LAUNCHER STREQUAL "ccache")
+foreach(language C CXX)
+    if(CMAKE_${language}_COMPILER_LAUNCHER STREQUAL "ccache")
         find_program(OPENMW_CCACHE ccache)
-        if (NOT OPENMW_CCACHE)
+        if(NOT OPENMW_CCACHE)
             message(STATUS "No ccache: ${language} compiles without a launcher")
             set(CMAKE_${language}_COMPILER_LAUNCHER "" CACHE STRING "" FORCE)
-        endif ()
-    endif ()
-endforeach ()
+        endif()
+    endif()
+endforeach()
 
 include(cmake/Options.cmake)
 include(cmake/Checks.cmake)
@@ -39,54 +45,56 @@ set(OPENMW_VERSION_COMMITHASH "")
 set(OPENMW_VERSION_TAGHASH "")
 set(OPENMW_VERSION_COMMITDATE "")
 set(GIT_CHECKOUT FALSE)
-if (EXISTS "${PROJECT_SOURCE_DIR}/.git")
+if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
     find_package(Git)
-    if (GIT_FOUND)
+    if(GIT_FOUND)
         set(GIT_CHECKOUT TRUE)
         execute_process(
-            COMMAND ${GIT_EXECUTABLE} log -1 --format=%as
+            COMMAND
+                ${GIT_EXECUTABLE} log -1 --format=%as
             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
             RESULT_VARIABLE failed
             OUTPUT_VARIABLE OPENMW_VERSION_COMMITDATE
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-        if (failed)
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        if(failed)
             set(OPENMW_VERSION_COMMITDATE "")
-        endif ()
-    else ()
+        endif()
+    else()
         message(WARNING "Git executable not found")
-    endif ()
-endif ()
+    endif()
+endif()
 
 # moc and uic one at a time inside each target: Ninja already runs the targets in parallel, and CI
 # measured the nested parallelism slower.
 set(CMAKE_AUTOGEN_PARALLEL 1)
 
 # `/Z7`: ccache cannot cache a compile that writes a shared PDB.
-if (MSVC AND (CMAKE_C_COMPILER_LAUNCHER STREQUAL "ccache" OR CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache"))
+if(MSVC AND (CMAKE_C_COMPILER_LAUNCHER STREQUAL "ccache" OR CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache"))
     set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
-endif ()
+endif()
 
-if (OPENMW_LTO)
+if(OPENMW_LTO)
     include(CheckIPOSupported)
     check_ipo_supported(RESULT HAVE_IPO OUTPUT HAVE_IPO_OUTPUT)
-    if (HAVE_IPO)
+    if(HAVE_IPO)
         message(STATUS "LTO enabled for Release configuration.")
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-    else ()
+    else()
         message(WARNING "Requested option OPENMW_LTO not supported by this compiler: ${HAVE_IPO_OUTPUT}")
-    endif ()
-endif ()
+    endif()
+endif()
 
 include(cmake/Dependencies.cmake)
 
 # Every program and its resources in one folder of the build, which the install copies from.
 set(OPENMW_RESOURCES_ROOT "${PROJECT_BINARY_DIR}")
 get_generator_is_multi_config(multi_config)
-if (multi_config)
+if(multi_config)
     set(RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/$<CONFIG>")
-else ()
+else()
     set(RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
-endif ()
+endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}")
 
@@ -115,55 +123,55 @@ set(RTX_SPIRV_CENSUS_DIR "${RTX_HARNESS_DIR}/shaders-census")
 set(RTX_SPIRV_CENSUS_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-census-source")
 add_subdirectory(components/rtxvulkan)
 
-if (OPENMW_BUILD_GAME OR OPENMW_BUILD_GAME_TESTS)
+if(OPENMW_BUILD_GAME OR OPENMW_BUILD_GAME_TESTS)
     add_subdirectory(apps/openmw)
-endif ()
+endif()
 add_subdirectory(apps/rtxtool)
-if (OPENMW_BUILD_BSATOOL)
+if(OPENMW_BUILD_BSATOOL)
     add_subdirectory(apps/bsatool)
-endif ()
-if (OPENMW_BUILD_ESMTOOL)
+endif()
+if(OPENMW_BUILD_ESMTOOL)
     add_subdirectory(apps/esmtool)
-endif ()
-if (OPENMW_BUILD_LAUNCHER)
+endif()
+if(OPENMW_BUILD_LAUNCHER)
     add_subdirectory(apps/launcher)
-endif ()
-if (OPENMW_BUILD_INIIMPORTER)
+endif()
+if(OPENMW_BUILD_INIIMPORTER)
     add_subdirectory(apps/mwiniimporter)
-endif ()
-if (OPENMW_BUILD_ESSIMPORTER)
+endif()
+if(OPENMW_BUILD_ESSIMPORTER)
     add_subdirectory(apps/essimporter)
-endif ()
-if (OPENMW_BUILD_CS OR OPENMW_BUILD_CS_TESTS)
+endif()
+if(OPENMW_BUILD_CS OR OPENMW_BUILD_CS_TESTS)
     add_subdirectory(apps/opencs)
-endif ()
-if (OPENMW_BUILD_WIZARD)
+endif()
+if(OPENMW_BUILD_WIZARD)
     add_subdirectory(apps/wizard)
-endif ()
-if (OPENMW_BUILD_NIFTEST)
+endif()
+if(OPENMW_BUILD_NIFTEST)
     add_subdirectory(apps/niftest)
-endif ()
-if (OPENMW_BUILD_NAVMESHTOOL)
+endif()
+if(OPENMW_BUILD_NAVMESHTOOL)
     add_subdirectory(apps/navmeshtool)
-endif ()
-if (OPENMW_BUILD_BULLETOBJECTTOOL)
+endif()
+if(OPENMW_BUILD_BULLETOBJECTTOOL)
     add_subdirectory(apps/bulletobjecttool)
-endif ()
-if (OPENMW_BUILD_COMPONENTS_TESTS)
+endif()
+if(OPENMW_BUILD_COMPONENTS_TESTS)
     add_subdirectory(apps/components_tests)
-endif ()
-if (OPENMW_BUILD_GAME_TESTS)
+endif()
+if(OPENMW_BUILD_GAME_TESTS)
     add_subdirectory(apps/openmw_tests)
-endif ()
-if (OPENMW_BUILD_CS_TESTS)
+endif()
+if(OPENMW_BUILD_CS_TESTS)
     add_subdirectory(apps/opencs_tests)
-endif ()
-if (OPENMW_BUILD_BENCHMARKS)
+endif()
+if(OPENMW_BUILD_BENCHMARKS)
     add_subdirectory(apps/benchmarks)
-endif ()
-if (OPENMW_BUILD_DOCS)
+endif()
+if(OPENMW_BUILD_DOCS)
     add_subdirectory(docs)
-endif ()
+endif()
 
 include(cmake/Tests.cmake)
 include(cmake/Install.cmake)
@@ -171,11 +179,17 @@ include(cmake/Install.cmake)
 # The folders the driver reads (`Build.folder`), written out of the variables that name them: values a
 # build states for a tool outside it, where a cache entry would also be one more route between the
 # tree's own folders.
-file(CONFIGURE OUTPUT "${PROJECT_BINARY_DIR}/omw-folders.json" CONTENT [[{
+file(
+    CONFIGURE
+    OUTPUT "${PROJECT_BINARY_DIR}/omw-folders.json"
+    CONTENT
+        [[{
     "RTX_SPIRV_DIR": "@RTX_SPIRV_DIR@",
     "RTX_SPIRV_SOURCE_DIR": "@RTX_SPIRV_SOURCE_DIR@",
     "RTX_TEST_OUTPUT_DIR": "@RTX_TEST_OUTPUT_DIR@"
 }
-]] @ONLY)
+]]
+    @ONLY
+)
 
 openmw_link_tree("${PROJECT_SOURCE_DIR}")

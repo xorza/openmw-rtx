@@ -22,10 +22,16 @@ set(POSSIBLE_LOCATIONS
     /usr/include
 )
 
-libfind_pkg_detect(LIBUNSHIELD libunshield
-    FIND_PATH libunshield.h
-        HINTS ${POSSIBLE_LOCATIONS}
-    FIND_LIBRARY unshield
-        HINTS ${POSSIBLE_LOCATIONS}
+libfind_pkg_detect(
+    LIBUNSHIELD
+    libunshield
+    FIND_PATH
+    libunshield.h
+    HINTS
+    ${POSSIBLE_LOCATIONS}
+    FIND_LIBRARY
+    unshield
+    HINTS
+    ${POSSIBLE_LOCATIONS}
 )
 libfind_process(LIBUNSHIELD)

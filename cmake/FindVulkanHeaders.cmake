@@ -29,7 +29,12 @@ set(VulkanHeaders_VERSION "${Vulkan_VERSION}")
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(VulkanHeaders REQUIRED_VARS Vulkan_INCLUDE_DIR VERSION_VAR VulkanHeaders_VERSION)
 
-if (VulkanHeaders_FOUND AND NOT TARGET Vulkan::Headers)
+if(VulkanHeaders_FOUND AND NOT TARGET Vulkan::Headers)
     add_library(Vulkan::Headers INTERFACE IMPORTED)
-    set_target_properties(Vulkan::Headers PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${Vulkan_INCLUDE_DIR}")
+    set_target_properties(
+        Vulkan::Headers
+        PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES
+                "${Vulkan_INCLUDE_DIR}"
+    )
 endif()

@@ -15,7 +15,7 @@
 include(LibFindMacros)
 include(Findosg_functions)
 
-if (NOT OSGPlugins_LIB_DIR)
+if(NOT OSGPlugins_LIB_DIR)
     unset(OSGPlugins_LIB_DIR)
     foreach(OSGDB_LIB ${OSGDB_LIBRARY})
         # Skip library type names
@@ -24,19 +24,27 @@ if (NOT OSGPlugins_LIB_DIR)
             list(APPEND OSGPlugins_LIB_DIR "${OSG_LIB_DIR}/osgPlugins-${OPENSCENEGRAPH_VERSION}")
         endif()
     endforeach(OSGDB_LIB)
-    if (WIN32)
+    if(WIN32)
         set(OSGPlugins_BIN_DIR ${OSGPlugins_LIB_DIR})
-        list(TRANSFORM OSGPlugins_BIN_DIR REPLACE lib bin)
+        list(
+            TRANSFORM OSGPlugins_BIN_DIR
+            REPLACE
+                lib
+                bin
+        )
         list(APPEND OSGPlugins_LIB_DIR ${OSGPlugins_BIN_DIR})
-    endif ()
+    endif()
 endif()
 
-if (NOT OSGPlugins_LIB_DIR)
+if(NOT OSGPlugins_LIB_DIR)
     set(_mode WARNING)
-    if (OSGPlugins_FIND_REQUIRED)
+    if(OSGPlugins_FIND_REQUIRED)
         set(_mode FATAL_ERROR)
     endif()
-    message(${_mode} "OSGPlugins_LIB_DIR variable must be set")
+    message(
+        ${_mode}
+        "OSGPlugins_LIB_DIR variable must be set"
+    )
 endif()
 
 foreach(_library ${OSGPlugins_FIND_COMPONENTS})
@@ -58,7 +66,7 @@ foreach(_library ${OSGPlugins_FIND_COMPONENTS})
     set(CMAKE_FIND_LIBRARY_PREFIXES "${_saved_lib_prefix}") # restore prefix
     set(CMAKE_FIND_LIBRARY_SUFFIXES "${_saved_lib_suffix}")
 
-    if (${_library_uc}_LIBRARIES)
+    if(${_library_uc}_LIBRARIES)
         set(${_component}_LIBRARY ${${_library_uc}_LIBRARIES}) # fake as if we call find_library
     else()
         set(${_component}_LIBRARY ${_component}_LIBRARY-NOTFOUND)

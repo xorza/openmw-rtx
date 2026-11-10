@@ -1,4 +1,4 @@
-if (NOT DEFINED OPENMW_RESOURCES_ROOT)
+if(NOT DEFINED OPENMW_RESOURCES_ROOT)
     return()
 endif()
 
@@ -31,6 +31,6 @@ set(LUA_API_FILES
     openmw/world.lua
 )
 
-foreach (f ${LUA_API_FILES})
+foreach(f ${LUA_API_FILES})
     copy_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/${f}" "${OPENMW_RESOURCES_ROOT}" "resources/lua_api/${f}")
-endforeach (f)
+endforeach(f)

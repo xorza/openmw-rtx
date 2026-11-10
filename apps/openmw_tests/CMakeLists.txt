@@ -1,5 +1,6 @@
 add_executable(openmw-tests)
-target_sources(openmw-tests
+target_sources(
+    openmw-tests
     PRIVATE
         main.cpp
         mwclass/preloadmodels.cpp
@@ -51,38 +52,60 @@ target_sources(openmw-tests
         "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/fallbackseed.cpp"
         "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/firsttexel.cpp"
         "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/guiinstance.cpp"
-    PRIVATE FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES
-        mwscript/testutils.hpp
+    PRIVATE
+        FILE_SET HEADERS
+            BASE_DIRS
+                "${PROJECT_SOURCE_DIR}"
+            FILES
+                mwscript/testutils.hpp
 )
-if (WIN32)
-    target_sources(openmw-tests PRIVATE
-        "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/testplatformwin32.cpp"
-        "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest")
-else ()
-    target_sources(openmw-tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/testplatformposix.cpp")
-endif ()
-# MSVC's four code generation threads a file take more than CI's 8 GB beside another `cl.exe` on this one.
-set_property(SOURCE mwworld/teststore.cpp APPEND PROPERTY COMPILE_OPTIONS $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>)
-
-target_link_libraries(openmw-tests PRIVATE GTest::gtest GTest::gmock openmw-lib)
-target_compile_definitions(openmw-tests
-    PRIVATE OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
-            OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}")
-
-if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(openmw-tests PRIVATE
-        <boost/program_options/options_description.hpp>
-
-        <gtest/gtest.h>
-
-        <sol/sol.hpp>
-
-        <algorithm>
-        <filesystem>
-        <fstream>
-        <functional>
-        <memory>
-        <string>
-        <vector>
+if(WIN32)
+    target_sources(
+        openmw-tests
+        PRIVATE
+            "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/testplatformwin32.cpp"
+            "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest"
     )
-endif ()
+else()
+    target_sources(openmw-tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/testplatformposix.cpp")
+endif()
+# MSVC's four code generation threads a file take more than CI's 8 GB beside another `cl.exe` on this one.
+set_property(
+    SOURCE
+        mwworld/teststore.cpp
+    APPEND
+    PROPERTY
+        COMPILE_OPTIONS
+            $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>
+)
+
+target_link_libraries(
+    openmw-tests
+    PRIVATE
+        GTest::gtest
+        GTest::gmock
+        openmw-lib
+)
+target_compile_definitions(
+    openmw-tests
+    PRIVATE
+        OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
+        OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}"
+)
+
+if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
+    target_precompile_headers(
+        openmw-tests
+        PRIVATE
+            <boost/program_options/options_description.hpp>
+            <gtest/gtest.h>
+            <sol/sol.hpp>
+            <algorithm>
+            <filesystem>
+            <fstream>
+            <functional>
+            <memory>
+            <string>
+            <vector>
+    )
+endif()

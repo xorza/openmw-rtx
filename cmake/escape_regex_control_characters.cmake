@@ -8,6 +8,11 @@ function(escape_regex_control_characters out_var string)
     endif()
     # OpenMW should use CMake 4.2's string(REGEX QUOTE out_var input) if available
     # uses | instead of [] to avoid confusion; additionally, CMake doesn't support `]` in a `[]`
-    string(REGEX REPLACE [[\[|\]|\(|\)|\.|\+|\*|\^|\\|\$|\?|\|]] [[\\\0]] escaped_content "${string}")
+    string(
+        REGEX REPLACE [[\[|\]|\(|\)|\.|\+|\*|\^|\\|\$|\?|\|]]
+        [[\\\0]]
+        escaped_content
+        "${string}"
+    )
     set("${out_var}" "${escaped_content}" PARENT_SCOPE)
 endfunction()

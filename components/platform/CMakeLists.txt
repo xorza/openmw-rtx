@@ -4,52 +4,69 @@
 # **A file read and written whole, and the process it is written by**, a library of its own: the build's own
 # tools (`rtx_make_table`) write through it, and they link no more of the components than this.
 add_library(openmw-platform-io STATIC)
-target_sources(openmw-platform-io
+target_sources(
+    openmw-platform-io
     PRIVATE
         folder.cpp
         linuxtext.cpp
         wholefile.cpp
-    PUBLIC FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES
-        folder.hpp
-        linuxtext.hpp
-        process.hpp
-        wholefile.hpp
-        wholefilesystem.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            BASE_DIRS
+                "${PROJECT_SOURCE_DIR}"
+            FILES
+                folder.hpp
+                linuxtext.hpp
+                process.hpp
+                wholefile.hpp
+                wholefilesystem.hpp
 )
-if (WIN32)
-    target_sources(openmw-platform-io PRIVATE processwin32.cpp wholefilewin32.cpp)
-elseif (LINUX)
-    target_sources(openmw-platform-io
+if(WIN32)
+    target_sources(
+        openmw-platform-io
+        PRIVATE
+            processwin32.cpp
+            wholefilewin32.cpp
+    )
+elseif(LINUX)
+    target_sources(
+        openmw-platform-io
         PRIVATE
             kernelfilelinux.cpp
             processlinux.cpp
             wholefileposix.cpp
-        PUBLIC FILE_SET HEADERS FILES
-            kernelfilelinux.hpp
+        PUBLIC
+            FILE_SET HEADERS
+                FILES
+                    kernelfilelinux.hpp
     )
-endif ()
+endif()
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         platform.cpp
         thread.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        appendfile.hpp
-        fifo.hpp
-        file.hpp
-        gpu.hpp
-        heap.hpp
-        library.hpp
-        localtime.hpp
-        memory.hpp
-        platform.hpp
-        sharedmemory.hpp
-        thread.hpp
-        uniquehold.hpp
-        userhome.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                appendfile.hpp
+                fifo.hpp
+                file.hpp
+                gpu.hpp
+                heap.hpp
+                library.hpp
+                localtime.hpp
+                memory.hpp
+                platform.hpp
+                sharedmemory.hpp
+                thread.hpp
+                uniquehold.hpp
+                userhome.hpp
 )
-if (WIN32)
-    target_sources(openmw-components
+if(WIN32)
+    target_sources(
+        openmw-components
         PRIVATE
             appendfilewin32.cpp
             fifowin32.cpp
@@ -64,8 +81,9 @@ if (WIN32)
             threadwin32.cpp
             userhomewin32.cpp
     )
-elseif (LINUX)
-    target_sources(openmw-components
+elseif(LINUX)
+    target_sources(
+        openmw-components
         PRIVATE
             appendfileposix.cpp
             fifoposix.cpp
@@ -80,7 +98,10 @@ elseif (LINUX)
             threadlinux.cpp
             userhomeposix.cpp
     )
-else ()
-    message(FATAL_ERROR "The platform is written for Linux and Windows alone: "
-        "${CMAKE_SYSTEM_NAME} needs files of its own in components/platform")
-endif ()
+else()
+    message(
+        FATAL_ERROR
+        "The platform is written for Linux and Windows alone: "
+        "${CMAKE_SYSTEM_NAME} needs files of its own in components/platform"
+    )
+endif()

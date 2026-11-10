@@ -3,7 +3,8 @@
 # (`crashcatcher/tests.cmake`).
 
 add_executable(components-tests)
-target_sources(components-tests
+target_sources(
+    components-tests
     PRIVATE
         bsa/testbsafile.cpp
         bsa/testcompressedbsafile.cpp
@@ -102,24 +103,32 @@ target_sources(components-tests
         terrain/refstack.cpp
         toutf8/toutf8.cpp
         vfs/testpathutil.cpp
-    PRIVATE FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES
-        nif/node.hpp
-        rtx/support/allocations.hpp
+    PRIVATE
+        FILE_SET HEADERS
+            BASE_DIRS
+                "${PROJECT_SOURCE_DIR}"
+            FILES
+                nif/node.hpp
+                rtx/support/allocations.hpp
 )
 # The system's half of the test support, one file a system (`rtx/support/testplatform.hpp`).
-if (WIN32)
-    target_sources(components-tests PRIVATE
-        rtx/support/testplatformwin32.cpp
-        "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest")
-else ()
+if(WIN32)
+    target_sources(
+        components-tests
+        PRIVATE
+            rtx/support/testplatformwin32.cpp
+            "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest"
+    )
+else()
     target_sources(components-tests PRIVATE rtx/support/testplatformposix.cpp)
-endif ()
-if (USE_QT)
+endif()
+if(USE_QT)
     target_sources(components-tests PRIVATE config/testlaunchersettings.cpp)
     target_link_libraries(components-tests PRIVATE openmw-components-qt)
-endif ()
+endif()
 
-target_link_libraries(components-tests
+target_link_libraries(
+    components-tests
     PRIVATE
         GTest::gtest
         GTest::gmock
@@ -128,34 +137,41 @@ target_link_libraries(components-tests
         openmw-rtx-tablemakers
 )
 
-set(OPENMW_TEMPLATE_OMWGAME_URL https://gitlab.com/OpenMW/example-suite/-/raw/8966dab24692555eec720c854fb0f73d108070cd/data/template.omwgame CACHE STRING "URL for template.omwgame. Use file:// URL for local file in offline builds.")
-file(DOWNLOAD
-    ${OPENMW_TEMPLATE_OMWGAME_URL}
+set(OPENMW_TEMPLATE_OMWGAME_URL
+    https://gitlab.com/OpenMW/example-suite/-/raw/8966dab24692555eec720c854fb0f73d108070cd/data/template.omwgame
+    CACHE STRING
+    "URL for template.omwgame. Use file:// URL for local file in offline builds."
+)
+file(
+    DOWNLOAD ${OPENMW_TEMPLATE_OMWGAME_URL}
     ${CMAKE_CURRENT_BINARY_DIR}/data/template.omwgame
-    EXPECTED_HASH SHA512=6e38642bcf013c5f496a9cb0bf3ec7c9553b6e86b836e7844824c5a05f556c9391167214469b6318401684b702d7569896bf743c85aee4198612b3315ba778d6
+    EXPECTED_HASH
+        SHA512=6e38642bcf013c5f496a9cb0bf3ec7c9553b6e86b836e7844824c5a05f556c9391167214469b6318401684b702d7569896bf743c85aee4198612b3315ba778d6
 )
 
-target_compile_definitions(components-tests
-    PRIVATE OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
-            OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}")
+target_compile_definitions(
+    components-tests
+    PRIVATE
+        OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
+        OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}"
+)
 
-if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(components-tests PRIVATE
-        <boost/program_options/options_description.hpp>
-
-        <gtest/gtest.h>
-
-        <sol/sol.hpp>
-
-        <algorithm>
-        <filesystem>
-        <fstream>
-        <functional>
-        <memory>
-        <string>
-        <vector>
+if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
+    target_precompile_headers(
+        components-tests
+        PRIVATE
+            <boost/program_options/options_description.hpp>
+            <gtest/gtest.h>
+            <sol/sol.hpp>
+            <algorithm>
+            <filesystem>
+            <fstream>
+            <functional>
+            <memory>
+            <string>
+            <vector>
     )
-endif ()
+endif()
 
 include(rtx/tests.cmake)
 include(crashcatcher/tests.cmake)

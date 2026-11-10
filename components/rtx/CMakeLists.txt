@@ -4,22 +4,40 @@
 # `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share, headers alone.
 
 # One layer: its sources, its headers as a file set, and the layer below it.
-function (openmw_rtx_layer name below)
+function(openmw_rtx_layer name below)
     cmake_parse_arguments(PARSE_ARGV 2 layer "" "" "SOURCES;HEADERS")
-    if (layer_SOURCES)
+    if(layer_SOURCES)
         add_library(openmw-rtx-${name} STATIC)
-        target_sources(openmw-rtx-${name}
-            PRIVATE ${layer_SOURCES}
-            PUBLIC FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES ${layer_HEADERS})
+        target_sources(
+            openmw-rtx-${name}
+            PRIVATE
+                ${layer_SOURCES}
+            PUBLIC
+                FILE_SET HEADERS
+                    BASE_DIRS
+                        "${PROJECT_SOURCE_DIR}"
+                    FILES
+                        ${layer_HEADERS}
+        )
         target_link_libraries(openmw-rtx-${name} PUBLIC ${below})
-    else ()
+    else()
         add_library(openmw-rtx-${name} INTERFACE)
-        target_sources(openmw-rtx-${name} INTERFACE FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES ${layer_HEADERS})
+        target_sources(
+            openmw-rtx-${name}
+            INTERFACE
+                FILE_SET HEADERS
+                    BASE_DIRS
+                        "${PROJECT_SOURCE_DIR}"
+                    FILES
+                        ${layer_HEADERS}
+        )
         target_link_libraries(openmw-rtx-${name} INTERFACE ${below})
-    endif ()
-endfunction ()
+    endif()
+endfunction()
 
-openmw_rtx_layer(shaders openmw-components
+openmw_rtx_layer(
+    shaders
+    openmw-components
     HEADERS
         shaders/brdf.h
         shaders/camera.h
@@ -40,7 +58,9 @@ openmw_rtx_layer(shaders openmw-components
         shaders/wave.h
 )
 
-openmw_rtx_layer(common openmw-rtx-shaders
+openmw_rtx_layer(
+    common
+    openmw-rtx-shaders
     SOURCES
         common/runs.cpp
         common/slots.cpp
@@ -65,7 +85,9 @@ openmw_rtx_layer(common openmw-rtx-shaders
         common/stepped.hpp
 )
 
-openmw_rtx_layer(image openmw-rtx-common
+openmw_rtx_layer(
+    image
+    openmw-rtx-common
     SOURCES
         image/alphaimage.cpp
         image/chainbuild.cpp
@@ -95,7 +117,9 @@ openmw_rtx_layer(image openmw-rtx-common
         image/texturewrap.hpp
 )
 
-openmw_rtx_layer(scene openmw-rtx-image
+openmw_rtx_layer(
+    scene
+    openmw-rtx-image
     SOURCES
         scene/compositequeue.cpp
         scene/deformertable.cpp
@@ -130,7 +154,9 @@ openmw_rtx_layer(scene openmw-rtx-image
         scene/texturetable.hpp
 )
 
-openmw_rtx_layer(preprocess openmw-rtx-scene
+openmw_rtx_layer(
+    preprocess
+    openmw-rtx-scene
     SOURCES
         preprocess/contentpreprocessor.cpp
         preprocess/contentstats.cpp
@@ -164,7 +190,9 @@ openmw_rtx_layer(preprocess openmw-rtx-scene
         preprocess/threadcontent.hpp
 )
 
-openmw_rtx_layer(frame openmw-rtx-preprocess
+openmw_rtx_layer(
+    frame
+    openmw-rtx-preprocess
     SOURCES
         frame/camera.cpp
         frame/framesampling.cpp
@@ -186,7 +214,9 @@ openmw_rtx_layer(frame openmw-rtx-preprocess
         frame/upscale.hpp
 )
 
-openmw_rtx_layer(world openmw-rtx-frame
+openmw_rtx_layer(
+    world
+    openmw-rtx-frame
     SOURCES
         world/atmosphere.cpp
         world/fogbuilder.cpp
@@ -208,7 +238,9 @@ openmw_rtx_layer(world openmw-rtx-frame
         world/weather.hpp
 )
 
-openmw_rtx_layer(renderer openmw-rtx-world
+openmw_rtx_layer(
+    renderer
+    openmw-rtx-world
     SOURCES
         renderer/framedescriber.cpp
         renderer/frameimage.cpp
@@ -239,7 +271,9 @@ openmw_rtx_layer(renderer openmw-rtx-world
         renderer/verticalsync.hpp
 )
 
-openmw_rtx_layer(mirror openmw-rtx-renderer
+openmw_rtx_layer(
+    mirror
+    openmw-rtx-renderer
     SOURCES
         mirror/cells/cellgrid.cpp
         mirror/cells/cellplacer.cpp
@@ -302,7 +336,9 @@ openmw_rtx_layer(mirror openmw-rtx-renderer
         mirror/worlddescent.hpp
 )
 
-openmw_rtx_layer(prepare openmw-rtx-mirror
+openmw_rtx_layer(
+    prepare
+    openmw-rtx-mirror
     SOURCES
         prepare/contentpreparation.cpp
         prepare/filestamps.cpp
@@ -315,7 +351,9 @@ openmw_rtx_layer(prepare openmw-rtx-mirror
         prepare/preparationmanifest.hpp
 )
 
-openmw_rtx_layer(environment openmw-rtx-prepare
+openmw_rtx_layer(
+    environment
+    openmw-rtx-prepare
     SOURCES
         environment/atmospheremesh.cpp
         environment/cloudmesh.cpp
@@ -338,7 +376,9 @@ openmw_rtx_layer(environment openmw-rtx-prepare
         environment/wavespectrum.hpp
 )
 
-openmw_rtx_layer(view openmw-rtx-environment
+openmw_rtx_layer(
+    view
+    openmw-rtx-environment
     SOURCES
         view/offscreentrace.cpp
         view/viewscene.cpp
@@ -355,25 +395,36 @@ target_link_libraries(openmw-rtx INTERFACE openmw-rtx-view)
 # compiled in: each table's maker, a tool that writes the table as a source, and the source, compiled into
 # the layer whose header names it. The makers are a library of their own, which the tools and the test
 # holding each table to its maker link, so the game carries no maker.
-add_library(openmw-rtx-tablemakers STATIC
-    tables/tablesource.cpp tables/tablesource.hpp
-    tables/bluenoisemaker.cpp tables/bluenoisemaker.hpp
-    tables/specularalbedomaker.cpp tables/specularalbedomaker.hpp
-    tables/fognoisemaker.cpp tables/fognoisemaker.hpp)
+add_library(
+    openmw-rtx-tablemakers
+    STATIC
+    tables/tablesource.cpp
+    tables/tablesource.hpp
+    tables/bluenoisemaker.cpp
+    tables/bluenoisemaker.hpp
+    tables/specularalbedomaker.cpp
+    tables/specularalbedomaker.hpp
+    tables/fognoisemaker.cpp
+    tables/fognoisemaker.hpp
+)
 target_link_libraries(openmw-rtx-tablemakers PUBLIC openmw-platform-io)
 
-function (rtx_make_table tool source table layer)
+function(rtx_make_table tool source table layer)
     add_executable(${tool} ${source})
     target_link_libraries(${tool} PRIVATE openmw-rtx-tablemakers)
     set(made "${CMAKE_CURRENT_BINARY_DIR}/${table}")
     add_custom_command(
-        OUTPUT "${made}"
-        COMMAND ${tool} "${made}"
-        DEPENDS ${tool}
+        OUTPUT
+            "${made}"
+        COMMAND
+            ${tool} "${made}"
+        DEPENDS
+            ${tool}
         COMMENT "Making ${table}"
-        VERBATIM)
+        VERBATIM
+    )
     target_sources(${layer} PRIVATE "${made}")
-endfunction ()
+endfunction()
 
 rtx_make_table(openmw-rtx-blue-noise tables/bluenoisetool.cpp rtxbluenoise.cpp openmw-rtx-frame)
 rtx_make_table(openmw-rtx-fog-noise tables/fognoisetool.cpp rtxfognoise.cpp openmw-rtx-world)

@@ -1,23 +1,27 @@
 set(TMP_ROOT ${PROJECT_BINARY_DIR}/try-compile)
 file(MAKE_DIRECTORY ${TMP_ROOT})
 
-file(WRITE ${TMP_ROOT}/checkmultiview.cpp
-"
+file(
+    WRITE ${TMP_ROOT}/checkmultiview.cpp
+    "
 #include <osg/Camera>
 int main(void)
 {
     (void)osg::Camera::FACE_CONTROLLED_BY_MULTIVIEW_SHADER;
     return 0;
 }
-")
+"
+)
 
 message(STATUS "Checking if OSG supports multiview")
 
-try_compile(RESULT_VAR
+try_compile(
+    RESULT_VAR
     ${TMP_ROOT}/temp
     ${TMP_ROOT}/checkmultiview.cpp
-    CMAKE_FLAGS  "-DINCLUDE_DIRECTORIES=${OPENSCENEGRAPH_INCLUDE_DIRS}"
-    )
+    CMAKE_FLAGS
+        "-DINCLUDE_DIRECTORIES=${OPENSCENEGRAPH_INCLUDE_DIRS}"
+)
 set(HAVE_MULTIVIEW ${RESULT_VAR})
 if(HAVE_MULTIVIEW)
     message(STATUS "OSG supports multiview")

@@ -2,33 +2,47 @@
 # commit and the latest tag into the version file and `version.cpp`. `SOURCE_DIR` is the tree,
 # `BINARY_DIR` the build.
 
-execute_process (
-    COMMAND ${GIT_EXECUTABLE} rev-list --tags --max-count=1
+execute_process(
+    COMMAND
+        ${GIT_EXECUTABLE} rev-list --tags --max-count=1
     WORKING_DIRECTORY ${SOURCE_DIR}
     RESULT_VARIABLE EXITCODE1
     OUTPUT_VARIABLE TAGHASH
     OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET)
+    ERROR_QUIET
+)
 
-execute_process (
-    COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
+execute_process(
+    COMMAND
+        ${GIT_EXECUTABLE} rev-parse HEAD
     WORKING_DIRECTORY ${SOURCE_DIR}
     RESULT_VARIABLE EXITCODE2
     OUTPUT_VARIABLE COMMITHASH
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
 
-string (COMPARE EQUAL "${EXITCODE1}:${EXITCODE2}" "0:0" FULL_SUCCESS)
-string (COMPARE EQUAL "${EXITCODE2}" "0" COMMIT_SUCCESS)
-if (FULL_SUCCESS)
+string(
+    COMPARE EQUAL
+    "${EXITCODE1}:${EXITCODE2}"
+    "0:0"
+    FULL_SUCCESS
+)
+string(
+    COMPARE EQUAL
+    "${EXITCODE2}"
+    "0"
+    COMMIT_SUCCESS
+)
+if(FULL_SUCCESS)
     set(OPENMW_VERSION_COMMITHASH "${COMMITHASH}")
     set(OPENMW_VERSION_TAGHASH "${TAGHASH}")
     message(STATUS "OpenMW version ${OPENMW_VERSION}")
-elseif (COMMIT_SUCCESS)
+elseif(COMMIT_SUCCESS)
     set(OPENMW_VERSION_COMMITHASH "${COMMITHASH}")
     message(STATUS "OpenMW version ${OPENMW_VERSION}")
-else ()
+else()
     message(WARNING "Failed to get valid version information from Git")
-endif ()
+endif()
 
 include(${MACROSFILE})
 

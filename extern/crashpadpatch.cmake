@@ -8,17 +8,28 @@
 set(file util/CMakeLists.txt)
 file(READ ${file} text)
 
-set(curl [[        if(NOT TARGET CURL::libcurl) # Some other lib might bring libcurl already
+set(curl
+    [[        if(NOT TARGET CURL::libcurl) # Some other lib might bring libcurl already
             find_package(CURL REQUIRED)
         endif()
 
         target_link_libraries(crashpad_util PRIVATE CURL::libcurl)
-        SET(HTTP_TRANSPORT_IMPL net/http_transport_libcurl.cc)]])
+        SET(HTTP_TRANSPORT_IMPL net/http_transport_libcurl.cc)]]
+)
 
-string(FIND "${text}" "${curl}" at)
-if (at EQUAL -1)
+string(
+    FIND "${text}"
+    "${curl}"
+    at
+)
+if(at EQUAL -1)
     message(FATAL_ERROR "crashpadpatch.cmake: ${file} no longer asks for libcurl in the words it replaces")
 endif()
 
-string(REPLACE "${curl}" "        SET(HTTP_TRANSPORT_IMPL net/http_transport_socket.cc)" text "${text}")
+string(
+    REPLACE "${curl}"
+    "        SET(HTTP_TRANSPORT_IMPL net/http_transport_socket.cc)"
+    text
+    "${text}"
+)
 file(WRITE ${file} "${text}")

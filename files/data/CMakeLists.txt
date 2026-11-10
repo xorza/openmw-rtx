@@ -1,4 +1,4 @@
-if (NOT DEFINED OPENMW_RESOURCES_ROOT)
+if(NOT DEFINED OPENMW_RESOURCES_ROOT)
     return()
 endif()
 
@@ -41,7 +41,6 @@ set(BUILTIN_DATA_FILES
     textures/omw_xbox_button_rb.dds
     textures/omw_xbox_button_rt.dds
     textures/omw/water_nm.png
-
     fonts/DejaVuFontLicense.txt
     fonts/DejaVuLGCSansMono.ttf
     fonts/DejaVuLGCSansMono.omwfont
@@ -51,17 +50,14 @@ set(BUILTIN_DATA_FILES
     fonts/MysticCards.ttf
     fonts/MysticCards.omwfont
     fonts/MysticCardsFontLicense.txt
-
     # Default animation blending config
     animations/animation-config.yaml
-
     # Month names and date formatting
     l10n/Calendar/de.yaml
     l10n/Calendar/en.yaml
     l10n/Calendar/ru.yaml
     l10n/Calendar/sv.yaml
     l10n/Calendar/pl.yaml
-
     # Generic UI messages that can be reused by mods
     l10n/Interface/de.yaml
     l10n/Interface/en.yaml
@@ -69,7 +65,6 @@ set(BUILTIN_DATA_FILES
     l10n/Interface/sv.yaml
     l10n/Interface/fr.yaml
     l10n/Interface/pl.yaml
-
     # L10n for scripts/omw
     l10n/OMWCamera/de.yaml
     l10n/OMWCamera/en.yaml
@@ -77,21 +72,18 @@ set(BUILTIN_DATA_FILES
     l10n/OMWCamera/sv.yaml
     l10n/OMWCamera/fr.yaml
     l10n/OMWCamera/pl.yaml
-
     l10n/OMWCombat/de.yaml
     l10n/OMWCombat/en.yaml
     l10n/OMWCombat/fr.yaml
     l10n/OMWCombat/ru.yaml
     l10n/OMWCombat/sv.yaml
     l10n/OMWCombat/pl.yaml
-
     l10n/OMWControls/de.yaml
     l10n/OMWControls/en.yaml
     l10n/OMWControls/fr.yaml
     l10n/OMWControls/ru.yaml
     l10n/OMWControls/sv.yaml
     l10n/OMWControls/pl.yaml
-
     # L10n for OpenMW menus and non-game-specific messages
     l10n/OMWEngine/de.yaml
     l10n/OMWEngine/en.yaml
@@ -99,7 +91,6 @@ set(BUILTIN_DATA_FILES
     l10n/OMWEngine/sv.yaml
     l10n/OMWEngine/fr.yaml
     l10n/OMWEngine/pl.yaml
-
     # L10n for music system
     l10n/OMWMusic/de.yaml
     l10n/OMWMusic/en.yaml
@@ -107,7 +98,6 @@ set(BUILTIN_DATA_FILES
     l10n/OMWMusic/sv.yaml
     l10n/OMWMusic/fr.yaml
     l10n/OMWMusic/pl.yaml
-
     # L10n for post-processing HUD and built-in shaders
     l10n/OMWShaders/de.yaml
     l10n/OMWShaders/en.yaml
@@ -115,15 +105,12 @@ set(BUILTIN_DATA_FILES
     l10n/OMWShaders/sv.yaml
     l10n/OMWShaders/fr.yaml
     l10n/OMWShaders/pl.yaml
-
     openmw_aux/util.lua
     openmw_aux/time.lua
     openmw_aux/calendar.lua
     openmw_aux/calendarconfig.lua
     openmw_aux/ui.lua
-
     builtin.omwscripts
-
     scripts/omw/activationhandlers.lua
     scripts/omw/ai.lua
     scripts/omw/camera/camera.lua
@@ -169,12 +156,10 @@ set(BUILTIN_DATA_FILES
     scripts/omw/input/actionbindings.lua
     scripts/omw/input/smoothmovement.lua
     scripts/omw/input/gamepadcontrols.lua
-    
     shaders/adjustments.omwfx
     shaders/bloomlinear.omwfx
     shaders/debug.omwfx
     shaders/internal_distortion.omwfx
-
     mygui/core.skin
     mygui/core.xml
     mygui/core_layouteditor.xml
@@ -266,6 +251,6 @@ set(BUILTIN_DATA_FILES
     mygui/skins.xml
 )
 
-foreach (f ${BUILTIN_DATA_FILES})
+foreach(f ${BUILTIN_DATA_FILES})
     copy_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/${f}" "${OPENMW_RESOURCES_ROOT}" "resources/vfs/${f}")
-endforeach (f)
+endforeach(f)

@@ -6,95 +6,117 @@ set(VERSION_RESOURCE_FILE_IN "${PROJECT_SOURCE_DIR}/files/version.in")
 set(VERSION_RESOURCE_FILE_RELATIVE "resources/version")
 set(VERSION_CPP_FILE "components/version/version.cpp")
 
-if (GIT_CHECKOUT)
+if(GIT_CHECKOUT)
     get_generator_is_multi_config(multi_config)
-    add_custom_target(get-version
-        BYPRODUCTS "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}"
-        DEPENDS "${PROJECT_SOURCE_DIR}/${VERSION_CPP_FILE}.in"
-        COMMAND ${CMAKE_COMMAND}
-            -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
-            -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
-            -DBINARY_DIR=${PROJECT_BINARY_DIR}
-            -DVERSION_RESOURCE_FILE_IN=${VERSION_RESOURCE_FILE_IN}
+    add_custom_target(
+        get-version
+        BYPRODUCTS
+            "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}"
+        DEPENDS
+            "${PROJECT_SOURCE_DIR}/${VERSION_CPP_FILE}.in"
+        COMMAND
+            ${CMAKE_COMMAND} -DGIT_EXECUTABLE=${GIT_EXECUTABLE} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+            -DBINARY_DIR=${PROJECT_BINARY_DIR} -DVERSION_RESOURCE_FILE_IN=${VERSION_RESOURCE_FILE_IN}
             -DVERSION_RESOURCE_FILE_RELATIVE=${VERSION_RESOURCE_FILE_RELATIVE}
             -DVERSION_CPP_FILE_IN=${PROJECT_SOURCE_DIR}/${VERSION_CPP_FILE}.in
             -DVERSION_CPP_FILE_OUT=${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}.out
-            -DOPENMW_VERSION_MAJOR=${OPENMW_VERSION_MAJOR}
-            -DOPENMW_VERSION_MINOR=${OPENMW_VERSION_MINOR}
-            -DOPENMW_VERSION_RELEASE=${OPENMW_VERSION_RELEASE}
-            -DOPENMW_LUA_API_REVISION=${OPENMW_LUA_API_REVISION}
+            -DOPENMW_VERSION_MAJOR=${OPENMW_VERSION_MAJOR} -DOPENMW_VERSION_MINOR=${OPENMW_VERSION_MINOR}
+            -DOPENMW_VERSION_RELEASE=${OPENMW_VERSION_RELEASE} -DOPENMW_LUA_API_REVISION=${OPENMW_LUA_API_REVISION}
             -DOPENMW_POSTPROCESSING_API_REVISION=${OPENMW_POSTPROCESSING_API_REVISION}
-            -DOPENMW_VERSION=${OPENMW_VERSION}
-            -DOPENMW_DOC_BASEURL=${OPENMW_DOC_BASEURL}
+            -DOPENMW_VERSION=${OPENMW_VERSION} -DOPENMW_DOC_BASEURL=${OPENMW_DOC_BASEURL}
             -DMACROSFILE=${PROJECT_SOURCE_DIR}/cmake/OpenMWMacros.cmake
-            "-DCMAKE_CONFIGURATION_TYPES=${CMAKE_CONFIGURATION_TYPES}"
-            -Dgenerator_is_multi_config_var=${multi_config}
+            "-DCMAKE_CONFIGURATION_TYPES=${CMAKE_CONFIGURATION_TYPES}" -Dgenerator_is_multi_config_var=${multi_config}
             -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
-        COMMAND ${CMAKE_COMMAND}
-            -E copy_if_different ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}.out ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}
-        VERBATIM)
-else ()
+        COMMAND
+            ${CMAKE_COMMAND} -E copy_if_different ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}.out
+            ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}
+        VERBATIM
+    )
+else()
     configure_resource_file(${VERSION_RESOURCE_FILE_IN} ${PROJECT_BINARY_DIR} ${VERSION_RESOURCE_FILE_RELATIVE})
     configure_file("${PROJECT_SOURCE_DIR}/${VERSION_CPP_FILE}.in" "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}")
-endif ()
+endif()
 
 # The OSG plugins the game loads, named for the checker that asks for them at start: OSG's CMake
 # package, which it does not have, would otherwise say.
-list(TRANSFORM USED_OSG_PLUGINS REPLACE "^osgdb_" "" OUTPUT_VARIABLE USED_OSG_PLUGIN_NAMES)
+list(
+    TRANSFORM USED_OSG_PLUGINS
+    REPLACE
+        "^osgdb_"
+        ""
+    OUTPUT_VARIABLE USED_OSG_PLUGIN_NAMES
+)
 list(TRANSFORM USED_OSG_PLUGIN_NAMES PREPEND "\"" OUTPUT_VARIABLE USED_OSG_PLUGIN_NAMES_FORMATTED)
 list(TRANSFORM USED_OSG_PLUGIN_NAMES_FORMATTED APPEND "\"")
 list(JOIN USED_OSG_PLUGIN_NAMES_FORMATTED ", " USED_OSG_PLUGIN_NAMES_FORMATTED)
 set(OSG_PLUGIN_CHECKER_CPP_FILE "components/misc/osgpluginchecker.cpp")
-configure_file("${PROJECT_SOURCE_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}.in" "${PROJECT_BINARY_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}")
+configure_file(
+    "${PROJECT_SOURCE_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}.in"
+    "${PROJECT_BINARY_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}"
+)
 
 copy_resource_file("lua/util.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/util.lua")
 copy_resource_file("lua_ui/content.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/content.lua")
 
 add_library(openmw-components STATIC)
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}"
         "${PROJECT_BINARY_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}"
-    PUBLIC FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}"
+    PUBLIC
+        FILE_SET HEADERS
+            BASE_DIRS
+                "${PROJECT_SOURCE_DIR}"
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         bgsm/file.cpp
         bgsm/stream.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        bgsm/file.hpp
-        bgsm/stream.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                bgsm/file.hpp
+                bgsm/stream.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         bsa/ba2dx10file.cpp
         bsa/ba2file.cpp
         bsa/ba2gnrlfile.cpp
         bsa/bsafile.cpp
         bsa/compressedbsafile.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        bsa/ba2dx10file.hpp
-        bsa/ba2file.hpp
-        bsa/ba2gnrlfile.hpp
-        bsa/bsafile.hpp
-        bsa/compressedbsafile.hpp
-        bsa/memorystream.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                bsa/ba2dx10file.hpp
+                bsa/ba2file.hpp
+                bsa/ba2gnrlfile.hpp
+                bsa/bsafile.hpp
+                bsa/compressedbsafile.hpp
+                bsa/memorystream.hpp
 )
 
-target_sources(openmw-components
-    PUBLIC FILE_SET HEADERS FILES
-        bullethelpers/aabb.hpp
-        bullethelpers/collisionobject.hpp
-        bullethelpers/debug.hpp
-        bullethelpers/heightfield.hpp
-        bullethelpers/operators.hpp
-        bullethelpers/processtrianglecallback.hpp
-        bullethelpers/transformboundingbox.hpp
+target_sources(
+    openmw-components
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                bullethelpers/aabb.hpp
+                bullethelpers/collisionobject.hpp
+                bullethelpers/debug.hpp
+                bullethelpers/heightfield.hpp
+                bullethelpers/operators.hpp
+                bullethelpers/processtrianglecallback.hpp
+                bullethelpers/transformboundingbox.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         compiler/controlparser.cpp
         compiler/declarationparser.cpp
@@ -117,59 +139,68 @@ target_sources(openmw-components
         compiler/skipparser.cpp
         compiler/streamerrorhandler.cpp
         compiler/stringparser.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        compiler/context.hpp
-        compiler/controlparser.hpp
-        compiler/declarationparser.hpp
-        compiler/discardparser.hpp
-        compiler/errorhandler.hpp
-        compiler/exception.hpp
-        compiler/exprparser.hpp
-        compiler/extensions.hpp
-        compiler/extensions0.hpp
-        compiler/fileparser.hpp
-        compiler/generator.hpp
-        compiler/junkparser.hpp
-        compiler/lineparser.hpp
-        compiler/literals.hpp
-        compiler/locals.hpp
-        compiler/nullerrorhandler.hpp
-        compiler/opcodes.hpp
-        compiler/output.hpp
-        compiler/parser.hpp
-        compiler/quickfileparser.hpp
-        compiler/scanner.hpp
-        compiler/scriptparser.hpp
-        compiler/skipparser.hpp
-        compiler/streamerrorhandler.hpp
-        compiler/stringparser.hpp
-        compiler/tokenloc.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                compiler/context.hpp
+                compiler/controlparser.hpp
+                compiler/declarationparser.hpp
+                compiler/discardparser.hpp
+                compiler/errorhandler.hpp
+                compiler/exception.hpp
+                compiler/exprparser.hpp
+                compiler/extensions.hpp
+                compiler/extensions0.hpp
+                compiler/fileparser.hpp
+                compiler/generator.hpp
+                compiler/junkparser.hpp
+                compiler/lineparser.hpp
+                compiler/literals.hpp
+                compiler/locals.hpp
+                compiler/nullerrorhandler.hpp
+                compiler/opcodes.hpp
+                compiler/output.hpp
+                compiler/parser.hpp
+                compiler/quickfileparser.hpp
+                compiler/scanner.hpp
+                compiler/scriptparser.hpp
+                compiler/skipparser.hpp
+                compiler/streamerrorhandler.hpp
+                compiler/stringparser.hpp
+                compiler/tokenloc.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         contentstore/key.cpp
         contentstore/store.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        contentstore/key.hpp
-        contentstore/store.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                contentstore/key.hpp
+                contentstore/store.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         debug/debugdraw.cpp
         debug/debugging.cpp
         debug/debuglog.cpp
         debug/gldebug.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        debug/debugdraw.hpp
-        debug/debugging.hpp
-        debug/debuglog.hpp
-        debug/gldebug.hpp
-        debug/writeflags.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                debug/debugdraw.hpp
+                debug/debugging.hpp
+                debug/debuglog.hpp
+                debug/gldebug.hpp
+                debug/writeflags.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         detournavigator/asyncnavmeshupdater.cpp
         detournavigator/collisionshapetype.cpp
@@ -199,70 +230,73 @@ target_sources(openmw-components
         detournavigator/settings.cpp
         detournavigator/stats.cpp
         detournavigator/tilecachedrecastmeshmanager.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        detournavigator/agentbounds.hpp
-        detournavigator/areatype.hpp
-        detournavigator/asyncnavmeshupdater.hpp
-        detournavigator/bounds.hpp
-        detournavigator/cellgridbounds.hpp
-        detournavigator/changetype.hpp
-        detournavigator/collisionshapetype.hpp
-        detournavigator/commulativeaabb.hpp
-        detournavigator/debug.hpp
-        detournavigator/exceptions.hpp
-        detournavigator/findrandompointaroundcircle.hpp
-        detournavigator/findsmoothpath.hpp
-        detournavigator/flags.hpp
-        detournavigator/generatenavmeshtile.hpp
-        detournavigator/gettilespositions.hpp
-        detournavigator/guardednavmeshcacheitem.hpp
-        detournavigator/heightfieldshape.hpp
-        detournavigator/makenavmesh.hpp
-        detournavigator/navigator.hpp
-        detournavigator/navigatorimpl.hpp
-        detournavigator/navigatorstub.hpp
-        detournavigator/navigatorutils.hpp
-        detournavigator/navmeshcacheitem.hpp
-        detournavigator/navmeshdata.hpp
-        detournavigator/navmeshmanager.hpp
-        detournavigator/navmeshtilescache.hpp
-        detournavigator/navmeshtilestore.hpp
-        detournavigator/navmeshtileview.hpp
-        detournavigator/objectid.hpp
-        detournavigator/objecttransform.hpp
-        detournavigator/offmeshconnection.hpp
-        detournavigator/offmeshconnectionsmanager.hpp
-        detournavigator/preparednavmeshdata.hpp
-        detournavigator/preparednavmeshdatatuple.hpp
-        detournavigator/raycast.hpp
-        detournavigator/recast.hpp
-        detournavigator/recastallocutils.hpp
-        detournavigator/recastcontext.hpp
-        detournavigator/recastglobalallocator.hpp
-        detournavigator/recastmesh.hpp
-        detournavigator/recastmeshbuilder.hpp
-        detournavigator/recastmeshobject.hpp
-        detournavigator/recastmeshprovider.hpp
-        detournavigator/recastmeshtiles.hpp
-        detournavigator/recastparams.hpp
-        detournavigator/recasttempallocator.hpp
-        detournavigator/ref.hpp
-        detournavigator/serialization.hpp
-        detournavigator/settings.hpp
-        detournavigator/settingsutils.hpp
-        detournavigator/sharednavmeshcacheitem.hpp
-        detournavigator/stats.hpp
-        detournavigator/status.hpp
-        detournavigator/tilebounds.hpp
-        detournavigator/tilecachedrecastmeshmanager.hpp
-        detournavigator/tileposition.hpp
-        detournavigator/tilespositionsrange.hpp
-        detournavigator/updateguard.hpp
-        detournavigator/version.hpp
-        detournavigator/waitconditiontype.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                detournavigator/agentbounds.hpp
+                detournavigator/areatype.hpp
+                detournavigator/asyncnavmeshupdater.hpp
+                detournavigator/bounds.hpp
+                detournavigator/cellgridbounds.hpp
+                detournavigator/changetype.hpp
+                detournavigator/collisionshapetype.hpp
+                detournavigator/commulativeaabb.hpp
+                detournavigator/debug.hpp
+                detournavigator/exceptions.hpp
+                detournavigator/findrandompointaroundcircle.hpp
+                detournavigator/findsmoothpath.hpp
+                detournavigator/flags.hpp
+                detournavigator/generatenavmeshtile.hpp
+                detournavigator/gettilespositions.hpp
+                detournavigator/guardednavmeshcacheitem.hpp
+                detournavigator/heightfieldshape.hpp
+                detournavigator/makenavmesh.hpp
+                detournavigator/navigator.hpp
+                detournavigator/navigatorimpl.hpp
+                detournavigator/navigatorstub.hpp
+                detournavigator/navigatorutils.hpp
+                detournavigator/navmeshcacheitem.hpp
+                detournavigator/navmeshdata.hpp
+                detournavigator/navmeshmanager.hpp
+                detournavigator/navmeshtilescache.hpp
+                detournavigator/navmeshtilestore.hpp
+                detournavigator/navmeshtileview.hpp
+                detournavigator/objectid.hpp
+                detournavigator/objecttransform.hpp
+                detournavigator/offmeshconnection.hpp
+                detournavigator/offmeshconnectionsmanager.hpp
+                detournavigator/preparednavmeshdata.hpp
+                detournavigator/preparednavmeshdatatuple.hpp
+                detournavigator/raycast.hpp
+                detournavigator/recast.hpp
+                detournavigator/recastallocutils.hpp
+                detournavigator/recastcontext.hpp
+                detournavigator/recastglobalallocator.hpp
+                detournavigator/recastmesh.hpp
+                detournavigator/recastmeshbuilder.hpp
+                detournavigator/recastmeshobject.hpp
+                detournavigator/recastmeshprovider.hpp
+                detournavigator/recastmeshtiles.hpp
+                detournavigator/recastparams.hpp
+                detournavigator/recasttempallocator.hpp
+                detournavigator/ref.hpp
+                detournavigator/serialization.hpp
+                detournavigator/settings.hpp
+                detournavigator/settingsutils.hpp
+                detournavigator/sharednavmeshcacheitem.hpp
+                detournavigator/stats.hpp
+                detournavigator/status.hpp
+                detournavigator/tilebounds.hpp
+                detournavigator/tilecachedrecastmeshmanager.hpp
+                detournavigator/tileposition.hpp
+                detournavigator/tilespositionsrange.hpp
+                detournavigator/updateguard.hpp
+                detournavigator/version.hpp
+                detournavigator/waitconditiontype.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         esm/attr.cpp
         esm/esm3exteriorcellrefid.cpp
@@ -277,36 +311,39 @@ target_sources(openmw-components
         esm/refid.cpp
         esm/stringrefid.cpp
         esm/util.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        esm/attr.hpp
-        esm/common.hpp
-        esm/decompose.hpp
-        esm/defs.hpp
-        esm/esm3exteriorcellrefid.hpp
-        esm/esmbridge.hpp
-        esm/esmcommon.hpp
-        esm/esmterrain.hpp
-        esm/exteriorcelllocation.hpp
-        esm/format.hpp
-        esm/formid.hpp
-        esm/fourcc.hpp
-        esm/gameformat.hpp
-        esm/generatedrefid.hpp
-        esm/indexrefid.hpp
-        esm/luascripts.hpp
-        esm/path.hpp
-        esm/position.hpp
-        esm/quaternion.hpp
-        esm/records.hpp
-        esm/refid.hpp
-        esm/serializerefid.hpp
-        esm/stringrefid.hpp
-        esm/typetraits.hpp
-        esm/util.hpp
-        esm/vector3.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                esm/attr.hpp
+                esm/common.hpp
+                esm/decompose.hpp
+                esm/defs.hpp
+                esm/esm3exteriorcellrefid.hpp
+                esm/esmbridge.hpp
+                esm/esmcommon.hpp
+                esm/esmterrain.hpp
+                esm/exteriorcelllocation.hpp
+                esm/format.hpp
+                esm/formid.hpp
+                esm/fourcc.hpp
+                esm/gameformat.hpp
+                esm/generatedrefid.hpp
+                esm/indexrefid.hpp
+                esm/luascripts.hpp
+                esm/path.hpp
+                esm/position.hpp
+                esm/quaternion.hpp
+                esm/records.hpp
+                esm/refid.hpp
+                esm/serializerefid.hpp
+                esm/stringrefid.hpp
+                esm/typetraits.hpp
+                esm/util.hpp
+                esm/vector3.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         esm3/activespells.cpp
         esm3/actoridconverter.cpp
@@ -398,106 +435,109 @@ target_sources(openmw-components
         esm3/variant.cpp
         esm3/variantimp.cpp
         esm3/weatherstate.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        esm3/activespells.hpp
-        esm3/actoridconverter.hpp
-        esm3/aipackage.hpp
-        esm3/aisequence.hpp
-        esm3/animationstate.hpp
-        esm3/cellid.hpp
-        esm3/cellref.hpp
-        esm3/cellstate.hpp
-        esm3/containerstate.hpp
-        esm3/controlsstate.hpp
-        esm3/creaturelevliststate.hpp
-        esm3/creaturestate.hpp
-        esm3/creaturestats.hpp
-        esm3/custommarkerstate.hpp
-        esm3/debugprofile.hpp
-        esm3/dialoguecondition.hpp
-        esm3/dialoguestate.hpp
-        esm3/doorstate.hpp
-        esm3/effectlist.hpp
-        esm3/esmreader.hpp
-        esm3/esmwriter.hpp
-        esm3/filter.hpp
-        esm3/fogstate.hpp
-        esm3/formatversion.hpp
-        esm3/globalmap.hpp
-        esm3/globalscript.hpp
-        esm3/infoorder.hpp
-        esm3/inventorystate.hpp
-        esm3/journalentry.hpp
-        esm3/landrecorddata.hpp
-        esm3/loadacti.hpp
-        esm3/loadalch.hpp
-        esm3/loadappa.hpp
-        esm3/loadarmo.hpp
-        esm3/loadbody.hpp
-        esm3/loadbook.hpp
-        esm3/loadbsgn.hpp
-        esm3/loadcell.hpp
-        esm3/loadclas.hpp
-        esm3/loadclot.hpp
-        esm3/loadcont.hpp
-        esm3/loadcrea.hpp
-        esm3/loaddial.hpp
-        esm3/loaddoor.hpp
-        esm3/loadench.hpp
-        esm3/loadfact.hpp
-        esm3/loadglob.hpp
-        esm3/loadgmst.hpp
-        esm3/loadinfo.hpp
-        esm3/loadingr.hpp
-        esm3/loadland.hpp
-        esm3/loadlevlist.hpp
-        esm3/loadligh.hpp
-        esm3/loadlock.hpp
-        esm3/loadltex.hpp
-        esm3/loadmgef.hpp
-        esm3/loadmisc.hpp
-        esm3/loadnpc.hpp
-        esm3/loadpgrd.hpp
-        esm3/loadprob.hpp
-        esm3/loadrace.hpp
-        esm3/loadregn.hpp
-        esm3/loadrepa.hpp
-        esm3/loadscpt.hpp
-        esm3/loadskil.hpp
-        esm3/loadsndg.hpp
-        esm3/loadsoun.hpp
-        esm3/loadspel.hpp
-        esm3/loadsscr.hpp
-        esm3/loadstat.hpp
-        esm3/loadtes3.hpp
-        esm3/loadweap.hpp
-        esm3/locals.hpp
-        esm3/magiceffects.hpp
-        esm3/mappings.hpp
-        esm3/npcstate.hpp
-        esm3/npcstats.hpp
-        esm3/objectstate.hpp
-        esm3/player.hpp
-        esm3/projectilestate.hpp
-        esm3/queststate.hpp
-        esm3/quickkeys.hpp
-        esm3/readerscache.hpp
-        esm3/refnum.hpp
-        esm3/savedgame.hpp
-        esm3/selectiongroup.hpp
-        esm3/spelllist.hpp
-        esm3/spellstate.hpp
-        esm3/statstate.hpp
-        esm3/stolenitems.hpp
-        esm3/timestamp.hpp
-        esm3/transport.hpp
-        esm3/typetraits.hpp
-        esm3/variant.hpp
-        esm3/variantimp.hpp
-        esm3/weatherstate.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                esm3/activespells.hpp
+                esm3/actoridconverter.hpp
+                esm3/aipackage.hpp
+                esm3/aisequence.hpp
+                esm3/animationstate.hpp
+                esm3/cellid.hpp
+                esm3/cellref.hpp
+                esm3/cellstate.hpp
+                esm3/containerstate.hpp
+                esm3/controlsstate.hpp
+                esm3/creaturelevliststate.hpp
+                esm3/creaturestate.hpp
+                esm3/creaturestats.hpp
+                esm3/custommarkerstate.hpp
+                esm3/debugprofile.hpp
+                esm3/dialoguecondition.hpp
+                esm3/dialoguestate.hpp
+                esm3/doorstate.hpp
+                esm3/effectlist.hpp
+                esm3/esmreader.hpp
+                esm3/esmwriter.hpp
+                esm3/filter.hpp
+                esm3/fogstate.hpp
+                esm3/formatversion.hpp
+                esm3/globalmap.hpp
+                esm3/globalscript.hpp
+                esm3/infoorder.hpp
+                esm3/inventorystate.hpp
+                esm3/journalentry.hpp
+                esm3/landrecorddata.hpp
+                esm3/loadacti.hpp
+                esm3/loadalch.hpp
+                esm3/loadappa.hpp
+                esm3/loadarmo.hpp
+                esm3/loadbody.hpp
+                esm3/loadbook.hpp
+                esm3/loadbsgn.hpp
+                esm3/loadcell.hpp
+                esm3/loadclas.hpp
+                esm3/loadclot.hpp
+                esm3/loadcont.hpp
+                esm3/loadcrea.hpp
+                esm3/loaddial.hpp
+                esm3/loaddoor.hpp
+                esm3/loadench.hpp
+                esm3/loadfact.hpp
+                esm3/loadglob.hpp
+                esm3/loadgmst.hpp
+                esm3/loadinfo.hpp
+                esm3/loadingr.hpp
+                esm3/loadland.hpp
+                esm3/loadlevlist.hpp
+                esm3/loadligh.hpp
+                esm3/loadlock.hpp
+                esm3/loadltex.hpp
+                esm3/loadmgef.hpp
+                esm3/loadmisc.hpp
+                esm3/loadnpc.hpp
+                esm3/loadpgrd.hpp
+                esm3/loadprob.hpp
+                esm3/loadrace.hpp
+                esm3/loadregn.hpp
+                esm3/loadrepa.hpp
+                esm3/loadscpt.hpp
+                esm3/loadskil.hpp
+                esm3/loadsndg.hpp
+                esm3/loadsoun.hpp
+                esm3/loadspel.hpp
+                esm3/loadsscr.hpp
+                esm3/loadstat.hpp
+                esm3/loadtes3.hpp
+                esm3/loadweap.hpp
+                esm3/locals.hpp
+                esm3/magiceffects.hpp
+                esm3/mappings.hpp
+                esm3/npcstate.hpp
+                esm3/npcstats.hpp
+                esm3/objectstate.hpp
+                esm3/player.hpp
+                esm3/projectilestate.hpp
+                esm3/queststate.hpp
+                esm3/quickkeys.hpp
+                esm3/readerscache.hpp
+                esm3/refnum.hpp
+                esm3/savedgame.hpp
+                esm3/selectiongroup.hpp
+                esm3/spelllist.hpp
+                esm3/spellstate.hpp
+                esm3/statstate.hpp
+                esm3/stolenitems.hpp
+                esm3/timestamp.hpp
+                esm3/transport.hpp
+                esm3/typetraits.hpp
+                esm3/variant.hpp
+                esm3/variantimp.hpp
+                esm3/weatherstate.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         esm4/cellgrid.cpp
         esm4/loadachr.cpp
@@ -579,134 +619,146 @@ target_sources(openmw-components
         esm4/loadweap.cpp
         esm4/loadwrld.cpp
         esm4/reader.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        esm4/actor.hpp
-        esm4/cellgrid.hpp
-        esm4/common.hpp
-        esm4/dialogue.hpp
-        esm4/effect.hpp
-        esm4/grid.hpp
-        esm4/grouptype.hpp
-        esm4/inventory.hpp
-        esm4/lighting.hpp
-        esm4/loadachr.hpp
-        esm4/loadacti.hpp
-        esm4/loadalch.hpp
-        esm4/loadaloc.hpp
-        esm4/loadammo.hpp
-        esm4/loadanio.hpp
-        esm4/loadappa.hpp
-        esm4/loadarma.hpp
-        esm4/loadarmo.hpp
-        esm4/loadaspc.hpp
-        esm4/loadbook.hpp
-        esm4/loadbptd.hpp
-        esm4/loadcell.hpp
-        esm4/loadclas.hpp
-        esm4/loadclfm.hpp
-        esm4/loadclot.hpp
-        esm4/loadcont.hpp
-        esm4/loadcrea.hpp
-        esm4/loaddial.hpp
-        esm4/loaddobj.hpp
-        esm4/loaddoor.hpp
-        esm4/loadeyes.hpp
-        esm4/loadflor.hpp
-        esm4/loadflst.hpp
-        esm4/loadfurn.hpp
-        esm4/loadglob.hpp
-        esm4/loadgmst.hpp
-        esm4/loadgras.hpp
-        esm4/loadgrup.hpp
-        esm4/loadhair.hpp
-        esm4/loadhdpt.hpp
-        esm4/loadidle.hpp
-        esm4/loadidlm.hpp
-        esm4/loadimod.hpp
-        esm4/loadinfo.hpp
-        esm4/loadingr.hpp
-        esm4/loadkeym.hpp
-        esm4/loadland.hpp
-        esm4/loadlgtm.hpp
-        esm4/loadligh.hpp
-        esm4/loadltex.hpp
-        esm4/loadlvlc.hpp
-        esm4/loadlvli.hpp
-        esm4/loadlvln.hpp
-        esm4/loadmato.hpp
-        esm4/loadmisc.hpp
-        esm4/loadmset.hpp
-        esm4/loadmstt.hpp
-        esm4/loadmusc.hpp
-        esm4/loadnavi.hpp
-        esm4/loadnavm.hpp
-        esm4/loadnote.hpp
-        esm4/loadnpc.hpp
-        esm4/loadotft.hpp
-        esm4/loadpack.hpp
-        esm4/loadpgrd.hpp
-        esm4/loadpgre.hpp
-        esm4/loadpwat.hpp
-        esm4/loadqust.hpp
-        esm4/loadrace.hpp
-        esm4/loadrefr.hpp
-        esm4/loadregn.hpp
-        esm4/loadroad.hpp
-        esm4/loadsbsp.hpp
-        esm4/loadscol.hpp
-        esm4/loadscpt.hpp
-        esm4/loadscrl.hpp
-        esm4/loadsgst.hpp
-        esm4/loadslgm.hpp
-        esm4/loadsndr.hpp
-        esm4/loadsoun.hpp
-        esm4/loadstat.hpp
-        esm4/loadtact.hpp
-        esm4/loadterm.hpp
-        esm4/loadtes4.hpp
-        esm4/loadtree.hpp
-        esm4/loadtxst.hpp
-        esm4/loadweap.hpp
-        esm4/loadwrld.hpp
-        esm4/magiceffectid.hpp
-        esm4/reader.hpp
-        esm4/readerutils.hpp
-        esm4/records.hpp
-        esm4/reference.hpp
-        esm4/script.hpp
-        esm4/typetraits.hpp
-        esm4/vertex.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                esm4/actor.hpp
+                esm4/cellgrid.hpp
+                esm4/common.hpp
+                esm4/dialogue.hpp
+                esm4/effect.hpp
+                esm4/grid.hpp
+                esm4/grouptype.hpp
+                esm4/inventory.hpp
+                esm4/lighting.hpp
+                esm4/loadachr.hpp
+                esm4/loadacti.hpp
+                esm4/loadalch.hpp
+                esm4/loadaloc.hpp
+                esm4/loadammo.hpp
+                esm4/loadanio.hpp
+                esm4/loadappa.hpp
+                esm4/loadarma.hpp
+                esm4/loadarmo.hpp
+                esm4/loadaspc.hpp
+                esm4/loadbook.hpp
+                esm4/loadbptd.hpp
+                esm4/loadcell.hpp
+                esm4/loadclas.hpp
+                esm4/loadclfm.hpp
+                esm4/loadclot.hpp
+                esm4/loadcont.hpp
+                esm4/loadcrea.hpp
+                esm4/loaddial.hpp
+                esm4/loaddobj.hpp
+                esm4/loaddoor.hpp
+                esm4/loadeyes.hpp
+                esm4/loadflor.hpp
+                esm4/loadflst.hpp
+                esm4/loadfurn.hpp
+                esm4/loadglob.hpp
+                esm4/loadgmst.hpp
+                esm4/loadgras.hpp
+                esm4/loadgrup.hpp
+                esm4/loadhair.hpp
+                esm4/loadhdpt.hpp
+                esm4/loadidle.hpp
+                esm4/loadidlm.hpp
+                esm4/loadimod.hpp
+                esm4/loadinfo.hpp
+                esm4/loadingr.hpp
+                esm4/loadkeym.hpp
+                esm4/loadland.hpp
+                esm4/loadlgtm.hpp
+                esm4/loadligh.hpp
+                esm4/loadltex.hpp
+                esm4/loadlvlc.hpp
+                esm4/loadlvli.hpp
+                esm4/loadlvln.hpp
+                esm4/loadmato.hpp
+                esm4/loadmisc.hpp
+                esm4/loadmset.hpp
+                esm4/loadmstt.hpp
+                esm4/loadmusc.hpp
+                esm4/loadnavi.hpp
+                esm4/loadnavm.hpp
+                esm4/loadnote.hpp
+                esm4/loadnpc.hpp
+                esm4/loadotft.hpp
+                esm4/loadpack.hpp
+                esm4/loadpgrd.hpp
+                esm4/loadpgre.hpp
+                esm4/loadpwat.hpp
+                esm4/loadqust.hpp
+                esm4/loadrace.hpp
+                esm4/loadrefr.hpp
+                esm4/loadregn.hpp
+                esm4/loadroad.hpp
+                esm4/loadsbsp.hpp
+                esm4/loadscol.hpp
+                esm4/loadscpt.hpp
+                esm4/loadscrl.hpp
+                esm4/loadsgst.hpp
+                esm4/loadslgm.hpp
+                esm4/loadsndr.hpp
+                esm4/loadsoun.hpp
+                esm4/loadstat.hpp
+                esm4/loadtact.hpp
+                esm4/loadterm.hpp
+                esm4/loadtes4.hpp
+                esm4/loadtree.hpp
+                esm4/loadtxst.hpp
+                esm4/loadweap.hpp
+                esm4/loadwrld.hpp
+                esm4/magiceffectid.hpp
+                esm4/reader.hpp
+                esm4/readerutils.hpp
+                esm4/records.hpp
+                esm4/reference.hpp
+                esm4/script.hpp
+                esm4/typetraits.hpp
+                esm4/vertex.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         esmloader/esmdata.cpp
         esmloader/load.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        esmloader/esmdata.hpp
-        esmloader/lessbyid.hpp
-        esmloader/load.hpp
-        esmloader/record.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                esmloader/esmdata.hpp
+                esmloader/lessbyid.hpp
+                esmloader/load.hpp
+                esmloader/record.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         esmterrain/storage.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        esmterrain/gridsampling.hpp
-        esmterrain/storage.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                esmterrain/gridsampling.hpp
+                esmterrain/storage.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         fallback/fallback.cpp
         fallback/validate.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        fallback/fallback.hpp
-        fallback/validate.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                fallback/fallback.hpp
+                fallback/validate.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         files/collections.cpp
         files/configfileparser.cpp
@@ -718,94 +770,112 @@ target_sources(openmw-components
         files/multidircollection.cpp
         files/openfile.cpp
         files/windowspath.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        files/collections.hpp
-        files/configfileparser.hpp
-        files/configurationmanager.hpp
-        files/constrainedfilestream.hpp
-        files/constrainedfilestreambuf.hpp
-        files/conversion.hpp
-        files/fixedpath.hpp
-        files/hash.hpp
-        files/istreamptr.hpp
-        files/linuxpath.hpp
-        files/memorystream.hpp
-        files/multidircollection.hpp
-        files/openfile.hpp
-        files/streamwithbuffer.hpp
-        files/utils.hpp
-        files/windowspath.hpp
-        files/wineutils.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                files/collections.hpp
+                files/configfileparser.hpp
+                files/configurationmanager.hpp
+                files/constrainedfilestream.hpp
+                files/constrainedfilestreambuf.hpp
+                files/conversion.hpp
+                files/fixedpath.hpp
+                files/hash.hpp
+                files/istreamptr.hpp
+                files/linuxpath.hpp
+                files/memorystream.hpp
+                files/multidircollection.hpp
+                files/openfile.hpp
+                files/streamwithbuffer.hpp
+                files/utils.hpp
+                files/windowspath.hpp
+                files/wineutils.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         fontloader/fontloader.cpp
         fontloader/interfacefonts.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        fontloader/fontloader.hpp
-        fontloader/interfacefonts.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                fontloader/fontloader.hpp
+                fontloader/interfacefonts.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         fx/lexer.cpp
         fx/pass.cpp
         fx/stateupdater.cpp
         fx/technique.cpp
         fx/widgets.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        fx/lexer.hpp
-        fx/lexertypes.hpp
-        fx/parseconstants.hpp
-        fx/pass.hpp
-        fx/stateupdater.hpp
-        fx/technique.hpp
-        fx/types.hpp
-        fx/widgets.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                fx/lexer.hpp
+                fx/lexertypes.hpp
+                fx/parseconstants.hpp
+                fx/pass.hpp
+                fx/stateupdater.hpp
+                fx/technique.hpp
+                fx/types.hpp
+                fx/widgets.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         interpreter/defines.cpp
         interpreter/installopcodes.cpp
         interpreter/interpreter.cpp
         interpreter/runtime.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        interpreter/context.hpp
-        interpreter/controlopcodes.hpp
-        interpreter/defines.hpp
-        interpreter/genericopcodes.hpp
-        interpreter/installopcodes.hpp
-        interpreter/interpreter.hpp
-        interpreter/localopcodes.hpp
-        interpreter/mathopcodes.hpp
-        interpreter/miscopcodes.hpp
-        interpreter/opcodes.hpp
-        interpreter/program.hpp
-        interpreter/runtime.hpp
-        interpreter/types.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                interpreter/context.hpp
+                interpreter/controlopcodes.hpp
+                interpreter/defines.hpp
+                interpreter/genericopcodes.hpp
+                interpreter/installopcodes.hpp
+                interpreter/interpreter.hpp
+                interpreter/localopcodes.hpp
+                interpreter/mathopcodes.hpp
+                interpreter/miscopcodes.hpp
+                interpreter/opcodes.hpp
+                interpreter/program.hpp
+                interpreter/runtime.hpp
+                interpreter/types.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         l10n/manager.cpp
         l10n/messagebundles.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        l10n/manager.hpp
-        l10n/messagebundles.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                l10n/manager.hpp
+                l10n/messagebundles.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         loadinglistener/reporter.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        loadinglistener/asynclistener.hpp
-        loadinglistener/loadinglistener.hpp
-        loadinglistener/reporter.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                loadinglistener/asynclistener.hpp
+                loadinglistener/loadinglistener.hpp
+                loadinglistener/reporter.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         lua/asyncpackage.cpp
         lua/configuration.cpp
@@ -820,25 +890,28 @@ target_sources(openmw-components
         lua/utf8.cpp
         lua/utilpackage.cpp
         lua/yamlloader.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        lua/asyncpackage.hpp
-        lua/configuration.hpp
-        lua/inputactions.hpp
-        lua/l10n.hpp
-        lua/luastate.hpp
-        lua/luastateptr.hpp
-        lua/scriptscontainer.hpp
-        lua/scripttracker.hpp
-        lua/serialization.hpp
-        lua/shapes/box.hpp
-        lua/storage.hpp
-        lua/utf8.hpp
-        lua/util.hpp
-        lua/utilpackage.hpp
-        lua/yamlloader.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                lua/asyncpackage.hpp
+                lua/configuration.hpp
+                lua/inputactions.hpp
+                lua/l10n.hpp
+                lua/luastate.hpp
+                lua/luastateptr.hpp
+                lua/scriptscontainer.hpp
+                lua/scripttracker.hpp
+                lua/serialization.hpp
+                lua/shapes/box.hpp
+                lua/storage.hpp
+                lua/utf8.hpp
+                lua/util.hpp
+                lua/utilpackage.hpp
+                lua/yamlloader.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         lua_ui/adapter.cpp
         lua_ui/container.cpp
@@ -854,29 +927,32 @@ target_sources(openmw-components
         lua_ui/util.cpp
         lua_ui/widget.cpp
         lua_ui/window.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        lua_ui/adapter.hpp
-        lua_ui/alignment.hpp
-        lua_ui/container.hpp
-        lua_ui/content.hpp
-        lua_ui/element.hpp
-        lua_ui/flex.hpp
-        lua_ui/image.hpp
-        lua_ui/input.hpp
-        lua_ui/layers.hpp
-        lua_ui/padding.hpp
-        lua_ui/properties.hpp
-        lua_ui/registerscriptsettings.hpp
-        lua_ui/resources.hpp
-        lua_ui/scriptsettings.hpp
-        lua_ui/text.hpp
-        lua_ui/textedit.hpp
-        lua_ui/util.hpp
-        lua_ui/widget.hpp
-        lua_ui/window.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                lua_ui/adapter.hpp
+                lua_ui/alignment.hpp
+                lua_ui/container.hpp
+                lua_ui/content.hpp
+                lua_ui/element.hpp
+                lua_ui/flex.hpp
+                lua_ui/image.hpp
+                lua_ui/input.hpp
+                lua_ui/layers.hpp
+                lua_ui/padding.hpp
+                lua_ui/properties.hpp
+                lua_ui/registerscriptsettings.hpp
+                lua_ui/resources.hpp
+                lua_ui/scriptsettings.hpp
+                lua_ui/text.hpp
+                lua_ui/textedit.hpp
+                lua_ui/util.hpp
+                lua_ui/widget.hpp
+                lua_ui/window.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         misc/color.cpp
         misc/compression.cpp
@@ -887,59 +963,62 @@ target_sources(openmw-components
         misc/resourcehelpers.cpp
         misc/rng.cpp
         misc/thread.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        misc/algorithm.hpp
-        misc/barrier.hpp
-        misc/budgetmeasurement.hpp
-        misc/bytebuffer.hpp
-        misc/color.hpp
-        misc/compression.hpp
-        misc/concepts.hpp
-        misc/constants.hpp
-        misc/convert.hpp
-        misc/coordinateconverter.hpp
-        misc/digestwords.hpp
-        misc/display.hpp
-        misc/endianness.hpp
-        misc/finitevalues.hpp
-        misc/float16.hpp
-        misc/frameclock.hpp
-        misc/frameratelimiter.hpp
-        misc/framestats.hpp
-        misc/guarded.hpp
-        misc/hashstate.hpp
-        misc/math.hpp
-        misc/mathutil.hpp
-        misc/messageformatparser.hpp
-        misc/monitor.hpp
-        misc/notnullptr.hpp
-        misc/objectpool.hpp
-        misc/osgpluginchecker.hpp
-        misc/osguservalues.hpp
-        misc/pathgridutils.hpp
-        misc/pathhelpers.hpp
-        misc/presentation.hpp
-        misc/progressreporter.hpp
-        misc/resourcehelpers.hpp
-        misc/result.hpp
-        misc/rng.hpp
-        misc/strings/algorithm.hpp
-        misc/strings/conversion.hpp
-        misc/strings/format.hpp
-        misc/strings/lower.hpp
-        misc/strongtypedef.hpp
-        misc/thread.hpp
-        misc/timeconvert.hpp
-        misc/timer.hpp
-        misc/tuplehelpers.hpp
-        misc/tuplemeta.hpp
-        misc/typetraits.hpp
-        misc/utf8stream.hpp
-        misc/weakcache.hpp
-        misc/windows.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                misc/algorithm.hpp
+                misc/barrier.hpp
+                misc/budgetmeasurement.hpp
+                misc/bytebuffer.hpp
+                misc/color.hpp
+                misc/compression.hpp
+                misc/concepts.hpp
+                misc/constants.hpp
+                misc/convert.hpp
+                misc/coordinateconverter.hpp
+                misc/digestwords.hpp
+                misc/display.hpp
+                misc/endianness.hpp
+                misc/finitevalues.hpp
+                misc/float16.hpp
+                misc/frameclock.hpp
+                misc/frameratelimiter.hpp
+                misc/framestats.hpp
+                misc/guarded.hpp
+                misc/hashstate.hpp
+                misc/math.hpp
+                misc/mathutil.hpp
+                misc/messageformatparser.hpp
+                misc/monitor.hpp
+                misc/notnullptr.hpp
+                misc/objectpool.hpp
+                misc/osgpluginchecker.hpp
+                misc/osguservalues.hpp
+                misc/pathgridutils.hpp
+                misc/pathhelpers.hpp
+                misc/presentation.hpp
+                misc/progressreporter.hpp
+                misc/resourcehelpers.hpp
+                misc/result.hpp
+                misc/rng.hpp
+                misc/strings/algorithm.hpp
+                misc/strings/conversion.hpp
+                misc/strings/format.hpp
+                misc/strings/lower.hpp
+                misc/strongtypedef.hpp
+                misc/thread.hpp
+                misc/timeconvert.hpp
+                misc/timer.hpp
+                misc/tuplehelpers.hpp
+                misc/tuplemeta.hpp
+                misc/typetraits.hpp
+                misc/utf8stream.hpp
+                misc/weakcache.hpp
+                misc/windows.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         myguiplatform/additivelayer.cpp
         myguiplatform/myguidatamanager.cpp
@@ -948,25 +1027,31 @@ target_sources(openmw-components
         myguiplatform/myguirendermanager.cpp
         myguiplatform/myguitexture.cpp
         myguiplatform/scalinglayer.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        myguiplatform/additivelayer.hpp
-        myguiplatform/guirendermanager.hpp
-        myguiplatform/myguidatamanager.hpp
-        myguiplatform/myguiloglistener.hpp
-        myguiplatform/myguiplatform.hpp
-        myguiplatform/myguirendermanager.hpp
-        myguiplatform/myguitexture.hpp
-        myguiplatform/scalinglayer.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                myguiplatform/additivelayer.hpp
+                myguiplatform/guirendermanager.hpp
+                myguiplatform/myguidatamanager.hpp
+                myguiplatform/myguiloglistener.hpp
+                myguiplatform/myguiplatform.hpp
+                myguiplatform/myguirendermanager.hpp
+                myguiplatform/myguitexture.hpp
+                myguiplatform/scalinglayer.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         navmeshtool/protocol.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        navmeshtool/protocol.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                navmeshtool/protocol.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         nif/base.cpp
         nif/controller.cpp
@@ -980,50 +1065,59 @@ target_sources(openmw-components
         nif/physics.cpp
         nif/property.cpp
         nif/texture.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        nif/base.hpp
-        nif/controller.hpp
-        nif/data.hpp
-        nif/effect.hpp
-        nif/exception.hpp
-        nif/extra.hpp
-        nif/niffile.hpp
-        nif/nifkey.hpp
-        nif/nifstream.hpp
-        nif/niftypes.hpp
-        nif/node.hpp
-        nif/parent.hpp
-        nif/particle.hpp
-        nif/physics.hpp
-        nif/property.hpp
-        nif/record.hpp
-        nif/recordptr.hpp
-        nif/texture.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                nif/base.hpp
+                nif/controller.hpp
+                nif/data.hpp
+                nif/effect.hpp
+                nif/exception.hpp
+                nif/extra.hpp
+                nif/niffile.hpp
+                nif/nifkey.hpp
+                nif/nifstream.hpp
+                nif/niftypes.hpp
+                nif/node.hpp
+                nif/parent.hpp
+                nif/particle.hpp
+                nif/physics.hpp
+                nif/property.hpp
+                nif/record.hpp
+                nif/recordptr.hpp
+                nif/texture.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         nifbullet/bulletnifloader.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        nifbullet/bulletnifloader.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                nifbullet/bulletnifloader.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         nifosg/autotransform.cpp
         nifosg/controller.cpp
         nifosg/matrixtransform.cpp
         nifosg/nifloader.cpp
         nifosg/particle.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        nifosg/autotransform.hpp
-        nifosg/controller.hpp
-        nifosg/matrixtransform.hpp
-        nifosg/nifloader.hpp
-        nifosg/particle.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                nifosg/autotransform.hpp
+                nifosg/controller.hpp
+                nifosg/matrixtransform.hpp
+                nifosg/nifloader.hpp
+                nifosg/particle.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         resource/animation.cpp
         resource/animblendrulesmanager.cpp
@@ -1039,27 +1133,30 @@ target_sources(openmw-components
         resource/resourcesystem.cpp
         resource/scenemanager.cpp
         resource/stats.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        resource/animation.hpp
-        resource/animblendrulesmanager.hpp
-        resource/bgsmfilemanager.hpp
-        resource/bulletshape.hpp
-        resource/bulletshapemanager.hpp
-        resource/cachestats.hpp
-        resource/errormarker.hpp
-        resource/foreachbulletobject.hpp
-        resource/imagemanager.hpp
-        resource/keyframemanager.hpp
-        resource/multiobjectcache.hpp
-        resource/niffilemanager.hpp
-        resource/objectcache.hpp
-        resource/resourcemanager.hpp
-        resource/resourcesystem.hpp
-        resource/scenemanager.hpp
-        resource/stats.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                resource/animation.hpp
+                resource/animblendrulesmanager.hpp
+                resource/bgsmfilemanager.hpp
+                resource/bulletshape.hpp
+                resource/bulletshapemanager.hpp
+                resource/cachestats.hpp
+                resource/errormarker.hpp
+                resource/foreachbulletobject.hpp
+                resource/imagemanager.hpp
+                resource/keyframemanager.hpp
+                resource/multiobjectcache.hpp
+                resource/niffilemanager.hpp
+                resource/objectcache.hpp
+                resource/resourcemanager.hpp
+                resource/resourcesystem.hpp
+                resource/scenemanager.hpp
+                resource/stats.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         sceneutil/agentpath.cpp
         sceneutil/animblendrules.cpp
@@ -1103,68 +1200,71 @@ target_sources(openmw-components
         sceneutil/waterutil.cpp
         sceneutil/workqueue.cpp
         sceneutil/writescene.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        sceneutil/agentpath.hpp
-        sceneutil/animblendrules.hpp
-        sceneutil/attach.hpp
-        sceneutil/clearcolor.hpp
-        sceneutil/clone.hpp
-        sceneutil/clusteredlighting.hpp
-        sceneutil/color.hpp
-        sceneutil/controller.hpp
-        sceneutil/cullsafeboundsvisitor.hpp
-        sceneutil/defines.hpp
-        sceneutil/depth.hpp
-        sceneutil/detourdebugdraw.hpp
-        sceneutil/embeddedimage.hpp
-        sceneutil/extradata.hpp
-        sceneutil/fog.hpp
-        sceneutil/glextensions.hpp
-        sceneutil/imageregion.hpp
-        sceneutil/keyframe.hpp
-        sceneutil/lampbody.hpp
-        sceneutil/lightcommon.hpp
-        sceneutil/lightcontroller.hpp
-        sceneutil/lightmanager.hpp
-        sceneutil/lightutil.hpp
-        sceneutil/material.hpp
-        sceneutil/memorybarrier.hpp
-        sceneutil/morphgeometry.hpp
-        sceneutil/mwshadowtechnique.hpp
-        sceneutil/navmesh.hpp
-        sceneutil/nodecallback.hpp
-        sceneutil/offscreenframing.hpp
-        sceneutil/optimizer.hpp
-        sceneutil/osgacontroller.hpp
-        sceneutil/paintedtexture.hpp
-        sceneutil/pathgridutil.hpp
-        sceneutil/positionattitudetransform.hpp
-        sceneutil/recastmesh.hpp
-        sceneutil/riggeometry.hpp
-        sceneutil/riggeometryosgaextension.hpp
-        sceneutil/rtt.hpp
-        sceneutil/screencapture.hpp
-        sceneutil/serialize.hpp
-        sceneutil/shadow.hpp
-        sceneutil/shadowsbin.hpp
-        sceneutil/skeleton.hpp
-        sceneutil/stableidentity.hpp
-        sceneutil/statesetupdater.hpp
-        sceneutil/stateupdater.hpp
-        sceneutil/templateref.hpp
-        sceneutil/texmat.hpp
-        sceneutil/textkeymap.hpp
-        sceneutil/texturetype.hpp
-        sceneutil/unrefqueue.hpp
-        sceneutil/userdata.hpp
-        sceneutil/util.hpp
-        sceneutil/visitor.hpp
-        sceneutil/waterutil.hpp
-        sceneutil/workqueue.hpp
-        sceneutil/writescene.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                sceneutil/agentpath.hpp
+                sceneutil/animblendrules.hpp
+                sceneutil/attach.hpp
+                sceneutil/clearcolor.hpp
+                sceneutil/clone.hpp
+                sceneutil/clusteredlighting.hpp
+                sceneutil/color.hpp
+                sceneutil/controller.hpp
+                sceneutil/cullsafeboundsvisitor.hpp
+                sceneutil/defines.hpp
+                sceneutil/depth.hpp
+                sceneutil/detourdebugdraw.hpp
+                sceneutil/embeddedimage.hpp
+                sceneutil/extradata.hpp
+                sceneutil/fog.hpp
+                sceneutil/glextensions.hpp
+                sceneutil/imageregion.hpp
+                sceneutil/keyframe.hpp
+                sceneutil/lampbody.hpp
+                sceneutil/lightcommon.hpp
+                sceneutil/lightcontroller.hpp
+                sceneutil/lightmanager.hpp
+                sceneutil/lightutil.hpp
+                sceneutil/material.hpp
+                sceneutil/memorybarrier.hpp
+                sceneutil/morphgeometry.hpp
+                sceneutil/mwshadowtechnique.hpp
+                sceneutil/navmesh.hpp
+                sceneutil/nodecallback.hpp
+                sceneutil/offscreenframing.hpp
+                sceneutil/optimizer.hpp
+                sceneutil/osgacontroller.hpp
+                sceneutil/paintedtexture.hpp
+                sceneutil/pathgridutil.hpp
+                sceneutil/positionattitudetransform.hpp
+                sceneutil/recastmesh.hpp
+                sceneutil/riggeometry.hpp
+                sceneutil/riggeometryosgaextension.hpp
+                sceneutil/rtt.hpp
+                sceneutil/screencapture.hpp
+                sceneutil/serialize.hpp
+                sceneutil/shadow.hpp
+                sceneutil/shadowsbin.hpp
+                sceneutil/skeleton.hpp
+                sceneutil/stableidentity.hpp
+                sceneutil/statesetupdater.hpp
+                sceneutil/stateupdater.hpp
+                sceneutil/templateref.hpp
+                sceneutil/texmat.hpp
+                sceneutil/textkeymap.hpp
+                sceneutil/texturetype.hpp
+                sceneutil/unrefqueue.hpp
+                sceneutil/userdata.hpp
+                sceneutil/util.hpp
+                sceneutil/visitor.hpp
+                sceneutil/waterutil.hpp
+                sceneutil/workqueue.hpp
+                sceneutil/writescene.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         sdlutil/imagetosurface.cpp
         sdlutil/sdlcursormanager.cpp
@@ -1173,123 +1273,138 @@ target_sources(openmw-components
         sdlutil/sdlinputwrapper.cpp
         sdlutil/sdlmappings.cpp
         sdlutil/sdlvideowrapper.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        sdlutil/events.hpp
-        sdlutil/graphicslistener.hpp
-        sdlutil/imagetosurface.hpp
-        sdlutil/sdlcursormanager.hpp
-        sdlutil/sdldisplay.hpp
-        sdlutil/sdlgraphicswindow.hpp
-        sdlutil/sdlinputwrapper.hpp
-        sdlutil/sdlmappings.hpp
-        sdlutil/sdlvideowrapper.hpp
-        sdlutil/vsyncmode.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                sdlutil/events.hpp
+                sdlutil/graphicslistener.hpp
+                sdlutil/imagetosurface.hpp
+                sdlutil/sdlcursormanager.hpp
+                sdlutil/sdldisplay.hpp
+                sdlutil/sdlgraphicswindow.hpp
+                sdlutil/sdlinputwrapper.hpp
+                sdlutil/sdlmappings.hpp
+                sdlutil/sdlvideowrapper.hpp
+                sdlutil/vsyncmode.hpp
 )
 
-target_sources(openmw-components
-    PUBLIC FILE_SET HEADERS FILES
-        serialization/binaryreader.hpp
-        serialization/binarywriter.hpp
-        serialization/format.hpp
-        serialization/osgyaml.hpp
-        serialization/sizeaccumulator.hpp
+target_sources(
+    openmw-components
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                serialization/binaryreader.hpp
+                serialization/binarywriter.hpp
+                serialization/format.hpp
+                serialization/osgyaml.hpp
+                serialization/sizeaccumulator.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         settings/migration.cpp
         settings/parser.cpp
         settings/sanitizerimpl.cpp
         settings/settings.cpp
         settings/values.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        settings/categories.hpp
-        settings/categories/camera.hpp
-        settings/categories/cells.hpp
-        settings/categories/fog.hpp
-        settings/categories/game.hpp
-        settings/categories/general.hpp
-        settings/categories/groundcover.hpp
-        settings/categories/gui.hpp
-        settings/categories/hud.hpp
-        settings/categories/input.hpp
-        settings/categories/lua.hpp
-        settings/categories/map.hpp
-        settings/categories/models.hpp
-        settings/categories/navigator.hpp
-        settings/categories/physics.hpp
-        settings/categories/postprocessing.hpp
-        settings/categories/rtx.hpp
-        settings/categories/saves.hpp
-        settings/categories/shaders.hpp
-        settings/categories/shadows.hpp
-        settings/categories/sound.hpp
-        settings/categories/stereo.hpp
-        settings/categories/stereoview.hpp
-        settings/categories/terrain.hpp
-        settings/categories/video.hpp
-        settings/categories/water.hpp
-        settings/categories/windows.hpp
-        settings/gyroscopeaxis.hpp
-        settings/hrtfmode.hpp
-        settings/migration.hpp
-        settings/navmeshrendermode.hpp
-        settings/parser.hpp
-        settings/sanitizer.hpp
-        settings/sanitizerimpl.hpp
-        settings/settings.hpp
-        settings/settingvalue.hpp
-        settings/shadermanager.hpp
-        settings/values.hpp
-        settings/windowmode.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                settings/categories.hpp
+                settings/categories/camera.hpp
+                settings/categories/cells.hpp
+                settings/categories/fog.hpp
+                settings/categories/game.hpp
+                settings/categories/general.hpp
+                settings/categories/groundcover.hpp
+                settings/categories/gui.hpp
+                settings/categories/hud.hpp
+                settings/categories/input.hpp
+                settings/categories/lua.hpp
+                settings/categories/map.hpp
+                settings/categories/models.hpp
+                settings/categories/navigator.hpp
+                settings/categories/physics.hpp
+                settings/categories/postprocessing.hpp
+                settings/categories/rtx.hpp
+                settings/categories/saves.hpp
+                settings/categories/shaders.hpp
+                settings/categories/shadows.hpp
+                settings/categories/sound.hpp
+                settings/categories/stereo.hpp
+                settings/categories/stereoview.hpp
+                settings/categories/terrain.hpp
+                settings/categories/video.hpp
+                settings/categories/water.hpp
+                settings/categories/windows.hpp
+                settings/gyroscopeaxis.hpp
+                settings/hrtfmode.hpp
+                settings/migration.hpp
+                settings/navmeshrendermode.hpp
+                settings/parser.hpp
+                settings/sanitizer.hpp
+                settings/sanitizerimpl.hpp
+                settings/settings.hpp
+                settings/settingvalue.hpp
+                settings/shadermanager.hpp
+                settings/values.hpp
+                settings/windowmode.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         shader/automaps.cpp
         shader/removedalphafunc.cpp
         shader/shadermanager.cpp
         shader/shadervisitor.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        shader/automaps.hpp
-        shader/removedalphafunc.hpp
-        shader/shadermanager.hpp
-        shader/shadervisitor.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                shader/automaps.hpp
+                shader/removedalphafunc.hpp
+                shader/shadermanager.hpp
+                shader/shadervisitor.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         sky/sundisc.cpp
         sky/sunglarefader.cpp
         sky/timeofday.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        sky/moonstate.hpp
-        sky/skyclock.hpp
-        sky/sundisc.hpp
-        sky/sunglarefader.hpp
-        sky/timeofday.hpp
-        sky/vertexrules.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                sky/moonstate.hpp
+                sky/skyclock.hpp
+                sky/sundisc.hpp
+                sky/sunglarefader.hpp
+                sky/timeofday.hpp
+                sky/vertexrules.hpp
 )
 
-target_sources(openmw-components
-    PUBLIC FILE_SET HEADERS FILES
-        std140/ubo.hpp
-)
+target_sources(openmw-components PUBLIC FILE_SET HEADERS FILES std140/ubo.hpp)
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         stereo/frustum.cpp
         stereo/multiview.cpp
         stereo/stereomanager.cpp
         stereo/types.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        stereo/frustum.hpp
-        stereo/multiview.hpp
-        stereo/stereomanager.hpp
-        stereo/types.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                stereo/frustum.hpp
+                stereo/multiview.hpp
+                stereo/stereomanager.hpp
+                stereo/types.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         terrain/buffercache.cpp
         terrain/cellborder.cpp
@@ -1303,71 +1418,83 @@ target_sources(openmw-components
         terrain/texturemanager.cpp
         terrain/viewdata.cpp
         terrain/world.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        terrain/buffercache.hpp
-        terrain/cellborder.hpp
-        terrain/chunkmanager.hpp
-        terrain/compositemaprenderer.hpp
-        terrain/defs.hpp
-        terrain/heightcull.hpp
-        terrain/material.hpp
-        terrain/objectstorage.hpp
-        terrain/pagedcellref.hpp
-        terrain/quadtreenode.hpp
-        terrain/quadtreeworld.hpp
-        terrain/storage.hpp
-        terrain/terraindrawable.hpp
-        terrain/terraingrid.hpp
-        terrain/texturemanager.hpp
-        terrain/view.hpp
-        terrain/viewdata.hpp
-        terrain/world.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                terrain/buffercache.hpp
+                terrain/cellborder.hpp
+                terrain/chunkmanager.hpp
+                terrain/compositemaprenderer.hpp
+                terrain/defs.hpp
+                terrain/heightcull.hpp
+                terrain/material.hpp
+                terrain/objectstorage.hpp
+                terrain/pagedcellref.hpp
+                terrain/quadtreenode.hpp
+                terrain/quadtreeworld.hpp
+                terrain/storage.hpp
+                terrain/terraindrawable.hpp
+                terrain/terraingrid.hpp
+                terrain/texturemanager.hpp
+                terrain/view.hpp
+                terrain/viewdata.hpp
+                terrain/world.hpp
 )
 
-target_sources(openmw-components
-    PUBLIC FILE_SET HEADERS FILES
-        testing/expecterror.hpp
-        testing/util.hpp
+target_sources(
+    openmw-components
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                testing/expecterror.hpp
+                testing/util.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         toutf8/toutf8.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        toutf8/tablesgen.hpp
-        toutf8/toutf8.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                toutf8/tablesgen.hpp
+                toutf8/toutf8.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         translation/translation.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        translation/translation.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                translation/translation.hpp
 )
 
-target_sources(openmw-components
-    PUBLIC FILE_SET HEADERS FILES
-        version/version.hpp
-)
+target_sources(openmw-components PUBLIC FILE_SET HEADERS FILES version/version.hpp)
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         vfs/filesystemarchive.cpp
         vfs/manager.cpp
         vfs/registerarchives.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        vfs/archive.hpp
-        vfs/bsaarchive.hpp
-        vfs/file.hpp
-        vfs/filemap.hpp
-        vfs/filesystemarchive.hpp
-        vfs/manager.hpp
-        vfs/pathutil.hpp
-        vfs/recursivedirectoryiterator.hpp
-        vfs/registerarchives.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                vfs/archive.hpp
+                vfs/bsaarchive.hpp
+                vfs/file.hpp
+                vfs/filemap.hpp
+                vfs/filesystemarchive.hpp
+                vfs/manager.hpp
+                vfs/pathutil.hpp
+                vfs/recursivedirectoryiterator.hpp
+                vfs/registerarchives.hpp
 )
 
-target_sources(openmw-components
+target_sources(
+    openmw-components
     PRIVATE
         widgets/box.cpp
         widgets/fontusers.cpp
@@ -1381,57 +1508,92 @@ target_sources(openmw-components
         widgets/trackedtext.cpp
         widgets/widgets.cpp
         widgets/windowcaption.cpp
-    PUBLIC FILE_SET HEADERS FILES
-        widgets/box.hpp
-        widgets/fontusers.hpp
-        widgets/imagebutton.hpp
-        widgets/list.hpp
-        widgets/listbox.hpp
-        widgets/numericeditbox.hpp
-        widgets/settlingscrollbar.hpp
-        widgets/sharedstatebutton.hpp
-        widgets/tags.hpp
-        widgets/trackedtext.hpp
-        widgets/widgets.hpp
-        widgets/windowcaption.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                widgets/box.hpp
+                widgets/fontusers.hpp
+                widgets/imagebutton.hpp
+                widgets/list.hpp
+                widgets/listbox.hpp
+                widgets/numericeditbox.hpp
+                widgets/settlingscrollbar.hpp
+                widgets/sharedstatebutton.hpp
+                widgets/tags.hpp
+                widgets/trackedtext.hpp
+                widgets/widgets.hpp
+                widgets/windowcaption.hpp
 )
 
 # **The DLSS feature library NVIDIA publishes, for the systems it publishes it for**: Windows and Linux.
 target_sources(openmw-components PRIVATE dlss/dlss.cpp PUBLIC FILE_SET HEADERS FILES dlss/dlss.hpp)
-if (WIN32)
+if(WIN32)
     target_sources(openmw-components PRIVATE dlss/dlsswin32.cpp)
-elseif (LINUX)
+elseif(LINUX)
     target_sources(openmw-components PRIVATE dlss/dlsslinux.cpp)
-else ()
-    message(FATAL_ERROR "The DLSS library's download is stated for Windows and Linux alone: "
-        "${CMAKE_SYSTEM_NAME} needs a file of its own in components/dlss")
-endif ()
+else()
+    message(
+        FATAL_ERROR
+        "The DLSS library's download is stated for Windows and Linux alone: "
+        "${CMAKE_SYSTEM_NAME} needs a file of its own in components/dlss"
+    )
+endif()
 
 add_subdirectory(crashcatcher)
 add_subdirectory(platform)
 
-set_property(SOURCE files/configfileparser.cpp APPEND PROPERTY COMPILE_OPTIONS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-shadow>)
+set_property(
+    SOURCE
+        files/configfileparser.cpp
+    APPEND
+    PROPERTY
+        COMPILE_OPTIONS
+            $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-shadow>
+)
 # Read on Linux alone, where the file compiles to anything.
-set_property(SOURCE files/linuxpath.cpp APPEND PROPERTY COMPILE_DEFINITIONS
-    "GLOBAL_DATA_PATH=\"${OPENMW_GLOBAL_DATA_PATH}\"" "GLOBAL_CONFIG_PATH=\"${OPENMW_GLOBAL_CONFIG_PATH}\"")
+set_property(
+    SOURCE
+        files/linuxpath.cpp
+    APPEND
+    PROPERTY
+        COMPILE_DEFINITIONS
+            "GLOBAL_DATA_PATH=\"${OPENMW_GLOBAL_DATA_PATH}\""
+            "GLOBAL_CONFIG_PATH=\"${OPENMW_GLOBAL_CONFIG_PATH}\""
+)
 # Boost's `typed_value::notify`, which GCC reports as a null dereference: compiled here alone, as
 # `configurationmanager.hpp` says.
-set_property(SOURCE files/configurationmanager.cpp APPEND PROPERTY COMPILE_OPTIONS
-    $<$<CXX_COMPILER_ID:GNU>:-Wno-null-dereference>)
+set_property(
+    SOURCE
+        files/configurationmanager.cpp
+    APPEND
+    PROPERTY
+        COMPILE_OPTIONS
+            $<$<CXX_COMPILER_ID:GNU>:-Wno-null-dereference>
+)
 # MSVC's four code generation threads a file take more than CI's 8 GB beside another `cl.exe` on these two;
 # one thread costs a third more build time, so only the hungriest take it. The compiler's option, not
 # the linker's of the same name.
-set_property(SOURCE detournavigator/tilecachedrecastmeshmanager.cpp lua/utilpackage.cpp
-    APPEND PROPERTY COMPILE_OPTIONS $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>)
-
-target_compile_definitions(openmw-components PUBLIC
-    OPENMW_RTX_DLSS=$<BOOL:${OPENMW_RTX_DLSS}>
-    # Vulkan's validation layers on unless Release, read as `Rtx::sValidationByDefault`: here, so the game
-    # and the harness agree. 0 or 1, so the constant needs no `#ifdef`.
-    OPENMW_RTX_VALIDATION_BY_DEFAULT=$<IF:$<CONFIG:Release>,0,1>
+set_property(
+    SOURCE
+        detournavigator/tilecachedrecastmeshmanager.cpp
+        lua/utilpackage.cpp
+    APPEND
+    PROPERTY
+        COMPILE_OPTIONS
+            $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>
 )
 
-target_link_libraries(openmw-components
+target_compile_definitions(
+    openmw-components
+    PUBLIC
+        OPENMW_RTX_DLSS=$<BOOL:${OPENMW_RTX_DLSS}>
+        # Vulkan's validation layers on unless Release, read as `Rtx::sValidationByDefault`: here, so the game
+        # and the harness agree. 0 or 1, so the constant needs no `#ifdef`.
+        OPENMW_RTX_VALIDATION_BY_DEFAULT=$<IF:$<CONFIG:Release>,0,1>
+)
+
+target_link_libraries(
+    openmw-components
     PUBLIC
         OpenSceneGraph::osgParticle
         OpenSceneGraph::osgViewer
@@ -1469,43 +1631,49 @@ target_link_libraries(openmw-components
         Threads::Threads
 )
 
-if (WIN32)
+if(WIN32)
     # `DXGI` names the display adapters the launcher asks about before Vulkan exists.
-    target_link_libraries(openmw-components PUBLIC shlwapi dxgi)
-endif ()
+    target_link_libraries(
+        openmw-components
+        PUBLIC
+            shlwapi
+            dxgi
+    )
+endif()
 
-if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(openmw-components PUBLIC
-        <sol/sol.hpp>
-
-        <osg/State>
-        <osg/StateSet>
-        <osg/Node>
-        <osg/Drawable>
-        <osg/Camera>
-
-        <MyGUI_Widget.h>
-
-        <algorithm>
-        <filesystem>
-        <fstream>
-        <functional>
-        <memory>
-        <ostream>
-        <string>
-        <vector>
+if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
+    target_precompile_headers(
+        openmw-components
+        PUBLIC
+            <sol/sol.hpp>
+            <osg/State>
+            <osg/StateSet>
+            <osg/Node>
+            <osg/Drawable>
+            <osg/Camera>
+            <MyGUI_Widget.h>
+            <algorithm>
+            <filesystem>
+            <fstream>
+            <functional>
+            <memory>
+            <ostream>
+            <string>
+            <vector>
     )
 
-    target_precompile_headers(openmw-components PRIVATE
-        <osgViewer/Viewer>
-
-        <boost/program_options/options_description.hpp>
+    target_precompile_headers(
+        openmw-components
+        PRIVATE
+            <osgViewer/Viewer>
+            <boost/program_options/options_description.hpp>
     )
-endif ()
+endif()
 
-if (USE_QT)
+if(USE_QT)
     add_library(openmw-components-qt STATIC)
-    target_sources(openmw-components-qt
+    target_sources(
+        openmw-components-qt
         PRIVATE
             config/gamesettings.cpp
             config/launchersettings.cpp
@@ -1521,44 +1689,58 @@ if (USE_QT)
             platform/application.cpp
             process/processinvoker.cpp
             vfs/qtconversion.cpp
-        PUBLIC FILE_SET HEADERS FILES
-            config/gamesettings.hpp
-            config/launchersettings.hpp
-            contentselector/model/contentmodel.hpp
-            contentselector/model/esmfile.hpp
-            contentselector/model/loadordererror.hpp
-            contentselector/model/modelitem.hpp
-            contentselector/view/combobox.hpp
-            contentselector/view/contentselector.hpp
-            files/qtconfigpath.hpp
-            files/qtconversion.hpp
-            l10n/qttranslations.hpp
-            misc/hash.hpp
-            misc/helpviewer.hpp
-            misc/scalableicon.hpp
-            misc/utf8qtextstream.hpp
-            platform/application.hpp
-            process/processinvoker.hpp
-            vfs/qtconversion.hpp
+        PUBLIC
+            FILE_SET HEADERS
+                FILES
+                    config/gamesettings.hpp
+                    config/launchersettings.hpp
+                    contentselector/model/contentmodel.hpp
+                    contentselector/model/esmfile.hpp
+                    contentselector/model/loadordererror.hpp
+                    contentselector/model/modelitem.hpp
+                    contentselector/view/combobox.hpp
+                    contentselector/view/contentselector.hpp
+                    files/qtconfigpath.hpp
+                    files/qtconversion.hpp
+                    l10n/qttranslations.hpp
+                    misc/hash.hpp
+                    misc/helpviewer.hpp
+                    misc/scalableicon.hpp
+                    misc/utf8qtextstream.hpp
+                    platform/application.hpp
+                    process/processinvoker.hpp
+                    vfs/qtconversion.hpp
     )
-    target_link_libraries(openmw-components-qt PUBLIC openmw-components Qt::Widgets Qt::Core)
-    set_target_properties(openmw-components-qt PROPERTIES
-        AUTOMOC ON
-        AUTOUIC ON
-        AUTOUIC_SEARCH_PATHS contentselector)
+    target_link_libraries(
+        openmw-components-qt
+        PUBLIC
+            openmw-components
+            Qt::Widgets
+            Qt::Core
+    )
+    set_target_properties(
+        openmw-components-qt
+        PROPERTIES
+            AUTOMOC
+                ON
+            AUTOUIC
+                ON
+            AUTOUIC_SEARCH_PATHS
+                contentselector
+    )
 
-    if (OPENMW_BUILD_LAUNCHER OR OPENMW_BUILD_WIZARD)
+    if(OPENMW_BUILD_LAUNCHER OR OPENMW_BUILD_WIZARD)
         add_dependencies(openmw-components-qt qm-files)
-    endif ()
-
-endif ()
+    endif()
+endif()
 
 add_subdirectory(rtx)
 
 # MyGUI's backend on the ray tracer's renderer: above the core, which it draws through, where
 # `openmw-components` is below it.
 add_library(openmw-myguirtx STATIC)
-target_sources(openmw-myguirtx
+target_sources(
+    openmw-myguirtx
     PRIVATE
         myguirtx/additivelayer.cpp
         myguirtx/mirrortexture.cpp
@@ -1567,13 +1749,17 @@ target_sources(openmw-myguirtx
         myguirtx/sharedtexture.cpp
         myguirtx/slottexture.cpp
         myguirtx/texture.cpp
-    PUBLIC FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES
-        myguirtx/additivelayer.hpp
-        myguirtx/mirrortexture.hpp
-        myguirtx/paintedmirror.hpp
-        myguirtx/rendermanager.hpp
-        myguirtx/sharedtexture.hpp
-        myguirtx/slottexture.hpp
-        myguirtx/texture.hpp
+    PUBLIC
+        FILE_SET HEADERS
+            BASE_DIRS
+                "${PROJECT_SOURCE_DIR}"
+            FILES
+                myguirtx/additivelayer.hpp
+                myguirtx/mirrortexture.hpp
+                myguirtx/paintedmirror.hpp
+                myguirtx/rendermanager.hpp
+                myguirtx/sharedtexture.hpp
+                myguirtx/slottexture.hpp
+                myguirtx/texture.hpp
 )
 target_link_libraries(openmw-myguirtx PUBLIC openmw-rtx-renderer)
