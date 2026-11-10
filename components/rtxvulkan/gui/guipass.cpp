@@ -44,7 +44,7 @@ namespace Rtx
             VkVertexInputAttributeDescription{
                 Shaders::GUI_ATTRIBUTE_COLOUR, 0, VK_FORMAT_R8G8B8A8_UNORM, offsetof(GuiVertex, mColour) },
             VkVertexInputAttributeDescription{
-                Shaders::GUI_ATTRIBUTE_TEXCOORD, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(GuiVertex, mU) },
+                Shaders::GUI_ATTRIBUTE_TEXCOORD, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(GuiVertex, mU) }
         };
 
         /// `gui.frag`'s table, which says the texture's `AlphaForm`.

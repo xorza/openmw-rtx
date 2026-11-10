@@ -420,7 +420,7 @@ namespace RtxTool
         const Vertices now{
             .mRevision = meshes.getRevision(),
             .mLengths = { meshes.getPositions().size(), meshes.getNormals().size(), meshes.getTexCoords().size(),
-                meshes.getSecondTexCoords().size(), meshes.getColours().size(), meshes.getIndices().size() },
+                meshes.getSecondTexCoords().size(), meshes.getColours().size(), meshes.getIndices().size() }
         };
         if (mVertices == now)
             return;

@@ -37,7 +37,7 @@ namespace Rtx
         return VkPushConstantRange{
             .stageFlags = stages,
             .offset = 0,
-            .size = std::is_same_v<Constants, NoConstants> ? 0u : static_cast<std::uint32_t>(sizeof(Constants)),
+            .size = std::is_same_v<Constants, NoConstants> ? 0u : static_cast<std::uint32_t>(sizeof(Constants))
         };
     }
 

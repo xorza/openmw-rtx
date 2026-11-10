@@ -204,13 +204,10 @@ minimum CMake moves to a recent release and the code for older ones goes.
   installer today; nothing is installed, and apt's and the path's formatters are no longer asked. Refused: the
   newest on the path, which differs by desk; LLVM's packages, 1.9 GB for one binary; pinning only the major
   version, since a point release can move the layout too.
-- **`.clang-format` is LLVM's style with four changes (taken).** `BasedOnStyle: LLVM`, with the tree's 120 columns,
-  four-space indent, `int* p` (C++ Core Guidelines NL.18) and access specifiers at the class's level; braces on the
-  line of the statement (`if () {`), namespaces and case labels not indented, as LLVM's own. `FixNamespaceComments:
-  false`, since a `} // namespace` marker says what the indentation does, and the OpenSceneGraph macros as
-  statements. The exact pin keeps the base style fixed. Refused: upstream's file, Allman braces and every namespace
-  indented, spelled out key by key; Google's (case labels indented, includes regrouped across AGENTS.md's five
-  blocks); pure LLVM's two spaces and 80 columns; WebKit's function braces on their own line.
+- **Upstream's `.clang-format`, under clang-format 23.1.5 (taken, for now).** The tree keeps upstream's layout, so a
+  merge meets no layout of the fork's own. 23 lays a braced list that ends in a comma out one element a line, where 14
+  kept its rows, so a table written in rows ends without one. Tried and reverted: an LLVM style with four changes
+  (`if () {`), which laid out 3,856 of the 3,870 sources anew.
 - **C++ text is LF everywhere**: `*.cpp`, `*.hpp`, `*.h` and `*.inl` `text eol=lf` in `.gitattributes`, and
   `LineEnding: LF` in `.clang-format`, so a Windows clone formats byte for byte as a Linux one.
 - **One reformat commit, out of blame, and a merge driver across it.** The whole tree is reformatted once, by the
@@ -262,11 +259,10 @@ diagnostic after steps 11 and 14.
    every command's PATH (`deps.cmake`), the release image's own CMake and apt's gone, `cmake_minimum_required(VERSION
    4.4)` in the tree and the presets, and every check for an older CMake gone. The steps after it count on 4.4.
 4. **clang-format 23.1.5.** Done: the wheel pins in `pins.py`, which `omw format` reads on every system; CI, the
-   merge workflow and the deps script off apt's clang-format 14; `.clang-format` as LLVM's style with four changes,
-   which lays out 3,856 of the 3,870 sources anew; C++ LF in
+   merge workflow and the deps script off apt's clang-format 14; upstream's `.clang-format`, and the 294 sources 23
+   lays out otherwise reformatted, the tables in rows without their trailing comma; C++ and GLSL LF in
    `.gitattributes`; `omw merge-file`, the merge driver `upstream.yml` sets, tested on a reformat merged with an edit
-   made before it. Left: the reformat commit, the three CRLF sources renormalized with it, listed in
-   `.git-blame-ignore-revs`.
+   made before it. Not done: the shaders formatted, and the reformat in `.git-blame-ignore-revs`.
 5. **Ubuntu 26.04 and fresh compilers.** `CI/release-base.Dockerfile` on `ubuntu:26.04`; `install_ubuntu_deps.sh`
    for 26.04's packages and OpenMW's PPA; CI's Linux jobs inside that image, with GCC 15.2; the clang job on Clang 23
    from apt.llvm.org; `ubuntu-26.04` runners in `ci.yml` and `rtx-release.yml`, and `RELEASE_BASE` in `package.py`;

@@ -76,7 +76,7 @@ namespace
         0, -25, -25, -25, -25, // row 1
         0, -25, -100, -100, -100, // row 2
         0, -25, -100, -100, -100, // row 3
-        0, -25, -100, -100, -100, // row 4
+        0, -25, -100, -100, -100 // row 4
     } };
 
     constexpr std::array<btScalar, 5 * 5> defaultHeightfieldDataScalar{ {
@@ -84,7 +84,7 @@ namespace
         0, -25, -25, -25, -25, // row 1
         0, -25, -100, -100, -100, // row 2
         0, -25, -100, -100, -100, // row 3
-        0, -25, -100, -100, -100, // row 4
+        0, -25, -100, -100, -100 // row 4
     } };
 
     template <class T, std::size_t size>
@@ -316,7 +316,7 @@ namespace
             -25, -25, -25, -25, -25, // row 1
             -25, -25, -25, -25, -25, // row 2
             -25, -25, -25, -25, -25, // row 3
-            -25, -25, -25, -25, -25, // row 4
+            -25, -25, -25, -25, -25 // row 4
         } };
         CollisionShapeInstance heightfield2(makeSquareHeightfieldTerrainShape(heightfieldData2));
         heightfield2.shape().setLocalScaling(btVector3(128, 128, 1));
@@ -352,7 +352,7 @@ namespace
             -25, -25, -25, -25, -25, // row 1
             -25, -25, -25, -25, -25, // row 2
             -25, -25, -25, -25, -25, // row 3
-            -25, -25, -25, -25, -25, // row 4
+            -25, -25, -25, -25, -25 // row 4
         } };
         const HeightfieldSurface surface2 = makeSquareHeightfieldSurface(heightfieldData2);
         const int cellSize2 = heightfieldTileSize * static_cast<int>(surface2.mSize - 1);
@@ -385,7 +385,7 @@ namespace
             -25, -25, -25, -25, -25, // row 1
             -25, -25, -25, -25, -25, // row 2
             -25, -25, -25, -25, -25, // row 3
-            -25, -25, -25, -25, -25, // row 4
+            -25, -25, -25, -25, -25 // row 4
         } };
         std::unique_ptr<btHeightfieldTerrainShape> shapeAvoidPtr
             = makeSquareHeightfieldTerrainShape(heightfieldDataAvoid);
@@ -419,7 +419,7 @@ namespace
             -50, -100, -150, -100, -50, // row 1
             -50, -150, -200, -150, -100, // row 2
             -50, -100, -150, -100, -100, // row 3
-            0, -50, -100, -100, -100, // row 4
+            0, -50, -100, -100, -100 // row 4
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -453,7 +453,7 @@ namespace
             0, -100, -150, -200, -150, -100, 0, // row 3
             0, -100, -150, -150, -150, -100, 0, // row 4
             0, -100, -100, -100, -100, -100, 0, // row 5
-            0, 0, 0, 0, 0, 0, 0, // row 6
+            0, 0, 0, 0, 0, 0, 0 // row 6
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -487,7 +487,7 @@ namespace
             0, -100, -150, -200, -150, -100, 0, // row 3
             0, -100, -150, -150, -150, -100, 0, // row 4
             0, -100, -100, -100, -100, -100, 0, // row 5
-            0, 0, 0, 0, 0, 0, 0, // row 6
+            0, 0, 0, 0, 0, 0, 0 // row 6
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -520,7 +520,7 @@ namespace
             0, -100, -150, -200, -150, -100, 0, // row 3
             0, -100, -150, -150, -150, -100, 0, // row 4
             0, -100, -100, -100, -100, -100, 0, // row 5
-            0, 0, 0, 0, 0, 0, 0, // row 6
+            0, 0, 0, 0, 0, 0, 0 // row 6
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -612,7 +612,7 @@ namespace
             0, -25, -1000, -1000, -100, -100, // row 2
             0, -25, -1000, -1000, -100, -100, // row 3
             0, -25, -100, -100, -100, -100, // row 4
-            0, -25, -100, -100, -100, -100, // row 5
+            0, -25, -100, -100, -100, -100 // row 5
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -1008,7 +1008,7 @@ namespace
             0, 0, 0, 0, 0, // row 1
             0, 0, 1000, 0, 0, // row 2
             0, 0, 1000, 0, 0, // row 3
-            0, 0, 0, 0, 0, // row 4
+            0, 0, 0, 0, 0 // row 4
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -1040,7 +1040,7 @@ namespace
             0, 0, 0, 0, 0, // row 1
             0, 0, -1000, 0, 0, // row 2
             0, 0, -1000, 0, 0, // row 3
-            0, 0, 0, 0, 0, // row 4
+            0, 0, 0, 0, 0 // row 4
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -1072,7 +1072,7 @@ namespace
             0, 0, 0, 0, 0, // row 1
             0, 0, 1000, 0, 0, // row 2
             0, 0, 1000, 0, 0, // row 3
-            0, 0, 0, 0, 0, // row 4
+            0, 0, 0, 0, 0 // row 4
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -1109,7 +1109,7 @@ namespace
             0, 0, 0, 0, 0, // row 1
             0, 0, 1000, 0, 0, // row 2
             0, 0, 1000, 0, 0, // row 3
-            0, 0, 0, 0, 0, // row 4
+            0, 0, 0, 0, 0 // row 4
         } };
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -1273,7 +1273,7 @@ namespace
             1000, 1025, 1025, 1025, 1025, // row 1
             1000, 1025, 1100, 1100, 1100, // row 2
             1000, 1025, 1100, 1100, 1100, // row 3
-            1000, 1025, 1100, 1100, 1100, // row 4
+            1000, 1025, 1100, 1100, 1100 // row 4
         } };
 
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(heightfieldData);

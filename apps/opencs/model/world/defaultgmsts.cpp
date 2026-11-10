@@ -2230,7 +2230,7 @@ const float CSMWorld::DefaultGmsts::FloatLimits[CSMWorld::DefaultGmsts::FloatCou
     -FInf, FInf, // fWereWolfStrength
     -FInf, FInf, // fWereWolfUnarmored
     -FInf, FInf, // fWereWolfWillPower
-    0, FInf, // fWortChanceValue
+    0, FInf // fWortChanceValue
 };
 
 const int CSMWorld::DefaultGmsts::IntLimits[CSMWorld::DefaultGmsts::IntCount * 2] = {
@@ -2322,5 +2322,5 @@ const int CSMWorld::DefaultGmsts::IntLimits[CSMWorld::DefaultGmsts::IntCount * 2
     IMin, IMax, // iWereWolfBounty
     IMin, IMax, // iWereWolfFightMod
     IMin, IMax, // iWereWolfFleeMod
-    IMin, IMax, // iWereWolfLevelToAttack
+    IMin, IMax // iWereWolfLevelToAttack
 };

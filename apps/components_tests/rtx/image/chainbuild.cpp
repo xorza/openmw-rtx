@@ -216,7 +216,7 @@ namespace Rtx
                 128, 136, 255, 0, //
                 120, 128, 247, 100, //
                 112, 128, 251, 200, //
-                0, 0, 0, 0, // the file's own second level: premultiplied black
+                0, 0, 0, 0 // the file's own second level: premultiplied black
             };
             const osg::ref_ptr<osg::Image> image = makeChained(GL_RGBA8, GL_RGBA, 2, { 16, 4 }, bytes);
             std::vector<MipLevel> levels;
@@ -342,7 +342,7 @@ namespace Rtx
                 255, 255, 255, 0, //
                 255, 255, 255, 0, //
                 255, 255, 255, 0, //
-                9, 9, 9, 9, //
+                9, 9, 9, 9 //
             };
             const osg::ref_ptr<osg::Image> image = makeChained(GL_RGBA8, GL_BGRA, 2, { 16, 4 }, bytes);
             std::vector<MipLevel> levels;
@@ -368,7 +368,7 @@ namespace Rtx
         {
             const std::vector<std::uint8_t> bytes{
                 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0xff, 0xff, 0, 0, 0, 0, 0, 0, //
-                0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0xff, 0xff, 0, 0, 0, 0, 0, 0, //
+                0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0xff, 0xff, 0, 0, 0, 0, 0, 0 //
             };
             const osg::ref_ptr<osg::Image> image
                 = makeChained(GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, 4, { 16, 16 }, bytes);

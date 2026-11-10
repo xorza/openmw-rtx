@@ -201,7 +201,7 @@ namespace Rtx
                 DriverCeilings{ VK_DRIVER_ID_AMD_PROPRIETARY, { "", 0, 128, 2048 }, sAmdWithoutDarkAlpha, sAmdWhole },
                 DriverCeilings{ VK_DRIVER_ID_MESA_RADV, { "", 0, 128, 2048 }, sRadvWithoutDarkAlpha, sRadvWhole },
                 DriverCeilings{
-                    VK_DRIVER_ID_NVIDIA_PROPRIETARY, { "", 0, 128, 0 }, sNvidiaWithoutDarkAlpha, sNvidiaWhole },
+                    VK_DRIVER_ID_NVIDIA_PROPRIETARY, { "", 0, 128, 0 }, sNvidiaWithoutDarkAlpha, sNvidiaWhole }
             };
             constexpr std::array<std::pair<std::string_view, std::uint64_t>, 4> sStacks{ {
                 { "fog scatter", 320 },

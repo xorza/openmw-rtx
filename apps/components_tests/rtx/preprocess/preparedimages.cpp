@@ -63,7 +63,7 @@ namespace Rtx
         {
             const std::uint8_t bytes[] = {
                 128, 128, 255, 0, 128, 136, 255, 0, 120, 128, 247, 100, 112, 128, 251, 200, //
-                0, 0, 0, 0, //
+                0, 0, 0, 0 //
             };
             osg::ref_ptr<osg::Image> image = new osg::Image;
             auto* data = new unsigned char[sizeof(bytes)];

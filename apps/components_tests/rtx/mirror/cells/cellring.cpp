@@ -1053,7 +1053,7 @@ namespace Rtx::Testing
                     .mRefNum = ESM::RefNum{ 4, 0 },
                     .mPosition = lampAt },
                 Lit{
-                    .mCell = osg::Vec2i(3, 0), .mRecord = "dark", .mRefNum = ESM::RefNum{ 5, 0 }, .mPosition = lampAt },
+                    .mCell = osg::Vec2i(3, 0), .mRecord = "dark", .mRefNum = ESM::RefNum{ 5, 0 }, .mPosition = lampAt }
             };
 
             // The eye stands half a cell in, so cell 3 begins two and a half cells away: 20480

@@ -271,12 +271,12 @@ made only on the user's explicit yes, after which it is added here.
 - CMake 4.4 at least (`cmake_minimum_required`), and every check for an older one gone: `omw`
   builds with Kitware's 4.4.5 on every system, which GitHub's runners and Ubuntu do not carry. The
   cost is a conflict with an upstream change to the lines around the checks.
-- clang-format 23.1.5 in place of 14, and a `.clang-format` of LLVM's style with the tree's width and
-  indent in place of upstream's Allman braces and indented namespaces, over upstream's sources as over
-  the fork's, with C++ LF on every clone: one formatter and one canonical layout for one tree, the same
-  on every system. The cost is a reformat of nearly every source, which `omw merge-file` takes out of
-  each merge: the merge workflow lays out the base and both sides with the pinned clang-format before
-  git merges them.
+- clang-format 23.1.5 in place of 14, with upstream's `.clang-format`, over upstream's sources as over
+  the fork's, with C++ LF on every clone: one formatter for one tree, the same on every system. The
+  cost is a reformat of 294 sources where 23 lays upstream's style out otherwise, and a table written
+  in rows that loses its trailing comma, which 23 reads as one element a line; `omw merge-file` takes
+  the layout out of each merge, as the merge workflow lays out the base and both sides with the pinned
+  clang-format before git merges them.
 - Upstream's project files and scripts the fork has no use for: `.resubmitted_merge_requests.txt`
   (GitLab's bookkeeping), `.readthedocs.yaml` (upstream's published manual), `CONTRIBUTING.md`
   (upstream's merge requests; the fork's rules are `AGENTS.md`), and under `scripts/` the Teal
