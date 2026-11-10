@@ -56,6 +56,10 @@ namespace Crash
         /// dump it asked for is lost with it.
         alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mHangReports;
 
+        /// Dumps whose note table the monitor has read, counted as its summary reads it: a report the
+        /// game asked for puts the table back after this moves and not before (`reportAndContinue`).
+        alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mNotesRead;
+
         /// The game's log, which the monitor appends each summary to: nought until the game knows
         /// where it logs, which is after the catcher has started, and then how many bytes of
         /// `mLogPath` name it. Stored after the bytes, so a length the monitor reads covers a path

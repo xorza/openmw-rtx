@@ -196,6 +196,9 @@ namespace Crash
         }
 
         mParts.mReports.add(report, facts.mNotes.mKind == ReportKind::Crash);
+        // After the read, which the game waits for before it puts its note table back.
+        if (Heartbeat* const page = mParts.mPage.get())
+            std::atomic_ref(page->mNotesRead).fetch_add(1, std::memory_order_release);
         if (!failure.empty())
             mParts.mReports.setLast(LastReport{ std::string(unsummarised), { std::string(unsummarised) } });
         return std::make_unique<TextStream>(std::move(text));
