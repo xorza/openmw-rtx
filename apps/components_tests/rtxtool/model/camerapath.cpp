@@ -35,7 +35,9 @@ namespace RtxTool
             EXPECT_NEAR(path.getLength(1), 2000.0, 1e-6);
             EXPECT_NEAR(path.at(0, 500.0).x(), 500.0, 1e-5);
             EXPECT_NEAR(path.at(1, 1000.0).x(), 2000.0, 1e-5);
-            EXPECT_EQ(path.at(1, 2000.0), osg::Vec3d(3000, 0, 0)) << "the last eye, to the bit";
+            // At the length the path measured, which a build's rounding puts within the bound above of 2000
+            // and not always on it: ThreadSanitizer's measured past it, and 2000 fell an ulp short.
+            EXPECT_EQ(path.at(1, path.getLength(1)), osg::Vec3d(3000, 0, 0)) << "the last eye, to the bit";
         }
 
         /// **Round a corner the length is the curve's, and equal lengths are equal steps.** Three
