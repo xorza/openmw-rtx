@@ -204,15 +204,19 @@ minimum CMake moves to a recent release and the code for older ones goes.
   installer today; nothing is installed, and apt's and the path's formatters are no longer asked. Refused: the
   newest on the path, which differs by desk; LLVM's packages, 1.9 GB for one binary; pinning only the major
   version, since a point release can move the layout too.
-- **`.clang-format` in 23's names, on `BasedOnStyle`.** The file states a base style and only what differs from it,
-  in names 23 writes; the exact pin keeps the base style fixed. Held by a test: 23.1.5's `--dump-config` of the
-  new file equals its dump of the old one, so the rename changes no layout.
+- **`.clang-format` is LLVM's style with four changes (taken).** `BasedOnStyle: LLVM`, with the tree's 120 columns,
+  four-space indent, `int* p` (C++ Core Guidelines NL.18) and access specifiers at the class's level; braces on the
+  line of the statement (`if () {`), namespaces and case labels not indented, as LLVM's own. `FixNamespaceComments:
+  false`, since a `} // namespace` marker says what the indentation does, and the OpenSceneGraph macros as
+  statements. The exact pin keeps the base style fixed. Refused: upstream's file, Allman braces and every namespace
+  indented, spelled out key by key; Google's (case labels indented, includes regrouped across AGENTS.md's five
+  blocks); pure LLVM's two spaces and 80 columns; WebKit's function braces on their own line.
 - **C++ text is LF everywhere**: `*.cpp`, `*.hpp`, `*.h` and `*.inl` `text eol=lf` in `.gitattributes`, and
   `LineEnding: LF` in `.clang-format`, so a Windows clone formats byte for byte as a Linux one.
 - **One reformat commit, out of blame, and a merge driver across it.** The whole tree is reformatted once, by the
   pinned binary alone, and the commit goes into `.git-blame-ignore-revs`. A merge driver for C++ formats base, ours
-  and theirs with the pin before `git merge-file`, so an upstream edit to one of the 198 reformatted upstream files
-  conflicts only where the edit does. Refused: formatting only the fork's files, which leaves two formatters in one
+  and theirs with the pin before `git merge-file`, so an upstream edit to a reformatted upstream file — nearly every
+  one — conflicts only where the edit does. Refused: formatting only the fork's files, which leaves two formatters in one
   tree.
 - **One CMake formatter (approved).** `gersemi` keeps the CMake files in one layout as `clang-format` keeps the
   C++, run by `omw format` and checked by the gate.
@@ -240,8 +244,8 @@ diagnostic after steps 9 and 12.
    every command's PATH (`deps.cmake`), the release image's own CMake and apt's gone, `cmake_minimum_required(VERSION
    4.4)` in the tree and the presets, and every check for an older CMake gone. The steps after it count on 4.4.
 4. **clang-format 23.1.5.** Done: the wheel pins in `pins.py`, which `omw format` reads on every system; CI, the
-   merge workflow and the deps script off apt's clang-format 14; `.clang-format` as LLVM's style and the tree's
-   changes, whose `--dump-config` under 23.1.5 equals the old file's but for `LineEnding: LF`; C++ LF in
+   merge workflow and the deps script off apt's clang-format 14; `.clang-format` as LLVM's style with four changes,
+   which lays out 3,856 of the 3,870 sources anew; C++ LF in
    `.gitattributes`; `omw merge-file`, the merge driver `upstream.yml` sets, tested on a reformat merged with an edit
    made before it. Left: the reformat commit, the three CRLF sources renormalized with it, listed in
    `.git-blame-ignore-revs`.

@@ -1,43 +1,16 @@
 # The layout `omw format` holds every C++ source to, with clang-format 23.1.5 exactly (`tools/omw/pins.py`):
-# LLVM's style and what this tree changes of it.
+# LLVM's style, with the tree's width, four-space indent, and C++'s declarator layout (`int* p`, C++ Core
+# Guidelines NL.18).
 BasedOnStyle: LLVM
-AccessModifierOffset: -4
-AlignAfterOpenBracket: false
-AlignConsecutiveAssignments: None
-AlignConsecutiveDeclarations: None
-AlignOperands: DontAlign
-AlignTrailingComments:
-  Kind: Never
-AllowShortFunctionsOnASingleLine: Inline
-AlwaysBreakBeforeMultilineStrings: true
-BraceWrapping:
-  AfterCaseLabel: true
-  AfterClass: true
-  AfterControlStatement: Always
-  AfterEnum: true
-  AfterExternBlock: true
-  AfterFunction: true
-  AfterNamespace: true
-  AfterObjCDeclaration: true
-  AfterStruct: true
-  AfterUnion: true
-  BeforeCatch: true
-  BeforeElse: true
-BreakBeforeBinaryOperators: All
-BreakBeforeBraces: Custom
-BreakConstructorInitializers: BeforeComma
-BreakTemplateDeclarations: Yes
-ColumnLimit: 120
-Cpp11BracedListStyle: Block
-FixNamespaceComments: false
-IndentCaseLabels: true
 IndentWidth: 4
-LineEnding: LF
-NamespaceIndentation: All
+ColumnLimit: 120
 PointerAlignment: Left
-Standard: c++20
+AccessModifierOffset: -4
+# No `} // namespace` marker: a brace's end says nothing the indentation does not.
+FixNamespaceComments: false
+LineEnding: LF
+# OpenSceneGraph's class macros end without a semicolon, and read as declarations they swallow the next.
 StatementMacros:
   - META_Object
   - META_StateAttribute
   - META_Node
-TabWidth: 4
