@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstring>
 #include <exception>
 #include <span>
 #include <string>
@@ -28,6 +29,9 @@ namespace DetourNavigator
         constexpr std::uint32_t sTileKind = 0;
 
         constexpr ContentStore::Policy sTilePolicy{ .mKindCount = 1, .mHolding = std::nullopt };
+
+        /// The most an LZ4 block expands by: a literal run of one byte and a match of 255 at a time.
+        constexpr std::size_t sLz4ExpansionMost = 255;
 
         /// What `PreparedNavMeshData::mUserId` is for a tile the store answered, which the debug view draws
         /// brighter; a tile generated in this session has 0.
@@ -135,11 +139,21 @@ namespace DetourNavigator
             return nullptr;
 
         // The payload is what this store wrote, its digest checked, so a payload that does not read is one a
-        // fault in this code wrote: discarded, and the tile made again in its place.
+        // fault in this code wrote: discarded, and the tile made again in its place. **The size it states is
+        // bounded before it is allocated for**: `Misc::compress` writes it ahead of the LZ4 block, and LZ4
+        // expands a block at most 255 times, so a payload that states more is no tile, where an allocation of
+        // what a fault wrote there failed or ended the process.
+        const bool plausible = [&] {
+            std::size_t stated = 0;
+            if (payload.size() <= sizeof(stated))
+                return false;
+            std::memcpy(&stated, payload.data(), sizeof(stated));
+            return stated <= (payload.size() - sizeof(stated)) * sLz4ExpansionMost;
+        }();
         auto data = std::make_unique<PreparedNavMeshData>();
         try
         {
-            if (payload.size() >= sizeof(std::size_t)
+            if (plausible
                 && deserialize(Misc::decompress(std::vector<std::byte>(payload.begin(), payload.end())), *data))
             {
                 data->mUserId = sStoredUserId;
