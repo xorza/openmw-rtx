@@ -14,6 +14,7 @@
 
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 
@@ -21,6 +22,7 @@
 #include "buffer.hpp"
 #include "frameslots.hpp"
 #include "growablebuffer.hpp"
+#include "uploads.hpp"
 
 namespace Rtx
 {
@@ -115,32 +117,37 @@ namespace Rtx
         /// because a copy can carry a debt from frames ago while the scene stands still.
         bool owes(FrameSlot slot) const { return mOwed.at(slot).owesAnything(); }
 
-        /// Writes what `slot`'s copy owes and clears the debt. A buffer a growth displaced buries
-        /// itself, because a frame in flight may still be reading it.
-        void sync(FrameSlot slot)
+        /// Writes what `slot`'s copy owes through `uploads` and clears the debt: the rows in order,
+        /// adjacent ones as one run. A buffer a growth displaced buries itself, because a frame in
+        /// flight may still be reading it.
+        void sync(FrameSlot slot, Uploads& uploads)
         {
             GrowableBuffer& copy = mCopies.at(slot);
             RowDebt& owed = mOwed.at(slot);
             const VkDeviceSize needed = mRows.size() * sizeof(Row);
 
             // The copy about to be written is the one the frame before last read, and
-            // `finishReads` waited that out before this placement began; the write asserts that
-            // it did.
+            // `finishReads` waited that out before this placement began; a mapped write asserts
+            // that it did.
 
             // A copy made again is empty whatever the debt says. A byte where the table is empty,
             // because a descriptor with nothing bound is undefined rather than blank.
             if (copy.outgrow(std::max(needed, VkDeviceSize{ 1 })))
                 owed.oweEverything();
 
+            mRuns.clear();
             if (owed.owesEverything())
-                copy.get().write(std::span<const Row>(mRows));
+                appendRun(mRuns, CopyRun{ .mFrom = 0, .mTo = 0, .mSize = needed });
             else
-                for (const Index at : owed.getRows())
-                {
-                    assert(at < mRows.size() && "a debt naming a row the table no longer has");
-                    copy.get().writeAt(at * sizeof(Row), std::span<const Row>(&mRows[at], 1));
-                }
+            {
+                mOrder.assign(owed.getRows().begin(), owed.getRows().end());
+                std::sort(mOrder.begin(), mOrder.end());
+                assert(
+                    (mOrder.empty() || mOrder.back() < mRows.size()) && "a debt naming a row the table no longer has");
+                appendRowRuns(mOrder, sizeof(Row), mRuns);
+            }
 
+            uploads.writeRuns(copy.get(), std::as_bytes(std::span<const Row>(mRows)), mRuns);
             owed.settle();
         }
 
@@ -166,6 +173,9 @@ namespace Rtx
         /// What one copy's buffer occupies, which says whether it keeps growing.
         VkDeviceSize getCopyBytes(FrameSlot slot) const { return mCopies.at(slot).get().getSize(); }
 
+        /// One copy's buffer, for a test that copies what it holds back out.
+        const Buffer& getCopy(FrameSlot slot) const { return mCopies.at(slot).get(); }
+
         /// What `slot` would write if it were synced now, which says whether the bookkeeping is
         /// right rather than whether the picture is.
         std::span<const Index> getOwed(FrameSlot slot) const { return mOwed.at(slot).getRows(); }
@@ -179,6 +189,10 @@ namespace Rtx
 
         /// Cleared and refilled by `grow`, never freed: the rows one growth appended.
         std::vector<Index> mAppended;
+
+        /// Cleared and refilled by `sync`, never freed: a debt's rows in order, and the runs they make.
+        std::vector<Index> mOrder;
+        std::vector<CopyRun> mRuns;
 
         std::uint64_t mWrites = 0;
     };

@@ -183,6 +183,9 @@ namespace Rtx
             std::vector<Buffer> mBuffers;
             std::vector<Image> mImages;
             std::vector<std::size_t> mBlocks;
+
+            /// `Batch::stageRuns`' regions, cleared and refilled for each call.
+            std::vector<VkBufferCopy> mRegions;
         };
 
         /// A hold nothing else has, as an index, taken until `giveHold`.
@@ -365,6 +368,17 @@ namespace Rtx
         std::span<std::byte> mBytes;
     };
 
+    /// One run of a write that lands in pieces: where its bytes start in what they are written from,
+    /// where they go in the buffer written, and how many. See `Batch::stageRuns`.
+    struct CopyRun
+    {
+        VkDeviceSize mFrom = 0;
+        VkDeviceSize mTo = 0;
+        VkDeviceSize mSize = 0;
+
+        bool operator==(const CopyRun& other) const = default;
+    };
+
     /// One command buffer that a run of setup records into, submitted and waited on once. A load
     /// path's cost is round trips, not work: a cell arriving at Balmora creates 361 textures, and
     /// a submit each is 367 waits on a queue that could have been asked once. The batch holds the
@@ -416,6 +430,12 @@ namespace Rtx
         /// once. Writable until the batch ends; write it and do not read it back, because it is
         /// write-combined memory.
         StagingLend reserve(VkDeviceSize bytes);
+
+        /// Stages `runs` of `source`, packed one after another, and copies each into `into` where
+        /// it says, as one copy command with a region a run: a table's rows owed apiece are hundreds
+        /// of runs a frame, and a command a run was hundreds of commands. A run of no bytes is no
+        /// region. Nothing is ordered here, as `stageInto` orders nothing.
+        void stageRuns(const Buffer& into, std::span<const std::byte> source, std::span<const CopyRun> runs);
 
         /// Buries what it held under the submit it is about to make, submits what has been
         /// recorded and waits for it. A batch nobody used costs nothing.

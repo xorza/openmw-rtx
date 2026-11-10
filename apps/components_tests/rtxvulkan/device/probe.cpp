@@ -14,6 +14,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -91,12 +92,11 @@ namespace Rtx
             return rows;
         }
 
-        /// `bytes` in resizable-BAR video memory, which is where the normals are.
-        Buffer placeHostWritten(const Device& device, CommandPool&, std::span<const std::byte> bytes)
+        /// `bytes` in a host-written buffer, where the frame's tables are: mapped resizable-BAR video
+        /// memory under mapped writes, and a staged copy's destination under staged ones.
+        Buffer placeHostWritten(const Device&, CommandPool& pool, std::span<const std::byte> bytes)
         {
-            Buffer held = Buffer::hostWritten(device, bytes.size(), sUsage, "test");
-            held.write(bytes);
-            return held;
+            return Testing::hostWritten(pool, bytes, sUsage);
         }
 
         /// `bytes` in ordinary device-local memory staged through a copy, which is where the
@@ -186,9 +186,8 @@ namespace Rtx
 
             ASSERT_EQ(addresses.size(), 3u) << "the block arithmetic is only exercised by more than one block";
 
-            Buffer table = Buffer::hostWritten(
-                device, addresses.size() * sizeof(VkDeviceAddress), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
-            table.write(std::span<const VkDeviceAddress>(addresses));
+            const Buffer table = Testing::hostWritten(
+                pool, std::span<const VkDeviceAddress>(addresses), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
             // The rows in the same memory as the pattern, and both addresses in a uniform block.
             const Buffer held = place(device, pool, std::as_bytes(std::span<const Shaders::ProbeRow>(rows)));
@@ -198,8 +197,8 @@ namespace Rtx
             ASSERT_EQ(named.mRows % Shaders::PROBE_ROW_ALIGN, 0u)
                 << "the rows' reference claims an alignment the buffer does not have";
 
-            Buffer uniform = Buffer::hostWritten(device, sizeof(named), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, "test");
-            uniform.write(std::span<const Shaders::ProbeAddresses>(&named, 1));
+            const Buffer uniform = Testing::hostWritten(
+                pool, std::span<const Shaders::ProbeAddresses>(&named, 1), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
             const Readings read = runProbe(device, pipeline, pool, whole.getHandle(), named.mSource, table, uniform);
 
@@ -244,10 +243,10 @@ namespace Rtx
         /// nothing else did; with nothing able to ask this, it had to be put to a whole traced frame
         /// and answered by elimination, which cost a day and reached the wrong answer twice.
         ///
-        /// **Both memory kinds, because the renderer uses both.** Normals live in resizable-BAR
-        /// video memory the host writes straight into, which is write-combining, and indices and
-        /// texture coordinates in ordinary device-local memory staged through a copy. A pointer read
-        /// that only misbehaves in one of them would look like a shader bug.
+        /// **Both memory kinds, because the renderer uses both.** The frame's tables are host-written,
+        /// which is mapped write-combining video memory where the build's writes are mapped, and
+        /// indices and texture coordinates live in ordinary device-local memory staged through a
+        /// copy. A pointer read that only misbehaves in one of them would look like a shader bug.
         TEST_F(RtxProbeTest, aPointerAndADescriptorReadTheSameBytes)
         {
             const Device& device = getDevice();
@@ -258,7 +257,7 @@ namespace Rtx
             const std::vector<osg::Vec3f> pattern = makePattern();
             const std::vector<Shaders::ProbeRow> rows = makeRows();
 
-            expectEveryReadingAgrees(device, pipeline, pool, pattern, rows, placeHostWritten, "host-visible");
+            expectEveryReadingAgrees(device, pipeline, pool, pattern, rows, placeHostWritten, "host-written");
             expectEveryReadingAgrees(device, pipeline, pool, pattern, rows, placeStaged, "device-local");
         }
     }

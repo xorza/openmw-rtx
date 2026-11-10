@@ -522,13 +522,30 @@ at the top, over all of them.
 - **Memory.** What a frame cannot go without is essential and never refused. Content (acceleration
   structures, textures) is taken against the driver's budget and can be refused, and a refusal
   leaves the mesh out or draws the texture's stand-in. Host-written memory holds the tables the
-  host rewrites, at the world's room (`sceneroom.hpp`). Refused: a staged path for those rows, since
-  they hold 123 MiB live in 184 MiB of blocks against an RTX 20's 246 MiB window
-  (`research/2026-10-22-host-written-window.md`); an arrival scheduler with a frame budget, a
+  host rewrites, at the world's room (`sceneroom.hpp`). Refused: an arrival scheduler with a frame budget, a
   destroyer thread and blocks made ahead by a worker, since the crossing's worst frames are the
   engine's update (`research/2026-10-22-crossing-worst-frames.md`); a defragmentation, since the
   pool holds at its high-water mark and does not creep
   (`research/2026-10-22-content-pool-after-a-long-walk.md`).
+- **Host writes travel one way on every card, staged, which one constant names**
+  (`device/memory/hostwrites.hpp`): written into the pool's staging and copied into video memory by a
+  batch deferred ahead of the submit that reads, through `Uploads`, the one way to write a
+  host-written buffer. Without resizable BAR the window the host maps is a couple of hundred
+  megabytes, which Windows gave a budget of nought and the game could not start in
+  (`research/2026-11-09-host-written-window-on-windows.md`), and Turing has no resizable BAR at all;
+  VMA's "advanced data uploading" and D3D12's GPU upload heaps make the same split. Mapped writes stay
+  a constant away, measurably faster on a crossing (`research/2026-11-10-staged-host-writes-cost.md`),
+  and a mapped build refuses a card whose window is not its video heap, as FFmpeg turns its host
+  transfers off. Refused: a choice by device, and VMA's fall back a buffer, two transports at once;
+  one shared device copy updated by copy and barrier (Unreal's GPUScene), which changes every debt
+  and waits out the frame before on the queue; a copy inline before each reader, a barrier inside
+  the frame each; a transfer queue, kept by the Khronos tutorial for large streaming; and a compute
+  scatter (Unreal's `FScatterUploadBuffer`) for hundreds of rows a frame, where a copy region a run of
+  adjacent rows does.
+- **What is written once is video memory**: the block address tables, the two constant floats, and a
+  shader binding table, uploaded by its first launch through a batch deferred ahead of it — an update
+  recorded into the launch's own buffer would leave a table marked written behind a recording nobody
+  submitted. None of it ever earned a mapped window.
 - **A texture's image and its sampler stand apart, paired at each read by the wrap its texel word carries**
   (`TEXTURE_WRAP_SHIFT`): AMD's Windows driver hung in the waterfall of a combined footprint array and passes the
   pair, and a change of anisotropy writes eight samplers in place of a descriptor a slot

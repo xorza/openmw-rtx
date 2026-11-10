@@ -14,6 +14,7 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/heldsubmit.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/misc/result.hpp>
@@ -41,6 +42,12 @@ namespace Rtx
         struct RtxTextureArrayTest : Testing::DeviceTest
         {
         };
+
+        /// Pays what `slot`'s set owes, its texel words through a batch flushed here.
+        void syncSet(TextureArray& textures, CommandPool& pool, const FrameSlot slot)
+        {
+            Testing::flushWriting(pool, [&](Uploads& uploads) { textures.sync(slot, uploads); });
+        }
 
         /// Writing a set's descriptors waits for the submit that bound the set, and for nothing
         /// else.
@@ -75,8 +82,8 @@ namespace Rtx
             arrival.flush();
             Testing::expectAssertDies([&] { static_cast<void>(textures.getSet(FrameSlot{ 0 })); },
                 "a texture set sampled before `sync` paid what it owes");
-            textures.sync(FrameSlot{ 0 });
-            textures.sync(FrameSlot{ 1 });
+            syncSet(textures, pool, FrameSlot{ 0 });
+            syncSet(textures, pool, FrameSlot{ 1 });
 
             Testing::HeldSubmit hold(device);
             const LentCommands binder = pool.lend(1);
@@ -103,13 +110,13 @@ namespace Rtx
 
             // A wait that returned early writes this into a set a submit the hold still keeps on
             // the queue has bound, which is the write the assert fires on.
-            textures.sync(FrameSlot{ 0 });
+            syncSet(textures, pool, FrameSlot{ 0 });
 
             // And the other set, which nothing bound, waits for nothing.
             const auto other = std::chrono::steady_clock::now();
             textures.finishReads(FrameSlot{ 1 });
             EXPECT_LT(std::chrono::steady_clock::now() - other, held);
-            textures.sync(FrameSlot{ 1 });
+            syncSet(textures, pool, FrameSlot{ 1 });
         }
 
         /// An arrival of one file is held to the largest side it fits the room at, the level a

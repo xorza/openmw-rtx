@@ -31,6 +31,7 @@
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/texture/groundcompositepass.hpp>
@@ -111,7 +112,9 @@ namespace Rtx
                 TextureArray array(device, setup, layout, passes, rooms, 2);
                 std::vector<Refusal> refused;
                 array.write(setup, passes, rooms, textures, refused, nullptr);
-                array.sync(FrameSlot{});
+                Uploads uploads(setup);
+                array.sync(FrameSlot{}, uploads);
+                uploads.order();
                 std::vector<Index> everyMesh;
                 const SceneBuffers buffers(device, setup, scene,
                     everyIndexBelow(scene.meshes().getRows().size(), everyMesh), {}, 1, SceneRoom{ .mPlacements = 1 });

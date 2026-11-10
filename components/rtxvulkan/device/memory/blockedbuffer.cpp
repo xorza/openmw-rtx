@@ -68,13 +68,13 @@ namespace Rtx
 
         // Made again rather than appended to, which is what a table of a few dozen addresses is
         // worth: the address changes, and every frame carries it afresh. Addressable and never
-        // bound, because the frame block is how a shader reaches it.
+        // bound, because the frame block is how a shader reaches it. Uploaded through the batch
+        // into video memory, as everything written once is, and ordered ahead of what reads it.
         //
         // A frame in flight carries the old one's address in its frame block and reads it on every
         // hit, which its burial covers.
-        mTable = Buffer::hostWritten(*mDevice, mAddresses.size() * sizeof(VkDeviceAddress),
-            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, mTableName);
-        mTable.write(std::span<const VkDeviceAddress>(mAddresses));
+        mTable = uploadBuffer(
+            batch, std::span<const VkDeviceAddress>(mAddresses), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, mTableName);
     }
 
     void BlockedBuffer::writeInto(Batch& batch, std::uint32_t element, std::span<const std::byte> bytes)

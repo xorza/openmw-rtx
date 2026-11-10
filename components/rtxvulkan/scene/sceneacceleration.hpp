@@ -29,6 +29,7 @@ namespace Rtx
     class Device;
     class SceneDesc;
     class TopLevelPackPass;
+    class Uploads;
     struct Placing;
 
     /// The neutral transform in Vulkan's storage: three rows of four, which is exactly what
@@ -62,8 +63,9 @@ namespace Rtx
         /// is built over, as on every placement. `positions` are the scene's static vertices, which
         /// `SceneBuffers` staged into the batch ahead of this and a static structure is built over.
         /// `compaction` says when the bottom levels are copied tight (`BuildCompaction`), and the
-        /// rows are written after, so they name where the structures stand.
-        void build(Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
+        /// rows are written after, so they name where the structures stand, through `uploads`,
+        /// which writes into `batch`.
+        void build(Batch& batch, Uploads& uploads, const SceneDesc& scene, std::span<const Index> everyMesh,
             std::span<const InstanceRecord> records, const BlockedBuffer& positions, const TopLevelPackPass& pack,
             BuildCompaction compaction, std::vector<Refusal>& refused);
 
@@ -197,10 +199,11 @@ namespace Rtx
         void writeRows(std::span<const InstanceRecord> records, std::span<const Index> changed);
 
         /// Everything the top-level build needs before a command buffer exists: `slot`'s copy of the
-        /// rows paid, each block's first place written for its packing, the structure and its
+        /// rows paid and each block's first place written for its packing, both through `uploads`,
+        /// which the caller orders ahead of the build, the structure and its
         /// scratch made again where the count grew, and the build pointed at `slot`'s packed rows.
         /// `writeRows` first, which is what leaves the copy owing anything.
-        void prepareTopLevel(const SceneDesc& scene, FrameSlot slot);
+        void prepareTopLevel(const SceneDesc& scene, FrameSlot slot, Uploads& uploads);
 
         /// Writes one row from its record, and counts it in its block where it places an instance.
         void placeRow(Index slot, const InstanceRecord& record);

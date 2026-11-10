@@ -704,9 +704,9 @@ namespace Rtx
         mTexels.finishReads(slot);
     }
 
-    void TextureArray::sync(const FrameSlot slot)
+    void TextureArray::sync(const FrameSlot slot, Uploads& uploads)
     {
-        mTexels.sync(slot);
+        mTexels.sync(slot, uploads);
 
         SlotSet& owed = mOwed.at(slot);
         bool& samplersOwed = mSamplersOwed.at(slot);

@@ -47,6 +47,7 @@
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/pipelinecache.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
@@ -493,6 +494,12 @@ namespace Rtx
         // device is behind, this is the right place for the CPU to stand still.
         held.finishReads(into);
 
+        // **The host's rows ride a batch of their own, deferred ahead of the placement**, which the
+        // pool submits first: staged, their copies then run before anything the placement records
+        // reads them, and mapped, the batch records nothing and costs nothing.
+        Batch written(mDevice.getPool());
+        Uploads uploads(written);
+
         // A picture inside the interface is placed into a batch that rides the next submit, neither
         // timed nor opening the frame's report; the trace that follows is deferred the same way, and
         // the barrier `place` ends in orders the pair.
@@ -500,11 +507,15 @@ namespace Rtx
         {
             // Nothing recorded is nothing carried, as for the world's below.
             Batch placement(mDevice.getPool());
-            if (held.place(scene,
-                    Placing{
-                        .mCommands = placement.getCommands(),
-                        .mSlot = into,
-                    }))
+            const bool placed = held.place(scene,
+                Placing{
+                    .mCommands = placement.getCommands(),
+                    .mSlot = into,
+                    .mUploads = uploads,
+                });
+            uploads.order();
+            written.defer();
+            if (placed)
                 placement.defer();
             else
                 placement.abandon();
@@ -519,15 +530,19 @@ namespace Rtx
 
         // The placement's own submit, without a wait. The frame's trace, later on the queue,
         // covers this submit too. Nothing recorded is nothing submitted, which is every frame of a
-        // standing camera in an empty place.
+        // standing camera in an empty place: what the rows wrote then rides the trace's.
         Recording placement = mDevice.getPool().begin(mRing.takePlaceCommands(frame));
 
-        if (held.place(scene,
-                Placing{
-                    .mCommands = placement.get(),
-                    .mSlot = into,
-                    .mTimer = &frame.mTimer,
-                }))
+        const bool placed = held.place(scene,
+            Placing{
+                .mCommands = placement.get(),
+                .mSlot = into,
+                .mTimer = &frame.mTimer,
+                .mUploads = uploads,
+            });
+        uploads.order();
+        written.defer();
+        if (placed)
             std::move(placement).submit();
         else
             std::move(placement).end();
@@ -793,6 +808,13 @@ namespace Rtx
             mMedia.resetRipples();
 
         GpuTimer& timer = frame.mTimer;
+
+        // What the trace's passes write from the host — the ripples' impulses, the upscaler's
+        // constants, the debug lines — through a batch deferred ahead of the trace's submit, as a
+        // placement's rows are (`placeScene`).
+        Batch written(mDevice.getPool());
+        Uploads uploads(written);
+
         Recording trace = mRing.recordWorld(frame);
         const VkCommandBuffer commands = trace.get();
 
@@ -804,8 +826,8 @@ namespace Rtx
         // step left it. A frame with no sea leaves the tiles as they were and stands no field.
         if (subject.mSea)
         {
-            mMedia.stepRipples(commands, mRing.getRecordingSlot(), osg::Vec2f(camera.mOrigin.x(), camera.mOrigin.y()),
-                described.mWaterSeconds, &timer);
+            mMedia.stepRipples(commands, uploads, mRing.getRecordingSlot(),
+                osg::Vec2f(camera.mOrigin.x(), camera.mOrigin.y()), described.mWaterSeconds, &timer);
             mMedia.placeRipples(sampled);
             mMedia.synthesiseSea(commands, sampled.mWaterTime, &timer);
         }
@@ -862,7 +884,7 @@ namespace Rtx
             if (!reconstruction.upscaled())
                 return traced.mColour;
 
-            return mUpscaler.record(commands,
+            return mUpscaler.record(commands, uploads,
                 UpscaleInputs{
                     .mColour = traced.mColour,
                     .mSurface = channels.get(Channel::Surface),
@@ -898,6 +920,7 @@ namespace Rtx
                     .mDeep = deep,
                     .mDebug = options.mDebug,
                     .mDebugVertices = frame.mDebugVertices,
+                    .mUploads = uploads,
                     .mTimer = timer,
                 },
             });
@@ -913,6 +936,8 @@ namespace Rtx
 
         // Submitted and not waited for: `finishFrame` or `collectFrame` brings the counts and the
         // report back a frame or two late.
+        uploads.order();
+        written.defer();
         mRing.submit(frame, std::move(trace));
 
         mDescriber.traced(camera, sampled);

@@ -31,6 +31,7 @@ namespace Rtx
     class Device;
     class GpuTimer;
     class SceneDesc;
+    class Uploads;
     struct Placing;
     struct ScenePasses;
 
@@ -159,9 +160,9 @@ namespace Rtx
         Skinning skinning(const SceneDesc& scene, FrameSlot slot, GpuTimer* timer = nullptr);
 
         /// Records the bake of every composite that arrived since the last, over `slot`'s copy of
-        /// the tables — the copy just written, whose set is synced. True where one was recorded.
-        /// Timed on `timer`, null where nothing is timed.
-        bool bakeGround(VkCommandBuffer commands, FrameSlot slot, GpuTimer* timer);
+        /// the tables — the copy just written through `uploads`, which this orders, and whose set is
+        /// synced. True where one was recorded. Timed on `timer`, null where nothing is timed.
+        bool bakeGround(VkCommandBuffer commands, FrameSlot slot, GpuTimer* timer, Uploads& uploads);
 
         /// Gives back the structures of the meshes the scene freed since the last hand-over, once
         /// per hand-over whichever of `extend` and `place` meets them first. Departures before

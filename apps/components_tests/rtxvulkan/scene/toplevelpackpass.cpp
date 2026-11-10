@@ -10,6 +10,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -57,10 +58,10 @@ namespace Rtx
 
             constexpr VkBufferUsageFlags addressed = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
             constexpr VkDeviceSize rowBytes = sizeof(VkAccelerationStructureInstanceKHR);
-            const Buffer rowBuffer = Buffer::hostWritten(device, count * rowBytes, addressed, "test rows");
-            rowBuffer.writeAt(0, std::span<const VkAccelerationStructureInstanceKHR>(rows));
-            const Buffer startBuffer = Buffer::hostWritten(device, sizeof(starts), addressed, "test starts");
-            startBuffer.writeAt(0, std::span<const std::uint32_t>(starts));
+            const Buffer rowBuffer
+                = Testing::hostWritten(getPool(), std::span<const VkAccelerationStructureInstanceKHR>(rows), addressed);
+            const Buffer startBuffer
+                = Testing::hostWritten(getPool(), std::span<const std::uint32_t>(starts), addressed);
 
             const Buffer packed = Buffer::readBack(device, count * rowBytes, addressed, "test packed");
             std::memset(packed.map(), 0xAB, count * rowBytes);

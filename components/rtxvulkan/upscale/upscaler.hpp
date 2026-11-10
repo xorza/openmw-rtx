@@ -18,6 +18,7 @@ namespace Rtx
 {
     class Device;
     class GpuTimer;
+    class Uploads;
 
     /// The reconstruction between the trace and the display, whichever backend makes it. Both
     /// upscalers write an arena image and hand it to the display, so the rest of the frame never
@@ -70,7 +71,7 @@ namespace Rtx
         bool isFresh() const;
 
         /// Records one reconstruction at the output extent and hands over the image it wrote.
-        HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
+        HandedImage record(VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer);
 
         /// One line for `info`: which upscaler this renderer has.
         std::string_view describe() const;

@@ -154,12 +154,18 @@ namespace RtxTool
             }
             heaps += ']';
 
+            // A string where the renderer says and `null` where it does not, as JSON tells the two.
+            const std::string hostWrites = memory.mHostWrites.has_value()
+                ? std::format(R"("{}")", Rtx::sHostWritesNames.name(*memory.mHostWrites))
+                : std::string("null");
+
             const Rtx::MemoryUses& uses = memory.mUses;
-            return std::format(R"({{"heaps": {}, "hostWrittenReserved": {}, "hostWrittenLive": {}, )"
+            return std::format(R"({{"heaps": {}, "hostWrites": {}, "hostWrittenReserved": {}, "hostWrittenLive": {}, )"
                                R"("uses": {{"frame": {}, "frameReserve": {}, "essential": {}, "structures": {}, )"
                                R"("structureRoom": {}, "textures": {}, "textureRoom": {}}}}})",
-                heaps, memory.mHostWrittenReserved, memory.mHostWrittenLive, uses.mFrame, uses.mFrameReserve,
-                uses.mEssential, uses.mStructures, uses.mStructureRoom, uses.mTextures, uses.mTextureRoom);
+                heaps, hostWrites, memory.mHostWrittenReserved, memory.mHostWrittenLive, uses.mFrame,
+                uses.mFrameReserve, uses.mEssential, uses.mStructures, uses.mStructureRoom, uses.mTextures,
+                uses.mTextureRoom);
         }
 
         /// What the mirror's content holds, every count the report's host line reads.

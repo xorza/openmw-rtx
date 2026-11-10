@@ -4,6 +4,7 @@
 #include <bit>
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -15,6 +16,8 @@
 #include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
+
+#include "hostwrites.hpp"
 
 // The one translation unit that holds the library's body. Told the two entry points every other
 // function is looked up through, because no program links the loader: volk loads it, and its
@@ -64,6 +67,16 @@ namespace Rtx
         /// Why `tryTake` refused: the one reason, because what stands in does not depend on
         /// which use ran out first.
         constexpr std::string_view sNoRoom = "no device memory is left for it";
+
+        /// `ContentTypes` of a device, or nothing where no type is video memory.
+        std::optional<ContentTypes> findContentTypes(const VkPhysicalDeviceMemoryProperties& memory)
+        {
+            const std::uint32_t types = memoryTypesFor(memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            if (types == 0)
+                return std::nullopt;
+
+            return ContentTypes{ .mTypes = types, .mHeap = memory.memoryTypes[std::countr_zero(types)].heapIndex };
+        }
     }
 
     DeviceMemory::DeviceMemory(MemoryAllocator* const owner, VmaAllocation_T* const allocation,
@@ -219,11 +232,25 @@ namespace Rtx
 
     ContentTypes contentTypesOf(const VkPhysicalDeviceMemoryProperties& memory)
     {
-        const std::uint32_t types = memoryTypesFor(memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        if (types == 0)
+        const std::optional<ContentTypes> content = findContentTypes(memory);
+        if (!content.has_value())
             throw Unsupported("no memory type is video memory alone among those this device offers");
 
-        return ContentTypes{ .mTypes = types, .mHeap = memory.memoryTypes[std::countr_zero(types)].heapIndex };
+        return *content;
+    }
+
+    bool hostWrittenIsVideoMemory(const VkPhysicalDeviceMemoryProperties& memory)
+    {
+        const std::optional<ContentTypes> content = findContentTypes(memory);
+        if (!content.has_value())
+            return false;
+
+        const std::uint32_t written = memoryTypesFor(memory, sHostWritten);
+        for (std::uint32_t type = 0; type < memory.memoryTypeCount; ++type)
+            if ((written & (1u << type)) != 0 && memory.memoryTypes[type].heapIndex == content->mHeap)
+                return true;
+
+        return false;
     }
 
     MemoryAllocator::~MemoryAllocator()
@@ -541,6 +568,8 @@ namespace Rtx
             out.mHostWrittenReserved += statistics.memoryType[type].statistics.blockBytes;
             out.mHostWrittenLive += statistics.memoryType[type].statistics.allocationBytes;
         }
+
+        out.mHostWrites = sHostWrites;
 
         out.mUses = MemoryUses{ .mFrame = getHeld(mContent.mHeap, MemoryUse::Frame),
             .mFrameReserve = mFrameReserve,

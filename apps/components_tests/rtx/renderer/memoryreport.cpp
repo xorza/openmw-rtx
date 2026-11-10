@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <components/rtx/renderer/hostwrites.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
 namespace Rtx
@@ -45,6 +46,7 @@ namespace Rtx
             // **The line that answers the Turing question**, and the only one that can on a card
             // whose one video memory heap is host-visible throughout.
             EXPECT_NE(out.find("host-written"), std::string::npos);
+            EXPECT_EQ(out.find("host-written,"), std::string::npos) << "a transport nobody stated was named";
             EXPECT_EQ(std::count(out.begin(), out.end(), '\n'), 4) << "a line a heap, and the one below them";
             EXPECT_NE(out.find("device-only"), std::string::npos);
             EXPECT_NE(out.find("system"), std::string::npos) << "the system's heap read as video memory";
@@ -106,10 +108,12 @@ namespace Rtx
             report.mHeapCount = 11;
             for (std::uint32_t heap = 0; heap < report.mHeapCount; ++heap)
                 report.mHeaps[heap] = HeapUse{ .mSize = 256ull << 20 };
+            report.mHostWrites = HostWrites::Staged;
 
             // "  heap " 7, the index 2, "  " 2, the kind 12, "  " 2, the size 8, " MiB" 4, "   " 3:
-            // `reserved` at 40 on every line.
+            // `reserved` at 40 on every line, the host-written line's with its transport named.
             const std::string out = describeMemory(report);
+            EXPECT_NE(out.find("  host-written, staged "), std::string::npos) << out;
             std::size_t lines = 0;
             for (std::size_t start = 0; start < out.size(); ++lines)
             {

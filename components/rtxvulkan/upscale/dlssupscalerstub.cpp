@@ -45,7 +45,7 @@ namespace Rtx
         return false;
     }
 
-    HandedImage DlssUpscaler::record(VkCommandBuffer, const UpscaleInputs& inputs, GpuTimer*)
+    HandedImage DlssUpscaler::record(VkCommandBuffer, Uploads&, const UpscaleInputs& inputs, GpuTimer*)
     {
         return inputs.mColour;
     }

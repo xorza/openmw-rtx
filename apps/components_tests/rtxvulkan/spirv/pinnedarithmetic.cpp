@@ -16,6 +16,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -217,9 +218,8 @@ namespace Rtx
             CommandPool& pool = getPool();
 
             const std::vector<Shaders::PinningCase> cases = makeCases();
-            Buffer source = Buffer::hostWritten(
-                device, cases.size() * sizeof(Shaders::PinningCase), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
-            source.write(std::span<const Shaders::PinningCase>(cases));
+            const Buffer source = Testing::hostWritten(
+                pool, std::span<const Shaders::PinningCase>(cases), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
             const Buffer written = Buffer::readBack(
                 device, sizeof(float) * sCount * Shaders::PINNING_RESULTS, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
 

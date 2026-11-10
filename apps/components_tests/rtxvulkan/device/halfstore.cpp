@@ -10,6 +10,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <apps/components_tests/rtx/support/halfstep.hpp>
 #include <components/rtx/common/halffloat.hpp>
 #include <components/rtx/shaders/storageformat.h>
@@ -64,9 +65,7 @@ namespace Rtx
                     device, sBindings, {}, "halfstore.comp.spv", "half store");
                 const auto count = static_cast<std::uint32_t>(values.size());
 
-                Buffer source = Buffer::hostWritten(
-                    device, values.size_bytes(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "half store values");
-                source.write(values);
+                const Buffer source = Testing::hostWritten(getPool(), values, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
                 const Image stored(MemoryUse::Essential, device,
                     ImageDescription{ .mWidth = count,
                         .mHeight = 1,

@@ -24,6 +24,7 @@ namespace Rtx
     class DeviceScene;
     class GpuTimer;
     class SceneDesc;
+    class Uploads;
     struct TraceSubject;
 
     /// What every trace reads beside its scene and its chain: the sea, the wake in it and the fog's
@@ -84,8 +85,8 @@ namespace Rtx
         /// the tiles as they were.
         ///
         /// @param timer null where the run is not being timed.
-        void stepRipples(
-            VkCommandBuffer commands, FrameSlot slot, const osg::Vec2f& eye, double waterSeconds, GpuTimer* timer);
+        void stepRipples(VkCommandBuffer commands, Uploads& uploads, FrameSlot slot, const osg::Vec2f& eye,
+            double waterSeconds, GpuTimer* timer);
 
         /// Synthesises the sea's tiles at `seconds`, where they stand at another moment
         /// (`WavePass::holds`): one synthesis serves every ray, and every trace at the same moment.

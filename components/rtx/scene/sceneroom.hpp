@@ -51,7 +51,8 @@ namespace Rtx
     /// of rows: a row holds two `osg::ref_ptr`, which OpenSceneGraph 3.6.5 gives no move, so a
     /// growth copied every row's path and image on the frame a cell arrived.
     ///
-    /// **Held to the host-written window of a card without resizable BAR**, 246 MiB on an RTX 20:
+    /// **Held to what a build with mapped host writes can stand on an RTX 20's 246 MiB window**, as
+    /// staged writes need no window at all (`docs/rtx/architecture.md`, "Host writes travel one way"):
     /// at the room the window's tables take 123 MiB live in 184 MiB of blocks, and a growth past it,
     /// 224 MiB of instance and top-level rows beside the copies frames in flight read, does not fit
     /// (`docs/rtx/research/2026-10-22-host-written-window.md`).

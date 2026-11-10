@@ -26,6 +26,7 @@ namespace Rtx
 {
     class Device;
     class GpuTimer;
+    class Uploads;
 
     /// FSR 3.1.4, ported: AMD's temporal upscaler, which also reconstructs a frame at its own size,
     /// as the anti-aliasing. The passes are AMD's (`extern/fidelityfx/`), the bindings and the
@@ -80,8 +81,9 @@ namespace Rtx
         bool isFresh() const { return mFrame.isFresh(); }
 
         /// Records one reconstruction at the output extent, and hands over the image it wrote,
-        /// which the display composites the puffs over and maps. After `resize`.
-        HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
+        /// which the display composites the puffs over and maps. After `resize`. The frame's
+        /// constants are written through `uploads`, ordered here ahead of the passes.
+        HandedImage record(VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer);
 
         /// One line for `info`: which upscaler this renderer has.
         static std::string_view describe() { return "FSR 3.1.4, ported"; }

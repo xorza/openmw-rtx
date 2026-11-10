@@ -7,6 +7,7 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 
 #include "placing.hpp"
 #include "scenepasses.hpp"
@@ -54,11 +55,12 @@ namespace Rtx
         // **Every body owed, and not the walk's deformed ones alone**: the walk names a pose only
         // where it changed, so a scene built again while its bodies stand still — the world a change
         // of mode let go — named none, and every body stood in its bind pose in both copies.
+        Uploads uploads(batch);
         mAcceleration.getPoses().write(mEveryMesh);
         for (std::uint32_t copy = 0; copy < mAcceleration.getPoses().count(); ++copy)
-            mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{ copy }));
-        mAcceleration.build(
-            batch, scene, mEveryMesh, mRecords, mBuffers.getPositions(), mPasses.mTopLevelPack, compaction, mRefusals);
+            mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{ copy }), uploads);
+        mAcceleration.build(batch, uploads, scene, mEveryMesh, mRecords, mBuffers.getPositions(), mPasses.mTopLevelPack,
+            compaction, mRefusals);
 
         // **Waited on once more where the structures settled**: the last run's loose block went back
         // to the storage under the copies' submit, and its memory is buried under the next, which
@@ -74,11 +76,11 @@ namespace Rtx
         mCounts = scene.placements().getCounts();
 
         // The first copy's set, which the first frame binds before any placement pays it.
-        mTextures.sync(FrameSlot{});
+        mTextures.sync(FrameSlot{}, uploads);
 
         // And the ground that arrived flattened, off that copy: a scene built from nothing is
         // traced before any placement, and a composite stood empty is undefined until baked.
-        bakeGround(batch.getCommands(), FrameSlot{}, nullptr);
+        bakeGround(batch.getCommands(), FrameSlot{}, nullptr, uploads);
     }
 
     void DeviceScene::releaseFreed(const SceneDesc& scene)
@@ -113,8 +115,12 @@ namespace Rtx
         tables.mTextureTexels = mTextures.getTexelsAddress(slot);
     }
 
-    bool DeviceScene::bakeGround(const VkCommandBuffer commands, const FrameSlot slot, GpuTimer* const timer)
+    bool DeviceScene::bakeGround(
+        const VkCommandBuffer commands, const FrameSlot slot, GpuTimer* const timer, Uploads& uploads)
     {
+        // The tables the bake reads, written ahead of it.
+        uploads.order();
+
         Shaders::GpuTables tables{};
         describeTables(slot, tables);
         return mTextures.bakeComposites(commands, mPasses.mGround, slot, tables, timer);
@@ -161,23 +167,25 @@ namespace Rtx
         updateInstanceRecords(scene, mRecords, mChangedRecords);
 
         // The descriptors this copy's set owes, now that nothing on the queue reads it.
-        mTextures.sync(placing.mSlot);
+        mTextures.sync(placing.mSlot, placing.mUploads);
 
         // The pose first, because the refit reads it. Every skinned body and morphed face this
         // copy owes is computed into it here, and the barrier the pass ends in is what the refit
         // and the trace wait on.
-        const bool posed = mPasses.mSkin.record(placing.mCommands, skinning(scene, placing.mSlot, placing.mTimer));
+        const bool posed
+            = mPasses.mSkin.record(placing.mCommands, skinning(scene, placing.mSlot, placing.mTimer), placing.mUploads);
 
         const bool built = mAcceleration.place(scene, mRecords, mChangedRecords, mPasses.mTopLevelPack, placing);
 
-        // Nothing to report, because nothing here is recorded: the tables are host-visible and the
-        // submit that follows makes them visible. Only what a moving world changed — rebuilding all
-        // of it is tens of milliseconds on a nine-by-nine region.
-        mBuffers.place(scene, mRecords, mChangedRecords, placing.mSlot);
+        // Nothing to report, because nothing here is recorded into the placement: the tables are
+        // host-written, and the uploads' order ahead of the trace makes them visible to it. Only
+        // what a moving world changed — rebuilding all of it is tens of milliseconds on a
+        // nine-by-nine region.
+        mBuffers.place(scene, mRecords, mChangedRecords, placing.mSlot, placing.mUploads);
 
         // The ground that arrived flattened here, after the tables its stack is in are written
         // and the set its layers are in is synced: the trace behind this samples it as a file.
-        const bool baked = bakeGround(placing.mCommands, placing.mSlot, placing.mTimer);
+        const bool baked = bakeGround(placing.mCommands, placing.mSlot, placing.mTimer, placing.mUploads);
 
         mCounts = scene.placements().getCounts();
 

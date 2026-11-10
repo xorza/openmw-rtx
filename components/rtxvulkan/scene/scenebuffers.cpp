@@ -22,6 +22,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 
 namespace Rtx
@@ -174,8 +175,10 @@ namespace Rtx
 
         // The frame tables come from `place`, which is also where they are written when a material
         // changes. Every copy is empty here, so the first write of each makes its buffer and fills
-        // it whole.
-        place(scene, records, {}, FrameSlot{});
+        // it whole, through this batch and ahead of what it records next.
+        Uploads uploads(batch);
+        place(scene, records, {}, FrameSlot{}, uploads);
+        uploads.order();
     }
 
     void SceneBuffers::extend(Batch& batch, const SceneDesc& scene)
@@ -286,7 +289,7 @@ namespace Rtx
         };
     }
 
-    void SceneBuffers::shade(const SceneDesc& scene, const FrameSlot slot)
+    void SceneBuffers::shade(const SceneDesc& scene, const FrameSlot slot, Uploads& uploads)
     {
         const std::span<const Material> materials = scene.materials().getRows();
 
@@ -306,7 +309,7 @@ namespace Rtx
             for (const Index at : scene.materials().getWritten())
                 mMaterialTable.write(at + Shaders::MATERIAL_ROW_FIRST) = toGpu(materials[at]);
 
-        mMaterialTable.sync(slot);
+        mMaterialTable.sync(slot, uploads);
 
         assert(mStagedRuns == scene.materials().getRunRevision()
             && "layer or mask runs arrived without an extend to stage them");
@@ -345,9 +348,9 @@ namespace Rtx
     }
 
     void SceneBuffers::place(const SceneDesc& scene, std::span<const InstanceRecord> records,
-        std::span<const Index> changed, const FrameSlot slot)
+        std::span<const Index> changed, const FrameSlot slot, Uploads& uploads)
     {
-        shade(scene, slot);
+        shade(scene, slot, uploads);
 
         Tables& tables = mTables.at(slot);
 
@@ -391,7 +394,7 @@ namespace Rtx
         for (const Index at : changed)
             placeRow(at);
 
-        mInstanceTable.sync(slot);
+        mInstanceTable.sync(slot, uploads);
 
         mLightGrid.rebuild(scene.lights());
         for (Tables& copy : mTables.live())
@@ -425,29 +428,43 @@ namespace Rtx
         tables.mSprites.outgrow(sprites.size_bytes());
         tables.mPresences.outgrow(presences.size_bytes());
 
-        tables.mLights.get().write(lights);
+        uploads.write(tables.mLights.get(), 0, lights);
         if (tables.mLightCellsOwed.owesEverything())
         {
-            tables.mLightCells.get().write(lightCells);
-            tables.mLightList.get().write(lightList);
+            uploads.write(tables.mLightCells.get(), 0, lightCells);
+            uploads.write(tables.mLightList.get(), 0, lightList);
         }
         else
-            for (const Index cell : tables.mLightCellsOwed.getRows())
+        {
+            // Each cell owed and its two runs of the list, in order, as one write a table.
+            mCellOrder.assign(tables.mLightCellsOwed.getRows().begin(), tables.mLightCellsOwed.getRows().end());
+            std::sort(mCellOrder.begin(), mCellOrder.end());
+            mCellRuns.clear();
+            mListRuns.clear();
+            appendRowRuns(mCellOrder, sizeof(Shaders::GpuLightCell), mCellRuns);
+            for (const Index cell : mCellOrder)
             {
                 const Shaders::GpuLightCell& held = lightCells[cell];
-                tables.mLightCells.get().writeAt(cell * sizeof(Shaders::GpuLightCell), lightCells.subspan(cell, 1));
                 for (std::uint32_t key = 0; key < 2; ++key)
-                    tables.mLightList.get().writeAt(held.mFirst[key] * sizeof(std::uint32_t),
-                        lightList.subspan(held.mFirst[key], held.mCount[key]));
+                {
+                    const VkDeviceSize at = VkDeviceSize{ held.mFirst[key] } * sizeof(std::uint32_t);
+                    appendRun(mListRuns,
+                        CopyRun{ .mFrom = at,
+                            .mTo = at,
+                            .mSize = VkDeviceSize{ held.mCount[key] } * sizeof(std::uint32_t) });
+                }
             }
+            uploads.writeRuns(tables.mLightCells.get(), std::as_bytes(lightCells), mCellRuns);
+            uploads.writeRuns(tables.mLightList.get(), std::as_bytes(lightList), mListRuns);
+        }
         tables.mLightCellsOwed.settle();
-        tables.mEmitters.get().write(emitters);
+        uploads.write(tables.mEmitters.get(), 0, emitters);
 
         // Unshaded, which is what a trace's bin copies and shades for its own sun.
-        tables.mSprites.get().write(sprites);
+        uploads.write(tables.mSprites.get(), 0, sprites);
         tables.mSpriteCount = static_cast<std::uint32_t>(sprites.size());
         tables.mEmitterCount = static_cast<std::uint32_t>(emitters.size());
-        tables.mPresences.get().write(presences);
+        uploads.write(tables.mPresences.get(), 0, presences);
         tables.mPresenceCount = static_cast<std::uint32_t>(presences.size());
 
         // The normals of anything skinned are not written here: a cell's are the same from one

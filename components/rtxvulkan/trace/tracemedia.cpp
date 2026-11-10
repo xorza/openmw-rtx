@@ -79,10 +79,10 @@ namespace Rtx
         mImpulses.assign(scene.ripples().begin(), scene.ripples().end());
     }
 
-    void TraceMedia::stepRipples(const VkCommandBuffer commands, const FrameSlot slot, const osg::Vec2f& eye,
-        const double waterSeconds, GpuTimer* const timer)
+    void TraceMedia::stepRipples(const VkCommandBuffer commands, Uploads& uploads, const FrameSlot slot,
+        const osg::Vec2f& eye, const double waterSeconds, GpuTimer* const timer)
     {
-        mRipples.record(commands, slot, mImpulses, eye, waterSeconds, timer);
+        mRipples.record(commands, uploads, slot, mImpulses, eye, waterSeconds, timer);
 
         // Spent: what a placement kept is pressed once. A second trace of the same placement would
         // otherwise hand the pass the same footfalls again.

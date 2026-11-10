@@ -105,5 +105,36 @@ namespace Rtx
             shared.memoryTypes[0] = VkMemoryType{ sStaging, 0 };
             EXPECT_THROW(contentTypesOf(shared), Unsupported) << "no type is video memory";
         }
+
+        /// **Host-written memory is video memory where its type stands on the heap content does**,
+        /// and nowhere else, whatever the heaps' sizes: the window resizable BAR makes of a card
+        /// and an integrated GPU's one heap are, and a couple of hundred megabytes beside the video
+        /// memory are not — the 214 MiB issue #49's driver gave a budget of nought among them.
+        TEST(RtxMemoryTypesTest, hostWrittenMemoryIsVideoMemoryOnlyOnTheVideoHeap)
+        {
+            EXPECT_FALSE(hostWrittenIsVideoMemory(Testing::turingMemory())) << "a Turing's 246 MiB window";
+            EXPECT_FALSE(hostWrittenIsVideoMemory(Testing::windowedAdaMemory())) << "issue #49's 214 MiB window";
+            EXPECT_FALSE(hostWrittenIsVideoMemory(Testing::rdna2Memory())) << "a Radeon's 256 MiB window";
+            EXPECT_TRUE(hostWrittenIsVideoMemory(Testing::adaMemory())) << "a card under resizable BAR";
+
+            // One heap, every type on it, as an integrated GPU states its memory.
+            VkPhysicalDeviceMemoryProperties shared{};
+            shared.memoryHeapCount = 1;
+            shared.memoryHeaps[0] = VkMemoryHeap{ 8589934592ull, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT };
+            shared.memoryTypeCount = 2;
+            shared.memoryTypes[0] = VkMemoryType{ sVideo, 0 };
+            shared.memoryTypes[1] = VkMemoryType{ sVideo | sStaging, 0 };
+            EXPECT_TRUE(hostWrittenIsVideoMemory(shared)) << "an integrated GPU's one heap";
+
+            // A window larger than the video memory beside it is still a window: the heap decides.
+            VkPhysicalDeviceMemoryProperties wide = Testing::turingMemory();
+            wide.memoryHeaps[2].size = 2 * wide.memoryHeaps[0].size;
+            EXPECT_FALSE(hostWrittenIsVideoMemory(wide)) << "a size decided what a heap should";
+
+            // And no type the host writes into at all is no window to write through.
+            VkPhysicalDeviceMemoryProperties walled = Testing::adaMemory();
+            walled.memoryTypeCount = 4;
+            EXPECT_FALSE(hostWrittenIsVideoMemory(walled)) << "a card with nothing the host writes into";
+        }
     }
 }

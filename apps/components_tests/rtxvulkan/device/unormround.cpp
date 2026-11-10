@@ -14,6 +14,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <components/rtx/shaders/storageformat.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -119,12 +120,10 @@ namespace Rtx
                 const auto count = static_cast<std::uint32_t>(values.size());
                 const VkDeviceSize bytes = count * sizeof(std::uint32_t);
 
-                Buffer valuesIn
-                    = Buffer::hostWritten(device, bytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "unorm round values");
-                valuesIn.write(std::span<const float>(values));
-                Buffer wordsIn
-                    = Buffer::hostWritten(device, bytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "unorm round words");
-                wordsIn.write(std::span<const std::uint32_t>(words));
+                const Buffer valuesIn = Testing::hostWritten(
+                    getPool(), std::span<const float>(values), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+                const Buffer wordsIn = Testing::hostWritten(
+                    getPool(), std::span<const std::uint32_t>(words), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
                 const Buffer rounded
                     = Buffer::readBack(device, bytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "unorm round rounded");
                 const Buffer means
@@ -180,12 +179,10 @@ namespace Rtx
                 const ComputePipeline<Shaders::ShadowMomentsProbeConstants> pipeline(
                     device, bindings, {}, "shadowmoments.comp.spv", "shadow moments");
 
-                Buffer bitsIn = Buffer::hostWritten(device, bits.size() * sizeof(std::uint32_t),
-                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shadow moments bits");
-                bitsIn.write(std::span<const std::uint32_t>(bits));
-                Buffer dampingIn = Buffer::hostWritten(device, damping.size() * sizeof(float),
-                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shadow moments damping");
-                dampingIn.write(std::span<const float>(damping));
+                const Buffer bitsIn = Testing::hostWritten(
+                    getPool(), std::span<const std::uint32_t>(bits), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+                const Buffer dampingIn = Testing::hostWritten(
+                    getPool(), std::span<const float>(damping), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
                 const Buffer out = Buffer::readBack(
                     device, lanes * 4 * sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shadow moments");
 

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <limits>
@@ -608,6 +609,43 @@ namespace Rtx
             .mRun = StagingRun{ .mBuffer = block.getHandle(), .mOffset = at },
             .mBytes = block.writable<std::byte>(at, bytes),
         };
+    }
+
+    void Batch::stageRuns(
+        const Buffer& into, const std::span<const std::byte> source, const std::span<const CopyRun> runs)
+    {
+        VkDeviceSize bytes = 0;
+        for (const CopyRun& run : runs)
+        {
+            assert(run.mFrom + run.mSize <= source.size() && "a run past the end of what it is written from");
+            assert(run.mTo + run.mSize <= into.getSize() && "a run past the end of the buffer it is written into");
+            bytes += run.mSize;
+        }
+        if (bytes == 0)
+            return;
+
+        const StagingLend lent = reserve(bytes);
+        std::vector<VkBufferCopy>& regions = mPool.holdAt(mHold).mRegions;
+        regions.clear();
+        VkDeviceSize packed = 0;
+        for (const CopyRun& run : runs)
+        {
+            if (run.mSize == 0)
+                continue;
+
+            const std::span<const std::byte> from = source.subspan(run.mFrom, run.mSize);
+            std::copy(from.begin(), from.end(), lent.mBytes.begin() + static_cast<std::ptrdiff_t>(packed));
+            regions.push_back(
+                VkBufferCopy{ .srcOffset = lent.mRun.mOffset + packed, .dstOffset = run.mTo, .size = run.mSize });
+            packed += run.mSize;
+        }
+
+        vkCmdCopyBuffer(getCommands(), lent.mRun.mBuffer, into.getHandle(), static_cast<std::uint32_t>(regions.size()),
+            regions.data());
+
+        // Named, as `stageInto` names its destination: a host write over it while the copy is on
+        // the queue would be two writers racing.
+        into.nameForNext();
     }
 
     void Batch::release()

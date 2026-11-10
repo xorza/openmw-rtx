@@ -283,6 +283,7 @@ set(RTX_VULKAN_FILES
     device/memory/frameslots.hpp
     device/memory/growablebuffer.cpp
     device/memory/growablebuffer.hpp
+    device/memory/hostwrites.hpp
     device/memory/image.cpp
     device/memory/image.hpp
     device/memory/imagearena.cpp
@@ -295,6 +296,8 @@ set(RTX_VULKAN_FILES
     device/memory/slottable.hpp
     device/memory/structurestorage.cpp
     device/memory/structurestorage.hpp
+    device/memory/uploads.cpp
+    device/memory/uploads.hpp
     device/owned.hpp
     device/physicaldevice.cpp
     device/physicaldevice.hpp

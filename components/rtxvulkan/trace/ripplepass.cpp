@@ -21,6 +21,7 @@
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
@@ -111,7 +112,7 @@ namespace Rtx
         mOrigin = osg::Vec2f(static_cast<float>(window.x()), static_cast<float>(window.y())) * Shaders::RIPPLE_TEXEL;
     }
 
-    void RipplePass::record(const VkCommandBuffer commands, const FrameSlot slot,
+    void RipplePass::record(const VkCommandBuffer commands, Uploads& uploads, const FrameSlot slot,
         const std::span<const RippleImpulse> impulses, const osg::Vec2f& eye, const double waterSeconds,
         GpuTimer* const timer)
     {
@@ -223,7 +224,10 @@ namespace Rtx
 
         Buffer& impulseBuffer = mImpulses.at(slot);
         if (!mImpulseScratch.empty())
-            impulseBuffer.write(std::span<const Shaders::GpuRippleImpulse>(mImpulseScratch));
+        {
+            uploads.write(impulseBuffer, 0, std::span<const Shaders::GpuRippleImpulse>(mImpulseScratch));
+            uploads.order();
+        }
 
         // Cleared on the queue, behind whatever step last wrote it: the host's read of it came first,
         // and a frame recorded into the same submit as the last stands after that one's step.

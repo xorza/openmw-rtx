@@ -1,8 +1,12 @@
 #include "sunglarepass.hpp"
 
 #include <array>
+#include <cstddef>
+#include <span>
 
 #include <components/rtx/renderer/framezone.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -23,9 +27,14 @@ namespace Rtx
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "sun glare counts"))
         , mShare(Buffer::deviceLocal(device, sizeof(float),
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "sun glare share"))
-        , mNoShare(Buffer::hostWritten(device, sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "no sun glare"))
+        , mNoShare(Buffer::deviceLocal(device, sizeof(float),
+              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "no sun glare"))
     {
-        mNoShare.writable<float>(0, 1).front() = 0.0f;
+        // Written once, before any frame, into video memory, as everything written once is.
+        const float none = 0.0f;
+        device.getPool().submitAndWait([&](VkCommandBuffer commands) {
+            mNoShare.updateInline(commands, Use::sBufferAnyRead, std::as_bytes(std::span(&none, 1)));
+        });
     }
 
     void SunGlarePass::begin(const VkCommandBuffer commands) const

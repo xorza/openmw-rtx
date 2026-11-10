@@ -62,6 +62,15 @@ namespace Rtx
     /// `ContentTypes` of a device. Throws `Unsupported` where no type is video memory alone.
     ContentTypes contentTypesOf(const VkPhysicalDeviceMemoryProperties& memory);
 
+    /// Whether a type host-written memory is placed in (`sHostWritten`) stands on the heap content
+    /// does: whether the window the host writes into is the whole of video memory, as resizable BAR
+    /// and every integrated GPU make it, and not a window of a couple of hundred megabytes beside it,
+    /// whose budget a driver may state at nought. What `HostWrites::Mapped` needs of a device.
+    ///
+    /// **The heap and not its size**: a size compared with the video heap's needs a tolerance, and a
+    /// heap is the one answer the device states exactly.
+    bool hostWrittenIsVideoMemory(const VkPhysicalDeviceMemoryProperties& memory);
+
     /// What a range of memory is for, which says what becomes of the content where the device has
     /// no room for it — and so the order the room is given in. Each use stops where every use
     /// before it could be made again: the running mode's targets, and everything else essential

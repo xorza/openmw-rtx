@@ -13,12 +13,14 @@
 #include <components/rtx/scene/lightgrid.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/joinedblocks.hpp>
 #include <components/rtxvulkan/device/memory/slottable.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 
 #include "spritesource.hpp"
 
@@ -51,8 +53,8 @@ namespace Rtx
 
         /// Rewrites what a moving world changes — where things are and what is lit — leaving what
         /// it is made of alone: rebuilding all of it is tens of milliseconds on a nine-by-nine
-        /// region. Those tables live in memory the host writes straight into, so this is a `memcpy`
-        /// and not a staging buffer, a submit and a wait. Into `slot`'s copy of every table a frame
+        /// region. Those tables are host-written, so this is a write through `uploads` and not a
+        /// load's batch and a wait. Into `slot`'s copy of every table a frame
         /// writes, whose fence the caller waited; `SlotTable` and `SlotBlocks` keep each copy's
         /// account of what it is owed. `scene` must be the one the constructor was given, and
         /// `records` the rows the acceleration structure was placed with, so the motion transform a
@@ -61,7 +63,7 @@ namespace Rtx
         /// @param changed the slots `updateInstanceRecords` wrote, which is the one list the rows
         ///        are driven by.
         void place(const SceneDesc& scene, std::span<const InstanceRecord> records, std::span<const Index> changed,
-            FrameSlot slot);
+            FrameSlot slot, Uploads& uploads);
 
         /// Waits until nothing on the queue reads `slot`'s copy of any table `place` writes, ahead
         /// of the placement that writes it. Each copy carries its own stamp, so this waits for the
@@ -152,7 +154,7 @@ namespace Rtx
         void writeMaterialRuns(Batch& batch, const SceneDesc& scene, Runs runs);
 
         /// Writes the material rows `slot`'s copy owes.
-        void shade(const SceneDesc& scene, FrameSlot slot);
+        void shade(const SceneDesc& scene, FrameSlot slot, Uploads& uploads);
 
         // What the scene is made of, written on arrival and read by every frame: one copy, because
         // an arrival writes it on the queue, behind every frame in flight.
@@ -181,10 +183,16 @@ namespace Rtx
         GrowableBuffer mMeshTable;
         std::vector<Shaders::GpuMesh> mMeshRows;
 
-        // Host-visible and rewritten from `place`, not uploaded once.
+        // Host-written and rewritten from `place`, not uploaded once.
         PerSlot<Tables> mTables;
 
         std::vector<Shaders::GpuPresence> mPresenceScratch;
+
+        /// Cleared and refilled by `place`, never freed: the light cells a copy owes in order, and
+        /// the runs of the cells' table and of the list they write.
+        std::vector<Index> mCellOrder;
+        std::vector<CopyRun> mCellRuns;
+        std::vector<CopyRun> mListRuns;
 
         /// What the material table's runs stood at when they were last staged, which `shade` checks
         /// against: a run that arrived without an `extend` to stage it would be shaded stale for its

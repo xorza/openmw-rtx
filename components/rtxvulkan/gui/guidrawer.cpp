@@ -11,6 +11,7 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/pipeline/graphicspipeline.hpp>
 #include <components/rtxvulkan/present/presenttarget.hpp>
 
@@ -51,9 +52,15 @@ namespace Rtx
         };
         const auto first = static_cast<std::uint32_t>(backdrop.size());
 
+        // Through a batch of their own, deferred ahead of the submit that draws them: the present's,
+        // or the interface's own where nothing presents.
         slot.mVertices.outgrow(std::span(backdrop).size_bytes() + vertices.size_bytes());
-        slot.mVertices.get().write(std::span<const GuiVertex>(backdrop));
-        slot.mVertices.get().writeAt(std::span(backdrop).size_bytes(), vertices);
+        Batch written(mDevice.getPool());
+        Uploads uploads(written);
+        uploads.write(slot.mVertices.get(), 0, std::span<const GuiVertex>(backdrop));
+        uploads.write(slot.mVertices.get(), std::span(backdrop).size_bytes(), vertices);
+        uploads.order();
+        written.defer();
 
         mDraws.clear();
         mDraws.reserve(batches.size() + 1);

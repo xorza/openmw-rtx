@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include <osg/Vec3f>
@@ -15,6 +16,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 
 namespace Rtx
 {
@@ -134,12 +136,28 @@ namespace Rtx
         mPoses.at(slot).get().waitIdle("an arrival's pose over the poses a placement writes");
     }
 
-    VkDeviceAddress SkinTables::writePose(const SceneDesc& scene, const FrameSlot slot, const Index mesh)
+    void SkinTables::writePoses(
+        const SceneDesc& scene, const FrameSlot slot, const std::span<const Index> meshes, Uploads& uploads)
     {
-        const MeshRange& range = scene.meshes().getRows()[mesh];
-        mPoses.at(slot).get().writeAt(VkDeviceSize{ range.mPoseOffset } * sizeof(PoseWord), scene.getMeshPose(mesh));
+        const std::span<const MeshRange> rows = scene.meshes().getRows();
+        mPoseRuns.clear();
+        for (const Index mesh : meshes)
+        {
+            const VkDeviceSize at = VkDeviceSize{ rows[mesh].mPoseOffset } * sizeof(PoseWord);
+            mPoseRuns.push_back(CopyRun{ .mFrom = at, .mTo = at, .mSize = scene.getMeshPose(mesh).size_bytes() });
+        }
 
-        return getPose(range, slot);
+        // In the order they stand, so neighbours meet: the meshes come in the order they are posed.
+        std::ranges::sort(mPoseRuns, {}, &CopyRun::mFrom);
+        mJoinedRuns.clear();
+        for (const CopyRun& run : mPoseRuns)
+        {
+            assert((mJoinedRuns.empty() || run.mFrom >= mJoinedRuns.back().mFrom + mJoinedRuns.back().mSize)
+                && "two meshes posed into one pose's words, or one mesh named twice");
+            appendRun(mJoinedRuns, run);
+        }
+
+        uploads.writeRuns(mPoses.at(slot).get(), std::as_bytes(scene.deformers().getPoses()), mJoinedRuns);
     }
 
     VkDeviceAddress SkinTables::getPose(const MeshRange& mesh, const FrameSlot slot) const

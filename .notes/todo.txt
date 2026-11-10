@@ -4,5 +4,5 @@
 - check content hasmisses
 - all IO serial?
 - organize code
-- REbar fix
 - content preprocess note
+- remove rebar? -bench it

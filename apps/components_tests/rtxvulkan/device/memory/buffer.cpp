@@ -1,6 +1,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <span>
 #include <utility>
 
@@ -11,12 +12,15 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/heldsubmit.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
+#include <components/rtxvulkan/device/memory/hostwrites.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 
 namespace Rtx
@@ -50,6 +54,69 @@ namespace Rtx
             const auto* read = static_cast<const std::uint32_t*>(mapped);
             EXPECT_EQ(read[0], 7u);
             EXPECT_EQ(read[1], 9u);
+        }
+
+        /// **Every write `Uploads` makes lands where it says, whichever way the build's writes
+        /// travel**: a span at an offset, bytes lent and filled in place, and runs out of a source
+        /// at offsets of their own — and nothing anywhere else, which the words left at nought say.
+        /// Read back on the queue, since the host never reads a host-written buffer. Under staged
+        /// writes, a copy left unordered is the contract `Uploads` holds its caller to.
+        TEST_F(RtxBufferTest, uploadsLandWhereTheySay)
+        {
+            const Device& device = *mHarness.mDevice;
+            CommandPool& pool = getPool();
+
+            constexpr std::size_t sWords = 12;
+            const Buffer written = Buffer::hostWritten(device, sWords * sizeof(std::uint32_t),
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
+            pool.submitAndWait([&](VkCommandBuffer commands) { written.clear(commands); });
+
+            constexpr std::array<std::uint32_t, 2> first{ 1, 2 };
+            constexpr std::array<std::uint32_t, 4> source{ 10, 11, 12, 13 };
+            Testing::flushWriting(pool, [&](Uploads& uploads) {
+                uploads.write(written, 0, std::span<const std::uint32_t>(first));
+
+                const std::span<std::byte> lent
+                    = uploads.lend(written, 3 * sizeof(std::uint32_t), 2 * sizeof(std::uint32_t));
+                ASSERT_EQ(lent.size(), 2 * sizeof(std::uint32_t));
+                constexpr std::array<std::uint32_t, 2> filled{ 3, 4 };
+                std::memcpy(lent.data(), filled.data(), lent.size());
+
+                // Words 10 and 11 of the source to words 6 and 7, and word 13 to word 10.
+                constexpr std::array<CopyRun, 2> runs{ CopyRun{ .mFrom = 0, .mTo = 24, .mSize = 8 },
+                    CopyRun{ .mFrom = 12, .mTo = 40, .mSize = 4 } };
+                uploads.writeRuns(written, std::as_bytes(std::span(source)), runs);
+            });
+
+            const Buffer read
+                = Buffer::readBack(device, sWords * sizeof(std::uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
+            pool.submitAndWait([&](VkCommandBuffer commands) {
+                written.copyTo(commands, read, sWords * sizeof(std::uint32_t));
+                read.orderForHostRead(commands);
+            });
+            std::array<std::uint32_t, sWords> landed{};
+            std::memcpy(landed.data(), read.map(), sizeof(landed));
+            EXPECT_EQ(landed, (std::array<std::uint32_t, sWords>{ 1, 2, 0, 3, 4, 0, 10, 11, 0, 0, 13, 0 }));
+
+            // A run reaching past its source, the source's last word and one beyond it, is refused by
+            // either transport before a byte is read.
+            Testing::expectAssertDies(
+                [&] {
+                    Batch past(pool);
+                    Uploads uploads(past);
+                    constexpr std::array<CopyRun, 1> beyond{ CopyRun{ .mFrom = 12, .mTo = 0, .mSize = 8 } };
+                    uploads.writeRuns(written, std::as_bytes(std::span(source)), beyond);
+                },
+                "a run past the end of what it is written from");
+
+            if constexpr (sHostWrites == HostWrites::Staged)
+                Testing::expectAssertDies(
+                    [&] {
+                        Batch unordered(pool);
+                        Uploads uploads(unordered);
+                        uploads.write(written, 0, std::span<const std::uint32_t>(first));
+                    },
+                    "staged writes nobody ordered ahead of what reads them");
         }
 
         /// A buffer moved out of takes its mapping, its size, its address and its stamp with it, and
@@ -210,12 +277,12 @@ namespace Rtx
             target.waitIdle("test");
             EXPECT_TRUE(target.isIdle());
 
-            // **Unnamed is a promise about the buffer, which its own stamp keeps.** A buffer nothing
-            // named is written without asking the timeline, and one a submit named never is.
-            const Buffer fresh = Buffer::staging(device, 64, copyable, "test");
-            EXPECT_EQ(fresh.unnamed<std::uint32_t>().size(), 16u);
-            Testing::expectAssertDies([&] { static_cast<void>(source.unnamed<std::uint32_t>()); },
-                "a buffer written as unnamed after a submit named it");
+            // **A host-written buffer is written through `Uploads` alone**, which knows how the
+            // build's writes travel: in place, a staged build's would land in memory the host cannot
+            // reach, and a mapped one's would skip the idle check the uploads make.
+            const Buffer written = Buffer::hostWritten(device, 64, copyable, "test");
+            Testing::expectAssertDies([&] { static_cast<void>(written.writable<std::uint32_t>(0, 1)); },
+                "a host-written buffer written past `Uploads`");
         }
 
         /// **A fill, an inline update and a barrier each name their buffer**, as a copy does: each

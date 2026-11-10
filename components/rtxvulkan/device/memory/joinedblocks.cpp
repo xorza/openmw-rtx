@@ -4,6 +4,7 @@
 #include <cassert>
 #include <span>
 
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 
 namespace Rtx
@@ -18,7 +19,6 @@ namespace Rtx
     void JoinedBlocks::open(
         const Device& device, const std::uint32_t slots, const VkBufferUsageFlags usage, const std::string_view name)
     {
-        mDevice = &device;
         if constexpr (sDebugNames)
             mTableName = std::string(name) + " joined blocks";
 
@@ -44,10 +44,10 @@ namespace Rtx
 
         mJoinedShared = sharedBlocks;
         mJoinedOwn = ownBlocks;
-        join();
+        join(batch);
     }
 
-    void JoinedBlocks::join()
+    void JoinedBlocks::join(Batch& batch)
     {
         for (std::uint32_t slot = 0; slot < mTables.count(); ++slot)
         {
@@ -58,11 +58,11 @@ namespace Rtx
             std::ranges::copy(shared, mAddresses.begin());
             std::ranges::copy(own, mAddresses.begin() + mOwnFirst);
 
-            // Made again rather than written in place, as `BlockedBuffer` makes its own: a frame in
-            // flight carries the old one's address, which its burial covers.
-            mTables.at(FrameSlot{ slot }) = Buffer::hostWritten(*mDevice, mAddresses.size() * sizeof(VkDeviceAddress),
+            // Made again rather than written in place, and uploaded through the batch, as
+            // `BlockedBuffer` makes its own: a frame in flight carries the old one's address, which
+            // its burial covers.
+            mTables.at(FrameSlot{ slot }) = uploadBuffer(batch, std::span<const VkDeviceAddress>(mAddresses),
                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, mTableName);
-            mTables.at(FrameSlot{ slot }).write(std::span<const VkDeviceAddress>(mAddresses));
         }
     }
 

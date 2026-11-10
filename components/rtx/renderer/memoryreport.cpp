@@ -42,7 +42,10 @@ namespace Rtx
         // resizable BAR states one heap that is host-visible throughout, so this is the only line
         // that says what would have to fit in the small aperture of a card without it.
         const std::size_t column = std::formatted_size(sHeapPrefix, 0u, "", 0.0);
-        out += std::format("{:<{}}reserved {:7.1f}   live {:7.1f}\n", "  host-written", column,
+        const std::string label = report.mHostWrites.has_value()
+            ? std::format("  host-written, {}", sHostWritesNames.name(*report.mHostWrites))
+            : std::string("  host-written");
+        out += std::format("{:<{}}reserved {:7.1f}   live {:7.1f}\n", label, column,
             megabytes(report.mHostWrittenReserved), megabytes(report.mHostWrittenLive));
 
         // What the video heap's `live` is made of, and why content stops where it does: the room

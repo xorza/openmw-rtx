@@ -41,6 +41,7 @@
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/fsr.h>
@@ -549,7 +550,8 @@ namespace Rtx
         return bytes;
     }
 
-    HandedImage FsrUpscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer)
+    HandedImage FsrUpscaler::record(
+        const VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer)
     {
         const GpuZone timed(timer, commands, FrameZone::Upscale);
 
@@ -572,9 +574,10 @@ namespace Rtx
         const Shaders::FsrInputConstants inputConstants{
             .mEyes = inputs.mEyes, .mNear = sUpscaleNear, .mFrame = inputs.mFrame
         };
-        blocks.writeAt(Shaders::FSR_BLOCK_CONSTANTS, std::span(&constants, 1));
-        blocks.writeAt(Shaders::FSR_BLOCK_PYRAMID, std::span(&pyramid.mConstants, 1));
-        blocks.writeAt(Shaders::FSR_BLOCK_INPUTS, std::span(&inputConstants, 1));
+        uploads.write(blocks, Shaders::FSR_BLOCK_CONSTANTS, std::span(&constants, 1));
+        uploads.write(blocks, Shaders::FSR_BLOCK_PYRAMID, std::span(&pyramid.mConstants, 1));
+        uploads.write(blocks, Shaders::FSR_BLOCK_INPUTS, std::span(&inputConstants, 1));
+        uploads.order();
         blocks.nameForNext();
 
         // The SDK's pairs by the frame's parity: an odd frame reads the second of each history and

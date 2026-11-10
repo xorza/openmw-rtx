@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <span>
 #include <vector>
 
@@ -12,11 +13,13 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/heldsubmit.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/slottable.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 
 namespace Rtx
 {
@@ -29,11 +32,11 @@ namespace Rtx
 
         /// What a copy would be written from, and what it would be written with.
         ///
-        /// **These tests ask the bookkeeping and not the picture.** `Buffer` is write-combining
-        /// and hands out no readable pointer, deliberately, so what a copy actually holds cannot be
-        /// read back at any sensible cost. What can be checked is the debt — which rows a copy is
-        /// about to be given — and that is where every one of the failures this type replaced lived:
-        /// a copy that was never told about a row it had to have.
+        /// **Most of these tests ask the bookkeeping and not the picture**: the debt — which rows a
+        /// copy is about to be given — is where every one of the failures this type replaced lived,
+        /// a copy that was never told about a row it had to have. What a copy holds is read back on
+        /// the queue where a test asks it (`readCopy`): a host-written buffer is never read by the
+        /// host.
         /// A debt as a vector, in the order it was named, which is what a gtest comparison takes.
         std::vector<Index> listed(std::span<const Index> owed)
         {
@@ -61,7 +64,28 @@ namespace Rtx
                 return sorted;
             }
 
-            void sync(std::uint32_t slot) { mTable.sync(FrameSlot{ slot }); }
+            void sync(std::uint32_t slot) { syncTable(mTable, slot); }
+
+            /// Pays `slot`'s debt of `table` through a batch flushed here.
+            void syncTable(SlotTable<TestRow>& table, std::uint32_t slot)
+            {
+                Testing::flushWriting(getPool(), [&](Uploads& uploads) { table.sync(FrameSlot{ slot }, uploads); });
+            }
+
+            /// What `slot`'s copy of `table` holds of its first `rows` rows, copied out on the queue.
+            std::vector<std::uint32_t> readCopy(const SlotTable<TestRow>& table, std::uint32_t slot, std::size_t rows)
+            {
+                const VkDeviceSize bytes = rows * sizeof(TestRow);
+                const Buffer read = Buffer::readBack(getDevice(), bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
+                getPool().submitAndWait([&](VkCommandBuffer commands) {
+                    table.getCopy(FrameSlot{ slot }).copyTo(commands, read, bytes);
+                    read.orderForHostRead(commands);
+                });
+
+                std::vector<std::uint32_t> held(rows);
+                std::memcpy(held.data(), read.map(), bytes);
+                return held;
+            }
 
             SlotTable<TestRow> mTable;
         };
@@ -125,6 +149,31 @@ namespace Rtx
 
             sync(1);
             EXPECT_FALSE(mTable.owes(FrameSlot{ 1 }));
+        }
+
+        /// **A copy holds the rows the host wrote once it is synced, whichever way the build's writes
+        /// travel**: the whole table the first time, then the rows written since, adjacent ones as
+        /// one run, and every row it held before kept where it stands. The second copy, never synced
+        /// until the end, owes the whole table and is written whole.
+        TEST_F(RtxSlotTableTest, aSyncedCopyHoldsTheRowsTheHostWrote)
+        {
+            SlotTable<TestRow> table;
+            table.open(getDevice(), 2, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "test");
+            table.grow(8);
+            for (Index at = 0; at < 8; ++at)
+                table.write(at).mValue = 100 + at;
+            syncTable(table, 0);
+            EXPECT_EQ(readCopy(table, 0, 8), (std::vector<std::uint32_t>{ 100, 101, 102, 103, 104, 105, 106, 107 }));
+
+            table.write(2).mValue = 2;
+            table.write(6).mValue = 6;
+            table.write(3).mValue = 3;
+            syncTable(table, 0);
+            const std::vector<std::uint32_t> expected{ 100, 101, 2, 3, 104, 105, 6, 107 };
+            EXPECT_EQ(readCopy(table, 0, 8), expected) << "rows 2 and 3 one run, row 6 another, the rest kept";
+
+            syncTable(table, 1);
+            EXPECT_EQ(readCopy(table, 1, 8), expected) << "the copy synced last, whole";
         }
 
         /// Growing owes the appended rows and nothing else: a row keeps its offset.
@@ -241,11 +290,11 @@ namespace Rtx
             for (std::size_t rows = 1; rows <= 1024; rows *= 2)
             {
                 reserved.grow(rows);
-                reserved.sync(FrameSlot{ 0 });
+                syncTable(reserved, 0);
                 EXPECT_EQ(reserved.getCopyBytes(FrameSlot{ 0 }), 1024 * sizeof(TestRow)) << "at " << rows << " rows";
             }
             reserved.grow(1025);
-            reserved.sync(FrameSlot{ 0 });
+            syncTable(reserved, 0);
             EXPECT_EQ(reserved.getCopyBytes(FrameSlot{ 0 }), 2048 * sizeof(TestRow));
         }
 

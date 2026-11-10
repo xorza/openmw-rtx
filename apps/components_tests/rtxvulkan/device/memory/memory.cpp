@@ -18,6 +18,7 @@
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/memory/hostwrites.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
@@ -339,9 +340,14 @@ namespace Rtx
             for (std::uint32_t heap = 0; heap < report.mHeapCount; ++heap)
                 EXPECT_EQ(report.mHeaps[heap].mHostVisible, expected[heap]) << "heap " << heap;
 
-            // The renderer requires such a heap, so a device that reached here has one.
-            EXPECT_NE(std::find(expected.begin(), expected.end(), true), expected.end())
-                << "no heap the host writes into, on a device this renderer accepted";
+            // The report says which way the host's writes travel, and a device that took mapped writes
+            // has a heap they can go to, where staged writes need none.
+            EXPECT_EQ(report.mHostWrites, sHostWrites);
+            if constexpr (sHostWrites == HostWrites::Mapped)
+            {
+                EXPECT_NE(std::find(expected.begin(), expected.end(), true), expected.end())
+                    << "no heap the host writes into, on a device a mapped build accepted";
+            }
         }
 
         /// Blocks that empty go back to the device.

@@ -19,6 +19,7 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/shaders/shared/tone.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
@@ -245,7 +246,8 @@ namespace Rtx
         const std::size_t count = debug.mLines.size() + debug.mTriangles.size();
         look.mDebugVertices.outgrow(count * sizeof(DebugVertex));
 
-        const std::span<DebugVertex> written = look.mDebugVertices.get().writable<DebugVertex>(0, count);
+        const std::span<std::byte> lent = look.mUploads.lend(look.mDebugVertices.get(), 0, count * sizeof(DebugVertex));
+        const std::span<DebugVertex> written(reinterpret_cast<DebugVertex*>(lent.data()), count);
         std::copy(debug.mLines.begin(), debug.mLines.end(), written.begin());
         std::copy(debug.mTriangles.begin(), debug.mTriangles.end(), written.begin() + debug.mLines.size());
 

@@ -26,6 +26,7 @@ namespace Rtx
     class GBuffer;
     class GpuTimer;
     class Image;
+    class Uploads;
     class VisibilityPass;
     struct TraceResult;
 
@@ -68,6 +69,10 @@ namespace Rtx
         /// a submit.
         DebugLines mDebug;
         GrowableBuffer& mDebugVertices;
+
+        /// What writes `mDebugVertices`, ordered and deferred ahead of the frame's submit by the
+        /// caller.
+        Uploads& mUploads;
 
         GpuTimer& mTimer;
     };

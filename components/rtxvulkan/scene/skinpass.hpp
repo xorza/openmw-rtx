@@ -20,6 +20,7 @@ namespace Rtx
     class Device;
     class GpuTimer;
     class SceneDesc;
+    class Uploads;
 
     /// What one scene's posing is done into. A record and not an argument list, because `mPoses`,
     /// `mNormals` and `mTangents` are the same type and the tables they name are not
@@ -56,10 +57,11 @@ namespace Rtx
         explicit SkinPass(const Device& device);
 
         /// Records `what.mSlot`'s dispatches into `commands`: every mesh `what.mPoses` owes, its
-        /// rows or weights written into the tables' copy first, and one barrier after them for
-        /// the build and the trace. True where anything was recorded. The write-after-read
-        /// against the copy's previous reader is the fence the caller waited.
-        bool record(VkCommandBuffer commands, const Skinning& what) const;
+        /// rows or weights written into the tables' copy through `uploads` first, all of them before
+        /// one `order`, and one barrier after the dispatches for the build and the trace. True where
+        /// anything was recorded. The write-after-read against the copy's previous reader is the
+        /// fence the caller waited.
+        bool record(VkCommandBuffer commands, const Skinning& what, Uploads& uploads) const;
 
         /// The same for the deforming meshes among `arrived`, and those alone, into every copy:
         /// nothing is owed or paid, and the rows are the ones `SkinTables::extend` staged into
@@ -77,19 +79,11 @@ namespace Rtx
         bool recordArrived(VkCommandBuffer commands, const Skinning& what, std::span<const Index> arrived) const;
 
     private:
-        /// Whether a dispatch writes the mesh's pose into the copy first, which a placement does,
-        /// or reads the pose `SkinTables::extend` staged there for an arrival.
-        enum class Rows
-        {
-            Written,
-            Staged,
-        };
-
-        /// One mesh's dispatch, binding whichever of the two pipelines it needs where `bound` is
-        /// not already it. The mesh deforms and has vertices, which the caller asked first.
-        /// `into`, `normalsInto` and `tangentsInto` are `what`'s three tables at its own slot, taken
-        /// once by the caller rather than per mesh.
-        void pose(VkCommandBuffer commands, const Skinning& what, Index mesh, Rows rows, BlockedBuffer& into,
+        /// One mesh's dispatch over the pose its copy holds, binding whichever of the two pipelines
+        /// it needs where `bound` is not already it. The mesh deforms and has vertices, which the
+        /// caller asked first. `into`, `normalsInto` and `tangentsInto` are `what`'s three tables at
+        /// its own slot, taken once by the caller rather than per mesh.
+        void pose(VkCommandBuffer commands, const Skinning& what, Index mesh, BlockedBuffer& into,
             BlockedBuffer& normalsInto, BlockedBuffer& tangentsInto, const Pipeline*& bound) const;
 
         ComputePipeline<Shaders::SkinConstants> mSkin;

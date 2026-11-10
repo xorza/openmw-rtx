@@ -11,6 +11,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -41,13 +42,14 @@ namespace Rtx
             const double sixtieths = 1.0)
         {
             const double frame = sixtieths / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
-            pool.submitAndWait([&](VkCommandBuffer commands) {
+            Testing::submitAndWaitWriting(pool, [&](VkCommandBuffer commands, Uploads& uploads) {
                 // The first record stands the window, at a clock that steps nothing; each one after
                 // steps, and the first step presses the impulses, for the time it covers.
-                ripples.record(commands, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
+                ripples.record(commands, uploads, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
                 for (int at = 1; at <= frames; ++at)
-                    ripples.record(commands, FrameSlot{ 0 }, at == 1 ? impulses : std::span<const RippleImpulse>(),
-                        osg::Vec2f(0.0f, 0.0f), at * frame, nullptr);
+                    ripples.record(commands, uploads, FrameSlot{ 0 },
+                        at == 1 ? impulses : std::span<const RippleImpulse>(), osg::Vec2f(0.0f, 0.0f), at * frame,
+                        nullptr);
             });
         }
 
@@ -305,8 +307,9 @@ namespace Rtx
             // The eye walks a hundred texels east between two steps, and the field is read again.
             const double sixtieth = 1.0 / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
             const float walked = 100.0f * Shaders::RIPPLE_TEXEL;
-            getPool().submitAndWait([&](VkCommandBuffer commands) {
-                ripples.record(commands, FrameSlot{ 0 }, {}, osg::Vec2f(walked, 0.0f), 31.0 * sixtieth, nullptr);
+            Testing::submitAndWaitWriting(getPool(), [&](VkCommandBuffer commands, Uploads& uploads) {
+                ripples.record(
+                    commands, uploads, FrameSlot{ 0 }, {}, osg::Vec2f(walked, 0.0f), 31.0 * sixtieth, nullptr);
             });
             const std::vector<float> after = Testing::readHalves(ripples.getSurface(), 0);
 
@@ -340,13 +343,14 @@ namespace Rtx
             // all at one clock, the first of them stepping, and thirty steps after.
             const auto field = [&](const int traces) {
                 TraceMedia media(getDevice(), sFogNoise);
-                getPool().submitAndWait([&](VkCommandBuffer commands) {
-                    media.stepRipples(commands, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
+                Testing::submitAndWaitWriting(getPool(), [&](VkCommandBuffer commands, Uploads& uploads) {
+                    media.stepRipples(commands, uploads, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
                     media.keepRipples(scene);
                     for (int trace = 0; trace < traces; ++trace)
-                        media.stepRipples(commands, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), sixtieth, nullptr);
+                        media.stepRipples(commands, uploads, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), sixtieth, nullptr);
                     for (int step = 2; step <= 31; ++step)
-                        media.stepRipples(commands, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), step * sixtieth, nullptr);
+                        media.stepRipples(
+                            commands, uploads, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), step * sixtieth, nullptr);
                 });
                 return Testing::readHalves(media.getRipples().getSurface(), 0);
             };
@@ -383,26 +387,26 @@ namespace Rtx
             run(ripples, getPool(), footfall, 1);
             constexpr std::uint32_t substeps = Shaders::RIPPLE_SUBSTEPS_MOST;
             double clock = sixtieth;
-            getPool().submitAndWait([&](VkCommandBuffer commands) {
+            Testing::submitAndWaitWriting(getPool(), [&](VkCommandBuffer commands, Uploads& uploads) {
                 for (std::uint32_t frame = 0; frame < 1000 / substeps; ++frame)
                 {
                     clock += substeps * sixtieth;
-                    ripples.record(commands, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), clock, nullptr);
+                    ripples.record(commands, uploads, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), clock, nullptr);
                 }
             });
             EXPECT_FALSE(ripples.isStill()) << "the report of a frame was read before its submit was done";
 
-            getPool().submitAndWait([&](VkCommandBuffer commands) {
+            Testing::submitAndWaitWriting(getPool(), [&](VkCommandBuffer commands, Uploads& uploads) {
                 clock += sixtieth;
-                ripples.record(commands, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), clock, nullptr);
+                ripples.record(commands, uploads, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), clock, nullptr);
             });
             ASSERT_TRUE(ripples.isStill()) << "a thousand sixtieths left the field moving";
 
-            getPool().submitAndWait([&](VkCommandBuffer commands) {
+            Testing::submitAndWaitWriting(getPool(), [&](VkCommandBuffer commands, Uploads& uploads) {
                 for (int step = 1; step <= 30; ++step)
                 {
                     clock += sixtieth;
-                    ripples.record(commands, FrameSlot{ 0 },
+                    ripples.record(commands, uploads, FrameSlot{ 0 },
                         step == 1 ? std::span<const RippleImpulse>(footfall) : std::span<const RippleImpulse>(),
                         osg::Vec2f(0.0f, 0.0f), clock, nullptr);
                 }

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <span>
+#include <vector>
 
 #include <vulkan/vulkan_core.h>
 
@@ -10,6 +11,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 
@@ -17,6 +19,7 @@ namespace Rtx
 {
     class Batch;
     class Device;
+    class Uploads;
 
     /// What one scene's deforming meshes are posed from: their bind poses, their rigs and morphs,
     /// and the poses a frame writes. The bind poses live here and not in the shared vertex
@@ -56,11 +59,16 @@ namespace Rtx
         /// wait is for that submit and not for the frame behind it.
         void finishReads(FrameSlot slot) const;
 
-        /// Writes `mesh`'s pose into `slot`'s copy and returns where it landed, for the dispatch
-        /// about to read it. A `hostWritten` copy, so the write is a `memcpy` and the submit that
-        /// follows sees it — and a placement's copy, whose last reader the caller waited for, which
-        /// the write asserts.
-        VkDeviceAddress writePose(const SceneDesc& scene, FrameSlot slot, Index mesh);
+        /// Writes the poses of `meshes` into `slot`'s copy through `uploads`, for dispatches recorded
+        /// after their `order` to read where `getPose` says: a placement's copy, whose last reader
+        /// the caller waited for, which a mapped write asserts. One write, since a pose stands in
+        /// the copy where it stands among the scene's: poses adjacent there are one run, and a
+        /// crowd is a handful of copy regions and not one copy a body.
+        void writePoses(const SceneDesc& scene, FrameSlot slot, std::span<const Index> meshes, Uploads& uploads);
+
+        /// The meshes a placement poses, cleared and refilled by `SkinPass::record` and never freed:
+        /// what it writes the poses of before one `order`, and then dispatches over.
+        std::vector<Index>& getPosing() { return mPosing; }
 
         /// Where `mesh`'s pose sits in `slot`'s copy, for a dispatch over a pose `extend` staged.
         VkDeviceAddress getPose(const MeshRange& mesh, FrameSlot slot) const;
@@ -97,5 +105,11 @@ namespace Rtx
         GrowableBuffer mMorphOffsets;
 
         PerSlot<GrowableBuffer> mPoses;
+
+        std::vector<Index> mPosing;
+
+        /// Cleared and refilled by `writePoses`, never freed: a run a pose, then the runs they join into.
+        std::vector<CopyRun> mPoseRuns;
+        std::vector<CopyRun> mJoinedRuns;
     };
 }

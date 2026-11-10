@@ -10,6 +10,7 @@
 #include <volk.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -35,7 +36,7 @@ namespace Rtx
         void paint(CommandPool& pool, const Device& device, const Image& image, std::span<const float> pixels)
         {
             const Buffer staging
-                = Buffer::hostWritten(device, pixels.size_bytes(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "test");
+                = Buffer::staging(device, pixels.size_bytes(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "test");
             staging.writeAt(0, pixels);
 
             pool.submitAndWait([&](VkCommandBuffer commands) {
@@ -73,10 +74,10 @@ namespace Rtx
                 : mBloom(device)
                 , mFrame(Testing::makeTestImage(
                       device, VkExtent2D{ width, height }, VK_FORMAT_R32G32B32A32_SFLOAT, "test-bloom-frame"))
-                , mExposure(Buffer::hostWritten(device, sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test"))
+                , mExposure(Testing::hostWritten(
+                      device.getPool(), std::span<const float>(&exposure, 1), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT))
             {
                 mBloom.resize(width, height);
-                mExposure.writable<float>(0, 1).front() = exposure;
             }
 
             /// What the pyramid's finest level holds after one run, or nothing where there is no

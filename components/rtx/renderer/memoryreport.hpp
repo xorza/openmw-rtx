@@ -3,7 +3,10 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
+
+#include "hostwrites.hpp"
 
 namespace Rtx
 {
@@ -79,6 +82,12 @@ namespace Rtx
         /// whole 16 GiB is host-visible. A property of the memory type asked for, not of the heap.
         std::uint64_t mHostWrittenReserved = 0;
         std::uint64_t mHostWrittenLive = 0;
+
+        /// How the host's writes reach the device, which says what the two figures above can be:
+        /// nought on a card with video memory of its own where they are staged, since staged writes
+        /// ask for no such memory, and everything the renderer placed on a device whose video
+        /// memory is host-visible throughout, either way. Nothing from a renderer that does not say.
+        std::optional<HostWrites> mHostWrites;
 
         /// The video heap's memory by use.
         MemoryUses mUses{};

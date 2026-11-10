@@ -10,6 +10,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/cardmemory.hpp>
+#include <components/rtxvulkan/device/memory/hostwrites.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 
@@ -24,6 +25,13 @@ namespace Rtx
             .timestampValidBits = 64,
             .minImageTransferGranularity = {},
         };
+
+        /// What a card whose host-written memory is a window beside its video memory is told under
+        /// the build's transport (`sHostWrites`): refused where writes are mapped, which need the
+        /// window to be the video memory, and taken where they are staged, which need no window.
+        constexpr std::string_view sWindowedObstacle = sHostWrites == HostWrites::Mapped
+            ? "host-written memory is a window, not the video memory: turn on resizable BAR"
+            : "";
 
         /// The extensions this build requires, as a device would list them back.
         std::vector<std::string> everyRequiredExtension()
@@ -130,8 +138,8 @@ namespace Rtx
         /// Two cards this fork targets, and the profile differs in exactly what their hardware does.
         ///
         /// **The whole reason the type exists.** Neither card is asked, only described, and both
-        /// answers matter: an RTX 2060 runs the same trace, and its 246 MiB aperture is what decides
-        /// where the scene's tables live.
+        /// answers matter: an RTX 2060 runs the same trace, and its 246 MiB aperture is what a build
+        /// whose host writes are mapped refuses it for.
         TEST(RtxPhysicalDeviceTest, twoCardsDifferExactlyWhereTheirHardwareDoes)
         {
             Card turing(&describeTuring);
@@ -140,11 +148,11 @@ namespace Rtx
             const PhysicalDevice::Profile onTuring = turing.profile();
             const PhysicalDevice::Profile onAda = ada.profile();
 
-            EXPECT_EQ(onTuring.mObstacle, "") << "an RTX 2060 was refused";
+            EXPECT_EQ(onTuring.mObstacle, sWindowedObstacle) << "an RTX 2060 and its window";
             EXPECT_EQ(onAda.mObstacle, "") << "an Ada card was refused";
 
             // 246 MiB against the whole of video memory, which is the difference resizable BAR
-            // makes. `PhysicalDevice::Profile::mHostWrittenBytes` says what the figure then decides.
+            // makes: reported, and read by no decision (`PhysicalDevice::Profile::mHostWrittenBytes`).
             EXPECT_EQ(onTuring.mHostWrittenBytes, 257949696ull);
             EXPECT_EQ(onAda.mHostWrittenBytes, 17171480576ull);
             EXPECT_NE(onTuring.mHostWrittenBytes, onAda.mHostWrittenBytes);
@@ -165,13 +173,13 @@ namespace Rtx
         {
             Card card(&describeTuring);
             card.mQueues.front().queueFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
-            EXPECT_EQ(card.profile().mObstacle, "") << "a family that does not say it transfers";
+            EXPECT_EQ(card.profile().mObstacle, sWindowedObstacle) << "a family that does not say it transfers";
 
             card.mExtensions.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
             card.mQueues.push_back(sWholeQueue);
             card.mPresents = { VK_FALSE, VK_TRUE };
             const PhysicalDevice::Profile windowed = card.profile();
-            EXPECT_EQ(windowed.mObstacle, "");
+            EXPECT_EQ(windowed.mObstacle, sWindowedObstacle);
             EXPECT_EQ(windowed.mQueueFamily, 1u) << "the family that presents";
 
             card.mPresents = { VK_FALSE, VK_FALSE };
@@ -223,7 +231,8 @@ namespace Rtx
             for (std::size_t at = 0; at < profile.mOptionalExtensions.size(); ++at)
                 EXPECT_STREQ(profile.mOptionalExtensions[at], every[at]) << "the order the table states was not kept";
 
-            EXPECT_EQ(profile.mObstacle, "") << "an optional extension decided whether the card qualifies";
+            EXPECT_EQ(profile.mObstacle, sWindowedObstacle)
+                << "an optional extension decided whether the card qualifies";
         }
 
         /// Each thing a device can lack is named, and nothing else is.
@@ -253,9 +262,9 @@ namespace Rtx
                 // What a Radeon lists — its own memory types, AMD's device-coherent ones among them:
                 // everything the trace needs, under another vendor's driver. The renderer traces on it.
                 Card foreign(&describeRdna2);
-                EXPECT_EQ(foreign.profile().mObstacle, "");
+                EXPECT_EQ(foreign.profile().mObstacle, sWindowedObstacle);
                 foreign.mProperties.mVulkan12.driverID = VK_DRIVER_ID_AMD_PROPRIETARY;
-                EXPECT_EQ(foreign.profile().mObstacle, "");
+                EXPECT_EQ(foreign.profile().mObstacle, sWindowedObstacle);
             }
             {
                 Card short_(&describeTuring);
@@ -317,7 +326,7 @@ namespace Rtx
                 // AMD's 32 to 64 takes 32.
                 Card wide(&describeTuring);
                 wide.mProperties.mVulkan13.maxSubgroupSize = 64;
-                EXPECT_EQ(wide.profile().mObstacle, "");
+                EXPECT_EQ(wide.profile().mObstacle, sWindowedObstacle);
             }
             {
                 Card folding(&describeTuring);
@@ -343,13 +352,13 @@ namespace Rtx
                 EXPECT_EQ(split.profile().mObstacle, "no queue family with graphics and compute");
             }
             {
-                // The whole of what makes such a card unusable: `Buffer::hostWritten` has nowhere to
-                // go, and nothing in this renderer stages instead.
+                // No memory the host writes into at all: no window for mapped writes to go through,
+                // and nothing staged writes need.
                 Card walled(&describeTuring);
                 walled.mProperties.mMemory.memoryTypeCount = 4;
                 const PhysicalDevice::Profile profile = walled.profile();
                 EXPECT_EQ(profile.mHostWrittenBytes, 0u);
-                EXPECT_EQ(profile.mObstacle, "no memory type the host writes into and the device reads");
+                EXPECT_EQ(profile.mObstacle, sWindowedObstacle);
             }
         }
 

@@ -17,6 +17,7 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/shaders/camera.h>
@@ -227,11 +228,7 @@ namespace Rtx
         template <class T>
         Buffer upload(const Device& device, std::span<const T> rows)
         {
-            Buffer held = Buffer::hostWritten(device, std::max<VkDeviceSize>(rows.size_bytes(), 1),
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "test");
-            held.write(rows);
-
-            return held;
+            return Testing::hostWritten(device.getPool(), rows, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
         }
 
         struct RtxSpriteBinPassTest : Testing::DeviceTest
@@ -934,8 +931,8 @@ namespace Rtx
 
             /// Runs the shading over `sprites` and `emitters` and gives the sprites back shaded.
             ///
-            /// The tables are staged rather than host-written, because this reads them back:
-            /// `Buffer::hostWritten` is write-combining memory and `map` refuses a read of it.
+            /// The sprites are in read-back memory rather than host-written, because this reads them
+            /// back: a host-written buffer is never read by the host.
             std::vector<Shaders::GpuSprite> over(std::span<const Shaders::GpuSprite> sprites,
                 std::span<const Shaders::GpuEmitter> emitters, const osg::Vec3f& toSun)
             {
@@ -943,12 +940,11 @@ namespace Rtx
                     = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
                 const Buffer spriteTable = Buffer::readBack(mDevice, sprites.size_bytes(), usage, "test");
-                const Buffer emitterTable = Buffer::hostWritten(mDevice, emitters.size_bytes(), usage, "test");
+                const Buffer emitterTable = Testing::hostWritten(mDevice.getPool(), emitters, usage);
                 const Buffer order = Buffer::deviceLocal(
                     mDevice, sprites.size() * Shaders::SPRITE_SHADE_LIGHTS * sizeof(std::uint64_t), usage, "test");
 
                 spriteTable.writeAt(0, sprites);
-                emitterTable.writeAt(0, emitters);
 
                 const Shaders::SpriteShadeConstants shade{
                     .mSprites = spriteTable.getDeviceAddress(),
@@ -1358,12 +1354,12 @@ namespace Rtx
 
             const std::span<const Shaders::GpuSprite> sprites(column.mSprites);
             const Buffer spriteTable = Buffer::readBack(getDevice(), sprites.size_bytes(), usage, "test");
-            const Buffer emitterTable = Buffer::hostWritten(getDevice(), sizeof(Shaders::GpuEmitter), usage, "test");
+            const Buffer emitterTable
+                = Testing::hostWritten(getPool(), std::span<const Shaders::GpuEmitter>(&column.mEmitter, 1), usage);
             const Buffer order = Buffer::deviceLocal(
                 getDevice(), sprites.size() * Shaders::SPRITE_SHADE_LIGHTS * sizeof(std::uint64_t), usage, "test");
 
             spriteTable.writeAt(0, sprites);
-            emitterTable.writeAt(0, std::span<const Shaders::GpuEmitter>(&column.mEmitter, 1));
 
             const Shaders::SpriteShadeConstants shade{
                 .mSprites = spriteTable.getDeviceAddress(),

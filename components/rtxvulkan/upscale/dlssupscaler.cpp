@@ -23,6 +23,7 @@
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/device/ngx.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -395,7 +396,8 @@ namespace Rtx
         return mTargets != nullptr && same(mTargets->mRender, render) && same(mTargets->mOutput, output);
     }
 
-    HandedImage DlssUpscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer)
+    HandedImage DlssUpscaler::record(
+        const VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer)
     {
         const GpuZone timed(timer, commands, FrameZone::Upscale);
 
@@ -409,7 +411,8 @@ namespace Rtx
             .mFrame = inputs.mFrame,
         };
         const Buffer& block = mContext->mBlocks.at(inputs.mSlot);
-        block.writeAt(0, std::span(&constants, 1));
+        uploads.write(block, 0, std::span(&constants, 1));
+        uploads.order();
         block.nameForNext();
 
         // **The resolve writes every pixel of both images**, so their previous contents are

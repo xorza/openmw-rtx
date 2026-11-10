@@ -28,13 +28,12 @@ namespace Rtx
         /// structure built for it.
         DeviceLocal,
 
-        /// Video memory the host writes straight into — all of it where resizable BAR maps it, a
-        /// few hundred megabytes where it does not (`PhysicalDevice::Profile::mHostWrittenBytes`)
-        /// — so a table the frame rewrites is a `memcpy` and not two allocations, a submit and a
-        /// wait. Write-only, which `map` enforces: the memory is write-combining and a read of it
-        /// is orders of magnitude slower. Nothing here synchronises, because the owner keeps one
-        /// per frame in flight and a host write made before a submit is visible to it without a
-        /// barrier.
+        /// Video memory the host rewrites — every table a frame writes, the interface's and the
+        /// debug lines' vertices — written through `Uploads` alone and never read by the host. What
+        /// it is follows the build's transport (`sHostWrites`): memory the host maps where writes
+        /// are mapped, write-combining and only as large as the window resizable BAR opens; video
+        /// memory alone where they are staged, a copy's destination. The owner keeps one per frame
+        /// in flight, so a write never lands under a submit still reading it.
         HostWritten,
 
         /// Host memory a copy is staged through: written by the host once, read by the device
@@ -181,13 +180,15 @@ namespace Rtx
         }
 
         /// `count` elements of the buffer at `offset` bytes in, to be written in place and never
-        /// read, for a caller that produces the bytes where they land — what MyGUI's `lock` and
-        /// `unlock` are. `writeAt` is this for a caller that already holds them. Asserts that no
-        /// submit still reads the buffer: a write into one a submit may still read goes through
-        /// the queue, by `stageInto` or `updateInline`.
+        /// read, for a caller that produces the bytes where they land. `writeAt` is this for a
+        /// caller that already holds them. Asserts that no submit still reads the buffer: a write
+        /// into one a submit may still read goes through the queue, by `stageInto` or
+        /// `updateInline`. A staging block's or a read-back buffer's: a host-written buffer is
+        /// written through `Uploads`, which knows how the build's writes travel.
         template <class T>
         std::span<T> writable(VkDeviceSize offset, VkDeviceSize count) const
         {
+            assert(mKind != BufferKind::HostWritten && "a host-written buffer written past `Uploads`");
             assert(isIdle() && "a host write over a buffer a submit still reads");
 
             return reach<T>(offset, count);
@@ -213,19 +214,9 @@ namespace Rtx
             writeAt(0, data);
         }
 
-        /// The whole buffer, to be written in place, for a buffer nothing has named yet — which no
-        /// submit can read. Asked of the buffer's own stamp and never of the timeline, so a thread
-        /// that made the buffer and has not handed it out can fill it while the owner of the
-        /// timeline submits and waits: a shader binding table, filled where its pipeline compiles.
-        template <class T>
-        std::span<T> unnamed() const
-        {
-            assert(mRead.getNamedUntil() == 0 && "a buffer written as unnamed after a submit named it");
-
-            return reach<T>(0, mSize / sizeof(T));
-        }
-
     private:
+        friend class Uploads;
+
         /// The handle alone, named and bound to nothing: what `make` and `tryMake` both begin
         /// with, before either knows whether there is room.
         Buffer(

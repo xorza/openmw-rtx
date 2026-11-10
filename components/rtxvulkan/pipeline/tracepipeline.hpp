@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string_view>
+#include <vector>
 
 #include <volk.h>
 
@@ -26,9 +28,9 @@ namespace Rtx
         const ShaderCode& code, std::string_view raygen, std::string_view name,
         std::span<const std::uint32_t> specialization);
 
-    /// The one record a launch reads its shader out of: the ray generation group's handle, in
-    /// video memory the host wrote it straight into, and the regions a launch is handed, the three
-    /// beside it empty.
+    /// The one record a launch reads its shader out of: the ray generation group's handle, in video
+    /// memory the first launch uploads it into, and the regions a launch is handed, the three beside
+    /// it empty.
     class ShaderBindingTable
     {
     public:
@@ -44,6 +46,11 @@ namespace Rtx
     private:
         const Device& mDevice;
         Buffer mTable;
+
+        /// What `mTable` holds once the first launch uploaded it: the handle, and noughts to the
+        /// stride.
+        std::vector<std::byte> mRecord;
+        mutable bool mUploaded = false;
 
         VkStridedDeviceAddressRegionKHR mRaygen{};
 

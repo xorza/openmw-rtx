@@ -3,10 +3,9 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <span>
-#include <vector>
 
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
@@ -91,17 +90,16 @@ namespace Rtx
         const VkDeviceSize stride = alignUp(
             alignUp(limits.shaderGroupHandleSize, limits.shaderGroupHandleAlignment), limits.shaderGroupBaseAlignment);
 
-        // Filled as unnamed, because this runs on a compile thread while the main thread submits,
-        // and nothing has named the table yet: `traceRays` is the first hand-out.
-        mTable = Buffer::hostWritten(device, stride,
-            VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, name);
-        const std::span<std::byte> table = mTable.unnamed<std::byte>();
-        std::memset(table.data(), 0, table.size());
-
-        std::vector<std::uint8_t> handle(limits.shaderGroupHandleSize);
-        checkVk(vkGetRayTracingShaderGroupHandlesKHR(device.getHandle(), pipeline, 0, 1, handle.size(), handle.data()),
+        // The record is kept here and uploaded by the first launch (`traceRays`): this runs on a
+        // compile thread while the main thread submits, and a compile thread records nothing.
+        mTable = Buffer::deviceLocal(device, stride,
+            VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+                | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            name);
+        mRecord.assign(stride, std::byte{ 0 });
+        checkVk(vkGetRayTracingShaderGroupHandlesKHR(
+                    device.getHandle(), pipeline, 0, 1, limits.shaderGroupHandleSize, mRecord.data()),
             "vkGetRayTracingShaderGroupHandlesKHR");
-        std::memcpy(table.data(), handle.data(), handle.size());
 
         // A shader binding table's buffer is placed at the base alignment by the allocator —
         // `alignmentOwedBy` asks for it — so its address is aligned without offsetting into it.
@@ -117,6 +115,19 @@ namespace Rtx
     void ShaderBindingTable::traceRays(
         VkCommandBuffer commands, std::uint32_t width, std::uint32_t height, std::uint32_t depth) const
     {
+        // **Uploaded by the first launch, through a batch deferred ahead of it**, which the pool
+        // submits first: written once, the record belongs in video memory, and a deferred batch
+        // runs whatever becomes of the recording this launch is in — an update recorded into it
+        // would leave a table marked written and empty behind a recording nobody submitted.
+        if (!mUploaded)
+        {
+            Batch upload(mDevice.getPool());
+            stageInto(upload, mTable, 0, mRecord);
+            orderStagedWrites(upload);
+            upload.defer();
+            mUploaded = true;
+        }
+
         // The region carries the table by address, taken once at the fill, so the launch is the
         // hand-out that names it: the table then outlives every trace that reads it.
         mTable.nameForNext();

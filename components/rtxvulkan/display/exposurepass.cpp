@@ -40,16 +40,18 @@ namespace Rtx
         , mExposure(Buffer::deviceLocal(device, sizeof(float),
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
               "exposure"))
-        , mPicture(Buffer::hostWritten(device, sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture exposure"))
+        , mPicture(Buffer::deviceLocal(device, sizeof(float),
+              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "picture exposure"))
     {
-        mPicture.writable<float>(0, 1).front() = 1.0f;
-
         // **A day's, before any frame**, which is where an eye with no past starts: the pyramid's
         // first halving reads what the frame before ended on (`BloomPass::record`), and the first
-        // frame has none. A buffer nobody wrote is whatever the allocation held.
+        // frame has none. A buffer nobody wrote is whatever the allocation held. And a picture's
+        // one, written once beside it: video memory, as everything written once is.
         const float day = Shaders::EXPOSURE_DAY;
+        const float picture = 1.0f;
         device.getPool().submitAndWait([&](VkCommandBuffer commands) {
             mExposure.updateInline(commands, Use::sBufferComputeReadWrite, std::as_bytes(std::span(&day, 1)));
+            mPicture.updateInline(commands, Use::sBufferAnyRead, std::as_bytes(std::span(&picture, 1)));
         });
     }
 

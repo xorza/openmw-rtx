@@ -11,6 +11,7 @@
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -48,9 +49,7 @@ namespace Rtx
                     device, bindings, {}, "sharedexponent.comp.spv", "shared exponent");
                 const auto count = static_cast<std::uint32_t>(colours.size());
 
-                Buffer in = Buffer::hostWritten(
-                    device, colours.size_bytes(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shared exponent colours");
-                in.write(colours);
+                const Buffer in = Testing::hostWritten(getPool(), colours, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
                 const Buffer words = Buffer::readBack(
                     device, count * sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shared exponent words");
                 const Buffer out = Buffer::readBack(

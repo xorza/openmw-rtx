@@ -110,7 +110,7 @@ namespace Rtx
 
                     const Image frame = Testing::makeTestImage(
                         device, VkExtent2D{ sSide, sSide }, VK_FORMAT_R32G32B32A32_SFLOAT, "test-exposure-frame");
-                    const Buffer staging = Buffer::hostWritten(device, pixels.size() * sizeof(float),
+                    const Buffer staging = Buffer::staging(device, pixels.size() * sizeof(float),
                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "test-exposure-staging");
                     staging.writeAt(0, std::span<const float>(pixels));
 

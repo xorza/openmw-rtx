@@ -36,6 +36,7 @@ namespace Rtx
 {
     class Batch;
     class Device;
+    class Uploads;
     class GpuTimer;
     class GroundCompositePass;
     struct TexturePasses;
@@ -203,10 +204,11 @@ namespace Rtx
         void write(Batch& batch, const TexturePasses& passes, TextureArrival& arrival,
             std::span<const TextureData> arrived, std::vector<Refusal>& refused, GpuTimer* timer);
 
-        /// Writes the descriptors `slot`'s set owes. Before the placement that binds it, after
-        /// `finishReads`: the bindings allow an update after a bind, but not of a descriptor a
-        /// pending submit samples, and a trace samples whichever slots its materials name.
-        void sync(FrameSlot slot);
+        /// Writes the descriptors `slot`'s set owes, and the texel words its copy owes through
+        /// `uploads`. Before the placement that binds it, after `finishReads`: the bindings allow an
+        /// update after a bind, but not of a descriptor a pending submit samples, and a trace
+        /// samples whichever slots its materials name.
+        void sync(FrameSlot slot, Uploads& uploads);
 
         /// Records the bake of every composite that arrived since the last call, into the
         /// composites themselves, reading `slot`'s set and texel counts and the tables `tables`

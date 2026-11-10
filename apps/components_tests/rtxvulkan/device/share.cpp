@@ -9,6 +9,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -57,9 +58,8 @@ namespace Rtx
                 sTop };
 
             const auto count = static_cast<std::uint32_t>(values.size());
-            Buffer in = Buffer::hostWritten(
-                device, count * sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "share probe values");
-            in.write(std::span<const float>(values));
+            const Buffer in
+                = Testing::hostWritten(getPool(), std::span<const float>(values), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
             const Buffer termsOut = Buffer::readBack(
                 device, count * sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "share probe terms");
             const Buffer sumsOut = Buffer::readBack(

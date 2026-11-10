@@ -23,6 +23,7 @@ namespace Rtx
 {
     class Device;
     class GpuTimer;
+    class Uploads;
 
     /// NVIDIA DLSS Super Resolution, through the NGX runtime the driver installs. The driver's core
     /// is opened at run time and the feature library is the player's; no NVIDIA code is linked or
@@ -75,8 +76,9 @@ namespace Rtx
         bool isFresh() const { return mFresh; }
 
         /// Records the input resolve and the NGX evaluation, and hands the output image to the
-        /// display. After `resize`.
-        HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
+        /// display. After `resize`. The frame's constants are written through `uploads`, ordered
+        /// here ahead of the resolve.
+        HandedImage record(VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer);
 
         /// One line for `info`: the backend, and no version, since the version is the player's
         /// library and not the build's.

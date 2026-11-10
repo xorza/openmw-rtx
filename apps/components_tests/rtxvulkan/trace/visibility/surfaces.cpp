@@ -18,6 +18,7 @@
 #include <osg/Vec4f>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
@@ -187,7 +188,8 @@ namespace Rtx::Testing
                 Batch arrival(getPool());
                 buffers.extend(arrival, scene);
                 arrival.flush();
-                buffers.place(scene, {}, {}, FrameSlot{});
+                Testing::flushWriting(
+                    getPool(), [&](Uploads& uploads) { buffers.place(scene, {}, {}, FrameSlot{}, uploads); });
                 return buffers.getBytes();
             };
 

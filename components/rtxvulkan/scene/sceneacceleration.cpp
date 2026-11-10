@@ -18,6 +18,7 @@
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
+#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/toplevelpack.h>
@@ -99,9 +100,9 @@ namespace Rtx
         writeGeometry(batch, scene, everyMesh);
     }
 
-    void SceneAcceleration::build(Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
-        std::span<const InstanceRecord> records, const BlockedBuffer& positions, const TopLevelPackPass& pack,
-        const BuildCompaction compaction, std::vector<Refusal>& refused)
+    void SceneAcceleration::build(Batch& batch, Uploads& uploads, const SceneDesc& scene,
+        std::span<const Index> everyMesh, std::span<const InstanceRecord> records, const BlockedBuffer& positions,
+        const TopLevelPackPass& pack, const BuildCompaction compaction, std::vector<Refusal>& refused)
     {
         assert(mBottomLevel.size() == 0 && mTopLevel.isEmpty() && "a scene built twice");
 
@@ -110,7 +111,8 @@ namespace Rtx
             batch, scene, everyMesh, mPoses.at(FrameSlot{}), positions, mIndices, mPlacements + 1, compaction, refused);
         sizeRefitScratch();
         writeRows(records, {});
-        prepareTopLevel(scene, FrameSlot{});
+        prepareTopLevel(scene, FrameSlot{}, uploads);
+        uploads.order();
         recordTopLevel(batch.getCommands(), pack, nullptr);
     }
 
@@ -336,7 +338,8 @@ namespace Rtx
         if (!compacting && mRowTable.getWrites() == mBuiltOverWrites && mRefit.mBuilds.empty())
             return false;
 
-        prepareTopLevel(scene, placing.mSlot);
+        prepareTopLevel(scene, placing.mSlot, placing.mUploads);
+        placing.mUploads.order();
 
         // **No barrier ahead of the builds**: the trace that may still walk these structures, two
         // frames in flight, is behind the head barrier every command buffer opens with
@@ -386,7 +389,7 @@ namespace Rtx
             placeRow(at, records[at]);
     }
 
-    void SceneAcceleration::prepareTopLevel(const SceneDesc& scene, const FrameSlot slot)
+    void SceneAcceleration::prepareTopLevel(const SceneDesc& scene, const FrameSlot slot, Uploads& uploads)
     {
         // Checked here rather than left to the driver: a scene that grew a mesh since `setScene` is
         // a caller breaking `placeScene`'s contract, and the only other symptom is an invalid handle
@@ -394,7 +397,7 @@ namespace Rtx
         Crash::contract(scene.meshes().getRows().size() == mBottomLevel.size(),
             "the scene grew without being built again; placeScene can only move what setScene made");
 
-        mRowTable.sync(slot);
+        mRowTable.sync(slot, uploads);
 
         // **Made at the room the scene was opened with**, as the rows' copies are, so the frame a
         // crossing pushes the rows past what the top level holds does not pay for a structure, its
@@ -417,7 +420,7 @@ namespace Rtx
 
         GrowableBuffer& starts = mStarts.at(slot);
         starts.outgrow(std::max<VkDeviceSize>(mBlockStarts.size() * sizeof(std::uint32_t), sizeof(std::uint32_t)));
-        starts.get().writeAt(0, std::span<const std::uint32_t>(mBlockStarts));
+        uploads.write(starts.get(), 0, std::span<const std::uint32_t>(mBlockStarts));
         mPacked.outgrow(VkDeviceSize{ count } * sizeof(VkAccelerationStructureInstanceKHR));
 
         // Read again, since a growth moved the packing.

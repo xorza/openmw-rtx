@@ -136,6 +136,7 @@ set(RTX_TEST_FILES
     rtxvulkan/device/memory/imagearena.cpp
     rtxvulkan/device/memory/memorypriority.cpp
     rtxvulkan/device/memory/memorytypes.cpp
+    rtxvulkan/device/memory/uploads.cpp
     rtxvulkan/device/physicaldevice.cpp
     rtxvulkan/device/pipelinecode.cpp
     rtxvulkan/device/requirements.cpp
@@ -206,6 +207,8 @@ set(RTX_GPU_TEST_SUPPORT
     rtx/support/device/harness.hpp
     rtx/support/device/heldsubmit.cpp
     rtx/support/device/heldsubmit.hpp
+    rtx/support/device/hostwritten.cpp
+    rtx/support/device/hostwritten.hpp
     rtx/support/device/memorylimits.cpp
     rtx/support/device/memorylimits.hpp
     rtx/support/device/readback.cpp

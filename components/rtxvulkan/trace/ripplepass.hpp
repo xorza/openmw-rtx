@@ -25,6 +25,7 @@ namespace Rtx
 {
     class Device;
     class GpuTimer;
+    class Uploads;
 
     /// What walked through the water, as a height field around the eye the sea reads beside its
     /// cascades: stepped by the wave equation, pressed where the game says something disturbed
@@ -66,10 +67,11 @@ namespace Rtx
         /// the same springs over the same time, and a wake that keeps its pace under sixty frames a
         /// second, where upstream's slows. AGENTS.md's Accepted diff names it.
         ///
+        /// @param uploads what writes the impulses, ordered ahead of the steps that read them.
         /// @param slot the frame's, which names the copy of the impulse buffer this frame writes.
         /// @param timer where the step's zone goes, or nothing where nobody is counting. Opened
         ///        only on a frame that steps, so a frame that stands still reports no zone.
-        void record(VkCommandBuffer commands, FrameSlot slot, std::span<const RippleImpulse> impulses,
+        void record(VkCommandBuffer commands, Uploads& uploads, FrameSlot slot, std::span<const RippleImpulse> impulses,
             const osg::Vec2f& eye, double waterSeconds, GpuTimer* timer);
 
         /// The longest step the springs stand, in sixtieths.

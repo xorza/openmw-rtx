@@ -15,6 +15,7 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/heldsubmit.hpp>
+#include <apps/components_tests/rtx/support/device/hostwritten.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/index.hpp>
@@ -212,14 +213,15 @@ namespace Rtx
             /// Poses what `slot` owes and copies its whole first block back.
             const auto poseAndRead = [&](FrameSlot slot) {
                 bool recorded = false;
-                pool.submitAndWait([&](VkCommandBuffer commands) {
+                Testing::submitAndWaitWriting(pool, [&](VkCommandBuffer commands, Uploads& uploads) {
                     recorded = pass.record(commands,
                         Skinning{ .mScene = scene,
                             .mSlot = slot,
                             .mTables = tables,
                             .mPoses = poses,
                             .mNormals = normals,
-                            .mTangents = tangents });
+                            .mTangents = tangents },
+                        uploads);
 
                     handOver(commands, Use::sBufferComputeWrite,
                         BufferUse{ VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT });
@@ -441,14 +443,15 @@ namespace Rtx
             const VkDeviceSize normalBytes = VkDeviceSize{ posedVertices } * sizeof(std::uint32_t);
             const Buffer readPositions = Buffer::readBack(device, bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
             const Buffer readNormals = Buffer::readBack(device, normalBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
-            pool.submitAndWait([&](VkCommandBuffer commands) {
+            Testing::submitAndWaitWriting(pool, [&](VkCommandBuffer commands, Uploads& uploads) {
                 ASSERT_TRUE(pass.record(commands,
                     Skinning{ .mScene = scene,
                         .mSlot = FrameSlot{ 0 },
                         .mTables = tables,
                         .mPoses = poses,
                         .mNormals = normals,
-                        .mTangents = tangents }));
+                        .mTangents = tangents },
+                    uploads));
                 handOver(commands, Use::sBufferComputeWrite,
                     BufferUse{ VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT });
                 poses.at(FrameSlot{ 0 }).getBlock(0).copyTo(commands, readPositions, bytes);
@@ -586,14 +589,15 @@ namespace Rtx
 
             const VkDeviceSize poseBytes = 8 * sizeof(osg::Vec3f);
             const Buffer read = Buffer::readBack(device, poseBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
-            pool.submitAndWait([&](VkCommandBuffer commands) {
+            Testing::submitAndWaitWriting(pool, [&](VkCommandBuffer commands, Uploads& uploads) {
                 EXPECT_TRUE(pass.record(commands,
                     Skinning{ .mScene = scene,
                         .mSlot = FrameSlot{ 0 },
                         .mTables = tables,
                         .mPoses = poses,
                         .mNormals = normals,
-                        .mTangents = tangents }));
+                        .mTangents = tangents },
+                    uploads));
 
                 handOver(commands, Use::sBufferComputeWrite,
                     BufferUse{ VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT });

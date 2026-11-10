@@ -16,6 +16,7 @@
 
 #include "barriers.hpp"
 #include "bufferusage.hpp"
+#include "hostwrites.hpp"
 
 namespace Rtx
 {
@@ -29,7 +30,10 @@ namespace Rtx
                 case BufferKind::DeviceLocal:
                     return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
                 case BufferKind::HostWritten:
-                    return sHostWritten;
+                    if constexpr (sHostWrites == HostWrites::Mapped)
+                        return sHostWritten;
+                    else
+                        return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
                 case BufferKind::Staging:
                     return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
                 case BufferKind::ReadBack:
@@ -73,6 +77,16 @@ namespace Rtx
             return owed;
         }
 
+        /// What a buffer of `kind` made for `usage` is made with: a host-written buffer whose writes
+        /// are staged is a copy's destination.
+        VkBufferUsageFlags usageOf(const BufferKind kind, const VkBufferUsageFlags usage)
+        {
+            if (kind == BufferKind::HostWritten && sHostWrites == HostWrites::Staged)
+                return usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+            return usage;
+        }
+
         /// A buffer of `size` bytes for `usage`, as one is made and as its memory is asked about.
         VkBufferCreateInfo createInfoOf(const VkDeviceSize size, const VkBufferUsageFlags usage)
         {
@@ -96,7 +110,7 @@ namespace Rtx
         , mKind(kind)
         , mAddressable((usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0)
     {
-        const VkBufferCreateInfo create = createInfoOf(mSize, usage);
+        const VkBufferCreateInfo create = createInfoOf(mSize, usageOf(kind, usage));
         mHandle = Owned<VkBuffer, vkDestroyBuffer>::make(device, vkCreateBuffer, create, "vkCreateBuffer");
         device.setName(mHandle.get(), name);
     }

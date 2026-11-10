@@ -98,9 +98,10 @@ namespace Rtx
         return std::visit([](const auto& backend) { return backend.isFresh(); }, mBackend);
     }
 
-    HandedImage Upscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer)
+    HandedImage Upscaler::record(
+        const VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer)
     {
-        return std::visit([&](auto& backend) { return backend.record(commands, inputs, timer); }, mBackend);
+        return std::visit([&](auto& backend) { return backend.record(commands, uploads, inputs, timer); }, mBackend);
     }
 
     std::string_view Upscaler::describe() const

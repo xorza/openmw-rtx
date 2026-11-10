@@ -48,10 +48,9 @@ namespace Rtx
         VkDeviceSize getBytes() const;
 
     private:
-        /// Writes every slot's table again, with what each side holds now.
-        void join();
+        /// Uploads every slot's table again through `batch`, with what each side holds now.
+        void join(Batch& batch);
 
-        const Device* mDevice = nullptr;
         std::string mTableName;
 
         std::uint32_t mOwnFirst;
