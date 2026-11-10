@@ -36,9 +36,9 @@ class Pinned:
     version: str
 
 
-RUFF = Pinned("ruff", "0.16.9")
-MYPY = Pinned("mypy", "2.3.1")
-ZIZMOR = Pinned("zizmor", "1.30.1")
+RUFF = Pinned("ruff", "0.17.4")
+MYPY = Pinned("mypy", "2.4.1")
+ZIZMOR = Pinned("zizmor", "1.32.0")
 
 
 def version_of(said: str) -> str | None:

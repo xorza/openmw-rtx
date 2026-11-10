@@ -102,7 +102,7 @@ Each with its options, my pick first.
    `BUILD_TESTING`). Removed (pick):** the 16 `OPENMW_BUILD_*`; `OPENMW_CRASHPAD` and `OPENMW_RTX_DLSS` with their
    unused fallbacks; `OPENMW_LUAJIT` (LuaJIT always) and `OPENMW_SYSTEM_TINYXML` (the vendored one always);
    `OPENMW_MSVC_PRECOMPILED_HEADERS` and every precompiled header block, since ccache runs on both systems;
-   `OPENMW_LTO`, decided per configuration below; `OPENMW_COVERAGE`, which nothing runs; `OPENMW_DEBUG_CONSOLE`,
+   `OPENMW_LTO`, for CMake's own switch (decision 11); `OPENMW_COVERAGE`, which nothing runs; `OPENMW_DEBUG_CONSOLE`,
    fixed to its default; `OPENMW_DEPLOY_*` and `OPENMW_LOCAL_INSTALL` with the system-install layout and its five
    path entries (decision 8); `OPENMW_TEST_COMPILE_OPTIONS`, decided below; `OPENMW_CXX_FLAGS` and
    `OPENMW_MSVC_WERROR` for `CMAKE_COMPILE_WARNING_AS_ERROR`. From 2²⁷ combinations to the 4 flavours.
@@ -111,10 +111,8 @@ Each with its options, my pick first.
    `-O2 -g1`, asserts on; MSVC `/O2 /Z7`. `Release`: `-O2 -g1 -DNDEBUG`; MSVC `/O2 /Z7 /DNDEBUG`. Frame pointers
    and line tables in every configuration on both systems (`-fno-omit-frame-pointer
    -mno-omit-leaf-frame-pointer`, `/Oy-`), so every build can be profiled and every crash symbolised; `-DEBUG`
-   on every MSVC link. mold through `CMAKE_LINKER_TYPE`, thin archives in the same file. Link-time optimisation:
-   the same answer for Linux and Windows, taken from a measurement of `Release` with and without it (open
-   question 1). The tests' `-Og`: kept for every `RelWithDebInfo` build on both systems, or dropped, by the
-   compile-time measurement it was introduced for (open question 2).
+   on every MSVC link. mold through `CMAKE_LINKER_TYPE`, thin archives in the same file. Link-time optimisation
+   (decision 11) and the tests' `-Og` (decision 12) are set here too.
 8. **Install layout.** **One portable layout on both systems, every file beside the programs and found relative to
    them (pick)**, which the Windows folder and the AppImage both are already. The Linux system-install branch goes:
    `GLOBAL_DATA_PATH`, `GLOBAL_CONFIG_PATH`, the suffixes, `ICONDIR`, the RPATH arithmetic. Upstream's
@@ -174,14 +172,37 @@ Current, newest, and what the plan takes. Newest checked on 2026-11-11.
 - `CI/install_ubuntu_deps.sh` shrinks to the compilers, the tools and the display and sound libraries SDL and Qt
   load; OpenMW's PPA goes.
 
-## Open questions
+## Decisions taken with the user
 
-1. **Link-time optimisation in `Release`**, on both systems or neither: measured with `omw release bench` and the
-   link's time and memory, against the bench budget's rule that a build fits in RAM.
-2. **`-Og` for the tests**: kept on both systems or dropped, by the debug build's time with and without it.
-3. **The release's glibc floor.** With every library static but glibc and the display's, the floor is the build
-   system's alone; building the release in an older image (glibc 2.28 to 2.39) would bring Ubuntu 24.04, Debian 13
-   and SteamOS back. That needs GCC 15 in that image (the compiler floor), a toolchain the image does not carry.
+11. **Link-time optimisation: off where a build is made on a desk, on for every tagged release (taken).** Off by
+    default in `Release` on both systems; the release workflow, which a pushed `rtx-` tag starts, configures with
+    CMake's own `CMAKE_INTERPROCEDURAL_OPTIMIZATION=ON` (checked by `check_ipo_supported`), and a desk turns it on
+    the same way when it wants to measure it. `OPENMW_LTO` goes. The distributions that build their packages with
+    LTO by default — Fedora since 32, Ubuntu since 21.04, openSUSE — report single-digit gains in size and speed
+    for a slower, hungrier link ([Fedora](https://fedoraproject.org/wiki/LTOByDefault);
+    [Ubuntu](https://wiki.ubuntu.com/ToolChain/LTO); [Debian's proposal](https://lists.debian.org/debian-bsd/2022/06/msg00002.html)).
+    So a measured run on a desk compares against the shipped binary only with the switch on.
+12. **The tests' `-Og`: kept if it pays (taken).** Timed: a clean debug build's test binaries at `-Og` and at
+    `-O2`. Kept as a setting of the test targets for GCC and Clang where it is clearly faster, MSVC's `/Od`
+    only if Windows measures the same way; dropped otherwise. `OPENMW_TEST_COMPILE_OPTIONS` goes either way. GCC
+    names `-Og` the level for the edit-compile-debug cycle and publishes no build-time figures
+    ([GCC](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html)).
+13. **The release built on AlmaLinux 8 with gcc-toolset-15 (taken).** The floor becomes glibc 2.28: Ubuntu 20.04
+    and later, Debian 11 and later, SteamOS and the Steam Deck. The Linux vcpkg set is built in the same image,
+    so its static libraries reference no newer glibc either, and serves the Ubuntu 26.04 desks and CI unchanged:
+    an older glibc's objects link and run against a newer one, and gcc-toolset-15 and Ubuntu's GCC are the same
+    major, one C++ ABI. A release check reads the binaries' highest `GLIBC_` symbol version. It is
+    manylinux_2_28's way — an old base, Red Hat's newer toolset
+    ([pypa/manylinux](https://github.com/pypa/manylinux)), and RHEL 8 ships gcc-toolset-15
+    ([Red Hat](https://access.redhat.com/errata/RHBA-2025:21071)). Refused: Valve's sniper SDK (Debian 11, glibc
+    2.31), Valve's target for games, whose compiler is older than the tree's GCC 15 floor; staying on Ubuntu 26.04.
+    Red Hat supports a gcc-toolset about two years, so the image moves to the next one in time.
+
+14. **The sets published by a CI workflow (taken).** A workflow builds each triplet's set when `vcpkg.json` or an
+    overlay changes — Linux in the AlmaLinux 8 image, Windows with MSVC — and attaches it to a release
+    `deps-<digest>` in xorza/openmw-rtx with the workflow's own token; `pins.py` names the published archives.
+15. **Executed unattended, the whole plan, on its own branch (taken)**, gated locally at each step and, where a
+    step touches Windows, built and tested on the laptop over SSH; master untouched until reviewed.
 
 ## Implementation plan
 
@@ -189,23 +210,26 @@ Each step builds every flavour on Linux, passes the gate, and passes CI on every
 `debug` after steps 3, 5 and 8.
 
 1. **Tools to their newest**: ruff 0.17.4, mypy 2.4.1, zizmor 1.32.0, and the findings they bring.
-2. **Fetched libraries to their newest, as they are fetched today**: SDL3 3.4.20, yaml-cpp 0.9.0, Google Test
-   1.18.0, volk and the Vulkan SDK 1.4.363, VMA 3.5.0, Crashpad's newest commit. One commit each where a
-   library's API moves.
+2. **Fetched libraries to their newest, as they are fetched today.** Done (`4f933c8be7`): SDL3 3.4.20, yaml-cpp
+   0.9.0, Google Test 1.18.0, volk and the Vulkan SDK 1.4.363 (1.4.363.0 on Windows, whose runtime components
+   LunarG publishes for that one alone), VMA 3.5.0, Sentry's Crashpad at its newest commit; no API moved. The SDK's
+   compiler moves 2 of the 930 kernels (`spriteemitters.rgen`).
 3. **vcpkg in.** `vcpkg.json` with the baseline and the overrides, the overlay ports (OpenSceneGraph fork, Recast
    fork, Crashpad, Benchmark, unshield), the two static triplets; `omw` fetches the pinned vcpkg tool. A CI
    workflow builds each triplet's set and publishes it; `pins.py` names the published archives and `omw` fetches
    them. Nothing consumes the set yet.
 4. **Linux builds against the set**, statically: the presets' toolchain file, `cmake/Dependencies.cmake`'s finds
    reduced to the set's packages, FetchContent gone, OpenSceneGraph's plugins registered in one file, static
-   libstdc++; `install_ubuntu_deps.sh` and the release image down to compilers, tools and display libraries; the
-   AppImage without the libraries `linuxdeploy` collected.
+   libstdc++; `install_ubuntu_deps.sh` down to compilers, tools and display libraries; the AppImage without the
+   libraries `linuxdeploy` collected.
+4b. **The release on AlmaLinux 8** (decision 13): the release image `FROM almalinux:8` with gcc-toolset-15, the
+   Linux vcpkg set built in it, and the release check on the `GLIBC_` versions.
 5. **Windows builds against the same set**, the CRT static, upstream's set, `VCPKG_TAG`, aqt and `QT_VER` gone.
 6. **The libraries to their newest through the baseline**: Boost, Bullet 3.25, ICU, LuaJIT, OpenAL Soft, LZ4,
    zlib in one step; FFmpeg 9 and MyGUI 3.5 each in their own, with what their removed APIs ask of upstream's code
    recorded in `.notes/UPSTREAM.md`.
 7. **Flags in one file**: `cmake/Flags.cmake`, mold by `CMAKE_LINKER_TYPE`, `CMAKE_COMPILE_WARNING_AS_ERROR`,
-   presets without flags; open questions 1 and 2 measured and decided.
+   presets without flags; LTO on for the tagged release alone (decision 11); `-Og` timed and decided (decision 12).
 8. **Four flavours, the options gone**: every program in every flavour, `full` and `package` folded,
    `OPENMW_BUILD_*`, the Crashpad and DLSS fallbacks, LuaJIT's and TinyXML's choices, precompiled headers, coverage
    and the console option removed; `omw`'s flavour list, `QT_FLAVOURS`, the listing check's excuses and CI's legs
