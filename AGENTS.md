@@ -401,3 +401,56 @@ the posture behind them does.
   a measurement saying the branch pays for itself, named where the branch lands.
 - **Asserts** guard contracts the code must keep, not data the world might supply. Hot paths use the
   debug-only form; untrusted input is never an assert.
+
+## C++ idioms
+
+The common ground of the [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines)
+(cited by rule), [Google's style guide](https://google.github.io/styleguide/cppguide.html) and
+[LLVM's](https://llvm.org/docs/CodingStandards.html). They are defaults: a case that needs another
+answer takes it with a comment saying why, and the conventions above win where the two meet. They
+hold for the code the fork writes; upstream's code is not brought in line with them (Rules).
+
+- **An object owns each resource** (R.1, R.3, R.11, CP.20). Memory, a handle, a file or a lock is
+  released by a destructor, never by a call on each way out. No naked `new` or `delete`:
+  `std::make_unique`, a container or a handle class. A raw pointer or reference owns nothing, and a
+  lock is a `std::scoped_lock` or `std::unique_lock`.
+- **`std::unique_ptr` is the owner by default** (R.20, R.21): `std::shared_ptr` only where ownership
+  is truly shared, and made with `std::make_shared`.
+- **The rule of zero** (C.20, C.21, C.66, C.37): a class whose members manage themselves declares no
+  copy, move or destructor. One that declares or deletes any of the five does all five, and its
+  moves and destructor are `noexcept`.
+- **A parameter says how it is used** (F.7, F.15–F.18, R.30). In: a cheap type by value, anything
+  else by `const&`. In-out: by reference. Kept: by value and moved into place. A function that only
+  uses an object takes `T&` or `T*`, and a smart pointer only when it changes the object's lifetime.
+- **Borrowed text is `std::string_view`, a borrowed sequence `std::span`** (SL.str.2, F.43). A view
+  or a reference never outlives what it points into: none is returned to a local or a temporary,
+  kept past the call that lent it, or handed to a C API that reads up to a terminator.
+- **Results are returned** (F.20, F.21), several as a named struct rather than a `std::pair` or a
+  tuple, except on the frame path, whose results go into persistent out-parameters (Conventions).
+- **`const` by default** (Con.1–Con.5): a variable, a member function, what a pointer or reference
+  reaches. `constexpr` for what the compiler can compute.
+- **Declared where first needed, and initialized** (ES.5, ES.12, ES.20–ES.22, ES.26, ES.28): small
+  scopes, one purpose a variable, no name that shadows an outer one. A `const` whose value takes
+  several steps is set by an immediately invoked lambda.
+- **The type says what a value is** (Enum.3, C.46, SL.con.1): `enum class`, `nullptr`, `explicit`
+  single-argument constructors and conversion operators, `std::optional` for a value that may be
+  absent, `std::variant` for one of several, `std::array` or `std::vector` and never a C array.
+- **Casts are named and rare** (ES.46, ES.48–ES.50, ES.100): no C-style or functional cast, a
+  narrowing conversion spelled out, `std::bit_cast` to read an object's bytes as another type, and
+  `reinterpret_cast` or `const_cast` with a comment saying why. Signed and unsigned do not meet in a
+  comparison or a sum without a conversion (`std::cmp_less`, `std::ssize`).
+- **Class hierarchies** (C.35, C.67, C.128): an override says `override` or `final` and not
+  `virtual`, a base class's destructor is public and virtual or protected and not virtual, and a
+  polymorphic class allows no public copy or move, which would slice it.
+- **The standard library before hand-written code** (ES.1, ES.71, SL.1): an algorithm or a range
+  `for` over an index loop where either serves.
+- **`auto` where the type is noise** (ES.11): an iterator, a `make_unique`, a cast's result. A type
+  the reader needs to follow the code is spelled.
+- **A lambda that outlives its scope captures by value** (F.53): one stored, returned or sent to
+  another thread names what it captures and holds no reference to a local.
+- **Headers** (SF.7, SF.21, SF.22): no `using namespace` at a header's file scope and no unnamed
+  namespace in a header. What a `.cpp` keeps to itself goes in an unnamed namespace.
+- **Exceptions are classes, thrown by value and caught by reference** (E.14–E.16). A destructor, a
+  deallocation, a `swap` and a move do not throw.
+- **Threads** (CP.25, CP.42): `std::jthread` over `std::thread`, and a `condition_variable` waits
+  with a predicate.
