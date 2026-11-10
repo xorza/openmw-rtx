@@ -28,7 +28,7 @@ made only on the user's explicit yes, after which it is added here.
   write, its stamp with it (`DebugOutputBase::write`): the monitor appends its summaries to the log
   from a process of its own, and one that landed between a stamp and its text split the line.
 - The fork's own `README.md`, `CI/` and workflows, and the root tooling: `CMakePresets.json`,
-  `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes` and `.gitignore`.
+  `.clangd`, `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes` and `.gitignore`.
 - The build the presets and Crashpad need: the raised CMake minimum, which reads the presets'
   `$comment`s, and the directory `GNUInstallDirs_get_absolute_install_dir` then takes as its third
   argument; the raised Boost minimum, whose flat maps the scene identities are; no scan for modules,
