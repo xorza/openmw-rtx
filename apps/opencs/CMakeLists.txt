@@ -504,7 +504,7 @@ target_link_libraries(openmw-cs-lib
         ${OSGUTIL_LIBRARIES}
         ${OSGTEXT_LIBRARIES}
         ${OSG_LIBRARIES}
-        ${EXTERN_OSGQT_LIBRARY}
+        osgQt
         Boost::program_options
         openmw-components-qt
         Qt::Widgets

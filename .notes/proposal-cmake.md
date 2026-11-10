@@ -196,9 +196,11 @@ minimum CMake moves to a recent release and the code for older ones goes.
   hermetic (Windows, CI) set `FETCHCONTENT_TRY_FIND_PACKAGE_MODE` to `NEVER`. Config packages where the libraries ship
   them (SDL3, yaml-cpp, lz4, recastnavigation) in place of find modules. Refused: a switch a dependency, the
   hand-made form of what CMake provides.
-- **A short root.** `CMakeLists.txt` holds the project, the standard, `include()` of `cmake/Options.cmake`,
-  `Dependencies.cmake`, `Checks.cmake`, `Tests.cmake`, `Install.cmake` and `Package.cmake`, and the
-  `add_subdirectory` calls.
+- **A short root.** `CMakeLists.txt` holds the project, its version, the standard, `include()` of
+  `cmake/Options.cmake`, `Checks.cmake`, `Dependencies.cmake`, `Tests.cmake` and `Install.cmake`, and the
+  `add_subdirectory` calls; what a folder owns is in its own file (`extern/`, `files/`, `files/lang/`, `docs/`).
+  No CPack: the fork ships through `cmake --install` (`omw archive`, CI), so upstream's installer and
+  `vcredist` settings had no caller.
 - **Presets for every step.** A build preset and a workflow preset for each visible configure preset, so
   `cmake --workflow --preset debug-linux` configures, builds and tests a clone with no `omw`; `omw` calls the same
   presets and keeps what CMake has no step for (formatting, the listing check, the harness's verbs). Sanitizers as
@@ -316,7 +318,17 @@ diagnostic after steps 10 and 13.
     `detournavigator/serialization.cpp`); the system's half of the test support chosen by `if (WIN32)`; links in
     the keyword form, without `CMAKE_THREAD_LIBS_INIT` or Google Test's old include variables, which its targets
     carry. `cmake/Tests.cmake` registers them.
-12. **The root and the presets.** The root split into `cmake/{Options,Checks,Install,Package}.cmake`, the options
-    renamed `OPENMW_*`; build and workflow presets; the sanitizer option; `omw` calls the presets.
+12. **The root and the presets**, in four commits:
+    - 12a. Done: the root split into `cmake/Options.cmake` (options and the install layout), `Checks.cmake`,
+      `Dependencies.cmake` (now with every `find_package`) and `Install.cmake`; the vendored libraries in
+      `extern/CMakeLists.txt`, the build's resource files in `files/`, the Qt translations in `files/lang/`, the
+      API reference in `docs/`; the version from `project(VERSION)`; paths from `PROJECT_*` everywhere. Gone:
+      CPack, the Visual Studio generator's compiler override, the MSVC 19.15 and `CMAKE_CL_64` branches below the
+      floor, the `stdint.h` probe, and the game's console flags as directory-wide properties, now its target's.
+    - 12b. Targets own every setting: the directory-wide `include_directories`, `add_compile_definitions` and
+      `add_compile_options` onto targets.
+    - 12c. Every option `OPENMW_*`, the presets, CI and `omw` with them.
+    - 12d. `OPENMW_SANITIZER=address|thread` in place of the presets' flags; build and workflow presets; `omw`
+      calls them.
 13. **clangd.** `.clangd`'s flag list shrinks to what `$<CXX_COMPILER_ID:GNU>` adds; the sweep.
 14. **CMake formatter**: `gersemi` over every CMake file, its commit in `.git-blame-ignore-revs`.

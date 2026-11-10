@@ -1,10 +1,10 @@
-# The third-party code the tree fetches, in one place: each project at a pinned archive, and the
-# system's own where one is installed and the declaration names `FIND_PACKAGE_ARGS`, which FetchContent
-# tries first. A preset that must build the same everywhere sets `FETCHCONTENT_TRY_FIND_PACKAGE_MODE`
-# to `NEVER`, as Windows does: upstream's prebuilt set carries none of these. Every fetched project is
-# a system's to the tree (`SYSTEM`), whose warnings are its own, and builds only what the tree links
-# (`EXCLUDE_FROM_ALL`). What the tree finds and never fetches, OpenSceneGraph, Bullet, MyGUI and the
-# rest, the root finds beside its options.
+# The third-party code the tree builds against, in one place. What it fetches: each project at a pinned
+# archive, and the system's own where one is installed and the declaration names `FIND_PACKAGE_ARGS`,
+# which FetchContent tries first. A preset that must build the same everywhere sets
+# `FETCHCONTENT_TRY_FIND_PACKAGE_MODE` to `NEVER`, as Windows does: upstream's prebuilt set carries none
+# of these. Every fetched project is a system's to the tree (`SYSTEM`), whose warnings are its own, and
+# builds only what the tree links (`EXCLUDE_FROM_ALL`). Then what it finds and never fetches,
+# OpenSceneGraph, Bullet, MyGUI and the rest; `extern/` holds what is vendored.
 
 include(FetchContent)
 
@@ -121,3 +121,162 @@ FetchContent_MakeAvailable(VulkanMemoryAllocator)
 
 include("${CMAKE_CURRENT_LIST_DIR}/../extern/crashpad.cmake")
 endblock()
+
+# What the tree finds and never fetches, after the fetched projects, whose builds take none of the tree's
+# definitions below: Windows's `NOGDI` and `NOMB` take out what SDL's video is built on.
+
+if (MSVC)
+    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/utf-8>)
+endif ()
+
+set(OpenGL_GL_PREFERENCE LEGACY) # GL2; GLVND's is for GL3 and up.
+find_package(OpenGL REQUIRED)
+find_package(LZ4 REQUIRED)
+find_package(Threads REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(OpenAL REQUIRED)
+find_package(ICU REQUIRED COMPONENTS uc i18n data)
+find_package(Boost 1.83.0 CONFIG REQUIRED COMPONENTS iostreams program_options)
+find_package(MyGUI 3.4.3 REQUIRED)
+# 1.4.329 is the first SDK whose SPIR-V headers name `SPV_KHR_fma`, which the shaders' pinning
+# refuses by name (`Rtx::pinFloatArithmetic`); an older one fails here rather than inside
+# `spirvpin.cpp`.
+find_package(VulkanHeaders 1.4.329 REQUIRED)
+
+if (USE_QT)
+    find_package(QT REQUIRED COMPONENTS Core NAMES Qt6)
+    find_package(Qt6 COMPONENTS Core Widgets Network OpenGL OpenGLWidgets LinguistTools Svg REQUIRED)
+    message(STATUS "Using Qt${QT_VERSION}")
+endif ()
+
+if (OPENMW_USE_UNSHIELD)
+    find_package(LIBUNSHIELD REQUIRED)
+endif ()
+
+# FFmpeg 4.0 at least.
+find_package(FFmpeg REQUIRED COMPONENTS AVCODEC AVFORMAT AVUTIL SWSCALE SWRESAMPLE)
+foreach (floor AVFORMAT:58.12.100 AVCODEC:58.18.100 AVUTIL:56.14.100 SWSCALE:5.1.100 SWRESAMPLE:3.1.100)
+    string(REPLACE ":" ";" floor "${floor}")
+    list(GET floor 0 library)
+    list(GET floor 1 version)
+    if (FFmpeg_${library}_VERSION VERSION_LESS version)
+        message(FATAL_ERROR "FFmpeg's ${library} is ${FFmpeg_${library}_VERSION}, older than ${version}: FFmpeg 4.0 is required")
+    endif ()
+endforeach ()
+# Required for building the FFmpeg headers
+add_compile_definitions(__STDC_CONSTANT_MACROS)
+
+if (USE_SYSTEM_TINYXML)
+    find_package(TinyXML REQUIRED)
+    add_compile_definitions(TIXML_USE_STL)
+    include_directories(SYSTEM ${TinyXML_INCLUDE_DIRS})
+endif ()
+
+if (WIN32)
+    # Get rid of useless crud from windows.h
+    add_compile_definitions(
+        NOMINMAX # name conflict with std::min, std::max
+        WIN32_LEAN_AND_MEAN
+        NOMB # name conflict with MWGui::MessageBox
+        NOGDI # name conflict with osgAnimation::MorphGeometry::RELATIVE
+    )
+    # Put Win32 API into UTF-16 mode
+    # We really don't care, but targets linking with Qt 6 (not 5 and earlier) inherit this, and mixing and matching stops us reusing precompiled headers
+    add_compile_definitions(
+        _UNICODE
+        UNICODE
+    )
+endif ()
+
+# Bullet 2.87 at least, for `btIDebugDraw::clearLines` (2.86 already needed for `btCapsuleShape` fixes),
+# and in double precision. First the float64 config Debian's derivatives ship, which states its version
+# in no form CMake compares.
+set(REQUIRED_BULLET_VERSION 287)
+find_package(Bullet CONFIGS BulletConfig-float64.cmake QUIET COMPONENTS BulletCollision LinearMath)
+if (BULLET_FOUND)
+    string(REPLACE "." "" _bullet_version_num ${BULLET_VERSION_STRING})
+    if (_bullet_version_num VERSION_LESS REQUIRED_BULLET_VERSION)
+        message(FATAL_ERROR "System bullet version too old, OpenMW requires at least ${REQUIRED_BULLET_VERSION}, got ${_bullet_version_num}")
+    endif ()
+    # Fix the relative include:
+    set(BULLET_INCLUDE_DIRS "${BULLET_ROOT_DIR}/${BULLET_INCLUDE_DIRS}")
+    include(FindPackageMessage)
+    find_package_message(Bullet "Found Bullet: ${BULLET_LIBRARIES} ${BULLET_VERSION_STRING}" "${BULLET_VERSION_STRING}-float64")
+else ()
+    find_package(Bullet ${REQUIRED_BULLET_VERSION} REQUIRED COMPONENTS BulletCollision LinearMath)
+endif ()
+# Only link the Bullet libraries that we need:
+string(REGEX MATCHALL "((optimized|debug);)?[^;]*(BulletCollision|LinearMath)[^;]*" BULLET_LIBRARIES "${BULLET_LIBRARIES}")
+include(CheckBulletPrecision)
+if (NOT HAS_DOUBLE_PRECISION_BULLET)
+    message(FATAL_ERROR "Bullet does not uses double precision")
+endif ()
+
+set(USED_OSG_PLUGINS
+    osgdb_bmp
+    osgdb_dae
+    osgdb_dds
+    osgdb_freetype
+    osgdb_jpeg
+    osgdb_osg
+    osgdb_png
+    osgdb_serializers_osg
+    osgdb_tga)
+find_package(OpenSceneGraph 3.6.5 REQUIRED
+    osgAnimation osgDB osgGA osgFX osgParticle osgText osgUtil osgShadow osgSim osgViewer)
+if (OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
+    if (WIN32)
+        set(OSGPlugins_DONT_FIND_DEPENDENCIES 1)
+    endif ()
+    find_package(OSGPlugins REQUIRED COMPONENTS ${USED_OSG_PLUGINS})
+    foreach (osgplugin ${USED_OSG_PLUGINS})
+        if (NOT TARGET ${osgplugin})
+            add_library(${osgplugin} MODULE IMPORTED)
+            string(TOUPPER ${osgplugin} pluginnameupper)
+            foreach (configuration RELEASE DEBUG)
+                if (${pluginnameupper}_LIBRARY_${configuration})
+                    set_property(TARGET ${osgplugin} APPEND PROPERTY IMPORTED_CONFIGURATIONS ${configuration})
+                    set_target_properties(${osgplugin} PROPERTIES
+                        IMPORTED_LOCATION_${configuration} "${${pluginnameupper}_LIBRARY_${configuration}}")
+                endif ()
+            endforeach ()
+        endif ()
+    endforeach ()
+    if (WIN32)
+        set(osg_plugin_destination "${CMAKE_INSTALL_BINDIR}")
+    else ()
+        set(osg_plugin_destination "${CMAKE_INSTALL_LIBDIR}")
+    endif ()
+    install(IMPORTED_RUNTIME_ARTIFACTS ${USED_OSG_PLUGINS}
+        DESTINATION "${osg_plugin_destination}/osgPlugins-${OPENSCENEGRAPH_VERSION}"
+        RUNTIME_DEPENDENCY_SET openmw-dependencies)
+endif ()
+include_directories(BEFORE SYSTEM ${OPENSCENEGRAPH_INCLUDE_DIRS})
+include(CheckOsgMultiview)
+if (HAVE_MULTIVIEW)
+    add_compile_definitions(OSG_HAS_MULTIVIEW)
+endif ()
+
+if (USE_LUAJIT)
+    find_package(LuaJit REQUIRED)
+    set(LUA_INCLUDE_DIR ${LuaJit_INCLUDE_DIR})
+    set(LUA_LIBRARIES ${LuaJit_LIBRARIES})
+else ()
+    find_package(Lua REQUIRED)
+    add_compile_definitions(NO_LUAJIT)
+endif ()
+if (NOT WIN32)
+    include(CheckLuaCustomAllocator)
+endif ()
+
+include_directories(
+    BEFORE SYSTEM
+    ${MyGUI_INCLUDE_DIRS}
+    ${OPENAL_INCLUDE_DIR}
+    ${OPENGL_INCLUDE_DIR}
+    ${BULLET_INCLUDE_DIRS}
+    ${LUA_INCLUDE_DIR}
+    "${PROJECT_SOURCE_DIR}/extern/sol3"
+    "${PROJECT_SOURCE_DIR}/extern/sol_config"
+    ${ICU_INCLUDE_DIRS}
+)

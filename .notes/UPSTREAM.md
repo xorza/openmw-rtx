@@ -304,6 +304,14 @@ made only on the user's explicit yes, after which it is added here.
 - The test binaries and benchmarks in the same form: files named in `target_sources` lists in place of
   `file(GLOB)` over names, links in the keyword form. The cost is a conflict with every upstream change to a
   test list, which the merge resolves by naming the file in its list.
+- The top-level `CMakeLists.txt` split by responsibility: options and the install layout in
+  `cmake/Options.cmake`, every `find_package` in `cmake/Dependencies.cmake`, the install rules in
+  `cmake/Install.cmake`, the vendored libraries in `extern/CMakeLists.txt`, the resource files in
+  `files/CMakeLists.txt`, the Qt translations in `files/lang/CMakeLists.txt`, the Doxygen targets in
+  `docs/CMakeLists.txt`; the version from `project(VERSION)`. CPack and the NSIS installer go, with the
+  `vcredist` bundling, the Visual Studio generator's compiler override and the branches for compilers below
+  the floor. The cost is a conflict with every upstream change to the root, which the merge places in the
+  file that now holds it.
 - `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
   `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
   stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.

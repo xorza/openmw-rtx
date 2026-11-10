@@ -1,13 +1,13 @@
-# 3.31 for `CMakePresets.json` version 10, the first that takes a `$comment`.
 cmake_minimum_required(VERSION 4.4)
 
-project(OpenMW)
+project(OpenMW VERSION 0.53.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 # The tree has no C++20 modules, and CMP0155's scan would preprocess every file twice.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
-set(CMAKE_CXX_EXTENSIONS OFF)
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 # Every preset names ccache, and a box without it compiles without it rather than failing every
 # compile: a release's runner keeps no cache and has none installed.
@@ -17,538 +17,94 @@ foreach (language C CXX)
         if (NOT OPENMW_CCACHE)
             message(STATUS "No ccache: ${language} compiles without a launcher")
             set(CMAKE_${language}_COMPILER_LAUNCHER "" CACHE STRING "" FORCE)
-        endif()
-    endif()
-endforeach()
+        endif ()
+    endif ()
+endforeach ()
 
-if (WIN32)
-    set(DEPLOY_QT_TRANSLATIONS_DEFAULT ON)
-    set(deploy_runtime_dependencies_default ON)
-else ()
-    set(DEPLOY_QT_TRANSLATIONS_DEFAULT OFF)
-    set(deploy_runtime_dependencies_default OFF)
-endif ()
-
-option(DEPLOY_QT_TRANSLATIONS "Deploy standard Qt translations to resources folder. Needed when OpenMW applications are deployed with Qt libraries" ${DEPLOY_QT_TRANSLATIONS_DEFAULT})
-option(OPENMW_DEPLOY_RUNTIME_DEPENDENCIES "Deploy runtime dependency libraries. Needed when not relying on a system-wide insallation of these libraries existing" ${deploy_runtime_dependencies_default})
-
-set(runtime_dependency_arguments)
-if (OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
-    set(runtime_dependency_arguments RUNTIME_DEPENDENCY_SET openmw-dependencies)
-endif ()
-
-# Apps and tools
-option(BUILD_OPENMW             "Build OpenMW" ON)
-option(BUILD_LAUNCHER           "Build Launcher" ON)
-option(BUILD_WIZARD             "Build Installation Wizard" ON)
-option(BUILD_MWINIIMPORTER      "Build MWiniImporter" ON)
-option(BUILD_OPENCS             "Build OpenMW Construction Set" ON)
-option(BUILD_ESSIMPORTER        "Build ESS (Morrowind save game) importer" ON)
-option(BUILD_BSATOOL            "Build BSA extractor" ON)
-option(BUILD_ESMTOOL            "Build ESM inspector" ON)
-option(BUILD_NIFTEST            "Build nif file tester" ON)
-option(BUILD_DOCS               "Build documentation." OFF )
-option(BUILD_WITH_CODE_COVERAGE "Enable code coverage with gconv" OFF)
-option(BUILD_COMPONENTS_TESTS   "Build components library tests" OFF)
-option(BUILD_BENCHMARKS         "Build benchmarks with Google Benchmark" OFF)
-option(BUILD_NAVMESHTOOL        "Build navmesh tool" ON)
-option(BUILD_BULLETOBJECTTOOL   "Build Bullet object tool" ON)
-option(BUILD_OPENCS_TESTS       "Build OpenMW Construction Set tests" OFF)
-option(BUILD_OPENMW_TESTS       "Build OpenMW tests" OFF)
-option(OPENMW_RTX_DLSS          "Build the ray tracer with NVIDIA DLSS support" ON)
-option(OPENMW_CRASHPAD          "Capture crashes with Crashpad" ON)
-option(PRECOMPILE_HEADERS_WITH_MSVC "Precompile most common used headers with MSVC (alternative to ccache)" ON)
-
-set(OpenGL_GL_PREFERENCE LEGACY)  # Use LEGACY as we use GL2; GLNVD is for GL3 and up.
-
-if (BUILD_LAUNCHER OR BUILD_OPENCS OR BUILD_WIZARD OR BUILD_OPENCS_TESTS)
-    set(USE_QT TRUE)
-else()
-    set(USE_QT FALSE)
-endif()
-
-# If the user doesn't supply a CMAKE_BUILD_TYPE via command line, choose one for them.
-IF(NOT CMAKE_BUILD_TYPE)
-    SET(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
-        "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel."
-        FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS None Debug Release RelWithDebInfo MinSizeRel)
-ENDIF()
-
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/)
-
-# Version
-message(STATUS "Configuring OpenMW...")
-
-set(OPENMW_VERSION_MAJOR 0)
-set(OPENMW_VERSION_MINOR 53)
-set(OPENMW_VERSION_RELEASE 0)
-set(OPENMW_LUA_API_REVISION 166)
-set(OPENMW_POSTPROCESSING_API_REVISION 5)
-
-set(OPENMW_VERSION_COMMITHASH "")
-set(OPENMW_VERSION_TAGHASH "")
-set(OPENMW_VERSION_COMMITDATE "")
-
-set(OPENMW_VERSION "${OPENMW_VERSION_MAJOR}.${OPENMW_VERSION_MINOR}.${OPENMW_VERSION_RELEASE}")
-
-set(OPENMW_DOC_BASEURL "https://openmw.readthedocs.io/en/")
-
-set(GIT_CHECKOUT FALSE)
-if(EXISTS ${PROJECT_SOURCE_DIR}/.git)
-    find_package(Git)
-
-    if(GIT_FOUND)
-        set(GIT_CHECKOUT TRUE)
-    else(GIT_FOUND)
-        message(WARNING "Git executable not found")
-    endif(GIT_FOUND)
-
-    if(GIT_FOUND)
-        execute_process (
-                COMMAND ${GIT_EXECUTABLE} log -1 --format='%aI'
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-                RESULT_VARIABLE EXITCODE3
-                OUTPUT_VARIABLE OPENMW_VERSION_COMMITDATE
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
-        if(NOT EXITCODE3)
-            string(SUBSTRING ${OPENMW_VERSION_COMMITDATE} 1 10 OPENMW_VERSION_COMMITDATE)
-        endif(NOT EXITCODE3)
-    endif(GIT_FOUND)
-endif(EXISTS ${PROJECT_SOURCE_DIR}/.git)
-
-# Macros
+include(cmake/Options.cmake)
+include(cmake/Checks.cmake)
 include(OpenMWMacros)
 include(escape_regex_control_characters)
 
-# doxygen main page
-
-configure_file ("${OpenMW_SOURCE_DIR}/docs/mainpage.hpp.cmake" "${OpenMW_BINARY_DIR}/docs/mainpage.hpp")
-
-option(OPENMW_LTO_BUILD "Build OpenMW with Link-Time Optimization (Needs ~2GB of RAM)" OFF)
-
-if (CMAKE_GENERATOR MATCHES "Visual Studio")
-    if (OPENMW_MSBUILD_COMPILER_OVERRIDE)
-        if (NOT IS_ABSOLUTE OPENMW_MSBUILD_COMPILER_OVERRIDE)
-            find_program(OPENMW_MSBUILD_COMPILER_OVERRIDE_PATH "${OPENMW_MSBUILD_COMPILER_OVERRIDE}")
-        else()
-            set(OPENMW_MSBUILD_COMPILER_OVERRIDE_PATH "${OPENMW_MSBUILD_COMPILER_OVERRIDE}")
-        endif()
-        if (DEFINED ENV{ChocolateyInstall})
-            # if Chocolatey's installed, it's relatively likely that the command's a shim and won't work if copied
-            # it's safer to shim it
-            execute_process(COMMAND "$ENV{ChocolateyInstall}/tools/shimgen.exe" -p "${OPENMW_MSBUILD_COMPILER_OVERRIDE_PATH}" -o "${CMAKE_BINARY_DIR}/cl.exe" -c cl.exe)
-        else()
-            file(COPY_FILE "${OPENMW_MSBUILD_COMPILER_OVERRIDE_PATH}" "${CMAKE_BINARY_DIR}/cl.exe" ONLY_IF_DIFFERENT)
-        endif()
-
-        list(APPEND CMAKE_VS_GLOBALS
-            "CLToolPath=${CMAKE_BINARY_DIR}"
-            "UseMultiToolTask=true"
-        )
-    endif()
-endif()
-
-if ((NOT CMAKE_GENERATOR MATCHES "Visual Studio") OR ("UseMultiToolTask=true" IN_LIST CMAKE_VS_GLOBALS))
-    # don't spawn multiple moc/uic child processes in parallel - the build system already parallelises the build
-    # this genuinely saves time (confirmed with MSVC+Ninja in CI)
-    set(CMAKE_AUTOGEN_PARALLEL 1)
-endif()
-
-if (MSVC)
-    # Every MSVC option set ahead of `extern` is the C and C++ compiler's, and says so: a directory's
-    # options reach each language in it, and MASM, which Crashpad assembles two files with there,
-    # reads `/Zc:__cplusplus` as `/Zs`, a syntax check that writes no object.
-    option(OPENMW_MP_BUILD "Build OpenMW with /MP flag" OFF)
-    if (OPENMW_MP_BUILD)
-        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/MP>)
-    endif()
-
-    # \bigobj is required to compile lua bindings in components, openmw and tests, because sol3 is heavily templated.
-    # there should be no relevant downsides to having it on:
-    # https://docs.microsoft.com/en-us/cpp/build/reference/bigobj-increase-number-of-sections-in-dot-obj-file
-    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/bigobj>)
-
-    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/Zc:__cplusplus>)
-
-    if (CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER OR OPENMW_MSBUILD_COMPILER_OVERRIDE)
-        if ((CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER) AND CMAKE_GENERATOR MATCHES "Visual Studio")
-            message(STATUS "A compiler launcher was specified, but will be unused by the current generator (${CMAKE_GENERATOR})")
-        elseif (CMAKE_C_COMPILER_LAUNCHER STREQUAL "ccache" OR CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache"
-                OR OPENMW_MSBUILD_COMPILER_OVERRIDE STREQUAL "ccache")
-            # `/Z7`: ccache cannot cache a compile that writes a shared PDB.
-            set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
-        endif()
-    endif()
-endif()
-
-include(cmake/Dependencies.cmake)
-
-include(GNUInstallDirs)
-set(SYSCONFDIR_SUFFIX "openmw" CACHE PATH "Suffix for CMAKE_INSTALL_SYSCONFDIR")
-set(DATADIR_SUFFIX "openmw" CACHE PATH "Suffix for CMAKE_INSTALL_DATADIR")
-set(CMAKE_INSTALL_SYSCONFDIR "${CMAKE_INSTALL_SYSCONFDIR}/${SYSCONFDIR_SUFFIX}")
-set(CMAKE_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/${DATADIR_SUFFIX}")
-
-# Set up common paths
-if (UNIX)
-    set(OPENMW_LOCAL_INSTALL_DEFAULT OFF)
-else()
-    set(OPENMW_LOCAL_INSTALL_DEFAULT ON)
-endif()
-option(OPENMW_LOCAL_INSTALL "Local install of OpenMW instead of Global. Other files will be installed to the same location as the binaries, and accessed via relative paths." ${OPENMW_LOCAL_INSTALL_DEFAULT})
-if (OPENMW_LOCAL_INSTALL)
-    set(CMAKE_INSTALL_BINDIR ".")
-    set(CMAKE_INSTALL_LIBDIR "lib")
-    set(CMAKE_INSTALL_DATADIR ".")
-    set(CMAKE_INSTALL_SYSCONFDIR ".")
-endif()
-
-# absorb our changes into CMAKE_INSTALL_FULL_whatever variables
-foreach(dir BINDIR SYSCONFDIR LIBDIR DATADIR)
-    GNUInstallDirs_get_absolute_install_dir(CMAKE_INSTALL_FULL_${dir} CMAKE_INSTALL_${dir} ${dir})
-endforeach()
-
-if (UNIX)
-    # Paths
-    SET(ICONDIR "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps" CACHE PATH "Set icon dir")
-    SET(LICDIR "${CMAKE_INSTALL_DATAROOTDIR}/licenses/openmw" CACHE PATH "Sets the openmw license directory to a non-default location.")
-
-    if (NOT OPENMW_LOCAL_INSTALL)
-        set(GLOBAL_DATA_PATH "${CMAKE_INSTALL_FULL_DATADIR}" CACHE PATH "Set absolute data path prefix for Global installs. This is baked into the binaries, so MUST be set to the final install path at build time.")
-        set(GLOBAL_CONFIG_PATH "${CMAKE_INSTALL_FULL_SYSCONFDIR}" CACHE PATH "Set absolute config dir path for Global installs. This is baked into the binaries, so MUST be set to the final install path at build time.")
-        set(OPENMW_RESOURCE_FILES "${CMAKE_INSTALL_FULL_DATADIR}/resources" CACHE PATH "Set absolute resources dir path for Global installs. This is baked into openmw.cfg, so MUST be set to the final install path at build time.")
+# The version the programs report: the release, the API revisions scripts and shaders check, and on a
+# Git checkout the commit, which `components/version` reads at every build.
+set(OPENMW_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(OPENMW_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(OPENMW_VERSION_RELEASE ${PROJECT_VERSION_PATCH})
+set(OPENMW_VERSION ${PROJECT_VERSION})
+set(OPENMW_LUA_API_REVISION 166)
+set(OPENMW_POSTPROCESSING_API_REVISION 5)
+set(OPENMW_DOC_BASEURL "https://openmw.readthedocs.io/en/")
+set(OPENMW_VERSION_COMMITHASH "")
+set(OPENMW_VERSION_TAGHASH "")
+set(OPENMW_VERSION_COMMITDATE "")
+set(GIT_CHECKOUT FALSE)
+if (EXISTS "${PROJECT_SOURCE_DIR}/.git")
+    find_package(Git)
+    if (GIT_FOUND)
+        set(GIT_CHECKOUT TRUE)
+        execute_process(
+            COMMAND ${GIT_EXECUTABLE} log -1 --format=%as
+            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+            RESULT_VARIABLE failed
+            OUTPUT_VARIABLE OPENMW_VERSION_COMMITDATE
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+        if (failed)
+            set(OPENMW_VERSION_COMMITDATE "")
+        endif ()
+    else ()
+        message(WARNING "Git executable not found")
     endif ()
-endif()
-
-if (WIN32)
-    option(USE_DEBUG_CONSOLE "Whether a console should be displayed if OpenMW isn't launched from the command line. Does not affect the Release configuration." ON)
-endif()
-
-if(MSVC)
-    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/utf-8>)
-endif()
-
-# Dependencies
-find_package(OpenGL REQUIRED)
-
-find_package(LZ4 REQUIRED)
-
-if (USE_QT)
-    find_package(QT REQUIRED COMPONENTS Core NAMES Qt6)
-    find_package(Qt6 COMPONENTS Core Widgets Network OpenGL OpenGLWidgets LinguistTools Svg REQUIRED)
-    message(STATUS "Using Qt${QT_VERSION}")
-endif()
-
-set(USED_OSG_COMPONENTS
-    osgAnimation
-    osgDB
-    osgGA
-    osgFX
-    osgParticle
-    osgText
-    osgUtil
-    osgShadow
-    osgSim
-    osgViewer
-    )
-set(USED_OSG_PLUGINS
-    osgdb_bmp
-    osgdb_dae
-    osgdb_dds
-    osgdb_freetype
-    osgdb_jpeg
-    osgdb_osg
-    osgdb_png
-    osgdb_serializers_osg
-    osgdb_tga)
-
-find_package(ICU REQUIRED COMPONENTS uc i18n data)
-
-add_subdirectory(extern)
-
-# Sound setup
-
-# Require at least FFmpeg 4.0
-SET(FFVER_OK FALSE)
-
-find_package(FFmpeg REQUIRED COMPONENTS AVCODEC AVFORMAT AVUTIL SWSCALE SWRESAMPLE)
-
-if(FFmpeg_FOUND)
-    SET(FFVER_OK TRUE)
-
-    if(FFmpeg_AVFORMAT_VERSION VERSION_LESS "58.12.100")
-        message(STATUS "libavformat is too old! (${FFmpeg_AVFORMAT_VERSION}, wanted 58.12.100)")
-        set(FFVER_OK FALSE)
-    endif()
-    if(FFmpeg_AVCODEC_VERSION VERSION_LESS "58.18.100")
-        message(STATUS "libavcodec is too old! (${FFmpeg_AVCODEC_VERSION}, wanted 58.18.100)")
-        set(FFVER_OK FALSE)
-    endif()
-    if(FFmpeg_AVUTIL_VERSION VERSION_LESS "56.14.100")
-        message(STATUS "libavutil is too old! (${FFmpeg_AVUTIL_VERSION}, wanted 56.14.100)")
-        set(FFVER_OK FALSE)
-    endif()
-    if(FFmpeg_SWSCALE_VERSION VERSION_LESS "5.1.100")
-        message(STATUS "libswscale is too old! (${FFmpeg_SWSCALE_VERSION}, wanted 5.1.100)")
-        set(FFVER_OK FALSE)
-    endif()
-    if(FFmpeg_SWRESAMPLE_VERSION VERSION_LESS "3.1.100")
-        message(STATUS "libswresample is too old! (${FFmpeg_SWRESAMPLE_VERSION}, wanted 3.1.100)")
-        set(FFVER_OK FALSE)
-    endif()
-
-    if(NOT FFVER_OK)
-        message(FATAL_ERROR "FFmpeg version is too old, 4.0 is required" )
-    endif()
-endif()
-
-if(NOT FFmpeg_FOUND)
-    message(FATAL_ERROR "FFmpeg was not found" )
-endif()
-
-# Required for building the FFmpeg headers
-add_compile_definitions(__STDC_CONSTANT_MACROS)
-
-# TinyXML
-option(USE_SYSTEM_TINYXML "Use system TinyXML library instead of internal." OFF)
-if (USE_SYSTEM_TINYXML)
-    find_package(TinyXML REQUIRED)
-    add_compile_definitions(TIXML_USE_STL)
-    include_directories(SYSTEM ${TinyXML_INCLUDE_DIRS})
-endif()
-
-# Platform specific
-if (WIN32)
-    # Get rid of useless crud from windows.h
-    add_compile_definitions(
-        NOMINMAX # name conflict with std::min, std::max
-        WIN32_LEAN_AND_MEAN
-        NOMB # name conflict with MWGui::MessageBox
-        NOGDI # name conflict with osgAnimation::MorphGeometry::RELATIVE
-    )
-
-    # Put Win32 API into UTF-16 mode
-    # We really don't care, but targets linking with Qt 6 (not 5 and earlier) inherit this, and mixing and matching stops us reusing precompiled headers
-    add_compile_definitions(
-        _UNICODE
-        UNICODE
-    )
-endif()
-
-set(REQUIRED_BULLET_VERSION 287) # 287 for btIDebugDraw::clearLines (286 already needed for btCapsuleShape fixes)
-
-# First, try BulletConfig-float64.cmake which comes with Debian derivatives.
-# This file does not define the Bullet version in a CMake-friendly way.
-find_package(Bullet CONFIGS BulletConfig-float64.cmake QUIET COMPONENTS BulletCollision LinearMath)
-if (BULLET_FOUND)
-    string(REPLACE "." "" _bullet_version_num ${BULLET_VERSION_STRING})
-    if (_bullet_version_num VERSION_LESS REQUIRED_BULLET_VERSION)
-        message(FATAL_ERROR "System bullet version too old, OpenMW requires at least ${REQUIRED_BULLET_VERSION}, got ${_bullet_version_num}")
-    endif()
-    # Fix the relative include:
-    set(BULLET_INCLUDE_DIRS "${BULLET_ROOT_DIR}/${BULLET_INCLUDE_DIRS}")
-    include(FindPackageMessage)
-    find_package_message(Bullet "Found Bullet: ${BULLET_LIBRARIES} ${BULLET_VERSION_STRING}" "${BULLET_VERSION_STRING}-float64")
-else()
-    find_package(Bullet ${REQUIRED_BULLET_VERSION} REQUIRED COMPONENTS BulletCollision LinearMath)
-endif()
-
-# Only link the Bullet libraries that we need:
-string(REGEX MATCHALL "((optimized|debug);)?[^;]*(BulletCollision|LinearMath)[^;]*" BULLET_LIBRARIES "${BULLET_LIBRARIES}")
-
-include(cmake/CheckBulletPrecision.cmake)
-if (HAS_DOUBLE_PRECISION_BULLET)
-    message(STATUS "Bullet uses double precision")
-else()
-    message(FATAL_ERROR "Bullet does not uses double precision")
-endif()
-
-if (NOT WIN32 AND BUILD_WIZARD) # windows users can just run the morrowind installer
-    find_package(LIBUNSHIELD REQUIRED) # required only for non win32 when building openmw-wizard
-    set(OPENMW_USE_UNSHIELD TRUE)
-endif()
-
-find_package(Threads REQUIRED)
-
-# Look for stdint.h
-include(CheckIncludeFile)
-check_include_file(stdint.h HAVE_STDINT_H)
-if(NOT HAVE_STDINT_H)
-    unset(HAVE_STDINT_H CACHE)
-    message(FATAL_ERROR "stdint.h was not found" )
-endif()
-
-find_package(OpenSceneGraph 3.6.5 REQUIRED ${USED_OSG_COMPONENTS})  # Bump to 3.6.6 when released
-
-if(OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
-    if(WIN32)
-        set(OSGPlugins_DONT_FIND_DEPENDENCIES 1)
-    endif()
-    find_package(OSGPlugins REQUIRED COMPONENTS ${USED_OSG_PLUGINS})
-
-    foreach(osgplugin ${USED_OSG_PLUGINS})
-        if(NOT TARGET ${osgplugin})
-            add_library(${osgplugin} MODULE IMPORTED)
-            string(TOUPPER ${osgplugin} pluginnameupper)
-            if (${pluginnameupper}_LIBRARY_RELEASE)
-                set_property(TARGET ${osgplugin} APPEND PROPERTY
-                    IMPORTED_CONFIGURATIONS RELEASE
-                )
-                set_target_properties(${osgplugin} PROPERTIES
-                    IMPORTED_LOCATION_RELEASE "${${pluginnameupper}_LIBRARY_RELEASE}"
-                )
-            endif()
-            if (${pluginnameupper}_LIBRARY_DEBUG)
-                set_property(TARGET ${osgplugin} APPEND PROPERTY
-                    IMPORTED_CONFIGURATIONS DEBUG
-                )
-                set_target_properties(${osgplugin} PROPERTIES
-                    IMPORTED_LOCATION_DEBUG "${${pluginnameupper}_LIBRARY_DEBUG}"
-                )
-            endif()
-        endif()
-    endforeach()
-
-    if(WIN32)
-        set(osg_plugin_destination "${CMAKE_INSTALL_BINDIR}")
-    else()
-        set(osg_plugin_destination "${CMAKE_INSTALL_LIBDIR}")
-    endif()
-    install(IMPORTED_RUNTIME_ARTIFACTS ${USED_OSG_PLUGINS} DESTINATION "${osg_plugin_destination}/osgPlugins-${OPENSCENEGRAPH_VERSION}" RUNTIME_DEPENDENCY_SET openmw-dependencies)
-endif()
-
-include_directories(BEFORE SYSTEM ${OPENSCENEGRAPH_INCLUDE_DIRS})
-
-include(cmake/CheckOsgMultiview.cmake)
-if(HAVE_MULTIVIEW)
-    add_compile_definitions(OSG_HAS_MULTIVIEW)
-endif(HAVE_MULTIVIEW)
-
-set(BOOST_COMPONENTS iostreams program_options)
-
-find_package(Boost 1.83.0 CONFIG REQUIRED COMPONENTS ${BOOST_COMPONENTS} OPTIONAL_COMPONENTS ${BOOST_OPTIONAL_COMPONENTS})
-
-find_package(MyGUI 3.4.3 REQUIRED)
-
-# 1.4.329 is the first SDK whose SPIR-V headers name `SPV_KHR_fma`, which the shaders' pinning
-# refuses by name (`Rtx::pinFloatArithmetic`); an older one fails here rather than inside
-# `spirvpin.cpp`.
-find_package(VulkanHeaders 1.4.329 REQUIRED)
-find_package(OpenAL REQUIRED)
-find_package(ZLIB REQUIRED)
-
-option(USE_LUAJIT "Switch Lua/LuaJit (TRUE is highly recommended)" TRUE)
-if(USE_LUAJIT)
-    find_package(LuaJit REQUIRED)
-    set(LUA_INCLUDE_DIR ${LuaJit_INCLUDE_DIR})
-    set(LUA_LIBRARIES ${LuaJit_LIBRARIES})
-else(USE_LUAJIT)
-    find_package(Lua REQUIRED)
-    add_compile_definitions(NO_LUAJIT)
-endif(USE_LUAJIT)
-if (NOT WIN32)
-    include(cmake/CheckLuaCustomAllocator.cmake)
-endif()
-
-# C++ library binding to Lua
-set(SOL_INCLUDE_DIR ${OpenMW_SOURCE_DIR}/extern/sol3)
-set(SOL_CONFIG_DIR ${OpenMW_SOURCE_DIR}/extern/sol_config)
-
-include_directories(
-    BEFORE SYSTEM
-    ${MyGUI_INCLUDE_DIRS}
-    ${OPENAL_INCLUDE_DIR}
-    ${OPENGL_INCLUDE_DIR}
-    ${BULLET_INCLUDE_DIRS}
-    ${LUA_INCLUDE_DIR}
-    ${SOL_INCLUDE_DIR}
-    ${SOL_CONFIG_DIR}
-    ${ICU_INCLUDE_DIRS}
-)
-include_directories(".")
-
-set(OPENMW_RESOURCES_ROOT ${OpenMW_BINARY_DIR})
-
-add_subdirectory(files/)
-
-# Specify build paths
-
-# Technically, CMake defaults to appending $<CONFIG> if no generator expressions are used, but we use this as the installation source, too.
-# It's better to set it definitively in one canonical place and reference that value elsewhere.
-get_generator_is_multi_config(multi_config)
-if (multi_config)
-    SET(RUNTIME_OUTPUT_DIRECTORY "${OpenMW_BINARY_DIR}/$<CONFIG>")
-else ()
-    SET(RUNTIME_OUTPUT_DIRECTORY "${OpenMW_BINARY_DIR}")
 endif ()
 
+# moc and uic one at a time inside each target: Ninja already runs the targets in parallel, and CI
+# measured the nested parallelism slower.
+set(CMAKE_AUTOGEN_PARALLEL 1)
+
+if (MSVC)
+    # Every MSVC option set ahead of the fetched projects is the C and C++ compiler's, and says so: a
+    # directory's options reach each language in it, and MASM, which Crashpad assembles two files with,
+    # reads `/Zc:__cplusplus` as `/Zs`, a syntax check that writes no object.
+    if (OPENMW_MP_BUILD)
+        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/MP>)
+    endif ()
+    # `/bigobj` for sol3's bindings, whose templates pass the default count of sections.
+    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/bigobj> $<$<COMPILE_LANGUAGE:C,CXX>:/Zc:__cplusplus>)
+    # `/Z7`: ccache cannot cache a compile that writes a shared PDB.
+    if (CMAKE_C_COMPILER_LAUNCHER STREQUAL "ccache" OR CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache")
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
+    endif ()
+endif ()
+
+if (OPENMW_LTO_BUILD)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT HAVE_IPO OUTPUT HAVE_IPO_OUTPUT)
+    if (HAVE_IPO)
+        message(STATUS "LTO enabled for Release configuration.")
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+    else ()
+        message(WARNING "Requested option OPENMW_LTO_BUILD not supported by this compiler: ${HAVE_IPO_OUTPUT}")
+    endif ()
+endif ()
+
+include(cmake/Dependencies.cmake)
+include_directories(".")
+
+# Every program and its resources in one folder of the build, which the install copies from.
+set(OPENMW_RESOURCES_ROOT "${PROJECT_BINARY_DIR}")
+get_generator_is_multi_config(multi_config)
+if (multi_config)
+    set(RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/$<CONFIG>")
+else ()
+    set(RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
+endif ()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}")
 
-# Other files
+add_subdirectory(extern)
+add_subdirectory(files)
 
-pack_resource_file(${OpenMW_SOURCE_DIR}/files/settings-default.cfg
-    "${OpenMW_BINARY_DIR}" "defaults.bin")
-
-configure_resource_file(${OpenMW_SOURCE_DIR}/files/openmw.appdata.xml
-    "${OpenMW_BINARY_DIR}" "openmw.appdata.xml")
-
-configure_resource_file(${OpenMW_SOURCE_DIR}/files/openmw.cfg.local
-    "${OpenMW_BINARY_DIR}" "openmw.cfg")
-
-pack_resource_file(${OpenMW_SOURCE_DIR}/files/openmw-cs.cfg
-    "${OpenMW_BINARY_DIR}" "defaults-cs.bin")
-
-# Needs the copy version because the configure version assumes the end of the file has been reached when a null character is reached and there are no CMake expressions to evaluate.
-copy_resource_file(${OpenMW_SOURCE_DIR}/files/opencs/defaultfilters
-    "${OpenMW_BINARY_DIR}" "resources/defaultfilters")
-
-configure_resource_file(${OpenMW_SOURCE_DIR}/files/gamecontrollerdb.txt
-    "${OpenMW_BINARY_DIR}" "gamecontrollerdb.txt")
-
-if (NOT WIN32)
-    configure_file(${OpenMW_SOURCE_DIR}/files/org.openmw.launcher.desktop
-        "${OpenMW_BINARY_DIR}/org.openmw.launcher.desktop")
-    configure_file(${OpenMW_SOURCE_DIR}/files/openmw.appdata.xml
-        "${OpenMW_BINARY_DIR}/openmw.appdata.xml")
-    configure_file(${OpenMW_SOURCE_DIR}/files/org.openmw.cs.desktop
-        "${OpenMW_BINARY_DIR}/org.openmw.cs.desktop")
-endif()
-
-if(OPENMW_LTO_BUILD)
-    include(CheckIPOSupported)
-    check_ipo_supported(RESULT HAVE_IPO OUTPUT HAVE_IPO_OUTPUT)
-    if(HAVE_IPO)
-        message(STATUS "LTO enabled for Release configuration.")
-        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-    else()
-        message(WARNING "Requested option OPENMW_LTO_BUILD not supported by this compiler: ${HAVE_IPO_OUTPUT}")
-        if(MSVC)
-            message(STATUS "Note: Flags used to be set manually for this setting with MSVC. We now rely on CMake for this. Upgrade CMake to at least 3.13 to re-enable this setting.")
-        endif()
-    endif()
-endif()
-
-if (OPENMW_LOCAL_INSTALL AND UNIX)
-    # file(RELATIVE_PATH ...) can't handle pure lexical relativity.
-    cmake_path(RELATIVE_PATH CMAKE_INSTALL_LIBDIR BASE_DIRECTORY "${CMAKE_INSTALL_BINDIR}" OUTPUT_VARIABLE origin_relative_libdir)
-    set(CMAKE_INSTALL_RPATH "$ORIGIN/${origin_relative_libdir}")
-endif()
-
-# Extern
-
-add_subdirectory (extern/osg-ffmpeg-videoplayer)
-add_subdirectory (extern/oics)
-add_subdirectory (extern/Base64)
-if (BUILD_OPENCS OR BUILD_OPENCS_TESTS)
-    add_subdirectory (extern/osgQt)
-endif()
-
-include(cmake/Checks.cmake)
-
-# Components
-add_subdirectory (components)
+add_subdirectory(components)
 
 # The ray tracer's resources, where `components` places the rest. Two shader sets, because the
 # driver keys its cache on the bytes: the renderers read modules without source, which an edited
@@ -568,72 +124,60 @@ set(RTX_SPIRV_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-source")
 # measured one reads: the game's modules carry no census code at all, so they are not here.
 set(RTX_SPIRV_CENSUS_DIR "${RTX_HARNESS_DIR}/shaders-census")
 set(RTX_SPIRV_CENSUS_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-census-source")
-add_subdirectory (components/rtxvulkan)
+add_subdirectory(components/rtxvulkan)
 
-# Apps and tools
 if (BUILD_OPENMW OR BUILD_OPENMW_TESTS)
-    add_subdirectory( apps/openmw )
-endif()
-
-add_subdirectory( apps/rtxtool )
-
+    add_subdirectory(apps/openmw)
+endif ()
+add_subdirectory(apps/rtxtool)
 if (BUILD_BSATOOL)
-    add_subdirectory( apps/bsatool )
-endif()
-
+    add_subdirectory(apps/bsatool)
+endif ()
 if (BUILD_ESMTOOL)
-    add_subdirectory( apps/esmtool )
-endif()
-
+    add_subdirectory(apps/esmtool)
+endif ()
 if (BUILD_LAUNCHER)
-    add_subdirectory( apps/launcher )
-endif()
-
+    add_subdirectory(apps/launcher)
+endif ()
 if (BUILD_MWINIIMPORTER)
-    add_subdirectory( apps/mwiniimporter )
-endif()
-
+    add_subdirectory(apps/mwiniimporter)
+endif ()
 if (BUILD_ESSIMPORTER)
-    add_subdirectory (apps/essimporter )
-endif()
-
+    add_subdirectory(apps/essimporter)
+endif ()
 if (BUILD_OPENCS OR BUILD_OPENCS_TESTS)
-    add_subdirectory (apps/opencs)
-endif()
-
+    add_subdirectory(apps/opencs)
+endif ()
 if (BUILD_WIZARD)
     add_subdirectory(apps/wizard)
-endif()
-
+endif ()
 if (BUILD_NIFTEST)
     add_subdirectory(apps/niftest)
-endif()
-
-if (BUILD_COMPONENTS_TESTS)
-    add_subdirectory(apps/components_tests)
-endif()
-
-if (BUILD_BENCHMARKS)
-    add_subdirectory(apps/benchmarks)
-endif()
-
+endif ()
 if (BUILD_NAVMESHTOOL)
     add_subdirectory(apps/navmeshtool)
-endif()
-
+endif ()
 if (BUILD_BULLETOBJECTTOOL)
     add_subdirectory(apps/bulletobjecttool)
-endif()
-
-if (BUILD_OPENCS_TESTS)
-    add_subdirectory(apps/opencs_tests)
-endif()
-
+endif ()
+if (BUILD_COMPONENTS_TESTS)
+    add_subdirectory(apps/components_tests)
+endif ()
 if (BUILD_OPENMW_TESTS)
     add_subdirectory(apps/openmw_tests)
-endif()
+endif ()
+if (BUILD_OPENCS_TESTS)
+    add_subdirectory(apps/opencs_tests)
+endif ()
+if (BUILD_BENCHMARKS)
+    add_subdirectory(apps/benchmarks)
+endif ()
+if (BUILD_DOCS)
+    add_subdirectory(docs)
+endif ()
 
 include(cmake/Tests.cmake)
+include(cmake/Install.cmake)
 
 # The folders the driver reads (`Build.folder`), written out of the variables that name them: values a
 # build states for a tool outside it, where a cache entry would also be one more route between the
@@ -646,351 +190,3 @@ file(CONFIGURE OUTPUT "${PROJECT_BINARY_DIR}/omw-folders.json" CONTENT [[{
 ]] @ONLY)
 
 openmw_link_checks("${PROJECT_SOURCE_DIR}")
-
-if (WIN32)
-    if (MSVC)
-
-        if (USE_DEBUG_CONSOLE AND BUILD_OPENMW)
-            set_target_properties(openmw PROPERTIES LINK_FLAGS_DEBUG "/SUBSYSTEM:CONSOLE")
-            set_target_properties(openmw PROPERTIES LINK_FLAGS_RELWITHDEBINFO "/SUBSYSTEM:CONSOLE")
-        elseif (BUILD_OPENMW)
-            # Turn off implicit console, you won't see stdout unless launching OpenMW from a command line shell or look at openmw.log
-            set_target_properties(openmw PROPERTIES LINK_FLAGS_DEBUG "/SUBSYSTEM:WINDOWS")
-            set_target_properties(openmw PROPERTIES LINK_FLAGS_RELWITHDEBINFO "/SUBSYSTEM:WINDOWS")
-        endif()
-
-        if (BUILD_OPENMW)
-            # Release builds don't use the debug console
-            set_target_properties(openmw PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS")
-            set_target_properties(openmw PROPERTIES LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:WINDOWS")
-        endif()
-
-        if (MSVC_VERSION GREATER_EQUAL 1915 AND MSVC_VERSION LESS 1920)
-            target_compile_definitions(openmw-components INTERFACE _ENABLE_EXTENDED_ALIGNED_STORAGE)
-        endif()
-    endif(MSVC)
-endif()
-
-
-# Core CPACK Setup
-set(CPACK_PACKAGE_VERSION ${OPENMW_VERSION})
-set(CPACK_PACKAGE_VERSION_MAJOR ${OPENMW_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${OPENMW_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${OPENMW_VERSION_RELEASE})
-set(CPACK_PACKAGE_NAME "OpenMW")
-set(CPACK_PACKAGE_VENDOR "OpenMW.org")
-set(CUSTOM_CPACK_OS_NAME "")
-set(CUSTOM_CPACK_ARCHITECTURE "")
-
-set(CUSTOM_CPACK_LABEL "" CACHE STRING "Override CPack package label. If blank, CPACK_PACKAGE_VERSION will be used.")
-if (CUSTOM_CPACK_LABEL)
-    set(_custom_cpack_label "${CUSTOM_CPACK_LABEL}")
-else ()
-    set(_custom_cpack_label "${CPACK_PACKAGE_VERSION}")
-endif ()
-
-if(WIN32)
-    set(CUSTOM_CPACK_OS_NAME "Windows")
-elseif(UNIX)
-    set(CUSTOM_CPACK_OS_NAME "Linux")
-else()
-    set(CUSTOM_CPACK_OS_NAME "${CMAKE_SYSTEM_NAME}")
-endif()
-
-if(WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
-    set(CUSTOM_CPACK_ARCHITECTURE "x64")
-else()
-    set(CUSTOM_CPACK_ARCHITECTURE "${CMAKE_SYSTEM_PROCESSOR}")
-endif()
-
-set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${_custom_cpack_label}-${CUSTOM_CPACK_OS_NAME}-${CUSTOM_CPACK_ARCHITECTURE}")
-
-# The licences of what the fork compiles into the binaries, beside the GPL's own text: each asks for
-# its notice in every copy, binaries included, but SDL's zlib, which goes in so that no licence of
-# what is compiled in is missing. `files/licenses` holds each text as its source ships it, and
-# FidelityFX's stays with its headers.
-function(install_fork_licenses destination)
-    install(FILES "${OpenMW_SOURCE_DIR}/extern/fidelityfx/LICENSE.txt" DESTINATION "${destination}" RENAME "FidelityFX-SDK.txt")
-    install(FILES "${OpenMW_SOURCE_DIR}/files/licenses/VulkanMemoryAllocator.txt"
-        "${OpenMW_SOURCE_DIR}/files/licenses/volk.txt" "${OpenMW_SOURCE_DIR}/files/licenses/SDL3.txt"
-        "${OpenMW_SOURCE_DIR}/files/licenses/rgbcx.txt" "${OpenMW_SOURCE_DIR}/files/licenses/bc7enc.txt"
-        DESTINATION "${destination}")
-    if (OPENMW_CRASHPAD)
-        install(DIRECTORY "${OpenMW_SOURCE_DIR}/files/licenses/crashpad/" DESTINATION "${destination}/crashpad")
-    endif()
-endfunction()
-
-if (OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
-    if (UNIX)
-        set(pre_exclude_regexes
-            ^libopenal.so.*
-        )
-        set(post_exclude_regexes
-            ^/lib64/
-            ^/usr/lib64/
-        )
-        set(directories)
-    elseif (WIN32)
-        # CMake thinks some dummy DLL names are real so explodes unless we manually pre-exclude every possible system DLL
-        # https://discourse.cmake.org/t/get-runtime-dependencies-has-difficulties-with-windows-api-sets/1768/23
-        set(pre_exclude_regexes
-            ^msvcp.*\\.dll$
-            ^vcruntime.*\\.dll$
-            ^api-ms-win-.*
-            ^ext-ms-.*
-            ^hvsifiletrust\\.dll$
-            ^pdmutilities\\.dll$
-        )
-        set(systemroot "$ENV{SystemRoot}")
-        # documentation says to use lower-case regex, but drive letter is upper-case and I can't be bothered preserving the case of just one character right now
-        #string(TOLOWER "${systemroot}" systemroot)
-        cmake_path(NORMAL_PATH systemroot)
-        escape_regex_control_characters(systemroot "${systemroot}")
-        set(post_exclude_regexes ^${systemroot}/)
-        # CMP0207 will avoid the need for this
-        string(REPLACE "/" "(/|\\\\)" post_exclude_regexes "${post_exclude_regexes}")
-        set(directories "${RUNTIME_OUTPUT_DIRECTORY}")
-
-        # **The C++ runtime the binaries were built against, beside them**, from the toolset that
-        # built them: the fork ships a portable folder and not upstream's installer, which ran the
-        # redistributable. The application's folder is searched before the system's, so an older
-        # runtime installed system-wide, inside whose `std::mutex::lock` binaries of MSVC 17.10 and
-        # later fault, is never the one loaded. The universal CRT is the system's from Windows 10 on.
-        set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION "${CMAKE_INSTALL_BINDIR}")
-        set(CMAKE_INSTALL_UCRT_LIBRARIES OFF)
-        include(InstallRequiredSystemLibraries)
-    endif ()
-    install(RUNTIME_DEPENDENCY_SET openmw-dependencies
-        PRE_EXCLUDE_REGEXES ${pre_exclude_regexes}
-        POST_EXCLUDE_REGEXES ${post_exclude_regexes}
-        DIRECTORIES ${directories}
-    )
-endif ()
-
-if(WIN32)
-    # this just deals with Qt plugins now as if we get windeployqt.exe to do it, it adds things we don't need like ANGLE
-    INSTALL(DIRECTORY
-            "${RUNTIME_OUTPUT_DIRECTORY}/iconengines"
-            "${RUNTIME_OUTPUT_DIRECTORY}/imageformats"
-            "${RUNTIME_OUTPUT_DIRECTORY}/platforms"
-            "${RUNTIME_OUTPUT_DIRECTORY}/styles"
-            "${RUNTIME_OUTPUT_DIRECTORY}/tls"
-        DESTINATION "." FILES_MATCHING PATTERN "*.dll")
-    INSTALL(DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}/" DESTINATION "." CONFIGURATIONS Debug;RelWithDebInfo FILES_MATCHING PATTERN "*.pdb"
-                                                                                                                        PATTERN ".cmake" EXCLUDE
-                                                                                                                        PATTERN ".qt" EXCLUDE
-                                                                                                                        PATTERN "_CPack_Packages" EXCLUDE
-                                                                                                                        PATTERN "_deps" EXCLUDE
-                                                                                                                        PATTERN "apps" EXCLUDE
-                                                                                                                        PATTERN "bin" EXCLUDE
-                                                                                                                        PATTERN "CMakeFiles" EXCLUDE
-                                                                                                                        PATTERN "components" EXCLUDE
-                                                                                                                        PATTERN "deps" EXCLUDE
-                                                                                                                        PATTERN "docs" EXCLUDE
-                                                                                                                        PATTERN "extern" EXCLUDE
-                                                                                                                        PATTERN "files" EXCLUDE
-                                                                                                                        PATTERN "lib" EXCLUDE
-                                                                                                                        PATTERN "SymStore" EXCLUDE
-                                                                                                                        PATTERN "symstore-venv" EXCLUDE
-                                                                                                                        PATTERN "Testing" EXCLUDE
-                                                                                                                        PATTERN "tests_output" EXCLUDE
-                                                                                                                        PATTERN "try-compile" EXCLUDE)
-
-    SET(CPACK_GENERATOR "NSIS")
-    SET(CPACK_PACKAGE_EXECUTABLES "openmw;OpenMW")
-    IF(BUILD_LAUNCHER)
-        SET(CPACK_PACKAGE_EXECUTABLES "${CPACK_PACKAGE_EXECUTABLES};openmw-launcher;OpenMW Launcher")
-    ENDIF(BUILD_LAUNCHER)
-    IF(BUILD_OPENCS)
-        SET(CPACK_PACKAGE_EXECUTABLES "${CPACK_PACKAGE_EXECUTABLES};openmw-cs;OpenMW Construction Set")
-    ENDIF(BUILD_OPENCS)
-    IF(BUILD_WIZARD)
-        SET(CPACK_PACKAGE_EXECUTABLES "${CPACK_PACKAGE_EXECUTABLES};openmw-wizard;OpenMW Wizard")
-    ENDIF(BUILD_WIZARD)
-    SET(CPACK_NSIS_CREATE_ICONS_EXTRA "CreateShortCut '\$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\Readme.lnk' '\$INSTDIR\\\\README.txt'")
-    SET(CPACK_NSIS_DELETE_ICONS_EXTRA "
-        !insertmacro MUI_STARTMENU_GETFOLDER Application $MUI_TEMP
-        Delete \\\"$SMPROGRAMS\\\\$MUI_TEMP\\\\Readme.lnk\\\"
-        ")
-    SET(CPACK_RESOURCE_FILE_README "${OpenMW_SOURCE_DIR}/README.md")
-    SET(CPACK_PACKAGE_DESCRIPTION_FILE "${OpenMW_SOURCE_DIR}/README.md")
-    SET(CPACK_NSIS_EXECUTABLES_DIRECTORY ".")
-    SET(CPACK_NSIS_DISPLAY_NAME "OpenMW ${OPENMW_VERSION}")
-    SET(CPACK_NSIS_HELP_LINK "https:\\\\\\\\www.openmw.org")
-    SET(CPACK_NSIS_URL_INFO_ABOUT "https:\\\\\\\\www.openmw.org")
-    SET(CPACK_NSIS_INSTALLED_ICON_NAME "openmw-launcher.exe")
-    SET(CPACK_NSIS_MUI_FINISHPAGE_RUN "openmw-launcher.exe")
-    SET(CPACK_NSIS_MUI_ICON "${OpenMW_SOURCE_DIR}/files/windows/openmw.ico")
-    SET(CPACK_NSIS_MUI_UNIICON "${OpenMW_SOURCE_DIR}/files/windows/openmw.ico")
-    SET(CPACK_PACKAGE_ICON "${OpenMW_SOURCE_DIR}\\\\files\\\\openmw.bmp")
-
-    SET(VCREDIST64 "${OpenMW_BINARY_DIR}/vcredist_x64.exe" CACHE FILEPATH "Path to vcredist_x64.exe")
-    if(EXISTS ${VCREDIST64})
-        INSTALL(FILES ${VCREDIST64} DESTINATION "redist")
-        get_filename_component(REDIST_FILENAME "${VCREDIST64}" NAME)
-        SET(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
-            ExecWait '\\\"$INSTDIR\\\\redist\\\\${REDIST_FILENAME}\\\" /q /norestart'
-            RMDir /r \\\"$INSTDIR\\\\redist\\\"
-            ")
-    endif(EXISTS ${VCREDIST64})
-
-    if(CMAKE_CL_64)
-        SET(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
-    endif()
-
-else(WIN32)
-    # Linux installation
-
-    # Install icon and desktop file
-    INSTALL(FILES "${OpenMW_BINARY_DIR}/org.openmw.launcher.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications" COMPONENT "openmw")
-    INSTALL(FILES "${OpenMW_SOURCE_DIR}/files/launcher/images/openmw.png" DESTINATION "${ICONDIR}" COMPONENT "openmw")
-    INSTALL(FILES "${OpenMW_BINARY_DIR}/openmw.appdata.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo" COMPONENT "openmw")
-    IF(BUILD_OPENCS)
-        INSTALL(FILES "${OpenMW_BINARY_DIR}/org.openmw.cs.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications" COMPONENT "opencs")
-        INSTALL(FILES "${OpenMW_SOURCE_DIR}/files/opencs/openmw-cs.png" DESTINATION "${ICONDIR}" COMPONENT "opencs")
-    ENDIF(BUILD_OPENCS)
-
-endif(WIN32)
-
-install(FILES "${OpenMW_SOURCE_DIR}/CHANGELOG.md" TYPE DOC)
-install(FILES "${OpenMW_SOURCE_DIR}/README.md" TYPE DOC)
-install(FILES "${OpenMW_SOURCE_DIR}/LICENSE" TYPE DOC RENAME "LICENSE.txt")
-install(FILES "${OpenMW_SOURCE_DIR}/AUTHORS.md" TYPE DOC)
-install_fork_licenses("${CMAKE_INSTALL_DOCDIR}/licenses")
-
-install(FILES "${RUNTIME_OUTPUT_DIRECTORY}/CI-ID.txt" TYPE DOC OPTIONAL)
-
-install(FILES "${RUNTIME_OUTPUT_DIRECTORY}/defaults.bin"
-              "${RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt"
-              TYPE SYSCONF)
-
-if (OPENMW_LOCAL_INSTALL)
-    install(FILES "${OpenMW_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg")
-else ()
-    configure_file("${OpenMW_SOURCE_DIR}/files/openmw.cfg" "openmw.cfg.install")
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openmw.cfg.install" TYPE SYSCONF RENAME "openmw.cfg")
-endif ()
-
-install(DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}/resources" TYPE DATA)
-
-include(CPack)
-
-# what is necessary to build documentation
-if ( BUILD_DOCS )
-    # Builds the documentation.
-    FIND_PACKAGE( Sphinx REQUIRED )
-    FIND_PACKAGE( Doxygen REQUIRED )
-
-    # Doxygen Target -- simply run 'make doc' or 'make doc_pages'
-    # output directory for 'make doc'       is "${OpenMW_BINARY_DIR}/docs/Doxygen"
-    # output directory for 'make doc_pages' is "${DOXYGEN_PAGES_OUTPUT_DIR}" if defined
-    #                                       or "${OpenMW_BINARY_DIR}/docs/Pages" otherwise
-
-    # determine output directory for doc_pages
-    if (NOT DEFINED DOXYGEN_PAGES_OUTPUT_DIR)
-        set(DOXYGEN_PAGES_OUTPUT_DIR "${OpenMW_BINARY_DIR}/docs/Pages")
-    endif ()
-    configure_file(${OpenMW_SOURCE_DIR}/docs/Doxyfile.cmake ${OpenMW_BINARY_DIR}/docs/Doxyfile @ONLY)
-    configure_file(${OpenMW_SOURCE_DIR}/docs/DoxyfilePages.cmake ${OpenMW_BINARY_DIR}/docs/DoxyfilePages @ONLY)
-    add_custom_target(doc
-        ${DOXYGEN_EXECUTABLE} ${OpenMW_BINARY_DIR}/docs/Doxyfile
-        WORKING_DIRECTORY ${OpenMW_BINARY_DIR}
-        COMMENT "Generating Doxygen documentation at ${OpenMW_BINARY_DIR}/docs/Doxygen"
-        VERBATIM)
-    add_custom_target(doc_pages
-        ${DOXYGEN_EXECUTABLE} ${OpenMW_BINARY_DIR}/docs/DoxyfilePages
-        WORKING_DIRECTORY ${OpenMW_BINARY_DIR}
-        COMMENT "Generating documentation for the github-pages at ${DOXYGEN_PAGES_OUTPUT_DIR}" VERBATIM)
-endif ()
-
-# Qt localization
-if (USE_QT)
-    file(GLOB LAUNCHER_TS_FILES ${CMAKE_SOURCE_DIR}/files/lang/launcher_*.ts)
-    file(GLOB WIZARD_TS_FILES ${CMAKE_SOURCE_DIR}/files/lang/wizard_*.ts)
-    file(GLOB COMPONENTS_TS_FILES ${CMAKE_SOURCE_DIR}/files/lang/components_*.ts)
-    get_target_property(QT_LUPDATE_EXECUTABLE Qt::lupdate IMPORTED_LOCATION)
-    add_custom_target(translations
-        COMMAND ${QT_LUPDATE_EXECUTABLE} -locations none ${CMAKE_SOURCE_DIR}/components/contentselector ${CMAKE_SOURCE_DIR}/components/process -ts ${COMPONENTS_TS_FILES}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/components
-        VERBATIM
-        COMMAND_EXPAND_LISTS
-        BYPRODUCTS ${COMPONENTS_TS_FILES}
-
-        COMMAND ${QT_LUPDATE_EXECUTABLE} -locations none ${CMAKE_SOURCE_DIR}/apps/wizard -ts ${WIZARD_TS_FILES}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/apps/wizard
-        VERBATIM
-        COMMAND_EXPAND_LISTS
-        BYPRODUCTS ${WIZARD_TS_FILES}
-
-        COMMAND ${QT_LUPDATE_EXECUTABLE} -locations none ${CMAKE_SOURCE_DIR}/apps/launcher -ts ${LAUNCHER_TS_FILES}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/apps/launcher
-        VERBATIM
-        COMMAND_EXPAND_LISTS
-        BYPRODUCTS ${LAUNCHER_TS_FILES}
-    )
-
-    add_custom_target(purge-obsolete-translations
-        COMMAND ${QT_LUPDATE_EXECUTABLE} -locations none -no-obsolete ${CMAKE_SOURCE_DIR}/components/contentselector ${CMAKE_SOURCE_DIR}/components/process -ts ${COMPONENTS_TS_FILES}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/components
-        VERBATIM
-        COMMAND_EXPAND_LISTS
-
-        COMMAND ${QT_LUPDATE_EXECUTABLE} -locations none -no-obsolete ${CMAKE_SOURCE_DIR}/apps/wizard -ts ${WIZARD_TS_FILES}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/apps/wizard
-        VERBATIM
-        COMMAND_EXPAND_LISTS
-
-        COMMAND ${QT_LUPDATE_EXECUTABLE} -locations none -no-obsolete ${CMAKE_SOURCE_DIR}/apps/launcher -ts ${LAUNCHER_TS_FILES}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/apps/launcher
-        VERBATIM
-        COMMAND_EXPAND_LISTS
-    )
-
-    if (BUILD_LAUNCHER OR BUILD_WIZARD)
-        get_generator_is_multi_config(multi_config)
-        if (multi_config)
-            set(QT_OPENMW_TRANSLATIONS_PATH "${OpenMW_BINARY_DIR}/$<CONFIG>/resources/translations")
-        else ()
-            set(QT_OPENMW_TRANSLATIONS_PATH "${OpenMW_BINARY_DIR}/resources/translations")
-        endif ()
-
-        file(GLOB TS_FILES ${COMPONENTS_TS_FILES})
-
-        if (BUILD_LAUNCHER)
-            set(TS_FILES ${TS_FILES} ${LAUNCHER_TS_FILES})
-        endif ()
-
-        if (BUILD_WIZARD)
-            set(TS_FILES ${TS_FILES} ${WIZARD_TS_FILES})
-        endif ()
-
-        qt_add_translation(QM_FILES ${TS_FILES} OPTIONS -silent)
-
-        if (DEPLOY_QT_TRANSLATIONS)
-            # Once we set a Qt 6.2.0 as a minimum required version, we may use "qtpaths --qt-query" instead.
-            get_target_property(QT_QMAKE_EXECUTABLE Qt::qmake IMPORTED_LOCATION)
-            execute_process(COMMAND "${QT_QMAKE_EXECUTABLE}" -query QT_INSTALL_TRANSLATIONS
-                OUTPUT_VARIABLE QT_TRANSLATIONS_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-            foreach(QM_FILE ${QM_FILES})
-                get_filename_component(QM_BASENAME ${QM_FILE} NAME)
-                string(REGEX REPLACE "[^_]+_(.*)\\.qm" "\\1" LANG_NAME ${QM_BASENAME})
-                if (EXISTS "${QT_TRANSLATIONS_DIR}/qtbase_${LANG_NAME}.qm")
-                    set(QM_FILES ${QM_FILES} "${QT_TRANSLATIONS_DIR}/qtbase_${LANG_NAME}.qm")
-                elseif (EXISTS "${QT_TRANSLATIONS_DIR}/qt_${LANG_NAME}.qm")
-                    set(QM_FILES ${QM_FILES} "${QT_TRANSLATIONS_DIR}/qt_${LANG_NAME}.qm")
-                else ()
-                    message(FATAL_ERROR "Qt translations for '${LANG_NAME}' locale are not found in the '${QT_TRANSLATIONS_DIR}' folder.")
-                endif ()
-            endforeach(QM_FILE)
-
-            list(REMOVE_DUPLICATES QM_FILES)
-        endif ()
-
-        add_custom_target(qm-files
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${QT_OPENMW_TRANSLATIONS_PATH}
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${QM_FILES} ${QT_OPENMW_TRANSLATIONS_PATH}
-            DEPENDS ${QM_FILES}
-            COMMENT "Copy *.qm files to resources folder")
-    endif ()
-endif()

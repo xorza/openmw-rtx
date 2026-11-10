@@ -1,4 +1,4 @@
-set(TMP_ROOT ${CMAKE_BINARY_DIR}/try-compile)
+set(TMP_ROOT ${PROJECT_BINARY_DIR}/try-compile)
 file(MAKE_DIRECTORY ${TMP_ROOT})
 
 file(WRITE ${TMP_ROOT}/checkluacustomallocator.c

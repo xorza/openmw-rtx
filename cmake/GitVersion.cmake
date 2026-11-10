@@ -1,6 +1,10 @@
+# Run as a script at every build of a Git checkout (`get-version` in `components/CMakeLists.txt`): the
+# commit and the latest tag into the version file and `version.cpp`. `SOURCE_DIR` is the tree,
+# `BINARY_DIR` the build.
+
 execute_process (
     COMMAND ${GIT_EXECUTABLE} rev-list --tags --max-count=1
-    WORKING_DIRECTORY ${OpenMW_SOURCE_DIR}
+    WORKING_DIRECTORY ${SOURCE_DIR}
     RESULT_VARIABLE EXITCODE1
     OUTPUT_VARIABLE TAGHASH
     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -8,7 +12,7 @@ execute_process (
 
 execute_process (
     COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
-    WORKING_DIRECTORY ${OpenMW_SOURCE_DIR}
+    WORKING_DIRECTORY ${SOURCE_DIR}
     RESULT_VARIABLE EXITCODE2
     OUTPUT_VARIABLE COMMITHASH
     OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -28,5 +32,5 @@ endif ()
 
 include(${MACROSFILE})
 
-configure_resource_file(${VERSION_RESOURCE_FILE_IN} ${OpenMW_BINARY_DIR} ${VERSION_RESOURCE_FILE_RELATIVE})
+configure_resource_file(${VERSION_RESOURCE_FILE_IN} ${BINARY_DIR} ${VERSION_RESOURCE_FILE_RELATIVE})
 configure_file("${VERSION_CPP_FILE_IN}" "${VERSION_CPP_FILE_OUT}")

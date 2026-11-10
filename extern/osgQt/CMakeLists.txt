@@ -20,5 +20,3 @@ target_include_directories(${OSGQT_LIBRARY} SYSTEM PUBLIC include)
 target_include_directories(${OSGQT_LIBRARY} PRIVATE include/osgQt)
 
 target_link_libraries(${OSGQT_LIBRARY} Qt::Core Qt::OpenGL Qt::OpenGLWidgets)
-
-set(EXTERN_OSGQT_LIBRARY ${OSGQT_LIBRARY} PARENT_SCOPE)

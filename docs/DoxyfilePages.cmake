@@ -573,10 +573,10 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories
 # with spaces.
 
-INPUT                  = @OpenMW_SOURCE_DIR@/apps \
-                         @OpenMW_SOURCE_DIR@/components \
-                         @OpenMW_SOURCE_DIR@/libs \
-                         @OpenMW_BINARY_DIR@/docs/mainpage.hpp
+INPUT                  = @PROJECT_SOURCE_DIR@/apps \
+                         @PROJECT_SOURCE_DIR@/components \
+                         @PROJECT_SOURCE_DIR@/libs \
+                         @PROJECT_BINARY_DIR@/docs/mainpage.hpp
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding, which is
