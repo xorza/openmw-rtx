@@ -8,7 +8,6 @@ class UnlistedTest(unittest.TestCase):
         tracked = [
             "apps/openmw/engine.cpp",
             "apps/openmw/forgotten.cpp",
-            "apps/openmw/androidmain.cpp",
             "apps/opencs/main.cpp",
             "components/misc/rng.cpp",
             "components/misc/forgotten.cpp",
@@ -24,7 +23,7 @@ class UnlistedTest(unittest.TestCase):
             "extern/oics/tinyxml.cpp",
         ]
         # The CS compiled nothing, so its program is off in this flavour; a header is no source; a
-        # file of another system, Android's entry, the generator and the other catcher are excused.
+        # file of another system, the generator and the other catcher are excused.
         # The system decides which half of a pair is the other's: each build compiles its own.
         # The wizard's unshield half is Windows's to leave out, and every other system's to build. A
         # facility only Linux has is a `linux` file and its absence a `none` one, each the other's.

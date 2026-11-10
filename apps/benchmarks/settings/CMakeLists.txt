@@ -4,7 +4,7 @@ target_link_libraries(openmw_settings_access_benchmark benchmark::benchmark comp
 target_compile_definitions(openmw_settings_access_benchmark
     PRIVATE OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}")
 
-if (UNIX AND NOT APPLE)
+if (UNIX)
     target_link_libraries(openmw_settings_access_benchmark ${CMAKE_THREAD_LIBS_INIT})
 endif()
 

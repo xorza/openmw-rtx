@@ -80,18 +80,18 @@ def misnamed(names: list[str]) -> list[str]:
 
 
 def _cmake() -> list[str]:
-    """`CI/check_cmake_format.sh`'s rule: the top-level `CMakeLists.txt` and every `.cmake` file, as
-    its pathspecs name them."""
+    """Upstream's rule for the top-level `CMakeLists.txt` and every `.cmake` file: indented with
+    spaces."""
     return [line for name in working_tree_files(":(exclude)extern/", "CMakeLists.txt", "*.cmake")
             for line in tabbed(name, read_text(ROOT / name))]
 
 
 def _names() -> list[str]:
-    """`CI/check_file_names.sh`'s rule."""
+    """Upstream's rule for the names of sources (`misnamed`)."""
     return misnamed(working_tree_files(*CXX_SOURCES))
 
 
-# What `CI/check_qt_translations.sh` regenerates: the sources each set of translations is read out of.
+# The sources each set of translations is read out of.
 TRANSLATIONS = (
     (["apps/wizard"], "wizard_*.ts"),
     (["apps/launcher"], "launcher_*.ts"),
@@ -109,9 +109,8 @@ def _lupdate() -> str:
 
 
 def _translations() -> list[str]:
-    """`CI/check_qt_translations.sh`'s rule — the translations regenerated from their sources do not
-    change — **on copies**, where the script regenerates the tree's own files and reads `git diff`,
-    which a tree with any change at all fails."""
+    """The translations regenerated from their sources do not change, **on copies**: regenerating the
+    tree's own files and reading `git diff` fails a tree with any change at all."""
     lupdate = _lupdate()
     found = []
     with tempfile.TemporaryDirectory(prefix="omw-lint-") as scratch:

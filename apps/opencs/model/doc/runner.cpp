@@ -57,13 +57,6 @@ void CSMDoc::Runner::start(bool delayed)
         path.append(QLatin1String(".exe"));
 #endif
         QDir dir(QCoreApplication::applicationDirPath());
-#ifdef Q_OS_MAC
-        // the CS and engine are in separate .app directories
-        dir.cdUp();
-        dir.cdUp();
-        dir.cdUp();
-        path.prepend("OpenMW.app/Contents/MacOS/");
-#endif
         path = dir.absoluteFilePath(path);
 
         mStartup = new QTemporaryFile(this);

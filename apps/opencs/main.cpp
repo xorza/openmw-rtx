@@ -16,10 +16,6 @@
 #include "model/world/disabletag.hpp"
 #include "model/world/universalid.hpp"
 
-#ifdef Q_OS_MAC
-#include <QDir>
-#endif
-
 Q_DECLARE_METATYPE(std::string)
 
 class QEvent;
@@ -42,10 +38,6 @@ void setQSurfaceFormat()
 int runApplication(int argc, char* argv[])
 {
     Platform::init();
-
-#ifdef Q_OS_MAC
-    setenv("OSG_GL_TEXTURE_STORAGE", "OFF", 0);
-#endif
 
     Q_INIT_RESOURCE(resources);
 

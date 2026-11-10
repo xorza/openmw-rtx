@@ -23,9 +23,9 @@ if [ -f "$mirrors" ]; then
   fi
 fi
 
-"$here/install_debian_deps.sh" gcc openmw-deps openmw-deps-dynamic
+"$here/install_debian_deps.sh" gcc openmw-deps
 
-# Without a PPA's index, apt installs Ubuntu's own recastnavigation, MyGUI and OpenSceneGraph, which
+# Without a PPA's index, apt installs Ubuntu's own MyGUI and OpenSceneGraph, which
 # the configure step refuses minutes later without naming the cause.
 for ppa in openmw openmw-daily staging; do
   if ! compgen -G "/var/lib/apt/lists/ppa.launchpadcontent.net_openmw_${ppa}_ubuntu_dists_*_InRelease" >/dev/null; then

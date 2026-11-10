@@ -160,7 +160,7 @@ endif()
 include(crashcatcher/tests.cmake)
 
 # Fix for not visible pthreads functions for linker with glibc 2.15
-if (UNIX AND NOT APPLE)
+if (UNIX)
     target_link_libraries(components-tests ${CMAKE_THREAD_LIBS_INIT})
 endif()
 

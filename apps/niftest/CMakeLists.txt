@@ -21,9 +21,7 @@ if (BUILD_WITH_CODE_COVERAGE)
     target_link_libraries(niftest gcov)
 endif()
 
-if (NOT APPLE)
-    install(TARGETS niftest ${runtime_dependency_arguments})
-endif()
+install(TARGETS niftest ${runtime_dependency_arguments})
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(niftest REUSE_FROM components)

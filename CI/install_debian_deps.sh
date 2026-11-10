@@ -10,23 +10,6 @@ print_help() {
 
 declare -rA GROUPED_DEPS=(
   [gcc]="binutils gcc build-essential cmake ccache curl unzip git pkg-config mold"
-  [clang]="binutils clang make cmake ccache curl unzip git pkg-config mold"
-  [coverity]="binutils clang make cmake ccache curl unzip git pkg-config file"
-  [coverity_upload]="curl"
-  [gcc_preprocess]="
-    binutils
-    build-essential
-    clang
-    cmake
-    curl
-    gcc
-    git
-    libclang-dev
-    ninja-build
-    python3-clang
-    python3-pip
-    unzip
-  "
 
   # Common dependencies for building OpenMW.
   [openmw-deps]="
@@ -36,80 +19,9 @@ declare -rA GROUPED_DEPS=(
     libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
     libsdl2-dev libqt6opengl6-dev qt6-tools-dev qt6-tools-dev-tools libopenal-dev
     libunshield-dev libtinyxml-dev libbullet-dev liblz4-dev libpng-dev libjpeg-dev
-    libluajit-5.1-dev librecast-dev ca-certificates libicu-dev
+    libluajit-5.1-dev ca-certificates libicu-dev
     libyaml-cpp-dev libqt6svg6 libqt6svg6-dev
-  "
-
-  # These dependencies can alternatively be built and linked statically.
-  [openmw-deps-dynamic]="libmygui-dev libopenscenegraph-dev libcollada-dom-dev"
-  [clang-tidy]="clang-tidy-19"
-
-  # Pre-requisites for building MyGUI and OSG for static linking.
-  #
-  # * MyGUI and OSG: libsdl2-dev liblz4-dev libfreetype6-dev
-  # * OSG: libgl-dev
-  #
-  #   Plugins:
-  #   * DAE: libcollada-dom-dev libboost-system-dev libboost-filesystem-dev
-  #   * JPEG: libjpeg-dev
-  #   * PNG: libpng-dev
-  [openmw-deps-static]="
-    libcollada-dom-dev libfreetype6-dev libjpeg-dev libpng-dev
-    libsdl2-dev libboost-system-dev libboost-filesystem-dev libgl-dev
-  "
-
-  [openmw-coverage]="pipx"
-
-  [openmw-integration-tests]="
-    ca-certificates
-    gdb
-    git
-    git-lfs
-    libavcodec60
-    libavformat60
-    libavutil58
-    libboost-iostreams1.83.0
-    libboost-program-options1.83.0
-    libboost-system1.83.0
-    libbullet3.24
-    libbullet3.24t64-dbgsym
-    libc6-dbg
-    libcollada-dom2.5-dp0
-    libicu74
-    libjpeg8
-    libluajit-5.1-2
-    liblz4-1
-    libmyguiengine3debian1v5
-    libmyguiengine3debian1v5-dbgsym
-    libopenal1
-    libopenscenegraph162
-    libopenscenegraph162-dbgsym
-    libopenthreads21-dbgsym
-    libpng16-16
-    libqt6opengl6
-    librecast1
-    libsdl2-2.0-0
-    libswresample4
-    libswscale7
-    libtinyxml2.6.2v5
-    libyaml-cpp0.8
-    python3-pip
-    xvfb
-  "
-
-  [libasan]="libasan8"
-
-  [android]="binutils build-essential cmake ccache curl unzip git pkg-config"
-
-  [openmw-clang-format]="
-    clang-format-14
-    git-core
-  "
-
-  [openmw-qt-translations]="
-    qt6-tools-dev
-    qt6-tools-dev-tools
-    git-core
+    libmygui-dev libopenscenegraph-dev libcollada-dom-dev
   "
 )
 
@@ -149,28 +61,6 @@ done
 while true; do
   add-apt-repository -y ppa:openmw/staging && break
 done
-
-if [[ "${ENABLE_DEBUG_ARCHIVES:-}" ]]; then
-  apt-get -qq -o dir::cache::archives="$APT_CACHE_DIR" install -y --no-install-recommends ubuntu-dbgsym-keyring >/dev/null
-
-  codename="$(. /etc/os-release && echo "${VERSION_CODENAME}")"
-
-  cat > /etc/apt/sources.list.d/ddebs.list <<EOF
-deb http://ddebs.ubuntu.com ${codename} main universe
-deb http://ddebs.ubuntu.com ${codename}-updates main universe
-EOF
-
-  for file in \
-      "/etc/apt/sources.list.d/openmw-ubuntu-openmw-${codename}.sources" \
-      "/etc/apt/sources.list.d/openmw-ubuntu-openmw-daily-${codename}.sources" \
-      "/etc/apt/sources.list.d/openmw-ubuntu-staging-${codename}.sources"; do
-    sed -i 's,^Components: main$,Components: main main/debug,' "${file}"
-  done
-
-  while true; do
-    apt-get update -yqq && break
-  done
-fi
 
 apt-get -qq -o dir::cache::archives="$APT_CACHE_DIR" install -y --no-install-recommends "${deps[@]}" >/dev/null
 apt list --installed

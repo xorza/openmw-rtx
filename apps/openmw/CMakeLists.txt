@@ -15,7 +15,7 @@ set(OPENMW_HEADERS
     profile.hpp
 )
 
-source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPENMW_HEADERS} ${OPENMW_RESOURCES})
+source_group(apps/openmw FILES main.cpp ${OPENMW_SOURCES} ${OPENMW_HEADERS} ${OPENMW_RESOURCES})
 
 add_openmw_dir (mwrender
     actors objects renderingmanager animation rotatecontroller sky skyutil npcanimation esm4npcanimation vismask
@@ -159,18 +159,10 @@ if (MSVC)
 endif()
 
 if(BUILD_OPENMW)
-    if (ANDROID)
-        add_library(openmw SHARED
-            main.cpp
-            androidmain.cpp
-        )
-    else()
-        openmw_add_executable(openmw
-            ${APPLE_BUNDLE_RESOURCES}
-            ${OPENMW_RESOURCES}
-            main.cpp
-        )
-    endif()
+    openmw_add_executable(openmw
+        ${OPENMW_RESOURCES}
+        main.cpp
+    )
 
     target_link_libraries(openmw openmw-lib)
 
@@ -188,10 +180,6 @@ include_directories(
 )
 
 target_link_libraries(openmw-lib
-    # CMake's built-in OSG finder does not use pkgconfig, so we have to
-    # manually ensure the order is correct for inter-library dependencies.
-    # This only makes a difference with `-DOPENMW_USE_SYSTEM_OSG=ON -DOSG_STATIC=ON`.
-    # https://gitlab.kitware.com/cmake/cmake/-/issues/21701
     ${OSGPARTICLE_LIBRARIES}
     ${OSGVIEWER_LIBRARIES}
     ${OSGGA_LIBRARIES}
@@ -236,56 +224,24 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     )
 endif()
 
-if (ANDROID)
-    target_link_libraries(openmw-lib EGL android log z)
-endif (ANDROID)
-
 if (USE_SYSTEM_TINYXML)
     target_link_libraries(openmw-lib ${TinyXML_LIBRARIES})
 endif()
 
 # Fix for not visible pthreads functions for linker with glibc 2.15
-if (UNIX AND NOT APPLE)
+if (UNIX)
     target_link_libraries(openmw-lib ${CMAKE_THREAD_LIBS_INIT})
-endif()
-
-if(APPLE AND BUILD_OPENMW)
-    set(BUNDLE_RESOURCES_DIR "${APP_BUNDLE_DIR}/Contents/Resources")
-
-    set(OPENMW_RESOURCES_ROOT ${BUNDLE_RESOURCES_DIR})
-
-    add_subdirectory(../../files/ ${CMAKE_CURRENT_BINARY_DIR}/files)
-
-    configure_file("${OpenMW_BINARY_DIR}/defaults.bin" ${BUNDLE_RESOURCES_DIR} COPYONLY)
-    configure_file("${OpenMW_BINARY_DIR}/openmw.cfg" ${BUNDLE_RESOURCES_DIR} COPYONLY)
-    configure_file("${OpenMW_BINARY_DIR}/gamecontrollerdb.txt" ${BUNDLE_RESOURCES_DIR} COPYONLY)
-
-    add_custom_command(TARGET openmw
-        POST_BUILD
-        COMMAND cp "${OpenMW_BINARY_DIR}/resources/version" "${BUNDLE_RESOURCES_DIR}/resources")
-
-    find_library(COCOA_FRAMEWORK Cocoa)
-    find_library(IOKIT_FRAMEWORK IOKit)
-    target_link_libraries(openmw ${COCOA_FRAMEWORK} ${IOKIT_FRAMEWORK})
-
-    if (FFmpeg_FOUND)
-        target_link_options(openmw PRIVATE "LINKER:SHELL:-framework CoreVideo"
-                                           "LINKER:SHELL:-framework CoreMedia"
-                                           "LINKER:SHELL:-framework VideoToolbox"
-                                           "LINKER:SHELL:-framework AudioToolbox"
-                                           "LINKER:SHELL:-framework VideoDecodeAcceleration")
-    endif()
 endif()
 
 if (BUILD_WITH_CODE_COVERAGE)
     target_compile_options(openmw-lib PRIVATE --coverage)
     target_link_libraries(openmw-lib gcov)
-    if (NOT ANDROID AND BUILD_OPENMW)
+    if (BUILD_OPENMW)
         target_compile_options(openmw PRIVATE --coverage)
         target_link_libraries(openmw gcov)
     endif()
 endif()
 
-if (NOT APPLE AND BUILD_OPENMW)
+if (BUILD_OPENMW)
     install(TARGETS openmw ${runtime_dependency_arguments})
 endif()

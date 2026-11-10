@@ -9,8 +9,8 @@
 
 #include "crashuncaught.hpp"
 
-// **No crash catcher where this build has no Crashpad**: a system Crashpad does not run on, FreeBSD
-// among them, or one built with `OPENMW_CRASHPAD=OFF`. `install` says so, and the log carries it.
+// **No crash catcher where this build has no Crashpad**, one built with `OPENMW_CRASHPAD=OFF`.
+// `install` says so, and the log carries it.
 // Notes are still taken, because `crashnote.cpp` is the same everywhere.
 namespace Crash
 {

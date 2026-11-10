@@ -4,7 +4,8 @@ Temporary. When it lands, its lasting decisions go into `docs/rtx/architecture.m
 change it makes is recorded in `.notes/UPSTREAM.md`, and this file is deleted. Read 2026-11-10 at `b11a39ec26`.
 
 Taken by the user on 2026-11-10: every CMake file is rewritten, upstream's included (scope B); GitLab's CI and
-everything only it uses go; macOS goes, since no macOS build is planned.
+everything only it uses go; macOS and Android go, since neither build is planned; `gersemi` is approved as a dependency; the
+minimum CMake moves to a recent release and the code for older ones goes.
 
 ## Investigation
 
@@ -73,7 +74,9 @@ everything only it uses go; macOS goes, since no macOS build is planned.
   `components/files/macospath.{cpp,hpp}`, 90 lines of `APPLE`, `OSX` or `Darwin` branches across 27 CMake files (31
   in the root, 16 in `apps/opencs`, 11 in `OpenMWMacros.cmake`), and 11 lines of `__APPLE__` in 8 C++ files. GitHub's
   CI has no macOS leg already (`ci.yml`), and `upstream.yml` names a `macos` workflow in one loop.
-- **Android** is not in this change: its CMake branches stay, and only its GitLab scripts go with GitLab.
+- **Android.** `apps/openmw/androidmain.cpp`, `components/files/androidpath.{cpp,hpp}`, gl4es's manual start
+  (`components/sdlutil/gl4esinit.*`, `OPENMW_GL4ES_MANUAL_INIT`), ICU's Android cross-build in `extern/`, and `ANDROID`
+  branches in 8 CMake and 6 C++ files.
 
 ### clang-format
 
@@ -158,8 +161,9 @@ everything only it uses go; macOS goes, since no macOS build is planned.
 - **GitLab and macOS out (taken).** Every file only GitLab's pipeline runs, every macOS file, branch and
   `__APPLE__` line go; an `if (APPLE OR WIN32)` becomes `if (WIN32)`. `upstream.yml` keeps a list of the paths the
   fork deleted and resolves an upstream edit to one by keeping the delete, so a deleted file never stops a merge.
-  The example suite's revision moves into `tools/omw/pins.py`, and `upstream.yml` copies it from upstream's
-  `.gitlab-ci.yml` at each merge, which it reads with `git show` and never checks out.
+  The example suite's revision is `EXAMPLE_SUITE_REVISION` in `tools/omw/integration.py`, and `upstream.yml` copies
+  it from upstream's `.gitlab-ci.yml` at each merge, which it reads with `git show` and never checks out. Refused:
+  `pins.py`, whose pins carry a SHA-256 and key CI's cache of `deps/`, where GitLab's generated archive has none.
 - **Targets own every setting.** No `include_directories`, `add_compile_options`, `add_compile_definitions`,
   `link_directories` or flag variable anywhere. The project's checks are one `INTERFACE` target, `openmw-checks`,
   with each compiler's flags under `$<CXX_COMPILER_ID:…>`, which every first-party target links and no third-party
@@ -210,38 +214,48 @@ everything only it uses go; macOS goes, since no macOS build is planned.
   and theirs with the pin before `git merge-file`, so an upstream edit to one of the 198 reformatted upstream files
   conflicts only where the edit does. Refused: formatting only the fork's files, which leaves two formatters in one
   tree.
-- **One CMake formatter.** `gersemi` keeps the CMake files in one layout as `clang-format` keeps the C++, run by
-  `omw format` and checked by the gate. A new dependency, so it waits for a yes.
+- **One CMake formatter (approved).** `gersemi` keeps the CMake files in one layout as `clang-format` keeps the
+  C++, run by `omw format` and checked by the gate.
+- **CMake 4.4 at least, and 4.4.5 exactly where `omw` builds (taken).** `cmake_minimum_required(VERSION 4.4)`, and
+  every check for an older CMake goes: three `CMAKE_VERSION` tests for 3.20 to 3.24 and `cmake/base64.cmake`'s own
+  3.13. `omw` fetches CMake 4.4.5 for Linux and Windows into `deps/`, pinned by SHA-256 in `pins.py` as the release
+  image's CMake is today, and builds with it on every desk, in CI and in the release image, so one CMake configures
+  every build. GitHub's runners ship 3.31.6. Refused: the floor at 3.31, two years old; the runners' CMake in CI
+  beside the desks' own, two versions building one tree.
 
 ## Implementation plan
 
 Each step builds every preset on Linux, passes the gate, and passes CI on every job; the Windows laptop builds the
-`full` flavour and runs `omw format --check` after steps 2, 3, 6, 8 and 10; a clangd sweep of 200 files finds no
-diagnostic after steps 8 and 11.
+`full` flavour and runs `omw format --check` after steps 2, 3, 4, 7, 9 and 11; a clangd sweep of 200 files finds no
+diagnostic after steps 9 and 12.
 
-1. **GitLab out.** `.gitlab-ci.yml`, `.gitlab/` and the GitLab-only `CI/` files go; the example suite's revision
-   moves into `pins.py`; `upstream.yml` copies it at each merge and keeps the deletes. Test: `omw integration`
-   fetches the same revision as before.
-2. **macOS out.** `files/mac/`, `CI/macos/`, `SignMacApplications.cmake`, `macospath.{cpp,hpp}`, every `APPLE`
-   branch and `__APPLE__` line; `upstream.yml` drops its `macos` workflow.
-3. **clang-format 23.1.5.** The wheel pins in `pins.py`, `omw format` on them, the CI jobs and `upstream.yml` on
+1. **GitLab out.** Done: `.gitlab-ci.yml`, `.gitlab/`, the GitLab-only `CI/` files and `docker/generic-linux` go;
+   the example suite's revision is `EXAMPLE_SUITE_REVISION`; `upstream.yml` copies it at each merge and keeps the
+   deletes.
+2. **macOS and Android out.** Done: `files/mac/`, `CI/macos/`, `SignMacApplications.cmake`, `macospath.{cpp,hpp}`,
+   every `APPLE` branch and `__APPLE__`/`Q_OS_MAC` line; `androidmain.cpp`, `androidpath.{cpp,hpp}`, gl4es's manual
+   start, ICU's Android cross-build and every `ANDROID` branch. Upstream's user manual keeps its macOS and Android
+   sections.
+3. **CMake 4.4.** The 4.4.5 pins in `pins.py` for Linux and Windows, `omw` and the release image on them,
+   `cmake_minimum_required(VERSION 4.4)`, and every check for an older CMake gone. The steps after it count on 4.4.
+4. **clang-format 23.1.5.** The wheel pins in `pins.py`, `omw format` on them, the CI jobs and `upstream.yml` on
    `omw format`; `.clang-format` in 23's names, held by the dump test; `.gitattributes` and `LineEnding: LF`; the
    merge driver, with a test that merges an upstream edit across a reformatted file without a conflict; then the
    reformat commit and `.git-blame-ignore-revs`.
-4. **`openmw-checks`.** The `INTERFACE` target with the warnings each compiler takes, linked by every first-party
+5. **`openmw-checks`.** The `INTERFACE` target with the warnings each compiler takes, linked by every first-party
    target; the root's `add_compile_options` for warnings go. Test: a third-party target's compile command holds none
    of them, and a first-party one holds all.
-5. **Dependencies in one file.** `cmake/Dependencies.cmake` with `FIND_PACKAGE_ARGS`; the presets set the try-find
+6. **Dependencies in one file.** `cmake/Dependencies.cmake` with `FIND_PACKAGE_ARGS`; the presets set the try-find
    mode; the four fetch sites, the `OPENMW_USE_SYSTEM_*` switches and the find modules a config package replaces go.
-6. **The ray tracer.** `components/rtxvulkan` and `apps/rtxtool` as `target_sources` lists, functions,
+7. **The ray tracer.** `components/rtxvulkan` and `apps/rtxtool` as `target_sources` lists, functions,
    current-folder paths, no `CACHE INTERNAL` (the shader folders as properties of `openmw-rtx-vulkan-shaders`); the
    core out of `components` into `components/rtx/CMakeLists.txt`, a library a layer group.
-7. **`components`.** `openmw-components` and `openmw-components-qt` with `target_sources` lists by folder, the stem
+8. **`components`.** `openmw-components` and `openmw-components-qt` with `target_sources` lists by folder, the stem
    macros and the hand-made unity build gone; the crash catcher, platform I/O, table makers and content store in
    their folders' own `CMakeLists.txt`.
-8. **The apps.** Each app's `CMakeLists.txt` in the same form, `opencs_units` and `add_openmw_dir` gone.
-9. **Tests.** Every test binary with `target_sources` lists in its folder; `cmake/Tests.cmake` registers them.
-10. **The root and the presets.** The root split into `cmake/{Options,Checks,Install,Package}.cmake`, the options
+9. **The apps.** Each app's `CMakeLists.txt` in the same form, `opencs_units` and `add_openmw_dir` gone.
+10. **Tests.** Every test binary with `target_sources` lists in its folder; `cmake/Tests.cmake` registers them.
+11. **The root and the presets.** The root split into `cmake/{Options,Checks,Install,Package}.cmake`, the options
     renamed `OPENMW_*`; build and workflow presets; the sanitizer option; `omw` calls the presets.
-11. **clangd.** `.clangd`'s flag list shrinks to what `$<CXX_COMPILER_ID:GNU>` adds; the sweep.
-12. **CMake formatter**, after its yes: `gersemi` over every CMake file, its commit in `.git-blame-ignore-revs`.
+12. **clangd.** `.clangd`'s flag list shrinks to what `$<CXX_COMPILER_ID:GNU>` adds; the sweep.
+13. **CMake formatter**: `gersemi` over every CMake file, its commit in `.git-blame-ignore-revs`.

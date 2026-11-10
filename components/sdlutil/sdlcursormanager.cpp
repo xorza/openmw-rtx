@@ -13,19 +13,10 @@
 #include <SDL3/SDL_surface.h>
 #include <SDL3/SDL_video.h>
 
-#include <osg/Version>
-#include <osgViewer/GraphicsWindow>
-
 #include <components/debug/debuglog.hpp>
 
 #include "imagetosurface.hpp"
 #include "sdlvideowrapper.hpp"
-
-#if defined(OSG_LIBRARY_STATIC) && (!defined(ANDROID) || OSG_VERSION_GREATER_THAN(3, 6, 5))
-// Sets the default windowing system interface according to the OS.
-// Necessary for OpenSceneGraph to do some things, like decompression.
-USE_GRAPHICSWINDOW()
-#endif
 
 namespace SDLUtil
 {
@@ -157,7 +148,6 @@ namespace SDLUtil
     void SDLCursorManager::createCursor(std::string_view name, double rotDegrees, osg::Image* image, int hotspotX,
         int hotspotY, int width, int height, float displayScale)
     {
-#ifndef ANDROID
         if (mCursorMap.find(name) != mCursorMap.end())
             return;
 
@@ -190,6 +180,5 @@ namespace SDLUtil
             Log(Debug::Warning) << e.what();
             Log(Debug::Warning) << "Using default cursor.";
         }
-#endif
     }
 }

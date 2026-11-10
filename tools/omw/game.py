@@ -27,7 +27,7 @@ def parse_folders(printed: str) -> GameFolders:
 
 def game_folders(build: Build) -> GameFolders:
     """**The game's own answer and not a copy of it**: `Files` answers where the game reads its
-    configuration on every system, and a restatement here had already gone wrong on macOS."""
+    configuration on every system, and a restatement here had already gone wrong once."""
     printed = build.harness("info", "--folders", check=True, capture_output=True, encoding="utf-8").stdout
     return parse_folders(printed)
 

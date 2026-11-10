@@ -1,6 +1,5 @@
 # The fork's CI, through the `omw` driver the desk uses; a release runs it again on its tag
-# (`rtx-release.yml`). No macOS leg: no device there traces rays, no release ships for it, and its
-# runners went unassigned often enough to hold a release. No hosted runner has a GPU, so
+# (`rtx-release.yml`). Linux and Windows, the systems the fork builds. No hosted runner has a GPU, so
 # `rtx-gpu-tests` and the gate stay on a box with a card.
 #
 # Linux stays on Ubuntu 24.04, the AppImage's base: an AppImage runs on no system older than its

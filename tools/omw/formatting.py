@@ -13,10 +13,9 @@ def format_tree(args: list[str]) -> int:
     """**Rewrites unless asked to check**, as `cargo fmt` does, so the verb does the work its name
     says; the check is the gate's.
 
-    **Every source in the working tree, and not every one git tracks.** Upstream's
-    `CI/check_clang_format.sh` walks `git ls-files`, which names a file a move has deleted and misses
-    one it has created — so a tree with an uncommitted move failed it on the file that was gone and
-    passed it on the file that was new. CI pins clang-format 14; the desk's later ones disagree with
+    **Every source in the working tree, and not every one git tracks.** `git ls-files` names a file
+    a move has deleted and misses one it has created, so a check that walks it fails a tree with an
+    uncommitted move on the file that was gone and passes it on the file that was new. CI pins clang-format 14; the desk's later ones disagree with
     it, and Windows has the one `deps.windows_clang_format` takes out of LLVM's package. **In
     batches**, because one process for every file leaves nothing to run beside it: 8.5 s on one core,
     and 1 s in batches of 64."""

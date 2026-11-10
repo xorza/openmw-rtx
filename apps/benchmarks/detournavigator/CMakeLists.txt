@@ -1,7 +1,7 @@
 openmw_add_executable(openmw_detournavigator_navmeshtilescache_benchmark navmeshtilescache.cpp)
 target_link_libraries(openmw_detournavigator_navmeshtilescache_benchmark benchmark::benchmark components)
 
-if (UNIX AND NOT APPLE)
+if (UNIX)
     target_link_libraries(openmw_detournavigator_navmeshtilescache_benchmark ${CMAKE_THREAD_LIBS_INIT})
 endif()
 

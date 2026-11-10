@@ -165,15 +165,45 @@ jobs:
                     exit "$status"
                   fi
 
-                  # Upstream's workflows stay deleted, as `ci.yml` does their work, so a change to one holds
-                  # no merge for a human. A workflow upstream adds is held.
-                  for workflow in push macos windows release; do
-                    path=".github/workflows/$workflow.yml"
-                    if [ -n "$(git ls-files --unmerged -- "$path")" ]; then
-                      git rm --quiet -- "$path"
-                      echo "kept $path deleted"
-                    fi
-                  done
+                  # What the fork deleted stays deleted, so a change to one holds no merge for a human, and a
+                  # file upstream adds under a deleted folder goes with it: upstream's workflows, as `ci.yml`
+                  # does their work; GitLab's pipeline and what only it runs, as the fork's CI is GitHub's;
+                  # and macOS's and Android's files, as the fork builds neither. A workflow upstream adds is
+                  # held.
+                  kept_deleted=(
+                    .github/workflows/push.yml .github/workflows/macos.yml .github/workflows/windows.yml
+                    .github/workflows/release.yml
+                    .gitlab-ci.yml .gitlab/ docker/generic-linux/
+                    CI/ActivateMSVC.ps1 CI/activate_msvc.sh CI/before_install.android.sh CI/before_install.macos.sh
+                    CI/before_script.android.sh CI/before_script.linux.sh CI/before_script.macos.sh
+                    CI/before_script.msvc.sh CI/check_clang_format.sh CI/check_cmake_format.sh
+                    CI/check_file_names.sh CI/check_package.osx.sh CI/check_qt_translations.sh
+                    CI/compute_comparison_commit.sh CI/detect_and_report_ninja_status.sh CI/linux/ CI/macos/
+                    CI/run_integration_tests.sh CI/Store-Symbols.ps1 CI/store-symbols.sh CI/teal_ci.sh
+                    CI/trigger_ninja_if_necessary.sh CI/ubuntu_gcc_preprocess.sh
+                    files/mac/ cmake/SignMacApplications.cmake components/files/macospath.cpp
+                    components/files/macospath.hpp
+                    apps/openmw/androidmain.cpp components/files/androidpath.cpp components/files/androidpath.hpp
+                    components/sdlutil/gl4esinit.cpp components/sdlutil/gl4esinit.h
+                  )
+                  # Forced, as a file upstream adds is staged.
+                  git rm -r -f --ignore-unmatch -- "${kept_deleted[@]}"
+
+                  # The example suite's revision follows upstream's pipeline, which pins the suite its
+                  # integration tests are written against, read from upstream's commit and never checked out.
+                  revision=$(git show upstream/master:.gitlab-ci.yml \
+                    | sed -nE 's/^ *EXAMPLE_SUITE_REVISION: *([0-9a-f]{40}) *$/\1/p' | sort -u || true)
+                  if [ "$(printf '%s' "$revision" | grep -c '^')" -ne 1 ]; then
+                    echo "::error::upstream's .gitlab-ci.yml names no single example suite revision: ${revision:-none}"
+                    exit 1
+                  fi
+                  sed -i -E "s/^EXAMPLE_SUITE_REVISION = \"[0-9a-f]{40}\"$/EXAMPLE_SUITE_REVISION = \"$revision\"/" \
+                    tools/omw/integration.py
+                  if ! grep -qxF "EXAMPLE_SUITE_REVISION = \"$revision\"" tools/omw/integration.py; then
+                    echo "::error::tools/omw/integration.py holds no EXAMPLE_SUITE_REVISION line to move"
+                    exit 1
+                  fi
+                  git add -- tools/omw/integration.py
 
                   # The agent reads none of these, but a merge that changes one changes what an agent here
                   # runs, and a human reads that first.

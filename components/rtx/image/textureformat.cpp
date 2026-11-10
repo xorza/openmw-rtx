@@ -5,7 +5,7 @@
 
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Texture> // The S3TC and RGTC formats, which Windows's and Apple's gl.h lack.
+#include <osg/Texture> // The S3TC and RGTC formats, which Windows's gl.h lacks.
 
 #include <components/sceneutil/util.hpp>
 

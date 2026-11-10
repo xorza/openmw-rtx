@@ -33,11 +33,7 @@ Wizard::MainWizard::MainWizard(Files::ConfigurationManager&& cfgMgr, QWidget* pa
     , mImporterInvoker(new Process::ProcessInvoker())
     , mGameSettings(mCfgMgr)
 {
-#ifndef Q_OS_MAC
     setWizardStyle(QWizard::ModernStyle);
-#else
-    setWizardStyle(QWizard::ClassicStyle);
-#endif
 
     setWindowTitle(tr("OpenMW Wizard"));
     setWindowIcon(QIcon(QStringLiteral(":/images/openmw-wizard.png")));

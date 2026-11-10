@@ -22,13 +22,7 @@ if (WIN32)
     target_sources(openmw-iniimporter PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
 endif()
 
-if (NOT APPLE)
-    install(TARGETS openmw-iniimporter ${runtime_dependency_arguments})
-endif()
-
-if (MINGW)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -municode")
-endif()
+install(TARGETS openmw-iniimporter ${runtime_dependency_arguments})
 
 if (BUILD_WITH_CODE_COVERAGE)
     target_compile_options(openmw-iniimporter PRIVATE --coverage)

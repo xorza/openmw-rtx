@@ -5,32 +5,17 @@
 #include <string>
 #include <vector>
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__OpenBSD__)
-#ifndef ANDROID
+#if defined(__linux__)
 #include <components/files/linuxpath.hpp>
 namespace Files
 {
     typedef LinuxPath TargetPathType;
 }
-#else
-#include <components/files/androidpath.hpp>
-namespace Files
-{
-    typedef AndroidPath TargetPathType;
-}
-#endif
 #elif defined(__WIN32) || defined(__WINDOWS__) || defined(_WIN32)
 #include <components/files/windowspath.hpp>
 namespace Files
 {
     typedef WindowsPath TargetPathType;
-}
-
-#elif defined(macintosh) || defined(Macintosh) || defined(__APPLE__) || defined(__MACH__)
-#include <components/files/macospath.hpp>
-namespace Files
-{
-    typedef MacOsPath TargetPathType;
 }
 
 #else

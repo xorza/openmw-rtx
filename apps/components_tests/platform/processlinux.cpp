@@ -91,7 +91,7 @@ namespace
     /// **Every thread keeps to the performance cores where sysfs lists them apart**, one started
     /// before the call and one after it alike, and nothing is done where it does not list them. Read
     /// back as the kernel states each thread's mask, in its `status`; where there is no such file
-    /// to read, as on macOS, the answer alone is checked. The CPUs the process may then run on are
+    /// to read, the answer alone is checked. The CPUs the process may then run on are
     /// those it kept, and where it kept none, no more than the system has. In a child, so this binary
     /// keeps the system's choice of cores.
     TEST(RtxPlatformProcessTest, everyThreadKeepsToThePerformanceCoresWhereTheSystemListsThem)

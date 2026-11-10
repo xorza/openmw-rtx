@@ -312,11 +312,7 @@ namespace NavMeshTool
     }
 }
 
-#ifdef ANDROID
-extern "C" int SDL_main(int argc, char* argv[])
-#else
 int main(int argc, char* argv[])
-#endif
 {
     return Debug::wrapApplication(NavMeshTool::runNavMeshTool, argc, argv, NavMeshTool::applicationName);
 }

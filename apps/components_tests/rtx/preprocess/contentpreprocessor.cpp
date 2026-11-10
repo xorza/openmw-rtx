@@ -14,7 +14,7 @@
 
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Texture> // The S3TC formats, which Windows's and Apple's gl.h lack.
+#include <osg/Texture> // The S3TC formats, which Windows's gl.h lacks.
 #include <osg/Vec3f>
 #include <osg/observer_ptr>
 #include <osg/ref_ptr>

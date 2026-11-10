@@ -91,11 +91,9 @@ if (BUILD_WITH_CODE_COVERAGE)
     target_link_libraries(openmw-wizard PRIVATE gcov)
 endif()
 
-if (NOT APPLE)
-    install(TARGETS openmw-wizard ${runtime_dependency_arguments})
+install(TARGETS openmw-wizard ${runtime_dependency_arguments})
 
-    generate_deploy_script_for_qt_app(openmw-wizard)
-endif()
+generate_deploy_script_for_qt_app(openmw-wizard)
 
 if(USE_QT)
     set_property(TARGET openmw-wizard PROPERTY AUTOMOC ON)

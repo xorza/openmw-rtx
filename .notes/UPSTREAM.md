@@ -249,4 +249,22 @@ made only on the user's explicit yes, after which it is added here.
   key covers the code by a version a test holds (`DetourNavigatorTileVersionTest`). `openmw-navmeshtool` writes the
   store the game reads, and loses `--remove-unused-tiles` and the vacuum; the launcher loses their controls, and
   `[Navigator]` loses `write to navmeshdb` and `max navmeshdb file size`. The cost is a conflict with every upstream
-  change to the navigator's database worker, its input serialization or `openmw-navmeshtool`.
+  change to the navigator's database worker, its input serialization or `openmw-navmeshtool`. Recast is the
+  commit `extern/` pins on every system, its headers included as a system's, since the tile version cannot
+  follow a distribution's build.
+- GitLab's pipeline, macOS and Android, out of the tree: the fork's CI is GitHub's and it builds
+  Linux and Windows alone. `.gitlab-ci.yml`, `.gitlab/`, every `CI/` script only that pipeline ran,
+  `docker/generic-linux`, and the groups of `CI/install_debian_deps.sh` only it installed go;
+  `omw integration` pins the example suite's revision itself (`EXAMPLE_SUITE_REVISION`), which
+  `upstream.yml` copies from upstream's pipeline at each merge. macOS's bundle, its files under
+  `files/mac`, `cmake/SignMacApplications.cmake`, `Files::MacOsPath`, and every `APPLE`, `__APPLE__`
+  and `Q_OS_MAC` branch go; so do Android's entry (`androidmain.cpp`), `Files::AndroidPath`, its
+  ICU cross-build, gl4es's manual start (`OPENMW_GL4ES_MANUAL_INIT`) with the GLES context it asked
+  for, and every `ANDROID` branch. `upstream.yml` keeps every deleted path deleted, so an upstream
+  change to one holds no merge; the cost is a conflict with every upstream change inside a macOS or
+  Android branch of a file the fork keeps. What only those builds and GitLab's generic Linux build
+  used goes with them: OpenSceneGraph, MyGUI, Bullet and ICU built from source, every static link
+  of them (`OSG_STATIC`, `MYGUI_STATIC`, `BULLET_STATIC`, `QT_STATIC`, `cmake/WholeArchive.cmake`),
+  so each comes from the system on Linux and from vcpkg on Windows; and the FreeBSD, OpenBSD and
+  MinGW branches. Upstream's user manual (`docs/source`) keeps its macOS
+  and Android sections.

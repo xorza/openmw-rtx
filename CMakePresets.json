@@ -14,7 +14,9 @@
             "$comment": [
                 "Every flavour. The CS, the wizard and the save importer stay off outside `full`; the ini importer",
                 "is on, because `omw setup` runs it on a fresh box. ccache drives GCC and MSVC, and the compile",
-                "database is what an editor reads."
+                "database is what an editor reads. Recast is the commit `extern/` pins, built in, on every system: the",
+                "navigator's tiles are its output, and `NavMeshTileStore::sTileVersion` keys them by it, which a",
+                "distribution's own build moves without a version to say so (`DetourNavigatorTileVersionTest`)."
             ],
             "cacheVariables": {
                 "CMAKE_C_COMPILER_LAUNCHER": "ccache",
@@ -24,7 +26,9 @@
                 "BUILD_OPENCS_TESTS": "OFF",
                 "BUILD_WIZARD": "OFF",
                 "BUILD_ESSIMPORTER": "OFF",
-                "BUILD_MWINIIMPORTER": "ON"
+                "BUILD_MWINIIMPORTER": "ON",
+                "OPENMW_USE_SYSTEM_RECASTNAVIGATION": "OFF",
+                "RECASTNAVIGATION_STATIC": "ON"
             }
         },
         {
@@ -32,7 +36,7 @@
             "hidden": true,
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
             "$comment": [
-                "Linux supplies recastnavigation, Google Test and mold. `RelWithDebInfo` is `-O2 -g1`, not CMake's,",
+                "Linux supplies Google Test and mold. `RelWithDebInfo` is `-O2 -g1`, not CMake's,",
                 "whose `-DNDEBUG` drops every assert. Line tables keep a failure's file and line: `-g` made a compressed",
                 "object 2.6 to 6.6 times larger, and CI's compiler caches outgrew the free 10 GB. C++ static libraries",
                 "are thin archives (`ar T`): copying the game's 1.3 GB of objects cost six seconds of every relink, and",
@@ -42,7 +46,6 @@
             ],
             "cacheVariables": {
                 "OPENMW_CXX_FLAGS": "-Werror",
-                "OPENMW_USE_SYSTEM_RECASTNAVIGATION": "ON",
                 "OPENMW_USE_SYSTEM_GOOGLETEST": "ON",
                 "CMAKE_EXE_LINKER_FLAGS_INIT": "-fuse-ld=mold",
                 "CMAKE_CXX_ARCHIVE_CREATE": "<CMAKE_AR> qcT <TARGET> <LINK_FLAGS> <OBJECTS>",
@@ -56,7 +59,7 @@
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
             "$comment": [
                 "Upstream's prebuilt vcpkg set, which `omw` fetches into deps/ at the tag CI/deps_versions.msvc.sh",
-                "pins (VCPKG_TAG). It lacks recastnavigation, Google Test and yaml-cpp, which CMake fetches,",
+                "pins (VCPKG_TAG). It lacks Google Test and yaml-cpp, which CMake fetches,",
                 "and Qt, so no launcher, and SDL3, which CMake builds. vcpkg's DLL copying is off, since `omw` copies",
                 "the whole runtime. Precompiled headers are off: ccache cannot cache through them (593 of 623 backend",
                 "compiles missed). `RelWithDebInfo` is `-O2 -Z7`: CMake's carries `/DNDEBUG`, and `-Z7` is the debug",
@@ -70,7 +73,6 @@
                 "PRECOMPILE_HEADERS_WITH_MSVC": "OFF",
                 "LuaJit_INCLUDE_DIR": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/include/luajit",
                 "LuaJit_LIBRARY": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/lib/lua51.lib",
-                "OPENMW_USE_SYSTEM_RECASTNAVIGATION": "OFF",
                 "OPENMW_USE_SYSTEM_GOOGLETEST": "OFF",
                 "OPENMW_USE_SYSTEM_YAML_CPP": "OFF",
                 "BUILD_LAUNCHER": "OFF",

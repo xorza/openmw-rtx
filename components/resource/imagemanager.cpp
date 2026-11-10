@@ -11,17 +11,6 @@
 
 #include "objectcache.hpp"
 
-#ifdef OSG_LIBRARY_STATIC
-// This list of plugins should match with the list in the top-level CMakelists.txt.
-USE_OSGPLUGIN(png)
-USE_OSGPLUGIN(tga)
-USE_OSGPLUGIN(dds)
-USE_OSGPLUGIN(jpeg)
-USE_OSGPLUGIN(bmp)
-USE_OSGPLUGIN(osg)
-USE_SERIALIZER_WRAPPER_LIBRARY(osg)
-#endif
-
 namespace
 {
 

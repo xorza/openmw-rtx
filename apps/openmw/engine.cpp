@@ -347,8 +347,6 @@ OMW::Engine::Engine(Files::ConfigurationManager& configurationManager)
     , mNewGame(false)
     , mCfgMgr(configurationManager)
 {
-    SDL_SetHint(SDL_HINT_MAC_OPENGL_ASYNC_DISPATCH, "1");
-
     const SDL_InitFlags flags = SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_JOYSTICK | SDL_INIT_SENSOR;
     if (SDL_WasInit(flags) == 0)
     {

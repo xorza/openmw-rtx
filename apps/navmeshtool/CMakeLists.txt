@@ -7,11 +7,7 @@ source_group(apps\\navmeshtool FILES ${NAVMESHTOOL_LIB} main.cpp)
 
 add_library(openmw-navmeshtool-lib STATIC ${NAVMESHTOOL_LIB})
 
-if (ANDROID)
-    add_library(openmw-navmeshtool SHARED main.cpp)
-else()
-    openmw_add_executable(openmw-navmeshtool main.cpp)
-endif()
+openmw_add_executable(openmw-navmeshtool main.cpp)
 
 target_link_libraries(openmw-navmeshtool openmw-navmeshtool-lib)
 
@@ -29,9 +25,7 @@ if (BUILD_WITH_CODE_COVERAGE)
     target_link_libraries(openmw-navmeshtool gcov)
 endif()
 
-if (NOT APPLE)
-    install(TARGETS openmw-navmeshtool ${runtime_dependency_arguments})
-endif()
+install(TARGETS openmw-navmeshtool ${runtime_dependency_arguments})
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(openmw-navmeshtool REUSE_FROM components)

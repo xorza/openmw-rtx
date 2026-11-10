@@ -4,7 +4,7 @@ A `CMakeLists.txt` lists files by base name, and a source no list names is never
 nothing else reports. So the compile database is read against `git ls-files`. Excused by rule: a
 program this flavour does not build, a file for another system (named `win32` or `posix` for the
 other one, `linux` on Windows and `none` on Linux — the build of a facility only Linux has, and of
-its absence — `stdio`, or `android…`, and `NOT_ON_WINDOWS` on Windows), what only Qt builds in a
+its absence — `stdio`, and `NOT_ON_WINDOWS` on Windows), what only Qt builds in a
 build without it, and `ELSEWHERE`."""
 
 import json
@@ -45,8 +45,7 @@ def _program(name: str) -> str:
 def _other_system(name: str, windows: bool) -> bool:
     stem = PurePosixPath(name).stem
     others = ("posix", "linux") if windows else ("win32", "none")
-    return (stem.endswith((*others, "stdio")) or stem.startswith("android")
-            or (windows and name in NOT_ON_WINDOWS))
+    return stem.endswith((*others, "stdio")) or (windows and name in NOT_ON_WINDOWS)
 
 
 def unlisted(tracked: list[str], compiled: set[str], windows: bool) -> list[str]:
