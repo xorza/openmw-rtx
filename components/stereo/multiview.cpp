@@ -89,8 +89,6 @@ namespace Stereo
             return true;
         }
 
-        static bool sMultiview = false;
-
         bool getMultiview(unsigned int contextID)
         {
             static bool multiView = getMultiviewImpl(contextID);
@@ -115,12 +113,11 @@ namespace Stereo
 
         if (enableMultiview)
         {
-            sMultiview = getMultiview(contextID);
+            getMultiview(contextID);
         }
         else
         {
             Log(Debug::Verbose) << "Disabling Multiview (disabled by config)";
-            sMultiview = false;
         }
     }
 

@@ -37,10 +37,13 @@ if (BUILD_BENCHMARKS AND NOT OPENMW_USE_SYSTEM_BENCHMARK)
     set(BENCHMARK_ENABLE_WERROR OFF)
 
     include(FetchContent)
+    # 1.10, whose header no longer reads `__COUNTER__` in an `#if`, which Clang 23 counts a C2y extension
+    # and 1.8's own `-pedantic-errors` made an error.
     FetchContent_Declare(benchmark
-        URL https://github.com/google/benchmark/archive/refs/tags/v1.8.3.zip
-        URL_HASH SHA512=d73587ad9c49338749e1d117a6f8c7ff9c603a91a2ffa91a7355c7df7dea82710b9a810d34ddfef20973ecdc77092ec10fb2b4e4cc8d2e7810cbed79617b3828
+        URL https://github.com/google/benchmark/archive/refs/tags/v1.10.0.zip
+        URL_HASH SHA512=9aaa9f7bbaa0dfa3a34932f31c0dad5cef5b5c15a7da2ac4e6567c29428b43e791f1d9a7c2541127cbde199d3e7c4a61516ae4c06db2962503082bb851bae8d0
         SOURCE_DIR fetched/benchmark
+        SYSTEM
     )
     FetchContent_MakeAvailable(benchmark)
 endif()

@@ -42,7 +42,12 @@ else ()
     )
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
-        target_compile_options(openmw-checks INTERFACE -Wno-potentially-evaluated-expression)
+        target_compile_options(openmw-checks INTERFACE
+            -Wno-potentially-evaluated-expression
+            # GCC 15's `std::find_if` asks `#pragma GCC unroll 4`, which Clang 23 cannot always honour and
+            # reports from inside the system header, where no other warning of its comes from.
+            -Wno-pass-failed
+        )
     endif ()
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)

@@ -290,3 +290,6 @@ made only on the user's explicit yes, after which it is added here.
   folded into it: one build system, with GCC 15.2, and GCC 15's false `-Wmaybe-uninitialized` off as
   14's was. The cost is the AppImage's floor, glibc 2.43, and a conflict with upstream's edits to the
   package lists.
+- `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
+  `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
+  stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.

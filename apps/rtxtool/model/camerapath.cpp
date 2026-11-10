@@ -123,11 +123,13 @@ namespace RtxTool
 
     osg::Vec3d CameraPath::at(const std::size_t segment, const double along) const
     {
+        // A segment's ends are its keys' eyes themselves: the cubic summed at 1 comes to the next eye only to
+        // within its rounding, which one compiler lands on the bit and another an ulp off.
         const Segment& piece = mSegments[segment];
         if (piece.mLength <= 0.0 || along <= 0.0)
-            return piece.pointAt(0.0);
+            return mEyes[segment];
         if (along >= piece.mLength)
-            return piece.pointAt(1.0);
+            return mEyes[segment + 1];
 
         // Newton on the length, from where an even pace would put it, and bisection wherever a step
         // would leave the bracket the steps before have narrowed.

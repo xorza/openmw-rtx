@@ -18,3 +18,4 @@ CompileFlags:
     - -Wno-stringop-overflow
   Add:
     - -Wno-potentially-evaluated-expression
+    - -Wno-pass-failed
