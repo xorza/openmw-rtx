@@ -2,9 +2,9 @@
 # because the ones that read game data resolve `./resources` as the tool does.
 enable_testing()
 
-# What the suites write — their times and the crash matrix's runs — which the driver reads from the
-# cache.
-set(RTX_TEST_OUTPUT_DIR "${CMAKE_BINARY_DIR}/test-output" CACHE INTERNAL "What the test suites write")
+# What the suites write, their times and the crash matrix's runs, which the driver reads from
+# `omw-folders.json`.
+set(RTX_TEST_OUTPUT_DIR "${PROJECT_BINARY_DIR}/test-output")
 
 # Options for the test binaries alone, where a preset names any: at `-Og` a test file builds twice as
 # fast, and the code it tests keeps the build's own flags.

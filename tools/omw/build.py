@@ -192,15 +192,24 @@ class Build:
 
     def cached(self, name: str) -> str:
         """**The value the build's CMake cache holds for `name`**, refused where it holds none: no cache
-        yet, no such entry, an empty one, or a `-NOTFOUND`, which CMake reads as false. Every entry
-        the driver asks for is one a configure states — the harness's and the tests' folders, which
-        the top-level `CMakeLists.txt` and `cmake/Tests.cmake` name once, and what CMake found."""
+        yet, no such entry, an empty one, or a `-NOTFOUND`, which CMake reads as false: what CMake found,
+        such as a program or a library."""
         cache = self.dir / "CMakeCache.txt"
         for entry in read_text(cache).splitlines() if cache.is_file() else []:
             key, _, value = entry.partition("=")
             if key.split(":", 1)[0] == name and value and not value.endswith("-NOTFOUND"):
                 return value
         raise Refusal(f"the {self.flavour} build's cache names no {name}: configure it again")
+
+    def folder(self, name: str) -> Path:
+        """**A folder the build names for the driver**, out of the `omw-folders.json` its configure
+        writes: the shaders and what the tests write, which the top-level `CMakeLists.txt` and
+        `cmake/Tests.cmake` name once. Refused where the file or the name is missing."""
+        listed = self.dir / "omw-folders.json"
+        folders = json.loads(read_text(listed)) if listed.is_file() else {}
+        if not folders.get(name):
+            raise Refusal(f"the {self.flavour} build names no {name} in {listed.name}: configure it again")
+        return Path(folders[name])
 
     def osg_plugin_folder_name(self) -> str:
         """**The name OSG gives its plugin folder, for the OSG this build found**: `osgPlugins-` and the

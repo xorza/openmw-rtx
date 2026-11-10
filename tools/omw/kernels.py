@@ -219,8 +219,8 @@ def kernels(build: Build, args: list[str]) -> int:
         raise Refusal(f"there is no spirv-dis beside {optimizer}")
     program_digest = build.dir / "components" / "rtxvulkan" / f"openmw-rtx-spirv-digest{EXE}"
 
-    shaders = Path(build.cached("RTX_SPIRV_DIR"))
-    sources = Path(build.cached("RTX_SPIRV_SOURCE_DIR"))
+    shaders = build.folder("RTX_SPIRV_DIR")
+    sources = build.folder("RTX_SPIRV_SOURCE_DIR")
     known = domains()
     work: list[tuple[Path, Setting]] = []
     for module in sorted(shaders.glob("*.spv")):

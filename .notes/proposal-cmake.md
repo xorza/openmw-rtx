@@ -285,9 +285,9 @@ diagnostic after steps 10 and 13.
    set, the generated tables compiled into the layer whose header names them; `components/myguirtx` lifted out into
    `openmw-myguirtx` above the core, which `components` no longer holds. The order is held by the link graph's shape
    and, as before, by `RtxSourceTreeTest`: mold and MSVC's linker resolve an archive's symbols in any order, so a lower
-   layer calling a higher one is not a link error on every system. Left: `components/rtxvulkan` and `apps/rtxtool` as
-   `target_sources` lists with current-folder paths, and the five `CACHE INTERNAL` folders, which `omw` reads off the
-   cache (`Build.cache_value`), moved to a channel of their own.
+   layer calling a higher one is not a link error on every system. `components/rtxvulkan` and `apps/rtxtool` as
+   `target_sources` lists, headers as file sets, paths from the project's own folders; the six `CACHE INTERNAL` folders
+   plain variables, and the three the driver reads written into `omw-folders.json` at configure (`Build.folder`).
 9. **`components`.** `openmw-components` and `openmw-components-qt` with `target_sources` lists by folder, the stem
    macros and the hand-made unity build gone; the crash catcher, platform I/O, table makers and content store in
    their folders' own `CMakeLists.txt`.

@@ -133,6 +133,20 @@ class CachedTest(unittest.TestCase):
                 build.cached(refused)
 
 
+class FolderTest(unittest.TestCase):
+    def test_a_folder_is_what_the_configure_s_file_names_and_a_missing_or_empty_one_is_refused(self):
+        build = temporary_build(self, "debug")
+        with self.assertRaises(Refusal):
+            build.folder("RTX_SPIRV_DIR")
+
+        (build.dir / "omw-folders.json").write_text(
+            '{"RTX_SPIRV_DIR": "/checkout/build/resources/rtx/shaders", "RTX_TEST_OUTPUT_DIR": ""}')
+        self.assertEqual(build.folder("RTX_SPIRV_DIR"), Path("/checkout/build/resources/rtx/shaders"))
+        for refused in ("RTX_TEST_OUTPUT_DIR", "RTX_SPIRV_SOURCE_DIR"):
+            with self.subTest(name=refused), self.assertRaises(Refusal):
+                build.folder(refused)
+
+
 class ManifestInputsTest(unittest.TestCase):
     def test_every_kind_of_input_and_no_output_or_validation(self):
         query = "".join(line + "\n" for line in (

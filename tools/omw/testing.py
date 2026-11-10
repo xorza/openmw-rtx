@@ -52,7 +52,7 @@ LIMIT_SECONDS = 2.0
 
 def times_folder(build: Build) -> Path:
     """Where each suite's GoogleTest report lands, one a CTest test, as `cmake/Tests.cmake` sets."""
-    return Path(build.cached("RTX_TEST_OUTPUT_DIR")) / "times"
+    return build.folder("RTX_TEST_OUTPUT_DIR") / "times"
 
 
 def durations(report: dict, fork: frozenset[str], root: Path = ROOT) -> dict[str, float]:
@@ -71,7 +71,7 @@ def timing(build: Build) -> int:
     beside the others is under it alone."""
     targets = {test["name"]: target for test in build.tests()
                if (target := properties_of(test).get("OPENMW_TARGET")) is not None}
-    alone = Path(build.cached("RTX_TEST_OUTPUT_DIR")) / "alone.json"
+    alone = build.folder("RTX_TEST_OUTPUT_DIR") / "alone.json"
     fork = fork_files()
     slow = 0
     for path in sorted(times_folder(build).glob("*.json")):
