@@ -595,76 +595,7 @@ if (BUILD_OPENCS OR BUILD_OPENCS_TESTS)
     add_subdirectory (extern/osgQt)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
-    add_compile_options("/W4")
-
-    set(WARNINGS_DISABLE
-        4100 # Unreferenced formal parameter (-Wunused-parameter)
-        4127 # Conditional expression is constant
-        4996 # Function was declared deprecated
-        5054 # Deprecated operations between enumerations of different types caused by Qt headers
-        4244 # Implicit narrowing between arithmetic types (-Wconversion, which GCC's -Wall -Wextra leave out)
-        4267 # Implicit narrowing of a size_t (the same)
-        )
-
-    foreach(d ${WARNINGS_DISABLE})
-        add_compile_options("/wd${d}")
-    endforeach(d)
-
-    set(WARNINGS_EXTRA
-        4855 # implicit capture of 'this' via '[=]' is deprecated in 'version'
-        )
-
-    foreach(d ${WARNINGS_EXTRA})
-        add_compile_options("/w1${d}")
-    endforeach(d)
-
-    if(OPENMW_MSVC_WERROR)
-        add_compile_options("/WX")
-    endif()
-else ()
-    add_compile_options("-Wall" "-Wextra" "-Wundef" "-Wextra-semi" "-Wno-unused-parameter" "-pedantic" "-Wno-long-long" "-Wnon-virtual-dtor" "-Wunused" "-Wshadow")
-
-    if (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
-        if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 3.6 OR CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 3.6)
-            add_compile_options("-Wno-potentially-evaluated-expression")
-        endif ()
-    endif()
-
-    if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
-        # GCC's alone: Clang's check of that name takes every implicit promotion, not arithmetic's
-        # only, and fired 614 times in a tree GCC's passes.
-        add_compile_options("-Wdouble-promotion")
-        add_compile_options("-Wno-unused-but-set-parameter" "-Wduplicated-branches" "-Wduplicated-cond" "-Wlogical-op")
-        # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105438
-        add_compile_options("-Wno-array-bounds")
-    endif()
-
-    # Beyond upstream's. Rejected: `-Wfloat-equal`, for deliberate sentinels, and `-Wold-style-cast` and
-    # `-Wuseless-cast`, which fire inside OpenSceneGraph's and MyGUI's headers.
-    add_compile_options("-Wnull-dereference" "-Wcast-qual"
-                        "$<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>"
-                        "$<$<COMPILE_LANGUAGE:CXX>:-Wzero-as-null-pointer-constant>")
-
-    # Wrong before GCC 16: `-Wmaybe-uninitialized` reports every copy of a `std::optional` (GCC bug
-    # 80635), Ubuntu 26.04's GCC 15.2 among them, and `-Wnull-dereference` OSG's inline
-    # `pushOntoNodePath`.
-    if (CMAKE_CXX_COMPILER_ID STREQUAL GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
-        add_compile_options("-Wno-maybe-uninitialized" "-Wno-null-dereference")
-    endif()
-
-    # Wrong on GCC 16: `-Wstringop-overflow` reports a byte vector's `resize(n, value)` at `-O3` as an
-    # overflow no path reaches (GCC bugs 107852, 117983, 118521), and came back after a call site was
-    # rewritten around it.
-    if (CMAKE_CXX_COMPILER_ID STREQUAL GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
-        add_compile_options("-Wno-stringop-overflow")
-    endif()
-endif ()
-
-if (OPENMW_CXX_FLAGS)
-    separate_arguments(OPENMW_CXX_FLAGS NATIVE_COMMAND "${OPENMW_CXX_FLAGS}")
-    add_compile_options(${OPENMW_CXX_FLAGS})
-endif()
+include(cmake/Checks.cmake)
 
 # Components
 add_subdirectory (components)
@@ -754,6 +685,8 @@ if (BUILD_OPENMW_TESTS)
 endif()
 
 include(cmake/Tests.cmake)
+
+openmw_link_checks("${PROJECT_SOURCE_DIR}")
 
 if (WIN32)
     if (MSVC)

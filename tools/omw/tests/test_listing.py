@@ -1,6 +1,6 @@
 import unittest
 
-from omw.listing import qt_guarded_sources, qt_sources, unlisted
+from omw.listing import misplaced_checks, qt_guarded_sources, qt_sources, unlisted
 
 
 class UnlistedTest(unittest.TestCase):
@@ -38,6 +38,31 @@ class UnlistedTest(unittest.TestCase):
                 self.assertEqual(unlisted(tracked, compiled - {own}, windows), sorted([*forgotten, *unshield, own]))
                 self.assertEqual(unlisted(tracked, compiled - {counts}, windows),
                                  sorted([*forgotten, *unshield, counts]))
+
+
+class MisplacedChecksTest(unittest.TestCase):
+    def test_the_checks_reach_the_tree_s_sources_and_no_third_party_s(self):
+        root = "/tree"
+        database = [
+            {"file": "/tree/components/misc/rng.cpp", "command": "c++ -Wall -Wzero-as-null-pointer-constant -c rng.cpp"},
+            {"file": "/tree/apps/openmw/engine.cpp", "arguments": ["cl", "/W4", "/w14855", "/c", "engine.cpp"]},
+            {"file": "/tree/apps/openmw/main.cpp", "command": "c++ -Wall -Wextra -c main.cpp"},
+            {"file": "/tree/extern/oics/tinyxml.cpp", "command": "c++ -c tinyxml.cpp"},
+            {"file": "/tree/extern/Base64/base64.cpp", "command": "c++ -Wzero-as-null-pointer-constant -c base64.cpp"},
+            {"file": "/tree/build-full/_deps/sdl3-src/src/SDL.c", "command": "cc -c SDL.c"},
+            {"file": "/tree/build-full/fetched/yaml-cpp/src/node.cpp", "command": "c++ -Wzero-as-null-pointer-constant -c node.cpp"},
+            {"file": "/tree/build-full/components/osgpluginchecker.cpp", "command": "c++ -Wzero-as-null-pointer-constant -c x.cpp"},
+            {"file": "/elsewhere/fetched/zlib.c", "command": "cc -Wzero-as-null-pointer-constant -c zlib.c"},
+        ]
+        # `-Wall -Wextra` is not the checks, which a third party's build adds too: their mark is
+        # `-Wzero-as-null-pointer-constant`, or `/w14855`. A source a first-party target generates into the
+        # build is neither.
+        self.assertEqual(misplaced_checks(database, root), [
+            "../elsewhere/fetched/zlib.c: a third party's, compiled with the tree's checks",
+            "apps/openmw/main.cpp: compiled without the tree's checks",
+            "build-full/fetched/yaml-cpp/src/node.cpp: a third party's, compiled with the tree's checks",
+            "extern/Base64/base64.cpp: a third party's, compiled with the tree's checks",
+        ])
 
 
 class QtSourcesTest(unittest.TestCase):

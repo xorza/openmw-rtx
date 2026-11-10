@@ -53,6 +53,8 @@ if (OPENMW_CRASHPAD)
         # that takes this library rather than into the archive.
         add_library(openmw_crashpad_threads OBJECT ${CRASHPAD_SOURCE_DIR}/client/pthread_create_linux.cc)
         target_link_libraries(openmw_crashpad_threads PRIVATE crashpad_client)
+        # Crashpad's source, and so none of the tree's checks.
+        set_target_properties(openmw_crashpad_threads PROPERTIES OPENMW_CHECKS OFF)
         target_compile_options(openmw_crashpad_threads PRIVATE -w)
         target_link_libraries(components $<TARGET_OBJECTS:openmw_crashpad_threads>)
     endif()

@@ -1,8 +1,8 @@
 # The full flavour's compile commands, which every `omw` build directory exports, and the one the gate
 # keeps configured, so tests, the editor and the tools all resolve. Its flags are GCC's: what
-# `CMakeLists.txt` gives GCC alone goes, and what it gives Clang alone comes, so the editor checks what
+# `cmake/Checks.cmake` gives GCC alone goes, and what it gives Clang alone comes, so the editor checks what
 # CI's Clang build checks. GCC's `-Wdouble-promotion` above all, which Clang's check of that name widens
-# to every implicit promotion. Warnings stay warnings: the editor's clangd may be newer than CI's Clang.
+# to every implicit promotion. Warnings stay warnings: the editor's clangd may be newer than CI's Clang 23.
 CompileFlags:
   CompilationDatabase: build-full
   Remove:

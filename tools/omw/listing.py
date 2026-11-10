@@ -60,6 +60,32 @@ def unlisted(tracked: list[str], compiled: set[str], windows: bool) -> list[str]
                   and not (name.startswith("apps/") and _program(name) not in built_apps))
 
 
+# What `cmake/Checks.cmake` puts in every first-party command, on each compiler family: a flag
+# `openmw-checks` always has and no third party's own build adds, as Google Benchmark adds `-Wextra`.
+CHECKED = ("-Wzero-as-null-pointer-constant", "/w14855")
+
+
+def third_party(name: str) -> bool:
+    """Whether the source at `name`, from the tree's root, is a third party's: vendored under `extern/`,
+    or fetched, into a build's `_deps/` or `fetched/` or outside the tree."""
+    return name.startswith(("extern/", "../")) or os.path.isabs(name) or "/_deps/" in name or "/fetched/" in name
+
+
+def misplaced_checks(database: list[dict], root: str) -> list[str]:
+    """**The tree's checks reach its own sources and no third party's**: a source under `apps/` or
+    `components/` whose command lacks them, and a third party's whose command has them. `root` is the tree's, as the database spells paths."""
+    found = []
+    for entry in database:
+        name = os.path.relpath(entry["file"], root).replace(os.sep, "/")
+        words = entry.get("arguments") or entry.get("command", "").split()
+        checked = any(word in CHECKED for word in words)
+        if name.startswith(("apps/", "components/")) and not checked:
+            found.append(f"{name}: compiled without the tree's checks")
+        elif third_party(name) and checked:
+            found.append(f"{name}: a third party's, compiled with the tree's checks")
+    return sorted(found)
+
+
 def qt_sources(cmake_text: str) -> set[str]:
     """The sources of `components_qt`, read off the `add_component_qt_dir` lists of
     `components/CMakeLists.txt`, the one place that names them: what a build without Qt leaves out."""
@@ -111,4 +137,5 @@ def check(build: Build) -> int:
         for listed in sorted((ROOT / "apps").glob("*/CMakeLists.txt")):
             qt_only |= qt_guarded_sources(read_text(listed), listed.parent.relative_to(ROOT).as_posix())
         tracked = [name for name in tracked if name not in qt_only]
-    return report([f"{name}: tracked, and no list names it" for name in unlisted(tracked, compiled, WINDOWS)])
+    return report([f"{name}: tracked, and no list names it" for name in unlisted(tracked, compiled, WINDOWS)]
+                  + misplaced_checks(database, str(ROOT)))

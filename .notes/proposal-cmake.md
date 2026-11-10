@@ -268,9 +268,11 @@ diagnostic after steps 10 and 13.
    `ubuntu-26.04` runners with GCC 15.2; the clang job on Clang 23 from apt.llvm.org, its key held to LLVM's
    fingerprint; `RELEASE_BASE` in `package.py`; Windows CI and the release on `windows-2025-vs2026`. Left: the laptop
    on Visual Studio 2026, which is the user's to install.
-6. **`openmw-checks`.** The `INTERFACE` target with the warnings each compiler takes, linked by every first-party
-   target; the root's `add_compile_options` for warnings go. Test: a third-party target's compile command holds none
-   of them, and a first-party one holds all.
+6. **`openmw-checks`.** Done: `cmake/Checks.cmake`, the `INTERFACE` target with the warnings each compiler takes and
+   the preset's `-Werror`, which `openmw_link_checks` links into every target under `components/` and `apps/` after
+   every folder is added, a target that compiles a third party's source opting out (`OPENMW_CHECKS OFF`); the root's
+   `add_compile_options` for warnings gone. Held by `omw`'s listing step, after every build and in the gate: a
+   first-party source compiled without the checks, or a third party's with them, is a finding.
 7. **Dependencies in one file.** `cmake/Dependencies.cmake` with `FIND_PACKAGE_ARGS`; the presets set the try-find
    mode; the four fetch sites, the `OPENMW_USE_SYSTEM_*` switches and the find modules a config package replaces go.
 8. **The ray tracer.** `components/rtxvulkan` and `apps/rtxtool` as `target_sources` lists, functions,
