@@ -163,16 +163,8 @@
 <context>
     <name>GraphicsPage</name>
     <message>
-        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
-        <translation>La résolution à laquelle le jeu effectue le rendu, monde et interface ensemble, mise à l&apos;échelle pour remplir la fenêtre. Native effectue le rendu à la taille propre de la fenêtre. En mode fenêtré, la fenêtre garde la taille à laquelle vous l&apos;avez redimensionnée en dernier.</translation>
-    </message>
-    <message>
         <source>Upscaling</source>
         <translation>Mise à l&apos;échelle</translation>
-    </message>
-    <message>
-        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
-        <translation>À quelle distance sous la résolution de l&apos;image le ray tracing est calculé. Inactif calcule chaque pixel sans module de mise à l&apos;échelle ; tout autre mode utilise ce module, qui reconstruit l&apos;image sur plusieurs images, et chaque mode sauf Inactif et Native calcule moins de pixels qu&apos;il n&apos;en affiche.</translation>
     </message>
     <message>
         <source>Off</source>
@@ -185,6 +177,18 @@
     <message>
         <source>Native</source>
         <translation>Native</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>Automatique</translation>
+    </message>
+    <message>
+        <source>AMD FSR 3.1</source>
+        <translation>AMD FSR 3.1</translation>
+    </message>
+    <message>
+        <source>NVIDIA DLSS</source>
+        <translation>NVIDIA DLSS</translation>
     </message>
     <message>
         <source>Performance</source>
@@ -200,7 +204,11 @@
     </message>
     <message>
         <source>Ray Tracing Distant Land</source>
-        <translation>Terrain distant du ray tracing</translation>
+        <translation>Terrain distant (ray tracing)</translation>
+    </message>
+    <message>
+        <source>How many cells around the player the ray tracer builds. This is separate from the view distance.</source>
+        <translation>Nombre de cellules autour du joueur construites pour le ray tracing. Indépendant de la distance d&apos;affichage.</translation>
     </message>
     <message>
         <source> cells</source>
@@ -227,8 +235,28 @@
         <translation>Fenêtré</translation>
     </message>
     <message>
-        <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
-        <translation type="unfinished"></translation>
+        <source>The resolution the game renders at, scaled to fit the window. Native uses the window&apos;s size. In windowed mode, the window keeps the size you last gave it.</source>
+        <translation>La résolution de rendu du jeu, mise à l&apos;échelle de la fenêtre. « Native » utilise la taille de la fenêtre. En mode fenêtré, la fenêtre garde sa dernière taille.</translation>
+    </message>
+    <message>
+        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
+        <translation>Nombre de pixels calculés par le ray tracing. « Inactif » et « Native » calculent chaque pixel ; « Native » utilise aussi la mise à l&apos;échelle comme anticrénelage. Les autres modes calculent moins de pixels et agrandissent l&apos;image.</translation>
+    </message>
+    <message>
+        <source>Upscaler</source>
+        <translation>Méthode de mise à l&apos;échelle</translation>
+    </message>
+    <message>
+        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>« Automatique » utilise NVIDIA DLSS sur une carte NVIDIA avec DLSS installé, sinon AMD FSR. Si DLSS est choisi mais ne peut pas fonctionner, OpenMW ne démarre pas. Prend effet après un redémarrage.</translation>
+    </message>
+    <message>
+        <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>
+        <translation>Télécharge la bibliothèque DLSS depuis le GitHub de NVIDIA. La licence de NVIDIA s&apos;applique.</translation>
+    </message>
+    <message>
+        <source>Download DLSS</source>
+        <translation>Télécharger DLSS</translation>
     </message>
     <message>
         <source>Disabled</source>
@@ -426,6 +454,42 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
 <context>
     <name>Launcher::GraphicsPage</name>
     <message>
+        <source>DLSS is installed.</source>
+        <translation>DLSS est installé.</translation>
+    </message>
+    <message>
+        <source>DLSS is not installed. &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies to the download.</source>
+        <translation>DLSS n&apos;est pas installé. Le téléchargement est soumis à la &lt;a href=&quot;%1&quot;&gt;licence de NVIDIA&lt;/a&gt;.</translation>
+    </message>
+    <message>
+        <source>Download DLSS</source>
+        <translation>Télécharger DLSS</translation>
+    </message>
+    <message>
+        <source>Could not find a folder for DLSS.</source>
+        <translation>Aucun dossier trouvé pour DLSS.</translation>
+    </message>
+    <message>
+        <source>Could not create the DLSS folder: %1</source>
+        <translation>Impossible de créer le dossier DLSS : %1</translation>
+    </message>
+    <message>
+        <source>Could not save DLSS: %1</source>
+        <translation>Impossible d&apos;enregistrer DLSS : %1</translation>
+    </message>
+    <message>
+        <source>Downloading DLSS...</source>
+        <translation>Téléchargement de DLSS...</translation>
+    </message>
+    <message>
+        <source>The downloaded file is larger than expected.</source>
+        <translation>Le fichier téléchargé est plus volumineux que prévu.</translation>
+    </message>
+    <message>
+        <source>The downloaded file has the wrong checksum.</source>
+        <translation>Le fichier téléchargé a une somme de contrôle incorrecte.</translation>
+    </message>
+    <message>
         <source>Error receiving number of screens</source>
         <translation>Erreur lors de l&apos;obtention du nombre d&apos;écrans</translation>
     </message>
@@ -438,8 +502,16 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
         <translation>Écran </translation>
     </message>
     <message>
+        <source>Cancel</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <source>The download failed: %1</source>
+        <translation>Échec du téléchargement : %1</translation>
+    </message>
+    <message>
         <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
+        <translation>&lt;br&gt;&lt;b&gt;Échec de SDL_GetDisplays :&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
     </message>
     <message>
         <source>Window border is available only in Windowed mode.</source>
@@ -1124,6 +1196,10 @@ Les logs et préférences modifiées y seront sauvegardés.</translation>
         <translation>Taille min des objets pour leur pagination</translation>
     </message>
     <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Shows objects in distant cells, not only terrain. Takes effect after a restart.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Affiche les objets des cellules distantes, pas seulement le terrain. Prend effet après un redémarrage.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
         <source>Audio Device</source>
         <translation>Périphérique audio</translation>
     </message>
@@ -1132,12 +1208,8 @@ Les logs et préférences modifiées y seront sauvegardés.</translation>
         <translation>Profil HRTF</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, the objects of the cells past the loaded ones stand in the world the ray tracer builds. If false, only the ground stands there. A change takes effect the next time OpenMW starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Distant Objects</source>
-        <translation type="unfinished"></translation>
+        <translation>Objets distants</translation>
     </message>
     <message>
         <source>Tooltip and Crosshair</source>

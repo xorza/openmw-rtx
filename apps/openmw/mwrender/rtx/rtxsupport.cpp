@@ -101,6 +101,7 @@ namespace MWRender
             { "RTX", "distant land cells", {} },
             { "RTX", "indirect lighting", {} },
             { "RTX", "upscale", {} },
+            { "RTX", "upscaler", {} },
             { "Shaders", "adjust coverage for alpha test", sAlphaTest },
             { "Shaders", "antialias alpha test", sAlphaTest },
             { "Shaders", "apply lighting to environment maps", {} },

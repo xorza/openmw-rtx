@@ -28,6 +28,7 @@
 #include <cfloat>
 #include <cstdint>
 
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -65,7 +66,7 @@ namespace Rtx
         // `setupDeviceDepthToViewSpaceDepthParams`, reversed and infinite: the SDK's `c` is
         // `0 + FLT_EPSILON` and its `e` the near plane, and the last two are one over its
         // projection's `a` and `b`, the half extents' tangents.
-        at.mDeviceToViewDepth = Shaders::vec4(-(0.0f + FLT_EPSILON), sNear, tanHalfWidth, tanHalfHeight);
+        at.mDeviceToViewDepth = Shaders::vec4(-(0.0f + FLT_EPSILON), sUpscaleNear, tanHalfWidth, tanHalfHeight);
 
         at.mDownscaleFactor = Shaders::vec2(static_cast<float>(render.x()) / static_cast<float>(output.x()),
             static_cast<float>(render.y()) / static_cast<float>(output.y()));

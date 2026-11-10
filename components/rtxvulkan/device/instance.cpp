@@ -62,7 +62,8 @@ namespace Rtx
         }
     }
 
-    Instance::Instance(const ValidationOptions& options, const std::span<const char* const> surfaceExtensions)
+    Instance::Instance(const ValidationOptions& options, const std::span<const char* const> surfaceExtensions,
+        const std::span<const std::string> extraExtensions)
         : mWatchesSubmits(options.mWatchSubmits)
     {
         const Crash::NoteScope noted("making the Vulkan instance");
@@ -71,6 +72,15 @@ namespace Rtx
         std::vector<const char*> extensions(surfaceExtensions.begin(), surfaceExtensions.end());
         std::vector<const char*> layers;
         const std::vector<VkExtensionProperties> offered = loaderExtensions();
+
+        // A feature's extension is enabled where the loader offers it. One it does not is left
+        // out, so `auto` can fall back to the other upscaler instead of failing the instance; an
+        // explicit choice then fails where the feature is created, naming its own reason.
+        for (const std::string& name : extraExtensions)
+            if (offers(offered, name.c_str())
+                && std::none_of(extensions.begin(), extensions.end(),
+                    [&](const char* held) { return std::strcmp(held, name.c_str()) == 0; }))
+                extensions.push_back(name.c_str());
 
         // What the device half of swapchain maintenance rests on: a present fence is the only
         // thing that says the presentation engine has finished with an image. Surface maintenance

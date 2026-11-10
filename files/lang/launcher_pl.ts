@@ -215,8 +215,20 @@
         <translation>W oknie</translation>
     </message>
     <message>
-        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
-        <translation>Rozdzielczość, w jakiej gra renderuje świat i interfejs razem, przeskalowana do okna. Natywna renderuje w rozmiarze samego okna. W trybie okienkowym okno zachowuje rozmiar, do którego ostatnio je przeciągnięto.</translation>
+        <source>The resolution the game renders at, scaled to fit the window. Native uses the window&apos;s size. In windowed mode, the window keeps the size you last gave it.</source>
+        <translation>Rozdzielczość renderowania gry, skalowana do rozmiaru okna. „Natywna” używa rozmiaru okna. W trybie okienkowym okno zachowuje ostatni rozmiar.</translation>
+    </message>
+    <message>
+        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
+        <translation>Ile pikseli śledzi ray tracing. „Wyłączone” i „Natywna” śledzą każdy piksel; „Natywna” używa też skalowania jako antyaliasingu. Pozostałe tryby śledzą mniej pikseli i skalują obraz.</translation>
+    </message>
+    <message>
+        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>„Automatycznie” używa NVIDIA DLSS na karcie NVIDIA z zainstalowanym DLSS, a w przeciwnym razie AMD FSR. Jeśli wybrano DLSS, a nie może on działać, OpenMW się nie uruchomi. Zmiana działa po ponownym uruchomieniu.</translation>
+    </message>
+    <message>
+        <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>
+        <translation>Pobiera bibliotekę DLSS z GitHuba NVIDIA. Obowiązuje licencja NVIDIA.</translation>
     </message>
     <message>
         <source>Resolution</source>
@@ -235,12 +247,12 @@
         <translation>Skalowanie</translation>
     </message>
     <message>
-        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
-        <translation>Jak bardzo poniżej rozdzielczości klatki odbywa się śledzenie promieni. Wyłączone śledzi każdy piksel bez skalera; każdy inny tryb uruchamia skaler, który odtwarza obraz z wielu klatek, a każdy tryb poza Wyłączone i Natywna śledzi mniej pikseli, niż pokazuje.</translation>
+        <source>Upscaler</source>
+        <translation>Metoda skalowania</translation>
     </message>
     <message>
-        <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
-        <translation type="unfinished"></translation>
+        <source>Download DLSS</source>
+        <translation>Pobierz DLSS</translation>
     </message>
     <message>
         <source>Off</source>
@@ -253,6 +265,18 @@
     <message>
         <source>Native</source>
         <translation>Natywna</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>Automatycznie</translation>
+    </message>
+    <message>
+        <source>AMD FSR 3.1</source>
+        <translation>AMD FSR 3.1</translation>
+    </message>
+    <message>
+        <source>NVIDIA DLSS</source>
+        <translation>NVIDIA DLSS</translation>
     </message>
     <message>
         <source>Performance</source>
@@ -268,7 +292,11 @@
     </message>
     <message>
         <source>Ray Tracing Distant Land</source>
-        <translation>Odległy teren przy śledzeniu promieni</translation>
+        <translation>Odległy teren (ray tracing)</translation>
+    </message>
+    <message>
+        <source>How many cells around the player the ray tracer builds. This is separate from the view distance.</source>
+        <translation>Ile komórek wokół gracza buduje ray tracing. Niezależne od zasięgu widzenia.</translation>
     </message>
     <message>
         <source> cells</source>
@@ -430,6 +458,42 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
 <context>
     <name>Launcher::GraphicsPage</name>
     <message>
+        <source>DLSS is installed.</source>
+        <translation>DLSS jest zainstalowany.</translation>
+    </message>
+    <message>
+        <source>DLSS is not installed. &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies to the download.</source>
+        <translation>DLSS nie jest zainstalowany. Pobranie podlega &lt;a href=&quot;%1&quot;&gt;licencji NVIDIA&lt;/a&gt;.</translation>
+    </message>
+    <message>
+        <source>Download DLSS</source>
+        <translation>Pobierz DLSS</translation>
+    </message>
+    <message>
+        <source>Could not find a folder for DLSS.</source>
+        <translation>Nie znaleziono folderu dla DLSS.</translation>
+    </message>
+    <message>
+        <source>Could not create the DLSS folder: %1</source>
+        <translation>Nie można utworzyć folderu DLSS: %1</translation>
+    </message>
+    <message>
+        <source>Could not save DLSS: %1</source>
+        <translation>Nie można zapisać DLSS: %1</translation>
+    </message>
+    <message>
+        <source>Downloading DLSS...</source>
+        <translation>Pobieranie DLSS...</translation>
+    </message>
+    <message>
+        <source>The downloaded file is larger than expected.</source>
+        <translation>Pobrany plik jest większy niż oczekiwano.</translation>
+    </message>
+    <message>
+        <source>The downloaded file has the wrong checksum.</source>
+        <translation>Pobrany plik ma nieprawidłową sumę kontrolną.</translation>
+    </message>
+    <message>
         <source>Error receiving number of screens</source>
         <translation>Błąd podczas odbierania liczby ekranów</translation>
     </message>
@@ -440,6 +504,14 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
     <message>
         <source>Screen </source>
         <translation>Ekran </translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Anuluj</translation>
+    </message>
+    <message>
+        <source>The download failed: %1</source>
+        <translation>Pobieranie nie powiodło się: %1</translation>
     </message>
     <message>
         <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
@@ -1035,6 +1107,10 @@ Logi i ustawienia zmienione za pomocą programu uruchamiającego i w grze zostan
         <translation>Minimalny rozmiar stronicowania obiektów</translation>
     </message>
     <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Shows objects in distant cells, not only terrain. Takes effect after a restart.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Pokazuje obiekty w odległych komórkach, nie tylko teren. Zmiana działa po ponownym uruchomieniu.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
         <source>Audio</source>
         <translation>Dźwięk</translation>
     </message>
@@ -1079,12 +1155,8 @@ Logi i ustawienia zmienione za pomocą programu uruchamiającego i w grze zostan
         <translation>W widoku z trzeciej osoby użyj kamery jako odbiornika dźwięku zamiast postaci gracza.</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, the objects of the cells past the loaded ones stand in the world the ray tracer builds. If false, only the ground stands there. A change takes effect the next time OpenMW starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Distant Objects</source>
-        <translation type="unfinished"></translation>
+        <translation>Odległe obiekty</translation>
     </message>
     <message>
         <source>Use the Camera as the Sound Listener</source>

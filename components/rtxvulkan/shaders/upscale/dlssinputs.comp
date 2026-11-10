@@ -1,0 +1,80 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_samplerless_texture_functions : require
+
+// The trace's checkerboard channels made the two full-resolution images DLSS reads: a reversed
+// device depth worked out from the surface's distance along its ray, and the motion vector. The
+// fields are a permutation of the frame, not half of it, so every pixel has its own sample and no
+// dilation is needed; DLSS dilates the inputs internally, and a second 3x3 pass here would only
+// thicken edges before it runs.
+
+#include "camera.h"
+#include "gbuffer.h"
+#include "shared/dlss.h"
+#include "shared/fields.h"
+#include "shared/sets.h"
+
+#include "lib/census.glsl"
+#include "lib/pixels.glsl"
+
+layout(set = SET_PASS, binding = DLSS_INPUTS_BIND_SURFACE, GBUFFER_SURFACE) uniform image2D r_surface;
+layout(set = SET_PASS, binding = DLSS_INPUTS_BIND_MOTION, GBUFFER_MOTION) uniform image2D r_motion;
+layout(set = SET_PASS, binding = DLSS_INPUTS_BIND_DEPTH, DLSS_DEPTH_FORMAT) writeonly uniform image2D rw_depth;
+layout(set = SET_PASS, binding = DLSS_INPUTS_BIND_MOTION_OUT, DLSS_MOTION_FORMAT) writeonly uniform image2D rw_motion;
+
+layout(set = SET_PASS, binding = DLSS_INPUTS_BIND_CONSTANTS, scalar) uniform cbDlss_t
+{
+    DlssInputConstants cbDlss;
+};
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+uvec2 frameExtent()
+{
+    return uvec2(cbDlss.mEyes.mWorld.mWidth, cbDlss.mEyes.mWorld.mHeight);
+}
+
+bool onFrame(ivec2 pixel)
+{
+    return !outsideOf(pixel, frameExtent());
+}
+
+/// The reversed, infinite device depth a trace of `pixel` found: `near / view depth`, as
+/// `fsrcallbacks.glsl` writes for FSR, or nought where the ray met no surface.
+float depthAt(ivec2 pixel)
+{
+    const uvec2 extent = frameExtent();
+    const ivec2 stored = channelAt(CHANNEL_SURFACE, pixel, extent.x, fieldSwapOf(cbDlss.mFrame));
+    const vec2 seen = imageLoad(r_surface, stored).rg;
+    if (seen.x == SURFACE_NO_NORMAL)
+        return 0.0;
+
+    const Camera eye = eyeOfPixel(seen.y, cbDlss.mEyes);
+    const float along = surfaceDistance(seen.y) * dot(rayAt(eye, vec2(pixel)).mDirection, eye.mBasis.mForward);
+    return cbDlss.mNear / max(along, cbDlss.mNear);
+}
+
+/// The motion vector stored for `pixel`, in render pixels: previous screen less current screen,
+/// which is the direction DLSS names in its guide. Its fourth is the water path's split flag, which
+/// DLSS has no use for and this drops.
+vec2 motionAt(ivec2 pixel)
+{
+    const uvec2 extent = frameExtent();
+    const ivec2 stored = channelAt(CHANNEL_MOTION, pixel, extent.x, fieldSwapOf(cbDlss.mFrame));
+    return imageLoad(r_motion, stored).xy;
+}
+
+void main()
+{
+    const ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    const uvec2 extent = frameExtent();
+    if (outsideOf(uvec2(pixel), extent))
+        return;
+
+    const float depth = depthAt(pixel);
+    const vec2 motion = motionAt(pixel);
+
+    RTX_STORE_COUNTED(rw_depth, pixel, vec4(depth, 0.0, 0.0, 0.0))
+    RTX_STORE_COUNTED(rw_motion, pixel, vec4(motion, 0.0, 0.0))
+}

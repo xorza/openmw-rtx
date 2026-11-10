@@ -4,7 +4,6 @@
 
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/image/specularlayout.hpp>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -92,12 +91,21 @@ namespace Settings
                 Values values(index);
                 EXPECT_EQ(values.mRTX.mUpscale.get(), mode) << spelling;
             }
+            for (const auto& [upscaler, spelling] : Rtx::sUpscalerNames.mNames)
+            {
+                Manager::mUserSettings[std::make_pair("RTX", "upscaler")] = std::string(spelling);
+                Index index;
+                Values values(index);
+                EXPECT_EQ(values.mRTX.mUpscaler.get(), upscaler) << spelling;
+            }
 
             {
                 Index index;
                 Values values(index);
                 values.mRTX.mUpscale.set(Rtx::Upscale::UltraPerformance);
                 EXPECT_EQ(Manager::mUserSettings.at({ "RTX", "upscale" }), "ultraperformance");
+                values.mRTX.mUpscaler.set(Rtx::UpscalerKind::Dlss);
+                EXPECT_EQ(Manager::mUserSettings.at({ "RTX", "upscaler" }), "dlss");
             }
 
             Manager::mUserSettings[std::make_pair("RTX", "upscale")] = "Quality";

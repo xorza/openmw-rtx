@@ -63,6 +63,7 @@ namespace Rtx
         ComputePipeline<Shaders::AtrousConstants> makeLevel(
             const Device& device, bool wide, bool fill, std::string_view name)
         {
+            // The masks are the composing level's alone, so every other level is made with them off.
             std::array<std::uint32_t, Shaders::ATROUS_SPEC_COUNT> specialization{};
             specialization[Shaders::ATROUS_SPEC_WIDE] = wide ? VK_TRUE : VK_FALSE;
             specialization[Shaders::ATROUS_SPEC_FILL] = fill ? VK_TRUE : VK_FALSE;
@@ -70,12 +71,14 @@ namespace Rtx
                 device, sBindings, {}, "atrous.comp.spv", name, specialization);
         }
 
-        ComputePipeline<Shaders::AtrousConstants> makeComposing(const Device& device, bool wide, std::string_view name)
+        ComputePipeline<Shaders::AtrousConstants> makeComposing(
+            const Device& device, bool wide, const UpscalerKind upscaler, std::string_view name)
         {
             std::array<std::uint32_t, Shaders::ATROUS_SPEC_COUNT> specialization{};
             specialization[Shaders::ATROUS_SPEC_WIDE] = wide ? VK_TRUE : VK_FALSE;
             // A wide level composes only as the one level of a frame with no bounce, which keeps no fill.
             specialization[Shaders::ATROUS_SPEC_FILL] = wide ? VK_FALSE : VK_TRUE;
+            specialization[Shaders::ATROUS_SPEC_UPSCALE_MASKS] = writesUpscaleMasks(upscaler) ? VK_TRUE : VK_FALSE;
             return ComputePipeline<Shaders::AtrousConstants>(
                 device, sComposingBindings, {}, "atrouscompose.comp.spv", name, specialization);
         }
@@ -97,12 +100,12 @@ namespace Rtx
         /// tile's fill and barrier.
     }
 
-    AtrousPass::AtrousPass(const Device& device)
+    AtrousPass::AtrousPass(const Device& device, const UpscalerKind upscaler)
         : mWide(makeLevel(device, true, true, "atrous"))
         , mNarrow(makeLevel(device, false, true, "atrous-narrow"))
         , mWideNoFill(makeLevel(device, true, false, "atrous-no-fill"))
-        , mComposing(makeComposing(device, false, "atrous-compose"))
-        , mWideComposing(makeComposing(device, true, "atrous-wide-compose"))
+        , mComposing(makeComposing(device, false, upscaler, "atrous-compose"))
+        , mWideComposing(makeComposing(device, true, upscaler, "atrous-wide-compose"))
         , mNoShadow(makeStandIn(device, toVulkanFormat(SHADOW_VISIBILITY), VK_IMAGE_USAGE_STORAGE_BIT, "no-shadow"))
     {
     }

@@ -18,8 +18,10 @@ stays built so upstream's code merges as it stands. Its code is upstream's but f
 [`rtx.rst`](../source/reference/modding/settings/rtx.rst).
 
 The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan's ray tracing.
-The denoiser is the renderer's own, and the upscaler is AMD's FSR 3.1.4 ported to compute shaders:
-at `native` it is the anti-aliasing, and every other mode traces fewer pixels than the frame
+The denoiser is the renderer's own, and the upscaler is AMD's FSR 3.1.4 ported to compute shaders,
+or NVIDIA DLSS through the driver's NGX runtime where the card accepts it and the player has put
+the feature library beside the game or in the user data folder the launcher downloads into: at
+`native` the upscaler is the anti-aliasing, and every other mode traces fewer pixels than the frame
 holds. Vanilla textures are pre-lit, so the renderer estimates the painted light and divides it
 out as it prepares the content; a PBR replacer's companion maps reach the trace, and a vanilla scene draws the same whether or
 not the renderer can read them.

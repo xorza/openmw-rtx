@@ -18,6 +18,7 @@
 #include <components/rtx/common/job.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/handles.hpp>
@@ -111,8 +112,10 @@ namespace Rtx
         ///        were not finite — a harness facility, specialized away rather than branched on.
         /// @param specialize whether to make a kernel per tuple behind the full tuple's, or the full
         ///        tuple's alone and answer every frame with it — `RenderProfile::mSpecializeKernels`.
+        /// @param upscaler the run's upscaler, resolved: whether the kernels write what only FSR
+        ///        reads (`writesUpscaleMasks`), specialized away rather than branched on.
         VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
-            const SetLayout& volumeLayout, bool counting, bool specialize);
+            const SetLayout& volumeLayout, bool counting, bool specialize, UpscalerKind upscaler);
 
         /// Where the blue-noise tile is, named for the next submit: what the frame block carries,
         /// and the tone pass's dither draws from.
@@ -301,6 +304,9 @@ namespace Rtx
         /// what counts is which binary was built and not what is being looked at. As the word the
         /// kernels are specialized with.
         std::uint32_t mCounting = 0;
+
+        /// The same, of whether the kernels write the upscaler's masks.
+        std::uint32_t mUpscaleMasks = 0;
 
         /// Whether the tables below fill with a kernel per tuple behind the full tuple's, or hold the
         /// full tuple's alone.

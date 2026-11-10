@@ -159,6 +159,20 @@ namespace RtxTool
             EXPECT_THROW(span({ "--frames=300", "--seconds=5" }), std::runtime_error);
         }
 
+        TEST(RtxToolOptionsTest, anUpscalerCanBeSelectedWithoutChangingTheQualityMode)
+        {
+            const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
+            EXPECT_EQ(lineOf(options, {}, Verbs::Bench).mFrame.mUpscaler, Rtx::UpscalerKind::Fsr);
+            for (const auto& [kind, name] : Rtx::sUpscalerNames.mNames)
+            {
+                const ToolLine line
+                    = lineOf(options, { std::format("--upscaler={}", name), "--upscale=quality" }, Verbs::Bench);
+                EXPECT_EQ(line.mFrame.mUpscaler, kind);
+                EXPECT_EQ(line.mFrame.mUpscale.mValue, Rtx::Upscale::Quality);
+            }
+            EXPECT_THROW(lineOf(options, { "--upscaler=unknown" }, Verbs::Bench), std::runtime_error);
+        }
+
         /// **The line is read once into what each option means, and a condition nobody named is
         /// none**: nothing named stands no hour, no weather, no air, no places of the file's and no
         /// folder, and the day, the hold and the upscaler at their defaults, unnamed. Named, each is

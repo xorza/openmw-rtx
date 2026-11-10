@@ -40,6 +40,11 @@ namespace Files
         return std::filesystem::path(g_path_user);
     }
 
+    std::filesystem::path AndroidPath::getUserLocalDataPath() const
+    {
+        return getUserDataPath();
+    }
+
     // /data/data/com.libopenmw.openmw/cache
     // (supposed to be "official" android cache location)
     std::filesystem::path AndroidPath::getCachePath() const

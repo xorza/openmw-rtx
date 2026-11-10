@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <memory>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -34,6 +35,7 @@
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/sceneutil/unrefqueue.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
@@ -100,6 +102,7 @@ namespace MWRender
             void setVSync(SDLUtil::VSyncMode) override {}
             osg::Timer_t getStartTick() const override { return 0; }
             const RenderSupport& support() const override { return sSupport; }
+            std::span<const Rtx::UpscalerKind> getUpscalers() const override { return Rtx::offeredUpscalers(false); }
             std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(
                 float, VFS::Path::NormalizedView, const std::filesystem::path&) override
             {

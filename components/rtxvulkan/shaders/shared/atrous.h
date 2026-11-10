@@ -71,7 +71,10 @@ namespace Rtx::Shaders
 
     /// Whether the fill stands apart from the bounce (`ACCUMULATE_HOLDS_FILL`).
     const uint ATROUS_SPEC_FILL = 1u;
-    const uint ATROUS_SPEC_COUNT = 2u;
+
+    /// Whether the composing level writes `CHANNEL_UPSCALE_MASKS` (`Rtx::writesUpscaleMasks`).
+    const uint ATROUS_SPEC_UPSCALE_MASKS = 2u;
+    const uint ATROUS_SPEC_COUNT = 3u;
 
     /// Threads along each edge of a level's workgroup.
     const uint ATROUS_WORKGROUP = 8;

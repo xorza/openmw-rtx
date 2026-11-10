@@ -17,6 +17,11 @@
 #include "physicaldevice.hpp"
 #include "requirements.hpp"
 
+namespace Rtx::Dlss
+{
+    class Application;
+}
+
 namespace Rtx
 {
     /// What a pipeline's compiler made it use: the statistics `VK_KHR_pipeline_executable_properties`
@@ -88,6 +93,11 @@ namespace Rtx
         /// Whether the zones read the device's counters (`Device::getZoneCounters`), where the
         /// driver offers them: `RunProfile::mZoneCounters`.
         bool mCounters = false;
+
+        /// What NGX is asked for DLSS's extensions with, on an NVIDIA card, which outlives the
+        /// device. A profile that may use DLSS sets this; one that only ever uses FSR leaves it
+        /// null and NGX untouched.
+        const Dlss::Application* mDlss = nullptr;
     };
 
     /// Which `VkObjectType` a handle is, so that `Device::setName` takes the handle and never a
@@ -180,6 +190,14 @@ namespace Rtx
         VkQueue getQueue() const { return mQueue; }
         std::uint32_t getQueueFamily() const { return mPhysicalDevice.getQueueFamily(); }
         const PhysicalDevice& getPhysicalDevice() const { return mPhysicalDevice; }
+
+        /// The instance the device was made on, which NGX's Vulkan entry points ask for. Not owned:
+        /// the instance outlives the device, as `Instance` says.
+        VkInstance getInstanceHandle() const { return mInstance; }
+
+        /// Whether this is an NVIDIA card in a build with NGX, on a run that asked for DLSS. The
+        /// driver's own answer to whether it accepts the card comes later, at feature creation.
+        bool isDlssCandidate() const { return mDlssCandidate; }
 
         /// Where every buffer's and every image's memory comes from: one suballocator for the
         /// device, where an allocation per resource is a kernel call apiece for a cell's several
@@ -361,6 +379,13 @@ namespace Rtx
         void beginLabelImpl(VkCommandBuffer commands, const char* name) const;
 
         PhysicalDevice mPhysicalDevice;
+
+        /// The instance the device was made on, held as a handle because NGX asks for one and the
+        /// device does not otherwise keep it (`Instance` outlives every device made on it).
+        VkInstance mInstance = VK_NULL_HANDLE;
+
+        /// Whether this is an NVIDIA card in a build with NGX, on a run that asked for DLSS.
+        bool mDlssCandidate = false;
 
         /// Before every member made on it — `Root` says why.
         Root<VkDevice, vkDestroyDevice> mHandle;

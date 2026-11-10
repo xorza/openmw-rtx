@@ -760,6 +760,11 @@ namespace MWRender
         return glSupport();
     }
 
+    std::span<const Rtx::UpscalerKind> GlRenderer::getUpscalers() const
+    {
+        return Rtx::offeredUpscalers(false);
+    }
+
     void GlRenderer::applyChangedSettings(const Settings::CategorySettingVector& changed)
     {
         if (!mWorld)

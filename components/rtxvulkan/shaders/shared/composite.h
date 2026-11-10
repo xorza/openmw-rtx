@@ -40,6 +40,11 @@ namespace Rtx::Shaders
     const uint COMPOSITE_SHADOWED_SKY = 1u;
     const uint COMPOSITE_SHADOWED_LAMPS = 2u;
 
+    /// Where `composite.comp`'s specialization constant sits: whether it writes
+    /// `CHANNEL_UPSCALE_MASKS` (`Rtx::writesUpscaleMasks`).
+    const uint COMPOSITE_SPEC_UPSCALE_MASKS = 0u;
+    const uint COMPOSITE_SPEC_COUNT = 1u;
+
 /// What the running sum a reference is built in is kept as: full floats, for the reason
 /// `GBUFFER_RADIANCE_SUMMED` is.
 #define COMPOSITE_SUM_FORMAT STORAGE_RGBA32F

@@ -64,6 +64,11 @@ namespace Files
         return getEnv("XDG_DATA_HOME", getUserHome() / ".local/share") / mName;
     }
 
+    std::filesystem::path LinuxPath::getUserLocalDataPath() const
+    {
+        return getUserDataPath();
+    }
+
     std::filesystem::path LinuxPath::getCachePath() const
     {
         return getEnv("XDG_CACHE_HOME", getUserHome() / ".cache") / mName;

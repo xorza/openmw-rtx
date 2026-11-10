@@ -53,6 +53,10 @@ layout(constant_id = ATROUS_SPEC_WIDE) const bool ATROUS_WIDE = true;
 /// bounce whole, and whose fill images keep only their count.
 layout(constant_id = ATROUS_SPEC_FILL) const bool ATROUS_HOLDS_FILL = true;
 
+/// Whether the composing level writes the masks the frame's upscaler reads: FSR's does, and DLSS has no
+/// input for them.
+layout(constant_id = ATROUS_SPEC_UPSCALE_MASKS) const bool ATROUS_UPSCALE_MASKS = true;
+
 layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
 
 /// Whether this level writes what a level after it, or the next frame's accumulator, reads: all but the
@@ -133,7 +137,8 @@ void storeComposed(ivec2 at, ivec2 stored, vec3 bounce, vec3 fillShare)
     const vec3 light
         = resolvedLight(stored, imageLoad(direct, stored).rgb, bounce, fillShare, level.mShadowed, level.mLobed);
     RTX_STORE_COUNTED(composed, at, vec4(light, 1.0))
-    storeUpscaleMasks(at, stored, light);
+    if (ATROUS_UPSCALE_MASKS)
+        storeUpscaleMasks(at, stored, light);
 }
 #endif
 

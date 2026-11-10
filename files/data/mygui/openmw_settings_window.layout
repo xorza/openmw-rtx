@@ -411,7 +411,12 @@
                         </Widget>
                         <Widget type="ComboBox" skin="MW_ComboBox" position="0 24 420 24" align="Left Top" name="RayTracingUpscaleList"/>
 
-                        <Widget type="HBox" position="0 54 420 28">
+                        <Widget type="TextBox" skin="NormalText" position="0 54 420 18" align="Left Top" name="RayTracingUpscalerText">
+                            <Property key="Caption" value="#{OMWEngine:RayTracingUpscaler}"/>
+                        </Widget>
+                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 74 420 24" align="Left Top" name="RayTracingUpscalerList"/>
+
+                        <Widget type="HBox" position="0 104 420 28">
                             <Widget type="AutoSizedButton" skin="MW_Button" position="0 0 24 24" align="Left Top">
                                 <UserString key="SettingCategory" value="RTX"/>
                                 <UserString key="SettingName" value="indirect lighting"/>
@@ -422,10 +427,10 @@
                             </Widget>
                         </Widget>
 
-                        <Widget type="TextBox" skin="NormalText" position="0 84 420 18" align="Left Top" name="RayTracingBounceRaysText">
+                        <Widget type="TextBox" skin="NormalText" position="0 134 420 18" align="Left Top" name="RayTracingBounceRaysText">
                             <Property key="Caption" value="#{OMWEngine:RayTracingBounceRays}"/>
                         </Widget>
-                        <Widget type="ScrollBar" skin="MW_HScroll" position="0 106 420 18" align="Left Top" name="RayTracingBounceRaysSlider">
+                        <Widget type="ScrollBar" skin="MW_HScroll" position="0 156 420 18" align="Left Top" name="RayTracingBounceRaysSlider">
                             <Property key="Page" value="1"/>
                             <Property key="WheelPage" value="1"/>
                             <UserString key="SettingType" value="Slider"/>
@@ -436,10 +441,10 @@
                             <UserString key="SettingLabelCaption" value="RayTracingBounceRaysValue"/>
                         </Widget>
 
-                        <Widget type="TextBox" skin="NormalText" position="0 130 420 18" align="Left Top" name="RayTracingDistantLandText">
+                        <Widget type="TextBox" skin="NormalText" position="0 180 420 18" align="Left Top" name="RayTracingDistantLandText">
                             <Property key="Caption" value="#{OMWEngine:RayTracingDistantLand}"/>
                         </Widget>
-                        <Widget type="ScrollBar" skin="MW_HScroll" position="0 152 420 18" align="Left Top" name="RayTracingDistantLandSlider">
+                        <Widget type="ScrollBar" skin="MW_HScroll" position="0 202 420 18" align="Left Top" name="RayTracingDistantLandSlider">
                             <Property key="Page" value="1"/>
                             <Property key="WheelPage" value="1"/>
                             <UserString key="SettingType" value="Slider"/>
@@ -450,10 +455,10 @@
                             <UserString key="SettingLabelCaption" value="RayTracingDistantLandValue"/>
                         </Widget>
 
-                        <Widget type="TextBox" skin="NormalText" position="0 176 420 18" align="Left Top">
+                        <Widget type="TextBox" skin="NormalText" position="0 226 420 18" align="Left Top">
                             <Property key="Caption" value="#{OMWEngine:Anisotropy}"/>
                         </Widget>
-                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 196 420 24" align="Left Top" name="Anisotropy">
+                        <Widget type="ComboBox" skin="MW_ComboBox" position="0 246 420 24" align="Left Top" name="Anisotropy">
                             <Property key="AddItem" value="#{Interface:Off}"/>
                             <Property key="AddItem" value="2x"/>
                             <Property key="AddItem" value="4x"/>

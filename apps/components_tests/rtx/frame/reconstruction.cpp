@@ -2,6 +2,8 @@
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <span>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -248,6 +250,56 @@ namespace Rtx
             EXPECT_EQ(sNoiseSourceNames.name(NoiseSource::WhiteHash), "white-hash");
             EXPECT_EQ(sNoiseSourceNames.named("auto"), std::nullopt)
                 << "auto is the harness's word for no override, and not a source";
+        }
+
+        /// `auto` is a policy, and these are the three facts it reads before a backend is made: the
+        /// build has one, the card is an NVIDIA candidate, and the player's library is installed.
+        /// A concrete request stands whatever the facts say.
+        TEST(RtxUpscalerTest, autoChoosesDlssOnlyWhenTheBuildTheCardAndTheLibraryAgree)
+        {
+            constexpr DlssReadiness ready{ .mBuilt = true, .mCandidate = true, .mInstalled = true };
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Auto, ready), UpscalerKind::Dlss);
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Auto, DlssReadiness{ .mCandidate = true, .mInstalled = true }),
+                UpscalerKind::Fsr)
+                << "a build without the backend";
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Auto, DlssReadiness{ .mBuilt = true, .mInstalled = true }),
+                UpscalerKind::Fsr)
+                << "a card that is not NVIDIA's";
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Auto, DlssReadiness{ .mBuilt = true, .mCandidate = true }),
+                UpscalerKind::Fsr)
+                << "no feature library";
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Fsr, ready), UpscalerKind::Fsr);
+            EXPECT_EQ(resolveUpscaler(UpscalerKind::Dlss, DlssReadiness{}), UpscalerKind::Dlss)
+                << "an explicit DLSS fails by name where it is made, and is not turned into FSR here";
+        }
+
+        /// A menu without DLSS is the whole menu less its last entry, so an interface's labels for
+        /// it are the same prefix of its labels; with DLSS it is the whole menu.
+        TEST(RtxUpscalerTest, aMenuOffersDlssOnlyWhereItIsAskedTo)
+        {
+            const std::span<const UpscalerKind> without = offeredUpscalers(false);
+            EXPECT_EQ(std::vector(without.begin(), without.end()),
+                (std::vector<UpscalerKind>{ UpscalerKind::Auto, UpscalerKind::Fsr }));
+            const std::span<const UpscalerKind> with = offeredUpscalers(true);
+            EXPECT_EQ(std::vector(with.begin(), with.end()),
+                (std::vector<UpscalerKind>{ UpscalerKind::Auto, UpscalerKind::Fsr, UpscalerKind::Dlss }));
+        }
+
+        /// The masks are FSR's input alone: DLSS has none for them.
+        TEST(RtxUpscalerTest, onlyFsrHasTheTraceWriteItsMasks)
+        {
+            EXPECT_TRUE(writesUpscaleMasks(UpscalerKind::Fsr));
+            EXPECT_FALSE(writesUpscaleMasks(UpscalerKind::Dlss));
+        }
+
+        /// The launcher must not save `dlss` for a library that is not installed; that was the
+        /// configuration the game refused to start with.
+        TEST(RtxUpscalerTest, theLauncherDoesNotKeepDlssWithoutItsLibrary)
+        {
+            EXPECT_EQ(launcherUpscaler(UpscalerKind::Dlss, true), UpscalerKind::Dlss);
+            EXPECT_EQ(launcherUpscaler(UpscalerKind::Dlss, false), UpscalerKind::Auto);
+            EXPECT_EQ(launcherUpscaler(UpscalerKind::Fsr, false), UpscalerKind::Fsr);
+            EXPECT_EQ(launcherUpscaler(UpscalerKind::Auto, false), UpscalerKind::Auto);
         }
     }
 }

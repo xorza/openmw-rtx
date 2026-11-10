@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <cstdint>
 
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framezone.hpp>
@@ -21,10 +22,18 @@ namespace Rtx
         /// answers and the running sum — all storage images, all pushed.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::COMPOSITE_BINDINGS> sBindings
             = computeBindings<Shaders::COMPOSITE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
+        ComputePipeline<Shaders::CompositeConstants> makeComposite(const Device& device, const UpscalerKind upscaler)
+        {
+            std::array<std::uint32_t, Shaders::COMPOSITE_SPEC_COUNT> specialization{};
+            specialization[Shaders::COMPOSITE_SPEC_UPSCALE_MASKS] = writesUpscaleMasks(upscaler) ? VK_TRUE : VK_FALSE;
+            return ComputePipeline<Shaders::CompositeConstants>(
+                device, sBindings, {}, "composite.comp.spv", "composite", specialization);
+        }
     }
 
-    CompositePass::CompositePass(const Device& device)
-        : mPipeline(device, sBindings, {}, "composite.comp.spv", "composite")
+    CompositePass::CompositePass(const Device& device, const UpscalerKind upscaler)
+        : mPipeline(makeComposite(device, upscaler))
         , mNoSum(makeStandIn(device, toVulkanFormat(COMPOSITE_SUM_FORMAT), VK_IMAGE_USAGE_STORAGE_BIT, "no-sum"))
         , mNoShadow(makeStandIn(device, toVulkanFormat(SHADOW_VISIBILITY), VK_IMAGE_USAGE_STORAGE_BIT, "no-shadow"))
     {

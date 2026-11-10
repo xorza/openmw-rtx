@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -18,6 +19,8 @@
 
 #include <components/misc/frameratelimiter.hpp>
 #include <components/misc/presentation.hpp>
+#include <components/platform/dlss.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/sdlutil/graphicslistener.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
@@ -99,6 +102,9 @@ namespace MWRender
 
         /// Where a renderer keeps what it compiled: regenerable, so the cache directory.
         std::filesystem::path mCachePath;
+
+        /// Where DLSS's files are: the runtime folder in the user's local data, and the game's own.
+        Platform::Dlss::Folders mDlss;
     };
 
     class Renderer;
@@ -443,6 +449,11 @@ namespace MWRender
         /// What this renderer honours, and why it declines the rest. Asked wherever the game would
         /// otherwise branch on which renderer it has: the console, Lua, the changed settings.
         virtual const RenderSupport& support() const = 0;
+
+        /// The upscalers the settings window offers under this renderer: the ones its device can
+        /// run (`Rtx::offeredUpscalers`), in the menu's order. Asked of the renderer and not of the
+        /// system's adapters, which name a card this renderer may not draw on.
+        virtual std::span<const Rtx::UpscalerKind> getUpscalers() const = 0;
 
         /// Settings the player changed in the menu, as `Settings::Manager` reports them, of which
         /// the renderer is handed the ones its `support` honours.

@@ -25,7 +25,11 @@ namespace Rtx
         ///        developer feature: nobody enables it in a run they care about the frame rate of.
         /// @param surfaceExtensions what the window's surface needs, or empty for the headless path,
         ///        which is why `openmw-rtxtool` works over ssh.
-        Instance(const ValidationOptions& validation, std::span<const char* const> surfaceExtensions);
+        /// @param extraExtensions what a feature needs besides, such as NGX's: each enabled where
+        ///        the loader offers it and left out where it does not, so `auto` can fall back to
+        ///        the other upscaler; the feature then refuses where it is created, naming why.
+        Instance(const ValidationOptions& validation, std::span<const char* const> surfaceExtensions,
+            std::span<const std::string> extraExtensions = {});
 
         /// The version the Vulkan loader offers, loading it into the process the first time it is
         /// asked, or nought where the system has none. Nothing loads it before: no program imports it,

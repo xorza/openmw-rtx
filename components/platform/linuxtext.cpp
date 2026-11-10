@@ -140,4 +140,18 @@ namespace Platform::LinuxText
             return std::nullopt;
         return bytes;
     }
+
+    std::optional<std::uint16_t> pciId(std::string_view text)
+    {
+        if (text.ends_with('\n'))
+            text.remove_suffix(1);
+        if (text.size() != 6 || !text.starts_with("0x"))
+            return std::nullopt;
+        text.remove_prefix(2);
+        std::uint16_t id = 0;
+        const std::from_chars_result read = std::from_chars(text.data(), text.data() + text.size(), id, 16);
+        if (read.ec != std::errc{} || read.ptr != text.data() + text.size())
+            return std::nullopt;
+        return id;
+    }
 }

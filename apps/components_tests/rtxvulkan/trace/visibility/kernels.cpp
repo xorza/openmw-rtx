@@ -13,6 +13,7 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
@@ -60,7 +61,7 @@ namespace Rtx
         /// for an answer the 14 already give.
         TEST_F(RtxVisibilityKernelsTest, theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile)
         {
-            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
+            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false, UpscalerKind::Fsr);
             constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5;
 
             JobProgress progress = pass.awaitKernels(KernelSet::Drawing, std::chrono::milliseconds::zero());
@@ -213,7 +214,7 @@ namespace Rtx
             const auto measured = std::ranges::find(sDrivers, driver, &DriverCeilings::mDriver);
             ASSERT_NE(measured, sDrivers.end()) << "no ceilings measured for driver " << driver;
 
-            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, true);
+            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, true, UpscalerKind::Fsr);
             std::vector<VisibilityPass::NamedKernel> kernels;
             pass.listKernels(kernels);
 
@@ -285,7 +286,7 @@ namespace Rtx
         /// constant, so no two of its tuples share one. Of the 324 stage pipelines listed, 80 are shared.
         TEST_F(RtxVisibilityKernelsTest, tuplesAStageReadsAlikeShareItsPipeline)
         {
-            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, true);
+            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, true, UpscalerKind::Fsr);
             std::vector<VisibilityPass::NamedKernel> kernels;
             pass.listKernels(kernels);
             const auto of = [&](std::string_view name, VisibilityVariant tuple) {
@@ -324,7 +325,7 @@ namespace Rtx
             const SetLayout textures = TextureArray::describeLayout(empty);
             const SetLayout channels = GBuffer::describeLayout(empty);
             const SetLayout volume = FogVolume::describeLayout(empty);
-            const VisibilityPass pass(empty, textures, channels, volume, false, true);
+            const VisibilityPass pass(empty, textures, channels, volume, false, true, UpscalerKind::Fsr);
 
             EXPECT_THROW(pass.awaitKernels(KernelSet::Drawing, std::chrono::hours(1)), InputError);
             EXPECT_THROW(pass.awaitKernels(KernelSet::Drawing, std::chrono::hours(1)), InputError);

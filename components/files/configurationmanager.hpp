@@ -56,6 +56,7 @@ namespace Files
         const std::vector<std::filesystem::path>& getActiveConfigPaths() const { return mActiveConfigPaths; }
 
         const std::filesystem::path& getCachePath() const;
+        const std::filesystem::path& getUserLocalDataPath() const;
 
         const std::filesystem::path& getLogPath() const { return getUserConfigPath(); }
         const std::filesystem::path& getScreenshotPath() const;

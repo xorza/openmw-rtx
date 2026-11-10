@@ -215,8 +215,20 @@
         <translation>В прозорец</translation>
     </message>
     <message>
-        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
-        <translation>Разделителната способност, с която играта рендерира света и интерфейса заедно, мащабирана да запълни прозореца. Естествена рендерира в собствения размер на прозореца. В режим на прозорец прозорецът запазва размера, до който последно сте го разтеглили.</translation>
+        <source>The resolution the game renders at, scaled to fit the window. Native uses the window&apos;s size. In windowed mode, the window keeps the size you last gave it.</source>
+        <translation>Разделителната способност на играта, мащабирана спрямо прозореца. „Естествена“ използва размера на прозореца. В режим на прозорец той запазва последния си размер.</translation>
+    </message>
+    <message>
+        <source>How many pixels the ray tracer traces. Off and Native trace every pixel; Native also uses the upscaler as anti-aliasing. The other modes trace fewer pixels and upscale the frame.</source>
+        <translation>Колко пиксела се трасират. „Изключено“ и „Естествена“ трасират всеки пиксел, като „Естествена“ използва мащабирането за изглаждане. Другите режими трасират по-малко пиксели и мащабират кадъра.</translation>
+    </message>
+    <message>
+        <source>Auto uses NVIDIA DLSS on an NVIDIA card with DLSS installed, and AMD FSR otherwise. If DLSS is selected and cannot run, OpenMW does not start. Takes effect after a restart.</source>
+        <translation>„Автоматично“ използва NVIDIA DLSS на карта NVIDIA с инсталиран DLSS, иначе AMD FSR. Ако е избран DLSS и не може да работи, OpenMW не стартира. Влиза в сила след рестарт.</translation>
+    </message>
+    <message>
+        <source>Downloads the DLSS library from NVIDIA&apos;s GitHub. NVIDIA&apos;s licence applies.</source>
+        <translation>Изтегля библиотеката DLSS от GitHub на NVIDIA. Важи лицензът на NVIDIA.</translation>
     </message>
     <message>
         <source>Resolution</source>
@@ -235,12 +247,12 @@
         <translation>Мащабиране</translation>
     </message>
     <message>
-        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
-        <translation>Колко под разделителната способност на кадъра трасира трасирането на лъчи. Изключено трасира всеки пиксел без мащабиращ; всеки друг режим пуска мащабиращия, който реконструира кадъра от няколко кадъра, и всеки режим освен Изключено и Естествена трасира по-малко пиксели, отколкото показва.</translation>
+        <source>Upscaler</source>
+        <translation>Метод на мащабиране</translation>
     </message>
     <message>
-        <source>How far out from the eye the world is built, in cells. The ray tracer builds what rays can reach, which is a different question from how far the camera sees.</source>
-        <translation type="unfinished"></translation>
+        <source>Download DLSS</source>
+        <translation>Изтегляне на DLSS</translation>
     </message>
     <message>
         <source>Off</source>
@@ -253,6 +265,18 @@
     <message>
         <source>Native</source>
         <translation>Естествена</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>Автоматично</translation>
+    </message>
+    <message>
+        <source>AMD FSR 3.1</source>
+        <translation>AMD FSR 3.1</translation>
+    </message>
+    <message>
+        <source>NVIDIA DLSS</source>
+        <translation>NVIDIA DLSS</translation>
     </message>
     <message>
         <source>Performance</source>
@@ -268,7 +292,11 @@
     </message>
     <message>
         <source>Ray Tracing Distant Land</source>
-        <translation>Далечна земя при трасиране на лъчи</translation>
+        <translation>Далечен терен (трасиране на лъчи)</translation>
+    </message>
+    <message>
+        <source>How many cells around the player the ray tracer builds. This is separate from the view distance.</source>
+        <translation>Колко клетки около играча изгражда трасирането на лъчи. Не зависи от разстоянието на видимост.</translation>
     </message>
     <message>
         <source> cells</source>
@@ -428,6 +456,42 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
 <context>
     <name>Launcher::GraphicsPage</name>
     <message>
+        <source>DLSS is installed.</source>
+        <translation>DLSS е инсталиран.</translation>
+    </message>
+    <message>
+        <source>DLSS is not installed. &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies to the download.</source>
+        <translation>DLSS не е инсталиран. За изтеглянето важи &lt;a href=&quot;%1&quot;&gt;лицензът на NVIDIA&lt;/a&gt;.</translation>
+    </message>
+    <message>
+        <source>Download DLSS</source>
+        <translation>Изтегляне на DLSS</translation>
+    </message>
+    <message>
+        <source>Could not find a folder for DLSS.</source>
+        <translation>Не е намерена папка за DLSS.</translation>
+    </message>
+    <message>
+        <source>Could not create the DLSS folder: %1</source>
+        <translation>Папката за DLSS не може да бъде създадена: %1</translation>
+    </message>
+    <message>
+        <source>Could not save DLSS: %1</source>
+        <translation>DLSS не може да бъде записан: %1</translation>
+    </message>
+    <message>
+        <source>Downloading DLSS...</source>
+        <translation>Изтегляне на DLSS...</translation>
+    </message>
+    <message>
+        <source>The downloaded file is larger than expected.</source>
+        <translation>Изтегленият файл е по-голям от очакваното.</translation>
+    </message>
+    <message>
+        <source>The downloaded file has the wrong checksum.</source>
+        <translation>Изтегленият файл има грешна контролна сума.</translation>
+    </message>
+    <message>
         <source>Error receiving number of screens</source>
         <translation>Грешка при получаване броя на екраните</translation>
     </message>
@@ -438,6 +502,14 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
     <message>
         <source>Screen </source>
         <translation>Екран </translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Отказ</translation>
+    </message>
+    <message>
+        <source>The download failed: %1</source>
+        <translation>Изтеглянето не успя: %1</translation>
     </message>
     <message>
         <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
@@ -1029,6 +1101,10 @@ Logs and settings changed through the launcher and in-game will be saved here.</
         <translation>Мин. размер за страниране на обекти</translation>
     </message>
     <message>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Shows objects in distant cells, not only terrain. Takes effect after a restart.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Показва обекти в далечните клетки, не само терена. Влиза в сила след рестарт.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
         <source>Audio</source>
         <translation>Звук</translation>
     </message>
@@ -1073,12 +1149,8 @@ Logs and settings changed through the launcher and in-game will be saved here.</
         <translation>В трето лице, използвайте камерата като слушател на звука вместо героя.</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If true, the objects of the cells past the loaded ones stand in the world the ray tracer builds. If false, only the ground stands there. A change takes effect the next time OpenMW starts.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Distant Objects</source>
-        <translation type="unfinished"></translation>
+        <translation>Далечни обекти</translation>
     </message>
     <message>
         <source>Use the Camera as the Sound Listener</source>

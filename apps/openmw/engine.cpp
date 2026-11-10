@@ -22,6 +22,7 @@
 #include <components/sdlutil/imagetosurface.hpp>
 #include <components/sdlutil/sdlinputwrapper.hpp>
 
+#include <components/platform/dlss.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 
@@ -690,7 +691,9 @@ void OMW::Engine::go()
     mEncoder = std::make_unique<ToUTF8::Utf8Encoder>(mEncoding);
 
     // Decided once, before the window exists
-    const MWRender::RendererSpec spec{ .mResourceDir = mResDir, .mCachePath = mCfgMgr.getCachePath() };
+    const MWRender::RendererSpec spec{ .mResourceDir = mResDir,
+        .mCachePath = mCfgMgr.getCachePath(),
+        .mDlss = Platform::Dlss::foldersIn(mCfgMgr.getUserLocalDataPath(), mCfgMgr.getLocalPath()) };
     if (mHost != nullptr)
         mRenderer = mHost->createRenderer(spec);
     else

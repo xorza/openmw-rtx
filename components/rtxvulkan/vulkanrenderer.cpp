@@ -17,6 +17,8 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/crashcatcher/crashnote.hpp>
+#include <components/platform/dlss.hpp>
+#include <components/platform/gpu.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -39,6 +41,7 @@
 #include <components/rtx/world/fognoise.hpp>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/dlss.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
@@ -78,7 +81,8 @@ namespace Rtx
             const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
             VkDeviceSize bytes = PresentTarget::bytesAt(device, width, height)
                 + DisplayChain::bytesAt(device, width, height)
-                + FrameTracer::bytesAt(device, render, output, profile.mUpscale, profile.mRadianceWidth, declared);
+                + FrameTracer::bytesAt(
+                    device, render, output, profile.mUpscale, profile.mUpscaler, profile.mRadianceWidth, declared);
             if (pictures.width > 0)
                 bytes += PictureTracer::bytesAt(device, pictures, profile.mRadianceWidth);
 
@@ -101,6 +105,39 @@ namespace Rtx
             return Surface::getInstanceExtensions();
         }
 
+        /// What NGX needs on the instance, asked before the instance exists: its discovery call
+        /// says "before `vkCreateInstance`", and a missing extension would otherwise turn into a
+        /// feature that cannot be created after the device is already made. **Only where the system
+        /// has an NVIDIA adapter**, the one fact there is before a device is chosen: a Windows
+        /// machine keeps the NGX core in its DriverStore after its NVIDIA card is gone, and the
+        /// core is not to be loaded beside another vendor's driver for nothing.
+        std::vector<std::string> dlssInstanceExtensionsFor(const std::optional<Dlss::Application>& application)
+        {
+            if (!application.has_value() || !Platform::Gpu::has(Platform::Gpu::sNvidia))
+                return {};
+
+            return application->requiredInstanceExtensions();
+        }
+
+        /// What NGX is told of the application, where the run may use DLSS: a profile that only
+        /// ever uses FSR makes none, and no folder is made for it.
+        std::optional<Dlss::Application> dlssApplicationFor(const RendererOptions& options)
+        {
+            if (!Platform::Dlss::sBuilt || options.mRun.mProfile.mUpscaler == UpscalerKind::Fsr)
+                return std::nullopt;
+
+            return std::optional<Dlss::Application>(std::in_place, options.mDlss);
+        }
+
+        /// The run's profile with its upscaler as `Auto` came to, so a frame never asks the
+        /// resolution twice and the shared images and the upscaler's own are one list.
+        RenderProfile resolvedProfile(const RenderProfile& asked, const Upscaler& upscaler)
+        {
+            RenderProfile resolved = asked;
+            resolved.mUpscaler = upscaler.getKind();
+            return resolved;
+        }
+
         /// Whether a queue family presents to `surface`, or nothing to ask for no window.
         PhysicalDevice::PresentQuery presentsTo(const Surface* surface)
         {
@@ -113,16 +150,27 @@ namespace Rtx
     }
 
     VulkanRenderer::VulkanRenderer(const RendererOptions& options)
-        : mInstance(options.mRun.mValidation, surfaceExtensionsFor(options))
+        : mDlss(dlssApplicationFor(options))
+        , mInstance(options.mRun.mValidation, surfaceExtensionsFor(options), dlssInstanceExtensionsFor(mDlss))
         , mSurface(options.mWindow != nullptr ? std::make_unique<Surface>(mInstance, options.mWindow) : nullptr)
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle(), presentsTo(mSurface.get())),
               options.mShaders, PipelineCacheSpec{ .mDirectory = options.mCacheDirectory },
               DeviceReport{ .mStatistics
                   = options.mPipelineStatistics ? PipelineStatistics::Captured : PipelineStatistics::Skipped,
                   .mCodeFolder = options.mRun.mPipelineCode,
-                  .mCounters = options.mRun.mZoneCounters })
+                  .mCounters = options.mRun.mZoneCounters,
+                  .mDlss = mDlss.has_value() ? &*mDlss : nullptr })
+        , mDlssInstalled(Platform::Dlss::sBuilt && Platform::Dlss::installedIn(options.mDlss))
+        , mUpscaler(mDevice, options.mRun.mProfile.mUpscaler,
+              DlssReadiness{ .mBuilt = Platform::Dlss::sBuilt,
+                  .mCandidate = mDevice.isDlssCandidate(),
+                  .mInstalled = mDlssInstalled },
+              mDlss.has_value() ? &*mDlss : nullptr)
+        , mUpscalers(offeredUpscalers(mDlssInstalled
+              && mDevice.getPhysicalDevice().getProperties().mProperties2.properties.vendorID
+                  == Platform::Gpu::sNvidia))
         , mCounting(options.mCounting)
-        , mProfile(options.mRun.mProfile)
+        , mProfile(resolvedProfile(options.mRun.mProfile, mUpscaler))
         , mInverseGamma(1.0f / mProfile.mGamma)
         , mStress(mProfile.mStressOverlapMs > 0.0 ? std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs)
                                                   : nullptr)
@@ -130,7 +178,7 @@ namespace Rtx
         , mReadBack(mDevice, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "picture read back")
         , mScenePasses(mDevice)
         , mArrival(mDevice)
-        , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeKernels)
+        , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeKernels, mProfile.mUpscaler)
         , mFrame(mDevice, mTracePasses, mProfile.mRadianceWidth)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout)
         , mMedia(mDevice, sFogNoise)
@@ -204,7 +252,7 @@ namespace Rtx
         // **Or for the most the modes the run named would take** (`RunProfile::mReservedUpscales`).
         std::vector<ArenaImage> declared;
         FrameTracer::declare(render, output, mProfile, declared);
-        const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared);
+        const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared, mUpscaler);
         VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, declared);
         for (const Upscale mode : mReservedUpscales)
         {
@@ -245,7 +293,7 @@ namespace Rtx
                 mReleasedWorld = world->describe().mIdentity;
                 mScenes.clear(SceneSlot::world());
             }
-            mFrame.release(moves);
+            mFrame.release(moves, mUpscaler);
             if (shownMoves)
             {
                 mTarget.release();
@@ -259,7 +307,7 @@ namespace Rtx
         }
 
         // **Placed again only where the arena moved**, which the device was drained for.
-        mFrame.resize(render, output, mProfile.mUpscale, std::move(declared));
+        mFrame.resize(render, output, mProfile.mUpscale, std::move(declared), mUpscaler);
 
         mTarget.resize(mDevice, width, height);
 
@@ -285,7 +333,7 @@ namespace Rtx
         report += mDevice.getPhysicalDevice().describe();
         report += mInstance.getLayers().describe();
 
-        report += "\nupscaler:          " + std::string(Upscaler::describe()) + '\n';
+        report += "\nupscaler:          " + std::string(mUpscaler.describe()) + '\n';
 
         // Reaching here is the part that proves the rest: the device resolved every entry point the
         // required extensions promise, and a driver advertising one it cannot dispatch fails before
@@ -703,7 +751,6 @@ namespace Rtx
         assert((options.mAccumulate == 0 || mProfile.mRadianceWidth == RadianceWidth::Summed)
             && "a sum of frames in a run that only shows them, whose reserve keeps no room for it");
         TraceChain& chain = mFrame.getChain();
-        Upscaler& upscaler = mFrame.getUpscaler();
         assert(camera.mEyes.mWorld.mWidth == chain.getWidth() && camera.mEyes.mWorld.mHeight == chain.getHeight()
             && "the camera has to be built for the render extent; ask getExtents");
 
@@ -739,7 +786,7 @@ namespace Rtx
             = mMedia.describe(world, camera, reconstruction.mSampling, frame.mCounts, mDisplay.getGlareCounts());
 
         if (past.mReprojectionLost)
-            upscaler.reset();
+            mUpscaler.reset();
         if (past.mEyeLost)
             mDisplay.loseEye();
         if (past.mWaterLost)
@@ -803,7 +850,7 @@ namespace Rtx
                     .mJitterX = sampled.mEyes.mWorld.mJitter.x(),
                     .mJitterY = sampled.mEyes.mWorld.mJitter.y(),
                     .mFrameDeltaMs = sinceLastMs,
-                    .mReset = reconstruction.upscaled() && upscaler.isFresh() ? 1u : 0u,
+                    .mReset = reconstruction.upscaled() && mUpscaler.isFresh() ? 1u : 0u,
                 },
                 &timer);
         }
@@ -815,9 +862,9 @@ namespace Rtx
             if (!reconstruction.upscaled())
                 return traced.mColour;
 
-            return upscaler.record(commands,
+            return mUpscaler.record(commands,
                 UpscaleInputs{
-                    .mColour = traced.mColour.mImage,
+                    .mColour = traced.mColour,
                     .mSurface = channels.get(Channel::Surface),
                     .mMotion = channels.get(Channel::Motion),
                     .mMasks = channels.get(Channel::UpscaleMasks),

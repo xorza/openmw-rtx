@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <span>
 #include <vector>
 
 #include <SDL3/SDL_video.h>
@@ -11,6 +12,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/rtx/frame/upscale.hpp>
 #include <components/sdlutil/graphicslistener.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
@@ -130,6 +132,7 @@ namespace MWRender
 
         void setVSync(SDLUtil::VSyncMode mode) override;
         const RenderSupport& support() const override;
+        std::span<const Rtx::UpscalerKind> getUpscalers() const override;
 
         void addCell(const MWWorld::CellStore* cell) override;
         void removeCell(const MWWorld::CellStore* cell) override;

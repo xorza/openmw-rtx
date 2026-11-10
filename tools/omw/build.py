@@ -350,6 +350,15 @@ class Build:
             (self.dir / kind).mkdir(exist_ok=True)
             shutil.copy2(qt / "plugins" / kind / f"{plugin}.dll", self.dir / kind)
 
+        # `Qt::Network` is only linked by the launcher's opt-in DLSS download, and Qt resolves its
+        # TLS backend as a plugin. Without one an https request fails before it leaves the process.
+        tls = qt / "plugins" / "tls"
+        if not tls.is_dir() or not any(tls.glob("*.dll")):
+            raise Refusal(f"Qt at {qt} holds no TLS plugin, which the launcher's DLSS download needs")
+        (self.dir / "tls").mkdir(exist_ok=True)
+        for dll in tls.glob("*.dll"):
+            shutil.copy2(dll, self.dir / "tls")
+
     def build(self, targets: list[str], stdout=None) -> None:
         """`-k 0` keeps Ninja going past a failed object, so one run of a build that breaks names
         every object that broke — on a compiler this box does not have, that is the difference

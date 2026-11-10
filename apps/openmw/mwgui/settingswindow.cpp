@@ -1,8 +1,11 @@
 #include "settingswindow.hpp"
 
+#include <algorithm>
 #include <array>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <iterator>
 #include <optional>
 #include <span>
 #include <string>
@@ -124,6 +127,13 @@ namespace
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
+    constexpr std::array<Rtx::MenuLabel<Rtx::UpscalerKind>, Rtx::sUpscalerMenu.size()> sUpscalerLabels{ {
+        { Rtx::UpscalerKind::Auto, "#{OMWEngine:RayTracingUpscalerAuto}" },
+        { Rtx::UpscalerKind::Fsr, "#{OMWEngine:RayTracingUpscalerFsr}" },
+        { Rtx::UpscalerKind::Dlss, "#{OMWEngine:RayTracingUpscalerDlss}" },
+    } };
+    static_assert(Rtx::followsMenu(sUpscalerLabels, Rtx::sUpscalerMenu));
+
     template <class Enum>
     void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel<Enum>> labels)
     {
@@ -235,12 +245,17 @@ namespace MWGui
         return nullptr;
     }
 
-    SettingsWindow::SettingsWindow(Files::ConfigurationManager& cfgMgr)
+    SettingsWindow::SettingsWindow(
+        Files::ConfigurationManager& cfgMgr, const std::span<const Rtx::UpscalerKind> upscalers)
         : WindowBase("openmw_settings_window.layout")
+        , mUpscalers(upscalers)
         , mKeyboardMode(true)
         , mCurrentPage(static_cast<size_t>(-1))
         , mCfgMgr(cfgMgr)
     {
+        assert(std::ranges::equal(mUpscalers, std::span(Rtx::sUpscalerMenu).first(mUpscalers.size()))
+            && "the renderer offered upscalers that are not a prefix of the menu");
+
         // One cell to a step, over the range the setting's own category states
         MyGUI::ScrollBar* distantLand;
         getWidget(distantLand, "RayTracingDistantLandSlider");
@@ -282,10 +297,15 @@ namespace MWGui
         getWidget(mScriptAdapter, "ScriptAdapter");
         getWidget(mScriptDisabled, "ScriptDisabled");
         getWidget(mRayTracingUpscale, "RayTracingUpscaleList");
+        getWidget(mRayTracingUpscaler, "RayTracingUpscalerList");
 
         addMenuItems<Rtx::Upscale>(mRayTracingUpscale, sUpscaleLabels);
         mRayTracingUpscale->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscaleChanged);
+
+        addMenuItems<Rtx::UpscalerKind>(mRayTracingUpscaler, std::span(sUpscalerLabels).first(mUpscalers.size()));
+        mRayTracingUpscaler->eventComboChangePosition
+            += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscalerChanged);
 
         mMainWidget->castType<MyGUI::Window>()->eventWindowChangeCoord
             += MyGUI::newDelegate(this, &SettingsWindow::onWindowResize);
@@ -501,6 +521,21 @@ namespace MWGui
 
         Settings::rtx().mUpscale.set(*chosen);
         apply();
+    }
+
+    void SettingsWindow::onRayTracingUpscalerChanged(MyGUI::ComboBox* sender, size_t pos)
+    {
+        if (pos >= mUpscalers.size())
+            return;
+
+        const Rtx::UpscalerKind chosen = mUpscalers[pos];
+        if (Settings::rtx().mUpscaler.get() == chosen)
+            return;
+
+        Settings::rtx().mUpscaler.set(chosen);
+        apply();
+        MWBase::Environment::get().getWindowManager()->interactiveMessageBox(
+            "#{OMWEngine:ChangeRequiresRestart}", { "#{Interface:OK}" }, true);
     }
 
     void SettingsWindow::onWindowModeChanged(MyGUI::ComboBox* sender, size_t pos)
@@ -737,6 +772,12 @@ namespace MWGui
     {
         // The menu offers every mode the setting can hold
         mRayTracingUpscale->setIndexSelected(Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get()).value());
+
+        // A kind the renderer does not offer shows nothing chosen rather than another kind.
+        const auto upscaler = std::ranges::find(mUpscalers, Settings::rtx().mUpscaler.get());
+        mRayTracingUpscaler->setIndexSelected(upscaler != mUpscalers.end()
+                ? static_cast<std::size_t>(std::distance(mUpscalers.begin(), upscaler))
+                : MyGUI::ITEM_NONE);
         updateBounceRaysSlider();
     }
 

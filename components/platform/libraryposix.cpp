@@ -13,6 +13,11 @@ namespace Platform::Library
         return static_cast<Handle>(reinterpret_cast<std::intptr_t>(dlopen(name, RTLD_NOW | RTLD_LOCAL)));
     }
 
+    Handle open(const std::filesystem::path& path)
+    {
+        return open(path.c_str());
+    }
+
     void* find(const Handle handle, const char* symbol)
     {
         return dlsym(reinterpret_cast<void*>(static_cast<std::intptr_t>(handle)), symbol);
