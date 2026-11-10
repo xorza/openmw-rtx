@@ -69,7 +69,7 @@ generate_deploy_script_for_qt_app(openmw-launcher)
 target_link_libraries(openmw-launcher PUBLIC
     SDL3::SDL3
     ${OPENAL_LIBRARY}
-    components_qt
+    openmw-components-qt
 )
 
 target_link_libraries(openmw-launcher PUBLIC Qt::Widgets Qt::Core Qt::Svg Qt::Network)

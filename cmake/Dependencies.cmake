@@ -9,7 +9,7 @@
 include(FetchContent)
 
 # Each project's own settings stay inside the block; Crashpad's folder leaves it, for
-# `components/crashcatcher/link.cmake`, which builds one of its files into every executable.
+# `components/crashcatcher/CMakeLists.txt`, which builds one of its files into every executable.
 block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
 set(CMAKE_CXX_CLANG_TIDY "")
 

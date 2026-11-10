@@ -73,7 +73,7 @@ openmw_add_qt_executable(openmw-wizard
 add_dependencies(openmw-wizard qm-files)
 
 target_link_libraries(openmw-wizard PRIVATE
-    components_qt
+    openmw-components-qt
 )
 
 target_link_libraries(openmw-wizard PRIVATE Qt::Widgets Qt::Core Qt::Svg)

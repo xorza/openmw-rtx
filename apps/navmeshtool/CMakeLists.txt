@@ -13,7 +13,7 @@ target_link_libraries(openmw-navmeshtool openmw-navmeshtool-lib)
 
 target_link_libraries(openmw-navmeshtool-lib
     Boost::program_options
-    components
+    openmw-components
 )
 
 if (WIN32)
@@ -28,5 +28,5 @@ endif()
 install(TARGETS openmw-navmeshtool ${runtime_dependency_arguments})
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
-    target_precompile_headers(openmw-navmeshtool REUSE_FROM components)
+    target_precompile_headers(openmw-navmeshtool REUSE_FROM openmw-components)
 endif()

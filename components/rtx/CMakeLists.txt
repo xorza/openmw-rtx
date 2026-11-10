@@ -18,7 +18,7 @@ function (openmw_rtx_layer name below)
     target_link_libraries(openmw-rtx-${name} ${scope} ${below})
 endfunction ()
 
-openmw_rtx_layer(shaders components
+openmw_rtx_layer(shaders openmw-components
     HEADERS
         shaders/brdf.h
         shaders/camera.h

@@ -98,7 +98,7 @@ target_link_libraries(openmw-rtxtool-lib PUBLIC
     Boost::program_options
     SDL3::SDL3
     openmw-rtx-vulkan
-    components
+    openmw-components
 )
 
 # Named viewpoints and the suites that visit them, in the harness's folder (`RTX_HARNESS_DIR`).

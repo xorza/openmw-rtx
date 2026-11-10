@@ -86,7 +86,7 @@ namespace Crash::Client
             SetThreadStackGuarantee(&guarantee);
         }
 
-        /// The file name of Crashpad's WER module, which `link.cmake` gives it and puts beside the
+        /// The file name of Crashpad's WER module, which `CMakeLists.txt` gives it and puts beside the
         /// executables.
         constexpr std::string_view sWerModule = OPENMW_WER_MODULE;
 

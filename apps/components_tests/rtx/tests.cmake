@@ -311,7 +311,7 @@ target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatform$<IF:$<BOOL:${WIN32
 target_link_libraries(rtx-gpu-tests
     GTest::gtest
     GTest::gmock
-    components
+    openmw-components
     openmw-myguirtx
     openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-spirv openmw-rtx-vulkan-api
 )

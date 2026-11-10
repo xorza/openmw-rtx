@@ -146,8 +146,7 @@ made only on the user's explicit yes, after which it is added here.
   terrain's height solved in double, so the ray tracer's ground and the game's agree on every build of
   OSG.
 - `components/settings` naming the core's `Upscale` and `MAX_BOUNCE_RAYS`, which its `[RTX]` category
-  stores and sanitizes; and `add_component_dir` listing a folder's `.h` files, the headers GLSL reads
-  as well.
+  stores and sanitizes.
 - Faults the user approved fixing:
   - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1`
     holds for every error);
@@ -290,6 +289,13 @@ made only on the user's explicit yes, after which it is added here.
   folded into it: one build system, with GCC 15.2, and GCC 15's false `-Wmaybe-uninitialized` off as
   14's was. The cost is the AppImage's floor, glibc 2.43, and a conflict with upstream's edits to the
   package lists.
+- `components/CMakeLists.txt` as `openmw-components` and `openmw-components-qt`, each folder's files
+  named in a `target_sources` list and its headers as a file set, in place of the stem macros
+  (`add_component_dir`, `add_component_qt_dir`) and the hand-made unity build (`enable_unity_build`,
+  `OPENMW_UNITY_BUILD`), which CMake's `CMAKE_UNITY_BUILD` replaces; without upstream's nested
+  `project (Components)`; the platform folder's lists in `components/platform/CMakeLists.txt`, for Windows
+  and Linux alone, so upstream's other Unix and `filestdio.cpp` branches go; every app linking the new names. The cost is a conflict with every upstream change to a component's list,
+  which the merge resolves by naming the file in its folder's list.
 - `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
   `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
   stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.

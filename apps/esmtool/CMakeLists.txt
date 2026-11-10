@@ -17,7 +17,7 @@ openmw_add_executable(esmtool
 
 target_link_libraries(esmtool
     Boost::program_options
-    components
+    openmw-components
 )
 
 if (WIN32)

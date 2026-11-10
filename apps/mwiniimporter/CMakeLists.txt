@@ -15,7 +15,7 @@ openmw_add_executable(openmw-iniimporter
 
 target_link_libraries(openmw-iniimporter
     Boost::program_options
-    components
+    openmw-components
 )
 
 if (WIN32)
@@ -30,5 +30,5 @@ if (BUILD_WITH_CODE_COVERAGE)
 endif()
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
-    target_precompile_headers(openmw-iniimporter REUSE_FROM components)
+    target_precompile_headers(openmw-iniimporter REUSE_FROM openmw-components)
 endif()

@@ -139,7 +139,7 @@ openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
 target_link_libraries(components-tests
     GTest::gtest
     GTest::gmock
-    components
+    openmw-components
     openmw-myguirtx
     openmw-rtx-tablemakers
 )
@@ -151,7 +151,7 @@ include(rtx/tests.cmake)
 
 if (USE_QT)
     target_sources(components-tests PRIVATE config/testlaunchersettings.cpp)
-    target_link_libraries(components-tests components_qt)
+    target_link_libraries(components-tests openmw-components-qt)
 endif()
 
 if (WIN32)

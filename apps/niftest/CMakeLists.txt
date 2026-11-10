@@ -9,7 +9,7 @@ openmw_add_executable(niftest
 )
 
 target_link_libraries(niftest
-    components
+    openmw-components
 )
 
 if (WIN32)
@@ -24,5 +24,5 @@ endif()
 install(TARGETS niftest ${runtime_dependency_arguments})
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
-    target_precompile_headers(niftest REUSE_FROM components)
+    target_precompile_headers(niftest REUSE_FROM openmw-components)
 endif()

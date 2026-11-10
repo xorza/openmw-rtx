@@ -86,20 +86,10 @@ def misplaced_checks(database: list[dict], root: str) -> list[str]:
     return sorted(found)
 
 
-def qt_sources(cmake_text: str) -> set[str]:
-    """The sources of `components_qt`, read off the `add_component_qt_dir` lists of
-    `components/CMakeLists.txt`, the one place that names them: what a build without Qt leaves out."""
-    found: set[str] = set()
-    for folder, names in re.findall(r"^\s*add_component_qt_dir\s*\(\s*(\S+)(.*?)\)", cmake_text,
-                                    re.MULTILINE | re.DOTALL):
-        found |= {f"components/{folder}/{name}.cpp" for name in names.split()}
-    return found
-
-
 def qt_guarded_sources(cmake_text: str, folder: str) -> set[str]:
     """The sources a list in `folder` adds to a target only `if (USE_QT)`, through `target_sources`:
-    what a build without Qt leaves out of a program it builds, as `components-tests` leaves out the
-    launcher's settings test."""
+    what a build without Qt leaves out, as it leaves out `openmw-components-qt` and the launcher's
+    settings test of `components-tests`."""
     # By depth, so an `if` nested inside the block does not end it at its own `endif`, and up to the
     # block's own `else`, whose branch is the build without Qt.
     guarded: list[str] = []
@@ -130,11 +120,11 @@ def check(build: Build) -> int:
     tracked = working_tree_files("apps/*.cpp", "components/*.cpp")
     database = json.loads(read_text(build.dir / "compile_commands.json"))
     compiled = {os.path.relpath(entry["file"], ROOT).replace(os.sep, "/") for entry in database}
-    # A build without Qt — asan, tsan, release, and debug on Windows — leaves `components_qt` out,
-    # and what a program's list adds only with Qt.
-    if not any("components_qt.dir" in entry.get("output", "") for entry in database):
-        qt_only = qt_sources(read_text(ROOT / "components" / "CMakeLists.txt"))
-        for listed in sorted((ROOT / "apps").glob("*/CMakeLists.txt")):
+    # A build without Qt — asan, tsan, release, and debug on Windows — leaves out what a list adds
+    # only with Qt: `openmw-components-qt`, and what a program's list adds.
+    if not any("openmw-components-qt.dir" in entry.get("output", "") for entry in database):
+        qt_only: set[str] = set()
+        for listed in [ROOT / "components" / "CMakeLists.txt", *sorted((ROOT / "apps").glob("*/CMakeLists.txt"))]:
             qt_only |= qt_guarded_sources(read_text(listed), listed.parent.relative_to(ROOT).as_posix())
         tracked = [name for name in tracked if name not in qt_only]
     return report([f"{name}: tracked, and no list names it" for name in unlisted(tracked, compiled, WINDOWS)]

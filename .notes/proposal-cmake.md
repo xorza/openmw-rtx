@@ -178,6 +178,12 @@ minimum CMake moves to a recent release and the code for older ones goes.
   their own without C++ changes, so `openmw-components` stays whole, its sources listed by folder. Refused: one
   library for the core, which holds the layering by a test alone.
 - **Functions only**, their arguments through `cmake_parse_arguments`; bare `else()`/`endif()`; lowercase commands.
+- **CMake's own names for the system, the compiler and the build type.** `if (WIN32)`, `if (LINUX)` and
+  `if (MSVC)` where a list of files or targets differs; a generator expression where a flag or a definition does
+  (`$<$<CXX_COMPILER_ID:GNU,Clang>:…>`, `$<CONFIG:Release>`), which takes the `if` block around it away. Never
+  `CMAKE_BUILD_TYPE` in an `if`, which a multi-config generator leaves empty. Each step spells its own files
+  this way. Refused: `OPENMW_WINDOWS`, `OPENMW_GCC` and the like set once at the root, a second spelling of
+  names CMake has, which no generator expression can read.
 - **Paths from the current folder**: `${CMAKE_CURRENT_SOURCE_DIR}`, `${CMAKE_CURRENT_BINARY_DIR}` and
   `${PROJECT_SOURCE_DIR}`; never `${CMAKE_SOURCE_DIR}` or `${OpenMW_SOURCE_DIR}`. Values between folders travel as
   target properties or a generated header, never `CACHE INTERNAL`.
@@ -288,9 +294,15 @@ diagnostic after steps 10 and 13.
    layer calling a higher one is not a link error on every system. `components/rtxvulkan` and `apps/rtxtool` as
    `target_sources` lists, headers as file sets, paths from the project's own folders; the six `CACHE INTERNAL` folders
    plain variables, and the three the driver reads written into `omw-folders.json` at configure (`Build.folder`).
-9. **`components`.** `openmw-components` and `openmw-components-qt` with `target_sources` lists by folder, the stem
-   macros and the hand-made unity build gone; the crash catcher, platform I/O, table makers and content store in
-   their folders' own `CMakeLists.txt`.
+9. **`components`.** Done: `openmw-components` and `openmw-components-qt` with a `target_sources` list a folder,
+   every header in the file set, the stem macros, the hand-made unity build and upstream's nested
+   `project (Components)` gone, which had given the core's header sets `components/` for their base. The crash
+   catcher in `components/crashcatcher/CMakeLists.txt`, its per-file definitions set on the library's folder
+   (`TARGET_DIRECTORY`); the platform's lists and `openmw-platform-io` in `components/platform/CMakeLists.txt`;
+   the table makers in `components/rtx` since step 8. The content store stays in the components' list: it is
+   part of their include cycle (`detournavigator` includes it), so it has no library of its own. Links take the
+   keyword form, and `Threads::Threads` where `CMAKE_THREAD_LIBS_INIT` was. `omw`'s listing check reads the Qt
+   library's list as it reads a program's.
 10. **The apps.** Each app's `CMakeLists.txt` in the same form, `opencs_units` and `add_openmw_dir` gone.
 11. **Tests.** Every test binary with `target_sources` lists in its folder; `cmake/Tests.cmake` registers them.
 12. **The root and the presets.** The root split into `cmake/{Options,Checks,Install,Package}.cmake`, the options

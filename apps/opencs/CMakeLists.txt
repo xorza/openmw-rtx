@@ -186,7 +186,7 @@ target_link_libraries(openmw-cs-lib PUBLIC
     ${OSG_LIBRARIES}
     ${EXTERN_OSGQT_LIBRARY}
     Boost::program_options
-    components_qt
+    openmw-components-qt
 )
 
 target_link_libraries(openmw-cs-lib PUBLIC Qt::Widgets Qt::Core Qt::Network Qt::OpenGL Qt::OpenGLWidgets Qt::Svg)

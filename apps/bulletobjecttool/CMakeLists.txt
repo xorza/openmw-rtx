@@ -7,7 +7,7 @@ openmw_add_executable(openmw-bulletobjecttool ${BULLETMESHTOOL})
 
 target_link_libraries(openmw-bulletobjecttool
     Boost::program_options
-    components
+    openmw-components
 )
 
 if (WIN32)
@@ -22,5 +22,5 @@ endif()
 install(TARGETS openmw-bulletobjecttool ${runtime_dependency_arguments})
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
-    target_precompile_headers(openmw-bulletobjecttool REUSE_FROM components)
+    target_precompile_headers(openmw-bulletobjecttool REUSE_FROM openmw-components)
 endif()

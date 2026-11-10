@@ -1,6 +1,6 @@
 import unittest
 
-from omw.listing import misplaced_checks, qt_guarded_sources, qt_sources, unlisted
+from omw.listing import misplaced_checks, qt_guarded_sources, unlisted
 
 
 class UnlistedTest(unittest.TestCase):
@@ -66,15 +66,6 @@ class MisplacedChecksTest(unittest.TestCase):
 
 
 class QtSourcesTest(unittest.TestCase):
-    def test_every_name_of_every_qt_list_is_a_source_of_its_folder(self):
-        text = ("add_component_dir (misc\n    strings\n    )\n"
-                "if (USE_QT)\n    add_component_qt_dir (config\n        gamesettings\n        launchersettings\n        )\n"
-                "    add_component_qt_dir (misc helpviewer scalableicon)\nendif()\n")
-        self.assertEqual(qt_sources(text), {"components/config/gamesettings.cpp",
-                                            "components/config/launchersettings.cpp",
-                                            "components/misc/helpviewer.cpp", "components/misc/scalableicon.cpp"})
-        self.assertEqual(qt_sources("add_component_dir (misc strings)\n"), set())
-
     def test_a_source_a_list_adds_only_with_qt_is_qts(self):
         text = ("target_sources(components-tests PRIVATE always.cpp)\n"
                 "if (USE_QT)\n    target_sources(components-tests PRIVATE config/testlaunchersettings.cpp extra.hpp)\n"
@@ -91,6 +82,12 @@ class QtSourcesTest(unittest.TestCase):
         branched = ("if (USE_QT)\n    target_sources(t PRIVATE qt.cpp)\nelse()\n"
                     "    target_sources(t PRIVATE plain.cpp)\nendif()\n")
         self.assertEqual(qt_guarded_sources(branched, "apps/x"), {"apps/x/qt.cpp"})
+        # A library's list, whose sources span the folder's own folders and whose headers are no sources.
+        library = ("if (USE_QT)\n    add_library(openmw-components-qt STATIC)\n    target_sources(openmw-components-qt\n"
+                   "        PRIVATE\n            config/gamesettings.cpp\n            misc/helpviewer.cpp\n"
+                   "        PUBLIC FILE_SET HEADERS FILES\n            config/gamesettings.hpp\n    )\nendif ()\n")
+        self.assertEqual(qt_guarded_sources(library, "components"),
+                         {"components/config/gamesettings.cpp", "components/misc/helpviewer.cpp"})
 
 
 if __name__ == "__main__":

@@ -125,7 +125,6 @@ include(escape_regex_control_characters)
 
 configure_file ("${OpenMW_SOURCE_DIR}/docs/mainpage.hpp.cmake" "${OpenMW_BINARY_DIR}/docs/mainpage.hpp")
 
-option(OPENMW_UNITY_BUILD "Use fewer compilation units to speed up compile time" FALSE)
 option(OPENMW_LTO_BUILD "Build OpenMW with Link-Time Optimization (Needs ~2GB of RAM)" OFF)
 
 if (CMAKE_GENERATOR MATCHES "Visual Studio")
@@ -165,9 +164,7 @@ if (MSVC)
         add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/MP>)
     endif()
 
-    # \bigobj is required:
-    #  1) for OPENMW_UNITY_BUILD;
-    #  2) to compile lua bindings in components, openmw and tests, because sol3 is heavily templated.
+    # \bigobj is required to compile lua bindings in components, openmw and tests, because sol3 is heavily templated.
     # there should be no relevant downsides to having it on:
     # https://docs.microsoft.com/en-us/cpp/build/reference/bigobj-increase-number-of-sections-in-dot-obj-file
     add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/bigobj>)
@@ -372,10 +369,7 @@ if (NOT WIN32 AND BUILD_WIZARD) # windows users can just run the morrowind insta
     set(OPENMW_USE_UNSHIELD TRUE)
 endif()
 
-# Fix for not visible pthreads functions for linker with glibc 2.15
-if (UNIX)
-    find_package (Threads)
-endif()
+find_package(Threads REQUIRED)
 
 # Look for stdint.h
 include(CheckIncludeFile)
@@ -672,7 +666,7 @@ if (WIN32)
         endif()
 
         if (MSVC_VERSION GREATER_EQUAL 1915 AND MSVC_VERSION LESS 1920)
-            target_compile_definitions(components INTERFACE _ENABLE_EXTENDED_ALIGNED_STORAGE)
+            target_compile_definitions(openmw-components INTERFACE _ENABLE_EXTENDED_ALIGNED_STORAGE)
         endif()
     endif(MSVC)
 endif()

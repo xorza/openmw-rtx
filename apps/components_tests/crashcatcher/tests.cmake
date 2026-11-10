@@ -8,7 +8,7 @@ if (OPENMW_CRASHPAD)
         set(CRASH_TESTS_SYSTEM crashcatcher/crashtestsposix.cpp)
     endif()
     openmw_add_executable(crash-tests crashcatcher/crashtests.cpp crashcatcher/crashtestssystem.hpp ${CRASH_TESTS_SYSTEM})
-    target_link_libraries(crash-tests components)
+    target_link_libraries(crash-tests openmw-components)
 endif()
 
 # The AppImage keeper's reads, where the components build one.

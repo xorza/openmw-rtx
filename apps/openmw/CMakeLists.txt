@@ -195,7 +195,7 @@ target_link_libraries(openmw-lib
     ${RecastNavigation_LIBRARIES}
     osg-ffmpeg-videoplayer
     oics
-    components
+    openmw-components
 )
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
