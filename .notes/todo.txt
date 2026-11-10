@@ -3,5 +3,3 @@
 - remove sqlite
 - check content hasmisses
 - all IO serial?
-- organize code
-- content preprocess note
