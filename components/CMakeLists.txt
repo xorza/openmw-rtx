@@ -391,112 +391,7 @@ add_component_dir (sky
     moonstate skyclock sundisc sunglarefader timeofday vertexrules
     )
 
-# The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan
-# backend is its own library, `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share.
-add_component_dir (rtx/common
-    asserts cardaddress clock error finite index job jobprogress menu
-    namedenum parallel
-    pointhash radicalinverse runs scratch slots stepped ownedby
-    )
 
-add_component_dir (rtx/environment
-    atmospheremesh cloudmesh moonfaces skybuilder skymesh skysheet starmesh wavecascade wavespectrum
-    )
-
-add_component_dir (rtx/frame
-    bluenoise camera debuglines frameextents frameoptions framepast framesampling reconstruction specularalbedo
-    spritelistsize surfaceview upscale
-    )
-
-add_component_dir (rtx/image
-    alphaimage chainbuild colour colourblock formatcensus imagedescription madeimage shadingmap specularlayout
-    texels texturedata textureencoding textureformat texturewrap
-    )
-
-add_component_dir (rtx/mirror
-    chainkeys contentmemory drawableposer emitterresolver extractionstats frozenroots lightbuilder materialresolver meshreader
-    meshresolver mirroridentity mirrorpass nodekind posecull poseupdate sceneadopter sceneextractor shading statereading
-    surfacedescription walkcontext worlddescent
-    )
-
-add_component_dir (rtx/mirror/cells
-    cellgrid cellplacer cellreader cellring cellsupply cellworld groundcoversource groundreader held nightday
-    prepared readermemory templatewalk
-    )
-
-add_component_dir (rtx/prepare
-    contentpreparation filestamps preparationdispatcher preparationmanifest
-    )
-
-add_component_dir (rtx/preprocess
-    contentcache contentcodec contentpass contentpreprocessor contentstats imagefactcache
-    preparedimages threadcontent
-    )
-
-add_component_dir (rtx/preprocess/shape
-    creasesplit facecross pockettree probetable shapefold shapepass
-    )
-
-add_component_dir (rtx/preprocess/texture
-    chainpass chainscratch conversionpass texturepass
-    )
-
-add_component_dir (rtx/renderer
-    channel denoiserimage framedescriber framedigest frameimage framesinflight framespend framezone guirenderer
-    memoryreport
-    nullrenderer picturerenderer renderer sceneholder scenetextures sceneuploader shaderdirectory slot verticalsync
-    )
-
-add_component_dir (rtx/scene
-    compositequeue deformertable foldedshape instancerecord light lightgrid material materialtable mesh
-    meshtable placementtable refusal refusals ripple rowhold scenedesc sceneroom sprite
-    surface texturetable
-    )
-
-add_component_dir (rtx/shaders
-    brdf camera colour digest gbuffer halving hosttypes look octahedral portable scene skinning sky
-    storageformat tangent visibility wave
-    )
-
-add_component_dir (rtx/view
-    offscreentrace viewscene
-    )
-
-add_component_dir (rtx/world
-    atmosphere sunglare fogbuilder fognoise frameworld moon skycontent skylight weather
-    )
-
-# What the ray tracer would otherwise compute at every start from no content, made by the build and
-# compiled in: each table's maker, a tool that writes the table as a source, and the source. The makers
-# are a library of their own, which the tools and the test holding each table to its maker link, so the
-# game carries no maker.
-add_library(openmw-rtx-tablemakers STATIC
-    rtx/tables/tablesource.cpp rtx/tables/tablesource.hpp
-    rtx/tables/bluenoisemaker.cpp rtx/tables/bluenoisemaker.hpp
-    rtx/tables/specularalbedomaker.cpp rtx/tables/specularalbedomaker.hpp
-    rtx/tables/fognoisemaker.cpp rtx/tables/fognoisemaker.hpp)
-target_link_libraries(openmw-rtx-tablemakers PUBLIC openmw-platform-io)
-
-function(rtx_make_table tool source table)
-    add_executable(${tool} ${source})
-    target_link_libraries(${tool} PRIVATE openmw-rtx-tablemakers)
-    set(made "${CMAKE_CURRENT_BINARY_DIR}/${table}")
-    add_custom_command(
-        OUTPUT "${made}"
-        COMMAND ${tool} "${made}"
-        DEPENDS ${tool}
-        COMMENT "Making ${table}"
-        VERBATIM)
-    set(COMPONENT_FILES ${COMPONENT_FILES} "${made}" PARENT_SCOPE)
-endfunction()
-
-rtx_make_table(openmw-rtx-blue-noise rtx/tables/bluenoisetool.cpp rtxbluenoise.cpp)
-rtx_make_table(openmw-rtx-fog-noise rtx/tables/fognoisetool.cpp rtxfognoise.cpp)
-rtx_make_table(openmw-rtx-specular-albedo rtx/tables/specularalbedotool.cpp rtxspecularalbedo.cpp)
-
-add_component_dir (myguirtx
-    additivelayer mirrortexture paintedmirror rendermanager sharedtexture slottexture texture
-    )
 
 add_component_dir (lua_ui
     registerscriptsettings scriptsettings
@@ -821,6 +716,20 @@ if (BUILD_WITH_CODE_COVERAGE)
     target_link_libraries(components gcov)
 endif()
 
+
+add_subdirectory(rtx)
+
+# MyGUI's backend on the ray tracer's renderer: above the core, which it draws through, where `components`
+# is below it.
+add_library(openmw-myguirtx STATIC
+    myguirtx/additivelayer.cpp myguirtx/additivelayer.hpp
+    myguirtx/mirrortexture.cpp myguirtx/mirrortexture.hpp
+    myguirtx/paintedmirror.cpp myguirtx/paintedmirror.hpp
+    myguirtx/rendermanager.cpp myguirtx/rendermanager.hpp
+    myguirtx/sharedtexture.cpp myguirtx/sharedtexture.hpp
+    myguirtx/slottexture.cpp myguirtx/slottexture.hpp
+    myguirtx/texture.cpp myguirtx/texture.hpp)
+target_link_libraries(openmw-myguirtx PUBLIC openmw-rtx-renderer)
 
 # Make the variable accessible for other subdirectories
 set(COMPONENT_FILES ${COMPONENT_FILES} PARENT_SCOPE)

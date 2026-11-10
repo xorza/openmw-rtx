@@ -312,6 +312,7 @@ target_link_libraries(rtx-gpu-tests
     GTest::gtest
     GTest::gmock
     components
+    openmw-myguirtx
     openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-spirv openmw-rtx-vulkan-api
 )
 target_compile_definitions(rtx-gpu-tests

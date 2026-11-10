@@ -133,7 +133,7 @@ add_library(openmw-lib STATIC
     ${OPENMW_SOURCES}
 )
 
-target_link_libraries(openmw-lib openmw-rtx-vulkan)
+target_link_libraries(openmw-lib openmw-rtx-vulkan openmw-myguirtx)
 
 # GCC reports an uninitialised value inside sol3's stack code inlined here, which no change to these
 # files removes; each loses only the check that fires.

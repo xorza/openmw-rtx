@@ -280,9 +280,14 @@ diagnostic after steps 10 and 13.
    four `OPENMW_USE_SYSTEM_*` switches, `RECASTNAVIGATION_STATIC`, `YAML_CPP_STATIC` and `FindGMock.cmake` go, and
    the tests link Google Test's own `GTest::gtest` and `GTest::gmock`. Kept: `FindLZ4.cmake`, as Arch's lz4 ships no
    CMake package, where Ubuntu's and vcpkg's do.
-8. **The ray tracer.** `components/rtxvulkan` and `apps/rtxtool` as `target_sources` lists, functions,
-   current-folder paths, no `CACHE INTERNAL` (the shader folders as properties of `openmw-rtx-vulkan-shaders`); the
-   core out of `components` into `components/rtx/CMakeLists.txt`, a library a layer group.
+8. **The ray tracer.** Done: the core out of `components` into `components/rtx/CMakeLists.txt`, one library a layer
+   (`openmw-rtx-<layer>`, each linking the one below, `openmw-rtx` the whole), sources named and headers as a file
+   set, the generated tables compiled into the layer whose header names them; `components/myguirtx` lifted out into
+   `openmw-myguirtx` above the core, which `components` no longer holds. The order is held by the link graph's shape
+   and, as before, by `RtxSourceTreeTest`: mold and MSVC's linker resolve an archive's symbols in any order, so a lower
+   layer calling a higher one is not a link error on every system. Left: `components/rtxvulkan` and `apps/rtxtool` as
+   `target_sources` lists with current-folder paths, and the five `CACHE INTERNAL` folders, which `omw` reads off the
+   cache (`Build.cache_value`), moved to a channel of their own.
 9. **`components`.** `openmw-components` and `openmw-components-qt` with `target_sources` lists by folder, the stem
    macros and the hand-made unity build gone; the crash catcher, platform I/O, table makers and content store in
    their folders' own `CMakeLists.txt`.

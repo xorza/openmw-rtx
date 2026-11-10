@@ -545,7 +545,7 @@ target_compile_definitions(openmw-rtx-vulkan-api INTERFACE VK_NO_PROTOTYPES VOLK
 
 # Vulkan is private: a host reaches the backend through `createrenderer.hpp`, which names no Vulkan
 # type. The tests link Vulkan themselves. Windows is where a breach fails; Linux's headers hide it.
-target_link_libraries(openmw-rtx-vulkan PUBLIC components PRIVATE openmw-rtx-spirv openmw-rtx-vulkan-api SDL3::SDL3)
+target_link_libraries(openmw-rtx-vulkan PUBLIC openmw-rtx PRIVATE openmw-rtx-spirv openmw-rtx-vulkan-api SDL3::SDL3)
 if (OPENMW_RTX_DLSS AND WIN32)
     # `RegGetValueW`, which names the DriverStore folder NGX's core lives in.
     target_link_libraries(openmw-rtx-vulkan PRIVATE advapi32)

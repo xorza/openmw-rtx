@@ -140,6 +140,7 @@ target_link_libraries(components-tests
     GTest::gtest
     GTest::gmock
     components
+    openmw-myguirtx
     openmw-rtx-tablemakers
 )
 
