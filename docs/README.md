@@ -15,7 +15,7 @@ cd ..
 
 This step needs to be repeated only if any dependencies were changed.
 
-The image is based on Ubuntu 22.04 and installs the system tools and Python packages required to build the documentation. The bundled installation script builds Lua 5.1 and LuaRocks and installs a pinned version of openmwluadocumentor.
+The image is based on Ubuntu 26.04 and installs the system tools and Python packages required to build the documentation. The bundled installation script builds Lua 5.1 and LuaRocks and installs a pinned version of openmwluadocumentor.
 
 ### Generating HTML
 

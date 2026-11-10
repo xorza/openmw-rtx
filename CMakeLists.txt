@@ -646,9 +646,10 @@ else ()
                         "$<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>"
                         "$<$<COMPILE_LANGUAGE:CXX>:-Wzero-as-null-pointer-constant>")
 
-    # Wrong on GCC 13 and right from 15: `-Wmaybe-uninitialized` reports every copy of a
-    # `std::optional` (GCC bug 80635), and `-Wnull-dereference` OSG's inline `pushOntoNodePath`.
-    if (CMAKE_CXX_COMPILER_ID STREQUAL GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
+    # Wrong before GCC 16: `-Wmaybe-uninitialized` reports every copy of a `std::optional` (GCC bug
+    # 80635), Ubuntu 26.04's GCC 15.2 among them, and `-Wnull-dereference` OSG's inline
+    # `pushOntoNodePath`.
+    if (CMAKE_CXX_COMPILER_ID STREQUAL GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
         add_compile_options("-Wno-maybe-uninitialized" "-Wno-null-dereference")
     endif()
 

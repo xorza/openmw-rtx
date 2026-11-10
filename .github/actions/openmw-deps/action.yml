@@ -29,7 +29,7 @@ runs:
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: apt-cache/*.deb
-        key: apt-${{ runner.os }}-${{ hashFiles('CI/install_ubuntu_deps.sh', 'CI/install_debian_deps.sh') }}
+        key: apt-${{ runner.os }}-${{ hashFiles('CI/install_ubuntu_deps.sh') }}
 
     - name: Linux packages
       # The slowest of 145 passing jobs took nine minutes, and a job run again on another runner took

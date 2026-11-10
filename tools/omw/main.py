@@ -50,7 +50,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   gate                         {gate}
   exec <command> [args]        a command in the build directory, under the flavour's environment
   archive [name]               the release archive into dist/, with its symbols: the package flavour,
-                               on Linux in an Ubuntu 24.04 container where the system is another
+                               on Linux in an Ubuntu 26.04 container where the system is another
   profile [args]               the harness's CPU side under perf: the release flavour
   remote <host> <verb> [args]  openmw-rtxtool's verb on another Linux machine over SSH: built where
                                a release is, copied to this tree's path there with the libraries it

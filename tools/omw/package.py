@@ -1,5 +1,5 @@
 """`omw archive [name]`: the release archive out of the package build, into dist/, with its symbols.
-An AppImage on Linux, built on Ubuntu 24.04 or in a container of it, and the portable folder on Windows,
+An AppImage on Linux, built on Ubuntu 26.04 or in a container of it, and the portable folder on Windows,
 named after the name given or the commit."""
 
 import os
@@ -32,7 +32,7 @@ DIST = ROOT / "dist"
 # libraries an AppImage takes as the floor it runs on. A desk on another builds the archive in a
 # container of it (`CI/release-base.Dockerfile`), since an image built against a newer glibc runs only
 # where that glibc is, and takes whatever else the desk's Qt holds.
-RELEASE_BASE = {"ID": "ubuntu", "VERSION_ID": "24.04"}
+RELEASE_BASE = {"ID": "ubuntu", "VERSION_ID": "26.04"}
 RELEASE_IMAGE = "openmw-rtx-release-base"
 
 # What the container keeps between runs, on the desk, so its files are the desk's own: its package
@@ -66,7 +66,7 @@ HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches
 # **What an archive must carry that no linker names**, from the archive's root: on Linux the 1.4 Vulkan
 # loader, which volk opens by name at start, so linuxdeploy never sees it; on Windows the C++ runtime
 # the binaries were built against, which `InstallRequiredSystemLibraries` puts beside them. Without
-# the loader a host whose own is 1.3, Ubuntu 24.04's among them, refuses the ray tracer; without the
+# the loader a host whose own is 1.3 refuses the ray tracer; without the
 # runtime no executable starts, and an older one installed faults inside `std::mutex::lock`.
 LINUX_LOADER = "usr/lib/libvulkan.so.1"
 LINUX_RUNTIME = (LINUX_LOADER,)
@@ -84,7 +84,7 @@ def _refuse_missing_runtime(folder: Path, runtime: tuple[str, ...]) -> None:
 
 
 # The Wayland platform as each Qt names it: one plugin in Qt 6.11's base, and two in the
-# `qt6-wayland` of Ubuntu 24.04's Qt 6.4.
+# `qt6-wayland` of the Qt releases before it.
 WAYLAND_PLATFORMS = (("libqwayland.so",), ("libqwayland-generic.so", "libqwayland-egl.so"))
 
 
@@ -154,7 +154,7 @@ def prepare_container(flavour: str) -> Container:
     """The release-base image made, which the layers it keeps make a moment's work after the first,
     the SDK and CMake `omw bootstrap` fetches into deps/, which the desk shares, and the container's
     build of `flavour` given a folder."""
-    docker = require("docker", "a release is built on Ubuntu 24.04, and on another system in a container: docker")
+    docker = require("docker", "a release is built on Ubuntu 26.04, and on another system in a container: docker")
     run([docker, "build", "--tag", RELEASE_IMAGE, "--file", ROOT / "CI" / "release-base.Dockerfile", ROOT / "CI"])
     for kept in (flavour, "ccache"):
         (CONTAINER_DIR / kept).mkdir(parents=True, exist_ok=True)
@@ -236,7 +236,7 @@ def _archive_linux(build: Build, name: str) -> None:
     none. The Qt plugin bundles the Wayland platform beside X11 and, through `waylandcompositor`, the
     shell, buffer and decoration plugins a Wayland window needs, so the launcher opens on a session
     with no XWayland. The Vulkan loader goes in, the 1.4 one the binaries were linked against: the
-    loader is not the driver, and Ubuntu 24.04's 1.3 loader has none of the 1.4 entry points the
+    loader is not the driver, and a host's 1.3 loader has none of the 1.4 entry points the
     backend calls. Its Apache-2.0 text goes in beside the licences the install put there. The update
     information points AppImageUpdate at this repository's releases.
 
@@ -251,7 +251,7 @@ def _archive_linux(build: Build, name: str) -> None:
     AppStream validation is off: upstream's metainfo carries warnings appstreamcli refuses. The tools
     are AppImages themselves and a runner has no FUSE, so they extract and run. What the image takes
     from the host is the AppImage exclude list — glibc and libstdc++, the GL stack, X11, Wayland,
-    fontconfig, ALSA — at the versions of a bare Ubuntu 24.04."""
+    fontconfig, ALSA — at the versions of a bare Ubuntu 26.04."""
     qmake = require("qmake6", "the Qt plugin reads Qt's layout off it: qt6-base-dev-tools")
     require("zsyncmake", "the update information wants a .zsync beside the image: zsync")
     strip = require("strip", "the executables carry the package build's debug information: binutils")

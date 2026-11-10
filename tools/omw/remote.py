@@ -2,7 +2,7 @@
 SSH — an AMD handheld, or any box whose driver is the question — with what it writes brought back.
 
 **Built where the release is built**: in the release-base container on a desk that is another system
-(`package.needs_container`), so the binary asks no newer glibc than Ubuntu 24.04's, and run against
+(`package.needs_container`), so the binary asks no newer glibc than Ubuntu 26.04's, and run against
 the other machine's own Vulkan loader and driver, which are what the run measures. The libraries the
 binary links that the other machine has no soname of go beside it, with OSG's plugins, which no
 linker names; everything it does have is its own.

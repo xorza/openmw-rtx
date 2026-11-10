@@ -93,7 +93,7 @@ Building and running
 --------------------
 
 `./omw` is the one way to build, on Linux and on Windows (`omw.cmd`), and needs Python 3.11 or later.
-On Ubuntu 24.04, `sudo CI/install_ubuntu_deps.sh` installs the packages. On Windows, with MSVC installed,
+On Ubuntu 26.04, `sudo CI/install_ubuntu_deps.sh` installs the packages. On Windows, with MSVC installed,
 the driver fetches the dependencies itself. CMake and clang-format are the driver's own pinned ones on both.
 
 ```

@@ -57,7 +57,7 @@ class UsedOsgPluginsTest(unittest.TestCase):
 
 class WaylandPlatformPluginsTest(unittest.TestCase):
     def test_the_set_this_qt_ships_whole_or_a_refusal(self):
-        # Qt 6.11's one plugin, Ubuntu 24.04's Qt 6.4 with its two and the X compositing pair beside
+        # Qt 6.11's one plugin, an older Qt with its two and the X compositing pair beside
         # them, half of the older pair, and none.
         cases = [
             (["libqwayland.so", "libqxcb.so"], ("libqwayland.so",)),
@@ -80,13 +80,13 @@ class WaylandPlatformPluginsTest(unittest.TestCase):
 
 
 class ReleaseBaseTest(unittest.TestCase):
-    def test_ubuntu_24_04_alone_builds_a_release_where_it_stands(self):
-        noble = 'PRETTY_NAME="Ubuntu 24.04.3 LTS"\nNAME="Ubuntu"\nVERSION_ID="24.04"\nID=ubuntu\nID_LIKE=debian\n'
-        self.assertEqual(os_release(noble)["VERSION_ID"], "24.04")
+    def test_ubuntu_26_04_alone_builds_a_release_where_it_stands(self):
+        resolute = 'PRETTY_NAME="Ubuntu 26.04.1 LTS"\nNAME="Ubuntu"\nVERSION_ID="26.04"\nID=ubuntu\nID_LIKE=debian\n'
+        self.assertEqual(os_release(resolute)["VERSION_ID"], "26.04")
         self.assertEqual(os_release("# ID=fedora\nID='fedora'\n"), {"ID": "fedora"})
-        self.assertTrue(on_release_base(noble))
+        self.assertTrue(on_release_base(resolute))
         for other in ('NAME="Fedora Linux"\nID=fedora\nVERSION_ID=44\n',
-                      'NAME="Ubuntu"\nVERSION_ID="26.04"\nID=ubuntu\n', ""):
+                      'NAME="Ubuntu"\nVERSION_ID="24.04"\nID=ubuntu\n', ""):
             with self.subTest(other=other):
                 self.assertFalse(on_release_base(other))
 

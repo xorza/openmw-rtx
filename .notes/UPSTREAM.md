@@ -285,3 +285,8 @@ made only on the user's explicit yes, after which it is added here.
   `upstream.yml` keeps them deleted. `.editorconfig` covers the ray tracer's shaders and the headers
   GLSL and C++ share (`.h`, `.rgen`), LF as `.gitattributes` holds C++, and loses the stages the tree has
   no file of.
+- Ubuntu 26.04 for every Linux build in place of 24.04, CI's runners, the release image and the docs
+  image alike, from one package script, `CI/install_ubuntu_deps.sh`, with `install_debian_deps.sh`
+  folded into it: one build system, with GCC 15.2, and GCC 15's false `-Wmaybe-uninitialized` off as
+  14's was. The cost is the AppImage's floor, glibc 2.43, and a conflict with upstream's edits to the
+  package lists.

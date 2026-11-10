@@ -1,14 +1,20 @@
 #!/bin/bash
-# One list for CI's runner and the release container (`release-base.Dockerfile`). Ubuntu 24.04 has
-# no SDL3, so the SDL3 build takes its window systems and input devices from here.
+# The packages a Linux build needs on Ubuntu 26.04, the one list for CI's runner and the release
+# container (`release-base.Dockerfile`). OpenSceneGraph comes from OpenMW's PPAs, everything else from
+# the archive. SDL3 is built static, so a package carries it inside the binaries, and its build takes
+# its window systems and input devices from here.
 
 set -euo pipefail
 
-here="$(dirname "$(readlink -f "$0")")"
+export DEBIAN_FRONTEND=noninteractive
+# Where the packages are downloaded to, which CI keeps between runs.
+cache="${PWD}/apt-cache"
+mkdir -p "$cache"
 
 # A stalled mirror held one install for 96 minutes. A trickling mirror is bounded where CI runs
 # this.
-printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' >/etc/apt/apt.conf.d/99-silent-mirror
+printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::Retries "5";\n' \
+  >/etc/apt/apt.conf.d/99-silent-mirror
 
 # The runner's list puts Azure's mirror first, which at times throttles a download to a crawl on a
 # connection that stays open, so no timeout or retry of apt's leaves it. Canonical's own goes first,
@@ -23,10 +29,23 @@ if [ -f "$mirrors" ]; then
   fi
 fi
 
-"$here/install_debian_deps.sh" gcc openmw-deps
+apt_install() {
+  apt-get -qq -o dir::cache::archives="$cache" install -y --no-install-recommends "$@"
+}
 
-# Without a PPA's index, apt installs Ubuntu's own MyGUI and OpenSceneGraph, which
-# the configure step refuses minutes later without naming the cause.
+apt-get update -qq
+apt_install software-properties-common gnupg
+# Launchpad at times refuses a key or an index for a moment; five tries, then the run stops.
+for ppa in openmw openmw-daily staging; do
+  for attempt in 1 2 3 4 5; do
+    add-apt-repository -y "ppa:openmw/${ppa}" && break
+    [ "$attempt" -lt 5 ] || exit 1
+    sleep 10
+  done
+done
+
+# Without a PPA's index, apt installs Ubuntu's own OpenSceneGraph, which the configure step refuses
+# minutes later without naming the cause.
 for ppa in openmw openmw-daily staging; do
   if ! compgen -G "/var/lib/apt/lists/ppa.launchpadcontent.net_openmw_${ppa}_ubuntu_dists_*_InRelease" >/dev/null; then
     >&2 echo "error: no index of ppa:openmw/${ppa} came from Launchpad, so its packages were not installed"
@@ -34,10 +53,15 @@ for ppa in openmw openmw-daily staging; do
   fi
 done
 
-export DEBIAN_FRONTEND=noninteractive
-# Into the folder `install_debian_deps.sh` downloads into, which CI keeps between runs.
-cache="${PWD}/apt-cache"
-apt-get -o dir::cache::archives="$cache" install -y ninja-build libgtest-dev libgmock-dev qt6-wayland zsync
-apt-get -o dir::cache::archives="$cache" install -y libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
-  libxss-dev libxtst-dev libxkbcommon-dev libwayland-dev libdecor-0-dev libegl-dev libgl-dev libdrm-dev \
-  libgbm-dev libdbus-1-dev libibus-1.0-dev libudev-dev
+apt_install \
+  binutils build-essential ca-certificates ccache curl git mold ninja-build pkg-config unzip zsync \
+  libboost-iostreams-dev libboost-program-options-dev \
+  libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
+  qt6-base-dev qt6-svg-dev qt6-svg-plugins qt6-tools-dev qt6-tools-dev-tools qt6-wayland \
+  libbullet-dev libgmock-dev libgtest-dev libicu-dev libluajit-5.1-dev liblz4-dev libmygui-dev libopenal-dev \
+  libunshield-dev libyaml-cpp-dev \
+  libopenscenegraph-dev libcollada-dom-dev libjpeg-dev libpng-dev \
+  libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+  libxinerama-dev libxt-dev libxv-dev libxxf86vm-dev libxkbcommon-dev libwayland-dev libdecor-0-dev libegl-dev \
+  libgl-dev libgles-dev libdrm-dev libgbm-dev libdbus-1-dev libibus-1.0-dev libudev-dev \
+  libasound2-dev libpulse-dev libsndio-dev

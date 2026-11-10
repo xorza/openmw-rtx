@@ -2,8 +2,9 @@
 # (`rtx-release.yml`). Linux and Windows, the systems the fork builds. No hosted runner has a GPU, so
 # `rtx-gpu-tests` and the gate stay on a box with a card.
 #
-# Linux stays on Ubuntu 24.04, the AppImage's base: an AppImage runs on no system older than its
-# own.
+# Linux builds on Ubuntu 26.04, the release image's base (`CI/release-base.Dockerfile`), with the
+# packages the same script installs there, so CI builds what ships. An AppImage runs on no system
+# older than its own.
 #
 # Job names are the `master` ruleset's required checks: a renamed job is a check that never reports.
 name: CI
@@ -35,7 +36,7 @@ concurrency:
 jobs:
   checks:
     name: checks
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     timeout-minutes: 15
@@ -90,20 +91,20 @@ jobs:
       matrix:
         include:
           - name: linux-gcc
-            os: ubuntu-24.04
+            os: ubuntu-26.04
             flavour: full
             ccache-size: 2000M
             tested: true
           - name: linux-clang
-            os: ubuntu-24.04
+            os: ubuntu-26.04
             flavour: full
             ccache-size: 1000M
-            # Compiled for Clang's warnings, not run.
+            # Compiled for Clang's warnings, not run, with the Clang the editor's clangd is.
             tested: false
-            cc: clang
-            cxx: clang++
+            cc: clang-23
+            cxx: clang++-23
           - name: windows-msvc
-            os: windows-2025
+            os: windows-2025-vs2026
             flavour: full
             # At two gigabytes the objects filled the cache and a run hit nothing.
             ccache-size: 3000M
@@ -111,14 +112,14 @@ jobs:
           # ThreadSanitizer cannot share a build with AddressSanitizer. No GPU binary: under a
           # sanitizer it would never start here.
           - name: linux-asan
-            os: ubuntu-24.04
+            os: ubuntu-26.04
             flavour: asan
             build-flags: --without-device
             # At one gigabyte the sanitized objects evicted 335 times a run.
             ccache-size: 2000M
             tested: true
           - name: linux-tsan
-            os: ubuntu-24.04
+            os: ubuntu-26.04
             flavour: tsan
             build-flags: --without-device
             ccache-size: 2000M
@@ -143,6 +144,19 @@ jobs:
           cache: ${{ env.CI_CACHE }}
           cache-key: ${{ matrix.name }}
           ccache-size: ${{ matrix.ccache-size }}
+
+      # LLVM's own repository, its key held to the fingerprint LLVM publishes: Ubuntu 26.04 carries
+      # Clang 21.
+      - name: Clang 23 from apt.llvm.org
+        if: matrix.cc == 'clang-23'
+        run: |
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor > "$RUNNER_TEMP/llvm.gpg"
+          gpg --show-keys --with-colons "$RUNNER_TEMP/llvm.gpg" | grep -qx 'fpr:::::::::6084F3CF814B57C1CF12EFD515CF4D18AF4F7421:'
+          sudo install -D -m 644 "$RUNNER_TEMP/llvm.gpg" /etc/apt/keyrings/llvm.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/llvm.gpg] https://apt.llvm.org/resolute/ llvm-toolchain-resolute-23 main" \
+            | sudo tee /etc/apt/sources.list.d/llvm-23.list
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-23
 
       - name: Build
         # Unquoted, so no flags pass no argument.

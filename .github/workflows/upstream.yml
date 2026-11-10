@@ -32,7 +32,7 @@ jobs:
     #   or deletes it, as a run that skips every step is green.
     survey:
         # `ubuntu-latest` moves.
-        runs-on: ubuntu-24.04
+        runs-on: ubuntu-26.04
         timeout-minutes: 10
         permissions:
             contents: write
@@ -104,7 +104,7 @@ jobs:
     merge:
         needs: survey
         if: needs.survey.outputs.merge == 'true'
-        runs-on: ubuntu-24.04
+        runs-on: ubuntu-26.04
         # Six seconds a turn: room for seventy conflicted files.
         timeout-minutes: 120
 
@@ -127,7 +127,7 @@ jobs:
                   fetch-depth: 0
                   persist-credentials: false
 
-            # Before the merge, so nothing of upstream's is installed. Ubuntu 24.04 lets bubblewrap make
+            # Before the merge, so nothing of upstream's is installed. Ubuntu lets bubblewrap make
             # its namespaces only with the AppArmor switch off.
             - name: Tools, before anything of upstream's is in the tree
               run: |
@@ -189,7 +189,7 @@ jobs:
                     components/files/macospath.hpp
                     apps/openmw/androidmain.cpp components/files/androidpath.cpp components/files/androidpath.hpp
                     components/sdlutil/gl4esinit.cpp components/sdlutil/gl4esinit.h
-                    .resubmitted_merge_requests.txt .readthedocs.yaml CONTRIBUTING.md
+                    .resubmitted_merge_requests.txt .readthedocs.yaml CONTRIBUTING.md CI/install_debian_deps.sh
                     scripts/generate_teal_declarations.sh scripts/preprocessed_file_size_stats.py
                     scripts/preprocessed_file_size_stats_diff.py scripts/osg_stats.py scripts/HOWTO-benchmark.md
                   )
@@ -474,7 +474,7 @@ jobs:
         needs: [survey, merge]
         # After a failed merge job too: what an agent out of turns left is a human's to finish.
         if: ${{ !cancelled() && needs.merge.outputs.bundled == 'true' }}
-        runs-on: ubuntu-24.04
+        runs-on: ubuntu-26.04
         timeout-minutes: 15
 
         # `id-token: write` exchanges the run for the Claude GitHub App's token, which opens the pull
