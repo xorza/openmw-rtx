@@ -204,7 +204,9 @@ minimum CMake moves to a recent release and the code for older ones goes.
 - **Presets for every step.** A build preset and a workflow preset for each visible configure preset, so
   `cmake --workflow --preset debug-linux` configures, builds and tests a clone with no `omw`; `omw` calls the same
   presets and keeps what CMake has no step for (formatting, the listing check, the harness's verbs). Sanitizers as
-  an option of the checks target (`OPENMW_SANITIZER=address|thread`) in place of flags in the presets.
+  an option, `OPENMW_SANITIZER=address|thread`, in place of flags in the presets, over the whole build and not on
+  the checks target: ThreadSanitizer sees a lock only in code it instrumented, so a fetched library left out
+  reports races on what it guards.
 - **clangd from the presets.** `.clangd` names `build-full`, as now, and its list of GCC's flags goes: GCC's own
   checks move under `$<CXX_COMPILER_ID:GNU>` in `openmw-checks`, which a compile database still writes, so the list
   becomes the four flags `$<CXX_COMPILER_ID:GNU>` adds. Refused: a compile database copied or linked to the root,
@@ -339,7 +341,9 @@ diagnostic after steps 10 and 13.
       `MWINIIMPORTER`), `OPENMW_COVERAGE`, `OPENMW_LUAJIT`, `OPENMW_SYSTEM_TINYXML`, `OPENMW_LTO`,
       `OPENMW_MSVC_PRECOMPILED_HEADERS`, `OPENMW_DEBUG_CONSOLE`, `OPENMW_DEPLOY_QT_TRANSLATIONS`, and the install
       paths' cache entries. Neither CI nor `omw` named one. `USE_QT` stays a variable the options derive.
-    - 12d. `OPENMW_SANITIZER=address|thread` in place of the presets' flags; build and workflow presets; `omw`
-      calls them.
+    - 12d. Done: `OPENMW_SANITIZER=address|thread` in `cmake/Options.cmake` in place of the presets' flags, the
+      compiles it reaches unchanged (an asan build was up to date across it); a build preset and a workflow
+      preset for each visible configure preset, the workflow testing where a test preset exists; `omw`
+      configures, builds and tests through them.
 13. **clangd.** `.clangd`'s flag list shrinks to what `$<CXX_COMPILER_ID:GNU>` adds; the sweep.
 14. **CMake formatter**: `gersemi` over every CMake file, its commit in `.git-blame-ignore-revs`.

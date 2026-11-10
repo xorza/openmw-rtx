@@ -29,6 +29,28 @@ if (WIN32)
     option(OPENMW_DEBUG_CONSOLE "A console beside the game in Debug and RelWithDebInfo" ON)
 endif ()
 
+# **A sanitizer over the whole build**, the fetched projects included: ThreadSanitizer sees a lock only in
+# code it instrumented, so a library left out reports races on what it guards, and AddressSanitizer's
+# reports carry the frames of every library compiled with frame pointers. In the compiler's flags
+# rather than on `openmw-checks`, which reaches the tree's own targets alone. GCC's and Clang's, as
+# MSVC's has not been measured on this tree.
+set(OPENMW_SANITIZER "" CACHE STRING "A sanitizer over the whole build: address (with undefined behaviour's) or thread")
+set_property(CACHE OPENMW_SANITIZER PROPERTY STRINGS "" address thread)
+if (OPENMW_SANITIZER)
+    if (MSVC)
+        message(FATAL_ERROR "OPENMW_SANITIZER is GCC's and Clang's: MSVC's sanitizers have not been measured on this tree")
+    endif ()
+    if (OPENMW_SANITIZER STREQUAL "address")
+        set(sanitizer_flags "-fsanitize=address,undefined -fno-omit-frame-pointer")
+    elseif (OPENMW_SANITIZER STREQUAL "thread")
+        set(sanitizer_flags "-fsanitize=thread -fno-omit-frame-pointer")
+    else ()
+        message(FATAL_ERROR "OPENMW_SANITIZER is address, thread or empty, not ${OPENMW_SANITIZER}")
+    endif ()
+    string(APPEND CMAKE_C_FLAGS " ${sanitizer_flags}")
+    string(APPEND CMAKE_CXX_FLAGS " ${sanitizer_flags}")
+endif ()
+
 # Qt for every program that draws a window of its own.
 if (OPENMW_BUILD_LAUNCHER OR OPENMW_BUILD_CS OR OPENMW_BUILD_WIZARD OR OPENMW_BUILD_CS_TESTS)
     set(USE_QT TRUE)

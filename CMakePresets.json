@@ -2,10 +2,12 @@
     "version": 10,
     "cmakeMinimumRequired": { "major": 4, "minor": 4, "patch": 0 },
     "$comment": [
-        "How the tree is configured and tested, as CMake, an IDE and `omw` read it. A visible preset is",
+        "How the tree is configured, built and tested, as CMake, an IDE and `omw` read it. A visible preset is",
         "`<flavour>-<system>` and inherits the flavour, the system and `common`, in that order: the earlier one wins",
-        "a variable both set. Hidden presets are parts. Each flavour builds in `build-<flavour>`. Version 10 is the",
-        "first that takes a `$comment`."
+        "a variable both set. Hidden presets are parts. Each flavour builds in `build-<flavour>`. Each visible",
+        "configure preset has a build preset and a workflow preset of its name, so `cmake --workflow --preset",
+        "debug-linux` configures, builds and tests a clone without `omw`, which builds through the same presets.",
+        "Version 10 is the first that takes a `$comment`."
     ],
     "configurePresets": [
         {
@@ -145,8 +147,7 @@
             "binaryDir": "${sourceDir}/build-asan",
             "cacheVariables": {
                 "OPENMW_CXX_FLAGS": "",
-                "CMAKE_C_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer",
-                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer"
+                "OPENMW_SANITIZER": "address"
             }
         },
         {
@@ -162,8 +163,7 @@
             "binaryDir": "${sourceDir}/build-tsan",
             "cacheVariables": {
                 "OPENMW_CXX_FLAGS": "",
-                "CMAKE_C_FLAGS_INIT": "-fsanitize=thread -fno-omit-frame-pointer",
-                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=thread -fno-omit-frame-pointer"
+                "OPENMW_SANITIZER": "thread"
             }
         },
         {
@@ -347,5 +347,29 @@
         { "name": "tsan-linux", "configurePreset": "tsan-linux", "inherits": [ "tests", "thread-sanitizer" ] },
         { "name": "full-linux", "configurePreset": "full-linux", "inherits": [ "tests" ] },
         { "name": "full-windows", "configurePreset": "full-windows", "inherits": [ "tests" ] }
+    ],
+    "buildPresets": [
+        { "name": "debug-linux", "configurePreset": "debug-linux" },
+        { "name": "debug-windows", "configurePreset": "debug-windows" },
+        { "name": "release-linux", "configurePreset": "release-linux" },
+        { "name": "release-windows", "configurePreset": "release-windows" },
+        { "name": "asan-linux", "configurePreset": "asan-linux" },
+        { "name": "tsan-linux", "configurePreset": "tsan-linux" },
+        { "name": "full-linux", "configurePreset": "full-linux" },
+        { "name": "full-windows", "configurePreset": "full-windows" },
+        { "name": "package-linux", "configurePreset": "package-linux" },
+        { "name": "package-windows", "configurePreset": "package-windows" }
+    ],
+    "workflowPresets": [
+        { "name": "debug-linux", "steps": [ { "type": "configure", "name": "debug-linux" }, { "type": "build", "name": "debug-linux" }, { "type": "test", "name": "debug-linux" } ] },
+        { "name": "debug-windows", "steps": [ { "type": "configure", "name": "debug-windows" }, { "type": "build", "name": "debug-windows" }, { "type": "test", "name": "debug-windows" } ] },
+        { "name": "release-linux", "steps": [ { "type": "configure", "name": "release-linux" }, { "type": "build", "name": "release-linux" } ] },
+        { "name": "release-windows", "steps": [ { "type": "configure", "name": "release-windows" }, { "type": "build", "name": "release-windows" } ] },
+        { "name": "asan-linux", "steps": [ { "type": "configure", "name": "asan-linux" }, { "type": "build", "name": "asan-linux" }, { "type": "test", "name": "asan-linux" } ] },
+        { "name": "tsan-linux", "steps": [ { "type": "configure", "name": "tsan-linux" }, { "type": "build", "name": "tsan-linux" }, { "type": "test", "name": "tsan-linux" } ] },
+        { "name": "full-linux", "steps": [ { "type": "configure", "name": "full-linux" }, { "type": "build", "name": "full-linux" }, { "type": "test", "name": "full-linux" } ] },
+        { "name": "full-windows", "steps": [ { "type": "configure", "name": "full-windows" }, { "type": "build", "name": "full-windows" }, { "type": "test", "name": "full-windows" } ] },
+        { "name": "package-linux", "steps": [ { "type": "configure", "name": "package-linux" }, { "type": "build", "name": "package-linux" } ] },
+        { "name": "package-windows", "steps": [ { "type": "configure", "name": "package-windows" }, { "type": "build", "name": "package-windows" } ] }
     ]
 }

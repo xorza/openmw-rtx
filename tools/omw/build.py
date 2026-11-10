@@ -266,7 +266,8 @@ class Build:
             self._redate_manifest_inputs()
             # What CMake wrote is brought up to date with the CMake files as Ninja would before a
             # build, so what is asked of it before one — the tests it has — is not a stale answer.
-            run(["cmake", "--build", self.dir, "--target", "build.ninja"], env=env, stdout=subprocess.DEVNULL)
+            run(["cmake", "--build", "--preset", self.preset, "--target", "build.ninja"], env=env, cwd=ROOT,
+                stdout=subprocess.DEVNULL)
             self._configured = True
             return
 
@@ -383,8 +384,9 @@ class Build:
         with self._building():
             self.configure(stdout)
             self._redate_inputs_ahead(wanted)
-            run(["cmake", "--build", self.dir, f"-j{jobs()}", "--target", *wanted, "--", "-k", "0"], env=self.env,
-                stdout=stdout)
+            # Through the flavour's build preset, which CMake reads from the source tree alone.
+            run(["cmake", "--build", "--preset", self.preset, f"-j{jobs()}", "--target", *wanted, "--", "-k", "0"],
+                env=self.env, cwd=ROOT, stdout=stdout)
         self._built.update(wanted)
 
     def build_default(self, without_device: bool = False) -> None:
