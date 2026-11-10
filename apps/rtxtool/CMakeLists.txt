@@ -87,11 +87,11 @@ target_sources(openmw-rtxtool-lib
 
 # The processor's counters of a thread are Linux's `perf_event_open`; no other system gives a
 # process its own, and reads none.
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if (LINUX)
     target_sources(openmw-rtxtool-lib PRIVATE instruments/threadcounterslinux.cpp)
-else()
+else ()
     target_sources(openmw-rtxtool-lib PRIVATE instruments/threadcountersnone.cpp)
-endif()
+endif ()
 
 # `PUBLIC`: the interface names Boost's option maps, an `SDLUtil` mode and the ray tracer's types.
 target_link_libraries(openmw-rtxtool-lib PUBLIC
@@ -125,7 +125,7 @@ target_compile_definitions(openmw-rtxtool-lib PRIVATE
 # links it: `openmw-rtxtool-lib` stays engine-free for `components-tests`, so the hosted files are
 # built here.
 if (BUILD_OPENMW)
-    openmw_add_executable(openmw-rtxtool main.cpp)
+    add_executable(openmw-rtxtool main.cpp)
     target_sources(openmw-rtxtool
         PRIVATE
             cameradriver.cpp
@@ -147,14 +147,5 @@ if (BUILD_OPENMW)
             stopwriter.hpp
     )
 
-    target_link_libraries(openmw-rtxtool openmw-rtxtool-lib openmw-lib)
-endif()
-
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(openmw-rtxtool-lib PRIVATE --coverage)
-    target_link_libraries(openmw-rtxtool-lib PRIVATE gcov)
-    if (BUILD_OPENMW)
-        target_compile_options(openmw-rtxtool PRIVATE --coverage)
-        target_link_libraries(openmw-rtxtool gcov)
-    endif()
-endif()
+    target_link_libraries(openmw-rtxtool PRIVATE openmw-rtxtool-lib openmw-lib)
+endif ()

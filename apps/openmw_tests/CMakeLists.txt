@@ -78,7 +78,7 @@ endif()
 
 source_group(apps\\openmw-tests FILES ${UNITTEST_SRC_FILES})
 
-openmw_add_executable(openmw-tests ${UNITTEST_SRC_FILES})
+add_executable(openmw-tests ${UNITTEST_SRC_FILES})
 target_sources(openmw-tests PRIVATE
     ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/testplatform$<IF:$<BOOL:${WIN32}>,win32,posix>.cpp)
 
@@ -95,11 +95,6 @@ endif()
 
 if (WIN32)
     target_sources(openmw-tests PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
-endif()
-
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(openmw-tests PRIVATE --coverage)
-    target_link_libraries(openmw-tests gcov)
 endif()
 
 target_compile_definitions(openmw-tests

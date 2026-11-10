@@ -305,7 +305,7 @@ target_compile_definitions(components-tests PRIVATE OPENMW_RTX_SHADER_DIR="${RTX
     OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}")
 
 # The same `main.cpp`, which sets up the settings' defaults both binaries read.
-openmw_add_executable(rtx-gpu-tests main.cpp rtx/support/allocations.cpp
+add_executable(rtx-gpu-tests main.cpp rtx/support/allocations.cpp
                       ${RTX_GPU_TEST_FILES} ${RTX_GPU_TEST_SUPPORT} ${RTX_TEST_SUPPORT})
 target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatform$<IF:$<BOOL:${WIN32}>,win32,posix>.cpp)
 target_link_libraries(rtx-gpu-tests
@@ -324,7 +324,3 @@ if (UNIX)
     target_link_libraries(rtx-gpu-tests ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(rtx-gpu-tests PRIVATE --coverage)
-    target_link_libraries(rtx-gpu-tests gcov)
-endif()

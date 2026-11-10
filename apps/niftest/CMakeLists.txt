@@ -1,28 +1,15 @@
-set(NIFTEST
-    niftest.cpp
+add_executable(niftest)
+target_sources(niftest
+    PRIVATE
+        niftest.cpp
 )
-source_group(components\\nif\\tests FILES ${NIFTEST})
-
-# Main executable
-openmw_add_executable(niftest
-    ${NIFTEST}
-)
-
-target_link_libraries(niftest
-    openmw-components
-)
-
 if (WIN32)
-    target_sources(niftest PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
-endif()
-
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(niftest PRIVATE --coverage)
-    target_link_libraries(niftest gcov)
-endif()
+    target_sources(niftest PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest")
+endif ()
+target_link_libraries(niftest PRIVATE openmw-components)
 
 install(TARGETS niftest ${runtime_dependency_arguments})
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(niftest REUSE_FROM openmw-components)
-endif()
+endif ()

@@ -566,9 +566,3 @@ target_link_libraries(openmw-rtx-vulkan PRIVATE GPUOpen::VulkanMemoryAllocator)
 # `Rtx::sDebugNames` needs no `#ifdef`.
 target_compile_definitions(openmw-rtx-vulkan PUBLIC OPENMW_RTX_DEBUG_NAMES=$<IF:$<CONFIG:Release>,0,1>)
 
-if (BUILD_WITH_CODE_COVERAGE)
-    foreach (target openmw-rtx-spirv openmw-rtx-spirv-pin openmw-rtx-spirv-digest openmw-rtx-vulkan)
-        target_compile_options(${target} PRIVATE --coverage)
-        target_link_libraries(${target} PRIVATE gcov)
-    endforeach()
-endif()

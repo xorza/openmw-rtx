@@ -1,4 +1,4 @@
-openmw_add_executable(openmw_settings_access_benchmark access.cpp)
+add_executable(openmw_settings_access_benchmark access.cpp)
 target_link_libraries(openmw_settings_access_benchmark benchmark::benchmark openmw-components)
 
 target_compile_definitions(openmw_settings_access_benchmark
@@ -10,11 +10,6 @@ endif()
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(openmw_settings_access_benchmark REUSE_FROM openmw-components)
-endif()
-
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(openmw_settings_access_benchmark PRIVATE --coverage)
-    target_link_libraries(openmw_settings_access_benchmark gcov)
 endif()
 
 if (WIN32)

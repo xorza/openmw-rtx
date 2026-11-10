@@ -1,102 +1,60 @@
-set(WIZARD
-    componentselectionpage.cpp
-    conclusionpage.cpp
-    existinginstallationpage.cpp
-    importpage.cpp
-    installationtargetpage.cpp
-    intropage.cpp
-    languageselectionpage.cpp
-    main.cpp
-    mainwizard.cpp
-    methodselectionpage.cpp
+qt_add_executable(openmw-wizard WIN32)
+target_sources(openmw-wizard
+    PRIVATE
+        componentselectionpage.cpp
+        conclusionpage.cpp
+        existinginstallationpage.cpp
+        importpage.cpp
+        installationtargetpage.cpp
+        intropage.cpp
+        languageselectionpage.cpp
+        main.cpp
+        mainwizard.cpp
+        methodselectionpage.cpp
+        "${PROJECT_SOURCE_DIR}/files/wizard/wizard.qrc"
+    PRIVATE FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES
+        componentselectionpage.hpp
+        conclusionpage.hpp
+        existinginstallationpage.hpp
+        importpage.hpp
+        installationtargetpage.hpp
+        intropage.hpp
+        languageselectionpage.hpp
+        mainwizard.hpp
+        methodselectionpage.hpp
 )
-
-if(WIN32)
-    list(APPEND WIZARD ${CMAKE_SOURCE_DIR}/files/windows/openmw-wizard.rc)
-endif()
-
-set(WIZARD_HEADER
-    componentselectionpage.hpp
-    conclusionpage.hpp
-    existinginstallationpage.hpp
-    importpage.hpp
-    installationtargetpage.hpp
-    intropage.hpp
-    languageselectionpage.hpp
-    mainwizard.hpp
-    methodselectionpage.hpp
-)
-
-if (OPENMW_USE_UNSHIELD)
-    set (WIZARD
-         ${WIZARD}
-         installationpage.cpp
-         unshield/inisettings.cpp
-         unshield/unshieldworker.cpp
-    )
-    set (WIZARD_HEADER
-         ${WIZARD_HEADER}
-         installationpage.hpp
-         unshield/inisettings.hpp
-         unshield/unshieldworker.hpp
-    )
-    add_compile_definitions(OPENMW_USE_UNSHIELD)
-endif (OPENMW_USE_UNSHIELD)
-
-
-source_group(wizard FILES ${WIZARD} ${WIZARD_HEADER})
-
-set(QT_USE_QTGUI 1)
-
-set (WIZARD_RES ${CMAKE_SOURCE_DIR}/files/wizard/wizard.qrc)
-
-# Set some platform specific settings
-if(WIN32)
-    set(WIZARD_RES ${WIZARD_RES} ${CMAKE_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc)
-    set(GUI_TYPE WIN32)
-    set(QT_USE_QTMAIN TRUE)
-endif(WIN32)
-
-QT_ADD_RESOURCES(RCC_SRCS ${WIZARD_RES})
-
-if (OPENMW_USE_UNSHIELD)
-    include_directories(${LIBUNSHIELD_INCLUDE_DIRS})
-endif()
-
-openmw_add_qt_executable(openmw-wizard
-    ${GUI_TYPE}
-    ${WIZARD}
-    ${WIZARD_HEADER}
-    ${RCC_SRCS}
-)
-
-add_dependencies(openmw-wizard qm-files)
-
-target_link_libraries(openmw-wizard PRIVATE
-    openmw-components-qt
-)
-
-target_link_libraries(openmw-wizard PRIVATE Qt::Widgets Qt::Core Qt::Svg)
-
-if (OPENMW_USE_UNSHIELD)
-    target_link_libraries(openmw-wizard PRIVATE ${LIBUNSHIELD_LIBRARIES})
-endif()
-
 if (WIN32)
-    target_sources(openmw-wizard PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
-endif()
+    target_sources(openmw-wizard PRIVATE
+        "${PROJECT_SOURCE_DIR}/files/windows/openmw-wizard.rc"
+        "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest"
+        "${PROJECT_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc")
+endif ()
 
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(openmw-wizard PRIVATE --coverage)
-    target_link_libraries(openmw-wizard PRIVATE gcov)
-endif()
+# Upstream's wizard unpacks the installer's archives with libunshield on every system but Windows, whose
+# players run the installer itself.
+if (OPENMW_USE_UNSHIELD)
+    target_sources(openmw-wizard
+        PRIVATE
+            installationpage.cpp
+            unshield/inisettings.cpp
+            unshield/unshieldworker.cpp
+        PRIVATE FILE_SET HEADERS FILES
+            installationpage.hpp
+            unshield/inisettings.hpp
+            unshield/unshieldworker.hpp
+    )
+    target_compile_definitions(openmw-wizard PRIVATE OPENMW_USE_UNSHIELD)
+    target_include_directories(openmw-wizard SYSTEM PRIVATE ${LIBUNSHIELD_INCLUDE_DIRS})
+    target_link_libraries(openmw-wizard PRIVATE ${LIBUNSHIELD_LIBRARIES})
+endif ()
+
+set_target_properties(openmw-wizard PROPERTIES
+    AUTOMOC ON
+    AUTORCC ON
+    AUTOUIC ON
+    AUTOUIC_SEARCH_PATHS ui)
+add_dependencies(openmw-wizard qm-files)
+target_link_libraries(openmw-wizard PRIVATE openmw-components-qt Qt::Widgets Qt::Core Qt::Svg)
 
 install(TARGETS openmw-wizard ${runtime_dependency_arguments})
-
 generate_deploy_script_for_qt_app(openmw-wizard)
-
-if(USE_QT)
-    set_property(TARGET openmw-wizard PROPERTY AUTOMOC ON)
-    set_property(TARGET openmw-wizard PROPERTY AUTOUIC ON)
-    set_property(TARGET openmw-wizard PROPERTY AUTOUIC_SEARCH_PATHS ui)
-endif(USE_QT)

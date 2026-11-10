@@ -1,50 +1,67 @@
-set(ESSIMPORTER_FILES
-    main.cpp
-    importer.cpp
-    importplayer.cpp
-    importnpcc.cpp
-    importcrec.cpp
-    importcellref.cpp
-    importinventory.cpp
-    importklst.cpp
-    importcntc.cpp
-    importgame.cpp
-    importinfo.cpp
-    importdial.cpp
-    importques.cpp
-    importjour.cpp
-    importscri.cpp
-    importscpt.cpp
-    importproj.cpp
-    importsplm.cpp
-    converter.cpp
-    convertacdt.cpp
-    convertnpcc.cpp
-    convertinventory.cpp
-    convertcrec.cpp
-    convertcntc.cpp
-    convertscri.cpp
-    convertscpt.cpp
-    convertplayer.cpp
+add_executable(openmw-essimporter)
+target_sources(openmw-essimporter
+    PRIVATE
+        convertacdt.cpp
+        convertcntc.cpp
+        convertcrec.cpp
+        converter.cpp
+        convertinventory.cpp
+        convertnpcc.cpp
+        convertplayer.cpp
+        convertscpt.cpp
+        convertscri.cpp
+        importcellref.cpp
+        importcntc.cpp
+        importcrec.cpp
+        importdial.cpp
+        importer.cpp
+        importgame.cpp
+        importinfo.cpp
+        importinventory.cpp
+        importjour.cpp
+        importklst.cpp
+        importnpcc.cpp
+        importplayer.cpp
+        importproj.cpp
+        importques.cpp
+        importscpt.cpp
+        importscri.cpp
+        importsplm.cpp
+        main.cpp
+    PRIVATE FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES
+        convertacdt.hpp
+        convertcntc.hpp
+        convertcrec.hpp
+        converter.hpp
+        convertinventory.hpp
+        convertnpcc.hpp
+        convertplayer.hpp
+        convertscpt.hpp
+        convertscri.hpp
+        importacdt.hpp
+        importcellref.hpp
+        importcntc.hpp
+        importcrec.hpp
+        importdial.hpp
+        importer.hpp
+        importercontext.hpp
+        importgame.hpp
+        importinfo.hpp
+        importinventory.hpp
+        importjour.hpp
+        importklst.hpp
+        importnpcc.hpp
+        importplayer.hpp
+        importproj.h
+        importques.hpp
+        importscpt.hpp
+        importscri.hpp
+        importsplm.h
 )
-
-openmw_add_executable(openmw-essimporter
-    ${ESSIMPORTER_FILES}
-)
-
-target_link_libraries(openmw-essimporter
-    Boost::program_options
-    openmw-components
-)
-
 if (WIN32)
-    target_sources(openmw-essimporter PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
-endif()
-
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(openmw-essimporter PRIVATE --coverage)
-    target_link_libraries(openmw-essimporter gcov)
-endif()
+    target_sources(openmw-essimporter PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest")
+endif ()
+target_link_libraries(openmw-essimporter PRIVATE Boost::program_options openmw-components)
 
 install(TARGETS openmw-essimporter ${runtime_dependency_arguments})
 
@@ -56,4 +73,4 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
         <string>
         <vector>
     )
-endif()
+endif ()

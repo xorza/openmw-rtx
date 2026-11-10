@@ -169,8 +169,10 @@ minimum CMake moves to a recent release and the code for older ones goes.
   with each compiler's flags under `$<CXX_COMPILER_ID:…>`, which every first-party target links and no third-party
   one does. Refused: directory scope, whose reach follows the tree's order.
 - **One way to list sources**: `target_sources(<target> PRIVATE …)` with every file by name, headers as
-  `FILE_SET HEADERS`, in the folder's own `CMakeLists.txt`. No globs, no stem macros, no hand-made unity build:
-  `CMAKE_UNITY_BUILD` where a preset wants one. `omw`'s listing check stays, now as the guard of one rule.
+  `FILE_SET HEADERS`, in the folder's own `CMakeLists.txt`. No globs, no stem macros, and no unity build, hand-made
+  or CMake's `CMAKE_UNITY_BUILD`: a file compiled inside another sees that file's includes and its unnamed
+  namespace, so a missing include builds and two files' private names collide, and Ninja with a compiler cache
+  already rebuilds only what changed. `omw`'s listing check stays, now as the guard of one rule.
   Refused: `CONFIGURE_DEPENDS` globs, which CMake discourages.
 - **A library a layer for the ray tracer; `components` stays one library.** The core leaves `components` for
   libraries of its own, one a folder group in `architecture.md`'s order, each linking only the layers before it, so
@@ -303,7 +305,12 @@ diagnostic after steps 10 and 13.
    part of their include cycle (`detournavigator` includes it), so it has no library of its own. Links take the
    keyword form, and `Threads::Threads` where `CMAKE_THREAD_LIBS_INIT` was. `omw`'s listing check reads the Qt
    library's list as it reads a program's.
-10. **The apps.** Each app's `CMakeLists.txt` in the same form, `opencs_units` and `add_openmw_dir` gone.
+10. **The apps.** Done: each app's `CMakeLists.txt` names its files in `target_sources` lists, headers as file sets;
+    `add_openmw_dir`, `opencs_units`, `opencs_hdrs` and the wrappers `openmw_add_executable` and
+    `openmw_add_qt_executable`, whose one setting was Visual Studio's debugger folder, gone. Qt's resources through
+    `AUTORCC`; the navmesh tool one executable, its library linked by nothing else; coverage a setting of
+    `openmw-checks`, in place of a block a target; MSVC's `/cgthreads1` reaches `mwlua/objectbindings.cpp`, which
+    the old list named without its extension.
 11. **Tests.** Every test binary with `target_sources` lists in its folder; `cmake/Tests.cmake` registers them.
 12. **The root and the presets.** The root split into `cmake/{Options,Checks,Install,Package}.cmake`, the options
     renamed `OPENMW_*`; build and workflow presets; the sanitizer option; `omw` calls the presets.

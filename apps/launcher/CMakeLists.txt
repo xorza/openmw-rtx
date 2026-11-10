@@ -1,93 +1,57 @@
-set(LAUNCHER
-    datafilespage.cpp
-    graphicspage.cpp
-    sdlinit.cpp
-    main.cpp
-    maindialog.cpp
-    textslotmsgbox.cpp
-    importpage.cpp
-    settingspage.cpp
-
-    utils/cellnameloader.cpp
-    utils/profilescombobox.cpp
-    utils/textinputdialog.cpp
-    utils/lineedit.cpp
-    utils/openalutil.cpp
-
-    ${CMAKE_SOURCE_DIR}/files/windows/launcher.rc
+qt_add_executable(openmw-launcher WIN32)
+target_sources(openmw-launcher
+    PRIVATE
+        datafilespage.cpp
+        graphicspage.cpp
+        importpage.cpp
+        main.cpp
+        maindialog.cpp
+        sdlinit.cpp
+        settingspage.cpp
+        textslotmsgbox.cpp
+        utils/cellnameloader.cpp
+        utils/lineedit.cpp
+        utils/openalutil.cpp
+        utils/profilescombobox.cpp
+        utils/textinputdialog.cpp
+        "${PROJECT_SOURCE_DIR}/files/launcher/launcher.qrc"
+    PRIVATE FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES
+        datafilespage.hpp
+        graphicspage.hpp
+        importpage.hpp
+        maindialog.hpp
+        sdlinit.hpp
+        settingspage.hpp
+        textslotmsgbox.hpp
+        utils/cellnameloader.hpp
+        utils/lineedit.hpp
+        utils/openalutil.hpp
+        utils/profilescombobox.hpp
+        utils/textinputdialog.hpp
 )
-
-set(LAUNCHER_HEADER
-    datafilespage.hpp
-    graphicspage.hpp
-    sdlinit.hpp
-    maindialog.hpp
-    textslotmsgbox.hpp
-    importpage.hpp
-    settingspage.hpp
-
-    utils/cellnameloader.hpp
-    utils/profilescombobox.hpp
-    utils/textinputdialog.hpp
-    utils/lineedit.hpp
-    utils/openalutil.hpp
-)
-
-source_group(launcher FILES ${LAUNCHER} ${LAUNCHER_HEADER})
-
-set(QT_USE_QTGUI 1)
-
-set (LAUNCHER_RES ${CMAKE_SOURCE_DIR}/files/launcher/launcher.qrc)
-
-# Set some platform specific settings
-if(WIN32)
-    set(LAUNCHER_RES ${LAUNCHER_RES} ${CMAKE_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc)
-    set(GUI_TYPE WIN32)
-    set(QT_USE_QTMAIN TRUE)
-endif(WIN32)
-
-QT_ADD_RESOURCES(RCC_SRCS ${LAUNCHER_RES})
-
-if(NOT WIN32)
-    include_directories(${LIBUNSHIELD_INCLUDE_DIR})
-endif(NOT WIN32)
-
-# Main executable
-openmw_add_qt_executable(openmw-launcher
-    ${GUI_TYPE}
-    ${LAUNCHER}
-    ${LAUNCHER_HEADER}
-    ${RCC_SRCS}
-)
-
-add_dependencies(openmw-launcher qm-files)
-
-install(TARGETS openmw-launcher ${runtime_dependency_arguments})
-
-generate_deploy_script_for_qt_app(openmw-launcher)
-
-target_link_libraries(openmw-launcher PUBLIC
-    SDL3::SDL3
-    ${OPENAL_LIBRARY}
-    openmw-components-qt
-)
-
-target_link_libraries(openmw-launcher PUBLIC Qt::Widgets Qt::Core Qt::Svg Qt::Network)
-
 if (WIN32)
-    target_sources(openmw-launcher PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
-endif()
+    target_sources(openmw-launcher PRIVATE
+        "${PROJECT_SOURCE_DIR}/files/windows/launcher.rc"
+        "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest"
+        "${PROJECT_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc")
+endif ()
 
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(openmw-launcher PRIVATE --coverage)
-    target_link_libraries(openmw-launcher PRIVATE gcov)
-endif()
-
-if(USE_QT)
-    set_property(TARGET openmw-launcher PROPERTY AUTOMOC ON)
-    set_property(TARGET openmw-launcher PROPERTY AUTOUIC ON)
-    set_property(TARGET openmw-launcher PROPERTY AUTOUIC_SEARCH_PATHS ui)
-endif(USE_QT)
+set_target_properties(openmw-launcher PROPERTIES
+    AUTOMOC ON
+    AUTORCC ON
+    AUTOUIC ON
+    AUTOUIC_SEARCH_PATHS ui)
+add_dependencies(openmw-launcher qm-files)
+target_link_libraries(openmw-launcher
+    PRIVATE
+        SDL3::SDL3
+        ${OPENAL_LIBRARY}
+        openmw-components-qt
+        Qt::Widgets
+        Qt::Core
+        Qt::Svg
+        Qt::Network
+)
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(openmw-launcher PRIVATE
@@ -97,4 +61,7 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
         <string>
         <vector>
     )
-endif()
+endif ()
+
+install(TARGETS openmw-launcher ${runtime_dependency_arguments})
+generate_deploy_script_for_qt_app(openmw-launcher)

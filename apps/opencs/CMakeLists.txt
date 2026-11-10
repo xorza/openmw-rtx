@@ -1,224 +1,519 @@
-set (OPENCS_SRC
-    )
+# The editor: everything but `main` in `openmw-cs-lib`, which its tests link.
 
-opencs_units (. editor)
-
-opencs_units (model/doc
-    document operation saving documentmanager loader runner operationholder
-    )
-
-opencs_units (model/doc
-    savingstate savingstages messages
-    )
-
-opencs_hdrs (model/doc
-    state
-    )
-
-
-opencs_units (model/world
-    idtable idtableproxymodel regionmap data commanddispatcher idtablebase resourcetable nestedtableproxymodel idtree infotableproxymodel landtexturetableproxymodel
-    actoradapter idcollection
-    )
-
-
-opencs_units (model/world
-    universalid commands columnbase columnimp scriptcontext refidcollection
-    refiddata refidadapterimp ref collectionbase refcollection columns infocollection tablemimedata cellcoordinates cellselection resources resourcesmanager scope
-    pathgrid land nestedcollection nestedcoladapterimp nestedinfocollection
-    idcompletionmanager metadata defaultgmsts infoselectwrapper commandmacro
-    )
-
-opencs_hdrs (model/world
-    columnimp disabletag idcollection collection info subcellcollection cell nestedtablewrapper record
-    )
-
-
-opencs_units (model/tools
-    tools reportmodel mergeoperation
-    )
-
-opencs_units (model/tools
-    mandatoryid skillcheck classcheck factioncheck racecheck soundcheck regioncheck
-    birthsigncheck spellcheck referencecheck referenceablecheck scriptcheck bodypartcheck
-    startscriptcheck search searchoperation searchstage pathgridcheck soundgencheck magiceffectcheck
-    mergestages gmstcheck topicinfocheck journalcheck enchantmentcheck effectlistcheck
-    )
-
-opencs_hdrs (model/tools
-    mergestate
-    )
-
-
-opencs_units (view/doc
-    viewmanager view operations operation subview startup filedialog newgame
-    filewidget adjusterwidget loader globaldebugprofilemenu runlogsubview
-    )
-
-
-opencs_units (view/doc
-    subviewfactory
-    )
-
-opencs_hdrs (view/doc
-    subviewfactoryimp sizehint
-    )
-
-
-opencs_units (view/world
-    table tablesubview scriptsubview util regionmapsubview tablebottombox creator genericcreator globalcreator
-    cellcreator pathgridcreator referenceablecreator startscriptcreator referencecreator scenesubview
-    infocreator scriptedit dialoguesubview previewsubview regionmap dragrecordtable nestedtable
-    dialoguespinbox recordbuttonbar tableeditidaction scripterrortable extendedcommandconfigurator
-    bodypartcreator landcreator tableheadermouseeventhandler
-    )
-
-opencs_units (view/world
-    subviews enumdelegate vartypedelegate recordstatusdelegate idtypedelegate datadisplaydelegate
-    scripthighlighter idvalidator dialoguecreator idcompletiondelegate
-    colordelegate dragdroputils
-    )
-
-opencs_units (view/widget
-    scenetoolbar scenetool scenetoolmode pushbutton scenetooltoggle scenetoolrun modebutton scenetoolvertexpaintbrush
-    scenetooltoggle2 scenetooltexturebrush scenetoolshapebrush completerpopup coloreditor colorpickerpopup droplineedit
-    )
-
-opencs_units (view/render
-    scenewidget worldspacewidget pagedworldspacewidget unpagedworldspacewidget
-    previewwidget editmode instancemode instanceselectionmode instancemovemode
-    orbitcameramode pathgridmode selectionmode pathgridselectionmode cameracontroller
-    cellwater terraintexturemode terrainvertexpaintmode actor terrainselection terrainshapemode brushdraw commands objectmarker
-    )
-
-opencs_units (view/render
-    object cell terrainstorage cellarrow cellmarker cellborder pathgrid
-    )
-
-opencs_hdrs (view/render
-    mask tagbase
-    )
-
-
-opencs_units (view/tools
-    reportsubview reporttable searchsubview searchbox merge
-    )
-
-opencs_units (view/tools
-    subviews
-    )
-
-opencs_units (view/prefs
-    dialogue pagebase page keybindingpage contextmenulist
-    )
-
-opencs_units (model/prefs
-    state setting intsetting doublesetting boolsetting enumsetting coloursetting shortcut
-    shortcuteventhandler shortcutmanager shortcutsetting modifiersetting stringsetting subcategory
-    )
-
-opencs_units (model/prefs
-    category
-    )
-
-opencs_units (model/filter
-    unarynode narynode parser andnode ornode notnode textnode valuenode
-    )
-
-opencs_hdrs (model/filter
-    leafnode booleannode
-    )
-
-opencs_units (view/filter
-    filterbox recordfilterbox editwidget
-    )
-
-set (OPENCS_US
-    )
-
-set (OPENCS_RES ${CMAKE_SOURCE_DIR}/files/opencs/resources.qrc
-                ${CMAKE_SOURCE_DIR}/files/launcher/launcher.qrc
-    )
-
-source_group (openmw-cs FILES main.cpp ${OPENCS_SRC} ${OPENCS_HDR})
-
-if(WIN32)
-    set(OPENCS_RES ${OPENCS_RES} ${CMAKE_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc)
-    set(QT_USE_QTMAIN TRUE)
-    set(OPENCS_RC_FILE ${CMAKE_SOURCE_DIR}/files/windows/opencs.rc)
-else(WIN32)
-    set(OPENCS_RC_FILE "")
-endif(WIN32)
-
-qt_add_resources(OPENCS_RES_SRC ${OPENCS_RES})
-
-add_library(openmw-cs-lib STATIC
-    ${OPENCS_SRC}
-    ${OPENCS_UI_HDR}
-    ${OPENCS_MOC_SRC}
-    ${OPENCS_RES_SRC}
+add_library(openmw-cs-lib STATIC)
+target_sources(openmw-cs-lib
+    PRIVATE
+        "${PROJECT_SOURCE_DIR}/files/opencs/resources.qrc"
+        "${PROJECT_SOURCE_DIR}/files/launcher/launcher.qrc"
+    PUBLIC FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}"
 )
-
-if(BUILD_OPENCS)
-    openmw_add_qt_executable(openmw-cs
-        ${OPENCS_RC_FILE}
-        main.cpp
-    )
-
-    target_link_libraries(openmw-cs PRIVATE openmw-cs-lib)
-
-    set_property(TARGET openmw-cs PROPERTY AUTOMOC ON)
-    set_property(TARGET openmw-cs PROPERTY AUTOUIC_SEARCH_PATHS ui)
-    set_property(TARGET openmw-cs PROPERTY AUTOUIC ON)
-
-    if (BUILD_WITH_CODE_COVERAGE)
-        target_compile_options(openmw-cs PRIVATE --coverage)
-        target_link_libraries(openmw-cs PRIVATE gcov)
-    endif()
-endif()
-
-target_link_libraries(openmw-cs-lib PUBLIC
-    ${OSGVIEWER_LIBRARIES}
-    ${OSGFX_LIBRARIES}
-    ${OSGGA_LIBRARIES}
-    ${OSGUTIL_LIBRARIES}
-    ${OSGTEXT_LIBRARIES}
-    ${OSG_LIBRARIES}
-    ${EXTERN_OSGQT_LIBRARY}
-    Boost::program_options
-    openmw-components-qt
-)
-
-target_link_libraries(openmw-cs-lib PUBLIC Qt::Widgets Qt::Core Qt::Network Qt::OpenGL Qt::OpenGLWidgets Qt::Svg)
-
 if (WIN32)
-    target_sources(openmw-cs PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
-endif()
+    target_sources(openmw-cs-lib PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc")
+endif ()
 
-if (BUILD_OPENCS)
-    install(TARGETS openmw-cs ${runtime_dependency_arguments})
-    INSTALL(FILES "$<TARGET_FILE_DIR:openmw-cs>/defaults-cs.bin" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
+target_sources(openmw-cs-lib
+    PRIVATE
+        editor.cpp
+    PUBLIC FILE_SET HEADERS FILES
+        editor.hpp
+)
 
-    generate_deploy_script_for_qt_app(openmw-cs)
-endif()
+target_sources(openmw-cs-lib
+    PRIVATE
+        model/doc/document.cpp
+        model/doc/documentmanager.cpp
+        model/doc/loader.cpp
+        model/doc/messages.cpp
+        model/doc/operation.cpp
+        model/doc/operationholder.cpp
+        model/doc/runner.cpp
+        model/doc/saving.cpp
+        model/doc/savingstages.cpp
+        model/doc/savingstate.cpp
+        model/filter/andnode.cpp
+        model/filter/narynode.cpp
+        model/filter/notnode.cpp
+        model/filter/ornode.cpp
+        model/filter/parser.cpp
+        model/filter/textnode.cpp
+        model/filter/unarynode.cpp
+        model/filter/valuenode.cpp
+        model/prefs/boolsetting.cpp
+        model/prefs/category.cpp
+        model/prefs/coloursetting.cpp
+        model/prefs/doublesetting.cpp
+        model/prefs/enumsetting.cpp
+        model/prefs/intsetting.cpp
+        model/prefs/modifiersetting.cpp
+        model/prefs/setting.cpp
+        model/prefs/shortcut.cpp
+        model/prefs/shortcuteventhandler.cpp
+        model/prefs/shortcutmanager.cpp
+        model/prefs/shortcutsetting.cpp
+        model/prefs/state.cpp
+        model/prefs/stringsetting.cpp
+        model/prefs/subcategory.cpp
+        model/tools/birthsigncheck.cpp
+        model/tools/bodypartcheck.cpp
+        model/tools/classcheck.cpp
+        model/tools/effectlistcheck.cpp
+        model/tools/enchantmentcheck.cpp
+        model/tools/factioncheck.cpp
+        model/tools/gmstcheck.cpp
+        model/tools/journalcheck.cpp
+        model/tools/magiceffectcheck.cpp
+        model/tools/mandatoryid.cpp
+        model/tools/mergeoperation.cpp
+        model/tools/mergestages.cpp
+        model/tools/pathgridcheck.cpp
+        model/tools/racecheck.cpp
+        model/tools/referenceablecheck.cpp
+        model/tools/referencecheck.cpp
+        model/tools/regioncheck.cpp
+        model/tools/reportmodel.cpp
+        model/tools/scriptcheck.cpp
+        model/tools/search.cpp
+        model/tools/searchoperation.cpp
+        model/tools/searchstage.cpp
+        model/tools/skillcheck.cpp
+        model/tools/soundcheck.cpp
+        model/tools/soundgencheck.cpp
+        model/tools/spellcheck.cpp
+        model/tools/startscriptcheck.cpp
+        model/tools/tools.cpp
+        model/tools/topicinfocheck.cpp
+        model/world/actoradapter.cpp
+        model/world/cellcoordinates.cpp
+        model/world/cellselection.cpp
+        model/world/collectionbase.cpp
+        model/world/columnbase.cpp
+        model/world/columnimp.cpp
+        model/world/columns.cpp
+        model/world/commanddispatcher.cpp
+        model/world/commandmacro.cpp
+        model/world/commands.cpp
+        model/world/data.cpp
+        model/world/defaultgmsts.cpp
+        model/world/idcollection.cpp
+        model/world/idcompletionmanager.cpp
+        model/world/idtable.cpp
+        model/world/idtablebase.cpp
+        model/world/idtableproxymodel.cpp
+        model/world/idtree.cpp
+        model/world/infocollection.cpp
+        model/world/infoselectwrapper.cpp
+        model/world/infotableproxymodel.cpp
+        model/world/land.cpp
+        model/world/landtexturetableproxymodel.cpp
+        model/world/metadata.cpp
+        model/world/nestedcoladapterimp.cpp
+        model/world/nestedcollection.cpp
+        model/world/nestedinfocollection.cpp
+        model/world/nestedtableproxymodel.cpp
+        model/world/pathgrid.cpp
+        model/world/ref.cpp
+        model/world/refcollection.cpp
+        model/world/refidadapterimp.cpp
+        model/world/refidcollection.cpp
+        model/world/refiddata.cpp
+        model/world/regionmap.cpp
+        model/world/resources.cpp
+        model/world/resourcesmanager.cpp
+        model/world/resourcetable.cpp
+        model/world/scope.cpp
+        model/world/scriptcontext.cpp
+        model/world/tablemimedata.cpp
+        model/world/universalid.cpp
+    PUBLIC FILE_SET HEADERS FILES
+        model/doc/document.hpp
+        model/doc/documentmanager.hpp
+        model/doc/loader.hpp
+        model/doc/messages.hpp
+        model/doc/operation.hpp
+        model/doc/operationholder.hpp
+        model/doc/runner.hpp
+        model/doc/saving.hpp
+        model/doc/savingstages.hpp
+        model/doc/savingstate.hpp
+        model/doc/stage.hpp
+        model/doc/state.hpp
+        model/filter/andnode.hpp
+        model/filter/booleannode.hpp
+        model/filter/leafnode.hpp
+        model/filter/narynode.hpp
+        model/filter/node.hpp
+        model/filter/notnode.hpp
+        model/filter/ornode.hpp
+        model/filter/parser.hpp
+        model/filter/textnode.hpp
+        model/filter/unarynode.hpp
+        model/filter/valuenode.hpp
+        model/prefs/boolsetting.hpp
+        model/prefs/category.hpp
+        model/prefs/coloursetting.hpp
+        model/prefs/doublesetting.hpp
+        model/prefs/enumsetting.hpp
+        model/prefs/enumvalueview.hpp
+        model/prefs/intsetting.hpp
+        model/prefs/modifiersetting.hpp
+        model/prefs/setting.hpp
+        model/prefs/shortcut.hpp
+        model/prefs/shortcuteventhandler.hpp
+        model/prefs/shortcutmanager.hpp
+        model/prefs/shortcutsetting.hpp
+        model/prefs/state.hpp
+        model/prefs/stringsetting.hpp
+        model/prefs/subcategory.hpp
+        model/prefs/values.hpp
+        model/tools/birthsigncheck.hpp
+        model/tools/bodypartcheck.hpp
+        model/tools/classcheck.hpp
+        model/tools/effectlistcheck.hpp
+        model/tools/enchantmentcheck.hpp
+        model/tools/factioncheck.hpp
+        model/tools/gmstcheck.hpp
+        model/tools/journalcheck.hpp
+        model/tools/magiceffectcheck.hpp
+        model/tools/mandatoryid.hpp
+        model/tools/mergeoperation.hpp
+        model/tools/mergestages.hpp
+        model/tools/mergestate.hpp
+        model/tools/pathgridcheck.hpp
+        model/tools/racecheck.hpp
+        model/tools/referenceablecheck.hpp
+        model/tools/referencecheck.hpp
+        model/tools/regioncheck.hpp
+        model/tools/reportmodel.hpp
+        model/tools/scriptcheck.hpp
+        model/tools/search.hpp
+        model/tools/searchoperation.hpp
+        model/tools/searchstage.hpp
+        model/tools/skillcheck.hpp
+        model/tools/soundcheck.hpp
+        model/tools/soundgencheck.hpp
+        model/tools/spellcheck.hpp
+        model/tools/startscriptcheck.hpp
+        model/tools/tools.hpp
+        model/tools/topicinfocheck.hpp
+        model/world/actoradapter.hpp
+        model/world/cell.hpp
+        model/world/cellcoordinates.hpp
+        model/world/cellselection.hpp
+        model/world/collection.hpp
+        model/world/collectionbase.hpp
+        model/world/columnbase.hpp
+        model/world/columnimp.hpp
+        model/world/columns.hpp
+        model/world/commanddispatcher.hpp
+        model/world/commandmacro.hpp
+        model/world/commands.hpp
+        model/world/data.hpp
+        model/world/defaultgmsts.hpp
+        model/world/disabletag.hpp
+        model/world/idcollection.hpp
+        model/world/idcompletionmanager.hpp
+        model/world/idtable.hpp
+        model/world/idtablebase.hpp
+        model/world/idtableproxymodel.hpp
+        model/world/idtree.hpp
+        model/world/info.hpp
+        model/world/infocollection.hpp
+        model/world/infoselectwrapper.hpp
+        model/world/infotableproxymodel.hpp
+        model/world/land.hpp
+        model/world/landtexturetableproxymodel.hpp
+        model/world/metadata.hpp
+        model/world/nestedcoladapterimp.hpp
+        model/world/nestedcollection.hpp
+        model/world/nestedcolumnadapter.hpp
+        model/world/nestedidcollection.hpp
+        model/world/nestedinfocollection.hpp
+        model/world/nestedtableproxymodel.hpp
+        model/world/nestedtablewrapper.hpp
+        model/world/pathgrid.hpp
+        model/world/record.hpp
+        model/world/ref.hpp
+        model/world/refcollection.hpp
+        model/world/refidadapter.hpp
+        model/world/refidadapterimp.hpp
+        model/world/refidcollection.hpp
+        model/world/refiddata.hpp
+        model/world/regionmap.hpp
+        model/world/resources.hpp
+        model/world/resourcesmanager.hpp
+        model/world/resourcetable.hpp
+        model/world/scope.hpp
+        model/world/scriptcontext.hpp
+        model/world/subcellcollection.hpp
+        model/world/tablemimedata.hpp
+        model/world/universalid.hpp
+)
 
-if (MSVC)
-    # Debug version needs increased number of sections beyond 2^16
-    if (CMAKE_CL_64)
-        set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj")
-    endif (CMAKE_CL_64)
-endif (MSVC)
+target_sources(openmw-cs-lib
+    PRIVATE
+        view/doc/adjusterwidget.cpp
+        view/doc/filedialog.cpp
+        view/doc/filewidget.cpp
+        view/doc/globaldebugprofilemenu.cpp
+        view/doc/loader.cpp
+        view/doc/newgame.cpp
+        view/doc/operation.cpp
+        view/doc/operations.cpp
+        view/doc/runlogsubview.cpp
+        view/doc/startup.cpp
+        view/doc/subview.cpp
+        view/doc/subviewfactory.cpp
+        view/doc/view.cpp
+        view/doc/viewmanager.cpp
+        view/filter/editwidget.cpp
+        view/filter/filterbox.cpp
+        view/filter/recordfilterbox.cpp
+        view/prefs/contextmenulist.cpp
+        view/prefs/dialogue.cpp
+        view/prefs/keybindingpage.cpp
+        view/prefs/page.cpp
+        view/prefs/pagebase.cpp
+        view/render/actor.cpp
+        view/render/brushdraw.cpp
+        view/render/cameracontroller.cpp
+        view/render/cell.cpp
+        view/render/cellarrow.cpp
+        view/render/cellborder.cpp
+        view/render/cellmarker.cpp
+        view/render/cellwater.cpp
+        view/render/commands.cpp
+        view/render/editmode.cpp
+        view/render/instancemode.cpp
+        view/render/instancemovemode.cpp
+        view/render/instanceselectionmode.cpp
+        view/render/object.cpp
+        view/render/objectmarker.cpp
+        view/render/orbitcameramode.cpp
+        view/render/pagedworldspacewidget.cpp
+        view/render/pathgrid.cpp
+        view/render/pathgridmode.cpp
+        view/render/pathgridselectionmode.cpp
+        view/render/previewwidget.cpp
+        view/render/scenewidget.cpp
+        view/render/selectionmode.cpp
+        view/render/terrainselection.cpp
+        view/render/terrainshapemode.cpp
+        view/render/terrainstorage.cpp
+        view/render/terraintexturemode.cpp
+        view/render/terrainvertexpaintmode.cpp
+        view/render/unpagedworldspacewidget.cpp
+        view/render/worldspacewidget.cpp
+        view/tools/merge.cpp
+        view/tools/reportsubview.cpp
+        view/tools/reporttable.cpp
+        view/tools/searchbox.cpp
+        view/tools/searchsubview.cpp
+        view/tools/subviews.cpp
+        view/widget/coloreditor.cpp
+        view/widget/colorpickerpopup.cpp
+        view/widget/completerpopup.cpp
+        view/widget/droplineedit.cpp
+        view/widget/modebutton.cpp
+        view/widget/pushbutton.cpp
+        view/widget/scenetool.cpp
+        view/widget/scenetoolbar.cpp
+        view/widget/scenetoolmode.cpp
+        view/widget/scenetoolrun.cpp
+        view/widget/scenetoolshapebrush.cpp
+        view/widget/scenetooltexturebrush.cpp
+        view/widget/scenetooltoggle.cpp
+        view/widget/scenetooltoggle2.cpp
+        view/widget/scenetoolvertexpaintbrush.cpp
+        view/world/bodypartcreator.cpp
+        view/world/cellcreator.cpp
+        view/world/colordelegate.cpp
+        view/world/creator.cpp
+        view/world/datadisplaydelegate.cpp
+        view/world/dialoguecreator.cpp
+        view/world/dialoguespinbox.cpp
+        view/world/dialoguesubview.cpp
+        view/world/dragdroputils.cpp
+        view/world/dragrecordtable.cpp
+        view/world/enumdelegate.cpp
+        view/world/extendedcommandconfigurator.cpp
+        view/world/genericcreator.cpp
+        view/world/globalcreator.cpp
+        view/world/idcompletiondelegate.cpp
+        view/world/idtypedelegate.cpp
+        view/world/idvalidator.cpp
+        view/world/infocreator.cpp
+        view/world/landcreator.cpp
+        view/world/nestedtable.cpp
+        view/world/pathgridcreator.cpp
+        view/world/previewsubview.cpp
+        view/world/recordbuttonbar.cpp
+        view/world/recordstatusdelegate.cpp
+        view/world/referenceablecreator.cpp
+        view/world/referencecreator.cpp
+        view/world/regionmap.cpp
+        view/world/regionmapsubview.cpp
+        view/world/scenesubview.cpp
+        view/world/scriptedit.cpp
+        view/world/scripterrortable.cpp
+        view/world/scripthighlighter.cpp
+        view/world/scriptsubview.cpp
+        view/world/startscriptcreator.cpp
+        view/world/subviews.cpp
+        view/world/table.cpp
+        view/world/tablebottombox.cpp
+        view/world/tableeditidaction.cpp
+        view/world/tableheadermouseeventhandler.cpp
+        view/world/tablesubview.cpp
+        view/world/util.cpp
+        view/world/vartypedelegate.cpp
+    PUBLIC FILE_SET HEADERS FILES
+        view/doc/adjusterwidget.hpp
+        view/doc/filedialog.hpp
+        view/doc/filewidget.hpp
+        view/doc/globaldebugprofilemenu.hpp
+        view/doc/loader.hpp
+        view/doc/newgame.hpp
+        view/doc/operation.hpp
+        view/doc/operations.hpp
+        view/doc/runlogsubview.hpp
+        view/doc/sizehint.hpp
+        view/doc/startup.hpp
+        view/doc/subview.hpp
+        view/doc/subviewfactory.hpp
+        view/doc/subviewfactoryimp.hpp
+        view/doc/view.hpp
+        view/doc/viewmanager.hpp
+        view/filter/editwidget.hpp
+        view/filter/filterbox.hpp
+        view/filter/filterdata.hpp
+        view/filter/recordfilterbox.hpp
+        view/prefs/contextmenulist.hpp
+        view/prefs/dialogue.hpp
+        view/prefs/keybindingpage.hpp
+        view/prefs/page.hpp
+        view/prefs/pagebase.hpp
+        view/render/actor.hpp
+        view/render/brushdraw.hpp
+        view/render/cameracontroller.hpp
+        view/render/cell.hpp
+        view/render/cellarrow.hpp
+        view/render/cellborder.hpp
+        view/render/cellmarker.hpp
+        view/render/cellwater.hpp
+        view/render/commands.hpp
+        view/render/editmode.hpp
+        view/render/instancedragmodes.hpp
+        view/render/instancemode.hpp
+        view/render/instancemovemode.hpp
+        view/render/instanceselectionmode.hpp
+        view/render/mask.hpp
+        view/render/object.hpp
+        view/render/objectmarker.hpp
+        view/render/orbitcameramode.hpp
+        view/render/pagedworldspacewidget.hpp
+        view/render/pathgrid.hpp
+        view/render/pathgridmode.hpp
+        view/render/pathgridselectionmode.hpp
+        view/render/previewwidget.hpp
+        view/render/scenewidget.hpp
+        view/render/selectionmode.hpp
+        view/render/tagbase.hpp
+        view/render/terrainselection.hpp
+        view/render/terrainshapemode.hpp
+        view/render/terrainstorage.hpp
+        view/render/terraintexturemode.hpp
+        view/render/terrainvertexpaintmode.hpp
+        view/render/unpagedworldspacewidget.hpp
+        view/render/worldspacewidget.hpp
+        view/tools/merge.hpp
+        view/tools/reportsubview.hpp
+        view/tools/reporttable.hpp
+        view/tools/searchbox.hpp
+        view/tools/searchsubview.hpp
+        view/tools/subviews.hpp
+        view/widget/brushshapes.hpp
+        view/widget/coloreditor.hpp
+        view/widget/colorpickerpopup.hpp
+        view/widget/completerpopup.hpp
+        view/widget/droplineedit.hpp
+        view/widget/modebutton.hpp
+        view/widget/pushbutton.hpp
+        view/widget/scenetool.hpp
+        view/widget/scenetoolbar.hpp
+        view/widget/scenetoolmode.hpp
+        view/widget/scenetoolrun.hpp
+        view/widget/scenetoolshapebrush.hpp
+        view/widget/scenetooltexturebrush.hpp
+        view/widget/scenetooltoggle.hpp
+        view/widget/scenetooltoggle2.hpp
+        view/widget/scenetoolvertexpaintbrush.hpp
+        view/world/bodypartcreator.hpp
+        view/world/cellcreator.hpp
+        view/world/colordelegate.hpp
+        view/world/creator.hpp
+        view/world/datadisplaydelegate.hpp
+        view/world/dialoguecreator.hpp
+        view/world/dialoguespinbox.hpp
+        view/world/dialoguesubview.hpp
+        view/world/dragdroputils.hpp
+        view/world/dragrecordtable.hpp
+        view/world/enumdelegate.hpp
+        view/world/extendedcommandconfigurator.hpp
+        view/world/genericcreator.hpp
+        view/world/globalcreator.hpp
+        view/world/idcompletiondelegate.hpp
+        view/world/idtypedelegate.hpp
+        view/world/idvalidator.hpp
+        view/world/infocreator.hpp
+        view/world/landcreator.hpp
+        view/world/nestedtable.hpp
+        view/world/pathgridcreator.hpp
+        view/world/previewsubview.hpp
+        view/world/recordbuttonbar.hpp
+        view/world/recordstatusdelegate.hpp
+        view/world/referenceablecreator.hpp
+        view/world/referencecreator.hpp
+        view/world/regionmap.hpp
+        view/world/regionmapsubview.hpp
+        view/world/scenesubview.hpp
+        view/world/scriptedit.hpp
+        view/world/scripterrortable.hpp
+        view/world/scripthighlighter.hpp
+        view/world/scriptsubview.hpp
+        view/world/startscriptcreator.hpp
+        view/world/subviews.hpp
+        view/world/table.hpp
+        view/world/tablebottombox.hpp
+        view/world/tableeditidaction.hpp
+        view/world/tableheadermouseeventhandler.hpp
+        view/world/tablesubview.hpp
+        view/world/util.hpp
+        view/world/vartypedelegate.hpp
+)
 
-if(USE_QT)
-    set_property(TARGET openmw-cs-lib PROPERTY AUTOMOC ON)
-    set_property(TARGET openmw-cs-lib PROPERTY AUTOUIC_SEARCH_PATHS ui)
-    set_property(TARGET openmw-cs-lib PROPERTY AUTOUIC ON)
-endif(USE_QT)
-
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(openmw-cs-lib PRIVATE --coverage)
-    target_link_libraries(openmw-cs-lib PRIVATE gcov)
-endif()
+set_target_properties(openmw-cs-lib PROPERTIES
+    AUTOMOC ON
+    AUTORCC ON
+    AUTOUIC ON
+    AUTOUIC_SEARCH_PATHS ui)
+target_link_libraries(openmw-cs-lib
+    PUBLIC
+        ${OSGVIEWER_LIBRARIES}
+        ${OSGFX_LIBRARIES}
+        ${OSGGA_LIBRARIES}
+        ${OSGUTIL_LIBRARIES}
+        ${OSGTEXT_LIBRARIES}
+        ${OSG_LIBRARIES}
+        ${EXTERN_OSGQT_LIBRARY}
+        Boost::program_options
+        openmw-components-qt
+        Qt::Widgets
+        Qt::Core
+        Qt::Network
+        Qt::OpenGL
+        Qt::OpenGLWidgets
+        Qt::Svg
+)
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(openmw-cs-lib PRIVATE
@@ -232,4 +527,18 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
         <string_view>
         <vector>
     )
-endif()
+endif ()
+
+if (BUILD_OPENCS)
+    qt_add_executable(openmw-cs main.cpp)
+    if (WIN32)
+        target_sources(openmw-cs PRIVATE
+            "${PROJECT_SOURCE_DIR}/files/windows/opencs.rc"
+            "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest")
+    endif ()
+    target_link_libraries(openmw-cs PRIVATE openmw-cs-lib)
+
+    install(TARGETS openmw-cs ${runtime_dependency_arguments})
+    install(FILES "$<TARGET_FILE_DIR:openmw-cs>/defaults-cs.bin" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
+    generate_deploy_script_for_qt_app(openmw-cs)
+endif ()

@@ -1474,11 +1474,6 @@ if (WIN32)
     target_link_libraries(openmw-components PUBLIC shlwapi dxgi)
 endif ()
 
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(openmw-components PRIVATE --coverage)
-    target_link_libraries(openmw-components PUBLIC gcov)
-endif ()
-
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(openmw-components PUBLIC
         <sol/sol.hpp>
@@ -1556,10 +1551,6 @@ if (USE_QT)
         add_dependencies(openmw-components-qt qm-files)
     endif ()
 
-    if (BUILD_WITH_CODE_COVERAGE)
-        target_compile_options(openmw-components-qt PRIVATE --coverage)
-        target_link_libraries(openmw-components-qt PUBLIC gcov)
-    endif ()
 endif ()
 
 add_subdirectory(rtx)

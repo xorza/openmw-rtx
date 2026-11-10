@@ -1,4 +1,4 @@
-openmw_add_executable(openmw_detournavigator_navmeshtilescache_benchmark navmeshtilescache.cpp)
+add_executable(openmw_detournavigator_navmeshtilescache_benchmark navmeshtilescache.cpp)
 target_link_libraries(openmw_detournavigator_navmeshtilescache_benchmark benchmark::benchmark openmw-components)
 
 if (UNIX)
@@ -7,11 +7,6 @@ endif()
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(openmw_detournavigator_navmeshtilescache_benchmark REUSE_FROM openmw-components)
-endif()
-
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(openmw_detournavigator_navmeshtilescache_benchmark PRIVATE --coverage)
-    target_link_libraries(openmw_detournavigator_navmeshtilescache_benchmark gcov)
 endif()
 
 if (WIN32)

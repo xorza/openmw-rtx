@@ -292,10 +292,15 @@ made only on the user's explicit yes, after which it is added here.
 - `components/CMakeLists.txt` as `openmw-components` and `openmw-components-qt`, each folder's files
   named in a `target_sources` list and its headers as a file set, in place of the stem macros
   (`add_component_dir`, `add_component_qt_dir`) and the hand-made unity build (`enable_unity_build`,
-  `OPENMW_UNITY_BUILD`), which CMake's `CMAKE_UNITY_BUILD` replaces; without upstream's nested
+  `OPENMW_UNITY_BUILD`), with no unity build in their place; without upstream's nested
   `project (Components)`; the platform folder's lists in `components/platform/CMakeLists.txt`, for Windows
   and Linux alone, so upstream's other Unix and `filestdio.cpp` branches go; every app linking the new names. The cost is a conflict with every upstream change to a component's list,
   which the merge resolves by naming the file in its folder's list.
+- Every app's `CMakeLists.txt` in the same form: files named in `target_sources` lists in place of
+  `add_openmw_dir`, `opencs_units` and `opencs_hdrs`, `add_executable` and `qt_add_executable` in place of
+  upstream's wrappers, Qt's resources through `AUTORCC`, `openmw-navmeshtool` without its library, and
+  `BUILD_WITH_CODE_COVERAGE` a setting of the checks target. The cost is a conflict with every upstream change
+  to an app's list, which the merge resolves by naming the file in its list.
 - `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
   `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
   stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.

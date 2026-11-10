@@ -83,6 +83,13 @@ if (OPENMW_CXX_FLAGS)
     target_compile_options(openmw-checks INTERFACE ${openmw_cxx_flags})
 endif ()
 
+# Coverage where `BUILD_WITH_CODE_COVERAGE` asks for it: every first-party target compiled for gcov, and
+# every program linked with its runtime.
+if (BUILD_WITH_CODE_COVERAGE)
+    target_compile_options(openmw-checks INTERFACE --coverage)
+    target_link_options(openmw-checks INTERFACE --coverage)
+endif ()
+
 # Links `openmw-checks` into every target a folder under `components/` or `apps/` defines, from
 # `directory` down, but the interface and custom ones, which compile nothing, and one that compiles a
 # third party's source and says so with `OPENMW_CHECKS OFF`. Every folder is walked, as

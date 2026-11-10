@@ -1,33 +1,20 @@
-set(ESMTOOL
-    esmtool.cpp
-    labels.hpp
-    labels.cpp
-    record.hpp
-    record.cpp
-    arguments.hpp
-    tes4.hpp
-    tes4.cpp
+add_executable(esmtool)
+target_sources(esmtool
+    PRIVATE
+        esmtool.cpp
+        labels.cpp
+        record.cpp
+        tes4.cpp
+    PRIVATE FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}" FILES
+        arguments.hpp
+        labels.hpp
+        record.hpp
+        tes4.hpp
 )
-source_group(apps\\esmtool FILES ${ESMTOOL})
-
-# Main executable
-openmw_add_executable(esmtool
-    ${ESMTOOL}
-)
-
-target_link_libraries(esmtool
-    Boost::program_options
-    openmw-components
-)
-
 if (WIN32)
-    target_sources(esmtool PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
-endif()
-
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(esmtool PRIVATE --coverage)
-    target_link_libraries(esmtool gcov)
-endif()
+    target_sources(esmtool PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest")
+endif ()
+target_link_libraries(esmtool PRIVATE Boost::program_options openmw-components)
 
 install(TARGETS esmtool ${runtime_dependency_arguments})
 
@@ -37,4 +24,4 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
         <string>
         <vector>
     )
-endif()
+endif ()

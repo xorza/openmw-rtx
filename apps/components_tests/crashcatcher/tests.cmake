@@ -7,7 +7,7 @@ if (OPENMW_CRASHPAD)
     else()
         set(CRASH_TESTS_SYSTEM crashcatcher/crashtestsposix.cpp)
     endif()
-    openmw_add_executable(crash-tests crashcatcher/crashtests.cpp crashcatcher/crashtestssystem.hpp ${CRASH_TESTS_SYSTEM})
+    add_executable(crash-tests crashcatcher/crashtests.cpp crashcatcher/crashtestssystem.hpp ${CRASH_TESTS_SYSTEM})
     target_link_libraries(crash-tests openmw-components)
 endif()
 

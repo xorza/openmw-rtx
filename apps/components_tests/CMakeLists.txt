@@ -134,7 +134,7 @@ file(GLOB UNITTEST_SRC_FILES
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
-openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
+add_executable(components-tests ${UNITTEST_SRC_FILES})
 
 target_link_libraries(components-tests
     GTest::gtest
@@ -163,11 +163,6 @@ include(crashcatcher/tests.cmake)
 # Fix for not visible pthreads functions for linker with glibc 2.15
 if (UNIX)
     target_link_libraries(components-tests ${CMAKE_THREAD_LIBS_INIT})
-endif()
-
-if (BUILD_WITH_CODE_COVERAGE)
-    target_compile_options(components-tests PRIVATE --coverage)
-    target_link_libraries(components-tests gcov)
 endif()
 
 set(TEMPLATE_OMWGAME_URL https://gitlab.com/OpenMW/example-suite/-/raw/8966dab24692555eec720c854fb0f73d108070cd/data/template.omwgame CACHE STRING "URL for template.omwgame. Use file:// URL for local file in offline builds.")
