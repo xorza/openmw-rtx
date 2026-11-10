@@ -3,6 +3,21 @@
 <MyGUI type="Layout">
     <Widget type="Widget" layer="LoadingScreen" position="0 0 300 300" name="_Main" align="Stretch">
 
+        <Widget type="Window" skin="MW_Dialog" position="0 0 600 92" align="Bottom HCenter" name="NoteBox">
+            <Property key="Visible" value="false"/>
+
+            <Widget type="EditBox" skin="MW_TextEditClient" position="12 8 568 68" align="Stretch" name="NoteText">
+                <Property key="FontName" value="Default"/>
+                <Property key="TextAlign" value="Left Top"/>
+                <Property key="Static" value="true"/>
+                <Property key="WordWrap" value="true"/>
+                <Property key="MultiLine" value="true"/>
+                <Property key="NeedKey" value="false"/>
+                <Property key="NeedMouse" value="false"/>
+            </Widget>
+
+        </Widget>
+
         <Widget type="Window" skin="MW_Dialog" position="0 245 300 48" align="Bottom HCenter" name="LoadingBox">
 
             <Widget type="TextBox" skin="SandText" position="16 5 260 18" align="Stretch" name="LoadingText">

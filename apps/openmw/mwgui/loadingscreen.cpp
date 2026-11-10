@@ -1,10 +1,12 @@
 #include "loadingscreen.hpp"
 
+#include <algorithm>
 #include <array>
 
 #include <osg/FrameStamp>
 #include <osg/Stats>
 
+#include <MyGUI_EditBox.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ScrollBar.h>
 #include <MyGUI_TextBox.h>
@@ -46,6 +48,8 @@ namespace MWGui
         getWidget(mLoadingText, "LoadingText");
         getWidget(mProgressBar, "ProgressBar");
         getWidget(mLoadingBox, "LoadingBox");
+        getWidget(mNoteBox, "NoteBox");
+        getWidget(mNoteText, "NoteText");
         getWidget(mSceneImage, "Scene");
         getWidget(mSplashImage, "Splash");
 
@@ -91,6 +95,35 @@ namespace MWGui
         else
             mLoadingBox->setPosition(mMainWidget->getWidth() / 2 - mLoadingBox->getWidth() / 2,
                 mMainWidget->getHeight() - mLoadingBox->getHeight() - 8);
+
+        placeNote();
+    }
+
+    void LoadingScreen::setNote(std::string_view note)
+    {
+        mNote = note;
+        placeNote();
+    }
+
+    void LoadingScreen::placeNote()
+    {
+        mNoteBox->setVisible(!mNote.empty());
+        if (mNote.empty())
+            return;
+
+        // The layout's own margins, read before the box is resized, which stretches the text with it.
+        const MyGUI::IntSize padding = mNoteBox->getSize() - mNoteText->getSize();
+        constexpr int widthMost = 600;
+        constexpr int gap = 8;
+        const int width = std::min(widthMost, mMainWidget->getWidth() - 2 * gap);
+
+        // The text wraps at the width its box has when the caption is set, so the width comes first
+        // and the height is read after.
+        mNoteBox->setSize(width, mNoteBox->getHeight());
+        mNoteText->setCaptionWithReplacing(mNote);
+        const int height = mNoteText->getTextSize().height + padding.height;
+        mNoteBox->setCoord(
+            mMainWidget->getWidth() / 2 - width / 2, mLoadingBox->getTop() - gap - height, width, height);
     }
 
     void LoadingScreen::setVisible(bool visible)
@@ -150,6 +183,7 @@ namespace MWGui
             mImportantLabel = false; // label was already shown on loading screen
 
         setVisible(false);
+        setNote({});
 
         mRenderer.endLoading();
 

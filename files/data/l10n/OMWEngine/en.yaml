@@ -16,6 +16,10 @@ AskLoadLastSave: "The most recent save is ''{save}''. Do you want to load it?"
 BuildingNavigationMesh: "Building Navigation Mesh"
 CompilingShaders: "Compiling Shaders"
 PreparingContent: "Preparing Content"
+PreparingContentNote: |-
+    The ray tracer prepares every model and texture before you play, so that the game does not stutter later. The first start takes a few seconds, or several minutes with many mods. Later starts redo only the files that changed.
+
+    Technical: meshes are cleaned, textures are analysed and new mipmap chains are built. The results stay in the rtx-content cache folder.
 InitializingData: "Initializing Data..."
 LoadingExterior: "Loading Area"
 LoadingFailed: "Failed to load saved game"

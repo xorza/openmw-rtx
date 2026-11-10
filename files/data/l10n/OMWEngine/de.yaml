@@ -16,6 +16,10 @@ AskLoadLastSave: "Der aktuellste Spielstand ist ''{save}''. Soll er geladen werd
 BuildingNavigationMesh: "Erstelle Navigationsgitter..."
 CompilingShaders: "Shader werden kompiliert"
 PreparingContent: "Inhalte werden vorbereitet"
+PreparingContentNote: |-
+    Der Raytracer bereitet vor dem Spielen alle Modelle und Texturen vor, damit das Spiel später nicht ruckelt. Der erste Start dauert einige Sekunden, mit vielen Mods mehrere Minuten. Spätere Starts bearbeiten nur geänderte Dateien neu.
+
+    Technisch: Meshes werden bereinigt, Texturen analysiert und neue Mipmap-Ketten erstellt. Die Ergebnisse bleiben im Cache-Ordner rtx-content.
 InitializingData: "Initialisiere Daten..."
 LoadingExterior: "Lade Bereich..."
 LoadingFailed: "Laden des Spielstandes fehlgeschlagen!"

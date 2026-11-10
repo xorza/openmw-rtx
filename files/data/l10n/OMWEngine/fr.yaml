@@ -15,6 +15,10 @@ PhysicsProfiler: "Profileur des performances de la physique"
 BuildingNavigationMesh: "Construction du mesh de navigation"
 CompilingShaders: "Compilation des shaders"
 PreparingContent: "Préparation du contenu"
+PreparingContentNote: |-
+    Le ray tracer prépare tous les modèles et toutes les textures avant que vous jouiez, pour que le jeu ne saccade pas ensuite. Le premier démarrage prend quelques secondes, ou plusieurs minutes avec beaucoup de mods. Les démarrages suivants ne traitent que les fichiers modifiés.
+
+    Technique : les maillages sont nettoyés, les textures analysées et de nouvelles chaînes de mipmaps créées. Les résultats restent dans le dossier de cache rtx-content.
 AskLoadLastSave: "La sauvegarde la plus récente est ''{save}''. Voulez-vous la charger ?"
 InitializingData: "Initialisation des données..."
 LoadingExterior: "Chargement de la zone de jeu"

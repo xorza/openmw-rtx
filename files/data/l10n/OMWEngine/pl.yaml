@@ -16,6 +16,10 @@ AskLoadLastSave: "Ostatni zapis to ''{save}''. Czy chcesz go wczytać?"
 BuildingNavigationMesh: "Tworzenie siatki nawigacyjnej"
 CompilingShaders: "Kompilowanie shaderów"
 PreparingContent: "Przygotowywanie zawartości"
+PreparingContentNote: |-
+    Ray tracer przygotowuje wszystkie modele i tekstury przed grą, aby gra później się nie zacinała. Pierwsze uruchomienie trwa kilka sekund, a z wieloma modami kilka minut. Kolejne uruchomienia przetwarzają tylko zmienione pliki.
+
+    Technicznie: siatki są oczyszczane, tekstury analizowane, a nowe łańcuchy mipmap tworzone. Wyniki są zapisywane w folderze pamięci podręcznej rtx-content.
 InitializingData: "Inicjalizacja..."
 LoadingExterior: "Wczytywanie obszaru zewnętrznego"
 LoadingFailed: "Nie udało się wczytać zapisu gry"

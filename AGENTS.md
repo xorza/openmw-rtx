@@ -163,7 +163,9 @@ is not here is held to the rules above.
 - What the loading screen's preparation reads of the content (`Rtx::ContentPreparation`, run inside
   `Renderer::awaitShaders`): `ESMTerrain::Storage::getLayerInfo` made public and `Store<ESM::LandTexture>`'s
   `begin` and `end`, which list the ground layers as the ground reader finds them (`MWRender::contentLayers`), and
-  the `PreparingContent` label in each of the engine's six languages.
+  the `PreparingContent` label in each of the engine's six languages. And the note the loading screen shows above
+  its label while the preparation runs (`Loading::Listener::setNote`, `PreparingContentNote`): a cold start with a
+  large mod list waits minutes there, and a player told nothing takes it for a hang.
 - What the ray tracer reads of the rasterizer's own state: the projection offset `SceneFrame` is
   handed beside the projection, and `Precipitation::isShown` and its occlusion setting, so neither
   renderer draws rain the other hides.

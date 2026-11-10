@@ -2,6 +2,8 @@
 #define MWGUI_LOADINGSCREEN_H
 
 #include <memory>
+#include <string>
+#include <string_view>
 
 #include <osg/Timer>
 #include <osg/ref_ptr>
@@ -32,6 +34,7 @@ namespace MWGui
 
         /// Overridden from Loading::Listener, see the Loading::Listener documentation for usage details
         void setLabel(const std::string& label, bool important) override;
+        void setNote(std::string_view note) override;
         void loadingOn() override;
         void loadingOff() override;
         void setProgressRange(size_t range) override;
@@ -47,6 +50,9 @@ namespace MWGui
         bool needToDrawLoadingScreen();
 
         void showFrozenFrame();
+
+        /// Shows the note, sized to its text, above the label's box, or hides it where there is none.
+        void placeNote();
 
         Resource::ResourceSystem* mResourceSystem;
         MWRender::Renderer& mRenderer;
@@ -70,6 +76,9 @@ namespace MWGui
 
         MyGUI::TextBox* mLoadingText;
         MyGUI::ScrollBar* mProgressBar;
+        MyGUI::Widget* mNoteBox;
+        MyGUI::EditBox* mNoteText;
+        std::string mNote;
         BackgroundImage* mSplashImage;
         BackgroundImage* mSceneImage;
 

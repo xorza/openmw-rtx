@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 namespace Loading
 {
@@ -16,6 +17,11 @@ namespace Loading
         /// that the implementation decided not to show a loading screen at all. "important" labels
         /// will show in a separate message-box if the loading screen was not shown.
         virtual void setLabel(const std::string& label, bool important = false) {}
+
+        /// Set a note to show beside the label: what the step does and why it takes its time, for a
+        /// step long enough that a player asks. Empty for none. It stays until it is set again or
+        /// the loading sequence ends.
+        virtual void setNote(std::string_view note) {}
 
         /// Start a loading sequence. Must call loadingOff() when done.
         /// @note To get the loading screen to actually update, you must call setProgress / increaseProgress

@@ -16,6 +16,10 @@ AskLoadLastSave: "Den senaste sparfilen är ''{save}''. Vill du ladda den?"
 BuildingNavigationMesh: "Bygger navigeringsmesh"
 CompilingShaders: "Kompilerar shaders"
 PreparingContent: "Förbereder innehåll"
+PreparingContentNote: |-
+    Strålspåraren förbereder alla modeller och texturer innan du spelar, så att spelet inte hackar senare. Första starten tar några sekunder, eller flera minuter med många moddar. Senare starter behandlar bara ändrade filer.
+
+    Tekniskt: meshar rensas, texturer analyseras och nya mipmap-kedjor byggs. Resultaten sparas i cachemappen rtx-content.
 InitializingData: "Initialiserar data..."
 LoadingExterior: "Laddar område"
 LoadingFailed: "Misslyckades med att ladda sparat spel"

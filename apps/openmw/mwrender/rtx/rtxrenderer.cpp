@@ -667,6 +667,9 @@ namespace MWRender
         if (!progress.isDone())
         {
             listener.setLabel("#{OMWEngine:PreparingContent}");
+            // A cold start waits here up to minutes, 364 s on a large mod list, and a player told nothing
+            // takes it for a hang (`docs/rtx/research/2026-11-09-content-preparation-cost.md`).
+            listener.setNote("#{OMWEngine:PreparingContentNote}");
             listener.setProgressRange(progress.mCount);
 
             // **Each file let go of by the loader's caches as the last job reading it ends**
@@ -683,6 +686,7 @@ namespace MWRender
                 progress = mMirror.awaitPreparing(patience);
             }
             getResources().clearCache();
+            listener.setNote({});
         }
         mWalked.mSession.mLoading += mMirror.finishPreparing();
     }
