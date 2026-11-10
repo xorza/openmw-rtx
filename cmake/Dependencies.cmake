@@ -19,9 +19,9 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     FetchContent_Declare(
         SDL3
         URL
-            https://github.com/libsdl-org/SDL/releases/download/release-3.4.16/SDL3-3.4.16.tar.gz
+            https://github.com/libsdl-org/SDL/releases/download/release-3.4.20/SDL3-3.4.20.tar.gz
         URL_HASH
-            SHA512=74a5ee1e5bba138a8daa710e200ac3585c60f696311c46252d86bc685c55e8271cd0d68439f8e13ca515b702d46ef58914d0f7b2352019870a5763ed79739e9a
+            SHA512=6ac2566e58f4db58112dcf328ee829f855f5f3c00329ebb358be706f8958fa980d0e0d7247678b76a8bc6e9137fc4a17424d84105f39de178af3a99680559d63
         SOURCE_DIR fetched/sdl3
         SYSTEM
         EXCLUDE_FROM_ALL
@@ -52,18 +52,18 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     set(RECASTNAVIGATION_EXAMPLES OFF CACHE BOOL "")
     FetchContent_MakeAvailable(recastnavigation)
 
-    # yaml-cpp, built static where no system's is found. One commit after the 0.8.0 tag, for CMake 4.
+    # yaml-cpp, built static where no system's is found.
     FetchContent_Declare(
         yaml-cpp
         URL
-            https://github.com/jbeder/yaml-cpp/archive/c2680200486572baf8221ba052ef50b58ecd816e.zip
+            https://github.com/jbeder/yaml-cpp/archive/refs/tags/yaml-cpp-0.9.0.tar.gz
         URL_HASH
-            SHA512=9eb328e37ff547e7f681d64e3a8f268a8a5645cb1c258106d1d9f959eec498dfc7c466690c56f210ad7d5fb95b806a30c87ccbb019cccf5c3c6135cfc3c13fe1
+            SHA512=59f730e8c5744f1ccd542c1144db8d4d949012f72aab0b84ba4a818db25a0f847569b61238ab72ed5b0b2e9482b8d5007651b7185f4ca9e99045d5160259b565
         SOURCE_DIR fetched/yaml-cpp
         SYSTEM
         EXCLUDE_FROM_ALL
         FIND_PACKAGE_ARGS
-            0.8
+            0.9
             CONFIG
     )
     set(YAML_BUILD_SHARED_LIBS OFF)
@@ -73,9 +73,9 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
         FetchContent_Declare(
             googletest
             URL
-                https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
+                https://github.com/google/googletest/archive/refs/tags/v1.18.0.zip
             URL_HASH
-                SHA512=2712d6f6e7f38eb0c8d5ebba957588c70aff68ea433c7aa0b31bde8cacfbe47de908a6e5a99a021969da568f5075daa2c45fca602bbf56711d146d333b76562b
+                SHA512=68cdce1c185237862e3bcf73a9b8f485fa611307228122d8f8863b7faf6354d8ff0d9d1551f3533bdc1b01655a731e8e72027b72d8e0b20e63a4582c06708f78
             SOURCE_DIR fetched/googletest
             SYSTEM
             EXCLUDE_FROM_ALL
@@ -117,13 +117,13 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     # why it cannot draw there, and the ray tracer refuses the loader by name (`Instance`). The system's
     # package only at the SDK version the tree is built against or a later one, which volk's own version is: an older one lacks the Vulkan 1.4 entry points the backend calls
     # (`vkCmdPushDescriptorSet`), and would be taken and then fail to compile.
-    set(RTX_VOLK_VERSION 357)
+    set(RTX_VOLK_VERSION 363)
     FetchContent_Declare(
         volk
         URL
             https://github.com/zeux/volk/archive/refs/tags/vulkan-sdk-1.4.${RTX_VOLK_VERSION}.0.tar.gz
         URL_HASH
-            SHA512=44feaf57236d8f52d4bde05cf4ba59de5df4730b6c8dc38c278a3aa13d02d4bb48e11660832232f7122c2d55b65d60fe9b5f8fe6725ee63d5d5213e5275b7110
+            SHA512=c1d97fb4419effe08e84dc83e220229e1a070359b4d7187cfd54142df0dd0cee525d791d89e0deadb399d270772805ba1f48f8f6c6f3dd3820a44a947ca297db
         SOURCE_DIR fetched/volk
         SYSTEM
         EXCLUDE_FROM_ALL
@@ -138,13 +138,13 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
 
     # Vulkan Memory Allocator, behind `device/memory/memory.hpp`: a system's only at the pinned version or a
     # later one of its major.
-    set(RTX_VMA_VERSION 3.4.0)
+    set(RTX_VMA_VERSION 3.5.0)
     FetchContent_Declare(
         VulkanMemoryAllocator
         URL
             https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v${RTX_VMA_VERSION}.tar.gz
         URL_HASH
-            SHA512=563acbcd8912d10d92c23715eba7acf0e7c1683af36021f415b36f359c2cce065f3906e395c32282a8410ec5c8179fbcb6412935c6629a49357475d4b4410e2a
+            SHA512=ad6232fa175aea9cfd16f240eed541eb1fb86349aa98c94ae874de85dd53ae78b1db9b293556d8f178c0648e2287f63109caede8595a1ba9ff244c9ddb0b9c48
         SOURCE_DIR fetched/vma
         SYSTEM
         EXCLUDE_FROM_ALL

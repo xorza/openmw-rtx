@@ -1,15 +1,16 @@
 if(OPENMW_CRASHPAD)
-    # **Crashpad as sentry-native 0.17.1 pins it**, the newest release of the one project that
-    # releases it with a CMake build: Crashpad itself is Chromium's and tags nothing. Three archives,
+    # **Crashpad from Sentry's fork**, the one project that releases it with a CMake build: Crashpad
+    # itself is Chromium's and tags nothing. Its newest commit, three past what sentry-native 0.17.6
+    # pins, for two fixes of a stalled or external handler. Three archives,
     # because GitHub's leaves the submodules out; each goes where the submodule would have been.
     # Populated without being added, so that the two are in place before Crashpad's own
     # CMakeLists reads them.
     FetchContent_Declare(
         crashpad
         URL
-            https://github.com/getsentry/crashpad/archive/000e3ad7a51c89e49bc00eca9846aa0485cccc96.zip
+            https://github.com/getsentry/crashpad/archive/702c3d5a0d02c9b72a8b029d33bdfcd81dc75f65.zip
         URL_HASH
-            SHA512=7070b2f7a6a6b10ae1aff3418dc943c995522c56882aaca7bb5830f432f3c907c96c5505dc7086d1598b1e4d5c27bb53d99fff1de2f85f66ccd1e9c2baff987d
+            SHA512=b616d5251bef188560a6a07bdc4b5ad603f6ef51a59a981d0f112adb52dd0086c01bf362f995c8ac7d0d57764591ef2a94992ce6889b31905c543eb6035c5630
         SOURCE_DIR fetched/crashpad
         SOURCE_SUBDIR added-below
         PATCH_COMMAND

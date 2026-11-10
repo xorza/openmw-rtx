@@ -145,19 +145,19 @@ CRASH_TOOLS = {
 # The Vulkan SDK from LunarG, each system's with the checksum LunarG publishes beside the file in its
 # own listing, sdk.lunarg.com/sdk/files.json. On Windows the loader comes apart from the SDK, from the
 # runtime components LunarG publishes for redistribution.
-VULKAN_SDK_LINUX_VERSION = "1.4.357.1"
+VULKAN_SDK_LINUX_VERSION = "1.4.363.1"
 VULKAN_SDK_LINUX = Pin(
     f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_LINUX_VERSION}/linux/vulkansdk-linux-x86_64-{VULKAN_SDK_LINUX_VERSION}.tar.xz",
-    "4b41e3b30e8aedaa5dac7c136561ab463eb316a25a54e2c6245f2c299ea1fb85",
+    "b7867d8ca658563813af666f34b93db87f1b1c7d9d69d97e924c210c7ba33eb8",
 )
-VULKAN_SDK_WINDOWS_VERSION = "1.4.357.0"
+VULKAN_SDK_WINDOWS_VERSION = "1.4.363.0"
 VULKAN_SDK_WINDOWS = Pin(
     f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_WINDOWS_VERSION}/windows/vulkansdk-windows-X64-{VULKAN_SDK_WINDOWS_VERSION}.exe",
-    "81f474711e9042f4cd22b31b2f7a8870db2e428b21586fb43dd80150be97310d",
+    "94a82d378f7a5e3e54c9db7d2fb7016af136e14ac0a18dbf0f2f67a36352d141",
 )
 VULKAN_LOADER_WINDOWS = Pin(
     f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_WINDOWS_VERSION}/windows/VulkanRT-X64-{VULKAN_SDK_WINDOWS_VERSION}-Components.zip",
-    "a14672efed15aafc7f5a16572d35cd3a3416eadf670aeee3cdf50ee32d5fbf83",
+    "a25a927aa8b9f0371048f1861cf88ac3b9bc9b1fb332c42d897c8ab32695769a",
 )
 # The CMake every build of the driver's configures with, on the desk, on CI and in the release container
 # (`deps.cmake`), by system: the release `cmake_minimum_required` names. The digests are Kitware's own
