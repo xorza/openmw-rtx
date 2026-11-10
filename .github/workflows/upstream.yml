@@ -172,8 +172,8 @@ jobs:
                   # What the fork deleted stays deleted, so a change to one holds no merge for a human, and a
                   # file upstream adds under a deleted folder goes with it: upstream's workflows, as `ci.yml`
                   # does their work; GitLab's pipeline and what only it runs, as the fork's CI is GitHub's;
-                  # and macOS's and Android's files, as the fork builds neither. A workflow upstream adds is
-                  # held.
+                  # macOS's and Android's files, as the fork builds neither; and upstream's project files and
+                  # scripts the fork has no use for. A workflow upstream adds is held.
                   kept_deleted=(
                     .github/workflows/push.yml .github/workflows/macos.yml .github/workflows/windows.yml
                     .github/workflows/release.yml
@@ -189,6 +189,9 @@ jobs:
                     components/files/macospath.hpp
                     apps/openmw/androidmain.cpp components/files/androidpath.cpp components/files/androidpath.hpp
                     components/sdlutil/gl4esinit.cpp components/sdlutil/gl4esinit.h
+                    .resubmitted_merge_requests.txt .readthedocs.yaml CONTRIBUTING.md
+                    scripts/generate_teal_declarations.sh scripts/preprocessed_file_size_stats.py
+                    scripts/preprocessed_file_size_stats_diff.py scripts/osg_stats.py scripts/HOWTO-benchmark.md
                   )
                   # Forced, as a file upstream adds is staged.
                   git rm -r -f --ignore-unmatch -- "${kept_deleted[@]}"

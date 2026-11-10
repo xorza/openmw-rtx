@@ -275,3 +275,11 @@ made only on the user's explicit yes, after which it is added here.
   clone: one formatter for one tree, the same on every system. The cost is a reformat of 198 of
   upstream's files, which `omw merge-file` takes out of each merge: the merge workflow lays out the
   base and both sides with the pinned clang-format before git merges them.
+- Upstream's project files and scripts the fork has no use for: `.resubmitted_merge_requests.txt`
+  (GitLab's bookkeeping), `.readthedocs.yaml` (upstream's published manual), `CONTRIBUTING.md`
+  (upstream's merge requests; the fork's rules are `AGENTS.md`), and under `scripts/` the Teal
+  declarations and preprocessed-size scripts only GitLab's pipeline ran, with `osg_stats.py` and
+  `HOWTO-benchmark.md` for the rasterizer's OSG statistics, where `omw bench` measures the ray tracer.
+  `upstream.yml` keeps them deleted. `.editorconfig` covers the ray tracer's shaders and the headers
+  GLSL and C++ share (`.h`, `.rgen`), LF as `.gitattributes` holds C++, and loses the stages the tree has
+  no file of.
