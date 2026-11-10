@@ -1005,11 +1005,11 @@ target_link_libraries(openmw-lib
         openmw-myguirtx
         Threads::Threads
 )
-if (USE_SYSTEM_TINYXML)
+if (OPENMW_SYSTEM_TINYXML)
     target_link_libraries(openmw-lib PUBLIC TinyXML::TinyXML)
 endif ()
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(openmw-lib PRIVATE
         <boost/program_options/options_description.hpp>
 
@@ -1035,7 +1035,7 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     )
 endif ()
 
-if (BUILD_OPENMW)
+if (OPENMW_BUILD_GAME)
     add_executable(openmw main.cpp)
     if (WIN32)
         target_sources(openmw PRIVATE
@@ -1049,9 +1049,9 @@ if (BUILD_OPENMW)
         set_target_properties(openmw PROPERTIES ENABLE_EXPORTS ON)
     endif ()
     # The console a Windows build opens beside the game: in Debug and RelWithDebInfo where
-    # `USE_DEBUG_CONSOLE` asks for it, and never in Release, whose output goes to `openmw.log`.
+    # `OPENMW_DEBUG_CONSOLE` asks for it, and never in Release, whose output goes to `openmw.log`.
     if (MSVC)
-        if (USE_DEBUG_CONSOLE)
+        if (OPENMW_DEBUG_CONSOLE)
             set(console CONSOLE)
         else ()
             set(console WINDOWS)

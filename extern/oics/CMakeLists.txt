@@ -16,7 +16,7 @@ add_library(oics STATIC
 target_include_directories(oics SYSTEM PUBLIC include)
 target_include_directories(oics PRIVATE include/oics)
 
-if(USE_SYSTEM_TINYXML)
+if(OPENMW_SYSTEM_TINYXML)
     target_link_libraries(oics TinyXML::TinyXML)
 else()
     add_library(local_tinyxml STATIC
@@ -31,6 +31,6 @@ endif()
 
 target_link_libraries(oics SDL3::SDL3)
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(oics PUBLIC <algorithm> <string>)
 endif()

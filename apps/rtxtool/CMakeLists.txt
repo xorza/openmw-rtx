@@ -124,7 +124,7 @@ target_compile_definitions(openmw-rtxtool-lib PRIVATE
 # The harness links the game, so a picture taken here is the picture played. Only the executable
 # links it: `openmw-rtxtool-lib` stays engine-free for `components-tests`, so the hosted files are
 # built here.
-if (BUILD_OPENMW)
+if (OPENMW_BUILD_GAME)
     add_executable(openmw-rtxtool main.cpp)
     target_sources(openmw-rtxtool
         PRIVATE

@@ -69,7 +69,7 @@ target_compile_definitions(openmw-tests
     PRIVATE OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
             OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}")
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(openmw-tests PRIVATE
         <boost/program_options/options_description.hpp>
 

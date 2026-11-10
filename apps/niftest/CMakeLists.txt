@@ -10,6 +10,6 @@ target_link_libraries(niftest PRIVATE openmw-components)
 
 install(TARGETS niftest ${runtime_dependency_arguments})
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(niftest REUSE_FROM openmw-components)
 endif ()

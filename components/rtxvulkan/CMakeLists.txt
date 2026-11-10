@@ -109,7 +109,7 @@ set(RTX_SHADERS
 # The device-behaviour probes, only where tests run them: an assumption about the hardware fails as
 # a test rather than as a rendering mystery.
 set(RTX_SHADER_PROBES shaders/probes/halfmean.comp shaders/probes/halfstore.comp shaders/probes/pinning.comp shaders/probes/probe.comp shaders/probes/shadowmoments.comp shaders/probes/share.comp shaders/probes/sharedexponent.comp shaders/probes/traceprobe.rgen shaders/probes/unormmean.comp shaders/probes/unormround.comp)
-if (BUILD_COMPONENTS_TESTS)
+if (OPENMW_BUILD_COMPONENTS_TESTS)
     list(APPEND RTX_SHADERS ${RTX_SHADER_PROBES})
 endif()
 

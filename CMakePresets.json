@@ -22,11 +22,11 @@
                 "CMAKE_C_COMPILER_LAUNCHER": "ccache",
                 "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "BUILD_OPENCS": "OFF",
-                "BUILD_OPENCS_TESTS": "OFF",
-                "BUILD_WIZARD": "OFF",
-                "BUILD_ESSIMPORTER": "OFF",
-                "BUILD_MWINIIMPORTER": "ON"
+                "OPENMW_BUILD_CS": "OFF",
+                "OPENMW_BUILD_CS_TESTS": "OFF",
+                "OPENMW_BUILD_WIZARD": "OFF",
+                "OPENMW_BUILD_ESSIMPORTER": "OFF",
+                "OPENMW_BUILD_INIIMPORTER": "ON"
             }
         },
         {
@@ -67,11 +67,11 @@
                 "OPENMW_MSVC_WERROR": "ON",
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/scripts/buildsystems/vcpkg.cmake",
                 "VCPKG_APPLOCAL_DEPS": "OFF",
-                "PRECOMPILE_HEADERS_WITH_MSVC": "OFF",
+                "OPENMW_MSVC_PRECOMPILED_HEADERS": "OFF",
                 "LuaJit_INCLUDE_DIR": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/include/luajit",
                 "LuaJit_LIBRARY": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/lib/lua51.lib",
                 "FETCHCONTENT_TRY_FIND_PACKAGE_MODE": "NEVER",
-                "BUILD_LAUNCHER": "OFF",
+                "OPENMW_BUILD_LAUNCHER": "OFF",
                 "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O2 -Z7",
                 "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -Z7"
             }
@@ -84,12 +84,12 @@
                 "launcher's [RTX] page can be built."
             ],
             "cacheVariables": {
-                "BUILD_BSATOOL": "OFF",
-                "BUILD_ESMTOOL": "OFF",
-                "BUILD_LAUNCHER": "OFF",
-                "BUILD_NAVMESHTOOL": "OFF",
-                "BUILD_NIFTEST": "OFF",
-                "BUILD_BULLETOBJECTTOOL": "OFF"
+                "OPENMW_BUILD_BSATOOL": "OFF",
+                "OPENMW_BUILD_ESMTOOL": "OFF",
+                "OPENMW_BUILD_LAUNCHER": "OFF",
+                "OPENMW_BUILD_NAVMESHTOOL": "OFF",
+                "OPENMW_BUILD_NIFTEST": "OFF",
+                "OPENMW_BUILD_BULLETOBJECTTOOL": "OFF"
             }
         },
         {
@@ -112,8 +112,8 @@
             "binaryDir": "${sourceDir}/build-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "BUILD_COMPONENTS_TESTS": "ON",
-                "BUILD_OPENMW_TESTS": "ON"
+                "OPENMW_BUILD_COMPONENTS_TESTS": "ON",
+                "OPENMW_BUILD_GAME_TESTS": "ON"
             }
         },
         {
@@ -127,8 +127,8 @@
             "binaryDir": "${sourceDir}/build-release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "BUILD_COMPONENTS_TESTS": "OFF",
-                "BUILD_OPENMW_TESTS": "OFF"
+                "OPENMW_BUILD_COMPONENTS_TESTS": "OFF",
+                "OPENMW_BUILD_GAME_TESTS": "OFF"
             }
         },
         {
@@ -176,14 +176,14 @@
             "binaryDir": "${sourceDir}/build-full",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "BUILD_OPENCS": "ON",
-                "BUILD_OPENCS_TESTS": "ON",
-                "BUILD_WIZARD": "ON",
-                "BUILD_LAUNCHER": "ON",
-                "BUILD_ESSIMPORTER": "ON",
-                "BUILD_COMPONENTS_TESTS": "ON",
-                "BUILD_OPENMW_TESTS": "ON",
-                "BUILD_BENCHMARKS": "ON"
+                "OPENMW_BUILD_CS": "ON",
+                "OPENMW_BUILD_CS_TESTS": "ON",
+                "OPENMW_BUILD_WIZARD": "ON",
+                "OPENMW_BUILD_LAUNCHER": "ON",
+                "OPENMW_BUILD_ESSIMPORTER": "ON",
+                "OPENMW_BUILD_COMPONENTS_TESTS": "ON",
+                "OPENMW_BUILD_GAME_TESTS": "ON",
+                "OPENMW_BUILD_BENCHMARKS": "ON"
             }
         },
         {
@@ -197,11 +197,11 @@
             "binaryDir": "${sourceDir}/build-package",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "BUILD_COMPONENTS_TESTS": "OFF",
-                "BUILD_OPENMW_TESTS": "OFF",
-                "BUILD_LAUNCHER": "ON",
-                "BUILD_WIZARD": "ON",
-                "BUILD_ESSIMPORTER": "ON",
+                "OPENMW_BUILD_COMPONENTS_TESTS": "OFF",
+                "OPENMW_BUILD_GAME_TESTS": "OFF",
+                "OPENMW_BUILD_LAUNCHER": "ON",
+                "OPENMW_BUILD_WIZARD": "ON",
+                "OPENMW_BUILD_ESSIMPORTER": "ON",
                 "OPENMW_LOCAL_INSTALL": "ON"
             }
         },
@@ -264,7 +264,7 @@
             "$comment": "Qt for the CS, the launcher and the wizard, and the link-time optimisation upstream's Windows build takes.",
             "cacheVariables": {
                 "CMAKE_PREFIX_PATH": "${sourceDir}/deps/Qt/$env{QT_VER}/msvc2019_64",
-                "OPENMW_LTO_BUILD": "ON"
+                "OPENMW_LTO": "ON"
             }
         },
         {

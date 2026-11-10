@@ -53,7 +53,7 @@ target_link_libraries(openmw-launcher
         Qt::Network
 )
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(openmw-launcher PRIVATE
         <boost/program_options/options_description.hpp>
 

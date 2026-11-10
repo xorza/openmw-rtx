@@ -317,6 +317,10 @@ made only on the user's explicit yes, after which it is added here.
   interface target every tree-built target links, in place of the directory-wide `include_directories`,
   `add_compile_definitions` and `add_compile_options`; `OPENMW_MP_BUILD`, which only the Visual Studio
   generator read, goes. The cost is a conflict with an upstream change to a link list or a found package.
+- Every CMake option and cache entry named `OPENMW_*`, upstream's `BUILD_*`, `USE_*` and bare names
+  renamed (`BUILD_OPENMW` is `OPENMW_BUILD_GAME`, `BUILD_OPENCS` `OPENMW_BUILD_CS`): one style for one
+  tree, since GitLab's pipeline, the names' only outside reader, is gone. The cost is a conflict with an
+  upstream change that adds or reads an option, which the merge renames.
 - `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
   `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
   stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.

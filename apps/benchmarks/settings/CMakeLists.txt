@@ -5,6 +5,6 @@ endif ()
 target_link_libraries(openmw_settings_access_benchmark PRIVATE benchmark::benchmark openmw-components)
 target_compile_definitions(openmw_settings_access_benchmark PRIVATE OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}")
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(openmw_settings_access_benchmark REUSE_FROM openmw-components)
 endif ()

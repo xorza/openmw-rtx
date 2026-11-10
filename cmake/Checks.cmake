@@ -106,9 +106,9 @@ if (OPENMW_CXX_FLAGS)
     target_compile_options(openmw-checks INTERFACE ${openmw_cxx_flags})
 endif ()
 
-# Coverage where `BUILD_WITH_CODE_COVERAGE` asks for it: every first-party target compiled for gcov, and
+# Coverage where `OPENMW_COVERAGE` asks for it: every first-party target compiled for gcov, and
 # every program linked with its runtime.
-if (BUILD_WITH_CODE_COVERAGE)
+if (OPENMW_COVERAGE)
     target_compile_options(openmw-checks INTERFACE --coverage)
     target_link_options(openmw-checks INTERFACE --coverage)
 endif ()

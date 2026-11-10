@@ -56,7 +56,7 @@ FetchContent_Declare(yaml-cpp
 set(YAML_BUILD_SHARED_LIBS OFF)
 FetchContent_MakeAvailable(yaml-cpp)
 
-if (BUILD_COMPONENTS_TESTS OR BUILD_OPENCS_TESTS OR BUILD_OPENMW_TESTS)
+if (OPENMW_BUILD_COMPONENTS_TESTS OR OPENMW_BUILD_CS_TESTS OR OPENMW_BUILD_GAME_TESTS)
     FetchContent_Declare(googletest
         URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
         URL_HASH SHA512=2712d6f6e7f38eb0c8d5ebba957588c70aff68ea433c7aa0b31bde8cacfbe47de908a6e5a99a021969da568f5075daa2c45fca602bbf56711d146d333b76562b
@@ -70,7 +70,7 @@ if (BUILD_COMPONENTS_TESTS OR BUILD_OPENCS_TESTS OR BUILD_OPENMW_TESTS)
     FetchContent_MakeAvailable(googletest)
 endif ()
 
-if (BUILD_BENCHMARKS)
+if (OPENMW_BUILD_BENCHMARKS)
     # 1.10, whose header no longer reads `__COUNTER__` in an `#if`, which Clang 23 counts a C2y extension
     # and 1.8's own `-pedantic-errors` made an error.
     FetchContent_Declare(benchmark
@@ -166,7 +166,7 @@ target_link_libraries(FFmpeg::FFmpeg INTERFACE ${FFmpeg_LIBRARIES})
 # Required for building the FFmpeg headers
 target_compile_definitions(FFmpeg::FFmpeg INTERFACE __STDC_CONSTANT_MACROS)
 
-if (USE_SYSTEM_TINYXML)
+if (OPENMW_SYSTEM_TINYXML)
     find_package(TinyXML REQUIRED)
     add_library(TinyXML::TinyXML INTERFACE IMPORTED)
     target_include_directories(TinyXML::TinyXML INTERFACE ${TinyXML_INCLUDE_DIRS})
@@ -259,7 +259,7 @@ if (HAVE_MULTIVIEW)
     target_compile_definitions(OpenSceneGraph::osg INTERFACE OSG_HAS_MULTIVIEW)
 endif ()
 
-if (USE_LUAJIT)
+if (OPENMW_LUAJIT)
     find_package(LuaJit REQUIRED)
     set(LUA_INCLUDE_DIR ${LuaJit_INCLUDE_DIR})
     set(LUA_LIBRARIES ${LuaJit_LIBRARIES})
@@ -272,6 +272,6 @@ endif ()
 add_library(Lua::Lua INTERFACE IMPORTED)
 target_include_directories(Lua::Lua INTERFACE ${LUA_INCLUDE_DIR})
 target_link_libraries(Lua::Lua INTERFACE ${LUA_LIBRARIES})
-if (NOT USE_LUAJIT)
+if (NOT OPENMW_LUAJIT)
     target_compile_definitions(Lua::Lua INTERFACE NO_LUAJIT)
 endif ()

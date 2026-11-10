@@ -10,6 +10,6 @@ target_link_libraries(openmw-bulletobjecttool PRIVATE Boost::program_options ope
 
 install(TARGETS openmw-bulletobjecttool ${runtime_dependency_arguments})
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(openmw-bulletobjecttool REUSE_FROM openmw-components)
 endif ()

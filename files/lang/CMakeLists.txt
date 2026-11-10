@@ -22,22 +22,22 @@ foreach (target translations purge-obsolete-translations)
     add_custom_target(${target} ${commands} VERBATIM)
 endforeach ()
 
-if (NOT (BUILD_LAUNCHER OR BUILD_WIZARD))
+if (NOT (OPENMW_BUILD_LAUNCHER OR OPENMW_BUILD_WIZARD))
     return()
 endif ()
 
 set(ts ${components_ts})
-if (BUILD_LAUNCHER)
+if (OPENMW_BUILD_LAUNCHER)
     list(APPEND ts ${launcher_ts})
 endif ()
-if (BUILD_WIZARD)
+if (OPENMW_BUILD_WIZARD)
     list(APPEND ts ${wizard_ts})
 endif ()
 qt_add_translation(qm ${ts} OPTIONS -silent)
 
 # Qt's own translations of the languages the programs have, beside them, where a configure deploys Qt
 # with the programs.
-if (DEPLOY_QT_TRANSLATIONS)
+if (OPENMW_DEPLOY_QT_TRANSLATIONS)
     get_target_property(qmake Qt::qmake IMPORTED_LOCATION)
     execute_process(COMMAND "${qmake}" -query QT_INSTALL_TRANSLATIONS
         OUTPUT_VARIABLE qt_translations OUTPUT_STRIP_TRAILING_WHITESPACE)

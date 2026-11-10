@@ -65,7 +65,7 @@ target_link_libraries(openmw-essimporter PRIVATE Boost::program_options openmw-c
 
 install(TARGETS openmw-essimporter ${runtime_dependency_arguments})
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(openmw-essimporter PRIVATE
         <algorithm>
         <filesystem>

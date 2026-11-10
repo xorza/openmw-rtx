@@ -13,6 +13,6 @@ target_link_libraries(openmw-iniimporter PRIVATE Boost::program_options openmw-c
 
 install(TARGETS openmw-iniimporter ${runtime_dependency_arguments})
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(openmw-iniimporter REUSE_FROM openmw-components)
 endif ()

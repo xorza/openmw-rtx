@@ -4,6 +4,6 @@ if (WIN32)
 endif ()
 target_link_libraries(openmw_esm_refid_benchmark PRIVATE benchmark::benchmark openmw-components)
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(openmw_esm_refid_benchmark REUSE_FROM openmw-components)
 endif ()

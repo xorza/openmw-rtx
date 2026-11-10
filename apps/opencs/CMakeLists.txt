@@ -515,7 +515,7 @@ target_link_libraries(openmw-cs-lib
         Qt::Svg
 )
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(openmw-cs-lib PRIVATE
         <boost/program_options/options_description.hpp>
 
@@ -529,7 +529,7 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     )
 endif ()
 
-if (BUILD_OPENCS)
+if (OPENMW_BUILD_CS)
     qt_add_executable(openmw-cs main.cpp)
     if (WIN32)
         target_sources(openmw-cs PRIVATE

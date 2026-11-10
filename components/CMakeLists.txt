@@ -1413,7 +1413,7 @@ add_subdirectory(platform)
 set_property(SOURCE files/configfileparser.cpp APPEND PROPERTY COMPILE_OPTIONS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-shadow>)
 # Read on Linux alone, where the file compiles to anything.
 set_property(SOURCE files/linuxpath.cpp APPEND PROPERTY COMPILE_DEFINITIONS
-    "GLOBAL_DATA_PATH=\"${GLOBAL_DATA_PATH}\"" "GLOBAL_CONFIG_PATH=\"${GLOBAL_CONFIG_PATH}\"")
+    "GLOBAL_DATA_PATH=\"${OPENMW_GLOBAL_DATA_PATH}\"" "GLOBAL_CONFIG_PATH=\"${OPENMW_GLOBAL_CONFIG_PATH}\"")
 # Boost's `typed_value::notify`, which GCC reports as a null dereference: compiled here alone, as
 # `configurationmanager.hpp` says.
 set_property(SOURCE files/configurationmanager.cpp APPEND PROPERTY COMPILE_OPTIONS
@@ -1474,7 +1474,7 @@ if (WIN32)
     target_link_libraries(openmw-components PUBLIC shlwapi dxgi)
 endif ()
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(openmw-components PUBLIC
         <sol/sol.hpp>
 
@@ -1547,7 +1547,7 @@ if (USE_QT)
         AUTOUIC ON
         AUTOUIC_SEARCH_PATHS contentselector)
 
-    if (BUILD_LAUNCHER OR BUILD_WIZARD)
+    if (OPENMW_BUILD_LAUNCHER OR OPENMW_BUILD_WIZARD)
         add_dependencies(openmw-components-qt qm-files)
     endif ()
 

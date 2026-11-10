@@ -10,6 +10,6 @@ if (WIN32)
 endif ()
 target_link_libraries(openmw-cs-tests PRIVATE openmw-cs-lib GTest::gtest GTest::gmock)
 
-if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
+if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
     target_precompile_headers(openmw-cs-tests REUSE_FROM openmw-components)
 endif ()
