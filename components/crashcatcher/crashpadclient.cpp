@@ -195,9 +195,15 @@ namespace Crash
         // 4 MiB; on Linux it keeps what the registers point at.
         info->set_gather_indirectly_referenced_memory(crashpad::TriState::kEnabled, 4 << 20);
 
+        // **A report returns once its dump is written**, which the note table's kind and reason are put
+        // back after (`endReport`): on Linux a request waits five seconds for the monitor unless it is
+        // told to wait for the upload, and a monitor slow to begin then read the table put back, a hang
+        // summarised as a crash. With no URL there is no upload, so the wait is for the dump alone; on
+        // Windows and macOS a report waits for its dump already.
+        constexpr bool waitForDump = true;
         const bool started = sClient.StartHandler(base::FilePath(self->native()),
             base::FilePath(settings.mReportFolder.native()), base::FilePath(), std::string(), std::string(),
-            { { "product", settings.mApplication } }, monitor.write(), false, false);
+            { { "product", settings.mApplication } }, monitor.write(), false, false, {}, base::FilePath(), waitForDump);
 
         // **Until the monitor has answered**, bounded: on Linux `StartHandler` answers once its fork
         // did, and a monitor that never ran left the game with no catcher and a log that said it had
