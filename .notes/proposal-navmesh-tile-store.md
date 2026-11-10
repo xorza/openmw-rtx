@@ -1,22 +1,22 @@
 # Proposal: navmesh tiles in the content store
 
-Temporary. When it lands, its lasting decisions go into `architecture.md` ("The content store"), the "Accepted diff"
-of `AGENTS.md` gains its entry, and this file is deleted. The facts it stands on are in
-`research/2026-11-10-navmesh-cache.md`.
+Temporary. When it lands, its lasting decisions go into `docs/rtx/architecture.md` ("The content store"),
+`.notes/UPSTREAM.md` gains its entry, and this file is deleted. The facts it stands on are in
+`docs/rtx/research/2026-11-10-navmesh-cache.md`.
 
 ## The problem
 
 The navigator keeps the tiles it generates in SQLite: one `navmesh.db` a profile, in the user data folder, keyed by a
-blob compared byte for byte and by shape ids a second table hands out. The fork keeps everything else it derives from the
-content in `ContentStore`, one file an entry under a content key, where SQLite was refused by the user's decision. Two
-stores for one kind of thing, a dependency for one of them, and a cache no two profiles share although most of their
+blob compared byte for byte and by shape ids a second table hands out. The fork keeps everything else it derives from
+the content in `ContentStore`, one file an entry under a content key, where SQLite was refused by the user's decision.
+Two stores for one kind of thing, a dependency for one of them, and a cache no two profiles share although most of their
 tiles are the same.
 
 ## Established practice
 
 - **Content-addressed disk caches**: ccache and Bazel's disk cache file each output under a hash of what made it, one
   file an entry in folders by the hash's first byte, and evict by age or not at all. `ContentStore` is that shape
-  (`architecture.md`, "One file an entry, and every entry untrusted").
+  (`docs/rtx/architecture.md`, "One file an entry, and every entry untrusted").
 - **Navmesh tiles**: Recast's own demo saves every tile to one file (`all_tiles_navmesh.bin`), and Unity and Unreal bake
   navigation data into the level's assets at build time: a cache valid for one content, made offline. OpenMW's is the
   one that keys a tile by its input and fills at run time, which a content-addressed store keeps as it is.
@@ -37,9 +37,10 @@ tiles are the same.
   store holds stays valid. Refused: a new format number, which empties every store; one registry of kinds across
   owners, which separate folders make needless.
 - **Residency is the owner's.** The ray tracer's store keeps what it does: entries of 4 KiB or less, and a shape at any
-  size, held in memory, loaded at the start's sweep and stamped on a session's first hit. The tile store holds nothing in
-  memory, loads nothing at its start and stamps nothing: 95 to 98 % of tiles are 4 KiB or less, most of 142 MiB, which
-  would flood the 64 MiB the frame's facts are held in, and a stamp only ranks that load. Refused: one policy for both.
+  size, held in memory, loaded at the start's sweep and stamped on a session's first hit. The tile store holds nothing
+  in memory, loads nothing at its start and stamps nothing: 95 to 98 % of tiles are 4 KiB or less, most of 142 MiB,
+  which would flood the 64 MiB the frame's facts are held in, and a stamp only ranks that load. Refused: one policy for
+  both.
 - **A folder of its own, shared by every profile.** `<cache>/navmesh`, beside `rtx-content`, which the game,
   `openmw-navmeshtool`, the harness and the integration tests open alike, as they share the player's `navmesh.db` and
   `rtx-content` now: an entry is right for whoever reads it. A content key makes a tile two profiles share one entry.
@@ -49,9 +50,9 @@ tiles are the same.
 - **The key is the tile's input, hashed where it stands.** `ContentDigest("navmesh tile", sTileVersion)` over the
   worldspace's text, the tile position, the recast settings, the agent's bounds, the water, the heightfields and the
   flat heightfields, and for each mesh source its area type, its shape's path and file hash, and its `ObjectTransform`.
-  One function makes it, which the game and `openmw-navmeshtool` both call, and it allocates nothing. Refused: shape ids,
-  which existed to shorten a blob a table compared and need that table; the serialized blob as the key, an allocation a
-  job for bytes that are hashed anyway.
+  One function makes it, which the game and `openmw-navmeshtool` both call, and it allocates nothing. Refused: shape
+  ids, which existed to shorten a blob a table compared and need that table; the serialized blob as the key, an
+  allocation a job for bytes that are hashed anyway.
 - **One version for the tile, held by a test.** `recastMeshVersion` and `navMeshFormatVersion` become one `sTileVersion`
   in the key; the payload keeps its own magic and version, and a payload its codec refuses is discarded. A test
   generates tiles from fixed inputs and digests them beside `sTileVersion`, as `RtxPassVersionsTest` holds the passes:
@@ -80,18 +81,18 @@ tiles are the same.
 - **The old database is left alone.** The game no longer opens `navmesh.db` and does not delete it; the release notes
   say it can go. Refused: deleting a file in the player's user data folder unasked.
 - **The animated pose stays out of the key**, as upstream has it; the issue log holds it.
-- **SQLite leaves the build.** `components/sqlite3`, its tests, the fetched amalgamation, `OPENMW_USE_SYSTEM_SQLITE3`, the
-  `find_package`, the presets' entry and the CI's packages go, with `navmeshdb*`, `navmeshdbutils*`,
+- **SQLite leaves the build.** `components/sqlite3`, its tests, the fetched amalgamation, `OPENMW_USE_SYSTEM_SQLITE3`,
+  the `find_package`, the presets' entry and the CI's packages go, with `navmeshdb*`, `navmeshdbutils*`,
   `DbRefGeometryObject` and the shape and tile id types.
 - **The cache path reaches the navigator.** `makeNavigator` takes the cache path where it took the user data path, which
   `World` is handed by the engine as the renderer is (`Files::ConfigurationManager::getCachePath`).
 
-## Accepted diff
+## Upstream changes
 
-The entry: "The navigator's tiles in the content store (`DetourNavigator::NavMeshTileStore`), and SQLite out of the
-build: the fork keeps what it derives from the content in one store, every profile shares the tiles they share, and the
-store's key covers the code by a version a test holds. The cost is a conflict with every upstream change to the
-navigator's database worker, its input serialization or `openmw-navmeshtool`."
+The entry in `.notes/UPSTREAM.md`: "The navigator's tiles in the content store (`DetourNavigator::NavMeshTileStore`),
+and SQLite out of the build: the fork keeps what it derives from the content in one store, every profile shares the
+tiles they share, and the store's key covers the code by a version a test holds. The cost is a conflict with every
+upstream change to the navigator's database worker, its input serialization or `openmw-navmeshtool`."
 
 ## Tests
 

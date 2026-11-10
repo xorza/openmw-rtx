@@ -65,7 +65,7 @@ namespace Rtx
         ///
         /// **Every frame and not once a sixtieth**, as upstream steps, which is a look of its own:
         /// the same springs over the same time, and a wake that keeps its pace under sixty frames a
-        /// second, where upstream's slows. AGENTS.md's Accepted diff names it.
+        /// second, where upstream's slows. AGENTS.md names it among the fixes declined.
         ///
         /// @param uploads what writes the impulses, ordered ahead of the steps that read them.
         /// @param slot the frame's, which names the copy of the impulse buffer this frame writes.

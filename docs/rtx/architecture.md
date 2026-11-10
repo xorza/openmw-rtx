@@ -14,7 +14,7 @@ GUI logic. The ray tracer draws the whole picture: primary visibility, shadows, 
 light, sky, water and fog are ray traced. Both renderers stand behind one interface and one binary
 ships both, but the game starts the ray tracer alone and nothing reaches the OpenGL renderer, which
 stays built so upstream's code merges as it stands. Its code is upstream's but for the corrections
-`AGENTS.md` lists under "Accepted diff". The player's settings are in
+`.notes/UPSTREAM.md` lists. The player's settings are in
 [`rtx.rst`](../source/reference/modding/settings/rtx.rst).
 
 The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan's ray tracing.
