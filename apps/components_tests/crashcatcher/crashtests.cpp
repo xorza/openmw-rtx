@@ -50,6 +50,10 @@ namespace CrashTests
         /// on the heap, which a dump of the stacks alone names the address of and nothing else.
         constexpr std::string_view sHeapMarker = "crash-tests: this text lies on the heap, pointed at from the stack";
 
+        /// **The monitor's last word on a session that left a dump**, which it writes once every line
+        /// before it is on disk (`MonitorLog::flush`), and only once the game is gone.
+        constexpr std::string_view sPackaged = "Crash package: ";
+
         std::vector<Mode> modesOfThisSystem()
         {
             const Raised raised = raisedOnThisSystem();
@@ -387,7 +391,7 @@ namespace CrashTests
         {
             // Written once the game is gone, which the monitor outlives: the line that names the
             // package follows the package.
-            if (!follows(folder, "Crash package: "))
+            if (!follows(folder, sPackaged))
                 return "no package was written";
 
             const std::vector<std::filesystem::path> packages = filesIn(folder, { "user data/crashes" }, ".zip");
@@ -413,7 +417,7 @@ namespace CrashTests
                     return "the package's " + name + " is not the dump";
             }
 
-            const std::string named = "Crash package: " + Files::pathToUnicodeString(packages.front());
+            const std::string named = std::string(sPackaged) + Files::pathToUnicodeString(packages.front());
             if (!follows(folder, named))
                 return "the log does not name the package";
             return std::nullopt;
@@ -446,6 +450,12 @@ namespace CrashTests
             // Read before anything that waits for the monitor.
             if (mode.mKept && mode.mReports && filesIn(folder, { "user data/crashes" }, ".zip").empty())
                 return "the run ended before its monitor packaged the session";
+            // **Read once the monitor is done with it**: it outlives the game and writes on a thread of
+            // its own, so a game ended the moment its report returned, as `ended-in-report` is, is gone
+            // with the summary still queued, and a log read then has none. A mode that leaves no
+            // package fails below, after the wait, on whatever it lacks.
+            if (mode.mReports)
+                follows(folder, sPackaged);
 
             std::vector<std::string> lines;
             {

@@ -414,7 +414,7 @@ namespace CSMWorld
     void Collection<ESXRecordT>::merge()
     {
         for (typename std::vector<std::unique_ptr<Record<ESXRecordT>>>::iterator iter(mRecords.begin());
-             iter != mRecords.end(); ++iter)
+            iter != mRecords.end(); ++iter)
             (*iter)->merge();
 
         purge();

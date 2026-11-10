@@ -636,10 +636,10 @@ CSMWorld::RefIdCollection::~RefIdCollection()
 
     for (std::vector<std::pair<const ColumnBase*, std::map<UniversalId::Type, NestedRefIdAdapterBase*>>>::iterator iter(
              mNestedAdapters.begin());
-         iter != mNestedAdapters.end(); ++iter)
+        iter != mNestedAdapters.end(); ++iter)
     {
         for (std::map<UniversalId::Type, NestedRefIdAdapterBase*>::iterator it((iter->second).begin());
-             it != (iter->second).end(); ++it)
+            it != (iter->second).end(); ++it)
             delete it->second;
     }
 }
@@ -857,7 +857,7 @@ const CSMWorld::NestedRefIdAdapterBase& CSMWorld::RefIdCollection::getNestedAdap
 {
     for (std::vector<std::pair<const ColumnBase*, std::map<UniversalId::Type, NestedRefIdAdapterBase*>>>::const_iterator
              iter(mNestedAdapters.begin());
-         iter != mNestedAdapters.end(); ++iter)
+        iter != mNestedAdapters.end(); ++iter)
     {
         if ((iter->first) == &column)
         {

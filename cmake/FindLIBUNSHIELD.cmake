@@ -15,12 +15,8 @@
 include(LibFindMacros)
 
 set(POSSIBLE_LOCATIONS
-    ~/Library/Frameworks
-    /Library/Frameworks
     /usr/local
     /usr
-    /sw # Fink
-    /opt/local # DarwinPorts
     /opt/csw # Blastwave
     /opt
     /usr/include

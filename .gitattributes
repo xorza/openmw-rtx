@@ -9,3 +9,18 @@ omw text eol=lf
 # The integration suites' data is read back byte for byte: `test_lua_api`'s `vfs` test reads
 # `lines.txt` as `1`, `2`, ``, `4`, and on a clone that converts it reads `1` and a carriage return.
 scripts/data/integration_tests/** -text
+# C++ is LF on every clone, as `.clang-format`'s `LineEnding` writes it, so a Windows clone formats
+# byte for byte as a Linux one. A merge lays out the base and both sides with the pinned clang-format
+# first (`omw merge-file`, which `upstream.yml` sets as the driver), so an upstream edit to a file the
+# fork reformatted conflicts only where the edit does; a clone with no such driver merges as git does.
+*.cpp text eol=lf merge=clang-format
+*.hpp text eol=lf merge=clang-format
+*.h text eol=lf merge=clang-format
+# GLSL too: a module compiled with its source (`--shader-source`) carries the file's bytes.
+*.glsl text eol=lf
+*.vert text eol=lf
+*.frag text eol=lf
+*.comp text eol=lf
+*.rgen text eol=lf
+# Vendored code keeps what its project wrote.
+extern/** !text !eol !merge

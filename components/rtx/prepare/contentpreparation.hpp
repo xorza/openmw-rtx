@@ -19,11 +19,11 @@
 #include <osg/Node>
 #include <osg/ref_ptr>
 
+#include <components/contentstore/key.hpp>
 #include <components/platform/thread.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
@@ -38,10 +38,14 @@ namespace osg
     class Image;
 }
 
+namespace ContentStore
+{
+    class Store;
+}
+
 namespace Rtx
 {
     class ContentSource;
-    class ContentStore;
 
     /// What a preparation reads and where it keeps what it computes.
     struct PreparationSetup
@@ -52,7 +56,7 @@ namespace Rtx
         /// The files' stamps, which the manifest is kept by.
         FileStamps& mStamps;
 
-        ContentStore& mStore;
+        ContentStore::Store& mStore;
 
         /// Where the manifest stands, beside the store.
         std::filesystem::path mManifest;
@@ -224,7 +228,7 @@ namespace Rtx
 
         /// The setup's stamps, each file's asked once a run.
         KeptStamps mStamps;
-        ContentStore& mStore;
+        ContentStore::Store& mStore;
         const std::filesystem::path mManifestPath;
         const osg::Node::NodeMask mMask;
         const Shader::AutoMapRules mAutoMaps;

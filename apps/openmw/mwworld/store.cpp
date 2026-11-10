@@ -32,10 +32,7 @@ namespace
     }
 
     template <class T>
-    concept HasRecordFlags = requires
-    {
-        T::mRecordFlags;
-    };
+    concept HasRecordFlags = requires { T::mRecordFlags; };
 }
 
 namespace MWWorld

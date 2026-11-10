@@ -591,9 +591,7 @@ namespace Rtx
             const Way ways[] = {
                 { "nothing", [](SurfaceDescription&, const osg::Image&) {}, false },
                 { "an emissive colour",
-                    [](SurfaceDescription& into, const osg::Image&) {
-                        into.mEmissiveColour = { 0.5f, 0.0f, 0.0f };
-                    },
+                    [](SurfaceDescription& into, const osg::Image&) { into.mEmissiveColour = { 0.5f, 0.0f, 0.0f }; },
                     true },
                 { "an emissive colour at a multiplier of nought",
                     [](SurfaceDescription& into, const osg::Image&) {

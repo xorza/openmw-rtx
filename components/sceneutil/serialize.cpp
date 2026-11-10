@@ -54,8 +54,8 @@ namespace SceneUtil
     public:
         PositionAttitudeTransformSerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::PositionAttitudeTransform>,
-                "SceneUtil::PositionAttitudeTransform",
-                "osg::Object osg::Node osg::Group osg::Transform SceneUtil::PositionAttitudeTransform")
+                  "SceneUtil::PositionAttitudeTransform",
+                  "osg::Object osg::Node osg::Group osg::Transform SceneUtil::PositionAttitudeTransform")
         {
             addSerializer(new osgDB::PropByRefSerializer<SceneUtil::PositionAttitudeTransform, osg::Vec3f>("position",
                               osg::Vec3f(), &SceneUtil::PositionAttitudeTransform::getPosition,
@@ -77,7 +77,7 @@ namespace SceneUtil
     public:
         SkeletonSerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::Skeleton>, "SceneUtil::Skeleton",
-                "osg::Object osg::Node osg::Group SceneUtil::Skeleton")
+                  "osg::Object osg::Node osg::Group SceneUtil::Skeleton")
         {
         }
     };
@@ -87,7 +87,7 @@ namespace SceneUtil
     public:
         RigGeometrySerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::RigGeometry>, "SceneUtil::RigGeometry",
-                "osg::Object osg::Node osg::Drawable SceneUtil::RigGeometry")
+                  "osg::Object osg::Node osg::Drawable SceneUtil::RigGeometry")
         {
         }
     };
@@ -97,7 +97,7 @@ namespace SceneUtil
     public:
         RigGeometryHolderSerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::RigGeometryHolder>, "SceneUtil::RigGeometryHolder",
-                "osg::Object osg::Node osg::Drawable SceneUtil::RigGeometryHolder")
+                  "osg::Object osg::Node osg::Drawable SceneUtil::RigGeometryHolder")
         {
         }
     };
@@ -107,7 +107,7 @@ namespace SceneUtil
     public:
         OsgaRigGeometrySerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::OsgaRigGeometry>, "SceneUtil::OsgaRigGeometry",
-                "osg::Object osg::Node osg::Geometry osgAnimation::RigGeometry SceneUtil::OsgaRigGeometry")
+                  "osg::Object osg::Node osg::Geometry osgAnimation::RigGeometry SceneUtil::OsgaRigGeometry")
         {
         }
     };
@@ -117,7 +117,7 @@ namespace SceneUtil
     public:
         MorphGeometrySerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::MorphGeometry>, "SceneUtil::MorphGeometry",
-                "osg::Object osg::Node osg::Drawable SceneUtil::MorphGeometry")
+                  "osg::Object osg::Node osg::Drawable SceneUtil::MorphGeometry")
         {
         }
     };
@@ -127,7 +127,7 @@ namespace SceneUtil
     public:
         LightManagerSerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<osg::Group>, "SceneUtil::LightManager",
-                "osg::Object osg::Node osg::Group SceneUtil::LightManager")
+                  "osg::Object osg::Node osg::Group SceneUtil::LightManager")
         {
         }
     };
@@ -137,7 +137,7 @@ namespace SceneUtil
     public:
         CameraRelativeTransformSerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<osg::Group>, "MWRender::CameraRelativeTransform",
-                "osg::Object osg::Node osg::Group MWRender::CameraRelativeTransform")
+                  "osg::Object osg::Node osg::Group MWRender::CameraRelativeTransform")
         {
         }
     };
@@ -147,7 +147,7 @@ namespace SceneUtil
     public:
         MatrixTransformSerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<NifOsg::MatrixTransform>, "NifOsg::MatrixTransform",
-                "osg::Object osg::Node osg::Group osg::Transform osg::MatrixTransform NifOsg::MatrixTransform")
+                  "osg::Object osg::Node osg::Group osg::Transform osg::MatrixTransform NifOsg::MatrixTransform")
         {
         }
     };
@@ -157,8 +157,8 @@ namespace SceneUtil
     public:
         AutoTransformSerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<NifOsg::AutoTransform>, "NifOsg::AutoTransform",
-                "osg::Object osg::Node osg::Group osg::Transform osg::MatrixTransform NifOsg::MatrixTransform "
-                "NifOsg::AutoTransform")
+                  "osg::Object osg::Node osg::Group osg::Transform osg::MatrixTransform NifOsg::MatrixTransform "
+                  "NifOsg::AutoTransform")
         {
             using ModeSerializer = osgDB::EnumSerializer<NifOsg::AutoTransform, NifOsg::AutoTransform::Mode, void>;
             osg::ref_ptr<ModeSerializer> serializer
@@ -178,7 +178,7 @@ namespace SceneUtil
     public:
         TextureTypeSerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::TextureType>, "SceneUtil::TextureType",
-                "osg::Object osg::StateAttribute SceneUtil::TextureType")
+                  "osg::Object osg::StateAttribute SceneUtil::TextureType")
         {
         }
     };
@@ -188,7 +188,7 @@ namespace SceneUtil
     public:
         MaterialSerializer()
             : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::Material>, "SceneUtil::Material",
-                "osg::Object osg::StateAttribute SceneUtil::Material")
+                  "osg::Object osg::StateAttribute SceneUtil::Material")
         {
             addSerializer(
                 new osgDB::UserSerializer<SceneUtil::Material>("Ambient", &checkAmbient, &readAmbient, &writeAmbient));
@@ -246,7 +246,7 @@ namespace SceneUtil
     public:
         GeometrySerializer()
             : osgDB::ObjectWrapper(
-                createInstanceFunc<osg::Drawable>, "osg::Geometry", "osg::Object osg::Drawable osg::Geometry")
+                  createInstanceFunc<osg::Drawable>, "osg::Geometry", "osg::Object osg::Drawable osg::Geometry")
         {
         }
     };

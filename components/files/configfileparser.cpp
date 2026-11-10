@@ -70,10 +70,7 @@ namespace Files
             // The most clean thing would be to pass 'line_iterator' to
             // constructor of this class, but to avoid templating this class
             // we'd need polymorphic iterator, which does not exist yet.
-            virtual bool getline(std::string&)
-            {
-                return false;
-            }
+            virtual bool getline(std::string&) { return false; }
 
         protected:
             /** Adds another allowed option. If the 'name' ends with

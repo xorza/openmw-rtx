@@ -1028,7 +1028,7 @@ namespace Rtx
                     .mView = makeCameraFromView(osg::Matrixf::lookAt(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f),
                                                     osg::Vec3f(0.0f, 0.0f, 1.0f)),
                         60.0f, sSize, sSize, sNearPlane, 100000.0f)
-                                 .value(),
+                        .value(),
                     .mRayMask = Shaders::MASK_STATIC,
                     .mLamps = false,
                     .mSampleFrame = 7,

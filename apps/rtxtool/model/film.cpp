@@ -629,7 +629,7 @@ namespace RtxTool
             const std::int64_t needs = static_cast<std::int64_t>(last.mFixed + last.mFlying);
             const FilmKey& opens = plan.mKeys[last.mFromKey];
             const std::string after = timed ? std::format(", {:.1f} s after key \"{}\" at {:g} s,", secondsOf(room + 1),
-                                          opens.mStop.mName, opens.mAt.value_or(0.0f))
+                                                  opens.mStop.mName, opens.mAt.value_or(0.0f))
                                             : std::string(",");
             if (named && room < 0)
                 throw std::runtime_error(std::format("--length is {} s, no later than key \"{}\" at {:g} s",

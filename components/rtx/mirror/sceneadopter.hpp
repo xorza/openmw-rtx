@@ -40,8 +40,7 @@ namespace Rtx
         /// walk meets as well is one material. `sNoIndex`, a null key and no hold for an empty
         /// chain.
         virtual MaterialResolver::Resolved adoptMaterial(
-            const MaterialReading& reading, std::span<const osg::StateSet* const> chain)
-            = 0;
+            const MaterialReading& reading, std::span<const osg::StateSet* const> chain) = 0;
 
         /// The same for a mesh, held under the identity the walk will find a clone's mesh under.
         virtual Index adoptMesh(const osg::Drawable& drawable, const MeshReading& reading) = 0;

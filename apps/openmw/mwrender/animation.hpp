@@ -114,9 +114,8 @@ namespace MWRender
         class TextKeyListener
         {
         public:
-            virtual void handleTextKey(
-                std::string_view groupname, SceneUtil::TextKeyMap::ConstIterator key, const SceneUtil::TextKeyMap& map)
-                = 0;
+            virtual void handleTextKey(std::string_view groupname, SceneUtil::TextKeyMap::ConstIterator key,
+                const SceneUtil::TextKeyMap& map) = 0;
 
             virtual ~TextKeyListener() = default;
         };

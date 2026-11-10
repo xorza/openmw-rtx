@@ -159,7 +159,7 @@ namespace Crash
         mFoundLength
             = static_cast<std::size_t>(std::find(slot->mText, slot->mText + sNoteCapacity - 1, '\0') - slot->mText);
         std::memcpy(mFound, slot->mText, mFoundLength);
-        rewrite(*slot, [&](char(&into)[sNoteCapacity]) {
+        rewrite(*slot, [&](char (&into)[sNoteCapacity]) {
             const std::size_t at = mFoundLength == 0 ? 0 : append(into, mFoundLength, " > ");
             return append(into, at, text);
         });
@@ -180,7 +180,7 @@ namespace Crash
         if (!mNoted)
             return;
 
-        rewrite(*ownSlot(), [&](char(&text)[sNoteCapacity]) {
+        rewrite(*ownSlot(), [&](char (&text)[sNoteCapacity]) {
             std::memcpy(text, mFound, mFoundLength);
             return mFoundLength;
         });
@@ -236,7 +236,7 @@ namespace Crash
         const std::uint64_t self = Platform::Process::currentThreadId();
         const auto due = std::chrono::steady_clock::now() + patience;
         for (std::uint32_t found = Idle; !sGate.compare_exchange_weak(found, Ending, std::memory_order_acq_rel);
-             found = Idle)
+            found = Idle)
         {
             if (found == Ending)
                 return;

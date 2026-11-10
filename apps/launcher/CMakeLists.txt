@@ -62,11 +62,9 @@ openmw_add_qt_executable(openmw-launcher
 
 add_dependencies(openmw-launcher qm-files)
 
-if (NOT APPLE)
-    install(TARGETS openmw-launcher ${runtime_dependency_arguments})
+install(TARGETS openmw-launcher ${runtime_dependency_arguments})
 
-    generate_deploy_script_for_qt_app(openmw-launcher)
-endif ()
+generate_deploy_script_for_qt_app(openmw-launcher)
 
 target_link_libraries(openmw-launcher PUBLIC
     SDL3::SDL3

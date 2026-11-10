@@ -50,7 +50,7 @@
 CSVRender::TerrainTextureMode::TerrainTextureMode(
     WorldspaceWidget* worldspaceWidget, osg::Group* parentNode, QWidget* parent)
     : EditMode(worldspaceWidget, Misc::ScalableIcon::load(":scenetoolbar/editing-terrain-texture"),
-        Mask_Terrain | Mask_Reference, "Terrain texture editing", parent)
+          Mask_Terrain | Mask_Reference, "Terrain texture editing", parent)
     , mBrushSize(1)
     , mBrushShape(CSVWidget::BrushShape_Point)
     , mTextureBrushScenetool(nullptr)

@@ -1121,14 +1121,8 @@ namespace Rtx::Shaders
         uint mLighting;
 
 #ifdef RTX_HOST
-        bool isAdditive() const
-        {
-            return (mFlags & EMITTER_ADDITIVE) != 0u;
-        }
-        bool falls() const
-        {
-            return (mFlags & EMITTER_FALLS) != 0u;
-        }
+        bool isAdditive() const { return (mFlags & EMITTER_ADDITIVE) != 0u; }
+        bool falls() const { return (mFlags & EMITTER_FALLS) != 0u; }
 #endif
     };
 

@@ -49,12 +49,14 @@ runs:
         # The cache's save reads the packages as the runner's user, after apt wrote them as root.
         sudo chown -R "$(id -u):$(id -g)" apt-cache
 
-    - name: Vulkan SDK cache
-      # The SDK alone: the rest of deps/ is small on Linux, or fetched by one job only.
+    - name: Vulkan SDK and CMake cache
+      # The SDK and CMake alone: the rest of deps/ is small on Linux, or fetched by one job only.
       if: runner.os == 'Linux' && inputs.cache == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: deps/vulkan-sdk-*
+        path: |
+          deps/vulkan-sdk-*
+          deps/cmake-*
         key: vulkan-sdk-${{ runner.os }}-${{ hashFiles('tools/omw/pins.py', 'tools/omw/deps.py') }}
 
     - name: Windows dependencies cache

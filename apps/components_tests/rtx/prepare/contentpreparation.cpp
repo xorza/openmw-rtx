@@ -21,14 +21,14 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/graph.hpp>
+#include <components/contentstore/key.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/prepare/contentpreparation.hpp>
 #include <components/rtx/prepare/filestamps.hpp>
 #include <components/rtx/prepare/preparationmanifest.hpp>
-#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
-#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/testing/util.hpp>
 
 namespace Rtx
@@ -166,7 +166,7 @@ namespace Rtx
         TEST(RtxContentPreparationTest, aModelIsWalkedOnceAndAgainOnlyOnceAFileItReadMoved)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            ContentStore store(folder);
+            ContentStore::Store store(folder, sContentStorePolicy);
             TwoModels content;
             const PreparationSetup setup{ .mContent = content,
                 .mStamps = content,
@@ -227,7 +227,7 @@ namespace Rtx
                 for (const StoredKey& key : lost)
                     ASSERT_TRUE(std::filesystem::remove(store.pathOf(key.mKey)));
 
-                ContentStore reopened(folder);
+                ContentStore::Store reopened(folder, sContentStorePolicy);
                 const PreparationSetup lostSetup{ .mContent = content,
                     .mStamps = content,
                     .mStore = reopened,
@@ -271,7 +271,7 @@ namespace Rtx
         TEST(RtxContentPreparationTest, aGroundLayerIsReadAsTheGroundReaderReadsIt)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            ContentStore store(folder);
+            ContentStore::Store store(folder, sContentStorePolicy);
             TwoModels content;
             const PreparationSetup setup{ .mContent = content,
                 .mStamps = content,

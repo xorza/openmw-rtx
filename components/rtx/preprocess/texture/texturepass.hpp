@@ -5,6 +5,7 @@
 
 #include <osg/ref_ptr>
 
+#include <components/contentstore/key.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/specularlayout.hpp>
@@ -19,8 +20,6 @@ namespace osg
 
 namespace Rtx
 {
-    class ContentDigest;
-
     /// An image's finest level as a `TexturePass` reads it — `describeFinest` — described once for
     /// both the key and the run that follows it, where a key is made.
     ///
@@ -58,7 +57,7 @@ namespace Rtx
         bool describes(const osg::Image& image) const { return mImage.get() == &image; }
 
         /// Adds what the last `describe` came to to `digest`.
-        void addTo(ContentDigest& digest) const;
+        void addTo(ContentStore::Digest& digest) const;
 
         /// What the last `describe` found, spanning the scratch or the held image: nothing for an
         /// image no reader here decodes.
@@ -90,7 +89,7 @@ namespace Rtx
         static constexpr std::uint32_t sVersion = Version;
         static constexpr bool sStored = Stored;
 
-        void digest(const osg::Image& image, ContentDigest& digest)
+        void digest(const osg::Image& image, ContentStore::Digest& digest)
         {
             mFinest.describe(image);
             mFinest.addTo(digest);

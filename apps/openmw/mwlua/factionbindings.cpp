@@ -246,9 +246,7 @@ namespace MWLua
                     rec.mFaction.find().mData.mRankData[rec.mIndex].mFactReputation = value;
                 });
             rankT["attributeValues"] = sol::property(
-                [](const MutableFactionRank& rec) {
-                    return MutableFactionRankAttributes{ rec.mFaction, rec.mIndex };
-                },
+                [](const MutableFactionRank& rec) { return MutableFactionRankAttributes{ rec.mFaction, rec.mIndex }; },
                 [](MutableFactionRank& rec, const sol::object& value) {
                     ESM::RankData& data = rec.mFaction.find().mData.mRankData[rec.mIndex];
                     setFromTable(data.mAttribute1, data.mAttribute2, value);
@@ -391,10 +389,7 @@ namespace MWLua
             arrayT[sol::meta_function::ipairs] = lua["ipairsForArray"].template get<sol::function>();
             arrayT[sol::meta_function::pairs] = lua["ipairsForArray"].template get<sol::function>();
 
-            return sol::property(
-                [=](const MutableRecord<ESM::Faction>& rec) {
-                    return Array{ rec, accessor };
-                },
+            return sol::property([=](const MutableRecord<ESM::Faction>& rec) { return Array{ rec, accessor }; },
                 [=](MutableRecord<ESM::Faction>& rec, const sol::object& value) {
                     std::array<ESM::RefId, N>& ids = rec.find().mData.*accessor;
                     if (value == sol::nil)

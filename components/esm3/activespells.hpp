@@ -54,10 +54,10 @@ namespace ESM
             Flag_Equipment = 1 << 1, //!< Effect will end automatically if item is unequipped.
             Flag_SpellStore = 1 << 2, //!< Effect will end automatically if removed from the actor's spell store.
             Flag_AffectsBaseValues = 1 << 3, //!< Effects will affect base values instead of current values.
-            Flag_Stackable
-            = 1 << 4, //!< Effect can stack. If this flag is not set, spells from the same caster and item cannot stack.
-            Flag_Lua
-            = 1 << 5, //!< Effect was added via Lua. Should not do any vfx/sound as this is handled by Lua scripts.
+            Flag_Stackable = 1
+                << 4, //!< Effect can stack. If this flag is not set, spells from the same caster and item cannot stack.
+            Flag_Lua = 1
+                << 5, //!< Effect was added via Lua. Should not do any vfx/sound as this is handled by Lua scripts.
         };
 
         struct ActiveSpellParams

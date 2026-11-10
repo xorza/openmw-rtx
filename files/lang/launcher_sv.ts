@@ -84,10 +84,6 @@
         <translation>Avbryt</translation>
     </message>
     <message>
-        <source> MiB</source>
-        <translation> MiB</translation>
-    </message>
-    <message>
         <source>Content List</source>
         <translation>Innehållslista</translation>
     </message>
@@ -150,14 +146,6 @@
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Note: archives that are not part of current Content List are &lt;span style=&quot; font-style:italic;font-weight: bold&quot;&gt;highlighted&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Notera: arkiv som inte är del av aktuell innehållslista är &lt;span style=&quot; font-style:italic;font-weight: bold&quot;&gt;markerade&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Remove Unused Tiles</source>
-        <translation>Ta bort oanvända celler</translation>
-    </message>
-    <message>
-        <source>Max Size</source>
-        <translation>Maximal storlek</translation>
     </message>
 </context>
 <context>

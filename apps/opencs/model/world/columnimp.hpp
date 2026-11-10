@@ -66,7 +66,7 @@ namespace CSMWorld
     {
         StringIdColumn(bool hidden = false)
             : Column<ESXRecordT>(Columns::ColumnId_Id, ColumnBase::Display_Id,
-                hidden ? 0 : ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue)
+                  hidden ? 0 : ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue)
         {
         }
 
@@ -133,7 +133,7 @@ namespace CSMWorld
     {
         VarTypeColumn(ColumnBase::Display display)
             : Column<ESXRecordT>(Columns::ColumnId_ValueType, display,
-                ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue | ColumnBase::Flag_Dialogue_Refresh)
+                  ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue | ColumnBase::Flag_Dialogue_Refresh)
         {
         }
 
@@ -158,7 +158,7 @@ namespace CSMWorld
     {
         VarValueColumn()
             : Column<ESXRecordT>(Columns::ColumnId_Value, ColumnBase::Display_Var,
-                ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue | ColumnBase::Flag_Dialogue_Refresh)
+                  ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue | ColumnBase::Flag_Dialogue_Refresh)
         {
         }
 
@@ -402,8 +402,8 @@ namespace CSMWorld
         SkillsColumn(int index, bool typePrefix = false, bool major = false)
             : Column<ESXRecordT>((typePrefix ? (major ? Columns::ColumnId_MajorSkill1 : Columns::ColumnId_MinorSkill1)
                                              : Columns::ColumnId_Skill1)
-                    + index,
-                ColumnBase::Display_Skill)
+                      + index,
+                  ColumnBase::Display_Skill)
             , mIndex(index)
             , mMajor(major)
         {
@@ -568,7 +568,7 @@ namespace CSMWorld
         WeightHeightColumn(bool male, bool weight)
             : Column<ESXRecordT>(male ? (weight ? Columns::ColumnId_MaleWeight : Columns::ColumnId_MaleHeight)
                                       : (weight ? Columns::ColumnId_FemaleWeight : Columns::ColumnId_FemaleHeight),
-                ColumnBase::Display_Float)
+                  ColumnBase::Display_Float)
             , mMale(male)
             , mWeight(weight)
         {
@@ -627,9 +627,9 @@ namespace CSMWorld
 
         SoundParamColumn(Type type)
             : Column<ESXRecordT>(type == Type_Volume
-                    ? Columns::ColumnId_Volume
-                    : (type == Type_MinRange ? Columns::ColumnId_MinRange : Columns::ColumnId_MaxRange),
-                ColumnBase::Display_Integer)
+                      ? Columns::ColumnId_Volume
+                      : (type == Type_MinRange ? Columns::ColumnId_MinRange : Columns::ColumnId_MaxRange),
+                  ColumnBase::Display_Integer)
             , mType(type)
         {
         }
@@ -833,8 +833,8 @@ namespace CSMWorld
 
         ScriptColumn(Type type)
             : Column<ESXRecordT>(Columns::ColumnId_ScriptText,
-                type == Type_File ? ColumnBase::Display_ScriptFile : ColumnBase::Display_ScriptLines,
-                type == Type_File ? 0 : ColumnBase::Flag_Dialogue)
+                  type == Type_File ? ColumnBase::Display_ScriptFile : ColumnBase::Display_ScriptLines,
+                  type == Type_File ? 0 : ColumnBase::Flag_Dialogue)
         {
         }
 
@@ -1314,13 +1314,13 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct PosColumn : public Column<ESXRecordT>
     {
-        ESM::Position ESXRecordT::*mPosition;
+        ESM::Position ESXRecordT::* mPosition;
         int mIndex;
         bool mIsDoor;
 
-        PosColumn(ESM::Position ESXRecordT::*position, int index, bool door)
+        PosColumn(ESM::Position ESXRecordT::* position, int index, bool door)
             : Column<ESXRecordT>((door ? Columns::ColumnId_DoorPositionXPos : Columns::ColumnId_PositionXPos) + index,
-                ColumnBase::Display_Float)
+                  ColumnBase::Display_Float)
             , mPosition(position)
             , mIndex(index)
             , mIsDoor(door)
@@ -1352,13 +1352,13 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct RotColumn : public Column<ESXRecordT>
     {
-        ESM::Position ESXRecordT::*mPosition;
+        ESM::Position ESXRecordT::* mPosition;
         int mIndex;
         bool mIsDoor;
 
-        RotColumn(ESM::Position ESXRecordT::*position, int index, bool door)
+        RotColumn(ESM::Position ESXRecordT::* position, int index, bool door)
             : Column<ESXRecordT>((door ? Columns::ColumnId_DoorPositionXRot : Columns::ColumnId_PositionXRot) + index,
-                ColumnBase::Display_Double)
+                  ColumnBase::Display_Double)
             , mPosition(position)
             , mIndex(index)
             , mIsDoor(door)
@@ -1392,7 +1392,7 @@ namespace CSMWorld
     {
         DialogueTypeColumn(bool hidden = false)
             : Column<ESXRecordT>(Columns::ColumnId_DialogueType, ColumnBase::Display_DialogueType,
-                hidden ? 0 : ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue)
+                  hidden ? 0 : ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue)
         {
         }
 
@@ -1487,7 +1487,7 @@ namespace CSMWorld
     {
         TopicColumn(bool journal)
             : Column<ESXRecordT>(journal ? Columns::ColumnId_Journal : Columns::ColumnId_Topic,
-                journal ? ColumnBase::Display_Journal : ColumnBase::Display_Topic)
+                  journal ? ColumnBase::Display_Journal : ColumnBase::Display_Topic)
         {
         }
 
@@ -2144,7 +2144,7 @@ namespace CSMWorld
     {
         EffectTextureColumn(Columns::ColumnId columnId)
             : Column<ESXRecordT>(columnId,
-                columnId == Columns::ColumnId_Particle ? ColumnBase::Display_Texture : ColumnBase::Display_Icon)
+                  columnId == Columns::ColumnId_Particle ? ColumnBase::Display_Texture : ColumnBase::Display_Icon)
         {
             assert(this->mColumnId == Columns::ColumnId_Icon || this->mColumnId == Columns::ColumnId_Particle);
         }
@@ -2174,7 +2174,7 @@ namespace CSMWorld
     {
         EffectObjectColumn(Columns::ColumnId columnId)
             : Column<ESXRecordT>(columnId,
-                columnId == Columns::ColumnId_BoltObject ? ColumnBase::Display_Weapon : ColumnBase::Display_Static)
+                  columnId == Columns::ColumnId_BoltObject ? ColumnBase::Display_Weapon : ColumnBase::Display_Static)
         {
             assert(this->mColumnId == Columns::ColumnId_CastingObject || this->mColumnId == Columns::ColumnId_HitObject
                 || this->mColumnId == Columns::ColumnId_AreaObject || this->mColumnId == Columns::ColumnId_BoltObject);

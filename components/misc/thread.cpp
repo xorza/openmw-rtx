@@ -42,44 +42,6 @@ namespace Misc
     }
 }
 
-#elif defined(__FreeBSD__)
-
-#include <sys/rtprio.h>
-#include <sys/types.h>
-
-namespace Misc
-{
-    void setCurrentThreadIdlePriority()
-    {
-        struct rtprio prio;
-        prio.type = RTP_PRIO_IDLE;
-        prio.prio = RTP_PRIO_MAX;
-        if (rtprio_thread(RTP_SET, 0, &prio) == 0)
-            Log(Debug::Verbose) << "Using idle priority for thread=" << std::this_thread::get_id();
-        else
-            Log(Debug::Warning) << "Failed to set idle priority for thread=" << std::this_thread::get_id() << ": "
-                                << std::generic_category().message(errno);
-    }
-}
-
-#elif defined(__APPLE__)
-
-#include <pthread/qos.h>
-
-namespace Misc
-{
-    void setCurrentThreadIdlePriority()
-    {
-        // Background QoS also throttles I/O.
-        const int result = pthread_set_qos_class_self_np(QOS_CLASS_BACKGROUND, 0);
-        if (result == 0)
-            Log(Debug::Verbose) << "Using idle priority for thread=" << std::this_thread::get_id();
-        else
-            Log(Debug::Warning) << "Failed to set idle priority for thread=" << std::this_thread::get_id() << ": "
-                                << std::generic_category().message(result);
-    }
-}
-
 #else
 
 namespace Misc

@@ -198,7 +198,7 @@ namespace MWWorld
     }
 
     World::World(Resource::ResourceSystem* resourceSystem, int activationDistanceOverride, const std::string& startCell,
-        const std::filesystem::path& userDataPath)
+        const std::filesystem::path& userDataPath, const std::filesystem::path& cachePath)
         : mResourceSystem(resourceSystem)
         , mLocalScripts(mStore)
         , mWorldModel(mStore, mReaders)
@@ -209,6 +209,7 @@ namespace MWWorld
         , mScriptsEnabled(true)
         , mDiscardMovements(true)
         , mUserDataPath(userDataPath)
+        , mCachePath(cachePath)
         , mActivationDistanceOverride(activationDistanceOverride)
         , mStartCell(startCell)
         , mSwimHeightScale(0.f)
@@ -252,7 +253,7 @@ namespace MWWorld
         {
             auto navigatorSettings = DetourNavigator::makeSettingsFromSettingsManager(maxRecastLogLevel);
             navigatorSettings.mRecast.mSwimHeightScale = mSwimHeightScale;
-            mNavigator = DetourNavigator::makeNavigator(navigatorSettings, mUserDataPath);
+            mNavigator = DetourNavigator::makeNavigator(navigatorSettings, mCachePath);
         }
         else
         {
@@ -1363,9 +1364,9 @@ namespace MWWorld
             spawnPoint.z() += 30; // move up a little to account for slopes, will snap down later
 
             if (!mPhysics
-                     ->castRay(spawnPoint, osg::Vec3f(pos.x(), pos.y(), pos.z() + 20),
-                         MWPhysics::CollisionType_World | MWPhysics::CollisionType_Door)
-                     .mHit)
+                    ->castRay(spawnPoint, osg::Vec3f(pos.x(), pos.y(), pos.z() + 20),
+                        MWPhysics::CollisionType_World | MWPhysics::CollisionType_Door)
+                    .mHit)
             {
                 // safe
                 break;

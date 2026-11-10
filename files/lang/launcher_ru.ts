@@ -84,18 +84,6 @@
         <translation>Отменить</translation>
     </message>
     <message>
-        <source>Remove Unused Tiles</source>
-        <translation>Удалить неиспользуемые тайлы</translation>
-    </message>
-    <message>
-        <source>Max Size</source>
-        <translation>Максимальный размер</translation>
-    </message>
-    <message>
-        <source> MiB</source>
-        <translation> МБ</translation>
-    </message>
-    <message>
         <source>Content List</source>
         <translation>Список плагинов</translation>
     </message>

@@ -1,7 +1,7 @@
 openmw_add_executable(openmw_esm_refid_benchmark benchrefid.cpp)
 target_link_libraries(openmw_esm_refid_benchmark benchmark::benchmark components)
 
-if (UNIX AND NOT APPLE)
+if (UNIX)
     target_link_libraries(openmw_esm_refid_benchmark ${CMAKE_THREAD_LIBS_INIT})
 endif()
 

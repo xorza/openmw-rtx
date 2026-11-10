@@ -33,8 +33,8 @@ namespace ESM
         {
             // Originally fixed flags (HardcodedFlags array consists of just these)
             TargetSkill = 0x1, // Affects a specific skill, which is specified elsewhere in the effect structure.
-            TargetAttribute
-            = 0x2, // Affects a specific attribute, which is specified elsewhere in the effect structure.
+            TargetAttribute = 0x2, // Affects a specific attribute, which is specified elsewhere in the effect
+                                   // structure.
             NoDuration = 0x4, // Has no duration. Only runs effect once on cast.
             NoMagnitude = 0x8, // Has no magnitude.
             Harmful = 0x10, // Counts as a negative effect. Interpreted as useful for attack, and is treated as a bad
@@ -44,9 +44,9 @@ namespace ESM
             CastSelf = 0x40, // Allows range - cast on self.
             CastTouch = 0x80, // Allows range - cast on touch.
             CastTarget = 0x100, // Allows range - cast on target.
-            AppliedOnce
-            = 0x1000, // An effect that is applied once it lands, instead of continuously. Allows an effect to reduce an
-                      // attribute below zero; removes the normal minimum effect duration of 1 second.
+            AppliedOnce = 0x1000, // An effect that is applied once it lands, instead of continuously. Allows an effect
+                                  // to reduce an attribute below zero; removes the normal minimum effect duration of 1
+                                  // second.
             Stealth = 0x2000, // Unused
             NonRecastable = 0x4000, // Does not land if parent spell is already affecting target. Shows "you cannot
                                     // re-cast" message for self target.

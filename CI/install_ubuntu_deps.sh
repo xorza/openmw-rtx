@@ -23,9 +23,9 @@ if [ -f "$mirrors" ]; then
   fi
 fi
 
-"$here/install_debian_deps.sh" gcc openmw-deps openmw-deps-dynamic
+"$here/install_debian_deps.sh" gcc openmw-deps
 
-# Without a PPA's index, apt installs Ubuntu's own recastnavigation, MyGUI and OpenSceneGraph, which
+# Without a PPA's index, apt installs Ubuntu's own MyGUI and OpenSceneGraph, which
 # the configure step refuses minutes later without naming the cause.
 for ppa in openmw openmw-daily staging; do
   if ! compgen -G "/var/lib/apt/lists/ppa.launchpadcontent.net_openmw_${ppa}_ubuntu_dists_*_InRelease" >/dev/null; then
@@ -37,7 +37,7 @@ done
 export DEBIAN_FRONTEND=noninteractive
 # Into the folder `install_debian_deps.sh` downloads into, which CI keeps between runs.
 cache="${PWD}/apt-cache"
-apt-get -o dir::cache::archives="$cache" install -y ninja-build libgtest-dev libgmock-dev qt6-wayland zsync clang-format-14
+apt-get -o dir::cache::archives="$cache" install -y ninja-build libgtest-dev libgmock-dev qt6-wayland zsync
 apt-get -o dir::cache::archives="$cache" install -y libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
   libxss-dev libxtst-dev libxkbcommon-dev libwayland-dev libdecor-0-dev libegl-dev libgl-dev libdrm-dev \
   libgbm-dev libdbus-1-dev libibus-1.0-dev libudev-dev

@@ -4,6 +4,9 @@ include_directories(SYSTEM ${GMOCK_INCLUDE_DIRS})
 file(GLOB UNITTEST_SRC_FILES
     main.cpp
 
+    contentstore/key.cpp
+    contentstore/store.cpp
+
     crashcatcher/crashhangwatch.cpp
     crashcatcher/crashmonitor.cpp
     crashcatcher/crashnote.cpp
@@ -29,6 +32,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     misc/compression.cpp
     misc/frameclock.cpp
+    misc/hashstate.cpp
+    misc/monitor.cpp
     misc/presentation.cpp
     misc/progressreporter.cpp
     misc/testendianness.cpp
@@ -47,6 +52,7 @@ file(GLOB UNITTEST_SRC_FILES
     platform/wholefile.cpp
     platform/uniquehold.cpp
 
+    detournavigator/navmeshtilestore.cpp
     detournavigator/navigator.cpp
     detournavigator/settingsutils.cpp
     detournavigator/recastmeshbuilder.cpp
@@ -54,7 +60,6 @@ file(GLOB UNITTEST_SRC_FILES
     detournavigator/recastmeshobject.cpp
     detournavigator/navmeshtilescache.cpp
     detournavigator/tilecachedrecastmeshmanager.cpp
-    detournavigator/navmeshdb.cpp
     detournavigator/serialization.cpp
     detournavigator/asyncnavmeshupdater.cpp
 
@@ -78,10 +83,6 @@ file(GLOB UNITTEST_SRC_FILES
     shader/parselinks.cpp
     shader/shadermanager.cpp
 
-    sqlite3/db.cpp
-    sqlite3/request.cpp
-    sqlite3/statement.cpp
-    sqlite3/transaction.cpp
 
     esmloader/load.cpp
     esmloader/esmdata.cpp
@@ -159,7 +160,7 @@ endif()
 include(crashcatcher/tests.cmake)
 
 # Fix for not visible pthreads functions for linker with glibc 2.15
-if (UNIX AND NOT APPLE)
+if (UNIX)
     target_link_libraries(components-tests ${CMAKE_THREAD_LIBS_INIT})
 endif()
 

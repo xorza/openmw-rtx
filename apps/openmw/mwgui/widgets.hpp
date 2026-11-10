@@ -200,7 +200,6 @@ namespace MWGui
                 EF_NoTarget = 0x01, // potions have no target (target is always the player)
                 EF_Constant = 0x02, // constant effect means that duration will not be displayed
                 EF_NoMagnitude = 0x04 // ingredients have no magnitude
-
             };
 
             void setEffectList(const SpellEffectList& list);

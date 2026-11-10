@@ -83,12 +83,12 @@ namespace DetourNavigator
         }
     }
 
-    NavMeshManager::NavMeshManager(const Settings& settings, std::unique_ptr<NavMeshDb>&& db)
+    NavMeshManager::NavMeshManager(const Settings& settings, std::unique_ptr<NavMeshTileStore>&& store)
         : mSettings(settings)
         , mMaxRadius(getMaxRadius(settings.mMaxTilesNumber))
         , mRecastMeshManager(settings.mRecast)
         , mOffMeshConnectionsManager(settings.mRecast)
-        , mAsyncNavMeshUpdater(settings, mRecastMeshManager, mOffMeshConnectionsManager, std::move(db))
+        , mAsyncNavMeshUpdater(settings, mRecastMeshManager, mOffMeshConnectionsManager, std::move(store))
     {
     }
 

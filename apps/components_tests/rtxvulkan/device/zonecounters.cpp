@@ -29,12 +29,10 @@ namespace Rtx
             ZoneCounters::pickOnePass(6, every, passesOf, chosen);
             EXPECT_EQ(chosen, (std::vector<std::uint32_t>{ 0, 1, 2, 5 }));
 
-            ZoneCounters::pickOnePass(
-                6, [](std::uint32_t counter) { return counter != 1; }, passesOf, chosen);
+            ZoneCounters::pickOnePass(6, [](std::uint32_t counter) { return counter != 1; }, passesOf, chosen);
             EXPECT_EQ(chosen, (std::vector<std::uint32_t>{ 0, 2, 5 })) << "a counter scoped to a command buffer";
 
-            ZoneCounters::pickOnePass(
-                20, every, [](std::span<const std::uint32_t>) { return 1u; }, chosen);
+            ZoneCounters::pickOnePass(20, every, [](std::span<const std::uint32_t>) { return 1u; }, chosen);
             ASSERT_EQ(chosen.size(), sMaxZoneCounters);
             EXPECT_EQ(chosen.front(), 0u);
             EXPECT_EQ(chosen.back(), sMaxZoneCounters - 1);

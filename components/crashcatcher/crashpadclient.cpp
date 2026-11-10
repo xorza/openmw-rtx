@@ -84,7 +84,23 @@ namespace Crash
             if (!beginReport(kind, reason))
                 return;
 
+            Heartbeat* const page = sharedPage();
+            const std::uint64_t readBefore
+                = page != nullptr ? std::atomic_ref(page->mNotesRead).load(std::memory_order_acquire) : 0;
             CRASHPAD_SIMULATE_CRASH();
+
+            // **The table goes back once the monitor has read it**, and not when the request returns: on
+            // Linux Crashpad's request waits five seconds for the monitor, and a monitor that began later
+            // read the table put back, a hang summarised as a crash. Not Crashpad's own wait for the
+            // upload, which also holds a crashing thread for good where a signal to it is deferred, as
+            // ThreadSanitizer defers one inside a handler. Bounded, for a monitor that died.
+            if (page != nullptr)
+            {
+                const auto due = std::chrono::steady_clock::now() + sReportPatience;
+                while (std::atomic_ref(page->mNotesRead).load(std::memory_order_acquire) == readBefore
+                    && std::chrono::steady_clock::now() < due)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
             endReport();
         }
 

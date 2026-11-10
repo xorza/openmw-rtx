@@ -229,7 +229,7 @@ namespace DetourNavigator
                 rectangle.mBounds.mMin.x(), rectangle.mHeight, rectangle.mBounds.mMin.y(), // vertex 0
                 rectangle.mBounds.mMin.x(), rectangle.mHeight, rectangle.mBounds.mMax.y(), // vertex 1
                 rectangle.mBounds.mMax.x(), rectangle.mHeight, rectangle.mBounds.mMax.y(), // vertex 2
-                rectangle.mBounds.mMax.x(), rectangle.mHeight, rectangle.mBounds.mMin.y(), // vertex 3
+                rectangle.mBounds.mMax.x(), rectangle.mHeight, rectangle.mBounds.mMin.y() // vertex 3
             };
 
             if (!isSupportedCoordinates(vertices.begin(), vertices.end()))
@@ -237,7 +237,7 @@ namespace DetourNavigator
 
             const std::array indices{
                 0, 1, 2, // triangle 0
-                0, 2, 3, // triangle 1
+                0, 2, 3 // triangle 1
             };
 
             const std::array<unsigned char, 2> areas{ areaType, areaType };

@@ -151,8 +151,7 @@ namespace ESSImport
                     unsigned int col = *(unsigned int*)Crash::notNull(
                         mGlobalMapImage->data(imageLeftSrc + x, imageTopSrc + y, 0), "a global map with no texels");
                     *(unsigned int*)Crash::notNull(
-                        image2->data(imageLeftDst + x, imageTopDst + y, 0), "a global map with no texels")
-                        = col;
+                        image2->data(imageLeftDst + x, imageTopDst + y, 0), "a global map with no texels") = col;
                 }
         }
 

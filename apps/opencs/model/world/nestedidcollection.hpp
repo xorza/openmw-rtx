@@ -68,7 +68,7 @@ namespace CSMWorld
     NestedIdCollection<ESXRecordT>::~NestedIdCollection()
     {
         for (typename std::map<const ColumnBase*, NestedColumnAdapter<ESXRecordT>*>::iterator iter(mAdapters.begin());
-             iter != mAdapters.end(); ++iter)
+            iter != mAdapters.end(); ++iter)
         {
             delete (*iter).second;
         }

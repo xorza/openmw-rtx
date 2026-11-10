@@ -114,10 +114,7 @@ namespace VFS::Path
         friend constexpr bool operator==(const ExtensionView& lhs, const auto& rhs) { return lhs.mValue == rhs; }
 
 #if defined(_MSC_VER) && _MSC_VER <= 1935
-        friend constexpr bool operator==(const auto& lhs, const ExtensionView& rhs)
-        {
-            return lhs == rhs.mValue;
-        }
+        friend constexpr bool operator==(const auto& lhs, const ExtensionView& rhs) { return lhs == rhs.mValue; }
 #endif
 
         friend constexpr bool operator<(const ExtensionView& lhs, const ExtensionView& rhs)
@@ -125,15 +122,9 @@ namespace VFS::Path
             return lhs.mValue < rhs.mValue;
         }
 
-        friend constexpr bool operator<(const ExtensionView& lhs, const auto& rhs)
-        {
-            return lhs.mValue < rhs;
-        }
+        friend constexpr bool operator<(const ExtensionView& lhs, const auto& rhs) { return lhs.mValue < rhs; }
 
-        friend constexpr bool operator<(const auto& lhs, const ExtensionView& rhs)
-        {
-            return lhs < rhs.mValue;
-        }
+        friend constexpr bool operator<(const auto& lhs, const ExtensionView& rhs) { return lhs < rhs.mValue; }
 
         friend std::ostream& operator<<(std::ostream& stream, const ExtensionView& value)
         {
@@ -177,10 +168,7 @@ namespace VFS::Path
         friend constexpr bool operator==(const NormalizedView& lhs, const auto& rhs) { return lhs.mValue == rhs; }
 
 #if defined(_MSC_VER) && _MSC_VER <= 1935
-        friend constexpr bool operator==(const auto& lhs, const NormalizedView& rhs)
-        {
-            return lhs == rhs.mValue;
-        }
+        friend constexpr bool operator==(const auto& lhs, const NormalizedView& rhs) { return lhs == rhs.mValue; }
 #endif
 
         friend constexpr bool operator<(const NormalizedView& lhs, const NormalizedView& rhs)
@@ -188,15 +176,9 @@ namespace VFS::Path
             return lhs.mValue < rhs.mValue;
         }
 
-        friend constexpr bool operator<(const NormalizedView& lhs, const auto& rhs)
-        {
-            return lhs.mValue < rhs;
-        }
+        friend constexpr bool operator<(const NormalizedView& lhs, const auto& rhs) { return lhs.mValue < rhs; }
 
-        friend constexpr bool operator<(const auto& lhs, const NormalizedView& rhs)
-        {
-            return lhs < rhs.mValue;
-        }
+        friend constexpr bool operator<(const auto& lhs, const NormalizedView& rhs) { return lhs < rhs.mValue; }
 
         friend std::ostream& operator<<(std::ostream& stream, const NormalizedView& value)
         {
@@ -364,66 +346,33 @@ namespace VFS::Path
         friend bool operator==(const Normalized& lhs, const auto& rhs) { return lhs.mValue == rhs; }
 
 #if defined(_MSC_VER) && _MSC_VER <= 1935
-        friend bool operator==(const auto& lhs, const Normalized& rhs)
-        {
-            return lhs == rhs.mValue;
-        }
+        friend bool operator==(const auto& lhs, const Normalized& rhs) { return lhs == rhs.mValue; }
 #endif
 
-        friend bool operator==(const Normalized& lhs, const NormalizedView& rhs)
-        {
-            return lhs.mValue == rhs.value();
-        }
+        friend bool operator==(const Normalized& lhs, const NormalizedView& rhs) { return lhs.mValue == rhs.value(); }
 
-        friend bool operator<(const Normalized& lhs, const Normalized& rhs)
-        {
-            return lhs.mValue < rhs.mValue;
-        }
+        friend bool operator<(const Normalized& lhs, const Normalized& rhs) { return lhs.mValue < rhs.mValue; }
 
-        friend bool operator<(const Normalized& lhs, const auto& rhs)
-        {
-            return lhs.mValue < rhs;
-        }
+        friend bool operator<(const Normalized& lhs, const auto& rhs) { return lhs.mValue < rhs; }
 
-        friend bool operator<(const auto& lhs, const Normalized& rhs)
-        {
-            return lhs < rhs.mValue;
-        }
+        friend bool operator<(const auto& lhs, const Normalized& rhs) { return lhs < rhs.mValue; }
 
-        friend bool operator<(const Normalized& lhs, const NormalizedView& rhs)
-        {
-            return lhs.mValue < rhs.value();
-        }
+        friend bool operator<(const Normalized& lhs, const NormalizedView& rhs) { return lhs.mValue < rhs.value(); }
 
-        friend bool operator<(const NormalizedView& lhs, const Normalized& rhs)
-        {
-            return lhs.value() < rhs.mValue;
-        }
+        friend bool operator<(const NormalizedView& lhs, const Normalized& rhs) { return lhs.value() < rhs.mValue; }
 
         friend std::ostream& operator<<(std::ostream& stream, const Normalized& value)
         {
             return stream << value.mValue;
         }
 
-        NormalizedView parent() const
-        {
-            return NormalizedView(*this).parent();
-        }
+        NormalizedView parent() const { return NormalizedView(*this).parent(); }
 
-        std::string_view stem() const
-        {
-            return NormalizedView(*this).stem();
-        }
+        std::string_view stem() const { return NormalizedView(*this).stem(); }
 
-        NormalizedView filename() const
-        {
-            return NormalizedView(*this).filename();
-        }
+        NormalizedView filename() const { return NormalizedView(*this).filename(); }
 
-        ExtensionView extension() const
-        {
-            return NormalizedView(*this).extension();
-        }
+        ExtensionView extension() const { return NormalizedView(*this).extension(); }
 
     private:
         std::string mValue;

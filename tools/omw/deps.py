@@ -99,25 +99,27 @@ def windows_qt(version: str) -> Path:
     return qt
 
 
-def windows_clang_format_dir() -> Path:
-    return DEPS / f"clang-format-{pins.LLVM_RELEASE}"
+def clang_format_dir() -> Path:
+    return pinned_folder("clang-format", pins.CLANG_FORMAT[SYSTEM])
 
 
-def windows_clang_format() -> Path:
-    """**The formatter CI pins, out of LLVM's own Windows package.** Nothing installs clang-format 14
-    on Windows any more, but LLVM still serves the last 14 package, an NSIS installer 7-Zip reads
-    without running, and `bin/clang-format.exe` is one file of it. LLVM publishes a signature and no
-    checksum for that release, so the SHA-256 pinned is the one taken off the download this was
-    written against: the same bytes every time, and nothing else."""
-    found = windows_clang_format_dir() / "clang-format.exe"
+def clang_format() -> Path:
+    """**The clang-format every desk and CI formats with**, the one program out of the wheel `pins.py`
+    names for this system: one layout on every system, whatever the distribution packages. The wheel
+    is a zip, read here and never installed."""
+    folder = clang_format_dir()
+    found = folder / f"clang-format{EXE}"
     if found.is_file():
         return found
+    pin = pins.CLANG_FORMAT[SYSTEM]
+    wheel = DEPS / Path(pin.url).name
 
-    package = DEPS / Path(pins.LLVM.url).name
-    fetch.download_pin(pins.LLVM, package)
-    fetch.build_beside(found.parent, lambda partial: fetch.unpack_7z(package, partial, "bin/clang-format.exe",
-                                                                     flat=True))
-    package.unlink()
+    def fill(partial: Path) -> None:
+        fetch.download_pin(pin, wheel)
+        fetch.extract_member(wheel, found.name, partial)
+        wheel.unlink()
+
+    fetch.build_beside(folder, fill)
     return found
 
 
@@ -127,6 +129,43 @@ def pinned_folder(name: str, *pinned: pins.Pin) -> Path:
     a CI cache that restores it, fetch the new one rather than keep the old under the same name."""
     digest = hashlib.sha256("".join(pin.sha256 for pin in pinned).encode()).hexdigest()[:16]
     return DEPS / f"{name}-{digest}"
+
+
+def cmake_dir() -> Path:
+    return pinned_folder("cmake", pins.CMAKE[SYSTEM])
+
+
+def cmake() -> Path:
+    """**The CMake every build of the driver configures, builds, tests and installs with**, Kitware's
+    own of the version `pins.py` names, fetched once whole: one CMake on every desk, on CI, whose
+    runners carry an older one, and in the release container, whose Ubuntu carries an older one still.
+    Its `bin` goes first on the PATH of every command (`cmake_environment`)."""
+    folder = cmake_dir()
+    if folder.is_dir():
+        return folder
+    pin = pins.CMAKE[SYSTEM]
+    archive = DEPS / Path(pin.url).name
+    fetch.download_pin(pin, archive)
+    # Kitware's archive holds one folder named after itself, which takes the pinned name.
+    inner = archive.name.removesuffix(".zip").removesuffix(".tar.gz")
+
+    def unpack(partial: Path) -> None:
+        if WINDOWS:
+            with zipfile.ZipFile(archive) as opened:
+                opened.extractall(partial)
+        else:
+            with tarfile.open(archive) as opened:
+                opened.extractall(partial, filter="data")
+
+    fetch.build_beside(folder, unpack, within=inner)
+    archive.unlink()
+    return folder
+
+
+def cmake_environment(env: dict[str, str]) -> None:
+    """The pinned CMake first on the PATH, fetched if it is not there yet: `cmake` and `ctest`, which
+    every command names bare, are then its own."""
+    prepend_path(env, "PATH", cmake() / "bin")
 
 
 def appimage_tools_dir() -> Path:
@@ -313,11 +352,11 @@ def sdk_environment(env: dict[str, str]) -> None:
 def pinned_names() -> set[str]:
     """Every name in deps/ that the pins give this system, through the same functions that name what
     each getter above leaves there, so pruning cannot take what a getter fetched."""
-    kept = [vulkan_sdk_dir(), appimage_tools_dir()]
+    kept = [vulkan_sdk_dir(), cmake_dir(), clang_format_dir(), appimage_tools_dir()]
     kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]
     if WINDOWS:
         tag = msvc_versions()["VCPKG_TAG"]
-        kept += [windows_set_dir(tag), windows_set_manifest(tag), windows_qt_dir(), windows_clang_format_dir()]
+        kept += [windows_set_dir(tag), windows_set_manifest(tag), windows_qt_dir()]
     return {path.name for path in kept}
 
 
@@ -342,8 +381,8 @@ def prune() -> None:
 
 def bootstrap() -> None:
     """The Vulkan SDK, run once to prove it: a tool left out, or one that needs a library it did not
-    bring, stops here by name and not in the middle of a configure. Then deps/ shed of what no pin
-    names."""
+    bring, stops here by name and not in the middle of a configure. Then the pinned CMake, and deps/
+    shed of what no pin names."""
     sdk = vulkan_sdk()
     env = dict(os.environ)
     sdk_environment(env)
@@ -353,4 +392,5 @@ def bootstrap() -> None:
             raise Refusal(f"{sdk} holds no {tool}")
         subprocess.run([found, "--version"], check=True, env=env, stdout=subprocess.DEVNULL)
     print(f"Vulkan SDK: {sdk}")
+    print(f"CMake: {cmake()}")
     prune()

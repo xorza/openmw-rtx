@@ -4,11 +4,11 @@
 #include <cassert>
 #include <functional>
 
-#include <components/rtx/preprocess/contentkey.hpp>
+#include <components/contentstore/key.hpp>
 
 namespace Rtx
 {
-    void ShapePass::digest(const Input& input, ContentDigest& digest)
+    void ShapePass::digest(const Input& input, ContentStore::Digest& digest)
     {
         digest.add(input.mPositions);
         digest.add(input.mNormals);

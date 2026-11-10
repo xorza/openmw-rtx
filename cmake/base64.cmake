@@ -1,5 +1,4 @@
-# math(EXPR "...") can't parse hex until 3.13
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 4.4)
 
 if (NOT DEFINED INPUT_FILE)
     message(STATUS "Usage: cmake -DINPUT_FILE=\"infile.ext\" -DOUTPUT_FILE=\"out.txt\" -P base64.cmake")

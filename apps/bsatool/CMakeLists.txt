@@ -22,9 +22,7 @@ if (BUILD_WITH_CODE_COVERAGE)
     target_link_libraries(bsatool gcov)
 endif()
 
-if (NOT APPLE)
-    install(TARGETS bsatool ${runtime_dependency_arguments})
-endif()
+install(TARGETS bsatool ${runtime_dependency_arguments})
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(bsatool REUSE_FROM components)

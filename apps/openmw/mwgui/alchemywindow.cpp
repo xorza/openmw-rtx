@@ -291,7 +291,7 @@ namespace MWGui
 
         size_t index = 0;
         for (auto iter = mAlchemy->beginTools(); iter != mAlchemy->endTools() && index < mApparatus.size();
-             ++iter, ++index)
+            ++iter, ++index)
         {
             const auto& widget = mApparatus[index];
             widget->setItem(*iter);

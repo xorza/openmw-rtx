@@ -30,7 +30,7 @@
 
 #include "common.hpp"
 #include "reader.hpp"
-//#include "writer.hpp"
+// #include "writer.hpp"
 
 void ESM4::Header::load(ESM4::Reader& reader)
 {

@@ -9,8 +9,8 @@
 #include <type_traits>
 #include <utility>
 
+#include <components/contentstore/key.hpp>
 #include <components/platform/wholefile.hpp>
-#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -65,7 +65,7 @@ namespace Rtx
         };
 
         template <class T>
-        requires std::is_arithmetic_v<T>
+            requires std::is_arithmetic_v<T>
         void put(std::string& into, const T value)
         {
             into.append(reinterpret_cast<const char*>(&value), sizeof(T));
@@ -75,7 +75,7 @@ namespace Rtx
         template <class Names>
         std::uint64_t digestOfNames(const Names& names, FileStamps& stamps)
         {
-            ContentDigest digest("prepared", sFormat);
+            ContentStore::Digest digest("prepared", sFormat);
             for (const std::string& name : names)
             {
                 digest.add(std::span<const char>(name));
@@ -126,7 +126,7 @@ namespace Rtx
         }
 
         std::uint32_t keys = 0;
-        constexpr std::size_t keyBytes = sizeof(ContentKey) + sizeof(std::uint32_t);
+        constexpr std::size_t keyBytes = sizeof(ContentStore::Key) + sizeof(std::uint32_t);
         if (!reader.take(keys) || keys > reader.left() / keyBytes)
             return {};
         for (std::uint32_t at = 0; at < keys; ++at)
@@ -227,7 +227,7 @@ namespace Rtx
     }
 
     bool PreparationManifest::standsAsWalked(
-        const std::string_view model, FileStamps& stamps, ContentStore& store, Misc::ByteBuffer& scratch) const
+        const std::string_view model, FileStamps& stamps, ContentStore::Store& store, Misc::ByteBuffer& scratch) const
     {
         const std::optional<std::uint32_t> index = indexOf(model);
         if (!index.has_value())
@@ -245,8 +245,9 @@ namespace Rtx
         return std::ranges::all_of(keys, [&](const std::uint32_t at) {
             const StoredKey& key = mKeys[at];
             if (key.mPass == ContentPassId::Shape)
-                return store.read(key.mKey, ContentPassId::Shape, ShapePass::sVersion, StoreReach::Disk, scratch);
-            return store.holds(key.mKey, StoreReach::Disk);
+                return store.read(key.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion,
+                    ContentStore::Reach::Disk, scratch);
+            return store.holds(key.mKey, ContentStore::Reach::Disk);
         });
     }
 

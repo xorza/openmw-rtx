@@ -53,7 +53,7 @@ namespace CSMPrefs
         explicit EnumSettingValue(Settings::Index& index, std::string_view category, std::string_view name,
             std::span<const EnumValueView> values, std::size_t defaultValueIndex)
             : mValue(
-                index, category, name, std::string(values[defaultValueIndex].mValue), makeEnumSanitizerString(values))
+                  index, category, name, std::string(values[defaultValueIndex].mValue), makeEnumSanitizerString(values))
             , mEnumValues(values)
         {
         }

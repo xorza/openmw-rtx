@@ -14,7 +14,7 @@
 
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Texture> // The S3TC and RGTC formats, which Windows's and Apple's gl.h lack.
+#include <osg/Texture> // The S3TC and RGTC formats, which Windows's gl.h lacks.
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
@@ -169,7 +169,7 @@ namespace Rtx
                 Rtx::TextureFormat::Bc5Unorm);
             EXPECT_FALSE(describeImage(
                 *makeBlock(GL_COMPRESSED_RED_GREEN_RGTC2_EXT), Rtx::TextureEncoding::Colour, levels, texels)
-                             .isOk())
+                    .isOk())
                 << "two channels are no colour";
 
             // One channel the same, its 4 × 4 block the eight bytes OpenSceneGraph counts too.

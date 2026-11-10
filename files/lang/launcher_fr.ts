@@ -84,10 +84,6 @@
         <translation>Annuler</translation>
     </message>
     <message>
-        <source> MiB</source>
-        <translation>Mio</translation>
-    </message>
-    <message>
         <source>Content List</source>
         <translation>Liste de contenu</translation>
     </message>
@@ -150,14 +146,6 @@
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Note: archives that are not part of current Content List are &lt;span style=&quot; font-style:italic;font-weight: bold&quot;&gt;highlighted&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Note : Les archives qui ne font pas partie de la &lt;em&gt;Liste de contenu&lt;/em&gt; actuelle sont &lt;span style=&quot; font-style:italic;font-weight: bold&quot;&gt;surlignées&lt;/span&gt;.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Remove Unused Tiles</source>
-        <translation>Ignorer les tuiles inutilisées</translation>
-    </message>
-    <message>
-        <source>Max Size</source>
-        <translation>Taille maximale</translation>
     </message>
 </context>
 <context>

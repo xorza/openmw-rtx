@@ -16,15 +16,12 @@ namespace DetourNavigator
             out.setAttribute(frameNumber, "NavMesh Processing", static_cast<double>(stats.mProcessing));
             out.setAttribute(frameNumber, "NavMesh Posted", static_cast<double>(stats.mPosted));
 
-            if (stats.mDb.has_value())
+            if (stats.mStore.has_value())
             {
-                out.setAttribute(
-                    frameNumber, "NavMesh DbJobs Read", static_cast<double>(stats.mDb->mJobs.mReadingJobs));
-                out.setAttribute(
-                    frameNumber, "NavMesh DbJobs Write", static_cast<double>(stats.mDb->mJobs.mWritingJobs));
-
-                out.setAttribute(frameNumber, "NavMesh DbCache Get", static_cast<double>(stats.mDb->mGetTileCount));
-                out.setAttribute(frameNumber, "NavMesh DbCache Hit", static_cast<double>(stats.mDbGetTileHits));
+                out.setAttribute(frameNumber, "NavMesh Store Reading", static_cast<double>(stats.mStore->mReading));
+                out.setAttribute(frameNumber, "NavMesh Store Read", static_cast<double>(stats.mStore->mReads));
+                out.setAttribute(frameNumber, "NavMesh Store Hit", static_cast<double>(stats.mStoreHits));
+                out.setAttribute(frameNumber, "NavMesh Store Written", static_cast<double>(stats.mStoreWrites));
             }
 
             out.setAttribute(frameNumber, "NavMesh CacheSize", static_cast<double>(stats.mCache.mNavMeshCacheSize));

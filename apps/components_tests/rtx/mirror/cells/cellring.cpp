@@ -1052,8 +1052,7 @@ namespace Rtx::Testing
                     .mRecord = "flame",
                     .mRefNum = ESM::RefNum{ 4, 0 },
                     .mPosition = lampAt },
-                Lit{
-                    .mCell = osg::Vec2i(3, 0), .mRecord = "dark", .mRefNum = ESM::RefNum{ 5, 0 }, .mPosition = lampAt },
+                Lit{ .mCell = osg::Vec2i(3, 0), .mRecord = "dark", .mRefNum = ESM::RefNum{ 5, 0 }, .mPosition = lampAt }
             };
 
             // The eye stands half a cell in, so cell 3 begins two and a half cells away: 20480
@@ -1406,7 +1405,7 @@ namespace Rtx::Testing
                 walk(frame);
                 const std::size_t wanted = std::min<std::size_t>(frame + 1, sPreparedCells - 1);
                 for (std::size_t begun = mStorage.mCollected.load(); begun <= wanted;
-                     begun = mStorage.mCollected.load())
+                    begun = mStorage.mCollected.load())
                     mStorage.mCollected.wait(begun);
             }
 

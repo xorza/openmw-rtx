@@ -57,7 +57,7 @@ namespace MWGui
                 SDL_GamepadButton mButton;
                 SDL_GamepadAxis mAxis;
             } mId;
-            std::string MWGui::ControllerButtons::*mField;
+            std::string MWGui::ControllerButtons::* mField;
         };
 
     private:

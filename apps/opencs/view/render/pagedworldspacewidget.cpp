@@ -123,7 +123,7 @@ bool CSVRender::PagedWorldspaceWidget::adjustCells()
     if (modified)
     {
         for (std::map<CSMWorld::CellCoordinates, Cell*>::const_iterator iter(mCells.begin()); iter != mCells.end();
-             ++iter)
+            ++iter)
         {
             int mask = 0;
 

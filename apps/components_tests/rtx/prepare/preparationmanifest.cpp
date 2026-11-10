@@ -10,13 +10,13 @@
 
 #include <gtest/gtest.h>
 
+#include <components/contentstore/key.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/misc/bytebuffer.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/rtx/prepare/filestamps.hpp>
 #include <components/rtx/prepare/preparationmanifest.hpp>
-#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
-#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -181,10 +181,10 @@ namespace Rtx
             };
             Fixed stamps;
             Misc::ByteBuffer scratch;
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
+            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             for (const StoredKey& key : { sShared, sOwn })
-                store.write(
-                    key.mKey, ContentPassId::AlphaSpan, 1, Misc::ByteBuffer{ std::byte{ 1 } }, StoreReach::Disk);
+                store.write(key.mKey, storeKindOf(ContentPassId::AlphaSpan), 1, Misc::ByteBuffer{ std::byte{ 1 } },
+                    ContentStore::Reach::Disk);
             store.flush();
 
             const std::vector<std::string> files{ "meshes/m.nif" };
@@ -197,7 +197,7 @@ namespace Rtx
             EXPECT_TRUE(manifest.standsAsWalked("meshes/m.nif", stamps, store, scratch));
 
             std::filesystem::remove(store.pathOf(sOwn.mKey));
-            ContentStore reopened(TestingOpenMW::currentTestDirPath() / "store");
+            ContentStore::Store reopened(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             EXPECT_FALSE(manifest.standsAsWalked("meshes/m.nif", stamps, reopened, scratch)) << "a key the store lost";
 
             manifest.keep("meshes/m.nif",
@@ -224,9 +224,9 @@ namespace Rtx
             constexpr StoredKey shape{ .mKey = { { 0x0123456789abcdefull, 0xfedcba9876543210ull } },
                 .mPass = ContentPassId::Shape };
             {
-                ContentStore store(folder);
-                store.write(
-                    shape.mKey, ContentPassId::Shape, ShapePass::sVersion, Misc::ByteBuffer(8192), StoreReach::Disk);
+                ContentStore::Store store(folder, sContentStorePolicy);
+                store.write(shape.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion, Misc::ByteBuffer(8192),
+                    ContentStore::Reach::Disk);
                 store.flush();
             }
 
@@ -237,18 +237,20 @@ namespace Rtx
                     .mDigest = PreparationManifest::digestOf(files, stamps), .mFiles = files, .mKeys = { shape } },
                 0);
 
-            ContentStore reopened(folder);
+            ContentStore::Store reopened(folder, sContentStorePolicy);
             reopened.flush();
             Misc::ByteBuffer read;
-            EXPECT_FALSE(reopened.read(shape.mKey, ContentPassId::Shape, ShapePass::sVersion, StoreReach::Memory, read))
+            EXPECT_FALSE(reopened.read(
+                shape.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion, ContentStore::Reach::Memory, read))
                 << "a large shape the start loaded";
             Misc::ByteBuffer scratch;
             EXPECT_TRUE(manifest.standsAsWalked("meshes/m.nif", stamps, reopened, scratch));
-            EXPECT_TRUE(reopened.read(shape.mKey, ContentPassId::Shape, ShapePass::sVersion, StoreReach::Memory, read));
+            EXPECT_TRUE(reopened.read(
+                shape.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion, ContentStore::Reach::Memory, read));
             EXPECT_EQ(read.size(), 8192u);
 
             std::filesystem::remove(reopened.pathOf(shape.mKey));
-            ContentStore lost(folder);
+            ContentStore::Store lost(folder, sContentStorePolicy);
             EXPECT_FALSE(manifest.standsAsWalked("meshes/m.nif", stamps, lost, scratch)) << "a shape the store lost";
         }
     }

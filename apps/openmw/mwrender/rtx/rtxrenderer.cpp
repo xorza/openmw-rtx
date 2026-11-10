@@ -39,6 +39,7 @@
 #include <apps/openmw/mwrender/vismask.hpp>
 #include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
@@ -60,7 +61,6 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
-#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/framespend.hpp>
@@ -211,8 +211,9 @@ namespace MWRender
               setup.mHeadless, setup.mWindowPixels)
         , mUpdateVisitor(new Rtx::PoseUpdate)
         , mStartTick(osg::Timer::instance()->tick())
-        , mContentStore(
-              setup.mContentStore.has_value() ? std::make_unique<Rtx::ContentStore>(*setup.mContentStore) : nullptr)
+        , mContentStore(setup.mContentStore.has_value()
+                  ? std::make_unique<ContentStore::Store>(*setup.mContentStore, Rtx::sContentStorePolicy)
+                  : nullptr)
         , mPrepared(std::make_unique<Rtx::PreparedImages>(
               mContentStore.get(), std::max<std::size_t>(1, Platform::Process::usableCpuCount() / 2)))
         , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get())
@@ -323,7 +324,7 @@ namespace MWRender
         // not each logged: a session's drops are a store that missed what it would have kept.
         if (mContentStore != nullptr)
         {
-            const Rtx::ContentStoreStats store = mContentStore->getStats();
+            const ContentStore::Stats store = mContentStore->getStats();
             Log(Debug::Info) << "Rtx: the content store found " << store.mFound << " entries and missed "
                              << store.mMissed << "; wrote " << store.mWritten << ", dropped " << store.mDropped
                              << ", refused " << store.mRefused << ", stamped " << store.mStamped << " and swept "

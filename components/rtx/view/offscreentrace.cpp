@@ -87,10 +87,10 @@ namespace Rtx
         const auto* perspective = std::get_if<SceneUtil::Perspective>(&framing.mProjection);
         std::optional<Viewpoint> camera = perspective != nullptr
             ? makeCameraFromView(
-                mView, perspective->mFieldOfView, mExtentWidth, mExtentHeight, framing.mNear, framing.mFar)
+                  mView, perspective->mFieldOfView, mExtentWidth, mExtentHeight, framing.mNear, framing.mFar)
             : makeOrthographicCameraFromView(mView, std::get<SceneUtil::Orthographic>(framing.mProjection).mWidth,
-                std::get<SceneUtil::Orthographic>(framing.mProjection).mHeight, mExtentWidth, mExtentHeight,
-                framing.mNear, framing.mFar);
+                  std::get<SceneUtil::Orthographic>(framing.mProjection).mHeight, mExtentWidth, mExtentHeight,
+                  framing.mNear, framing.mFar);
         if (!camera.has_value())
             return std::nullopt;
 

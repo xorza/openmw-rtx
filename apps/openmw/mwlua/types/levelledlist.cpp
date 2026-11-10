@@ -20,14 +20,12 @@ namespace
 
         std::vector<ESM::LevelledListBase::LevelItem>& find()
         {
-            return std::visit(
-                [](auto& rec) -> auto& { return rec.find().mList; }, mRecord);
+            return std::visit([](auto& rec) -> auto& { return rec.find().mList; }, mRecord);
         }
 
         const std::vector<ESM::LevelledListBase::LevelItem>& find() const
         {
-            return std::visit(
-                [](const auto& rec) -> const auto& { return rec.find().mList; }, mRecord);
+            return std::visit([](const auto& rec) -> const auto& { return rec.find().mList; }, mRecord);
         }
     };
 

@@ -36,23 +36,9 @@ Navigator Settings
    :range: true, false
    :default: true
 
-   Enables using disk cache for navmesh tiles in addition to memory cache.
-
-.. omw-setting::
-   :title: write to navmeshdb
-   :type: boolean
-   :range: true, false
-   :default: true
-
-   Enables writing generated navmesh tiles to disk cache during runtime.
-
-.. omw-setting::
-   :title: max navmeshdb file size
-   :type: uint
-   :range: > 0
-   :default: 2147483648
-
-   Maximum size in bytes of navmesh disk cache file.
+   Keeps navmesh tiles on disk across sessions, in addition to the memory cache: read when a tile is needed,
+   and written when one is generated. The tiles stand in the ``navmesh`` folder of the user's cache directory,
+   which every profile shares, each under a key of what made it, so a tile a mod changed is generated again.
 
 .. omw-setting::
    :title: async nav mesh updater threads

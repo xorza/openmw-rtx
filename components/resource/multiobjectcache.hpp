@@ -88,7 +88,8 @@ namespace Resource
         }
 
         /** call releaseGLObjects on all objects attached to the object cache. */
-        void releaseGLObjects(osg::State* state) requires ReleasesGLObjects<ValueType>
+        void releaseGLObjects(osg::State* state)
+            requires ReleasesGLObjects<ValueType>
         {
             std::lock_guard<std::mutex> lock(mObjectCacheMutex);
             for (const auto& [key, value] : mObjectCache)

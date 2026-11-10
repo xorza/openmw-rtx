@@ -747,7 +747,7 @@ namespace MWSound
             mContextAttributes.push_back(hrtfmode == HrtfMode::Disable ? ALC_FALSE
                     : hrtfmode == HrtfMode::Enable                     ? ALC_TRUE
                                                                        :
-                                                   /*hrtfmode == HrtfMode::Auto ?*/ ALC_DONT_CARE_SOFT);
+                                                                       /*hrtfmode == HrtfMode::Auto ?*/ ALC_DONT_CARE_SOFT);
             if (!hrtfname.empty())
             {
                 ALCint index = -1;

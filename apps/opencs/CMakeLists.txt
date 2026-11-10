@@ -152,18 +152,6 @@ endif(WIN32)
 
 qt_add_resources(OPENCS_RES_SRC ${OPENCS_RES})
 
-if(APPLE)
-    set (OPENCS_MAC_ICON "${CMAKE_SOURCE_DIR}/files/mac/openmw-cs.icns")
-    set (OPENCS_CFG "${OpenMW_BINARY_DIR}/defaults-cs.bin")
-    set (OPENCS_DEFAULT_FILTERS_FILE "${OpenMW_BINARY_DIR}/resources/defaultfilters")
-    set (OPENCS_OPENMW_CFG "${OpenMW_BINARY_DIR}/openmw.cfg")
-else()
-    set (OPENCS_MAC_ICON "")
-    set (OPENCS_CFG "")
-    set (OPENCS_DEFAULT_FILTERS_FILE "")
-    set (OPENCS_OPENMW_CFG "")
-endif(APPLE)
-
 add_library(openmw-cs-lib STATIC
     ${OPENCS_SRC}
     ${OPENCS_UI_HDR}
@@ -173,11 +161,6 @@ add_library(openmw-cs-lib STATIC
 
 if(BUILD_OPENCS)
     openmw_add_qt_executable(openmw-cs
-        MACOSX_BUNDLE
-        ${OPENCS_MAC_ICON}
-        ${OPENCS_CFG}
-        ${OPENCS_DEFAULT_FILTERS_FILE}
-        ${OPENCS_OPENMW_CFG}
         ${OPENCS_RC_FILE}
         main.cpp
     )
@@ -194,44 +177,7 @@ if(BUILD_OPENCS)
     endif()
 endif()
 
-if(APPLE AND BUILD_OPENCS)
-    set(OPENCS_BUNDLE_NAME "OpenMW-CS")
-    set(OPENCS_BUNDLE_RESOURCES_DIR "${OpenMW_BINARY_DIR}/${OPENCS_BUNDLE_NAME}.app/Contents/Resources")
-
-    set(OPENMW_RESOURCES_ROOT ${OPENCS_BUNDLE_RESOURCES_DIR})
-
-    add_subdirectory(../../files/ ${CMAKE_CURRENT_BINARY_DIR}/files)
-
-    set_target_properties(openmw-cs PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${OpenMW_BINARY_DIR}"
-        OUTPUT_NAME ${OPENCS_BUNDLE_NAME}
-        MACOSX_BUNDLE_ICON_FILE "openmw-cs.icns"
-        MACOSX_BUNDLE_BUNDLE_NAME "OpenMW-CS"
-        MACOSX_BUNDLE_GUI_IDENTIFIER "org.openmw.opencs"
-        MACOSX_BUNDLE_SHORT_VERSION_STRING ${OPENMW_VERSION}
-        MACOSX_BUNDLE_BUNDLE_VERSION ${OPENMW_VERSION}
-        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/files/mac/openmw-cs-Info.plist.in"
-        )
-
-    set_source_files_properties(${OPENCS_MAC_ICON} PROPERTIES
-        MACOSX_PACKAGE_LOCATION Resources)
-    set_source_files_properties(${OPENCS_CFG} PROPERTIES
-        MACOSX_PACKAGE_LOCATION Resources)
-    set_source_files_properties(${OPENCS_DEFAULT_FILTERS_FILE} PROPERTIES
-        MACOSX_PACKAGE_LOCATION Resources/resources)
-    set_source_files_properties(${OPENCS_OPENMW_CFG} PROPERTIES
-        MACOSX_PACKAGE_LOCATION Resources)
-
-    add_custom_command(TARGET openmw-cs
-        POST_BUILD
-        COMMAND cp "${OpenMW_BINARY_DIR}/resources/version" "${OPENCS_BUNDLE_RESOURCES_DIR}/resources")
-endif()
-
 target_link_libraries(openmw-cs-lib PUBLIC
-    # CMake's built-in OSG finder does not use pkgconfig, so we have to
-    # manually ensure the order is correct for inter-library dependencies.
-    # This only makes a difference with `-DOPENMW_USE_SYSTEM_OSG=ON -DOSG_STATIC=ON`.
-    # https://gitlab.kitware.com/cmake/cmake/-/issues/21701
     ${OSGVIEWER_LIBRARIES}
     ${OSGFX_LIBRARIES}
     ${OSGGA_LIBRARIES}
@@ -249,7 +195,7 @@ if (WIN32)
     target_sources(openmw-cs PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)
 endif()
 
-if (NOT APPLE AND BUILD_OPENCS)
+if (BUILD_OPENCS)
     install(TARGETS openmw-cs ${runtime_dependency_arguments})
     INSTALL(FILES "$<TARGET_FILE_DIR:openmw-cs>/defaults-cs.bin" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
 
@@ -262,10 +208,6 @@ if (MSVC)
         set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj")
     endif (CMAKE_CL_64)
 endif (MSVC)
-
-if(APPLE AND BUILD_OPENCS)
-    INSTALL(TARGETS openmw-cs BUNDLE DESTINATION "." COMPONENT Bundle)
-endif()
 
 if(USE_QT)
     set_property(TARGET openmw-cs-lib PROPERTY AUTOMOC ON)

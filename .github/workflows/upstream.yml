@@ -132,7 +132,7 @@ jobs:
             - name: Tools, before anything of upstream's is in the tree
               run: |
                   sudo apt-get update
-                  sudo apt-get install -y --no-install-recommends clang-format-14 bubblewrap socat
+                  sudo apt-get install -y --no-install-recommends bubblewrap socat
                   if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
                     sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
                   fi
@@ -141,6 +141,10 @@ jobs:
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                   git config core.hooksPath /dev/null
+                  # C++ merges through the pinned clang-format (`merge=clang-format` in .gitattributes),
+                  # so an upstream edit to a file the fork reformatted conflicts only where the edit does.
+                  git config merge.clang-format.name "C++ laid out by the pinned clang-format, then merged"
+                  git config merge.clang-format.driver "python3 omw merge-file %O %A %B %L %P"
                   echo "/UPSTREAM-MERGE.md" >> .git/info/exclude
                   echo "/.upstream-merge/" >> .git/info/exclude
 
@@ -165,15 +169,48 @@ jobs:
                     exit "$status"
                   fi
 
-                  # Upstream's workflows stay deleted, as `ci.yml` does their work, so a change to one holds
-                  # no merge for a human. A workflow upstream adds is held.
-                  for workflow in push macos windows release; do
-                    path=".github/workflows/$workflow.yml"
-                    if [ -n "$(git ls-files --unmerged -- "$path")" ]; then
-                      git rm --quiet -- "$path"
-                      echo "kept $path deleted"
-                    fi
-                  done
+                  # What the fork deleted stays deleted, so a change to one holds no merge for a human, and a
+                  # file upstream adds under a deleted folder goes with it: upstream's workflows, as `ci.yml`
+                  # does their work; GitLab's pipeline and what only it runs, as the fork's CI is GitHub's;
+                  # macOS's and Android's files, as the fork builds neither; and upstream's project files and
+                  # scripts the fork has no use for. A workflow upstream adds is held.
+                  kept_deleted=(
+                    .github/workflows/push.yml .github/workflows/macos.yml .github/workflows/windows.yml
+                    .github/workflows/release.yml
+                    .gitlab-ci.yml .gitlab/ docker/generic-linux/
+                    CI/ActivateMSVC.ps1 CI/activate_msvc.sh CI/before_install.android.sh CI/before_install.macos.sh
+                    CI/before_script.android.sh CI/before_script.linux.sh CI/before_script.macos.sh
+                    CI/before_script.msvc.sh CI/check_clang_format.sh CI/check_cmake_format.sh
+                    CI/check_file_names.sh CI/check_package.osx.sh CI/check_qt_translations.sh
+                    CI/compute_comparison_commit.sh CI/detect_and_report_ninja_status.sh CI/linux/ CI/macos/
+                    CI/run_integration_tests.sh CI/Store-Symbols.ps1 CI/store-symbols.sh CI/teal_ci.sh
+                    CI/trigger_ninja_if_necessary.sh CI/ubuntu_gcc_preprocess.sh
+                    files/mac/ cmake/SignMacApplications.cmake components/files/macospath.cpp
+                    components/files/macospath.hpp
+                    apps/openmw/androidmain.cpp components/files/androidpath.cpp components/files/androidpath.hpp
+                    components/sdlutil/gl4esinit.cpp components/sdlutil/gl4esinit.h
+                    .resubmitted_merge_requests.txt .readthedocs.yaml CONTRIBUTING.md
+                    scripts/generate_teal_declarations.sh scripts/preprocessed_file_size_stats.py
+                    scripts/preprocessed_file_size_stats_diff.py scripts/osg_stats.py scripts/HOWTO-benchmark.md
+                  )
+                  # Forced, as a file upstream adds is staged.
+                  git rm -r -f --ignore-unmatch -- "${kept_deleted[@]}"
+
+                  # The example suite's revision follows upstream's pipeline, which pins the suite its
+                  # integration tests are written against, read from upstream's commit and never checked out.
+                  revision=$(git show upstream/master:.gitlab-ci.yml \
+                    | sed -nE 's/^ *EXAMPLE_SUITE_REVISION: *([0-9a-f]{40}) *$/\1/p' | sort -u || true)
+                  if [ "$(printf '%s' "$revision" | grep -c '^')" -ne 1 ]; then
+                    echo "::error::upstream's .gitlab-ci.yml names no single example suite revision: ${revision:-none}"
+                    exit 1
+                  fi
+                  sed -i -E "s/^EXAMPLE_SUITE_REVISION = \"[0-9a-f]{40}\"$/EXAMPLE_SUITE_REVISION = \"$revision\"/" \
+                    tools/omw/integration.py
+                  if ! grep -qxF "EXAMPLE_SUITE_REVISION = \"$revision\"" tools/omw/integration.py; then
+                    echo "::error::tools/omw/integration.py holds no EXAMPLE_SUITE_REVISION line to move"
+                    exit 1
+                  fi
+                  git add -- tools/omw/integration.py
 
                   # The agent reads none of these, but a merge that changes one changes what an agent here
                   # runs, and a human reads that first.
@@ -303,7 +340,7 @@ jobs:
                          resolution is to delete a file, write its path as `conflicts.txt` spells it, on a
                          line of its own, into `.upstream-merge/removed.txt`; a path that `conflicts.txt` does
                          not name is not deleted. Leave the rest to the step after you: it stages the tree as
-                         you left it, formats the C++ you wrote with `clang-format-14`, which is what the
+                         you left it, formats the C++ you wrote with `omw format`, which is what the
                          `checks` job of `ci.yml` holds the tree to, and commits the merge with git's own
                          message.
                       4. Write your report to `UPSTREAM-MERGE.md` at the root of the checkout. It becomes the
@@ -381,18 +418,17 @@ jobs:
                     done < "$dir/removed.txt"
                   fi
 
-                  # Not a file with a marker, whose markers a format would reflow.
-                  { git diff -z --name-only; git ls-files -z --others --exclude-standard; } \
-                    | while IFS= read -r -d '' path; do
-                      case $path in
-                        extern/*) continue ;;
-                        *.cpp | *.hpp | *.h) ;;
-                        *) continue ;;
-                      esac
-                      if [ -f "$path" ] && ! grep -qE '^(<<<<<<<|>>>>>>>) ' -- "$path"; then
-                        clang-format-14 -i "./$path"
-                      fi
-                    done
+                  # Not a file with a marker, whose markers a format would reflow. `omw format` leaves alone
+                  # what is not a C++ source of the tree's own.
+                  formatted=()
+                  while IFS= read -r -d '' path; do
+                    if [ -f "$path" ] && ! grep -qE '^(<<<<<<<|>>>>>>>) ' -- "$path"; then
+                      formatted+=("$path")
+                    fi
+                  done < <({ git diff -z --name-only; git ls-files -z --others --exclude-standard; })
+                  if [ "${#formatted[@]}" -gt 0 ]; then
+                    python3 omw format "${formatted[@]}"
+                  fi
 
                   if git rev-parse -q --verify MERGE_HEAD > /dev/null; then
                     git add --all

@@ -412,33 +412,25 @@ namespace MWLua
                         setInterpolatorFromTable(weather.mAmbientColor, value);
                     });
                 record["fogColor"] = sol::property(
-                    [](const T& w) {
-                        return BaseTimeOfDayInterpolator<osg::Vec4f>{ w, &MWWorld::Weather::mFogColor };
-                    },
+                    [](const T& w) { return BaseTimeOfDayInterpolator<osg::Vec4f>{ w, &MWWorld::Weather::mFogColor }; },
                     [](T& rec, const sol::object& value) {
                         MWWorld::Weather& weather = rec.find();
                         setInterpolatorFromTable(weather.mFogColor, value);
                     });
                 record["skyColor"] = sol::property(
-                    [](const T& w) {
-                        return BaseTimeOfDayInterpolator<osg::Vec4f>{ w, &MWWorld::Weather::mSkyColor };
-                    },
+                    [](const T& w) { return BaseTimeOfDayInterpolator<osg::Vec4f>{ w, &MWWorld::Weather::mSkyColor }; },
                     [](T& rec, const sol::object& value) {
                         MWWorld::Weather& weather = rec.find();
                         setInterpolatorFromTable(weather.mSkyColor, value);
                     });
                 record["sunColor"] = sol::property(
-                    [](const T& w) {
-                        return BaseTimeOfDayInterpolator<osg::Vec4f>{ w, &MWWorld::Weather::mSunColor };
-                    },
+                    [](const T& w) { return BaseTimeOfDayInterpolator<osg::Vec4f>{ w, &MWWorld::Weather::mSunColor }; },
                     [](T& rec, const sol::object& value) {
                         MWWorld::Weather& weather = rec.find();
                         setInterpolatorFromTable(weather.mSunColor, value);
                     });
                 record["landFogDepth"] = sol::property(
-                    [](const T& w) {
-                        return BaseTimeOfDayInterpolator<float>{ w, &MWWorld::Weather::mLandFogDepth };
-                    },
+                    [](const T& w) { return BaseTimeOfDayInterpolator<float>{ w, &MWWorld::Weather::mLandFogDepth }; },
                     [](T& rec, const sol::object& value) {
                         MWWorld::Weather& weather = rec.find();
                         setInterpolatorFromTable(weather.mLandFogDepth, value);

@@ -119,26 +119,14 @@ namespace Nif
             return mPtr;
         }
 
-        const X& get() const
-        {
-            return *getPtr();
-        }
+        const X& get() const { return *getPtr(); }
 
-        X& get()
-        {
-            return *getPtr();
-        }
+        X& get() { return *getPtr(); }
 
         /// Syntactic sugar
-        const X* operator->() const
-        {
-            return getPtr();
-        }
+        const X* operator->() const { return getPtr(); }
 
-        X* operator->()
-        {
-            return getPtr();
-        }
+        X* operator->() { return getPtr(); }
 
         /// Pointers are allowed to be empty
         bool empty() const

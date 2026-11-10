@@ -110,8 +110,7 @@ namespace MWLua::Types
     void addProperty(sol::usertype<Type>& type, std::string_view key, Member... members)
     {
         using Record = RecordType<Type>::Record;
-        const auto getter = [=](const Type& rec) -> const auto&
-        {
+        const auto getter = [=](const Type& rec) -> const auto& {
             const Record& record = RecordType<Type>::asRecord(rec);
             return (record.*....*members);
         };

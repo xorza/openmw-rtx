@@ -62,9 +62,13 @@ namespace osgUtil
     class UpdateVisitor;
 }
 
+namespace ContentStore
+{
+    class Store;
+}
+
 namespace Rtx
 {
-    class ContentStore;
     class PoseUpdate;
     class PreparedImages;
 }
@@ -400,7 +404,7 @@ namespace MWRender
         /// The content's derived data kept across sessions (`RunSetup::mContentStore`), or null for
         /// none. Before the mirror, whose walks and cell reader find their passes' outputs in it, and
         /// so gone after them: its going finishes what they handed it to write.
-        std::unique_ptr<Rtx::ContentStore> mContentStore;
+        std::unique_ptr<ContentStore::Store> mContentStore;
 
         /// The world's normal and data maps with their chains made again, on half the processors,
         /// as the content's preprocessing is (`Rtx::Hands::Half`). After the store, which its threads

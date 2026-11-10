@@ -10,8 +10,8 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "contentpreprocessor.hpp"
-#include "contentstore.hpp"
 #include "imagefactcache.hpp"
+#include <components/contentstore/store.hpp>
 
 namespace Rtx
 {
@@ -28,7 +28,7 @@ namespace Rtx
     {
         /// @param store the process's store, or null for none (`ContentCache`).
         /// @param reach where this thread's asks may reach in it: memory alone on the frame's.
-        ThreadContent(ContentStore* store = nullptr, StoreReach reach = StoreReach::Memory)
+        ThreadContent(ContentStore::Store* store = nullptr, ContentStore::Reach reach = ContentStore::Reach::Memory)
             : mPreprocessor(store, reach)
         {
         }

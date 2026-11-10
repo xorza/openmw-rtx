@@ -29,7 +29,7 @@ if (OPENMW_CRASHPAD)
     FetchContent_MakeAvailable(crashpad_mini_chromium crashpad_lss)
 
     # The zlib the tree links already, one copy in the process. Crashpad's own copy is the one it
-    # takes under MSVC alone, and its `zutil.h` defines `fdopen` away where a macOS SDK declares it.
+    # takes under MSVC alone.
     set(CRASHPAD_ZLIB_SYSTEM ON CACHE BOOL "" FORCE)
     set(CRASHPAD_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
     set(CRASHPAD_ENABLE_INSTALL_DEV OFF CACHE BOOL "" FORCE)

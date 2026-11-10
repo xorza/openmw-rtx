@@ -64,7 +64,7 @@ namespace Rtx
             return checkpoint == nullptr
                 ? std::format("\n  {} passed no checkpoint the host still names", checkpointStageName(stage))
                 : std::format("\n  {} last passed `{}` of frame {}", checkpointStageName(stage), checkpoint->mName,
-                    checkpoint->mFrame);
+                      checkpoint->mFrame);
         }
 
         /// What a faulting address was being used for, as the header spells it.

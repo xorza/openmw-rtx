@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-#include <components/rtx/common/digestwords.hpp>
+#include <components/misc/digestwords.hpp>
 
 namespace Rtx
 {
@@ -31,5 +31,5 @@ namespace Rtx
     ///
     /// Throws `std::runtime_error` for a line it cannot read and for an id nothing defines, naming it,
     /// so a digest is never of a program read in part.
-    DigestWords digestProgram(std::string_view disassembly);
+    Misc::DigestWords digestProgram(std::string_view disassembly);
 }

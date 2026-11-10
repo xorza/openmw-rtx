@@ -43,7 +43,6 @@ namespace DetourNavigator
         bool mEnableRecastMeshFileNameRevision = false;
         bool mEnableNavMeshFileNameRevision = false;
         bool mEnableNavMeshDiskCache = false;
-        bool mWriteToNavMeshDb = false;
         RecastSettings mRecast;
         DetourSettings mDetour;
         int mWaitUntilMinDistanceToPlayer = 0;
@@ -53,10 +52,7 @@ namespace DetourNavigator
         std::string mRecastMeshPathPrefix;
         std::string mNavMeshPathPrefix;
         std::chrono::milliseconds mMinUpdateInterval;
-        std::uint64_t mMaxDbFileSize = 0;
     };
-
-    inline constexpr std::int64_t navMeshFormatVersion = 2;
 
     Settings makeSettingsFromSettingsManager(Debug::Level maxLogLevel);
 }

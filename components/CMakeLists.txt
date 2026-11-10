@@ -1,10 +1,5 @@
 project (Components)
 
-if(APPLE)
-    set(BUNDLE_RESOURCES_DIR "${APP_BUNDLE_DIR}/Contents/Resources")
-    set(OPENMW_RESOURCES_ROOT ${BUNDLE_RESOURCES_DIR})
-endif(APPLE)
-
 # Version file
 set (VERSION_RESOURCE_FILE_IN "${OpenMW_SOURCE_DIR}/files/version.in")
 set (VERSION_RESOURCE_FILE_RELATIVE "resources/version")
@@ -297,9 +292,14 @@ add_component_dir (esm4
     vertex
 )
 
+# What is derived from the content and kept on disk across sessions, an entry a file under its key.
+add_component_dir (contentstore
+    key store
+    )
+
 add_component_dir (misc
-    barrier budgetmeasurement bytebuffer color compression constants convert coordinateconverter display endianness float16 frameclock frameratelimiter framestats
-    guarded math mathutil messageformatparser notnullptr objectpool osgpluginchecker osguservalues presentation progressreporter resourcehelpers
+    barrier budgetmeasurement bytebuffer color compression constants convert coordinateconverter digestwords display endianness float16 frameclock frameratelimiter framestats
+    guarded hashstate math mathutil messageformatparser monitor notnullptr objectpool osgpluginchecker osguservalues presentation progressreporter resourcehelpers
     result rng strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream weakcache windows
     )
 
@@ -315,7 +315,7 @@ add_component_dir (debug
     debugging debuglog gldebug debugdraw writeflags
     )
 add_component_dir (files
-    linuxpath androidpath windowspath macospath fixedpath multidircollection collections configurationmanager
+    linuxpath windowspath fixedpath multidircollection collections configurationmanager
     constrainedfilestream memorystream hash configfileparser openfile constrainedfilestreambuf conversion
     istreamptr streamwithbuffer utils
     )
@@ -324,7 +324,7 @@ if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT CMAKE_CXX_COMPILER_FRONTEND
     set_source_files_properties(files/configfileparser.cpp PROPERTIES COMPILE_FLAGS -Wno-shadow)
 endif()
 
-if (NOT WIN32 AND NOT APPLE)
+if (NOT WIN32)
     set_source_files_properties(files/linuxpath.cpp PROPERTIES COMPILE_DEFINITIONS "GLOBAL_DATA_PATH=\"${GLOBAL_DATA_PATH}\";GLOBAL_CONFIG_PATH=\"${GLOBAL_CONFIG_PATH}\"")
 endif ()
 
@@ -369,7 +369,6 @@ add_component_dir (fontloader
 
 add_component_dir (sdlutil
     events
-    gl4esinit
     imagetosurface
     sdlcursormanager
     sdldisplay
@@ -395,7 +394,7 @@ add_component_dir (sky
 # The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan
 # backend is its own library, `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share.
 add_component_dir (rtx/common
-    asserts cardaddress clock digestwords error finite hashstate index job jobprogress menu monitor
+    asserts cardaddress clock error finite index job jobprogress menu
     namedenum parallel
     pointhash radicalinverse runs scratch slots stepped ownedby
     )
@@ -430,7 +429,7 @@ add_component_dir (rtx/prepare
     )
 
 add_component_dir (rtx/preprocess
-    contentcache contentcodec contentkey contentpass contentpreprocessor contentstats contentstore imagefactcache
+    contentcache contentcodec contentpass contentpreprocessor contentstats imagefactcache
     preparedimages threadcontent
     )
 
@@ -518,7 +517,6 @@ add_component_dir(detournavigator
     changetype
     collisionshapetype
     commulativeaabb
-    dbrefgeometryobject
     debug
     exceptions
     findrandompointaroundcircle
@@ -535,10 +533,9 @@ add_component_dir(detournavigator
     navigatorutils
     navmeshcacheitem
     navmeshdata
-    navmeshdb
-    navmeshdbutils
     navmeshmanager
     navmeshtilescache
+    navmeshtilestore
     navmeshtileview
     objectid
     objecttransform
@@ -584,13 +581,6 @@ add_component_dir(serialization
     osgyaml
     sizeaccumulator
     )
-
-add_component_dir(sqlite3
-    db
-    request
-    statement
-    transaction
-)
 
 add_component_dir(esmloader
     lessbyid
@@ -751,29 +741,10 @@ endif()
 
 include_directories(${BULLET_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
 
-if (OPENMW_USE_SYSTEM_SQLITE3)
-    find_package(SQLite3 REQUIRED)
-    if(NOT TARGET SQLite3::SQLite3) # CMake < 4.3
-        add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
-    endif()
-endif()
-
 add_library(components STATIC ${COMPONENT_FILES})
 target_compile_definitions(components PUBLIC OPENMW_RTX_DLSS=$<BOOL:${OPENMW_RTX_DLSS}>)
 
-if (ANDROID)
-    set_property(TARGET components PROPERTY POSITION_INDEPENDENT_CODE ON)
-endif()
-
-if (APPLE)
-    target_compile_definitions(components PUBLIC GL_SILENCE_DEPRECATION=1)
-endif()
-
 target_link_libraries(components
-    # CMake's built-in OSG finder does not use pkgconfig, so we have to
-    # manually ensure the order is correct for inter-library dependencies.
-    # This only makes a difference with `-DOPENMW_USE_SYSTEM_OSG=ON -DOSG_STATIC=ON`.
-    # https://gitlab.kitware.com/cmake/cmake/-/issues/21701
     ${OSGPARTICLE_LIBRARIES}
     ${OSGVIEWER_LIBRARIES}
     ${OSGSHADOW_LIBRARIES}
@@ -800,7 +771,6 @@ target_link_libraries(components
 
     openmw-platform-io
     Base64
-    SQLite3::SQLite3
     smhasher
     rgbcx
     ${ICU_LIBRARIES}
@@ -829,15 +799,6 @@ if (USE_QT)
     endif()
 endif()
 
-if (OSG_STATIC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
-    find_package(X11 REQUIRED COMPONENTS Xinerama Xrandr)
-    target_link_libraries(components ${CMAKE_DL_LIBS} X11::X11 X11::Xinerama X11::Xrandr)
-    find_package(Fontconfig MODULE)
-    if(Fontconfig_FOUND)
-        target_link_libraries(components Fontconfig::Fontconfig)
-    endif()
-endif()
-
 if (WIN32)
     # `DXGI` names the display adapters the launcher asks about before Vulkan exists.
     target_link_libraries(components shlwapi dxgi)
@@ -855,7 +816,7 @@ target_link_libraries(components ${CMAKE_DL_LIBS})
 include(crashcatcher/link.cmake)
 
 # Fix for not visible pthreads functions for linker with glibc 2.15
-if (UNIX AND NOT APPLE)
+if (UNIX)
     target_link_libraries(components ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
@@ -876,40 +837,6 @@ target_compile_definitions(components PUBLIC
 # Vulkan's validation layers on unless Release, read as `Rtx::sValidationByDefault`: here, so the game
 # and the harness agree. 0 or 1, so the constant needs no `#ifdef`.
 target_compile_definitions(components PUBLIC OPENMW_RTX_VALIDATION_BY_DEFAULT=$<IF:$<CONFIG:Release>,0,1>)
-
-if(OSG_STATIC)
-    if(CMAKE_VERSION VERSION_LESS 3.24)
-        unset(_osg_plugins_static_files)
-        add_library(components_osg_plugins INTERFACE)
-        foreach(_plugin ${USED_OSG_PLUGINS})
-            string(TOUPPER ${_plugin} _plugin_uc)
-            if(OPENMW_USE_SYSTEM_OSG)
-                list(APPEND _osg_plugins_static_files ${${_plugin_uc}_LIBRARY})
-            else()
-                list(APPEND _osg_plugins_static_files $<TARGET_FILE:${${_plugin_uc}_LIBRARY}>)
-                target_link_libraries(components_osg_plugins INTERFACE $<TARGET_PROPERTY:${${_plugin_uc}_LIBRARY},LINK_LIBRARIES>)
-                add_dependencies(components_osg_plugins ${${_plugin_uc}_LIBRARY})
-            endif()
-        endforeach()
-        # We use --whole-archive because OSG plugins use registration.
-        get_whole_archive_options(_opts ${_osg_plugins_static_files})
-        target_link_options(components_osg_plugins INTERFACE ${_opts})
-        target_link_libraries(components components_osg_plugins)
-    else()
-        target_link_libraries(components "$<LINK_LIBRARY:WHOLE_ARCHIVE,${USED_OSG_PLUGINS}>")
-    endif()
-
-    target_link_libraries(components ${COLLADA_DOM_LIBRARIES})
-
-    if(OPENMW_USE_SYSTEM_OSG)
-        # OSG plugin pkgconfig files are missing these dependencies.
-        # https://github.com/openscenegraph/OpenSceneGraph/issues/1052
-        find_package(Freetype REQUIRED)
-        find_package(JPEG REQUIRED)
-        find_package(PNG REQUIRED)
-        target_link_libraries(components Freetype::Freetype JPEG::JPEG PNG::PNG)
-    endif()
-endif(OSG_STATIC)
 
 if(USE_QT)
     set_property(TARGET components_qt PROPERTY AUTOMOC ON)

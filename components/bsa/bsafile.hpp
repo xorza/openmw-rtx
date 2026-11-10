@@ -105,10 +105,7 @@ namespace Bsa
          * -----------------------------------
          */
 
-        virtual ~BSAFile()
-        {
-            close();
-        }
+        virtual ~BSAFile() { close(); }
 
         /// Open an archive file.
         void open(const std::filesystem::path& file);
@@ -129,20 +126,11 @@ namespace Bsa
 
         /// Get a list of all files
         /// @note Thread safe.
-        const FileList& getList() const
-        {
-            return mFiles;
-        }
+        const FileList& getList() const { return mFiles; }
 
-        std::string getFilename() const
-        {
-            return Files::pathToUnicodeString(mFilepath);
-        }
+        std::string getFilename() const { return Files::pathToUnicodeString(mFilepath); }
 
-        const std::filesystem::path& getPath() const
-        {
-            return mFilepath;
-        }
+        const std::filesystem::path& getPath() const { return mFilepath; }
 
         // checks version of BSA from file header
         static BsaVersion detectVersion(const std::filesystem::path& filePath);

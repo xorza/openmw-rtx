@@ -28,7 +28,7 @@ extern "C" __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x
 #include <chrono>
 #include <filesystem>
 
-#if (defined(__APPLE__) || defined(__linux) || defined(__unix) || defined(__posix))
+#if (defined(__linux) || defined(__unix) || defined(__posix))
 #include <unistd.h>
 #endif
 
@@ -88,18 +88,18 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
     Files::PathContainer dataDirs(asPathContainer(variables["data"].as<Files::MaybeQuotedPathContainer>()));
 
     Files::PathContainer::value_type local(variables["data-local"]
-                                               .as<Files::MaybeQuotedPathContainer::value_type>()
-                                               .u8string()); // This call to u8string is redundant, but required to
-                                                             // build on MSVC 14.26 due to implementation bugs.
+            .as<Files::MaybeQuotedPathContainer::value_type>()
+            .u8string()); // This call to u8string is redundant, but required to
+                          // build on MSVC 14.26 due to implementation bugs.
     if (!local.empty())
         dataDirs.push_back(std::move(local));
 
     cfgMgr.filterOutNonExistingPaths(dataDirs);
 
     engine.setResourceDir(variables["resources"]
-                              .as<Files::MaybeQuotedPath>()
-                              .u8string()); // This call to u8string is redundant, but required to build on MSVC 14.26
-                                            // due to implementation bugs.
+            .as<Files::MaybeQuotedPath>()
+            .u8string()); // This call to u8string is redundant, but required to build on MSVC 14.26
+                          // due to implementation bugs.
     engine.setDataDirs(dataDirs);
 
     // fallback archives
@@ -219,10 +219,6 @@ int runApplication(int argc, char* argv[])
 {
     Platform::init();
 
-#ifdef __APPLE__
-    setenv("OSG_GL_TEXTURE_STORAGE", "OFF", 0);
-#endif
-
     osg::setNotifyHandler(new OSGLogHandler());
     Files::ConfigurationManager cfgMgr;
     std::unique_ptr<OMW::Engine> engine = std::make_unique<OMW::Engine>(cfgMgr);
@@ -240,11 +236,7 @@ int runApplication(int argc, char* argv[])
     return 0;
 }
 
-#ifdef ANDROID
-extern "C" int SDL_main(int argc, char** argv)
-#else
 int main(int argc, char** argv)
-#endif
 {
     return Debug::wrapApplication(&runApplication, argc, argv, "OpenMW");
 }

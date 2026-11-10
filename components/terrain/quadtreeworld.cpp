@@ -284,8 +284,8 @@ namespace Terrain
         Storage* storage, unsigned int nodeMask, unsigned int preCompileMask, unsigned int borderMask,
         int compMapResolution, float compMapLevel, float lodFactor, int vertexLodMod, float maxCompGeometrySize,
         bool debugChunks, ESM::RefId worldspace, double expiryDelay)
-        : TerrainGrid(
-            parent, compileRoot, resourceSystem, storage, nodeMask, worldspace, expiryDelay, preCompileMask, borderMask)
+        : TerrainGrid(parent, compileRoot, resourceSystem, storage, nodeMask, worldspace, expiryDelay, preCompileMask,
+              borderMask)
         , mViewDataMap(std::make_unique<ViewDataMap>())
         , mQuadTreeBuilt(false)
         , mLodFactor(lodFactor)

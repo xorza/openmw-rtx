@@ -439,7 +439,7 @@ namespace Rtx
                 .mDiffuseNeverSolid = true };
             EXPECT_FALSE(addsWisp.isTranslucent()) << "an additive sheet covers nothing";
             EXPECT_FALSE((Material{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Blend, .mBlend = BlendKind::Add }
-                              .isSoftEdged()))
+                    .isSoftEdged()))
                 << "nor does a soft one";
 
             // The mode is half of it: a faded material the content never asked to blend is drawn as
@@ -2381,7 +2381,7 @@ namespace Rtx
             // Nothing stands out there, and an empty answer is what says so rather than a box at the
             // origin that a camera would then be placed from.
             EXPECT_FALSE(scene.getContentBoundsWithin(osg::BoundingBoxf(500.0f, 500.0f, 500.0f, 600.0f, 600.0f, 600.0f))
-                             .valid());
+                    .valid());
         }
 
         /// A mesh's extent follows whatever was written into it, by either writer.

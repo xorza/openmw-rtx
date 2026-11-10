@@ -8,9 +8,9 @@
 #include <variant>
 #include <vector>
 
+#include <components/misc/monitor.hpp>
 #include <components/platform/thread.hpp>
 #include <components/rtx/common/cardaddress.hpp>
-#include <components/rtx/common/monitor.hpp>
 
 #include "amdgpu.hpp"
 #include "gpuclock.hpp"
@@ -167,7 +167,7 @@ namespace RtxTool
         std::variant<std::string_view, Nvml, AmdGpu> mReader{ std::string_view("no card was named") };
 
         /// The lock over everything below but the worker.
-        Rtx::Monitor mMonitor;
+        Misc::Monitor mMonitor;
 
         const std::chrono::milliseconds mPeriod;
 

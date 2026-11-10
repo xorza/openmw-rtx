@@ -5,7 +5,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/agentbounds.hpp>
 #include <components/detournavigator/collisionshapetype.hpp>
-#include <components/detournavigator/navmeshdb.hpp>
+#include <components/detournavigator/navmeshtilestore.hpp>
 #include <components/detournavigator/recastglobalallocator.hpp>
 #include <components/detournavigator/settings.hpp>
 #include <components/esm3/readerscache.hpp>
@@ -114,9 +114,6 @@ namespace NavMeshTool
             addOption("process-interior-cells", bpo::value<bool>()->implicit_value(true)->default_value(false),
                 "build navmesh for interior cells");
 
-            addOption("remove-unused-tiles", bpo::value<bool>()->implicit_value(true)->default_value(false),
-                "remove tiles from cache that will not be used with current content profile");
-
             addOption("write-binary-log", bpo::value<bool>()->implicit_value(true)->default_value(false),
                 "write progress in binary messages to be consumed by the launcher");
 
@@ -185,7 +182,6 @@ namespace NavMeshTool
             }
 
             const bool processInteriorCells = variables["process-interior-cells"].as<bool>();
-            const bool removeUnusedTiles = variables["remove-unused-tiles"].as<bool>();
             const bool writeBinaryLog = variables["write-binary-log"].as<bool>();
             const bool collectStats = variables["collect-stats"].as<bool>();
 
@@ -208,12 +204,11 @@ namespace NavMeshTool
                 Settings::game().mActorCollisionShapeType,
                 Settings::game().mDefaultActorPathfindHalfExtents,
             };
-            const std::uint64_t maxDbFileSize = Settings::navigator().mMaxNavmeshdbFileSize;
-            const auto dbPath = Files::pathToUnicodeString(config.getUserDataPath() / "navmesh.db");
+            const std::filesystem::path storePath = config.getCachePath() / DetourNavigator::sNavMeshTileStoreFolder;
 
-            Log(Debug::Info) << "Using navmeshdb at " << dbPath;
+            Log(Debug::Info) << "Using " << Files::pathToUnicodeString(storePath) << " to store navigation mesh tiles";
 
-            DetourNavigator::NavMeshDb db(dbPath, maxDbFileSize);
+            DetourNavigator::NavMeshTileStore store(storePath);
 
             ESM::ReadersCache readers;
             EsmLoader::Query query;
@@ -245,9 +240,9 @@ namespace NavMeshTool
 
             Status status = Status::Ok;
             std::size_t provided = 0;
-            std::size_t inserted = 0;
-            std::size_t updated = 0;
-            std::size_t deleted = 0;
+            std::size_t found = 0;
+            std::size_t written = 0;
+            std::size_t unwritten = 0;
             std::size_t count = 0;
             GenerateTilesStats stats;
 
@@ -257,13 +252,12 @@ namespace NavMeshTool
                 Log(Debug::Info) << "Using " << threadsNumber << " parallel workers...";
 
                 const GenerateAllNavMeshTilesOptions generateAllNavMeshTilesOptions{
-                    .mRemoveUnusedTiles = removeUnusedTiles,
                     .mWriteBinaryLog = writeBinaryLog,
                     .mCollectStats = collectStats,
                 };
 
                 NavMeshTilesGenerator generator(
-                    agentBounds, navigatorSettings, generateAllNavMeshTilesOptions, db, workQueue);
+                    agentBounds, navigatorSettings, generateAllNavMeshTilesOptions, store, workQueue);
 
                 for (const auto& [worldspace, cells] : worldspaceCells)
                 {
@@ -285,25 +279,22 @@ namespace NavMeshTool
 
                 status = result.mStatus;
                 provided = result.mProvided;
-                inserted = result.mInserted;
-                updated = result.mUpdated;
-                deleted = result.mDeleted;
+                found = result.mFound;
+                written = result.mWritten;
+                unwritten = result.mUnwritten;
                 stats = result.mStats;
             }
 
-            Log(Debug::Info) << "Generated navmesh for " << provided << " tiles: " << inserted << " inserted, "
-                             << updated << " updated, " << deleted << " deleted";
+            Log(Debug::Info) << "Generated navmesh for " << provided << " tiles: " << found << " stored already, "
+                             << written << " written";
+            if (unwritten > 0)
+                Log(Debug::Warning) << unwritten << " navmesh tiles could not be written to "
+                                    << Files::pathToUnicodeString(storePath) << ", whose first failure is logged above";
 
             if (collectStats)
             {
                 Log(Debug::Info) << "Stats:";
                 Log(Debug::Info) << "max polygons per tile = " << stats.mMaxPolyCountPerTile;
-            }
-
-            if (status == Status::Ok && inserted + updated + deleted > 0)
-            {
-                Log(Debug::Info) << "Vacuuming the database...";
-                db.vacuum();
             }
 
             switch (status)
@@ -314,14 +305,6 @@ namespace NavMeshTool
                 case Status::Cancelled:
                     Log(Debug::Warning) << "Cancelled";
                     break;
-                case Status::NotEnoughSpace:
-                    Log(Debug::Warning)
-                        << "Navmesh generation is cancelled due to running out of disk space or limits "
-                        << "for navmesh db. Check disk space at the db location \"" << dbPath
-                        << "\". If there is enough space, adjust \"max navmeshdb file size\" setting (see "
-                        << "https://openmw.readthedocs.io/en/latest/reference/modding/settings/"
-                           "navigator.html?highlight=navmesh#max-navmeshdb-file-size).";
-                    break;
             }
 
             return 0;
@@ -329,11 +312,7 @@ namespace NavMeshTool
     }
 }
 
-#ifdef ANDROID
-extern "C" int SDL_main(int argc, char* argv[])
-#else
 int main(int argc, char* argv[])
-#endif
 {
     return Debug::wrapApplication(NavMeshTool::runNavMeshTool, argc, argv, NavMeshTool::applicationName);
 }

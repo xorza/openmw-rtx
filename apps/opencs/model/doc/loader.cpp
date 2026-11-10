@@ -84,7 +84,7 @@ void CSMDoc::Loader::load()
 
             { // silence a g++ warning
                 for (CSMDoc::Messages::Iterator messageIter(messages.begin()); messageIter != messages.end();
-                     ++messageIter)
+                    ++messageIter)
                 {
                     document->getReport(log)->add(*messageIter);
                     emit loadMessage(document, messageIter->mMessage);

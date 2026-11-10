@@ -10,19 +10,19 @@
 
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Texture> // The S3TC and RGTC formats, which Windows's and Apple's gl.h lack.
+#include <osg/Texture> // The S3TC and RGTC formats, which Windows's gl.h lacks.
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/firsttexel.hpp>
+#include <components/contentstore/key.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
-#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/chainscratch.hpp>
@@ -63,7 +63,7 @@ namespace Rtx
         {
             const std::uint8_t bytes[] = {
                 128, 128, 255, 0, 128, 136, 255, 0, 120, 128, 247, 100, 112, 128, 251, 200, //
-                0, 0, 0, 0, //
+                0, 0, 0, 0 //
             };
             osg::ref_ptr<osg::Image> image = new osg::Image;
             auto* data = new unsigned char[sizeof(bytes)];
@@ -82,7 +82,7 @@ namespace Rtx
         /// threads' figures, the second found.
         TEST(RtxPreparedImagesTest, aMapsImageIsPendingThenMadeAndHeldByWhatHoldsIt)
         {
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
+            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             PreparedImages prepared(&store, 2);
             const osg::ref_ptr<osg::Image> file = makeBlockNormalMap();
 
@@ -126,7 +126,7 @@ namespace Rtx
         /// made before the first is let go of, so none takes its address and drops it through `find`.
         TEST(RtxPreparedImagesTest, aMadeImageNeverCollectedIsDroppedOnceItsFileIsGone)
         {
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
+            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             PreparedImages prepared(&store, 1);
             osg::ref_ptr<osg::Image> gone = makeBlockNormalMap();
             EXPECT_TRUE(prepared.find(*gone, TextureEncoding::Data, TextureWrap::Repeat).mPending);
@@ -220,7 +220,7 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> blue = makeColour(0, 255, "textures/tx_blue.dds");
             ASSERT_TRUE(PreparedImages::prepares(*red, TextureEncoding::Colour));
 
-            ContentStore store(TestingOpenMW::currentTestDirPath() / "store");
+            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             PreparedImages prepared(&store, 1);
             prepared.find(*red, TextureEncoding::Colour, TextureWrap::Repeat);
             prepared.flush();
@@ -327,7 +327,7 @@ namespace Rtx
             const auto keyOf = [&](const osg::Image& image) {
                 ChainBuild build;
                 ConversionPass pass(build);
-                ContentDigest digest(sContentPasses.name(ConversionPass::sPass), ConversionPass::sVersion);
+                ContentStore::Digest digest(sContentPasses.name(ConversionPass::sPass), ConversionPass::sVersion);
                 pass.digest(
                     ConversionPass::Input{
                         .mImage = image, .mPartner = *specular, .mEncoding = TextureEncoding::ConvertedColour },
@@ -382,7 +382,7 @@ namespace Rtx
             const auto keyOf = [](const osg::Image& image) {
                 ChainBuild build;
                 ChainPass pass(build);
-                ContentDigest digest(sContentPasses.name(ChainPass::sPass), ChainPass::sVersion);
+                ContentStore::Digest digest(sContentPasses.name(ChainPass::sPass), ChainPass::sVersion);
                 pass.digest(ChainPass::Input{ .mImage = image, .mEncoding = TextureEncoding::Colour }, digest);
                 return digest.getKey();
             };

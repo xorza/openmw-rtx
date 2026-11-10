@@ -17,7 +17,7 @@ namespace MWRender
         std::string_view normalHeightMapPattern, bool autoUseNormalMaps, std::string_view specularMapPattern,
         bool autoUseSpecularMaps)
         : ESMTerrain::Storage(resourceSystem->getVFS(), normalMapPattern, normalHeightMapPattern, autoUseNormalMaps,
-            specularMapPattern, autoUseSpecularMaps)
+              specularMapPattern, autoUseSpecularMaps)
         , mLandManager(new LandManager(
               ESM::Land::DATA_VCLR | ESM::Land::DATA_VHGT | ESM::Land::DATA_VNML | ESM::Land::DATA_VTEX))
         , mResourceSystem(resourceSystem)

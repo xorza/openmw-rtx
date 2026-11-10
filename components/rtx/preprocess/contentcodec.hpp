@@ -33,7 +33,7 @@ namespace Rtx
     {
         /// Appends `value`'s bytes to `into`.
         template <class T>
-        requires std::is_arithmetic_v<T>
+            requires std::is_arithmetic_v<T>
         void put(Misc::ByteBuffer& into, T value)
         {
             const std::size_t at = into.size();
@@ -43,7 +43,7 @@ namespace Rtx
 
         /// Reads a value off the front of `from` and moves past it, answering whether `from` held one.
         template <class T>
-        requires std::is_arithmetic_v<T>
+            requires std::is_arithmetic_v<T>
         bool take(std::span<const std::byte>& from, T& value)
         {
             if (from.size() < sizeof(T))
@@ -56,7 +56,7 @@ namespace Rtx
         /// Appends a run of `values`: its count, then their bytes. `T` carries no padding, which the
         /// caller asserts where it is not a number.
         template <class T>
-        requires std::is_trivially_copyable_v<T>
+            requires std::is_trivially_copyable_v<T>
         void putRun(Misc::ByteBuffer& into, std::span<const T> values)
         {
             put(into, static_cast<std::uint32_t>(values.size()));
@@ -67,7 +67,7 @@ namespace Rtx
         /// Reads a run `putRun` wrote into `values` and moves past it, answering whether `from` held
         /// the whole of one.
         template <class T>
-        requires std::is_trivially_copyable_v<T>
+            requires std::is_trivially_copyable_v<T>
         bool takeRun(std::span<const std::byte>& from, std::vector<T>& values)
         {
             std::uint32_t count = 0;
@@ -182,7 +182,7 @@ namespace Rtx
     ///
     /// **Sixteen-bit indices where every vertex is under 65536**, which nearly every model's are, and a
     /// normal four bytes and not twelve: on the PBR profile's shapes, 69.3 MiB of payload came to 29.6,
-    /// and the entries held in memory (`ContentStore::sResidentMost`) from 77% to 92%. The normals come
+    /// and the entries held in memory (`ContentStore::Store::sResidentMost`) from 77% to 92%. The normals come
     /// back as their words read back, so a run's output is handed back so too (`sRounds`).
     template <>
     struct ContentCodec<ShapePass::Output>
@@ -262,11 +262,8 @@ namespace Rtx
 
     /// Whether `T` has a `ContentCodec`: what a pass whose outputs are stored needs.
     template <class T>
-    concept StoredOutput = requires(const T& value, T& read, Misc::ByteBuffer& payload)
-    {
+    concept StoredOutput = requires(const T& value, T& read, Misc::ByteBuffer& payload) {
         ContentCodec<T>::encode(value, payload);
-        {
-            ContentCodec<T>::decode(payload, read)
-            } -> std::same_as<bool>;
+        { ContentCodec<T>::decode(payload, read) } -> std::same_as<bool>;
     };
 }

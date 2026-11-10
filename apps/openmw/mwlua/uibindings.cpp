@@ -188,7 +188,7 @@ namespace MWLua
                 MyGUI::ILayer* elementLayer = nullptr;
                 MyGUI::ILayerNode* layerNode = nullptr;
                 for (LuaUi::WidgetExtension* ext = element->mRoot; ext != nullptr && elementLayer == nullptr;
-                     ext = ext->getParent())
+                    ext = ext->getParent())
                 {
                     elementLayer = ext->widget()->getLayer();
                     layerNode = ext->widget()->getLayerNode();

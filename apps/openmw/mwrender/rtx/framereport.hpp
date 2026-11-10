@@ -5,11 +5,11 @@
 
 #include <osg/Vec3f>
 
+#include <components/contentstore/store.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/contentstore.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
@@ -49,7 +49,7 @@ namespace MWRender
 
         /// What the content store did since it was made, or nothing where there is none: the drops,
         /// refusals and evictions a session's figures are read beside.
-        std::optional<Rtx::ContentStoreStats> mStore;
+        std::optional<ContentStore::Stats> mStore;
     };
 
     /// What one traced frame came to, handed to whoever measures it: what it spent, what the device

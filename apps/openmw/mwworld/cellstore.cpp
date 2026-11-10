@@ -269,7 +269,7 @@ namespace
         if (state.mRef.mRefNum.hasContentFile())
         {
             for (typename MWWorld::CellRefList<T>::List::iterator iter(collection.mList.begin());
-                 iter != collection.mList.end(); ++iter)
+                iter != collection.mList.end(); ++iter)
                 if (iter->mRef.getRefNum() == state.mRef.mRefNum && iter->mRef.getRefId() == state.mRef.mRefID)
                 {
                     // overwrite existing reference
@@ -1234,7 +1234,7 @@ namespace MWWorld
             {
                 mLastRespawn = MWBase::Environment::get().getWorld()->getTimeStamp();
                 for (CellRefList<ESM::Container>::List::iterator it(get<ESM::Container>().mList.begin());
-                     it != get<ESM::Container>().mList.end(); ++it)
+                    it != get<ESM::Container>().mList.end(); ++it)
                 {
                     Ptr ptr = getCurrentPtr(&*it);
                     if (ptr.getRefData().hasCustomData())

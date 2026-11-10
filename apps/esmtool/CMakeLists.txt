@@ -29,9 +29,7 @@ if (BUILD_WITH_CODE_COVERAGE)
     target_link_libraries(esmtool gcov)
 endif()
 
-if (NOT APPLE)
-    install(TARGETS esmtool ${runtime_dependency_arguments})
-endif()
+install(TARGETS esmtool ${runtime_dependency_arguments})
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(esmtool PRIVATE

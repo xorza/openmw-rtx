@@ -146,7 +146,7 @@ namespace MWLua
                     = lua.new_usertype<MutableIngredientEffectsListItem>("ESM3_MutableIngredientEffectsListItem");
                 constexpr auto addRefIdProperty
                     = [](sol::usertype<MutableIngredientEffectsListItem>& type,
-                          ESM::RefId(ESM::Ingredient::IRDTstruct::*member)[numEffects], std::string_view key) {
+                          ESM::RefId(ESM::Ingredient::IRDTstruct::* member)[numEffects], std::string_view key) {
                           type[key] = sol::property(
                               [=](const MutableIngredientEffectsListItem& item) -> ESM::RefId {
                                   const ESM::Ingredient& ingred = item.mIngredient.find();

@@ -277,7 +277,7 @@ namespace Rtx
             std::size_t at = 0;
             for (std::uint32_t level = 0; level < 4; ++level)
                 for (std::uint32_t texel = 0; texel < chain.mLevels[level].mWidth * chain.mLevels[level].mHeight;
-                     ++texel, ++at)
+                    ++texel, ++at)
                 {
                     EXPECT_EQ(encoded.mHost[at], encoded.mDevice[at]) << "level " << level << ", texel " << texel;
                     for (std::size_t channel = 0; channel < 3; ++channel)

@@ -38,7 +38,7 @@ namespace CSVRender
 {
     PathgridMode::PathgridMode(WorldspaceWidget* worldspaceWidget, QWidget* parent)
         : EditMode(worldspaceWidget, Misc::ScalableIcon::load(":scenetoolbar/editing-pathgrid"),
-            Mask_Pathgrid | Mask_Terrain | Mask_Reference, getTooltip(), parent)
+              Mask_Pathgrid | Mask_Terrain | Mask_Reference, getTooltip(), parent)
         , mDragMode(DragMode::None)
         , mFromNode(0)
         , mSelectionMode(nullptr)

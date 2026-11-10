@@ -36,9 +36,7 @@ namespace Loading
             mProgressUpdate = value;
         }
 
-        void increaseProgress(size_t increase) override
-        { /* not implemented */
-        }
+        void increaseProgress(size_t increase) override { /* not implemented */ }
 
         void update()
         {

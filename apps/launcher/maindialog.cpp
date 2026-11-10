@@ -216,8 +216,8 @@ void Launcher::MainDialog::setVersionLabel()
     auto compileDate = QLocale(QLocale::C).toDate(QString(__DATE__).simplified(), QLatin1String("MMM d yyyy"));
     auto compileTime = QLocale(QLocale::C).toTime(QString(__TIME__).simplified(), QLatin1String("hh:mm:ss"));
     versionLabel->setToolTip(tr("Compiled on %1 %2")
-                                 .arg(QLocale::system().toString(compileDate, QLocale::LongFormat),
-                                     QLocale::system().toString(compileTime, QLocale::ShortFormat)));
+            .arg(QLocale::system().toString(compileDate, QLocale::LongFormat),
+                QLocale::system().toString(compileTime, QLocale::ShortFormat)));
 }
 
 bool Launcher::MainDialog::setup()

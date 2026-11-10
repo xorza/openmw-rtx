@@ -15,33 +15,22 @@
 
 include(LibFindMacros)
 
-if (MYGUI_STATIC)
-    set(MYGUI_STATIC_SUFFIX "Static")
-else()
-    set(MYGUI_STATIC_SUFFIX "")
-endif()
-
-libfind_pkg_detect(MyGUI_Debug MyGUI${MYGUI_STATIC_SUFFIX} MYGUI${MYGUI_STATIC_SUFFIX}
-    FIND_LIBRARY MyGUIEngine_d${MYGUI_STATIC_SUFFIX}
+libfind_pkg_detect(MyGUI_Debug MyGUI MYGUI
+    FIND_LIBRARY MyGUIEngine_d
         HINTS $ENV{MYGUI_HOME}/lib
         PATH_SUFFIXES "" debug
 )
 set(MyGUI_Debug_FIND_QUIETLY TRUE)
 libfind_process(MyGUI_Debug)
 
-libfind_pkg_detect(MyGUI MyGUI${MYGUI_STATIC_SUFFIX} MYGUI${MYGUI_STATIC_SUFFIX}
+libfind_pkg_detect(MyGUI MyGUI MYGUI
     FIND_PATH MyGUI.h
         HINTS $ENV{MYGUI_HOME}/include
         PATH_SUFFIXES MYGUI MyGUI
-    FIND_LIBRARY MyGUIEngine${MYGUI_STATIC_SUFFIX}
+    FIND_LIBRARY MyGUIEngine
         HINTS $ENV{MYGUI_HOME}/lib
         PATH_SUFFIXES "" release relwithdebinfo minsizerel
 )
-if (MYGUI_STATIC AND (APPLE OR ANDROID))
-    # we need explicit Freetype libs only on OS X and ANDROID for static build
-    libfind_package(MyGUI Freetype)
-endif()
-
 libfind_version_n_header(MyGUI
     NAMES MyGUI_Prerequest.h
     DEFINES MYGUI_VERSION_MAJOR MYGUI_VERSION_MINOR MYGUI_VERSION_PATCH

@@ -197,12 +197,11 @@ namespace Rtx
                 { "media", 0, 192, 2048 },
                 { "panes", 0, 256, 2048 },
             } };
-            const std::array sDrivers{
-                DriverCeilings{ VK_DRIVER_ID_AMD_PROPRIETARY, { "", 0, 128, 2048 }, sAmdWithoutDarkAlpha, sAmdWhole },
+            const std::array sDrivers{ DriverCeilings{ VK_DRIVER_ID_AMD_PROPRIETARY, { "", 0, 128, 2048 },
+                                           sAmdWithoutDarkAlpha, sAmdWhole },
                 DriverCeilings{ VK_DRIVER_ID_MESA_RADV, { "", 0, 128, 2048 }, sRadvWithoutDarkAlpha, sRadvWhole },
                 DriverCeilings{
-                    VK_DRIVER_ID_NVIDIA_PROPRIETARY, { "", 0, 128, 0 }, sNvidiaWithoutDarkAlpha, sNvidiaWhole },
-            };
+                    VK_DRIVER_ID_NVIDIA_PROPRIETARY, { "", 0, 128, 0 }, sNvidiaWithoutDarkAlpha, sNvidiaWhole } };
             constexpr std::array<std::pair<std::string_view, std::uint64_t>, 4> sStacks{ {
                 { "fog scatter", 320 },
                 { "fog depth", 320 },

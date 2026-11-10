@@ -10,10 +10,10 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/bytebuffer.hpp>
+#include <components/misc/hashstate.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/folder.hpp>
 #include <components/platform/wholefile.hpp>
-#include <components/rtx/common/hashstate.hpp>
 
 namespace Rtx
 {
@@ -22,7 +22,7 @@ namespace Rtx
         return resources / "rtx" / "shaders";
     }
 
-    DigestWords digestShaders(const std::filesystem::path& directory)
+    Misc::DigestWords digestShaders(const std::filesystem::path& directory)
     {
         std::vector<std::filesystem::path> files;
         for (const std::filesystem::directory_entry& entry :
@@ -32,7 +32,7 @@ namespace Rtx
 
         std::sort(files.begin(), files.end());
 
-        HashState digest;
+        Misc::HashState digest;
         Misc::ByteBuffer bytes;
         for (const std::filesystem::path& file : files)
         {

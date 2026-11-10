@@ -405,7 +405,7 @@ namespace Rtx
         if (heap == mContent.mHeap && mFrameReserve > frame)
             owed += mFrameReserve - frame;
         for (std::size_t before = static_cast<std::size_t>(MemoryUse::Essential);
-             before < static_cast<std::size_t>(use); ++before)
+            before < static_cast<std::size_t>(use); ++before)
             owed += mHeld[heap][before];
 
         const VkDeviceSize heldTo = std::min(budget, mBudgetLimit.value_or(budget));

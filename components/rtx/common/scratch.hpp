@@ -61,7 +61,7 @@ namespace Rtx
     /// cell into buffers the last cell grew. Addresses are stable, which is what makes a raw
     /// pointer the right thing to hand another thread. Not thread-safe: one owner, on one thread.
     template <class T>
-    requires std::derived_from<T, Lent>
+        requires std::derived_from<T, Lent>
     class Spares
     {
     public:
@@ -152,10 +152,7 @@ namespace Rtx
     /// because MSVC reads a `requires` expression written inline in a generic lambda as false for
     /// every one of them and compiles the `clear` branch against a type that has none.
     template <class Buffer>
-    concept Reusable = requires(Buffer& buffer)
-    {
-        buffer.reuse();
-    };
+    concept Reusable = requires(Buffer& buffer) { buffer.reuse(); };
 
     /// Gives `buffer`'s room back where what it holds fills less than half of it, ahead of a
     /// `reuseKeeping` that keeps the room for the next tenant. What a pooled object keeps is then

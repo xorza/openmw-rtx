@@ -747,7 +747,7 @@ namespace MWMechanics
         float mult = fAIMagicSpellMult;
 
         for (std::vector<ESM::IndexedENAMstruct>::const_iterator effectIt = spell->mEffects.mList.begin();
-             effectIt != spell->mEffects.mList.end(); ++effectIt)
+            effectIt != spell->mEffects.mList.end(); ++effectIt)
         {
             if (effectIt->mData.mRange == ESM::RT_Target)
             {

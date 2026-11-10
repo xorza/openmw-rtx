@@ -67,11 +67,14 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   crash <dump> [symbols]       a player's crash dump or package, every thread named and lined,
                                against the symbols of the build that wrote it: a -symbols.zip, the
                                build folder, or the newest in dist/ that holds them; no flavour
-  format [--check]             clang-format 14 over the working tree: rewrites it, or with --check
-                               changes nothing and says what it would; no flavour
+  format [--check] [file...]   the pinned clang-format over the tree's C++, or the files named:
+                               rewrites it, or with --check changes nothing and says what it would;
+                               no flavour
+  merge-file %O %A %B %L %P    git's merge driver for C++, which upstream.yml sets: the three sides
+                               formatted, then merged; no flavour
   lint [check...]              the checks CI's checks job runs besides the formatting, every one or
                                those named: cmake, names, translations, driver, workflows; no flavour
-  bootstrap                    the pinned Vulkan SDK into deps/; no flavour
+  bootstrap                    the pinned Vulkan SDK and CMake into deps/; no flavour
   help                         this page; no flavour
 
   flavour   directory       what it is
@@ -164,6 +167,7 @@ BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
     "help": _help,
     "crash": crash.read_crash,
     "format": formatting.format_tree,
+    "merge-file": formatting.merge_file,
     "lint": lint.lint,
     "bootstrap": _bootstrap,
 }

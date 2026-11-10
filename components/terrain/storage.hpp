@@ -49,8 +49,7 @@ namespace Terrain
         /// @param max max height will be stored here
         /// @return true if there was data available for this terrain chunk
         virtual bool getMinMaxHeights(
-            float size, const osg::Vec2f& center, ESM::RefId worldspace, float& min, float& max)
-            = 0;
+            float size, const osg::Vec2f& center, ESM::RefId worldspace, float& min, float& max) = 0;
 
         /// Fill vertex buffers for a terrain chunk.
         /// @note May be called from background threads. Make sure to only call thread-safe functions from here!
@@ -64,8 +63,7 @@ namespace Terrain
         /// @param normals buffer to write vertex normals
         /// @param colours buffer to write vertex colours
         virtual void fillVertexBuffers(int lodLevel, float size, const osg::Vec2f& center, ESM::RefId worldspace,
-            osg::Vec3Array& positions, osg::Vec3Array& normals, osg::Vec4ubArray& colours)
-            = 0;
+            osg::Vec3Array& positions, osg::Vec3Array& normals, osg::Vec4ubArray& colours) = 0;
 
         typedef std::vector<osg::ref_ptr<osg::Image>> ImageVector;
         /// Create textures holding layer blend values for a terrain chunk.
@@ -77,8 +75,7 @@ namespace Terrain
         /// @param blendmaps created blendmaps will be written here
         /// @param layerList names of the layer textures used will be written here
         virtual void getBlendmaps(float chunkSize, const osg::Vec2f& chunkCenter, ImageVector& blendmaps,
-            std::vector<LayerInfo>& layerList, ESM::RefId worldspace)
-            = 0;
+            std::vector<LayerInfo>& layerList, ESM::RefId worldspace) = 0;
 
         virtual float getHeightAt(const osg::Vec3f& worldPos, ESM::RefId worldspace) = 0;
 

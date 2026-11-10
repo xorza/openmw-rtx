@@ -539,7 +539,7 @@ namespace RtxTool
             "NVIDIA's driver gives no such text, and nothing is written");
 
         option(sFramed, "content-cache", bpo::value<std::string>()->default_value("game"),
-            "where the content's derived data is found and kept across runs (`Rtx::ContentStore`): "
+            "where the content's derived data is found and kept across runs (`ContentStore::Store`): "
             "game, the store the game keeps under the user's cache directory, so a run reads what the "
             "game wrote; off, none, so every pass runs; or a directory of the run's own");
 

@@ -83,7 +83,7 @@ namespace Rtx
     }
 
     void PlacementTable::link(
-        const Index slot, const Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::*const links)
+        const Index slot, const Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::* const links)
     {
         if (key == sNoIndex)
             return;
@@ -102,7 +102,7 @@ namespace Rtx
     }
 
     void PlacementTable::unlink(
-        const Index slot, const Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::*const links)
+        const Index slot, const Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::* const links)
     {
         if (key == sNoIndex)
             return;

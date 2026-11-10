@@ -9,7 +9,7 @@
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 
-#include "contentkey.hpp"
+#include <components/contentstore/key.hpp>
 
 namespace Rtx
 {
@@ -25,9 +25,9 @@ namespace Rtx
         {
             if (mCache.holds<Pass>())
             {
-                ContentDigest digest(sContentPasses.name(Pass::sPass), Pass::sVersion);
+                ContentStore::Digest digest(sContentPasses.name(Pass::sPass), Pass::sVersion);
                 pass.digest(input, digest);
-                const ContentKey key = digest.getKey();
+                const ContentStore::Key key = digest.getKey();
                 const std::chrono::steady_clock::time_point keyed = std::chrono::steady_clock::now();
 
                 stats.mKeyMs += since(started, keyed);
@@ -115,7 +115,7 @@ namespace Rtx
         run(mConversion, input, made, ask);
     }
 
-    ContentPreprocessor::ContentPreprocessor(ContentStore* const store, const StoreReach reach)
+    ContentPreprocessor::ContentPreprocessor(ContentStore::Store* const store, const ContentStore::Reach reach)
         : mCache(store, reach)
     {
     }

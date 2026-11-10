@@ -1,6 +1,6 @@
 #include "linuxpath.hpp"
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__OpenBSD__)
+#if defined(__linux__)
 
 #include <array>
 #include <cstring>
@@ -133,4 +133,4 @@ namespace Files
 
 } /* namespace Files */
 
-#endif /* defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__OpenBSD__) */
+#endif /* defined(__linux__) */

@@ -342,8 +342,8 @@ namespace Rtx
 
     std::size_t CommandPool::takeStaging(const VkDeviceSize bytes)
     {
-        const std::optional<std::size_t> fits = bestFit(
-            mSpareStaging, [&](const std::size_t block) { return mStaging[block].getSize(); }, bytes);
+        const std::optional<std::size_t> fits
+            = bestFit(mSpareStaging, [&](const std::size_t block) { return mStaging[block].getSize(); }, bytes);
         if (fits.has_value())
         {
             const std::size_t block = mSpareStaging[*fits];

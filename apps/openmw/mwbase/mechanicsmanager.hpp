@@ -112,8 +112,7 @@ namespace MWBase
 
         /// Makes \a ptr fight \a target. Also shouts a combat taunt.
         virtual void startCombat(
-            const MWWorld::Ptr& ptr, const MWWorld::Ptr& target, const std::set<MWWorld::Ptr>* targetAllies)
-            = 0;
+            const MWWorld::Ptr& ptr, const MWWorld::Ptr& target, const std::set<MWWorld::Ptr>* targetAllies) = 0;
 
         /// Removes an actor and its allies from combat with the actor's targets.
         virtual void stopCombat(const MWWorld::Ptr& ptr) = 0;
@@ -136,8 +135,7 @@ namespace MWBase
          * @return was the crime seen?
          */
         virtual bool commitCrime(const MWWorld::Ptr& ptr, const MWWorld::Ptr& victim, OffenseType type,
-            const ESM::RefId& factionId = ESM::RefId(), int arg = 0, bool victimAware = false)
-            = 0;
+            const ESM::RefId& factionId = ESM::RefId(), int arg = 0, bool victimAware = false) = 0;
         /// @return false if the attack was considered a "friendly hit" and forgiven
         virtual bool actorAttacked(const MWWorld::Ptr& victim, const MWWorld::Ptr& attacker) = 0;
 
@@ -148,8 +146,7 @@ namespace MWBase
         /// Utility to check if taking this item is illegal and calling commitCrime if so
         /// @param container The container the item is in; may be empty for an item in the world
         virtual void itemTaken(const MWWorld::Ptr& ptr, const MWWorld::Ptr& item, const MWWorld::Ptr& container,
-            int count, bool alarm = true)
-            = 0;
+            int count, bool alarm = true) = 0;
         /// Utility to check if unlocking this object is illegal and calling commitCrime if so
         virtual void unlockAttempted(const MWWorld::Ptr& ptr, const MWWorld::Ptr& item) = 0;
         /// Attempt sleeping in a bed. If this is illegal, call commitCrime.
@@ -166,16 +163,14 @@ namespace MWBase
             PT_Bribe1000
         };
         virtual void getPersuasionDispositionChange(
-            const MWWorld::Ptr& npc, PersuasionType type, bool& success, int& tempChange, int& permChange)
-            = 0;
+            const MWWorld::Ptr& npc, PersuasionType type, bool& success, int& tempChange, int& permChange) = 0;
         ///< Perform a persuasion action on NPC
 
         virtual void forceStateUpdate(const MWWorld::Ptr& ptr) = 0;
         ///< Forces an object to refresh its animation state.
 
-        virtual bool playAnimationGroup(
-            const MWWorld::Ptr& ptr, std::string_view groupName, int mode, uint32_t number = 1, bool scripted = false)
-            = 0;
+        virtual bool playAnimationGroup(const MWWorld::Ptr& ptr, std::string_view groupName, int mode,
+            uint32_t number = 1, bool scripted = false) = 0;
         ///< Run animation for a MW-reference. Calls to this function for references that are currently not
         /// in the scene should be ignored.
         ///
@@ -184,8 +179,7 @@ namespace MWBase
         /// \param scripted Whether the animation should be treated as a scripted animation.
         /// \return Success or error
         virtual bool playAnimationGroupLua(const MWWorld::Ptr& ptr, std::string_view groupName, uint32_t loops,
-            float speed, std::string_view startKey, std::string_view stopKey, bool forceLoop)
-            = 0;
+            float speed, std::string_view startKey, std::string_view stopKey, bool forceLoop) = 0;
         ///< Lua variant of playAnimationGroup. The mode parameter is omitted
         /// and forced to 0. modes 1 and 2 can be emulated by doing clearAnimationQueue() and
         /// setting the startKey.
@@ -299,8 +293,7 @@ namespace MWBase
         virtual void cleanupSummonedCreature(ESM::RefNum creature) = 0;
 
         virtual void confiscateStolenItemToOwner(
-            const MWWorld::Ptr& player, const MWWorld::Ptr& item, const MWWorld::Ptr& victim, int count)
-            = 0;
+            const MWWorld::Ptr& player, const MWWorld::Ptr& item, const MWWorld::Ptr& victim, int count) = 0;
         virtual bool isAttackPreparing(const MWWorld::Ptr& ptr) = 0;
         virtual bool isRunning(const MWWorld::Ptr& ptr) = 0;
         virtual bool isSneaking(const MWWorld::Ptr& ptr) = 0;

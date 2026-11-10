@@ -26,17 +26,6 @@ int runWizard(int argc, char* argv[])
     // Now we make sure the current dir is set to application path
     QDir dir(QCoreApplication::applicationDirPath());
 
-#ifdef Q_OS_MAC
-    // force Qt to load only LOCAL plugins, don't touch system Qt installation
-    QDir pluginsPath(QCoreApplication::applicationDirPath());
-    pluginsPath.cdUp();
-    pluginsPath.cd("Plugins");
-
-    QStringList libraryPaths;
-    libraryPaths << pluginsPath.path() << QCoreApplication::applicationDirPath();
-    app.setLibraryPaths(libraryPaths);
-#endif
-
     QString resourcesPath(".");
     if (!variables["resources"].empty())
     {

@@ -201,7 +201,7 @@ namespace DetourNavigator
             7, 3, 2, // triangle 8
             2, 6, 7, // triangle 9
             7, 6, 4, // triangle 10
-            4, 5, 7, // triangle 11
+            4, 5, 7 // triangle 11
         } };
 
         for (std::size_t i = 0; i < indices.size(); i += 3)

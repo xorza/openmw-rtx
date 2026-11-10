@@ -33,7 +33,7 @@
 #include <components/debug/debuglog.hpp>
 
 #include "reader.hpp"
-//#include "writer.hpp"
+// #include "writer.hpp"
 
 void ESM4::Creature::load(ESM4::Reader& reader)
 {

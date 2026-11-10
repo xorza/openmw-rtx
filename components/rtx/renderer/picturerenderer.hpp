@@ -74,8 +74,7 @@ namespace Rtx
         /// @param scene what to trace against: a slot `addViewScene` gave out, or the world's for the
         ///        one the frame is drawn from. A map tile is a picture of the world; a doll is not.
         virtual bool traceGuiTexture(
-            GuiSlot texture, SceneSlot scene, const Viewpoint& view, const GuiTraceOptions& options)
-            = 0;
+            GuiSlot texture, SceneSlot scene, const Viewpoint& view, const GuiTraceOptions& options) = 0;
 
         /// The copy the last `traceGuiTexture` with `mReadBack` left of `texture`, four bytes a
         /// pixel, tightly packed, row zero first, into `into` as far as it reaches. False until the

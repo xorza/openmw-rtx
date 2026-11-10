@@ -70,7 +70,7 @@ CSVWorld::CommandDelegateFactoryCollection::~CommandDelegateFactoryCollection()
     sThis = nullptr;
 
     for (std::map<CSMWorld::ColumnBase::Display, CommandDelegateFactory*>::iterator iter(mFactories.begin());
-         iter != mFactories.end(); ++iter)
+        iter != mFactories.end(); ++iter)
         delete iter->second;
 }
 

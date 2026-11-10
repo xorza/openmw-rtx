@@ -101,7 +101,7 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_COMPANIONS, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
                 Shaders::TEXTURE_SLOTS, sStages, nullptr },
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_SAMPLERS, VK_DESCRIPTOR_TYPE_SAMPLER,
-                Shaders::TEXTURE_SAMPLERS, sStages, nullptr },
+                Shaders::TEXTURE_SAMPLERS, sStages, nullptr }
         };
 
         static_assert(Shaders::TEXTURE_SAMPLERS_ALONG == sTextureWrapCount);
@@ -811,8 +811,8 @@ namespace Rtx
             // Up to one of each: a chunk queued twice over before a placement baked it is two sums,
             // which is what it was before the pair shared one.
             for (; at < mPendingComposites.size() && mPendingComposites[at].mMaterial == material
-                 && (outputs & mPendingComposites[at].mOutput) == 0;
-                 ++at)
+                && (outputs & mPendingComposites[at].mOutput) == 0;
+                ++at)
             {
                 // Arrived and since dropped, before any placement baked it: the slot holds nothing,
                 // and a bake of nothing is nothing to record.

@@ -6,8 +6,8 @@
 
 #include <osg/Vec2i>
 
+#include <components/misc/monitor.hpp>
 #include <components/platform/thread.hpp>
-#include <components/rtx/common/monitor.hpp>
 #include <components/rtx/common/ownedby.hpp>
 
 #include "cellworld.hpp"
@@ -122,7 +122,7 @@ namespace Rtx
         ReaderMemory getReaderMemory();
 
     private:
-        /// The reader's loop: a list at a time, until asked to stop. `Monitor::serve` is the loop,
+        /// The reader's loop: a list at a time, until asked to stop. `Misc::Monitor::serve` is the loop,
         /// and this is what it takes and what it does.
         void work(const std::stop_token& stop);
 
@@ -147,7 +147,7 @@ namespace Rtx
 
         /// The lock between the frame and the reader, and the two waits across it. It guards the
         /// five below and nothing else.
-        Monitor mMonitor;
+        Misc::Monitor mMonitor;
 
         /// What the thread is to read next, written whole under the lock and taken whole by the
         /// thread. A newer request replaces an older one it has not finished.

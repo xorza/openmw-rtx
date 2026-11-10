@@ -900,7 +900,7 @@ namespace Rtx::Testing
             255, 0, 0, 255, // (0, 0)
             0, 255, 0, 255, // (1, 0)
             0, 0, 255, 255, // (0, 1)
-            255, 255, 255, 255, // (1, 1)
+            255, 255, 255, 255 // (1, 1)
         };
 
         /// The environment sheet is added past the albedo, indexed by the eye's own reflection

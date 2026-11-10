@@ -235,14 +235,11 @@ namespace Rtx::Dlss::Ngx
         Platform::Library::ScopedHandle mLibrary;
 
         Result (*GetFeatureInstanceExtensionRequirements)(
-            const FeatureDiscoveryInfo*, std::uint32_t*, VkExtensionProperties**)
-            = nullptr;
-        Result (*GetFeatureDeviceExtensionRequirements)(
-            VkInstance, VkPhysicalDevice, const FeatureDiscoveryInfo*, std::uint32_t*, VkExtensionProperties**)
-            = nullptr;
+            const FeatureDiscoveryInfo*, std::uint32_t*, VkExtensionProperties**) = nullptr;
+        Result (*GetFeatureDeviceExtensionRequirements)(VkInstance, VkPhysicalDevice, const FeatureDiscoveryInfo*,
+            std::uint32_t*, VkExtensionProperties**) = nullptr;
         Result (*InitWithProjectId)(const char*, Engine, const char*, const wchar_t*, VkInstance, VkPhysicalDevice,
-            VkDevice, PFN_vkGetInstanceProcAddr, PFN_vkGetDeviceProcAddr, int, const FeatureCommonInfo*)
-            = nullptr;
+            VkDevice, PFN_vkGetInstanceProcAddr, PFN_vkGetDeviceProcAddr, int, const FeatureCommonInfo*) = nullptr;
         Result (*GetCapabilityParameters)(Parameter**) = nullptr;
         Result (*AllocateParameters)(Parameter**) = nullptr;
         Result (*DestroyParameters)(Parameter*) = nullptr;

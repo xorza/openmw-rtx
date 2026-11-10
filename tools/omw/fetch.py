@@ -100,23 +100,24 @@ def download_pin(pin: Pin, file: Path) -> None:
 
 
 def seven_zip() -> Path:
-    """7-Zip, the one tool the SDK installers do not bring, for the .7z set and LLVM's NSIS package;
-    looked for where its installer puts it."""
+    """7-Zip, the one tool the SDK installers do not bring, for the .7z set; looked for where its
+    installer puts it."""
     found = on_path("7z")
     path = Path(found) if found else Path(r"C:\Program Files\7-Zip\7z.exe")
     if not path.is_file():
-        raise Refusal("the archives are .7z and NSIS, and there is no 7-Zip: `winget install 7zip.7zip`")
+        raise Refusal("the set is a .7z, and there is no 7-Zip: `winget install 7zip.7zip`")
     return path
 
 
-def unpack_7z(archive: Path, into: Path, *members: str, flat: bool = False) -> None:
-    run([seven_zip(), "e" if flat else "x", "-y", f"-o{into}", archive, *members], stdout=subprocess.DEVNULL)
+def unpack_7z(archive: Path, into: Path) -> None:
+    run([seven_zip(), "x", "-y", f"-o{into}", archive], stdout=subprocess.DEVNULL)
 
 
 @contextlib.contextmanager
 def _member(archive: Path, name: str) -> Iterator[IO[bytes]]:
-    """The one file called `name` inside a .zip or a .tar.xz, wherever in it, open to read."""
-    if archive.name.endswith(".zip"):
+    """The one file called `name` inside a .zip, a wheel, which is one, or a .tar.xz, wherever in it,
+    open to read."""
+    if archive.name.endswith((".zip", ".whl")):
         with zipfile.ZipFile(archive) as zipped:
             entry = next((info for info in zipped.infolist()
                           if not info.is_dir() and PurePosixPath(info.filename).name == name), None)
@@ -137,9 +138,9 @@ def _member(archive: Path, name: str) -> Iterator[IO[bytes]]:
 
 
 def extract_member(archive: Path, name: str, into: Path) -> Path:
-    """The one file called `name` inside a .zip or .tar.xz, wherever in it, into `into` under its own
-    name — written beside it and given the name once it is whole, so an extract cut off leaves no
-    truncated tool that a later run takes for the one it asked for."""
+    """The one file called `name` inside a .zip, a wheel or a .tar.xz, wherever in it, into `into`
+    under its own name — written beside it and given the name once it is whole, so an extract cut off
+    leaves no truncated tool that a later run takes for the one it asked for."""
     into.mkdir(parents=True, exist_ok=True)
     target = into / name
     partial = partial_of(target)

@@ -84,10 +84,6 @@
         <translation>Abbrechen</translation>
     </message>
     <message>
-        <source> MiB</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Content List</source>
         <translation type="unfinished"></translation>
     </message>
@@ -149,14 +145,6 @@
     </message>
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Note: archives that are not part of current Content List are &lt;span style=&quot; font-style:italic;font-weight: bold&quot;&gt;highlighted&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Remove Unused Tiles</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Max Size</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

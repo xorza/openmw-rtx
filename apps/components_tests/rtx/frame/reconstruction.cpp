@@ -208,25 +208,25 @@ namespace Rtx
             EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mFilters.mAntilag);
             EXPECT_FALSE(Reconstruction::resolve(
                 Upscale::Off, ReconstructionRequest{ .mFilters = { .mAntilag = false } }, sUnscaled)
-                             .mFilters.mAntilag);
+                    .mFilters.mAntilag);
             EXPECT_TRUE(ReconstructionRequest{}.mFilters.mHistoryFix);
             EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mFilters.mHistoryFix);
             EXPECT_FALSE(Reconstruction::resolve(
                 Upscale::Off, ReconstructionRequest{ .mFilters = { .mHistoryFix = false } }, sUnscaled)
-                             .mFilters.mHistoryFix);
+                    .mFilters.mHistoryFix);
             EXPECT_FALSE(Reconstruction::forPicture().mFilters.mHistoryFix);
             EXPECT_TRUE(ReconstructionRequest{}.mFilters.mDualMotion);
             EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mFilters.mDualMotion);
             EXPECT_FALSE(Reconstruction::resolve(
                 Upscale::Off, ReconstructionRequest{ .mFilters = { .mDualMotion = false } }, sUnscaled)
-                             .mFilters.mDualMotion);
+                    .mFilters.mDualMotion);
             EXPECT_FALSE(Reconstruction::forPicture().mFilters.mDualMotion);
             EXPECT_FALSE(ReconstructionRequest{}.mFilters.mAntiFirefly);
             EXPECT_FALSE(
                 Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mFilters.mAntiFirefly);
             EXPECT_TRUE(Reconstruction::resolve(
                 Upscale::Off, ReconstructionRequest{ .mFilters = { .mAntiFirefly = true } }, sUnscaled)
-                            .mFilters.mAntiFirefly);
+                    .mFilters.mAntiFirefly);
             EXPECT_FALSE(Reconstruction::forPicture().mFilters.mAntiFirefly);
 
             // **An unfiltered request keeps what the trace reads and nothing the filters read**: a

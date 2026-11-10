@@ -43,7 +43,7 @@ namespace Rtx
                     VkDescriptorSetLayoutBinding{ Shaders::SHARED_EXPONENT_BIND_PACKED,
                         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
                     VkDescriptorSetLayoutBinding{ Shaders::SHARED_EXPONENT_BIND_UNPACKED,
-                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr }
                 };
                 const ComputePipeline<Shaders::SharedExponentConstants> pipeline(
                     device, bindings, {}, "sharedexponent.comp.spv", "shared exponent");

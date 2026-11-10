@@ -101,8 +101,7 @@ namespace Rtx
             constexpr std::size_t count = 64;
             std::atomic<std::size_t> counted{ 0 };
 
-            runInParallel(
-                "parallel", count, Hands::Every, std::stop_token{}, [] { return 0; }, Counting(counted));
+            runInParallel("parallel", count, Hands::Every, std::stop_token{}, [] { return 0; }, Counting(counted));
 
             EXPECT_EQ(counted.load(), count) << "the hands shared one body and lost what it counted";
         }

@@ -19,7 +19,7 @@ namespace DetourNavigator
          * @brief Navigator constructor initializes all internal data. Constructed object is ready to build a scene.
          * @param settings allows to customize navigator work. Constructor is only place to set navigator settings.
          */
-        explicit NavigatorImpl(const Settings& settings, std::unique_ptr<NavMeshDb>&& db);
+        explicit NavigatorImpl(const Settings& settings, std::unique_ptr<NavMeshTileStore>&& store);
 
         ScopedUpdateGuard makeUpdateGuard() override { return mNavMeshManager.makeUpdateGuard(); }
 

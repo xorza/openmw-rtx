@@ -339,7 +339,7 @@ bool CSVRender::WorldspaceWidget::handleDrop(const std::vector<CSMWorld::Univers
         if (mRun)
         {
             for (std::vector<CSMWorld::UniversalId>::const_iterator iter(universalIdData.begin());
-                 iter != universalIdData.end(); ++iter)
+                iter != universalIdData.end(); ++iter)
                 mRun->addProfile(iter->getId());
         }
 

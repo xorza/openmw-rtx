@@ -96,18 +96,6 @@
         <translation>Отказ</translation>
     </message>
     <message>
-        <source>Remove Unused Tiles</source>
-        <translation>Премахни неизползваните плочки</translation>
-    </message>
-    <message>
-        <source>Max Size</source>
-        <translation>Максимален размер</translation>
-    </message>
-    <message>
-        <source> MiB</source>
-        <translation> MiB</translation>
-    </message>
-    <message>
         <source>Content List</source>
         <translation>Списък със съдържание</translation>
     </message>

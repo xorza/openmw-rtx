@@ -2,6 +2,7 @@
 #include "maindialog.hpp"
 
 #include <QClipboard>
+#include <QComboBox>
 #include <QDebug>
 #include <QDesktopServices>
 #include <QFileDialog>
@@ -142,11 +143,6 @@ namespace Launcher
                     std::max(mProgress, progress) };
             }
         };
-
-        int getMaxNavMeshDbFileSizeMiB()
-        {
-            return static_cast<int>(Settings::navigator().mMaxNavmeshdbFileSize / (1024 * 1024));
-        }
     }
 }
 
@@ -334,8 +330,6 @@ void Launcher::DataFilesPage::buildDirectoryPickerContextMenu()
 
 bool Launcher::DataFilesPage::loadSettings()
 {
-    ui.navMeshMaxSizeSpinBox->setValue(getMaxNavMeshDbFileSizeMiB());
-
     QStringList profiles = mLauncherSettings.getContentLists();
     QString currentProfile = mLauncherSettings.getCurrentContentListName();
 
@@ -348,17 +342,15 @@ bool Launcher::DataFilesPage::loadSettings()
     if (!currentProfile.isEmpty())
         addProfile(currentProfile, true);
 
-    auto language = mLauncherSettings.getLanguage();
+    QComboBox* const languageBox = mSelector->languageBox();
+    QStringList languages;
+    for (int i = 0; i < languageBox->count(); ++i)
+        languages.push_back(languageBox->itemData(i).toString());
 
-    for (int i = 0; i < mSelector->languageBox()->count(); ++i)
-    {
-        QString languageItem = mSelector->languageBox()->itemData(i).toString();
-        if (language == languageItem)
-        {
-            mSelector->languageBox()->setCurrentIndex(i);
-            break;
-        }
-    }
+    const QString language = Config::languageForEncoding(
+        languages, mLauncherSettings.getLanguage(), mGameSettings.value("encoding", { "win1252" }).value);
+    if (const int at = languageBox->findData(language); at != -1)
+        languageBox->setCurrentIndex(at);
 
     return true;
 }
@@ -515,9 +507,6 @@ void Launcher::DataFilesPage::populateFileViews(const QString& contentModelName)
 
 void Launcher::DataFilesPage::saveSettings(const QString& profile)
 {
-    Settings::navigator().mMaxNavmeshdbFileSize.set(
-        static_cast<std::uint64_t>(std::max(0, ui.navMeshMaxSizeSpinBox->value())) * 1024 * 1024);
-
     QString profileName = profile;
 
     if (profileName.isEmpty())
@@ -556,18 +545,7 @@ void Launcher::DataFilesPage::saveSettings(const QString& profile)
 
     mLauncherSettings.setLanguage(language);
 
-    if (language == QLatin1String("Polish"))
-    {
-        mGameSettings.setValue(QLatin1String("encoding"), { "win1250" });
-    }
-    else if (language == QLatin1String("Russian"))
-    {
-        mGameSettings.setValue(QLatin1String("encoding"), { "win1251" });
-    }
-    else
-    {
-        mGameSettings.setValue(QLatin1String("encoding"), { "win1252" });
-    }
+    mGameSettings.setValue(QLatin1String("encoding"), { Config::encodingOfLanguage(language) });
 }
 
 QList<Config::SettingValue> Launcher::DataFilesPage::selectedDirectoriesPaths() const
@@ -1094,8 +1072,6 @@ void Launcher::DataFilesPage::startNavMeshTool()
     mNavMeshToolProgress = NavMeshToolProgress{};
 
     QStringList arguments({ "--write-binary-log" });
-    if (ui.navMeshRemoveUnusedTilesCheckBox->checkState() == Qt::Checked)
-        arguments.append("--remove-unused-tiles");
 
     if (!mNavMeshToolInvoker->startProcess(QLatin1String("openmw-navmeshtool"), arguments))
         return;

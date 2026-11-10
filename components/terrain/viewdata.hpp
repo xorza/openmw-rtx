@@ -96,10 +96,10 @@ namespace Terrain
     public:
         ViewDataMap()
             : mReuseDistance(
-                150) // large value should be safe because the visibility of each node is still updated individually for
-                     // each camera even if the base view was reused. this value also serves as a threshold for when a
-                     // newly loaded LOD gets unloaded again so that if you hover around an LOD transition point the
-                     // LODs won't keep loading and unloading all the time.
+                  150) // large value should be safe because the visibility of each node is still updated individually
+                       // for each camera even if the base view was reused. this value also serves as a threshold for
+                       // when a newly loaded LOD gets unloaded again so that if you hover around an LOD transition
+                       // point the LODs won't keep loading and unloading all the time.
             , mExpiryDelay(1.f)
             , mWorldUpdateRevision(0)
         {

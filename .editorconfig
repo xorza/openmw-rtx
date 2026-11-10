@@ -1,18 +1,11 @@
 root = true
 
-[*.cpp]
+# C++ and GLSL, the ray tracer's stages and the headers both languages read among them: what
+# `.clang-format` writes for C++, and the same for the shaders it does not format.
+[*.{cpp,hpp,h,glsl,vert,frag,comp,rgen}]
 indent_style = space
 indent_size = 4
-insert_final_newline = true
-
-[*.hpp]
-indent_style = space
-indent_size = 4
-insert_final_newline = true
-
-[*.{glsl,vert,tesc,tese,geom,frag,comp}]
-indent_style = space
-indent_size = 4
+end_of_line = lf
 insert_final_newline = true
 
 [{CMakeLists.txt,*.cmake}]

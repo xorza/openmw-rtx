@@ -10,9 +10,7 @@ set(RTX_TEST_FILES
     dlss/dlss.cpp
     platform/linuxtext.cpp
     rtx/common/halffloat.cpp
-    rtx/common/hashstate.cpp
     rtx/common/job.cpp
-    rtx/common/monitor.cpp
     rtx/common/namedenum.cpp
     rtx/common/ownedby.cpp
     rtx/common/parallel.cpp
@@ -64,9 +62,7 @@ set(RTX_TEST_FILES
     rtx/mirror/released.cpp
     rtx/mirror/shading.cpp
     rtx/mirror/statereading.cpp
-    rtx/preprocess/contentkey.cpp
     rtx/preprocess/contentpreprocessor.cpp
-    rtx/preprocess/contentstore.cpp
     rtx/preprocess/preparedimages.cpp
     rtx/preprocess/passversions.cpp
     rtx/prepare/contentpreparation.cpp
@@ -323,14 +319,10 @@ target_compile_definitions(rtx-gpu-tests
             OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}"
             OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}"
             OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}")
-if (UNIX AND NOT APPLE)
+if (UNIX)
     target_link_libraries(rtx-gpu-tests ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
-# Beside the bundle and not in it, for the reason `apps/rtxtool` gives for the harness.
-if (APPLE)
-    set_target_properties(rtx-gpu-tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OpenMW_BINARY_DIR}")
-endif()
 if (BUILD_WITH_CODE_COVERAGE)
     target_compile_options(rtx-gpu-tests PRIVATE --coverage)
     target_link_libraries(rtx-gpu-tests gcov)

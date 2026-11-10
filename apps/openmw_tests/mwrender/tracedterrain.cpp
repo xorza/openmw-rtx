@@ -322,7 +322,7 @@ namespace MWRender
             // whatever its length: two hundred and forty thousand of them here.
             EXPECT_TRUE(hitsAlong(*making.mSceneRoot, osg::Vec3d(-1.0e9, -1.0e9, 700.0),
                 osg::Vec3d(-1.0e9, 1.0e9, 700.0), osgUtil::Intersector::NO_LIMIT)
-                            .empty());
+                    .empty());
         }
 
         /// **Past the loaded cells, a cast meets the statics the ring stands, with their reference

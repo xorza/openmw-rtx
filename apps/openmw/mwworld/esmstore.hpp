@@ -323,10 +323,7 @@ namespace MWWorld
     const ESM::NPC* ESMStore::insert<ESM::NPC>(const ESM::NPC& npc);
 
     template <class T>
-    concept HasRecordId = requires
-    {
-        T::sRecordId;
-    };
+    concept HasRecordId = requires { T::sRecordId; };
 }
 
 #endif

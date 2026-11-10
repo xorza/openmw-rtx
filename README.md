@@ -93,11 +93,11 @@ Building and running
 --------------------
 
 `./omw` is the one way to build, on Linux and on Windows (`omw.cmd`), and needs Python 3.11 or later.
-On Ubuntu 24.04, `sudo CI/install_ubuntu_deps.sh` installs the packages, clang-format 14 among them.
-On Windows, with MSVC installed, the driver fetches the dependencies itself.
+On Ubuntu 24.04, `sudo CI/install_ubuntu_deps.sh` installs the packages. On Windows, with MSVC installed,
+the driver fetches the dependencies itself. CMake and clang-format are the driver's own pinned ones on both.
 
 ```
-./omw bootstrap                          # the pinned Vulkan SDK, into deps/
+./omw bootstrap                          # the pinned Vulkan SDK and CMake, into deps/
 ./omw release build
 ./omw release setup <Morrowind folder>   # the openmw.cfg a fresh machine has none of
 ./omw release exec ./openmw

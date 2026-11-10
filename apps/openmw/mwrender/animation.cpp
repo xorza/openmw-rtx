@@ -669,7 +669,7 @@ namespace MWRender
         const NodeMap& nodeMap = getNodeMap();
         const auto& controllerMap = animsrc->mKeyframes->mKeyframeControllers;
         for (SceneUtil::KeyframeHolder::KeyframeControllerMap::const_iterator it = controllerMap.begin();
-             it != controllerMap.end(); ++it)
+            it != controllerMap.end(); ++it)
         {
             std::string bonename = Misc::StringUtils::lowerCase(it->first);
             NodeMap::const_iterator found = nodeMap.find(bonename);
@@ -713,7 +713,7 @@ namespace MWRender
                 if (found == nodeMap.end())
                     continue;
                 for (SceneUtil::KeyframeHolder::KeyframeControllerMap::const_iterator it = controllerMap.begin();
-                     it != controllerMap.end(); ++it)
+                    it != controllerMap.end(); ++it)
                 {
                     if (Misc::StringUtils::ciEqual(it->first, name))
                     {
@@ -1147,7 +1147,7 @@ namespace MWRender
                     = { .mGroupname = active->second.mGroupname, .mStartKey = active->second.mStartKey };
 
                 for (AnimSource::ControllerMap::iterator it = animsrc->mControllerMap[blendMask].begin();
-                     it != animsrc->mControllerMap[blendMask].end(); ++it)
+                    it != animsrc->mControllerMap[blendMask].end(); ++it)
                 {
                     osg::ref_ptr<osg::Node> node = getNodeMap().at(
                         it->first); // this should not throw, we already checked for the node existing in addAnimSource
@@ -1706,7 +1706,7 @@ namespace MWRender
         mInsert->accept(visitor);
 
         for (std::vector<UpdateVfxCallback*>::iterator it = visitor.mCallbacks.begin(); it != visitor.mCallbacks.end();
-             ++it)
+            ++it)
         {
             UpdateVfxCallback* callback = *it;
 
@@ -1816,7 +1816,7 @@ namespace MWRender
         std::vector<std::string_view> out;
 
         for (std::vector<UpdateVfxCallback*>::iterator it = visitor.mCallbacks.begin(); it != visitor.mCallbacks.end();
-             ++it)
+            ++it)
         {
             UpdateVfxCallback* callback = *it;
 

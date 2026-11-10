@@ -93,5 +93,5 @@ ProfilesComboBox::ComboBoxLineEdit::ComboBoxLineEdit(QWidget* parent)
 
     setObjectName(QString("ComboBoxLineEdit"));
     setStyleSheet(QString("ComboBoxLineEdit { background-color: transparent; padding-right: %1px; } ")
-                      .arg(mClearButton->sizeHint().width() + frameWidth + 1));
+            .arg(mClearButton->sizeHint().width() + frameWidth + 1));
 }

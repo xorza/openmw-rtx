@@ -43,6 +43,7 @@
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/pictureshelf.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/refnum.hpp>
@@ -395,7 +396,7 @@ namespace RtxTool
 
         if (into.mReport.mWalked.mStore.has_value())
         {
-            const Rtx::ContentStoreStats& store = *into.mReport.mWalked.mStore;
+            const ContentStore::Stats& store = *into.mReport.mWalked.mStore;
             into.mRecord.note(
                 std::format("  store   {:>7} found, {:>7} missed, {:>7} written, {:>7} dropped, "
                             "{:>7} refused, {:>7} stamped, {:>7} stale\n",

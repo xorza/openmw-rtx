@@ -13,7 +13,7 @@ namespace MWClass
     {
     }
 
-    void ESM4Light ::insertObjectRendering(
+    void ESM4Light::insertObjectRendering(
         const MWWorld::Ptr& ptr, const std::string& model, MWRender::RenderingInterface& renderingInterface) const
     {
         MWWorld::LiveCellRef<ESM4::Light>* ref = ptr.get<ESM4::Light>();

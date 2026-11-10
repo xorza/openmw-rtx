@@ -38,7 +38,7 @@ namespace Rtx::Testing
         if (memory.getFrameReserve() > frame)
             owed += memory.getFrameReserve() - frame;
         for (std::size_t before = static_cast<std::size_t>(MemoryUse::Essential);
-             before < static_cast<std::size_t>(use); ++before)
+            before < static_cast<std::size_t>(use); ++before)
             owed += memory.getHeld(heap, static_cast<MemoryUse>(before));
 
         return held.mHeld + owed + above;

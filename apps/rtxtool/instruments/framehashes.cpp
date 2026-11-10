@@ -14,9 +14,9 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/hashstate.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/rtx/common/error.hpp>
-#include <components/rtx/common/hashstate.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "digest.hpp"
@@ -143,9 +143,9 @@ namespace RtxTool
 
         /// The numbers the frame handed the reconstruction, as one column: what a wrong sign on
         /// the jitter or a reset that never clears would move, and nothing in an image would.
-        Rtx::DigestWords digestHanded(const Rtx::FrameDigest& digest)
+        Misc::DigestWords digestHanded(const Rtx::FrameDigest& digest)
         {
-            Rtx::HashState words;
+            Misc::HashState words;
             words.add(digest.mJitterX);
             words.add(digest.mJitterY);
             words.add(digest.mFrameDeltaMs);
@@ -171,7 +171,7 @@ namespace RtxTool
 
         assert(finished.mDigest.has_value() && "a frame read back without the digest the same option asks for");
 
-        Rtx::HashState digest;
+        Misc::HashState digest;
         digest.add(finished.mPixels);
         row->mHash = digest.getWords();
 
@@ -219,11 +219,11 @@ namespace RtxTool
         {
             out << held.mView << ',' << held.mFrame << ',' << Rtx::sUpscaleNames.name(held.mUpscale) << ','
                 << spellDenoised(held.mDenoised) << ',' << spellHash(held.mHash);
-            for (const Rtx::DigestWords& column : held.mTraced)
+            for (const Misc::DigestWords& column : held.mTraced)
                 out << ',' << spellHash(column);
-            for (const std::optional<Rtx::DigestWords>& image : held.mDenoiser)
+            for (const std::optional<Misc::DigestWords>& image : held.mDenoiser)
                 out << ',' << (image.has_value() ? spellHash(*image) : std::string(sNotWritten));
-            for (const Rtx::DigestWords& part : held.mParts)
+            for (const Misc::DigestWords& part : held.mParts)
                 out << ',' << spellHash(part);
 
             out << '\n';
@@ -256,7 +256,7 @@ namespace RtxTool
         if (!std::getline(in, line) || line != headerLine())
             throw fail(line);
 
-        const auto readHash = [](const std::string_view field, Rtx::DigestWords& into) {
+        const auto readHash = [](const std::string_view field, Misc::DigestWords& into) {
             if (field.size() != 32)
                 return false;
 

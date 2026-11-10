@@ -62,9 +62,7 @@ namespace Platform::WholeFileSystem
         if (!file.isOpen())
             return lastError();
 
-        struct stat status
-        {
-        };
+        struct stat status{};
         if (fstat(file.get(), &status) != 0)
             return lastError();
 
@@ -111,9 +109,7 @@ namespace Platform::WholeFileSystem
 
         // **The replaced file's permissions**, which a temporary made under the umask would take from
         // it at the rename: a settings file or a save the player kept to themselves stays so.
-        struct stat replaced
-        {
-        };
+        struct stat replaced{};
         if (::stat(replacing.c_str(), &replaced) == 0)
             ::fchmod(descriptor, replaced.st_mode & 07777);
 

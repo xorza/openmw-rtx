@@ -386,9 +386,9 @@ arms = iron longsword
                 return std::string("nothing was refused");
             };
             EXPECT_TRUE(refusal("[ship]\ncell = -2,-9\npos = 1,2\n")
-                            .ends_with(":3: pos \"1,2\" is not three numbers separated by commas"));
+                    .ends_with(":3: pos \"1,2\" is not three numbers separated by commas"));
             EXPECT_TRUE(refusal("[ship]\ncell = -2,-9\nlook =\n")
-                            .ends_with(":3: look \"\" is not three numbers separated by commas"));
+                    .ends_with(":3: look \"\" is not three numbers separated by commas"));
 
             EXPECT_THROW(readViews("[dawn]\nlike = dawn\n"), std::runtime_error) << "like itself";
 

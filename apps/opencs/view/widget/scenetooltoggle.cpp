@@ -55,7 +55,7 @@ void CSVWidget::SceneToolToggle::adjustIcon()
             QPainter painter(&pixmap);
 
             for (std::map<PushButton*, ButtonDesc>::const_iterator iter(mButtons.begin()); iter != mButtons.end();
-                 ++iter)
+                ++iter)
                 if (iter->first->isChecked())
                 {
                     painter.drawImage(

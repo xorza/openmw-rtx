@@ -14,7 +14,7 @@ namespace Platform
 {
     namespace
     {
-        /// A POSIX name begins with a slash. Keep names short: macOS takes 31 characters of one.
+        /// A POSIX name begins with a slash.
         std::string systemName(std::string_view name)
         {
             return "/" + std::string(name);

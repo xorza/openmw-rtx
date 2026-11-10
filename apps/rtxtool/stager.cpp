@@ -246,7 +246,7 @@ namespace RtxTool
         // another, which the next frame closes: what stays is a pause the measurer reports.
         MWBase::WindowManager& windows = *MWBase::Environment::get().getWindowManager();
         for (std::size_t open = windows.getGuiModeStack().size(); open > 0 && !windows.getGuiModeStack().empty();
-             --open)
+            --open)
             windows.popGuiMode(true);
     }
 

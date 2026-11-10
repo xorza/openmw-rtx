@@ -32,7 +32,7 @@ namespace Rtx
 
             std::set<const void*> linked;
             for (const VkBaseInStructure* next = reinterpret_cast<const VkBaseInStructure*>(&features.mFeatures2);
-                 next != nullptr; next = next->pNext)
+                next != nullptr; next = next->pNext)
                 linked.insert(next);
 
             EXPECT_EQ(linked.size(), 11u) << "a member was added to DeviceFeatures without chaining it";
@@ -58,7 +58,7 @@ namespace Rtx
             const auto count = [](const void* head) {
                 std::size_t linked = 0;
                 for (const VkBaseInStructure* next = static_cast<const VkBaseInStructure*>(head); next != nullptr;
-                     next = next->pNext)
+                    next = next->pNext)
                     ++linked;
                 return linked;
             };
@@ -82,7 +82,7 @@ namespace Rtx
 
             std::set<const void*> linked;
             for (const VkBaseInStructure* next = reinterpret_cast<const VkBaseInStructure*>(&properties.mProperties2);
-                 next != nullptr; next = next->pNext)
+                next != nullptr; next = next->pNext)
                 linked.insert(next);
 
             EXPECT_EQ(linked.size(), 6u) << "a member was added to DeviceProperties without chaining it";

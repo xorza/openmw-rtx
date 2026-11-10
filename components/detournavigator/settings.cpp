@@ -104,8 +104,6 @@ namespace DetourNavigator
         result.mEnableNavMeshFileNameRevision = ::Settings::navigator().mEnableNavMeshFileNameRevision;
         result.mMinUpdateInterval = std::chrono::milliseconds(::Settings::navigator().mMinUpdateIntervalMs);
         result.mEnableNavMeshDiskCache = ::Settings::navigator().mEnableNavMeshDiskCache;
-        result.mWriteToNavMeshDb = ::Settings::navigator().mWriteToNavmeshdb;
-        result.mMaxDbFileSize = ::Settings::navigator().mMaxNavmeshdbFileSize;
 
         if (result.mMaxTilesNumber < ::Settings::navigator().mMaxTilesNumber.get())
             Log(Debug::Warning)

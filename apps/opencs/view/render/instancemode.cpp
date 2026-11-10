@@ -317,7 +317,7 @@ QString CSVRender::InstanceMode::getTooltip()
 CSVRender::InstanceMode::InstanceMode(
     WorldspaceWidget* worldspaceWidget, osg::ref_ptr<osg::Group> parentNode, QWidget* parent)
     : EditMode(worldspaceWidget, Misc::ScalableIcon::load(":scenetoolbar/editing-instance"),
-        Mask_Reference | Mask_Terrain, getTooltip(), parent)
+          Mask_Reference | Mask_Terrain, getTooltip(), parent)
     , mSubMode(nullptr)
     , mSubModeId("move")
     , mSelectionMode(nullptr)

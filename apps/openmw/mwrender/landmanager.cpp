@@ -13,7 +13,7 @@ namespace MWRender
 
     LandManager::LandManager(int loadFlags)
         : GenericResourceManager<ESM::ExteriorCellLocation, std::shared_ptr<const ESMTerrain::LandObject>>(
-            nullptr, Settings::cells().mCacheExpiryDelay)
+              nullptr, Settings::cells().mCacheExpiryDelay)
         , mLoadFlags(loadFlags)
     {
     }

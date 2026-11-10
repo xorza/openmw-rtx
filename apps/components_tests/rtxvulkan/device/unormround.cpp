@@ -174,7 +174,7 @@ namespace Rtx
                     VkDescriptorSetLayoutBinding{ Shaders::SHADOW_MOMENTS_PROBE_BIND_DAMPING,
                         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
                     VkDescriptorSetLayoutBinding{ Shaders::SHADOW_MOMENTS_PROBE_BIND_MOMENTS,
-                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr }
                 };
                 const ComputePipeline<Shaders::ShadowMomentsProbeConstants> pipeline(
                     device, bindings, {}, "shadowmoments.comp.spv", "shadow moments");

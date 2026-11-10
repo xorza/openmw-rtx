@@ -1,6 +1,10 @@
+import io
+import os
 import shutil
+import tarfile
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -30,6 +34,44 @@ class QuotedTest(unittest.TestCase):
         self.assertEqual(deps._quoted("copy_only=1"), "'copy_only=1'")
         self.assertEqual(deps._quoted("$env:PATH `n"), "'$env:PATH `n'")
         self.assertEqual(deps._quoted(""), "''")
+
+
+class CMakeTest(unittest.TestCase):
+    def test_the_pinned_cmake_is_unpacked_whole_once_and_put_first_on_the_path(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        suffix = ".zip" if deps.WINDOWS else ".tar.gz"
+        inner = "cmake-9.9.9-test"
+        pin = Pin(f"https://example.com/{inner}{suffix}", "d" * 64)
+
+        def download(_pin: Pin, file: Path) -> None:
+            program = b"#!/bin/sh\n"
+            if deps.WINDOWS:
+                with zipfile.ZipFile(file, "w") as zipped:
+                    zipped.writestr(f"{inner}/bin/cmake.exe", program)
+            else:
+                with tarfile.open(file, "w:gz") as tarred:
+                    entry = tarfile.TarInfo(f"{inner}/bin/cmake")
+                    entry.size = len(program)
+                    entry.mode = 0o755
+                    tarred.addfile(entry, io.BytesIO(program))
+
+        with (mock.patch.object(deps, "DEPS", folder), mock.patch.dict(deps.pins.CMAKE, {deps.SYSTEM: pin}),
+              mock.patch.object(deps.fetch, "download_pin", side_effect=download) as fetched):
+            found = deps.cmake()
+            self.assertEqual(found, deps.cmake_dir())
+            self.assertEqual(found.parent, folder)
+            self.assertTrue((found / "bin" / f"cmake{deps.EXE}").is_file())
+            if not deps.WINDOWS:
+                self.assertTrue(os.access(found / "bin" / "cmake", os.X_OK), "the program lost its mode")
+            self.assertEqual(sorted(path.name for path in folder.iterdir()), [found.name], "the archive stayed")
+
+            self.assertEqual(deps.cmake(), found)
+            self.assertEqual(fetched.call_count, 1, "a CMake already there was fetched again")
+
+            env = {deps.environment_key("PATH"): "/elsewhere"}
+            deps.cmake_environment(env)
+            self.assertEqual(env[deps.environment_key("PATH")], os.pathsep.join([str(found / "bin"), "/elsewhere"]))
 
 
 class PruneTest(unittest.TestCase):

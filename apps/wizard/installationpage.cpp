@@ -5,7 +5,9 @@
 #include <QMessageBox>
 #include <QThread>
 
+#include <components/config/launchersettings.hpp>
 #include <components/debug/debugging.hpp>
+#include <components/toutf8/toutf8.hpp>
 
 #include "mainwizard.hpp"
 
@@ -138,20 +140,8 @@ void Wizard::InstallationPage::startInstallation()
     mUnshield->setPath(path);
 
     // Set the right codec to use for Morrowind.ini
-    const QString language(field(QStringLiteral("installation.language")).toString());
-
-    if (language == QStringLiteral("Polish"))
-    {
-        mUnshield->setIniEncoding(ToUTF8::FromType::WINDOWS_1250);
-    }
-    else if (language == QStringLiteral("Russian"))
-    {
-        mUnshield->setIniEncoding(ToUTF8::FromType::WINDOWS_1251);
-    }
-    else
-    {
-        mUnshield->setIniEncoding(ToUTF8::FromType::WINDOWS_1252);
-    }
+    const QString encoding = Config::encodingOfLanguage(field(QStringLiteral("installation.language")).toString());
+    mUnshield->setIniEncoding(ToUTF8::calculateEncoding(encoding.toStdString()));
 
     mThread->start();
 }

@@ -37,7 +37,7 @@ namespace Rtx
             mFile->mWrap = input.mWrap;
     }
 
-    void ChainPass::digest(const Input& input, ContentDigest& digest)
+    void ChainPass::digest(const Input& input, ContentStore::Digest& digest)
     {
         describe(input);
         const bool rebuilt = mFile.has_value() && ChainBuild::rebuilds(*mFile);

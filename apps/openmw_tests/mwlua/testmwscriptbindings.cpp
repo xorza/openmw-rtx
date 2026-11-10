@@ -35,7 +35,7 @@ namespace MWLua
         {
         protected:
             MWBase::Environment mEnvironment;
-            MWWorld::World mWorld{ nullptr, -1, {}, {} };
+            MWWorld::World mWorld{ nullptr, -1, {}, {}, {} };
             MWWorld::ESMStore& mStore = mWorld.getStore();
             MWWorld::WorldModel& mWorldModel = mWorld.getWorldModel();
             TestCompilerContext mCompilerContext;

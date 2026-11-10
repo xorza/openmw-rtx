@@ -195,8 +195,8 @@ namespace Rtx
         /// Puts `slot` at the head of the list `heads` keeps for `key` and threads through `links`,
         /// and takes it out again. Nothing for a key of `sNoIndex`, which is a placement wearing no
         /// material.
-        void link(Index slot, Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::*links);
-        void unlink(Index slot, Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::*links);
+        void link(Index slot, Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::* links);
+        void unlink(Index slot, Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::* links);
 
         SlotRows<PlacementRow> mRows;
 

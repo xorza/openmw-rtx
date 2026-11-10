@@ -9,9 +9,9 @@
 
 namespace DetourNavigator
 {
-    NavigatorImpl::NavigatorImpl(const Settings& settings, std::unique_ptr<NavMeshDb>&& db)
+    NavigatorImpl::NavigatorImpl(const Settings& settings, std::unique_ptr<NavMeshTileStore>&& store)
         : mSettings(settings)
-        , mNavMeshManager(mSettings, std::move(db))
+        , mNavMeshManager(mSettings, std::move(store))
     {
     }
 

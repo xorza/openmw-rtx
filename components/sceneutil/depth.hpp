@@ -101,27 +101,15 @@ namespace SceneUtil
             }();
         }
 
-        static bool isReversed()
-        {
-            return AutoDepth::sReversed;
-        }
+        static bool isReversed() { return AutoDepth::sReversed; }
 
         static void setDepthFormat(GLenum format);
 
-        static GLenum depthInternalFormat()
-        {
-            return AutoDepth::sDepthInternalFormat;
-        }
+        static GLenum depthInternalFormat() { return AutoDepth::sDepthInternalFormat; }
 
-        static GLenum depthSourceFormat()
-        {
-            return AutoDepth::sDepthSourceFormat;
-        }
+        static GLenum depthSourceFormat() { return AutoDepth::sDepthSourceFormat; }
 
-        static GLenum depthSourceType()
-        {
-            return AutoDepth::sDepthSourceType;
-        }
+        static GLenum depthSourceType() { return AutoDepth::sDepthSourceType; }
 
     private:
         static inline bool sReversed = false;

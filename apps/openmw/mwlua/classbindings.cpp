@@ -95,9 +95,7 @@ namespace MWLua
         auto addStatArray(std::size_t size, ClassStatMapper mapper)
         {
             return sol::property(
-                [=](const MutableRecord<ESM::Class>& rec) {
-                    return ClassStatArray{ rec, mapper, size };
-                },
+                [=](const MutableRecord<ESM::Class>& rec) { return ClassStatArray{ rec, mapper, size }; },
                 [=](MutableRecord<ESM::Class>& rec, const sol::object& value) {
                     ESM::Class& cls = rec.find();
                     setFromTable(cls, size, mapper, value);

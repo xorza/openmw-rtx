@@ -16,7 +16,7 @@ namespace SDLUtil
 {
     /// How a video driver shows a cursor's image: at the window's points, scaled to the display
     /// from an image that size (`SDL_HINT_MOUSE_DPI_SCALE_CURSORS` on Windows, the buffer scale on
-    /// Wayland, the backing scale on macOS), or as its pixels are, which X11 does.
+    /// Wayland), or as its pixels are, which X11 does.
     enum class CursorScaling
     {
         ByDisplay,

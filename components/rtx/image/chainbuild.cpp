@@ -439,8 +439,7 @@ namespace Rtx
 
     void ChainBuild::encodeBc7(const TextureEncoding encoding, Misc::ByteBuffer& into) const
     {
-        encodeLevelsBc7(
-            encoding, mLevels, [&](std::uint32_t at) { return getTexels(at); }, false, into);
+        encodeLevelsBc7(encoding, mLevels, [&](std::uint32_t at) { return getTexels(at); }, false, into);
     }
 
     void ChainBuild::encodeOwnBc7(const TextureData& file, Misc::ByteBuffer& into)

@@ -85,11 +85,9 @@ namespace Rtx
                 SceneDesc scene;
                 scene.textures().add(VFS::Path::NormalizedView("red.dds"));
                 scene.textures().add(VFS::Path::NormalizedView("ladder.dds"));
-                std::array layers{
-                    Testing::layerOf(0, scene.materials().addMask(firstMask), 2, 1),
+                std::array layers{ Testing::layerOf(0, scene.materials().addMask(firstMask), 2, 1),
                     Testing::layerOf(
-                        1, scene.materials().addMask(secondMask), 2, 1, osg::Vec4f(tiling, tiling, 0.0f, 0.0f)),
-                };
+                        1, scene.materials().addMask(secondMask), 2, 1, osg::Vec4f(tiling, tiling, 0.0f, 0.0f)) };
                 if (authored)
                     layers[1].mFlags = Shaders::LAYER_AUTHORED;
                 Material chunk;

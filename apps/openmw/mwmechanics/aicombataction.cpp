@@ -304,7 +304,7 @@ namespace MWMechanics
                 const ESM::Spell* spell
                     = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().find(selectedSpellId);
                 for (std::vector<ESM::IndexedENAMstruct>::const_iterator effectIt = spell->mEffects.mList.begin();
-                     effectIt != spell->mEffects.mList.end(); ++effectIt)
+                    effectIt != spell->mEffects.mList.end(); ++effectIt)
                 {
                     if (effectIt->mData.mRange == ESM::RT_Target)
                     {
@@ -324,7 +324,7 @@ namespace MWMechanics
                     const ESM::Enchantment* ench
                         = MWBase::Environment::get().getESMStore()->get<ESM::Enchantment>().find(enchId);
                     for (std::vector<ESM::IndexedENAMstruct>::const_iterator effectIt = ench->mEffects.mList.begin();
-                         effectIt != ench->mEffects.mList.end(); ++effectIt)
+                        effectIt != ench->mEffects.mList.end(); ++effectIt)
                     {
                         if (effectIt->mData.mRange == ESM::RT_Target)
                         {

@@ -115,10 +115,7 @@ namespace ESM
         constexpr std::uint32_t fakeRecordId = fourCC("FAKE");
 
         template <class T>
-        concept HasSave = requires(T v, ESMWriter& w)
-        {
-            v.save(w);
-        };
+        concept HasSave = requires(T v, ESMWriter& w) { v.save(w); };
 
         template <class T>
         concept NotHasSave = !HasSave<T>;
@@ -154,16 +151,10 @@ namespace ESM
         }
 
         template <class T>
-        concept HasLoad = requires(T v, ESMReader& r)
-        {
-            v.load(r);
-        };
+        concept HasLoad = requires(T v, ESMReader& r) { v.load(r); };
 
         template <class T>
-        concept HasLoadWithDelete = requires(T v, ESMReader& r, bool& d)
-        {
-            v.load(r, d);
-        };
+        concept HasLoadWithDelete = requires(T v, ESMReader& r, bool& d) { v.load(r, d); };
 
         template <class T>
         concept NotHasLoad = !HasLoad<T> && !HasLoadWithDelete<T>;

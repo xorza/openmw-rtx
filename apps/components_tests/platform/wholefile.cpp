@@ -155,7 +155,7 @@ namespace
                 writers[at] = std::jthread([&, at] {
                     for (int write = 0; write < 50; ++write)
                         if (!Platform::writeWhole(path, std::string_view(texts[at]), Platform::Durability::Whole)
-                                 .isOk())
+                                .isOk())
                             ++failed[at];
                 });
         }
