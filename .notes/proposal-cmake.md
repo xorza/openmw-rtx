@@ -218,6 +218,24 @@ minimum CMake moves to a recent release and the code for older ones goes.
   and theirs with the pin before `git merge-file`, so an upstream edit to a reformatted upstream file — nearly every
   one — conflicts only where the edit does. Refused: formatting only the fork's files, which leaves two formatters in one
   tree.
+- **Ubuntu 26.04 for every Linux build, in one image (taken).** The release-base image moves to `ubuntu:26.04`,
+  pinned by digest, and every Linux build runs in it: CI's Linux jobs as a job `container:`, `omw package` as now,
+  and a desk that wants the shipped build. One system then compiles, tests and ships, where today CI builds on the
+  runner and the release in a container. Ubuntu 26.04 carries what the tree needs: OpenMW's OpenSceneGraph from its
+  PPA, which publishes for 26.04, and MyGUI 3.4.3, SDL3 3.4, Qt 6.10 and Bullet from the archive. The cost, taken by
+  the user: the AppImage needs glibc 2.43, so it no longer starts on Ubuntu 24.04 (2.39), Debian 13 or SteamOS on the
+  Steam Deck (2.41) until they update. Refused: the release left on 24.04 beside 26.04 for CI, two build systems
+  and a compiler difference between what CI tests and what ships; staying on 24.04.
+- **Fresh compilers.** The desk builds with GCC 16.2 and Clang 23; CI and the release with GCC 13.3, the clang job
+  with Clang 18.1, Windows with MSVC 14.44 (Visual Studio 2022 17.14), as the laptop does. Linux takes Ubuntu 26.04's
+  GCC 15.2, its default and a release, where its `g++-16` is a snapshot taken before GCC 16.1; the clang job takes
+  Clang 23 from apt.llvm.org, LLVM's own signed repository, so CI warns about what the editor's clangd warns about;
+  Windows CI the `windows-2025-vs2026` image (Visual Studio 2026 18.11, MSVC 14.51), and the laptop Visual Studio
+  2026. Refused: the runner's Clang 18, five majors behind clangd; GCC 14.2 on 24.04, which the move to 26.04
+  replaced.
+- **C++23, once MSVC has it stable.** `CMAKE_CXX_STANDARD 23` waits for MSVC Build Tools 14.52, whose `/std:c++23`
+  is the first stable switch; before it CMake can only pass `/std:c++latest`, a preview of the next standard.
+  Refused: C++23 now on `/std:c++latest`; C++26, which no compiler completes and CMake does not know on MSVC.
 - **One CMake formatter (approved).** `gersemi` keeps the CMake files in one layout as `clang-format` keeps the
   C++, run by `omw format` and checked by the gate.
 - **CMake 4.4 at least, and 4.4.5 exactly where `omw` builds (taken).** `cmake_minimum_required(VERSION 4.4)`, and
@@ -230,8 +248,8 @@ minimum CMake moves to a recent release and the code for older ones goes.
 ## Implementation plan
 
 Each step builds every preset on Linux, passes the gate, and passes CI on every job; the Windows laptop builds the
-`full` flavour and runs `omw format --check` after steps 2, 3, 4, 7, 9 and 11; a clangd sweep of 200 files finds no
-diagnostic after steps 9 and 12.
+`full` flavour and runs `omw format --check` after steps 2, 3, 4, 5, 6, 9, 11 and 13; a clangd sweep of 200 files finds no
+diagnostic after steps 11 and 14.
 
 1. **GitLab out.** Done: `.gitlab-ci.yml`, `.gitlab/`, the GitLab-only `CI/` files and `docker/generic-linux` go;
    the example suite's revision is `EXAMPLE_SUITE_REVISION`; `upstream.yml` copies it at each merge and keeps the
@@ -249,20 +267,28 @@ diagnostic after steps 9 and 12.
    `.gitattributes`; `omw merge-file`, the merge driver `upstream.yml` sets, tested on a reformat merged with an edit
    made before it. Left: the reformat commit, the three CRLF sources renormalized with it, listed in
    `.git-blame-ignore-revs`.
-5. **`openmw-checks`.** The `INTERFACE` target with the warnings each compiler takes, linked by every first-party
+5. **Ubuntu 26.04 and fresh compilers.** `CI/release-base.Dockerfile` on `ubuntu:26.04`; `install_ubuntu_deps.sh`
+   for 26.04's packages and OpenMW's PPA; CI's Linux jobs inside that image, with GCC 15.2; the clang job on Clang 23
+   from apt.llvm.org; `ubuntu-26.04` runners in `ci.yml` and `rtx-release.yml`, and `RELEASE_BASE` in `package.py`;
+   Windows CI on `windows-2025-vs2026`; the laptop on Visual Studio 2026; the comments that name 24.04 as the
+   AppImage's floor, and the floor in the release notes.
+6. **C++23.** Once MSVC 14.52 is on the runner and the laptop: `CMAKE_CXX_STANDARD 23`, with CMake passing
+   `/std:c++23` on MSVC and not `/std:c++latest`; `Misc::Result` replaced by `std::expected`; deducing `this` where a
+   `const` and a non-`const` member function repeat each other.
+7. **`openmw-checks`.** The `INTERFACE` target with the warnings each compiler takes, linked by every first-party
    target; the root's `add_compile_options` for warnings go. Test: a third-party target's compile command holds none
    of them, and a first-party one holds all.
-6. **Dependencies in one file.** `cmake/Dependencies.cmake` with `FIND_PACKAGE_ARGS`; the presets set the try-find
+8. **Dependencies in one file.** `cmake/Dependencies.cmake` with `FIND_PACKAGE_ARGS`; the presets set the try-find
    mode; the four fetch sites, the `OPENMW_USE_SYSTEM_*` switches and the find modules a config package replaces go.
-7. **The ray tracer.** `components/rtxvulkan` and `apps/rtxtool` as `target_sources` lists, functions,
+9. **The ray tracer.** `components/rtxvulkan` and `apps/rtxtool` as `target_sources` lists, functions,
    current-folder paths, no `CACHE INTERNAL` (the shader folders as properties of `openmw-rtx-vulkan-shaders`); the
    core out of `components` into `components/rtx/CMakeLists.txt`, a library a layer group.
-8. **`components`.** `openmw-components` and `openmw-components-qt` with `target_sources` lists by folder, the stem
+10. **`components`.** `openmw-components` and `openmw-components-qt` with `target_sources` lists by folder, the stem
    macros and the hand-made unity build gone; the crash catcher, platform I/O, table makers and content store in
    their folders' own `CMakeLists.txt`.
-9. **The apps.** Each app's `CMakeLists.txt` in the same form, `opencs_units` and `add_openmw_dir` gone.
-10. **Tests.** Every test binary with `target_sources` lists in its folder; `cmake/Tests.cmake` registers them.
-11. **The root and the presets.** The root split into `cmake/{Options,Checks,Install,Package}.cmake`, the options
+11. **The apps.** Each app's `CMakeLists.txt` in the same form, `opencs_units` and `add_openmw_dir` gone.
+12. **Tests.** Every test binary with `target_sources` lists in its folder; `cmake/Tests.cmake` registers them.
+13. **The root and the presets.** The root split into `cmake/{Options,Checks,Install,Package}.cmake`, the options
     renamed `OPENMW_*`; build and workflow presets; the sanitizer option; `omw` calls the presets.
-12. **clangd.** `.clangd`'s flag list shrinks to what `$<CXX_COMPILER_ID:GNU>` adds; the sweep.
-13. **CMake formatter**: `gersemi` over every CMake file, its commit in `.git-blame-ignore-revs`.
+14. **clangd.** `.clangd`'s flag list shrinks to what `$<CXX_COMPILER_ID:GNU>` adds; the sweep.
+15. **CMake formatter**: `gersemi` over every CMake file, its commit in `.git-blame-ignore-revs`.
