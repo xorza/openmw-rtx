@@ -12,8 +12,10 @@ Neither run had a GitHub annotation, and no warning came from the tree's own cod
 Delete each step when it lands. When the last one lands, move the lasting decisions into `docs/rtx/build.md`
 and delete this file.
 
-**Before step 1:** `deps-set-size` is merged. Until then master's `pins.py` names a set whose inputs moved,
-and every CI build refuses (run 43013973240).
+**Where it runs:** on `deps-set-size`, after that branch's own work, as one branch with one merge. Steps 1 to 10
+leave the set's inputs alone, so they build against `deps-8948c4c640db7edd`, which this desk built. Before
+the first CI run of this plan (step 6's Windows check), the Dependency sets workflow must have published that
+set and `pins.py` must name it. Step 11 then replaces it with the set its own inputs name.
 
 ## Decisions
 
