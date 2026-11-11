@@ -88,11 +88,17 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
 - **Four flavours, each building every program, the tests and the benchmarks**: `debug` (`RelWithDebInfo`, every
   assert, CI's and the gate's), `release` (the measured build and the archive's), `asan` and `tsan`. Refused: a
   flavour per set of programs, which left the CS and the wizard to CI alone.
-- **Every flag in one file**, `cmake/Flags.cmake`, read through `CMAKE_USER_MAKE_RULES_OVERRIDE` as CMake sets each
-  language's defaults, the same for GCC, Clang and MSVC; presets set none
-  ([CMake](https://cmake.org/cmake/help/latest/variable/CMAKE_USER_MAKE_RULES_OVERRIDE.html)). Line tables and frame
-  pointers in every configuration, so every build profiles and every crash names a line; a PDB on every MSVC
-  link, its information embedded in the objects for ccache; mold by `CMAKE_LINKER_TYPE`, thin archives on Linux.
+- **Every flag in one file, the code generation shared with the set.** `cmake/Flags.cmake`, read through
+  `CMAKE_USER_MAKE_RULES_OVERRIDE` as CMake sets each language's defaults, the same for GCC, Clang and MSVC;
+  presets and folders set none ([CMake](https://cmake.org/cmake/help/latest/variable/CMAKE_USER_MAKE_RULES_OVERRIDE.html)).
+  What every object is compiled with, the set's and the tree's alike (line tables, frame pointers, x86-64-v2,
+  per-function sections, the stack protector), is `vcpkg/flags.cmake`, which both triplets include and name in
+  `VCPKG_HASH_ADDITIONAL_FILES` so an edit rebuilds every port
+  ([vcpkg](https://learn.microsoft.com/vcpkg/users/triplets#vcpkg_hash_additional_files)). Refused: the triplets
+  reading `cmake/Flags.cmake` itself, which would rebuild the whole set for a link flag or a sanitizer that never
+  reaches it. A PDB on every MSVC link, its information embedded in the objects for ccache; mold by
+  `CMAKE_LINKER_TYPE`, thin archives on Linux; position-independent programs everywhere, as MSVC's always are and
+  the desk's GCC defaults to, where the release base's GCC links a fixed address.
 - **Link-time optimisation for what ships alone.** The release workflow sets `OMW_LTO=ON` for a tagged release, which
   the release preset passes to `CMAKE_INTERPROCEDURAL_OPTIMIZATION`; a desk's release build links without it, and a
   desk that measures what ships turns it on the same way. The distributions that build with it report single-digit

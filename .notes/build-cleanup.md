@@ -102,8 +102,7 @@ Each local step is a configure, `./omw build` and `./omw test`. Two kinds of ste
 
 Steps leave the list below when they land, and are marked here.
 
-- [~] 1. The set's inputs: committed (`29881a0baa`) and pushed; the desk's Linux set built with no unused-variable
-  warning. Waits for the Dependency sets workflow (run 43030096407) to publish `deps-1156990a01a7c89d`.
+- [x] 1. The set's inputs: `29881a0baa`, published as `deps-af3310920d0b49b6` and pinned (`4999594e98`).
 - [x] 2. Dead code and stale words: `03adbdb442`, with `5338c04dfc` laying out `Install.cmake`.
 - [x] 3. What the pinned set makes constant: `16efcd3d87`, corrected by `75d690fb89` (the pinned OSG has no
   multiview, so `OSG_HAS_MULTIVIEW` stays undefined).
@@ -123,6 +122,13 @@ Steps leave the list below when they land, and are marked here.
 - [x] 10. Install and Windows properties: `a44f4d54eb`. A probe `AUTHOR_WARNING` now stops the configure
   ("CMake Error (author)"), and the configure prints no CMake warning. The PDBs and the console are Windows's,
   checked by step 12's runs.
+- [~] 11. Landed: the set at one path, `omw build` formatting what changed, ccache at 100 GB, MSVC's
+  `/OPT:REF /OPT:ICF` and `/Gw`, x86-64-v2 with `--gc-sections` (`11f67d8c02`: the release `openmw` 133 MB of code
+  beside 130 MB before, the growth not yet traced; `--print-gc-sections` dropped 28,308 sections, and kept
+  `pthread_create`, the Crashpad note and `openmw_osg_plugins`). In the tree, waiting for the set it names: the
+  code generation shared with the set (`vcpkg/flags.cmake`), the stack protector, position-independent programs,
+  `/Zc:inline`, `-fno-math-errno`, `--icf=safe` (1.2 MB of code folded) and the sanitizers in `cmake/Flags.cmake`.
+  Left: the CI caches and the measured items.
 
 ## Steps
 
@@ -225,39 +231,8 @@ part, zsync and `wayland-scanner` under GCC 15, is run once in a plain `almalinu
 Found on 2026-11-11 on the desk: ccache at its 30 GB cap with 3,932 cleanups and a 34.5% hit rate; a set bump
 recompiling all 2,747 objects; `omw format` taking 4.6 s at every `omw build`; the release `openmw` 557 MB with
 130 MB of code and read-only data; the release base's GCC with other security defaults than the desk's; and
-CI's caches keyed and saved three ways. Landed so far: the set at one path (`2b1b905701`), `omw build`
-formatting what changed (`19a33a7ee7`), MSVC's `/OPT:REF /OPT:ICF` and `/Gw` (`40a8c6e303`), ccache's limit at
-100 GB (the desk's fish config), and x86-64-v2 with `--gc-sections` (`11f67d8c02`, by the user's call without
-an A/B, as dropping what nothing reaches can change no result; checked by the tests, `omw check`, `omw archive`
-and a read of `--print-gc-sections` for the registration and crash code).
+CI's caches keyed and saved three ways. What landed is under Progress.
 
-- **One set of hardening defaults, stated** (`cmake/Flags.cmake`). Nothing in the tree chooses them, so each
-  compiler's own decide, and they differ (`gcc -Q --help=common`, and a test link):
-
-  | | desk GCC 16 | release base, gcc-toolset-15 | CI's Clang 23 | MSVC |
-  |---|---|---|---|---|
-  | position-independent executable | on | off (`EXEC`) | on | on (`/DYNAMICBASE`) |
-  | stack protector | `-strong` | off | off | on (`/GS`) |
-
-  So what ships is built otherwise than what is measured on the desk and than Windows. State both:
-  `CMAKE_POSITION_INDEPENDENT_CODE ON` with `check_pie_supported()`, and `-fstack-protector-strong`, as the desk
-  and Windows have them; the game reads untrusted mod files, which is what both guard. Check: the container's
-  `openmw` is `DYN`, and `readelf -s` finds `__stack_chk_fail` in it.
-- **`/Zc:inline` on MSVC**, both flavours: unreferenced inline functions and data dropped at compile time,
-  smaller objects and faster links. Visual Studio's new projects set it; the command line and CMake do not
-  ([Microsoft](https://learn.microsoft.com/cpp/build/reference/zc-inline-remove-unreferenced-comdat)).
-- **`--icf=safe` on Linux's release links**, mold's identical code folding as MSVC's `/OPT:ICF` is Windows's;
-  `safe` folds no function whose address is taken. lld takes the same spelling for Clang.
-- **`-fno-math-errno` on GCC and Clang**: `sqrt` and the like compile to one instruction instead of a call that
-  sets `errno`. The results are the same bits; only `errno` is left alone, which the tree reads after I/O and
-  never after arithmetic (checked: `cerrno` in `glrenderer.cpp`, the harness's counters and the tests' kernel
-  files, each after a system call). MSVC is left as it is: whether its `/Oi` intrinsics set `errno` is
-  for a look at its generated code, not assumed.
-- **The set's flags at its next rebuild** (`vcpkg/triplets/x64-linux-openmw.cmake`), which change every port's
-  ABI hash and so rebuild the whole set, with the next registry bump: `-fno-semantic-interposition`, as vcpkg
-  builds every Linux port with `-fPIC`, which keeps GCC from inlining one exported function of a library into
-  another; `-march=x86-64-v2` (`/arch:SSE4.2` in Windows's triplet); and `-ffunction-sections -fdata-sections`,
-  for `--gc-sections` to reach into the set's archives.
 - **CI's caches keyed and saved one way** (`.github/actions/openmw-deps/action.yml`, `.github/workflows/deps.yml`):
   - The driver's tools cache is keyed `deps-<OS>-<pins.py and deps.py>`, shared by every job of a system though
     their contents differ (LLVM is the Clang job's alone), so the first to save wins and the rest fetch again;

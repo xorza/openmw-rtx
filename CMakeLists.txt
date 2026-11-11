@@ -49,15 +49,16 @@ find_package(Git REQUIRED)
 # measured the nested parallelism slower.
 set(CMAKE_AUTOGEN_PARALLEL 1)
 
-# MSVC's debug information in each object (`/Z7`), in every configuration: ccache cannot cache a compile
-# that writes a shared PDB, and each program links its PDB from them (`cmake/Flags.cmake`).
-set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
-# MSVC's runtime linked into every program, as the vcpkg set's libraries are (`x64-windows-openmw`): no
-# runtime to ship beside them, and none older installed system-wide to fault in.
-set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
-
-# Link-time optimisation where a configure asks for it with CMake's own `CMAKE_INTERPROCEDURAL_OPTIMIZATION`:
-# the package preset, which a tagged release builds; refused here by name where the compiler has none.
+# What `cmake/Flags.cmake` asks of the compiler, refused here by name where it has none: position-independent
+# programs, and link-time optimisation where a configure asks for it with CMake's own
+# `CMAKE_INTERPROCEDURAL_OPTIMIZATION` (the package preset, which a tagged release builds).
+include(CheckPIESupported)
+check_pie_supported(OUTPUT_VARIABLE pie_output)
+foreach(language C CXX)
+    if(NOT CMAKE_${language}_LINK_PIE_SUPPORTED)
+        message(FATAL_ERROR "The ${language} linker makes no position-independent program: ${pie_output}")
+    endif()
+endforeach()
 if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
     include(CheckIPOSupported)
     check_ipo_supported()
