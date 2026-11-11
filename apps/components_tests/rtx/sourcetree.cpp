@@ -613,22 +613,44 @@ namespace Rtx
             const std::set<std::string, std::less<>> keywords
                 = { "PRIVATE", "PUBLIC", "INTERFACE", "FILE_SET", "HEADERS", "BASE_DIRS", "FILES" };
 
+            // Whether `text` starts with the name, taking it off if so.
+            const auto takesName = [&](std::string_view& text) {
+                if (!text.starts_with(named))
+                    return false;
+                const std::string_view after = text.substr(named.size());
+                if (!after.empty() && after.front() != ' ' && after.front() != ')')
+                    return false;
+                text = after;
+                return true;
+            };
+
             std::vector<std::filesystem::path> files;
             bool inside = false;
+            // gersemi wraps a long call with its first argument on the line after the bare command.
+            bool wrapped = false;
             for (const std::string& line : linesOf(tests / "rtx" / "tests.cmake"))
             {
                 std::string_view rest = std::string_view(line).substr(skipSpace(line, 0));
                 if (!inside)
                 {
                     bool opens = false;
+                    if (wrapped)
+                        opens = takesName(rest);
+                    wrapped = false;
                     for (const std::string_view command : { "set(", "target_sources(" })
-                        if (rest.starts_with(command) && rest.substr(command.size()).starts_with(named))
+                    {
+                        if (rest == command)
+                            wrapped = true;
+                        else if (rest.starts_with(command))
                         {
-                            const std::string_view after = rest.substr(command.size() + named.size());
-                            opens = after.empty() || after.front() == ' ' || after.front() == ')';
-                            if (opens)
+                            std::string_view after = rest.substr(command.size());
+                            if (takesName(after))
+                            {
+                                opens = true;
                                 rest = after;
+                            }
                         }
+                    }
                     if (!opens)
                         continue;
                     inside = true;
