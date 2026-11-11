@@ -3,3 +3,4 @@
 - artifacts - folder in folder
 - x11 and launcher white theme
 - underwater shadows
+- log chosev video adapeter, some basic system and mod data, dlss or fsr
