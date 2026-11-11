@@ -103,19 +103,7 @@ else()
             "${PROJECT_SOURCE_DIR}/files/launcher/images/openmw.png"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps"
     )
-    install(
-        FILES
-            "${PROJECT_BINARY_DIR}/openmw.appdata.xml"
-        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo"
-    )
-    install(
-        FILES
-            "${PROJECT_BINARY_DIR}/org.openmw.cs.desktop"
-        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications"
-    )
-    install(
-        FILES
-            "${PROJECT_SOURCE_DIR}/files/opencs/openmw-cs.png"
-        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps"
-    )
+    install(FILES "${PROJECT_BINARY_DIR}/openmw.appdata.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
+    install(FILES "${PROJECT_BINARY_DIR}/org.openmw.cs.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
+    install(FILES "${PROJECT_SOURCE_DIR}/files/opencs/openmw-cs.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps")
 endif()
