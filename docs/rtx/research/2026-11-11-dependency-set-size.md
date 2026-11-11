@@ -97,37 +97,3 @@ clang-cl dropped its alias for that reason ([D114632](https://reviews.llvm.org/D
 `/Zi` and `/ZI` formats all carry types ([Microsoft](https://learn.microsoft.com/cpp/build/reference/z7-zi-zi-debug-information-format)).
 A Windows set with line tables only therefore has to be compiled by clang-cl with `-gline-tables-only`, which
 is what Chromium does.
-
-## Plan
-
-Each step changes the set's digest, so the set is rebuilt with `omw deps-set`, every flavour is built and
-tested against it, `omw archive` is run, and then CI publishes the set and `pins.py` names it. No step touches
-upstream's code: the overlays, `tools/omw` and the workflows all belong to the fork.
-
-1. **Strip the host programs on Linux in `pack_set`**, as Windows already drops their PDBs. Nobody reads
-   symbols for programs the build only runs. The pruning and stripping are applied to the export in place,
-   before packing, so the set a desk keeps is the set that is published. Today the desk keeps the PDBs the
-   archive drops.
-2. **Keep only the programs of ports that exist for their programs.** For shaderc, glslang and SPIRV-Tools,
-   `pack_set` removes every file outside `tools/`, taking the list from vcpkg's own record of what each port
-   installed (`installed/vcpkg/info/<port>_*.list`) rather than from a list of names kept by hand.
-3. **A qttools overlay** in which `linguist` no longer depends on `designer`, and `pixeltool`, `qtdiag`,
-   `kmap2qmap`, `qtplugininfo`, `qtattributionsscanner` and `qev` are turned off. That stops vcpkg from
-   building `designer` and these programs, instead of building them and deleting them afterwards.
-4. **The `openmw-osg` overlay builds what the tree registers**: a patch drops the six unused libraries and
-   their 13 serializers from OSG's two `CMakeLists.txt` lists, and `BUILD_OSG_PLUGIN_KTX` goes off.
-5. **An FFmpeg overlay**: `--disable-debug`, so the triplet alone sets the debug level, plus
-   `--disable-encoders --disable-muxers`.
-6. **Windows keeps `/Z7`** (decided 2026-11-11), which is 1,217 MiB packed after steps 2 to 5. Two options
-   were refused:
-   - clang-cl with `-gline-tables-only`, which matches Linux and is what Chromium does: refused because it
-     brings a second compiler into the Windows set and leaves every port depending on its build working
-     under clang-cl.
-   - No debug information in the Windows archives: refused because a crash frame inside a dependency would
-     get the name of the nearest public symbol above it, which is wrong for every internal function, and it
-     would have no line.
-
-Not taken: deleting qtbase's host programs (qmake, androiddeployqt, qtpaths and the like). Qt's package configs
-import them and check that the files exist, so they are stripped instead. Also not taken: compressed debug
-sections (`-gz`), which shrink the unpacked set but not the gzip'd download and leave the relocations as they
-are; and DWARF 5, which may be smaller but was not measured.
