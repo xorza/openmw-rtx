@@ -20,9 +20,11 @@
 
 namespace ContentStore
 {
-    /// What a store holds in memory: its small entries (`Store::sResidentMost`), and the kinds held at any
-    /// size, a bit each. Loaded at the start's sweep and stamped on a session's first hit, so an ask that
-    /// reaches memory alone finds them.
+    /// What a store holds in memory: its small entries (`Store::sResidentMost`), loaded at the start's sweep, and
+    /// the kinds held at any size, a bit each, once a reader asks for them. A session's first hit stamps an
+    /// entry, so an ask that reaches memory alone finds it. **The start loads none of a kind held at any size**:
+    /// its owner reads the entries its content asks for, which a sweep that ranks files by their time alone
+    /// would take the room of with another content's.
     struct Holding
     {
         std::uint64_t mAtAnySize = 0;
@@ -100,9 +102,10 @@ namespace ContentStore
         static constexpr std::size_t sResidentMost = 4096;
 
         /// The most bytes held in memory, each entry's payload and its node in the table, past which an
-        /// entry is read from its file again: tens of thousands of facts and the shapes a few cells
-        /// read, with room to spare.
-        static constexpr std::size_t sResidentBytesMost = std::size_t{ 64 } << 20;
+        /// entry is read from its file again: the largest content measured, the Fullrest Repack, reaches 222
+        /// MiB of shapes on the frame, and a store's small entries came to 87 MiB; twice their sum, for the
+        /// larger lists to come.
+        static constexpr std::size_t sResidentBytesMost = std::size_t{ 512 } << 20;
 
         /// The most keys a session remembers stamping, past which a hit stamps nothing: ten times the
         /// files a large content list's store holds, its writes included.
@@ -197,6 +200,9 @@ namespace ContentStore
         /// key, and false after it; false for a key met once `sStampedMost` keys are noted, since no
         /// more are remembered, and the time a stamp sets only ranks what a start loads. Under the lock.
         bool stampsOnce(const Key& key);
+
+        /// Whether `kind` is held in memory at any size (`Holding::mAtAnySize`), where the store holds entries.
+        bool isHeldAtAnySize(std::uint32_t kind) const;
 
         /// Holds `payload` in memory under `key` where the store holds entries (`Policy::mHolding`) and it is
         /// small enough (`sResidentMost`) or of a kind held at any size. Under the lock.

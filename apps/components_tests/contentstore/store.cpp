@@ -111,15 +111,19 @@ namespace ContentStore
             EXPECT_EQ(stats.mRefused, 0u);
         }
 
-        /// **A small entry is in memory from the start**: a store made on a folder that holds one
-        /// loads it as it sweeps, so the frame's reach finds it with its file gone.
-        TEST(ContentStoreTest, aSmallEntryIsHeldInMemoryFromTheStart)
+        /// **A small entry is in memory from the start, but one of a kind held at any size**: a store made on
+        /// a folder that holds a small texel mean and a small shape loads the mean as it sweeps, so the frame's
+        /// reach finds it with its file gone, and leaves the shape to its owner's read, which a reader's reach
+        /// then holds in memory.
+        TEST(ContentStoreTest, aSmallEntryIsHeldInMemoryFromTheStartButAKindHeldAtAnySize)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             const Misc::ByteBuffer payload = payloadOf(16, 3);
+            const Misc::ByteBuffer shape = payloadOf(16, 4);
             {
                 Store store(folder, sPolicy);
                 store.write(sKey, sMean, 1, payload, Reach::Disk);
+                store.write(sOther, sShape, 1, shape, Reach::Disk);
             }
 
             Store again(folder, sPolicy);
@@ -130,6 +134,12 @@ namespace ContentStore
             ASSERT_TRUE(again.read(sKey, sMean, 1, Reach::Memory, read));
             EXPECT_EQ(read, payload);
             EXPECT_FALSE(again.read(sKey, sMean, 2, Reach::Memory, read)) << "held for another version";
+
+            EXPECT_FALSE(again.read(sOther, sShape, 1, Reach::Memory, read)) << "a shape the start did not load";
+            ASSERT_TRUE(again.read(sOther, sShape, 1, Reach::Disk, read));
+            std::filesystem::remove(again.pathOf(sOther));
+            ASSERT_TRUE(again.read(sOther, sShape, 1, Reach::Memory, read)) << "held once its owner read it";
+            EXPECT_EQ(read, shape);
         }
 
         /// **A shape is held in memory at any size, and nothing else past `sResidentMost`**: one of 4097

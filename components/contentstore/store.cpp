@@ -359,8 +359,7 @@ namespace ContentStore
     {
         if (!mPolicy.mHolding.has_value())
             return;
-        const bool anySize = kind < 64 && ((mPolicy.mHolding->mAtAnySize >> kind) & 1) != 0;
-        if (payload.size() > sResidentMost && !anySize)
+        if (payload.size() > sResidentMost && !isHeldAtAnySize(kind))
             return;
 
         // **Over what was held under the key**, as two writers of one key replace it.
@@ -372,6 +371,11 @@ namespace ContentStore
 
         mResident.insert_or_assign(key, Resident{ kind, version, Misc::ByteBuffer(payload.begin(), payload.end()) });
         mResidentBytes = mResidentBytes - replaced + bytes;
+    }
+
+    bool Store::isHeldAtAnySize(const std::uint32_t kind) const
+    {
+        return mPolicy.mHolding.has_value() && kind < 64 && ((mPolicy.mHolding->mAtAnySize >> kind) & 1) != 0;
     }
 
     std::size_t Store::residentBytesOf(const std::size_t payloadBytes)
@@ -445,8 +449,8 @@ namespace ContentStore
         // **The tables sized once, here, at their bounds**, off the frame: a table that grows rehashes
         // under the lock, on the frame's thread or while it waits on the lock, and a session adds keys
         // that no file held at its start. Each bound is exact: `stampsOnce` notes no more keys, and every
-        // resident entry costs at least its node. The cost is the buckets, about a million in each
-        // table, 16 MiB together.
+        // resident entry costs at least its node. The cost is the buckets, a million in the stamps' table
+        // and eight in the resident one's, about 72 MiB together.
         mMonitor.under([&] {
             mStats.mStale += swept.mStale;
             mStamped.reserve(sStampedMost);
@@ -454,7 +458,9 @@ namespace ContentStore
         });
 
         // **The small entries into memory, newest first**, so an ask on the frame's thread finds a
-        // fact without waiting on the disk (`Reach::Memory`), and the bound keeps the newest.
+        // fact without waiting on the disk (`Reach::Memory`), and the bound keeps the newest. None of a kind held
+        // at any size (`Holding`), whose owner reads its content's own; its kind is the file's, so it is read
+        // to be told apart.
         Misc::ByteBuffer payload;
         for (auto entry = swept.mKept.rbegin(); entry != swept.mKept.rend(); ++entry)
         {
@@ -469,7 +475,7 @@ namespace ContentStore
 
             std::uint32_t kind = 0;
             std::uint32_t version = 0;
-            if (readFile(entry->mPath, entry->mKey, kind, version, payload))
+            if (readFile(entry->mPath, entry->mKey, kind, version, payload) && !isHeldAtAnySize(kind))
                 mMonitor.under([&] { keepResident(entry->mKey, kind, version, payload); });
         }
     }

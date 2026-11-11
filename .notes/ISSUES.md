@@ -23,14 +23,6 @@
   `libxkbcommon.so.0`, which reads the host's `/usr/share/X11/locale/*/Compose`; on a current Arch desk every Qt
   program prints `xkbcommon: ERROR: ... unrecognized keysym "dead_hamza"` for each line naming a keysym it predates.
 
-- **The frame's thread misses stored entries every session**: `Store::sResidentBytesMost` (64 MiB) holds less than the
-  frame reaches for. The store's entries of 4 KiB or less come to 87 MiB with their nodes (80,314 shapes, 79.6 MiB),
-  and the Fullrest Repack's shapes alone to 222 MiB; the start's sweep and the preparation's shape reads
-  (`PreparationManifest::standsAsWalked`) fill the bound first come, so a model "stands" with its shape on disk and
-  out of memory. At `seyda-neen-ship` on a warm store (`scene`, `--upscale=off`) the frame's walk computed again, all
-  with "wrote 0": vanilla 41 shapes (28 ms), the Fullrest Repack 831 shapes (168 ms), the PBR install 50 shapes
-  (38 ms); after a switch from another profile the PBR install also missed 594 specular kinds, 103 alpha spans and 19
-  texel means (855 ms in all), and the facts lose the room to shapes since the sweep ranks by file time alone. The
-  game's warm starts on a new game logged 24 misses (vanilla, PBR) and 140 (Fullrest Repack), each with nothing
-  written. `docs/rtx/architecture.md` ("The frame reaches the store's memory alone") states the bound holds what the
-  frame needs.
+- **The frame's thread still computes a few shapes on a warm store**: at `seyda-neen-ship` (`scene`,
+  `--upscale=off`, second run) the frame's shapes found 1,390 of 1,391 asked on vanilla, 1,395 of 1,396 on the PBR
+  install and 1,242 of 1,249 on the Fullrest Repack, each run writing nothing to the store.

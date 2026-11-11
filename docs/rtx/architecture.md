@@ -414,8 +414,10 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
   know; a read-only mode, a second switch for one store; and deleting a file in the player's user data folder unasked
   (`research/2026-11-10-navmesh-cache.md`).
 - **The frame reaches the store's memory alone** (`ContentStore::Reach`): an entry of 4 KiB or less is held once read or
-  written and loaded at the start's sweep, bounded at 64 MiB; a larger one the frame computes as it did. Refused: a
-  file read on the frame's thread.
+  written and loaded at the start's sweep, and a shape at any size once read or written, bounded at 512 MiB, as the
+  Fullrest Repack's frame reaches 222 MiB of shapes; a larger one the frame computes as it did. **The start loads no
+  shape**: the preparation reads the content's own as it finds each model standing, where a sweep that ranks files
+  by their time alone filled the bound with another profile's first. Refused: a file read on the frame's thread.
 - **No size cap**, by the user's decision: an entry stays until its file is refused or deleted by hand, since the
   preparation trusts its manifest and a store that evicted a profile's chains made play compute them. The 16 GiB cap,
   least recently used first as ccache and bazel-remote evict, held under the two large content lists' 14 GiB and no
