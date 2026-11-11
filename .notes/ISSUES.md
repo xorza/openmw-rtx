@@ -19,3 +19,7 @@
   `RtxFramesTest.aRequestIsTracedAsItsWorldDescribesItAndCarriesTheAirOn` (the traced constants differ from the
   described ones at 0 s). All pass on Linux with an NVIDIA GPU. Not compared with a build from before the set.
 
+- The Dependency sets workflow's publish job is refused by GitHub on `deps-set-size` ("HTTP 403: Resource not
+  accessible by integration" from `gh release create`, run 43030096407), though the job's token has
+  `contents: write` and the same job published from `master` (`deps-a41c0e8b02a43c55`) and from
+  `pinned-static-build` (`deps-5e394e368d7fabb7`).
