@@ -1,4 +1,4 @@
-"""`omw archive [name]`: the release archive out of the package build, into dist/, with its symbols.
+"""`omw archive [name]`: the release archive out of the release build, into dist/, with its symbols.
 An AppImage on Linux, built on AlmaLinux 8 or in a container of it, and the portable folder on Windows,
 named after the name given or the commit."""
 
@@ -232,14 +232,14 @@ def _archive_linux(build: Build, name: str) -> None:
 
     **The executables stripped here, by the host's own `strip`, and linuxdeploy's strip off.** Its
     strip passes over every executable whose rpath starts with `$`, which is each of ours, and would
-    ship the package build's debug information: `openmw` is 352 MB with it and 47 MB without. The
+    ship the release build's debug information: `openmw` is 352 MB with it and 47 MB without. The
     strip it carries is binutils 2.35, which reads no `.relr.dyn`. Stripped before linuxdeploy patches
     an rpath in, and the build ID stays, which a dump is matched to its symbols by.
 
     AppStream validation is off: upstream's metainfo carries warnings appstreamcli refuses. The tools
     are AppImages themselves and a runner has no FUSE, so they extract and run."""
     require("zsyncmake", "the update information wants a .zsync beside the image: zsync")
-    strip = require("strip", "the executables carry the package build's debug information: binutils")
+    strip = require("strip", "the executables carry the release build's debug information: binutils")
     objdump = require("objdump", "the executables' glibc symbol versions are read off them: binutils")
     tools = deps.appimage_tools()
 
@@ -294,11 +294,12 @@ def _archive_windows(build: Build, name: str) -> None:
 
 
 def symbols(build: Build, name: str) -> None:
-    """**The release's symbols**: every executable the package build made, through `dump_syms` into a
+    """**The release's symbols**: every executable the release build made, through `dump_syms` into a
     Breakpad symbol store, `<module>/<id>/<module>.sym`, zipped as
     `dist/openmw-<name>-<system>-symbols.zip`. A release publishes it beside its archive, and
-    `omw crash` reads a player's dump against it. The debug information comes from the package
-    presets, and it stays out of the archive."""
+    `omw crash` reads a player's dump against it. The debug information is what
+    `cmake/Flags.cmake` gives every configuration, read from the build's own binaries: the archive's are
+    stripped on Linux, and Windows' install leaves a Release build's PDBs out."""
     dump_syms = deps.crash_tool("dump_syms")
     with tempfile.TemporaryDirectory() as store:
         for executable in executables_in(build.dir):

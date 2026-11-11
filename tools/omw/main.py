@@ -50,7 +50,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                suite at the revision its GitLab pipeline pins
   gate                         {gate}
   exec <command> [args]        a command in the build directory, under the flavour's environment
-  archive [name]               the release archive into dist/, with its symbols: the package flavour,
+  archive [name]               the release archive into dist/, with its symbols: the release flavour,
                                on Linux in an AlmaLinux 8 container where the system is another
   profile [args]               the harness's CPU side under perf: the release flavour
   remote <host> <verb> [args]  openmw-rtxtool's verb on another Linux machine over SSH: built where
