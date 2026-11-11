@@ -116,9 +116,12 @@ def _remote(build: Build, args: list[str]) -> int:
 
 
 def _build(build: Build, args: list[str]) -> int:
-    """The tree formatted first, except on CI, whose checks job runs `omw format --check` once for
-    every build job; after the build, `listing.check`."""
-    if not CI and formatting.format_tree([]) != 0:
+    """The files changed against `HEAD` formatted first, except on CI, whose checks job runs
+    `omw format --check` over the whole tree once for every build job; after the build, `listing.check`.
+    Not the whole tree: what a commit holds was formatted before it, and the tree's 4.6 s came to every
+    build."""
+    changed = [] if CI else formatting.changed_files()
+    if changed and formatting.format_tree(changed) != 0:
         return 1
     targets = [arg for arg in args if arg != "--without-device"]
     if targets:

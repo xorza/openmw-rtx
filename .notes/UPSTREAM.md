@@ -413,6 +413,3 @@ made only on the user's explicit yes, after which it is added here.
 - `/cgthreads1` gone from its 8 files (`.notes/build-cleanup.md`, step 11): upstream's, for a runner with 8 GB,
   where the fork's public repository's Windows runners have 16 GB; held by three Windows runs without it. The
   cost is a conflict with an upstream edit to those lists.
-- MSVC's release links with `/OPT:REF /OPT:ICF` and its compiles with `/Gw` (`.notes/build-cleanup.md`, step 11):
-  the `/DEBUG` every link takes had turned the linker's defaults to keeping unreferenced and duplicate code. The
-  cost is none to merges, as `cmake/Flags.cmake` is the fork's.
