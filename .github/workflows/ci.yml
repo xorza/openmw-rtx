@@ -153,11 +153,16 @@ jobs:
           cache-key: ${{ matrix.name }}
           ccache-size: ${{ matrix.ccache-size }}
 
-      # kernel.org's build of LLVM, pinned (`deps.llvm`): AlmaLinux 8 carries no Clang 23.
+      # kernel.org's build of LLVM, pinned (`deps.llvm`): AlmaLinux 8 carries no Clang 23. Told where
+      # gcc-toolset-15's libstdc++ is by the configuration file Clang reads beside itself, as it finds the
+      # system's GCC 8 on its own, which has no static libstdc++.
       - name: Clang 23
         if: matrix.clang
         run: |
           llvm="$(python -c 'import sys; sys.path.insert(0, "tools"); from omw import deps; print(deps.llvm())')"
+          for driver in clang clang++; do
+            echo "--gcc-install-dir=/opt/rh/gcc-toolset-15/root/usr/lib/gcc/x86_64-redhat-linux/15" > "$llvm/bin/$driver.cfg"
+          done
           echo "CC=$llvm/bin/clang" >> "$GITHUB_ENV"
           echo "CXX=$llvm/bin/clang++" >> "$GITHUB_ENV"
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # The packages an AlmaLinux 8 build needs, in CI's containers and the release image alike: GCC 15 from
-# Red Hat's gcc-toolset, the tools vcpkg's ports and the tree build with (mold and ccache the tree's), and
+# Red Hat's gcc-toolset with its sanitizers' runtimes, the tools vcpkg's ports and the tree build with (mold and ccache the tree's), and
 # the development files of what the programs open at run time and so stay the system's (OpenGL, X11,
 # Wayland, fontconfig, ALSA, PulseAudio, D-Bus).
 # The libraries the tree links come from the vcpkg set (`vcpkg.json`), not from here.
@@ -10,6 +10,7 @@ dnf install -y epel-release dnf-plugins-core
 dnf config-manager --set-enabled powertools
 dnf install -y \
   gcc-toolset-15 gcc-toolset-15-libatomic-devel \
+  gcc-toolset-15-libasan-devel gcc-toolset-15-libubsan-devel gcc-toolset-15-libtsan-devel \
   git curl zip unzip tar xz bzip2 patch which file \
   python3.12 perl perl-IPC-Cmd perl-Time-Piece \
   ccache mold ninja-build make pkgconfig autoconf automake libtool autoconf-archive gettext-devel texinfo nasm bison flex \

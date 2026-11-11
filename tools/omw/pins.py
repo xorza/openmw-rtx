@@ -124,6 +124,21 @@ APPIMAGE_TOOLS = {
     ),
 }
 
+# The Ninja every build runs (`deps.ninja`), by system: Ninja's own release, whose Linux binary asks glibc 2.15,
+# where AlmaLinux 8's Ninja is 1.8.2 and refuses the files CMake 4.4 writes. The digests are of the releases'
+# archives.
+NINJA_VERSION = "1.13.2"
+NINJA = {
+    "linux": Pin(
+        f"https://github.com/ninja-build/ninja/releases/download/v{NINJA_VERSION}/ninja-linux.zip",
+        "5749cbc4e668273514150a80e387a957f933c6ed3f5f11e03fb30955e2bbead6",
+    ),
+    "windows": Pin(
+        f"https://github.com/ninja-build/ninja/releases/download/v{NINJA_VERSION}/ninja-win.zip",
+        "07fc8261b42b20e71d1720b39068c2e14ffcee6396b76fb7a795fb460b78dc65",
+    ),
+}
+
 # Clang 23 for CI's clang leg (`deps.llvm`): kernel.org's slim build of LLVM's release, made on Debian 10 so
 # it runs on AlmaLinux 8's glibc 2.28, where LLVM's own Linux release asks a newer one. The digest is the one
 # kernel.org signs in `sha256sums.asc` beside it.

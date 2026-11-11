@@ -253,9 +253,30 @@ def cmake() -> Path:
     return folder
 
 
+def ninja_dir() -> Path:
+    return pinned_folder("ninja", pins.NINJA[SYSTEM])
+
+
+def ninja() -> Path:
+    """**The pinned Ninja**, fetched once into a folder of its pin's own: the one every build on every system
+    runs, where a system's is as old as AlmaLinux 8's 1.8.2."""
+    folder = ninja_dir()
+    if (folder / f"ninja{EXE}").is_file():
+        return folder
+
+    def fill(partial: Path) -> None:
+        archive = partial / Path(pins.NINJA[SYSTEM].url).name
+        fetch.download_pin(pins.NINJA[SYSTEM], archive)
+        fetch.extract_member(archive, f"ninja{EXE}", partial)
+        archive.unlink()
+
+    return fetch.build_beside(folder, fill)
+
+
 def cmake_environment(env: dict[str, str]) -> None:
-    """The pinned CMake first on the PATH, fetched if it is not there yet: `cmake` and `ctest`, which
-    every command names bare, are then its own."""
+    """The pinned CMake and Ninja first on the PATH, fetched if they are not there yet: `cmake` and `ctest`,
+    which every command names bare, are then CMake's own, and the Ninja its generator finds the pinned one."""
+    prepend_path(env, "PATH", ninja())
     prepend_path(env, "PATH", cmake() / "bin")
 
 
@@ -368,7 +389,7 @@ def vulkan_environment(env: dict[str, str]) -> None:
 def pinned_names() -> set[str]:
     """Every name in deps/ that the pins give this system, through the same functions that name what
     each getter above leaves there, so pruning cannot take what a getter fetched."""
-    kept = [cmake_dir(), clang_format_dir(), gersemi_dir(), vcpkg_root_dir(), appimage_tools_dir(), llvm_dir(),
+    kept = [cmake_dir(), ninja_dir(), clang_format_dir(), gersemi_dir(), vcpkg_root_dir(), appimage_tools_dir(), llvm_dir(),
             VCPKG_BINARY_CACHE, VCPKG_DOWNLOADS, VCPKG_WORK, VCPKG_SETS,
             vcpkg_set_dir(set_digest()), vcpkg_set_dir(pins.VCPKG_SET.digest)]
     kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]
@@ -407,4 +428,5 @@ def bootstrap() -> None:
     if WINDOWS:
         print(f"Vulkan loader: {vulkan_loader()}")
     print(f"CMake: {cmake()}")
+    print(f"Ninja: {ninja()}")
     prune()

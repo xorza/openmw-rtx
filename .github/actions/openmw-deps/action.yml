@@ -36,13 +36,14 @@ runs:
         echo "PKG_CONFIG_PATH=/opt/rh/gcc-toolset-15/root/usr/lib64/pkgconfig" >> "$GITHUB_ENV"
 
     - name: The driver's tools cache
-      # CMake, LLVM and Windows' Vulkan loader, keyed by their pins: small, and fetched by every job. Not
+      # CMake, Ninja, LLVM and Windows' Vulkan loader, keyed by their pins: small, and fetched by every job. Not
       # the vcpkg set, gigabytes unpacked, which a job downloads from its release.
       if: inputs.cache == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           deps/cmake-*
+          deps/ninja-*
           deps/llvm-*
           deps/vulkan-loader-*
         key: deps-${{ runner.os }}-${{ hashFiles('tools/omw/pins.py', 'tools/omw/deps.py') }}
