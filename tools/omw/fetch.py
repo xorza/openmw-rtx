@@ -150,3 +150,18 @@ def extract_member(archive: Path, name: str, into: Path) -> Path:
         partial.chmod(0o755)
     partial.replace(target)
     return target
+
+
+def unpack_stripped(archive: Path, into: Path) -> None:
+    """**A tar archive unpacked into `into` without its one top folder**, as GitHub's archives of a commit
+    and most release tarballs wrap their contents: a hard link names its target from the archive's root,
+    so it loses the folder too."""
+    with tarfile.open(archive) as tarred:
+        members = []
+        for member in tarred.getmembers():
+            member.name = member.name.partition("/")[2]
+            if member.islnk():
+                member.linkname = member.linkname.partition("/")[2]
+            if member.name:
+                members.append(member)
+        tarred.extractall(into, members=members, filter="data")

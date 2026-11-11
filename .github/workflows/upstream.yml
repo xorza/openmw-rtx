@@ -174,7 +174,8 @@ jobs:
                   # does their work; GitLab's pipeline and what only it runs, as the fork's CI is GitHub's;
                   # macOS's and Android's files, as the fork builds neither; upstream's project files and
                   # scripts the fork has no use for; and what the one build left behind, the global
-                  # configuration, the per-program manifests and the system TinyXML's finder. A workflow
+                  # configuration, the per-program manifests, the finders of what the vcpkg set's own CMake
+                  # files find, and the run-time check of OSG plugins the static build links. A workflow
                   # upstream adds is held.
                   kept_deleted=(
                     .github/workflows/push.yml .github/workflows/macos.yml .github/workflows/windows.yml
@@ -195,7 +196,10 @@ jobs:
                     scripts/generate_teal_declarations.sh scripts/preprocessed_file_size_stats.py
                     scripts/preprocessed_file_size_stats_diff.py scripts/osg_stats.py scripts/HOWTO-benchmark.md
                     files/openmw.cfg files/windows/openmw.exe.manifest files/windows/other-apps.manifest
-                    cmake/FindTinyXML.cmake
+                    cmake/FindTinyXML.cmake cmake/FindFFmpeg.cmake cmake/FindLZ4.cmake cmake/FindMyGUI.cmake
+                    cmake/FindOSGPlugins.cmake cmake/FindLIBUNSHIELD.cmake cmake/CheckBulletPrecision.cmake
+                    cmake/CheckLuaCustomAllocator.cmake
+                    components/misc/osgpluginchecker.cpp.in components/misc/osgpluginchecker.hpp
                   )
                   # Forced, as a file upstream adds is staged.
                   git rm -r -f --ignore-unmatch -- "${kept_deleted[@]}"

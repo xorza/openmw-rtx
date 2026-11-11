@@ -342,3 +342,14 @@ made only on the user's explicit yes, after which it is added here.
   adds to each executable: the game's `openmw.exe.manifest` and its line in `openmw.rc` go, and the game gains the
   per-monitor DPI awareness and long paths the other programs had. The cost is a conflict with every upstream change
   to an option, a precompiled header list or a manifest line, which the merge drops.
+- Every third-party library from the vcpkg set, static (`vcpkg.json`, `.notes/proposal-build.md`), in place of
+  the system's on Linux and upstream's prebuilt set on Windows: `cmake/Dependencies.cmake` finds each package
+  by its own CMake files or pkg-config's, with no version floors, and every fetched project is built from its
+  pinned archive alone, never a system's (`FIND_PACKAGE_ARGS`). The finders the set's own files replace go
+  (`FindFFmpeg`, `FindLZ4`, `FindMyGUI`, `FindOSGPlugins`, `FindLIBUNSHIELD`), and so do
+  `CheckBulletPrecision`, as the set's Bullet states its precision, and `CheckLuaCustomAllocator`, a warning
+  about the one LuaJIT the set pins. OpenSceneGraph's plugins are linked static
+  and registered in one generated file every program takes (`components/resource/osgplugins.cpp.in`), as
+  upstream's static builds did in `imagemanager.cpp`; upstream's run-time check that they can be loaded
+  (`Misc::checkRequiredOSGPluginsArePresent`, its call in `apps/openmw/main.cpp`) goes, since the link now
+  holds them. The cost is a conflict with an upstream change to a found package, a plugin or the check.

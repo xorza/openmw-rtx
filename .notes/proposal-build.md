@@ -245,8 +245,10 @@ Each step builds every flavour on Linux, passes the gate, and passes CI on every
   clone of hundreds of megabytes on every desk, for nothing a pinned archive does not already fix. A port held
   off the registry's version is an overlay. ([vcpkg versioning](https://learn.microsoft.com/vcpkg/users/versioning);
   [vcpkg's bootstrap](https://github.com/microsoft/vcpkg/blob/master/scripts/bootstrap.sh))
-- **MyGUI at the registry's 3.5.3**, not held at 3.4.3 by an overlay: the tree defines `MYGUI_DONT_USE_OBSOLETE`, so
-  3.5's removals of obsolete API reach nothing it calls; step 6's MyGUI bump is this one.
+- **MyGUI held at 3.4.3 by an overlay**, the registry's own 3.4.3 port (#4) out of its history: 3.5 changes
+  signatures the tree overrides (`DataManager::getDataListNames` returns by value) and `Gui::ListBox` reaches
+  3.4.3's privates, so 3.5 is step 6's, as planned. An earlier note here took 3.5.3 from the registry on the
+  strength of `MYGUI_DONT_USE_OBSOLETE`, which the first build against the set refuted.
 - **The system's audio and display stay the system's.** OpenAL Soft opens ALSA by `dlopen` (`ALSOFT_DLOPEN`, its
   default), so no ALSA is linked and the system's plugins serve PipeWire and PulseAudio; Qt's xcb and Wayland
   plugins link the system's libxcb, xkbcommon and libwayland, which `CI/install_almalinux_deps.sh` brings the
@@ -269,3 +271,42 @@ Each step builds every flavour on Linux, passes the gate, and passes CI on every
   1.25.2 with its `operator*` projection as a lambda, which MSVC 14.52 refuses to take the address of
   (C3889) and upstream's master has replaced; and fontconfig as an empty port, so Qt links the system's, whose
   configuration matches the system's fonts.
+- **What the tree compiles from a pinned archive stays fetched, never a system's**: SDL3, Recast, yaml-cpp,
+  Google Test and Benchmark, volk, VMA and Crashpad, without `FIND_PACKAGE_ARGS`. They build with the tree's
+  flags and sanitizer, and ThreadSanitizer sees a lock only in code it instrumented
+  ([ThreadSanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html)); the set is built once, unsanitized.
+  Refused: overlay ports for each, a set rebuilt for every bump of a project the tree already pins exactly.
+- **Each package by its own CMake files, or pkg-config's where it installs none** (MyGUI 3.4.3, unshield,
+  LuaJIT); the finders the set replaces go, and a static library's own link needs are stated beside its target
+  where its files name none (OpenSceneGraph's archives and plugins). A config the port installs under a folder
+  CMake's search does not name is found by path (collada-dom), as the desk's system copy was taken otherwise.
+- **OpenSceneGraph's plugins linked static and registered in one generated file** that every program linking
+  the components asks the linker for by symbol (`--undefined`, `/INCLUDE`), as Crashpad's note already is:
+  upstream's static builds registered them in `imagemanager.cpp`, which a program pulls only if it loads an
+  image. `osgdb_osg` registers two readers, `osg` and `osg2` (`.osgt`).
+  ([OSG's `USE_OSGPLUGIN`](https://github.com/openscenegraph/OpenSceneGraph/blob/master/include/osgDB/Registry))
+- **The system keeps what it opens for the programs**: glibc, the GL stack, X11, Wayland, fontconfig and ALSA
+  (an empty `alsa` port, as fontconfig's: a static libasound reads its configuration and plugins at the build
+  system's paths). The AppImage exclude list names the same.
+  ([AppImage excludelist](https://github.com/AppImageCommunity/pkg2appimage/blob/master/excludelist))
+- **Ports fixed for a static build by overlays**: collada-dom's and unshield's inner static libraries become
+  object libraries, whose objects the library carries (CMake links an object library's objects into the
+  target that links it); OpenThreads yields by `sched_yield`, as glibc 2.34 took `pthread_yield` out of the
+  link-time API and a program linked on a newer system than the set's finds no such symbol.
+- **GCC's runtime linked static outside the sanitizer builds** (`-static-libstdc++ -static-libgcc`), which the
+  GCC Runtime Library Exception permits; a sanitizer replaces the allocator in a shared libstdc++ alone.
+- **Linux's Vulkan loader from the set**, built shared, the one library the AppImage carries; Windows keeps
+  LunarG's redistributable loader for its tests alone, as a desk's driver installs one. LunarG's SDK goes from
+  both systems: the set has the headers and the shader tools.
+- **Qt's platforms and TLS linked in**: Qt's static build imports its default platform (xcb, windows) and
+  `openmw_qt_platforms` adds Wayland's on Linux; Linux's Qt links OpenSSL (`qtbase[openssl]`), which reads the
+  system's certificates itself, so the launcher's https download works where the desk's Qt had a plugin.
+  ([Qt, static plugins](https://doc.qt.io/qt-6/qt-import-plugins.html))
+- **`-Wno-maybe-uninitialized` on every GCC**: GCC 16.2 still reports a `std::optional` copy (bug 80635) once
+  the set's headers change what inlines.
+- **The clang leg's Clang is kernel.org's build of LLVM 23.1.5**, made on Debian 10 so it runs on AlmaLinux 8's
+  glibc, pinned by the digest kernel.org signs; LLVM's own Linux release needs a newer glibc.
+  ([kernel.org LLVM](https://www.kernel.org/pub/tools/llvm/))
+- **zsync built from its pinned source in the AlmaLinux script**, as autoconf is: neither AlmaLinux 8 nor EPEL
+  carries `zsyncmake`, which the AppImage's update information needs.
+

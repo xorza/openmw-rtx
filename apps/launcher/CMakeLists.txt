@@ -1,4 +1,5 @@
 qt_add_executable(openmw-launcher WIN32)
+openmw_qt_platforms(openmw-launcher)
 target_sources(
     openmw-launcher
     PRIVATE
@@ -68,9 +69,4 @@ target_link_libraries(
         Qt::Network
 )
 
-install(
-    TARGETS
-        openmw-launcher
-        ${runtime_dependency_arguments}
-)
-generate_deploy_script_for_qt_app(openmw-launcher)
+install(TARGETS openmw-launcher)

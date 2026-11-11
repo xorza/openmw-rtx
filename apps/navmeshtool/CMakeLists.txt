@@ -20,8 +20,4 @@ target_link_libraries(
         openmw-components
 )
 
-install(
-    TARGETS
-        openmw-navmeshtool
-        ${runtime_dependency_arguments}
-)
+install(TARGETS openmw-navmeshtool)

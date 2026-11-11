@@ -1,0 +1,39 @@
+{
+  "name": "mygui",
+  "version": "3.4.3",
+  "port-version": 104,
+  "description": "Fast, flexible and simple GUI: the registry's 3.4.3 port (#4), held by an overlay as the tree reaches MyGUI 3.4.3's privates (Gui::ListBox) and overrides its 3.4 signatures (MyGUIPlatform::DataManager); 3.5 is a step of its own. Without SDL2, which MyGUI asks for its demos and tools alone, and which would bring systemd and D-Bus into the set.",
+  "homepage": "http://mygui.info",
+  "license": "MIT",
+  "supports": "!uwp",
+  "dependencies": [
+    "freetype",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ],
+  "features": {
+    "obsolete": {
+      "description": "Keep obsolete functions."
+    },
+    "opengl": {
+      "description": "Use OpenGL render system.",
+      "supports": "!android",
+      "dependencies": [
+        "opengl"
+      ]
+    },
+    "plugins": {
+      "description": "Build MyGUI plugins."
+    },
+    "tools": {
+      "description": "Install MyGUI tools.",
+      "supports": "!android"
+    }
+  }
+}

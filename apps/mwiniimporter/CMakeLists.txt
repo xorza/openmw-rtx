@@ -18,8 +18,4 @@ target_link_libraries(
         openmw-components
 )
 
-install(
-    TARGETS
-        openmw-iniimporter
-        ${runtime_dependency_arguments}
-)
+install(TARGETS openmw-iniimporter)

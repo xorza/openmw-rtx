@@ -1,11 +1,14 @@
 import hashlib
+import io
+import os
 import shutil
+import tarfile
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 
-from omw.fetch import build_beside, download, extract_member, partial_of, settle
+from omw.fetch import build_beside, download, extract_member, partial_of, settle, unpack_stripped
 from omw.system import Refusal
 
 
@@ -79,6 +82,38 @@ class ExtractMemberTest(unittest.TestCase):
         self.assertEqual(sorted(path.name for path in into.iterdir()), ["dump_syms"])
         with self.assertRaises(Refusal):
             extract_member(archive, "minidump-stackwalk", into)
+
+
+
+class UnpackStrippedTest(unittest.TestCase):
+    def test_the_top_folder_goes_from_every_member_and_from_a_hard_link_s_target(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        archive = folder / "llvm.tar.gz"
+        with tarfile.open(archive, "w:gz") as tarred:
+            for name, data in (("llvm-23/bin/clang", b"ELF"), ("llvm-23/lib/clang/23/include/stddef.h", b"#")):
+                entry = tarfile.TarInfo(name)
+                entry.size = len(data)
+                tarred.addfile(entry, io.BytesIO(data))
+            hard = tarfile.TarInfo("llvm-23/bin/clang-23")
+            hard.type = tarfile.LNKTYPE
+            hard.linkname = "llvm-23/bin/clang"
+            tarred.addfile(hard)
+            soft = tarfile.TarInfo("llvm-23/bin/clang++")
+            soft.type = tarfile.SYMTYPE
+            soft.linkname = "clang"
+            tarred.addfile(soft)
+            tarred.addfile(tarfile.TarInfo("llvm-23"))
+
+        into = folder / "llvm"
+        unpack_stripped(archive, into)
+        self.assertEqual(sorted(path.relative_to(into).as_posix() for path in into.rglob("*") if not path.is_dir()),
+                         ["bin/clang", "bin/clang++", "bin/clang-23", "lib/clang/23/include/stddef.h"])
+        self.assertEqual((into / "bin" / "clang-23").read_bytes(), b"ELF")
+        # Windows makes a symbolic link only with a privilege a desk's shell lacks, and copies its target.
+        if os.name != "nt":
+            self.assertEqual(os.readlink(into / "bin" / "clang++"), "clang")
+        self.assertEqual((into / "bin" / "clang++").read_bytes(), b"ELF")
 
 
 if __name__ == "__main__":

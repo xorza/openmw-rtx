@@ -27,8 +27,15 @@ endforeach()
 
 # Linux links with mold, and its static libraries are thin archives (`ar T`), which name their objects
 # rather than copy them: no library is installed, and copying the game's objects cost every relink seconds.
+# GCC's C++ runtime is linked in, as every other library is, so a program runs on a system whose libstdc++
+# is older than the compiler's (GCC's runtime library exception permits it); not under a sanitizer, whose
+# runtime takes the allocator's place in a shared libstdc++ alone.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(CMAKE_LINKER_TYPE MOLD)
+    if(NOT OPENMW_SANITIZER)
+        set(CMAKE_EXE_LINKER_FLAGS_INIT "-static-libstdc++ -static-libgcc")
+        set(CMAKE_SHARED_LINKER_FLAGS_INIT "-static-libstdc++ -static-libgcc")
+    endif()
     foreach(language C CXX)
         set(CMAKE_${language}_ARCHIVE_CREATE "<CMAKE_AR> qcT <TARGET> <LINK_FLAGS> <OBJECTS>")
     endforeach()

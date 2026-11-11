@@ -62,29 +62,28 @@ if(OPENMW_BUILD_WIZARD)
 endif()
 qt_add_translation(qm ${ts} OPTIONS -silent)
 
-# Qt's own translations of the languages the programs have, beside them, where a configure deploys Qt
-# with the programs.
-if(OPENMW_DEPLOY_QT_TRANSLATIONS)
-    get_target_property(qmake Qt::qmake IMPORTED_LOCATION)
-    execute_process(
-        COMMAND
-            "${qmake}" -query QT_INSTALL_TRANSLATIONS
-        OUTPUT_VARIABLE qt_translations
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    foreach(language IN LISTS languages)
-        if(EXISTS "${qt_translations}/qtbase_${language}.qm")
-            list(APPEND qm "${qt_translations}/qtbase_${language}.qm")
-        elseif(EXISTS "${qt_translations}/qt_${language}.qm")
-            list(APPEND qm "${qt_translations}/qt_${language}.qm")
-        else()
-            message(
-                FATAL_ERROR
-                "Qt translations for '${language}' locale are not found in the '${qt_translations}' folder."
-            )
-        endif()
-    endforeach()
-endif()
+# Qt's own translations of the languages the programs have, beside them, from the vcpkg set's Qt, which the
+# programs link in.
+get_target_property(qmake Qt::qmake IMPORTED_LOCATION)
+execute_process(
+    COMMAND
+        "${qmake}" -query QT_INSTALL_TRANSLATIONS
+    OUTPUT_VARIABLE qt_translations
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND_ERROR_IS_FATAL ANY
+)
+foreach(language IN LISTS languages)
+    if(EXISTS "${qt_translations}/qtbase_${language}.qm")
+        list(APPEND qm "${qt_translations}/qtbase_${language}.qm")
+    elseif(EXISTS "${qt_translations}/qt_${language}.qm")
+        list(APPEND qm "${qt_translations}/qt_${language}.qm")
+    else()
+        message(
+            FATAL_ERROR
+            "Qt translations for '${language}' locale are not found in the '${qt_translations}' folder."
+        )
+    endif()
+endforeach()
 
 set(destination "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/translations")
 add_custom_target(

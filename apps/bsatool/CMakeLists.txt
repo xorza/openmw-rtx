@@ -7,8 +7,4 @@ target_link_libraries(
         openmw-components
 )
 
-install(
-    TARGETS
-        bsatool
-        ${runtime_dependency_arguments}
-)
+install(TARGETS bsatool)

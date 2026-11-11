@@ -23,8 +23,4 @@ target_link_libraries(
         openmw-components
 )
 
-install(
-    TARGETS
-        esmtool
-        ${runtime_dependency_arguments}
-)
+install(TARGETS esmtool)

@@ -3,13 +3,11 @@ names. Each thing is judged by the directory it leaves, named after its version,
 anew and an unchanged pin fetches nothing."""
 
 import hashlib
-import os
-import re
+import io
 import shutil
 import subprocess
 import sys
 import tarfile
-import tempfile
 import zipfile
 from pathlib import Path
 
@@ -22,81 +20,9 @@ from omw.system import (
     WINDOWS,
     Refusal,
     environment_key,
-    on_path,
     prepend_path,
-    read_text,
-    run,
+    working_tree_files,
 )
-
-
-def msvc_versions() -> dict[str, str]:
-    """The tags upstream's `CI/deps_versions.msvc.sh` pins, read the way its MSVC script reads them:
-    the dependency set's `VCPKG_TAG` and Qt's `QT_VER`."""
-    versions: dict[str, str] = {}
-    for line in read_text(ROOT / "CI" / "deps_versions.msvc.sh").splitlines():
-        match = re.fullmatch(r"\s*([A-Z_]+)=(\S+)\s*", line)
-        if match:
-            versions[match.group(1)] = match.group(2)
-    for name in ("VCPKG_TAG", "QT_VER"):
-        if name not in versions:
-            raise Refusal(f"CI/deps_versions.msvc.sh names no {name}")
-    return versions
-
-
-def windows_set_dir(tag: str) -> Path:
-    return DEPS / f"vcpkg-x64-windows-2022-{tag}"
-
-
-def windows_set_manifest(tag: str) -> Path:
-    return DEPS / f"{windows_set_dir(tag).name}-manifest.txt"
-
-
-def windows_set(tag: str) -> Path:
-    """**Upstream's prebuilt dependency set, the way upstream's Windows workflow gets it.** A manifest
-    on `openmw-deps` names the archive and its SHA-512 for the tag — the 2022 set, which upstream's
-    own script links against Visual Studio 2026 as well. Unpacked beside its final name, which it
-    takes only once the whole of it is there."""
-    deps = windows_set_dir(tag)
-    if deps.is_dir():
-        return deps
-
-    manifest = windows_set_manifest(tag)
-    fetch.download(f"https://gitlab.com/OpenMW/openmw-deps/-/raw/main/windows/{manifest.name}", manifest)
-    lines = read_text(manifest).splitlines()
-    # The second line is `sha512sum`'s: the digest, then the file, with a `*` in binary mode.
-    checksum = lines[1].split(maxsplit=1) if len(lines) >= 2 else []
-    if len(checksum) != 2:
-        raise Refusal(f"{manifest.name} is no URL above a sha512sum line")
-    url = lines[0].strip()
-    sha512, name = checksum
-    archive = DEPS / name.lstrip("*").strip()
-    fetch.download(url, archive, sha512=sha512)
-
-    fetch.build_beside(deps, lambda partial: fetch.unpack_7z(archive, partial))
-    archive.unlink()
-    return deps
-
-
-def windows_qt_dir() -> Path:
-    return DEPS / "Qt"
-
-
-def windows_qt(version: str) -> Path:
-    """**Qt, for the flavours that build the launcher, the wizard and the CS.** The dependency set
-    carries none, so it comes the way upstream's Windows workflow takes it: aqt, pinned by release
-    and checksum, installs the version upstream pins into deps/Qt — beside its version's directory,
-    which takes its name once aqt has finished, so a run stopped halfway is installed again."""
-    qt = windows_qt_dir() / version / "msvc2019_64"
-    if qt.is_dir():
-        return qt
-
-    aqt = windows_qt_dir() / "aqt_x64.exe"
-    fetch.download_pin(pins.AQT, aqt)
-    fetch.build_beside(qt.parent, lambda partial: run(
-        [aqt, "install-qt", "windows", "desktop", version, "win64_msvc2019_64", "--outputdir", partial],
-        cwd=aqt.parent), within=version)
-    aqt.unlink()
-    return qt
 
 
 def clang_format_dir() -> Path:
@@ -176,6 +102,90 @@ VCPKG_DOWNLOADS = DEPS / "vcpkg-downloads"
 VCPKG_WORK = DEPS / "vcpkg-work"
 VCPKG_SETS = DEPS / "sets"
 
+# Each system's triplet, `vcpkg/triplets/<triplet>.cmake`.
+TRIPLETS = {"linux": "x64-linux-openmw", "windows": "x64-windows-openmw"}
+TRIPLET = TRIPLETS[SYSTEM]
+
+# What a set is built from, by path from the root: the manifest, its configuration, the overlay ports and
+# triplets, and the image Linux builds in. With the vcpkg pins, the set's digest.
+SET_INPUTS = ("vcpkg.json", "vcpkg-configuration.json", "vcpkg/*", "CI/install_almalinux_deps.sh")
+
+
+def set_digest(root: Path = ROOT) -> str:
+    """**The set's name: a digest of everything it is built from**, the vcpkg pins among them, so a change
+    to any names another set and the one published for the old inputs is never taken for it."""
+    digest = hashlib.sha256()
+    for pin in (pins.VCPKG_REGISTRY, *pins.VCPKG_TOOL.values()):
+        digest.update(pin.sha256.encode())
+    for name in sorted(working_tree_files(*SET_INPUTS, root=root)):
+        digest.update(name.encode() + b"\0")
+        digest.update((root / name).read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    return digest.hexdigest()[:16]
+
+
+
+
+def vcpkg_set_dir(digest: str) -> Path:
+    return DEPS / f"vcpkg-set-{digest}"
+
+
+def vcpkg_set() -> Path:
+    """**The set of libraries this tree builds against**, vcpkg's export for this system's triplet, which
+    a build configures with through its toolchain file: the set `omw deps-set` built on this desk for the
+    inputs as they stand, or else the one `pins.py` names, fetched and joined from its parts. Refused when
+    the inputs moved since the pinned set and this desk built none for them: no other set is theirs."""
+    digest = set_digest()
+    folder = vcpkg_set_dir(digest)
+    if not folder.is_dir():
+        if digest != pins.VCPKG_SET.digest:
+            raise Refusal(f"vcpkg.json or its overlays moved since the set pins.py names (deps-{pins.VCPKG_SET.digest}): "
+                          f"`omw deps-set` builds deps-{digest} here, and the Dependency sets workflow publishes it "
+                          "for pins.py")
+        fetch.build_beside(folder, _fill_set)
+    return folder / TRIPLET
+
+
+def _fill_set(partial: Path) -> None:
+    parts = []
+    for pin in pins.VCPKG_SET.parts(SYSTEM, TRIPLET):
+        part = DEPS / Path(pin.url).name
+        fetch.download_pin(pin, part)
+        parts.append(part)
+    with _Joined(parts) as joined, tarfile.open(fileobj=joined, mode="r|gz") as tarred:
+        tarred.extractall(partial, filter="data")
+    for part in parts:
+        part.unlink()
+
+
+class _Joined(io.RawIOBase):
+    """The files `paths` read as one stream, in order: the parts a set is published in."""
+
+    def __init__(self, paths: list[Path]):
+        super().__init__()
+        self.paths = list(paths)
+        self.file: io.BufferedReader | None = None
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer) -> int:  # type: ignore[override]
+        while True:
+            if self.file is None:
+                if not self.paths:
+                    return 0
+                self.file = self.paths.pop(0).open("rb")
+            read = self.file.readinto(buffer)
+            if read:
+                return read
+            self.file.close()
+            self.file = None
+
+    def close(self) -> None:
+        if self.file is not None:
+            self.file.close()
+            self.file = None
+        super().close()
+
 
 def vcpkg_root_dir() -> Path:
     return pinned_folder("vcpkg", pins.VCPKG_REGISTRY, pins.VCPKG_TOOL[SYSTEM])
@@ -193,13 +203,7 @@ def vcpkg_root() -> Path:
     def fill(partial: Path) -> None:
         archive = DEPS / Path(pins.VCPKG_REGISTRY.url).name
         fetch.download_pin(pins.VCPKG_REGISTRY, archive)
-        with tarfile.open(archive) as tarred:
-            members = []
-            for member in tarred.getmembers():
-                member.name = member.name.split("/", 1)[1] if "/" in member.name else ""
-                if member.name:
-                    members.append(member)
-            tarred.extractall(partial, members=members, filter="data")
+        fetch.unpack_stripped(archive, partial)
         archive.unlink()
         tool = partial / f"vcpkg{EXE}"
         fetch.download_pin(pins.VCPKG_TOOL[SYSTEM], tool)
@@ -255,13 +259,33 @@ def cmake_environment(env: dict[str, str]) -> None:
     prepend_path(env, "PATH", cmake() / "bin")
 
 
+def llvm_dir() -> Path:
+    return pinned_folder("llvm", pins.LLVM)
+
+
+def llvm() -> Path:
+    """**The pinned LLVM, unpacked**, with `bin/clang` and `bin/clang++`: CI's clang leg, which compiles for
+    Clang's warnings with the Clang the editor's clangd is."""
+    folder = llvm_dir()
+    if (folder / "bin" / "clang++").is_file():
+        return folder
+
+    def fill(partial: Path) -> None:
+        archive = partial.parent / Path(pins.LLVM.url).name
+        fetch.download_pin(pins.LLVM, archive)
+        fetch.unpack_stripped(archive, partial)
+        archive.unlink()
+
+    return fetch.build_beside(folder, fill)
+
+
 def appimage_tools_dir() -> Path:
     return pinned_folder("appimage", *pins.APPIMAGE_TOOLS.values())
 
 
 def appimage_tools() -> Path:
-    """linuxdeploy, its two plugins and the AppImage runtime, together in one folder, where
-    linuxdeploy looks for its plugins: fetched beside it and given its name once all four are in."""
+    """linuxdeploy, its AppImage plugin and the AppImage runtime, together in one folder, where
+    linuxdeploy looks for its plugins: fetched beside it and given its name once all three are in."""
     tools = appimage_tools_dir()
     if tools.is_dir():
         return tools
@@ -297,154 +321,59 @@ def crash_tool(name: str) -> Path:
     return tool
 
 
-# The SDK's tools a build and the driver run, kept out of it beside its headers and its loader:
+# The shader tools a build and the driver run, each in the set's tools folder of the port that installs it:
 # `spirv-dis` is `omw kernels`', which names a module's constants by it.
-SDK_TOOLS = ("glslc", "spirv-val", "spirv-opt", "spirv-dis")
+SHADER_TOOLS = {"glslc": "shaderc", "spirv-val": "spirv-tools", "spirv-opt": "spirv-tools",
+                "spirv-dis": "spirv-tools"}
 
 
-def vulkan_sdk_dir() -> Path:
-    """**Named after the version and what is kept of it**, so a desk that has the SDK without a tool
-    the list gained fetches it again, and `prune` takes the old folder."""
-    version = pins.VULKAN_SDK_WINDOWS_VERSION if WINDOWS else pins.VULKAN_SDK_LINUX_VERSION
-    kept = hashlib.sha256(",".join(SDK_TOOLS).encode()).hexdigest()[:8]
-    return DEPS / f"vulkan-sdk-{version}-{kept}"
+def vulkan_loader_dir() -> Path:
+    return pinned_folder("vulkan-loader", pins.VULKAN_LOADER_WINDOWS)
 
 
-def vulkan_sdk() -> Path:
-    """**The Vulkan SDK from LunarG, only what the build needs out of it.** The shaders' pinning
-    names SPV_KHR_fma, which entered the SDK at 1.4.329, and a pinned SDK is the same headers and
-    tools on every desk and runner, whatever the distribution packages. What is kept: the headers,
-    SPIR-V's among them, the loader the tests start against, and `SDK_TOOLS`, which link nothing of the
-    SDK's. No layers: a runner has no device to validate on, and a desk that
-    validates has an SDK installed for it."""
-    sdk = vulkan_sdk_dir()
-    if sdk.is_dir():
-        return sdk
-    return fetch.build_beside(sdk, _vulkan_sdk_windows if WINDOWS else _vulkan_sdk_linux)
+def vulkan_loader() -> Path:
+    """**The Vulkan loader Windows' tests start against**, LunarG's redistributable of it: a runner has
+    no driver, which on a desk installs the loader system-wide, and no program the archive ships carries
+    one. Linux's is the set's, the one the AppImage carries."""
+    folder = vulkan_loader_dir()
+    if (folder / "vulkan-1.dll").is_file():
+        return folder
+
+    def fill(partial: Path) -> None:
+        archive = partial / Path(pins.VULKAN_LOADER_WINDOWS.url).name
+        fetch.download_pin(pins.VULKAN_LOADER_WINDOWS, archive)
+        # The x64 one by its path: the archive holds the loader of each architecture under one name.
+        with zipfile.ZipFile(archive) as opened, opened.open(f"{archive.stem}/x64/vulkan-1.dll") as source, \
+                open(partial / "vulkan-1.dll", "wb") as out:
+            shutil.copyfileobj(source, out)
+        archive.unlink()
+
+    fetch.build_beside(folder, fill)
+    return folder
 
 
-def _vulkan_sdk_linux(into: Path) -> None:
-    """Out of the 330 MB tarball. The loader sits in a prefix of its own, `lib/VulkanLoader`, which is
-    where the SDK's `setup-env.sh` points too."""
-    tarball = DEPS / Path(pins.VULKAN_SDK_LINUX.url).name
-    fetch.download_pin(pins.VULKAN_SDK_LINUX, tarball)
-    wanted = re.compile(r"[^/]+/x86_64/(include/.*|lib/VulkanLoader/lib/libvulkan\.so.*"
-                        rf"|bin/({'|'.join(re.escape(tool) for tool in SDK_TOOLS)}))")
-    with tarfile.open(tarball) as opened:
-        members: list[tarfile.TarInfo] = []
-        for member in opened:
-            if wanted.fullmatch(member.name):
-                member.name = member.name.split("/", 1)[1]
-                members.append(member)
-        # The filter is 3.11.4's and later; a symlink the SDK carries points inside it either way.
-        if hasattr(tarfile, "data_filter"):
-            opened.extractall(into, members=members, filter="data")
-        else:
-            opened.extractall(into, members=members)
-    tarball.unlink()
-
-
-def _quoted(text: str | Path) -> str:
-    """`text` as a PowerShell string that expands nothing, whatever a path holds."""
-    return "'" + str(text).replace("'", "''") + "'"
-
-
-def _run_installer(program: Path, arguments: list[str], log: Path, what: str) -> None:
-    """**A Qt Installer Framework program run unattended**, through PowerShell's wait, since it is a
-    windowed program that answers nothing on a console of its own: its `--verbose` lines go to `log`,
-    and an exit other than nought is refused with the errors it logged."""
-    listed = ", ".join(_quoted(argument) for argument in ["--verbose", *arguments])
-    started = subprocess.run(["powershell", "-NoProfile", "-Command",
-                              (f"$p = Start-Process -Wait -PassThru -NoNewWindow -FilePath {_quoted(program)} "
-                               f"-RedirectStandardOutput {_quoted(log)} -ArgumentList @({listed}); exit $p.ExitCode")],
-                             check=False)
-    if started.returncode != 0:
-        logged = read_text(log) if log.is_file() else ""
-        errors = [line.split("] ", 1)[-1] for line in logged.splitlines() if "Error" in line]
-        raise Refusal(f"the Vulkan SDK's {what} stopped with exit code {started.returncode}"
-                      + "".join(f"\n  {error}" for error in errors))
-
-
-def _vulkan_sdk_windows(into: Path) -> None:
-    """**Out of a 288 MB installer that has no tarball beside it**: run unattended into a directory of
-    its own, then the headers and `SDK_TOOLS` are taken out of it and the rest left behind. No import
-    library: no program links the loader, which volk loads at run time. The loader the tests load
-    comes from the runtime components, because the installer leaves it to the driver and a runner has
-    no driver.
-
-    **`copy_only=1` installs the files alone**, LunarG's switch for an unattended install that
-    changes nothing of the system: without it, the core component asks for administrator rights,
-    which a desk's shell does not have. The installer still registers what it put down as an
-    installed SDK, so its maintenance tool purges it before the directory goes, or every bootstrap
-    left an entry for a folder that no longer exists."""
-    installer = DEPS / Path(pins.VULKAN_SDK_WINDOWS.url).name
-    fetch.download_pin(pins.VULKAN_SDK_WINDOWS, installer)
-    try:
-        # What the purge leaves is left behind, read-only files and all.
-        with tempfile.TemporaryDirectory(dir=DEPS, ignore_cleanup_errors=True) as scratch:
-            full = Path(scratch) / "installed"
-            _run_installer(installer, ["--root", str(full), "--accept-licenses", "--default-answer",
-                                      "--confirm-command", "install", "copy_only=1"],
-                          Path(scratch) / "install.log", "installer")
-            try:
-                tools = tuple(f"{tool}.exe" for tool in SDK_TOOLS)
-                for needed in ["Include/vulkan/vulkan.h", "Include/spirv/unified1/spirv.hpp",
-                               *(f"Bin/{tool}" for tool in tools)]:
-                    if not (full / needed).is_file():
-                        raise Refusal(f"the Vulkan SDK installer left no {needed}")
-                (into / "Bin").mkdir(parents=True)
-                shutil.copytree(full / "Include", into / "Include")
-                for tool in tools:
-                    shutil.copy2(full / "Bin" / tool, into / "Bin")
-            finally:
-                # A warning and not a refusal: what was copied is whole, and a refusal here would
-                # stand in for the reason the copy stopped, where it stopped.
-                try:
-                    _run_installer(full / "maintenancetool.exe",
-                                   ["--accept-licenses", "--default-answer", "--confirm-command", "purge"],
-                                   Path(scratch) / "purge.log", "maintenance tool")
-                except Refusal as unpurged:
-                    print(f"omw: warning: {unpurged}; Windows lists a Vulkan SDK at {full}, which is gone, "
-                          "until it is removed under Settings > Apps", file=sys.stderr)
-    finally:
-        installer.unlink(missing_ok=True)
-
-    loader = DEPS / Path(pins.VULKAN_LOADER_WINDOWS.url).name
-    fetch.download_pin(pins.VULKAN_LOADER_WINDOWS, loader)
-    # The x64 one by its path: the archive holds the loader of each architecture under one name.
-    dll = f"{loader.stem}/x64/vulkan-1.dll"
-    target = into / "Bin" / "vulkan-1.dll"
-    with zipfile.ZipFile(loader) as opened, opened.open(dll) as source, open(target, "wb") as out:
-        shutil.copyfileobj(source, out)
-    loader.unlink()
-
-
-def sdk_environment(env: dict[str, str]) -> None:
-    """**What `omw bootstrap` fetched, handed to every command**, the way the SDK's `setup-env.sh`
-    would: FindVulkan reads `VULKAN_SDK` for the headers, through `cmake/FindVulkanHeaders.cmake`, and
-    the tests load the loader from `LD_LIBRARY_PATH` or from the PATH beside glslc.
-    Nothing where nothing was fetched: a desk with the SDK installed builds against that."""
-    sdk = vulkan_sdk_dir()
-    if sdk.is_dir():
-        if WINDOWS:
-            env[environment_key("VULKAN_SDK")] = str(sdk)
-            prepend_path(env, "PATH", sdk / "Bin")
-        else:
-            base = sdk / "x86_64"
-            env["VULKAN_SDK"] = str(base)
-            prepend_path(env, "LD_LIBRARY_PATH", base / "lib" / "VulkanLoader" / "lib")
-            prepend_path(env, "PATH", base / "bin")
+def vulkan_environment(env: dict[str, str]) -> None:
+    """**Where the Vulkan headers, the shader tools and the loader every command reaches stand**: the vcpkg
+    set, whose toolchain file the presets read from `OMW_VCPKG_SET` and which finds the headers and the
+    tools, and the loader the tests load, the set's on Linux from `LD_LIBRARY_PATH` and LunarG's on Windows
+    from the PATH, where `omw bootstrap` fetched it."""
+    vcpkg = vcpkg_set_dir(set_digest()) / TRIPLET
+    env[environment_key("OMW_VCPKG_SET")] = str(vcpkg)
+    if WINDOWS:
+        prepend_path(env, "PATH", vulkan_loader_dir())
+    else:
+        prepend_path(env, "LD_LIBRARY_PATH", vcpkg / "installed" / TRIPLET / "lib")
 
 
 def pinned_names() -> set[str]:
     """Every name in deps/ that the pins give this system, through the same functions that name what
     each getter above leaves there, so pruning cannot take what a getter fetched."""
-    kept = [vulkan_sdk_dir(), cmake_dir(), clang_format_dir(), gersemi_dir(), vcpkg_root_dir(), appimage_tools_dir(),
-            VCPKG_BINARY_CACHE, VCPKG_DOWNLOADS, VCPKG_WORK, VCPKG_SETS]
+    kept = [cmake_dir(), clang_format_dir(), gersemi_dir(), vcpkg_root_dir(), appimage_tools_dir(), llvm_dir(),
+            VCPKG_BINARY_CACHE, VCPKG_DOWNLOADS, VCPKG_WORK, VCPKG_SETS,
+            vcpkg_set_dir(set_digest()), vcpkg_set_dir(pins.VCPKG_SET.digest)]
     kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]
     if WINDOWS:
-        tag = msvc_versions()["VCPKG_TAG"]
-        kept += [windows_set_dir(tag), windows_set_manifest(tag), windows_qt_dir()]
+        kept.append(vulkan_loader_dir())
     return {path.name for path in kept}
 
 
@@ -456,9 +385,6 @@ def prune() -> None:
         return
     keep = pinned_names()
     stale = [entry for entry in DEPS.iterdir() if entry.name not in keep]
-    qt = windows_qt_dir()
-    if WINDOWS and qt.is_dir():
-        stale += [entry for entry in qt.iterdir() if entry.name != msvc_versions()["QT_VER"]]
     for entry in stale:
         print(f"removing {entry.relative_to(DEPS)}, which no pin names", file=sys.stderr)
         if entry.is_dir() and not entry.is_symlink():
@@ -468,17 +394,17 @@ def prune() -> None:
 
 
 def bootstrap() -> None:
-    """The Vulkan SDK, run once to prove it: a tool left out, or one that needs a library it did not
-    bring, stops here by name and not in the middle of a configure. Then the pinned CMake, and deps/
-    shed of what no pin names."""
-    sdk = vulkan_sdk()
-    env = dict(os.environ)
-    sdk_environment(env)
-    for tool in SDK_TOOLS:
-        found = on_path(tool, env[environment_key("PATH")])
-        if found is None:
-            raise Refusal(f"{sdk} holds no {tool}")
-        subprocess.run([found, "--version"], check=True, env=env, stdout=subprocess.DEVNULL)
-    print(f"Vulkan SDK: {sdk}")
+    """The vcpkg set, its shader tools run once to prove it: a tool left out, or one that needs a library it
+    did not bring, stops here by name and not in the middle of a configure. Windows' loader, the pinned
+    CMake, and deps/ shed of what no pin names."""
+    vcpkg = vcpkg_set()
+    for tool, port in SHADER_TOOLS.items():
+        found = vcpkg / "installed" / TRIPLET / "tools" / port / f"{tool}{EXE}"
+        if not found.is_file():
+            raise Refusal(f"the vcpkg set at {vcpkg} holds no {tool}")
+        subprocess.run([found, "--version"], check=True, stdout=subprocess.DEVNULL)
+    print(f"vcpkg set: {vcpkg}")
+    if WINDOWS:
+        print(f"Vulkan loader: {vulkan_loader()}")
     print(f"CMake: {cmake()}")
     prune()

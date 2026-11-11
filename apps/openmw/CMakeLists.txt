@@ -1092,9 +1092,5 @@ if(OPENMW_BUILD_GAME)
     if(MSVC)
         target_link_options(openmw PRIVATE $<IF:$<CONFIG:Debug,RelWithDebInfo>,/SUBSYSTEM:CONSOLE,/SUBSYSTEM:WINDOWS>)
     endif()
-    install(
-        TARGETS
-            openmw
-            ${runtime_dependency_arguments}
-    )
+    install(TARGETS openmw)
 endif()

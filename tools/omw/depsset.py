@@ -5,38 +5,17 @@ set's digest; or, with `--digest`, that name alone. Linux builds its set on the 
 on a desk that is another system, as `omw archive` builds there."""
 
 import gzip
-import hashlib
 import io
 import os
 import shutil
 import tarfile
 from pathlib import Path
 
-from omw import deps, package, pins
-from omw.system import EXE, ROOT, SYSTEM, Refusal, run, working_tree_files
+from omw import deps, package
+from omw.system import EXE, ROOT, SYSTEM, Refusal, run
 
 # The file a Linux system names itself in.
 OS_RELEASE = Path("/etc/os-release")
-
-# Each system's triplet, `vcpkg/triplets/<triplet>.cmake`.
-TRIPLETS = {"linux": "x64-linux-openmw", "windows": "x64-windows-openmw"}
-
-# What a set is built from, by path from the root: the manifest, its configuration, the overlay ports and
-# triplets, and the image Linux builds in. With the vcpkg pins, the set's digest.
-SET_INPUTS = ("vcpkg.json", "vcpkg-configuration.json", "vcpkg/*", "CI/install_almalinux_deps.sh")
-
-
-def set_digest(root: Path = ROOT) -> str:
-    """**The set's name: a digest of everything it is built from**, the vcpkg pins among them, so a change
-    to any names another set and the one published for the old inputs is never taken for it."""
-    digest = hashlib.sha256()
-    for pin in (pins.VCPKG_REGISTRY, *pins.VCPKG_TOOL.values()):
-        digest.update(pin.sha256.encode())
-    for name in sorted(working_tree_files(*SET_INPUTS, root=root)):
-        digest.update(name.encode() + b"\0")
-        digest.update((root / name).read_bytes().replace(b"\r\n", b"\n") + b"\0")
-    return digest.hexdigest()[:16]
-
 
 # GitHub refuses a release asset of 2 GiB or more ("About releases", docs.github.com), and Windows' set, whose
 # libraries carry their debug information (`/Z7`), packs to near that: so a set is cut into parts of this
@@ -117,7 +96,7 @@ def pack_set(exported: Path, triplet: str, part_size: int = PART_SIZE) -> list[P
 
 def deps_set(args: list[str]) -> int:
     if args == ["--digest"]:
-        print(f"deps-{set_digest()}")
+        print(f"deps-{deps.set_digest()}")
         return 0
     if args:
         raise Refusal("deps-set takes `--digest` or nothing")
@@ -125,7 +104,7 @@ def deps_set(args: list[str]) -> int:
         run(package.release_container("package").command(["python3", "omw", "deps-set"]))
         return 0
     check_container()
-    triplet = TRIPLETS[SYSTEM]
+    triplet = deps.TRIPLET
     root = deps.vcpkg_root()
     work = deps.VCPKG_WORK
     installed = work / "installed"
@@ -144,8 +123,14 @@ def deps_set(args: list[str]) -> int:
     run([vcpkg, "export", "--x-all-installed", "--raw", f"--output-dir={exported}", f"--output={triplet}", *roots],
         env=env, cwd=ROOT)
     parts = pack_set(exported / triplet, triplet)
-    shutil.rmtree(exported)
-    print(f"deps-{set_digest()}: " + " ".join(str(part) for part in parts))
+    # The export is the set this desk then builds against, as the published one would be once fetched.
+    digest = deps.set_digest()
+    folder = deps.vcpkg_set_dir(digest)
+    shutil.rmtree(folder, ignore_errors=True)
+    folder.mkdir(parents=True)
+    (exported / triplet).replace(folder / triplet)
+    exported.rmdir()
+    print(f"deps-{digest}: " + " ".join(str(part) for part in parts))
     return 0
 
 

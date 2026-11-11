@@ -3,7 +3,6 @@
 #include <components/fallback/fallback.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
-#include <components/misc/osgpluginchecker.hpp>
 #include <components/misc/rng.hpp>
 #include <components/platform/platform.hpp>
 #include <components/settings/values.hpp>
@@ -226,12 +225,7 @@ int runApplication(int argc, char* argv[])
     engine->setRecastMaxLogLevel(Debug::getRecastMaxLogLevel());
 
     if (parseOptions(argc, argv, *engine, cfgMgr))
-    {
-        if (!Misc::checkRequiredOSGPluginsArePresent())
-            return 1;
-
         engine->go();
-    }
 
     return 0;
 }

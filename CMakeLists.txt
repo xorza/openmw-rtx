@@ -75,6 +75,9 @@ set(CMAKE_AUTOGEN_PARALLEL 1)
 # MSVC's debug information in each object (`/Z7`), in every configuration: ccache cannot cache a compile
 # that writes a shared PDB, and each program links its PDB from them (`cmake/Flags.cmake`).
 set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
+# MSVC's runtime linked into every program, as the vcpkg set's libraries are (`x64-windows-openmw`): no
+# runtime to ship beside them, and none older installed system-wide to fault in.
+set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
 
 # Link-time optimisation where a configure asks for it with CMake's own `CMAKE_INTERPROCEDURAL_OPTIMIZATION`:
 # the package preset, which a tagged release builds; refused here by name where the compiler has none.

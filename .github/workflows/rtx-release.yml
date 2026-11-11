@@ -24,6 +24,8 @@ jobs:
     # No cache: a release ships what this run fetched and built.
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    # The release base, AlmaLinux 8, whose glibc is the AppImage's floor; none for Windows.
+    container: ${{ matrix.container }}
     permissions:
       contents: read
     timeout-minutes: 180
@@ -33,6 +35,7 @@ jobs:
         include:
           - name: linux-package
             os: ubuntu-26.04
+            container: almalinux:8
             # An AppImage is compressed already; the Windows folder is not.
             compression: 0
           - name: windows-package
@@ -42,6 +45,14 @@ jobs:
       run:
         shell: bash
     steps:
+      # The checkout needs Git in the container before it can run, and Git a repository it was not
+      # handed by its owner.
+      - name: Git
+        if: matrix.container != ''
+        run: |
+          dnf install -y git
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -97,4 +108,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" --draft --verify-tag --title "$TAG" dist/*
+        # The libraries are linked in, the LGPL's among them: the notes say where their source is.
+        run: |
+          gh release create "$TAG" --draft --verify-tag --title "$TAG" dist/* --notes "Every third-party
+          library is linked into the programs, built by vcpkg from the registry commit, the tool and the overlay
+          ports this tag's vcpkg.json, vcpkg-configuration.json, vcpkg/ and tools/omw/pins.py name; their
+          licences ship in each archive's licenses folder."

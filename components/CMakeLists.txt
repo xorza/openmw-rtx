@@ -34,23 +34,22 @@ else()
     configure_file("${PROJECT_SOURCE_DIR}/${VERSION_CPP_FILE}.in" "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}")
 endif()
 
-# The OSG plugins the game loads, named for the checker that asks for them at start: OSG's CMake
-# package, which it does not have, would otherwise say.
-list(
-    TRANSFORM USED_OSG_PLUGINS
-    REPLACE
-        "^osgdb_"
-        ""
-    OUTPUT_VARIABLE USED_OSG_PLUGIN_NAMES
-)
-list(TRANSFORM USED_OSG_PLUGIN_NAMES PREPEND "\"" OUTPUT_VARIABLE USED_OSG_PLUGIN_NAMES_FORMATTED)
-list(TRANSFORM USED_OSG_PLUGIN_NAMES_FORMATTED APPEND "\"")
-list(JOIN USED_OSG_PLUGIN_NAMES_FORMATTED ", " USED_OSG_PLUGIN_NAMES_FORMATTED)
-set(OSG_PLUGIN_CHECKER_CPP_FILE "components/misc/osgpluginchecker.cpp")
-configure_file(
-    "${PROJECT_SOURCE_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}.in"
-    "${PROJECT_BINARY_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}"
-)
+# The OSG plugins `cmake/Dependencies.cmake` links, each registered by name in one file: a reader's by
+# `USE_OSGPLUGIN`, a serializer library's by `USE_SERIALIZER_WRAPPER_LIBRARY`. `osgdb_osg` holds two
+# readers, the `.osg` one and `osg2`, which reads `.osgt`, the error marker's format.
+set(OSG_PLUGIN_USES "")
+foreach(plugin IN LISTS USED_OSG_PLUGINS)
+    if(plugin MATCHES "^osgdb_serializers_(.+)$")
+        string(APPEND OSG_PLUGIN_USES "USE_SERIALIZER_WRAPPER_LIBRARY(${CMAKE_MATCH_1})\n")
+    elseif(plugin STREQUAL "osgdb_osg")
+        string(APPEND OSG_PLUGIN_USES "USE_OSGPLUGIN(osg)\nUSE_OSGPLUGIN(osg2)\n")
+    elseif(plugin MATCHES "^osgdb_(.+)$")
+        string(APPEND OSG_PLUGIN_USES "USE_OSGPLUGIN(${CMAKE_MATCH_1})\n")
+    else()
+        message(FATAL_ERROR "${plugin} is named as no OSG plugin is")
+    endif()
+endforeach()
+configure_file(resource/osgplugins.cpp.in "${PROJECT_BINARY_DIR}/components/resource/osgplugins.cpp" @ONLY)
 
 copy_resource_file("lua/util.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/util.lua")
 copy_resource_file("lua_ui/content.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/content.lua")
@@ -60,7 +59,7 @@ target_sources(
     openmw-components
     PRIVATE
         "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}"
-        "${PROJECT_BINARY_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}"
+        "${PROJECT_BINARY_DIR}/components/resource/osgplugins.cpp"
     PUBLIC
         FILE_SET HEADERS
             BASE_DIRS
@@ -989,7 +988,6 @@ target_sources(
                 misc/monitor.hpp
                 misc/notnullptr.hpp
                 misc/objectpool.hpp
-                misc/osgpluginchecker.hpp
                 misc/osguservalues.hpp
                 misc/pathgridutils.hpp
                 misc/pathhelpers.hpp
@@ -1609,7 +1607,7 @@ target_link_libraries(
         MyGUI::MyGUI
         sol3
         Lua::Lua
-        LZ4::LZ4
+        lz4::lz4
         RecastNavigation::DebugUtils
         RecastNavigation::Detour
         RecastNavigation::Recast
@@ -1626,6 +1624,15 @@ target_link_libraries(
         # `dlopen` for `platform/libraryposix.cpp`, on the C libraries that keep it out of libc.
         ${CMAKE_DL_LIBS}
         Threads::Threads
+)
+# The OSG plugins, in every program that links the components: their registration is asked for by name, as
+# nothing calls into it (`resource/osgplugins.cpp.in`).
+list(TRANSFORM USED_OSG_PLUGINS PREPEND "OpenSceneGraph::" OUTPUT_VARIABLE osg_plugin_targets)
+target_link_libraries(openmw-components PUBLIC ${osg_plugin_targets})
+target_link_options(
+    openmw-components
+    INTERFACE
+        $<IF:$<CXX_COMPILER_ID:MSVC>,/INCLUDE:openmw_osg_plugins,LINKER:--undefined=openmw_osg_plugins>
 )
 
 if(WIN32)

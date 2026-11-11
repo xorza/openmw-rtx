@@ -12,6 +12,20 @@ class Pin:
     sha256: str
 
 
+@dataclass(frozen=True)
+class PublishedSet:
+    """A dependency set the Dependency sets workflow published as the release `deps-<digest>`: each
+    system's parts, by their SHA-256 in the order they join."""
+
+    repository: str
+    digest: str
+    sha256: dict[str, tuple[str, ...]]
+
+    def parts(self, system: str, triplet: str) -> list[Pin]:
+        base = f"https://github.com/{self.repository}/releases/download/deps-{self.digest}/vcpkg-{triplet}.tar.gz"
+        return [Pin(f"{base}.{index}", sha256) for index, sha256 in enumerate(self.sha256[system])]
+
+
 # aqt, which installs Qt on Windows for the flavours that build the Qt programs.
 AQT = Pin(
     "https://github.com/miurahr/aqtinstall/releases/download/v3.1.15/aqt_x64.exe",
@@ -107,10 +121,6 @@ APPIMAGE_TOOLS = {
         "https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage",
         "c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d",
     ),
-    "linuxdeploy-plugin-qt": Pin(
-        "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/1-alpha-20250213-1/linuxdeploy-plugin-qt-x86_64.AppImage",
-        "15106be885c1c48a021198e7e1e9a48ce9d02a86dd0a1848f00bdbf3c1c92724",
-    ),
     "linuxdeploy-plugin-appimage": Pin(
         "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/1-alpha-20250213-1/linuxdeploy-plugin-appimage-x86_64.AppImage",
         "992d502a248e14ab185448ddf6f6e7d25558cb84d4623c354c3af350c25fccb3",
@@ -120,6 +130,14 @@ APPIMAGE_TOOLS = {
         "2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d",
     ),
 }
+
+# Clang 23 for CI's clang leg (`deps.llvm`): kernel.org's slim build of LLVM's release, made on Debian 10 so
+# it runs on AlmaLinux 8's glibc 2.28, where LLVM's own Linux release asks a newer one. The digest is the one
+# kernel.org signs in `sha256sums.asc` beside it.
+LLVM = Pin(
+    "https://www.kernel.org/pub/tools/llvm/files/llvm-23.1.5-x86_64.tar.xz",
+    "b69433120ad62420d789f601c58a5472873c724be088c99a70b72fd30ca4af3c",
+)
 
 # Breakpad's two tools, by name and system: `dump_syms` turns a release's debug information into the
 # symbol files each release publishes, and `minidump-stackwalk` reads a player's dump against them.
@@ -145,11 +163,6 @@ CRASH_TOOLS = {
 # The Vulkan SDK from LunarG, each system's with the checksum LunarG publishes beside the file in its
 # own listing, sdk.lunarg.com/sdk/files.json. On Windows the loader comes apart from the SDK, from the
 # runtime components LunarG publishes for redistribution.
-VULKAN_SDK_LINUX_VERSION = "1.4.363.1"
-VULKAN_SDK_LINUX = Pin(
-    f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_LINUX_VERSION}/linux/vulkansdk-linux-x86_64-{VULKAN_SDK_LINUX_VERSION}.tar.xz",
-    "b7867d8ca658563813af666f34b93db87f1b1c7d9d69d97e924c210c7ba33eb8",
-)
 VULKAN_SDK_WINDOWS_VERSION = "1.4.363.0"
 VULKAN_SDK_WINDOWS = Pin(
     f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_WINDOWS_VERSION}/windows/vulkansdk-windows-X64-{VULKAN_SDK_WINDOWS_VERSION}.exe",
@@ -178,6 +191,18 @@ VCPKG_TOOL = {
         "2a4ae1467b9e797964c60c919d057b9e5dc1ec03f4b9632c1150026db25201f2",
     ),
 }
+
+# The dependency set every build links (`deps.vcpkg_set`): the release the Dependency sets workflow published
+# for the inputs `deps.set_digest` reads, each system's parts by the SHA-256 its `SHA256SUMS` lists.
+VCPKG_SET = PublishedSet(
+    repository="xorza/openmw-rtx",
+    digest="f3e22692b5cf67f9",
+    sha256={
+        "linux": ("f80c2cb4795a4af5b5784c436254f1a7f9539119e4b541a5e7cd851b5f900c77",),
+        "windows": ("4182be8cd55aceed46764c6708e0ee57e13feaab98562208aa22d473b9dccdd7",
+                    "81060d1ff2fdf59110ccb4bf4fa16af1d917dc63bb7e38fc698387c1a052ea26"),
+    },
+)
 
 # The CMake every build of the driver's configures with, on the desk, on CI and in the release container
 # (`deps.cmake`), by system: the release `cmake_minimum_required` names. The digests are Kitware's own

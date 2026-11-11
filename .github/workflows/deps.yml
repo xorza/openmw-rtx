@@ -12,6 +12,8 @@ on:
       - "vcpkg/**"
       - CI/install_almalinux_deps.sh
       - tools/omw/pins.py
+      - tools/omw/depsset.py
+      - .github/workflows/deps.yml
   workflow_dispatch:
 
 permissions: {}

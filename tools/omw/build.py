@@ -8,7 +8,6 @@ lacks, when a directory must be configured again, and what each flavour builds b
 import contextlib
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -35,9 +34,6 @@ FLAVOURS = ("debug", "release", "asan", "tsan", "package", "full")
 
 # The flavours under a sanitizer, which MSVC's has not been measured for on this tree.
 SANITIZED = ("asan", "tsan")
-
-# The flavours that build the programs Qt draws: the launcher and the wizard, and the CS.
-QT_FLAVOURS = ("package", "full")
 
 # The file a directory keeps the digest it was last configured from in.
 CONFIGURED_FROM = "omw-preset.sha256"
@@ -173,18 +169,14 @@ class Build:
 
     @property
     def env(self) -> dict[str, str]:
-        """The environment every command of this flavour runs under: the Vulkan SDK `omw bootstrap`
-        fetched, the pinned CMake, MSVC's and the versions the Windows presets read, and the test preset's own — the
+        """The environment every command of this flavour runs under: the vcpkg set and the Vulkan loader
+        (`deps.vulkan_environment`), the pinned CMake, MSVC's, and the test preset's own — the
         sanitizers' options, without which the asan build has no device and a race in the tsan build
         does not fail the run."""
         if self._env is None:
             env = msvc_environment() if WINDOWS else dict(os.environ)
-            deps.sdk_environment(env)
+            deps.vulkan_environment(env)
             deps.cmake_environment(env)
-            if WINDOWS:
-                versions = deps.msvc_versions()
-                env["VCPKG_TAG"] = versions["VCPKG_TAG"]
-                env["QT_VER"] = versions["QT_VER"]
             if presets.has_test_preset(self.preset):
                 env = presets.test_environment(self.preset, env)
             self._env = env
@@ -210,13 +202,6 @@ class Build:
         if not folders.get(name):
             raise Refusal(f"the {self.flavour} build names no {name} in {listed.name}: configure it again")
         return Path(folders[name])
-
-    def osg_plugin_folder_name(self) -> str:
-        """**The name OSG gives its plugin folder, for the OSG this build found**: `osgPlugins-` and the
-        release `osg/Version` states, which CMake reads into `OPENSCENEGRAPH_VERSION` and osgDB names
-        the folder from. Not pkg-config's version, which a packager may suffix: OpenMW's OSG 3.6.6
-        states `3.6.5-osgos-1` there and installs `osgPlugins-3.6.5`."""
-        return f"osgPlugins-{self.cached('OPENSCENEGRAPH_VERSION')}"
 
     @contextlib.contextmanager
     def _building(self) -> Iterator[None]:
@@ -271,18 +256,14 @@ class Build:
             self._configured = True
             return
 
+        deps.vcpkg_set()
         if WINDOWS:
-            windows_deps = deps.windows_set(env["VCPKG_TAG"])
-            qt = deps.windows_qt(env["QT_VER"]) if self.flavour in QT_FLAVOURS else None
+            deps.vulkan_loader()
 
         stamp.unlink(missing_ok=True)
         run(["cmake", "-S", ROOT, "--preset", self.preset, "--fresh"], env=env, stdout=stdout)
         self._redate_manifest_inputs()
 
-        if WINDOWS:
-            self._place_windows_runtime(windows_deps)
-            if qt is not None:
-                self._place_windows_qt(qt)
 
         stamp.write_text(digest + "\n")
         self._configured = True
@@ -306,8 +287,11 @@ class Build:
         judged by the time Ninja logged, which a file's own time does not move, and an output and an
         input both given one time read as built from what the input holds. One outside the build
         directory is source as well, and takes the time now. Before the configure, which brings
-        `build.ninja` up to date."""
-        if not ((self.dir / "build.ninja").is_file() and (self.dir / "CMakeCache.txt").is_file()):
+        `build.ninja` up to date. **Only where a configure succeeded**, which its stamp says: one that
+        failed leaves a `build.ninja` whose rules it never wrote, which Ninja refuses to list, and the
+        configure that follows starts afresh."""
+        if not ((self.dir / CONFIGURED_FROM).is_file() and (self.dir / "build.ninja").is_file()
+                and (self.dir / "CMakeCache.txt").is_file()):
             return
         listing = output([self.cached("CMAKE_MAKE_PROGRAM"), "-C", self.dir, "-t", "targets", "all"], env=self.env)
         outputs = ninja_outputs(listing, self.dir)
@@ -332,43 +316,6 @@ class Build:
         if ahead:
             print(f"omw: {len(ahead)} files the build reads were dated after the clock, {ahead[0]} among them; "
                   "they carry the time now", file=sys.stderr)
-
-    def _place_windows_runtime(self, windows_deps: Path) -> None:
-        """**What vcpkg's own copy step misses, placed the way upstream's MSVC script places it.**
-        The toolchain copies each DLL a binary links beside it and stops there: MyGUI's sits a
-        directory deeper than it looks and needs FreeType, which needs four more, and OSG's plugins
-        are loaded by name at runtime from `osgPlugins-<version>/`, which no link line names. The whole
-        set, 84 MB, rather than a list that goes stale with the next tag."""
-        bin_dir = windows_deps / "installed" / "x64-windows" / "bin"
-        for dll in [*bin_dir.glob("*.dll"), bin_dir / "Release" / "MyGUIEngine.dll"]:
-            shutil.copy2(dll, self.dir)
-        name = self.osg_plugin_folder_name()
-        if not (bin_dir / name).is_dir():
-            raise Refusal(f"vcpkg's OSG holds no {name} in {bin_dir}")
-        plugins = self.dir / name
-        plugins.mkdir(exist_ok=True)
-        for dll in (bin_dir / name).glob("*.dll"):
-            shutil.copy2(dll, plugins)
-
-    def _place_windows_qt(self, qt: Path) -> None:
-        """**What the Qt programs load, the list upstream's Windows workflow places**: the seven
-        libraries and four plugins the launcher, the wizard and the CS reach, where Qt's own deploy
-        tool would bring the whole of what it guesses at."""
-        for library in ("Core", "Gui", "Network", "OpenGL", "OpenGLWidgets", "Widgets", "Svg"):
-            shutil.copy2(qt / "bin" / f"Qt6{library}.dll", self.dir)
-        for kind, plugin in (("styles", "qwindowsvistastyle"), ("platforms", "qwindows"),
-                             ("imageformats", "qsvg"), ("iconengines", "qsvgicon")):
-            (self.dir / kind).mkdir(exist_ok=True)
-            shutil.copy2(qt / "plugins" / kind / f"{plugin}.dll", self.dir / kind)
-
-        # `Qt::Network` is only linked by the launcher's opt-in DLSS download, and Qt resolves its
-        # TLS backend as a plugin. Without one an https request fails before it leaves the process.
-        tls = qt / "plugins" / "tls"
-        if not tls.is_dir() or not any(tls.glob("*.dll")):
-            raise Refusal(f"Qt at {qt} holds no TLS plugin, which the launcher's DLSS download needs")
-        (self.dir / "tls").mkdir(exist_ok=True)
-        for dll in tls.glob("*.dll"):
-            shutil.copy2(dll, self.dir / "tls")
 
     def build(self, targets: list[str], stdout=None) -> None:
         """`-k 0` keeps Ninja going past a failed object, so one run of a build that breaks names

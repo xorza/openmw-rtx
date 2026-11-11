@@ -1,0 +1,6 @@
+{
+  "name": "alsa",
+  "version": "0",
+  "description": "The system's ALSA, which OpenAL Soft and SDL open with dlopen: its plugins and its configuration, PipeWire's and PulseAudio's among them, are the system's, at paths a libasound built elsewhere and linked in would not find on another distribution. A system library, as the registry's opengl and egl ports are.",
+  "supports": "linux"
+}

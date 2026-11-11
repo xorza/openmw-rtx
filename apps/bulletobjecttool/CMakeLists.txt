@@ -7,8 +7,4 @@ target_link_libraries(
         openmw-components
 )
 
-install(
-    TARGETS
-        openmw-bulletobjecttool
-        ${runtime_dependency_arguments}
-)
+install(TARGETS openmw-bulletobjecttool)

@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 from omw import deps, depsset
-from omw.pins import Pin
+from omw.pins import Pin, PublishedSet
 from omw.system import Refusal
 
 
@@ -28,31 +28,31 @@ class SetDigestTest(unittest.TestCase):
                             "vcpkg/triplets/x.cmake": b"set(A 1)\n", "CI/install_almalinux_deps.sh": b"dnf\n",
                             "README.md": b"text\n"})
         self.addCleanup(shutil.rmtree, root)
-        first = depsset.set_digest(root)
+        first = deps.set_digest(root)
         self.assertEqual(len(first), 16)
-        self.assertEqual(depsset.set_digest(root), first, "the same inputs named another set")
+        self.assertEqual(deps.set_digest(root), first, "the same inputs named another set")
 
         # A file outside the inputs moves nothing.
         (root / "README.md").write_bytes(b"other\n")
-        self.assertEqual(depsset.set_digest(root), first)
+        self.assertEqual(deps.set_digest(root), first)
         # A Windows clone's line endings are the same set.
         (root / "vcpkg.json").write_bytes(b"{}\r\n")
-        self.assertEqual(depsset.set_digest(root), first)
+        self.assertEqual(deps.set_digest(root), first)
 
         seen = {first}
         for name in ("vcpkg.json", "vcpkg-configuration.json", "vcpkg/triplets/x.cmake",
                      "CI/install_almalinux_deps.sh"):
             (root / name).write_bytes((root / name).read_bytes() + b"# moved\n")
-            moved = depsset.set_digest(root)
+            moved = deps.set_digest(root)
             self.assertNotIn(moved, seen, f"{name} moved and the set kept its name")
             seen.add(moved)
         # A new overlay port is an input too.
         (root / "vcpkg/ports/p/vcpkg.json").parent.mkdir(parents=True)
         (root / "vcpkg/ports/p/vcpkg.json").write_bytes(b"{}\n")
-        self.assertNotIn(depsset.set_digest(root), seen)
+        self.assertNotIn(deps.set_digest(root), seen)
 
-        with mock.patch.object(depsset.pins, "VCPKG_REGISTRY", Pin("https://example.com/r", "e" * 64)):
-            self.assertNotIn(depsset.set_digest(root), seen, "another registry kept the set's name")
+        with mock.patch.object(deps.pins, "VCPKG_REGISTRY", Pin("https://example.com/r", "e" * 64)):
+            self.assertNotIn(deps.set_digest(root), seen, "another registry kept the set's name")
 
 
 class ContainerTest(unittest.TestCase):
@@ -117,6 +117,51 @@ class PackSetTest(unittest.TestCase):
             for index in range(len(parts), 11):
                 (sets / f"vcpkg-t.tar.gz.{index}").write_bytes(b"")
             self.assertEqual([part.suffix for part in depsset.set_parts("t")], [f".{index}" for index in range(11)])
+
+
+class VcpkgSetTest(unittest.TestCase):
+    def test_this_desk_s_set_first_then_the_pinned_one_joined_from_its_parts_and_else_a_refusal(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        packed = io.BytesIO()
+        with tarfile.open(fileobj=packed, mode="w:gz") as tarred:
+            for name, data in ((f"{deps.TRIPLET}/scripts/buildsystems/vcpkg.cmake", b"# toolchain\n"),
+                               (f"{deps.TRIPLET}/installed/{deps.TRIPLET}/lib/z.lib", os.urandom(3000))):
+                entry = tarfile.TarInfo(name)
+                entry.size = len(data)
+                tarred.addfile(entry, io.BytesIO(data))
+        whole = packed.getvalue()
+        parts = [whole[:1000], whole[1000:2000], whole[2000:]]
+        published = PublishedSet("owner/repo", "a" * 16, {deps.SYSTEM: ("1" * 64, "2" * 64, "3" * 64)})
+
+        def download(pin: Pin, file: Path) -> None:
+            file.write_bytes(parts[int(pin.url[-1])])
+
+        with (mock.patch.object(deps, "DEPS", folder), mock.patch.object(deps.pins, "VCPKG_SET", published),
+              mock.patch.object(deps.fetch, "download_pin", side_effect=download) as fetched):
+            # Inputs that moved since the pin, with no set of this desk's for them.
+            with mock.patch.object(deps, "set_digest", return_value="b" * 16), self.assertRaisesRegex(
+                    Refusal, f"omw deps-set` builds deps-{'b' * 16}"):
+                deps.vcpkg_set()
+            self.assertEqual(fetched.call_count, 0)
+
+            # This desk's own set for those inputs, which `omw deps-set` left.
+            (folder / f"vcpkg-set-{'b' * 16}" / deps.TRIPLET).mkdir(parents=True)
+            with mock.patch.object(deps, "set_digest", return_value="b" * 16):
+                self.assertEqual(deps.vcpkg_set(), folder / f"vcpkg-set-{'b' * 16}" / deps.TRIPLET)
+            self.assertEqual(fetched.call_count, 0)
+
+            # The pinned set, its parts fetched in order, joined, unpacked and gone.
+            with mock.patch.object(deps, "set_digest", return_value="a" * 16):
+                found = deps.vcpkg_set()
+                self.assertEqual(found, folder / f"vcpkg-set-{'a' * 16}" / deps.TRIPLET)
+                self.assertEqual((found / "scripts" / "buildsystems" / "vcpkg.cmake").read_bytes(), b"# toolchain\n")
+                self.assertEqual(len((found / "installed" / deps.TRIPLET / "lib" / "z.lib").read_bytes()), 3000)
+                self.assertEqual([call.args[0].url[-1] for call in fetched.call_args_list], ["0", "1", "2"])
+                self.assertEqual(sorted(path.name for path in folder.iterdir()),
+                                 [f"vcpkg-set-{'a' * 16}", f"vcpkg-set-{'b' * 16}"], "a part stayed")
+                self.assertEqual(deps.vcpkg_set(), found)
+                self.assertEqual(fetched.call_count, 3, "a set already there was fetched again")
 
 
 class VcpkgRootTest(unittest.TestCase):

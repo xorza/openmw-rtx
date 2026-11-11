@@ -1,5 +1,5 @@
 {
-  "$comment": "The libraries the tree builds against, pinned by the vcpkg registry and tool pins.py names and built static by the triplets in vcpkg/triplets: `omw deps-set` builds a set, CI publishes it, and every build downloads it. The projects the tree compiles from source itself stay in cmake/Dependencies.cmake.",
+  "$comment": "The libraries the tree builds against, pinned by the vcpkg registry and tool pins.py names and built static by the triplets in vcpkg/triplets: `omw deps-set` builds a set, CI publishes it, and every build downloads it. The projects the tree compiles from source itself stay in cmake/Dependencies.cmake. On Linux the set carries the Vulkan loader too, the one library built shared, which the AppImage ships and volk opens: a system's may be older than the renderer is written against.",
   "dependencies": [
     "boost-geometry",
     "boost-iostreams",
@@ -53,6 +53,10 @@
           "platform": "linux"
         },
         {
+          "name": "openssl",
+          "platform": "linux"
+        },
+        {
           "name": "wayland",
           "platform": "linux"
         },
@@ -71,6 +75,7 @@
       ]
     },
     "qtsvg",
+    "qttranslations",
     {
       "name": "qttools",
       "default-features": false,
@@ -95,6 +100,15 @@
       "platform": "linux"
     },
     "vulkan-headers",
+    {
+      "name": "vulkan-loader",
+      "platform": "linux",
+      "features": [
+        "wayland",
+        "xcb",
+        "xlib"
+      ]
+    },
     "zlib"
   ]
 }

@@ -79,26 +79,6 @@ if(NOT CMAKE_BUILD_TYPE)
     )
 endif()
 
-# What an install carries beside the programs where the libraries they load are not the system's: Windows'.
-if(WIN32)
-    set(deploy_by_default ON)
-else()
-    set(deploy_by_default OFF)
-endif()
-option(
-    OPENMW_DEPLOY_QT_TRANSLATIONS
-    "Qt's own translations beside the programs, where Qt ships with them"
-    ${deploy_by_default}
-)
-option(OPENMW_DEPLOY_RUNTIME_DEPENDENCIES "The libraries the programs load, installed beside them" ${deploy_by_default})
-set(runtime_dependency_arguments)
-if(OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
-    set(runtime_dependency_arguments
-        RUNTIME_DEPENDENCY_SET
-        openmw-dependencies
-    )
-endif()
-
 # **One portable layout on every system**: every file in one folder, found relative to the programs, the
 # libraries a folder below them. The Windows folder and the AppImage are both laid out so.
 include(GNUInstallDirs)

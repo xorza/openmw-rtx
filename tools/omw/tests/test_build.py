@@ -82,6 +82,22 @@ class ConfiguredFromTest(unittest.TestCase):
                 (folder / missing).write_text(content)
 
 
+class OutputsAheadTest(unittest.TestCase):
+    def test_only_a_directory_a_configure_succeeded_in_is_asked_for_its_outputs(self):
+        build = temporary_build(self, "debug")
+        write_cache(build, "CMAKE_MAKE_PROGRAM:FILEPATH=/no/ninja")
+        # What a failed configure leaves: the cache and a `build.ninja` whose rules it never wrote.
+        (build.dir / "build.ninja").write_text("include CMakeFiles/rules.ninja\n")
+        with mock.patch("omw.build.output", side_effect=AssertionError("Ninja was asked")) as asked:
+            build._remove_outputs_ahead()
+            self.assertEqual(asked.call_count, 0)
+
+        (build.dir / CONFIGURED_FROM).write_text("abc\n")
+        with mock.patch("omw.build.output", return_value="") as asked:
+            build._remove_outputs_ahead()
+            self.assertEqual(asked.call_count, 1)
+
+
 class BuildOnceTest(unittest.TestCase):
     def test_a_target_is_built_once_a_run_and_one_whose_build_failed_again(self):
         build = temporary_build(self, "debug")
@@ -124,10 +140,8 @@ class CachedTest(unittest.TestCase):
                     "RTX_HARNESS_DIR:INTERNAL=/checkout/build/rtxtool",
                     "RTX_HARNESS_DIR_EXTRA:INTERNAL=/elsewhere",
                     "RTX_TEST_OUTPUT_DIR:INTERNAL=",
-                    "OSG_LIBRARY_RELEASE:FILEPATH=OSG_LIBRARY_RELEASE-NOTFOUND",
-                    "OPENSCENEGRAPH_VERSION:INTERNAL=3.6.5")
+                    "OSG_LIBRARY_RELEASE:FILEPATH=OSG_LIBRARY_RELEASE-NOTFOUND")
         self.assertEqual(build.cached("RTX_HARNESS_DIR"), "/checkout/build/rtxtool")
-        self.assertEqual(build.osg_plugin_folder_name(), "osgPlugins-3.6.5")
         for refused in ("RTX_TEST_OUTPUT_DIR", "RTX_SPIRV_DIR", "OSG_LIBRARY_RELEASE"):
             with self.subTest(name=refused), self.assertRaises(Refusal):
                 build.cached(refused)
@@ -248,27 +262,6 @@ class RedateAheadTest(unittest.TestCase):
                           "tree/ahead.ts": now + 60, "tree/build.ninja": now + 60})
         self.assertEqual(remove_ahead(outputs, now, build), [])
 
-
-
-class WindowsRuntimeTest(unittest.TestCase):
-    def test_the_plugins_of_the_version_the_build_found_are_placed_and_a_folder_vcpkg_lacks_is_refused(self):
-        build = temporary_build(self)
-        windows_deps = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, windows_deps)
-        bin_dir = windows_deps / "installed" / "x64-windows" / "bin"
-        (bin_dir / "Release").mkdir(parents=True)
-        (bin_dir / "osgPlugins-3.6.5").mkdir()
-        for file in ("osg161-osg.dll", "Release/MyGUIEngine.dll", "osgPlugins-3.6.5/osgdb_bmp.dll"):
-            (bin_dir / file).write_text(file)
-
-        write_cache(build, "OPENSCENEGRAPH_VERSION:INTERNAL=3.6.5")
-        build._place_windows_runtime(windows_deps)
-        self.assertEqual(sorted(path.name for path in (build.dir / "osgPlugins-3.6.5").iterdir()), ["osgdb_bmp.dll"])
-
-        # Another release finds no folder of its name, where a glob of the missing folder copied nothing.
-        write_cache(build, "OPENSCENEGRAPH_VERSION:INTERNAL=3.6.6")
-        with self.assertRaises(Refusal):
-            build._place_windows_runtime(windows_deps)
 
 
 def suite(target: str, *labels: str) -> dict:

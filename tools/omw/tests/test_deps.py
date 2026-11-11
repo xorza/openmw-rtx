@@ -27,15 +27,6 @@ class PinnedFolderTest(unittest.TestCase):
                             "one pin of several changed and the folder did not")
 
 
-class QuotedTest(unittest.TestCase):
-    def test_a_path_is_one_powershell_string_whatever_it_holds(self):
-        # Single quotes expand neither `$` nor a backtick, and a quote inside is doubled.
-        self.assertEqual(deps._quoted(Path("C:/Users/o'neil/deps")), "'" + str(Path("C:/Users/o''neil/deps")) + "'")
-        self.assertEqual(deps._quoted("copy_only=1"), "'copy_only=1'")
-        self.assertEqual(deps._quoted("$env:PATH `n"), "'$env:PATH `n'")
-        self.assertEqual(deps._quoted(""), "''")
-
-
 class CMakeTest(unittest.TestCase):
     def test_the_pinned_cmake_is_unpacked_whole_once_and_put_first_on_the_path(self):
         folder = Path(tempfile.mkdtemp())

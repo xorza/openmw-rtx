@@ -55,6 +55,13 @@ elseif(VCPKG_CROSSCOMPILING)
     message(WARNING "Atomics detection may fail for cross builds. You can set osg cmake variables in a custom triplet.")
 endif()
 
+# OpenThreads yields by `sched_yield` and not `pthread_yield`, which glibc deprecated in 2.34 and keeps for
+# programs linked before alone: the set is built on glibc 2.28, which offers it, and a program linked on a
+# newer glibc finds no such symbol.
+if(VCPKG_TARGET_IS_LINUX)
+    list(APPEND OPTIONS -DHAVE_PTHREAD_YIELD=0)
+endif()
+
 # The package osg can be configured to use different OpenGL profiles via a custom triplet file:
 # Possible values are GLCORE, GL2, GL3, GLES1, GLES2, GLES3, and GLES2+GLES3
 if(NOT DEFINED osg_OPENGL_PROFILE)

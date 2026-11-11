@@ -122,16 +122,13 @@ else()
                 -Wno-array-bounds
         )
 
-        # Wrong before GCC 16: `-Wmaybe-uninitialized` reports every copy of a `std::optional` (GCC bug
-        # 80635), Ubuntu 26.04's GCC 15.2 among them, and `-Wnull-dereference` OSG's inline
-        # `pushOntoNodePath`.
+        # `-Wmaybe-uninitialized` reports copies of a `std::optional` (GCC bug 80635), still on GCC 16.2
+        # where inlining reaches across the set's headers: `MaterialResolver::read`'s `SurfaceDescription`.
+        target_compile_options(openmw-checks INTERFACE -Wno-maybe-uninitialized)
+
+        # Wrong before GCC 16: `-Wnull-dereference` reports OSG's inline `pushOntoNodePath`.
         if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
-            target_compile_options(
-                openmw-checks
-                INTERFACE
-                    -Wno-maybe-uninitialized
-                    -Wno-null-dereference
-            )
+            target_compile_options(openmw-checks INTERFACE -Wno-null-dereference)
         endif()
 
         # Wrong on GCC 16: `-Wstringop-overflow` reports a byte vector's `resize(n, value)` at `-O3` as an

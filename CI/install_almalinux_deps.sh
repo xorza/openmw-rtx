@@ -32,3 +32,15 @@ if ! autoconf --version | grep -q " 2\.72$"; then
   (cd "$work/autoconf-2.72" && ./configure --prefix=/usr/local && make -j"$(nproc)" && make install)
   rm -rf "$work"
 fi
+
+# zsync 0.6.2, whose `zsyncmake` writes the .zsync an AppImage's update information names, and which
+# AlmaLinux 8 and EPEL do not carry. Its C predates the stricter pointer checks GCC 14 made errors.
+if ! command -v zsyncmake > /dev/null; then
+  work="$(mktemp -d)"
+  curl -fsSL https://zsync.moria.org.uk/download/zsync-0.6.2.tar.bz2 -o "$work/zsync.tar.bz2"
+  echo "56437594831f2320c532759805b5c51116c53c8848f14b54cfd9b76676d1d061abe7fc914264f496ed1c7922fbbd5b884166c855a2fb9eb1285f216e478c5f0d  $work/zsync.tar.bz2" | sha512sum -c -
+  tar xf "$work/zsync.tar.bz2" -C "$work"
+  (cd "$work/zsync-0.6.2" && ./configure --prefix=/usr/local CFLAGS="-O2 -std=gnu17 -fpermissive" && make -j"$(nproc)" && make install)
+  rm -rf "$work"
+fi
+

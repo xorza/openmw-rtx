@@ -70,8 +70,4 @@ target_link_libraries(
         openmw-components
 )
 
-install(
-    TARGETS
-        openmw-essimporter
-        ${runtime_dependency_arguments}
-)
+install(TARGETS openmw-essimporter)

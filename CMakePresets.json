@@ -17,11 +17,15 @@
             "$comment": [
                 "Every flavour. The CS, the wizard and the save importer stay off outside `full`; the ini importer",
                 "is on, because `omw setup` runs it on a fresh box. ccache drives GCC and MSVC, and the compile",
-                "database is what an editor reads. What the tree fetches, and where it takes a system's package",
-                "instead, is `cmake/Dependencies.cmake`'s. Warnings are errors, by CMake's own switch, for the tree's",
-                "targets alone (`cmake/Checks.cmake`)."
+                "database is what an editor reads. The libraries are the vcpkg set `omw` names in OMW_VCPKG_SET",
+                "(`omw deps-set`, `pins.py`), built static, through its own toolchain file: host tools and libraries",
+                "share the system's one triplet, and the manifest is the set's to install, never a configure's. What",
+                "the tree fetches is `cmake/Dependencies.cmake`'s. Warnings are errors, by CMake's own switch, for the",
+                "tree's targets alone (`cmake/Checks.cmake`)."
             ],
             "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "$env{OMW_VCPKG_SET}/scripts/buildsystems/vcpkg.cmake",
+                "VCPKG_MANIFEST_MODE": "OFF",
                 "CMAKE_C_COMPILER_LAUNCHER": "ccache",
                 "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -37,31 +41,20 @@
             "name": "linux",
             "hidden": true,
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
-            "$comment": [
-                "Linux supplies Google Test and yaml-cpp where installed. Its flags, mold and thin archives are",
-                "`cmake/Flags.cmake`'s, as every system's flags are."
-            ]
+            "$comment": "The set's triplet; mold and thin archives are `cmake/Flags.cmake`'s, as every system's flags are.",
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-linux-openmw",
+                "VCPKG_HOST_TRIPLET": "x64-linux-openmw"
+            }
         },
         {
             "name": "windows",
             "hidden": true,
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
-            "$comment": [
-                "Upstream's prebuilt vcpkg set, which `omw` fetches into deps/ at the tag CI/deps_versions.msvc.sh",
-                "pins (VCPKG_TAG). It lacks what `cmake/Dependencies.cmake` fetches, which it fetches whatever the",
-                "machine has installed, and Qt, so no launcher. vcpkg's DLL copying is off, since `omw` copies",
-                "the whole runtime, and the tree's own manifest is the vcpkg set's (`omw deps-set`), which this one",
-                "is not. The flags are `cmake/Flags.cmake`'s. The paths name nothing unless `omw` exports the two",
-                "versions."
-            ],
+            "$comment": "The set's triplet, whose libraries link MSVC's runtime statically, as every program does.",
             "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/scripts/buildsystems/vcpkg.cmake",
-                "VCPKG_APPLOCAL_DEPS": "OFF",
-                "VCPKG_MANIFEST_MODE": "OFF",
-                "LuaJit_INCLUDE_DIR": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/include/luajit",
-                "LuaJit_LIBRARY": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/lib/lua51.lib",
-                "FETCHCONTENT_TRY_FIND_PACKAGE_MODE": "NEVER",
-                "OPENMW_BUILD_LAUNCHER": "OFF"
+                "VCPKG_TARGET_TRIPLET": "x64-windows-openmw",
+                "VCPKG_HOST_TRIPLET": "x64-windows-openmw"
             }
         },
         {
@@ -227,11 +220,7 @@
         },
         {
             "name": "full-windows",
-            "inherits": [ "full", "windows", "common" ],
-            "$comment": "Qt for the CS, the launcher and the wizard.",
-            "cacheVariables": {
-                "CMAKE_PREFIX_PATH": "${sourceDir}/deps/Qt/$env{QT_VER}/msvc2019_64"
-            }
+            "inherits": [ "full", "windows", "common" ]
         },
         {
             "name": "package-linux",
@@ -239,13 +228,7 @@
         },
         {
             "name": "package-windows",
-            "inherits": [ "package", "windows", "common" ],
-            "$comment": [
-                "Qt for the launcher and the wizard, which `omw` fetches into deps/ at QT_VER."
-            ],
-            "cacheVariables": {
-                "CMAKE_PREFIX_PATH": "${sourceDir}/deps/Qt/$env{QT_VER}/msvc2019_64"
-            }
+            "inherits": [ "package", "windows", "common" ]
         }
     ],
     "testPresets": [

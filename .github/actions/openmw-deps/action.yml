@@ -16,58 +16,36 @@ runs:
   using: composite
   steps:
     - name: Python
-      # The oldest Python `omw` supports, so a later one's feature fails here and not on a desk.
+      # The oldest Python `omw` supports, so a later one's feature fails here and not on a desk. Linux's
+      # is the container's, which the packages below install.
+      if: runner.os == 'Windows'
       uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
         python-version: "3.11"
 
-    - name: Linux packages cache
-      # The packages downloaded, keyed by the scripts that list them, so a run reaches the mirror for its
-      # indices and for what changed alone: a mirror that stalled between files ended a job at the limit
-      # (run 42553703270). The packages alone, and not the folder `partial` apt downloads into.
-      if: runner.os == 'Linux' && inputs.cache == 'true'
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: apt-cache/*.deb
-        key: apt-${{ runner.os }}-${{ hashFiles('CI/install_ubuntu_deps.sh') }}
-
-    - name: Linux packages
-      # The slowest of 145 passing jobs took nine minutes, and a job run again on another runner took
-      # two. What apt held at the limit is printed, as `-qq` and `/dev/null` hide it during the install.
+    - name: AlmaLinux packages
+      # The container's, as the release base installs them, and gcc-toolset-15 and Python 3.12 made the
+      # job's own for every later step: what `/opt/rh/gcc-toolset-15/enable` sets, and `python`.
       if: runner.os == 'Linux'
       shell: bash
       run: |
-        sudo timeout --kill-after=1m 15m CI/install_ubuntu_deps.sh || {
-          status=$?
-          if [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; then
-            echo "::error::the Linux packages took past 15 minutes: run the job again"
-            sudo ls -l apt-cache/partial /var/cache/apt/archives/partial /var/lib/apt/lists/partial || true
-            sudo tail -n 20 /var/log/dpkg.log /var/log/apt/term.log || true
-          fi
-          exit "$status"
-        }
-        # The cache's save reads the packages as the runner's user, after apt wrote them as root.
-        sudo chown -R "$(id -u):$(id -g)" apt-cache
+        CI/install_almalinux_deps.sh
+        ln -sf /usr/bin/python3.12 /usr/local/bin/python
+        echo /opt/rh/gcc-toolset-15/root/usr/bin >> "$GITHUB_PATH"
+        echo "LD_LIBRARY_PATH=/opt/rh/gcc-toolset-15/root/usr/lib64:/opt/rh/gcc-toolset-15/root/usr/lib" >> "$GITHUB_ENV"
+        echo "PKG_CONFIG_PATH=/opt/rh/gcc-toolset-15/root/usr/lib64/pkgconfig" >> "$GITHUB_ENV"
 
-    - name: Vulkan SDK and CMake cache
-      # The SDK and CMake alone: the rest of deps/ is small on Linux, or fetched by one job only.
-      if: runner.os == 'Linux' && inputs.cache == 'true'
+    - name: The driver's tools cache
+      # CMake, LLVM and Windows' Vulkan loader, keyed by their pins: small, and fetched by every job. Not
+      # the vcpkg set, gigabytes unpacked, which a job downloads from its release.
+      if: inputs.cache == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
-          deps/vulkan-sdk-*
           deps/cmake-*
-        key: vulkan-sdk-${{ runner.os }}-${{ hashFiles('tools/omw/pins.py', 'tools/omw/deps.py') }}
-
-    - name: Windows dependencies cache
-      # An older cache is restored too: `omw` fetches only what a bump changed, and `omw bootstrap`
-      # removes what no pin names.
-      if: runner.os == 'Windows' && inputs.cache == 'true'
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: deps
-        key: deps-${{ runner.os }}-${{ hashFiles('CI/deps_versions.msvc.sh', 'tools/omw/pins.py', 'tools/omw/deps.py') }}
-        restore-keys: deps-${{ runner.os }}-
+          deps/llvm-*
+          deps/vulkan-loader-*
+        key: deps-${{ runner.os }}-${{ hashFiles('tools/omw/pins.py', 'tools/omw/deps.py') }}
 
     - name: The FetchContent archives' pins
       # Every archive is declared with its `URL_HASH`, so the hashes are what the archives are: the
@@ -88,7 +66,7 @@ runs:
         path: build-*/_deps/*-tmp
         key: fetchcontent-${{ inputs.cache-key }}-${{ steps.fetched.outputs.digest }}
 
-    - name: The Vulkan SDK
+    - name: The vcpkg set
       shell: bash
       run: python omw bootstrap
 
