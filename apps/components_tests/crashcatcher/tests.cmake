@@ -18,7 +18,12 @@ if(WIN32)
 else()
     target_sources(crash-tests PRIVATE crashcatcher/crashtestsposix.cpp)
 endif()
-target_link_libraries(crash-tests PRIVATE openmw-components)
+target_link_libraries(
+    crash-tests
+    PRIVATE
+        openmw-components
+        openmw-test-options
+)
 
 # The AppImage keeper's reads, where the components build one.
 if(LINUX)

@@ -185,15 +185,6 @@ jobs:
             python omw "$FLAVOUR" test --without-device
           fi
 
-      - name: Benchmarks, run once each as upstream runs them
-        if: matrix.tested && matrix.flavour == 'debug'
-        working-directory: build-debug
-        # Without `.exe`, which Git Bash finds on its own.
-        run: |
-          ./openmw_detournavigator_navmeshtilescache_benchmark
-          ./openmw_esm_refid_benchmark
-          ./openmw_settings_access_benchmark
-
       - name: Install
         if: matrix.tested && matrix.flavour == 'debug'
         run: python omw debug exec cmake --install . --prefix "$RUNNER_TEMP/install"
@@ -206,7 +197,7 @@ jobs:
         env:
           OPENMW_RTX_BACKEND: "null"
           SDL_VIDEO_DRIVER: offscreen
-        run: python omw debug integration --verbose
+        run: python omw debug integration
 
       - name: Logs
         if: failure()

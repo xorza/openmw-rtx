@@ -335,11 +335,12 @@ target_sources(
                 rtxvulkan/trace/visibility/fixture.hpp
                 ${RTX_TEST_SUPPORT_HEADERS}
 )
-if(WIN32)
-    target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatformwin32.cpp)
-else()
-    target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatformposix.cpp)
-endif()
+target_link_libraries(
+    rtx-gpu-tests
+    PRIVATE
+        openmw-test-platform
+        openmw-test-options
+)
 target_link_libraries(
     rtx-gpu-tests
     PRIVATE

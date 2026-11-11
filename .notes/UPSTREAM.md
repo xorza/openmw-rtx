@@ -396,3 +396,8 @@ made only on the user's explicit yes, after which it is added here.
   targets are, with keyword links and `osgQt` through `AUTOMOC` in place of `qt_wrap_cpp`, and their warnings
   off from `extern/`'s directory flags in place of `rgbcx`'s own branch. The cost is a conflict with an upstream
   edit to one of those lists.
+- Tests and smoke runs (`.notes/build-cleanup.md`, step 8): the test binaries' `-Og` an interface target each
+  links where it is defined, in place of a property `openmw_add_test` set once a binary; the system's half of the
+  test support one object library the three binaries that read it link, in place of a choice in each; and the
+  benchmarks CTest tests that run Google Benchmark's dry run, in place of CI's step that ran them. The cost is a
+  conflict with an upstream edit to a test binary's link list.

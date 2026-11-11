@@ -9,6 +9,7 @@ target_sources(
 target_link_libraries(
     openmw-cs-tests
     PRIVATE
+        openmw-test-options
         openmw-cs-lib
         GTest::gtest
         GTest::gmock

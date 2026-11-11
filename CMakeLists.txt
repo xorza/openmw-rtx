@@ -92,6 +92,9 @@ set(RTX_SPIRV_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-source")
 # measured one reads: the game's modules carry no census code at all, so they are not here.
 set(RTX_SPIRV_CENSUS_DIR "${RTX_HARNESS_DIR}/shaders-census")
 set(RTX_SPIRV_CENSUS_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-census-source")
+
+# What the suites write, their times and the crash matrix's runs (`cmake/Tests.cmake`).
+set(RTX_TEST_OUTPUT_DIR "${PROJECT_BINARY_DIR}/test-output")
 add_subdirectory(components/rtxvulkan)
 
 add_subdirectory(apps/openmw)
@@ -111,10 +114,11 @@ if(BUILD_TESTING)
     add_subdirectory(apps/openmw_tests)
     add_subdirectory(apps/opencs_tests)
     add_subdirectory(apps/benchmarks)
+    # After every folder that defines a test binary, as each test names one.
+    include(cmake/Tests.cmake)
 endif()
 add_subdirectory(docs)
 
-include(cmake/Tests.cmake)
 include(cmake/Install.cmake)
 
 # The folders the driver reads (`Build.folder`), written out of the variables that name them: values a

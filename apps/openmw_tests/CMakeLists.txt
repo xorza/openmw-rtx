@@ -59,11 +59,12 @@ target_sources(
             FILES
                 mwscript/testutils.hpp
 )
-if(WIN32)
-    target_sources(openmw-tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/testplatformwin32.cpp")
-else()
-    target_sources(openmw-tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/testplatformposix.cpp")
-endif()
+target_link_libraries(
+    openmw-tests
+    PRIVATE
+        openmw-test-platform
+        openmw-test-options
+)
 # MSVC's four code generation threads a file take more than CI's 8 GB beside another `cl.exe` on this one.
 set_property(
     SOURCE
