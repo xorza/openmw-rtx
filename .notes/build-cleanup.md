@@ -307,8 +307,25 @@ Linux set to check it, and the Dependency sets workflow publishes it, which `pin
   - Nothing is lost. Qt draws its cursors and tray icons through xcb-render (`xcb_render_*`, undefined in
     `libQt6XcbQpa.a`), and no archive of the set calls libXrender (no undefined `XRender*` symbol).
   - It rebuilds qtbase and every Qt port once, which this step's set rebuild pays for anyway.
+- **vulkan-loader takes no option it does not read** (`vcpkg/ports/vulkan-loader`, an overlay). The registry's
+  port finds Python and passes `-DPython3_EXECUTABLE`, which the loader's CMake at 1.4.357.0 never reads, so
+  the Linux set's build warns that it is unused (run 43016471135, job 130508789485). vcpkg's master passes it
+  the same way.
+  - Copy the port from the pinned registry as written, bump `port-version` by 100 as the other overlays do,
+    and list `Python3_EXECUTABLE` under `MAYBE_UNUSED_VARIABLES`, the remedy vcpkg's warning names. Python
+    stays acquired, in case a later loader reads it.
+  - Nothing in the set links the loader. It is the `libvulkan.so.1` the AppImage carries, so only the loader
+    rebuilds.
+  - When the registry bump brings vulkan-loader 1.4.363.0, the overlay is copied anew from that port with the
+    same one-line change, or deleted if that port reads or no longer passes the option.
+- **libjpeg-turbo's `NEON_INTRINSICS` waits for the registry bump.** The registry's port passes the ARM-only
+  `-DNEON_INTRINSICS=ON` on every system with a `VCPKG_CMAKE_SYSTEM_NAME`, x64 Linux included, so the Linux
+  set warns that it is unused (run 43016471135). vcpkg's master already lists it under
+  `MAYBE_UNUSED_VARIABLES`, so the next vcpkg release tag clears it with no overlay of ours. Until then it
+  warns only when the set rebuilds libjpeg-turbo, which is a cold cache or a change to its inputs.
 - Check the published run's logs:
-  - no unused-variable warning for `openmw-osg` or qtbase;
+  - no unused-variable warning for `openmw-osg`, qtbase or vulkan-loader (libjpeg-turbo's stays until the
+    registry bump);
   - no Boost warning in the Windows configure;
   - each Linux job's container named by the Dockerfile's digest.
 
