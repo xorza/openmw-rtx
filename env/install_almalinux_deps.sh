@@ -23,6 +23,10 @@ dnf install -y \
   wayland-devel wayland-protocols-devel expat-devel libxml2-devel \
   fontconfig-devel alsa-lib-devel pulseaudio-libs-devel dbus-devel systemd-devel libdrm-devel
 
+# `python3` is 3.12, which vcpkg's ports run (its meson asks for 3.7 or later): the meson package brings Python
+# 3.6, whose alternative outranks 3.12's. That meson runs on the platform's own Python, which this leaves be.
+alternatives --set python3 /usr/bin/python3.12
+
 # The tools below build with the GCC the set and the tree build with: AlmaLinux 8's own 8.5 is here only
 # because libtool's package asks for it. The image's `PATH` names the toolset only after this script ran.
 source /opt/rh/gcc-toolset-15/enable
