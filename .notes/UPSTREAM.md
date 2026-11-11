@@ -367,3 +367,9 @@ made only on the user's explicit yes, after which it is added here.
   which the root always sets first; the install components, which nothing installs by since CPack went; the
   empty `CMAKE_CXX_CLANG_TIDY` in `extern/`; and `mwmechanics/character.cpp`'s `-Wno-maybe-uninitialized`,
   which every GCC target already has. The cost is a conflict with an upstream edit to those lines.
+- What the pinned set makes constant, no longer tested (`.notes/build-cleanup.md`, step 3):
+  `cmake/CheckOsgMultiview.cmake`'s `try_compile`, as OpenMW's OSG at the pinned commit has multiview, so
+  `OSG_HAS_MULTIVIEW` is always defined; `files/data-mw`'s configure dependency for every generator but
+  Ninja, which is every preset's; and `OPENMW_USE_UNSHIELD`, the tree's own spelling of `NOT WIN32`, which
+  the wizard's list and the unshield search now read directly (the wizard's source keeps its definition). The
+  cost is a conflict with an upstream edit to those lines.

@@ -197,7 +197,9 @@ find_package(
         Svg
 )
 
-if(OPENMW_USE_UNSHIELD)
+# libunshield for the wizard, which unpacks the installer's archives everywhere but on Windows, whose
+# players run the installer itself.
+if(NOT WIN32)
     pkg_check_modules(unshield REQUIRED IMPORTED_TARGET libunshield)
     target_link_libraries(PkgConfig::unshield INTERFACE ZLIB::ZLIB)
 endif()
@@ -228,9 +230,9 @@ target_compile_definitions(Bullet::Bullet INTERFACE BT_USE_DOUBLE_PRECISION)
 
 # OpenSceneGraph, OpenMW's fork, static: one target a library of its, each with the headers and with what
 # its archive calls, which no file of the port states, and the headers alone for what names its types and
-# calls nothing of it, the build's table makers; `osg` with the multiview definition. The plugins the tree
-# reads with are linked into every program that links the components and registered there
-# (`components/resource/osgplugins.cpp.in`).
+# calls nothing of it, the build's table makers; `osg` with the multiview definition, as the fork has
+# multiview at the commit the set pins. The plugins the tree reads with are linked into every program that
+# links the components and registered there (`components/resource/osgplugins.cpp.in`).
 find_package(
     OpenSceneGraph
     REQUIRED
@@ -245,12 +247,9 @@ find_package(
         osgSim
         osgViewer
 )
-include(CheckOsgMultiview)
 add_library(OpenSceneGraph::headers INTERFACE IMPORTED)
 target_include_directories(OpenSceneGraph::headers INTERFACE ${OPENSCENEGRAPH_INCLUDE_DIRS})
-if(HAVE_MULTIVIEW)
-    target_compile_definitions(OpenSceneGraph::headers INTERFACE OSG_HAS_MULTIVIEW)
-endif()
+target_compile_definitions(OpenSceneGraph::headers INTERFACE OSG_HAS_MULTIVIEW)
 foreach(
     library
     OpenThreads

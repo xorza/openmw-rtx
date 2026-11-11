@@ -38,12 +38,6 @@ if(OPENMW_SANITIZER)
     string(APPEND CMAKE_CXX_FLAGS " ${sanitizer_flags}")
 endif()
 
-# libunshield for the wizard, which unpacks the installer's archives everywhere but on Windows, whose
-# players run the installer itself.
-if(NOT WIN32)
-    set(OPENMW_USE_UNSHIELD TRUE)
-endif()
-
 # A bare configure with no build type builds with line tables and the optimizer.
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build" FORCE)

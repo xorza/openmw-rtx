@@ -40,7 +40,7 @@ endif()
 
 # Upstream's wizard unpacks the installer's archives with libunshield on every system but Windows, whose
 # players run the installer itself.
-if(OPENMW_USE_UNSHIELD)
+if(NOT WIN32)
     target_sources(
         openmw-wizard
         PRIVATE

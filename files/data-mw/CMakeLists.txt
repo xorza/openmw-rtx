@@ -42,16 +42,8 @@ endforeach(f)
 # Concat data/builtin.omwscripts and data-mw/builtin.omwscripts.in to create vfs-mw/builtin.omwscripts
 set(builtinBase "${CMAKE_CURRENT_SOURCE_DIR}/../data/builtin.omwscripts")
 
-# https://gitlab.kitware.com/cmake/cmake/-/issues/20181
-if(NOT CMAKE_GENERATOR MATCHES "Ninja")
-    set_property(
-        DIRECTORY
-        APPEND
-        PROPERTY
-            CMAKE_CONFIGURE_DEPENDS
-                "${builtinBase}"
-    )
-endif()
+# The file is among the configure's inputs already, as `files/data` copies it with `configure_file`: a second
+# registration, spelt from here, is Ninja's "multiple rules generate" (CMake issue 20181).
 
 file(READ "${builtinBase}" BUILTIN_SCRIPTS)
 configure_resource_file(
