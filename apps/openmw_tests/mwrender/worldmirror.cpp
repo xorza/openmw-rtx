@@ -1,3 +1,7 @@
+#include <chrono>
+#include <filesystem>
+#include <memory>
+
 #include <gtest/gtest.h>
 
 #include <osg/Camera>
@@ -24,17 +28,22 @@
 #include <apps/openmw/mwrender/sky.hpp>
 #include <apps/openmw/mwrender/skystate.hpp>
 #include <apps/openmw/mwrender/vismask.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
+#include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
+#include <components/testing/util.hpp>
 #include <components/vfs/manager.hpp>
 
 namespace MWRender
@@ -173,6 +182,62 @@ namespace MWRender
             // A mirror goes standing nothing.
             world.mRoot->removeChildren(0, world.mRoot->getNumChildren());
             mirror.mirror(world.frame(3), view);
+        }
+
+        /// **The sea is prepared with the content, so the frame's thread finds its shape**: the frame asks
+        /// the store's memory alone, and the sea stands in no file a model's walk reads. A first session's
+        /// preparation folds and files it, a later one's reads its file, and a session that prepared
+        /// nothing finds it nowhere, though its file stands.
+        TEST(RtxWorldMirrorTest, theSeaIsPreparedSoTheFramesThreadFindsItsShape)
+        {
+            // Emptied first, as this binary's `main` appends no `FreshTestDirs`: a repeat's cold session
+            // found the store the first pass filled.
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            std::filesystem::remove_all(folder);
+            const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({});
+            Resource::ResourceSystem resources(vfs.get(), 5.0, nullptr);
+            TwoBodyFrame world;
+            world.mRoot->removeChildren(0, world.mRoot->getNumChildren());
+            const osg::Matrixd view = osg::Matrixd::identity();
+
+            struct Session
+            {
+                Rtx::PassStats mLoading;
+                Rtx::PassStats mFrame;
+            };
+            const auto session = [&](bool prepared) {
+                ContentStore::Store store(folder, Rtx::sContentStorePolicy);
+                WorldMirror mirror(MWRender::MirrorKnobs{}, &store, nullptr);
+                Session counted;
+                if (prepared)
+                {
+                    mirror.startPreparing(resources, {}, {}, 1);
+                    EXPECT_TRUE(mirror.awaitPreparing(std::chrono::milliseconds::zero()).isDone()) << "nothing to walk";
+                    counted.mLoading = mirror.finishPreparing().at(Rtx::ContentPassId::Shape);
+                }
+                world.mWorld.mWater.mEnabled = true;
+                counted.mFrame
+                    = mirror.mirror(world.frame(1), view).mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape);
+
+                // A mirror goes standing nothing.
+                world.mWorld.mWater.mEnabled = false;
+                mirror.mirror(world.frame(2), view);
+                return counted;
+            };
+
+            const Session cold = session(true);
+            EXPECT_EQ(cold.mLoading.mAsked, 1u);
+            EXPECT_EQ(cold.mLoading.mHits, 0u);
+            EXPECT_EQ(cold.mFrame.mAsked, 1u);
+            EXPECT_EQ(cold.mFrame.mHits, 1u) << "the frame folded what the preparation filed";
+
+            const Session warm = session(true);
+            EXPECT_EQ(warm.mLoading.mHits, 1u) << "the preparation did not read the sea's file";
+            EXPECT_EQ(warm.mFrame.mHits, 1u);
+
+            const Session unprepared = session(false);
+            EXPECT_EQ(unprepared.mFrame.mAsked, 1u);
+            EXPECT_EQ(unprepared.mFrame.mHits, 0u) << "the frame's thread reached the disk";
         }
 
         /// **The player is the one thing a mirror leaves out on a question about the eye.** Every

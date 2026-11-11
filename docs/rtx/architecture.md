@@ -489,7 +489,8 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
   loaded, and the harness's settled world waits for the queue. Refused: a device completion for what the frame meets,
   a second route (`MipChainPass` and `RgtcEncodePass` are gone).
 - **The store is filled on the loading screen, in the game's own process** (`Rtx::ContentPreparation`, inside
-  `Renderer::awaitShaders`), by the user's decision: every model and land texture the content list names, walked as
+  `Renderer::awaitShaders`), by the user's decision: every model and land texture the content list names, the
+  siblings the game loads by its own rule (an `x` model, a `_sh` scabbard) and the sea, which no file holds, walked as
   the cell reader walks it, on workers, as the game already compiles its kernels there and Godot's import runs in the
   editor that uses it. On every CPU the process may run on but one, by the user's decision, as Unity's job system
   starts its workers up to the logical cores: the main thread only draws the screen and sleeps. Refused: a child tool

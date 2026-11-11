@@ -108,8 +108,8 @@ namespace MWRender
         /// How far the preparation came, once it is done or `patience` passed: done where none runs.
         Rtx::JobProgress awaitPreparing(std::chrono::milliseconds patience);
 
-        /// Once `awaitPreparing` says it is done: the manifest written, the threads ended, and what they
-        /// computed, nothing where none ran.
+        /// Once `awaitPreparing` says it is done: the manifest written, the threads ended, the sea's shape
+        /// read into the store's memory, and what they computed, nothing where none ran.
         Rtx::ContentStats finishPreparing();
 
         /// The world is going: every thread that reads it stops, what was read of it goes, and

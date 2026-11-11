@@ -9,7 +9,3 @@
   Windows 11, `RtxPresenterTest.aLostSurfaceIsMadeAgainAndTheFramesGoOn`, `aFrameUnderFifoWaitsForThePresentTwoBeforeIt`
   and `aSuboptimalPresentRebuildsOnceAnExtent` fail as `vkCreateSwapchainKHR` answers `VK_ERROR_FORMAT_NOT_SUPPORTED`;
   the same binary passes all three in the logged-in desktop session.
-
-- **The frame's thread still computes a few shapes on a warm store**: at `seyda-neen-ship` (`scene`,
-  `--upscale=off`, second run) the frame's shapes found 1,390 of 1,391 asked on vanilla, 1,395 of 1,396 on the PBR
-  install and 1,242 of 1,249 on the Fullrest Repack, each run writing nothing to the store.

@@ -31,6 +31,7 @@
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/weather.hpp>
 #include <components/contentstore/key.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -46,9 +47,12 @@
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/meshreader.hpp>
+#include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/prepare/contentpreparation.hpp>
 #include <components/rtx/prepare/filestamps.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -243,6 +247,19 @@ namespace MWRender
                 return std::nullopt;
             return *available - std::min(*available, sPreparationReserve);
         }
+
+        /// What reading `sea` through the disk cost: its shape found in `store` or folded and filed there,
+        /// and held in the store's memory either way. As the frame's walk reads it, standing in no model.
+        Rtx::ContentStats prepareSea(ContentStore::Store& store, const osg::Geometry& sea)
+        {
+            Rtx::ContentPreprocessor content(&store, ContentStore::Reach::Disk);
+            Rtx::MeshReader reader;
+            Rtx::MeshReading reading;
+            [[maybe_unused]] const Result<bool, std::string> read
+                = reader.read(content, Rtx::readDrawable(sea, Rtx::NodeKind::Other), nullptr, reading);
+            assert(read.isOk() && "the sea's own plane does not read");
+            return content.takeStats();
+        }
     }
 
     /// The preparation and what it reads, which outlive it: made together, gone together. Pinned:
@@ -298,6 +315,11 @@ namespace MWRender
         if (!mPreparing->mRun.finish())
             Log(Debug::Warning) << "The content's preparation could not write its manifest";
 
+        // **The sea as well, which no file holds and so no model's walk reads**: the frame's thread, whose
+        // asks reach the store's memory alone, folded it again every session.
+        Rtx::ContentStats stats = mPreparing->mRun.getStats();
+        stats += prepareSea(*mStore, *mSea->getChild(0)->asGeometry());
+
         // **The store's start swept and loaded before the first frame asks its memory**, which the frame
         // reaches alone: an entry still on its way from the disk was one the frame computed again.
         mStore->flush();
@@ -305,7 +327,6 @@ namespace MWRender
         // **What it took, said once**, in the game as under every verb: the wall against the threads'
         // CPU says whether they waited, and the passes say on what the CPU went.
         const Rtx::PreparationTimes times = mPreparing->mRun.getTimes();
-        const Rtx::ContentStats stats = mPreparing->mRun.getStats();
         using Seconds = std::chrono::duration<double>;
         constexpr double mebibyte = 1024.0 * 1024.0;
         Log(Debug::Info) << std::format(

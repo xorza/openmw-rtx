@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <apps/openmw/mwrender/actorutil.hpp>
 #include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
@@ -55,6 +56,23 @@ namespace MWRender
                     into.emplace_back(animated.value());
             }
         }
+
+        /// Beside each of `Record`'s models, its `_sh` sibling where one stands: the scabbard or the
+        /// holstered shield an actor that sheathes the item wears, which no record names
+        /// (`ActorAnimation::updateHolsteredWeapons`, `ActorAnimation::updateHolsteredShield`).
+        template <class Record>
+        void addSheaths(const MWWorld::ESMStore& store, const VFS::Manager& vfs, std::vector<std::string>& into)
+        {
+            for (const Record& record : store.get<Record>())
+            {
+                if (record.mModel.empty())
+                    continue;
+                const VFS::Path::Normalized sheath(addSuffixBeforeExtension(
+                    Misc::ResourceHelpers::correctMeshPath(record.mModel.getNormalized()), "_sh"));
+                if (vfs.exists(sheath))
+                    into.emplace_back(sheath.value());
+            }
+        }
     }
 
     std::vector<std::string> contentModels(const MWWorld::ESMStore& store, Resource::ResourceSystem& resources)
@@ -80,6 +98,16 @@ namespace MWRender
         addModels<ESM::Repair>(store, vfs, models);
         addModels<ESM::Static>(store, vfs, models);
         addModels<ESM::Weapon>(store, vfs, models);
+
+        // Under the settings the game sheathes with, read as `ActorAnimation` reads them: a shield's model
+        // is its armour's or one of the armour's body parts' (`ActorAnimation::getShieldMesh`).
+        if (Settings::game().mWeaponSheathing)
+            addSheaths<ESM::Weapon>(store, vfs, models);
+        if (Settings::game().mShieldSheathing)
+        {
+            addSheaths<ESM::Armor>(store, vfs, models);
+            addSheaths<ESM::BodyPart>(store, vfs, models);
+        }
 
         std::vector<VFS::Path::Normalized> sky;
         std::vector<VFS::Path::Normalized> skyTextures;

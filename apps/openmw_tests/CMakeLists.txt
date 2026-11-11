@@ -13,6 +13,7 @@ target_sources(
         mwlua/testmwscriptbindings.cpp
         mwlua/testobjectcache.cpp
         mwrender/classmasks.cpp
+        mwrender/contentmodels.cpp
         mwrender/debugwalk.cpp
         mwrender/frametimer.cpp
         mwrender/groundcovershapes.cpp

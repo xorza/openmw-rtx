@@ -20,7 +20,9 @@ namespace MWRender
     /// Every model the loaded content names, each once, by its corrected path, sorted: what the loading
     /// screen prepares (`Rtx::ContentPreparation`). The models of every record a reference or an actor
     /// stands, the body parts an actor is put together from among them; beside each, the `x` model an
-    /// animated object or an actor is loaded as where one stands (`correctActorModelPath`); and the sky's.
+    /// animated object or an actor is loaded as where one stands (`correctActorModelPath`); the `_sh`
+    /// scabbard or holstered shield of a weapon, an armour or a body part where one stands and the
+    /// game's sheathing settings wear it; and the sky's.
     std::vector<std::string> contentModels(const MWWorld::ESMStore& store, Resource::ResourceSystem& resources);
 
     /// Every ground layer the loaded content names, each once by its diffuse, sorted, with the files
