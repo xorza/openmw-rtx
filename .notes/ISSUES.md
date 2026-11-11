@@ -19,13 +19,6 @@
   `RtxFramesTest.aRequestIsTracedAsItsWorldDescribesItAndCarriesTheAirOn` (the traced constants differ from the
   described ones at 0 s). All pass on Linux with an NVIDIA GPU. Not compared with a build from before the set.
 
-- The Dependency sets workflow's publish job is refused by GitHub on `deps-set-size` ("HTTP 403: Resource not
-  accessible by integration" from `gh release create`, run 43030096407), though the job's token has
-  `contents: write` and the same job published from `master` (`deps-a41c0e8b02a43c55`) and from
-  `pinned-static-build` (`deps-5e394e368d7fabb7`). The same `gh release create` from the desk is refused
-  until the login has the `workflow` scope (`gh auth refresh -h github.com -s workflow`), which a workflow's
-  token cannot have: the tag names a commit that changes `.github/workflows`.
-
 - **The AppImage's libxkbcommon is older than a host's Compose files**: the image carries AlmaLinux 8's
   `libxkbcommon.so.0`, which reads the host's `/usr/share/X11/locale/*/Compose`; on a current Arch desk every Qt
   program prints `xkbcommon: ERROR: ... unrecognized keysym "dead_hamza"` for each line naming a keysym it predates.
@@ -49,8 +42,3 @@
   6,895 of 6,913 (0.29 s against 0.04 s), the PBR install after vanilla 6,901 of 6,913; every entry was found in the
   store. `docs/rtx/architecture.md` ("The preparation is incremental by each file's stamp") states a switch between
   profiles walks neither again.
-
-- **`std::format` writes integers in hexadecimal and drops widths** in the release builds of `729ac60feb` (set
-  `deps-af3310920d0b49b6`) and `4672dda43b` (set `deps-19e1354572579115`): the preparation's log reads "Prepared
-  1aef of b358 models … on 1f threads", and the harness's `scene` report "56d asked" and "frameshape" with no
-  padding. `operator<<` logs print decimal.

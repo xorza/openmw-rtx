@@ -48,10 +48,9 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   `FIND_PACKAGE_ARGS`, which took a desk's own versions; an overlay port for each, a set rebuilt for a bump the tree
   already pins exactly.
 - **Kept as upstream left them**: the platform branches that choose a file per system (platform, crashcatcher,
-  DLSS, NGX, the Windows `.rc` files); the GCC-version-gated warnings in `cmake/Checks.cmake`, as CI's GCC is 15
-  and a desk's 16; the Doxygen branch in `docs/`, a desk's own tool. Gone: `files/data-mw`'s second registration
-  of `builtin.omwscripts` as a configure input, which `files/data`'s `configure_file` already makes, and which
-  under another spelling is Ninja's "multiple rules generate" ([CMake issue 20181](https://gitlab.kitware.com/cmake/cmake/-/issues/20181)).
+  DLSS, NGX, the Windows `.rc` files); the Doxygen branch in `docs/`, a desk's own tool. Gone: `files/data-mw`'s
+  second registration of `builtin.omwscripts` as a configure input, which `files/data`'s `configure_file` already
+  makes, and which under another spelling is Ninja's "multiple rules generate" ([CMake issue 20181](https://gitlab.kitware.com/cmake/cmake/-/issues/20181)).
 - **A third party's warnings are off, not fixed**: the tree does not patch fetched or vendored code for its
   compiler's opinions, and a warning nobody acts on teaches every reader to skip them. On GCC and Clang, `-w` in
   the fetched block's and `extern/`'s flags, which wins over any `-W` a project adds after it (checked with GCC
@@ -264,7 +263,10 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   move with a tool's pin alone. The vcpkg binary cache is saved by run, as a key is written once and a run cut off
   resumes from the newest by prefix, and the Dependency sets workflow then deletes every older copy of a system
   and branch.
-- **Fresh compilers, and none older.** GCC 15, gcc-toolset-15's in CI and a desk's own; Clang 23, the editor's
-  clangd's major, from kernel.org's build of LLVM's release in CI, made on Debian 10 to run on glibc 2.28, where
-  LLVM's own needs a newer one ([kernel.org](https://www.kernel.org/pub/tools/llvm/)); MSVC from Visual Studio 2026.
+- **Fresh compilers, and none older; GCC the set's major.** GCC 15, gcc-toolset-15's in CI and a desk's `gcc-15`,
+  which `omw` names in `CC` and `CXX`: libstdc++'s C++20 half keeps no ABI across majors, and GCC 16 beside the
+  set's OpenAL Soft printed `std::format`'s integers in hexadecimal, so `omw` refuses another GCC major before
+  a configure (`deps.check_compiler`);
+  Clang 23, the editor's clangd's major, from kernel.org's build of LLVM's release in CI, made on Debian 10 to run on
+  glibc 2.28, where LLVM's own needs a newer one ([kernel.org](https://www.kernel.org/pub/tools/llvm/)); MSVC from Visual Studio 2026.
   `cmake/Checks.cmake` stops an older one, rather than a build failing inside a bug a workaround was dropped for.

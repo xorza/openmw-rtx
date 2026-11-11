@@ -11,7 +11,7 @@ from unittest import mock
 from omw import deps, pins
 from omw.deps import pinned_folder
 from omw.pins import Pin
-from omw.system import DEPS
+from omw.system import DEPS, Refusal
 
 
 class PinnedFolderTest(unittest.TestCase):
@@ -109,6 +109,53 @@ class PruneTest(unittest.TestCase):
             self.assertEqual(sorted(path.name for path in folder.iterdir()), kept)
             deps.prune()
             self.assertEqual(sorted(path.name for path in folder.iterdir()), kept, "a second prune took more")
+
+
+class CompilerEnvironmentTest(unittest.TestCase):
+    def test_the_set_s_gcc_is_named_where_installed_and_a_named_compiler_or_none_is_left_alone(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        self.assertEqual(deps.SET_GCC_MAJOR, 15)
+        env = {"PATH": str(folder)}
+        deps.compiler_environment(env)
+        self.assertEqual(env, {"PATH": str(folder)}, "no GCC 15 installed by its versioned names")
+        for name in ("gcc-15", "g++-15", "gcc-16", "g++-16"):
+            (folder / name).write_text("")
+            (folder / name).chmod(0o755)
+        deps.compiler_environment(env)
+        self.assertEqual(env, {"PATH": str(folder), "CC": str(folder / "gcc-15"), "CXX": str(folder / "g++-15")})
+        clang = {"PATH": str(folder), "CC": "clang", "CXX": "clang++"}
+        deps.compiler_environment(clang)
+        self.assertEqual(clang, {"PATH": str(folder), "CC": "clang", "CXX": "clang++"})
+        # One of the pair alone is no GCC 15 to name.
+        (folder / "g++-15").unlink()
+        alone = {"PATH": str(folder)}
+        deps.compiler_environment(alone)
+        self.assertEqual(alone, {"PATH": str(folder)})
+
+
+class CheckCompilerTest(unittest.TestCase):
+    def test_a_gcc_is_told_from_clang_by_its_macros_and_its_major_read(self):
+        self.assertEqual(deps.gcc_major("#define __GNUC__ 15\n#define __GNUC_MINOR__ 3\n"), 15)
+        self.assertEqual(deps.gcc_major("#define __GNUC__ 16\n"), 16)
+        self.assertIsNone(deps.gcc_major("#define __GNUC__ 4\n#define __clang__ 1\n"))
+        self.assertIsNone(deps.gcc_major("#define _MSC_VER 1944\n"))
+
+    def test_a_gcc_of_another_major_is_refused_and_the_set_s_or_clang_passes(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        for name, macros in (("g15", "#define __GNUC__ 15"), ("g16", "#define __GNUC__ 16"),
+                             ("clang", "#define __GNUC__ 4\n#define __clang__ 1")):
+            (folder / name).write_text(f"#!/bin/sh\nprintf '{macros}\\n'\n")
+            (folder / name).chmod(0o755)
+        deps.check_compiler({"PATH": os.environ["PATH"], "CXX": str(folder / "g15")})
+        deps.check_compiler({"PATH": os.environ["PATH"], "CXX": str(folder / "clang")})
+        with self.assertRaisesRegex(Refusal, "is GCC 16, and the vcpkg set's C\\+\\+ is GCC 15's"):
+            deps.check_compiler({"PATH": os.environ["PATH"], "CXX": str(folder / "g16")})
+        # No CXX: the `c++` the PATH finds, as CMake takes it.
+        (folder / "c++").symlink_to(folder / "g16")
+        with self.assertRaisesRegex(Refusal, "is GCC 16"):
+            deps.check_compiler({"PATH": f"{folder}{os.pathsep}{os.environ['PATH']}"})
 
 
 class CachedToolsTest(unittest.TestCase):

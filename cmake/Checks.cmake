@@ -120,23 +120,12 @@ else()
                 # GCC bug 105438, which GCC 15.2 still reports in sol's `stack_field.hpp`, a string literal's
                 # bounds against another's length.
                 -Wno-array-bounds
+                # Copies of a `std::optional` (GCC bug 80635) where inlining reaches across the set's headers:
+                # `MaterialResolver::read`'s `SurfaceDescription`.
+                -Wno-maybe-uninitialized
+                # OSG's inline `pushOntoNodePath`.
+                -Wno-null-dereference
         )
-
-        # `-Wmaybe-uninitialized` reports copies of a `std::optional` (GCC bug 80635), still on GCC 16.2
-        # where inlining reaches across the set's headers: `MaterialResolver::read`'s `SurfaceDescription`.
-        target_compile_options(openmw-checks INTERFACE -Wno-maybe-uninitialized)
-
-        # Wrong before GCC 16: `-Wnull-dereference` reports OSG's inline `pushOntoNodePath`.
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
-            target_compile_options(openmw-checks INTERFACE -Wno-null-dereference)
-        endif()
-
-        # Wrong on GCC 16: `-Wstringop-overflow` reports a byte vector's `resize(n, value)` at `-O3` as an
-        # overflow no path reaches (GCC bugs 107852, 117983, 118521), and came back after a call site was
-        # rewritten around it.
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
-            target_compile_options(openmw-checks INTERFACE -Wno-stringop-overflow)
-        endif()
     endif()
 endif()
 

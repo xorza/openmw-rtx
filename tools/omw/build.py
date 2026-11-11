@@ -170,11 +170,15 @@ class Build:
     @property
     def env(self) -> dict[str, str]:
         """The environment every command of this flavour runs under: the vcpkg set and the Vulkan loader
-        (`deps.vulkan_environment`), the pinned CMake, MSVC's, and the test preset's own — the
+        (`deps.vulkan_environment`), the pinned CMake, MSVC's or the set's GCC (`deps.compiler_environment`), and the test preset's own — the
         sanitizers' options, without which the asan build has no device and a race in the tsan build
         does not fail the run."""
         if self._env is None:
-            env = msvc_environment() if WINDOWS else dict(os.environ)
+            if WINDOWS:
+                env = msvc_environment()
+            else:
+                env = dict(os.environ)
+                deps.compiler_environment(env)
             deps.vulkan_environment(env)
             deps.cmake_environment(env)
             if presets.has_test_preset(self.preset):
@@ -268,6 +272,8 @@ class Build:
         deps.vcpkg_set()
         if WINDOWS:
             deps.vulkan_loader()
+        else:
+            deps.check_compiler(env)
 
         stamp.unlink(missing_ok=True)
         run(["cmake", "-S", ROOT, "--preset", self.preset, "--fresh"], env=env, stdout=stdout)

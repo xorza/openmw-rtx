@@ -4,6 +4,8 @@ anew and an unchanged pin fetches nothing."""
 
 import hashlib
 import io
+import os
+import re
 import shutil
 import subprocess
 import sys
@@ -318,6 +320,52 @@ def ninja() -> Path:
         archive.unlink()
 
     return fetch.build_beside(folder, fill)
+
+
+# **The GCC major the vcpkg set's C++ is compiled with**, gcc-toolset-15's (`env/install_almalinux_deps.sh`), and the
+# only one the tree's may be: libstdc++'s C++20 half keeps no ABI across majors, and the link keeps one copy of each
+# template the set's libraries and the tree both instantiate. GCC 16 beside the set's OpenAL Soft printed
+# `std::format`'s integers in hexadecimal.
+SET_GCC_MAJOR = 15
+
+
+def compiler_environment(env: dict[str, str]) -> None:
+    """**`CC` and `CXX` the set's GCC major where a desk installs it beside its own**, by the names distributions
+    give it (`gcc-15`, `g++-15`), unless the caller names a compiler, as CI's Clang job does. Where none is
+    installed by those names, CMake finds the system's, which is the set's in the release base and on CI's Ubuntu,
+    and `check_compiler` refuses any other GCC major."""
+    if "CC" in env or "CXX" in env:
+        return
+    path = env.get("PATH")
+    gcc = shutil.which(f"gcc-{SET_GCC_MAJOR}", path=path)
+    gxx = shutil.which(f"g++-{SET_GCC_MAJOR}", path=path)
+    if gcc and gxx:
+        env["CC"] = gcc
+        env["CXX"] = gxx
+
+
+def gcc_major(macros: str) -> int | None:
+    """The GCC major a compiler's predefined macros (`-dM -E`) name, or none for another compiler: Clang defines
+    `__GNUC__` too, as 4, and `__clang__` beside it."""
+    if re.search(r"^#define __clang__\b", macros, re.MULTILINE):
+        return None
+    found = re.search(r"^#define __GNUC__ (\d+)$", macros, re.MULTILINE)
+    return int(found.group(1)) if found else None
+
+
+def check_compiler(env: dict[str, str]) -> None:
+    """**The C++ compiler a configure would take, refused where it is a GCC of another major than the set's**, before
+    CMake runs: `CXX`, or the `c++` the `PATH` finds, as CMake looks. Its predefined macros say which it is."""
+    compiler = env.get("CXX") or shutil.which("c++", path=env.get("PATH"))
+    if compiler is None:
+        return
+    macros = subprocess.run([compiler, "-dM", "-E", "-x", "c++", os.devnull], env=env, capture_output=True,
+                            text=True, check=True).stdout
+    major = gcc_major(macros)
+    if major is not None and major != SET_GCC_MAJOR:
+        raise Refusal(f"{compiler} is GCC {major}, and the vcpkg set's C++ is GCC {SET_GCC_MAJOR}'s, whose library "
+                      f"templates its archives hold: install GCC {SET_GCC_MAJOR}, which omw names as "
+                      f"gcc-{SET_GCC_MAJOR} and g++-{SET_GCC_MAJOR}, or name it in CC and CXX")
 
 
 def cmake_environment(env: dict[str, str]) -> None:
