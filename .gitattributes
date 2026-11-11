@@ -22,5 +22,7 @@ scripts/data/integration_tests/** -text
 *.frag text eol=lf
 *.comp text eol=lf
 *.rgen text eol=lf
-# Vendored code keeps what its project wrote.
+# Vendored code keeps what its project wrote, and so do the vcpkg ports copied from their registries, whose
+# patches git applies byte for byte: a Windows clone's carriage returns corrupted them.
 extern/** !text !eol !merge
+vcpkg/ports/** -text
