@@ -112,6 +112,9 @@ Steps leave the list below when they land, and are marked here.
 - [x] 6. Dependencies, each found one way: `a80289914a`.
 - [x] 7. Third-party code, in one style and quiet: `12c015d20f`. `-w` reaches 608 of 610 third-party
   files and none of the tree's 1,880 (`compile_commands.json`); the other two are Crashpad's assembly.
+- [x] 8. Tests, benchmarks and smoke runs: `6670b513c1`, with `dd158848ff` teaching
+  `RtxSourceTreeTest` the call layout gersemi wraps, which it had never read for `rtx-gpu-tests`. The three
+  benchmarks run as dry-run tests in 0.01 to 0.64 s.
 
 ## Steps
 
@@ -208,27 +211,6 @@ part, zsync and `wayland-scanner` under GCC 15, is run once in a plain `almalinu
   - each Linux job's container named by the Dockerfile's digest.
 
   `omw lint workflows` fails on a workflow edited back to the bare tag (the known hit).
-
-### 8. Tests, benchmarks and smoke runs (`cmake/Tests.cmake`, `.github/workflows/ci.yml`)
-
-- `openmw_add_test` returns silently when its target is missing, and guards `-Og` with an
-  `OPENMW_TEST_OPTIONED` property. Replace both:
-  - an `INTERFACE` target `openmw-test-options` holds the test compile options, and each test executable
-    links it where it is defined;
-  - `cmake/Tests.cmake` is included only under `BUILD_TESTING`, and a missing target is a fatal error.
-- The test platform file (`testplatformwin32.cpp` or `testplatformposix.cpp`) is chosen in both
-  `apps/openmw_tests/CMakeLists.txt` and `apps/components_tests/rtx/tests.cmake`. Make it one small library
-  that both link.
-- The three benchmarks become CTest tests in `cmake/Tests.cmake`, run with `--benchmark_dry_run` (Google
-  Benchmark 1.10: one iteration and no measurement; checked on `openmw_esm_refid_benchmark`). Each
-  `omw test` and each CI test run then executes them, with output only on failure. Delete CI's step
-  "Benchmarks, run once each as upstream runs them", which prints `***WARNING*** ASLR is enabled`, as Docker's
-  seccomp profile refuses the `personality` call `BENCHMARK_MAIN` makes, and `***WARNING*** Library was built
-  as DEBUG`. Both concern timings a smoke run never takes.
-- `omw debug integration --verbose` (`ci.yml`) prints the game's whole log, including the example suite's
-  own content warnings (`addAnimSource: can't find bone ... in meshes/land_racer.dae`, dozens a run). Drop
-  `--verbose`: `scripts/integration_tests.py` still prints every line when a run ends in a fatal error, and
-  copies `openmw.log` into its output folder, which the job keeps.
 
 ### 9. Translations (`files/lang/CMakeLists.txt`, `tools/omw/lint.py`)
 
