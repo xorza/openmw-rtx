@@ -54,31 +54,23 @@ string(
 
 set(OPTIONS "")
 
-# Skip try_run checks
-if(VCPKG_TARGET_IS_MINGW)
-    list(
-        APPEND OPTIONS
-        -D_OPENTHREADS_ATOMIC_USE_WIN32_INTERLOCKED=0
-        -D_OPENTHREADS_ATOMIC_USE_GCC_BUILTINS=1
-    )
-elseif(VCPKG_TARGET_IS_WINDOWS)
-    list(
-        APPEND OPTIONS
-        -D_OPENTHREADS_ATOMIC_USE_WIN32_INTERLOCKED=1
-        -D_OPENTHREADS_ATOMIC_USE_GCC_BUILTINS=0
-        -DPKG_CONFIG_USE_CMAKE_PREFIX_PATH=ON
-    )
+# OpenThreads is `std::atomic` in OpenMW's OSG (`include/OpenThreads/Atomic`): no atomics are detected, so
+# none is set.
+if(VCPKG_TARGET_IS_WINDOWS)
+    list(APPEND OPTIONS -DPKG_CONFIG_USE_CMAKE_PREFIX_PATH=ON)
 elseif(VCPKG_TARGET_IS_OSX)
     list(APPEND OPTIONS -DOSG_WINDOWING_SYSTEM=Cocoa)
-elseif(VCPKG_CROSSCOMPILING)
-    message(WARNING "Atomics detection may fail for cross builds. You can set osg cmake variables in a custom triplet.")
 endif()
 
 # OpenThreads yields by `sched_yield` and not `pthread_yield`, which glibc deprecated in 2.34 and keeps for
 # programs linked before alone: the set is built on glibc 2.28, which offers it, and a program linked on a
-# newer glibc finds no such symbol.
+# newer glibc finds no such symbol. XRandR is X11's, so only a build with X11 reads its switch.
 if(VCPKG_TARGET_IS_LINUX)
-    list(APPEND OPTIONS -DHAVE_PTHREAD_YIELD=0)
+    list(
+        APPEND OPTIONS
+        -DHAVE_PTHREAD_YIELD=0
+        -DOSGVIEWER_USE_XRANDR=OFF
+    )
 endif()
 
 # The package osg can be configured to use different OpenGL profiles via a custom triplet file:
@@ -100,7 +92,6 @@ vcpkg_cmake_configure(
         -DBUILD_DASHBOARD_REPORTS=OFF
         -DCMAKE_CXX_STANDARD=11
         -DOSG_TEXT_USE_FONTCONFIG=OFF
-        -DOSGVIEWER_USE_XRANDR=OFF
         -DBUILD_OSG_PLUGINS_BY_DEFAULT=OFF
         -DBUILD_OSG_PLUGIN_OSG=ON
         -DBUILD_OSG_PLUGIN_DDS=ON

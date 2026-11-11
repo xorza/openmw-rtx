@@ -176,9 +176,10 @@ VULKAN_LOADER_WINDOWS = Pin(
     "a25a927aa8b9f0371048f1861cf88ac3b9bc9b1fb332c42d897c8ab32695769a",
 )
 # vcpkg, which builds the libraries `vcpkg.json` names (`deps.vcpkg_root`): its registry at the commit of
-# release 2026.10.16, whose ports fix every library's version, and the tool that registry names in
-# `scripts/vcpkg-tool-metadata.txt` (2026-09-26), by system. The registry's digest is of GitHub's archive
-# of that commit; the tools' are of Microsoft's releases, Linux's matching the SHA-512 the registry pins.
+# release 2026.10.16, whose ports fix every library's version, and the tool's newest release, 2026-10-29,
+# by system, newer than the 2026-09-26 the registry's `scripts/vcpkg-tool-metadata.txt` names: the set
+# built with the two is what holds them together. The registry's digest is of GitHub's archive of that
+# commit; the tools' are the SHA-256 Microsoft's release lists for each.
 VCPKG_REGISTRY_COMMIT = "9eec002df1cd109f8f104cd966a763daf9751489"
 VCPKG_REGISTRY = Pin(
     f"https://github.com/microsoft/vcpkg/archive/{VCPKG_REGISTRY_COMMIT}.tar.gz",
@@ -186,12 +187,12 @@ VCPKG_REGISTRY = Pin(
 )
 VCPKG_TOOL = {
     "linux": Pin(
-        "https://github.com/microsoft/vcpkg-tool/releases/download/2026-09-26/vcpkg-glibc",
-        "3521ddb09dc4bd0faa5ce7572c46c8e4420167a918fe5087f9f11bd1c27fa38b",
+        "https://github.com/microsoft/vcpkg-tool/releases/download/2026-10-29/vcpkg-glibc",
+        "8b10d43c1392a2d51622b1e439cb952289dcf56cbb595eb935847e79fe00d303",
     ),
     "windows": Pin(
-        "https://github.com/microsoft/vcpkg-tool/releases/download/2026-09-26/vcpkg.exe",
-        "2a4ae1467b9e797964c60c919d057b9e5dc1ec03f4b9632c1150026db25201f2",
+        "https://github.com/microsoft/vcpkg-tool/releases/download/2026-10-29/vcpkg.exe",
+        "191ee64b0887af80aad3eff6c5e888ab733d3ef2182885ed4747b4574c201834",
     ),
 }
 

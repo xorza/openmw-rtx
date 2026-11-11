@@ -36,6 +36,16 @@ vcpkg_cmake_configure(
 vcpkg_cmake_install()
 vcpkg_fixup_pkgconfig()
 vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/collada_dom-2.5)
+# The config looks for Boost on Windows alone, at exactly the version collada-dom was built with and as
+# dynamic libraries, which the set's static Boost, spelt 1.92.0 against the config's "1.92", never meets: a
+# warning at every Windows configure, for include folders whoever links collada-dom takes from Boost's own
+# targets.
+vcpkg_replace_string(
+    "${CURRENT_PACKAGES_DIR}/share/${PORT}/collada_dom-config.cmake"
+    "if\\( WIN32 \\)\n  # search for the boost version collada-dom was compiled with\n.*endif\\( WIN32 \\)\n"
+    ""
+    REGEX
+)
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
 

@@ -10,6 +10,7 @@ on:
       - vcpkg.json
       - vcpkg-configuration.json
       - "vcpkg/**"
+      - env/release-base.Dockerfile
       - env/install_almalinux_deps.sh
       - tools/omw/pins.py
       - tools/omw/depsset.py
@@ -53,7 +54,7 @@ jobs:
     needs: digest
     if: needs.digest.outputs.published == 'false'
     runs-on: ubuntu-26.04
-    container: almalinux:8
+    container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
     permissions:
       contents: read
     timeout-minutes: 360

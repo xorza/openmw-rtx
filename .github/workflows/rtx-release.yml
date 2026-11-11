@@ -35,7 +35,7 @@ jobs:
         include:
           - name: linux-package
             os: ubuntu-26.04
-            container: almalinux:8
+            container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
             # An AppImage is compressed already; the Windows folder is not.
             compression: 0
           - name: windows-package

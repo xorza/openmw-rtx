@@ -91,13 +91,13 @@ jobs:
         include:
           - name: linux-gcc
             os: ubuntu-26.04
-            container: almalinux:8
+            container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
             flavour: debug
             ccache-size: 2000M
             tested: true
           - name: linux-clang
             os: ubuntu-26.04
-            container: almalinux:8
+            container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
             flavour: debug
             ccache-size: 1000M
             # Compiled for Clang's warnings, not run, with the Clang the editor's clangd is.
@@ -113,7 +113,7 @@ jobs:
           # sanitizer it would never start here.
           - name: linux-asan
             os: ubuntu-26.04
-            container: almalinux:8
+            container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
             flavour: asan
             build-flags: --without-device
             # At one gigabyte the sanitized objects evicted 335 times a run.

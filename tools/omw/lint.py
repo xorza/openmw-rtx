@@ -137,9 +137,30 @@ def _driver() -> list[str]:
     return found
 
 
+# The image every Linux build runs in, pinned by digest in one place: the release base's `FROM`.
+RELEASE_BASE_FILE = Path("env") / "release-base.Dockerfile"
+
+
 def _workflows() -> list[str]:
-    """zizmor, offline: a finding is a failure."""
-    return _ran([*command_for(ZIZMOR), "--offline", "."])
+    """zizmor, offline, and every workflow's container the release base's image: a finding is a failure."""
+    return _containers(ROOT) + _ran([*command_for(ZIZMOR), "--offline", "."])
+
+
+def _containers(root: Path) -> list[str]:
+    """**Each `container:` a workflow names is the release base's image, digest and all**, so CI, the
+    published set and a release build on the image a desk's container does. A container chosen by an
+    expression (`${{ matrix.container }}`) is held where the matrix names it."""
+    base = re.search(r"^FROM\s+(\S+)", (root / RELEASE_BASE_FILE).read_text(), re.MULTILINE)
+    assert base is not None, f"{RELEASE_BASE_FILE} names no image"
+    image = base.group(1)
+    found = []
+    for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
+        for number, line in enumerate(workflow.read_text().splitlines(), 1):
+            named = re.match(r"\s*(?:-\s+)?container:\s*(\S+)\s*$", line)
+            if named and not named.group(1).startswith("${{") and named.group(1) != image:
+                found.append(f"{workflow.relative_to(root).as_posix()}:{number}: container {named.group(1)} "
+                             f"is not {RELEASE_BASE_FILE.as_posix()}'s {image}")
+    return found
 
 
 CHECKS: dict[str, Callable[[], list[str]]] = {

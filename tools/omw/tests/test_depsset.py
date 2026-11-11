@@ -27,6 +27,7 @@ class SetDigestTest(unittest.TestCase):
     def test_every_input_names_another_set_and_nothing_else_does(self):
         root = _repository({"vcpkg.json": b"{}\n", "vcpkg-configuration.json": b"{}\n",
                             "vcpkg/triplets/x.cmake": b"set(A 1)\n", "env/install_almalinux_deps.sh": b"dnf\n",
+                            "env/release-base.Dockerfile": b"FROM almalinux:8@sha256:aa\n",
                             "tools/omw/depsset.py": b"PART_SIZE = 1\n", "tools/omw/deps.py": b"X = 1\n",
                             "README.md": b"text\n"})
         self.addCleanup(shutil.rmtree, root)
@@ -45,7 +46,7 @@ class SetDigestTest(unittest.TestCase):
 
         seen = {first}
         for name in ("vcpkg.json", "vcpkg-configuration.json", "vcpkg/triplets/x.cmake",
-                     "env/install_almalinux_deps.sh", "tools/omw/depsset.py"):
+                     "env/install_almalinux_deps.sh", "env/release-base.Dockerfile", "tools/omw/depsset.py"):
             (root / name).write_bytes((root / name).read_bytes() + b"# moved\n")
             moved = deps.set_digest(root)
             self.assertNotIn(moved, seen, f"{name} moved and the set kept its name")
