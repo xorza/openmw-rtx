@@ -361,4 +361,9 @@ made only on the user's explicit yes, after which it is added here.
   build a tree that takes its libraries from the vcpkg set and builds through `omw`: the release's container is
   `env/release-base.Dockerfile`. `upstream.yml` keeps the folder deleted, which drops an upstream edit to it at
   the merge.
-
+- Dead CMake gone (`.notes/build-cleanup.md`, step 2): `cmake/escape_regex_control_characters.cmake`, which
+  nothing called; the commit date the root read with `git log` at every configure and no template used; the
+  `OPENMW_RESOURCES_ROOT` guards atop `files/data`, `files/data-mw`, `files/shaders` and `files/lua_api`,
+  which the root always sets first; the install components, which nothing installs by since CPack went; the
+  empty `CMAKE_CXX_CLANG_TIDY` in `extern/`; and `mwmechanics/character.cpp`'s `-Wno-maybe-uninitialized`,
+  which every GCC target already has. The cost is a conflict with an upstream edit to those lines.

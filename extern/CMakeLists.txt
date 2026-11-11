@@ -5,7 +5,6 @@ set_directory_properties(
         EXCLUDE_FROM_ALL
             on
 )
-set(CMAKE_CXX_CLANG_TIDY "")
 # Vendored code, whose warnings are its own: never errors, whatever the tree's preset asks.
 set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 

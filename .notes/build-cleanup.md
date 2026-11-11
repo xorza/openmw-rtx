@@ -248,8 +248,14 @@ One pass over `files/`, `components/`, `apps/rtxtool` and `cmake/OpenMWMacros.cm
     `git rev-list --tags --max-count=1`, and writes through `copy_if_different` as now.
   - Its `string(COMPARE)` chains become `if(... EQUAL 0)`.
   - The templates read `PROJECT_VERSION*`, and the `OPENMW_VERSION_*` aliases go.
-- Check that a commit without a reconfigure moves the built version's hash, and that a tree without `.git`
-  configures with empty hashes as now.
+- **A build is of a Git clone** (decided 2026-11-11). `find_package(Git REQUIRED)`, `get-version` always, and
+  `GIT_CHECKOUT` with its configure-time branch gone, the `Git executable not found` warning with it. A
+  configure without `.git` stops: "build from a Git clone; the version names its commit". Every build already
+  needs git, as `omw` names the set from `git ls-files` and the presets read the set `omw` names, so the
+  empty-hash route served only a build that cannot happen. Refused: building with empty hashes, which ships a
+  version that names no commit and warns at every build.
+- Check that a commit without a reconfigure moves the built version's hash, and that a copy of the tree
+  without `.git` stops at configure with that message.
 
 ### 6. Dependencies, each found one way
 

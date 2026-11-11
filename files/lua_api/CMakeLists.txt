@@ -1,7 +1,3 @@
-if(NOT DEFINED OPENMW_RESOURCES_ROOT)
-    return()
-endif()
-
 set(LUA_API_FILES
     README.md
     coroutine.doclua

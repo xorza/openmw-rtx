@@ -1,7 +1,3 @@
-if(NOT DEFINED OPENMW_RESOURCES_ROOT)
-    return()
-endif()
-
 # Copy resource files into the build directory
 set(SDIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(DDIRRELATIVE resources/shaders)

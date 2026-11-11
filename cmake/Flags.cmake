@@ -11,7 +11,7 @@
 
 if(CMAKE_C_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(openmw_flags_relwithdebinfo "/O2 /Oy-")
-    set(openmw_flags_release "/O2 /Ob2 /Oy- /DNDEBUG")
+    set(openmw_flags_release "/O2 /Oy- /DNDEBUG")
     set(CMAKE_EXE_LINKER_FLAGS_INIT "/DEBUG")
     set(CMAKE_SHARED_LINKER_FLAGS_INIT "/DEBUG")
 else()

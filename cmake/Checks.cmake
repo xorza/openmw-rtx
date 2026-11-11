@@ -4,9 +4,9 @@
 # for the tree's own under `components/` and `apps/` and no third party's. A directory's
 # `add_compile_options` reached a target or not by the order its folder was added in.
 
-# The compilers the tree is built and checked with, and none older: GCC 15, Ubuntu 26.04's, Clang 23, the
-# clang job's and the editor's, and MSVC 19.44, Visual Studio 2022 17.14's. An older one stops here, and not
-# inside a bug a workaround below was dropped for.
+# The compilers the tree is built and checked with, and none older: GCC 15, AlmaLinux 8's gcc-toolset-15,
+# Clang 23, the clang job's and the editor's, and MSVC 19.44, which Visual Studio 2026's passes. An older one
+# stops here, and not inside a bug a workaround below was dropped for.
 set(openmw_compiler_floors
     GNU
     15

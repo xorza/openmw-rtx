@@ -33,7 +33,6 @@ endforeach()
 include(cmake/Options.cmake)
 include(cmake/Checks.cmake)
 include(OpenMWMacros)
-include(escape_regex_control_characters)
 
 # The version the programs report: the release, the API revisions scripts and shaders check, and on a
 # Git checkout the commit, which `components/version` reads at every build.
@@ -46,23 +45,11 @@ set(OPENMW_POSTPROCESSING_API_REVISION 5)
 set(OPENMW_DOC_BASEURL "https://openmw.readthedocs.io/en/")
 set(OPENMW_VERSION_COMMITHASH "")
 set(OPENMW_VERSION_TAGHASH "")
-set(OPENMW_VERSION_COMMITDATE "")
 set(GIT_CHECKOUT FALSE)
 if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
     find_package(Git)
     if(GIT_FOUND)
         set(GIT_CHECKOUT TRUE)
-        execute_process(
-            COMMAND
-                ${GIT_EXECUTABLE} log -1 --format=%as
-            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-            RESULT_VARIABLE failed
-            OUTPUT_VARIABLE OPENMW_VERSION_COMMITDATE
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-        if(failed)
-            set(OPENMW_VERSION_COMMITDATE "")
-        endif()
     else()
         message(WARNING "Git executable not found")
     endif()

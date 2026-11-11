@@ -1,7 +1,3 @@
-if(NOT DEFINED OPENMW_RESOURCES_ROOT)
-    return()
-endif()
-
 set(BUILTIN_DATA_MW_FILES
     # Month names and date formatting
     l10n/Calendar/de.yaml

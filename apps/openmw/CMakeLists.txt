@@ -1014,8 +1014,8 @@ target_sources(
                 mwworld/worldmodel.hpp
 )
 
-# GCC reports an uninitialised value inside sol3's stack code inlined here, which no change to these
-# files removes; each loses only the check that fires.
+# GCC reports an uninitialised value inside sol3's stack code inlined here, which no change to this file
+# removes; it loses only the check that fires.
 set_property(
     SOURCE
         mwlua/contentbindings.cpp
@@ -1023,14 +1023,6 @@ set_property(
     PROPERTY
         COMPILE_OPTIONS
             $<$<CXX_COMPILER_ID:GNU>:-Wno-uninitialized>
-)
-set_property(
-    SOURCE
-        mwmechanics/character.cpp
-    APPEND
-    PROPERTY
-        COMPILE_OPTIONS
-            $<$<CXX_COMPILER_ID:GNU>:-Wno-maybe-uninitialized>
 )
 # MSVC's four code generation threads a file take more than CI's 8 GB beside another `cl.exe` on these;
 # one thread costs a third more build time, so only the hungriest take it.

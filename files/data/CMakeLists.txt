@@ -1,7 +1,3 @@
-if(NOT DEFINED OPENMW_RESOURCES_ROOT)
-    return()
-endif()
-
 set(BUILTIN_DATA_FILES
     textures/omw_map_color_palette.dds
     textures/omw_menu_scroll_down.dds

@@ -11,7 +11,6 @@ include(FetchContent)
 # `components/crashcatcher/CMakeLists.txt`, which builds one of its files into every executable.
 block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
-    set(CMAKE_CXX_CLANG_TIDY "")
 
     # SDL3, the pinned release built static, so a package carries it inside the binaries. Ahead of the
     # tree's own definitions, which are not SDL's: Windows's `NOGDI` and `NOMB` take out what SDL's video
