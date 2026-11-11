@@ -50,15 +50,18 @@ find_package(Git REQUIRED)
 set(CMAKE_AUTOGEN_PARALLEL 1)
 
 # What `cmake/Flags.cmake` asks of the compiler, refused here by name where it has none: position-independent
-# programs, and link-time optimisation where a configure asks for it with CMake's own
-# `CMAKE_INTERPROCEDURAL_OPTIMIZATION` (the package preset, which a tagged release builds).
-include(CheckPIESupported)
-check_pie_supported(OUTPUT_VARIABLE pie_output)
-foreach(language C CXX)
-    if(NOT CMAKE_${language}_LINK_PIE_SUPPORTED)
-        message(FATAL_ERROR "The ${language} linker makes no position-independent program: ${pie_output}")
-    endif()
-endforeach()
+# programs, which MSVC's always are (`/DYNAMICBASE`) and CMake has no flag of its for, and link-time optimisation
+# where a configure asks for it with CMake's own `CMAKE_INTERPROCEDURAL_OPTIMIZATION` (the package preset, which a
+# tagged release builds).
+if(NOT MSVC)
+    include(CheckPIESupported)
+    check_pie_supported(OUTPUT_VARIABLE pie_output)
+    foreach(language C CXX)
+        if(NOT CMAKE_${language}_LINK_PIE_SUPPORTED)
+            message(FATAL_ERROR "The ${language} linker makes no position-independent program: ${pie_output}")
+        endif()
+    endforeach()
+endif()
 if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
     include(CheckIPOSupported)
     check_ipo_supported()
