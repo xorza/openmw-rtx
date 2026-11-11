@@ -16,6 +16,8 @@ from omw.system import EXE, ROOT, SYSTEM, Refusal, run
 
 # The file a Linux system names itself in.
 OS_RELEASE = Path("/etc/os-release")
+# Where the release base keeps GCC 15 (`env/install_almalinux_deps.sh`).
+TOOLSET_BIN = Path("/opt/rh/gcc-toolset-15/root/usr/bin")
 
 # GitHub refuses a release asset of 2 GiB or more ("About releases", docs.github.com), and Windows' set, whose
 # libraries carry MSVC's full debug information (`/Z7`), packs to more than half of that: so a set is cut into
@@ -141,12 +143,12 @@ def deps_set(args: list[str]) -> int:
     if SYSTEM == "linux" and not package.on_release_base(OS_RELEASE.read_text() if OS_RELEASE.is_file() else ""):
         run(package.release_container("release").command(["python3", "omw", "deps-set"]))
         return 0
-    check_container()
+    compilers = container_compilers()
     triplet = deps.TRIPLET
     root = deps.vcpkg_root()
     work = deps.VCPKG_WORK
     installed = work / "installed"
-    env = {**os.environ, "VCPKG_ROOT": str(root), "VCPKG_DISABLE_METRICS": "1",
+    env = {**os.environ, **compilers, "VCPKG_ROOT": str(root), "VCPKG_DISABLE_METRICS": "1",
            "VCPKG_BINARY_SOURCES": f"clear;files,{deps.VCPKG_BINARY_CACHE},readwrite"}
     deps.VCPKG_BINARY_CACHE.mkdir(parents=True, exist_ok=True)
     vcpkg = root / f"vcpkg{EXE}"
@@ -170,13 +172,17 @@ def deps_set(args: list[str]) -> int:
     return 0
 
 
-def check_container() -> None:
-    """Linux builds its set on the release base alone, with its GCC 15: a set built on a newer glibc would
-    raise the release's floor to that glibc."""
+def container_compilers() -> dict[str, str]:
+    """**The compilers every port builds with, by path**: Linux builds its set on the release base alone, with
+    its GCC 15, as a set built on a newer glibc would raise the release's floor to that glibc. Named in `CC` and
+    `CXX`, which CMake, Meson and Autotools all read, rather than left to `PATH`: a port that puts a folder of
+    its own ahead on it (vcpkg's Meson puts Python's, `/usr/bin`) found AlmaLinux 8's own GCC 8.5 as `cc`.
+    Windows' is the Visual Studio vcpkg finds."""
     if SYSTEM != "linux":
-        return
+        return {}
     if not package.on_release_base(OS_RELEASE.read_text() if OS_RELEASE.is_file() else ""):
         raise Refusal("the Linux set is built in AlmaLinux 8 (env/install_almalinux_deps.sh), "
                       "as .github/workflows/deps.yml does")
     if "gcc-toolset-15" not in os.environ.get("PATH", ""):
         raise Refusal("gcc-toolset-15 is not enabled: `source /opt/rh/gcc-toolset-15/enable`")
+    return {"CC": str(TOOLSET_BIN / "gcc"), "CXX": str(TOOLSET_BIN / "g++")}

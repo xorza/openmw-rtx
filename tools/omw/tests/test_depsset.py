@@ -61,27 +61,30 @@ class SetDigestTest(unittest.TestCase):
 
 
 class ContainerTest(unittest.TestCase):
-    def test_linux_builds_its_set_in_almalinux_8_with_gcc_toolset_15(self):
+    def test_linux_builds_its_set_in_almalinux_8_with_gcc_toolset_15_named_by_path(self):
         folder = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, folder)
 
-        def checked(release: str, path: str) -> None:
+        def compilers(release: str, path: str) -> dict[str, str]:
             (folder / "os-release").write_text(release)
             with (mock.patch.object(depsset, "SYSTEM", "linux"),
                   mock.patch.object(depsset, "OS_RELEASE", folder / "os-release"),
                   mock.patch.dict(os.environ, {"PATH": path})):
-                depsset.check_container()
+                return depsset.container_compilers()
 
         almalinux = 'ID="almalinux"\nVERSION_ID="8.10"\n'
-        checked(almalinux, "/opt/rh/gcc-toolset-15/root/usr/bin:/usr/bin")
+        # The toolset's drivers, whatever comes first on `PATH` when a port runs.
+        self.assertEqual(compilers(almalinux, "/opt/rh/gcc-toolset-15/root/usr/bin:/usr/bin"),
+                         {"CC": "/opt/rh/gcc-toolset-15/root/usr/bin/gcc",
+                          "CXX": "/opt/rh/gcc-toolset-15/root/usr/bin/g++"})
         with self.assertRaisesRegex(Refusal, "AlmaLinux 8"):
-            checked('ID="ubuntu"\nVERSION_ID="26.04"\n', "/opt/rh/gcc-toolset-15/root/usr/bin")
+            compilers('ID="ubuntu"\nVERSION_ID="26.04"\n', "/opt/rh/gcc-toolset-15/root/usr/bin")
         with self.assertRaisesRegex(Refusal, "AlmaLinux 8"):
-            checked('ID="almalinux"\nVERSION_ID="9.6"\n', "/opt/rh/gcc-toolset-15/root/usr/bin")
+            compilers('ID="almalinux"\nVERSION_ID="9.6"\n', "/opt/rh/gcc-toolset-15/root/usr/bin")
         with self.assertRaisesRegex(Refusal, "gcc-toolset-15"):
-            checked(almalinux, "/usr/bin")
+            compilers(almalinux, "/usr/bin")
         with mock.patch.object(depsset, "SYSTEM", "windows"):
-            depsset.check_container()
+            self.assertEqual(depsset.container_compilers(), {})
 
 
 class PackSetTest(unittest.TestCase):
