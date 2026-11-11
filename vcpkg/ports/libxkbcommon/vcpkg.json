@@ -1,0 +1,15 @@
+{
+  "name": "libxkbcommon",
+  "version": "1.13.2",
+  "port-version": 100,
+  "description": "keymap handling library for toolkits and window systems",
+  "homepage": "https://xkbcommon.org/",
+  "license": "MIT",
+  "supports": "linux",
+  "dependencies": [
+    {
+      "name": "vcpkg-tool-meson",
+      "host": true
+    }
+  ]
+}
