@@ -79,6 +79,12 @@ class ShippedLibraries:
             raise Refusal("the archive's libraries are not the ones its programs load: " + ", ".join(mismatch))
 
 
+# **What the AppImage leaves to the host beyond the exclude list**, as linuxdeploy patterns: libxkbcommon, which
+# reads the host's own keymaps and Compose files, and so must be as new as they are. AlmaLinux 8's 0.9 in the
+# image predates the keysyms a current host's Compose files name, and every Qt program printed "unrecognized
+# keysym" for each; SDL loads the host's by design. Its X11 half stays in the image, which hosts without Qt lack.
+LINUX_HOST_LIBRARIES = ("libxkbcommon.so*",)
+
 LINUX_LOADER = "usr/lib/libvulkan.so.1"
 # The release base's library folders, where the archive is built (`on_release_base`).
 LINUX_LIBRARIES = ShippedLibraries("usr/lib/**/*.so*", (LINUX_LOADER,), (Path("/usr/lib64"), Path("/lib64")))
@@ -251,7 +257,8 @@ def _archive_linux(build: Build, name: str) -> None:
 
     **The programs link every library in**, the vcpkg set's, OpenSceneGraph's plugins and Qt's among them,
     and leave the host what it opens for them: the AppImage exclude list — glibc, the GL stack, X11,
-    Wayland, fontconfig, ALSA — at the versions of AlmaLinux 8, the release base. The image carries the rest
+    Wayland, fontconfig, ALSA — at the versions of AlmaLinux 8, the release base, and libxkbcommon
+    (`LINUX_HOST_LIBRARIES`). The image carries the rest
     of what they open, the release base's own, as linuxdeploy brings it (`LINUX_LIBRARIES`), and the Vulkan
     loader, the set's 1.4 one: the loader is not the driver, and a host's 1.3
     loader has none of the 1.4 entry points the backend calls. Copied rather than handed to linuxdeploy,
@@ -296,7 +303,10 @@ def _archive_linux(build: Build, name: str) -> None:
 
     env = dict(build.env, APPIMAGE_EXTRACT_AND_RUN="1", NO_STRIP="1")
     prepend_path(env, "PATH", tools)
-    run([tools / "linuxdeploy", "--appdir", appdir, *executables,
+    excluded: list[str] = []
+    for pattern in LINUX_HOST_LIBRARIES:
+        excluded += ["--exclude-library", pattern]
+    run([tools / "linuxdeploy", "--appdir", appdir, *executables, *excluded,
          "--desktop-file", appdir / "usr" / "share" / "applications" / "org.openmw.launcher.desktop",
          "--icon-file", appdir / "usr" / "share" / "pixmaps" / "openmw.png"], env=env)
     LINUX_LIBRARIES.refuse_mismatch(appdir)

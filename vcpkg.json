@@ -22,10 +22,6 @@
     },
     "freetype",
     "icu",
-    {
-      "name": "libxkbcommon",
-      "platform": "linux"
-    },
     "luajit",
     "lz4",
     "mygui",

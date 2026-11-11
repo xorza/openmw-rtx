@@ -52,17 +52,6 @@ if ! autoconf --version | grep -q " 2\.72$"; then
   rm -rf "$work"
 fi
 
-# Bison 3.8.2, which libxkbcommon's meson asks for at 3.6 or later and AlmaLinux 8 ships at 3.0.4: GNU's
-# release, at the digest Arch's package checks.
-if ! bison --version | grep -q " 3\.8\.2$"; then
-  work="$(mktemp -d)"
-  fetch https://ftp.gnu.org/gnu/bison/bison-3.8.2.tar.xz "$work/bison.tar.xz"
-  echo "d4d23af6671406e97257892f90651b67f2ab95219831372be032190b7156c10a3435d457857e677445df8b2327aacccc15344acbbc3808a6f332a93cce23b444  $work/bison.tar.xz" | sha512sum -c -
-  tar xf "$work/bison.tar.xz" -C "$work"
-  (cd "$work/bison-3.8.2" && ./configure --prefix=/usr/local && make -j"$(nproc)" && make install)
-  rm -rf "$work"
-fi
-
 # zsync 0.6.2, whose `zsyncmake` writes the .zsync an AppImage's update information names, and which
 # AlmaLinux 8 and EPEL do not carry: its release as Debian's mirror keeps it, as zsync's own site refused
 # CI's runners. Its C predates the pointer checks GCC 14 made errors, which `-fpermissive` makes warnings
