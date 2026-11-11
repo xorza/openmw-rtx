@@ -109,8 +109,9 @@ Steps leave the list below when they land, and are marked here.
 - [x] 4. Resources through `configure_file` and one folder name: `526b5ea37d`; the resources byte-for-byte as before.
 - [x] 5. The version, filled once: `e7979d3c36`. It also fills the AppStream release date step 2 had emptied; a
   tree without `.git` stops at configure.
-- [~] 6. Dependencies, each found one way: `a80289914a`, building.
-- [~] 7. Third-party code, in one style and quiet: `12c015d20f`, building.
+- [x] 6. Dependencies, each found one way: `a80289914a`.
+- [x] 7. Third-party code, in one style and quiet: `12c015d20f`. `-w` reaches 608 of 610 third-party
+  files and none of the tree's 1,880 (`compile_commands.json`); the other two are Crashpad's assembly.
 
 ## Steps
 
@@ -207,35 +208,6 @@ part, zsync and `wayland-scanner` under GCC 15, is run once in a plain `almalinu
   - each Linux job's container named by the Dockerfile's digest.
 
   `omw lint workflows` fails on a workflow edited back to the bare tag (the known hit).
-
-### 6. Dependencies, each found one way
-
-- unshield: found the way MyGUI and LuaJIT are, ports with no CMake config: `find_path`, `find_library` and an
-  imported target linking zlib, instead of pkg-config. `find_package(PkgConfig)` goes with it.
-- One `find_package(Boost CONFIG REQUIRED COMPONENTS iostreams program_options filesystem)` instead of two
-  calls, and googletest and benchmark in one `if(BUILD_TESTING)`.
-
-### 7. Third-party code, in one style and quiet
-
-- Fetched projects (`cmake/Dependencies.cmake`): inside the `block()` that fetches SDL3, Recast, yaml-cpp,
-  Google Test, Google Benchmark, volk, VMA and Crashpad, append `-w` to `CMAKE_C_FLAGS` and `CMAKE_CXX_FLAGS`
-  when the compiler is GCC or Clang. Each fetched folder takes the value in force when CMake finishes it,
-  which is inside the block, so the tree's own folders never see it. On MSVC, `/wd4267` on `yaml-cpp` (see
-  Decisions). This removes:
-  - Clang's `-Wnontrivial-memcall` in Recast and `-Wunused-but-set-global` ×9 in SDL;
-  - MSVC's C4267 ×6 in yaml-cpp;
-  - the asan job's `-Wmaybe-uninitialized` inside libstdc++'s `std::function`, which Google Benchmark's
-    `std::regex` instantiates.
-- Vendored projects (`extern/`): the same `-w` set in `extern/CMakeLists.txt`'s own directory scope. Then each
-  is rewritten as the tree's own targets are:
-  - `osgQt`, `oics`, `osg-ffmpeg-videoplayer` and `smhasher` hold their target names in variables and call
-    `target_link_libraries` without `PRIVATE`/`PUBLIC`: the name written out, `target_sources`, and keyword
-    links;
-  - `osgQt`'s `qt_wrap_cpp` becomes `AUTOMOC`, as every other Qt target has;
-  - `rgbcx`'s `if(MSVC) /w else -w` goes into the directory's flags like the rest.
-- Check that no `-w` reaches a file under `components/` or `apps/` (`compile_commands.json`), that the
-  sanitizers still instrument the fetched code (their flags stay in the same variables), and that the Windows
-  leg prints no D9025.
 
 ### 8. Tests, benchmarks and smoke runs (`cmake/Tests.cmake`, `.github/workflows/ci.yml`)
 
