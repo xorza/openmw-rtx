@@ -280,6 +280,23 @@ Linux set to check it, and the Dependency sets workflow publishes it, which `pin
 - **`openmw-osg` passes only what OSG reads** (`vcpkg/ports/openmw-osg`). On Windows it passes
   `OSGVIEWER_USE_XRANDR` and `_OPENTHREADS_ATOMIC_USE_*`, which OSG's CMake reads none of there ("variables
   are not used"). Pass the X11 one on Linux alone, and delete the Windows atomics options.
+- **The vcpkg tool at its newest release** (`tools/omw/pins.py`, `VCPKG_TOOL`): 2026-09-26 becomes
+  2026-10-29, the newest of `microsoft/vcpkg-tool`'s releases on 2026-11-11, both systems' binaries with the
+  SHA-256 each release lists. The tool's pins are in the digest (`deps.set_digest`), so it rides this rebuild.
+  Read the releases between the two for a change to `export`, binary caching or the overlay handling, which
+  `omw deps-set` uses.
+- **One AlmaLinux 8 image, pinned by digest, in the set's name too.**
+  - Today `ci.yml`, `deps.yml` and `rtx-release.yml` run in `almalinux:8` by tag, while
+    `env/release-base.Dockerfile` pins `almalinux:8@sha256:2d0f2eb2…`. The two agree today (Docker Hub's
+    `almalinux:8` digest on 2026-11-11), but when the tag moves, CI, the published set and a release each
+    build on another image than the desk does.
+  - The Dockerfile's `FROM` stays the one place the digest is written. The workflows' `container:` entries
+    name the same `almalinux:8@sha256:…`, and `omw lint workflows` fails when any of them differs from the
+    Dockerfile's.
+  - The digest is part of what the set is built from, so `deps.SET_INPUTS` gains `env/release-base.Dockerfile`,
+    and `SetDigestTest` covers it. A new image then names a new set rather than reusing one built on the old.
+  - Dependabot watches only GitHub Actions here and updates neither. Moving the image is a manual pin with its
+    own set rebuild, like any other pin.
 - **qtbase without `xrender`** (`vcpkg.json`). Qt 6.11 removed X11 native painting (qtbase
   [`93fe512d05`](https://github.com/qt/qtbase/commit/93fe512d053ee57e090e4b150501659e793bc91a)) and with it the
   `xrender` and `xcb_native_painting` features. vcpkg's qtbase port still maps its `xrender` feature onto both,
@@ -290,5 +307,9 @@ Linux set to check it, and the Dependency sets workflow publishes it, which `pin
   - Nothing is lost. Qt draws its cursors and tray icons through xcb-render (`xcb_render_*`, undefined in
     `libQt6XcbQpa.a`), and no archive of the set calls libXrender (no undefined `XRender*` symbol).
   - It rebuilds qtbase and every Qt port once, which this step's set rebuild pays for anyway.
-- Check the published run's logs: no unused-variable warning for `openmw-osg` or qtbase, and no Boost warning
-  in the Windows configure.
+- Check the published run's logs:
+  - no unused-variable warning for `openmw-osg` or qtbase;
+  - no Boost warning in the Windows configure;
+  - each Linux job's container named by the Dockerfile's digest.
+
+  `omw lint workflows` fails on a workflow edited back to the bare tag (the known hit).
