@@ -27,6 +27,10 @@ set(LUA_API_FILES
     openmw/world.lua
 )
 
-foreach(f ${LUA_API_FILES})
-    copy_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/${f}" "${OPENMW_RESOURCES_ROOT}" "resources/lua_api/${f}")
-endforeach(f)
+foreach(f IN LISTS LUA_API_FILES)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/${f}"
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/lua_api/${f}"
+        COPYONLY
+    )
+endforeach()

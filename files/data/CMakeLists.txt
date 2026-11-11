@@ -247,6 +247,6 @@ set(BUILTIN_DATA_FILES
     mygui/skins.xml
 )
 
-foreach(f ${BUILTIN_DATA_FILES})
-    copy_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/${f}" "${OPENMW_RESOURCES_ROOT}" "resources/vfs/${f}")
-endforeach(f)
+foreach(f IN LISTS BUILTIN_DATA_FILES)
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${f}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/vfs/${f}" COPYONLY)
+endforeach()

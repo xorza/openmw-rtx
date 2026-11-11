@@ -44,7 +44,5 @@ else()
     message(WARNING "Failed to get valid version information from Git")
 endif()
 
-include(${MACROSFILE})
-
-configure_resource_file(${VERSION_RESOURCE_FILE_IN} ${BINARY_DIR} ${VERSION_RESOURCE_FILE_RELATIVE})
+configure_file("${VERSION_RESOURCE_FILE_IN}" "${BINARY_DIR}/${VERSION_RESOURCE_FILE_RELATIVE}")
 configure_file("${VERSION_CPP_FILE_IN}" "${VERSION_CPP_FILE_OUT}")

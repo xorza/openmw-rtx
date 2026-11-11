@@ -6,25 +6,28 @@ add_subdirectory(lang)
 
 # The settings' defaults, the configuration a build runs with, and what the programs read beside them,
 # into the build where the programs run from.
-pack_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/settings-default.cfg" "${PROJECT_BINARY_DIR}" "defaults.bin")
-pack_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw-cs.cfg" "${PROJECT_BINARY_DIR}" "defaults-cs.bin")
-configure_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw.appdata.xml" "${PROJECT_BINARY_DIR}" "openmw.appdata.xml")
-configure_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw.cfg.local" "${PROJECT_BINARY_DIR}" "openmw.cfg")
-configure_resource_file(
+pack_resource_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/settings-default.cfg"
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+    "defaults.bin"
+)
+pack_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw-cs.cfg" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}" "defaults-cs.bin")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw.appdata.xml" "${PROJECT_BINARY_DIR}/openmw.appdata.xml")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw.cfg.local" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/openmw.cfg")
+configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/gamecontrollerdb.txt"
-    "${PROJECT_BINARY_DIR}"
-    "gamecontrollerdb.txt"
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt"
 )
 # Copied and not configured: `configure_file` reads to the first null character, which this file holds.
-copy_resource_file(
+configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/opencs/defaultfilters"
-    "${PROJECT_BINARY_DIR}"
-    "resources/defaultfilters"
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/defaultfilters"
+    COPYONLY
 )
-copy_resource_file(
+configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/launcher/images/openmw.png"
-    "${OPENMW_RESOURCES_ROOT}"
-    "resources/openmw.png"
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/openmw.png"
+    COPYONLY
 )
 
 if(NOT WIN32)

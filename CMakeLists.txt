@@ -76,7 +76,6 @@ endif()
 include(cmake/Dependencies.cmake)
 
 # Every program and its resources in one folder of the build, which the install copies from.
-set(OPENMW_RESOURCES_ROOT "${PROJECT_BINARY_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
 
@@ -89,7 +88,7 @@ add_subdirectory(components)
 # driver keys its cache on the bytes: the renderers read modules without source, which an edited
 # comment leaves unchanged (`RtxTool::DriverCache`), and a profiler reads the same modules with it
 # (`--shader-source`).
-set(RTX_SPIRV_DIR "${OPENMW_RESOURCES_ROOT}/resources/rtx/shaders")
+set(RTX_SPIRV_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/rtx/shaders")
 
 # The harness's folder: its places, suites and scripts, the shaders with their source and the
 # driver's caches. In the build tree, because no install carries the harness. The harness and the

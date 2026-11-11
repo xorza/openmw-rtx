@@ -1,13 +1,4 @@
-# The build's resources, into the folder the programs run from: copied, configured, or packed with base64
-# (`cmake/base64.cmake`), each at configure. Every preset is one configuration, so one folder.
-function(copy_resource_file source destination_root relative)
-    configure_file("${source}" "${destination_root}/${relative}" COPYONLY)
-endfunction()
-
-function(configure_resource_file source destination_root relative)
-    configure_file("${source}" "${destination_root}/${relative}")
-endfunction()
-
+# A resource packed with base64 (`cmake/base64.cmake`) at configure, into the folder the programs run from.
 function(pack_resource_file source destination_root relative)
     execute_process(
         COMMAND
@@ -22,12 +13,6 @@ function(pack_resource_file source destination_root relative)
             CMAKE_CONFIGURE_DEPENDS
                 "${source}"
     )
-endfunction()
-
-function(copy_all_resource_files source_dir destination_root destination_relative files)
-    foreach(file IN LISTS files)
-        copy_resource_file("${source_dir}/${file}" "${destination_root}" "${destination_relative}/${file}")
-    endforeach()
 endfunction()
 
 # The windowing platforms a Qt program opens on, which the static Qt links into it: Qt's default, X11's on

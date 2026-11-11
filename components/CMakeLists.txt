@@ -22,15 +22,15 @@ if(GIT_CHECKOUT)
             -DOPENMW_VERSION_MAJOR=${OPENMW_VERSION_MAJOR} -DOPENMW_VERSION_MINOR=${OPENMW_VERSION_MINOR}
             -DOPENMW_VERSION_RELEASE=${OPENMW_VERSION_RELEASE} -DOPENMW_LUA_API_REVISION=${OPENMW_LUA_API_REVISION}
             -DOPENMW_POSTPROCESSING_API_REVISION=${OPENMW_POSTPROCESSING_API_REVISION}
-            -DOPENMW_VERSION=${OPENMW_VERSION} -DOPENMW_DOC_BASEURL=${OPENMW_DOC_BASEURL}
-            -DMACROSFILE=${PROJECT_SOURCE_DIR}/cmake/OpenMWMacros.cmake -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
+            -DOPENMW_VERSION=${OPENMW_VERSION} -DOPENMW_DOC_BASEURL=${OPENMW_DOC_BASEURL} -P
+            ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
         COMMAND
             ${CMAKE_COMMAND} -E copy_if_different ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}.out
             ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}
         VERBATIM
     )
 else()
-    configure_resource_file(${VERSION_RESOURCE_FILE_IN} ${PROJECT_BINARY_DIR} ${VERSION_RESOURCE_FILE_RELATIVE})
+    configure_file("${VERSION_RESOURCE_FILE_IN}" "${PROJECT_BINARY_DIR}/${VERSION_RESOURCE_FILE_RELATIVE}")
     configure_file("${PROJECT_SOURCE_DIR}/${VERSION_CPP_FILE}.in" "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}")
 endif()
 
@@ -51,8 +51,8 @@ foreach(plugin IN LISTS USED_OSG_PLUGINS)
 endforeach()
 configure_file(resource/osgplugins.cpp.in "${PROJECT_BINARY_DIR}/components/resource/osgplugins.cpp" @ONLY)
 
-copy_resource_file("lua/util.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/util.lua")
-copy_resource_file("lua_ui/content.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/content.lua")
+configure_file("lua/util.lua" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/lua_libs/util.lua" COPYONLY)
+configure_file("lua_ui/content.lua" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/lua_libs/content.lua" COPYONLY)
 
 add_library(openmw-components STATIC)
 target_sources(

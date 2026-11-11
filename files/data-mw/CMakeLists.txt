@@ -35,9 +35,13 @@ set(BUILTIN_DATA_MW_FILES
     scripts/omw/surfacelight/player.lua
 )
 
-foreach(f ${BUILTIN_DATA_MW_FILES})
-    copy_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/${f}" "${OPENMW_RESOURCES_ROOT}" "resources/vfs-mw/${f}")
-endforeach(f)
+foreach(f IN LISTS BUILTIN_DATA_MW_FILES)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/${f}"
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/vfs-mw/${f}"
+        COPYONLY
+    )
+endforeach()
 
 # Concat data/builtin.omwscripts and data-mw/builtin.omwscripts.in to create vfs-mw/builtin.omwscripts
 set(builtinBase "${CMAKE_CURRENT_SOURCE_DIR}/../data/builtin.omwscripts")
@@ -46,8 +50,7 @@ set(builtinBase "${CMAKE_CURRENT_SOURCE_DIR}/../data/builtin.omwscripts")
 # registration, spelt from here, is Ninja's "multiple rules generate" (CMake issue 20181).
 
 file(READ "${builtinBase}" BUILTIN_SCRIPTS)
-configure_resource_file(
+configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/builtin.omwscripts.in"
-    "${OPENMW_RESOURCES_ROOT}"
-    "resources/vfs-mw/builtin.omwscripts"
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/vfs-mw/builtin.omwscripts"
 )

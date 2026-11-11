@@ -373,3 +373,8 @@ made only on the user's explicit yes, after which it is added here.
   Ninja, which is every preset's; and `OPENMW_USE_UNSHIELD`, the tree's own spelling of `NOT WIN32`, which
   the wizard's list and the unshield search now read directly (the wizard's source keeps its definition). The
   cost is a conflict with an upstream edit to those lines.
+- Resources through `configure_file` itself (`.notes/build-cleanup.md`, step 4): `copy_resource_file`,
+  `configure_resource_file` and `copy_all_resource_files`, which joined a path and called it, go from
+  `cmake/OpenMWMacros.cmake`, and `GitVersion.cmake` no longer includes that file. The runtime folder has one
+  name, CMake's `CMAKE_RUNTIME_OUTPUT_DIRECTORY`, where `OPENMW_RESOURCES_ROOT` and `PROJECT_BINARY_DIR` named
+  it too. The cost is a conflict with an upstream change to a resource list's loop.

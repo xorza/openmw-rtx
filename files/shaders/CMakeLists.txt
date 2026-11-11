@@ -84,4 +84,10 @@ set(SHADER_FILES
     core/lighting/cull.comp
 )
 
-copy_all_resource_files(${CMAKE_CURRENT_SOURCE_DIR} ${OPENMW_RESOURCES_ROOT} ${DDIRRELATIVE} "${SHADER_FILES}")
+foreach(file IN LISTS SHADER_FILES)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/${file}"
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${DDIRRELATIVE}/${file}"
+        COPYONLY
+    )
+endforeach()
