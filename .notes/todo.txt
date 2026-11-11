@@ -3,4 +3,3 @@
 - all IO serial?
 - measure the navmesh tile store on the Windows laptop against SQLite: a new game to its last tile job, cold and warm
 - artifacts - folder in folder
-- crashpad patched?
