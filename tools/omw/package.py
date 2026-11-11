@@ -82,8 +82,10 @@ class ShippedLibraries:
 # **What the AppImage leaves to the host beyond the exclude list**, as linuxdeploy patterns: libxkbcommon, which
 # reads the host's own keymaps and Compose files, and so must be as new as they are. AlmaLinux 8's 0.9 in the
 # image predates the keysyms a current host's Compose files name, and every Qt program printed "unrecognized
-# keysym" for each; SDL loads the host's by design. Its X11 half stays in the image, which hosts without Qt lack.
-LINUX_HOST_LIBRARIES = ("libxkbcommon.so*",)
+# keysym" for each; SDL loads the host's by design. **Its X11 half with it**, which builds a keymap in the core
+# library's own structures and so is only ever the same release: the image's 0.9 beside a host's newer core
+# crashed every Qt program that opened on X11, as under Steam's game mode.
+LINUX_HOST_LIBRARIES = ("libxkbcommon.so*", "libxkbcommon-x11.so*")
 
 LINUX_LOADER = "usr/lib/libvulkan.so.1"
 # The release base's library folders, where the archive is built (`on_release_base`).
