@@ -6,9 +6,10 @@ enable_testing()
 # `omw-folders.json`.
 set(RTX_TEST_OUTPUT_DIR "${PROJECT_BINARY_DIR}/test-output")
 
-# Options for the test binaries alone, where a preset names any: at `-Og` a test file builds twice as
-# fast, and the code it tests keeps the build's own flags.
-set(OPENMW_TEST_COMPILE_OPTIONS "" CACHE STRING "Compile options added to the test binaries alone")
+# The test binaries' own files at `-Og` on GCC and Clang, the code they test at the build's flags: their objects
+# build 30% faster for runs 10% slower (`docs/rtx/research/2026-11-11-test-binaries-at-og.md`). MSVC's
+# are at the build's, as its `/Od` was not measured.
+set(openmw_test_compile_options $<$<CXX_COMPILER_ID:GNU,Clang>:-Og>)
 
 function(openmw_add_test name target)
     cmake_parse_arguments(PARSE_ARGV 2 TEST "" "" "LABELS;ARGS")
@@ -17,8 +18,8 @@ function(openmw_add_test name target)
     endif()
     # Once per binary, which a sharded suite registers once per shard.
     get_target_property(optioned ${target} OPENMW_TEST_OPTIONED)
-    if(OPENMW_TEST_COMPILE_OPTIONS AND NOT optioned)
-        target_compile_options(${target} PRIVATE ${OPENMW_TEST_COMPILE_OPTIONS})
+    if(NOT optioned)
+        target_compile_options(${target} PRIVATE ${openmw_test_compile_options})
         set_target_properties(
             ${target}
             PROPERTIES

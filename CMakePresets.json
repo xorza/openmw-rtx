@@ -15,83 +15,42 @@
             "hidden": true,
             "generator": "Ninja",
             "$comment": [
-                "Every flavour. The CS, the wizard and the save importer stay off outside `full`; the ini importer",
-                "is on, because `omw setup` runs it on a fresh box. ccache drives GCC and MSVC, and the compile",
-                "database is what an editor reads. What the tree fetches, and where it takes a system's package",
-                "instead, is `cmake/Dependencies.cmake`'s."
+                "Every flavour, each building every program, the tests and the benchmarks. ccache drives GCC and MSVC,",
+                "and the compile database is what an editor reads. The libraries are the vcpkg set `omw` names in",
+                "OMW_VCPKG_SET (`omw deps-set`, `pins.py`), built static, through its own toolchain file: host tools",
+                "and libraries share the system's one triplet, and the manifest is the set's to install, never a",
+                "configure's. Ninja is the pinned one `omw` names in OMW_NINJA. What the tree fetches is",
+                "`cmake/Dependencies.cmake`'s. Warnings are errors, by CMake's own switch, for the tree's targets",
+                "alone (`cmake/Checks.cmake`)."
             ],
             "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "$env{OMW_VCPKG_SET}/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_MAKE_PROGRAM": "$env{OMW_NINJA}",
+                "VCPKG_MANIFEST_MODE": "OFF",
                 "CMAKE_C_COMPILER_LAUNCHER": "ccache",
                 "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "OPENMW_BUILD_CS": "OFF",
-                "OPENMW_BUILD_CS_TESTS": "OFF",
-                "OPENMW_BUILD_WIZARD": "OFF",
-                "OPENMW_BUILD_ESSIMPORTER": "OFF",
-                "OPENMW_BUILD_INIIMPORTER": "ON"
+                "CMAKE_COMPILE_WARNING_AS_ERROR": "ON"
             }
         },
         {
             "name": "linux",
             "hidden": true,
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
-            "$comment": [
-                "Linux supplies mold, and Google Test and yaml-cpp where installed. `RelWithDebInfo` is `-O2 -g1`, not CMake's,",
-                "whose `-DNDEBUG` drops every assert. Line tables keep a failure's file and line: `-g` made a compressed",
-                "object 2.6 to 6.6 times larger, and CI's compiler caches outgrew the free 10 GB. C++ static libraries",
-                "are thin archives (`ar T`): copying the game's 1.3 GB of objects cost six seconds of every relink, and",
-                "no library is installed. Ninja",
-                "creates an archive whole, so the append rule is unused. Warnings",
-                "are errors through upstream's switch, which leaves `extern/` alone."
-            ],
+            "$comment": "The set's triplet; mold and thin archives are `cmake/Flags.cmake`'s, as every system's flags are.",
             "cacheVariables": {
-                "OPENMW_CXX_FLAGS": "-Werror",
-                "CMAKE_EXE_LINKER_FLAGS_INIT": "-fuse-ld=mold",
-                "CMAKE_CXX_ARCHIVE_CREATE": "<CMAKE_AR> qcT <TARGET> <LINK_FLAGS> <OBJECTS>",
-                "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O2 -g1",
-                "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g1"
+                "VCPKG_TARGET_TRIPLET": "x64-linux-openmw",
+                "VCPKG_HOST_TRIPLET": "x64-linux-openmw"
             }
         },
         {
             "name": "windows",
             "hidden": true,
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
-            "$comment": [
-                "Upstream's prebuilt vcpkg set, which `omw` fetches into deps/ at the tag CI/deps_versions.msvc.sh",
-                "pins (VCPKG_TAG). It lacks what `cmake/Dependencies.cmake` fetches, which it fetches whatever the",
-                "machine has installed, and Qt, so no launcher. vcpkg's DLL copying is off, since `omw` copies",
-                "the whole runtime. Precompiled headers are off: ccache cannot cache through them (593 of 623 backend",
-                "compiles missed). `RelWithDebInfo` is `-O2 -Z7`: CMake's carries `/DNDEBUG`, and `-Z7` is the debug",
-                "format ccache can cache. Warnings are errors through upstream's switch. The paths name nothing",
-                "unless `omw` exports the two versions."
-            ],
+            "$comment": "The set's triplet, whose libraries link MSVC's runtime statically, as every program does.",
             "cacheVariables": {
-                "OPENMW_MSVC_WERROR": "ON",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/scripts/buildsystems/vcpkg.cmake",
-                "VCPKG_APPLOCAL_DEPS": "OFF",
-                "OPENMW_MSVC_PRECOMPILED_HEADERS": "OFF",
-                "LuaJit_INCLUDE_DIR": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/include/luajit",
-                "LuaJit_LIBRARY": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/lib/lua51.lib",
-                "FETCHCONTENT_TRY_FIND_PACKAGE_MODE": "NEVER",
-                "OPENMW_BUILD_LAUNCHER": "OFF",
-                "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O2 -Z7",
-                "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -Z7"
-            }
-        },
-        {
-            "name": "no-tools",
-            "hidden": true,
-            "$comment": [
-                "The content tools and the launcher off, for flavours that never run them. Debug keeps them, so the",
-                "launcher's [RTX] page can be built."
-            ],
-            "cacheVariables": {
-                "OPENMW_BUILD_BSATOOL": "OFF",
-                "OPENMW_BUILD_ESMTOOL": "OFF",
-                "OPENMW_BUILD_LAUNCHER": "OFF",
-                "OPENMW_BUILD_NAVMESHTOOL": "OFF",
-                "OPENMW_BUILD_NIFTEST": "OFF",
-                "OPENMW_BUILD_BULLETOBJECTTOOL": "OFF"
+                "VCPKG_TARGET_TRIPLET": "x64-windows-openmw",
+                "VCPKG_HOST_TRIPLET": "x64-windows-openmw"
             }
         },
         {
@@ -110,33 +69,30 @@
         {
             "name": "debug",
             "hidden": true,
-            "$comment": "Every assert, with the tests: the everyday build.",
+            "$comment": "Every assert: the everyday build, and what CI builds and tests on every system.",
             "binaryDir": "${sourceDir}/build-debug",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "OPENMW_BUILD_COMPONENTS_TESTS": "ON",
-                "OPENMW_BUILD_GAME_TESTS": "ON"
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
         },
         {
             "name": "release",
             "hidden": true,
-            "inherits": [ "no-tools" ],
             "$comment": [
-                "`-O3 -DNDEBUG`, no tests: the build a number is quoted from. Each system adds line tables and frame",
-                "pointers on its visible preset."
+                "`-O3 -DNDEBUG` with line tables and frame pointers (`cmake/Flags.cmake`): the build a number is quoted",
+                "from and the archive is installed from. Link-time optimisation where OMW_LTO says `ON`, as a tagged",
+                "release does, and a desk that measures what ships."
             ],
             "binaryDir": "${sourceDir}/build-release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "OPENMW_BUILD_COMPONENTS_TESTS": "OFF",
-                "OPENMW_BUILD_GAME_TESTS": "OFF"
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "$env{OMW_LTO}"
             }
         },
         {
             "name": "asan",
             "hidden": true,
-            "inherits": [ "debug", "no-tools", "one-link" ],
+            "inherits": [ "debug", "one-link" ],
             "$comment": [
                 "Debug under AddressSanitizer and UndefinedBehaviorSanitizer, as upstream runs its tests. Linux",
                 "only: MSVC's sanitizer is unmeasured here. The options it needs are its test preset's. Warnings",
@@ -146,14 +102,14 @@
             ],
             "binaryDir": "${sourceDir}/build-asan",
             "cacheVariables": {
-                "OPENMW_CXX_FLAGS": "",
-                "OPENMW_SANITIZER": "address"
+                "OPENMW_SANITIZER": "address",
+                "CMAKE_COMPILE_WARNING_AS_ERROR": "OFF"
             }
         },
         {
             "name": "tsan",
             "hidden": true,
-            "inherits": [ "debug", "no-tools", "one-link" ],
+            "inherits": [ "debug", "one-link" ],
             "$comment": [
                 "Debug under ThreadSanitizer, which cannot share a build with AddressSanitizer: the races between the",
                 "threads the ray tracer keeps, the cell reader, the workers and the harness's instruments. Linux only,",
@@ -162,58 +118,13 @@
             ],
             "binaryDir": "${sourceDir}/build-tsan",
             "cacheVariables": {
-                "OPENMW_CXX_FLAGS": "",
-                "OPENMW_SANITIZER": "thread"
-            }
-        },
-        {
-            "name": "full",
-            "hidden": true,
-            "$comment": [
-                "Every program, the CS and its tests among them, every suite and the benchmarks: what CI builds.",
-                "Listed first where inherited, so what it turns on beats what `common` and `windows` turn off."
-            ],
-            "binaryDir": "${sourceDir}/build-full",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "OPENMW_BUILD_CS": "ON",
-                "OPENMW_BUILD_CS_TESTS": "ON",
-                "OPENMW_BUILD_WIZARD": "ON",
-                "OPENMW_BUILD_LAUNCHER": "ON",
-                "OPENMW_BUILD_ESSIMPORTER": "ON",
-                "OPENMW_BUILD_COMPONENTS_TESTS": "ON",
-                "OPENMW_BUILD_GAME_TESTS": "ON",
-                "OPENMW_BUILD_BENCHMARKS": "ON"
-            }
-        },
-        {
-            "name": "package",
-            "hidden": true,
-            "$comment": [
-                "A release archive: release without tests, with the launcher, the wizard and the two importers, and",
-                "no CS. `OPENMW_LOCAL_INSTALL` is upstream's portable layout, everything in one directory. Listed",
-                "first where inherited, so what it turns on beats what `windows` turns off."
-            ],
-            "binaryDir": "${sourceDir}/build-package",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "OPENMW_BUILD_COMPONENTS_TESTS": "OFF",
-                "OPENMW_BUILD_GAME_TESTS": "OFF",
-                "OPENMW_BUILD_LAUNCHER": "ON",
-                "OPENMW_BUILD_WIZARD": "ON",
-                "OPENMW_BUILD_ESSIMPORTER": "ON",
-                "OPENMW_LOCAL_INSTALL": "ON"
+                "OPENMW_SANITIZER": "thread",
+                "CMAKE_COMPILE_WARNING_AS_ERROR": "OFF"
             }
         },
         {
             "name": "debug-linux",
-            "inherits": [ "debug", "linux", "common" ],
-            "$comment": [
-                "The test binaries at `-Og`: `cmake/Tests.cmake` says why."
-            ],
-            "cacheVariables": {
-                "OPENMW_TEST_COMPILE_OPTIONS": "-Og"
-            }
+            "inherits": [ "debug", "linux", "common" ]
         },
         {
             "name": "debug-windows",
@@ -221,30 +132,11 @@
         },
         {
             "name": "release-linux",
-            "inherits": [ "release", "linux", "common" ],
-            "$comment": [
-                "`-g1` line tables cost nothing at runtime and let a profile name a line; frame pointers cost less",
-                "than the run-to-run spread and let perf walk the stack. On the measured build, so a profile",
-                "explains the frames the benchmark timed."
-            ],
-            "cacheVariables": {
-                "CMAKE_C_FLAGS_INIT": "-g1 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer",
-                "CMAKE_CXX_FLAGS_INIT": "-g1 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
-            }
+            "inherits": [ "release", "linux", "common" ]
         },
         {
             "name": "release-windows",
-            "inherits": [ "release", "windows", "common" ],
-            "$comment": [
-                "`-Z7` with `-DEBUG` gives a profiler line tables, and `-Oy-` keeps frame pointers. Dashes, because",
-                "Git Bash turns `/O2` into a path. In `CMAKE_<LANG>_FLAGS_INIT`, so CMake still appends its own",
-                "(`/EHsc`, `/machine:x64`)."
-            ],
-            "cacheVariables": {
-                "CMAKE_C_FLAGS_INIT": "-Z7 -Oy-",
-                "CMAKE_CXX_FLAGS_INIT": "-Z7 -Oy-",
-                "CMAKE_EXE_LINKER_FLAGS_INIT": "-DEBUG"
-            }
+            "inherits": [ "release", "windows", "common" ]
         },
         {
             "name": "asan-linux",
@@ -253,46 +145,6 @@
         {
             "name": "tsan-linux",
             "inherits": [ "tsan", "linux", "common" ]
-        },
-        {
-            "name": "full-linux",
-            "inherits": [ "full", "linux", "common" ]
-        },
-        {
-            "name": "full-windows",
-            "inherits": [ "full", "windows", "common" ],
-            "$comment": "Qt for the CS, the launcher and the wizard, and the link-time optimisation upstream's Windows build takes.",
-            "cacheVariables": {
-                "CMAKE_PREFIX_PATH": "${sourceDir}/deps/Qt/$env{QT_VER}/msvc2019_64",
-                "OPENMW_LTO": "ON"
-            }
-        },
-        {
-            "name": "package-linux",
-            "inherits": [ "package", "linux", "common" ],
-            "$comment": [
-                "`-g1` for the symbols `omw archive` publishes, so a player's crash dump names a function and a",
-                "line. No runtime cost."
-            ],
-            "cacheVariables": {
-                "CMAKE_C_FLAGS_INIT": "-g1",
-                "CMAKE_CXX_FLAGS_INIT": "-g1"
-            }
-        },
-        {
-            "name": "package-windows",
-            "inherits": [ "package", "windows", "common" ],
-            "$comment": [
-                "Qt for the launcher and the wizard, which `omw` fetches into deps/ at QT_VER. `-Z7` with `-DEBUG`",
-                "writes each PDB beside its executable, for the symbols `omw archive` publishes; the install leaves",
-                "them out."
-            ],
-            "cacheVariables": {
-                "CMAKE_C_FLAGS_INIT": "-Z7",
-                "CMAKE_CXX_FLAGS_INIT": "-Z7",
-                "CMAKE_EXE_LINKER_FLAGS_INIT": "-DEBUG",
-                "CMAKE_PREFIX_PATH": "${sourceDir}/deps/Qt/$env{QT_VER}/msvc2019_64"
-            }
         }
     ],
     "testPresets": [
@@ -343,10 +195,10 @@
         },
         { "name": "debug-linux", "configurePreset": "debug-linux", "inherits": [ "tests" ] },
         { "name": "debug-windows", "configurePreset": "debug-windows", "inherits": [ "tests" ] },
+        { "name": "release-linux", "configurePreset": "release-linux", "inherits": [ "tests" ] },
+        { "name": "release-windows", "configurePreset": "release-windows", "inherits": [ "tests" ] },
         { "name": "asan-linux", "configurePreset": "asan-linux", "inherits": [ "tests", "address-sanitizer" ] },
-        { "name": "tsan-linux", "configurePreset": "tsan-linux", "inherits": [ "tests", "thread-sanitizer" ] },
-        { "name": "full-linux", "configurePreset": "full-linux", "inherits": [ "tests" ] },
-        { "name": "full-windows", "configurePreset": "full-windows", "inherits": [ "tests" ] }
+        { "name": "tsan-linux", "configurePreset": "tsan-linux", "inherits": [ "tests", "thread-sanitizer" ] }
     ],
     "buildPresets": [
         { "name": "debug-linux", "configurePreset": "debug-linux" },
@@ -354,22 +206,14 @@
         { "name": "release-linux", "configurePreset": "release-linux" },
         { "name": "release-windows", "configurePreset": "release-windows" },
         { "name": "asan-linux", "configurePreset": "asan-linux" },
-        { "name": "tsan-linux", "configurePreset": "tsan-linux" },
-        { "name": "full-linux", "configurePreset": "full-linux" },
-        { "name": "full-windows", "configurePreset": "full-windows" },
-        { "name": "package-linux", "configurePreset": "package-linux" },
-        { "name": "package-windows", "configurePreset": "package-windows" }
+        { "name": "tsan-linux", "configurePreset": "tsan-linux" }
     ],
     "workflowPresets": [
         { "name": "debug-linux", "steps": [ { "type": "configure", "name": "debug-linux" }, { "type": "build", "name": "debug-linux" }, { "type": "test", "name": "debug-linux" } ] },
         { "name": "debug-windows", "steps": [ { "type": "configure", "name": "debug-windows" }, { "type": "build", "name": "debug-windows" }, { "type": "test", "name": "debug-windows" } ] },
-        { "name": "release-linux", "steps": [ { "type": "configure", "name": "release-linux" }, { "type": "build", "name": "release-linux" } ] },
-        { "name": "release-windows", "steps": [ { "type": "configure", "name": "release-windows" }, { "type": "build", "name": "release-windows" } ] },
+        { "name": "release-linux", "steps": [ { "type": "configure", "name": "release-linux" }, { "type": "build", "name": "release-linux" }, { "type": "test", "name": "release-linux" } ] },
+        { "name": "release-windows", "steps": [ { "type": "configure", "name": "release-windows" }, { "type": "build", "name": "release-windows" }, { "type": "test", "name": "release-windows" } ] },
         { "name": "asan-linux", "steps": [ { "type": "configure", "name": "asan-linux" }, { "type": "build", "name": "asan-linux" }, { "type": "test", "name": "asan-linux" } ] },
-        { "name": "tsan-linux", "steps": [ { "type": "configure", "name": "tsan-linux" }, { "type": "build", "name": "tsan-linux" }, { "type": "test", "name": "tsan-linux" } ] },
-        { "name": "full-linux", "steps": [ { "type": "configure", "name": "full-linux" }, { "type": "build", "name": "full-linux" }, { "type": "test", "name": "full-linux" } ] },
-        { "name": "full-windows", "steps": [ { "type": "configure", "name": "full-windows" }, { "type": "build", "name": "full-windows" }, { "type": "test", "name": "full-windows" } ] },
-        { "name": "package-linux", "steps": [ { "type": "configure", "name": "package-linux" }, { "type": "build", "name": "package-linux" } ] },
-        { "name": "package-windows", "steps": [ { "type": "configure", "name": "package-windows" }, { "type": "build", "name": "package-windows" } ] }
+        { "name": "tsan-linux", "steps": [ { "type": "configure", "name": "tsan-linux" }, { "type": "build", "name": "tsan-linux" }, { "type": "test", "name": "tsan-linux" } ] }
     ]
 }

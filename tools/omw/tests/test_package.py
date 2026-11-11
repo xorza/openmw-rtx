@@ -6,98 +6,55 @@ from unittest.mock import patch
 
 from omw.package import (
     CONTAINER_DIR,
-    LINUX_RUNTIME,
+    GLIBC_FLOOR,
+    LINUX_LIBRARIES,
     RELEASE_IMAGE,
-    WINDOWS_RUNTIME,
+    WINDOWS_LIBRARIES,
+    ShippedLibraries,
     container_command,
     executables_in,
+    glibc_versions,
     harness_files,
-    missing_runtime,
     on_release_base,
     os_release,
-    osg_plugin_folder,
     prune_empty,
-    used_osg_plugins,
-    wayland_platform_plugins,
 )
 from omw.system import ROOT, WINDOWS, Refusal
-from omw.tests.fixtures import temporary_build, write_cache
 
 
-class OsgPluginFolderTest(unittest.TestCase):
-    def test_the_folder_is_named_for_the_release_beside_the_library_and_a_missing_one_is_refused(self):
-        build = temporary_build(self)
-        # The release `osg/Version` states, never the suffixed one OpenMW's package gives pkg-config.
-        write_cache(build, "OPENSCENEGRAPH_VERSION:INTERNAL=3.6.5",
-                    "OSG_LIBRARY_RELEASE:FILEPATH=/usr/lib/x86_64-linux-gnu/libosg.so")
-        self.assertEqual(osg_plugin_folder(build), Path("/usr/lib/x86_64-linux-gnu/osgPlugins-3.6.5"))
-
-        for lines in (
-            ("OSG_LIBRARY_RELEASE:FILEPATH=/usr/lib/libosg.so",),
-            ("OPENSCENEGRAPH_VERSION:INTERNAL=3.6.5",),
-            ("OPENSCENEGRAPH_VERSION:INTERNAL=3.6.5", "OSG_LIBRARY_RELEASE:FILEPATH=OSG_LIBRARY_RELEASE-NOTFOUND"),
-        ):
-            write_cache(build, *lines)
-            with self.subTest(lines=lines), self.assertRaises(Refusal):
-                osg_plugin_folder(build)
-
-
-class UsedOsgPluginsTest(unittest.TestCase):
-    def test_the_names_between_the_set_and_its_parenthesis(self):
-        cases = [
-            ("x\nset(USED_OSG_PLUGINS\n    osgdb_bmp\n    osgdb_tga)\n\nset(OTHER y)\n", ["osgdb_bmp", "osgdb_tga"]),
-            ("set(USED_OSG_PLUGINS osgdb_png osgdb_dds)\n", ["osgdb_png", "osgdb_dds"]),
-        ]
-        for text, expected in cases:
-            with self.subTest(text=text):
-                self.assertEqual(used_osg_plugins(text), expected)
-        with self.assertRaises(Refusal):
-            used_osg_plugins("set(OTHER y)\n")
-
-
-class WaylandPlatformPluginsTest(unittest.TestCase):
-    def test_the_set_this_qt_ships_whole_or_a_refusal(self):
-        # Qt 6.11's one plugin, an older Qt with its two and the X compositing pair beside
-        # them, half of the older pair, and none.
-        cases = [
-            (["libqwayland.so", "libqxcb.so"], ("libqwayland.so",)),
-            (["libqwayland-egl.so", "libqwayland-generic.so", "libqwayland-xcomposite-egl.so", "libqxcb.so"],
-             ("libqwayland-generic.so", "libqwayland-egl.so")),
-            (["libqwayland-egl.so", "libqxcb.so"], None),
-            (["libqxcb.so"], None),
-        ]
-        for files, expected in cases:
-            with self.subTest(files=files):
-                platforms = Path(tempfile.mkdtemp())
-                self.addCleanup(shutil.rmtree, platforms)
-                for name in files:
-                    (platforms / name).write_bytes(b"")
-                if expected is None:
-                    with self.assertRaises(Refusal):
-                        wayland_platform_plugins(platforms)
-                else:
-                    self.assertEqual(wayland_platform_plugins(platforms), expected)
+class GlibcTest(unittest.TestCase):
+    def test_the_versions_a_binary_asks_are_read_as_numbers_and_compared_as_such(self):
+        listed = ("0000000000000000      DF *UND*  0000000000000000 (GLIBC_2.2.5) memcpy\n"
+                  "0000000000000000      DF *UND*  0000000000000000 (GLIBC_2.28) fcntl64\n"
+                  "0000000000000000      DF *UND*  0000000000000000 (GLIBC_2.3.4) __memcpy_chk\n"
+                  "0000000000000000      DF *UND*  0000000000000000 (GLIBCXX_3.4.30) _ZSt4cout\n")
+        self.assertEqual(glibc_versions(listed), {(2, 2, 5), (2, 28), (2, 3, 4)})
+        # 2.28 the newest, though 2.3.4 sorts after it as text.
+        self.assertEqual(max(glibc_versions(listed)), GLIBC_FLOOR)
+        self.assertGreater(max(glibc_versions(listed + "(GLIBC_2.34) pthread_yield\n")), GLIBC_FLOOR)
+        self.assertEqual(glibc_versions(""), set())
 
 
 class ReleaseBaseTest(unittest.TestCase):
-    def test_ubuntu_26_04_alone_builds_a_release_where_it_stands(self):
-        resolute = 'PRETTY_NAME="Ubuntu 26.04.1 LTS"\nNAME="Ubuntu"\nVERSION_ID="26.04"\nID=ubuntu\nID_LIKE=debian\n'
-        self.assertEqual(os_release(resolute)["VERSION_ID"], "26.04")
+    def test_almalinux_8_alone_builds_a_release_where_it_stands(self):
+        alma = 'NAME="AlmaLinux"\nVERSION="8.10 (Cerulean Leopard)"\nID="almalinux"\nVERSION_ID="8.10"\n'
+        self.assertEqual(os_release(alma)["VERSION_ID"], "8.10")
         self.assertEqual(os_release("# ID=fedora\nID='fedora'\n"), {"ID": "fedora"})
-        self.assertTrue(on_release_base(resolute))
-        for other in ('NAME="Fedora Linux"\nID=fedora\nVERSION_ID=44\n',
-                      'NAME="Ubuntu"\nVERSION_ID="24.04"\nID=ubuntu\n', ""):
+        self.assertTrue(on_release_base(alma))
+        self.assertTrue(on_release_base('ID="almalinux"\nVERSION_ID="8.11"\n'), "a point release is the same base")
+        for other in ('NAME="Fedora Linux"\nID=fedora\nVERSION_ID=44\n', 'ID="almalinux"\nVERSION_ID="9.6"\n',
+                      'ID="almalinux"\nVERSION_ID="18.0"\n', 'NAME="Ubuntu"\nVERSION_ID="26.04"\nID=ubuntu\n', ""):
             with self.subTest(other=other):
                 self.assertFalse(on_release_base(other))
 
     def test_the_container_runs_omw_on_the_tree_with_its_own_build_and_cache(self):
         tree = f"{ROOT}:{ROOT}"
-        build = f"{CONTAINER_DIR / 'package'}:{ROOT / 'build-package'}"
+        build = f"{CONTAINER_DIR / 'release'}:{ROOT / 'build-release'}"
         beside = ROOT.parent / f"{ROOT.name}-repository" / ".git"
         for common, expected in ((ROOT / ".git", [tree, build]), (beside, [tree, f"{beside}:{beside}", build])):
             with self.subTest(common=common), patch("omw.package.output", return_value=f"{common}\n"):
                 command = container_command(
-                    "/usr/bin/docker", ["python3", "omw", "archive", "v1"], "1000:1000", "package")
+                    "/usr/bin/docker", ["python3", "omw", "archive", "v1"], "1000:1000", "release")
                 self.assertEqual(command[:4], ["/usr/bin/docker", "run", "--rm", "--user"])
                 self.assertEqual(command[command.index("--user") + 1], "1000:1000")
                 volumes = [command[at + 1] for at, word in enumerate(command) if word == "--volume"]
@@ -140,14 +97,24 @@ class InstallTest(unittest.TestCase):
             "test-output/crash-matrix/abort/log.txt",
         ])
 
-    def test_the_runtime_an_archive_lacks_is_named_and_a_folder_in_its_place_counts_for_nothing(self):
-        self.assertEqual(missing_runtime(self.root, LINUX_RUNTIME), ["usr/lib/libvulkan.so.1"])
+    def test_an_archive_holds_the_libraries_it_ships_and_no_other_and_a_folder_counts_for_nothing(self):
+        self.assertEqual(LINUX_LIBRARIES.mismatch(self.root), ["no usr/lib/libvulkan.so.1"])
         self.touch("usr/lib/libvulkan.so.1")
-        self.assertEqual(missing_runtime(self.root, LINUX_RUNTIME), [])
+        self.assertEqual(LINUX_LIBRARIES.mismatch(self.root), [])
+        # One linuxdeploy brought along, which the static build should have linked in.
+        self.touch("usr/lib/libosg.so.161")
+        self.assertEqual(LINUX_LIBRARIES.mismatch(self.root), ["usr/lib/libosg.so.161 beside them"])
+        with self.assertRaisesRegex(Refusal, "libosg.so.161 beside them"):
+            LINUX_LIBRARIES.refuse_mismatch(self.root)
 
-        self.touch("msvcp140.dll")
-        (self.root / "vcruntime140.dll").mkdir()
-        self.assertEqual(missing_runtime(self.root, WINDOWS_RUNTIME), ["vcruntime140.dll", "vcruntime140_1.dll"])
+        (self.root / "openmw-wer.dll").mkdir()
+        self.touch("Qt6Core.dll")
+        self.touch("tls/qschannelbackend.dll")
+        self.assertEqual(WINDOWS_LIBRARIES.mismatch(self.root), ["no openmw-wer.dll", "Qt6Core.dll beside them"])
+
+        # The pattern decides what is a library: a plugin folder's own is, when the pattern reaches it.
+        deep = ShippedLibraries("**/*.dll", ("Qt6Core.dll",))
+        self.assertEqual(deep.mismatch(self.root), ["tls/qschannelbackend.dll beside them"])
 
     def test_pruning_takes_every_folder_without_a_file_and_keeps_the_rest(self):
         self.touch("resources/a.txt")

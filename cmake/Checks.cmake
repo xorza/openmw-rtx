@@ -1,6 +1,6 @@
 # What the tree's targets compile with, as two `INTERFACE` targets `openmw_link_tree` links: `openmw-system`,
 # how every target the tree defines compiles on its system, the vendored ones under `extern/` included;
-# and `openmw-checks`, the warnings each compiler takes and, where a preset asks, warnings as errors,
+# and `openmw-checks`, the warnings each compiler takes,
 # for the tree's own under `components/` and `apps/` and no third party's. A directory's
 # `add_compile_options` reached a target or not by the order its folder was added in.
 
@@ -52,6 +52,12 @@ if(WIN32)
             _UNICODE
             UNICODE
     )
+    # One manifest for every program: per-monitor DPI awareness, long paths, no elevation.
+    target_sources(
+        openmw-system
+        INTERFACE
+            $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${PROJECT_SOURCE_DIR}/files/windows/openmw.manifest>
+    )
 endif()
 
 add_library(openmw-checks INTERFACE)
@@ -68,7 +74,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             /wd4244 # Implicit narrowing between arithmetic types (-Wconversion, which GCC's -Wall -Wextra leave out)
             /wd4267 # Implicit narrowing of a size_t (the same)
             /w14855 # implicit capture of 'this' via '[=]' is deprecated in 'version'
-            $<$<BOOL:${OPENMW_MSVC_WERROR}>:/WX>
     )
 else()
     target_compile_options(
@@ -117,16 +122,13 @@ else()
                 -Wno-array-bounds
         )
 
-        # Wrong before GCC 16: `-Wmaybe-uninitialized` reports every copy of a `std::optional` (GCC bug
-        # 80635), Ubuntu 26.04's GCC 15.2 among them, and `-Wnull-dereference` OSG's inline
-        # `pushOntoNodePath`.
+        # `-Wmaybe-uninitialized` reports copies of a `std::optional` (GCC bug 80635), still on GCC 16.2
+        # where inlining reaches across the set's headers: `MaterialResolver::read`'s `SurfaceDescription`.
+        target_compile_options(openmw-checks INTERFACE -Wno-maybe-uninitialized)
+
+        # Wrong before GCC 16: `-Wnull-dereference` reports OSG's inline `pushOntoNodePath`.
         if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
-            target_compile_options(
-                openmw-checks
-                INTERFACE
-                    -Wno-maybe-uninitialized
-                    -Wno-null-dereference
-            )
+            target_compile_options(openmw-checks INTERFACE -Wno-null-dereference)
         endif()
 
         # Wrong on GCC 16: `-Wstringop-overflow` reports a byte vector's `resize(n, value)` at `-O3` as an
@@ -138,18 +140,8 @@ else()
     endif()
 endif()
 
-# What a preset adds to the checks, `-Werror` on Linux.
-if(OPENMW_CXX_FLAGS)
-    separate_arguments(openmw_cxx_flags NATIVE_COMMAND "${OPENMW_CXX_FLAGS}")
-    target_compile_options(openmw-checks INTERFACE ${openmw_cxx_flags})
-endif()
-
-# Coverage where `OPENMW_COVERAGE` asks for it: every first-party target compiled for gcov, and
-# every program linked with its runtime.
-if(OPENMW_COVERAGE)
-    target_compile_options(openmw-checks INTERFACE --coverage)
-    target_link_options(openmw-checks INTERFACE --coverage)
-endif()
+# Warnings are errors where a preset sets CMake's own `CMAKE_COMPILE_WARNING_AS_ERROR`: for the tree's
+# targets, as `extern/` and the fetched projects turn it off for theirs, whose warnings are their own.
 
 # Links `openmw-system` into every target a folder under `components/`, `apps/` or `extern/` defines, and
 # `openmw-checks` into those under the first two, from `directory` down, but the interface and custom ones,

@@ -1,4 +1,5 @@
 qt_add_executable(openmw-wizard WIN32)
+openmw_qt_platforms(openmw-wizard)
 target_sources(
     openmw-wizard
     PRIVATE
@@ -33,7 +34,6 @@ if(WIN32)
         openmw-wizard
         PRIVATE
             "${PROJECT_SOURCE_DIR}/files/windows/openmw-wizard.rc"
-            "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest"
             "${PROJECT_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc"
     )
 endif()
@@ -55,8 +55,7 @@ if(OPENMW_USE_UNSHIELD)
                     unshield/unshieldworker.hpp
     )
     target_compile_definitions(openmw-wizard PRIVATE OPENMW_USE_UNSHIELD)
-    target_include_directories(openmw-wizard SYSTEM PRIVATE ${LIBUNSHIELD_INCLUDE_DIRS})
-    target_link_libraries(openmw-wizard PRIVATE ${LIBUNSHIELD_LIBRARIES})
+    target_link_libraries(openmw-wizard PRIVATE PkgConfig::unshield)
 endif()
 
 set_target_properties(
@@ -81,9 +80,4 @@ target_link_libraries(
         Qt::Svg
 )
 
-install(
-    TARGETS
-        openmw-wizard
-        ${runtime_dependency_arguments}
-)
-generate_deploy_script_for_qt_app(openmw-wizard)
+install(TARGETS openmw-wizard)

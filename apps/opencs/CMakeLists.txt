@@ -528,38 +528,12 @@ target_link_libraries(
         Qt::Svg
 )
 
-if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(
-        openmw-cs-lib
-        PRIVATE
-            <boost/program_options/options_description.hpp>
-            <algorithm>
-            <fstream>
-            <functional>
-            <ostream>
-            <string>
-            <string_view>
-            <vector>
-    )
+qt_add_executable(openmw-cs main.cpp)
+openmw_qt_platforms(openmw-cs)
+if(WIN32)
+    target_sources(openmw-cs PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/opencs.rc")
 endif()
+target_link_libraries(openmw-cs PRIVATE openmw-cs-lib)
 
-if(OPENMW_BUILD_CS)
-    qt_add_executable(openmw-cs main.cpp)
-    if(WIN32)
-        target_sources(
-            openmw-cs
-            PRIVATE
-                "${PROJECT_SOURCE_DIR}/files/windows/opencs.rc"
-                "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest"
-        )
-    endif()
-    target_link_libraries(openmw-cs PRIVATE openmw-cs-lib)
-
-    install(
-        TARGETS
-            openmw-cs
-            ${runtime_dependency_arguments}
-    )
-    install(FILES "$<TARGET_FILE_DIR:openmw-cs>/defaults-cs.bin" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
-    generate_deploy_script_for_qt_app(openmw-cs)
-endif()
+install(TARGETS openmw-cs)
+install(FILES "$<TARGET_FILE_DIR:openmw-cs>/defaults-cs.bin" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")

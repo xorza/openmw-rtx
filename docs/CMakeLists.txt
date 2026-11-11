@@ -1,8 +1,22 @@
 # The API reference, by Doxygen: `doc` writes it under `docs/Doxygen`, `doc_pages` the pages'
 # version under `OPENMW_DOXYGEN_PAGES_DIR`, `docs/Pages` unless a configure names another.
 
-find_package(Sphinx REQUIRED)
-find_package(Doxygen REQUIRED)
+# Doxygen is a desk's own, which no build needs: without it the two targets say so when asked for, and the
+# configure is the same.
+find_package(Doxygen QUIET)
+if(NOT DOXYGEN_FOUND)
+    foreach(target doc doc_pages)
+        add_custom_target(
+            ${target}
+            COMMAND
+                ${CMAKE_COMMAND} -E echo "${target}: Doxygen is not installed"
+            COMMAND
+                ${CMAKE_COMMAND} -E false
+            VERBATIM
+        )
+    endforeach()
+    return()
+endif()
 
 configure_file(mainpage.hpp.cmake mainpage.hpp)
 if(NOT DEFINED OPENMW_DOXYGEN_PAGES_DIR)

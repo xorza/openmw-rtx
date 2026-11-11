@@ -7,7 +7,6 @@ set(VERSION_RESOURCE_FILE_RELATIVE "resources/version")
 set(VERSION_CPP_FILE "components/version/version.cpp")
 
 if(GIT_CHECKOUT)
-    get_generator_is_multi_config(multi_config)
     add_custom_target(
         get-version
         BYPRODUCTS
@@ -24,9 +23,7 @@ if(GIT_CHECKOUT)
             -DOPENMW_VERSION_RELEASE=${OPENMW_VERSION_RELEASE} -DOPENMW_LUA_API_REVISION=${OPENMW_LUA_API_REVISION}
             -DOPENMW_POSTPROCESSING_API_REVISION=${OPENMW_POSTPROCESSING_API_REVISION}
             -DOPENMW_VERSION=${OPENMW_VERSION} -DOPENMW_DOC_BASEURL=${OPENMW_DOC_BASEURL}
-            -DMACROSFILE=${PROJECT_SOURCE_DIR}/cmake/OpenMWMacros.cmake
-            "-DCMAKE_CONFIGURATION_TYPES=${CMAKE_CONFIGURATION_TYPES}" -Dgenerator_is_multi_config_var=${multi_config}
-            -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
+            -DMACROSFILE=${PROJECT_SOURCE_DIR}/cmake/OpenMWMacros.cmake -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
         COMMAND
             ${CMAKE_COMMAND} -E copy_if_different ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}.out
             ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}
@@ -37,23 +34,22 @@ else()
     configure_file("${PROJECT_SOURCE_DIR}/${VERSION_CPP_FILE}.in" "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}")
 endif()
 
-# The OSG plugins the game loads, named for the checker that asks for them at start: OSG's CMake
-# package, which it does not have, would otherwise say.
-list(
-    TRANSFORM USED_OSG_PLUGINS
-    REPLACE
-        "^osgdb_"
-        ""
-    OUTPUT_VARIABLE USED_OSG_PLUGIN_NAMES
-)
-list(TRANSFORM USED_OSG_PLUGIN_NAMES PREPEND "\"" OUTPUT_VARIABLE USED_OSG_PLUGIN_NAMES_FORMATTED)
-list(TRANSFORM USED_OSG_PLUGIN_NAMES_FORMATTED APPEND "\"")
-list(JOIN USED_OSG_PLUGIN_NAMES_FORMATTED ", " USED_OSG_PLUGIN_NAMES_FORMATTED)
-set(OSG_PLUGIN_CHECKER_CPP_FILE "components/misc/osgpluginchecker.cpp")
-configure_file(
-    "${PROJECT_SOURCE_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}.in"
-    "${PROJECT_BINARY_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}"
-)
+# The OSG plugins `cmake/Dependencies.cmake` links, each registered by name in one file: a reader's by
+# `USE_OSGPLUGIN`, a serializer library's by `USE_SERIALIZER_WRAPPER_LIBRARY`. `osgdb_osg` holds two
+# readers, the `.osg` one and `osg2`, which reads `.osgt`, the error marker's format.
+set(OSG_PLUGIN_USES "")
+foreach(plugin IN LISTS USED_OSG_PLUGINS)
+    if(plugin MATCHES "^osgdb_serializers_(.+)$")
+        string(APPEND OSG_PLUGIN_USES "USE_SERIALIZER_WRAPPER_LIBRARY(${CMAKE_MATCH_1})\n")
+    elseif(plugin STREQUAL "osgdb_osg")
+        string(APPEND OSG_PLUGIN_USES "USE_OSGPLUGIN(osg)\nUSE_OSGPLUGIN(osg2)\n")
+    elseif(plugin MATCHES "^osgdb_(.+)$")
+        string(APPEND OSG_PLUGIN_USES "USE_OSGPLUGIN(${CMAKE_MATCH_1})\n")
+    else()
+        message(FATAL_ERROR "${plugin} is named as no OSG plugin is")
+    endif()
+endforeach()
+configure_file(resource/osgplugins.cpp.in "${PROJECT_BINARY_DIR}/components/resource/osgplugins.cpp" @ONLY)
 
 copy_resource_file("lua/util.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/util.lua")
 copy_resource_file("lua_ui/content.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/content.lua")
@@ -63,7 +59,7 @@ target_sources(
     openmw-components
     PRIVATE
         "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}"
-        "${PROJECT_BINARY_DIR}/${OSG_PLUGIN_CHECKER_CPP_FILE}"
+        "${PROJECT_BINARY_DIR}/components/resource/osgplugins.cpp"
     PUBLIC
         FILE_SET HEADERS
             BASE_DIRS
@@ -992,7 +988,6 @@ target_sources(
                 misc/monitor.hpp
                 misc/notnullptr.hpp
                 misc/objectpool.hpp
-                misc/osgpluginchecker.hpp
                 misc/osguservalues.hpp
                 misc/pathgridutils.hpp
                 misc/pathhelpers.hpp
@@ -1550,15 +1545,16 @@ set_property(
         COMPILE_OPTIONS
             $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-shadow>
 )
-# Read on Linux alone, where the file compiles to anything.
+# The system-wide data and configuration folders `Files::LinuxPath` reads, none in the portable layout every
+# install has: the configuration beside the programs is the global one.
 set_property(
     SOURCE
         files/linuxpath.cpp
     APPEND
     PROPERTY
         COMPILE_DEFINITIONS
-            "GLOBAL_DATA_PATH=\"${OPENMW_GLOBAL_DATA_PATH}\""
-            "GLOBAL_CONFIG_PATH=\"${OPENMW_GLOBAL_CONFIG_PATH}\""
+            "GLOBAL_DATA_PATH=\"\""
+            "GLOBAL_CONFIG_PATH=\"\""
 )
 # Boost's `typed_value::notify`, which GCC reports as a null dereference: compiled here alone, as
 # `configurationmanager.hpp` says.
@@ -1586,7 +1582,6 @@ set_property(
 target_compile_definitions(
     openmw-components
     PUBLIC
-        OPENMW_RTX_DLSS=$<BOOL:${OPENMW_RTX_DLSS}>
         # Vulkan's validation layers on unless Release, read as `Rtx::sValidationByDefault`: here, so the game
         # and the harness agree. 0 or 1, so the constant needs no `#ifdef`.
         OPENMW_RTX_VALIDATION_BY_DEFAULT=$<IF:$<CONFIG:Release>,0,1>
@@ -1612,7 +1607,7 @@ target_link_libraries(
         MyGUI::MyGUI
         sol3
         Lua::Lua
-        LZ4::LZ4
+        lz4::lz4
         RecastNavigation::DebugUtils
         RecastNavigation::Detour
         RecastNavigation::Recast
@@ -1628,7 +1623,18 @@ target_link_libraries(
         Bullet::Bullet
         # `dlopen` for `platform/libraryposix.cpp`, on the C libraries that keep it out of libc.
         ${CMAKE_DL_LIBS}
+        # `shm_open` for `platform/sharedmemoryposix.cpp`, in librt before glibc 2.34: the release base's is 2.28.
+        $<$<PLATFORM_ID:Linux>:rt>
         Threads::Threads
+)
+# The OSG plugins, in every program that links the components: their registration is asked for by name, as
+# nothing calls into it (`resource/osgplugins.cpp.in`).
+list(TRANSFORM USED_OSG_PLUGINS PREPEND "OpenSceneGraph::" OUTPUT_VARIABLE osg_plugin_targets)
+target_link_libraries(openmw-components PUBLIC ${osg_plugin_targets})
+target_link_options(
+    openmw-components
+    INTERFACE
+        $<IF:$<CXX_COMPILER_ID:MSVC>,/INCLUDE:openmw_osg_plugins,LINKER:--undefined=openmw_osg_plugins>
 )
 
 if(WIN32)
@@ -1641,98 +1647,65 @@ if(WIN32)
     )
 endif()
 
-if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(
+add_library(openmw-components-qt STATIC)
+target_sources(
+    openmw-components-qt
+    PRIVATE
+        config/gamesettings.cpp
+        config/launchersettings.cpp
+        contentselector/model/contentmodel.cpp
+        contentselector/model/esmfile.cpp
+        contentselector/model/modelitem.cpp
+        contentselector/view/combobox.cpp
+        contentselector/view/contentselector.cpp
+        files/qtconversion.cpp
+        l10n/qttranslations.cpp
+        misc/helpviewer.cpp
+        misc/scalableicon.cpp
+        platform/application.cpp
+        process/processinvoker.cpp
+        vfs/qtconversion.cpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                config/gamesettings.hpp
+                config/launchersettings.hpp
+                contentselector/model/contentmodel.hpp
+                contentselector/model/esmfile.hpp
+                contentselector/model/loadordererror.hpp
+                contentselector/model/modelitem.hpp
+                contentselector/view/combobox.hpp
+                contentselector/view/contentselector.hpp
+                files/qtconfigpath.hpp
+                files/qtconversion.hpp
+                l10n/qttranslations.hpp
+                misc/hash.hpp
+                misc/helpviewer.hpp
+                misc/scalableicon.hpp
+                misc/utf8qtextstream.hpp
+                platform/application.hpp
+                process/processinvoker.hpp
+                vfs/qtconversion.hpp
+)
+target_link_libraries(
+    openmw-components-qt
+    PUBLIC
         openmw-components
-        PUBLIC
-            <sol/sol.hpp>
-            <osg/State>
-            <osg/StateSet>
-            <osg/Node>
-            <osg/Drawable>
-            <osg/Camera>
-            <MyGUI_Widget.h>
-            <algorithm>
-            <filesystem>
-            <fstream>
-            <functional>
-            <memory>
-            <ostream>
-            <string>
-            <vector>
-    )
+        Qt::Widgets
+        Qt::Core
+)
+set_target_properties(
+    openmw-components-qt
+    PROPERTIES
+        AUTOMOC
+            ON
+        AUTOUIC
+            ON
+        AUTOUIC_SEARCH_PATHS
+            contentselector
+)
 
-    target_precompile_headers(
-        openmw-components
-        PRIVATE
-            <osgViewer/Viewer>
-            <boost/program_options/options_description.hpp>
-    )
-endif()
-
-if(USE_QT)
-    add_library(openmw-components-qt STATIC)
-    target_sources(
-        openmw-components-qt
-        PRIVATE
-            config/gamesettings.cpp
-            config/launchersettings.cpp
-            contentselector/model/contentmodel.cpp
-            contentselector/model/esmfile.cpp
-            contentselector/model/modelitem.cpp
-            contentselector/view/combobox.cpp
-            contentselector/view/contentselector.cpp
-            files/qtconversion.cpp
-            l10n/qttranslations.cpp
-            misc/helpviewer.cpp
-            misc/scalableicon.cpp
-            platform/application.cpp
-            process/processinvoker.cpp
-            vfs/qtconversion.cpp
-        PUBLIC
-            FILE_SET HEADERS
-                FILES
-                    config/gamesettings.hpp
-                    config/launchersettings.hpp
-                    contentselector/model/contentmodel.hpp
-                    contentselector/model/esmfile.hpp
-                    contentselector/model/loadordererror.hpp
-                    contentselector/model/modelitem.hpp
-                    contentselector/view/combobox.hpp
-                    contentselector/view/contentselector.hpp
-                    files/qtconfigpath.hpp
-                    files/qtconversion.hpp
-                    l10n/qttranslations.hpp
-                    misc/hash.hpp
-                    misc/helpviewer.hpp
-                    misc/scalableicon.hpp
-                    misc/utf8qtextstream.hpp
-                    platform/application.hpp
-                    process/processinvoker.hpp
-                    vfs/qtconversion.hpp
-    )
-    target_link_libraries(
-        openmw-components-qt
-        PUBLIC
-            openmw-components
-            Qt::Widgets
-            Qt::Core
-    )
-    set_target_properties(
-        openmw-components-qt
-        PROPERTIES
-            AUTOMOC
-                ON
-            AUTOUIC
-                ON
-            AUTOUIC_SEARCH_PATHS
-                contentselector
-    )
-
-    if(OPENMW_BUILD_LAUNCHER OR OPENMW_BUILD_WIZARD)
-        add_dependencies(openmw-components-qt qm-files)
-    endif()
-endif()
+add_dependencies(openmw-components-qt qm-files)
 
 add_subdirectory(rtx)
 

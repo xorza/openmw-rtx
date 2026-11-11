@@ -1,0 +1,6 @@
+{
+  "name": "fontconfig",
+  "version": "0",
+  "description": "The system's fontconfig, which Qt finds through pkg-config: it reads the system's /etc/fonts, which a fontconfig built elsewhere and linked in would look for under its own prefix. A system library, as the registry's opengl and egl ports are.",
+  "supports": "linux"
+}

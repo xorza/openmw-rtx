@@ -2,9 +2,7 @@ add_subdirectory(shaders)
 add_subdirectory(data)
 add_subdirectory(data-mw)
 add_subdirectory(lua_api)
-if(USE_QT)
-    add_subdirectory(lang)
-endif()
+add_subdirectory(lang)
 
 # The settings' defaults, the configuration a build runs with, and what the programs read beside them,
 # into the build where the programs run from.

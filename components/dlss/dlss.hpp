@@ -9,11 +9,6 @@
 /// application.
 namespace DlssLibrary
 {
-    /// Whether this build has the DLSS backend at all, the one reading of the build flag.
-    /// `OPENMW_RTX_DLSS=OFF` builds the FSR-only renderer, and the interfaces must not offer a choice
-    /// that build cannot honour.
-    inline constexpr bool sBuilt = OPENMW_RTX_DLSS;
-
     /// The NVIDIA release the download and its checksum are pinned to. It is the release the fork
     /// was tested with, not whatever is newest; each system's download names it in its address.
     inline constexpr std::string_view sVersion = "310.9.16";

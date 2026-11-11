@@ -1,4 +1,5 @@
 qt_add_executable(openmw-launcher WIN32)
+openmw_qt_platforms(openmw-launcher)
 target_sources(
     openmw-launcher
     PRIVATE
@@ -39,7 +40,6 @@ if(WIN32)
         openmw-launcher
         PRIVATE
             "${PROJECT_SOURCE_DIR}/files/windows/launcher.rc"
-            "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest"
             "${PROJECT_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc"
     )
 endif()
@@ -69,20 +69,4 @@ target_link_libraries(
         Qt::Network
 )
 
-if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(
-        openmw-launcher
-        PRIVATE
-            <boost/program_options/options_description.hpp>
-            <algorithm>
-            <string>
-            <vector>
-    )
-endif()
-
-install(
-    TARGETS
-        openmw-launcher
-        ${runtime_dependency_arguments}
-)
-generate_deploy_script_for_qt_app(openmw-launcher)
+install(TARGETS openmw-launcher)

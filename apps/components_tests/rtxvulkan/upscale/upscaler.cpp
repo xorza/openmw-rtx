@@ -21,7 +21,6 @@ namespace Rtx
                 bool mOffered;
             };
             constexpr std::array rows{
-                Row{ DlssAvailability::Unbuilt, UpscalerKind::Fsr, false },
                 Row{ DlssAvailability::NotNvidia, UpscalerKind::Fsr, false },
                 Row{ DlssAvailability::NotInstalled, UpscalerKind::Fsr, false },
                 Row{ DlssAvailability::Present, UpscalerKind::Dlss, true },

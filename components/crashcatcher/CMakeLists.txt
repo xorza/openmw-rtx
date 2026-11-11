@@ -33,16 +33,11 @@ target_sources(
                 crashuncaught.hpp
 )
 
-# The image is kept for a monitor, and a build with no Crashpad starts none.
-if(LINUX AND OPENMW_CRASHPAD)
+# The image the monitor reads, which Linux keeps for it and Windows has no need of.
+if(LINUX)
     target_sources(openmw-components PRIVATE crashimagelinux.cpp)
 else()
     target_sources(openmw-components PRIVATE crashimagenone.cpp)
-endif()
-
-if(NOT OPENMW_CRASHPAD)
-    target_sources(openmw-components PRIVATE crashunsupported.cpp)
-    return()
 endif()
 
 target_sources(
@@ -111,7 +106,7 @@ if(WIN32)
             OUTPUT_NAME
                 "openmw-wer"
             RUNTIME_OUTPUT_DIRECTORY
-                "${RUNTIME_OUTPUT_DIRECTORY}"
+                "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
     )
     add_dependencies(openmw-components crashpad_wer)
     # Installed here, at the executables' destination and without its import library: no

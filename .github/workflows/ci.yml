@@ -2,9 +2,9 @@
 # (`rtx-release.yml`). Linux and Windows, the systems the fork builds. No hosted runner has a GPU, so
 # `rtx-gpu-tests` and the gate stay on a box with a card.
 #
-# Linux builds on Ubuntu 26.04, the release image's base (`CI/release-base.Dockerfile`), with the
-# packages the same script installs there, so CI builds what ships. An AppImage runs on no system
-# older than its own.
+# Linux builds in AlmaLinux 8 with gcc-toolset-15, the release's base and the vcpkg set's
+# (`CI/release-base.Dockerfile`, `CI/install_almalinux_deps.sh`), so CI builds, tests and ships in one
+# environment. An AppImage runs on no system older than its own.
 #
 # Job names are the `master` ruleset's required checks: a renamed job is a check that never reports.
 name: CI
@@ -79,6 +79,8 @@ jobs:
     # restores the newest cache whose name begins with the key.
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    # The Linux legs' system, stock: none for Windows, which runs on the runner itself.
+    container: ${{ matrix.container }}
     permissions:
       contents: read
     # A cold build, which a release always is, takes an hour and a half.
@@ -89,20 +91,21 @@ jobs:
         include:
           - name: linux-gcc
             os: ubuntu-26.04
-            flavour: full
+            container: almalinux:8
+            flavour: debug
             ccache-size: 2000M
             tested: true
           - name: linux-clang
             os: ubuntu-26.04
-            flavour: full
+            container: almalinux:8
+            flavour: debug
             ccache-size: 1000M
             # Compiled for Clang's warnings, not run, with the Clang the editor's clangd is.
             tested: false
-            cc: clang-23
-            cxx: clang++-23
+            clang: true
           - name: windows-msvc
             os: windows-2025-vs2026
-            flavour: full
+            flavour: debug
             # At two gigabytes the objects filled the cache and a run hit nothing.
             ccache-size: 3000M
             tested: true
@@ -110,6 +113,7 @@ jobs:
           # sanitizer it would never start here.
           - name: linux-asan
             os: ubuntu-26.04
+            container: almalinux:8
             flavour: asan
             build-flags: --without-device
             # At one gigabyte the sanitized objects evicted 335 times a run.
@@ -117,6 +121,9 @@ jobs:
             tested: true
           - name: linux-tsan
             os: ubuntu-26.04
+            # On the runner itself, with Ubuntu's GCC 15, against the same set: ThreadSanitizer turns address
+            # randomisation off for its process through `personality`, which Docker's seccomp profile refuses,
+            # and every sanitized program stopped on "unexpected memory mapping" in the container.
             flavour: tsan
             build-flags: --without-device
             ccache-size: 2000M
@@ -126,12 +133,18 @@ jobs:
         # Git Bash on Windows, so every `run` is one script on every system.
         shell: bash
     env:
-      CC: ${{ matrix.cc }}
-      CXX: ${{ matrix.cxx }}
       # Read from the environment, never spliced into a script.
       FLAVOUR: ${{ matrix.flavour }}
       BUILD_FLAGS: ${{ matrix.build-flags }}
     steps:
+      # The checkout needs Git in the container before it can run, and Git a repository it was not
+      # handed by its owner.
+      - name: Git
+        if: matrix.container != ''
+        run: |
+          dnf install -y git
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -142,18 +155,18 @@ jobs:
           cache-key: ${{ matrix.name }}
           ccache-size: ${{ matrix.ccache-size }}
 
-      # LLVM's own repository, its key held to the fingerprint LLVM publishes: Ubuntu 26.04 carries
-      # Clang 21.
-      - name: Clang 23 from apt.llvm.org
-        if: matrix.cc == 'clang-23'
+      # kernel.org's build of LLVM, pinned (`deps.llvm`): AlmaLinux 8 carries no Clang 23. Told where
+      # gcc-toolset-15's libstdc++ is by the configuration file Clang reads beside itself, as it finds the
+      # system's GCC 8 on its own, which has no static libstdc++.
+      - name: Clang 23
+        if: matrix.clang
         run: |
-          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor > "$RUNNER_TEMP/llvm.gpg"
-          gpg --show-keys --with-colons "$RUNNER_TEMP/llvm.gpg" | grep -qx 'fpr:::::::::6084F3CF814B57C1CF12EFD515CF4D18AF4F7421:'
-          sudo install -D -m 644 "$RUNNER_TEMP/llvm.gpg" /etc/apt/keyrings/llvm.gpg
-          echo "deb [signed-by=/etc/apt/keyrings/llvm.gpg] https://apt.llvm.org/resolute/ llvm-toolchain-resolute-23 main" \
-            | sudo tee /etc/apt/sources.list.d/llvm-23.list
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang-23
+          llvm="$(python -c 'import sys; sys.path.insert(0, "tools"); from omw import deps; print(deps.llvm())')"
+          for driver in clang clang++; do
+            echo "--gcc-install-dir=/opt/rh/gcc-toolset-15/root/usr/lib/gcc/x86_64-redhat-linux/15" > "$llvm/bin/$driver.cfg"
+          done
+          echo "CC=$llvm/bin/clang" >> "$GITHUB_ENV"
+          echo "CXX=$llvm/bin/clang++" >> "$GITHUB_ENV"
 
       - name: Build
         # Unquoted, so no flags pass no argument.
@@ -161,11 +174,20 @@ jobs:
 
       - name: Test
         if: matrix.tested
-        run: python omw "$FLAVOUR" test --without-device
+        # As a user where the container's steps run as root: a report folder root may always write, and a
+        # device root may replace, test nothing of the cases that refuse them, as a player meets them.
+        run: |
+          if [ "$(id -u)" -eq 0 ]; then
+            useradd --create-home tester
+            chown -R tester "$GITHUB_WORKSPACE"
+            runuser -u tester -- python omw "$FLAVOUR" test --without-device
+          else
+            python omw "$FLAVOUR" test --without-device
+          fi
 
       - name: Benchmarks, run once each as upstream runs them
-        if: matrix.tested && matrix.flavour == 'full'
-        working-directory: build-full
+        if: matrix.tested && matrix.flavour == 'debug'
+        working-directory: build-debug
         # Without `.exe`, which Git Bash finds on its own.
         run: |
           ./openmw_detournavigator_navmeshtilescache_benchmark
@@ -173,18 +195,18 @@ jobs:
           ./openmw_settings_access_benchmark
 
       - name: Install
-        if: matrix.tested && matrix.flavour == 'full'
-        run: python omw full exec cmake --install . --prefix "$RUNNER_TEMP/install"
+        if: matrix.tested && matrix.flavour == 'debug'
+        run: python omw debug exec cmake --install . --prefix "$RUNNER_TEMP/install"
 
       - name: Integration tests
         # Over the null backend in SDL's offscreen window: no device and no display. A pass takes a
         # minute.
-        if: matrix.tested && matrix.flavour == 'full' && runner.os == 'Linux'
+        if: matrix.tested && matrix.flavour == 'debug' && runner.os == 'Linux'
         timeout-minutes: 10
         env:
           OPENMW_RTX_BACKEND: "null"
           SDL_VIDEO_DRIVER: offscreen
-        run: python omw full integration --verbose
+        run: python omw debug integration --verbose
 
       - name: Logs
         if: failure()

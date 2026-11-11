@@ -2,10 +2,10 @@
 SSH — an AMD handheld, or any box whose driver is the question — with what it writes brought back.
 
 **Built where the release is built**: in the release-base container on a desk that is another system
-(`package.needs_container`), so the binary asks no newer glibc than Ubuntu 26.04's, and run against
-the other machine's own Vulkan loader and driver, which are what the run measures. The libraries the
-binary links that the other machine has no soname of go beside it, with OSG's plugins, which no
-linker names; everything it does have is its own.
+(`package.needs_container`), so the binary asks no newer glibc than AlmaLinux 8's, and run against
+the other machine's own Vulkan loader and driver, which are what the run measures. The binary links
+the vcpkg set in, and a system library it links that the other machine has no soname of goes beside
+it; everything it does have is its own.
 
 **At the same path there**, `build-<flavour>` under this tree, because the harness reads its folder,
 its views and its shaders at the paths the build compiled in. The machine's user owns the tree's
@@ -39,11 +39,9 @@ from omw.package import (
     CONTAINER_DIR,
     Container,
     needs_container,
-    osg_plugin_folder,
     prepare_container,
-    used_osg_plugins,
 )
-from omw.system import ROOT, WINDOWS, Refusal, output, read_text, require, run, status
+from omw.system import WINDOWS, Refusal, output, require, run, status
 
 # What the run reads from the build: the binary, the configuration and the defaults beside it, and
 # the folders of the resources, the shaders among them, and of the harness.
@@ -148,7 +146,7 @@ def remote_script(folder: Path, verb: str, args: list[str], measured: bool) -> s
     lines = [
         "set -u",
         f"cd {shlex.quote(str(folder))}",
-        f"export LD_LIBRARY_PATH={libraries} OSG_LIBRARY_PATH={libraries} OPENMW_CRASH_DIALOG=0",
+        f"export LD_LIBRARY_PATH={libraries} OPENMW_CRASH_DIALOG=0",
         SESSION,
         "trap 'exit 130' INT TERM",
     ]
@@ -256,12 +254,9 @@ def fetch_note(status: int) -> str:
 @dataclass(frozen=True)
 class Staged:
     """The harness built where a release is built: its folder as this desk sees it, the container it
-    was built in or none for the desk's own build, OSG's plugins and the folder the build found them
-    in, and what `ldd` says the harness and the plugins link."""
+    was built in or none for the desk's own build, and what `ldd` says the harness links."""
     folder: Path
     container: Container | None
-    plugin_folder: Path
-    plugins: list[str]
     ldd: str
 
     def inside(self, command: list[str]) -> list[str]:
@@ -284,21 +279,15 @@ def _build(build: Build) -> Staged:
         reading = Build(build.flavour)
         reading.dir = CONTAINER_DIR / build.flavour
 
-    plugin_folder = osg_plugin_folder(reading)
-    plugins = used_osg_plugins(read_text(ROOT / "CMakeLists.txt"))
     # The binary at the path the container sees its build at, which is the desk's own build's.
-    listing = ["ldd", str(build.dir / "openmw-rtxtool"), *(str(plugin_folder / f"{plugin}.so") for plugin in plugins)]
+    listing = ["ldd", str(build.dir / "openmw-rtxtool")]
     ldd = output(container.command(listing) if container is not None else listing)
-    return Staged(reading.dir, container, plugin_folder, plugins, ldd)
+    return Staged(reading.dir, container, ldd)
 
 
 def _stage_libraries(staged: Staged, missing: dict[str, str]) -> None:
-    """Copies each of `missing` under its soname, and OSG's plugins under their folder's name, into
-    `staged.libraries`, emptied first."""
+    """Copies each of `missing` under its soname into `staged.libraries`, emptied first."""
     target = staged.libraries
-    plugins = target / staged.plugin_folder.name
-    copies = [f"rm -rf {shlex.quote(str(target))}", f"mkdir -p {shlex.quote(str(plugins))}"]
+    copies = [f"rm -rf {shlex.quote(str(target))}", f"mkdir -p {shlex.quote(str(target))}"]
     copies += [f"cp -L {shlex.quote(path)} {shlex.quote(str(target / name))}" for name, path in missing.items()]
-    copies += [f"cp -L {shlex.quote(str(staged.plugin_folder / f'{plugin}.so'))} {shlex.quote(str(plugins))}/"
-               for plugin in staged.plugins]
     run(staged.inside(["bash", "-c", " && ".join(copies)]))

@@ -16,21 +16,13 @@ add_library(oics STATIC
 target_include_directories(oics SYSTEM PUBLIC include)
 target_include_directories(oics PRIVATE include/oics)
 
-if(OPENMW_SYSTEM_TINYXML)
-    target_link_libraries(oics TinyXML::TinyXML)
-else()
-    add_library(local_tinyxml STATIC
-        tinyxml/tinyxml.cpp
-        tinyxml/tinyxmlparser.cpp
-        tinyxml/tinyxmlerror.cpp
-        tinyxml/tinystr.cpp
-    )
-    target_include_directories(local_tinyxml SYSTEM PUBLIC tinyxml)
-    target_link_libraries(oics local_tinyxml)
-endif()
+add_library(local_tinyxml STATIC
+    tinyxml/tinyxml.cpp
+    tinyxml/tinyxmlparser.cpp
+    tinyxml/tinyxmlerror.cpp
+    tinyxml/tinystr.cpp
+)
+target_include_directories(local_tinyxml SYSTEM PUBLIC tinyxml)
+target_link_libraries(oics local_tinyxml)
 
 target_link_libraries(oics SDL3::SDL3)
-
-if (MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(oics PUBLIC <algorithm> <string>)
-endif()

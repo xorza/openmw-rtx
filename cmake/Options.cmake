@@ -1,33 +1,9 @@
-# What a configure chooses: the programs and suites it builds, the features compiled in, and where an
-# install puts things. The presets set these; a bare configure gets the defaults.
+# What a configure chooses: whether it builds the tests, the sanitizer, and where an install puts things.
+# The presets set these; a bare configure gets the defaults.
 
-option(OPENMW_BUILD_GAME "The game, openmw" ON)
-option(OPENMW_BUILD_LAUNCHER "The launcher" ON)
-option(OPENMW_BUILD_WIZARD "The installation wizard" ON)
-option(OPENMW_BUILD_CS "The Construction Set, openmw-cs" ON)
-option(OPENMW_BUILD_INIIMPORTER "The importer of Morrowind.ini" ON)
-option(OPENMW_BUILD_ESSIMPORTER "The importer of Morrowind's saves" ON)
-option(OPENMW_BUILD_BSATOOL "bsatool, which lists and extracts archives" ON)
-option(OPENMW_BUILD_ESMTOOL "esmtool, which dumps content files" ON)
-option(OPENMW_BUILD_NIFTEST "niftest, which loads every model of an archive" ON)
-option(OPENMW_BUILD_NAVMESHTOOL "The navigation mesh generator" ON)
-option(OPENMW_BUILD_BULLETOBJECTTOOL "The Bullet object tool" ON)
-option(OPENMW_BUILD_DOCS "The Doxygen reference" OFF)
-option(OPENMW_BUILD_COMPONENTS_TESTS "The components' tests and the ray tracer's" OFF)
-option(OPENMW_BUILD_GAME_TESTS "The game's tests" OFF)
-option(OPENMW_BUILD_CS_TESTS "The Construction Set's tests" OFF)
-option(OPENMW_BUILD_BENCHMARKS "The benchmarks, with Google Benchmark" OFF)
-
-option(OPENMW_RTX_DLSS "NVIDIA's DLSS in the ray tracer" ON)
-option(OPENMW_CRASHPAD "Crashes caught and reported with Crashpad" ON)
-option(OPENMW_LUAJIT "LuaJIT in place of Lua" ON)
-option(OPENMW_SYSTEM_TINYXML "The system's TinyXML in place of the vendored one" OFF)
-option(OPENMW_LTO "Link-time optimization in Release" OFF)
-option(OPENMW_COVERAGE "Every first-party target compiled and linked for gcov" OFF)
-option(OPENMW_MSVC_PRECOMPILED_HEADERS "Precompiled headers on MSVC, where no compiler cache runs" ON)
-if(WIN32)
-    option(OPENMW_DEBUG_CONSOLE "A console beside the game in Debug and RelWithDebInfo" ON)
-endif()
+# The tests and the benchmarks, CMake's own switch, which every preset leaves on: every program is built
+# in every flavour.
+option(BUILD_TESTING "The tests and the benchmarks" ON)
 
 # **A sanitizer over the whole build**, the fetched projects included: ThreadSanitizer sees a lock only in
 # code it instrumented, so a library left out reports races on what it guards, and AddressSanitizer's
@@ -62,16 +38,9 @@ if(OPENMW_SANITIZER)
     string(APPEND CMAKE_CXX_FLAGS " ${sanitizer_flags}")
 endif()
 
-# Qt for every program that draws a window of its own.
-if(OPENMW_BUILD_LAUNCHER OR OPENMW_BUILD_CS OR OPENMW_BUILD_WIZARD OR OPENMW_BUILD_CS_TESTS)
-    set(USE_QT TRUE)
-else()
-    set(USE_QT FALSE)
-endif()
-
 # libunshield for the wizard, which unpacks the installer's archives everywhere but on Windows, whose
 # players run the installer itself.
-if(NOT WIN32 AND OPENMW_BUILD_WIZARD)
+if(NOT WIN32)
     set(OPENMW_USE_UNSHIELD TRUE)
 endif()
 
@@ -90,79 +59,13 @@ if(NOT CMAKE_BUILD_TYPE)
     )
 endif()
 
-# **Where an install puts things.** Windows installs into one folder by default, every file beside the
-# executables; Linux installs into the system's folders, with the data and configuration paths baked
-# into the binaries.
-if(WIN32)
-    set(deploy_by_default ON)
-else()
-    set(deploy_by_default OFF)
-endif()
-option(
-    OPENMW_DEPLOY_QT_TRANSLATIONS
-    "Qt's own translations beside the programs, where Qt ships with them"
-    ${deploy_by_default}
-)
-option(OPENMW_DEPLOY_RUNTIME_DEPENDENCIES "The libraries the programs load, installed beside them" ${deploy_by_default})
-option(
-    OPENMW_LOCAL_INSTALL
-    "Every file in one folder, found relative to the programs, in place of the system's folders"
-    ${deploy_by_default}
-)
-
-set(runtime_dependency_arguments)
-if(OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
-    set(runtime_dependency_arguments
-        RUNTIME_DEPENDENCY_SET
-        openmw-dependencies
-    )
-endif()
-
+# **One portable layout on every system**: every file in one folder, found relative to the programs, the
+# libraries a folder below them. The Windows folder and the AppImage are both laid out so.
 include(GNUInstallDirs)
-set(OPENMW_SYSCONFDIR_SUFFIX "openmw" CACHE PATH "Suffix for CMAKE_INSTALL_SYSCONFDIR")
-set(OPENMW_DATADIR_SUFFIX "openmw" CACHE PATH "Suffix for CMAKE_INSTALL_DATADIR")
-set(CMAKE_INSTALL_SYSCONFDIR "${CMAKE_INSTALL_SYSCONFDIR}/${OPENMW_SYSCONFDIR_SUFFIX}")
-set(CMAKE_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/${OPENMW_DATADIR_SUFFIX}")
-if(OPENMW_LOCAL_INSTALL)
-    set(CMAKE_INSTALL_BINDIR ".")
-    set(CMAKE_INSTALL_LIBDIR "lib")
-    set(CMAKE_INSTALL_DATADIR ".")
-    set(CMAKE_INSTALL_SYSCONFDIR ".")
-endif()
-foreach(dir BINDIR SYSCONFDIR LIBDIR DATADIR)
-    GNUInstallDirs_get_absolute_install_dir(
-        CMAKE_INSTALL_FULL_${dir}
-        CMAKE_INSTALL_${dir}
-        ${dir}
-    )
-endforeach()
-
+set(CMAKE_INSTALL_BINDIR ".")
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_DATADIR ".")
+set(CMAKE_INSTALL_SYSCONFDIR ".")
 if(UNIX)
-    set(OPENMW_ICONDIR "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps" CACHE PATH "Set icon dir")
-    if(OPENMW_LOCAL_INSTALL)
-        # The libraries beside the executables, found relative to them. `cmake_path`, because
-        # `file(RELATIVE_PATH)` cannot relate two relative paths.
-        cmake_path(
-            RELATIVE_PATH CMAKE_INSTALL_LIBDIR
-            BASE_DIRECTORY "${CMAKE_INSTALL_BINDIR}"
-            OUTPUT_VARIABLE origin_relative_libdir
-        )
-        set(CMAKE_INSTALL_RPATH "$ORIGIN/${origin_relative_libdir}")
-    else()
-        set(OPENMW_GLOBAL_DATA_PATH
-            "${CMAKE_INSTALL_FULL_DATADIR}"
-            CACHE PATH
-            "Set absolute data path prefix for Global installs. This is baked into the binaries, so MUST be set to the final install path at build time."
-        )
-        set(OPENMW_GLOBAL_CONFIG_PATH
-            "${CMAKE_INSTALL_FULL_SYSCONFDIR}"
-            CACHE PATH
-            "Set absolute config dir path for Global installs. This is baked into the binaries, so MUST be set to the final install path at build time."
-        )
-        set(OPENMW_RESOURCE_FILES
-            "${CMAKE_INSTALL_FULL_DATADIR}/resources"
-            CACHE PATH
-            "Set absolute resources dir path for Global installs. This is baked into openmw.cfg, so MUST be set to the final install path at build time."
-        )
-    endif()
+    set(CMAKE_INSTALL_RPATH "$ORIGIN/lib")
 endif()

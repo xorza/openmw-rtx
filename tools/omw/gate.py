@@ -1,8 +1,8 @@
 """`omw gate`: everything a change owes before it is called done, in order of cost, stopping at the
 first failure — so a formatting slip is found in seconds and not after the walk.
 
-**In the full flavour**, every program the tree has, as CI's Linux leg builds and tests them: a CS
-or a wizard the gate never compiled was a failure only CI found.
+**In the debug flavour**, which builds every program the tree has, as CI's legs build and test them: a
+CS or a wizard the gate never compiled was a failure only CI found.
 
 **Never a gate beside a build, or beside another gate**: the reading is then about the machine.
 `check` writes its pictures where it always does, under `check/` in the build."""

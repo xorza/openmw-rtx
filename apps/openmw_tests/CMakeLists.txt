@@ -60,12 +60,7 @@ target_sources(
                 mwscript/testutils.hpp
 )
 if(WIN32)
-    target_sources(
-        openmw-tests
-        PRIVATE
-            "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/testplatformwin32.cpp"
-            "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest"
-    )
+    target_sources(openmw-tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/testplatformwin32.cpp")
 else()
     target_sources(openmw-tests PRIVATE "${PROJECT_SOURCE_DIR}/apps/components_tests/rtx/support/testplatformposix.cpp")
 endif()
@@ -92,20 +87,3 @@ target_compile_definitions(
         OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
         OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}"
 )
-
-if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(
-        openmw-tests
-        PRIVATE
-            <boost/program_options/options_description.hpp>
-            <gtest/gtest.h>
-            <sol/sol.hpp>
-            <algorithm>
-            <filesystem>
-            <fstream>
-            <functional>
-            <memory>
-            <string>
-            <vector>
-    )
-endif()

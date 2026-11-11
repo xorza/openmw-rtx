@@ -6,6 +6,8 @@ set_directory_properties(
             on
 )
 set(CMAKE_CXX_CLANG_TIDY "")
+# Vendored code, whose warnings are its own: never errors, whatever the tree's preset asks.
+set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 
 # sol3, the C++ binding to Lua, headers only, with the configuration the tree compiles it with: its
 # `sol/config.hpp` ahead of sol's own, which the folder after it holds.
@@ -25,6 +27,4 @@ add_subdirectory(rgbcx)
 add_subdirectory(osg-ffmpeg-videoplayer)
 add_subdirectory(oics)
 add_subdirectory(Base64)
-if(OPENMW_BUILD_CS OR OPENMW_BUILD_CS_TESTS)
-    add_subdirectory(osgQt)
-endif()
+add_subdirectory(osgQt)

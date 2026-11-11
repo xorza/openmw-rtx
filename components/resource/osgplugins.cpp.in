@@ -1,0 +1,13 @@
+// The OpenSceneGraph plugins the tree reads with, linked static and registered here: osgDB finds a plugin
+// by the proxy each `USE_OSGPLUGIN` defines, which registers it as this file's statics are made, and the
+// X11 or Win32 windowing interface osgViewer builds its contexts through the same way. `openmw_osg_plugins`
+// is what every program that links the components asks the linker for (`components/CMakeLists.txt`):
+// nothing calls it, and a file of a static library that nothing references never reaches a program.
+
+#include <osgDB/Registry>
+#include <osgViewer/GraphicsWindow>
+
+@OSG_PLUGIN_USES@
+USE_GRAPHICSWINDOW()
+
+extern "C" void openmw_osg_plugins() {}

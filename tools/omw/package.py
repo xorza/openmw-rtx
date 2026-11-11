@@ -1,5 +1,5 @@
 """`omw archive [name]`: the release archive out of the package build, into dist/, with its symbols.
-An AppImage on Linux, built on Ubuntu 26.04 or in a container of it, and the portable folder on Windows,
+An AppImage on Linux, built on AlmaLinux 8 or in a container of it, and the portable folder on Windows,
 named after the name given or the commit."""
 
 import os
@@ -28,31 +28,16 @@ from omw.system import (
 
 DIST = ROOT / "dist"
 
-# **The system a Linux release is built on**, as `/etc/os-release` names it: CI's runner, whose glibc and
-# libraries an AppImage takes as the floor it runs on. A desk on another builds the archive in a
-# container of it (`CI/release-base.Dockerfile`), since an image built against a newer glibc runs only
-# where that glibc is, and takes whatever else the desk's Qt holds.
-RELEASE_BASE = {"ID": "ubuntu", "VERSION_ID": "26.04"}
+# **The system a Linux release and its dependency set are built on**, as `/etc/os-release` names it:
+# AlmaLinux 8, whose glibc 2.28 an AppImage takes as the floor it runs on, with any point release. A desk on
+# another builds in a container of it (`CI/release-base.Dockerfile`), since a binary built against a newer
+# glibc runs only where that glibc is.
+RELEASE_BASE = {"ID": "almalinux", "VERSION_ID": "8"}
 RELEASE_IMAGE = "openmw-rtx-release-base"
 
 # What the container keeps between runs, on the desk, so its files are the desk's own: its package
 # build, apart from the desk's, and its compiler cache.
 CONTAINER_DIR = ROOT / "build-container"
-
-
-def used_osg_plugins(cmake_text: str) -> list[str]:
-    """The names between `set(USED_OSG_PLUGINS` and its `)`, `osgdb_` and all, read off the one place
-    that declares them so this list cannot drift from the engine's own check."""
-    match = re.search(r"^set\(USED_OSG_PLUGINS\b(.*?)\)", cmake_text, re.MULTILINE | re.DOTALL)
-    if match is None:
-        raise Refusal("the top-level CMakeLists.txt sets no USED_OSG_PLUGINS")
-    return match.group(1).split()
-
-
-def osg_plugin_folder(build: Build) -> Path:
-    """The folder a Linux OSG keeps its plugins in, as the build found OSG: beside the library it
-    linked, under `Build.osg_plugin_folder_name`."""
-    return Path(build.cached("OSG_LIBRARY_RELEASE")).parent / build.osg_plugin_folder_name()
 
 
 # What the harness and the tests are and write under the build, which no install may carry: the
@@ -63,39 +48,42 @@ HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches
                  "shaders-census", "shaders-census-source", "openmw-rtxtool", "rtx-gpu-tests")
 
 
-# **What an archive must carry that no linker names**, from the archive's root: on Linux the 1.4 Vulkan
-# loader, which volk opens by name at start, so linuxdeploy never sees it; on Windows the C++ runtime
-# the binaries were built against, which `InstallRequiredSystemLibraries` puts beside them. Without
-# the loader a host whose own is 1.3 refuses the ray tracer; without the
-# runtime no executable starts, and an older one installed faults inside `std::mutex::lock`.
+# **What an archive carries beside its programs, which link every other library in** (`vcpkg.json`): on
+# Linux the 1.4 Vulkan loader, which volk opens by name at start, so linuxdeploy never sees it, and without
+# which a host whose own loader is 1.3 refuses the ray tracer; on Windows Crashpad's error-reporting module,
+# which Windows Error Reporting loads by path. A library the archive holds beyond these is one the static
+# build failed to link in, and the program would load the host's.
+@dataclass(frozen=True)
+class ShippedLibraries:
+    """The shared libraries an archive holds: those `pattern` matches from its root, and the `names` it
+    must hold and may hold alone."""
+
+    pattern: str
+    names: tuple[str, ...]
+
+    def mismatch(self, folder: Path) -> list[str]:
+        """What sets `folder` apart from these: each name it lacks, then each library it holds beyond them."""
+        held = sorted(path.relative_to(folder).as_posix() for path in folder.glob(self.pattern) if path.is_file())
+        return ([f"no {name}" for name in self.names if not (folder / name).is_file()]
+                + [f"{name} beside them" for name in held if name not in self.names])
+
+    def refuse_mismatch(self, folder: Path) -> None:
+        if mismatch := self.mismatch(folder):
+            raise Refusal("the archive's libraries are not the ones its programs load: " + ", ".join(mismatch))
+
+
 LINUX_LOADER = "usr/lib/libvulkan.so.1"
-LINUX_RUNTIME = (LINUX_LOADER,)
-WINDOWS_RUNTIME = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+LINUX_LIBRARIES = ShippedLibraries("usr/lib/**/*.so*", (LINUX_LOADER,))
+WINDOWS_LIBRARIES = ShippedLibraries("*.dll", ("openmw-wer.dll",))
 
 
-def missing_runtime(folder: Path, runtime: tuple[str, ...]) -> list[str]:
-    """The files of `runtime` that `folder` does not hold."""
-    return [name for name in runtime if not (folder / name).is_file()]
+# The newest glibc an AppImage may ask of its host: AlmaLinux 8's, the release base's.
+GLIBC_FLOOR = (2, 28)
 
 
-def _refuse_missing_runtime(folder: Path, runtime: tuple[str, ...]) -> None:
-    if missing := missing_runtime(folder, runtime):
-        raise Refusal("the archive lacks what its binaries load at run time: " + ", ".join(missing))
-
-
-# The Wayland platform as each Qt names it: one plugin in Qt 6.11's base, and two in the
-# `qt6-wayland` of the Qt releases before it.
-WAYLAND_PLATFORMS = (("libqwayland.so",), ("libqwayland-generic.so", "libqwayland-egl.so"))
-
-
-def wayland_platform_plugins(platforms: Path) -> tuple[str, ...]:
-    """The Wayland platform plugins in Qt's `platforms` folder, as `EXTRA_PLATFORM_PLUGINS` takes
-    them: the set of `WAYLAND_PLATFORMS` that stands there whole. A Qt with neither is refused, since
-    a launcher with no Wayland platform opens on no session without XWayland."""
-    for names in WAYLAND_PLATFORMS:
-        if all((platforms / name).is_file() for name in names):
-            return names
-    raise Refusal(f"{platforms} holds no Wayland platform plugin: qt6-wayland, or qt6-base where Qt's base holds it")
+def glibc_versions(objdump: str) -> set[tuple[int, ...]]:
+    """The glibc symbol versions `objdump -T` lists, as numbers: what a binary asks of the host's glibc."""
+    return {tuple(int(part) for part in found.split(".")) for found in re.findall(r"\bGLIBC_([0-9]+(?:\.[0-9]+)+)\b", objdump)}
 
 
 def os_release(text: str) -> dict[str, str]:
@@ -111,7 +99,8 @@ def os_release(text: str) -> dict[str, str]:
 def on_release_base(text: str) -> bool:
     """Whether the system `text`, an `/etc/os-release`, describes is `RELEASE_BASE`."""
     fields = os_release(text)
-    return all(fields.get(key) == value for key, value in RELEASE_BASE.items())
+    return (fields.get("ID") == RELEASE_BASE["ID"]
+            and fields.get("VERSION_ID", "").split(".")[0] == RELEASE_BASE["VERSION_ID"])
 
 
 def container_command(docker: str, command: list[str], user: str, flavour: str) -> list[str]:
@@ -150,15 +139,20 @@ class Container:
         return container_command(self.docker, command, self.user, self.flavour)
 
 
-def prepare_container(flavour: str) -> Container:
-    """The release-base image made, which the layers it keeps make a moment's work after the first,
-    the SDK and CMake `omw bootstrap` fetches into deps/, which the desk shares, and the container's
-    build of `flavour` given a folder."""
-    docker = require("docker", "a release is built on Ubuntu 26.04, and on another system in a container: docker")
+def release_container(flavour: str) -> Container:
+    """The release-base image made, which the layers it keeps make a moment's work after the first, and
+    the container's build of `flavour` given a folder."""
+    docker = require("docker", "a release is built on AlmaLinux 8, and on another system in a container: docker")
     run([docker, "build", "--tag", RELEASE_IMAGE, "--file", ROOT / "CI" / "release-base.Dockerfile", ROOT / "CI"])
     for kept in (flavour, "ccache"):
         (CONTAINER_DIR / kept).mkdir(parents=True, exist_ok=True)
-    container = Container(docker, user_and_group(), flavour)
+    return Container(docker, user_and_group(), flavour)
+
+
+def prepare_container(flavour: str) -> Container:
+    """`release_container`, with the SDK and CMake `omw bootstrap` fetches into deps/, which the desk
+    shares, for a build of the tree."""
+    container = release_container(flavour)
     run(container.command(["python3", "omw", "bootstrap"]))
     return container
 
@@ -202,7 +196,7 @@ def archive(build: Build, args: list[str]) -> int:
         raise Refusal("archive takes one name at most")
     name = args[0] if args else output(["git", "-C", ROOT, "describe", "--tags", "--always"]).strip()
     if not WINDOWS and needs_container():
-        run(prepare_container("package").command(["python3", "omw", "archive", name]))
+        run(prepare_container("release").command(["python3", "omw", "archive", name]))
         return 0
 
     build.build(build.default_targets)
@@ -225,36 +219,28 @@ def _archive_linux(build: Build, name: str) -> None:
     starts the game from its own directory; the desktop file, the icon and the metainfo move up to
     `usr/share`, where the tools and a desktop integrator look for them.
 
-    **OSG's plugins are the one thing no linker names.** The engine loads the nine `USED_OSG_PLUGINS`
-    by name at start and refuses to run without them, through OSG's own search:
-    `osgPlugins-<version>/osgdb_<name>.so` under each entry of `OSG_LIBRARY_PATH`. Left to the host, a
-    bundled OSG found the host's copies and pulled the host's `libosgSim` into a process running Ubuntu's
-    `libosgUtil`. So the nine are copied under `usr/lib`, `--deploy-deps-only` brings what they link
-    and sets their rpath, and an AppRun hook points OSG at them.
+    **The programs link every library in**, the vcpkg set's, OpenSceneGraph's plugins and Qt's among them,
+    and leave the host what it opens for them: the AppImage exclude list — glibc, the GL stack, X11,
+    Wayland, fontconfig, ALSA — at the versions of AlmaLinux 8, the release base. The one library the
+    image carries is the Vulkan loader, the set's 1.4 one: the loader is not the driver, and a host's 1.3
+    loader has none of the 1.4 entry points the backend calls. Copied rather than handed to linuxdeploy,
+    whose exclude list names it; the rpath linuxdeploy gives the binaries, `$ORIGIN/../lib`, is where
+    volk's `dlopen` finds it. Its Apache-2.0 text goes in beside the licences the install put there.
 
-    The runtime at the front of the file is the static one, pinned: it runs on FUSE 2, FUSE 3 or
-    none. The Qt plugin bundles the Wayland platform beside X11 and, through `waylandcompositor`, the
-    shell, buffer and decoration plugins a Wayland window needs, so the launcher opens on a session
-    with no XWayland. The Vulkan loader goes in, the 1.4 one the binaries were linked against: the
-    loader is not the driver, and a host's 1.3 loader has none of the 1.4 entry points the
-    backend calls. Its Apache-2.0 text goes in beside the licences the install put there. The update
-    information points AppImageUpdate at this repository's releases.
+    The runtime at the front of the file is the static one, pinned: it runs on FUSE 2, FUSE 3 or none.
+    The update information points AppImageUpdate at this repository's releases.
 
     **The executables stripped here, by the host's own `strip`, and linuxdeploy's strip off.** Its
     strip passes over every executable whose rpath starts with `$`, which is each of ours, and would
     ship the package build's debug information: `openmw` is 352 MB with it and 47 MB without. The
-    strip it carries is binutils 2.35, which reads no `.relr.dyn` and refuses every library of a
-    system that packs its relocations, a rolling distribution's among them; and the libraries it would strip, a
-    distribution ships stripped already. Stripped before linuxdeploy patches an rpath in, and the
-    build ID stays, which a dump is matched to its symbols by.
+    strip it carries is binutils 2.35, which reads no `.relr.dyn`. Stripped before linuxdeploy patches
+    an rpath in, and the build ID stays, which a dump is matched to its symbols by.
 
     AppStream validation is off: upstream's metainfo carries warnings appstreamcli refuses. The tools
-    are AppImages themselves and a runner has no FUSE, so they extract and run. What the image takes
-    from the host is the AppImage exclude list — glibc and libstdc++, the GL stack, X11, Wayland,
-    fontconfig, ALSA — at the versions of a bare Ubuntu 26.04."""
-    qmake = require("qmake6", "the Qt plugin reads Qt's layout off it: qt6-base-dev-tools")
+    are AppImages themselves and a runner has no FUSE, so they extract and run."""
     require("zsyncmake", "the update information wants a .zsync beside the image: zsync")
     strip = require("strip", "the executables carry the package build's debug information: binutils")
+    objdump = require("objdump", "the executables' glibc symbol versions are read off them: binutils")
     tools = deps.appimage_tools()
 
     appdir = ROOT / "AppDir"
@@ -264,37 +250,25 @@ def _archive_linux(build: Build, name: str) -> None:
     (appdir / "usr" / "bin" / "share").rename(appdir / "usr" / "share")
     licenses = appdir / "usr" / "share" / "doc" / "OpenMW" / "licenses"
     shutil.copy2(ROOT / "files" / "licenses" / "Vulkan-Loader.txt", licenses)
-
-    osg_plugins = osg_plugin_folder(build)
-    plugins = appdir / "usr" / "lib" / osg_plugins.name
-    plugins.mkdir(parents=True)
-    # Copied rather than handed to linuxdeploy, whose exclude list names the loader; what it links is
-    # glibc's alone. The binaries' rpath, `$ORIGIN/../lib`, is where volk's `dlopen` then finds it.
-    shutil.copy2(deps.vulkan_sdk() / "x86_64" / "lib" / "VulkanLoader" / "lib" / "libvulkan.so.1",
-                 appdir / LINUX_LOADER)
-    for plugin in used_osg_plugins(read_text(ROOT / "CMakeLists.txt")):
-        shutil.copy2(osg_plugins / f"{plugin}.so", plugins)
-    hooks = appdir / "apprun-hooks"
-    hooks.mkdir()
-    (hooks / "osg-plugins.sh").write_text('export OSG_LIBRARY_PATH="$this_dir/usr/lib"\n')
+    (appdir / LINUX_LOADER).parent.mkdir(parents=True)
+    shutil.copy2(deps.vcpkg_set() / "installed" / deps.TRIPLET / "lib" / "libvulkan.so.1", appdir / LINUX_LOADER)
 
     installed = executables_in(appdir / "usr" / "bin")
+    asked = max(glibc_versions(output([objdump, "-T", *installed])), default=(0,))
+    if asked > GLIBC_FLOOR:
+        raise Refusal(f"the programs ask glibc {'.'.join(map(str, asked))}, newer than the release base's "
+                      f"{'.'.join(map(str, GLIBC_FLOOR))}: build the archive on AlmaLinux 8")
     run([strip, *installed])
     executables: list[str | Path] = []
     for file in installed:
         executables += ["--executable", file]
 
-    platforms = Path(output([qmake, "-query", "QT_INSTALL_PLUGINS"]).strip()) / "platforms"
-    env = dict(build.env, APPIMAGE_EXTRACT_AND_RUN="1", QMAKE=qmake, NO_STRIP="1",
-               EXTRA_PLATFORM_PLUGINS=";".join(wayland_platform_plugins(platforms)),
-               EXTRA_QT_MODULES="waylandcompositor")
+    env = dict(build.env, APPIMAGE_EXTRACT_AND_RUN="1", NO_STRIP="1")
     prepend_path(env, "PATH", tools)
     run([tools / "linuxdeploy", "--appdir", appdir, *executables,
-         "--deploy-deps-only", plugins,
          "--desktop-file", appdir / "usr" / "share" / "applications" / "org.openmw.launcher.desktop",
-         "--icon-file", appdir / "usr" / "share" / "pixmaps" / "openmw.png",
-         "--plugin", "qt"], env=env)
-    _refuse_missing_runtime(appdir, LINUX_RUNTIME)
+         "--icon-file", appdir / "usr" / "share" / "pixmaps" / "openmw.png"], env=env)
+    LINUX_LIBRARIES.refuse_mismatch(appdir)
 
     # From dist/, because appimagetool writes the .zsync into the working directory and the image
     # where it is told.
@@ -316,9 +290,7 @@ def _archive_windows(build: Build, name: str) -> None:
     run(["cmake", "--install", build.dir, "--prefix", folder], env=build.env, stdout=subprocess.DEVNULL)
     prune_empty(folder)
     _refuse_harness(folder)
-    _refuse_missing_runtime(folder, WINDOWS_RUNTIME)
-    if not any((folder / "tls").glob("*.dll")):
-        raise Refusal("the archive's launcher cannot make an https request: its Qt holds no TLS plugin under tls/")
+    WINDOWS_LIBRARIES.refuse_mismatch(folder)
 
 
 def symbols(build: Build, name: str) -> None:

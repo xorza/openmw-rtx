@@ -1,0 +1,23 @@
+{
+  "name": "uriparser",
+  "version": "1.0.2",
+  "description": "The registry's port, overlaid to build on AlmaLinux 8's glibc 2.28, whose reallocarray needs _GNU_SOURCE.",
+  "homepage": "https://uriparser.github.io/",
+  "license": "BSD-3-Clause",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ],
+  "features": {
+    "tool": {
+      "description": "Builds CLI tool uriparse."
+    }
+  },
+  "port-version": 100
+}

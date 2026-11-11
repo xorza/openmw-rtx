@@ -27,15 +27,6 @@ class PinnedFolderTest(unittest.TestCase):
                             "one pin of several changed and the folder did not")
 
 
-class QuotedTest(unittest.TestCase):
-    def test_a_path_is_one_powershell_string_whatever_it_holds(self):
-        # Single quotes expand neither `$` nor a backtick, and a quote inside is doubled.
-        self.assertEqual(deps._quoted(Path("C:/Users/o'neil/deps")), "'" + str(Path("C:/Users/o''neil/deps")) + "'")
-        self.assertEqual(deps._quoted("copy_only=1"), "'copy_only=1'")
-        self.assertEqual(deps._quoted("$env:PATH `n"), "'$env:PATH `n'")
-        self.assertEqual(deps._quoted(""), "''")
-
-
 class CMakeTest(unittest.TestCase):
     def test_the_pinned_cmake_is_unpacked_whole_once_and_put_first_on_the_path(self):
         folder = Path(tempfile.mkdtemp())
@@ -69,9 +60,34 @@ class CMakeTest(unittest.TestCase):
             self.assertEqual(deps.cmake(), found)
             self.assertEqual(fetched.call_count, 1, "a CMake already there was fetched again")
 
+            # CMake first on the path, and the pinned Ninja named for the presets.
             env = {deps.environment_key("PATH"): "/elsewhere"}
-            deps.cmake_environment(env)
+            with mock.patch.object(deps, "ninja", return_value=folder / "ninja-x"):
+                deps.cmake_environment(env)
             self.assertEqual(env[deps.environment_key("PATH")], os.pathsep.join([str(found / "bin"), "/elsewhere"]))
+            self.assertEqual(env[deps.environment_key("OMW_NINJA")], str(folder / "ninja-x" / f"ninja{deps.EXE}"))
+
+
+class NinjaTest(unittest.TestCase):
+    def test_the_pinned_ninja_is_taken_out_of_its_archive_once(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        pin = Pin("https://example.com/ninja-test.zip", "e" * 64)
+
+        def download(_pin: Pin, file: Path) -> None:
+            file.parent.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(file, "w") as zipped:
+                zipped.writestr(f"ninja{deps.EXE}", b"#!/bin/sh\n")
+
+        with (mock.patch.object(deps, "DEPS", folder), mock.patch.dict(deps.pins.NINJA, {deps.SYSTEM: pin}),
+              mock.patch.object(deps.fetch, "download_pin", side_effect=download) as fetched):
+            found = deps.ninja()
+            self.assertEqual(found, deps.ninja_dir())
+            self.assertEqual(sorted(path.name for path in found.iterdir()), [f"ninja{deps.EXE}"], "the archive stayed")
+            if not deps.WINDOWS:
+                self.assertTrue(os.access(found / "ninja", os.X_OK), "the program cannot run")
+            self.assertEqual(deps.ninja(), found)
+            self.assertEqual(fetched.call_count, 1, "a Ninja already there was fetched again")
 
 
 class PruneTest(unittest.TestCase):

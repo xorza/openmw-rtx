@@ -8,7 +8,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -248,10 +247,12 @@ namespace CrashTests
             if (const std::size_t at = line.find(sLeft); at != std::string::npos)
             {
                 const pid_t left = std::stoi(line.substr(at + sLeft.size()));
-                std::error_code gone;
-                const std::filesystem::path program
-                    = std::filesystem::read_symlink("/proc/" + std::to_string(left) + "/exe", gone);
-                if (gone || program.filename() != "sleep")
+                // By the name it was started as, `comm`, and not its executable: where coreutils is one program
+                // for every command, AlmaLinux's container among them, `sleep`'s executable is `coreutils`.
+                std::ifstream comm("/proc/" + std::to_string(left) + "/comm");
+                std::string name;
+                std::getline(comm, name);
+                if (name != "sleep")
                     return "the run lasted as long as the process it left, which neither the keeper nor the monitor "
                            "may wait for";
                 kill(left, SIGKILL);

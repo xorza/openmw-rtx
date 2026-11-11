@@ -113,19 +113,12 @@ target_sources(
 )
 # The system's half of the test support, one file a system (`rtx/support/testplatform.hpp`).
 if(WIN32)
-    target_sources(
-        components-tests
-        PRIVATE
-            rtx/support/testplatformwin32.cpp
-            "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest"
-    )
+    target_sources(components-tests PRIVATE rtx/support/testplatformwin32.cpp)
 else()
     target_sources(components-tests PRIVATE rtx/support/testplatformposix.cpp)
 endif()
-if(USE_QT)
-    target_sources(components-tests PRIVATE config/testlaunchersettings.cpp)
-    target_link_libraries(components-tests PRIVATE openmw-components-qt)
-endif()
+target_sources(components-tests PRIVATE config/testlaunchersettings.cpp)
+target_link_libraries(components-tests PRIVATE openmw-components-qt)
 
 target_link_libraries(
     components-tests
@@ -155,23 +148,6 @@ target_compile_definitions(
         OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
         OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}"
 )
-
-if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(
-        components-tests
-        PRIVATE
-            <boost/program_options/options_description.hpp>
-            <gtest/gtest.h>
-            <sol/sol.hpp>
-            <algorithm>
-            <filesystem>
-            <fstream>
-            <functional>
-            <memory>
-            <string>
-            <vector>
-    )
-endif()
 
 include(rtx/tests.cmake)
 include(crashcatcher/tests.cmake)

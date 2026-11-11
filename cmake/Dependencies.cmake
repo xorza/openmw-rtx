@@ -1,21 +1,21 @@
-# The third-party code the tree builds against, in one place. What it fetches: each project at a pinned
-# archive, and the system's own where one is installed and the declaration names `FIND_PACKAGE_ARGS`,
-# which FetchContent tries first. A preset that must build the same everywhere sets
-# `FETCHCONTENT_TRY_FIND_PACKAGE_MODE` to `NEVER`, as Windows does: upstream's prebuilt set carries none
-# of these. Every fetched project is a system's to the tree (`SYSTEM`), whose warnings are its own, and
-# builds only what the tree links (`EXCLUDE_FROM_ALL`). Then what it finds and never fetches,
-# OpenSceneGraph, Bullet, MyGUI and the rest; `extern/` holds what is vendored.
+# The third-party code the tree builds against, in one place. What it fetches and builds itself: each
+# project at a pinned archive, never a system's, built with the tree's own flags and sanitizer, which
+# ThreadSanitizer needs of every library whose locks it is to see. Every fetched project is a system's to
+# the tree (`SYSTEM`), whose warnings are its own, and builds only what the tree links
+# (`EXCLUDE_FROM_ALL`). Then what it finds in the vcpkg set, OpenSceneGraph, Bullet, MyGUI and the rest;
+# `extern/` holds what is vendored.
 
 include(FetchContent)
 
 # Each project's own settings stay inside the block; Crashpad's folder leaves it, for
 # `components/crashcatcher/CMakeLists.txt`, which builds one of its files into every executable.
 block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     set(CMAKE_CXX_CLANG_TIDY "")
 
-    # SDL3: the system's where it has one, and the pinned release built static otherwise, as upstream's
-    # prebuilt set has none. Static, so a package carries it inside the binaries. Ahead of the tree's own
-    # definitions, which are not SDL's: Windows's `NOGDI` and `NOMB` take out what SDL's video is built on.
+    # SDL3, the pinned release built static, so a package carries it inside the binaries. Ahead of the
+    # tree's own definitions, which are not SDL's: Windows's `NOGDI` and `NOMB` take out what SDL's video
+    # is built on.
     FetchContent_Declare(
         SDL3
         URL
@@ -25,9 +25,6 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
         SOURCE_DIR fetched/sdl3
         SYSTEM
         EXCLUDE_FROM_ALL
-        FIND_PACKAGE_ARGS
-            3.4
-            CONFIG
     )
     set(SDL_SHARED OFF)
     set(SDL_STATIC ON)
@@ -52,7 +49,7 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     set(RECASTNAVIGATION_EXAMPLES OFF CACHE BOOL "")
     FetchContent_MakeAvailable(recastnavigation)
 
-    # yaml-cpp, built static where no system's is found.
+    # yaml-cpp, built static.
     FetchContent_Declare(
         yaml-cpp
         URL
@@ -62,14 +59,11 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
         SOURCE_DIR fetched/yaml-cpp
         SYSTEM
         EXCLUDE_FROM_ALL
-        FIND_PACKAGE_ARGS
-            0.9
-            CONFIG
     )
     set(YAML_BUILD_SHARED_LIBS OFF)
     FetchContent_MakeAvailable(yaml-cpp)
 
-    if(OPENMW_BUILD_COMPONENTS_TESTS OR OPENMW_BUILD_CS_TESTS OR OPENMW_BUILD_GAME_TESTS)
+    if(BUILD_TESTING)
         FetchContent_Declare(
             googletest
             URL
@@ -79,18 +73,12 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
             SOURCE_DIR fetched/googletest
             SYSTEM
             EXCLUDE_FROM_ALL
-            FIND_PACKAGE_ARGS
-                1.10
-                NAMES
-                    GTest
-                CONFIG
         )
         set(INSTALL_GTEST OFF)
-        set(gtest_force_shared_crt ON)
         FetchContent_MakeAvailable(googletest)
     endif()
 
-    if(OPENMW_BUILD_BENCHMARKS)
+    if(BUILD_TESTING)
         # 1.10, whose header no longer reads `__COUNTER__` in an `#if`, which Clang 23 counts a C2y extension
         # and 1.8's own `-pedantic-errors` made an error.
         FetchContent_Declare(
@@ -102,8 +90,6 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
             SOURCE_DIR fetched/benchmark
             SYSTEM
             EXCLUDE_FROM_ALL
-            FIND_PACKAGE_ARGS
-                CONFIG
         )
         set(BENCHMARK_ENABLE_TESTING OFF)
         set(BENCHMARK_ENABLE_INSTALL OFF)
@@ -114,60 +100,53 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
 
     # volk, which loads the Vulkan loader when the first instance is made rather than when the program
     # starts: no program imports it, so the game starts on a machine with no loader or an old one and says
-    # why it cannot draw there, and the ray tracer refuses the loader by name (`Instance`). The system's
-    # package only at the SDK version the tree is built against or a later one, which volk's own version is: an older one lacks the Vulkan 1.4 entry points the backend calls
-    # (`vkCmdPushDescriptorSet`), and would be taken and then fail to compile.
-    set(RTX_VOLK_VERSION 363)
+    # why it cannot draw there, and the ray tracer refuses the loader by name (`Instance`). At the SDK
+    # version of the set's Vulkan headers.
     FetchContent_Declare(
         volk
         URL
-            https://github.com/zeux/volk/archive/refs/tags/vulkan-sdk-1.4.${RTX_VOLK_VERSION}.0.tar.gz
+            https://github.com/zeux/volk/archive/refs/tags/vulkan-sdk-1.4.363.0.tar.gz
         URL_HASH
             SHA512=c1d97fb4419effe08e84dc83e220229e1a070359b4d7187cfd54142df0dd0cee525d791d89e0deadb399d270772805ba1f48f8f6c6f3dd3820a44a947ca297db
         SOURCE_DIR fetched/volk
         SYSTEM
         EXCLUDE_FROM_ALL
-        FIND_PACKAGE_ARGS
-            ${RTX_VOLK_VERSION}
-            CONFIG
-            QUIET
     )
     set(VOLK_HEADERS_ONLY ON)
     set(VOLK_PULL_IN_VULKAN OFF)
     FetchContent_MakeAvailable(volk)
 
-    # Vulkan Memory Allocator, behind `device/memory/memory.hpp`: a system's only at the pinned version or a
-    # later one of its major.
-    set(RTX_VMA_VERSION 3.5.0)
+    # Vulkan Memory Allocator, behind `device/memory/memory.hpp`.
     FetchContent_Declare(
         VulkanMemoryAllocator
         URL
-            https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v${RTX_VMA_VERSION}.tar.gz
+            https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.5.0.tar.gz
         URL_HASH
             SHA512=ad6232fa175aea9cfd16f240eed541eb1fb86349aa98c94ae874de85dd53ae78b1db9b293556d8f178c0648e2287f63109caede8595a1ba9ff244c9ddb0b9c48
         SOURCE_DIR fetched/vma
         SYSTEM
         EXCLUDE_FROM_ALL
-        FIND_PACKAGE_ARGS
-            ${RTX_VMA_VERSION}
-            CONFIG
-            QUIET
     )
     FetchContent_MakeAvailable(VulkanMemoryAllocator)
 
     include("${CMAKE_CURRENT_LIST_DIR}/../extern/crashpad.cmake")
 endblock()
 
-# What the tree finds and never fetches. A package whose find module defines no target gets one here, an
-# imported interface target carrying its headers, its libraries and the definitions its headers need, so
-# what links it compiles against it and nothing else does; imported, so its headers are a system's.
+# What the tree finds and never fetches: the vcpkg set (`vcpkg.json`), static, through the toolchain file
+# the presets name, and the system's OpenGL, X11 and Threads. Each package by its own CMake files where it
+# installs them; a package whose files define no target gets one here, an imported interface target
+# carrying its headers, its libraries and the definitions its headers need, so what links it compiles
+# against it and nothing else does; imported, so its headers are a system's. No version floors: the set
+# is the one version the tree is built against.
 
 set(OpenGL_GL_PREFERENCE LEGACY) # GL2; GLVND's is for GL3 and up.
 find_package(OpenGL REQUIRED)
-find_package(LZ4 REQUIRED)
 find_package(Threads REQUIRED)
+find_package(PkgConfig REQUIRED)
+find_package(Freetype REQUIRED)
 find_package(ZLIB REQUIRED)
-find_package(OpenAL REQUIRED)
+find_package(lz4 CONFIG REQUIRED)
+find_package(OpenAL CONFIG REQUIRED)
 find_package(
     ICU
     REQUIRED
@@ -178,166 +157,83 @@ find_package(
 )
 find_package(
     Boost
-    1.83.0
     CONFIG
     REQUIRED
     COMPONENTS
         iostreams
         program_options
 )
-find_package(MyGUI 3.4.3 REQUIRED)
-# 1.4.329 is the first SDK whose SPIR-V headers name `SPV_KHR_fma`, which the shaders' pinning
-# refuses by name (`Rtx::pinFloatArithmetic`); an older one fails here rather than inside
-# `spirvpin.cpp`.
-find_package(VulkanHeaders 1.4.329 REQUIRED)
+# MyGUI 3.4.3 installs no CMake files, and pkg-config's on Linux alone, which names neither the FreeType its
+# archive calls nor the definitions its headers need: its header and its archive, found in the set.
+find_path(MYGUI_INCLUDE_DIR MyGUI.h PATH_SUFFIXES MYGUI REQUIRED)
+find_library(MYGUI_LIBRARY MyGUIEngineStatic REQUIRED)
+add_library(MyGUI::MyGUI STATIC IMPORTED)
+set_target_properties(
+    MyGUI::MyGUI
+    PROPERTIES
+        IMPORTED_LOCATION
+            "${MYGUI_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES
+            "${MYGUI_INCLUDE_DIR}"
+)
+target_link_libraries(MyGUI::MyGUI INTERFACE Freetype::Freetype)
+target_compile_definitions(
+    MyGUI::MyGUI
+    INTERFACE
+        MYGUI_DONT_USE_OBSOLETE
+        MYGUI_STATIC
+)
+find_package(VulkanHeaders CONFIG REQUIRED)
 
-if(USE_QT)
-    find_package(QT REQUIRED COMPONENTS Core NAMES Qt6)
-    find_package(
-        Qt6
-        COMPONENTS
-            Core
-            Widgets
-            Network
-            OpenGL
-            OpenGLWidgets
-            LinguistTools
-            Svg
-        REQUIRED
-    )
-    message(STATUS "Using Qt${QT_VERSION}")
-endif()
-
-if(OPENMW_USE_UNSHIELD)
-    find_package(LIBUNSHIELD REQUIRED)
-endif()
-
-# FFmpeg 4.0 at least.
 find_package(
-    FFmpeg
+    Qt6
     REQUIRED
     COMPONENTS
-        AVCODEC
-        AVFORMAT
-        AVUTIL
-        SWSCALE
-        SWRESAMPLE
+        Core
+        Widgets
+        Network
+        OpenGL
+        OpenGLWidgets
+        LinguistTools
+        Svg
 )
-foreach(
-    floor
-    AVFORMAT:58.12.100
-    AVCODEC:58.18.100
-    AVUTIL:56.14.100
-    SWSCALE:5.1.100
-    SWRESAMPLE:3.1.100
-)
-    string(
-        REPLACE ":"
-        ";"
-        floor
-        "${floor}"
-    )
-    list(GET floor 0 library)
-    list(GET floor 1 version)
-    if(FFmpeg_${library}_VERSION VERSION_LESS version)
-        message(
-            FATAL_ERROR
-            "FFmpeg's ${library} is ${FFmpeg_${library}_VERSION}, older than ${version}: FFmpeg 4.0 is required"
-        )
-    endif()
-endforeach()
+
+if(OPENMW_USE_UNSHIELD)
+    pkg_check_modules(unshield REQUIRED IMPORTED_TARGET libunshield)
+    target_link_libraries(PkgConfig::unshield INTERFACE ZLIB::ZLIB)
+endif()
+
+# FFmpeg through the set's own find module, which names every library its static ones link.
+find_package(FFMPEG REQUIRED)
 add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
-target_include_directories(FFmpeg::FFmpeg INTERFACE ${FFmpeg_INCLUDE_DIRS})
-target_link_libraries(FFmpeg::FFmpeg INTERFACE ${FFmpeg_LIBRARIES})
+target_include_directories(FFmpeg::FFmpeg INTERFACE ${FFMPEG_INCLUDE_DIRS})
+target_link_directories(FFmpeg::FFmpeg INTERFACE ${FFMPEG_LIBRARY_DIRS})
+target_link_libraries(FFmpeg::FFmpeg INTERFACE ${FFMPEG_LIBRARIES})
 # Required for building the FFmpeg headers
 target_compile_definitions(FFmpeg::FFmpeg INTERFACE __STDC_CONSTANT_MACROS)
 
-if(OPENMW_SYSTEM_TINYXML)
-    find_package(TinyXML REQUIRED)
-    add_library(TinyXML::TinyXML INTERFACE IMPORTED)
-    target_include_directories(TinyXML::TinyXML INTERFACE ${TinyXML_INCLUDE_DIRS})
-    target_link_libraries(TinyXML::TinyXML INTERFACE ${TinyXML_LIBRARIES})
-    target_compile_definitions(TinyXML::TinyXML INTERFACE TIXML_USE_STL)
-endif()
-
-# Bullet 2.87 at least, for `btIDebugDraw::clearLines` (2.86 already needed for `btCapsuleShape` fixes),
-# and in double precision. First the float64 config Debian's derivatives ship, which states its version
-# in no form CMake compares.
-set(REQUIRED_BULLET_VERSION 287)
-find_package(
-    Bullet
-    CONFIGS
-        BulletConfig-float64.cmake
-    QUIET
-    COMPONENTS
+# Bullet in double precision, the set's `bullet3[double-precision]`, whose config states the definition.
+find_package(Bullet CONFIG REQUIRED)
+add_library(Bullet::Bullet INTERFACE IMPORTED)
+target_include_directories(Bullet::Bullet INTERFACE ${BULLET_INCLUDE_DIRS})
+target_link_libraries(
+    Bullet::Bullet
+    INTERFACE
         BulletCollision
         LinearMath
 )
-if(BULLET_FOUND)
-    string(
-        REPLACE "."
-        ""
-        _bullet_version_num
-        ${BULLET_VERSION_STRING}
-    )
-    if(_bullet_version_num VERSION_LESS REQUIRED_BULLET_VERSION)
-        message(
-            FATAL_ERROR
-            "System bullet version too old, OpenMW requires at least ${REQUIRED_BULLET_VERSION}, got ${_bullet_version_num}"
-        )
-    endif()
-    # Fix the relative include:
-    set(BULLET_INCLUDE_DIRS "${BULLET_ROOT_DIR}/${BULLET_INCLUDE_DIRS}")
-    include(FindPackageMessage)
-    find_package_message(
-        Bullet
-        "Found Bullet: ${BULLET_LIBRARIES} ${BULLET_VERSION_STRING}"
-        "${BULLET_VERSION_STRING}-float64"
-    )
-else()
-    find_package(
-        Bullet
-        ${REQUIRED_BULLET_VERSION}
-        REQUIRED
-        COMPONENTS
-            BulletCollision
-            LinearMath
-    )
+if(NOT BULLET_DEFINITIONS STREQUAL "-DBT_USE_DOUBLE_PRECISION")
+    message(FATAL_ERROR "Bullet is built in single precision (${BULLET_DEFINITIONS}): the tree's physics is double")
 endif()
-# Only link the Bullet libraries that we need:
-string(
-    REGEX MATCHALL "((optimized|debug);)?[^;]*(BulletCollision|LinearMath)[^;]*"
-    BULLET_LIBRARIES
-    "${BULLET_LIBRARIES}"
-)
-include(CheckBulletPrecision)
-if(NOT HAS_DOUBLE_PRECISION_BULLET)
-    message(FATAL_ERROR "Bullet does not uses double precision")
-endif()
-add_library(Bullet::Bullet INTERFACE IMPORTED)
-target_include_directories(Bullet::Bullet INTERFACE ${BULLET_INCLUDE_DIRS})
-target_link_libraries(Bullet::Bullet INTERFACE ${BULLET_LIBRARIES})
 target_compile_definitions(Bullet::Bullet INTERFACE BT_USE_DOUBLE_PRECISION)
 
-add_library(MyGUI::MyGUI INTERFACE IMPORTED)
-target_include_directories(MyGUI::MyGUI INTERFACE ${MyGUI_INCLUDE_DIRS})
-target_link_libraries(MyGUI::MyGUI INTERFACE ${MyGUI_LIBRARIES})
-target_compile_definitions(MyGUI::MyGUI INTERFACE MYGUI_DONT_USE_OBSOLETE=ON)
-
-set(USED_OSG_PLUGINS
-    osgdb_bmp
-    osgdb_dae
-    osgdb_dds
-    osgdb_freetype
-    osgdb_jpeg
-    osgdb_osg
-    osgdb_png
-    osgdb_serializers_osg
-    osgdb_tga
-)
+# OpenSceneGraph, OpenMW's fork, static: one target a library of its, each with the headers and with what
+# its archive calls, which no file of the port states, and the headers alone for what names its types and
+# calls nothing of it, the build's table makers; `osg` with the multiview definition. The plugins the tree
+# reads with are linked into every program that links the components and registered there
+# (`components/resource/osgplugins.cpp.in`).
 find_package(
     OpenSceneGraph
-    3.6.5
     REQUIRED
         osgAnimation
         osgDB
@@ -350,50 +246,12 @@ find_package(
         osgSim
         osgViewer
 )
-if(OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
-    if(WIN32)
-        set(OSGPlugins_DONT_FIND_DEPENDENCIES 1)
-    endif()
-    find_package(OSGPlugins REQUIRED COMPONENTS ${USED_OSG_PLUGINS})
-    foreach(osgplugin ${USED_OSG_PLUGINS})
-        if(NOT TARGET ${osgplugin})
-            add_library(${osgplugin} MODULE IMPORTED)
-            string(TOUPPER ${osgplugin} pluginnameupper)
-            foreach(configuration RELEASE DEBUG)
-                if(${pluginnameupper}_LIBRARY_${configuration})
-                    set_property(
-                        TARGET
-                            ${osgplugin}
-                        APPEND
-                        PROPERTY
-                            IMPORTED_CONFIGURATIONS
-                                ${configuration}
-                    )
-                    set_target_properties(
-                        ${osgplugin}
-                        PROPERTIES
-                            IMPORTED_LOCATION_${configuration}
-                                "${${pluginnameupper}_LIBRARY_${configuration}}"
-                    )
-                endif()
-            endforeach()
-        endif()
-    endforeach()
-    if(WIN32)
-        set(osg_plugin_destination "${CMAKE_INSTALL_BINDIR}")
-    else()
-        set(osg_plugin_destination "${CMAKE_INSTALL_LIBDIR}")
-    endif()
-    install(
-        IMPORTED_RUNTIME_ARTIFACTS
-            ${USED_OSG_PLUGINS}
-            DESTINATION
-            "${osg_plugin_destination}/osgPlugins-${OPENSCENEGRAPH_VERSION}"
-        RUNTIME_DEPENDENCY_SET openmw-dependencies
-    )
-endif()
-# One target a library of OpenSceneGraph's, each with the headers; `osg` with the multiview definition.
 include(CheckOsgMultiview)
+add_library(OpenSceneGraph::headers INTERFACE IMPORTED)
+target_include_directories(OpenSceneGraph::headers INTERFACE ${OPENSCENEGRAPH_INCLUDE_DIRS})
+if(HAVE_MULTIVIEW)
+    target_compile_definitions(OpenSceneGraph::headers INTERFACE OSG_HAS_MULTIVIEW)
+endif()
 foreach(
     library
     OpenThreads
@@ -411,27 +269,152 @@ foreach(
 )
     string(TOUPPER ${library} upper)
     add_library(OpenSceneGraph::${library} INTERFACE IMPORTED)
-    target_include_directories(OpenSceneGraph::${library} INTERFACE ${OPENSCENEGRAPH_INCLUDE_DIRS})
-    target_link_libraries(OpenSceneGraph::${library} INTERFACE ${${upper}_LIBRARIES})
+    target_link_libraries(
+        OpenSceneGraph::${library}
+        INTERFACE
+            OpenSceneGraph::headers
+            ${${upper}_LIBRARIES}
+    )
 endforeach()
-target_link_libraries(OpenSceneGraph::osg INTERFACE OpenSceneGraph::OpenThreads)
-if(HAVE_MULTIVIEW)
-    target_compile_definitions(OpenSceneGraph::osg INTERFACE OSG_HAS_MULTIVIEW)
+target_link_libraries(OpenSceneGraph::OpenThreads INTERFACE Threads::Threads)
+target_link_libraries(
+    OpenSceneGraph::osg
+    INTERFACE
+        OpenSceneGraph::OpenThreads
+        OpenGL::GL
+        ${CMAKE_DL_LIBS}
+)
+target_link_libraries(
+    OpenSceneGraph::osgDB
+    INTERFACE
+        OpenSceneGraph::osg
+        ZLIB::ZLIB
+)
+if(WIN32)
+    target_link_libraries(
+        OpenSceneGraph::osgViewer
+        INTERFACE
+            OpenSceneGraph::osgText
+            OpenSceneGraph::osgGA
+    )
+else()
+    find_package(X11 REQUIRED COMPONENTS Xinerama)
+    target_link_libraries(
+        OpenSceneGraph::osgViewer
+        INTERFACE
+            OpenSceneGraph::osgText
+            OpenSceneGraph::osgGA
+            X11::X11
+            X11::Xinerama
+    )
 endif()
 
-if(OPENMW_LUAJIT)
-    find_package(LuaJit REQUIRED)
-    set(LUA_INCLUDE_DIR ${LuaJit_INCLUDE_DIR})
-    set(LUA_LIBRARIES ${LuaJit_LIBRARIES})
-else()
-    find_package(Lua REQUIRED)
-endif()
-if(NOT WIN32)
-    include(CheckLuaCustomAllocator)
-endif()
-add_library(Lua::Lua INTERFACE IMPORTED)
-target_include_directories(Lua::Lua INTERFACE ${LUA_INCLUDE_DIR})
-target_link_libraries(Lua::Lua INTERFACE ${LUA_LIBRARIES})
-if(NOT OPENMW_LUAJIT)
-    target_compile_definitions(Lua::Lua INTERFACE NO_LUAJIT)
-endif()
+# The plugins, each an archive in OSG's plugin folder with what it calls.
+set(USED_OSG_PLUGINS
+    osgdb_bmp
+    osgdb_dae
+    osgdb_dds
+    osgdb_freetype
+    osgdb_jpeg
+    osgdb_osg
+    osgdb_png
+    osgdb_serializers_osg
+    osgdb_tga
+)
+find_package(PNG REQUIRED)
+find_package(JPEG REQUIRED)
+find_package(LibXml2 REQUIRED)
+find_package(minizip CONFIG REQUIRED)
+find_package(uriparser CONFIG REQUIRED)
+find_package(Boost CONFIG REQUIRED COMPONENTS filesystem)
+# By the set's own folder: the port installs its config under `share/collada-dom`, which CMake's search for
+# `collada_dom` does not name, so it would take a system's instead.
+find_package(
+    collada_dom
+    CONFIG
+    REQUIRED
+    PATHS
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/collada-dom"
+    NO_DEFAULT_PATH
+)
+# Named as its config means to name it and fails to, its version unset there: with MSVC's suffix on Windows,
+# which the port's own patch fixes at `vc140-mt`.
+set(collada_dom_name "collada-dom${collada_dom_VERSION_MAJOR}.${collada_dom_VERSION_MINOR}-dp")
+find_library(
+    collada_dom_library
+    NAMES
+        ${collada_dom_name}
+        ${collada_dom_name}-vc140-mt
+    PATHS
+        ${COLLADA_DOM_LIBRARY_DIRS}
+    NO_DEFAULT_PATH
+    REQUIRED
+)
+set(osgdb_png_calls PNG::PNG)
+set(osgdb_jpeg_calls JPEG::JPEG)
+set(osgdb_freetype_calls Freetype::Freetype)
+set(osgdb_dae_calls
+    "${collada_dom_library}"
+    LibXml2::LibXml2
+    MINIZIP::minizipstatic
+    uriparser::uriparser
+    Boost::filesystem
+)
+get_filename_component(osgdb_folder "${OSGDB_LIBRARY}" DIRECTORY)
+foreach(plugin IN LISTS USED_OSG_PLUGINS)
+    find_library(
+        ${plugin}_library
+        NAMES
+            ${plugin}
+        PATHS
+            "${osgdb_folder}/osgPlugins-${OPENSCENEGRAPH_VERSION}"
+        NO_DEFAULT_PATH
+        REQUIRED
+    )
+    add_library(OpenSceneGraph::${plugin} STATIC IMPORTED)
+    set_target_properties(
+        OpenSceneGraph::${plugin}
+        PROPERTIES
+            IMPORTED_LOCATION
+                "${${plugin}_library}"
+    )
+    target_link_libraries(
+        OpenSceneGraph::${plugin}
+        INTERFACE
+            OpenSceneGraph::osgDB
+            ${${plugin}_calls}
+    )
+endforeach()
+
+# LuaJIT, the Lua every build runs scripts on: its header and its archive, as the port installs no CMake files
+# and pkg-config's on Linux alone. `lua51` is its archive's name on Windows.
+find_path(
+    LUAJIT_INCLUDE_DIR
+    luajit.h
+    PATH_SUFFIXES
+        luajit
+        luajit-2.1
+    REQUIRED
+)
+find_library(
+    LUAJIT_LIBRARY
+    NAMES
+        luajit-5.1
+        lua51
+    REQUIRED
+)
+add_library(Lua::Lua STATIC IMPORTED)
+set_target_properties(
+    Lua::Lua
+    PROPERTIES
+        IMPORTED_LOCATION
+            "${LUAJIT_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES
+            "${LUAJIT_INCLUDE_DIR}"
+)
+target_link_libraries(
+    Lua::Lua
+    INTERFACE
+        ${CMAKE_DL_LIBS}
+        $<$<PLATFORM_ID:Linux>:m>
+)

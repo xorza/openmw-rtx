@@ -22,11 +22,19 @@
 
 namespace Crash::Monitor
 {
+    namespace
+    {
+        // `pidfd_open`'s number, which every architecture shares from Linux 5.3 on: AlmaLinux 8's kernel headers,
+        // which the release builds against, name `pidfd_send_signal`, backported, and no `SYS_pidfd_open`. A
+        // kernel older than 5.3 answers ENOSYS, as it would to the named one.
+        constexpr long sPidfdOpen = 434;
+    }
+
     GameProcess::GameProcess(std::uint32_t id)
         : mId(id)
     {
         // Through `syscall`, since the C library does not wrap a pidfd everywhere.
-        mHold = Platform::UniqueHold<Closing>(syscall(SYS_pidfd_open, static_cast<pid_t>(id), 0));
+        mHold = Platform::UniqueHold<Closing>(syscall(sPidfdOpen, static_cast<pid_t>(id), 0));
     }
 
     void GameProcess::Closing::close(const Handle hold) noexcept
