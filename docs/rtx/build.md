@@ -126,6 +126,24 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   built from, and `pins.py` names the parts by SHA-256. A build fetches the pinned set, or the one `omw deps-set`
   built on the desk for inputs that moved, through the toolchain file the presets read from `OMW_VCPKG_SET`.
   Refused: every desk building the set, an hour of Qt each and binaries that differ by compiler.
+- **The set carries what the tree links or runs.** Where a port has a switch, it builds less: qttools without
+  Designer and the programs no build runs, OpenSceneGraph without the libraries and serializers the tree does
+  not register, FFmpeg without encoders and muxers. Where none exists, `omw deps-set` prunes vcpkg's export
+  before packing it: the host programs' debug information (PDBs dropped, ELF programs stripped), and everything
+  but the programs of the ports carried for them, shaderc, glslang and SPIRV-Tools. The desk keeps the pruned
+  export, so it builds against what is published. On Linux this took the set from 831 to 339 MiB packed
+  (`research/2026-11-11-dependency-set-size.md`). Kept: what Qt's package configs import and check for
+  (qtbase's host programs, stripped instead), `harfbuzz-subset`, which harfbuzz's config declares, and what
+  no port lets be turned off.
+- **Line tables on Linux, full CodeView on Windows.** Linux's triplet compiles with `-g1`, GCC's line tables, as
+  the tree's own code does, and FFmpeg is held to it by `--disable-debug`, without which its `configure`
+  appends `-g` after the triplet's flags. MSVC has no line-tables-only mode, as Chromium's `minimal_symbols`
+  notes ("MSVC doesn't have an equivalent option",
+  [BUILD.gn](https://chromium.googlesource.com/chromium/src/+/main/build/config/compiler/BUILD.gn); `/Zd` gone
+  from `cl.exe`, [D114632](https://reviews.llvm.org/D114632)), so Windows keeps vcpkg's `/Z7`. Refused: clang-cl
+  with `-gline-tables-only` for Windows' set, a second compiler on which every port's build then depends; no
+  debug information in Windows' archives, which names a crash frame inside a dependency after the nearest
+  public symbol above it.
 - **Static where the licences permit, which is everywhere the tree links.** The LGPL's libraries (Qt, FFmpeg, OpenAL
   Soft, OpenSceneGraph's OSGPL) may be linked into a GPL program whose source its users receive
   ([FSF](https://www.gnu.org/licenses/gpl-faq.html#LGPLStaticVsDynamic);
