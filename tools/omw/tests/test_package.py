@@ -18,6 +18,7 @@ from omw.package import (
     executables_in,
     glibc_versions,
     harness_files,
+    installed_programs,
     on_release_base,
     os_release,
     prune_empty,
@@ -128,6 +129,24 @@ class InstallTest(unittest.TestCase):
         for name in ("openmw", "libosg.so.161"):
             (self.root / name).chmod(0o755)
         self.assertEqual([path.name for path in executables_in(self.root)], ["openmw.exe"] if WINDOWS else ["openmw"])
+
+    def test_the_installed_programs_are_those_the_install_manifest_names_and_no_other(self):
+        with self.assertRaisesRegex(Refusal, "no install manifest"):
+            installed_programs(self.root)
+        programs = ("openmw.exe", "components-tests.exe") if WINDOWS else ("openmw", "components-tests")
+        for name in programs:
+            self.touch(name)
+            (self.root / name).chmod(0o755)
+        self.touch("openmw.cfg")
+        # The manifest names what the install wrote under its prefix, a data file among them, in either
+        # system's separators.
+        self.touch("install_manifest.txt")
+        (self.root / "install_manifest.txt").write_text(
+            f"/prefix/usr/bin/{programs[0]}\nC:\\prefix\\openmw.cfg\n/prefix/usr/share/doc/README.md\n")
+        self.assertEqual([path.name for path in installed_programs(self.root)], [programs[0]])
+        (self.root / "install_manifest.txt").write_text("/prefix/usr/share/doc/README.md\n")
+        with self.assertRaisesRegex(Refusal, "carried none of its programs"):
+            installed_programs(self.root)
 
     def test_the_harness_files_are_named_wherever_they_land_and_the_games_are_not(self):
         for name in ("openmw.exe", "openmw-rtxtool", "rtx-gpu-tests.exe", "resources/rtx/shaders/a.spv",

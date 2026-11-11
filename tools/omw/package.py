@@ -192,6 +192,20 @@ def executables_in(folder: Path) -> list[Path]:
                   if file.is_file() and os.access(file, os.X_OK) and ".so" not in file.name)
 
 
+def installed_programs(folder: Path) -> list[Path]:
+    """**The programs of the build in `folder` that its last install carried**, by the names `cmake --install`
+    listed in its manifest: the ones a release ships, which `cmake/Install.cmake` names, and none of the tests,
+    the harness or the build's own tools beside them."""
+    manifest = folder / "install_manifest.txt"
+    if not manifest.is_file():
+        raise Refusal(f"{folder} holds no install manifest: its programs are the ones an install carried")
+    names = {line.replace("\\", "/").rsplit("/", 1)[-1] for line in read_text(manifest).splitlines() if line}
+    programs = [program for program in executables_in(folder) if program.name in names]
+    if not programs:
+        raise Refusal(f"the install of {folder} carried none of its programs")
+    return programs
+
+
 def prune_empty(folder: Path) -> None:
     """Removes every folder under `folder` that holds no file, deepest first. Upstream's Windows rule
     installs the runtime folder through `FILES_MATCHING`, which makes every folder of it, the
@@ -311,15 +325,15 @@ def _archive_windows(build: Build, name: str) -> None:
 
 
 def symbols(folder: Path, name: str) -> None:
-    """**The release's symbols**: every executable the release build in `folder` made, through `dump_syms` into a
-    Breakpad symbol store, `<module>/<id>/<module>.sym`, zipped as
+    """**The release's symbols**: every program the archive installed from the release build in `folder`
+    (`installed_programs`), through `dump_syms` into a Breakpad symbol store, `<module>/<id>/<module>.sym`, zipped as
     `dist/openmw-<name>-<system>-symbols.zip`. A release publishes it beside its archive, and
     `omw crash` reads a player's dump against it. The debug information is what
     `cmake/Flags.cmake` gives every configuration, read from the build's own binaries: the archive's are
     stripped on Linux, and Windows' install leaves a Release build's PDBs out."""
     dump_syms = deps.crash_tool("dump_syms")
     with tempfile.TemporaryDirectory() as store:
-        for executable in executables_in(folder):
+        for executable in installed_programs(folder):
             run([dump_syms, "--store", store, executable], stdout=subprocess.DEVNULL)
         target = DIST / f"openmw-{name}-{SYSTEM}-symbols.zip"
         with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as zipped:

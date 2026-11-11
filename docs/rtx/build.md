@@ -127,7 +127,9 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   information's and `__FILE__`'s paths relative, which a debugger and `perf annotate` then need a source path for.
 - **Linux's archive built in the release base, its symbols outside it.** `omw archive` builds and packs the AppImage
   in the AlmaLinux 8 container on a desk and on the release workflow's runner alike, and runs `dump_syms` on the
-  container's build from the host, as Mozilla's Linux build of it asks glibc 2.34. Refused: the release job inside
+  container's build from the host, as Mozilla's Linux build of it asks glibc 2.34. The symbols are the installed
+  programs' alone, by the install's manifest: 79 MB of them, where the build's every program, tests and harness
+  among them, made 167. Refused: the release job inside
   the container, where no `dump_syms` release runs; building `dump_syms` from source there, a Rust toolchain in the
   image for one tool.
 - **Link-time optimisation for what ships alone.** The release workflow sets `OMW_LTO=ON` for a tagged release, which
