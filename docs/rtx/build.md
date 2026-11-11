@@ -47,9 +47,26 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   Recast is the pinned commit, as `NavMeshTileStore::sTileVersion` keys the navigator's tiles by it. Refused:
   `FIND_PACKAGE_ARGS`, which took a desk's own versions; an overlay port for each, a set rebuilt for a bump the tree
   already pins exactly.
+- **A third party's warnings are off, not fixed**: the tree does not patch fetched or vendored code for its
+  compiler's opinions, and a warning nobody acts on teaches every reader to skip them. On GCC and Clang, `-w` in
+  the fetched block's and `extern/`'s flags, which wins over any `-W` a project adds after it (checked with GCC
+  16 and Clang 23). On MSVC, `/w` in `extern/`, whose projects set no level; the fetched ones set their own
+  (yaml-cpp and SDL3 `/W3`, Benchmark and Crashpad `/W4`), which `/w` would override with a D9025 a file, so
+  MSVC turns off the one warning a project raises on its target (`/wd4267` on yaml-cpp).
+- **CMake's own warnings are errors**: the presets make its dev and deprecation warnings errors
+  ([cmake-presets(7)](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html)), so a new one stops the
+  configure, a third party's after a bump included. Refused: failing a job on any log line that says `warning`,
+  which tests named after warnings, and the content's own log, would trip.
 - **A short root.** The project, its version, the standard and the folders; options in `cmake/Options.cmake`,
   install rules in `cmake/Install.cmake`, and what a folder owns in its own file. Refused: CPack, which nothing
   packaged through — the fork ships with `cmake --install`.
+- **A build is of a Git clone**, which a configure without `.git` refuses: every build names its set from Git
+  (`omw`), and the version names its commit. The version is configured once but for the commit, its date and
+  the latest tag, which `get-version` fills in at every build, rewriting a file only where it moved. Refused:
+  empty hashes for a tree without `.git`, a version that names no commit.
+- **CMake's commands before the tree's helpers**: a resource is copied or configured by `configure_file`
+  itself, into `CMAKE_RUNTIME_OUTPUT_DIRECTORY`, the runtime folder's one name. A function stays where it does
+  work of its own (`pack_resource_file`, `rtx_compile_shader`, `openmw_rtx_layer`, `rtx_make_table`).
 - **A sanitizer over the whole build.** `OPENMW_SANITIZER=address|thread` sets the compiler's flags for every
   target, the fetched ones included. Refused: on `openmw-checks` alone, since ThreadSanitizer sees a lock only in
   code it instrumented.
@@ -84,6 +101,14 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
 - **The test binaries' own files at `-Og` on GCC and Clang**: they build 30% faster for runs 10% slower
   (`research/2026-11-11-test-binaries-at-og.md`); the code they test keeps the build's flags, and MSVC's tests too,
   its `/Od` unmeasured.
+- **A smoke run prints on failure alone**, its logs kept either way: the benchmarks are CTest tests running
+  Google Benchmark's dry run, one iteration and no timing to warn about, and CI's integration run prints the
+  game's log only when it fails. `omw release bench` is what measures.
+- **The driver owns the translations' source list**: `omw translations` regenerates the `.ts` files and
+  `omw lint translations` checks them from the one list, so CI's checks job builds nothing; the build only
+  compiles them (`qt_add_lrelease`). Extraction outside the build is how KDE works (`Messages.sh`). Refused:
+  `qt_add_translations(SOURCE_TARGETS …)`, which needs a configured build to check and scans every source of
+  `openmw-components-qt`, adding strings to upstream's `.ts` files.
 - **One portable install layout**, every file beside the programs and found relative to them, as the Windows folder
   and the AppImage both are. Refused: the system-install branch, for a distribution package the fork does not make.
 
@@ -169,6 +194,11 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
 
 ## Systems and compilers
 
+- **A port passes only what it reads**, so a set rebuilds without vcpkg's "variables are not used": qtbase
+  without the `xrender` feature Qt 6.11 removed, `openmw-osg` without its dead atomics options and with XRandR's
+  on Linux alone, and a `vulkan-loader` overlay that marks Python maybe unused. libjpeg-turbo's ARM option
+  waits for the registry release that marks it. Kept: the Qt ports' own messages about system packages, which
+  only a copy of Qt's biggest port of our own would remove.
 - **Linux and Windows alone.** GitLab's pipeline, macOS and Android are gone, files and branches both;
   `upstream.yml` keeps each deleted path deleted at every merge.
 - **AlmaLinux 8 with gcc-toolset-15 for CI's Linux legs, the set and the release**, the stock `almalinux:8`
@@ -181,6 +211,11 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   supports a gcc-toolset about two years, so the base moves to the next one in time. The tsan leg alone runs on the
   runner itself, with Ubuntu's GCC, against the same set: ThreadSanitizer turns address randomisation off through
   `personality`, which Docker's default seccomp profile refuses.
+- **One AlmaLinux 8 image, by digest, and one GCC on it.** `env/release-base.Dockerfile`'s `FROM` is the one place
+  the digest is written; every workflow's `container:` names the same, which `omw lint workflows` holds, and the
+  set's digest reads the Dockerfile, so a new image names a new set. The env script builds its tools (autoconf,
+  zsync, `wayland-scanner`) with gcc-toolset-15 as well, quietly, though none ships. Refused: the bare tag,
+  which moves under CI and the set; AlmaLinux's own GCC 8.5, there only as a package's dependency.
 - **Fresh compilers, and none older.** GCC 15, gcc-toolset-15's in CI and a desk's own; Clang 23, the editor's
   clangd's major, from kernel.org's build of LLVM's release in CI, made on Debian 10 to run on glibc 2.28, where
   LLVM's own needs a newer one ([kernel.org](https://www.kernel.org/pub/tools/llvm/)); MSVC from Visual Studio 2026.
