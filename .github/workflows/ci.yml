@@ -47,9 +47,10 @@ jobs:
 
       # clang-format is the driver's pinned one, which `omw format` fetches.
       - name: Qt's lupdate
+        # Retried, as a runner fails to resolve Ubuntu's mirrors now and then (run 43039314218).
         run: |
-          sudo apt-get update
-          sudo apt-get install -y qt6-l10n-tools
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y qt6-l10n-tools
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
