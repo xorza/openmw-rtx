@@ -1064,7 +1064,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
                 ON
     )
 endif()
-# The console a Windows build opens beside the game: in Debug and RelWithDebInfo, never in Release,
+# The console a Windows build opens beside the game: in RelWithDebInfo, never in Release,
 # whose output goes to `openmw.log`.
 set_target_properties(
     openmw
@@ -1072,4 +1072,3 @@ set_target_properties(
         WIN32_EXECUTABLE
             $<CONFIG:Release>
 )
-install(TARGETS openmw)

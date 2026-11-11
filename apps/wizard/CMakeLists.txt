@@ -79,5 +79,3 @@ target_link_libraries(
         Qt::Core
         Qt::Svg
 )
-
-install(TARGETS openmw-wizard)

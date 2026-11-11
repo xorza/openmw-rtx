@@ -416,7 +416,7 @@ target_link_libraries(
         OpenSceneGraph::headers
 )
 
-function(rtx_make_table tool source table layer)
+function(openmw_rtx_table tool source table layer)
     add_executable(${tool} ${source})
     target_link_libraries(${tool} PRIVATE openmw-rtx-tablemakers)
     set(made "${CMAKE_CURRENT_BINARY_DIR}/${table}")
@@ -433,6 +433,6 @@ function(rtx_make_table tool source table layer)
     target_sources(${layer} PRIVATE "${made}")
 endfunction()
 
-rtx_make_table(openmw-rtx-blue-noise tables/bluenoisetool.cpp rtxbluenoise.cpp openmw-rtx-frame)
-rtx_make_table(openmw-rtx-fog-noise tables/fognoisetool.cpp rtxfognoise.cpp openmw-rtx-world)
-rtx_make_table(openmw-rtx-specular-albedo tables/specularalbedotool.cpp rtxspecularalbedo.cpp openmw-rtx-frame)
+openmw_rtx_table(openmw-rtx-blue-noise tables/bluenoisetool.cpp rtxbluenoise.cpp openmw-rtx-frame)
+openmw_rtx_table(openmw-rtx-fog-noise tables/fognoisetool.cpp rtxfognoise.cpp openmw-rtx-world)
+openmw_rtx_table(openmw-rtx-specular-albedo tables/specularalbedotool.cpp rtxspecularalbedo.cpp openmw-rtx-frame)

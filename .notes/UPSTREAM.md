@@ -413,3 +413,14 @@ made only on the user's explicit yes, after which it is added here.
 - `/cgthreads1` gone from its 8 files (`.notes/build-cleanup.md`, step 11): upstream's, for a runner with 8 GB,
   where the fork's public repository's Windows runners have 16 GB; held by three Windows runs without it. The
   cost is a conflict with an upstream edit to those lists.
+- One set of flags, the set's code generation shared (`.notes/build-cleanup.md`, step 11): the sanitizers,
+  MSVC's runtime and debug information format, and position-independent programs in `cmake/Flags.cmake`, out of
+  `cmake/Options.cmake` and the root; the build types narrowed to the two `cmake/Flags.cmake` defines,
+  `RelWithDebInfo` and `Release`. The cost is a conflict with an upstream edit to those lines.
+- The build files in one layout (`.notes/build-cleanup.md`, step 11): the installed programs named once in
+  `cmake/Install.cmake`, with their PDBs and `defaults-cs.bin`, in place of an `install(TARGETS)` in each app's
+  folder; the CS's console as the game's, by `WIN32_EXECUTABLE` set to `$<CONFIG:Release>`, where upstream opens
+  one in every configuration; the set's libraries without CMake targets imported by one function; `pack_resource_file`
+  written out in `files/`, its one caller, and `openmw_qt_platforms` beside Qt's `find_package`, so
+  `cmake/OpenMWMacros.cmake` and `CMAKE_MODULE_PATH` go. The cost is a conflict with an upstream edit to an app's
+  install line, the CS's executable, or those finds.

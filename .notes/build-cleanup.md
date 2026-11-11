@@ -19,7 +19,8 @@ When the last one lands, move the lasting decisions into `docs/rtx/build.md` and
 - **Kept, and not to be proposed again without a new reason:**
   - `cmake/Flags.cmake` read through `CMAKE_USER_MAKE_RULES_OVERRIDE`, and `openmw_link_tree`'s walk that
     links `openmw-system` and `openmw-checks`: each is a decision `build.md` records.
-  - `rtx_compile_shader`, `openmw_rtx_layer`, `rtx_make_table` and `pack_resource_file`, which do real work.
+  - `openmw_rtx_shader`, `openmw_rtx_layer`, `openmw_rtx_table`, `openmw_import_archive` and
+    `openmw_qt_platforms`, which do real work for several callers.
   - The platform branches that choose a file per system (platform, crashcatcher, DLSS, NGX, the Windows `.rc`
     files), as `AGENTS.md`'s conventions ask.
   - The GCC-version-gated warnings in `cmake/Checks.cmake`: CI uses gcc-toolset-15 and a desk uses GCC 16.
@@ -128,7 +129,12 @@ Steps leave the list below when they land, and are marked here.
   `pthread_create`, the Crashpad note and `openmw_osg_plugins`). In the tree, waiting for the set it names: the
   code generation shared with the set (`vcpkg/flags.cmake`), the stack protector, position-independent programs,
   `/Zc:inline`, `-fno-math-errno`, `--icf=safe` (1.2 MB of code folded) and the sanitizers in `cmake/Flags.cmake`.
-  Left: the CI caches and the measured items.
+  The build files' review, in the tree: the programs named once in `cmake/Install.cmake`, the CS without a console
+  in Release, the build types narrowed to the two with the tree's flags, `openmw_import_archive` for the set's
+  libraries without targets, `cmake_path` throughout, one `openmw_` prefix, modules by path, and
+  `cmake/OpenMWMacros.cmake` gone. Declined: Qt's `CMAKE_AUTOMOC` for the whole tree in place of the per-target
+  switches, as with Qt found at the root it gives every target, Qt's or not, an autogen step (checked on a
+  two-library project). Left: the CI caches and the measured items.
 
 ## Steps
 

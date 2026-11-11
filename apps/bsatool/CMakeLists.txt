@@ -6,5 +6,3 @@ target_link_libraries(
         Boost::program_options
         openmw-components
 )
-
-install(TARGETS bsatool)

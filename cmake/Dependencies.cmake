@@ -144,6 +144,43 @@ endblock()
 # against it and nothing else does; imported, so its headers are a system's. No version floors: the set
 # is the one version the tree is built against.
 
+# A library the set installs no CMake files for, or files that define no target: an imported target of its archive,
+# found by `NAMES` (in the folder `IN` alone where it is given), with the folder of its `HEADER` (under one of
+# `HEADER_SUFFIXES`) and `LINKS`, what its archive calls.
+function(openmw_import_archive target)
+    cmake_parse_arguments(PARSE_ARGV 1 archive "" "HEADER;IN" "NAMES;HEADER_SUFFIXES;LINKS")
+    string(MAKE_C_IDENTIFIER "${target}" id)
+    if(archive_IN)
+        set(only NO_DEFAULT_PATH)
+    endif()
+    find_library(
+        ${id}_LIBRARY
+        NAMES
+            ${archive_NAMES}
+        PATHS
+            ${archive_IN}
+            ${only}
+        REQUIRED
+    )
+    add_library(${target} STATIC IMPORTED)
+    set_target_properties(
+        ${target}
+        PROPERTIES
+            IMPORTED_LOCATION
+                "${${id}_LIBRARY}"
+    )
+    if(archive_HEADER)
+        find_path(${id}_INCLUDE_DIR ${archive_HEADER} PATH_SUFFIXES ${archive_HEADER_SUFFIXES} REQUIRED)
+        set_target_properties(
+            ${target}
+            PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES
+                    "${${id}_INCLUDE_DIR}"
+        )
+    endif()
+    target_link_libraries(${target} INTERFACE ${archive_LINKS})
+endfunction()
+
 set(OpenGL_GL_PREFERENCE LEGACY) # GL2; GLVND's is for GL3 and up.
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
@@ -170,18 +207,16 @@ find_package(
 )
 # MyGUI 3.4.3 installs no CMake files, and pkg-config's on Linux alone, which names neither the FreeType its
 # archive calls nor the definitions its headers need: its header and its archive, found in the set.
-find_path(MYGUI_INCLUDE_DIR MyGUI.h PATH_SUFFIXES MYGUI REQUIRED)
-find_library(MYGUI_LIBRARY MyGUIEngineStatic REQUIRED)
-add_library(MyGUI::MyGUI STATIC IMPORTED)
-set_target_properties(
+openmw_import_archive(
     MyGUI::MyGUI
-    PROPERTIES
-        IMPORTED_LOCATION
-            "${MYGUI_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES
-            "${MYGUI_INCLUDE_DIR}"
+    NAMES
+        MyGUIEngineStatic
+    HEADER MyGUI.h
+    HEADER_SUFFIXES
+        MYGUI
+    LINKS
+        Freetype::Freetype
 )
-target_link_libraries(MyGUI::MyGUI INTERFACE Freetype::Freetype)
 target_compile_definitions(
     MyGUI::MyGUI
     INTERFACE
@@ -202,24 +237,19 @@ find_package(
         LinguistTools
         Svg
 )
+# The windowing platforms a Qt program opens on, which the static Qt links into it: Qt's default, X11's on Linux and
+# Windows' own, and on Linux Wayland's beside it, so a session with no XWayland opens it too.
+function(openmw_qt_platforms target)
+    if(LINUX)
+        qt_import_plugins(${target} INCLUDE Qt6::QWaylandIntegrationPlugin)
+    endif()
+endfunction()
 
-# libunshield for the wizard, which unpacks the installer's archives everywhere but on Windows, whose
-# players run the installer itself.
-# Its port installs no CMake files, and its pkg-config file names none of the zlib its archive calls: its header
-# and its archive, found in the set, as MyGUI's are.
+# libunshield for the wizard, which unpacks the installer's archives everywhere but on Windows, whose players run
+# the installer itself. Its port installs no CMake files, and its pkg-config file names none of the zlib its
+# archive calls.
 if(NOT WIN32)
-    find_path(UNSHIELD_INCLUDE_DIR libunshield.h REQUIRED)
-    find_library(UNSHIELD_LIBRARY unshield REQUIRED)
-    add_library(Unshield::Unshield STATIC IMPORTED)
-    set_target_properties(
-        Unshield::Unshield
-        PROPERTIES
-            IMPORTED_LOCATION
-                "${UNSHIELD_LIBRARY}"
-            INTERFACE_INCLUDE_DIRECTORIES
-                "${UNSHIELD_INCLUDE_DIR}"
-    )
-    target_link_libraries(Unshield::Unshield INTERFACE ZLIB::ZLIB)
+    openmw_import_archive(Unshield::Unshield NAMES unshield HEADER libunshield.h LINKS ZLIB::ZLIB)
 endif()
 
 # FFmpeg through the set's own find module, which names every library its static ones link.
@@ -375,27 +405,14 @@ set(osgdb_dae_calls
     uriparser::uriparser
     Boost::filesystem
 )
-get_filename_component(osgdb_folder "${OSGDB_LIBRARY}" DIRECTORY)
+cmake_path(GET OSGDB_LIBRARY PARENT_PATH osgdb_folder)
 foreach(plugin IN LISTS USED_OSG_PLUGINS)
-    find_library(
-        ${plugin}_library
+    openmw_import_archive(
+        OpenSceneGraph::${plugin}
         NAMES
             ${plugin}
-        PATHS
-            "${osgdb_folder}/osgPlugins-${OPENSCENEGRAPH_VERSION}"
-        NO_DEFAULT_PATH
-        REQUIRED
-    )
-    add_library(OpenSceneGraph::${plugin} STATIC IMPORTED)
-    set_target_properties(
-        OpenSceneGraph::${plugin}
-        PROPERTIES
-            IMPORTED_LOCATION
-                "${${plugin}_library}"
-    )
-    target_link_libraries(
-        OpenSceneGraph::${plugin}
-        INTERFACE
+        IN "${osgdb_folder}/osgPlugins-${OPENSCENEGRAPH_VERSION}"
+        LINKS
             OpenSceneGraph::osgDB
             ${${plugin}_calls}
     )
@@ -403,33 +420,16 @@ endforeach()
 
 # LuaJIT, the Lua every build runs scripts on: its header and its archive, as the port installs no CMake files
 # and pkg-config's on Linux alone. `lua51` is its archive's name on Windows.
-find_path(
-    LUAJIT_INCLUDE_DIR
-    luajit.h
-    PATH_SUFFIXES
-        luajit
-        luajit-2.1
-    REQUIRED
-)
-find_library(
-    LUAJIT_LIBRARY
+openmw_import_archive(
+    Lua::Lua
     NAMES
         luajit-5.1
         lua51
-    REQUIRED
-)
-add_library(Lua::Lua STATIC IMPORTED)
-set_target_properties(
-    Lua::Lua
-    PROPERTIES
-        IMPORTED_LOCATION
-            "${LUAJIT_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES
-            "${LUAJIT_INCLUDE_DIR}"
-)
-target_link_libraries(
-    Lua::Lua
-    INTERFACE
+    HEADER luajit.h
+    HEADER_SUFFIXES
+        luajit
+        luajit-2.1
+    LINKS
         ${CMAKE_DL_LIBS}
         $<$<PLATFORM_ID:Linux>:m>
 )

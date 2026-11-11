@@ -1,6 +1,28 @@
-# What an install carries beside the programs, which each app's own `install(TARGETS)` names: the
-# desktop files, the documents and licences, and the game's defaults and resources. `omw archive` and CI install through it; no installer is
-# built from it.
+# What an install carries: the programs, the desktop files, the documents and licences, and the game's defaults and
+# resources. `omw archive` and CI install through it; no installer is built from it.
+
+# The programs a player runs, each with its own PDB on MSVC in the configuration that installs one: RelWithDebInfo's,
+# as a release's symbols are published apart from its archive (`omw archive`), and not every binary's in the folder
+# the programs share with the tests and the harness.
+set(programs
+    openmw
+    openmw-launcher
+    openmw-wizard
+    openmw-cs
+    openmw-bulletobjecttool
+    openmw-essimporter
+    openmw-iniimporter
+    openmw-navmeshtool
+    bsatool
+    esmtool
+    niftest
+)
+install(TARGETS ${programs})
+if(MSVC)
+    foreach(program IN LISTS programs)
+        install(FILES "$<TARGET_PDB_FILE:${program}>" TYPE BIN CONFIGURATIONS RelWithDebInfo)
+    endforeach()
+endif()
 
 # The licences of what the fork compiles into the binaries, beside the GPL's own text: each asks for
 # its notice in every copy, binaries included, but SDL's zlib, which goes in so that no licence of
@@ -46,42 +68,13 @@ install(FILES "${PROJECT_SOURCE_DIR}/AUTHORS.md" TYPE DOC)
 install(
     FILES
         "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/defaults.bin"
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/defaults-cs.bin"
         "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt"
     TYPE SYSCONF
 )
 install(FILES "${PROJECT_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg")
 install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources" TYPE DATA)
 
-if(MSVC)
-    # Each program's debug symbols, in the configurations that write them: its own PDB, and not every binary's
-    # in the folder the programs share with the tests and the harness. The programs are the ones the apps'
-    # `install(TARGETS)` name.
-    foreach(
-        program
-        IN
-        ITEMS
-            openmw
-            openmw-launcher
-            openmw-wizard
-            openmw-cs
-            openmw-bulletobjecttool
-            openmw-essimporter
-            openmw-iniimporter
-            openmw-navmeshtool
-            bsatool
-            esmtool
-            niftest
-    )
-        install(
-            FILES
-                "$<TARGET_PDB_FILE:${program}>"
-            TYPE BIN
-            CONFIGURATIONS
-                Debug
-                RelWithDebInfo
-        )
-    endforeach()
-endif()
 if(NOT WIN32)
     install(
         FILES

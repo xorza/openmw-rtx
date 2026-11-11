@@ -16,7 +16,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 # The tree has no C++20 modules, and CMP0155's scan would preprocess every file twice.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 # Every preset names ccache, and a box without it compiles without it rather than failing every
 # compile: a release's runner keeps no cache and has none installed.
@@ -32,7 +31,6 @@ endforeach()
 
 include(cmake/Options.cmake)
 include(cmake/Checks.cmake)
-include(OpenMWMacros)
 
 # The version the programs report: the release (`project`), the API revisions scripts and shaders check, and
 # the commit, which `components/version` reads at every build. A build is of a Git clone, as every build's

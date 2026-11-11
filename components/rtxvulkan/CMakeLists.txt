@@ -201,8 +201,8 @@ set(RTX_GLSLC_FLAGS
 # Every shader twice: the renderers' set, which carries no census, and the harness's, which counts
 # into it (`lib/census.glsl`, `RTX_CENSUS`). A specialization constant cannot take the census out,
 # because Vulkan holds a pipeline to every binding a module's code names, reached or not.
-function(rtx_compile_shader shader census sourcedDir strippedDir)
-    get_filename_component(name "${shader}" NAME)
+function(openmw_rtx_shader shader census sourcedDir strippedDir)
+    cmake_path(GET shader FILENAME name)
     set(compiled "${CMAKE_CURRENT_BINARY_DIR}/compiled/census${census}/${name}.spv")
     set(sourced "${sourcedDir}/${name}.spv")
     set(spv "${strippedDir}/${name}.spv")
@@ -252,8 +252,8 @@ function(rtx_compile_shader shader census sourcedDir strippedDir)
 endfunction()
 
 foreach(shader ${RTX_SHADERS})
-    rtx_compile_shader("${shader}" 0 "${RTX_SPIRV_SOURCE_DIR}" "${RTX_SPIRV_DIR}")
-    rtx_compile_shader("${shader}" 1 "${RTX_SPIRV_CENSUS_SOURCE_DIR}" "${RTX_SPIRV_CENSUS_DIR}")
+    openmw_rtx_shader("${shader}" 0 "${RTX_SPIRV_SOURCE_DIR}" "${RTX_SPIRV_DIR}")
+    openmw_rtx_shader("${shader}" 1 "${RTX_SPIRV_CENSUS_SOURCE_DIR}" "${RTX_SPIRV_CENSUS_DIR}")
 endforeach()
 
 # A module no listed shader makes is removed: a directory's digest (`Rtx::digestShaders`) names the

@@ -20,19 +20,24 @@ set_property(
             address
             thread
 )
-# A bare configure with no build type builds with line tables and the optimizer.
+# The two configurations `cmake/Flags.cmake` gives the tree's flags, a bare configure's the first; any other would
+# build without line tables, x86-64-v2 or the stack protector.
+set(openmw_build_types
+    RelWithDebInfo
+    Release
+)
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build" FORCE)
-    set_property(
-        CACHE
-            CMAKE_BUILD_TYPE
-        PROPERTY
-            STRINGS
-                Debug
-                Release
-                RelWithDebInfo
-                MinSizeRel
-    )
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "RelWithDebInfo or Release" FORCE)
+endif()
+set_property(
+    CACHE
+        CMAKE_BUILD_TYPE
+    PROPERTY
+        STRINGS
+            ${openmw_build_types}
+)
+if(NOT CMAKE_BUILD_TYPE IN_LIST openmw_build_types)
+    message(FATAL_ERROR "CMAKE_BUILD_TYPE is RelWithDebInfo or Release, not ${CMAKE_BUILD_TYPE}")
 endif()
 
 # **One portable layout on every system**: every file in one folder, found relative to the programs, the

@@ -58,7 +58,7 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   configure, a third party's after a bump included. Refused: failing a job on any log line that says `warning`,
   which tests named after warnings, and the content's own log, would trip.
 - **A short root.** The project, its version, the standard and the folders; options in `cmake/Options.cmake`,
-  install rules in `cmake/Install.cmake`, and what a folder owns in its own file. Refused: CPack, which nothing
+  install rules in `cmake/Install.cmake`, which names the programs once, and what a folder owns in its own file. Refused: CPack, which nothing
   packaged through — the fork ships with `cmake --install`.
 - **A build is of a Git clone**, which a configure without `.git` refuses: every build names its set from Git
   (`omw`), and the version names its commit. The version is configured once but for the commit, its date and
@@ -66,7 +66,10 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   empty hashes for a tree without `.git`, a version that names no commit.
 - **CMake's commands before the tree's helpers**: a resource is copied or configured by `configure_file`
   itself, into `CMAKE_RUNTIME_OUTPUT_DIRECTORY`, the runtime folder's one name. A function stays where it does
-  work of its own (`pack_resource_file`, `rtx_compile_shader`, `openmw_rtx_layer`, `rtx_make_table`).
+  work of its own for several callers, beside them, with the `openmw_` prefix (`openmw_import_archive` for the
+  set's libraries without CMake targets, `openmw_qt_platforms`, `openmw_rtx_shader`, `openmw_rtx_layer`,
+  `openmw_rtx_table`); one with a single caller is written out there. Modules are included by path, so no
+  `CMAKE_MODULE_PATH` stands between a name and a file of CMake's own.
 - **A sanitizer over the whole build.** `OPENMW_SANITIZER=address|thread` sets the compiler's flags for every
   target, the fetched ones included. Refused: on `openmw-checks` alone, since ThreadSanitizer sees a lock only in
   code it instrumented.
