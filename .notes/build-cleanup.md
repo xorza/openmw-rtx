@@ -115,6 +115,10 @@ Steps leave the list below when they land, and are marked here.
 - [x] 8. Tests, benchmarks and smoke runs: `6670b513c1`, with `dd158848ff` teaching
   `RtxSourceTreeTest` the call layout gersemi wraps, which it had never read for `rtx-gpu-tests`. The three
   benchmarks run as dry-run tests in 0.01 to 0.64 s.
+- [x] 9. Translations: `f08899d134`. It also fixes the build's `.qm` files: `qt_add_translation` had made one
+  rule, `wizard_sv.qm`, of the 21, so every build shipped one of the programs' translations; `qt_add_lrelease`
+  makes all 21, and those both builds made are byte-identical. `omw translations` on the unchanged tree changes
+  no file.
 
 ## Steps
 
@@ -211,22 +215,6 @@ part, zsync and `wayland-scanner` under GCC 15, is run once in a plain `almalinu
   - each Linux job's container named by the Dockerfile's digest.
 
   `omw lint workflows` fails on a workflow edited back to the bare tag (the known hit).
-
-### 9. Translations (`files/lang/CMakeLists.txt`, `tools/omw/lint.py`)
-
-- The lupdate source lists exist twice, in the `translations` and `purge-obsolete-translations` targets and in
-  `TRANSLATIONS` in `lint.py`. The driver keeps the one list (see Decisions): an
-  `omw translations [--purge]` verb rewrites the `.ts` files beside the lint that checks them, both from
-  `TRANSLATIONS`, and the lint's message names the verb. The two CMake targets go.
-- `qt_add_translation` is deprecated: Qt's docs say to use `qt_add_lrelease()` or `qt_add_translations()`
-  ([Qt](https://doc.qt.io/qt-6/qtlinguist-cmake-qt-add-translation.html)). `qt_add_lrelease` builds the `.qm`
-  files.
-- Qt's translations folder comes from `${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}`, which Qt's own
-  config defines (`share/Qt6/QtInstallPaths.cmake` in the set), instead of `qmake -query` at configure.
-- The fallback to `qt_<lang>.qm` goes: every language the programs have (bg, de, en, fr, pl, ru, sv) has
-  `qtbase_<lang>.qm` in the pinned Qt. Keep `qtbase_` and the fatal error.
-- Check that the launcher's and the wizard's `.qm` files are byte-for-byte what they were, and that
-  `omw translations` on an unchanged tree changes no file.
 
 ### 10. Install and Windows properties
 
