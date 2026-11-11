@@ -85,14 +85,15 @@ The order makes the longest wait start first and run beside everything else:
   set. Dead code goes first, so later
   steps rewrite less; then one step per file family, each in a single pass. Only steps 7 (third-party `-w`)
   and 8 (test options) recompile much, and ccache keeps the rest cheap.
-- **Step 11 is the one CI round**, once step 1's set is published. Three dispatched runs at once check
+- **Step 11 trims build time and the release binaries** while CI builds the set, its measured items on the
+  desk. **Step 12 is the one CI round**, once step 1's set is published. Three dispatched runs at once check
   everything together, `/cgthreads1` included, instead of a round per step. Every step stays a commit of its
   own, so a red run's log still names the step.
-- **Step 12 closes** with the one gate.
+- **Step 13 closes** with the one gate.
 
 Each local step is a configure, `./omw build` and `./omw test`. Two kinds of step check more:
 - **A step that changes a sanitizer or what is installed** builds what it changed: the asan flavour, or
-  `omw archive` with its file list compared against the one before. Windows waits for step 11.
+  `omw archive` with its file list compared against the one before. Windows waits for step 12.
 - **A step that removes a warning** shows it gone from the log of the run it changes. That means no line
   matching `warning` in that step's log (case-insensitive), with a known hit from before the step shown to
   match the same search.
@@ -121,7 +122,7 @@ Steps leave the list below when they land, and are marked here.
   no file.
 - [x] 10. Install and Windows properties: `a44f4d54eb`. A probe `AUTHOR_WARNING` now stops the configure
   ("CMake Error (author)"), and the configure prints no CMake warning. The PDBs and the console are Windows's,
-  checked by step 11's runs.
+  checked by step 12's runs.
 
 ## Steps
 
@@ -219,7 +220,48 @@ part, zsync and `wayland-scanner` under GCC 15, is run once in a plain `almalinu
 
   `omw lint workflows` fails on a workflow edited back to the bare tag (the known hit).
 
-### 11. One set, pinned, and every change checked by CI at once
+### 11. Faster builds, leaner release binaries
+
+Found on 2026-11-11 on the desk: ccache at its 30 GB cap with 3,932 cleanups and a 34.5% hit rate; a set bump
+recompiling all 2,747 objects; `omw format` taking 4.6 s at every `omw build`; the release `openmw` 557 MB with
+130 MB of code and read-only data. The certain items land here, before the CI round, so step 12's runs check
+them on Windows too; the measured ones keep only what a measurement pays for.
+
+- **The set at one path** (`tools/omw/deps.py`). `OMW_VCPKG_SET` names `deps/vcpkg-set-<digest>`, so every
+  `-isystem` path moves with the set, and ccache misses every file after a bump. The toolchain reads a fixed
+  `deps/vcpkg-set` instead, a link the driver points at the digest's folder (a junction on Windows), so a bump
+  recompiles only what includes a header that moved. Check: after a set bump with unchanged headers, a build
+  recompiles nothing.
+- **`omw build` formats what changed.** It runs the formatter over the whole tree first, 4.6 s a build. It
+  formats the files `git` reports changed against `HEAD`, untracked ones included; `omw format` with no files
+  keeps formatting the tree, and CI's `format --check` keeps checking it whole.
+- **MSVC's release links drop what nothing references** (`cmake/Flags.cmake`). Every MSVC link takes `/DEBUG`,
+  which makes the linker's default `/OPT:NOREF,NOICF`
+  ([Microsoft](https://learn.microsoft.com/cpp/build/reference/opt-optimizations)), so a release program keeps
+  unreferenced functions and identical COMDATs. Release links take `/OPT:REF /OPT:ICF`, and compiles `/Gw`
+  for data, as `/O2`'s `/Gy` does for functions. Check: step 12's Windows release leg links, and its programs
+  are smaller.
+- **ccache's limit** (the desk's own, not the tree's): `CCACHE_MAXSIZE` 30G in the fish config becomes 100G,
+  the user's to change. Four flavours of about 2,800 objects, and the A/B worktrees, do not fit 30 GB.
+- **Measured, kept only if it pays**, each an A/B of `omw release bench` against the build before it (quiet
+  desktop, warm card, medians and p99), with the binary's size:
+  - `-ffunction-sections -fdata-sections` and `--gc-sections` on Linux (mold supports it), for the tree's
+    code; the set's archives keep their own sections.
+  - `-march=x86-64-v2` for the tree: every CPU beside an RTX 20 or an RDNA 2 card has it (SSE4.2, POPCNT). If it
+    pays, the set's triplets take it at the next set rebuild, which it would otherwise force. `x86-64-v3`
+    (AVX2) is a decision of its own, as it shuts out pre-Haswell CPUs.
+  - Precompiled headers for the heaviest headers (OSG, Qt, sol3), with ccache's
+    `sloppiness=pch_defines,time_macros` and GCC's `-fpch-preprocess`: `build.md` refused them as ccache caching
+    through none, which ccache's manual contradicts. Measured as a clean build's time with a cold and a warm
+    cache.
+  - Sharing the cache across worktrees: `base_dir` at the projects folder with `-fdebug-prefix-map`, kept only
+    if `omw crash` still names every line from a release's symbols.
+- **Last, and only if the rest leaves time: profile-guided optimisation**, trained on `omw bench`'s suites,
+  measured once for the CPU side (cell loading, scripts). Training needs a GPU, which CI's runners lack, so the
+  profiles would come from the desk and age with the code; it lands only if it pays more than 5% of a frame or of
+  a load.
+
+### 12. One set, pinned, and every change checked by CI at once
 
 - Run 43016471135, which built `deps-8948c4c640db7edd`, was cancelled when step 1 was pushed, its Windows job
   still building: that set is never pinned, as step 1's replaces it, and the cache it saved on cancelling
@@ -234,7 +276,7 @@ part, zsync and `wayland-scanner` under GCC 15, is run once in a plain `almalinu
 - Push, then start three CI runs on the branch at once (`gh workflow run ci.yml --ref deps-set-size`). A
   dispatched run has a concurrency group of its own, so the three run side by side. Together they check:
   - Windows against the pruned set, which no build has linked yet;
-  - steps 1 to 10;
+  - steps 1 to 11;
   - `/cgthreads1`'s absence: Actions reports no peak memory, so the measure is three Windows legs passing
     without `C1060` (out of heap space) or a lost runner, together with the leg's build time against the run
     before.
@@ -242,7 +284,7 @@ part, zsync and `wayland-scanner` under GCC 15, is run once in a plain `almalinu
   If a Windows leg fails for memory, `/cgthreads1` comes back with its comment's figure corrected, and one run
   checks it.
 
-### 12. Close
+### 13. Close
 
 - On the desk, the desk's own build of the set removed (`deps/vcpkg-set-<digest>`), so `omw` fetches the
   published one that every other build takes.
