@@ -332,10 +332,11 @@ One pass over `files/`, `components/`, `apps/rtxtool` and `cmake/OpenMWMacros.cm
 
 ### 11. One set, pinned, and every change checked by CI at once
 
-- When run 43016471135 has published `deps-8948c4c640db7edd`, read its Windows job's log for a warning the
-  research does not list, and measure its Windows parts against the research's 1,217 MiB. Write the measured
-  size into `docs/rtx/research/2026-11-11-dependency-set-size.md`. It is never pinned, as step 1's set
-  replaces it.
+- Run 43016471135, which built `deps-8948c4c640db7edd`, was cancelled when step 1 was pushed, its Windows job
+  still building: that set is never pinned, as step 1's replaces it, and the cache it saved on cancelling
+  carries every port it had built into step 1's build. So step 1's published set is the one measured: read
+  its Windows job's log for a warning the research does not list, and measure its Windows parts against the
+  research's 1,217 MiB, writing the size into `docs/rtx/research/2026-11-11-dependency-set-size.md`.
 - When the Dependency sets workflow has published step 1's set, point `pins.py`'s `VCPKG_SET` at that digest
   and the `SHA256SUMS` it published.
 - `/cgthreads1` (from upstream since 2025-12-24, for "CI's 8 GB") goes from its 8 files
