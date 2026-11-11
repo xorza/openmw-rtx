@@ -12,7 +12,6 @@ pack_resource_file(
     "defaults.bin"
 )
 pack_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw-cs.cfg" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}" "defaults-cs.bin")
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw.appdata.xml" "${PROJECT_BINARY_DIR}/openmw.appdata.xml")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw.cfg.local" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/openmw.cfg")
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/gamecontrollerdb.txt"

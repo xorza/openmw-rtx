@@ -380,3 +380,10 @@ made only on the user's explicit yes, after which it is added here.
   `cmake/OpenMWMacros.cmake`, and `GitVersion.cmake` no longer includes that file. The runtime folder has one
   name, CMake's `CMAKE_RUNTIME_OUTPUT_DIRECTORY`, where `OPENMW_RESOURCES_ROOT` and `PROJECT_BINARY_DIR` named
   it too. The cost is a conflict with an upstream change to a resource list's loop.
+- The version filled once (`.notes/build-cleanup.md`, step 5): a build is of a Git clone, which a configure
+  without `.git` refuses, so `GIT_CHECKOUT` and the configure-time fallback with empty hashes go. The version
+  files are configured once with everything but the commit, its date and the latest tag, and
+  `cmake/GitVersion.cmake` fills those three at every build, now into the AppStream metadata too, whose
+  release date had read a date taken at configure. The templates read `PROJECT_VERSION*`, so the
+  `OPENMW_VERSION_*` copies of it go. The cost is a conflict with an upstream edit to the version's templates
+  or its target.

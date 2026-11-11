@@ -1,48 +1,38 @@
-# Run as a script at every build of a Git checkout (`get-version` in `components/CMakeLists.txt`): the
-# commit and the latest tag into the version file and `version.cpp`. `SOURCE_DIR` is the tree,
-# `BINARY_DIR` the build.
-
-execute_process(
-    COMMAND
-        ${GIT_EXECUTABLE} rev-list --tags --max-count=1
-    WORKING_DIRECTORY ${SOURCE_DIR}
-    RESULT_VARIABLE EXITCODE1
-    OUTPUT_VARIABLE TAGHASH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
+# Run at every build (`get-version` in `components/CMakeLists.txt`): the commit, its date and the latest tag
+# into each of `FILES`, from its template in `TEMPLATES`, `<name>.in`, which the configure left with everything
+# else filled in. `configure_file` writes a file only where its text moved. `SOURCE_DIR` is the clone.
 
 execute_process(
     COMMAND
         ${GIT_EXECUTABLE} rev-parse HEAD
     WORKING_DIRECTORY ${SOURCE_DIR}
-    RESULT_VARIABLE EXITCODE2
-    OUTPUT_VARIABLE COMMITHASH
+    OUTPUT_VARIABLE OPENMW_VERSION_COMMITHASH
     OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND_ERROR_IS_FATAL ANY
 )
-
-string(
-    COMPARE EQUAL
-    "${EXITCODE1}:${EXITCODE2}"
-    "0:0"
-    FULL_SUCCESS
+execute_process(
+    COMMAND
+        ${GIT_EXECUTABLE} log -1 --format=%as
+    WORKING_DIRECTORY ${SOURCE_DIR}
+    OUTPUT_VARIABLE OPENMW_VERSION_COMMITDATE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND_ERROR_IS_FATAL ANY
 )
-string(
-    COMPARE EQUAL
-    "${EXITCODE2}"
-    "0"
-    COMMIT_SUCCESS
+# A clone without tags, as a shallow checkout is, names none.
+execute_process(
+    COMMAND
+        ${GIT_EXECUTABLE} rev-list --tags --max-count=1
+    WORKING_DIRECTORY ${SOURCE_DIR}
+    RESULT_VARIABLE failed
+    OUTPUT_VARIABLE OPENMW_VERSION_TAGHASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
 )
-if(FULL_SUCCESS)
-    set(OPENMW_VERSION_COMMITHASH "${COMMITHASH}")
-    set(OPENMW_VERSION_TAGHASH "${TAGHASH}")
-    message(STATUS "OpenMW version ${OPENMW_VERSION}")
-elseif(COMMIT_SUCCESS)
-    set(OPENMW_VERSION_COMMITHASH "${COMMITHASH}")
-    message(STATUS "OpenMW version ${OPENMW_VERSION}")
-else()
-    message(WARNING "Failed to get valid version information from Git")
+if(NOT failed EQUAL 0)
+    set(OPENMW_VERSION_TAGHASH "")
 endif()
 
-configure_file("${VERSION_RESOURCE_FILE_IN}" "${BINARY_DIR}/${VERSION_RESOURCE_FILE_RELATIVE}")
-configure_file("${VERSION_CPP_FILE_IN}" "${VERSION_CPP_FILE_OUT}")
+foreach(file IN LISTS FILES)
+    cmake_path(GET file FILENAME name)
+    configure_file("${TEMPLATES}/${name}.in" "${file}" @ONLY)
+endforeach()

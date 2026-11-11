@@ -34,26 +34,16 @@ include(cmake/Options.cmake)
 include(cmake/Checks.cmake)
 include(OpenMWMacros)
 
-# The version the programs report: the release, the API revisions scripts and shaders check, and on a
-# Git checkout the commit, which `components/version` reads at every build.
-set(OPENMW_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
-set(OPENMW_VERSION_MINOR ${PROJECT_VERSION_MINOR})
-set(OPENMW_VERSION_RELEASE ${PROJECT_VERSION_PATCH})
-set(OPENMW_VERSION ${PROJECT_VERSION})
+# The version the programs report: the release (`project`), the API revisions scripts and shaders check, and
+# the commit, which `components/version` reads at every build. A build is of a Git clone, as every build's
+# set is named from Git (`omw`), and the version names its commit.
 set(OPENMW_LUA_API_REVISION 166)
 set(OPENMW_POSTPROCESSING_API_REVISION 5)
 set(OPENMW_DOC_BASEURL "https://openmw.readthedocs.io/en/")
-set(OPENMW_VERSION_COMMITHASH "")
-set(OPENMW_VERSION_TAGHASH "")
-set(GIT_CHECKOUT FALSE)
-if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
-    find_package(Git)
-    if(GIT_FOUND)
-        set(GIT_CHECKOUT TRUE)
-    else()
-        message(WARNING "Git executable not found")
-    endif()
+if(NOT EXISTS "${PROJECT_SOURCE_DIR}/.git")
+    message(FATAL_ERROR "Build from a Git clone: the version names its commit")
 endif()
+find_package(Git REQUIRED)
 
 # moc and uic one at a time inside each target: Ninja already runs the targets in parallel, and CI
 # measured the nested parallelism slower.
