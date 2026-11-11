@@ -34,11 +34,3 @@
   game's warm starts on a new game logged 24 misses (vanilla, PBR) and 140 (Fullrest Repack), each with nothing
   written. `docs/rtx/architecture.md` ("The frame reaches the store's memory alone") states the bound holds what the
   frame needs.
-
-- **A switch between the three installs walks every model they share again**: the manifest holds one entry per model
-  path, and a file's stamp is its archive's or folder's path and time (`VfsStamps`), which differ between installs in
-  their own folders, so each profile's start overwrites the others' entries. Measured in the game at `7c0383db82`'s
-  code: the Fullrest Repack after vanilla walked 6,895 of 45,912 jobs (1.60 s against 0.29 s warm), vanilla after it
-  6,895 of 6,913 (0.29 s against 0.04 s), the PBR install after vanilla 6,901 of 6,913; every entry was found in the
-  store. `docs/rtx/architecture.md` ("The preparation is incremental by each file's stamp") states a switch between
-  profiles walks neither again.

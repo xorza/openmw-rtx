@@ -493,7 +493,10 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
   files and a digest of their sizes and times, so a start after one mod changed walks that mod again, as ccache's
   direct mode trusts a stat; the game keys every lookup by the bytes, so a stamp that lies costs a miss and never a
   wrong answer. Every content list's models stand in it until no run named them for 30 days, so a switch between
-  profiles walks neither again, each file's name held once and each file stamped once a run; a chain the store holds
+  profiles walks neither again, each file's name held once and each file stamped once a run. A model holds an entry
+  for each set of files it was walked from, up to four, the least recently named dropped past them, as ccache's
+  manifest holds one for each set of headers a source was compiled with: installs in folders of their own stamp one
+  model's files apart, and one entry a model was each profile's start filing over the others'. A chain the store holds
   is not read, one `stat`, and play reads it. **A model stands only where the store holds every entry its walk made
   or found**, by the user's decision, as the Remote Execution API's action cache returns a result only where the
   blobs it names stand: the manifest keeps each model's keys, each once, and a start asks the store for each, which

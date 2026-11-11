@@ -255,6 +255,9 @@ namespace Rtx
         /// written by the one thread that read it.
         std::vector<std::optional<PreparationManifest::Entry>> mWalked;
 
+        /// Each job's entry's digest where it stood as it was walked, written by the one thread that found it.
+        std::vector<std::optional<std::uint64_t>> mStood;
+
         const std::chrono::steady_clock::time_point mStarted = std::chrono::steady_clock::now();
 
         /// What the threads share under it: which job each takes, the chains queued and claimed, the paths

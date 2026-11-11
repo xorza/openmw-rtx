@@ -9,6 +9,7 @@
 #include <set>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -215,8 +216,19 @@ namespace Rtx
                 store.flush();
                 const PreparationManifest filed
                     = PreparationManifest::read(setup.mManifest, ContentPreparation::signatureOf(setup));
-                const std::optional<PreparationManifest::Entry> a = filed.find("meshes/a.nif");
-                const std::optional<PreparationManifest::Entry> b = filed.find("meshes/b.nif");
+                // Each model's entry of the stamps as they stand now: the second model keeps the one of its
+                // diffuse before it moved beside it.
+                const auto standing = [&](std::string_view model) {
+                    std::optional<PreparationManifest::Entry> found;
+                    for (PreparationManifest::Entry& entry : filed.entriesOf(model))
+                        if (entry.mDigest == PreparationManifest::digestOf(entry.mFiles, content))
+                            found = std::move(entry);
+                    return found;
+                };
+                ASSERT_EQ(filed.entriesOf("meshes/a.nif").size(), 1u);
+                ASSERT_EQ(filed.entriesOf("meshes/b.nif").size(), 2u) << "the second model's entries before and after";
+                const std::optional<PreparationManifest::Entry> a = standing("meshes/a.nif");
+                const std::optional<PreparationManifest::Entry> b = standing("meshes/b.nif");
                 ASSERT_TRUE(a.has_value());
                 ASSERT_TRUE(b.has_value());
                 std::vector<StoredKey> lost;
@@ -240,13 +252,13 @@ namespace Rtx
             }
 
             prepare(setup, { "meshes/a.nif" });
-            EXPECT_EQ(PreparationManifest::read(setup.mManifest, ContentPreparation::signatureOf(setup)).size(), 2u)
-                << "another list's model stands";
+            EXPECT_EQ(PreparationManifest::read(setup.mManifest, ContentPreparation::signatureOf(setup)).size(), 3u)
+                << "another list's model stands, by both its entries";
             EXPECT_EQ(prepare(setup, both).mWalked, 0u) << "a switch back walks nothing";
             PreparationSetup monthOn = setup;
             monthOn.mDay = setup.mDay + PreparationManifest::sUnnamedDaysMost;
             prepare(monthOn, { "meshes/a.nif" });
-            EXPECT_EQ(PreparationManifest::read(setup.mManifest, ContentPreparation::signatureOf(setup)).size(), 2u)
+            EXPECT_EQ(PreparationManifest::read(setup.mManifest, ContentPreparation::signatureOf(setup)).size(), 3u)
                 << "named 30 days ago";
             monthOn.mDay += 1;
             prepare(monthOn, { "meshes/a.nif" });

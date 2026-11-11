@@ -62,14 +62,15 @@ namespace Rtx
             const PreparationManifest read = PreparationManifest::read(path, sSignature);
             ASSERT_EQ(read.size(), 2u);
             EXPECT_FALSE(read.isChanged());
-            const std::optional<PreparationManifest::Entry> b = read.find("meshes/b.nif");
-            ASSERT_TRUE(b.has_value());
-            EXPECT_EQ(b->mDigest, 9u);
-            EXPECT_EQ(b->mFiles, (std::vector<std::string>{ "meshes/b.nif", "textures/shared.dds" }));
-            EXPECT_EQ(b->mKeys, (std::vector<StoredKey>{ sShared, sOwn }));
-            EXPECT_EQ(read.find("meshes/a.nif")->mDigest, 7u);
-            EXPECT_EQ(read.find("meshes/a.nif")->mKeys, std::vector<StoredKey>{ sShared });
-            EXPECT_FALSE(read.find("meshes/c.nif").has_value());
+            const std::vector<PreparationManifest::Entry> b = read.entriesOf("meshes/b.nif");
+            ASSERT_EQ(b.size(), 1u);
+            EXPECT_EQ(b[0].mDigest, 9u);
+            EXPECT_EQ(b[0].mFiles, (std::vector<std::string>{ "meshes/b.nif", "textures/shared.dds" }));
+            EXPECT_EQ(b[0].mKeys, (std::vector<StoredKey>{ sShared, sOwn }));
+            ASSERT_EQ(read.entriesOf("meshes/a.nif").size(), 1u);
+            EXPECT_EQ(read.entriesOf("meshes/a.nif")[0].mDigest, 7u);
+            EXPECT_EQ(read.entriesOf("meshes/a.nif")[0].mKeys, std::vector<StoredKey>{ sShared });
+            EXPECT_TRUE(read.entriesOf("meshes/c.nif").empty());
 
             std::string bytes;
             ASSERT_TRUE(Platform::readWhole(path, bytes, Platform::sUnbounded).isOk());
@@ -152,14 +153,16 @@ namespace Rtx
             ASSERT_TRUE(written.write(path, sSignature));
 
             PreparationManifest read = PreparationManifest::read(path, sSignature);
-            read.name("m", 10);
+            read.name("m", 1, 10);
             EXPECT_FALSE(read.isChanged()) << "named on the day it was";
-            read.name("m", 11);
+            read.name("m", 2, 11);
+            EXPECT_FALSE(read.isChanged()) << "a digest the model has no entry of";
+            read.name("m", 1, 11);
             EXPECT_TRUE(read.isChanged());
             ASSERT_TRUE(read.write(path, sSignature));
 
             PreparationManifest again = PreparationManifest::read(path, sSignature);
-            again.name("m", 11);
+            again.name("m", 1, 11);
             EXPECT_FALSE(again.isChanged());
             again.dropUnnamed(11 + PreparationManifest::sUnnamedDaysMost);
             EXPECT_EQ(again.size(), 1u);
@@ -194,19 +197,145 @@ namespace Rtx
                     .mFiles = files,
                     .mKeys = { sShared, sOwn } },
                 0);
-            EXPECT_TRUE(manifest.standsAsWalked("meshes/m.nif", stamps, store, scratch));
+            EXPECT_TRUE(manifest.standingDigest("meshes/m.nif", stamps, store, scratch).has_value());
 
             std::filesystem::remove(store.pathOf(sOwn.mKey));
             ContentStore::Store reopened(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
-            EXPECT_FALSE(manifest.standsAsWalked("meshes/m.nif", stamps, reopened, scratch)) << "a key the store lost";
+            EXPECT_FALSE(manifest.standingDigest("meshes/m.nif", stamps, reopened, scratch).has_value())
+                << "a key the store lost";
 
             manifest.keep("meshes/m.nif",
                 PreparationManifest::Entry{
                     .mDigest = PreparationManifest::digestOf(files, stamps), .mFiles = files, .mKeys = { sShared } },
                 0);
-            EXPECT_TRUE(manifest.standsAsWalked("meshes/m.nif", stamps, reopened, scratch));
+            EXPECT_TRUE(manifest.standingDigest("meshes/m.nif", stamps, reopened, scratch).has_value());
             stamps.mStamp = 6;
-            EXPECT_FALSE(manifest.standsAsWalked("meshes/m.nif", stamps, reopened, scratch)) << "a stamp that moved";
+            EXPECT_FALSE(manifest.standingDigest("meshes/m.nif", stamps, reopened, scratch).has_value())
+                << "a stamp that moved";
+        }
+
+        /// **A model walked from two installs stands from either, and holds at most `sEntriesPerModelMost`
+        /// entries**: the same files stamped by two installs' archives are two entries, each standing while
+        /// its install's stamps are the ones answered, read back as written; a model re-walked from files of a
+        /// digest it has replaces that entry; past the bound the least recently named goes, the earlier filed
+        /// of two named the same day.
+        TEST(RtxPreparationManifestTest, aModelStandsFromEveryInstallItWasWalkedFrom)
+        {
+            struct Install final : FileStamps
+            {
+                std::uint64_t stampOf(VFS::Path::NormalizedView) override { return mStamp; }
+                std::uint64_t mStamp = 0;
+            };
+            Install stamps;
+            Misc::ByteBuffer scratch;
+            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
+            const std::vector<std::string> files{ "meshes/m.nif", "textures/t.dds" };
+            const auto filed = [&](std::uint64_t install) {
+                stamps.mStamp = install;
+                return PreparationManifest::Entry{ .mDigest = PreparationManifest::digestOf(files, stamps),
+                    .mFiles = files };
+            };
+            const PreparationManifest::Entry vanilla = filed(100);
+            const PreparationManifest::Entry repack = filed(200);
+            ASSERT_NE(vanilla.mDigest, repack.mDigest);
+
+            PreparationManifest manifest;
+            manifest.keep("meshes/m.nif", vanilla, 1);
+            manifest.keep("meshes/m.nif", repack, 2);
+            stamps.mStamp = 100;
+            EXPECT_EQ(manifest.standingDigest("meshes/m.nif", stamps, store, scratch), vanilla.mDigest);
+            stamps.mStamp = 200;
+            EXPECT_EQ(manifest.standingDigest("meshes/m.nif", stamps, store, scratch), repack.mDigest);
+            stamps.mStamp = 300;
+            EXPECT_FALSE(manifest.standingDigest("meshes/m.nif", stamps, store, scratch).has_value());
+
+            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "prepared.manifest";
+            ASSERT_TRUE(manifest.write(path, sSignature));
+            const PreparationManifest read = PreparationManifest::read(path, sSignature);
+            EXPECT_EQ(read.size(), 2u);
+            const std::vector<PreparationManifest::Entry> both = read.entriesOf("meshes/m.nif");
+            ASSERT_EQ(both.size(), 2u);
+            EXPECT_EQ(both[0].mDigest, std::min(vanilla.mDigest, repack.mDigest));
+            EXPECT_EQ(both[1].mDigest, std::max(vanilla.mDigest, repack.mDigest));
+
+            // Re-walked from the vanilla files, now with a key the store holds: that entry is replaced, not added.
+            store.write(sOwn.mKey, storeKindOf(ContentPassId::AlphaSpan), 1, Misc::ByteBuffer{ std::byte{ 1 } },
+                ContentStore::Reach::Disk);
+            store.flush();
+            PreparationManifest::Entry rewalked = vanilla;
+            rewalked.mKeys = { sOwn };
+            manifest.keep("meshes/m.nif", rewalked, 3);
+            EXPECT_EQ(manifest.size(), 2u);
+            ASSERT_EQ(manifest.entriesOf("meshes/m.nif").size(), 2u);
+
+            // Installs 300 and 400 fill the bound of four, and 500 passes it: the repack's entry, named on day 2,
+            // goes, and the vanilla one, named on day 3, stays.
+            static_assert(PreparationManifest::sEntriesPerModelMost == 4);
+            manifest.keep("meshes/m.nif", filed(300), 4);
+            manifest.keep("meshes/m.nif", filed(400), 4);
+            EXPECT_EQ(manifest.size(), 4u);
+            manifest.keep("meshes/m.nif", filed(500), 4);
+            EXPECT_EQ(manifest.size(), 4u);
+            stamps.mStamp = 200;
+            EXPECT_FALSE(manifest.standingDigest("meshes/m.nif", stamps, store, scratch).has_value());
+            stamps.mStamp = 100;
+            EXPECT_EQ(manifest.standingDigest("meshes/m.nif", stamps, store, scratch), vanilla.mDigest);
+
+            // Named on day 4 too, the vanilla entry ties with the three installs' entries, and of the four it was
+            // filed earliest, re-walked on day 3: it goes, and the three stay.
+            manifest.name("meshes/m.nif", vanilla.mDigest, 4);
+            manifest.keep("meshes/m.nif", filed(600), 4);
+            EXPECT_EQ(manifest.size(), 4u);
+            stamps.mStamp = 100;
+            EXPECT_FALSE(manifest.standingDigest("meshes/m.nif", stamps, store, scratch).has_value());
+            for (const std::uint64_t standing : { 300, 400, 500, 600 })
+            {
+                stamps.mStamp = standing;
+                EXPECT_TRUE(manifest.standingDigest("meshes/m.nif", stamps, store, scratch).has_value()) << standing;
+            }
+        }
+
+        /// **A file with more entries for a model than a manifest keeps, or two of one digest, reads as empty**:
+        /// no write lays either, and both would hold a model past what `keep` allows.
+        TEST(RtxPreparationManifestTest, aFileWithTooManyOrRepeatedEntriesForAModelReadsAsEmpty)
+        {
+            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "prepared.manifest";
+            PreparationManifest written;
+            written.keep("m", PreparationManifest::Entry{ .mDigest = 1, .mFiles = { "f" } }, 0);
+            written.keep("m", PreparationManifest::Entry{ .mDigest = 2, .mFiles = { "f" } }, 0);
+            ASSERT_TRUE(written.write(path, sSignature));
+            ASSERT_EQ(PreparationManifest::read(path, sSignature).size(), 2u) << "the file as written";
+
+            // The entries close the file, each the model's index, its digest, its day, one file and no keys:
+            // 4 + 8 + 4 + 4 + 4 + 4 bytes. The second's digest made the first's is two entries of one digest.
+            std::string bytes;
+            ASSERT_TRUE(Platform::readWhole(path, bytes, Platform::sUnbounded).isOk());
+            constexpr std::size_t entryBytes = 4 + 8 + 4 + 4 + 4 + 4;
+            std::uint64_t first = 0;
+            std::memcpy(&first, bytes.data() + bytes.size() - 2 * entryBytes + 4, sizeof(first));
+            std::string repeated = bytes;
+            std::memcpy(repeated.data() + repeated.size() - entryBytes + 4, &first, sizeof(first));
+            ASSERT_TRUE(Platform::writeWhole(path, std::string_view(repeated), Platform::Durability::Whole).isOk());
+            EXPECT_EQ(PreparationManifest::read(path, sSignature).size(), 0u);
+
+            PreparationManifest full;
+            for (std::uint64_t digest = 1; digest <= PreparationManifest::sEntriesPerModelMost; ++digest)
+                full.keep("m", PreparationManifest::Entry{ .mDigest = digest, .mFiles = { "f" } }, 0);
+            ASSERT_TRUE(full.write(path, sSignature));
+            ASSERT_TRUE(Platform::readWhole(path, bytes, Platform::sUnbounded).isOk());
+            // One entry more, a copy of the last with a digest of its own, and the count of entries one up.
+            std::string more = bytes + bytes.substr(bytes.size() - entryBytes);
+            const std::uint64_t fifth = 99;
+            std::memcpy(more.data() + more.size() - entryBytes + 4, &fifth, sizeof(fifth));
+            const std::size_t countAt = bytes.size() - PreparationManifest::sEntriesPerModelMost * entryBytes - 4;
+            std::uint32_t count = 0;
+            std::memcpy(&count, more.data() + countAt, sizeof(count));
+            ASSERT_EQ(count, PreparationManifest::sEntriesPerModelMost)
+                << "the layout this test reads is the one written";
+            ++count;
+            std::memcpy(more.data() + countAt, &count, sizeof(count));
+            ASSERT_TRUE(Platform::writeWhole(path, std::string_view(more), Platform::Durability::Whole).isOk());
+            EXPECT_EQ(PreparationManifest::read(path, sSignature).size(), 0u);
         }
 
         /// **A standing model's shapes are read into the store's memory**, where the frame, which
@@ -244,14 +373,15 @@ namespace Rtx
                 shape.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion, ContentStore::Reach::Memory, read))
                 << "a large shape the start loaded";
             Misc::ByteBuffer scratch;
-            EXPECT_TRUE(manifest.standsAsWalked("meshes/m.nif", stamps, reopened, scratch));
+            EXPECT_TRUE(manifest.standingDigest("meshes/m.nif", stamps, reopened, scratch).has_value());
             EXPECT_TRUE(reopened.read(
                 shape.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion, ContentStore::Reach::Memory, read));
             EXPECT_EQ(read.size(), 8192u);
 
             std::filesystem::remove(reopened.pathOf(shape.mKey));
             ContentStore::Store lost(folder, sContentStorePolicy);
-            EXPECT_FALSE(manifest.standsAsWalked("meshes/m.nif", stamps, lost, scratch)) << "a shape the store lost";
+            EXPECT_FALSE(manifest.standingDigest("meshes/m.nif", stamps, lost, scratch).has_value())
+                << "a shape the store lost";
         }
     }
 }

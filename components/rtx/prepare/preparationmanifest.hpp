@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <filesystem>
@@ -27,8 +28,11 @@ namespace Rtx
     /// another format or signature, or one that does not read, is an empty manifest.
     ///
     /// **Every content list's models, each until no run named it for `sUnnamedDaysMost` days**, so a
-    /// switch between two profiles walks neither again. **Each name held once**: a model's files are
-    /// indices into one table of the names, since most files are named by many models.
+    /// switch between two profiles walks neither again. **A model's entries, one for each set of files it was
+    /// walked from**, as ccache's manifest holds one entry for each set of headers a source was compiled with:
+    /// two installs resolve one model to their own archives, whose stamps differ, so one entry a model was each
+    /// install's start filing over the other's. **Each name held once**: a model's files are indices into one
+    /// table of the names, since most files are named by many models.
     ///
     /// **A model stands only where the store holds every entry its walk made or found**, as an action
     /// cache returns a result only where the blobs it names stand (`docs/rtx/architecture.md`, "The
@@ -52,6 +56,10 @@ namespace Rtx
         /// How many days an entry stands that no run named: past them its content list is gone.
         static constexpr std::uint32_t sUnnamedDaysMost = 30;
 
+        /// How many entries a model holds, its least recently named dropped past them: one for each install a
+        /// desk switches between, the three a desk measures on and one more.
+        static constexpr std::size_t sEntriesPerModelMost = 4;
+
         PreparationManifest() = default;
 
         /// Moved and never copied: the index of the names views the names a deque holds, which a move
@@ -68,23 +76,24 @@ namespace Rtx
         /// The digest of `files`' stamps now, in their order.
         static std::uint64_t digestOf(std::span<const std::string> files, FileStamps& stamps);
 
-        /// `model`'s entry as it was filed, or nothing where it has none.
-        std::optional<Entry> find(std::string_view model) const;
+        /// `model`'s entries as they were filed, by their digests, none where it has none.
+        std::vector<Entry> entriesOf(std::string_view model) const;
 
-        /// Whether `model`'s files stand as they did when it was walked, and `store` holds every entry
-        /// its walk made: a shape read whole into the store's memory, where the frame, which reaches
-        /// nothing else, finds it (`ContentStore::Reach::Memory`); every other entry by its file
-        /// (`ContentStore::holds`, one `stat` an entry, which stamps it). Safe from any thread while
-        /// nothing files an entry.
+        /// The digest of `model`'s entry whose files stand as they did when it was walked, and whose every
+        /// entry its walk made `store` holds: a shape read whole into the store's memory, where the frame,
+        /// which reaches nothing else, finds it (`ContentStore::Reach::Memory`); every other entry by its file
+        /// (`ContentStore::holds`, one `stat` an entry, which stamps it). Nothing where no entry stands. Safe
+        /// from any thread while nothing files an entry.
         /// @param scratch what a shape is read into, the caller's to keep.
-        bool standsAsWalked(
+        std::optional<std::uint64_t> standingDigest(
             std::string_view model, FileStamps& stamps, ContentStore::Store& store, Misc::ByteBuffer& scratch) const;
 
-        /// Files `entry` under `model`, over what was there, named on `day`.
+        /// Files `entry` under `model`, named on `day`: over the entry of its digest where `model` has one, and
+        /// beside its others, the least recently named dropped past `sEntriesPerModelMost`.
         void keep(std::string_view model, const Entry& entry, std::uint32_t day);
 
-        /// Marks `model`'s entry, which stood as it was walked, named on `day`: a change once a day.
-        void name(std::string_view model, std::uint32_t day);
+        /// Marks `model`'s entry of `digest`, which stood as it was walked, named on `day`: a change once a day.
+        void name(std::string_view model, std::uint64_t digest, std::uint32_t day);
 
         /// Drops every entry no run named in the `sUnnamedDaysMost` days before `day`.
         void dropUnnamed(std::uint32_t day);
@@ -124,8 +133,8 @@ namespace Rtx
         std::deque<std::string> mNames;
         std::unordered_map<std::string_view, std::uint32_t> mNameIndex;
 
-        /// By the model's name's index.
-        std::unordered_map<std::uint32_t, Filed> mEntries;
+        /// By the model's name's index, at most `sEntriesPerModelMost` a model, each of its own digest.
+        std::unordered_multimap<std::uint32_t, Filed> mEntries;
 
         /// Every entry's files, a run each, as indices into `mNames`: an entry filed over leaves its
         /// old run, which the next write leaves out, so the runs hold at most each run's twice.

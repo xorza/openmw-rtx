@@ -1,13 +1,16 @@
 #include "preparationmanifest.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <optional>
 #include <ranges>
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include <components/contentstore/key.hpp>
 #include <components/platform/wholefile.hpp>
@@ -169,7 +172,13 @@ namespace Rtx
                     return {};
                 manifest.mKeyRuns.push_back(index);
             }
-            manifest.mEntries.insert_or_assign(model, filed);
+            // Each model's entries of digests of their own and no more of them than a manifest keeps, as `keep`
+            // files them.
+            const auto [first, last] = manifest.mEntries.equal_range(model);
+            if (std::distance(first, last) >= static_cast<std::ptrdiff_t>(sEntriesPerModelMost)
+                || std::any_of(first, last, [&](const auto& kept) { return kept.second.mDigest == filed.mDigest; }))
+                return {};
+            manifest.mEntries.emplace(model, filed);
         }
         if (!reader.isEmpty())
             return {};
@@ -207,48 +216,52 @@ namespace Rtx
         return found->second;
     }
 
-    std::optional<PreparationManifest::Entry> PreparationManifest::find(const std::string_view model) const
+    std::vector<PreparationManifest::Entry> PreparationManifest::entriesOf(const std::string_view model) const
     {
+        std::vector<Entry> entries;
         const std::optional<std::uint32_t> index = indexOf(model);
         if (!index.has_value())
-            return std::nullopt;
-        const auto found = mEntries.find(*index);
-        if (found == mEntries.end())
-            return std::nullopt;
-
-        Entry entry{ .mDigest = found->second.mDigest, .mFiles = {} };
-        entry.mFiles.reserve(found->second.mCount);
-        for (std::uint32_t at = 0; at < found->second.mCount; ++at)
-            entry.mFiles.push_back(mNames[mFiles[found->second.mFirst + at]]);
-        entry.mKeys.reserve(found->second.mKeysCount);
-        for (std::uint32_t at = 0; at < found->second.mKeysCount; ++at)
-            entry.mKeys.push_back(mKeys[mKeyRuns[found->second.mKeysFirst + at]]);
-        return entry;
+            return entries;
+        const auto [first, last] = mEntries.equal_range(*index);
+        for (const auto& [_, filed] : std::ranges::subrange(first, last))
+        {
+            Entry& entry = entries.emplace_back(Entry{ .mDigest = filed.mDigest, .mFiles = {} });
+            entry.mFiles.reserve(filed.mCount);
+            for (std::uint32_t at = 0; at < filed.mCount; ++at)
+                entry.mFiles.push_back(mNames[mFiles[filed.mFirst + at]]);
+            entry.mKeys.reserve(filed.mKeysCount);
+            for (std::uint32_t at = 0; at < filed.mKeysCount; ++at)
+                entry.mKeys.push_back(mKeys[mKeyRuns[filed.mKeysFirst + at]]);
+        }
+        std::ranges::sort(entries, {}, &Entry::mDigest);
+        return entries;
     }
 
-    bool PreparationManifest::standsAsWalked(
+    std::optional<std::uint64_t> PreparationManifest::standingDigest(
         const std::string_view model, FileStamps& stamps, ContentStore::Store& store, Misc::ByteBuffer& scratch) const
     {
         const std::optional<std::uint32_t> index = indexOf(model);
         if (!index.has_value())
-            return false;
-        const auto found = mEntries.find(*index);
-        if (found == mEntries.end())
-            return false;
-
-        const auto names = std::span(mFiles).subspan(found->second.mFirst, found->second.mCount)
-            | std::views::transform([&](const std::uint32_t at) -> const std::string& { return mNames[at]; });
-        if (digestOfNames(names, stamps) != found->second.mDigest)
-            return false;
-        const std::span<const std::uint32_t> keys
-            = std::span(mKeyRuns).subspan(found->second.mKeysFirst, found->second.mKeysCount);
-        return std::ranges::all_of(keys, [&](const std::uint32_t at) {
-            const StoredKey& key = mKeys[at];
-            if (key.mPass == ContentPassId::Shape)
-                return store.read(key.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion,
-                    ContentStore::Reach::Disk, scratch);
-            return store.holds(key.mKey, ContentStore::Reach::Disk);
-        });
+            return std::nullopt;
+        const auto [first, last] = mEntries.equal_range(*index);
+        for (const auto& [_, filed] : std::ranges::subrange(first, last))
+        {
+            const auto names = std::span(mFiles).subspan(filed.mFirst, filed.mCount)
+                | std::views::transform([&](const std::uint32_t at) -> const std::string& { return mNames[at]; });
+            if (digestOfNames(names, stamps) != filed.mDigest)
+                continue;
+            const std::span<const std::uint32_t> keys = std::span(mKeyRuns).subspan(filed.mKeysFirst, filed.mKeysCount);
+            const bool held = std::ranges::all_of(keys, [&](const std::uint32_t at) {
+                const StoredKey& key = mKeys[at];
+                if (key.mPass == ContentPassId::Shape)
+                    return store.read(key.mKey, storeKindOf(ContentPassId::Shape), ShapePass::sVersion,
+                        ContentStore::Reach::Disk, scratch);
+                return store.holds(key.mKey, ContentStore::Reach::Disk);
+            });
+            if (held)
+                return filed.mDigest;
+        }
+        return std::nullopt;
     }
 
     void PreparationManifest::keep(const std::string_view model, const Entry& entry, const std::uint32_t day)
@@ -260,23 +273,41 @@ namespace Rtx
         const auto keysFirst = static_cast<std::uint32_t>(mKeyRuns.size());
         for (const StoredKey& key : entry.mKeys)
             mKeyRuns.push_back(internKey(key));
-        mEntries.insert_or_assign(index,
-            Filed{ .mDigest = entry.mDigest,
-                .mDay = day,
-                .mFirst = first,
-                .mCount = static_cast<std::uint32_t>(entry.mFiles.size()),
-                .mKeysFirst = keysFirst,
-                .mKeysCount = static_cast<std::uint32_t>(entry.mKeys.size()) });
+        const Filed filed{ .mDigest = entry.mDigest,
+            .mDay = day,
+            .mFirst = first,
+            .mCount = static_cast<std::uint32_t>(entry.mFiles.size()),
+            .mKeysFirst = keysFirst,
+            .mKeysCount = static_cast<std::uint32_t>(entry.mKeys.size()) };
         mChanged = true;
+
+        auto [kept, last] = mEntries.equal_range(index);
+        const auto same
+            = std::find_if(kept, last, [&](const auto& other) { return other.second.mDigest == entry.mDigest; });
+        if (same != last)
+        {
+            same->second = filed;
+            return;
+        }
+        if (std::distance(kept, last) >= static_cast<std::ptrdiff_t>(sEntriesPerModelMost))
+        {
+            // The least recently named, the one filed earliest among those named the same day.
+            const auto oldest = std::min_element(kept, last, [](const auto& a, const auto& b) {
+                return std::pair(a.second.mDay, a.second.mFirst) < std::pair(b.second.mDay, b.second.mFirst);
+            });
+            mEntries.erase(oldest);
+        }
+        mEntries.emplace(index, filed);
     }
 
-    void PreparationManifest::name(const std::string_view model, const std::uint32_t day)
+    void PreparationManifest::name(const std::string_view model, const std::uint64_t digest, const std::uint32_t day)
     {
         const std::optional<std::uint32_t> index = indexOf(model);
         if (!index.has_value())
             return;
-        const auto found = mEntries.find(*index);
-        if (found == mEntries.end() || found->second.mDay == day)
+        const auto [first, last] = mEntries.equal_range(*index);
+        const auto found = std::find_if(first, last, [&](const auto& kept) { return kept.second.mDigest == digest; });
+        if (found == last || found->second.mDay == day)
             return;
         found->second.mDay = day;
         mChanged = true;

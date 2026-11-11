@@ -54,7 +54,7 @@ namespace Rtx
         std::vector<std::string> mFiles;
         std::vector<StoredKey> mKeys;
 
-        /// What a stored shape is read into as its model is found standing (`standsAsWalked`).
+        /// What a stored shape is read into as its model is found standing (`standingDigest`).
         Misc::ByteBuffer mStood;
 
         /// Its number among the threads, which the dispatcher knows it by.
@@ -137,6 +137,7 @@ namespace Rtx
         , mDay(setup.mDay)
         , mBudget(setup.mBudget)
         , mWalked(mModels.size() + mLayers.size())
+        , mStood(mWalked.size())
         , mDispatcher(setup.mHands, mWalked.size(), setup.mBudget)
     {
         assert(setup.mHands >= 1 && "no thread to walk the models on");
@@ -356,8 +357,12 @@ namespace Rtx
         hand.mFiles.clear();
         hand.mMet.clear();
         hand.mMetBytes = 0;
-        if (mManifest.standsAsWalked(nameOf(at), mStamps, mStore, hand.mStood))
+        if (const std::optional<std::uint64_t> stood
+            = mManifest.standingDigest(nameOf(at), mStamps, mStore, hand.mStood))
+        {
+            mStood[at] = *stood;
             return;
+        }
 
         hand.mKeys.clear();
         hand.mWalk.collectKeys(&hand.mKeys);
@@ -569,8 +574,8 @@ namespace Rtx
                 ++mWalkedCount;
                 mManifest.keep(nameOf(at), *mWalked[at], mDay);
             }
-            else
-                mManifest.name(nameOf(at), mDay);
+            else if (mStood[at].has_value())
+                mManifest.name(nameOf(at), *mStood[at], mDay);
         }
         mManifest.dropUnnamed(mDay);
 
