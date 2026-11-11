@@ -1,0 +1,28 @@
+{
+  "name": "openmw-osg",
+  "version-date": "2026-10-13",
+  "port-version": 0,
+  "description": "Fork of OpenSceneGraph for OpenMW-specific performance improvements.",
+  "homepage": "https://github.com/openmw/osg",
+  "license": null,
+  "supports": "!uwp",
+  "dependencies": [
+    "collada-dom",
+    "freetype",
+    "libiconv",
+    "libjpeg-turbo",
+    "libpng",
+    "libxml2",
+    "opengl-registry",
+    "tiff",
+    "zlib",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}

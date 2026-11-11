@@ -159,6 +159,26 @@ VULKAN_LOADER_WINDOWS = Pin(
     f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_WINDOWS_VERSION}/windows/VulkanRT-X64-{VULKAN_SDK_WINDOWS_VERSION}-Components.zip",
     "a25a927aa8b9f0371048f1861cf88ac3b9bc9b1fb332c42d897c8ab32695769a",
 )
+# vcpkg, which builds the libraries `vcpkg.json` names (`deps.vcpkg_root`): its registry at the commit of
+# release 2026.10.16, whose ports fix every library's version, and the tool that registry names in
+# `scripts/vcpkg-tool-metadata.txt` (2026-09-26), by system. The registry's digest is of GitHub's archive
+# of that commit; the tools' are of Microsoft's releases, Linux's matching the SHA-512 the registry pins.
+VCPKG_REGISTRY_COMMIT = "9eec002df1cd109f8f104cd966a763daf9751489"
+VCPKG_REGISTRY = Pin(
+    f"https://github.com/microsoft/vcpkg/archive/{VCPKG_REGISTRY_COMMIT}.tar.gz",
+    "0e41e3fc97abf18bd84f52e711eff88ba88726aa316c4f0f41d5bbd7d7b4690e",
+)
+VCPKG_TOOL = {
+    "linux": Pin(
+        "https://github.com/microsoft/vcpkg-tool/releases/download/2026-09-26/vcpkg-glibc",
+        "3521ddb09dc4bd0faa5ce7572c46c8e4420167a918fe5087f9f11bd1c27fa38b",
+    ),
+    "windows": Pin(
+        "https://github.com/microsoft/vcpkg-tool/releases/download/2026-09-26/vcpkg.exe",
+        "2a4ae1467b9e797964c60c919d057b9e5dc1ec03f4b9632c1150026db25201f2",
+    ),
+}
+
 # The CMake every build of the driver's configures with, on the desk, on CI and in the release container
 # (`deps.cmake`), by system: the release `cmake_minimum_required` names. The digests are Kitware's own
 # (`cmake-<version>-SHA-256.txt`).

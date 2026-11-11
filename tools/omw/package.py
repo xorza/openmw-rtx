@@ -1,5 +1,5 @@
 """`omw archive [name]`: the release archive out of the package build, into dist/, with its symbols.
-An AppImage on Linux, built on Ubuntu 26.04 or in a container of it, and the portable folder on Windows,
+An AppImage on Linux, built on AlmaLinux 8 or in a container of it, and the portable folder on Windows,
 named after the name given or the commit."""
 
 import os
@@ -28,11 +28,11 @@ from omw.system import (
 
 DIST = ROOT / "dist"
 
-# **The system a Linux release is built on**, as `/etc/os-release` names it: CI's runner, whose glibc and
-# libraries an AppImage takes as the floor it runs on. A desk on another builds the archive in a
-# container of it (`CI/release-base.Dockerfile`), since an image built against a newer glibc runs only
-# where that glibc is, and takes whatever else the desk's Qt holds.
-RELEASE_BASE = {"ID": "ubuntu", "VERSION_ID": "26.04"}
+# **The system a Linux release and its dependency set are built on**, as `/etc/os-release` names it:
+# AlmaLinux 8, whose glibc 2.28 an AppImage takes as the floor it runs on, with any point release. A desk on
+# another builds in a container of it (`CI/release-base.Dockerfile`), since a binary built against a newer
+# glibc runs only where that glibc is.
+RELEASE_BASE = {"ID": "almalinux", "VERSION_ID": "8"}
 RELEASE_IMAGE = "openmw-rtx-release-base"
 
 # What the container keeps between runs, on the desk, so its files are the desk's own: its package
@@ -111,7 +111,8 @@ def os_release(text: str) -> dict[str, str]:
 def on_release_base(text: str) -> bool:
     """Whether the system `text`, an `/etc/os-release`, describes is `RELEASE_BASE`."""
     fields = os_release(text)
-    return all(fields.get(key) == value for key, value in RELEASE_BASE.items())
+    return (fields.get("ID") == RELEASE_BASE["ID"]
+            and fields.get("VERSION_ID", "").split(".")[0] == RELEASE_BASE["VERSION_ID"])
 
 
 def container_command(docker: str, command: list[str], user: str, flavour: str) -> list[str]:
@@ -150,15 +151,20 @@ class Container:
         return container_command(self.docker, command, self.user, self.flavour)
 
 
-def prepare_container(flavour: str) -> Container:
-    """The release-base image made, which the layers it keeps make a moment's work after the first,
-    the SDK and CMake `omw bootstrap` fetches into deps/, which the desk shares, and the container's
-    build of `flavour` given a folder."""
-    docker = require("docker", "a release is built on Ubuntu 26.04, and on another system in a container: docker")
+def release_container(flavour: str) -> Container:
+    """The release-base image made, which the layers it keeps make a moment's work after the first, and
+    the container's build of `flavour` given a folder."""
+    docker = require("docker", "a release is built on AlmaLinux 8, and on another system in a container: docker")
     run([docker, "build", "--tag", RELEASE_IMAGE, "--file", ROOT / "CI" / "release-base.Dockerfile", ROOT / "CI"])
     for kept in (flavour, "ccache"):
         (CONTAINER_DIR / kept).mkdir(parents=True, exist_ok=True)
-    container = Container(docker, user_and_group(), flavour)
+    return Container(docker, user_and_group(), flavour)
+
+
+def prepare_container(flavour: str) -> Container:
+    """`release_container`, with the SDK and CMake `omw bootstrap` fetches into deps/, which the desk
+    shares, for a build of the tree."""
+    container = release_container(flavour)
     run(container.command(["python3", "omw", "bootstrap"]))
     return container
 

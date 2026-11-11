@@ -80,13 +80,14 @@ class WaylandPlatformPluginsTest(unittest.TestCase):
 
 
 class ReleaseBaseTest(unittest.TestCase):
-    def test_ubuntu_26_04_alone_builds_a_release_where_it_stands(self):
-        resolute = 'PRETTY_NAME="Ubuntu 26.04.1 LTS"\nNAME="Ubuntu"\nVERSION_ID="26.04"\nID=ubuntu\nID_LIKE=debian\n'
-        self.assertEqual(os_release(resolute)["VERSION_ID"], "26.04")
+    def test_almalinux_8_alone_builds_a_release_where_it_stands(self):
+        alma = 'NAME="AlmaLinux"\nVERSION="8.10 (Cerulean Leopard)"\nID="almalinux"\nVERSION_ID="8.10"\n'
+        self.assertEqual(os_release(alma)["VERSION_ID"], "8.10")
         self.assertEqual(os_release("# ID=fedora\nID='fedora'\n"), {"ID": "fedora"})
-        self.assertTrue(on_release_base(resolute))
-        for other in ('NAME="Fedora Linux"\nID=fedora\nVERSION_ID=44\n',
-                      'NAME="Ubuntu"\nVERSION_ID="24.04"\nID=ubuntu\n', ""):
+        self.assertTrue(on_release_base(alma))
+        self.assertTrue(on_release_base('ID="almalinux"\nVERSION_ID="8.11"\n'), "a point release is the same base")
+        for other in ('NAME="Fedora Linux"\nID=fedora\nVERSION_ID=44\n', 'ID="almalinux"\nVERSION_ID="9.6"\n',
+                      'ID="almalinux"\nVERSION_ID="18.0"\n', 'NAME="Ubuntu"\nVERSION_ID="26.04"\nID=ubuntu\n', ""):
             with self.subTest(other=other):
                 self.assertFalse(on_release_base(other))
 

@@ -204,16 +204,16 @@ Current, newest, and what the plan takes. Newest checked on 2026-11-11.
 15. **Executed unattended, the whole plan, on its own branch (taken)**, gated locally at each step and, where a
     step touches Windows, built and tested on the laptop over SSH; master untouched until reviewed.
 
+16. **CI's Linux jobs in AlmaLinux 8 too (taken, option 1).** The gcc, asan and tsan jobs run in the stock
+    `almalinux:8` container with `CI/install_almalinux_deps.sh`, the environment the set and the release are
+    built in, so one Linux environment builds, tests and ships; no image of the fork's own is published. The
+    clang job takes LLVM's official release tarball, pinned in `pins.py`, as AlmaLinux 8 carries no Clang 23.
+
 ## Implementation plan
 
 Each step builds every flavour on Linux, passes the gate, and passes CI on every job; the Windows laptop builds
 `debug` after steps 3, 5 and 8.
 
-1. **Tools to their newest**: ruff 0.17.4, mypy 2.4.1, zizmor 1.32.0, and the findings they bring.
-2. **Fetched libraries to their newest, as they are fetched today.** Done (`4f933c8be7`): SDL3 3.4.20, yaml-cpp
-   0.9.0, Google Test 1.18.0, volk and the Vulkan SDK 1.4.363 (1.4.363.0 on Windows, whose runtime components
-   LunarG publishes for that one alone), VMA 3.5.0, Sentry's Crashpad at its newest commit; no API moved. The SDK's
-   compiler moves 2 of the 930 kernels (`spriteemitters.rgen`).
 3. **vcpkg in.** `vcpkg.json` with the baseline and the overrides, the overlay ports (OpenSceneGraph fork, Recast
    fork, Crashpad, Benchmark, unshield), the two static triplets; `omw` fetches the pinned vcpkg tool. A CI
    workflow builds each triplet's set and publishes it; `pins.py` names the published archives and `omw` fetches
@@ -228,13 +228,44 @@ Each step builds every flavour on Linux, passes the gate, and passes CI on every
 6. **The libraries to their newest through the baseline**: Boost, Bullet 3.25, ICU, LuaJIT, OpenAL Soft, LZ4,
    zlib in one step; FFmpeg 9 and MyGUI 3.5 each in their own, with what their removed APIs ask of upstream's code
    recorded in `.notes/UPSTREAM.md`.
-7. **Flags in one file**: `cmake/Flags.cmake`, mold by `CMAKE_LINKER_TYPE`, `CMAKE_COMPILE_WARNING_AS_ERROR`,
-   presets without flags; LTO on for the tagged release alone (decision 11); `-Og` timed and decided (decision 12).
-8. **Four flavours, the options gone**: every program in every flavour, `full` and `package` folded,
-   `OPENMW_BUILD_*`, the Crashpad and DLSS fallbacks, LuaJIT's and TinyXML's choices, precompiled headers, coverage
-   and the console option removed; `omw`'s flavour list, `QT_FLAVOURS`, the listing check's excuses and CI's legs
-   with them.
-9. **One layout, one manifest, no multi-config**: decisions 8, 9 and 10.
+7. **The tests' `-Og`** timed and decided (decision 12), `OPENMW_TEST_COMPILE_OPTIONS` gone either way. The
+   flags' file itself is in (`99c1324a71`).
+8. **Four flavours**: every program in every flavour, `full` and `package` folded, `OPENMW_BUILD_*` removed;
+   `omw`'s flavour list, `QT_FLAVOURS`, the listing check's excuses and CI's legs with them. After step 5, when
+   Windows has Qt in every flavour. The other options went with step 7's file (`99c1324a71`).
 10. **Licences**: every statically linked library's notice in `files/licenses` and installed, and the release
     notes naming the vcpkg baseline and overlays as the libraries' source.
 11. **The proposal folds into `docs/rtx/build.md`** and goes.
+
+## Decisions
+
+- **The registry pins the versions, without vcpkg's version database.** `pins.py` pins GitHub's archive of
+  microsoft/vcpkg at release 2026.10.16's commit and the tool that commit names (`scripts/vcpkg-tool-metadata.txt`),
+  and the manifest names no `builtin-baseline`: a baseline and `overrides` need the registry's Git history, a
+  clone of hundreds of megabytes on every desk, for nothing a pinned archive does not already fix. A port held
+  off the registry's version is an overlay. ([vcpkg versioning](https://learn.microsoft.com/vcpkg/users/versioning);
+  [vcpkg's bootstrap](https://github.com/microsoft/vcpkg/blob/master/scripts/bootstrap.sh))
+- **MyGUI at the registry's 3.5.3**, not held at 3.4.3 by an overlay: the tree defines `MYGUI_DONT_USE_OBSOLETE`, so
+  3.5's removals of obsolete API reach nothing it calls; step 6's MyGUI bump is this one.
+- **The system's audio and display stay the system's.** OpenAL Soft opens ALSA by `dlopen` (`ALSOFT_DLOPEN`, its
+  default), so no ALSA is linked and the system's plugins serve PipeWire and PulseAudio; Qt's xcb and Wayland
+  plugins link the system's libxcb, xkbcommon and libwayland, which `CI/install_almalinux_deps.sh` brings the
+  headers of. ([OpenAL Soft's CMake options](https://github.com/kcat/openal-soft/blob/master/CMakeLists.txt))
+- **A set is vcpkg's own export, packed with gzip in parts of 1 GiB.** `vcpkg export --raw` carries the
+  toolchain file a build configures with beside the libraries, so a build needs no registry. gzip, not xz:
+  gigabytes of static libraries, and Python's xz runs on one core. Parts, because GitHub refuses a release asset
+  of 2 GiB ([About releases](https://docs.github.com/repositories/releasing-projects-on-github/about-releases))
+  and Windows' set, whose libraries carry their debug information (`/Z7`), packed to 1.9 GiB; the host tools'
+  PDBs, a gigabyte of Qt's that no crash report reads, are left out.
+  ([vcpkg export](https://learn.microsoft.com/vcpkg/commands/export))
+- **The shader tools and the Vulkan headers from the set**, not LunarG's SDK on Linux: its Linux binaries need
+  glibc 2.34 and do not run on AlmaLinux 8, where the set and the release are built. Windows takes the same
+  ports, so both systems compile shaders with one shaderc. ([LunarG's Linux SDK](https://vulkan.lunarg.com/doc/sdk/latest/linux/getting_started.html))
+- **A port's fix is an overlay of that port, never a triplet flag**: a triplet's contents are in every port's ABI
+  hash, so a flag for one port rebuilds all of them
+  ([binary caching, ABI hash](https://learn.microsoft.com/vcpkg/reference/binarycaching#abi-hash)). The overlays
+  beside the OpenSceneGraph fork: uriparser with `_GNU_SOURCE`, as glibc 2.28 declares `reallocarray` under it
+  alone; unshield in C17 (its MD5's K&R prototypes are no C23) and linking the zlib it calls; OpenAL Soft
+  1.25.2 with its `operator*` projection as a lambda, which MSVC 14.52 refuses to take the address of
+  (C3889) and upstream's master has replaced; and fontconfig as an empty port, so Qt links the system's, whose
+  configuration matches the system's fonts.

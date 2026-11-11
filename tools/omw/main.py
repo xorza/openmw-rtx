@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from omw import (
     crash,
     deps,
+    depsset,
     formatting,
     game,
     gate,
@@ -50,7 +51,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   gate                         {gate}
   exec <command> [args]        a command in the build directory, under the flavour's environment
   archive [name]               the release archive into dist/, with its symbols: the package flavour,
-                               on Linux in an Ubuntu 26.04 container where the system is another
+                               on Linux in an AlmaLinux 8 container where the system is another
   profile [args]               the harness's CPU side under perf: the release flavour
   remote <host> <verb> [args]  openmw-rtxtool's verb on another Linux machine over SSH: built where
                                a release is, copied to this tree's path there with the libraries it
@@ -67,14 +68,16 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   crash <dump> [symbols]       a player's crash dump or package, every thread named and lined,
                                against the symbols of the build that wrote it: a -symbols.zip, the
                                build folder, or the newest in dist/ that holds them; no flavour
-  format [--check] [file...]   the pinned clang-format over the tree's C++, or the files named:
-                               rewrites it, or with --check changes nothing and says what it would;
-                               no flavour
+  format [--check] [file...]   the pinned clang-format over the tree's C++ and gersemi over its CMake,
+                               or the files named: rewrites them, or with --check changes nothing and
+                               says what it would; no flavour
   merge-file %O %A %B %L %P    git's merge driver for C++, which upstream.yml sets: the three sides
                                formatted, then merged; no flavour
   lint [check...]              the checks CI's checks job runs besides the formatting, every one or
-                               those named: cmake, names, translations, driver, workflows; no flavour
+                               those named: names, translations, driver, workflows; no flavour
   bootstrap                    the pinned Vulkan SDK and CMake into deps/; no flavour
+  deps-set [--digest]          the libraries vcpkg.json names, built static for this system and packed
+                               under deps/sets/, Linux's in AlmaLinux 8; with --digest, the set's name
   help                         this page; no flavour
 
   flavour   directory       what it is
@@ -170,6 +173,7 @@ BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
     "merge-file": formatting.merge_file,
     "lint": lint.lint,
     "bootstrap": _bootstrap,
+    "deps-set": depsset.deps_set,
 }
 
 

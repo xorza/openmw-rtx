@@ -168,6 +168,48 @@ def gersemi() -> list[str]:
             str(folder)]
 
 
+# What vcpkg keeps between runs (`omw deps-set`): built packages, which it keys by everything that built
+# each, so a set rebuilds only the ports whose inputs moved; the sources it fetched; its scratch; and the
+# packed sets.
+VCPKG_BINARY_CACHE = DEPS / "vcpkg-binary-cache"
+VCPKG_DOWNLOADS = DEPS / "vcpkg-downloads"
+VCPKG_WORK = DEPS / "vcpkg-work"
+VCPKG_SETS = DEPS / "sets"
+
+
+def vcpkg_root_dir() -> Path:
+    return pinned_folder("vcpkg", pins.VCPKG_REGISTRY, pins.VCPKG_TOOL[SYSTEM])
+
+
+def vcpkg_root() -> Path:
+    """**vcpkg as `pins.py` names it**: its registry at the pinned commit, unpacked, with the pinned tool
+    at its root, where the registry's own bootstrap would put it. A registry without its Git history:
+    the tree pins versions by the commit and overlays, never by vcpkg's version database, which needs
+    the history."""
+    root = vcpkg_root_dir()
+    if (root / f"vcpkg{EXE}").is_file():
+        return root
+
+    def fill(partial: Path) -> None:
+        archive = DEPS / Path(pins.VCPKG_REGISTRY.url).name
+        fetch.download_pin(pins.VCPKG_REGISTRY, archive)
+        with tarfile.open(archive) as tarred:
+            members = []
+            for member in tarred.getmembers():
+                member.name = member.name.split("/", 1)[1] if "/" in member.name else ""
+                if member.name:
+                    members.append(member)
+            tarred.extractall(partial, members=members, filter="data")
+        archive.unlink()
+        tool = partial / f"vcpkg{EXE}"
+        fetch.download_pin(pins.VCPKG_TOOL[SYSTEM], tool)
+        if not WINDOWS:
+            tool.chmod(0o755)
+
+    fetch.build_beside(root, fill)
+    return root
+
+
 def pinned_folder(name: str, *pinned: pins.Pin) -> Path:
     """**Where tools fetched by `pinned` stand, named after their digests**, as the SDK's folder is
     after its version: a pin changed is a folder not there yet, so a desk that has the old tool, and
@@ -397,7 +439,8 @@ def sdk_environment(env: dict[str, str]) -> None:
 def pinned_names() -> set[str]:
     """Every name in deps/ that the pins give this system, through the same functions that name what
     each getter above leaves there, so pruning cannot take what a getter fetched."""
-    kept = [vulkan_sdk_dir(), cmake_dir(), clang_format_dir(), gersemi_dir(), appimage_tools_dir()]
+    kept = [vulkan_sdk_dir(), cmake_dir(), clang_format_dir(), gersemi_dir(), vcpkg_root_dir(), appimage_tools_dir(),
+            VCPKG_BINARY_CACHE, VCPKG_DOWNLOADS, VCPKG_WORK, VCPKG_SETS]
     kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]
     if WINDOWS:
         tag = msvc_versions()["VCPKG_TAG"]

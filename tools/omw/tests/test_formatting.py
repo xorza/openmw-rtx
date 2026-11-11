@@ -102,5 +102,21 @@ class FormatTreeTest(unittest.TestCase):
                 formatting.format_tree(["--fix"])
 
 
+class SourcesTest(unittest.TestCase):
+    def test_the_tree_formats_its_own_cmake_and_no_copy_of_another_projects(self):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        names = ["CMakeLists.txt", "cmake/Flags.cmake", "apps/x/CMakeLists.txt", "extern/CMakeLists.txt",
+                 "extern/oics/CMakeLists.txt", "vcpkg/triplets/x64-linux-openmw.cmake",
+                 "vcpkg/ports/uriparser/portfile.cmake", "docs/Doxyfile.cmake", "README.md"]
+        for name in names:
+            (root / name).parent.mkdir(parents=True, exist_ok=True)
+            (root / name).write_text("x\n")
+        subprocess.run(["git", "init", "-q", str(root)], check=True)
+        self.assertEqual(sorted(formatting.working_tree_files(*formatting.CMAKE_SOURCES, root=root)),
+                         ["CMakeLists.txt", "apps/x/CMakeLists.txt", "cmake/Flags.cmake", "extern/CMakeLists.txt",
+                          "vcpkg/triplets/x64-linux-openmw.cmake"])
+
+
 if __name__ == "__main__":
     unittest.main()

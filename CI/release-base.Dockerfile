@@ -1,13 +1,12 @@
-# Ubuntu 26.04, as CI's runners are: its glibc and libraries are the floor the AppImage runs on.
-FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c
+# AlmaLinux 8, whose glibc 2.28 is the floor the release runs on and the dependency set is built against
+# (`omw deps-set`), with GCC 15 from Red Hat's gcc-toolset: the system CI's Linux jobs run in too.
+FROM almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
 
-# CMake is the driver's own, which it fetches into deps/ (`deps.cmake`): one CMake on every system.
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        python3 git curl ca-certificates xz-utils unzip file \
-    && rm -rf /var/lib/apt/lists/*
+COPY install_almalinux_deps.sh /tmp/
+RUN /tmp/install_almalinux_deps.sh && dnf clean all && rm /tmp/install_almalinux_deps.sh \
+    && alternatives --set python3 /usr/bin/python3.12
 
-WORKDIR /tmp/packages
-COPY install_ubuntu_deps.sh ./
-RUN ./install_ubuntu_deps.sh && rm -rf /tmp/packages /var/lib/apt/lists/*
-WORKDIR /
+# What `/opt/rh/gcc-toolset-15/enable` sets, for every command the container runs.
+ENV PATH=/opt/rh/gcc-toolset-15/root/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin \
+    LD_LIBRARY_PATH=/opt/rh/gcc-toolset-15/root/usr/lib64:/opt/rh/gcc-toolset-15/root/usr/lib \
+    PKG_CONFIG_PATH=/opt/rh/gcc-toolset-15/root/usr/lib64/pkgconfig
