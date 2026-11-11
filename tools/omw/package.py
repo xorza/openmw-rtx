@@ -196,7 +196,7 @@ def archive(build: Build, args: list[str]) -> int:
         raise Refusal("archive takes one name at most")
     name = args[0] if args else output(["git", "-C", ROOT, "describe", "--tags", "--always"]).strip()
     if not WINDOWS and needs_container():
-        run(prepare_container("package").command(["python3", "omw", "archive", name]))
+        run(prepare_container("release").command(["python3", "omw", "archive", name]))
         return 0
 
     build.build(build.default_targets)

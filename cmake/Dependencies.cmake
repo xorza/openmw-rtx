@@ -63,7 +63,7 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     set(YAML_BUILD_SHARED_LIBS OFF)
     FetchContent_MakeAvailable(yaml-cpp)
 
-    if(OPENMW_BUILD_COMPONENTS_TESTS OR OPENMW_BUILD_CS_TESTS OR OPENMW_BUILD_GAME_TESTS)
+    if(BUILD_TESTING)
         FetchContent_Declare(
             googletest
             URL
@@ -78,7 +78,7 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
         FetchContent_MakeAvailable(googletest)
     endif()
 
-    if(OPENMW_BUILD_BENCHMARKS)
+    if(BUILD_TESTING)
         # 1.10, whose header no longer reads `__COUNTER__` in an `#if`, which Clang 23 counts a C2y extension
         # and 1.8's own `-pedantic-errors` made an error.
         FetchContent_Declare(
@@ -163,16 +163,20 @@ find_package(
         iostreams
         program_options
 )
-# MyGUI 3.4.3 installs pkg-config's file alone, which names neither the FreeType its archive calls nor the
-# definitions its headers need.
-pkg_check_modules(mygui REQUIRED IMPORTED_TARGET MYGUIStatic)
-add_library(MyGUI::MyGUI INTERFACE IMPORTED)
-target_link_libraries(
+# MyGUI 3.4.3 installs no CMake files, and pkg-config's on Linux alone, which names neither the FreeType its
+# archive calls nor the definitions its headers need: its header and its archive, found in the set.
+find_path(MYGUI_INCLUDE_DIR MyGUI.h PATH_SUFFIXES MYGUI REQUIRED)
+find_library(MYGUI_LIBRARY MyGUIEngineStatic REQUIRED)
+add_library(MyGUI::MyGUI STATIC IMPORTED)
+set_target_properties(
     MyGUI::MyGUI
-    INTERFACE
-        PkgConfig::mygui
-        Freetype::Freetype
+    PROPERTIES
+        IMPORTED_LOCATION
+            "${MYGUI_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES
+            "${MYGUI_INCLUDE_DIR}"
 )
+target_link_libraries(MyGUI::MyGUI INTERFACE Freetype::Freetype)
 target_compile_definitions(
     MyGUI::MyGUI
     INTERFACE
@@ -181,20 +185,18 @@ target_compile_definitions(
 )
 find_package(VulkanHeaders CONFIG REQUIRED)
 
-if(USE_QT)
-    find_package(
-        Qt6
-        REQUIRED
-        COMPONENTS
-            Core
-            Widgets
-            Network
-            OpenGL
-            OpenGLWidgets
-            LinguistTools
-            Svg
-    )
-endif()
+find_package(
+    Qt6
+    REQUIRED
+    COMPONENTS
+        Core
+        Widgets
+        Network
+        OpenGL
+        OpenGLWidgets
+        LinguistTools
+        Svg
+)
 
 if(OPENMW_USE_UNSHIELD)
     pkg_check_modules(unshield REQUIRED IMPORTED_TARGET libunshield)
@@ -335,10 +337,14 @@ find_package(
         "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/collada-dom"
     NO_DEFAULT_PATH
 )
+# Named as its config means to name it and fails to, its version unset there: with MSVC's suffix on Windows,
+# which the port's own patch fixes at `vc140-mt`.
+set(collada_dom_name "collada-dom${collada_dom_VERSION_MAJOR}.${collada_dom_VERSION_MINOR}-dp")
 find_library(
     collada_dom_library
     NAMES
-        collada-dom${collada_dom_VERSION_MAJOR}.${collada_dom_VERSION_MINOR}-dp
+        ${collada_dom_name}
+        ${collada_dom_name}-vc140-mt
     PATHS
         ${COLLADA_DOM_LIBRARY_DIRS}
     NO_DEFAULT_PATH
@@ -380,16 +386,35 @@ foreach(plugin IN LISTS USED_OSG_PLUGINS)
     )
 endforeach()
 
-# LuaJIT, the Lua every build runs scripts on.
-find_package(LuaJit REQUIRED)
-set(LUA_INCLUDE_DIR ${LuaJit_INCLUDE_DIR})
-set(LUA_LIBRARIES ${LuaJit_LIBRARIES})
-add_library(Lua::Lua INTERFACE IMPORTED)
-target_include_directories(Lua::Lua INTERFACE ${LUA_INCLUDE_DIR})
+# LuaJIT, the Lua every build runs scripts on: its header and its archive, as the port installs no CMake files
+# and pkg-config's on Linux alone. `lua51` is its archive's name on Windows.
+find_path(
+    LUAJIT_INCLUDE_DIR
+    luajit.h
+    PATH_SUFFIXES
+        luajit
+        luajit-2.1
+    REQUIRED
+)
+find_library(
+    LUAJIT_LIBRARY
+    NAMES
+        luajit-5.1
+        lua51
+    REQUIRED
+)
+add_library(Lua::Lua STATIC IMPORTED)
+set_target_properties(
+    Lua::Lua
+    PROPERTIES
+        IMPORTED_LOCATION
+            "${LUAJIT_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES
+            "${LUAJIT_INCLUDE_DIR}"
+)
 target_link_libraries(
     Lua::Lua
     INTERFACE
-        ${LUA_LIBRARIES}
         ${CMAKE_DL_LIBS}
         $<$<PLATFORM_ID:Linux>:m>
 )

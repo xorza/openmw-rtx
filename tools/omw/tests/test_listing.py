@@ -1,6 +1,6 @@
 import unittest
 
-from omw.listing import misplaced_checks, qt_guarded_sources, unlisted
+from omw.listing import misplaced_checks, unlisted
 
 
 class UnlistedTest(unittest.TestCase):
@@ -21,12 +21,12 @@ class UnlistedTest(unittest.TestCase):
             "apps/wizard/installationpage.cpp",
             "extern/oics/tinyxml.cpp",
         ]
-        # The CS compiled nothing, so its program is off in this flavour; a header is no source; a
-        # file of another system and the generator are excused.
+        # Every flavour builds every program, so the CS's file nothing compiled is forgotten; a header is
+        # no source; a file of another system and the generator are excused.
         # The system decides which half of a pair is the other's: each build compiles its own.
         # The wizard's unshield half is Windows's to leave out, and every other system's to build. A
         # facility only Linux has is a `linux` file and its absence a `none` one, each the other's.
-        forgotten = ["apps/openmw/forgotten.cpp", "components/misc/forgotten.cpp"]
+        forgotten = ["apps/opencs/main.cpp", "apps/openmw/forgotten.cpp", "components/misc/forgotten.cpp"]
         wizard = "apps/wizard/installationpage.cpp"
         for windows, own, counts in ((False, "components/platform/processposix.cpp", "apps/openmw/countslinux.cpp"),
                                      (True, "components/platform/processwin32.cpp", "apps/openmw/countsnone.cpp")):
@@ -62,31 +62,6 @@ class MisplacedChecksTest(unittest.TestCase):
             "build-full/fetched/yaml-cpp/src/node.cpp: a third party's, compiled with the tree's checks",
             "extern/Base64/base64.cpp: a third party's, compiled with the tree's checks",
         ])
-
-
-class QtSourcesTest(unittest.TestCase):
-    def test_a_source_a_list_adds_only_with_qt_is_qts(self):
-        text = ("target_sources(components-tests PRIVATE always.cpp)\n"
-                "if (USE_QT)\n    target_sources(components-tests PRIVATE config/testlaunchersettings.cpp extra.hpp)\n"
-                "endif()\n")
-        self.assertEqual(qt_guarded_sources(text, "apps/components_tests"),
-                         {"apps/components_tests/config/testlaunchersettings.cpp"})
-        self.assertEqual(qt_guarded_sources("if(USE_QT)\n    set_property(TARGET a PROPERTY AUTOMOC ON)\nendif(USE_QT)\n",
-                                            "apps/launcher"), set())
-        # A block nested inside does not end the guarded one at its own `endif`.
-        nested = ("if (USE_QT)\n    if (WIN32)\n        target_sources(t PRIVATE win.cpp)\n    endif()\n"
-                  "    target_sources(t PRIVATE after.cpp)\nendif()\ntarget_sources(t PRIVATE always.cpp)\n")
-        self.assertEqual(qt_guarded_sources(nested, "apps/x"), {"apps/x/win.cpp", "apps/x/after.cpp"})
-        # And the block's `else` is the build without Qt, whose sources are no Qt build's.
-        branched = ("if (USE_QT)\n    target_sources(t PRIVATE qt.cpp)\nelse()\n"
-                    "    target_sources(t PRIVATE plain.cpp)\nendif()\n")
-        self.assertEqual(qt_guarded_sources(branched, "apps/x"), {"apps/x/qt.cpp"})
-        # A library's list, whose sources span the folder's own folders and whose headers are no sources.
-        library = ("if (USE_QT)\n    add_library(openmw-components-qt STATIC)\n    target_sources(openmw-components-qt\n"
-                   "        PRIVATE\n            config/gamesettings.cpp\n            misc/helpviewer.cpp\n"
-                   "        PUBLIC FILE_SET HEADERS FILES\n            config/gamesettings.hpp\n    )\nendif ()\n")
-        self.assertEqual(qt_guarded_sources(library, "components"),
-                         {"components/config/gamesettings.cpp", "components/misc/helpviewer.cpp"})
 
 
 if __name__ == "__main__":

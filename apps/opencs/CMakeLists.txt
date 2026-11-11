@@ -528,14 +528,12 @@ target_link_libraries(
         Qt::Svg
 )
 
-if(OPENMW_BUILD_CS)
-    qt_add_executable(openmw-cs main.cpp)
-    openmw_qt_platforms(openmw-cs)
-    if(WIN32)
-        target_sources(openmw-cs PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/opencs.rc")
-    endif()
-    target_link_libraries(openmw-cs PRIVATE openmw-cs-lib)
-
-    install(TARGETS openmw-cs)
-    install(FILES "$<TARGET_FILE_DIR:openmw-cs>/defaults-cs.bin" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
+qt_add_executable(openmw-cs main.cpp)
+openmw_qt_platforms(openmw-cs)
+if(WIN32)
+    target_sources(openmw-cs PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/opencs.rc")
 endif()
+target_link_libraries(openmw-cs PRIVATE openmw-cs-lib)
+
+install(TARGETS openmw-cs)
+install(FILES "$<TARGET_FILE_DIR:openmw-cs>/defaults-cs.bin" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")

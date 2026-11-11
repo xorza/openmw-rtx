@@ -8,7 +8,7 @@ from pathlib import Path
 from omw.build import Build
 
 
-def temporary_build(case: unittest.TestCase, flavour: str = "package") -> Build:
+def temporary_build(case: unittest.TestCase, flavour: str = "release") -> Build:
     """A build of `flavour` whose directory is a folder of the test's own, removed after it."""
     build = Build(flavour)
     build.dir = Path(tempfile.mkdtemp())

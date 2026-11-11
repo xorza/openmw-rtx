@@ -49,12 +49,12 @@ class ReleaseBaseTest(unittest.TestCase):
 
     def test_the_container_runs_omw_on_the_tree_with_its_own_build_and_cache(self):
         tree = f"{ROOT}:{ROOT}"
-        build = f"{CONTAINER_DIR / 'package'}:{ROOT / 'build-package'}"
+        build = f"{CONTAINER_DIR / 'release'}:{ROOT / 'build-release'}"
         beside = ROOT.parent / f"{ROOT.name}-repository" / ".git"
         for common, expected in ((ROOT / ".git", [tree, build]), (beside, [tree, f"{beside}:{beside}", build])):
             with self.subTest(common=common), patch("omw.package.output", return_value=f"{common}\n"):
                 command = container_command(
-                    "/usr/bin/docker", ["python3", "omw", "archive", "v1"], "1000:1000", "package")
+                    "/usr/bin/docker", ["python3", "omw", "archive", "v1"], "1000:1000", "release")
                 self.assertEqual(command[:4], ["/usr/bin/docker", "run", "--rm", "--user"])
                 self.assertEqual(command[command.index("--user") + 1], "1000:1000")
                 volumes = [command[at + 1] for at, word in enumerate(command) if word == "--volume"]

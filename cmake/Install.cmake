@@ -111,18 +111,16 @@ else()
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo"
         COMPONENT "openmw"
     )
-    if(OPENMW_BUILD_CS)
-        install(
-            FILES
-                "${PROJECT_BINARY_DIR}/org.openmw.cs.desktop"
-            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications"
-            COMPONENT "opencs"
-        )
-        install(
-            FILES
-                "${PROJECT_SOURCE_DIR}/files/opencs/openmw-cs.png"
-            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps"
-            COMPONENT "opencs"
-        )
-    endif()
+    install(
+        FILES
+            "${PROJECT_BINARY_DIR}/org.openmw.cs.desktop"
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications"
+        COMPONENT "opencs"
+    )
+    install(
+        FILES
+            "${PROJECT_SOURCE_DIR}/files/opencs/openmw-cs.png"
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps"
+        COMPONENT "opencs"
+    )
 endif()

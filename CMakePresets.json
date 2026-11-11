@@ -15,13 +15,12 @@
             "hidden": true,
             "generator": "Ninja",
             "$comment": [
-                "Every flavour. The CS, the wizard and the save importer stay off outside `full`; the ini importer",
-                "is on, because `omw setup` runs it on a fresh box. ccache drives GCC and MSVC, and the compile",
-                "database is what an editor reads. The libraries are the vcpkg set `omw` names in OMW_VCPKG_SET",
-                "(`omw deps-set`, `pins.py`), built static, through its own toolchain file: host tools and libraries",
-                "share the system's one triplet, and the manifest is the set's to install, never a configure's. What",
-                "the tree fetches is `cmake/Dependencies.cmake`'s. Warnings are errors, by CMake's own switch, for the",
-                "tree's targets alone (`cmake/Checks.cmake`)."
+                "Every flavour, each building every program, the tests and the benchmarks. ccache drives GCC and MSVC,",
+                "and the compile database is what an editor reads. The libraries are the vcpkg set `omw` names in",
+                "OMW_VCPKG_SET (`omw deps-set`, `pins.py`), built static, through its own toolchain file: host tools",
+                "and libraries share the system's one triplet, and the manifest is the set's to install, never a",
+                "configure's. What the tree fetches is `cmake/Dependencies.cmake`'s. Warnings are errors, by CMake's",
+                "own switch, for the tree's targets alone (`cmake/Checks.cmake`)."
             ],
             "cacheVariables": {
                 "CMAKE_TOOLCHAIN_FILE": "$env{OMW_VCPKG_SET}/scripts/buildsystems/vcpkg.cmake",
@@ -29,11 +28,6 @@
                 "CMAKE_C_COMPILER_LAUNCHER": "ccache",
                 "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "OPENMW_BUILD_CS": "OFF",
-                "OPENMW_BUILD_CS_TESTS": "OFF",
-                "OPENMW_BUILD_WIZARD": "OFF",
-                "OPENMW_BUILD_ESSIMPORTER": "OFF",
-                "OPENMW_BUILD_INIIMPORTER": "ON",
                 "CMAKE_COMPILE_WARNING_AS_ERROR": "ON"
             }
         },
@@ -58,22 +52,6 @@
             }
         },
         {
-            "name": "no-tools",
-            "hidden": true,
-            "$comment": [
-                "The content tools and the launcher off, for flavours that never run them. Debug keeps them, so the",
-                "launcher's [RTX] page can be built."
-            ],
-            "cacheVariables": {
-                "OPENMW_BUILD_BSATOOL": "OFF",
-                "OPENMW_BUILD_ESMTOOL": "OFF",
-                "OPENMW_BUILD_LAUNCHER": "OFF",
-                "OPENMW_BUILD_NAVMESHTOOL": "OFF",
-                "OPENMW_BUILD_NIFTEST": "OFF",
-                "OPENMW_BUILD_BULLETOBJECTTOOL": "OFF"
-            }
-        },
-        {
             "name": "one-link",
             "hidden": true,
             "$comment": [
@@ -89,33 +67,30 @@
         {
             "name": "debug",
             "hidden": true,
-            "$comment": "Every assert, with the tests: the everyday build.",
+            "$comment": "Every assert: the everyday build, and what CI builds and tests on every system.",
             "binaryDir": "${sourceDir}/build-debug",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "OPENMW_BUILD_COMPONENTS_TESTS": "ON",
-                "OPENMW_BUILD_GAME_TESTS": "ON"
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
         },
         {
             "name": "release",
             "hidden": true,
-            "inherits": [ "no-tools" ],
             "$comment": [
-                "`-O3 -DNDEBUG` with line tables and frame pointers (`cmake/Flags.cmake`), no tests: the build a",
-                "number is quoted from."
+                "`-O3 -DNDEBUG` with line tables and frame pointers (`cmake/Flags.cmake`): the build a number is quoted",
+                "from and the archive is installed from. Link-time optimisation where OMW_LTO says `ON`, as a tagged",
+                "release does, and a desk that measures what ships."
             ],
             "binaryDir": "${sourceDir}/build-release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "OPENMW_BUILD_COMPONENTS_TESTS": "OFF",
-                "OPENMW_BUILD_GAME_TESTS": "OFF"
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "$env{OMW_LTO}"
             }
         },
         {
             "name": "asan",
             "hidden": true,
-            "inherits": [ "debug", "no-tools", "one-link" ],
+            "inherits": [ "debug", "one-link" ],
             "$comment": [
                 "Debug under AddressSanitizer and UndefinedBehaviorSanitizer, as upstream runs its tests. Linux",
                 "only: MSVC's sanitizer is unmeasured here. The options it needs are its test preset's. Warnings",
@@ -132,7 +107,7 @@
         {
             "name": "tsan",
             "hidden": true,
-            "inherits": [ "debug", "no-tools", "one-link" ],
+            "inherits": [ "debug", "one-link" ],
             "$comment": [
                 "Debug under ThreadSanitizer, which cannot share a build with AddressSanitizer: the races between the",
                 "threads the ray tracer keeps, the cell reader, the workers and the harness's instruments. Linux only,",
@@ -146,53 +121,8 @@
             }
         },
         {
-            "name": "full",
-            "hidden": true,
-            "$comment": [
-                "Every program, the CS and its tests among them, every suite and the benchmarks: what CI builds.",
-                "Listed first where inherited, so what it turns on beats what `common` and `windows` turn off."
-            ],
-            "binaryDir": "${sourceDir}/build-full",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "OPENMW_BUILD_CS": "ON",
-                "OPENMW_BUILD_CS_TESTS": "ON",
-                "OPENMW_BUILD_WIZARD": "ON",
-                "OPENMW_BUILD_LAUNCHER": "ON",
-                "OPENMW_BUILD_ESSIMPORTER": "ON",
-                "OPENMW_BUILD_COMPONENTS_TESTS": "ON",
-                "OPENMW_BUILD_GAME_TESTS": "ON",
-                "OPENMW_BUILD_BENCHMARKS": "ON"
-            }
-        },
-        {
-            "name": "package",
-            "hidden": true,
-            "$comment": [
-                "A release archive: release without tests, with the launcher, the wizard and the two importers, and",
-                "no CS, linked with link-time optimisation, as a tagged release ships. Listed first where inherited,",
-                "so what it turns on beats what `windows` turns off."
-            ],
-            "binaryDir": "${sourceDir}/build-package",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "OPENMW_BUILD_COMPONENTS_TESTS": "OFF",
-                "OPENMW_BUILD_GAME_TESTS": "OFF",
-                "OPENMW_BUILD_LAUNCHER": "ON",
-                "OPENMW_BUILD_WIZARD": "ON",
-                "OPENMW_BUILD_ESSIMPORTER": "ON",
-                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
-            }
-        },
-        {
             "name": "debug-linux",
-            "inherits": [ "debug", "linux", "common" ],
-            "$comment": [
-                "The test binaries at `-Og`: `cmake/Tests.cmake` says why."
-            ],
-            "cacheVariables": {
-                "OPENMW_TEST_COMPILE_OPTIONS": "-Og"
-            }
+            "inherits": [ "debug", "linux", "common" ]
         },
         {
             "name": "debug-windows",
@@ -213,22 +143,6 @@
         {
             "name": "tsan-linux",
             "inherits": [ "tsan", "linux", "common" ]
-        },
-        {
-            "name": "full-linux",
-            "inherits": [ "full", "linux", "common" ]
-        },
-        {
-            "name": "full-windows",
-            "inherits": [ "full", "windows", "common" ]
-        },
-        {
-            "name": "package-linux",
-            "inherits": [ "package", "linux", "common" ]
-        },
-        {
-            "name": "package-windows",
-            "inherits": [ "package", "windows", "common" ]
         }
     ],
     "testPresets": [
@@ -279,10 +193,10 @@
         },
         { "name": "debug-linux", "configurePreset": "debug-linux", "inherits": [ "tests" ] },
         { "name": "debug-windows", "configurePreset": "debug-windows", "inherits": [ "tests" ] },
+        { "name": "release-linux", "configurePreset": "release-linux", "inherits": [ "tests" ] },
+        { "name": "release-windows", "configurePreset": "release-windows", "inherits": [ "tests" ] },
         { "name": "asan-linux", "configurePreset": "asan-linux", "inherits": [ "tests", "address-sanitizer" ] },
-        { "name": "tsan-linux", "configurePreset": "tsan-linux", "inherits": [ "tests", "thread-sanitizer" ] },
-        { "name": "full-linux", "configurePreset": "full-linux", "inherits": [ "tests" ] },
-        { "name": "full-windows", "configurePreset": "full-windows", "inherits": [ "tests" ] }
+        { "name": "tsan-linux", "configurePreset": "tsan-linux", "inherits": [ "tests", "thread-sanitizer" ] }
     ],
     "buildPresets": [
         { "name": "debug-linux", "configurePreset": "debug-linux" },
@@ -290,22 +204,14 @@
         { "name": "release-linux", "configurePreset": "release-linux" },
         { "name": "release-windows", "configurePreset": "release-windows" },
         { "name": "asan-linux", "configurePreset": "asan-linux" },
-        { "name": "tsan-linux", "configurePreset": "tsan-linux" },
-        { "name": "full-linux", "configurePreset": "full-linux" },
-        { "name": "full-windows", "configurePreset": "full-windows" },
-        { "name": "package-linux", "configurePreset": "package-linux" },
-        { "name": "package-windows", "configurePreset": "package-windows" }
+        { "name": "tsan-linux", "configurePreset": "tsan-linux" }
     ],
     "workflowPresets": [
         { "name": "debug-linux", "steps": [ { "type": "configure", "name": "debug-linux" }, { "type": "build", "name": "debug-linux" }, { "type": "test", "name": "debug-linux" } ] },
         { "name": "debug-windows", "steps": [ { "type": "configure", "name": "debug-windows" }, { "type": "build", "name": "debug-windows" }, { "type": "test", "name": "debug-windows" } ] },
-        { "name": "release-linux", "steps": [ { "type": "configure", "name": "release-linux" }, { "type": "build", "name": "release-linux" } ] },
-        { "name": "release-windows", "steps": [ { "type": "configure", "name": "release-windows" }, { "type": "build", "name": "release-windows" } ] },
+        { "name": "release-linux", "steps": [ { "type": "configure", "name": "release-linux" }, { "type": "build", "name": "release-linux" }, { "type": "test", "name": "release-linux" } ] },
+        { "name": "release-windows", "steps": [ { "type": "configure", "name": "release-windows" }, { "type": "build", "name": "release-windows" }, { "type": "test", "name": "release-windows" } ] },
         { "name": "asan-linux", "steps": [ { "type": "configure", "name": "asan-linux" }, { "type": "build", "name": "asan-linux" }, { "type": "test", "name": "asan-linux" } ] },
-        { "name": "tsan-linux", "steps": [ { "type": "configure", "name": "tsan-linux" }, { "type": "build", "name": "tsan-linux" }, { "type": "test", "name": "tsan-linux" } ] },
-        { "name": "full-linux", "steps": [ { "type": "configure", "name": "full-linux" }, { "type": "build", "name": "full-linux" }, { "type": "test", "name": "full-linux" } ] },
-        { "name": "full-windows", "steps": [ { "type": "configure", "name": "full-windows" }, { "type": "build", "name": "full-windows" }, { "type": "test", "name": "full-windows" } ] },
-        { "name": "package-linux", "steps": [ { "type": "configure", "name": "package-linux" }, { "type": "build", "name": "package-linux" } ] },
-        { "name": "package-windows", "steps": [ { "type": "configure", "name": "package-windows" }, { "type": "build", "name": "package-windows" } ] }
+        { "name": "tsan-linux", "steps": [ { "type": "configure", "name": "tsan-linux" }, { "type": "build", "name": "tsan-linux" }, { "type": "test", "name": "tsan-linux" } ] }
     ]
 }

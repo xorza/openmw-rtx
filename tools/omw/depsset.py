@@ -101,7 +101,7 @@ def deps_set(args: list[str]) -> int:
     if args:
         raise Refusal("deps-set takes `--digest` or nothing")
     if SYSTEM == "linux" and not package.on_release_base(OS_RELEASE.read_text() if OS_RELEASE.is_file() else ""):
-        run(package.release_container("package").command(["python3", "omw", "deps-set"]))
+        run(package.release_container("release").command(["python3", "omw", "deps-set"]))
         return 0
     check_container()
     triplet = deps.TRIPLET

@@ -30,7 +30,7 @@ from omw.system import (
     run,
 )
 
-FLAVOURS = ("debug", "release", "asan", "tsan", "package", "full")
+FLAVOURS = ("debug", "release", "asan", "tsan")
 
 # The flavours under a sanitizer, which MSVC's has not been measured for on this tree.
 SANITIZED = ("asan", "tsan")
@@ -162,10 +162,9 @@ class Build:
 
     @property
     def default_targets(self) -> list[str]:
-        """What `build` builds when the line names nothing, beside the tests the build has."""
-        if self.flavour in ("package", "full"):
-            return ["all"]
-        return ["openmw-rtxtool", "openmw"]
+        """What `build` builds when the line names nothing, beside the tests the build has: every program,
+        which every flavour configures."""
+        return ["all"]
 
     @property
     def env(self) -> dict[str, str]:

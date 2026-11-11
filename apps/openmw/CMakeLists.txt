@@ -1071,26 +1071,24 @@ target_link_libraries(
         openmw-myguirtx
         Threads::Threads
 )
-if(OPENMW_BUILD_GAME)
-    add_executable(openmw main.cpp)
-    if(WIN32)
-        target_sources(openmw PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/openmw.rc")
-    endif()
-    target_link_libraries(openmw PRIVATE openmw-lib)
-    # `osgAnimation::MatrixLinearSampler`'s dynamic casts work under Clang only with the executable's
-    # symbols exported; whether the failure is the standard's behaviour is unclear.
-    if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
-        set_target_properties(
-            openmw
-            PROPERTIES
-                ENABLE_EXPORTS
-                    ON
-        )
-    endif()
-    # The console a Windows build opens beside the game: in Debug and RelWithDebInfo, never in Release,
-    # whose output goes to `openmw.log`.
-    if(MSVC)
-        target_link_options(openmw PRIVATE $<IF:$<CONFIG:Debug,RelWithDebInfo>,/SUBSYSTEM:CONSOLE,/SUBSYSTEM:WINDOWS>)
-    endif()
-    install(TARGETS openmw)
+add_executable(openmw main.cpp)
+if(WIN32)
+    target_sources(openmw PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/openmw.rc")
 endif()
+target_link_libraries(openmw PRIVATE openmw-lib)
+# `osgAnimation::MatrixLinearSampler`'s dynamic casts work under Clang only with the executable's
+# symbols exported; whether the failure is the standard's behaviour is unclear.
+if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+    set_target_properties(
+        openmw
+        PROPERTIES
+            ENABLE_EXPORTS
+                ON
+    )
+endif()
+# The console a Windows build opens beside the game: in Debug and RelWithDebInfo, never in Release,
+# whose output goes to `openmw.log`.
+if(MSVC)
+    target_link_options(openmw PRIVATE $<IF:$<CONFIG:Debug,RelWithDebInfo>,/SUBSYSTEM:CONSOLE,/SUBSYSTEM:WINDOWS>)
+endif()
+install(TARGETS openmw)

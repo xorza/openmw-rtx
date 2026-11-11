@@ -92,20 +92,20 @@ jobs:
           - name: linux-gcc
             os: ubuntu-26.04
             container: almalinux:8
-            flavour: full
+            flavour: debug
             ccache-size: 2000M
             tested: true
           - name: linux-clang
             os: ubuntu-26.04
             container: almalinux:8
-            flavour: full
+            flavour: debug
             ccache-size: 1000M
             # Compiled for Clang's warnings, not run, with the Clang the editor's clangd is.
             tested: false
             clang: true
           - name: windows-msvc
             os: windows-2025-vs2026
-            flavour: full
+            flavour: debug
             # At two gigabytes the objects filled the cache and a run hit nothing.
             ccache-size: 3000M
             tested: true
@@ -170,8 +170,8 @@ jobs:
         run: python omw "$FLAVOUR" test --without-device
 
       - name: Benchmarks, run once each as upstream runs them
-        if: matrix.tested && matrix.flavour == 'full'
-        working-directory: build-full
+        if: matrix.tested && matrix.flavour == 'debug'
+        working-directory: build-debug
         # Without `.exe`, which Git Bash finds on its own.
         run: |
           ./openmw_detournavigator_navmeshtilescache_benchmark
@@ -179,18 +179,18 @@ jobs:
           ./openmw_settings_access_benchmark
 
       - name: Install
-        if: matrix.tested && matrix.flavour == 'full'
-        run: python omw full exec cmake --install . --prefix "$RUNNER_TEMP/install"
+        if: matrix.tested && matrix.flavour == 'debug'
+        run: python omw debug exec cmake --install . --prefix "$RUNNER_TEMP/install"
 
       - name: Integration tests
         # Over the null backend in SDL's offscreen window: no device and no display. A pass takes a
         # minute.
-        if: matrix.tested && matrix.flavour == 'full' && runner.os == 'Linux'
+        if: matrix.tested && matrix.flavour == 'debug' && runner.os == 'Linux'
         timeout-minutes: 10
         env:
           OPENMW_RTX_BACKEND: "null"
           SDL_VIDEO_DRIVER: offscreen
-        run: python omw full integration --verbose
+        run: python omw debug integration --verbose
 
       - name: Logs
         if: failure()

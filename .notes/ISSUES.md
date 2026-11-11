@@ -10,3 +10,12 @@
   shape and its object's transform (`MeshSource`), and not a compound shape's child transforms, which
   `RecastMeshObject::update` follows. A tile written with an animated part in one pose is read back for every pose of
   that object at that transform.
+
+- **Five GPU tests fail on Windows over SSH**: on an AMD integrated GPU under Windows 11, `omw test` run over SSH
+  against the static vcpkg set (`9954fc27dc` and the four-flavour change after it) fails
+  `RtxPresenterTest.aLostSurfaceIsMadeAgainAndTheFramesGoOn`, `aFrameUnderFifoWaitsForThePresentTwoBeforeIt` and
+  `aSuboptimalPresentRebuildsOnceAnExtent` (`vkCreateSwapchainKHR` answers `VK_ERROR_FORMAT_NOT_SUPPORTED`),
+  `RtxGpuTimerTest.aFrameAccountsForItsOwnDeviceTimePassByPass` (no span after the placement's), and
+  `RtxFramesTest.aRequestIsTracedAsItsWorldDescribesItAndCarriesTheAirOn` (the traced constants differ from the
+  described ones at 0 s). All pass on Linux with an NVIDIA GPU. Not compared with a build from before the set.
+

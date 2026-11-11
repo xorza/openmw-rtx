@@ -1,22 +1,9 @@
-# What a configure chooses: the programs and suites it builds, the features compiled in, and where an
-# install puts things. The presets set these; a bare configure gets the defaults.
+# What a configure chooses: whether it builds the tests, the sanitizer, and where an install puts things.
+# The presets set these; a bare configure gets the defaults.
 
-option(OPENMW_BUILD_GAME "The game, openmw" ON)
-option(OPENMW_BUILD_LAUNCHER "The launcher" ON)
-option(OPENMW_BUILD_WIZARD "The installation wizard" ON)
-option(OPENMW_BUILD_CS "The Construction Set, openmw-cs" ON)
-option(OPENMW_BUILD_INIIMPORTER "The importer of Morrowind.ini" ON)
-option(OPENMW_BUILD_ESSIMPORTER "The importer of Morrowind's saves" ON)
-option(OPENMW_BUILD_BSATOOL "bsatool, which lists and extracts archives" ON)
-option(OPENMW_BUILD_ESMTOOL "esmtool, which dumps content files" ON)
-option(OPENMW_BUILD_NIFTEST "niftest, which loads every model of an archive" ON)
-option(OPENMW_BUILD_NAVMESHTOOL "The navigation mesh generator" ON)
-option(OPENMW_BUILD_BULLETOBJECTTOOL "The Bullet object tool" ON)
-option(OPENMW_BUILD_DOCS "The Doxygen reference" OFF)
-option(OPENMW_BUILD_COMPONENTS_TESTS "The components' tests and the ray tracer's" OFF)
-option(OPENMW_BUILD_GAME_TESTS "The game's tests" OFF)
-option(OPENMW_BUILD_CS_TESTS "The Construction Set's tests" OFF)
-option(OPENMW_BUILD_BENCHMARKS "The benchmarks, with Google Benchmark" OFF)
+# The tests and the benchmarks, CMake's own switch, which every preset leaves on: every program is built
+# in every flavour.
+option(BUILD_TESTING "The tests and the benchmarks" ON)
 
 # **A sanitizer over the whole build**, the fetched projects included: ThreadSanitizer sees a lock only in
 # code it instrumented, so a library left out reports races on what it guards, and AddressSanitizer's
@@ -51,16 +38,9 @@ if(OPENMW_SANITIZER)
     string(APPEND CMAKE_CXX_FLAGS " ${sanitizer_flags}")
 endif()
 
-# Qt for every program that draws a window of its own.
-if(OPENMW_BUILD_LAUNCHER OR OPENMW_BUILD_CS OR OPENMW_BUILD_WIZARD OR OPENMW_BUILD_CS_TESTS)
-    set(USE_QT TRUE)
-else()
-    set(USE_QT FALSE)
-endif()
-
 # libunshield for the wizard, which unpacks the installer's archives everywhere but on Windows, whose
 # players run the installer itself.
-if(NOT WIN32 AND OPENMW_BUILD_WIZARD)
+if(NOT WIN32)
     set(OPENMW_USE_UNSHIELD TRUE)
 endif()
 

@@ -15,8 +15,8 @@ class ParseTest(unittest.TestCase):
             (["release", "bench", "--seconds=3"], Line("release", "bench", ["--seconds=3"])),
             (["asan", "test", "--all"], Line("asan", "test", ["--all"])),
             (["tsan", "test", "--without-device"], Line("tsan", "test", ["--without-device"])),
-            (["archive", "v1"], Line("package", "archive", ["v1"])),
-            (["package", "archive"], Line("package", "archive", [])),
+            (["archive", "v1"], Line("release", "archive", ["v1"])),
+            (["release", "archive"], Line("release", "archive", [])),
             (["profile", "--offcpu"], Line("release", "profile", ["--offcpu"])),
             (["crash", "a.dmp"], Line(None, "crash", ["a.dmp"])),
             (["format"], Line(None, "format", [])),
@@ -24,7 +24,7 @@ class ParseTest(unittest.TestCase):
             (["--help"], Line(None, "help", [])),
             (["release", "-h"], Line(None, "help", [])),
             (["format", "--check"], Line(None, "format", ["--check"])),
-            (["full", "exec", "ls", "-l"], Line("full", "exec", ["ls", "-l"])),
+            (["asan", "exec", "ls", "-l"], Line("asan", "exec", ["ls", "-l"])),
         ]
         for argv, expected in cases:
             with self.subTest(argv=argv):
@@ -45,7 +45,7 @@ class ParseTest(unittest.TestCase):
             ([], USAGE),
             (["debug"], USAGE),
             (["debug", "crash", "a.dmp"], "crash is not made of a build, so it takes no flavour"),
-            (["release", "archive"], "archive is made of the package flavour: `omw archive`"),
+            (["debug", "archive"], "archive is made of the release flavour: `omw archive`"),
             (["debug", "--views=x"], "name a verb before the switches: `omw debug view --views=x`"),
             (["build", "release"], "the flavour comes before the verb: `omw release build`"),
             (["debug", "test", "asan", "--all"], "the flavour comes before the verb: `omw asan test --all`"),
@@ -70,12 +70,16 @@ class ParseTest(unittest.TestCase):
             with self.subTest(verb=verb):
                 self.assertRegex(USAGE, rf"(?m)^  (\w+, )*{verb}\b")
 
-    def test_the_gate_is_the_full_flavour_s_and_says_its_steps_once(self):
-        # Every program CI builds, and so no other flavour, before anything builds.
-        self.assertEqual(parse(["gate"]), Line("full", "gate", []))
-        for flavour in ("debug", "release", "package"):
-            with self.subTest(flavour=flavour), self.assertRaisesRegex(Refusal, r"gate is made of the full flavour"):
+    def test_the_gate_is_the_debug_flavour_s_and_says_its_steps_once(self):
+        # The flavour CI builds and tests, and so no other, before anything builds.
+        self.assertEqual(parse(["gate"]), Line("debug", "gate", []))
+        for flavour in ("release", "asan", "tsan"):
+            with self.subTest(flavour=flavour), self.assertRaisesRegex(Refusal, r"gate is made of the debug flavour"):
                 parse([flavour, "gate"])
+        # The old flavours are no flavours at all.
+        for word in ("full", "package"):
+            with self.subTest(word=word), self.assertRaises(Refusal):
+                parse([word, "build"])
 
         # The help's line is `gate.SUMMARY`, wrapped.
         said = " ".join(re.search(r"(?ms)^  gate +(.*?)\s+—\s+stops", USAGE).group(1).split())

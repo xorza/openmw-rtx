@@ -1645,69 +1645,65 @@ if(WIN32)
     )
 endif()
 
-if(USE_QT)
-    add_library(openmw-components-qt STATIC)
-    target_sources(
-        openmw-components-qt
-        PRIVATE
-            config/gamesettings.cpp
-            config/launchersettings.cpp
-            contentselector/model/contentmodel.cpp
-            contentselector/model/esmfile.cpp
-            contentselector/model/modelitem.cpp
-            contentselector/view/combobox.cpp
-            contentselector/view/contentselector.cpp
-            files/qtconversion.cpp
-            l10n/qttranslations.cpp
-            misc/helpviewer.cpp
-            misc/scalableicon.cpp
-            platform/application.cpp
-            process/processinvoker.cpp
-            vfs/qtconversion.cpp
-        PUBLIC
-            FILE_SET HEADERS
-                FILES
-                    config/gamesettings.hpp
-                    config/launchersettings.hpp
-                    contentselector/model/contentmodel.hpp
-                    contentselector/model/esmfile.hpp
-                    contentselector/model/loadordererror.hpp
-                    contentselector/model/modelitem.hpp
-                    contentselector/view/combobox.hpp
-                    contentselector/view/contentselector.hpp
-                    files/qtconfigpath.hpp
-                    files/qtconversion.hpp
-                    l10n/qttranslations.hpp
-                    misc/hash.hpp
-                    misc/helpviewer.hpp
-                    misc/scalableicon.hpp
-                    misc/utf8qtextstream.hpp
-                    platform/application.hpp
-                    process/processinvoker.hpp
-                    vfs/qtconversion.hpp
-    )
-    target_link_libraries(
-        openmw-components-qt
-        PUBLIC
-            openmw-components
-            Qt::Widgets
-            Qt::Core
-    )
-    set_target_properties(
-        openmw-components-qt
-        PROPERTIES
-            AUTOMOC
-                ON
-            AUTOUIC
-                ON
-            AUTOUIC_SEARCH_PATHS
-                contentselector
-    )
+add_library(openmw-components-qt STATIC)
+target_sources(
+    openmw-components-qt
+    PRIVATE
+        config/gamesettings.cpp
+        config/launchersettings.cpp
+        contentselector/model/contentmodel.cpp
+        contentselector/model/esmfile.cpp
+        contentselector/model/modelitem.cpp
+        contentselector/view/combobox.cpp
+        contentselector/view/contentselector.cpp
+        files/qtconversion.cpp
+        l10n/qttranslations.cpp
+        misc/helpviewer.cpp
+        misc/scalableicon.cpp
+        platform/application.cpp
+        process/processinvoker.cpp
+        vfs/qtconversion.cpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                config/gamesettings.hpp
+                config/launchersettings.hpp
+                contentselector/model/contentmodel.hpp
+                contentselector/model/esmfile.hpp
+                contentselector/model/loadordererror.hpp
+                contentselector/model/modelitem.hpp
+                contentselector/view/combobox.hpp
+                contentselector/view/contentselector.hpp
+                files/qtconfigpath.hpp
+                files/qtconversion.hpp
+                l10n/qttranslations.hpp
+                misc/hash.hpp
+                misc/helpviewer.hpp
+                misc/scalableicon.hpp
+                misc/utf8qtextstream.hpp
+                platform/application.hpp
+                process/processinvoker.hpp
+                vfs/qtconversion.hpp
+)
+target_link_libraries(
+    openmw-components-qt
+    PUBLIC
+        openmw-components
+        Qt::Widgets
+        Qt::Core
+)
+set_target_properties(
+    openmw-components-qt
+    PROPERTIES
+        AUTOMOC
+            ON
+        AUTOUIC
+            ON
+        AUTOUIC_SEARCH_PATHS
+            contentselector
+)
 
-    if(OPENMW_BUILD_LAUNCHER OR OPENMW_BUILD_WIZARD)
-        add_dependencies(openmw-components-qt qm-files)
-    endif()
-endif()
+add_dependencies(openmw-components-qt qm-files)
 
 add_subdirectory(rtx)
 

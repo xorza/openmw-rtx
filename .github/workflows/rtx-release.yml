@@ -1,5 +1,5 @@
-# A push of `rtx-v*` builds the `package` flavour on both systems and puts the archives and their
-# Breakpad symbols on a draft release. `ci.yml` runs whole on the tagged commit too, as a tag can
+# A push of `rtx-v*` builds the `release` flavour on both systems with link-time optimisation and puts
+# the archives and their Breakpad symbols on a draft release. `ci.yml` runs whole on the tagged commit too, as a tag can
 # name a commit CI never ran on, and an auto-merge was checked on its pull request's merge ref.
 #
 # Run by hand, it hands back the archives as artifacts and makes no release.
@@ -66,6 +66,9 @@ jobs:
         run: echo "ARCHIVE_NAME=${GITHUB_REF_NAME//[\/\"<>|]/-}" >> "$GITHUB_ENV"
 
       - name: Package
+        env:
+          # What ships is linked with link-time optimisation, which a desk's release build leaves off.
+          OMW_LTO: "ON"
         run: python omw archive "$ARCHIVE_NAME"
 
       - name: Archive

@@ -117,10 +117,8 @@ if(WIN32)
 else()
     target_sources(components-tests PRIVATE rtx/support/testplatformposix.cpp)
 endif()
-if(USE_QT)
-    target_sources(components-tests PRIVATE config/testlaunchersettings.cpp)
-    target_link_libraries(components-tests PRIVATE openmw-components-qt)
-endif()
+target_sources(components-tests PRIVATE config/testlaunchersettings.cpp)
+target_link_libraries(components-tests PRIVATE openmw-components-qt)
 
 target_link_libraries(
     components-tests

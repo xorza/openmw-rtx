@@ -143,38 +143,36 @@ target_compile_definitions(
 # The harness links the game, so a picture taken here is the picture played. Only the executable
 # links it: `openmw-rtxtool-lib` stays engine-free for `components-tests`, so the hosted files are
 # built here.
-if(OPENMW_BUILD_GAME)
-    add_executable(openmw-rtxtool main.cpp)
-    target_sources(
-        openmw-rtxtool
-        PRIVATE
-            cameradriver.cpp
-            hosted.cpp
-            measurer.cpp
-            memorykey.cpp
-            session.cpp
-            stager.cpp
-            standingnote.cpp
-            stopwriter.cpp
-        PRIVATE
-            FILE_SET HEADERS
-                BASE_DIRS
-                    "${PROJECT_SOURCE_DIR}"
-                FILES
-                    cameradriver.hpp
-                    hosted.hpp
-                    measurer.hpp
-                    memorykey.hpp
-                    session.hpp
-                    stager.hpp
-                    standingnote.hpp
-                    stopwriter.hpp
-    )
+add_executable(openmw-rtxtool main.cpp)
+target_sources(
+    openmw-rtxtool
+    PRIVATE
+        cameradriver.cpp
+        hosted.cpp
+        measurer.cpp
+        memorykey.cpp
+        session.cpp
+        stager.cpp
+        standingnote.cpp
+        stopwriter.cpp
+    PRIVATE
+        FILE_SET HEADERS
+            BASE_DIRS
+                "${PROJECT_SOURCE_DIR}"
+            FILES
+                cameradriver.hpp
+                hosted.hpp
+                measurer.hpp
+                memorykey.hpp
+                session.hpp
+                stager.hpp
+                standingnote.hpp
+                stopwriter.hpp
+)
 
-    target_link_libraries(
-        openmw-rtxtool
-        PRIVATE
-            openmw-rtxtool-lib
-            openmw-lib
-    )
-endif()
+target_link_libraries(
+    openmw-rtxtool
+    PRIVATE
+        openmw-rtxtool-lib
+        openmw-lib
+)

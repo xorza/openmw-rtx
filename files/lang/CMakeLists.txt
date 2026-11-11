@@ -49,17 +49,11 @@ foreach(target translations purge-obsolete-translations)
     add_custom_target(${target} ${commands} VERBATIM)
 endforeach()
 
-if(NOT (OPENMW_BUILD_LAUNCHER OR OPENMW_BUILD_WIZARD))
-    return()
-endif()
-
-set(ts ${components_ts})
-if(OPENMW_BUILD_LAUNCHER)
-    list(APPEND ts ${launcher_ts})
-endif()
-if(OPENMW_BUILD_WIZARD)
-    list(APPEND ts ${wizard_ts})
-endif()
+set(ts
+    ${components_ts}
+    ${launcher_ts}
+    ${wizard_ts}
+)
 qt_add_translation(qm ${ts} OPTIONS -silent)
 
 # Qt's own translations of the languages the programs have, beside them, from the vcpkg set's Qt, which the

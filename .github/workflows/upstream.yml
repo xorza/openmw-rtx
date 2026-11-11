@@ -198,7 +198,8 @@ jobs:
                     files/openmw.cfg files/windows/openmw.exe.manifest files/windows/other-apps.manifest
                     cmake/FindTinyXML.cmake cmake/FindFFmpeg.cmake cmake/FindLZ4.cmake cmake/FindMyGUI.cmake
                     cmake/FindOSGPlugins.cmake cmake/FindLIBUNSHIELD.cmake cmake/CheckBulletPrecision.cmake
-                    cmake/CheckLuaCustomAllocator.cmake
+                    cmake/CheckLuaCustomAllocator.cmake cmake/FindSphinx.cmake cmake/FindLuaJit.cmake
+                    cmake/LibFindMacros.cmake cmake/COPYING-CMAKE-SCRIPTS CI/deps_versions.msvc.sh
                     components/misc/osgpluginchecker.cpp.in components/misc/osgpluginchecker.hpp
                   )
                   # Forced, as a file upstream adds is staged.

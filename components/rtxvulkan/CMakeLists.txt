@@ -167,7 +167,7 @@ set(RTX_SHADER_PROBES
     shaders/probes/unormmean.comp
     shaders/probes/unormround.comp
 )
-if(OPENMW_BUILD_COMPONENTS_TESTS)
+if(BUILD_TESTING)
     list(APPEND RTX_SHADERS ${RTX_SHADER_PROBES})
 endif()
 

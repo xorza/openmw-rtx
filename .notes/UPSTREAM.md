@@ -326,13 +326,14 @@ made only on the user's explicit yes, after which it is added here.
 - `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
   `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
   stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.
-- One build in place of upstream's switches (`.notes/proposal-build.md`, to fold into `docs/rtx/build.md`): every
-  configuration's flags in `cmake/Flags.cmake`, read through `CMAKE_USER_MAKE_RULES_OVERRIDE`, with line tables and
-  frame pointers in Release too and a PDB on every MSVC link; warnings as errors by CMake's
-  `CMAKE_COMPILE_WARNING_AS_ERROR` in place of `OPENMW_CXX_FLAGS` and `OPENMW_MSVC_WERROR`, and link-time optimisation
-  by `CMAKE_INTERPROCEDURAL_OPTIMIZATION` in place of `OPENMW_LTO`. Gone with their branches: plain Lua
-  (`OPENMW_LUAJIT`; the sources' `NO_LUAJIT` branches stay, as upstream wrote them), the system's TinyXML
-  (`OPENMW_SYSTEM_TINYXML`, `cmake/FindTinyXML.cmake`), coverage, every precompiled header
+- One build in place of upstream's switches (`docs/rtx/build.md`): every configuration's flags in `cmake/Flags.cmake`,
+  read through `CMAKE_USER_MAKE_RULES_OVERRIDE`, with line tables and frame pointers in Release too and a PDB on every
+  MSVC link; warnings as errors by CMake's `CMAKE_COMPILE_WARNING_AS_ERROR` in place of `OPENMW_CXX_FLAGS` and
+  `OPENMW_MSVC_WERROR`, and link-time optimisation by `CMAKE_INTERPROCEDURAL_OPTIMIZATION` in place of `OPENMW_LTO`.
+  Gone with their branches: every program's switch (`OPENMW_BUILD_*`), as every flavour builds every program, the
+  tests and benchmarks behind CMake's own `BUILD_TESTING` and the Doxygen targets failing by name where Doxygen is
+  missing; plain Lua (`OPENMW_LUAJIT`; the sources' `NO_LUAJIT` branches stay, as upstream wrote them), the system's
+  TinyXML (`OPENMW_SYSTEM_TINYXML`, `cmake/FindTinyXML.cmake`), coverage, every precompiled header
   (`OPENMW_MSVC_PRECOMPILED_HEADERS`), since ccache caches through none, and the console option, the console fixed to
   Debug and RelWithDebInfo as its default had it. One portable install layout on every system, every file beside the
   programs and the libraries in `lib/`, so the system-install branch goes: `OPENMW_LOCAL_INSTALL`, the suffixes, the
@@ -342,14 +343,15 @@ made only on the user's explicit yes, after which it is added here.
   adds to each executable: the game's `openmw.exe.manifest` and its line in `openmw.rc` go, and the game gains the
   per-monitor DPI awareness and long paths the other programs had. The cost is a conflict with every upstream change
   to an option, a precompiled header list or a manifest line, which the merge drops.
-- Every third-party library from the vcpkg set, static (`vcpkg.json`, `.notes/proposal-build.md`), in place of
-  the system's on Linux and upstream's prebuilt set on Windows: `cmake/Dependencies.cmake` finds each package
-  by its own CMake files or pkg-config's, with no version floors, and every fetched project is built from its
-  pinned archive alone, never a system's (`FIND_PACKAGE_ARGS`). The finders the set's own files replace go
-  (`FindFFmpeg`, `FindLZ4`, `FindMyGUI`, `FindOSGPlugins`, `FindLIBUNSHIELD`), and so do
-  `CheckBulletPrecision`, as the set's Bullet states its precision, and `CheckLuaCustomAllocator`, a warning
-  about the one LuaJIT the set pins. OpenSceneGraph's plugins are linked static
-  and registered in one generated file every program takes (`components/resource/osgplugins.cpp.in`), as
-  upstream's static builds did in `imagemanager.cpp`; upstream's run-time check that they can be loaded
-  (`Misc::checkRequiredOSGPluginsArePresent`, its call in `apps/openmw/main.cpp`) goes, since the link now
-  holds them. The cost is a conflict with an upstream change to a found package, a plugin or the check.
+- Every third-party library from the vcpkg set, static (`vcpkg.json`, `docs/rtx/build.md`), in place of the system's
+  on Linux and upstream's prebuilt set on Windows, whose tags `CI/deps_versions.msvc.sh` held and which goes:
+  `cmake/Dependencies.cmake` finds each package by its own CMake files or pkg-config's, with no version floors, and
+  every fetched project is built from its pinned archive alone, never a system's (`FIND_PACKAGE_ARGS`). The finders
+  the set's own files replace go (`FindFFmpeg`, `FindLZ4`, `FindMyGUI`, `FindOSGPlugins`, `FindLIBUNSHIELD`,
+  `FindLuaJit` with `LibFindMacros` and `COPYING-CMAKE-SCRIPTS`, the licence of finders gone before, and the unused
+  `FindSphinx`), and so do `CheckBulletPrecision`, as the set's Bullet states its precision, and
+  `CheckLuaCustomAllocator`, a warning about the one LuaJIT the set pins. OpenSceneGraph's plugins are linked static
+  and registered in one generated file every program takes (`components/resource/osgplugins.cpp.in`), as upstream's
+  static builds did in `imagemanager.cpp`; upstream's run-time check that they can be loaded
+  (`Misc::checkRequiredOSGPluginsArePresent`, its call in `apps/openmw/main.cpp`) goes, since the link now holds them.
+  The cost is a conflict with an upstream change to a found package, a plugin or the check.

@@ -1,6 +1,5 @@
 """Every download the driver pins, by version and SHA-256: the one file a bump edits, and what CI
-keys its cache of deps/ on beside upstream's `CI/deps_versions.msvc.sh`, so a bump saves the cache
-afresh and an edit to the code around the pins does not. Why each is pinned the way it is stays with
+keys its cache of deps/ on, so a bump saves the cache afresh. Why each is pinned the way it is stays with
 the code that fetches it, in `deps.py`."""
 
 from dataclasses import dataclass
@@ -25,12 +24,6 @@ class PublishedSet:
         base = f"https://github.com/{self.repository}/releases/download/deps-{self.digest}/vcpkg-{triplet}.tar.gz"
         return [Pin(f"{base}.{index}", sha256) for index, sha256 in enumerate(self.sha256[system])]
 
-
-# aqt, which installs Qt on Windows for the flavours that build the Qt programs.
-AQT = Pin(
-    "https://github.com/miurahr/aqtinstall/releases/download/v3.1.15/aqt_x64.exe",
-    "f9e9acc05975f2e70e4935ace76b41882cda4b53eb779c9bcf1d87a95029a6b0",
-)
 
 # The clang-format every desk and CI formats with (`deps.clang_format`), by system: the PyPI wheels
 # built from LLVM's release, about 2 MB each, where LLVM's own packages carry it inside 0.9 to 1.9 GB.
@@ -160,16 +153,11 @@ CRASH_TOOLS = {
     ),
 }
 
-# The Vulkan SDK from LunarG, each system's with the checksum LunarG publishes beside the file in its
-# own listing, sdk.lunarg.com/sdk/files.json. On Windows the loader comes apart from the SDK, from the
-# runtime components LunarG publishes for redistribution.
-VULKAN_SDK_WINDOWS_VERSION = "1.4.363.0"
-VULKAN_SDK_WINDOWS = Pin(
-    f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_WINDOWS_VERSION}/windows/vulkansdk-windows-X64-{VULKAN_SDK_WINDOWS_VERSION}.exe",
-    "94a82d378f7a5e3e54c9db7d2fb7016af136e14ac0a18dbf0f2f67a36352d141",
-)
+# The Vulkan loader Windows' tests start against (`deps.vulkan_loader`): the runtime components LunarG
+# publishes for redistribution, with the checksum LunarG lists for the file in sdk.lunarg.com/sdk/files.json.
+VULKAN_LOADER_WINDOWS_VERSION = "1.4.363.0"
 VULKAN_LOADER_WINDOWS = Pin(
-    f"https://sdk.lunarg.com/sdk/download/{VULKAN_SDK_WINDOWS_VERSION}/windows/VulkanRT-X64-{VULKAN_SDK_WINDOWS_VERSION}-Components.zip",
+    f"https://sdk.lunarg.com/sdk/download/{VULKAN_LOADER_WINDOWS_VERSION}/windows/VulkanRT-X64-{VULKAN_LOADER_WINDOWS_VERSION}-Components.zip",
     "a25a927aa8b9f0371048f1861cf88ac3b9bc9b1fb332c42d897c8ab32695769a",
 )
 # vcpkg, which builds the libraries `vcpkg.json` names (`deps.vcpkg_root`): its registry at the commit of

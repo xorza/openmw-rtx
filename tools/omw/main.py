@@ -75,19 +75,17 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                formatted, then merged; no flavour
   lint [check...]              the checks CI's checks job runs besides the formatting, every one or
                                those named: names, translations, driver, workflows; no flavour
-  bootstrap                    the pinned Vulkan SDK and CMake into deps/; no flavour
+  bootstrap                    the pinned dependency set, Windows' Vulkan loader and CMake into deps/; no flavour
   deps-set [--digest]          the libraries vcpkg.json names, built static for this system and packed
                                under deps/sets/, Linux's in AlmaLinux 8; with --digest, the set's name
   help                         this page; no flavour
 
   flavour   directory       what it is
-  debug     build-debug     -O2 -g1 with every assert and the tests: the everyday build, and the default
+  debug     build-debug     -O2 -g1 with every assert: the everyday build, the default, CI's and the gate's
   release   build-release   -O3 -DNDEBUG, line tables and frame pointers: the build a number is quoted from
+                            and the archive is installed from, with link-time optimisation where OMW_LTO=ON
   asan      build-asan      debug under AddressSanitizer and UndefinedBehaviorSanitizer; Linux only
   tsan      build-tsan      debug under ThreadSanitizer; Linux only
-  package   build-package   release with the launcher, the wizard and the importers, portable
-  full      build-full      debug with every program the tree has, the CS, the launcher and the wizard among them:
-                            what CI's Linux leg builds, and the gate's
 """
 # The gate's steps, from the one place they are stated, wrapped to the column the verbs' words stand in.
 USAGE = USAGE.replace("{gate}", textwrap.fill(gate.SUMMARY + " — stops at the first failure", width=100,
@@ -143,9 +141,9 @@ BUILD_VERBS = {
     "repeat": Verb(repeat.repeat),
     "kernels": Verb(kernels.kernels),
     "integration": Verb(integration.integration),
-    "gate": Verb(gate.gate, flavour="full"),
+    "gate": Verb(gate.gate, flavour="debug"),
     "exec": Verb(_exec),
-    "archive": Verb(package.archive, flavour="package"),
+    "archive": Verb(package.archive, flavour="release"),
     "profile": Verb(perf.profile, flavour="release"),
     "remote": Verb(_remote),
 }
