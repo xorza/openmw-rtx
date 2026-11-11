@@ -391,3 +391,8 @@ made only on the user's explicit yes, after which it is added here.
   MyGUI and LuaJIT are, in place of pkg-config, which no other package needs; Boost in one `find_package`; and
   Google Test and Google Benchmark under one `BUILD_TESTING`. The cost is a conflict with an upstream edit to
   those finds.
+- Third-party code in one style and quiet (`.notes/build-cleanup.md`, step 7): the vendored projects under
+  `extern/` (`osgQt`, `oics`, `osg-ffmpeg-videoplayer`, `smhasher`, `rgbcx`) named and listed as the tree's own
+  targets are, with keyword links and `osgQt` through `AUTOMOC` in place of `qt_wrap_cpp`, and their warnings
+  off from `extern/`'s directory flags in place of `rgbcx`'s own branch. The cost is a conflict with an upstream
+  edit to one of those lists.

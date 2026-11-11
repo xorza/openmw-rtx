@@ -5,8 +5,15 @@ set_directory_properties(
         EXCLUDE_FROM_ALL
             on
 )
-# Vendored code, whose warnings are its own: never errors, whatever the tree's preset asks.
-set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+# Vendored code, whose warnings are its own (`docs/rtx/build.md`): off, whatever the tree's preset asks. No project
+# here sets a warning level of its own, so MSVC's `/w` overrides none.
+if(MSVC)
+    string(APPEND CMAKE_C_FLAGS " /w")
+    string(APPEND CMAKE_CXX_FLAGS " /w")
+else()
+    string(APPEND CMAKE_C_FLAGS " -w")
+    string(APPEND CMAKE_CXX_FLAGS " -w")
+endif()
 
 # sol3, the C++ binding to Lua, headers only, with the configuration the tree compiles it with: its
 # `sol/config.hpp` ahead of sol's own, which the folder after it holds.

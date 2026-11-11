@@ -1,22 +1,25 @@
-set(OSGQT_LIBRARY "osgQt")
-
-# Sources
-
-set(SOURCE_H
-    include/osgQt/osgQOpenGLWidget.hpp
-    include/osgQt/CompositeOsgRenderer.hpp
+add_library(osgQt STATIC)
+target_sources(
+    osgQt
+    PRIVATE
+        osgQOpenGLWidget.cpp
+        CompositeOsgRenderer.cpp
+        include/osgQt/osgQOpenGLWidget.hpp
+        include/osgQt/CompositeOsgRenderer.hpp
 )
-
-qt_wrap_cpp(SOURCES_H_MOC ${SOURCE_H} )
-
-set(OSGQT_SOURCE_FILES
-    osgQOpenGLWidget.cpp
-    CompositeOsgRenderer.cpp
-    ${SOURCES_H_MOC}
+target_include_directories(osgQt SYSTEM PUBLIC include)
+target_include_directories(osgQt PRIVATE include/osgQt)
+target_link_libraries(
+    osgQt
+    PUBLIC
+        Qt::Core
+        Qt::OpenGL
+        Qt::OpenGLWidgets
+        OpenSceneGraph::osgViewer
 )
-
-add_library(${OSGQT_LIBRARY} STATIC ${OSGQT_SOURCE_FILES})
-target_include_directories(${OSGQT_LIBRARY} SYSTEM PUBLIC include)
-target_include_directories(${OSGQT_LIBRARY} PRIVATE include/osgQt)
-
-target_link_libraries(${OSGQT_LIBRARY} PUBLIC Qt::Core Qt::OpenGL Qt::OpenGLWidgets OpenSceneGraph::osgViewer)
+set_target_properties(
+    osgQt
+    PROPERTIES
+        AUTOMOC
+            ON
+)

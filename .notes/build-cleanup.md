@@ -38,7 +38,8 @@ When the last one lands, move the lasting decisions into `docs/rtx/build.md` and
     genexes, `add_compile_options` and `CMAKE_CXX_FLAGS` (yaml-cpp `/W3`, SDL3 `/W3`, Benchmark and Crashpad
     `/W4`, VMA `/W3`), so `/w` lands before or after them, and cl prints D9025 ("overriding") for each file.
     MSVC therefore takes `/wd<N>` on the target that raises warning N, which conflicts with no level. Today
-    that is C4267 on yaml-cpp alone.
+    that is C4267 on yaml-cpp alone. The vendored projects under `extern/` set no level of their own, so there
+    MSVC takes `/w` in the directory's flags like the rest.
 - **One compiler for everything built on Linux, tools included** (decided 2026-11-11). The set and the tree
   already build with gcc-toolset-15, as the programs link libstdc++ statically. The env script's tools
   (autoconf, zsync, `wayland-scanner`) ship nothing, but building them with the same GCC leaves nothing

@@ -10,6 +10,13 @@ include(FetchContent)
 # Each project's own settings stay inside the block; Crashpad's folder leaves it, for
 # `components/crashcatcher/CMakeLists.txt`, which builds one of its files into every executable.
 block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
+    # A third party's warnings are its own (`docs/rtx/build.md`): off, by `-w` on GCC and Clang, which wins over
+    # any `-W` a project adds after it. Each project sets its own MSVC level, which `/w` would override with a
+    # D9025 a file, so MSVC turns off the one warning a project raises, on its target.
+    if(NOT MSVC)
+        string(APPEND CMAKE_C_FLAGS " -w")
+        string(APPEND CMAKE_CXX_FLAGS " -w")
+    endif()
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 
     # SDL3, the pinned release built static, so a package carries it inside the binaries. Ahead of the
@@ -61,6 +68,7 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     )
     set(YAML_BUILD_SHARED_LIBS OFF)
     FetchContent_MakeAvailable(yaml-cpp)
+    target_compile_options(yaml-cpp PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/wd4267>)
 
     if(BUILD_TESTING)
         FetchContent_Declare(
