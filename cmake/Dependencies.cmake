@@ -75,9 +75,7 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
         )
         set(INSTALL_GTEST OFF)
         FetchContent_MakeAvailable(googletest)
-    endif()
 
-    if(BUILD_TESTING)
         # 1.10, whose header no longer reads `__COUNTER__` in an `#if`, which Clang 23 counts a C2y extension
         # and 1.8's own `-pedantic-errors` made an error.
         FetchContent_Declare(
@@ -141,7 +139,6 @@ endblock()
 set(OpenGL_GL_PREFERENCE LEGACY) # GL2; GLVND's is for GL3 and up.
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
-find_package(PkgConfig REQUIRED)
 find_package(Freetype REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(lz4 CONFIG REQUIRED)
@@ -159,6 +156,7 @@ find_package(
     CONFIG
     REQUIRED
     COMPONENTS
+        filesystem
         iostreams
         program_options
 )
@@ -199,9 +197,21 @@ find_package(
 
 # libunshield for the wizard, which unpacks the installer's archives everywhere but on Windows, whose
 # players run the installer itself.
+# Its port installs no CMake files, and its pkg-config file names none of the zlib its archive calls: its header
+# and its archive, found in the set, as MyGUI's are.
 if(NOT WIN32)
-    pkg_check_modules(unshield REQUIRED IMPORTED_TARGET libunshield)
-    target_link_libraries(PkgConfig::unshield INTERFACE ZLIB::ZLIB)
+    find_path(UNSHIELD_INCLUDE_DIR libunshield.h REQUIRED)
+    find_library(UNSHIELD_LIBRARY unshield REQUIRED)
+    add_library(Unshield::Unshield STATIC IMPORTED)
+    set_target_properties(
+        Unshield::Unshield
+        PROPERTIES
+            IMPORTED_LOCATION
+                "${UNSHIELD_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES
+                "${UNSHIELD_INCLUDE_DIR}"
+    )
+    target_link_libraries(Unshield::Unshield INTERFACE ZLIB::ZLIB)
 endif()
 
 # FFmpeg through the set's own find module, which names every library its static ones link.
@@ -324,7 +334,6 @@ find_package(JPEG REQUIRED)
 find_package(LibXml2 REQUIRED)
 find_package(minizip CONFIG REQUIRED)
 find_package(uriparser CONFIG REQUIRED)
-find_package(Boost CONFIG REQUIRED COMPONENTS filesystem)
 # By the set's own folder: the port installs its config under `share/collada-dom`, which CMake's search for
 # `collada_dom` does not name, so it would take a system's instead.
 find_package(

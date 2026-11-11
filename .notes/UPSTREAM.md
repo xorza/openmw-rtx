@@ -387,3 +387,7 @@ made only on the user's explicit yes, after which it is added here.
   release date had read a date taken at configure. The templates read `PROJECT_VERSION*`, so the
   `OPENMW_VERSION_*` copies of it go. The cost is a conflict with an upstream edit to the version's templates
   or its target.
+- Each dependency found one way (`.notes/build-cleanup.md`, step 6): libunshield by its header and archive, as
+  MyGUI and LuaJIT are, in place of pkg-config, which no other package needs; Boost in one `find_package`; and
+  Google Test and Google Benchmark under one `BUILD_TESTING`. The cost is a conflict with an upstream edit to
+  those finds.

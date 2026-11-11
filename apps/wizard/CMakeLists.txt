@@ -55,7 +55,7 @@ if(NOT WIN32)
                     unshield/unshieldworker.hpp
     )
     target_compile_definitions(openmw-wizard PRIVATE OPENMW_USE_UNSHIELD)
-    target_link_libraries(openmw-wizard PRIVATE PkgConfig::unshield)
+    target_link_libraries(openmw-wizard PRIVATE Unshield::Unshield)
 endif()
 
 set_target_properties(
