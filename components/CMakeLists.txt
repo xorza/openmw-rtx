@@ -1564,18 +1564,6 @@ set_property(
         COMPILE_OPTIONS
             $<$<CXX_COMPILER_ID:GNU>:-Wno-null-dereference>
 )
-# MSVC's four code generation threads a file take more than CI's 8 GB beside another `cl.exe` on these two;
-# one thread costs a third more build time, so only the hungriest take it. The compiler's option, not
-# the linker's of the same name.
-set_property(
-    SOURCE
-        detournavigator/tilecachedrecastmeshmanager.cpp
-        lua/utilpackage.cpp
-    APPEND
-    PROPERTY
-        COMPILE_OPTIONS
-            $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>
-)
 
 target_compile_definitions(
     openmw-components

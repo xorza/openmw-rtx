@@ -410,3 +410,6 @@ made only on the user's explicit yes, after which it is added here.
   `$<TARGET_PDB_FILE>`, in place of every `.pdb` in the build's root folder less 14 named folders, which also
   carried the tests' and the harness's; the game's console by `WIN32_EXECUTABLE` set to `$<CONFIG:Release>` in
   place of an MSVC branch around `/SUBSYSTEM`. The cost is a conflict with an upstream edit to those lines.
+- `/cgthreads1` gone from its 8 files (`.notes/build-cleanup.md`, step 11): upstream's, for a runner with 8 GB,
+  where the fork's public repository's Windows runners have 16 GB; held by three Windows runs without it. The
+  cost is a conflict with an upstream edit to those lists.

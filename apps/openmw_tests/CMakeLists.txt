@@ -65,15 +65,6 @@ target_link_libraries(
         openmw-test-platform
         openmw-test-options
 )
-# MSVC's four code generation threads a file take more than CI's 8 GB beside another `cl.exe` on this one.
-set_property(
-    SOURCE
-        mwworld/teststore.cpp
-    APPEND
-    PROPERTY
-        COMPILE_OPTIONS
-            $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>
-)
 
 target_link_libraries(
     openmw-tests

@@ -1024,20 +1024,6 @@ set_property(
         COMPILE_OPTIONS
             $<$<CXX_COMPILER_ID:GNU>:-Wno-uninitialized>
 )
-# MSVC's four code generation threads a file take more than CI's 8 GB beside another `cl.exe` on these;
-# one thread costs a third more build time, so only the hungriest take it.
-set_property(
-    SOURCE
-        mwlua/dialoguebindings.cpp
-        mwlua/magicbindings.cpp
-        mwlua/objectbindings.cpp
-        mwlua/stats.cpp
-        mwworld/esmstore.cpp
-    APPEND
-    PROPERTY
-        COMPILE_OPTIONS
-            $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>
-)
 
 # `PUBLIC`: `mwsound/ffmpegdecoder.hpp` names FFmpeg's types, and the game's headers OpenSceneGraph's,
 # MyGUI's and SDL's.
