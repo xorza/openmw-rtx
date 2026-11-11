@@ -107,8 +107,10 @@ TRIPLETS = {"linux": "x64-linux-openmw", "windows": "x64-windows-openmw"}
 TRIPLET = TRIPLETS[SYSTEM]
 
 # What a set is built from, by path from the root: the manifest, its configuration, the overlay ports and
-# triplets, and the image Linux builds in. With the vcpkg pins, the set's digest.
-SET_INPUTS = ("vcpkg.json", "vcpkg-configuration.json", "vcpkg/*", "env/install_almalinux_deps.sh")
+# triplets, the image Linux builds in, and the code that prunes and packs vcpkg's export. With the vcpkg pins,
+# the set's digest.
+SET_INPUTS = ("vcpkg.json", "vcpkg-configuration.json", "vcpkg/*", "env/install_almalinux_deps.sh",
+              "tools/omw/depsset.py")
 
 
 def set_digest(root: Path = ROOT) -> str:

@@ -26,6 +26,25 @@ file(
     "${SOURCE_PATH}/CMakeModules/FindSDL2.cmake"
 )
 
+# OSG builds every library and serializer it has, whatever is asked of it, and the rest are archives no build
+# reads, a gigabyte and more on Windows, whose objects carry their debug information: only what the tree links
+# and registers is built (`cmake/Dependencies.cmake`, `USED_OSG_PLUGINS`).
+foreach(library IN ITEMS osgManipulator osgUI osgVolume osgTerrain osgWidget osgPresentation)
+    vcpkg_replace_string("${SOURCE_PATH}/src/CMakeLists.txt" "        ${library}\n" "")
+endforeach()
+foreach(
+    serializers
+    IN ITEMS
+        osgUtil osgAnimation osgFX osgManipulator osgParticle osgSim osgShadow osgGA osgTerrain osgText osgVolume
+        osgViewer osgUI
+)
+    vcpkg_replace_string(
+        "${SOURCE_PATH}/src/osgWrappers/serializers/CMakeLists.txt"
+        "ADD_SUBDIRECTORY(${serializers})\n"
+        ""
+    )
+endforeach()
+
 string(
     COMPARE EQUAL
     "${VCPKG_LIBRARY_LINKAGE}"
@@ -91,7 +110,6 @@ vcpkg_cmake_configure(
         -DBUILD_OSG_PLUGIN_PNG=ON
         -DBUILD_OSG_PLUGIN_FREETYPE=ON
         -DBUILD_OSG_PLUGIN_DAE=ON
-        -DBUILD_OSG_PLUGIN_KTX=ON
         -DBUILD_OSG_DEPRECATED_SERIALIZERS=OFF
         -DBUILD_OSG_APPLICATIONS=OFF
         -DBUILD_OSG_EXAMPLES=OFF
