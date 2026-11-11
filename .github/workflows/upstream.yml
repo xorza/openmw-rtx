@@ -172,8 +172,10 @@ jobs:
                   # What the fork deleted stays deleted, so a change to one holds no merge for a human, and a
                   # file upstream adds under a deleted folder goes with it: upstream's workflows, as `ci.yml`
                   # does their work; GitLab's pipeline and what only it runs, as the fork's CI is GitHub's;
-                  # macOS's and Android's files, as the fork builds neither; and upstream's project files and
-                  # scripts the fork has no use for. A workflow upstream adds is held.
+                  # macOS's and Android's files, as the fork builds neither; upstream's project files and
+                  # scripts the fork has no use for; and what the one build left behind, the global
+                  # configuration, the per-program manifests and the system TinyXML's finder. A workflow
+                  # upstream adds is held.
                   kept_deleted=(
                     .github/workflows/push.yml .github/workflows/macos.yml .github/workflows/windows.yml
                     .github/workflows/release.yml
@@ -192,6 +194,8 @@ jobs:
                     .resubmitted_merge_requests.txt .readthedocs.yaml CONTRIBUTING.md CI/install_debian_deps.sh
                     scripts/generate_teal_declarations.sh scripts/preprocessed_file_size_stats.py
                     scripts/preprocessed_file_size_stats_diff.py scripts/osg_stats.py scripts/HOWTO-benchmark.md
+                    files/openmw.cfg files/windows/openmw.exe.manifest files/windows/other-apps.manifest
+                    cmake/FindTinyXML.cmake
                   )
                   # Forced, as a file upstream adds is staged.
                   git rm -r -f --ignore-unmatch -- "${kept_deleted[@]}"

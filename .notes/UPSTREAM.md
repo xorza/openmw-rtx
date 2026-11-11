@@ -30,8 +30,7 @@ made only on the user's explicit yes, after which it is added here.
 - The fork's own `README.md`, `CI/` and workflows, and the root tooling: `CMakePresets.json`,
   `.clangd`, `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes` and `.gitignore`.
 - The build the presets and Crashpad need: the raised CMake minimum, which reads the presets'
-  `$comment`s, and the directory `GNUInstallDirs_get_absolute_install_dir` then takes as its third
-  argument; the raised Boost minimum, whose flat maps the scene identities are; no scan for modules,
+  `$comment`s; the raised Boost minimum, whose flat maps the scene identities are; no scan for modules,
   which preprocessed every file twice for modules the tree has none of; the ccache fallback, so a
   runner without it builds; MSVC's embedded debug information, since ccache caches no compile that
   writes a shared PDB; and `$<COMPILE_LANGUAGE:C,CXX>`, which keeps the C++ flags off Crashpad's MASM.
@@ -298,8 +297,7 @@ made only on the user's explicit yes, after which it is added here.
   which the merge resolves by naming the file in its folder's list.
 - Every app's `CMakeLists.txt` in the same form: files named in `target_sources` lists in place of
   `add_openmw_dir`, `opencs_units` and `opencs_hdrs`, `add_executable` and `qt_add_executable` in place of
-  upstream's wrappers, Qt's resources through `AUTORCC`, `openmw-navmeshtool` without its library, and
-  `BUILD_WITH_CODE_COVERAGE` a setting of the checks target. The cost is a conflict with every upstream change
+  upstream's wrappers, Qt's resources through `AUTORCC`, and `openmw-navmeshtool` without its library. The cost is a conflict with every upstream change
   to an app's list, which the merge resolves by naming the file in its list.
 - The test binaries and benchmarks in the same form: files named in `target_sources` lists in place of
   `file(GLOB)` over names, links in the keyword form. The cost is a conflict with every upstream change to a
@@ -328,3 +326,19 @@ made only on the user's explicit yes, after which it is added here.
 - `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
   `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
   stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.
+- One build in place of upstream's switches (`.notes/proposal-build.md`, to fold into `docs/rtx/build.md`): every
+  configuration's flags in `cmake/Flags.cmake`, read through `CMAKE_USER_MAKE_RULES_OVERRIDE`, with line tables and
+  frame pointers in Release too and a PDB on every MSVC link; warnings as errors by CMake's
+  `CMAKE_COMPILE_WARNING_AS_ERROR` in place of `OPENMW_CXX_FLAGS` and `OPENMW_MSVC_WERROR`, and link-time optimisation
+  by `CMAKE_INTERPROCEDURAL_OPTIMIZATION` in place of `OPENMW_LTO`. Gone with their branches: plain Lua
+  (`OPENMW_LUAJIT`; the sources' `NO_LUAJIT` branches stay, as upstream wrote them), the system's TinyXML
+  (`OPENMW_SYSTEM_TINYXML`, `cmake/FindTinyXML.cmake`), coverage, every precompiled header
+  (`OPENMW_MSVC_PRECOMPILED_HEADERS`), since ccache caches through none, and the console option, the console fixed to
+  Debug and RelWithDebInfo as its default had it. One portable install layout on every system, every file beside the
+  programs and the libraries in `lib/`, so the system-install branch goes: `OPENMW_LOCAL_INSTALL`, the suffixes, the
+  icon folder, the `GLOBAL_*` cache entries, which `Files::LinuxPath` reads as empty, and the global
+  `files/openmw.cfg`. Every generator single-config, so `get_generator_is_multi_config` and the per-configuration
+  resource folders go. One Windows manifest for every program, `files/windows/openmw.manifest`, which `openmw-system`
+  adds to each executable: the game's `openmw.exe.manifest` and its line in `openmw.rc` go, and the game gains the
+  per-monitor DPI awareness and long paths the other programs had. The cost is a conflict with every upstream change
+  to an option, a precompiled header list or a manifest line, which the merge drops.

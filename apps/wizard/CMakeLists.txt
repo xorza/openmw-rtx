@@ -33,7 +33,6 @@ if(WIN32)
         openmw-wizard
         PRIVATE
             "${PROJECT_SOURCE_DIR}/files/windows/openmw-wizard.rc"
-            "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest"
             "${PROJECT_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc"
     )
 endif()

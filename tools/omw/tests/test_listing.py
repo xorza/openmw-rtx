@@ -18,12 +18,11 @@ class UnlistedTest(unittest.TestCase):
             "apps/openmw/countsnone.cpp",
             "components/platform/filestdio.cpp",
             "components/toutf8/geniconv.cpp",
-            "components/crashcatcher/crashunsupported.cpp",
             "apps/wizard/installationpage.cpp",
             "extern/oics/tinyxml.cpp",
         ]
         # The CS compiled nothing, so its program is off in this flavour; a header is no source; a
-        # file of another system, the generator and the other catcher are excused.
+        # file of another system and the generator are excused.
         # The system decides which half of a pair is the other's: each build compiles its own.
         # The wizard's unshield half is Windows's to leave out, and every other system's to build. A
         # facility only Linux has is a `linux` file and its absence a `none` one, each the other's.

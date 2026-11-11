@@ -528,30 +528,10 @@ target_link_libraries(
         Qt::Svg
 )
 
-if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(
-        openmw-cs-lib
-        PRIVATE
-            <boost/program_options/options_description.hpp>
-            <algorithm>
-            <fstream>
-            <functional>
-            <ostream>
-            <string>
-            <string_view>
-            <vector>
-    )
-endif()
-
 if(OPENMW_BUILD_CS)
     qt_add_executable(openmw-cs main.cpp)
     if(WIN32)
-        target_sources(
-            openmw-cs
-            PRIVATE
-                "${PROJECT_SOURCE_DIR}/files/windows/opencs.rc"
-                "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest"
-        )
+        target_sources(openmw-cs PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/opencs.rc")
     endif()
     target_link_libraries(openmw-cs PRIVATE openmw-cs-lib)
 

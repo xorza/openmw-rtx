@@ -134,7 +134,7 @@ namespace Rtx
         /// ever uses FSR makes none, and no folder is made for it.
         std::optional<Dlss::Application> dlssApplicationFor(const RendererOptions& options)
         {
-            if (!DlssLibrary::sBuilt || options.mRun.mProfile.mUpscaler == UpscalerChoice::Fsr)
+            if (options.mRun.mProfile.mUpscaler == UpscalerChoice::Fsr)
                 return std::nullopt;
 
             return std::optional<Dlss::Application>(std::in_place, options.mDlss);
@@ -164,13 +164,11 @@ namespace Rtx
             };
         }
 
-        /// Whether DLSS runs here, as far as the facts before an attempt say: the build, the device's
-        /// vendor and the player's library, asked in that order, whatever the run chose, so a run that
-        /// chose FSR still offers DLSS for the next start.
+        /// Whether DLSS runs here, as far as the facts before an attempt say: the device's vendor and the
+        /// player's library, asked in that order, whatever the run chose, so a run that chose FSR still
+        /// offers DLSS for the next start.
         DlssAvailability dlssAvailabilityFor(const RendererOptions& options, const Device& device)
         {
-            if (!DlssLibrary::sBuilt)
-                return DlssAvailability::Unbuilt;
             if (device.getPhysicalDevice().getDriver().mVendor != Platform::Gpu::Vendor::Nvidia)
                 return DlssAvailability::NotNvidia;
             if (!DlssLibrary::installedIn(options.mDlss))

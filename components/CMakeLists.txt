@@ -7,7 +7,6 @@ set(VERSION_RESOURCE_FILE_RELATIVE "resources/version")
 set(VERSION_CPP_FILE "components/version/version.cpp")
 
 if(GIT_CHECKOUT)
-    get_generator_is_multi_config(multi_config)
     add_custom_target(
         get-version
         BYPRODUCTS
@@ -24,9 +23,7 @@ if(GIT_CHECKOUT)
             -DOPENMW_VERSION_RELEASE=${OPENMW_VERSION_RELEASE} -DOPENMW_LUA_API_REVISION=${OPENMW_LUA_API_REVISION}
             -DOPENMW_POSTPROCESSING_API_REVISION=${OPENMW_POSTPROCESSING_API_REVISION}
             -DOPENMW_VERSION=${OPENMW_VERSION} -DOPENMW_DOC_BASEURL=${OPENMW_DOC_BASEURL}
-            -DMACROSFILE=${PROJECT_SOURCE_DIR}/cmake/OpenMWMacros.cmake
-            "-DCMAKE_CONFIGURATION_TYPES=${CMAKE_CONFIGURATION_TYPES}" -Dgenerator_is_multi_config_var=${multi_config}
-            -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
+            -DMACROSFILE=${PROJECT_SOURCE_DIR}/cmake/OpenMWMacros.cmake -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
         COMMAND
             ${CMAKE_COMMAND} -E copy_if_different ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}.out
             ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}
@@ -1550,15 +1547,16 @@ set_property(
         COMPILE_OPTIONS
             $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-shadow>
 )
-# Read on Linux alone, where the file compiles to anything.
+# The system-wide data and configuration folders `Files::LinuxPath` reads, none in the portable layout every
+# install has: the configuration beside the programs is the global one.
 set_property(
     SOURCE
         files/linuxpath.cpp
     APPEND
     PROPERTY
         COMPILE_DEFINITIONS
-            "GLOBAL_DATA_PATH=\"${OPENMW_GLOBAL_DATA_PATH}\""
-            "GLOBAL_CONFIG_PATH=\"${OPENMW_GLOBAL_CONFIG_PATH}\""
+            "GLOBAL_DATA_PATH=\"\""
+            "GLOBAL_CONFIG_PATH=\"\""
 )
 # Boost's `typed_value::notify`, which GCC reports as a null dereference: compiled here alone, as
 # `configurationmanager.hpp` says.
@@ -1586,7 +1584,6 @@ set_property(
 target_compile_definitions(
     openmw-components
     PUBLIC
-        OPENMW_RTX_DLSS=$<BOOL:${OPENMW_RTX_DLSS}>
         # Vulkan's validation layers on unless Release, read as `Rtx::sValidationByDefault`: here, so the game
         # and the harness agree. 0 or 1, so the constant needs no `#ifdef`.
         OPENMW_RTX_VALIDATION_BY_DEFAULT=$<IF:$<CONFIG:Release>,0,1>
@@ -1638,35 +1635,6 @@ if(WIN32)
         PUBLIC
             shlwapi
             dxgi
-    )
-endif()
-
-if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(
-        openmw-components
-        PUBLIC
-            <sol/sol.hpp>
-            <osg/State>
-            <osg/StateSet>
-            <osg/Node>
-            <osg/Drawable>
-            <osg/Camera>
-            <MyGUI_Widget.h>
-            <algorithm>
-            <filesystem>
-            <fstream>
-            <functional>
-            <memory>
-            <ostream>
-            <string>
-            <vector>
-    )
-
-    target_precompile_headers(
-        openmw-components
-        PRIVATE
-            <osgViewer/Viewer>
-            <boost/program_options/options_description.hpp>
     )
 endif()
 

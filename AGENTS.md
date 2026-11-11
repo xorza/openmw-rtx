@@ -155,7 +155,7 @@ the posture behind them does.
   `components/platform` (`Platform::Process`), the crash catcher's own in its `…system.hpp`. A build
   flag is defined in every build as `0` or `1` and read once into a `constexpr bool`
   (`Rtx::sDebugNames`), which code asks with `if constexpr`. Code only one build has is a file CMake
-  chooses (`crashunsupported.cpp`), never an `#ifdef` around it. A test of an `assert` calls
+  chooses (`crashimagenone.cpp`), never an `#ifdef` around it. A test of an `assert` calls
   `Testing::expectAssertDies`. What stays: a chain inside the one file that owns a system's
   difference, an include only one system has, and the headers GLSL and C++ both read, whose
   differences `shaders/portable.h` holds.

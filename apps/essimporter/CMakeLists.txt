@@ -63,9 +63,6 @@ target_sources(
                 importscri.hpp
                 importsplm.h
 )
-if(WIN32)
-    target_sources(openmw-essimporter PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest")
-endif()
 target_link_libraries(
     openmw-essimporter
     PRIVATE
@@ -78,15 +75,3 @@ install(
         openmw-essimporter
         ${runtime_dependency_arguments}
 )
-
-if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(
-        openmw-essimporter
-        PRIVATE
-            <algorithm>
-            <filesystem>
-            <fstream>
-            <string>
-            <vector>
-    )
-endif()

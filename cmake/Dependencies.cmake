@@ -11,6 +11,7 @@ include(FetchContent)
 # Each project's own settings stay inside the block; Crashpad's folder leaves it, for
 # `components/crashcatcher/CMakeLists.txt`, which builds one of its files into every executable.
 block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     set(CMAKE_CXX_CLANG_TIDY "")
 
     # SDL3: the system's where it has one, and the pinned release built static otherwise, as upstream's
@@ -115,8 +116,9 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     # volk, which loads the Vulkan loader when the first instance is made rather than when the program
     # starts: no program imports it, so the game starts on a machine with no loader or an old one and says
     # why it cannot draw there, and the ray tracer refuses the loader by name (`Instance`). The system's
-    # package only at the SDK version the tree is built against or a later one, which volk's own version is: an older one lacks the Vulkan 1.4 entry points the backend calls
-    # (`vkCmdPushDescriptorSet`), and would be taken and then fail to compile.
+    # package only at the SDK version the tree is built against or a later one, which volk's own version is:
+    # an older one lacks the Vulkan 1.4 entry points the backend calls (`vkCmdPushDescriptorSet`), and would
+    # be taken and then fail to compile.
     set(RTX_VOLK_VERSION 363)
     FetchContent_Declare(
         volk
@@ -252,14 +254,6 @@ target_link_libraries(FFmpeg::FFmpeg INTERFACE ${FFmpeg_LIBRARIES})
 # Required for building the FFmpeg headers
 target_compile_definitions(FFmpeg::FFmpeg INTERFACE __STDC_CONSTANT_MACROS)
 
-if(OPENMW_SYSTEM_TINYXML)
-    find_package(TinyXML REQUIRED)
-    add_library(TinyXML::TinyXML INTERFACE IMPORTED)
-    target_include_directories(TinyXML::TinyXML INTERFACE ${TinyXML_INCLUDE_DIRS})
-    target_link_libraries(TinyXML::TinyXML INTERFACE ${TinyXML_LIBRARIES})
-    target_compile_definitions(TinyXML::TinyXML INTERFACE TIXML_USE_STL)
-endif()
-
 # Bullet 2.87 at least, for `btIDebugDraw::clearLines` (2.86 already needed for `btCapsuleShape` fixes),
 # and in double precision. First the float64 config Debian's derivatives ship, which states its version
 # in no form CMake compares.
@@ -392,8 +386,14 @@ if(OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
         RUNTIME_DEPENDENCY_SET openmw-dependencies
     )
 endif()
-# One target a library of OpenSceneGraph's, each with the headers; `osg` with the multiview definition.
+# One target a library of OpenSceneGraph's, each with the headers, and the headers alone for what names its
+# types and calls nothing of it, the build's table makers; `osg` with the multiview definition.
 include(CheckOsgMultiview)
+add_library(OpenSceneGraph::headers INTERFACE IMPORTED)
+target_include_directories(OpenSceneGraph::headers INTERFACE ${OPENSCENEGRAPH_INCLUDE_DIRS})
+if(HAVE_MULTIVIEW)
+    target_compile_definitions(OpenSceneGraph::headers INTERFACE OSG_HAS_MULTIVIEW)
+endif()
 foreach(
     library
     OpenThreads
@@ -411,27 +411,22 @@ foreach(
 )
     string(TOUPPER ${library} upper)
     add_library(OpenSceneGraph::${library} INTERFACE IMPORTED)
-    target_include_directories(OpenSceneGraph::${library} INTERFACE ${OPENSCENEGRAPH_INCLUDE_DIRS})
-    target_link_libraries(OpenSceneGraph::${library} INTERFACE ${${upper}_LIBRARIES})
+    target_link_libraries(
+        OpenSceneGraph::${library}
+        INTERFACE
+            OpenSceneGraph::headers
+            ${${upper}_LIBRARIES}
+    )
 endforeach()
 target_link_libraries(OpenSceneGraph::osg INTERFACE OpenSceneGraph::OpenThreads)
-if(HAVE_MULTIVIEW)
-    target_compile_definitions(OpenSceneGraph::osg INTERFACE OSG_HAS_MULTIVIEW)
-endif()
 
-if(OPENMW_LUAJIT)
-    find_package(LuaJit REQUIRED)
-    set(LUA_INCLUDE_DIR ${LuaJit_INCLUDE_DIR})
-    set(LUA_LIBRARIES ${LuaJit_LIBRARIES})
-else()
-    find_package(Lua REQUIRED)
-endif()
+# LuaJIT, the Lua every build runs scripts on.
+find_package(LuaJit REQUIRED)
+set(LUA_INCLUDE_DIR ${LuaJit_INCLUDE_DIR})
+set(LUA_LIBRARIES ${LuaJit_LIBRARIES})
 if(NOT WIN32)
     include(CheckLuaCustomAllocator)
 endif()
 add_library(Lua::Lua INTERFACE IMPORTED)
 target_include_directories(Lua::Lua INTERFACE ${LUA_INCLUDE_DIR})
 target_link_libraries(Lua::Lua INTERFACE ${LUA_LIBRARIES})
-if(NOT OPENMW_LUAJIT)
-    target_compile_definitions(Lua::Lua INTERFACE NO_LUAJIT)
-endif()

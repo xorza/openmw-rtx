@@ -156,7 +156,7 @@ Launcher::GraphicsPage::~GraphicsPage() = default;
 
 void Launcher::GraphicsPage::buildUpscalerItems()
 {
-    mUpscalers = Rtx::offeredUpscalers(DlssLibrary::sBuilt && Platform::Gpu::has(Platform::Gpu::Vendor::Nvidia));
+    mUpscalers = Rtx::offeredUpscalers(Platform::Gpu::has(Platform::Gpu::Vendor::Nvidia));
     addMenuItems<Rtx::UpscalerChoice>(rayTracingUpscalerComboBox, std::span(sUpscalerLabels).first(mUpscalers.size()));
     refreshDlssState();
 }

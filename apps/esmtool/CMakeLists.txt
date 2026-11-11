@@ -16,9 +16,6 @@ target_sources(
                 record.hpp
                 tes4.hpp
 )
-if(WIN32)
-    target_sources(esmtool PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/other-apps.manifest")
-endif()
 target_link_libraries(
     esmtool
     PRIVATE
@@ -31,13 +28,3 @@ install(
         esmtool
         ${runtime_dependency_arguments}
 )
-
-if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(
-        esmtool
-        PRIVATE
-            <fstream>
-            <string>
-            <vector>
-    )
-endif()

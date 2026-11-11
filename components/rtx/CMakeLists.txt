@@ -407,7 +407,14 @@ add_library(
     tables/fognoisemaker.cpp
     tables/fognoisemaker.hpp
 )
-target_link_libraries(openmw-rtx-tablemakers PUBLIC openmw-platform-io)
+# OpenSceneGraph's headers alone, for the vector types `shaders/hosttypes.h` and the makers name: the makers
+# run in the build, where no OSG library need be found.
+target_link_libraries(
+    openmw-rtx-tablemakers
+    PUBLIC
+        openmw-platform-io
+        OpenSceneGraph::headers
+)
 
 function(rtx_make_table tool source table layer)
     add_executable(${tool} ${source})

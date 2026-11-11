@@ -1071,42 +1071,10 @@ target_link_libraries(
         openmw-myguirtx
         Threads::Threads
 )
-if(OPENMW_SYSTEM_TINYXML)
-    target_link_libraries(openmw-lib PUBLIC TinyXML::TinyXML)
-endif()
-
-if(MSVC AND OPENMW_MSVC_PRECOMPILED_HEADERS)
-    target_precompile_headers(
-        openmw-lib
-        PRIVATE
-            <boost/program_options/options_description.hpp>
-            <sol/sol.hpp>
-            <osg/StateSet>
-            <osg/Node>
-            <osg/Drawable>
-            <osg/Camera>
-            <osgViewer/Viewer>
-            <MyGUI_Widget.h>
-            <algorithm>
-            <filesystem>
-            <fstream>
-            <functional>
-            <memory>
-            <string>
-            <string_view>
-            <vector>
-    )
-endif()
-
 if(OPENMW_BUILD_GAME)
     add_executable(openmw main.cpp)
     if(WIN32)
-        target_sources(
-            openmw
-            PRIVATE
-                "${PROJECT_SOURCE_DIR}/files/windows/openmw.rc"
-                "${PROJECT_SOURCE_DIR}/files/windows/openmw.exe.manifest"
-        )
+        target_sources(openmw PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/openmw.rc")
     endif()
     target_link_libraries(openmw PRIVATE openmw-lib)
     # `osgAnimation::MatrixLinearSampler`'s dynamic casts work under Clang only with the executable's
@@ -1119,19 +1087,10 @@ if(OPENMW_BUILD_GAME)
                     ON
         )
     endif()
-    # The console a Windows build opens beside the game: in Debug and RelWithDebInfo where
-    # `OPENMW_DEBUG_CONSOLE` asks for it, and never in Release, whose output goes to `openmw.log`.
+    # The console a Windows build opens beside the game: in Debug and RelWithDebInfo, never in Release,
+    # whose output goes to `openmw.log`.
     if(MSVC)
-        if(OPENMW_DEBUG_CONSOLE)
-            set(console CONSOLE)
-        else()
-            set(console WINDOWS)
-        endif()
-        target_link_options(
-            openmw
-            PRIVATE
-                $<IF:$<CONFIG:Debug,RelWithDebInfo>,/SUBSYSTEM:${console},/SUBSYSTEM:WINDOWS>
-        )
+        target_link_options(openmw PRIVATE $<IF:$<CONFIG:Debug,RelWithDebInfo>,/SUBSYSTEM:CONSOLE,/SUBSYSTEM:WINDOWS>)
     endif()
     install(
         TARGETS

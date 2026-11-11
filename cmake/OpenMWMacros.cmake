@@ -26,68 +26,34 @@ function(generate_deploy_script_for_qt_app target)
     endif()
 endfunction()
 
-macro(get_generator_is_multi_config VALUE)
-    # TODO: make git version getter less dumb so everywhere that calls this macro can just call the function this calls instead
-    if(DEFINED generator_is_multi_config_var)
-        set(${VALUE} ${generator_is_multi_config_var})
-    else(DEFINED generator_is_multi_config_var)
-        get_cmake_property(${VALUE} GENERATOR_IS_MULTI_CONFIG)
-    endif(DEFINED generator_is_multi_config_var)
-endmacro(get_generator_is_multi_config)
+# The build's resources, into the folder the programs run from: copied, configured, or packed with base64
+# (`cmake/base64.cmake`), each at configure. Every preset is one configuration, so one folder.
+function(copy_resource_file source destination_root relative)
+    configure_file("${source}" "${destination_root}/${relative}" COPYONLY)
+endfunction()
 
-macro(copy_resource_file source_path destination_dir_base dest_path_relative)
-    get_generator_is_multi_config(multi_config)
-    if(multi_config)
-        foreach(cfgtype ${CMAKE_CONFIGURATION_TYPES})
-            configure_file(${source_path} "${destination_dir_base}/${cfgtype}/${dest_path_relative}" COPYONLY)
-        endforeach(cfgtype)
-    else(multi_config)
-        configure_file(${source_path} "${destination_dir_base}/${dest_path_relative}" COPYONLY)
-    endif(multi_config)
-endmacro(copy_resource_file)
+function(configure_resource_file source destination_root relative)
+    configure_file("${source}" "${destination_root}/${relative}")
+endfunction()
 
-macro(configure_resource_file source_path destination_dir_base dest_path_relative)
-    get_generator_is_multi_config(multi_config)
-    if(multi_config)
-        foreach(cfgtype ${CMAKE_CONFIGURATION_TYPES})
-            configure_file(${source_path} "${destination_dir_base}/${cfgtype}/${dest_path_relative}")
-        endforeach(cfgtype)
-    else(multi_config)
-        configure_file(${source_path} "${destination_dir_base}/${dest_path_relative}")
-    endif(multi_config)
-endmacro(configure_resource_file)
-
-macro(pack_resource_file source_path destination_dir_base dest_path_relative)
-    get_generator_is_multi_config(multi_config)
-    if(multi_config)
-        foreach(cfgtype ${CMAKE_CONFIGURATION_TYPES})
-            execute_process(
-                COMMAND
-                    ${CMAKE_COMMAND} "-DINPUT_FILE=${source_path}"
-                    "-DOUTPUT_FILE=${destination_dir_base}/${cfgtype}/${dest_path_relative}" -P
-                    "${PROJECT_SOURCE_DIR}/cmake/base64.cmake"
-            )
-        endforeach(cfgtype)
-    else(multi_config)
-        execute_process(
-            COMMAND
-                ${CMAKE_COMMAND} "-DINPUT_FILE=${source_path}"
-                "-DOUTPUT_FILE=${destination_dir_base}/${dest_path_relative}" -P
-                "${PROJECT_SOURCE_DIR}/cmake/base64.cmake"
-        )
-    endif(multi_config)
+function(pack_resource_file source destination_root relative)
+    execute_process(
+        COMMAND
+            ${CMAKE_COMMAND} "-DINPUT_FILE=${source}" "-DOUTPUT_FILE=${destination_root}/${relative}" -P
+            "${PROJECT_SOURCE_DIR}/cmake/base64.cmake"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
     set_property(
         DIRECTORY
         APPEND
         PROPERTY
             CMAKE_CONFIGURE_DEPENDS
-                "${source_path}"
+                "${source}"
     )
-endmacro(pack_resource_file)
+endfunction()
 
-macro(copy_all_resource_files source_dir destination_dir_base destination_dir_relative files)
-    foreach(f ${files})
-        get_filename_component(filename ${f} NAME)
-        copy_resource_file("${source_dir}/${f}" "${destination_dir_base}" "${destination_dir_relative}/${f}")
-    endforeach(f)
-endmacro(copy_all_resource_files)
+function(copy_all_resource_files source_dir destination_root destination_relative files)
+    foreach(file IN LISTS files)
+        copy_resource_file("${source_dir}/${file}" "${destination_root}" "${destination_relative}/${file}")
+    endforeach()
+endfunction()

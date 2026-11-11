@@ -15,7 +15,7 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   the tree's own alone; `openmw_link_tree` links both after every folder is added. Fetched projects take neither
   and build as their own CI does.
 - **A found package is a target.** A find module that defines none gets an imported one in
-  `cmake/Dependencies.cmake`, carrying the definitions its headers need (`BT_USE_DOUBLE_PRECISION`, `NO_LUAJIT`).
+  `cmake/Dependencies.cmake`, carrying the definitions its headers need (`BT_USE_DOUBLE_PRECISION`, `MYGUI_DONT_USE_OBSOLETE`).
   Refused: `${…_LIBRARIES}` and `${…_INCLUDE_DIRS}` at each use, which every user had to repeat.
 - **Sources by name, headers as a file set.** `target_sources` in the folder's own `CMakeLists.txt`, every file
   named. Refused: globs, `CONFIGURE_DEPENDS` included, which CMake discourages

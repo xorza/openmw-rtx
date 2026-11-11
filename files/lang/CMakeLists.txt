@@ -86,7 +86,7 @@ if(OPENMW_DEPLOY_QT_TRANSLATIONS)
     endforeach()
 endif()
 
-set(destination "${RUNTIME_OUTPUT_DIRECTORY}/resources/translations")
+set(destination "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/translations")
 add_custom_target(
     qm-files
     COMMAND

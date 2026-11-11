@@ -54,8 +54,7 @@ runs.
    RTX, the installed driver accepts it, and the DLSS feature library is installed beside the
    game; FSR 3.1 everywhere else. :code:`fsr` never looks for DLSS, which is what an AMD card or an
    A/B against FSR wants. :code:`dlss` refuses to start where DLSS cannot, naming the reason, rather
-   than quietly drawing through FSR. A build made with :code:`OPENMW_RTX_DLSS=OFF` has only
-   :code:`fsr`.
+   than quietly drawing through FSR.
 
    The game links none of NVIDIA's SDK. The driver supplies NGX — :code:`_nvngx.dll` on Windows
    and :code:`libnvidia-ngx.so.1` on Linux — and the game opens it at run time. The feature

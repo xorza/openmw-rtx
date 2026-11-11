@@ -31,9 +31,6 @@ namespace Rtx
     /// asked, and what the attempt came to once one was made.
     enum class DlssAvailability
     {
-        /// The build has no DLSS backend (`DlssLibrary::sBuilt`).
-        Unbuilt,
-
         /// The renderer's device is not NVIDIA's.
         NotNvidia,
 

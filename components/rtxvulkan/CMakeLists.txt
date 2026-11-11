@@ -624,33 +624,24 @@ target_sources(
                 vulkanrenderer.hpp
 )
 
-if(OPENMW_RTX_DLSS)
-    target_sources(
-        openmw-rtx-vulkan
-        PRIVATE
-            upscale/dlssapplication.cpp
-            upscale/ngx.cpp
-            upscale/dlssupscaler.cpp
-        PUBLIC
-            FILE_SET HEADERS
-                BASE_DIRS
-                    "${PROJECT_SOURCE_DIR}"
-                FILES
-                    upscale/ngx.hpp
-                    upscale/ngxlibrary.hpp
-    )
-    if(WIN32)
-        target_sources(openmw-rtx-vulkan PRIVATE upscale/ngxlibrarywin32.cpp)
-    else()
-        target_sources(openmw-rtx-vulkan PRIVATE upscale/ngxlibraryposix.cpp)
-    endif()
+target_sources(
+    openmw-rtx-vulkan
+    PRIVATE
+        upscale/dlssapplication.cpp
+        upscale/ngx.cpp
+        upscale/dlssupscaler.cpp
+    PUBLIC
+        FILE_SET HEADERS
+            BASE_DIRS
+                "${PROJECT_SOURCE_DIR}"
+            FILES
+                upscale/ngx.hpp
+                upscale/ngxlibrary.hpp
+)
+if(WIN32)
+    target_sources(openmw-rtx-vulkan PRIVATE upscale/ngxlibrarywin32.cpp)
 else()
-    target_sources(
-        openmw-rtx-vulkan
-        PRIVATE
-            upscale/dlssapplicationstub.cpp
-            upscale/dlssupscalerstub.cpp
-    )
+    target_sources(openmw-rtx-vulkan PRIVATE upscale/ngxlibraryposix.cpp)
 endif()
 
 # How everything that calls Vulkan reaches it: the headers' types and volk's function pointers, and
@@ -682,7 +673,7 @@ target_link_libraries(
         openmw-rtx-vulkan-api
         SDL3::SDL3
 )
-if(OPENMW_RTX_DLSS AND WIN32)
+if(WIN32)
     # `RegGetValueW`, which names the DriverStore folder NGX's core lives in.
     target_link_libraries(openmw-rtx-vulkan PRIVATE advapi32)
 endif()

@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 4.4)
 
+# Every configuration's flags, set as CMake sets each language's defaults.
+set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Flags.cmake")
+
 project(
     OpenMW
     VERSION 0.53.0
@@ -69,34 +72,23 @@ endif()
 # measured the nested parallelism slower.
 set(CMAKE_AUTOGEN_PARALLEL 1)
 
-# `/Z7`: ccache cannot cache a compile that writes a shared PDB.
-if(MSVC AND (CMAKE_C_COMPILER_LAUNCHER STREQUAL "ccache" OR CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache"))
-    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
-endif()
+# MSVC's debug information in each object (`/Z7`), in every configuration: ccache cannot cache a compile
+# that writes a shared PDB, and each program links its PDB from them (`cmake/Flags.cmake`).
+set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
 
-if(OPENMW_LTO)
+# Link-time optimisation where a configure asks for it with CMake's own `CMAKE_INTERPROCEDURAL_OPTIMIZATION`:
+# the package preset, which a tagged release builds; refused here by name where the compiler has none.
+if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
     include(CheckIPOSupported)
-    check_ipo_supported(RESULT HAVE_IPO OUTPUT HAVE_IPO_OUTPUT)
-    if(HAVE_IPO)
-        message(STATUS "LTO enabled for Release configuration.")
-        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-    else()
-        message(WARNING "Requested option OPENMW_LTO not supported by this compiler: ${HAVE_IPO_OUTPUT}")
-    endif()
+    check_ipo_supported()
 endif()
 
 include(cmake/Dependencies.cmake)
 
 # Every program and its resources in one folder of the build, which the install copies from.
 set(OPENMW_RESOURCES_ROOT "${PROJECT_BINARY_DIR}")
-get_generator_is_multi_config(multi_config)
-if(multi_config)
-    set(RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/$<CONFIG>")
-else()
-    set(RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
-endif()
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
 
 add_subdirectory(extern)
 add_subdirectory(files)

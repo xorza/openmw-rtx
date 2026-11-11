@@ -23,9 +23,7 @@ install(
         "${PROJECT_SOURCE_DIR}/files/licenses/bc7enc.txt"
     DESTINATION "${licenses}"
 )
-if(OPENMW_CRASHPAD)
-    install(DIRECTORY "${PROJECT_SOURCE_DIR}/files/licenses/crashpad/" DESTINATION "${licenses}/crashpad")
-endif()
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/files/licenses/crashpad/" DESTINATION "${licenses}/crashpad")
 
 install(FILES "${PROJECT_SOURCE_DIR}/CHANGELOG.md" TYPE DOC)
 install(FILES "${PROJECT_SOURCE_DIR}/README.md" TYPE DOC)
@@ -34,17 +32,12 @@ install(FILES "${PROJECT_SOURCE_DIR}/AUTHORS.md" TYPE DOC)
 
 install(
     FILES
-        "${RUNTIME_OUTPUT_DIRECTORY}/defaults.bin"
-        "${RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt"
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/defaults.bin"
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt"
     TYPE SYSCONF
 )
-if(OPENMW_LOCAL_INSTALL)
-    install(FILES "${PROJECT_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg")
-else()
-    configure_file("${PROJECT_SOURCE_DIR}/files/openmw.cfg" "openmw.cfg.install")
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/openmw.cfg.install" TYPE SYSCONF RENAME "openmw.cfg")
-endif()
-install(DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}/resources" TYPE DATA)
+install(FILES "${PROJECT_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg")
+install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources" TYPE DATA)
 
 if(OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
     if(WIN32)
@@ -69,7 +62,7 @@ if(OPENMW_DEPLOY_RUNTIME_DEPENDENCIES)
             post_exclude_regexes
             "${post_exclude_regexes}"
         )
-        set(directories "${RUNTIME_OUTPUT_DIRECTORY}")
+        set(directories "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
         # **The C++ runtime the binaries were built against, beside them**, from the toolset that
         # built them: the fork ships a portable folder and not upstream's installer, which ran the
@@ -104,18 +97,18 @@ if(WIN32)
     # use, ANGLE among it; and the debug symbols of the configurations that write them.
     install(
         DIRECTORY
-            "${RUNTIME_OUTPUT_DIRECTORY}/iconengines"
-            "${RUNTIME_OUTPUT_DIRECTORY}/imageformats"
-            "${RUNTIME_OUTPUT_DIRECTORY}/platforms"
-            "${RUNTIME_OUTPUT_DIRECTORY}/styles"
-            "${RUNTIME_OUTPUT_DIRECTORY}/tls"
+            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/iconengines"
+            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/imageformats"
+            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/platforms"
+            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/styles"
+            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/tls"
         DESTINATION "."
         FILES_MATCHING
         PATTERN "*.dll"
     )
     install(
         DIRECTORY
-            "${RUNTIME_OUTPUT_DIRECTORY}/"
+            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/"
         DESTINATION "."
         CONFIGURATIONS
             Debug
@@ -161,7 +154,7 @@ else()
     install(
         FILES
             "${PROJECT_SOURCE_DIR}/files/launcher/images/openmw.png"
-        DESTINATION "${OPENMW_ICONDIR}"
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps"
         COMPONENT "openmw"
     )
     install(
@@ -180,7 +173,7 @@ else()
         install(
             FILES
                 "${PROJECT_SOURCE_DIR}/files/opencs/openmw-cs.png"
-            DESTINATION "${OPENMW_ICONDIR}"
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps"
             COMPONENT "opencs"
         )
     endif()
