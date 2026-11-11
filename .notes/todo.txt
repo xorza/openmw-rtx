@@ -2,3 +2,4 @@
 - check content hasmisses
 - all IO serial?
 - artifacts - folder in folder
+- x11 and launcher white theme
