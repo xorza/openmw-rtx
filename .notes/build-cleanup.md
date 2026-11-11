@@ -220,44 +220,71 @@ part, zsync and `wayland-scanner` under GCC 15, is run once in a plain `almalinu
 
   `omw lint workflows` fails on a workflow edited back to the bare tag (the known hit).
 
-### 11. Faster builds, leaner release binaries
+### 11. Faster builds, leaner release binaries, one set of defaults
 
 Found on 2026-11-11 on the desk: ccache at its 30 GB cap with 3,932 cleanups and a 34.5% hit rate; a set bump
 recompiling all 2,747 objects; `omw format` taking 4.6 s at every `omw build`; the release `openmw` 557 MB with
-130 MB of code and read-only data. The certain items land here, before the CI round, so step 12's runs check
-them on Windows too; the measured ones keep only what a measurement pays for.
+130 MB of code and read-only data; the release base's GCC with other security defaults than the desk's; and
+CI's caches keyed and saved three ways. Landed so far: the set at one path (`2b1b905701`), `omw build`
+formatting what changed (`19a33a7ee7`), MSVC's `/OPT:REF /OPT:ICF` and `/Gw` (`40a8c6e303`), ccache's limit at
+100 GB (the desk's fish config), and x86-64-v2 with `--gc-sections` (`11f67d8c02`, by the user's call without
+an A/B, as dropping what nothing reaches can change no result; checked by the tests, `omw check`, `omw archive`
+and a read of `--print-gc-sections` for the registration and crash code).
 
-- **The set at one path** (`tools/omw/deps.py`). `OMW_VCPKG_SET` names `deps/vcpkg-set-<digest>`, so every
-  `-isystem` path moves with the set, and ccache misses every file after a bump. The toolchain reads a fixed
-  `deps/vcpkg-set` instead, a link the driver points at the digest's folder (a junction on Windows), so a bump
-  recompiles only what includes a header that moved. Check: after a set bump with unchanged headers, a build
-  recompiles nothing.
-- **`omw build` formats what changed.** It runs the formatter over the whole tree first, 4.6 s a build. It
-  formats the files `git` reports changed against `HEAD`, untracked ones included; `omw format` with no files
-  keeps formatting the tree, and CI's `format --check` keeps checking it whole.
-- **MSVC's release links drop what nothing references** (`cmake/Flags.cmake`). Every MSVC link takes `/DEBUG`,
-  which makes the linker's default `/OPT:NOREF,NOICF`
-  ([Microsoft](https://learn.microsoft.com/cpp/build/reference/opt-optimizations)), so a release program keeps
-  unreferenced functions and identical COMDATs. Release links take `/OPT:REF /OPT:ICF`, and compiles `/Gw`
-  for data, as `/O2`'s `/Gy` does for functions. Check: step 12's Windows release leg links, and its programs
-  are smaller.
-- **ccache's limit** (the desk's own, not the tree's): `CCACHE_MAXSIZE` 30G in the fish config becomes 100G,
-  the user's to change. Four flavours of about 2,800 objects, and the A/B worktrees, do not fit 30 GB.
-- **Measured, kept only if it pays**, each an A/B of `omw release bench` against the build before it (quiet
-  desktop, warm card, medians and p99), with the binary's size:
-  - `-ffunction-sections -fdata-sections` and `--gc-sections` on Linux (mold supports it), for the tree's
-    code; the set's archives keep their own sections.
-  - `-march=x86-64-v2` for the tree: every CPU beside an RTX 20 or an RDNA 2 card has it (SSE4.2, POPCNT). If it
-    pays, the set's triplets take it at the next set rebuild, which it would otherwise force. `x86-64-v3`
-    (AVX2) is a decision of its own, as it shuts out pre-Haswell CPUs.
+- **One set of hardening defaults, stated** (`cmake/Flags.cmake`). Nothing in the tree chooses them, so each
+  compiler's own decide, and they differ (`gcc -Q --help=common`, and a test link):
+
+  | | desk GCC 16 | release base, gcc-toolset-15 | CI's Clang 23 | MSVC |
+  |---|---|---|---|---|
+  | position-independent executable | on | off (`EXEC`) | on | on (`/DYNAMICBASE`) |
+  | stack protector | `-strong` | off | off | on (`/GS`) |
+
+  So what ships is built otherwise than what is measured on the desk and than Windows. State both:
+  `CMAKE_POSITION_INDEPENDENT_CODE ON` with `check_pie_supported()`, and `-fstack-protector-strong`, as the desk
+  and Windows have them; the game reads untrusted mod files, which is what both guard. Check: the container's
+  `openmw` is `DYN`, and `readelf -s` finds `__stack_chk_fail` in it.
+- **`/Zc:inline` on MSVC**, both flavours: unreferenced inline functions and data dropped at compile time,
+  smaller objects and faster links. Visual Studio's new projects set it; the command line and CMake do not
+  ([Microsoft](https://learn.microsoft.com/cpp/build/reference/zc-inline-remove-unreferenced-comdat)).
+- **`--icf=safe` on Linux's release links**, mold's identical code folding as MSVC's `/OPT:ICF` is Windows's;
+  `safe` folds no function whose address is taken. lld takes the same spelling for Clang.
+- **`-fno-math-errno` on GCC and Clang**: `sqrt` and the like compile to one instruction instead of a call that
+  sets `errno`. The results are the same bits; only `errno` is left alone, which the tree reads after I/O and
+  never after arithmetic (checked: `cerrno` in `glrenderer.cpp`, the harness's counters and the tests' kernel
+  files, each after a system call). MSVC is left as it is: whether its `/Oi` intrinsics set `errno` is
+  for a look at its generated code, not assumed.
+- **The set's flags at its next rebuild** (`vcpkg/triplets/x64-linux-openmw.cmake`), which change every port's
+  ABI hash and so rebuild the whole set, with the next registry bump: `-fno-semantic-interposition`, as vcpkg
+  builds every Linux port with `-fPIC`, which keeps GCC from inlining one exported function of a library into
+  another; `-march=x86-64-v2` (`/arch:SSE4.2` in Windows's triplet); and `-ffunction-sections -fdata-sections`,
+  for `--gc-sections` to reach into the set's archives.
+- **CI's caches keyed and saved one way** (`.github/actions/openmw-deps/action.yml`, `.github/workflows/deps.yml`):
+  - The driver's tools cache is keyed `deps-<OS>-<pins.py and deps.py>`, shared by every job of a system though
+    their contents differ (LLVM is the Clang job's alone), so the first to save wins and the rest fetch again;
+    and its key moves with every set pin and every edit to `deps.py`, neither of which changes a tool. Key it by
+    the job's `cache-key` and a digest of the tools' pins alone, which `omw` prints.
+  - The compiler cache saves on `master` alone, so a branch's copies evict none of `master`'s inside the 10 GB
+    budget; the tools and FetchContent caches save on every branch. Restore everywhere and save on `master`
+    alone, as the compiler cache does.
+  - The vcpkg binary cache is keyed per run (`github.run_id`), so every set build stores a full copy (0.5 to
+    0.8 GB Linux's, 2.7 GB Windows's): the caches stood at 8 of 10 GB, and run 43030096407 found Linux's evicted
+    and rebuilt all 267 ports. Key it by system and set digest, one copy a set, which still lets a run cut off
+    resume.
+- **Measured, kept only if it pays**, each an A/B with its numbers in a research note:
   - Precompiled headers for the heaviest headers (OSG, Qt, sol3), with ccache's
     `sloppiness=pch_defines,time_macros` and GCC's `-fpch-preprocess`: `build.md` refused them as ccache caching
     through none, which ccache's manual contradicts. Measured as a clean build's time with a cold and a warm
     cache.
   - Sharing the cache across worktrees: `base_dir` at the projects folder with `-fdebug-prefix-map`, kept only
     if `omw crash` still names every line from a release's symbols.
-- **Not in this step: profile-guided optimisation** (decided 2026-11-11, for now). Training needs a GPU, which
-  CI's runners lack, so profiles would come from the desk and age with the code.
+- **Checked and left as they are**: link-time optimisation already passes `-flto=auto -fno-fat-lto-objects` on
+  GCC and `/GL` with `/LTCG` on MSVC; `omw archive` strips the AppImage's programs; `openmw` needs only
+  libX11, libXinerama, libGL and glibc, so `--as-needed` gains nothing; the doubled `-fuse-ld=mold` on a link
+  line is CMake's own `CMAKE_LINKER_TYPE`.
+- **Refused**: `-fno-plt`, with almost no call left to the dynamic linker; `-fvisibility=hidden`, which a static
+  program exports nothing for; `/fp:fast` and `-ffast-math`, against the tree's float rules; `-gsplit-dwarf`,
+  as `-g1` with mold already links fast; and, for now, profile-guided optimisation, whose training needs a GPU
+  CI lacks, so the profiles would come from the desk and age with the code.
 
 ### 12. One set, pinned, and every change checked by CI at once
 
