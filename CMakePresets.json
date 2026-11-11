@@ -50,12 +50,14 @@
                 "Upstream's prebuilt vcpkg set, which `omw` fetches into deps/ at the tag CI/deps_versions.msvc.sh",
                 "pins (VCPKG_TAG). It lacks what `cmake/Dependencies.cmake` fetches, which it fetches whatever the",
                 "machine has installed, and Qt, so no launcher. vcpkg's DLL copying is off, since `omw` copies",
-                "the whole runtime. The flags are `cmake/Flags.cmake`'s. The paths name nothing unless `omw` exports",
-                "the two versions."
+                "the whole runtime, and the tree's own manifest is the vcpkg set's (`omw deps-set`), which this one",
+                "is not. The flags are `cmake/Flags.cmake`'s. The paths name nothing unless `omw` exports the two",
+                "versions."
             ],
             "cacheVariables": {
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/scripts/buildsystems/vcpkg.cmake",
                 "VCPKG_APPLOCAL_DEPS": "OFF",
+                "VCPKG_MANIFEST_MODE": "OFF",
                 "LuaJit_INCLUDE_DIR": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/include/luajit",
                 "LuaJit_LIBRARY": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/lib/lua51.lib",
                 "FETCHCONTENT_TRY_FIND_PACKAGE_MODE": "NEVER",

@@ -4,6 +4,7 @@ set's digest; or, with `--digest`, that name alone. Linux builds its set on the 
 8, whose glibc is older than every system the set serves: in its container (`CI/release-base.Dockerfile`)
 on a desk that is another system, as `omw archive` builds there."""
 
+import gzip
 import hashlib
 import io
 import os
@@ -101,8 +102,10 @@ def pack_set(exported: Path, triplet: str, part_size: int = PART_SIZE) -> list[P
         return None if member.name.startswith(tools) and member.name.endswith(".pdb") else member
 
     stream = _Parts(staging / f"vcpkg-{triplet}.tar.gz", part_size)
-    # gzip and not xz: a set is gigabytes of static libraries, and Python's xz is one core.
-    with stream, tarfile.open(fileobj=stream, mode="w|gz", compresslevel=6) as packed:
+    # gzip and not xz: a set is gigabytes of static libraries, and Python's xz is one core. Its own stream
+    # around the tar's, as a stream-mode tar takes no compression level before Python 3.12.
+    with (stream, gzip.GzipFile(fileobj=stream, mode="wb", compresslevel=6, mtime=0) as zipped,
+          tarfile.open(fileobj=zipped, mode="w|") as packed):
         packed.add(exported, arcname=triplet, filter=kept)
     for old in set_parts(triplet):
         old.unlink()
