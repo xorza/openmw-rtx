@@ -488,16 +488,14 @@ namespace Rtx::Shaders
         /// upscaler, `Rtx::sampleFrame`.
         vec2 mPreviousJitter;
 
-        /// To the eight bytes `mTables` stands on, named so that every byte of the block is a field a
-        /// copy carries and a comparison reads: an implicit pad is what neither does.
-        uint mPadding RTX_ZERO;
-
         /// Where every table a hit reads is. `GpuTables` says why it rides here.
         ///
         /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would
-        /// pad the middle of a struct two languages have to agree on, and the offset asserted below
-        /// pins where it landed. Everything above it is four-aligned and sums to a multiple of
-        /// eight, `mPadding` included: a four-byte field added above takes its place.
+        /// pad the middle of a struct two languages have to agree on, and the offsets asserted below
+        /// pin where it landed. Everything above it is four-aligned and sums to a multiple of eight,
+        /// so no byte of the block is an implicit pad, which no copy carries and no comparison reads: a
+        /// four-byte field added above it comes with a pad named beside it, `uint mPadding RTX_ZERO;`,
+        /// which the assert that `mTables` follows `mPreviousJitter` asks for.
         GpuTables mTables;
     };
 
@@ -532,8 +530,11 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1464, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1664, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1456, "GpuTables must land eight-aligned and last");
+    static_assert(offsetof(VisibilityConstants, mTables)
+            == offsetof(VisibilityConstants, mPreviousJitter) + sizeof(VisibilityConstants::mPreviousJitter),
+        "no implicit pad before GpuTables: name one, so a copy carries it and a comparison reads it");
+    static_assert(sizeof(VisibilityConstants) == 1656, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

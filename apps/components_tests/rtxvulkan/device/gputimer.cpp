@@ -314,9 +314,10 @@ namespace Rtx
             EXPECT_TRUE(reports(stepped.mGpu.spans(), FrameZone::Ripples))
                 << "a sixtieth on, the field was not stepped";
             // First of the frame's own work: the placement's structures go ahead of it, and
-            // placing the scene again compacts what setting it built.
-            constexpr std::array sPlacement{ FrameZone::Blas, FrameZone::Compact, FrameZone::Refit, FrameZone::Tlas,
-                FrameZone::Skin, FrameZone::Spread, FrameZone::Bake, FrameZone::Ground };
+            // placing the scene again compacts what setting it built. `static`, as MSVC made each naming of a
+            // local `constexpr` array inside the lambda a copy of its own, so `find` never met `end`.
+            static constexpr std::array sPlacement{ FrameZone::Blas, FrameZone::Compact, FrameZone::Refit,
+                FrameZone::Tlas, FrameZone::Skin, FrameZone::Spread, FrameZone::Bake, FrameZone::Ground };
             const auto placement
                 = [&](const GpuSpan& span) { return std::ranges::find(sPlacement, span.mZone) != sPlacement.end(); };
             const auto first = std::ranges::find_if_not(stepped.mGpu.spans(), placement);

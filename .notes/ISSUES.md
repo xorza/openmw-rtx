@@ -11,13 +11,10 @@
   `RecastMeshObject::update` follows. A tile written with an animated part in one pose is read back for every pose of
   that object at that transform.
 
-- **Five GPU tests fail on Windows over SSH**: on an AMD integrated GPU under Windows 11, `omw test` run over SSH
-  against the static vcpkg set (`9954fc27dc` and the four-flavour change after it) fails
-  `RtxPresenterTest.aLostSurfaceIsMadeAgainAndTheFramesGoOn`, `aFrameUnderFifoWaitsForThePresentTwoBeforeIt` and
-  `aSuboptimalPresentRebuildsOnceAnExtent` (`vkCreateSwapchainKHR` answers `VK_ERROR_FORMAT_NOT_SUPPORTED`),
-  `RtxGpuTimerTest.aFrameAccountsForItsOwnDeviceTimePassByPass` (no span after the placement's), and
-  `RtxFramesTest.aRequestIsTracedAsItsWorldDescribesItAndCarriesTheAirOn` (the traced constants differ from the
-  described ones at 0 s). All pass on Linux with an NVIDIA GPU. Not compared with a build from before the set.
+- **Three presenter tests fail on Windows with no desktop session**: run over SSH on an AMD integrated GPU under
+  Windows 11, `RtxPresenterTest.aLostSurfaceIsMadeAgainAndTheFramesGoOn`, `aFrameUnderFifoWaitsForThePresentTwoBeforeIt`
+  and `aSuboptimalPresentRebuildsOnceAnExtent` fail as `vkCreateSwapchainKHR` answers `VK_ERROR_FORMAT_NOT_SUPPORTED`;
+  the same binary passes all three in the logged-in desktop session.
 
 - **The AppImage's libxkbcommon is older than a host's Compose files**: the image carries AlmaLinux 8's
   `libxkbcommon.so.0`, which reads the host's `/usr/share/X11/locale/*/Compose`; on a current Arch desk every Qt
