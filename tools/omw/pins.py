@@ -200,11 +200,11 @@ VCPKG_TOOL = {
 # for the inputs `deps.set_digest` reads, each system's parts by the SHA-256 its `SHA256SUMS` lists.
 VCPKG_SET = PublishedSet(
     repository="xorza/openmw-rtx",
-    digest="19e1354572579115",
+    digest="125df032f5420bf2",
     sha256={
-        "linux": ("556a28dba59a1288de10be4f75ffbf1d526ea0e6d228b9cf47dcf35b670efd8e",),
-        "windows": ("7aca6919375d0233f3d63dada1f399e2f2eb7ff3e837d068e36e450d58a192d6",
-                    "7f223a237533c67bbc31bbee87976a7695d822e6d3450a72d309aeef974a3c2f"),
+        "linux": ("7d916a59bbdcbac8c6b7597b226591b41714b363a4d103751a2b45b9b3e3aeb3",),
+        "windows": ("e542b9fc67b0799fb484c7371c8ef1dddab2ecd121c6b9629871e67f50446354",
+                    "19a3c2703837b425f69de535fd81bb0f0d6612b4988e450316146c2bb2f34db3"),
     },
 )
 

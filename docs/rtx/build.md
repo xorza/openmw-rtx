@@ -198,6 +198,12 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   (`research/2026-11-11-dependency-set-size.md`). Kept: what Qt's package configs import and check for
   (qtbase's host programs, stripped instead), `harfbuzz-subset`, which harfbuzz's config declares, and what
   no port lets be turned off.
+- **libxkbcommon in the set, static and fresh, on Linux.** The registry's port leaves it to the system there, and
+  the release base's 0.9 predates the keysyms a current host's Compose files name, so every Qt program printed
+  "unrecognized keysym" for each. An overlay builds the release, against the system's XCB, reading the host's
+  `/usr/share/X11` data, without the tools, Wayland or `xkbregistry`; Qt finds it at the tree's configure, as its
+  config looks for XKB again there, so Qt's own port is left as it is. Refused: the host's own, a library a
+  minimal X11 host lacks; AlmaLinux 8's copy in the AppImage.
 - **Line tables on Linux, full CodeView on Windows.** Linux's triplet compiles with `-g1`, GCC's line tables, as
   the tree's own code does, and FFmpeg is held to it by `--disable-debug`, without which its `configure`
   appends `-g` after the triplet's flags. MSVC has no line-tables-only mode, as Chromium's `minimal_symbols`
