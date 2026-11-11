@@ -604,7 +604,8 @@ namespace Rtx
             const std::uint32_t heap = memory.getVideoHeap();
             const RadianceWidth radiance = mRenderer.getProfile().mRadianceWidth;
             const auto chainAt = [&](std::uint32_t width, std::uint32_t height) {
-                return PictureTracer::bytesAt(device, VkExtent2D{ width, height }, radiance);
+                return PictureTracer::bytesAt(
+                    device, VkExtent2D{ width, height }, radiance, mProbe.getTracePasses().mMasks);
             };
 
             device.waitIdle();

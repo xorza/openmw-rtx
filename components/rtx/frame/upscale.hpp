@@ -58,7 +58,7 @@ namespace Rtx
     /// Where the near plane of the reversed, infinite depth both upscalers are handed stands, in
     /// world units. A reversed float depth is precise in proportion at every distance, so the choice
     /// moves no precision; a surface nearer than it reads as standing on it, which
-    /// `fsrcallbacks.glsl` and `dlssinputs.comp` clamp to.
+    /// `fsrcallbacks.glsl` and `rrguides.comp` clamp to.
     inline constexpr float sUpscaleNear = 1.0f;
 
     /// What the launcher selects and saves for a stored kind: an explicit `Dlss` whose library is
@@ -113,6 +113,25 @@ namespace Rtx
     constexpr bool upscales(Upscale mode)
     {
         return mode != Upscale::Off;
+    }
+
+    /// What the upscaler that runs takes from the trace: a frame the renderer's own filter put
+    /// together, as FSR does, or the noisy light it filters itself, as a denoising upscaler does.
+    /// **A capability and not a vendor**: the backend's upscaler answers it, and the core decides
+    /// everything that follows from it (`Reconstruction::resolve`).
+    enum class UpscalerInput
+    {
+        Filtered,
+        Noisy,
+    };
+
+    /// Whether the renderer's own filter can run under `mode` beside an upscaler that takes `input`:
+    /// wherever nothing upscales, and under an upscaler that takes a filtered frame. **The one rule
+    /// both a frame's filter and the chain's history are read off**, so a frame cannot ask the filter
+    /// of a chain that keeps no history for it.
+    constexpr bool rendererFilters(const Upscale mode, const UpscalerInput input)
+    {
+        return !upscales(mode) || input == UpscalerInput::Filtered;
     }
 
     /// What the output is divided by to give the extent a frame is traced at, per axis: FSR 3.1's

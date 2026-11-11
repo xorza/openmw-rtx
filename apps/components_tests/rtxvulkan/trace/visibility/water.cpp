@@ -851,6 +851,17 @@ namespace Rtx::Testing
                 EXPECT_FLOAT_EQ(red(7), 0.875f * red(3)) << "the pane's last column, a neighbour of whose is past it";
                 EXPECT_FLOAT_EQ(red(8), 0.125f * red(3)) << "the first column past the pane";
 
+                // **Without the interleave each split pixel stands on its own path**
+                // (`SamplingSwitches::mWaterInterleave`): the pane's last column reads the pane whole and
+                // the first past it nothing, the light of no neighbour in either.
+                Shot alone = calm;
+                alone.mWaterInterleave = false;
+                const Frame apart = shoot(scene, {}, camera, size, alone);
+                const auto apartRed = [&](std::size_t column) { return apart.at((row + column) * 4); };
+                EXPECT_FLOAT_EQ(apartRed(3), red(3)) << "the pane's middle, whose neighbours are the pane";
+                EXPECT_FLOAT_EQ(apartRed(7), red(3)) << "the pane's last column on its own";
+                EXPECT_EQ(apartRed(8), 0.0f) << "the first column past the pane on its own";
+
                 std::vector<float> paneLift;
                 mProbe.readChannel(Channel::Lift, paneLift);
                 const std::size_t values = paneLift.size() / (std::size_t{ size } * size);

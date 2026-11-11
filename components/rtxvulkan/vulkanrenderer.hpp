@@ -101,6 +101,7 @@ namespace Rtx
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }
         std::span<const UpscalerChoice> getUpscalers() const override { return mUpscalers; }
+        UpscalerInput getUpscalerInput() const override { return mUpscaler.getInput(); }
         JobProgress awaitKernels(KernelSet set, std::chrono::milliseconds patience) override;
         FrameTraced renderFrame(const FrameRequest& request) override;
         void holdAir(const AirClock& air) override;

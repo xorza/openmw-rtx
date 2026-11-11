@@ -185,7 +185,7 @@ namespace RtxTool
                 : std::nullopt;
 
         row->mUpscale = finished.mReconstruction.mUpscale;
-        row->mDenoised = finished.mReconstruction.mDenoised;
+        row->mDenoised = finished.mReconstruction.mFilter == Rtx::LightFilter::Renderer;
         row->mPictured = true;
 
         return Pictured{ .mView = row->mView, .mFrame = row->mFrame };

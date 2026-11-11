@@ -95,7 +95,7 @@ namespace Rtx::Dlss
     {
         Ngx::FeatureDiscoveryInfo info{};
         info.SDKVersion = Ngx::sApiVersion;
-        info.FeatureId = Ngx::Feature::SuperSampling;
+        info.FeatureId = Ngx::Feature::RayReconstruction;
         info.Identifier.IdentifierType = Ngx::ApplicationKind::Project;
         info.Identifier.Value.Project.ProjectId = sProjectId;
         info.Identifier.Value.Project.EngineType = Ngx::Engine::Custom;

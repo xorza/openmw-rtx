@@ -51,8 +51,9 @@ namespace DlssLibrary
     /// folder is `dlss` in the first.
     Folders foldersIn(const std::filesystem::path& userLocalData, const std::filesystem::path& game);
 
-    /// Whether `fileName` names a feature library NGX loads on this system: `nvngx_dlss.dll` on
-    /// Windows, and on Linux `libnvidia-ngx-dlss.so.` and any version, as NGX searches for it.
+    /// Whether `fileName` names the feature library the renderer asks NGX for, Ray Reconstruction's:
+    /// `nvngx_dlssd.dll` on Windows, and on Linux `libnvidia-ngx-dlssd.so.` and any version, as NGX
+    /// searches for it.
     bool isFeatureLibrary(const std::filesystem::path& fileName);
 
     /// Whether either folder holds a feature library. A folder that is unnamed, empty or cannot be

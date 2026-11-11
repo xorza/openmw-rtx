@@ -31,6 +31,10 @@ namespace Rtx
         TracePasses(const TracePasses&) = delete;
         TracePasses& operator=(const TracePasses&) = delete;
 
+        /// Whether the trace writes the masks the upscaler reads, which every chain keeps whole or a
+        /// texel wide by (`ChannelKeeping::mMasks`).
+        const UpscaleMasks mMasks;
+
         SetLayout mChannels;
         SetLayout mFog;
 

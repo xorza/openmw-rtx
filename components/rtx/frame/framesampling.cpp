@@ -49,10 +49,11 @@ namespace Rtx
         // soft edge's texels by their alpha, under which share a source is never drawn for the
         // shadow bit, how many lamps a composing point draws, and how many bounce rays the eye's surface traces. A
         // picture's `Reconstruction{}` says the tile, nought, no and the three defaults.
-        sampled.mNoise = reconstruction.mSampling.mNoise == NoiseSource::WhiteHash ? Shaders::NOISE_WHITE_HASH
-                                                                                   : Shaders::NOISE_BLUE_TILE;
+        sampled.mNoise
+            = reconstruction.mNoise == NoiseSource::WhiteHash ? Shaders::NOISE_WHITE_HASH : Shaders::NOISE_BLUE_TILE;
         sampled.mLevelBias = reconstruction.mLevelBias;
-        sampled.mSoftEdgeDither = reconstruction.mAveraged ? 1u : 0u;
+        sampled.mSoftEdgeDither = reconstruction.mSoftEdgeDither ? 1u : 0u;
+        sampled.mPaneTracks = reconstruction.mFilter != LightFilter::Upscaler ? 1u : 0u;
         sampled.mShadowFloor = reconstruction.mSampling.mShadowFloor;
         sampled.mLampCandidates = reconstruction.mSampling.mLampCandidates;
         assert(reconstruction.mSampling.mBounceRays >= 1

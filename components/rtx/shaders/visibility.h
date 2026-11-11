@@ -466,8 +466,15 @@ namespace Rtx::Shaders
         uint mLitEnvironmentMaps;
 
         /// One where the eye meets a soft edge's texels under the cut by their alpha (`cutAt`), and
-        /// nought where it cuts them as every other ray does: `Rtx::Reconstruction::mAveraged`.
+        /// nought where it cuts them as every other ray does: `Rtx::Reconstruction::mSoftEdgeDither`.
         uint mSoftEdgeDither;
+
+        /// One where the trace stores the nearest layer's surface and motion (`CHANNEL_PANE_SURFACE`,
+        /// `CHANNEL_PANE_MOTION`), which the pane filter alone reads, and nought where the frame's light is
+        /// filtered by the upscaler: the chain keeps those channels a texel wide there (`ChannelKeeping`).
+        /// A branch every lane of a dispatch takes alike, on two stores.
+        uint mPaneTracks;
+        uint mPadding RTX_ZERO;
 
         /// The share of a pixel's light under which a source is never drawn for its shadow bit —
         /// `SHADOW_DRAW_FLOOR` unless a run names another, `Rtx::Reconstruction::mShadowFloor`.
@@ -530,11 +537,11 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1456, "GpuTables must land eight-aligned and last");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1464, "GpuTables must land eight-aligned and last");
     static_assert(offsetof(VisibilityConstants, mTables)
             == offsetof(VisibilityConstants, mPreviousJitter) + sizeof(VisibilityConstants::mPreviousJitter),
         "no implicit pad before GpuTables: name one, so a copy carries it and a comparison reads it");
-    static_assert(sizeof(VisibilityConstants) == 1656, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 1664, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

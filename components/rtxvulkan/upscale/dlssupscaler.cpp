@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include <components/debug/debuglog.hpp>
 #include <components/dlss/dlss.hpp>
 #include <components/platform/gpu.hpp>
 #include <components/rtx/common/error.hpp>
@@ -41,15 +42,20 @@ namespace Rtx
 
     namespace
     {
-        /// What the input resolve binds, in the shader's own numbering. The surface and motion
-        /// channels are storage images: the trace left them in `GENERAL`, and a resolve only ever
-        /// loads texels.
-        constexpr std::array sInputBindings{
-            computeBinding(Shaders::DLSS_INPUTS_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
-            computeBinding(Shaders::DLSS_INPUTS_BIND_MOTION, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
-            computeBinding(Shaders::DLSS_INPUTS_BIND_DEPTH, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
-            computeBinding(Shaders::DLSS_INPUTS_BIND_MOTION_OUT, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
-            computeBinding(Shaders::DLSS_INPUTS_BIND_CONSTANTS, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER),
+        /// What the guide pass binds, in the shader's own numbering. The channels are storage images:
+        /// the trace left them in `GENERAL`, and the pass only ever loads texels.
+        constexpr std::array sGuideBindings{
+            computeBinding(Shaders::RR_GUIDES_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::RR_GUIDES_BIND_MOTION, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::RR_GUIDES_BIND_ALBEDO, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::RR_GUIDES_BIND_SPECULAR_ALBEDO, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::RR_GUIDES_BIND_SPECULAR, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::RR_GUIDES_BIND_DEPTH, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::RR_GUIDES_BIND_MOTION_OUT, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::RR_GUIDES_BIND_DIFFUSE_ALBEDO, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::RR_GUIDES_BIND_SPECULAR_ALBEDO_OUT, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::RR_GUIDES_BIND_NORMAL_ROUGHNESS, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::RR_GUIDES_BIND_CONSTANTS, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER),
         };
 
         constexpr ImageUse sInputWrite{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
@@ -68,16 +74,22 @@ namespace Rtx
         /// Motion projects the surface at both ends without jitter: a stationary surface has zero
         /// motion even as the trace samples a different subpixel, so the vectors are not marked
         /// jittered, which would have NGX subtract a jitter delta that is not there. Depth is
-        /// reversed and colour is linear HDR; exposure is DLSS's own meter, because the renderer's
-        /// meter runs after the upscaler.
-        constexpr int sCreateFlags = Ngx::sDlssFlagIsHdr | Ngx::sDlssFlagMotionVectorsLowRes
-            | Ngx::sDlssFlagDepthInverted | Ngx::sDlssFlagAutoExposure;
+        /// reversed and colour is linear HDR. No exposure flag: Ray Reconstruction supports none
+        /// (DLSS-RR Integration Guide, 3.7).
+        constexpr int sCreateFlags
+            = Ngx::sDlssFlagIsHdr | Ngx::sDlssFlagMotionVectorsLowRes | Ngx::sDlssFlagDepthInverted;
 
         /// Where each image `declareShared` declares stands in the arena's run, in its order.
         constexpr std::size_t sOutput = 0;
         constexpr std::size_t sDepth = 1;
         constexpr std::size_t sMotion = 2;
-        constexpr std::size_t sShared = 3;
+        constexpr std::size_t sDiffuseAlbedo = 3;
+        constexpr std::size_t sSpecularAlbedo = 4;
+        constexpr std::size_t sNormalRoughness = 5;
+        constexpr std::size_t sShared = 6;
+
+        /// The guides, which the guide pass writes whole each frame and NGX reads.
+        constexpr std::array sGuides{ sDepth, sMotion, sDiffuseAlbedo, sSpecularAlbedo, sNormalRoughness };
 
         /// The extent of the feature the constructor makes to learn whether DLSS runs at all.
         constexpr std::uint32_t sProbeSide = 128;
@@ -112,7 +124,8 @@ namespace Rtx
             return std::format("NGX result {:#x}", static_cast<std::uint32_t>(result));
         }
 
-        /// What a refusal that a missing or unusable feature library can cause tells the player.
+        /// What a refusal that a missing or unusable feature library can cause tells the player: the
+        /// Ray Reconstruction library, which a player holding only Super Resolution's lacks.
         std::string installHint()
         {
             return std::format("install the DLSS runtime from the launcher, or put {} beside the game",
@@ -125,18 +138,18 @@ namespace Rtx
         std::string refusalOf(const Ngx::Parameter& capabilities)
         {
             int needsDriver = 0;
-            if (Ngx::succeeded(capabilities.Get(Ngx::sSuperSamplingNeedsUpdatedDriver, &needsDriver))
+            if (Ngx::succeeded(capabilities.Get(Ngx::sRayReconstructionNeedsUpdatedDriver, &needsDriver))
                 && needsDriver != 0)
             {
                 unsigned int major = 0;
                 unsigned int minor = 0;
-                capabilities.Get(Ngx::sSuperSamplingMinDriverMajor, &major);
-                capabilities.Get(Ngx::sSuperSamplingMinDriverMinor, &minor);
+                capabilities.Get(Ngx::sRayReconstructionMinDriverMajor, &major);
+                capabilities.Get(Ngx::sRayReconstructionMinDriverMinor, &minor);
                 return std::format("NVIDIA DLSS needs a newer graphics driver, {}.{} or later", major, minor);
             }
 
             int started = 0;
-            if (Ngx::succeeded(capabilities.Get(Ngx::sSuperSamplingFeatureInitResult, &started)) && started != 0
+            if (Ngx::succeeded(capabilities.Get(Ngx::sRayReconstructionFeatureInitResult, &started)) && started != 0
                 && Ngx::failed(static_cast<Ngx::Result>(static_cast<std::uint32_t>(started))))
                 return "NVIDIA DLSS could not start on this card: "
                     + resultText(static_cast<Ngx::Result>(static_cast<std::uint32_t>(started))) + "; " + installHint();
@@ -156,7 +169,7 @@ namespace Rtx
         /// the storage the programming guide names (3.4), as the validation layers caught on 310.9.16.
         ImageDescription outputImage(const VkExtent2D extent)
         {
-            ImageDescription description = storageImage(extent, toVulkanFormat(DLSS_OUTPUT_FORMAT));
+            ImageDescription description = storageImage(extent, toVulkanFormat(RR_OUTPUT_FORMAT));
             description.mUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
             return description;
         }
@@ -237,19 +250,19 @@ namespace Rtx
             Ngx::Parameter* mMap = nullptr;
         };
 
-        /// One DLSS feature, created on the device's pool as NGX's Vulkan integration asks, and
-        /// released with this. Creation loads the player's feature library, so a missing or unusable
-        /// one is the refusal this throws.
+        /// One Ray Reconstruction feature, created on the device's pool as NGX's Vulkan integration
+        /// asks, and released with this. Creation loads the player's feature library, so a missing or
+        /// unusable one is the refusal this throws.
         class Feature
         {
         public:
-            Feature(
-                const Ngx::Api& api, const Device& device, Ngx::Parameter& parameters, const Ngx::DlssFeature& create)
+            Feature(const Ngx::Api& api, const Device& device, Ngx::Parameter& parameters,
+                const Ngx::RayReconstructionFeature& create)
                 : mApi(api)
             {
                 Ngx::Result result = Ngx::Result::Failure;
                 device.getPool().submitAndWait([&](const VkCommandBuffer commands) {
-                    result = Ngx::createDlss(api, commands, parameters, create, &mHandle);
+                    result = Ngx::createRayReconstruction(api, commands, parameters, create, &mHandle);
                 });
                 if (Ngx::succeeded(result) && mHandle != nullptr)
                     return;
@@ -273,44 +286,57 @@ namespace Rtx
             Ngx::Handle* mHandle = nullptr;
         };
 
-        Ngx::DlssFeature featureAt(const Ngx::Quality quality, const VkExtent2D render, const VkExtent2D output)
+        Ngx::RayReconstructionFeature featureAt(
+            const Ngx::Quality quality, const VkExtent2D render, const VkExtent2D output)
         {
-            return Ngx::DlssFeature{
+            return Ngx::RayReconstructionFeature{
                 .mRender = render, .mOutput = output, .mQuality = quality, .mFlags = sCreateFlags
             };
+        }
+
+        bool sameExtent(const VkExtent2D a, const VkExtent2D b)
+        {
+            return a.width == b.width && a.height == b.height;
         }
     }
 
     /// NGX's state for one device, made in the DLSS upscaler's constructor. A configuration that
     /// only runs FSR never constructs one, so it never loads the runtime. Destroyed in reverse, so
-    /// the parameter map goes before the session that handed it out.
+    /// the parameter maps go before the session that handed them out.
     struct DlssUpscaler::Context
     {
         Context(const Ngx::Api& api, const Device& device, const Dlss::Application& application)
             : mApi(api)
             , mSession(api, device, application)
+            , mCapabilities(api, api.GetCapabilityParameters, "capabilities")
             , mParameters(api, api.AllocateParameters, "parameter map")
-            , mInputs(device, sInputBindings, {}, "dlssinputs.comp.spv", "dlss inputs")
+            , mGuides(device, sGuideBindings, {}, "rrguides.comp.spv", "rr guides")
             , mBlocks([&](const FrameSlot) {
-                return Buffer::hostWritten(device, sizeof(Shaders::UpscaleInputConstants),
-                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, "dlss constants");
+                return Buffer::hostWritten(
+                    device, sizeof(Shaders::RrGuideConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, "rr constants");
             })
         {
-            // **Capabilities from a map of their own, destroyed once read**, and the features from an
-            // allocated one, as the programming guide (5.2.6) has them: a map NGX fills with every
-            // capability is not one to carry through every frame's evaluation.
-            {
-                const ParameterMap capabilities(api, api.GetCapabilityParameters, "capabilities");
-                int available = 0;
-                if (const Ngx::Result queried = capabilities.get().Get(Ngx::sSuperSamplingAvailable, &available);
-                    Ngx::failed(queried) || available == 0)
-                    throw UpscalerRefused(refusalOf(capabilities.get()));
-            }
+            // **The capabilities and the features from maps of their own**, as the programming guide
+            // (5.2.6) has them: a map NGX fills with every capability is not one to carry through
+            // every frame's evaluation. The capability map stays, read only where a feature is made,
+            // since the optimal settings' and the stats' callbacks are published on it alone.
+            int available = 0;
+            if (const Ngx::Result queried = mCapabilities.get().Get(Ngx::sRayReconstructionAvailable, &available);
+                Ngx::failed(queried) || available == 0)
+                throw UpscalerRefused(refusalOf(mCapabilities.get()));
+
+            // **A library that cannot say what its features hold is refused here**, where `auto` can
+            // still fall back, and not at the first resize, whose reserve counts what they hold.
+            unsigned long long held = 0;
+            if (const Ngx::Result stated = Ngx::statsBytes(mCapabilities.get(), held); Ngx::failed(stated))
+                throw UpscalerRefused("NVIDIA DLSS's library does not state what its features hold: "
+                    + resultText(stated) + "; " + installHint());
 
             // The memory a released feature holds is cached by default for the next creation. A
             // resize is frequent enough that the cache is not worth the memory a card's whole frame
             // budget would rather keep for the world.
             mParameters.get().Set(Ngx::sFreeMemoryOnRelease, 1);
+            Ngx::setRayReconstructionConstants(mParameters.get());
 
             // **A small feature is the real answer before `auto` commits**, as the query before a
             // device exists can be inconclusive, and creating it loads the player's library. The
@@ -324,27 +350,31 @@ namespace Rtx
 
         const Ngx::Api& mApi;
         Session mSession;
+        ParameterMap mCapabilities;
         ParameterMap mParameters;
-        ComputePipeline<NoConstants> mInputs;
+        ComputePipeline<NoConstants> mGuides;
         PerSlot<Buffer> mBlocks;
     };
 
     struct DlssUpscaler::Targets
     {
         Targets(const Context& context, const Device& device, const Upscale mode, const VkExtent2D render,
-            const VkExtent2D output, const ArenaRun& shared)
+            const VkExtent2D output)
             : mRender(render)
             , mOutput(output)
-            , mShared(shared)
             , mFeature(context.mApi, device, context.mParameters.get(), featureAt(qualityOf(mode), render, output))
         {
         }
 
         VkExtent2D mRender;
         VkExtent2D mOutput;
-        /// The output, then the resolved depth and motion, which live inside the upscale step alone.
+        /// The output, then the guides, which live inside the upscale step alone: empty until `resize`
+        /// places them.
         ArenaRun mShared;
         Feature mFeature;
+
+        /// What NGX held for the feature as `prepare` measured it.
+        VkDeviceSize mBytes = 0;
     };
 
     std::unique_ptr<DlssUpscaler::Context> DlssUpscaler::makeContext(
@@ -377,13 +407,17 @@ namespace Rtx
     {
         into.push_back(ArenaImage{ .mDescription = outputImage(output),
             .mSpan = spanOf(FrameStep::Upscale, FrameStep::Display),
-            .mName = "dlss-output" });
-        into.push_back(ArenaImage{ .mDescription = storageImage(render, toVulkanFormat(DLSS_DEPTH_FORMAT)),
-            .mSpan = spanOf(FrameStep::Upscale, FrameStep::Upscale),
-            .mName = "dlss-depth" });
-        into.push_back(ArenaImage{ .mDescription = storageImage(render, toVulkanFormat(DLSS_MOTION_FORMAT)),
-            .mSpan = spanOf(FrameStep::Upscale, FrameStep::Upscale),
-            .mName = "dlss-motion" });
+            .mName = "rr-output" });
+        const auto guide = [&](const VkFormat format, const std::string_view name) {
+            into.push_back(ArenaImage{ .mDescription = storageImage(render, format),
+                .mSpan = spanOf(FrameStep::Upscale, FrameStep::Upscale),
+                .mName = name });
+        };
+        guide(toVulkanFormat(RR_DEPTH_FORMAT), "rr-depth");
+        guide(toVulkanFormat(RR_MOTION_FORMAT), "rr-motion");
+        guide(toVulkanFormat(RR_GUIDE_FORMAT), "rr-diffuse-albedo");
+        guide(toVulkanFormat(RR_GUIDE_FORMAT), "rr-specular-albedo");
+        guide(toVulkanFormat(RR_GUIDE_FORMAT), "rr-normal-roughness");
     }
 
     std::size_t DlssUpscaler::getSharedCount()
@@ -391,35 +425,89 @@ namespace Rtx
         return sShared;
     }
 
-    VkDeviceSize DlssUpscaler::bytesAt(const Device&, const VkExtent2D, const VkExtent2D)
+    VkDeviceSize DlssUpscaler::bytesAt(const VkExtent2D render, const VkExtent2D output) const
     {
+        for (const Measured& measured : mMeasured)
+            if (sameExtent(measured.mRender, render) && sameExtent(measured.mOutput, output))
+                return measured.mBytes;
         return 0;
     }
 
-    void DlssUpscaler::resize(
-        const Upscale mode, const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
+    VkDeviceSize DlssUpscaler::getHeldOutside() const
     {
-        assert(render.width > 0 && render.height > 0 && output.width >= render.width && output.height >= render.height);
-        assert(shared.size() == sShared && "the DLSS upscaler's shared images were not placed as it declared them");
+        return mTargets != nullptr ? mTargets->mBytes : 0;
+    }
 
-        if (isAt(render, output))
-        {
-            mTargets->mShared = shared;
-            return;
-        }
+    void DlssUpscaler::remember(const Measured& measured)
+    {
+        // At one output only: a resize of the window measures its modes again, and what was measured
+        // at another output names extents no mode traces at now.
+        std::erase_if(mMeasured, [&](const Measured& kept) {
+            return !sameExtent(kept.mOutput, measured.mOutput) || sameExtent(kept.mRender, measured.mRender);
+        });
+        mMeasured.push_back(measured);
+        assert(mMeasured.size() <= sUpscaleMenu.size() && "a mode measured twice at one output");
+    }
+
+    DlssUpscaler::Measured DlssUpscaler::makeAndMeasure(
+        const Upscale mode, const VkExtent2D render, const VkExtent2D output, std::unique_ptr<Targets>& into)
+    {
+        // **The stats after the feature stands less the stats before it**, since NGX's stats are what
+        // every one of its features holds: a feature standing beside this one is not this one's.
+        unsigned long long before = 0;
+        unsigned long long after = 0;
+        Ngx::Parameter& capabilities = mContext->mCapabilities.get();
+        const Ngx::Result was = Ngx::statsBytes(capabilities, before);
 
         // **A refusal here is the device's**: the constructor's feature proved that NGX, the driver and
         // the player's library run, and `FrameTracer` has let the last targets go already where the
         // extents moved, so nothing stands to fall back to.
         try
         {
-            mTargets = std::make_unique<Targets>(*mContext, mDevice, mode, render, output, shared);
+            into = std::make_unique<Targets>(*mContext, mDevice, mode, render, output);
         }
         catch (const UpscalerRefused& refused)
         {
             throw DeviceError(refused.what());
         }
+
+        const Ngx::Result now = Ngx::statsBytes(capabilities, after);
+        if (Ngx::failed(was) || Ngx::failed(now))
+            throw DeviceError("NVIDIA DLSS could not say what its feature holds: " + resultText(now));
+        Log(Debug::Verbose) << std::format(
+            "NVIDIA DLSS Ray Reconstruction at {}x{} to {}x{}: {} bytes before, {} after", render.width, render.height,
+            output.width, output.height, before, after);
+        return Measured{ .mRender = render, .mOutput = output, .mBytes = after > before ? after - before : 0 };
+    }
+
+    void DlssUpscaler::prepare(const Upscale mode, const VkExtent2D render, const VkExtent2D output)
+    {
+        assert(render.width > 0 && render.height > 0 && output.width >= render.width && output.height >= render.height);
+        if (isAt(render, output))
+            return;
+
+        mTargets.reset();
+        const Measured measured = makeAndMeasure(mode, render, output, mTargets);
+        mTargets->mBytes = measured.mBytes;
+        remember(measured);
         mFresh = true;
+    }
+
+    void DlssUpscaler::measure(const Upscale mode, const VkExtent2D render, const VkExtent2D output)
+    {
+        for (const Measured& measured : mMeasured)
+            if (sameExtent(measured.mRender, render) && sameExtent(measured.mOutput, output))
+                return;
+
+        std::unique_ptr<Targets> probe;
+        remember(makeAndMeasure(mode, render, output, probe));
+    }
+
+    void DlssUpscaler::resize(const Upscale, const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
+    {
+        assert(shared.size() == sShared && "the DLSS upscaler's shared images were not placed as it declared them");
+        assert(isAt(render, output) && "a DLSS resize to extents `prepare` did not make the feature at");
+        mTargets->mShared = shared;
     }
 
     void DlssUpscaler::release()
@@ -429,9 +517,7 @@ namespace Rtx
 
     bool DlssUpscaler::isAt(const VkExtent2D render, const VkExtent2D output) const
     {
-        const auto same
-            = [](const VkExtent2D a, const VkExtent2D b) { return a.width == b.width && a.height == b.height; };
-        return mTargets != nullptr && same(mTargets->mRender, render) && same(mTargets->mOutput, output);
+        return mTargets != nullptr && sameExtent(mTargets->mRender, render) && sameExtent(mTargets->mOutput, output);
     }
 
     HandedImage DlssUpscaler::record(
@@ -439,71 +525,85 @@ namespace Rtx
     {
         const GpuZone timed(timer, commands, FrameZone::Upscale);
 
-        assert(mTargets != nullptr && "a DLSS upscale before a resize");
+        assert(mTargets != nullptr && mTargets->mShared.size() == sShared && "a DLSS upscale before a resize");
         Targets& targets = *mTargets;
 
         const bool reset = std::exchange(mFresh, false);
-        const Shaders::UpscaleInputConstants constants{
-            .mEyes = inputs.mEyes,
-            .mNear = sUpscaleNear,
-            .mFrame = inputs.mFrame,
+        const Shaders::RrGuideConstants constants{
+            .mInputs = Shaders::UpscaleInputConstants{
+                .mEyes = inputs.mEyes,
+                .mNear = sUpscaleNear,
+                .mFrame = inputs.mFrame,
+            },
+            .mLobed = inputs.mLobed ? 1u : 0u,
         };
         const Buffer& block = mContext->mBlocks.at(inputs.mSlot);
         uploads.write(block, 0, std::span(&constants, 1));
         uploads.order();
         block.nameForNext();
 
-        // **The resolve writes every pixel of both images**, so their previous contents are
+        // **The guide pass writes every pixel of every guide**, so their previous contents are
         // discarded: the mode's own edge is the first frame after a resize, and the feature is new
         // then too.
         {
             Barriers barriers(commands);
             targets.mShared[sOutput].addTransition(barriers, targets.mShared.firstUseOf(sOutput), sDlssWrite);
-            targets.mShared[sDepth].addTransition(barriers, targets.mShared.firstUseOf(sDepth), sInputWrite);
-            targets.mShared[sMotion].addTransition(barriers, targets.mShared.firstUseOf(sMotion), sInputWrite);
+            for (const std::size_t guide : sGuides)
+                targets.mShared[guide].addTransition(barriers, targets.mShared.firstUseOf(guide), sInputWrite);
             barriers.flush();
         }
 
-        DescriptorWrites writes(mContext->mInputs);
-        writes.image(Shaders::DLSS_INPUTS_BIND_SURFACE, inputs.mSurface.describeStorage());
-        writes.image(Shaders::DLSS_INPUTS_BIND_MOTION, inputs.mMotion.describeStorage());
-        writes.image(Shaders::DLSS_INPUTS_BIND_DEPTH, targets.mShared[sDepth].describeStorage());
-        writes.image(Shaders::DLSS_INPUTS_BIND_MOTION_OUT, targets.mShared[sMotion].describeStorage());
-        writes.buffer(Shaders::DLSS_INPUTS_BIND_CONSTANTS, block.describe(0, sizeof(constants)));
-        dispatch(commands, mContext->mInputs, writes, NoConstants{},
-            Groups::covering(targets.mRender.width, targets.mRender.height, Shaders::DLSS_INPUT_WORKGROUP));
+        DescriptorWrites writes(mContext->mGuides);
+        writes.image(Shaders::RR_GUIDES_BIND_SURFACE, inputs.mSurface.describeStorage());
+        writes.image(Shaders::RR_GUIDES_BIND_MOTION, inputs.mMotion.describeStorage());
+        writes.image(Shaders::RR_GUIDES_BIND_ALBEDO, inputs.mAlbedo.describeStorage());
+        writes.image(Shaders::RR_GUIDES_BIND_SPECULAR_ALBEDO, inputs.mSpecularAlbedo.describeStorage());
+        writes.image(Shaders::RR_GUIDES_BIND_SPECULAR, inputs.mSpecular.describeStorage());
+        writes.image(Shaders::RR_GUIDES_BIND_DEPTH, targets.mShared[sDepth].describeStorage());
+        writes.image(Shaders::RR_GUIDES_BIND_MOTION_OUT, targets.mShared[sMotion].describeStorage());
+        writes.image(Shaders::RR_GUIDES_BIND_DIFFUSE_ALBEDO, targets.mShared[sDiffuseAlbedo].describeStorage());
+        writes.image(Shaders::RR_GUIDES_BIND_SPECULAR_ALBEDO_OUT, targets.mShared[sSpecularAlbedo].describeStorage());
+        writes.image(Shaders::RR_GUIDES_BIND_NORMAL_ROUGHNESS, targets.mShared[sNormalRoughness].describeStorage());
+        writes.buffer(Shaders::RR_GUIDES_BIND_CONSTANTS, block.describe(0, sizeof(constants)));
+        dispatch(commands, mContext->mGuides, writes, NoConstants{},
+            Groups::covering(targets.mRender.width, targets.mRender.height, Shaders::RR_GUIDES_WORKGROUP));
 
-        // The resolve's writes and the trace's colour handed to NGX, in one dependency. What NGX
-        // does inside its evaluation is its own; the layout it is promised is the one the wrapper
-        // names, and the evaluation leaves the output in `GENERAL`.
+        // The guides and the trace's colour handed to NGX, in one dependency. What NGX does inside its
+        // evaluation is its own; the layout it is promised is the one the wrapper names, and the
+        // evaluation leaves the output in `GENERAL`.
         {
             Barriers barriers(commands);
             inputs.mColour.mImage.addTransition(barriers, inputs.mColour.mLeftAs, sDlssRead);
-            targets.mShared[sDepth].addTransition(barriers, sInputWrite, sDlssRead);
-            targets.mShared[sMotion].addTransition(barriers, sInputWrite, sDlssRead);
+            for (const std::size_t guide : sGuides)
+                targets.mShared[guide].addTransition(barriers, sInputWrite, sDlssRead);
             barriers.flush();
         }
 
         Ngx::Resource colour = viewOf(inputs.mColour.mImage, false);
         Ngx::Resource depth = viewOf(targets.mShared[sDepth], false);
         Ngx::Resource motion = viewOf(targets.mShared[sMotion], false);
+        Ngx::Resource diffuse = viewOf(targets.mShared[sDiffuseAlbedo], false);
+        Ngx::Resource specular = viewOf(targets.mShared[sSpecularAlbedo], false);
+        Ngx::Resource normals = viewOf(targets.mShared[sNormalRoughness], false);
         Ngx::Resource output = viewOf(targets.mShared[sOutput], true);
 
         // The trace offsets the sample, whereas NGX names the resulting image displacement, which is
-        // opposite. `FsrFrame` uses the same conversion for the same ray samples. The trace writes
-        // motion in render pixels, its fourth component the water's split, which the resolve drops.
-        const Ngx::DlssFrame frame{ .mColour = &colour,
+        // opposite. `FsrFrame` uses the same conversion for the same ray samples.
+        const Ngx::RayReconstructionFrame frame{ .mColour = &colour,
             .mOutput = &output,
             .mDepth = &depth,
             .mMotion = &motion,
+            .mDiffuseAlbedo = &diffuse,
+            .mSpecularAlbedo = &specular,
+            .mNormalRoughness = &normals,
             .mJitterX = -inputs.mEyes.mWorld.mJitter.x(),
             .mJitterY = -inputs.mEyes.mWorld.mJitter.y(),
             .mRender = targets.mRender,
             .mReset = reset,
             .mFrameMs = inputs.mSeconds * 1000.0f };
 
-        const Ngx::Result result
-            = Ngx::evaluateDlss(mContext->mApi, commands, targets.mFeature.get(), mContext->mParameters.get(), frame);
+        const Ngx::Result result = Ngx::evaluateRayReconstruction(
+            mContext->mApi, commands, targets.mFeature.get(), mContext->mParameters.get(), frame);
         if (Ngx::failed(result))
             throw DeviceError("NVIDIA DLSS failed to evaluate a frame: " + resultText(result));
 
@@ -512,6 +612,6 @@ namespace Rtx
 
     std::string_view DlssUpscaler::describe()
     {
-        return "NVIDIA DLSS";
+        return "NVIDIA DLSS Ray Reconstruction";
     }
 }

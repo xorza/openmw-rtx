@@ -174,7 +174,7 @@ namespace RtxTool
         {
             Rtx::ReconstructionRequest truth = side.unfiltered();
             truth.mJitter = true;
-            truth.mSampling.mNoise = Rtx::NoiseSource::WhiteHash;
+            truth.mNoise = Rtx::NoiseSource::WhiteHash;
             // **The truth reads every texture at the level its footprint asks**, whatever the
             // run's epsilon: an epsilon is a knob on the frame, and a reference that moved with
             // it would take the frame's softness for its own and report no bias at all.

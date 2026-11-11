@@ -10,7 +10,8 @@ namespace Rtx
 {
     TracePasses::TracePasses(const Device& device, const SetLayout& textureLayout, const bool counting,
         const bool specialize, const UpscaleMasks masks)
-        : mChannels(GBuffer::describeLayout(device))
+        : mMasks(masks)
+        , mChannels(GBuffer::describeLayout(device))
         , mFog(FogVolume::describeLayout(device))
         , mVisibility(device, textureLayout, mChannels, mFog, counting, specialize, masks)
         , mComposite(device, masks)

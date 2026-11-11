@@ -439,6 +439,10 @@ namespace Rtx::Testing
         /// names another.
         std::uint32_t mBounceRays = 1;
 
+        /// Whether a split water pixel is blended with its split neighbours — `SamplingSwitches`', on
+        /// unless a test names it off.
+        bool mWaterInterleave = true;
+
         /// Where the trace draws from: the tile every figure over this fixture was derived against,
         /// unless a test names the other.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
@@ -581,11 +585,12 @@ namespace Rtx::Testing
                         .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,
                             .mJitter = shot.mJitter,
                             .mLevelEpsilon = shot.mLevelEpsilon,
-                            .mSampling = { .mNoise = shot.mNoise,
-                                .mShadowFloor = shot.mShadowFloor,
+                            .mNoise = shot.mNoise,
+                            .mSampling = { .mShadowFloor = shot.mShadowFloor,
                                 .mLampCandidates = shot.mLampCandidates,
                                 .mIndirect = shot.mIndirect,
-                                .mBounceRays = shot.mBounceRays },
+                                .mBounceRays = shot.mBounceRays,
+                                .mWaterInterleave = shot.mWaterInterleave },
                             .mFilters = { .mAntilag = shot.mAntilag } },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),

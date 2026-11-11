@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/world/frameworld.hpp>
 
 #include "benchrun.hpp"
@@ -72,4 +73,9 @@ namespace RtxTool
     /// `room` and never allocated: a title is written on the frame path. `room` holds the longest
     /// note, `Thunderstorm → Blizzard 100%, 23:59` at thirty-seven bytes, which is asserted.
     std::string_view writeSkyNote(std::span<char> room, const SkyNote& note);
+
+    /// Which upscaler a frame of `profile` passes through, as the window's title names it: `no` where
+    /// nothing upscales, and else the one the renderer's choice came to, `fsr` or `dlss`. `profile` is
+    /// a renderer's own (`Rtx::Renderer::getProfile`), whose choice is never `auto`.
+    std::string_view describeUpscaler(const Rtx::RenderProfile& profile);
 }

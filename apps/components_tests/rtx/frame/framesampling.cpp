@@ -68,8 +68,9 @@ namespace Rtx
             const Reconstruction jittering{
                 .mJitter = true,
                 .mLevelBias = -0.5f,
-                .mSampling = { .mNoise = NoiseSource::WhiteHash, .mShadowFloor = 0.125f, .mLampCandidates = 3u },
-                .mAveraged = true,
+                .mNoise = NoiseSource::WhiteHash,
+                .mSampling = { .mShadowFloor = 0.125f, .mLampCandidates = 3u },
+                .mSoftEdgeDither = true,
             };
             const InstanceCounts counts{ .mFirstPerson = 1 };
             Shaders::VisibilityConstants previous = stated();
@@ -98,6 +99,19 @@ namespace Rtx
             EXPECT_EQ(sampled.mNoise, Shaders::NOISE_WHITE_HASH);
             EXPECT_EQ(sampled.mLevelBias, -0.5f);
             EXPECT_EQ(sampled.mSoftEdgeDither, 1u) << "a world's frames are averaged";
+            EXPECT_EQ(sampled.mPaneTracks, 1u)
+                << "nothing filters, so nothing keeps the pane filter's tracks a texel wide";
+            Reconstruction upscalerFilters = jittering;
+            upscalerFilters.mFilter = LightFilter::Upscaler;
+            EXPECT_EQ(
+                sampleFrame(stated(), FrameOptions{}, RenderProfile{}, upscalerFilters, counts, &previous).mPaneTracks,
+                0u)
+                << "the upscaler filters, and no pane filter reads the tracks";
+            Reconstruction cut = jittering;
+            cut.mSoftEdgeDither = false;
+            EXPECT_EQ(
+                sampleFrame(stated(), FrameOptions{}, RenderProfile{}, cut, counts, &previous).mSoftEdgeDither, 0u)
+                << "a run that names the dither off cuts a world's soft edges as a picture's";
             EXPECT_EQ(sampled.mShadowFloor, 0.125f) << "the run's floor";
             EXPECT_EQ(sampled.mLampCandidates, 3u) << "the run's candidates";
             EXPECT_EQ(sampled.mArmsSpread, osg::Vec2f(1.5f, 1.0f));
@@ -133,6 +147,7 @@ namespace Rtx
             EXPECT_EQ(picture.mPreviousJitter, picture.mEyes.mWorld.mJitter) << "no frame before it but itself";
             EXPECT_EQ(picture.mNoise, Shaders::NOISE_BLUE_TILE);
             EXPECT_EQ(picture.mSoftEdgeDither, 0u) << "a picture stands alone, so the eye cuts its soft edges";
+            EXPECT_EQ(picture.mPaneTracks, 1u);
             EXPECT_EQ(picture.mShadowFloor, Shaders::SHADOW_DRAW_FLOOR) << "and draws its bits by the default floor";
             EXPECT_EQ(picture.mLampCandidates, Shaders::LAMP_CANDIDATES) << "and its lamps by the default count";
 

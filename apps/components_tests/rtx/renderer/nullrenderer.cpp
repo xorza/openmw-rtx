@@ -88,9 +88,18 @@ namespace Rtx
 
         /// **A frame reports the reconstruction it was traced under**, as a device's does: one that
         /// asked for no denoiser reports none where the profile wants one, and one traced before a
-        /// menu turned the upscaler on reports none, collected after it.
+        /// menu turned the upscaler on reports none, collected after it. And the profile holds what
+        /// the upscaler the run asked for came to, never `auto`: FSR, with no device to offer DLSS.
         TEST(RtxNullRendererTest, aFrameReportsTheReconstructionItWasTracedUnder)
         {
+            for (const UpscalerChoice asked : sUpscalerMenu)
+            {
+                RendererOptions options = optionsOf(8, 4);
+                options.mRun.mProfile.mUpscaler = asked;
+                EXPECT_EQ(NullRenderer(options).getProfile().mUpscaler, UpscalerChoice::Fsr)
+                    << sUpscalerNames.name(asked);
+            }
+
             NullRenderer renderer(optionsOf(8, 4));
             const SceneDesc scene;
             renderer.setScene(SceneSlot::world(), scene, {});
@@ -105,8 +114,9 @@ namespace Rtx
             const std::optional<FrameResult> second = renderer.finishFrame();
             ASSERT_TRUE(first.has_value());
             ASSERT_TRUE(second.has_value());
-            EXPECT_FALSE(first->mReconstruction.mDenoised) << "what the frame asked, not the profile";
-            EXPECT_TRUE(second->mReconstruction.mDenoised) << "the profile's, where the frame asked nothing";
+            EXPECT_EQ(first->mReconstruction.mFilter, LightFilter::None) << "what the frame asked, not the profile";
+            EXPECT_EQ(second->mReconstruction.mFilter, LightFilter::Renderer)
+                << "the profile's, where the frame asked nothing";
             EXPECT_EQ(second->mReconstruction.mUpscale, Upscale::Off) << "the menu after the trace reached the frame";
         }
 

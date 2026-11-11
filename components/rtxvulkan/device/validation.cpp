@@ -1,7 +1,11 @@
 #include "validation.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdlib>
+#include <span>
+#include <string>
+#include <string_view>
 #include <utility>
 
 #include <vulkan/vk_platform.h>
@@ -25,6 +29,10 @@ namespace Rtx
             if ((severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0
                 && (types & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) == 0)
                 Log(Debug::Error) << "Vulkan: " << id << ": " << data->pMessage;
+            else if ((severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0
+                && std::string_view(id).starts_with("SYNC-HAZARD")
+                && log.isDisowned(std::span(data->pObjects, data->objectCount)))
+                Log(Debug::Warning) << "Vulkan validation, a runtime's own resources: " << id << ": " << data->pMessage;
             else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
             {
                 std::string text(id);
@@ -57,6 +65,29 @@ namespace Rtx
     {
         const std::lock_guard<std::mutex> lock(mMutex);
         mErrors.push_back(ValidationMessage{ std::move(text), sFiledUnder });
+    }
+
+    void ValidationLog::disown(std::string prefix)
+    {
+        assert(!prefix.empty() && "a prefix every name starts with disowns every resource");
+        const std::lock_guard<std::mutex> lock(mMutex);
+        mDisowned.push_back(std::move(prefix));
+    }
+
+    bool ValidationLog::isDisowned(const std::span<const VkDebugUtilsObjectNameInfoEXT> objects) const
+    {
+        const std::lock_guard<std::mutex> lock(mMutex);
+        bool any = false;
+        for (const VkDebugUtilsObjectNameInfoEXT& object : objects)
+        {
+            if (object.objectType != VK_OBJECT_TYPE_IMAGE && object.objectType != VK_OBJECT_TYPE_BUFFER)
+                continue;
+            const std::string_view name = object.pObjectName != nullptr ? object.pObjectName : "";
+            if (std::ranges::none_of(mDisowned, [&](const std::string& prefix) { return name.starts_with(prefix); }))
+                return false;
+            any = true;
+        }
+        return any;
     }
 
     void ValidationLog::takeErrorsOnThisThread(std::vector<std::string>& out)

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -55,28 +56,30 @@ namespace Rtx
             TracePast past);
 
         /// What a chain at this extent takes of the device's memory, the running sum apart, and the
-        /// images its arena holds apart.
-        static VkDeviceSize bytesAt(
-            const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance, TracePast past);
+        /// images its arena holds apart: the filter's histories, held surfaces and the pane filter's tracks
+        /// only where `filter` runs, and the upscaler's masks only where `masks` says the trace writes them
+        /// (`ChannelKeeping`).
+        static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height,
+            RadianceWidth radiance, TracePast past, RendererFilter filter, UpscaleMasks masks);
 
         /// The images a chain at this extent uses inside one stretch of a frame, which an arena places
         /// (`ImageArena`): the trace's stage images for `bounceRays` bounce rays, the denoiser's
-        /// scratch, then the canvas the display lays the puffs over, at `radiance`'s format, appended
-        /// to `into`. `resize` takes them in this order.
+        /// scratch where `filter` runs, then the canvas the display lays the puffs over, at
+        /// `radiance`'s format, appended to `into`. `resize` takes them in this order.
         static void declareShared(std::uint32_t width, std::uint32_t height, RadianceWidth radiance,
-            std::uint32_t bounceRays, std::vector<ArenaImage>& into);
+            std::uint32_t bounceRays, RendererFilter filter, std::vector<ArenaImage>& into);
 
-        /// How many images `declareShared` declares.
-        static std::size_t getSharedCount();
+        /// How many images `declareShared` declares under `filter`.
+        static std::size_t getSharedCount(RendererFilter filter);
 
         /// What the running sum at this extent takes, which only a trace that averages makes.
         static VkDeviceSize sumBytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
 
-        /// Builds the chain at exactly this extent, whatever it was before, and nothing where it
-        /// already stands at it, with the images `declareShared` declared at it as `shared` placed
-        /// them: taken again whether the extent moved or not, since an arena is made again whenever
-        /// anything it holds moves.
-        void resize(std::uint32_t width, std::uint32_t height, const ArenaRun& shared);
+        /// Builds the chain at exactly this extent and under `filter`, whatever it was before, and
+        /// nothing where it already stands so, with the images `declareShared` declared as `shared`
+        /// placed them: taken again whether anything moved or not, since an arena is made again
+        /// whenever anything it holds moves.
+        void resize(std::uint32_t width, std::uint32_t height, RendererFilter filter, const ArenaRun& shared);
 
         /// Lets every image go, until the next `resize`.
         void release();
@@ -87,6 +90,9 @@ namespace Rtx
         std::uint32_t getHeight() const { return mHeight; }
 
         RadianceWidth getRadiance() const { return mRadiance; }
+
+        /// Whether the renderer's filter can run on what is built, which only `resize` moves.
+        RendererFilter getFilter() const { return mFilter; }
 
         /// Whether the images exist, which is the same question as whether the extent is set.
         bool isBuilt() const { return mChannels != nullptr; }
@@ -107,8 +113,8 @@ namespace Rtx
         const GBuffer& getChannels() const { return *mChannels; }
 
         /// What the last `record`'s denoisers wrote, null where a filter did not run on it
-        /// (`DenoiseHistory::written`).
-        void denoiserWritten(std::array<const Image*, sDenoiserImageCount>& into) const { mDenoise.written(into); }
+        /// (`DenoiseHistory::written`), and every one null where the chain holds no filter.
+        void denoiserWritten(std::array<const Image*, sDenoiserImageCount>& into) const;
 
         /// Records one camera's whole trace, from the discards it opens with to the barrier after
         /// the composite, and hands back what the display reads of it. What the caller keeps is
@@ -128,6 +134,7 @@ namespace Rtx
         std::uint32_t mHeight = 0;
         const RadianceWidth mRadiance;
         const TracePast mPast;
+        RendererFilter mFilter = RendererFilter::Runs;
 
         std::unique_ptr<GBuffer> mChannels;
         std::unique_ptr<FogVolume> mFogVolume;
@@ -144,8 +151,9 @@ namespace Rtx
         /// chain was made with.
         std::vector<SpriteBin> mBins;
 
-        /// What the shared denoising passes keep of this camera, at the extent.
-        DenoiseHistory mDenoise;
+        /// What the shared denoising passes keep of this camera, at the extent: none where the
+        /// renderer's filter cannot run (`RendererFilter::Absent`).
+        std::optional<DenoiseHistory> mDenoise;
 
         /// The running sum a reference is built out of, empty until a trace averages. Not a history
         /// and nothing here reprojects: a plain per-pixel total over however many frames the caller

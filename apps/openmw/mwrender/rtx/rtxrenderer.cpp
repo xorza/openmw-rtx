@@ -313,6 +313,11 @@ namespace MWRender
         return mRenderer->getCardAddress();
     }
 
+    Rtx::UpscalerInput RtxRenderer::getUpscalerInput() const
+    {
+        return mRenderer->getUpscalerInput();
+    }
+
     // Out of line because the members it destroys are only forward declared in the header.
     RtxRenderer::~RtxRenderer()
     {

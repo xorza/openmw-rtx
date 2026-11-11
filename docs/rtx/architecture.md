@@ -18,11 +18,11 @@ stays built so upstream's code merges as it stands. Its code is upstream's but f
 [`rtx.rst`](../source/reference/modding/settings/rtx.rst).
 
 The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan's ray tracing.
-The denoiser is the renderer's own, and the upscaler is AMD's FSR 3.1.4 ported to compute shaders,
-or NVIDIA DLSS through the driver's NGX runtime where the card accepts it and the player has put
-the feature library beside the game or in the user data folder the launcher downloads into: at
-`native` the upscaler is the anti-aliasing, and every other mode traces fewer pixels than the frame
-holds. Vanilla textures are pre-lit, so the renderer estimates the painted light and divides it
+The denoiser is the renderer's own under AMD's FSR 3.1.4, ported to compute shaders, and NVIDIA
+DLSS Ray Reconstruction where the card accepts it and the player has put its feature library beside
+the game or in the user data folder the launcher downloads into: one learned pass that denoises the
+noisy frame and upscales it, in place of the renderer's filter. At `native` the upscaler is the
+anti-aliasing, and every other mode traces fewer pixels than the frame holds. Vanilla textures are pre-lit, so the renderer estimates the painted light and divides it
 out as it prepares the content; a PBR replacer's companion maps reach the trace, and a vanilla scene draws the same whether or
 not the renderer can read them.
 
@@ -358,7 +358,28 @@ source-tree test holds the order.
   (`research/2026-11-08-relief-cost-and-noise.md`). `--relief` is the harness's A/B alone (`SamplingSwitches::mRelief`).
 - **Reconstruction** (`frame/reconstruction.hpp`). `RenderProfile` is what a run decides once.
   `Reconstruction::resolve` is the one rule for everything that follows from how a frame is put
-  back together: the denoiser, the jitter, the noise source, the texture level bias.
+  back together: who filters the light (`LightFilter`), the jitter, the noise source, the texture
+  level bias.
+- **Who filters the light follows what the upscaler takes, a capability and not a vendor**
+  (`UpscalerInput`, `rendererFilters`): the renderer's filter wherever nothing upscales and under an
+  upscaler that takes a filtered frame (FSR), and the upscaler itself under one that takes the noisy
+  light (DLSS Ray Reconstruction). One rule for both the frame's filter and whether the chain keeps
+  the filter's images at all (`RendererFilter`). Refused: the core asking which vendor's upscaler
+  runs. A frame asked unfiltered under an upscaler that filters is a broken contract, and the harness
+  refuses such a run before its first frame (`SessionRequest::refusalUnder`): running the upscaler
+  anyway while the run reports "unfiltered" is a report that lies.
+- **What the upscaler that filters is handed is what measured cleaner under it**, from NVIDIA's guide's
+  rules (DLSS-RR Integration Guide, 3.5–3.6) each measured
+  (`research/2026-11-11-ray-reconstruction-against-super-resolution.md`): a jitter that runs on with no
+  period, which asks at least 32 positions; the soft edge cut and not dithered, whose every frame moved
+  the guides at a leaf's edge (the pond 1.24 against 1.28, its p99 8.00 against 9.06); the blue-noise
+  tile kept, though the guide asks independent draws, since the white hash stood noisier at every place
+  (the pier 1.23 against 1.17); and the water's interleave kept, the blend of a split pixel with its
+  neighbours, though the guide counts a resampling against its samples, since without it the pond stood
+  at 3.21 against 1.28. A run may name each (`--noise`, `--soft-edge-dither`, `--water-interleave`).
+  The trace clamps no firefly and boils nothing for the renderer's filter alone, so nothing else
+  changes with the filter, as RTX Remix's Ray Reconstruction preset turns off only what served its own
+  denoiser.
 
 Content the renderer cannot use is never an assert and never the end of a frame. Readers answer
 with a `Result`, and every refusal is reported once to `Rtx::Refusals`. A texture that is
@@ -530,7 +551,7 @@ at the top, over all of them.
 | `texture/`          | the bindless array and the passes a texture is made with as it arrives |
 | `scene/`            | `DeviceScene`: its tables, structures, skinning and sprites             |
 | `trace/`            | `TraceChain` and its passes, the sea and the fog; the denoiser in `denoise/` |
-| `upscale/`          | `Upscaler`: FSR 3.1.4, ported, or NVIDIA DLSS through NGX               |
+| `upscale/`          | `Upscaler`: FSR 3.1.4, ported, or NVIDIA DLSS Ray Reconstruction through NGX |
 | `display/`          | `DisplayChain` and its passes                                           |
 | `present/`          | the swapchain and the present                                           |
 | `gui/`              | the interface's pass and textures                                       |
@@ -637,7 +658,16 @@ at the top, over all of them.
   cannot see a map a model names in its own file, and a missed map costs a drain or a wrong picture.
 - **`TraceChain`** is everything one camera's trace writes at one extent: the G-buffer, the fog
   volume, the sprite bins and the denoiser's history. The world has one, and `PictureTracer` has
-  one for the pictures inside the interface; the passes are shared.
+  one for the pictures inside the interface; the passes are shared. **The denoiser's images only
+  where its filter can run** (`RendererFilter`): under Ray Reconstruction at a mode that upscales the
+  world's chain keeps no history, no scratch and no held surfaces, 128 bytes a traced pixel of history
+  and held surfaces and 65 of scratch; a picture's filter always runs. **And every channel only some
+  reader reads, only where that reader is** (`ChannelKeeping`): the nearest layer's surface and motion,
+  which the pane filter alone reads, a texel wide and stored by no frame where the filter is absent
+  (`VisibilityConstants::mPaneTracks`, a branch every lane takes alike), and FSR's masks a texel wide
+  under an upscaler that reads none; a digest leaves such a channel out. Under Ray Reconstruction that is
+  18 more bytes a traced pixel. Refused: a specialization of the trace's kernels for it, which an RR run
+  would compile twice over, since its pictures keep the filter.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
   lines. The tone pass adds the glare fader and Night-Eye's lift after the curve, where the meter
   never sees them, as the rasterizer adds both, and applies `[Video] gamma`. The GUI draws after
@@ -649,6 +679,40 @@ at the top, over all of them.
   feature library: `auto` takes it where every fact for it holds (`DlssAvailability`) and its first
   feature is made, and falls back to FSR where NGX refuses (`UpscalerRefused`); an explicit `dlss`
   that NGX refuses is a start that fails naming why. Both are handed one depth (`upscaledepth.glsl`).
+- **DLSS means Ray Reconstruction, and Super Resolution is gone** (DLSS-RR Integration Guide, 3.2:
+  where RR runs, SR does not). Refused: SR beside it as another upscaler or as a quiet fallback, two
+  DLSS backends and two feature libraries for one choice; `auto` falls back to FSR.
+- **Ray Reconstruction's guides come from the pass that rebuilt DLSS's depth and motion**
+  (`rrguides.comp`): the channels are stored in fields, so one dispatch writes, in the frame's order,
+  the depth, the motion, both albedos and the world normal with the perceptual roughness packed in its
+  fourth, the sky at RR's defaults and a near-black diffuse albedo as nought, as RTX Remix holds it.
+  Half floats, which cost the arena nothing over the upscale's span. Refused: the composite writing
+  them, which `trace/` before `upscale/` forbids and pictures would pay for. Creation and evaluation
+  set every key the SDK's helpers set (`ngx.cpp`), the unused ones null, so a carried map reads no
+  earlier frame's; linear radiance at a pre-exposure of one, as RTX Remix hands it, since RR takes no
+  exposure; the library's default preset.
+- **What NGX allocates is frame memory the reserve counts** (`Upscaler::prepare`, `MemoryAllocator::holdOutside`):
+  the feature is made before the reserve is set, measured off NGX's stats as what it added to what
+  every feature holds (measured: 26.6 MB at 426×240 to 640×360 and 45.5 MB native, 72.1 MB with both),
+  and each mode the run keeps room for is measured once beside it. Refused: NVIDIA's table as a
+  constant, which moves with the preset, the card and the library; and the driver's usage alone,
+  which sees the feature only after the reserve decided whether the world stands. A library whose
+  stats NGX does not publish is refused where `auto` can still fall back.
+- **A hazard between NGX's own commands on NGX's own resources is NGX's** (`ValidationLog::disown`,
+  `Upscaler::getRuntimeResources`): synchronization validation met, inside Ray Reconstruction 310.9.16's
+  evaluation, a clear of `nv.ngx.dlssd.resource` after NGX's own layout transition, which no barrier
+  of the renderer's reaches. A hazard every image and buffer of which is NGX's is a warning; one that
+  names a resource of the renderer's still aborts. Refused: synchronization validation off under DLSS,
+  which would hide the renderer's own barriers around the evaluation.
+- **Refused for Ray Reconstruction, measured or argued** (`research/2026-11-11-ray-reconstruction-against-super-resolution.md`):
+  a split water pixel left unblended, or a path drawn at random by the Fresnel term, which RR took far
+  noisier (the pond 3.21 against 1.28); a specular hit distance, since the mirror is already a surface
+  of its own where its field replaces the water's and a replacer's lobe shares one bounce ray with the
+  diffuse light, whose distance would be a guide that moves every frame; the colour before the layers,
+  which NVIDIA's guide calls probably not needed where no transparency ghosts; and the light composed
+  in the stages to drop the demodulated channels, by the user's decision, since the layers' stage keeps
+  one accumulator standing and the 56 bytes a traced pixel left are what RR's own feature already takes
+  back.
 - **No reuse of the bounce.** ReSTIR GI's reservoirs ran here as a temporal and a spatial reuse,
   and were removed: once the denoiser kept a rare bright sample's light, they gained nothing at any
   place and added bias in the room they were kept for (`.notes/reuse.md`).
@@ -725,7 +789,8 @@ at the top, over all of them.
   time (Wolfe et al. 2022, "Spatiotemporal Blue Noise Masks"), a Cranley-Patterson rotation; the other
   draws step a block of seeds a ray, at the end of the chain (`bounceSeedsAt`). Refused: a hash a
   ray, whose draws may fall together.
-- **The denoiser** (`trace/denoise/`) runs where a run filters the frame, in families recorded
+- **The denoiser** (`trace/denoise/`) runs where a run filters the frame and the renderer is the
+  filter (`LightFilter::Renderer`), in families recorded
   stage by stage, a dispatch of each behind one barrier, since none reads what another writes.
   Every history is held to the frame before's surfaces (`GBuffer::getHeld`) and matched from the
   eye it was measured from.

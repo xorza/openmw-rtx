@@ -12,6 +12,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -89,7 +90,7 @@ namespace Rtx
                 + FrameTracer::bytesAt(
                     device, render, output, profile.mUpscale, upscaler, profile.mRadianceWidth, declared);
             if (pictures.width > 0)
-                bytes += PictureTracer::bytesAt(device, pictures, profile.mRadianceWidth);
+                bytes += PictureTracer::bytesAt(device, pictures, profile.mRadianceWidth, upscaler.getMasks());
 
             // **Only a run at the reference's width sums**, which `RadianceWidth` argues: a player's
             // run is shown, and room for 8 bytes an output pixel and 16 a traced one would be room
@@ -221,6 +222,14 @@ namespace Rtx
         , mReservedUpscales(options.mRun.mReservedUpscales)
     {
         mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
+        mProfile.mUpscaler = mUpscaler.getChoice();
+
+        // **What a runtime the upscaler drives records and synchronizes itself is not the
+        // renderer's to answer for**: NGX's hazards between its own commands on its own resources
+        // (seen in Ray Reconstruction 310.9.16: a clear after its own layout transition).
+        if (ValidationLog* const log = mInstance.getValidationLog())
+            if (const std::optional<std::string_view> runtime = mUpscaler.getRuntimeResources())
+                log->disown(std::string(*runtime));
 
         if (options.mWindow != nullptr)
             mPresenter = std::make_unique<Presenter>(mDevice, *mSurface, options.mWindow, options.mVerticalSync);
@@ -280,13 +289,52 @@ namespace Rtx
         if (traceMoves || outputMoves)
             mDescriber.lose(FramePast::resized());
 
+        std::vector<ArenaImage> declared;
+        FrameTracer::declare(render, output, mProfile, mUpscaler, declared);
+        const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared, mUpscaler);
+
+        // **The targets a mode does not keep go before the new are made**, so a change of mode
+        // holds one set of them and never two: content stops where the set it takes still fits
+        // (`MemoryUse::Frame`), which leaves no room for a second beside the first. A change of mode
+        // may wait, as a new world does.
+        const bool shownMoves = mTarget.isOpen() && outputMoves;
+        const bool picturesMove = mPictures.isBuilt() && !mPictures.isAt(mPictureRoom);
+        if (mFrame.releases(moves) || shownMoves || picturesMove)
+        {
+            drain();
+            mFrame.release(moves, mUpscaler);
+            if (shownMoves)
+            {
+                mTarget.release();
+                mDisplay.release();
+            }
+            if (picturesMove)
+                mPictures.release();
+            if (traceMoves || moves.mArena)
+                mShownRadiance = nullptr;
+            mDevice.collectIdle();
+        }
+
+        // **What the upscaler's runtime allocates is made before the reserve that counts it**: DLSS's
+        // feature, hundreds of megabytes the driver's usage shows only once it stands, and which a
+        // reserve set without it would leave a world standing past its room for. Each mode the run
+        // moves to is measured once at this output (`Upscaler::measure`), and the allocator is told
+        // what stands, so the reserve does not owe it twice.
+        if (upscales(mProfile.mUpscale))
+            mUpscaler.prepare(mProfile.mUpscale, render, output);
+        for (const Upscale mode : mReservedUpscales)
+            if (upscales(mode) && mode != mProfile.mUpscale)
+            {
+                const FrameExtents its = extentsFor(width, height, mode);
+                mUpscaler.measure(mode, VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output);
+            }
+        MemoryAllocator& memory = mDevice.getMemory();
+        memory.holdOutside(mUpscaler.getHeldOutside());
+
         // **Room for the running mode's targets, and not for the most any mode would take**: the
         // native mode's are about twice the quality mode's, which traces 2.25 times fewer pixels,
         // and room kept for them was room an 8 GB card's textures stood smaller for at a 4K output.
         // **Or for the most the modes the run named would take** (`RunProfile::mReservedUpscales`).
-        std::vector<ArenaImage> declared;
-        FrameTracer::declare(render, output, mProfile, mUpscaler, declared);
-        const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared, mUpscaler);
         VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, mUpscaler, declared);
         for (const Upscale mode : mReservedUpscales)
         {
@@ -307,38 +355,17 @@ namespace Rtx
         // held back without. **Only there**, because a rebuild is every structure and every texture
         // in one flushed batch, seconds of a frame, and a reserve that moves within the room content
         // left makes the same world again.
-        MemoryAllocator& memory = mDevice.getMemory();
         const VkDeviceSize reserved = memory.getFrameReserve();
         memory.refreshBudget(mDevice.getTimeline().getNext());
         memory.reserveFrame(reserve);
         const DeviceScene* const world = mScenes.find(SceneSlot::world());
         const bool rebuildsWorld = world != nullptr && reserve != reserved
             && (reserve > reserved ? !memory.contentFits() : world->wasHeldBack());
-
-        // **The targets a mode does not keep go before the new are made**, so a change of mode
-        // holds one set of them and never two: content stops where the set it takes still fits
-        // (`MemoryUse::Frame`), which leaves no room for a second beside the first. A change of mode
-        // may wait, as a new world does.
-        const bool shownMoves = mTarget.isOpen() && outputMoves;
-        const bool picturesMove = mPictures.isBuilt() && !mPictures.isAt(mPictureRoom);
-        if (mFrame.releases(moves) || shownMoves || picturesMove || rebuildsWorld)
+        if (rebuildsWorld)
         {
             drain();
-            if (rebuildsWorld)
-            {
-                mReleasedWorld = world->describe().mIdentity;
-                mScenes.clear(SceneSlot::world());
-            }
-            mFrame.release(moves, mUpscaler);
-            if (shownMoves)
-            {
-                mTarget.release();
-                mDisplay.release();
-            }
-            if (picturesMove)
-                mPictures.release();
-            if (traceMoves || moves.mArena)
-                mShownRadiance = nullptr;
+            mReleasedWorld = world->describe().mIdentity;
+            mScenes.clear(SceneSlot::world());
             mDevice.collectIdle();
         }
 
@@ -817,7 +844,8 @@ namespace Rtx
         // What reconstructs this frame, decided once and by one rule. Every switch below reads
         // this rather than working the interaction out again; the same value goes back in the frame
         // result, so what a run reports and what it did are one answer.
-        const Reconstruction reconstruction = mProfile.reconstructionFor(options.mReconstruction, getExtents());
+        const Reconstruction reconstruction
+            = mProfile.reconstructionFor(mUpscaler.getInput(), options.mReconstruction, getExtents());
         frame.mReconstruction = reconstruction;
 
         // Every history is worthless after a jump no motion vector can describe: through a door,
@@ -894,7 +922,10 @@ namespace Rtx
             for (const Channel channel : sEveryChannel)
             {
                 const bool composed = channel == Channel::Direct;
-                digested[indexOf(channel)] = composed ? &chain.getColour() : &channels.get(channel);
+                // A channel kept a texel wide holds nothing of the frame's (`ChannelKeeping`).
+                digested[indexOf(channel)] = composed ? &chain.getColour()
+                    : channels.keepsWhole(channel)    ? &channels.get(channel)
+                                                      : nullptr;
                 inFields |= !composed && storedInFields(channel) ? 1u << indexOf(channel) : 0u;
             }
 
@@ -924,6 +955,10 @@ namespace Rtx
                     .mColour = traced.mColour,
                     .mSurface = channels.get(Channel::Surface),
                     .mMotion = channels.get(Channel::Motion),
+                    .mAlbedo = channels.get(Channel::Albedo),
+                    .mSpecularAlbedo = channels.get(Channel::SpecularAlbedo),
+                    .mSpecular = channels.get(Channel::Specular),
+                    .mLobed = traced.mInputs.mSubject.mMapped,
                     .mMasks = channels.get(Channel::UpscaleMasks),
                     .mEyes = sampled.mEyes,
                     .mPreviousJitter = sampled.mPreviousJitter,

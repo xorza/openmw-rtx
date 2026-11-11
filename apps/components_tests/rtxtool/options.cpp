@@ -117,6 +117,8 @@ namespace RtxTool
                 { "indirect", "false" },
                 { "bounce-rays", "4" },
                 { "relief", "false" },
+                { "soft-edge-dither", "false" },
+                { "water-interleave", "false" },
                 { "antilag", "false" },
                 { "history-fix", "false" },
                 { "dual-motion", "false" },

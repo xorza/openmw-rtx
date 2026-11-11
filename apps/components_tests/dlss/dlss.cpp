@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <string_view>
 
 #include <gtest/gtest.h>
 
@@ -24,17 +25,25 @@ namespace
         std::filesystem::create_directories(other / fileName);
         std::ofstream(other / "nvngx_dlssg.dll") << "frame generation";
         std::ofstream(other / "libnvidia-ngx-dlssg.so.310.9.16") << "frame generation";
+        std::ofstream(other / "nvngx_dlss.dll") << "super resolution";
+        std::ofstream(other / "libnvidia-ngx-dlss.so.310.9.16") << "super resolution";
         std::filesystem::create_directories(held);
         std::ofstream(held / fileName) << "library";
 
         EXPECT_TRUE(DlssLibrary::isFeatureLibrary(fileName));
         EXPECT_FALSE(DlssLibrary::isFeatureLibrary("nvngx_dlssg.dll"));
         EXPECT_FALSE(DlssLibrary::isFeatureLibrary("libnvidia-ngx-dlssg.so.310.9.16"));
+        EXPECT_FALSE(DlssLibrary::isFeatureLibrary("nvngx_dlss.dll"))
+            << "Super Resolution's library, which Ray Reconstruction's replaced";
+        EXPECT_FALSE(DlssLibrary::isFeatureLibrary("libnvidia-ngx-dlss.so.310.9.16"));
+        EXPECT_NE(DlssLibrary::download().mFileName.find("dlssd"), std::string_view::npos)
+            << "the download is Ray Reconstruction's library";
 
         EXPECT_TRUE(DlssLibrary::installedIn({ .mRuntime = held, .mGame = missing }));
         EXPECT_TRUE(DlssLibrary::installedIn({ .mRuntime = empty, .mGame = held }));
         EXPECT_FALSE(DlssLibrary::installedIn({ .mRuntime = empty, .mGame = other }))
-            << "a folder named as the library and libraries of another feature are no feature library";
+            << "a folder named as the library and libraries of another feature, Super Resolution's among them, are no "
+               "feature library";
         EXPECT_FALSE(DlssLibrary::installedIn({ .mRuntime = missing, .mGame = {} }));
         EXPECT_FALSE(DlssLibrary::installedIn({}));
     }

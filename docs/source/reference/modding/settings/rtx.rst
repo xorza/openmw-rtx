@@ -41,8 +41,8 @@ runs.
    :code:`[Video] resolution`, is what comes out; what gets traced is that size over the mode's
    ratio: 3 for :code:`ultraperformance`, 2 for :code:`performance`, 1.7 for :code:`balanced`, 1.5 for :code:`quality` and 1 for
    :code:`native`, which upscales nothing and reconstructs each frame from the frames before it, as
-   the anti-aliasing. :code:`off` traces at the frame's size with no upscaler: the denoisers alone,
-   and no anti-aliasing. A name this does not know is refused rather than quietly defaulted.
+   the anti-aliasing. :code:`off` traces at the frame's size with no upscaler: the renderer's own
+   denoisers alone, and no anti-aliasing. A name this does not know is refused rather than quietly defaulted.
 
 .. omw-setting::
    :title: upscaler
@@ -58,9 +58,10 @@ runs.
 
    The game links none of NVIDIA's SDK. The driver supplies NGX — :code:`_nvngx.dll` on Windows
    and :code:`libnvidia-ngx.so.1` on Linux — and the game opens it at run time. The feature
-   library, :code:`nvngx_dlss.dll` on Windows or :code:`libnvidia-ngx-dlss.so.*` on Linux, is not
-   part of OpenMW. The launcher's **Download DLSS** button links to `NVIDIA's licence
-   <https://github.com/NVIDIA/DLSS/blob/v310.9.16/LICENSE.txt>`__ beside the button and fetches the
+   library, Ray Reconstruction's :code:`nvngx_dlssd.dll` on Windows or
+   :code:`libnvidia-ngx-dlssd.so.*` on Linux, is not part of OpenMW. The launcher's **Download
+   DLSS** button links to `NVIDIA's licence <https://github.com/NVIDIA/DLSS/blob/v310.9.16/LICENSE.txt>`__
+   beside the button and fetches the
    pinned 310.9.16 library from NVIDIA's release, into OpenMW's user data folder: on Windows
    :code:`%LOCALAPPDATA%/openmw/dlss`, on Linux :code:`$XDG_DATA_HOME/openmw/dlss` (usually
    :code:`~/.local/share/openmw/dlss`). The launcher disables the DLSS choice until the library is
@@ -69,10 +70,12 @@ runs.
    looks there first. The settings window lists DLSS where the card the game draws on is NVIDIA's
    and the library is installed.
 
-   DLSS uses the library's own default preset: this build sets no preset hints, so a newer library
-   the player installs brings its own defaults. With 310.9.16 those are the transformer preset K for
-   DLAA, quality and balanced, M for performance, and L for ultra performance, which is DLSS 4.5
-   Super Resolution. Read once, where the renderer is made: the launcher and the settings window
+   DLSS here is Ray Reconstruction: one pass that both denoises the traced light and upscales it,
+   in place of the renderer's own denoisers, which run under FSR and with :code:`upscale = off`.
+   Super Resolution's library, :code:`nvngx_dlss.dll` or :code:`libnvidia-ngx-dlss.so.*`, is not
+   used; a player who has only that one is offered the download again. DLSS uses the library's own
+   default preset: this build sets no preset hints, so a newer library the player installs brings
+   its own defaults. Read once, where the renderer is made: the launcher and the settings window
    offer all three upscalers, and the settings window says a change needs a restart.
 
 .. omw-setting::

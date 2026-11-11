@@ -614,6 +614,11 @@ namespace Rtx
         /// would otherwise ask the system's adapters and not the one this renderer draws on.
         virtual std::span<const UpscalerChoice> getUpscalers() const = 0;
 
+        /// What the upscaler this renderer resolved its choice to takes from the trace, which decides
+        /// who filters the light (`Reconstruction::resolve`): asked by a harness that refuses a run whose
+        /// frames ask for unfiltered light where the upscaler cannot give it.
+        virtual UpscalerInput getUpscalerInput() const = 0;
+
         /// Whether instrumentation is actually running, which a missing layer makes different from
         /// having asked. Anything quoting a frame time has to say so.
         virtual bool isValidating() const = 0;

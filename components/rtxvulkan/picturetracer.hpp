@@ -40,7 +40,10 @@ namespace Rtx
         PictureTracer(const Device& device, const TracePasses& passes, RadianceWidth radiance);
 
         /// What the chain and the byte image take at `room`, which `resize` makes them at.
-        static VkDeviceSize bytesAt(const Device& device, VkExtent2D room, RadianceWidth radiance);
+        ///
+        /// @param masks whether the trace writes the upscaler's masks (`TracePasses::mMasks`), which a
+        ///        picture's composite writes as the frame's does.
+        static VkDeviceSize bytesAt(const Device& device, VkExtent2D room, RadianceWidth radiance, UpscaleMasks masks);
 
         /// Whether the chain stands at exactly `room`, which `resize` to it keeps.
         bool isAt(VkExtent2D room) const

@@ -53,14 +53,16 @@ namespace Rtx
         {
             std::vector<ArenaImage> declared;
             // One bounce ray, which every picture traces (`SamplingSwitches::mBounceRays`).
-            TraceChain::declareShared(room.width, room.height, radiance, 1, declared);
+            TraceChain::declareShared(room.width, room.height, radiance, 1, RendererFilter::Runs, declared);
             return declared;
         }
     }
 
-    VkDeviceSize PictureTracer::bytesAt(const Device& device, const VkExtent2D room, const RadianceWidth radiance)
+    VkDeviceSize PictureTracer::bytesAt(
+        const Device& device, const VkExtent2D room, const RadianceWidth radiance, const UpscaleMasks masks)
     {
-        return TraceChain::bytesAt(device, room.width, room.height, radiance, TracePast::Dropped)
+        return TraceChain::bytesAt(
+                   device, room.width, room.height, radiance, TracePast::Dropped, RendererFilter::Runs, masks)
             + ImageArena::bytesFor(device, sharedAt(room, radiance)) + Image::bytesFor(device, targetDescription(room));
     }
 
@@ -70,7 +72,7 @@ namespace Rtx
             return;
 
         mArena = ImageArena(mDevice, sharedAt(room, mChain.getRadiance()));
-        mChain.resize(room.width, room.height, ArenaRun(mArena, 0, mArena.size()));
+        mChain.resize(room.width, room.height, RendererFilter::Runs, ArenaRun(mArena, 0, mArena.size()));
         mTarget = Image(MemoryUse::Frame, mDevice, targetDescription(room), "view target");
     }
 

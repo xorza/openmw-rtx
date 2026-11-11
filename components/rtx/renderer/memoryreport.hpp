@@ -43,8 +43,9 @@ namespace Rtx
     /// nought from a renderer that does not say.
     struct MemoryUses
     {
-        /// The frame's targets, and the most they take at any mode the output allows, which
-        /// content leaves room for.
+        /// The frame's targets, an upscaler's own memory among them where its runtime allocates it
+        /// (DLSS's feature), and the most they take at any mode the output allows, which content
+        /// leaves room for.
         std::uint64_t mFrame = 0;
         std::uint64_t mFrameReserve = 0;
 

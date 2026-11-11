@@ -403,16 +403,17 @@ namespace RtxTool
         out += std::format(
             "     {}x{} from {}x{}, upscale {}, filter {}, jitter {}, noise {}, level bias {:.3f}, "
             "antilag {}, history fix {}, dual motion {}, anti-firefly {}, shadow floor {:.4f}, lamp "
-            "candidates {}, indirect {}, bounce rays {}, relief {}\n",
+            "candidates {}, indirect {}, bounce rays {}, relief {}, soft edge dither {}, water interleave {}\n",
             header.mExtents.mOutputWidth, header.mExtents.mOutputHeight, header.mExtents.mRenderWidth,
             header.mExtents.mRenderHeight, Rtx::sUpscaleNames.name(resolved.mUpscale),
-            resolved.mDenoised ? "on" : "off", resolved.mJitter ? "on" : "off",
-            Rtx::sNoiseSourceNames.name(resolved.mSampling.mNoise), resolved.mLevelBias,
+            Rtx::sLightFilterNames.name(resolved.mFilter), resolved.mJitter ? "on" : "off",
+            Rtx::sNoiseSourceNames.name(resolved.mNoise), resolved.mLevelBias,
             resolved.mFilters.mAntilag ? "on" : "off", resolved.mFilters.mHistoryFix ? "on" : "off",
             resolved.mFilters.mDualMotion ? "on" : "off", resolved.mFilters.mAntiFirefly ? "on" : "off",
             resolved.mSampling.mShadowFloor, resolved.mSampling.mLampCandidates,
             resolved.mSampling.mIndirect ? "on" : "off", resolved.mSampling.mBounceRays,
-            resolved.mSampling.mRelief ? "on" : "off");
+            resolved.mSampling.mRelief ? "on" : "off", resolved.mSoftEdgeDither ? "on" : "off",
+            resolved.mSampling.mWaterInterleave ? "on" : "off");
         out += std::format("     gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n", profile.mGamma,
             Rtx::sSurfaceViewNames.name(profile.mShow), describeExposure(profile.mExposure),
             profile.mSpecializeKernels ? "on" : "off",
@@ -545,20 +546,21 @@ namespace RtxTool
             << '\n'
             << std::format(R"(  "render": [{}, {}],)", header.mExtents.mRenderWidth, header.mExtents.mRenderHeight)
             << '\n'
-            << std::format(R"(  "upscale": "{}", "denoised": {}, "jittered": {},)",
-                   Rtx::sUpscaleNames.name(header.mReconstruction.mUpscale), header.mReconstruction.mDenoised,
-                   header.mReconstruction.mJitter)
+            << std::format(R"(  "upscale": "{}", "lightFilter": "{}", "jittered": {},)",
+                   Rtx::sUpscaleNames.name(header.mReconstruction.mUpscale),
+                   Rtx::sLightFilterNames.name(header.mReconstruction.mFilter), header.mReconstruction.mJitter)
             << '\n'
             << std::format(
                    R"(  "noise": "{}", "levelBias": {:.3f}, "antilag": {}, )"
                    R"("historyFix": {}, "dualMotion": {}, "antiFirefly": {}, "shadowFloor": {:.4f}, "lampCandidates": {}, )"
-                   R"("indirect": {}, "bounceRays": {}, "relief": {},)",
-                   Rtx::sNoiseSourceNames.name(header.mReconstruction.mSampling.mNoise),
-                   header.mReconstruction.mLevelBias, header.mReconstruction.mFilters.mAntilag,
-                   header.mReconstruction.mFilters.mHistoryFix, header.mReconstruction.mFilters.mDualMotion,
-                   header.mReconstruction.mFilters.mAntiFirefly, header.mReconstruction.mSampling.mShadowFloor,
-                   header.mReconstruction.mSampling.mLampCandidates, header.mReconstruction.mSampling.mIndirect,
-                   header.mReconstruction.mSampling.mBounceRays, header.mReconstruction.mSampling.mRelief)
+                   R"("indirect": {}, "bounceRays": {}, "relief": {}, "softEdgeDither": {}, "waterInterleave": {},)",
+                   Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise), header.mReconstruction.mLevelBias,
+                   header.mReconstruction.mFilters.mAntilag, header.mReconstruction.mFilters.mHistoryFix,
+                   header.mReconstruction.mFilters.mDualMotion, header.mReconstruction.mFilters.mAntiFirefly,
+                   header.mReconstruction.mSampling.mShadowFloor, header.mReconstruction.mSampling.mLampCandidates,
+                   header.mReconstruction.mSampling.mIndirect, header.mReconstruction.mSampling.mBounceRays,
+                   header.mReconstruction.mSampling.mRelief, header.mReconstruction.mSoftEdgeDither,
+                   header.mReconstruction.mSampling.mWaterInterleave)
             << '\n'
             << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                    header.mValidating)

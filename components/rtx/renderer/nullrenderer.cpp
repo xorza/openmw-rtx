@@ -15,6 +15,8 @@ namespace Rtx
         : mProfile(options.mRun.mProfile)
         , mExtents(extentsFor(options.mWidth, options.mHeight, options.mRun.mProfile.mUpscale))
     {
+        // FSR whatever was asked: a renderer with no device offers no DLSS (`getUpscalers`).
+        mProfile.mUpscaler = UpscalerChoice::Fsr;
     }
 
     bool NullRenderer::holds(const SceneSlot slot) const
@@ -182,7 +184,8 @@ namespace Rtx
         ++mUnreportedCount;
         mUnreported[mUnreportedCount - 1] = Unreported{ .mFrame = mFrames++,
             .mInFlight = mUnreportedCount,
-            .mReconstruction = mProfile.reconstructionFor(request.mOptions.mReconstruction, mExtents) };
+            .mReconstruction
+            = mProfile.reconstructionFor(UpscalerInput::Filtered, request.mOptions.mReconstruction, mExtents) };
         mOpen = false;
         return {};
     }

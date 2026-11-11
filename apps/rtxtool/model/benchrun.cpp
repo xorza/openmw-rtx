@@ -243,6 +243,22 @@ namespace RtxTool
         return std::format("frame {}: {}", finished.mFrame, describeNotFinite(finished.mNotFinite));
     }
 
+    std::optional<std::string> SessionRequest::refusalUnder(const Rtx::UpscalerInput input) const
+    {
+        const Rtx::RenderProfile& profile = mSetup.mRun.mProfile;
+        for (const Stop& stop : mStops)
+        {
+            const Rtx::Upscale upscale = stop.mSchedule.mUpscale.value_or(profile.mUpscale);
+            const Rtx::ReconstructionRequest asked = stop.mSchedule.mReconstruction.value_or(profile.mReconstruction);
+            if (!asked.mDenoise && !Rtx::rendererFilters(upscale, input))
+                return std::format(
+                    "{} asks for the light unfiltered at the {} mode, and the upscaler filters the "
+                    "light itself there: name --filter=true, --upscale=off or another --upscaler",
+                    stop.mName, Rtx::sUpscaleNames.name(upscale));
+        }
+        return std::nullopt;
+    }
+
     MWRender::RunSetup SessionRequest::rendererSetup() const
     {
         MWRender::RunSetup setup = mSetup;

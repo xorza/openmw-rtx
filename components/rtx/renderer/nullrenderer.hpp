@@ -83,6 +83,7 @@ namespace Rtx
         CardAddress getCardAddress() const override { return {}; }
         const RenderProfile& getProfile() const override { return mProfile; }
         std::span<const UpscalerChoice> getUpscalers() const override { return offeredUpscalers(false); }
+        UpscalerInput getUpscalerInput() const override { return UpscalerInput::Filtered; }
         bool isValidating() const override { return false; }
         MemoryReport getMemoryReport() const override { return {}; }
         const SceneStats& getSceneStats() const override { return mStats; }

@@ -143,7 +143,7 @@ namespace RtxTool
             ASSERT_TRUE(truth.mSchedule.mReconstruction.has_value());
             EXPECT_FALSE(truth.mSchedule.mReconstruction->mDenoise);
             EXPECT_TRUE(truth.mSchedule.mReconstruction->mJitter);
-            EXPECT_EQ(truth.mSchedule.mReconstruction->mSampling.mNoise, Rtx::NoiseSource::WhiteHash);
+            EXPECT_EQ(truth.mSchedule.mReconstruction->mNoise, Rtx::NoiseSource::WhiteHash);
             EXPECT_EQ(truth.mSchedule.mReconstruction->mSampling.mLampCandidates, 0u);
             ASSERT_TRUE(truth.mActions.mCapture.has_value());
             EXPECT_EQ(truth.mActions.mCapture->mDepth, Actions::Capture::Depth::Deep);
@@ -233,7 +233,7 @@ namespace RtxTool
             EXPECT_FALSE(truthful.mOwnReference) << "the truth draws every source for its bit, at any floor";
 
             Rtx::ReconstructionRequest whiteNoise;
-            whiteNoise.mSampling.mNoise = Rtx::NoiseSource::WhiteHash;
+            whiteNoise.mNoise = Rtx::NoiseSource::WhiteHash;
             const NoisePlan white = against(whiteNoise);
             EXPECT_TRUE(white.mOwnBar);
             EXPECT_FALSE(white.mOwnReference) << "the truth draws white noise whatever the side";

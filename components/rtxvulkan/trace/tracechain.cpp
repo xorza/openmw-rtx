@@ -53,6 +53,12 @@ namespace Rtx
                     | VK_IMAGE_USAGE_TRANSFER_SRC_BIT };
         }
 
+        /// How many scratch images the filter takes of a chain's arena under `filter`.
+        std::size_t scratchCountOf(const RendererFilter filter)
+        {
+            return filter == RendererFilter::Runs ? DenoiseHistory::getScratchCount() : 0;
+        }
+
         ImageDescription sumDescription(const std::uint32_t width, const std::uint32_t height)
         {
             return ImageDescription{ .mWidth = width,
@@ -68,7 +74,6 @@ namespace Rtx
         , mPasses(passes)
         , mRadiance(radiance)
         , mPast(past)
-        , mDenoise(device, past)
     {
         assert(bins >= 1 && bins <= sFrameSlots && "a sprite bin past the frames in flight");
         mBins.reserve(bins);
@@ -76,35 +81,51 @@ namespace Rtx
             mBins.emplace_back(device, passes.mSpriteShade, passes.mSpriteBin);
     }
 
-    void TraceChain::resize(const std::uint32_t width, const std::uint32_t height, const ArenaRun& shared)
+    void TraceChain::resize(
+        const std::uint32_t width, const std::uint32_t height, const RendererFilter filter, const ArenaRun& shared)
     {
         assert(width > 0 && height > 0);
-        assert(shared.size() == getSharedCount() && "the chain's shared images were not placed as it declared them");
+        assert(
+            shared.size() == getSharedCount(filter) && "the chain's shared images were not placed as it declared them");
 
+        const std::size_t scratchCount = scratchCountOf(filter);
         const ArenaRun stages(shared, 0, GBuffer::sStageImages);
-        const ArenaRun scratch(shared, GBuffer::sStageImages, DenoiseHistory::getScratchCount());
-        mCanvas = ArenaRun(shared, GBuffer::sStageImages + DenoiseHistory::getScratchCount(), 1);
+        const ArenaRun scratch(shared, GBuffer::sStageImages, scratchCount);
+        mCanvas = ArenaRun(shared, GBuffer::sStageImages + scratchCount, 1);
 
         // **The one owner of "is this a new extent"**: an upscaling mode changed between two that
         // trace at one size asks this again, and the G-buffer's channels and the fog's images made
-        // anew for it would be made for nothing.
-        if (isBuilt() && width == mWidth && height == mHeight)
+        // anew for it would be made for nothing. **And of whether the filter can run**: `native`
+        // and `off` trace at one size, and under an upscaler that filters the light itself the
+        // first keeps no filter where the second needs one.
+        if (isBuilt() && width == mWidth && height == mHeight && filter == mFilter)
         {
             mChannels->place(mDevice, mPasses.mChannels, stages);
-            mDenoise.place(scratch);
+            if (mDenoise.has_value())
+                mDenoise->place(scratch);
             return;
         }
 
+        const bool fogMoves = !isBuilt() || width != mWidth || height != mHeight;
         mWidth = width;
         mHeight = height;
+        mFilter = filter;
 
         // **The denoiser's images at the width the fields are stored at**, which is the frame's
         // rounded up to even (`fieldColumns`); each channel at its own (`GBuffer`), and the fog's
-        // froxels at the frame's.
-        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance, mPast, stages);
-        mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight, mPast);
-        mDenoise.resize(Shaders::storedWidth(mWidth), mHeight);
-        mDenoise.place(scratch);
+        // froxels at the frame's. The frame before's surfaces are kept only for a filter that reads
+        // them.
+        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance,
+            ChannelKeeping{ .mPast = mPast, .mFilter = filter, .mMasks = mPasses.mMasks }, stages);
+        if (fogMoves)
+            mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight, mPast);
+        mDenoise.reset();
+        if (filter == RendererFilter::Runs)
+        {
+            mDenoise.emplace(mDevice, mPast);
+            mDenoise->resize(Shaders::storedWidth(mWidth), mHeight);
+            mDenoise->place(scratch);
+        }
         mComposed = Image(MemoryUse::Frame, mDevice, composedDescription(mWidth, mHeight, mRadiance), "composed");
 
         // Dropped rather than resized, because most runs never make one: sixteen bytes a pixel is
@@ -118,32 +139,45 @@ namespace Rtx
         mHeight = 0;
         mChannels.reset();
         mFogVolume.reset();
-        mDenoise.release();
+        mDenoise.reset();
         mComposed = Image();
         dropSum();
     }
 
     VkDeviceSize TraceChain::bytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height,
-        const RadianceWidth radiance, const TracePast past)
+        const RadianceWidth radiance, const TracePast past, const RendererFilter filter, const UpscaleMasks masks)
     {
-        return GBuffer::bytesAt(device, width, height, radiance, past) + FogVolume::bytesAt(device, width, height, past)
-            + DenoiseHistory::bytesAt(device, Shaders::storedWidth(width), height, past)
+        const VkDeviceSize history = filter == RendererFilter::Runs
+            ? DenoiseHistory::bytesAt(device, Shaders::storedWidth(width), height, past)
+            : 0;
+        return GBuffer::bytesAt(
+                   device, width, height, radiance, ChannelKeeping{ .mPast = past, .mFilter = filter, .mMasks = masks })
+            + FogVolume::bytesAt(device, width, height, past) + history
             + Image::bytesFor(device, composedDescription(width, height, radiance));
     }
 
     void TraceChain::declareShared(const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance,
-        const std::uint32_t bounceRays, std::vector<ArenaImage>& into)
+        const std::uint32_t bounceRays, const RendererFilter filter, std::vector<ArenaImage>& into)
     {
         GBuffer::declareStages(width, height, bounceRays, into);
-        DenoiseHistory::declareScratch(Shaders::storedWidth(width), height, into);
+        if (filter == RendererFilter::Runs)
+            DenoiseHistory::declareScratch(Shaders::storedWidth(width), height, into);
         into.push_back(ArenaImage{ .mDescription = canvasDescription(width, height, radiance),
             .mSpan = spanOf(FrameStep::Display, FrameStep::Display),
             .mName = "puff canvas" });
     }
 
-    std::size_t TraceChain::getSharedCount()
+    std::size_t TraceChain::getSharedCount(const RendererFilter filter)
     {
-        return GBuffer::sStageImages + DenoiseHistory::getScratchCount() + 1;
+        return GBuffer::sStageImages + scratchCountOf(filter) + 1;
+    }
+
+    void TraceChain::denoiserWritten(std::array<const Image*, sDenoiserImageCount>& into) const
+    {
+        if (mDenoise.has_value())
+            mDenoise->written(into);
+        else
+            into.fill(nullptr);
     }
 
     VkDeviceSize TraceChain::sumBytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height)
@@ -161,8 +195,8 @@ namespace Rtx
         // where the wavelet runs: a frame that filters nothing turns every filter fresh in its
         // turn. The air's is read by every trace, and the basis of nothing the frame carries says
         // so to it.
-        if (what.mPastLost)
-            mDenoise.reset();
+        if (what.mPastLost && mDenoise.has_value())
+            mDenoise->reset();
 
         mFogVolume->turn();
         const VisibilityInputs inputs{ .mSubject = what.mSubject, .mChannels = *mChannels, .mFogVolume = *mFogVolume };
@@ -204,7 +238,11 @@ namespace Rtx
         // display's `puffsCoverNothing` read the one set.
         const SpriteTables tables = bin.getTables();
 
-        const bool denoised = what.mReconstruction.mDenoised;
+        const bool denoised = what.mReconstruction.mFilter == LightFilter::Renderer;
+        assert((!denoised || mDenoise.has_value()) && "the renderer's filter asked of a chain that keeps none");
+        assert((what.mSampled.mPaneTracks != 0u) == (mFilter == RendererFilter::Runs)
+            && "a frame that stores the pane filter's tracks where the chain keeps them a texel wide, or the other "
+               "way");
 
         mPasses.mVisibility.writeFrame(commands, inputs, tables, what.mSampled);
 
@@ -229,8 +267,8 @@ namespace Rtx
         // channels the trace wrote where nothing filtered them. **An unfiltered frame still turns
         // the histories**, with nothing running, so every filter is fresh at its next run: without
         // the turn, that run would read the history of the frame before this one as last frame's.
-        if (!denoised)
-            mDenoise.turn(TemporalFlags{}, what.mSampled.mFrame);
+        if (!denoised && mDenoise.has_value())
+            mDenoise->turn(TemporalFlags{}, what.mSampled.mFrame);
 
         // **A denoised frame nothing sums is composed where the cascade ends**, in its last level,
         // with no level written for the composite to read back (`atrouscompose.comp`). The composite
@@ -242,7 +280,7 @@ namespace Rtx
         // `CommandPool::begin` recorded orders this after the last frame's reads.
         mComposed.transition(commands, Use::sUndefined, Use::sComputeWrite);
         const std::optional<Denoised> resolved = denoised
-            ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled, inputs.mSubject.mMapped,
+            ? mPasses.mDenoise.record(commands, *mDenoise, *mChannels, what.mSampled, inputs.mSubject.mMapped,
                   inputs.mSubject.mLamps, composesInCascade, what.mReconstruction, mComposed, what.mTimer)
             : Denoised::unfiltered(*mChannels, what.mSampled.mBounceRays != 0);
         assert(resolved.has_value() != composesInCascade
@@ -259,6 +297,7 @@ namespace Rtx
                     .mAccumulate = what.mAccumulate,
                     .mLobed = inputs.mSubject.mMapped ? 1u : 0u,
                     .mFrame = what.mSampled.mFrame,
+                    .mInterleave = what.mReconstruction.mSampling.mWaterInterleave ? 1u : 0u,
                 },
                 mComposed, what.mTimer);
 

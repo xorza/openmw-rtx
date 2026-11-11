@@ -19,6 +19,8 @@
 #include <apps/rtxtool/model/stopdescription.hpp>
 #include <apps/rtxtool/model/viewfile.hpp>
 #include <components/files/conversion.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
@@ -299,6 +301,21 @@ namespace RtxTool
             }
             EXPECT_EQ(parted, 0u);
             EXPECT_EQ(describe(17.2499).get<std::string>(), "17:15");
+        }
+
+        /// **The title names the upscaler a frame passes through**: none where nothing upscales,
+        /// whichever upscaler the choice came to, and the one it came to at every mode that upscales,
+        /// `native` among them.
+        TEST(RtxViewpointTest, theTitleNamesTheUpscalerAFramePassesThrough)
+        {
+            const auto shown = [](const Rtx::Upscale mode, const Rtx::UpscalerChoice upscaler) {
+                return RtxTool::describeUpscaler(Rtx::RenderProfile{ .mUpscale = mode, .mUpscaler = upscaler });
+            };
+            EXPECT_EQ(shown(Rtx::Upscale::Off, Rtx::UpscalerChoice::Fsr), "no");
+            EXPECT_EQ(shown(Rtx::Upscale::Off, Rtx::UpscalerChoice::Dlss), "no");
+            EXPECT_EQ(shown(Rtx::Upscale::Quality, Rtx::UpscalerChoice::Fsr), "fsr");
+            EXPECT_EQ(shown(Rtx::Upscale::Quality, Rtx::UpscalerChoice::Dlss), "dlss");
+            EXPECT_EQ(shown(Rtx::Upscale::Native, Rtx::UpscalerChoice::Dlss), "dlss");
         }
 
     }

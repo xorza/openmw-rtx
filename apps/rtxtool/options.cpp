@@ -81,9 +81,8 @@ namespace RtxTool
             { "noise",
                 [](const Value& value, Request& request) {
                     const std::string& noise = value.as<std::string>();
-                    request.mSampling.mNoise = noise == "auto"
-                        ? Request{}.mSampling.mNoise
-                        : Rtx::sNoiseSourceNames.require(noise, "a noise source");
+                    request.mNoise
+                        = noise == "auto" ? Request{}.mNoise : Rtx::sNoiseSourceNames.require(noise, "a noise source");
                 } },
             { "level-epsilon",
                 [](const Value& value, Request& request) { request.mLevelEpsilon = value.as<float>(); } },
@@ -100,6 +99,15 @@ namespace RtxTool
                     request.mSampling.mBounceRays = value.as<std::uint32_t>();
                 } },
             { "relief", [](const Value& value, Request& request) { request.mSampling.mRelief = value.as<bool>(); } },
+            { "soft-edge-dither",
+                [](const Value& value, Request& request) {
+                    const std::string& dither = value.as<std::string>();
+                    if (dither != "auto" && dither != "true" && dither != "false")
+                        throw std::runtime_error("--soft-edge-dither takes auto, true or false, not " + dither);
+                    request.mSoftEdgeDither = dither == "auto" ? std::nullopt : std::optional(dither == "true");
+                } },
+            { "water-interleave",
+                [](const Value& value, Request& request) { request.mSampling.mWaterInterleave = value.as<bool>(); } },
             { "antilag", [](const Value& value, Request& request) { request.mFilters.mAntilag = value.as<bool>(); } },
             { "history-fix",
                 [](const Value& value, Request& request) { request.mFilters.mHistoryFix = value.as<bool>(); } },
@@ -560,7 +568,8 @@ namespace RtxTool
 
         option(sFramed, "noise", bpo::value<std::string>()->default_value("auto"),
             std::format("where the trace's per-pixel draws come from: auto, {}. Auto is the tile, "
-                        "which the wavelet is built to read. Naming one is the A/B",
+                        "which the wavelet is built to read and Ray Reconstruction measured cleaner "
+                        "on. Naming one is the A/B",
                 Rtx::sNoiseSourceNames.list())
                 .c_str());
 
@@ -625,6 +634,16 @@ namespace RtxTool
             bpo::value<bool>()->default_value(Rtx::SamplingSwitches{}.mRelief)->implicit_value(true),
             "march an `_nh` map's relief through the heights it holds, or shift it once as the rasterizer does: "
             "the A/B of the march, which the game always takes");
+
+        option(sFramed, "soft-edge-dither", bpo::value<std::string>()->default_value("auto"),
+            "meet a soft edge's texels under the cut by their alpha in a world's frames, a draw right only on "
+            "average, or cut them as a picture does: auto, true or false. Auto is what the filter wants: the "
+            "dither under the renderer's, the cut under an upscaler that filters the light itself");
+
+        option(sFramed, "water-interleave",
+            bpo::value<bool>()->default_value(Rtx::SamplingSwitches{}.mWaterInterleave)->implicit_value(true),
+            "blend a split water pixel half with its four split neighbours, which followed the other path, or "
+            "leave it on its own path at twice its share: the A/B, which the game always takes");
 
         option(sFramed, "lamp-candidates",
             number(atLeast<std::uint32_t>(0))->default_value(Rtx::Shaders::LAMP_CANDIDATES),

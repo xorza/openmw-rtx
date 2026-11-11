@@ -72,9 +72,10 @@ Requirements
 * Vulkan 1.4 with ray tracing pipelines, ray queries and position fetch. On a machine without them
   the game does not start, and its error box says what is missing and where the log is. No other
   renderer takes its place.
-* An NVIDIA card with DLSS support may use DLSS Super Resolution instead of FSR. No NVIDIA code is
-  built into or shipped with the game: the driver's NGX core is loaded at run time, and the DLSS
-  feature library is supplied by the player. The launcher's **Download DLSS** button links to
+* An NVIDIA RTX card may use DLSS Ray Reconstruction instead of FSR, which denoises and upscales in
+  one pass in place of the renderer's own denoisers. No NVIDIA code is built into or shipped with
+  the game: the driver's NGX core is loaded at run time, and the DLSS feature library is supplied by
+  the player. The launcher's **Download DLSS** button links to
   NVIDIA's licence beside it, fetches the library from NVIDIA's release and checks its SHA-256; a
   copy placed beside the executable also works. `[RTX] upscaler = auto | fsr | dlss` chooses, and
   `auto` falls back to FSR when that library is absent.

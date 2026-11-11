@@ -560,11 +560,10 @@ namespace Rtx::Testing
         /// A reset survives a frame that has no history to reset, and such a frame leaves none.
         ///
         /// **A cut is spent by the frame that answers it, and a frame with neither denoiser
-        /// answers nothing.** A frame not `mDenoised` runs no accumulator and `Upscale::Off` runs no
-        /// upscaler, so nothing reads the signal — and a renderer that cleared it at the end of every
-        /// frame regardless dropped the reset rather than deferring it. What the game does with that
-        /// is walk through a door on an unfiltered frame and reproject one room onto another on the
-        /// next filtered one.
+        /// answers nothing.** A frame the renderer does not filter (`LightFilter`) runs no accumulator
+        /// and `Upscale::Off` runs no upscaler, so nothing reads the signal — and a renderer that cleared it at the end
+        /// of every frame regardless dropped the reset rather than deferring it. What the game does with that is walk
+        /// through a door on an unfiltered frame and reproject one room onto another on the next filtered one.
         ///
         /// **The claim is exact rather than statistical.** An accumulator that was reset writes the
         /// frame's own sample and reads no past at all, so the picture is the one the same trace

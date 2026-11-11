@@ -272,5 +272,36 @@ namespace RtxTool
             EXPECT_EQ(setup.mRun.mMemoryBudget, std::optional<std::uint64_t>(6004ull << 20));
             EXPECT_TRUE(request.mSetup.mRun.mReservedUpscales.empty()) << "the request's own setup was changed";
         }
+
+        /// **A run is refused under an upscaler that filters the light itself only where a stop asks
+        /// for the light unfiltered at a mode that upscales**: the profile's request at the profile's
+        /// mode, or a stop's own of either. Unfiltered with nothing upscaling, as `noise` traces its
+        /// truth, stands under every upscaler, and nothing is refused under one that takes a filtered
+        /// frame.
+        TEST(RtxBenchRunTest, aRunAskingUnfilteredLightOfADenoisingUpscalerIsRefused)
+        {
+            SessionRequest request;
+            request.mSetup.mRun.mProfile.mUpscale = Rtx::Upscale::Quality;
+            request.mStops.resize(2);
+            request.mStops[0].mName = "pier";
+            request.mStops[1].mName = "pier-reference";
+            request.mStops[1].mSchedule.mUpscale = Rtx::Upscale::Off;
+            request.mStops[1].mSchedule.mReconstruction = Rtx::ReconstructionRequest{ .mDenoise = false };
+            EXPECT_EQ(request.refusalUnder(Rtx::UpscalerInput::Noisy), std::nullopt)
+                << "an unfiltered truth with nothing upscaling";
+
+            request.mSetup.mRun.mProfile.mReconstruction.mDenoise = false;
+            EXPECT_EQ(request.refusalUnder(Rtx::UpscalerInput::Filtered), std::nullopt);
+            EXPECT_EQ(request.refusalUnder(Rtx::UpscalerInput::Noisy),
+                std::optional<std::string>("pier asks for the light unfiltered at the quality mode, and the upscaler "
+                                           "filters the light itself there: name --filter=true, --upscale=off or "
+                                           "another --upscaler"));
+
+            request.mSetup.mRun.mProfile.mReconstruction.mDenoise = true;
+            request.mStops[1].mSchedule.mUpscale = Rtx::Upscale::Native;
+            EXPECT_NE(request.refusalUnder(Rtx::UpscalerInput::Noisy), std::nullopt)
+                << "a stop's own unfiltered request at a mode of its own that upscales";
+            EXPECT_EQ(request.refusalUnder(Rtx::UpscalerInput::Filtered), std::nullopt);
+        }
     }
 }

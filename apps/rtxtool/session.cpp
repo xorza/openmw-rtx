@@ -4,6 +4,7 @@
 #include <format>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -15,6 +16,7 @@
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <apps/openmw/mwworld/globals.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/rtxtool/model/stopdescription.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
@@ -42,6 +44,10 @@ namespace RtxTool
         // The engine names the renderer it chose itself, and it chose none here.
         Crash::annotate("renderer", MWRender::nameOf(MWRender::RendererKind::RayTraced));
         auto renderer = std::make_unique<MWRender::RtxRenderer>(spec, &mInstalled);
+        // **Before the first frame**, once `auto` has come to an upscaler: a stop the upscaler cannot
+        // trace would otherwise break the reconstruction's contract on its first frame.
+        if (const std::optional<std::string> refused = mRequest.refusalUnder(renderer->getUpscalerInput()))
+            throw std::runtime_error("the run cannot be traced: " + *refused);
         mMeasurer.watchCard(renderer->getCardAddress());
         return renderer;
     }
@@ -288,6 +294,7 @@ namespace RtxTool
 
     void Session::frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report)
     {
+        mUpscaler = describeUpscaler(context.mBackend.getProfile());
         if (mDone || !mStarted)
             return;
 

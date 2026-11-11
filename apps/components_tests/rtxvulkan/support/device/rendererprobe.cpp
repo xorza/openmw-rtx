@@ -39,6 +39,11 @@ namespace Rtx::Testing
         return mRenderer.mTracePasses;
     }
 
+    const Upscaler& RendererProbe::getUpscaler() const
+    {
+        return mRenderer.mUpscaler;
+    }
+
     VkDeviceSize RendererProbe::getLooseStructureBytes(const SceneSlot slot) const
     {
         const DeviceScene* held = mRenderer.mScenes.find(slot);

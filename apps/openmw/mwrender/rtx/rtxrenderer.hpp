@@ -115,6 +115,10 @@ namespace MWRender
         /// Which card the backend runs on, for the harness's card watch.
         Rtx::CardAddress getCardAddress() const;
 
+        /// What the backend's upscaler takes from the trace, for a harness that refuses a run its
+        /// upscaler cannot trace (`Rtx::Renderer::getUpscalerInput`).
+        Rtx::UpscalerInput getUpscalerInput() const;
+
         /// A plain group: the lights are gathered on this renderer's own walk, so nothing here
         /// wants a light manager's method.
         osg::ref_ptr<osg::Group> createSceneRoot() noexcept override;

@@ -261,6 +261,11 @@ namespace Rtx
         /// What `reserveFrame` was last told.
         VkDeviceSize getFrameReserve() const { return mFrameReserve; }
 
+        /// Says the frame holds `bytes` on the video heap that something else allocated on this device
+        /// — DLSS's feature, which NGX allocates — and which the driver's usage counts once made: frame
+        /// memory held, so a reserve that counts it is not owed it twice. Replaces what was said before.
+        void holdOutside(VkDeviceSize bytes) { mHeldOutside = bytes; }
+
         /// The heap video memory is taken out of, whose room `getRoom` measures.
         std::uint32_t getVideoHeap() const { return mContent.mHeap; }
 
@@ -378,5 +383,8 @@ namespace Rtx
 
         std::optional<VkDeviceSize> mBudgetLimit;
         VkDeviceSize mFrameReserve = 0;
+
+        /// What `holdOutside` was last told.
+        VkDeviceSize mHeldOutside = 0;
     };
 }

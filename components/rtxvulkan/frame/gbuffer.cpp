@@ -144,12 +144,15 @@ namespace Rtx
             return std::nullopt;
         }
 
-        ImageDescription descriptionOf(
-            const Channel channel, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+        /// `channel`'s image at a frame `width` by `height`, or a texel where `keeping` keeps it no wider,
+        /// which every set still binds.
+        ImageDescription descriptionOf(const Channel channel, const std::uint32_t width, const std::uint32_t height,
+            const RadianceWidth radiance, const ChannelKeeping& keeping)
         {
             const ChannelFormat described = formatOf(channel, radiance);
-            return ImageDescription{ .mWidth = channelWidth(channel, width),
-                .mHeight = height,
+            const bool whole = keeping.keepsWhole(channel);
+            return ImageDescription{ .mWidth = whole ? channelWidth(channel, width) : 1u,
+                .mHeight = whole ? height : 1u,
                 .mFormat = described.mFormat,
                 .mUsage = described.mUsage };
         }
@@ -261,22 +264,23 @@ namespace Rtx
     }
 
     GBuffer::GBuffer(const Device& device, const SetLayout& layout, const std::uint32_t width,
-        const std::uint32_t height, const RadianceWidth radiance, const TracePast past, const ArenaRun& stages)
+        const std::uint32_t height, const RadianceWidth radiance, const ChannelKeeping& keeping, const ArenaRun& stages)
         : mStageTiles(Buffer::make(MemoryUse::Frame, device, BufferKind::DeviceLocal, stageTilesBytes(width, height),
               sTileUsage, "stage tiles"))
-        , mSet(device, sBindings, layout.get(), past == TracePast::Kept ? 2 : 1)
+        , mSet(device, sBindings, layout.get(), keeping.keepsHeld() ? 2 : 1)
+        , mKeeping(keeping)
     {
         static_assert(sHeldChannels.size() == std::tuple_size_v<decltype(mOthers)>, "a held channel with no image");
 
         mChannels.reserve(sChannelCount);
         for (const Channel channel : sEveryChannel)
-            mChannels.emplace_back(
-                MemoryUse::Frame, device, descriptionOf(channel, width, height, radiance), channelName(channel));
+            mChannels.emplace_back(MemoryUse::Frame, device, descriptionOf(channel, width, height, radiance, keeping),
+                channelName(channel));
 
-        if (past == TracePast::Kept)
+        if (keeping.keepsHeld())
             for (std::size_t at = 0; at < sHeldChannels.size(); ++at)
-                mOthers[at] = Image(MemoryUse::Frame, device, descriptionOf(sHeldChannels[at], width, height, radiance),
-                    channelName(sHeldChannels[at]));
+                mOthers[at] = Image(MemoryUse::Frame, device,
+                    descriptionOf(sHeldChannels[at], width, height, radiance, keeping), channelName(sHeldChannels[at]));
 
         place(device, layout, stages);
     }
@@ -317,13 +321,27 @@ namespace Rtx
         }
     }
 
+    bool ChannelKeeping::keepsWhole(const Channel channel) const
+    {
+        switch (channel)
+        {
+            case Channel::PaneSurface:
+            case Channel::PaneMotion:
+                return mFilter == RendererFilter::Runs;
+            case Channel::UpscaleMasks:
+                return mMasks == UpscaleMasks::Written;
+            default:
+                return true;
+        }
+    }
+
     VkDeviceSize GBuffer::bytesAt(const Device& device, const std::uint32_t width, const std::uint32_t height,
-        const RadianceWidth radiance, const TracePast past)
+        const RadianceWidth radiance, const ChannelKeeping& keeping)
     {
         VkDeviceSize bytes = 0;
         for (const Channel channel : sEveryChannel)
-            bytes += Image::bytesFor(device, descriptionOf(channel, width, height, radiance))
-                * (past == TracePast::Kept && heldIndexOf(channel).has_value() ? 2 : 1);
+            bytes += Image::bytesFor(device, descriptionOf(channel, width, height, radiance, keeping))
+                * (keeping.keepsHeld() && heldIndexOf(channel).has_value() ? 2 : 1);
         return bytes + Buffer::bytesFor(device, stageTilesBytes(width, height), sTileUsage);
     }
 

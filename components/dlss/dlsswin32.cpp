@@ -7,15 +7,16 @@ namespace DlssLibrary
     namespace
     {
         constexpr Download sDownload{
-            .mUrl = "https://raw.githubusercontent.com/NVIDIA/DLSS/v310.9.16/lib/Windows_x86_64/rel/nvngx_dlss.dll",
-            .mFileName = "nvngx_dlss.dll",
-            .mSha256 = "d00b5b0ab29c3ca101b70c3a5ecb3a01b7ef33766a3383a28a18623083e6123e",
-            .mBytes = 58956912,
+            .mUrl = "https://raw.githubusercontent.com/NVIDIA/DLSS/v310.9.16/lib/Windows_x86_64/rel/nvngx_dlssd.dll",
+            .mFileName = "nvngx_dlssd.dll",
+            .mSha256 = "b49435ae346f227feafe7bbe937d88277ea0ee7323975ec06488f377fdb46cee",
+            .mBytes = 48343664,
         };
         static_assert(sDownload.mUrl.find(sVersion) != std::string_view::npos, "a download of another release");
 
-        /// The download's name, as the system spells a file name.
-        constexpr const wchar_t* sLibraryName = L"nvngx_dlss.dll";
+        /// The download's name, as the system spells a file name: Ray Reconstruction's library, and not
+        /// Super Resolution's `nvngx_dlss.dll` or frame generation's `nvngx_dlssg.dll`.
+        constexpr const wchar_t* sLibraryName = L"nvngx_dlssd.dll";
     }
 
     Download download()

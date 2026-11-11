@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <span>
 #include <string>
 #include <thread>
 #include <vector>
@@ -42,6 +43,17 @@ namespace Rtx
         /// Called from the Vulkan debug callback, on whichever thread it fires.
         void recordError(std::string&& text);
 
+        /// Says every resource whose debug name starts with `prefix` belongs to a runtime that records
+        /// commands of its own into ours and synchronizes them itself — NGX, inside an evaluation —
+        /// so a synchronization hazard the layers find on such resources alone is that runtime's and
+        /// not a mistake of this renderer's: logged as a warning, and neither recorded nor fatal. Before
+        /// any command of the runtime's is recorded.
+        void disown(std::string prefix);
+
+        /// Whether a hazard on these resources alone is a runtime's own (`disown`): every named image
+        /// and buffer among `objects` is disowned, and at least one is.
+        bool isDisowned(std::span<const VkDebugUtilsObjectNameInfoEXT> objects) const;
+
         /// Appends the errors raised by Vulkan calls made on the calling thread, and removes them
         /// under the one lock, because a message arriving between a read and a separate clear is a
         /// message nobody ever sees.
@@ -51,6 +63,9 @@ namespace Rtx
         const bool mAbortOnError;
         mutable std::mutex mMutex;
         std::vector<ValidationMessage> mErrors;
+
+        /// What `disown` was told: a prefix a runtime, so at most one an upscaler.
+        std::vector<std::string> mDisowned;
     };
 
     /// Files this thread's validation errors under `owner` for as long as it stands. Pipeline

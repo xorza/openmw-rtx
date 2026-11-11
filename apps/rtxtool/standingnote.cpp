@@ -1,6 +1,11 @@
 #include "standingnote.hpp"
 
+#include <cassert>
+#include <cstddef>
 #include <cstdint>
+#include <format>
+#include <span>
+#include <string_view>
 
 #include <osg/Vec3d>
 #include <osg/Vec3f>
@@ -86,18 +91,21 @@ namespace RtxTool
         stood.mSky.mAir = air;
     }
 
-    std::string_view StandingNote::describeTitle()
+    std::string_view StandingNote::describeTitle(const std::string_view upscaler)
     {
-        // Nothing before a stop's first frame is drawn, rather than a place the run has not stood in
+        // No sky before a stop's first frame is drawn, rather than a place the run has not stood in
         // yet. `take` writes the eye, the hour and the weather together, so a note with one has all.
         const Stop* const left = getLeft();
         if (left == nullptr)
-            return {};
+            return upscaler;
 
-        return writeSkyNote(mTitleNote,
+        const auto [end, length] = std::format_to_n(mTitleNote.data(), mTitleNote.size(), "{} - ", upscaler);
+        assert(static_cast<std::size_t>(length) < mTitleNote.size() && "the upscaler outgrew the title's room");
+        const std::string_view sky = writeSkyNote(std::span(end, mTitleNote.data() + mTitleNote.size()),
             SkyNote{ .mWeather = Rtx::nameOf(left->mSky.mWeather.value()),
                 .mArriving = mArriving,
                 .mCrossed = mCrossed,
                 .mHour = left->mSky.mHour.value() });
+        return std::string_view(mTitleNote.data(), static_cast<std::size_t>(length) + sky.size());
     }
 }

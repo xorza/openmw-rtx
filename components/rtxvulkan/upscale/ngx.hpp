@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 #include <vulkan/vulkan_core.h>
 
@@ -10,10 +11,11 @@
 /// **The NGX Vulkan interface, declared here and not taken from NVIDIA's SDK.** The SDK is
 /// proprietary and may not be linked into or shipped with a GPL program, so the build has no
 /// NVIDIA code and no configure-time download. These are independent declarations of the public
-/// binary interface, pinned to NGX API 1.5.0: the driver's NGX core (`_nvngx.dll` on Windows,
-/// `libnvidia-ngx.so.1` on Linux) is opened at run time, and the feature library the player
-/// supplies (`nvngx_dlss.dll` or `libnvidia-ngx-dlss.so.*`) sits beside the executable, where NGX
-/// looks for it. The layouts matter; the source of truth is the NGX API, not this file.
+/// binary interface, pinned to NGX API 1.5.0 as the SDK's 310.9.16 headers state it: the driver's
+/// NGX core (`_nvngx.dll` on Windows, `libnvidia-ngx.so.1` on Linux) is opened at run time, and the
+/// feature library the player supplies (`nvngx_dlssd.dll` or `libnvidia-ngx-dlssd.so.*`, Ray
+/// Reconstruction's) sits where NGX looks for it. The layouts matter; the source of truth is the NGX
+/// API, not this file.
 namespace Rtx::Dlss::Ngx
 {
     /// The version of the interface these declarations describe. It is what the discovery record
@@ -41,9 +43,11 @@ namespace Rtx::Dlss::Ngx
         return !failed(result);
     }
 
+    /// The one feature this backend makes: Ray Reconstruction, which NVIDIA's guide says overrides
+    /// Super Resolution wherever it runs (DLSS-RR Integration Guide, 3.2).
     enum class Feature : int
     {
-        SuperSampling = 1,
+        RayReconstruction = 13,
     };
 
     enum class Engine : int
@@ -77,7 +81,16 @@ namespace Rtx::Dlss::Ngx
     constexpr int sDlssFlagIsHdr = 1 << 0;
     constexpr int sDlssFlagMotionVectorsLowRes = 1 << 1;
     constexpr int sDlssFlagDepthInverted = 1 << 3;
-    constexpr int sDlssFlagAutoExposure = 1 << 6;
+
+    /// `DLSS.Denoise.Mode`'s one value Ray Reconstruction takes: the learned denoiser and upscaler in one.
+    constexpr int sDenoiseModeUnified = 1;
+
+    /// `DLSS.Roughness.Mode`: the roughness read from the normals' fourth component, and not an image
+    /// of its own.
+    constexpr unsigned int sRoughnessPacked = 1;
+
+    /// `DLSS.Use.HW.Depth`: the depth is a device depth, as a rasterizer writes it, and not a view one.
+    constexpr unsigned int sDepthHardware = 1;
 
     /// A feature NGX created. Its contents are NGX's; the pointer is only ever handed back.
     struct Handle;
@@ -260,11 +273,13 @@ namespace Rtx::Dlss::Ngx
 
     /// The parameter names the interface publishes, and the values this backend sets. They are
     /// string keys, not C++ identifiers: NGX matches them byte for byte.
-    inline constexpr const char* sSuperSamplingAvailable = "SuperSampling.Available";
-    inline constexpr const char* sSuperSamplingNeedsUpdatedDriver = "SuperSampling.NeedsUpdatedDriver";
-    inline constexpr const char* sSuperSamplingMinDriverMajor = "SuperSampling.MinDriverVersionMajor";
-    inline constexpr const char* sSuperSamplingMinDriverMinor = "SuperSampling.MinDriverVersionMinor";
-    inline constexpr const char* sSuperSamplingFeatureInitResult = "SuperSampling.FeatureInitResult";
+    inline constexpr const char* sRayReconstructionAvailable = "SuperSamplingDenoising.Available";
+    inline constexpr const char* sRayReconstructionNeedsUpdatedDriver = "SuperSamplingDenoising.NeedsUpdatedDriver";
+    inline constexpr const char* sRayReconstructionMinDriverMajor = "SuperSamplingDenoising.MinDriverVersionMajor";
+    inline constexpr const char* sRayReconstructionMinDriverMinor = "SuperSamplingDenoising.MinDriverVersionMinor";
+    inline constexpr const char* sRayReconstructionFeatureInitResult = "SuperSamplingDenoising.FeatureInitResult";
+    inline constexpr const char* sOptimalSettingsCallback = "DLSSDOptimalSettingsCallback";
+    inline constexpr const char* sStatsCallback = "DLSSDGetStatsCallback";
     inline constexpr const char* sFreeMemoryOnRelease = "FreeMemOnReleaseFeature";
     inline constexpr const char* sCreationNodeMask = "CreationNodeMask";
     inline constexpr const char* sVisibilityNodeMask = "VisibilityNodeMask";
@@ -273,15 +288,27 @@ namespace Rtx::Dlss::Ngx
     inline constexpr const char* sOutWidth = "OutWidth";
     inline constexpr const char* sOutHeight = "OutHeight";
     inline constexpr const char* sPerfQualityValue = "PerfQualityValue";
+    inline constexpr const char* sRtxValue = "RTXValue";
+    inline constexpr const char* sDynamicMaxWidth = "DLSS.Get.Dynamic.Max.Render.Width";
+    inline constexpr const char* sDynamicMaxHeight = "DLSS.Get.Dynamic.Max.Render.Height";
+    inline constexpr const char* sDynamicMinWidth = "DLSS.Get.Dynamic.Min.Render.Width";
+    inline constexpr const char* sDynamicMinHeight = "DLSS.Get.Dynamic.Min.Render.Height";
+    inline constexpr const char* sSizeInBytes = "SizeInBytes";
     inline constexpr const char* sFeatureCreateFlags = "DLSS.Feature.Create.Flags";
     inline constexpr const char* sEnableOutputSubrects = "DLSS.Enable.Output.Subrects";
+    inline constexpr const char* sDenoiseMode = "DLSS.Denoise.Mode";
+    inline constexpr const char* sRoughnessMode = "DLSS.Roughness.Mode";
+    inline constexpr const char* sUseHardwareDepth = "DLSS.Use.HW.Depth";
     inline constexpr const char* sColor = "Color";
     inline constexpr const char* sOutput = "Output";
     inline constexpr const char* sDepth = "Depth";
     inline constexpr const char* sMotionVectors = "MotionVectors";
+    inline constexpr const char* sDiffuseAlbedo = "DLSS.Input.DiffuseAlbedo";
+    inline constexpr const char* sSpecularAlbedo = "DLSS.Input.SpecularAlbedo";
+    inline constexpr const char* sNormals = "GBuffer.Normals";
+    inline constexpr const char* sRoughness = "GBuffer.Roughness";
     inline constexpr const char* sJitterX = "Jitter.Offset.X";
     inline constexpr const char* sJitterY = "Jitter.Offset.Y";
-    inline constexpr const char* sSharpness = "Sharpness";
     inline constexpr const char* sReset = "Reset";
     inline constexpr const char* sMotionVectorScaleX = "MV.Scale.X";
     inline constexpr const char* sMotionVectorScaleY = "MV.Scale.Y";
@@ -290,13 +317,15 @@ namespace Rtx::Dlss::Ngx
     inline constexpr const char* sFrameTimeDelta = "FrameTimeDeltaInMsec";
     inline constexpr const char* sRenderSubrectWidth = "DLSS.Render.Subrect.Dimensions.Width";
     inline constexpr const char* sRenderSubrectHeight = "DLSS.Render.Subrect.Dimensions.Height";
-    inline constexpr const char* sTransparencyMask = "TransparencyMask";
-    inline constexpr const char* sExposureTexture = "ExposureTexture";
-    inline constexpr const char* sBiasCurrentColorMask = "DLSS.Input.Bias.Current.Color.Mask";
 
-    /// What a DLSS feature is made for: the fork's own record, which the parameter map is set from by
-    /// name, so no layout of the SDK's helper structures is relied on.
-    struct DlssFeature
+    /// How NGX names the images and buffers it makes for a feature (`nv.ngx.dlssd.resource` among them),
+    /// over which it records barriers, clears and dispatches of its own inside an evaluation: NGX's to
+    /// synchronize, and none of the renderer's.
+    inline constexpr std::string_view sOwnResourcePrefix = "nv.ngx.";
+
+    /// What a Ray Reconstruction feature is made for: the fork's own record, which the parameter map is
+    /// set from by name, so no layout of the SDK's helper structures is relied on.
+    struct RayReconstructionFeature
     {
         VkExtent2D mRender{};
         VkExtent2D mOutput{};
@@ -304,14 +333,18 @@ namespace Rtx::Dlss::Ngx
         int mFlags = 0;
     };
 
-    /// What one evaluation reads: the images, the jitter as NGX names it (the image's displacement, in
-    /// render pixels), whether the history is worthless, and the frame's step.
-    struct DlssFrame
+    /// What one evaluation reads: the noisy frame, its guides and the output, the jitter as NGX names
+    /// it (the image's displacement, in render pixels), whether the history is worthless, and the
+    /// frame's step.
+    struct RayReconstructionFrame
     {
         Resource* mColour = nullptr;
         Resource* mOutput = nullptr;
         Resource* mDepth = nullptr;
         Resource* mMotion = nullptr;
+        Resource* mDiffuseAlbedo = nullptr;
+        Resource* mSpecularAlbedo = nullptr;
+        Resource* mNormalRoughness = nullptr;
         float mJitterX = 0.0f;
         float mJitterY = 0.0f;
         VkExtent2D mRender{};
@@ -319,13 +352,41 @@ namespace Rtx::Dlss::Ngx
         float mFrameMs = 0.0f;
     };
 
-    /// Sets the parameter map up as the SDK's DLSS create helper does, then creates the feature
-    /// on `commands`.
-    Result createDlss(
-        const Api& api, VkCommandBuffer commands, Parameter& parameters, const DlssFeature& create, Handle** feature);
+    /// The traced extents NGX deems right for a mode at an output, and the range it takes: what
+    /// `NGX_DLSSD_GET_OPTIMAL_SETTINGS` answers. A library that names no range has the optimal extent
+    /// for both ends, as the SDK's helper reads it.
+    struct OptimalSettings
+    {
+        VkExtent2D mOptimal{};
+        VkExtent2D mMin{};
+        VkExtent2D mMax{};
+    };
 
-    /// Sets the parameter map up as the SDK's DLSS evaluate helper does, then evaluates `feature`
-    /// on `commands`.
-    Result evaluateDlss(
-        const Api& api, VkCommandBuffer commands, const Handle* feature, Parameter& parameters, const DlssFrame& frame);
+    /// Sets the parameter map up as the SDK's Ray Reconstruction create helper does
+    /// (`NGX_VULKAN_CREATE_DLSSD_EXT1`), then creates the feature on `commands`.
+    Result createRayReconstruction(const Api& api, VkCommandBuffer commands, Parameter& parameters,
+        const RayReconstructionFeature& create, Handle** feature);
+
+    /// Sets once, on the map every evaluation is handed, each key the SDK's Ray Reconstruction evaluate
+    /// helper sets (`NGX_VULKAN_EVALUATE_DLSSD_EXT`) to a value this backend never varies: every resource
+    /// it hands none of as null, every corner as nought, motion in render pixels, linear radiance at a
+    /// pre-exposure of one, and the roughness in the normals' fourth. **Once, and not each frame as the
+    /// helper sets them**: the map is the backend's own and nothing else writes these keys, so what was
+    /// set stands, and a frame's evaluation sets the dozen keys that move and nothing else.
+    void setRayReconstructionConstants(Parameter& parameters);
+
+    /// Sets the keys of one evaluation that move from frame to frame — the images, the jitter, the reset,
+    /// the frame's step and the feature's extent — over a map `setRayReconstructionConstants` set up, then
+    /// evaluates `feature` on `commands`.
+    Result evaluateRayReconstruction(const Api& api, VkCommandBuffer commands, const Handle* feature,
+        Parameter& parameters, const RayReconstructionFrame& frame);
+
+    /// Asks `capabilities`, a map `GetCapabilityParameters` made, NGX's optimal traced extents for
+    /// `quality` at `output`, as `NGX_DLSSD_GET_OPTIMAL_SETTINGS` does. Fails where the library publishes
+    /// no such callback.
+    Result optimalSettings(Parameter& capabilities, VkExtent2D output, Quality quality, OptimalSettings& into);
+
+    /// Asks `capabilities` how much device memory Ray Reconstruction holds, as `NGX_DLSSD_GET_STATS` does.
+    /// Fails where the library publishes no such callback.
+    Result statsBytes(Parameter& capabilities, unsigned long long& into);
 }

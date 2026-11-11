@@ -12,6 +12,8 @@
 #include <osg/Math>
 #include <osg/Vec3f>
 
+#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/world/weather.hpp>
 
 #include "benchrecord.hpp"
@@ -139,6 +141,12 @@ namespace RtxTool
     std::string describeStanding(const Stop& stop)
     {
         return describeSpot(stop) + describeBlock(stop) + describeCommand(stop);
+    }
+
+    std::string_view describeUpscaler(const Rtx::RenderProfile& profile)
+    {
+        assert(profile.mUpscaler != Rtx::UpscalerChoice::Auto && "a profile no renderer resolved");
+        return Rtx::upscales(profile.mUpscale) ? Rtx::sUpscalerNames.name(profile.mUpscaler) : "no";
     }
 
     std::string_view writeSkyNote(const std::span<char> room, const SkyNote& note)

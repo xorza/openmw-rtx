@@ -44,6 +44,7 @@ namespace Rtx::Testing
         Rtx::CardAddress getCardAddress() const override { return {}; }
         const Rtx::RenderProfile& getProfile() const override { return mProfile; }
         std::span<const Rtx::UpscalerChoice> getUpscalers() const override { return Rtx::offeredUpscalers(false); }
+        Rtx::UpscalerInput getUpscalerInput() const override { return Rtx::UpscalerInput::Filtered; }
         bool isValidating() const override { return false; }
 
         void setScene(

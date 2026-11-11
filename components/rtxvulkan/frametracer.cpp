@@ -1,5 +1,6 @@
 #include "frametracer.hpp"
 
+#include <cstddef>
 #include <utility>
 
 #include <components/rtxvulkan/frame/tracepast.hpp>
@@ -15,8 +16,9 @@ namespace Rtx
     void FrameTracer::declare(const VkExtent2D render, const VkExtent2D output, const RenderProfile& profile,
         const Upscaler& upscaler, std::vector<ArenaImage>& into)
     {
-        TraceChain::declareShared(
-            render.width, render.height, profile.mRadianceWidth, profile.mReconstruction.mSampling.mBounceRays, into);
+        TraceChain::declareShared(render.width, render.height, profile.mRadianceWidth,
+            profile.mReconstruction.mSampling.mBounceRays, rendererFilterUnder(profile.mUpscale, upscaler.getInput()),
+            into);
         if (upscales(profile.mUpscale))
             upscaler.declareShared(render, output, into);
     }
@@ -25,7 +27,8 @@ namespace Rtx
         const Upscale upscale, const Upscaler& upscaler, const RadianceWidth radiance,
         const std::span<const ArenaImage> declared)
     {
-        VkDeviceSize bytes = TraceChain::bytesAt(device, render.width, render.height, radiance, TracePast::Kept)
+        VkDeviceSize bytes = TraceChain::bytesAt(device, render.width, render.height, radiance, TracePast::Kept,
+                                 rendererFilterUnder(upscale, upscaler.getInput()), upscaler.getMasks())
             + ImageArena::bytesFor(device, declared);
         if (upscales(upscale))
             bytes += upscaler.bytesAt(render, output);
@@ -35,7 +38,8 @@ namespace Rtx
     FrameTracer::Moves FrameTracer::movesTo(const VkExtent2D render, const VkExtent2D output, const Upscale upscale,
         const std::vector<ArenaImage>& declared, const Upscaler& upscaler) const
     {
-        const bool traceMoves = render.width != mChain.getWidth() || render.height != mChain.getHeight();
+        const bool traceMoves = render.width != mChain.getWidth() || render.height != mChain.getHeight()
+            || rendererFilterUnder(upscale, upscaler.getInput()) != mChain.getFilter();
         return Moves{
             .mTrace = mChain.isBuilt() && traceMoves,
             .mUpscaler = upscaler.isBuilt() && !(upscales(upscale) && upscaler.isAt(render, output)),
@@ -61,12 +65,13 @@ namespace Rtx
 
         mArena = ImageArena(mDevice, declared);
         mDeclared = std::move(declared);
-        mChain.resize(render.width, render.height, ArenaRun(mArena, 0, TraceChain::getSharedCount()));
+        const RendererFilter filter = rendererFilterUnder(upscale, upscaler.getInput());
+        const std::size_t chained = TraceChain::getSharedCount(filter);
+        mChain.resize(render.width, render.height, filter, ArenaRun(mArena, 0, chained));
 
         // An upscaler a mode turned off keeps nothing but its pipelines: its images went with the
         // mode, as `release` let them go.
         if (upscales(upscale))
-            upscaler.resize(
-                upscale, render, output, ArenaRun(mArena, TraceChain::getSharedCount(), upscaler.getSharedCount()));
+            upscaler.resize(upscale, render, output, ArenaRun(mArena, chained, upscaler.getSharedCount()));
     }
 }

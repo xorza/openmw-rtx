@@ -30,9 +30,33 @@ namespace Rtx
 
         /// A hashed counter seeded by the pixel, the frame and the stream: independent draws with
         /// no arrangement at all, for the A/B against the tile. Named by a run and never chosen by
-        /// `resolve`.
+        /// `resolve`: under Ray Reconstruction too, which NVIDIA's guide says assumes independent
+        /// samples (DLSS-RR Integration Guide, 3.5), the tile's frame was the less noisy
+        /// (`research/2026-11-11-ray-reconstruction-against-super-resolution.md`).
         WhiteHash,
     };
+
+    /// Who takes the noise out of the light a frame traced.
+    enum class LightFilter
+    {
+        /// Nobody: the raw light, which a converged reference is built from, because a thousand
+        /// filtered frames converge on the filter's opinion rather than on the truth.
+        None,
+
+        /// The renderer's own: the temporal filters and the wavelet over the bounce (`DenoisePasses`).
+        Renderer,
+
+        /// The upscaler, which takes the noisy frame and both denoises and upscales it
+        /// (`UpscalerInput::Noisy`).
+        Upscaler,
+    };
+
+    /// How a `LightFilter` is spelled in a report and a record.
+    inline constexpr NamedEnum sLightFilterNames{ std::array{
+        std::pair{ LightFilter::None, std::string_view("off") },
+        std::pair{ LightFilter::Renderer, std::string_view("renderer") },
+        std::pair{ LightFilter::Upscaler, std::string_view("upscaler") },
+    } };
 
     /// How a `NoiseSource` is spelled on a command line and in a report.
     inline constexpr NamedEnum sNoiseSourceNames{ std::array{
@@ -44,10 +68,6 @@ namespace Rtx
     /// `ReconstructionRequest` asks them and `Reconstruction` carries them as asked.
     struct SamplingSwitches
     {
-        /// Where the trace's draws come from: the tile, unless a run names the other, which is the
-        /// A/B.
-        NoiseSource mNoise = NoiseSource::BlueNoiseTile;
-
         /// The share of a pixel's light under which a source is never drawn for its shadow bit
         /// (`Shaders::SHADOW_DRAW_FLOOR`), which a run names for the A/B.
         float mShadowFloor = Shaders::SHADOW_DRAW_FLOOR;
@@ -69,6 +89,12 @@ namespace Rtx
         /// once as the rasterizer does. On unless a run names it off, which is the A/B, and the one false a
         /// specialization takes that is not the scene's answer: no game frame states it.
         bool mRelief = true;
+
+        /// Whether a split water pixel is blended half with its four split neighbours, which followed
+        /// the other path (Quake II RTX's interleave), or stands on its own path at twice its share.
+        /// On unless a run names it off, which is the A/B: the blend correlates neighbours, which an
+        /// upscaler that filters the light itself counts against its samples (the same guide, 3.5).
+        bool mWaterInterleave = true;
 
         bool operator==(const SamplingSwitches& other) const = default;
     };
@@ -111,7 +137,8 @@ namespace Rtx
     /// What a frame asks of the reconstruction, before the upscaler has its say.
     struct ReconstructionRequest
     {
-        /// Whether the denoisers were wanted over the light.
+        /// Whether the light was wanted filtered, by whichever filter the reconstruction has
+        /// (`Reconstruction::mFilter`).
         bool mDenoise = true;
 
         /// Whether the primary ray was wanted moved inside its pixel.
@@ -122,6 +149,14 @@ namespace Rtx
         /// the ratio is nought and this is the whole of the bias, which is what lets a test and an
         /// A/B read a level off the unupscaled path.
         float mLevelEpsilon = 0.0f;
+
+        /// Where the trace's draws come from: the tile, unless a run names the other, which is the
+        /// A/B.
+        NoiseSource mNoise = NoiseSource::BlueNoiseTile;
+
+        /// Whether a world's frame meets a soft edge's texels under the cut by their alpha, which a
+        /// run names for the A/B, or nothing for what the filter wants (`Reconstruction::resolve`).
+        std::optional<bool> mSoftEdgeDither = std::nullopt;
 
         SamplingSwitches mSampling{};
         FilterSwitches mFilters{};
@@ -146,11 +181,8 @@ namespace Rtx
     /// and a report prints the same value.
     struct Reconstruction
     {
-        /// Whether the denoisers put the light back together: the temporal filters, and the wavelet
-        /// over the bounce. False leaves the raw light as the trace wrote it, which is what a
-        /// converged reference is built from, because a thousand filtered frames converge on the
-        /// filter's opinion rather than on the truth.
-        bool mDenoised = false;
+        /// Who took the noise out of the light, if anyone.
+        LightFilter mFilter = LightFilter::None;
 
         /// What upscaled the frame: off wherever nothing did.
         Upscale mUpscale = Upscale::Off;
@@ -161,8 +193,10 @@ namespace Rtx
         bool mJitter = false;
 
         /// How many phases the jitter cycles through before it repeats, `jitterPhasesFor`: what the
-        /// upscaler's history is written against. Nought where nothing upscales, and the sequence
-        /// then runs on without a period.
+        /// upscaler's history is written against. Nought where nothing upscales, and under an
+        /// upscaler that takes the noisy light, which asks for at least 32 positions and sees "no
+        /// reason to limit the number of samples" (NVIDIA's DLSS-RR Integration Guide, 3.6): the
+        /// sequence then runs on without a period.
         std::uint32_t mJitterPhases = 0;
 
         /// What every texture level is offset by, in levels: the shown pixel's cone is narrower
@@ -179,49 +213,70 @@ namespace Rtx
         /// coarser moved the noise down again and the bias up: 0.80, the pond 1.38.
         float mLevelBias = 0.0f;
 
+        /// Where the trace's draws came from: the request's, and the tile for a picture.
+        NoiseSource mNoise = NoiseSource::BlueNoiseTile;
+
         /// How the trace drew: the request's, and the defaults for a picture.
         SamplingSwitches mSampling{};
 
-        /// How the bounce was filtered: the request's, read only where it is filtered, and none
-        /// for a picture, where every pixel's history is one frame and none has a settled
-        /// neighbour to borrow from.
+        /// How the bounce was filtered: the request's where the renderer's filter runs, which alone
+        /// reads them, and none elsewhere — so two frames that differ only in a switch nothing read
+        /// compare equal. None for a picture, where every pixel's history is one frame and none has
+        /// a settled neighbour to borrow from.
         FilterSwitches mFilters = sNoFilterSwitches;
 
-        /// Whether frames come after this one to average it with — a world's, which the eye, the
-        /// upscaler and the filters each take over time — and not a picture, which stands alone.
-        /// **What a draw that is right only on average needs**: the eye meets a soft edge's texels
-        /// under the cut by their alpha only where this holds (`VisibilityConstants::mSoftEdgeDither`),
-        /// since alone such a draw is stipple on a doll's hair.
-        bool mAveraged = false;
+        /// Whether the eye meets a soft edge's texels under the cut by their alpha
+        /// (`VisibilityConstants::mSoftEdgeDither`), a draw right only on average: a world's frame,
+        /// which the eye, the upscaler and the filters each take over time, and not a picture, which
+        /// stands alone and would show such a draw as stipple on a doll's hair. **Not under an
+        /// upscaler that filters the light itself**, unless a run names it: each frame's cut moved the
+        /// guides it reads at a leaf's edge, and cut, the pond under the trees stood less noisy on both
+        /// legs, 1.24 against 1.28 and its p99 8.00 against 9.06 strafed
+        /// (`research/2026-11-11-ray-reconstruction-against-super-resolution.md`).
+        bool mSoftEdgeDither = false;
 
         /// Whether an upscaler reconstructed the frame.
         bool upscaled() const { return upscales(mUpscale); }
 
-        /// The whole of the rule, and the only copy of it. An upscaler reconstructs the frame the
-        /// trace chain composed, so the wavelet runs under one as it runs without.
+        bool operator==(const Reconstruction& other) const = default;
+
+        /// The whole of the rule, and the only copy of it. Under an upscaler that takes a filtered
+        /// frame the renderer's filter runs as it runs without one; under an upscaler that takes the
+        /// noisy light the upscaler is the filter (`rendererFilters`), and a frame asked unfiltered
+        /// there is a contract the caller broke: the upscaler cannot run without filtering.
         ///
+        /// @param input what the running upscaler takes, read only where `upscale` upscales.
         /// @param extents what the frame is traced at and shown at, read only under an upscaler
         ///        and only for its widths, since the pixels are square.
-        static Reconstruction resolve(
-            const Upscale upscale, const ReconstructionRequest& asked, const FrameExtents& extents)
+        static Reconstruction resolve(const Upscale upscale, const UpscalerInput input,
+            const ReconstructionRequest& asked, const FrameExtents& extents)
         {
             const bool upscaled = upscales(upscale);
+            const bool renderer = rendererFilters(upscale, input);
+            assert((asked.mDenoise || renderer) && "an unfiltered frame under an upscaler that filters the light");
+
+            const LightFilter filter = !asked.mDenoise ? LightFilter::None
+                : renderer                             ? LightFilter::Renderer
+                                                       : LightFilter::Upscaler;
             return Reconstruction{
-                .mDenoised = asked.mDenoise,
+                .mFilter = filter,
                 .mUpscale = upscale,
                 .mJitter = upscaled || asked.mJitter,
-                .mJitterPhases = upscaled ? jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth) : 0u,
+                .mJitterPhases = upscaled && input == UpscalerInput::Filtered
+                    ? jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth)
+                    : 0u,
                 .mLevelBias = upscaled ? levelBiasOf(extents, asked.mLevelEpsilon) : asked.mLevelEpsilon,
+                .mNoise = asked.mNoise,
                 .mSampling = asked.mSampling,
-                .mFilters = asked.mFilters,
-                .mAveraged = true,
+                .mFilters = filter == LightFilter::Renderer ? asked.mFilters : sNoFilterSwitches,
+                .mSoftEdgeDither = asked.mSoftEdgeDither.value_or(filter != LightFilter::Upscaler),
             };
         }
 
         /// What reconstructs a doll or a map tile: one frame with nothing before it and nothing to
-        /// put it together across frames, so denoised as a single frame is, with no jitter, the
-        /// tile's noise, no level bias and no draw that is right only on average.
-        static Reconstruction forPicture() { return Reconstruction{ .mDenoised = true }; }
+        /// put it together across frames, so filtered by the renderer as a single frame is, with no
+        /// jitter, the tile's noise, no level bias and no draw that is right only on average.
+        static Reconstruction forPicture() { return Reconstruction{ .mFilter = LightFilter::Renderer }; }
 
     private:
         /// The ratio's levels, and the epsilon the request adds.
@@ -306,6 +361,8 @@ namespace Rtx
         /// Which upscaler is asked for, which the backend resolves where the renderer is made. A
         /// harness's profile that says nothing asks for FSR, so a measured picture does not change
         /// with the card it was measured on; a played session takes its value from `[RTX] upscaler`.
+        /// **A renderer's own profile (`Renderer::getProfile`) holds what the choice came to**, never
+        /// `Auto`, so what runs is read where every other fact of the run is.
         UpscalerChoice mUpscaler = UpscalerChoice::Fsr;
 
         /// What every frame asks of the reconstruction, before the upscaler has its say —
@@ -370,10 +427,12 @@ namespace Rtx
         /// where it asks nothing, at `extents` — `Reconstruction::resolve`. **Resolved once, when
         /// the frame is traced, and carried by its result**, by every backend: a frame collected
         /// after a menu moved the profile reports what it was traced under.
-        Reconstruction reconstructionFor(
-            const std::optional<ReconstructionRequest>& asked, const FrameExtents& extents) const
+        ///
+        /// @param input what the upscaler the backend resolved `mUpscaler` to takes.
+        Reconstruction reconstructionFor(const UpscalerInput input, const std::optional<ReconstructionRequest>& asked,
+            const FrameExtents& extents) const
         {
-            return Reconstruction::resolve(mUpscale, asked.value_or(mReconstruction), extents);
+            return Reconstruction::resolve(mUpscale, input, asked.value_or(mReconstruction), extents);
         }
     };
 }

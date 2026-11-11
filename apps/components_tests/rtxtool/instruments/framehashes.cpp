@@ -82,7 +82,7 @@ namespace RtxTool
                 finished.mPixels = mPixels;
                 finished.mDigest = mDigest;
                 finished.mReconstruction.mUpscale = mUpscale;
-                finished.mReconstruction.mDenoised = mDenoised;
+                finished.mReconstruction.mFilter = mDenoised ? Rtx::LightFilter::Renderer : Rtx::LightFilter::None;
                 return finished;
             }
         };

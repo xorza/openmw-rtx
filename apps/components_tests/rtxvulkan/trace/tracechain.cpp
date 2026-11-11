@@ -1,3 +1,5 @@
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -5,7 +7,10 @@
 
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/denoiserimage.hpp>
+#include <components/rtxvulkan/denoise/denoisehistory.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -13,6 +18,7 @@
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/frame/gbuffer.hpp>
 #include <components/rtxvulkan/frame/tracepast.hpp>
+#include <components/rtxvulkan/shaders/shared/fields.h>
 #include <components/rtxvulkan/trace/tracechain.hpp>
 #include <components/rtxvulkan/trace/tracepasses.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
@@ -23,12 +29,16 @@ namespace Rtx
     {
         using RtxTraceChainTest = Testing::RendererTest;
 
+        /// What the shared passes were built with, which every chain keeps the masks by: FSR's, the
+        /// shared renderer's.
+        constexpr UpscaleMasks sMasks = UpscaleMasks::Written;
+
         /// The arena a chain at this extent takes its shared images from, as a picture's keeps one.
-        ImageArena arenaFor(
-            const Device& device, const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+        ImageArena arenaFor(const Device& device, const std::uint32_t width, const std::uint32_t height,
+            const RadianceWidth radiance, const RendererFilter filter = RendererFilter::Runs)
         {
             std::vector<ArenaImage> declared;
-            TraceChain::declareShared(width, height, radiance, 1, declared);
+            TraceChain::declareShared(width, height, radiance, 1, filter, declared);
             return ImageArena(device, declared);
         }
 
@@ -49,14 +59,14 @@ namespace Rtx
                 TraceChain chain(device, mProbe.getTracePasses(), 1, radiance, TracePast::Dropped);
 
                 const ImageArena wide = arenaFor(device, 64, 32, radiance);
-                chain.resize(64, 32, everyOf(wide));
+                chain.resize(64, 32, RendererFilter::Runs, everyOf(wide));
                 const GBuffer* const built = &chain.getChannels();
                 EXPECT_EQ(chain.getColour().getFormat(), radianceFormat(radiance));
-                chain.resize(64, 32, everyOf(wide));
+                chain.resize(64, 32, RendererFilter::Runs, everyOf(wide));
                 EXPECT_EQ(&chain.getChannels(), built) << "the same extent made the channels anew";
 
                 const ImageArena narrow = arenaFor(device, 48, 32, radiance);
-                chain.resize(48, 32, everyOf(narrow));
+                chain.resize(48, 32, RendererFilter::Runs, everyOf(narrow));
                 EXPECT_NE(&chain.getChannels(), built) << "another width kept the channels";
                 EXPECT_EQ(chain.getWidth(), 48u);
                 EXPECT_EQ(chain.getHeight(), 32u);
@@ -64,8 +74,40 @@ namespace Rtx
 
                 const GBuffer* const narrower = &chain.getChannels();
                 const ImageArena low = arenaFor(device, 48, 16, radiance);
-                chain.resize(48, 16, everyOf(low));
+                chain.resize(48, 16, RendererFilter::Runs, everyOf(low));
                 EXPECT_NE(&chain.getChannels(), narrower) << "another height kept the channels";
+
+                // **The same extent with the filter gone is a new chain**: `native` and `off` trace at
+                // one size, and under an upscaler that filters the light itself only the second
+                // keeps a filter. Its histories go with it, and come back with it.
+                const GBuffer* const filtered = &chain.getChannels();
+                const ImageArena bare = arenaFor(device, 48, 16, radiance, RendererFilter::Absent);
+                chain.resize(48, 16, RendererFilter::Absent, everyOf(bare));
+                EXPECT_NE(&chain.getChannels(), filtered) << "the filter went and the channels stayed";
+                EXPECT_EQ(chain.getFilter(), RendererFilter::Absent);
+                for (const Channel channel : { Channel::PaneSurface, Channel::PaneMotion })
+                {
+                    EXPECT_FALSE(chain.getChannels().keepsWhole(channel)) << channelName(channel);
+                    EXPECT_EQ(chain.getChannels().get(channel).getWidth(), 1u)
+                        << "the pane filter's tracks, with no filter";
+                    EXPECT_EQ(chain.getChannels().get(channel).getHeight(), 1u);
+                }
+                EXPECT_TRUE(chain.getChannels().keepsWhole(Channel::Surface));
+                std::array<const Image*, sDenoiserImageCount> written{};
+                written.fill(&chain.getColour());
+                chain.denoiserWritten(written);
+                for (const Image* image : written)
+                    EXPECT_EQ(image, nullptr) << "a chain with no filter named an image of one";
+
+                const GBuffer* const unfiltered = &chain.getChannels();
+                chain.resize(48, 16, RendererFilter::Absent, everyOf(bare));
+                EXPECT_EQ(&chain.getChannels(), unfiltered) << "the same extent and filter made the channels anew";
+                chain.resize(48, 16, RendererFilter::Runs, everyOf(low));
+                EXPECT_NE(&chain.getChannels(), unfiltered) << "the filter came back and the channels stayed";
+                EXPECT_EQ(chain.getFilter(), RendererFilter::Runs);
+                EXPECT_EQ(
+                    chain.getChannels().get(Channel::PaneSurface).getWidth(), channelWidth(Channel::PaneSurface, 48))
+                    << "the pane filter's tracks whole again";
             }
 
             EXPECT_NE(radianceFormat(RadianceWidth::Summed), radianceFormat(RadianceWidth::Shown))
@@ -85,8 +127,8 @@ namespace Rtx
                 std::vector<ArenaImage> declared;
                 GBuffer::declareStages(16, 8, 1, declared);
                 const ImageArena stages(device, declared);
-                GBuffer channels(
-                    device, mProbe.getTracePasses().mChannels, 16, 8, RadianceWidth::Shown, past, everyOf(stages));
+                GBuffer channels(device, mProbe.getTracePasses().mChannels, 16, 8, RadianceWidth::Shown,
+                    ChannelKeeping{ .mPast = past }, everyOf(stages));
                 const auto turn = [&] {
                     Batch batch(device.getPool());
                     channels.begin(batch.getCommands(), ChannelWrites{});
@@ -121,6 +163,32 @@ namespace Rtx
             device.collectIdle();
         }
 
+        /// **The filter's scratch is declared only where it runs**: the stage images and the canvas
+        /// either way, and `DenoiseHistory`'s scratch between them under `Runs` alone, which is the
+        /// whole difference in count.
+        TEST_F(RtxTraceChainTest, theFiltersScratchIsDeclaredOnlyWhereItRuns)
+        {
+            std::vector<ArenaImage> runs;
+            TraceChain::declareShared(64, 32, RadianceWidth::Shown, 1, RendererFilter::Runs, runs);
+            std::vector<ArenaImage> absent;
+            TraceChain::declareShared(64, 32, RadianceWidth::Shown, 1, RendererFilter::Absent, absent);
+
+            EXPECT_EQ(runs.size(), TraceChain::getSharedCount(RendererFilter::Runs));
+            EXPECT_EQ(absent.size(), TraceChain::getSharedCount(RendererFilter::Absent));
+            EXPECT_EQ(runs.size() - absent.size(), DenoiseHistory::getScratchCount());
+            EXPECT_EQ(absent.size(), GBuffer::sStageImages + 1) << "the stage images and the canvas";
+            for (std::size_t at = 0; at < GBuffer::sStageImages; ++at)
+                EXPECT_EQ(absent[at], runs[at]) << "a stage image moved with the filter";
+            EXPECT_EQ(absent.back(), runs.back()) << "the canvas moved with the filter";
+
+            // The rule the world's chain is built by: the filter is absent only under an upscaler
+            // that takes the noisy light, at a mode that upscales.
+            EXPECT_EQ(rendererFilterUnder(Upscale::Quality, UpscalerInput::Noisy), RendererFilter::Absent);
+            EXPECT_EQ(rendererFilterUnder(Upscale::Native, UpscalerInput::Noisy), RendererFilter::Absent);
+            EXPECT_EQ(rendererFilterUnder(Upscale::Off, UpscalerInput::Noisy), RendererFilter::Runs);
+            EXPECT_EQ(rendererFilterUnder(Upscale::Quality, UpscalerInput::Filtered), RendererFilter::Runs);
+        }
+
         /// **What a chain says it takes is what it holds once made**, the running sum aside, which
         /// no trace has averaged into: the allocator counts each range at the size the driver asks
         /// of the image, and `bytesAt` asks the driver of the same descriptions, its arena apart.
@@ -142,35 +210,68 @@ namespace Rtx
 
             for (const RadianceWidth radiance : { RadianceWidth::Summed, RadianceWidth::Shown })
                 for (const TracePast past : { TracePast::Kept, TracePast::Dropped })
-                {
-                    settle();
-                    const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
-                    const VkDeviceSize essential = memory.getHeld(heap, MemoryUse::Essential);
+                    for (const RendererFilter filter : { RendererFilter::Runs, RendererFilter::Absent })
+                    {
+                        settle();
+                        const VkDeviceSize frame = memory.getHeld(heap, MemoryUse::Frame);
+                        const VkDeviceSize essential = memory.getHeld(heap, MemoryUse::Essential);
 
-                    TraceChain chain(device, mProbe.getTracePasses(), 1, radiance, past);
-                    const VkDeviceSize bins = memory.getHeld(heap, MemoryUse::Essential) - essential;
-                    const VkDeviceSize arenaHeld = memory.getHeld(heap, MemoryUse::Frame);
-                    const ImageArena arena = arenaFor(device, 64, 32, radiance);
-                    const VkDeviceSize shared = memory.getHeld(heap, MemoryUse::Frame) - arenaHeld;
-                    chain.resize(64, 32, everyOf(arena));
-                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame) - frame - shared,
-                        TraceChain::bytesAt(device, 64, 32, radiance, past));
-                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Essential) - essential, bins)
-                        << "a frame target was counted as essential memory";
+                        TraceChain chain(device, mProbe.getTracePasses(), 1, radiance, past);
+                        const VkDeviceSize bins = memory.getHeld(heap, MemoryUse::Essential) - essential;
+                        const VkDeviceSize arenaHeld = memory.getHeld(heap, MemoryUse::Frame);
+                        const ImageArena arena = arenaFor(device, 64, 32, radiance, filter);
+                        const VkDeviceSize shared = memory.getHeld(heap, MemoryUse::Frame) - arenaHeld;
+                        chain.resize(64, 32, filter, everyOf(arena));
+                        EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame) - frame - shared,
+                            TraceChain::bytesAt(device, 64, 32, radiance, past, filter, sMasks));
+                        EXPECT_EQ(memory.getHeld(heap, MemoryUse::Essential) - essential, bins)
+                            << "a frame target was counted as essential memory";
 
-                    chain.release();
-                    settle();
-                    EXPECT_FALSE(chain.isBuilt());
-                    EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), frame + shared)
-                        << "a released chain still held its images";
-                }
+                        chain.release();
+                        settle();
+                        EXPECT_FALSE(chain.isBuilt());
+                        EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), frame + shared)
+                            << "a released chain still held its images";
+                    }
 
-            EXPECT_GT(TraceChain::bytesAt(device, 64, 32, RadianceWidth::Summed, TracePast::Kept),
-                TraceChain::bytesAt(device, 48, 32, RadianceWidth::Summed, TracePast::Kept));
-            EXPECT_GT(TraceChain::bytesAt(device, 64, 32, RadianceWidth::Summed, TracePast::Kept),
-                TraceChain::bytesAt(device, 64, 32, RadianceWidth::Shown, TracePast::Kept));
-            EXPECT_GT(TraceChain::bytesAt(device, 64, 32, RadianceWidth::Shown, TracePast::Kept),
-                TraceChain::bytesAt(device, 64, 32, RadianceWidth::Shown, TracePast::Dropped));
+            constexpr RendererFilter sRuns = RendererFilter::Runs;
+            EXPECT_GT(TraceChain::bytesAt(device, 64, 32, RadianceWidth::Summed, TracePast::Kept, sRuns, sMasks),
+                TraceChain::bytesAt(device, 48, 32, RadianceWidth::Summed, TracePast::Kept, sRuns, sMasks));
+            EXPECT_GT(TraceChain::bytesAt(device, 64, 32, RadianceWidth::Summed, TracePast::Kept, sRuns, sMasks),
+                TraceChain::bytesAt(device, 64, 32, RadianceWidth::Shown, TracePast::Kept, sRuns, sMasks));
+            EXPECT_GT(TraceChain::bytesAt(device, 64, 32, RadianceWidth::Shown, TracePast::Kept, sRuns, sMasks),
+                TraceChain::bytesAt(device, 64, 32, RadianceWidth::Shown, TracePast::Dropped, sRuns, sMasks));
+
+            // **The filter's absence is its histories, the frame before's surfaces and the pane filter's
+            // tracks, exactly**: `DenoiseHistory` at the stored width, the G-buffer's held pair where the
+            // chain keeps its past, and the nearest layer's surface and motion each a texel wide; its
+            // histories and the tracks alone where it drops its past, as a picture's.
+            const auto gbufferAt = [&](const TracePast past, const RendererFilter filter, const UpscaleMasks masks) {
+                return GBuffer::bytesAt(device, 64, 32, RadianceWidth::Shown,
+                    ChannelKeeping{ .mPast = past, .mFilter = filter, .mMasks = masks });
+            };
+            const VkDeviceSize heldPair
+                = gbufferAt(TracePast::Kept, sRuns, sMasks) - gbufferAt(TracePast::Dropped, sRuns, sMasks);
+            const VkDeviceSize tracks = gbufferAt(TracePast::Dropped, sRuns, sMasks)
+                - gbufferAt(TracePast::Dropped, RendererFilter::Absent, sMasks);
+            EXPECT_GT(heldPair, 0u);
+            EXPECT_GT(tracks, 0u);
+            const auto chainAt = [&](const TracePast past, const RendererFilter filter) {
+                return TraceChain::bytesAt(device, 64, 32, RadianceWidth::Shown, past, filter, sMasks);
+            };
+            EXPECT_EQ(chainAt(TracePast::Kept, sRuns) - chainAt(TracePast::Kept, RendererFilter::Absent),
+                DenoiseHistory::bytesAt(device, Shaders::storedWidth(64), 32, TracePast::Kept) + heldPair + tracks);
+            EXPECT_EQ(chainAt(TracePast::Dropped, sRuns) - chainAt(TracePast::Dropped, RendererFilter::Absent),
+                DenoiseHistory::bytesAt(device, Shaders::storedWidth(64), 32, TracePast::Dropped) + tracks);
+
+            // **And the masks only where the upscaler reads them**: whatever the filter, a chain under an
+            // upscaler that reads none keeps them a texel wide.
+            EXPECT_GT(gbufferAt(TracePast::Kept, sRuns, UpscaleMasks::Written),
+                gbufferAt(TracePast::Kept, sRuns, UpscaleMasks::Skipped));
+            EXPECT_EQ(gbufferAt(TracePast::Kept, sRuns, UpscaleMasks::Written)
+                    - gbufferAt(TracePast::Kept, sRuns, UpscaleMasks::Skipped),
+                gbufferAt(TracePast::Dropped, RendererFilter::Absent, UpscaleMasks::Written)
+                    - gbufferAt(TracePast::Dropped, RendererFilter::Absent, UpscaleMasks::Skipped));
         }
     }
 }

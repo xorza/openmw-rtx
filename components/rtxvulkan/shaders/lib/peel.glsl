@@ -128,9 +128,14 @@ vec3 storePanes(ivec2 at, uint width, uint swap, PaneStack armsStack, PaneStack 
         = truncatedToNormalHalf(clamp(paneAlbedoSum, vec3(PANE_ALBEDO_FLOOR), vec3(HALF_LARGEST)));
     RTX_STORE_COUNTED(pane, channelAt(CHANNEL_PANE, at, width, swap), vec4(paneDrawn / paneModulation, 1.0))
     RTX_STORE_COUNTED(paneAlbedo, channelAt(CHANNEL_PANE_ALBEDO, at, width, swap), vec4(paneModulation, 1.0))
-    RTX_STORE_COUNTED(paneSurface, channelAt(CHANNEL_PANE_SURFACE, at, width, swap),
-        vec4(nearest.mNormal, nearest.mDistance, 0.0, 0.0))
-    RTX_STORE_COUNTED(paneMotion, channelAt(CHANNEL_PANE_MOTION, at, width, swap), vec4(nearest.mMotion, 0.0))
+    // **Only where the pane filter can read them** (`VisibilityConstants::mPaneTracks`): under an upscaler that
+    // filters the light itself the chain holds the two a texel wide.
+    if (frame.mPaneTracks != 0u)
+    {
+        RTX_STORE_COUNTED(paneSurface, channelAt(CHANNEL_PANE_SURFACE, at, width, swap),
+            vec4(nearest.mNormal, nearest.mDistance, 0.0, 0.0))
+        RTX_STORE_COUNTED(paneMotion, channelAt(CHANNEL_PANE_MOTION, at, width, swap), vec4(nearest.mMotion, 0.0))
+    }
     return paneDrawn;
 }
 

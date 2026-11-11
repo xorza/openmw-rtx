@@ -1,0 +1,97 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// The trace's checkerboard channels made the images DLSS Ray Reconstruction reads beside the noisy
+// frame, in the frame's own order: a reversed device depth worked out from the surface's distance along
+// its ray, the motion vector, the diffuse and the specular albedo, and the world normal with the
+// perceptual roughness in its fourth. The fields are a permutation of the frame, not half of it, so every
+// pixel has its own sample and no dilation is needed; RR dilates the inputs internally.
+//
+// **The sky stands at RR's defaults** (NVIDIA's DLSS-RR Integration Guide, 3.4.1–3.4.4): a diffuse albedo
+// of a half, no specular albedo, no normal and no roughness, where a pixel left at whatever the channels
+// hold there reads to RR as a surface.
+
+#include "camera.h"
+#include "gbuffer.h"
+#include "shared/dlss.h"
+#include "shared/fields.h"
+#include "shared/sets.h"
+
+#include "lib/census.glsl"
+#include "lib/pixels.glsl"
+#include "lib/upscaledepth.glsl"
+
+layout(set = SET_PASS, binding = RR_GUIDES_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D r_surface;
+layout(set = SET_PASS, binding = RR_GUIDES_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D r_motion;
+layout(set = SET_PASS, binding = RR_GUIDES_BIND_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D r_albedo;
+layout(set = SET_PASS, binding = RR_GUIDES_BIND_SPECULAR_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D
+    r_specularAlbedo;
+/// `CHANNEL_SPECULAR`, of which this reads the roughness in `a`. No format: a radiance channel's width is
+/// the run's, and a load with no format converts.
+layout(set = SET_PASS, binding = RR_GUIDES_BIND_SPECULAR) uniform readonly image2D r_specular;
+
+layout(set = SET_PASS, binding = RR_GUIDES_BIND_DEPTH, RR_DEPTH_FORMAT) writeonly uniform image2D w_depth;
+layout(set = SET_PASS, binding = RR_GUIDES_BIND_MOTION_OUT, RR_MOTION_FORMAT) writeonly uniform image2D w_motion;
+layout(set = SET_PASS, binding = RR_GUIDES_BIND_DIFFUSE_ALBEDO, RR_GUIDE_FORMAT) writeonly uniform image2D
+    w_diffuseAlbedo;
+layout(set = SET_PASS, binding = RR_GUIDES_BIND_SPECULAR_ALBEDO_OUT, RR_GUIDE_FORMAT) writeonly uniform image2D
+    w_specularAlbedo;
+layout(set = SET_PASS, binding = RR_GUIDES_BIND_NORMAL_ROUGHNESS, RR_GUIDE_FORMAT) writeonly uniform image2D
+    w_normalRoughness;
+
+layout(set = SET_PASS, binding = RR_GUIDES_BIND_CONSTANTS, scalar) uniform cbGuides_t
+{
+    RrGuideConstants cbGuides;
+};
+
+layout(local_size_x = RR_GUIDES_WORKGROUP, local_size_y = RR_GUIDES_WORKGROUP) in;
+
+void main()
+{
+    const ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    const uvec2 extent = uvec2(cbGuides.mInputs.mEyes.mWorld.mWidth, cbGuides.mInputs.mEyes.mWorld.mHeight);
+    if (outsideOf(uvec2(pixel), extent))
+        return;
+
+    // Every guide channel is stored in fields (`channelInFields`), so one place reads them all.
+    const ivec2 stored = storedAt(pixel, extent.x, fieldSwapOf(cbGuides.mInputs.mFrame));
+    const vec2 seen = imageLoad(r_surface, stored).rg;
+    const bool sky = seen.x == SURFACE_NO_NORMAL;
+
+    const float depth = upscaleDepth(seen, pixel, cbGuides.mInputs.mEyes, cbGuides.mInputs.mNear);
+
+    // Previous screen less current screen, in render pixels, which is the direction RR names. The fourth
+    // is the water path's split flag, which RR has no use for.
+    const vec2 motion = imageLoad(r_motion, stored).xy;
+
+    // **An albedo under half a step of eight bits is nought**, as RTX Remix's prepare pass holds it: RR
+    // reads a near-black albedo as a pixel very brightly lit (`prepare_ray_reconstruction.comp.slang`).
+    const vec3 albedo = imageLoad(r_albedo, stored).rgb;
+    const vec3 diffuse = sky ? vec3(RR_SKY_DIFFUSE_ALBEDO)
+        : all(lessThan(albedo, vec3(RR_ALBEDO_FLOOR)))    ? vec3(0.0)
+                                                          : albedo;
+
+    // `CHANNEL_SPECULAR_ALBEDO` is the lobe's split-sum albedo, the value RR's appendix asks for, and one
+    // where there is no lobe, which to RR is no specular albedo at all. **Neither channel read where no
+    // surface of the frame can have a lobe** (`mLobed`, uniform across the dispatch), which is every
+    // vanilla frame: both hold their nothing everywhere then.
+    const bool frameLobed = cbGuides.mLobed != 0u;
+    const float roughness = frameLobed ? imageLoad(r_specular, stored).a : SPECULAR_NO_LOBE;
+    const bool lobed = roughness != SPECULAR_NO_LOBE;
+    const vec3 lobeAlbedo = frameLobed ? imageLoad(r_specularAlbedo, stored).rgb : vec3(0.0);
+    const vec3 specular = !sky && lobed ? lobeAlbedo : vec3(0.0);
+
+    // The world normal as the trace stored it, nought at the sky, which `unpackSurfaceNormal` returns
+    // there; and the perceptual roughness, which RR squares into the lobe's alpha (its appendix), whole
+    // where there is no lobe, and nought at the sky.
+    const vec3 normal = unpackSurfaceNormal(seen.x);
+    const float perceptual = sky ? 0.0 : lobed ? roughness : 1.0;
+
+    RTX_STORE_COUNTED(w_depth, pixel, vec4(depth, 0.0, 0.0, 0.0))
+    RTX_STORE_COUNTED(w_motion, pixel, vec4(motion, 0.0, 0.0))
+    RTX_STORE_COUNTED(w_diffuseAlbedo, pixel, vec4(diffuse, 0.0))
+    RTX_STORE_COUNTED(w_specularAlbedo, pixel, vec4(specular, 0.0))
+    RTX_STORE_COUNTED(w_normalRoughness, pixel, vec4(normal, perceptual))
+}

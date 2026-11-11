@@ -59,6 +59,31 @@ namespace Rtx
         bool writes(Channel channel) const;
     };
 
+    /// Which of the channels only some readers read a G-buffer keeps whole, the rest a texel wide: the
+    /// readers a chain has are known where it is made or resized, and a channel nothing will read is
+    /// memory nothing needs.
+    struct ChannelKeeping
+    {
+        /// Whether a trace keeps what it leaves for the next to read.
+        TracePast mPast = TracePast::Dropped;
+
+        /// Whether the renderer's filter can run: the frame before's surfaces (`GBuffer::getHeld`) are
+        /// kept where it can and the past is kept, and the nearest layer's surface and motion
+        /// (`CHANNEL_PANE_SURFACE`, `CHANNEL_PANE_MOTION`), which the pane filter alone reads, wherever it
+        /// can.
+        RendererFilter mFilter = RendererFilter::Runs;
+
+        /// Whether the upscaler reads the masks the trace writes (`CHANNEL_UPSCALE_MASKS`): FSR's, and a
+        /// texel wide under one that reads none.
+        UpscaleMasks mMasks = UpscaleMasks::Written;
+
+        /// Whether `channel` is kept at the frame's extent, and not a texel wide.
+        bool keepsWhole(Channel channel) const;
+
+        /// Whether the frame before's surfaces are kept beside this frame's.
+        bool keepsHeld() const { return mPast == TracePast::Kept && mFilter == RendererFilter::Runs; }
+    };
+
     /// What the trace leaves behind, before anything has decided what the picture looks like. A
     /// picture cannot be filtered and these can: one bounce per pixel is noisy, and the only thing
     /// that removes noise without removing detail is a blur over the light alone, so the light has
@@ -82,16 +107,20 @@ namespace Rtx
 
         /// @param radiance how wide the radiance channels are stored, which is the run's choice
         ///        and `Rtx::RadianceWidth`'s argument.
-        /// @param past whether the frame before's surfaces are kept (`getHeld`): a second image of
-        ///        each, or the frame's own where the past is dropped.
+        /// @param keeping which channels only some readers read are kept whole, and whether the frame
+        ///        before's surfaces are kept (`getHeld`): a second image of each, or none.
         /// @param stages the stage images `declareStages` declared, placed in the chain's arena.
         GBuffer(const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height,
-            RadianceWidth radiance, TracePast past, const ArenaRun& stages);
+            RadianceWidth radiance, const ChannelKeeping& keeping, const ArenaRun& stages);
 
         /// What a G-buffer of this extent and radiance width takes of the device's memory: its channels
         /// and its tile lists, all the frame's targets, and not the stage images its arena holds.
-        static VkDeviceSize bytesAt(
-            const Device& device, std::uint32_t width, std::uint32_t height, RadianceWidth radiance, TracePast past);
+        static VkDeviceSize bytesAt(const Device& device, std::uint32_t width, std::uint32_t height,
+            RadianceWidth radiance, const ChannelKeeping& keeping);
+
+        /// Whether `channel` stands at the frame's extent and holds what the trace wrote, and not a
+        /// texel wide (`ChannelKeeping`): what a digest or a read-back of it may read.
+        bool keepsWhole(Channel channel) const { return mKeeping.keepsWhole(channel); }
 
         /// The stage images of a frame this size and of `bounceRays` bounce rays, appended to `into` in
         /// binding order: in use from the trace's first stage to its last, and by no pass after
@@ -187,5 +216,7 @@ namespace Rtx
 
         /// One set, in a pool of its own that goes with it.
         DescriptorSets mSet;
+
+        ChannelKeeping mKeeping;
     };
 }

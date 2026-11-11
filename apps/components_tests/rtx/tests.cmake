@@ -139,6 +139,7 @@ target_sources(
         rtxvulkan/device/requirements.cpp
         rtxvulkan/device/result.cpp
         rtxvulkan/device/stagingfit.cpp
+        rtxvulkan/device/validation.cpp
         rtxvulkan/device/zonecounters.cpp
         rtxvulkan/frame/gbufferstages.cpp
         rtxvulkan/pipeline/dispatch.cpp
@@ -317,6 +318,8 @@ target_sources(
         rtxvulkan/trace/visibility/surfaces.cpp
         rtxvulkan/trace/visibility/trail.cpp
         rtxvulkan/trace/visibility/upscale.cpp
+        rtxvulkan/upscale/rayreconstruction.cpp
+        rtxvulkan/upscale/rrguides.cpp
         rtxvulkan/trace/visibility/water.cpp
         rtxvulkan/trace/wavefield.cpp
         rtxvulkan/trace/wavepass.cpp

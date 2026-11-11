@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -94,6 +95,9 @@ namespace Rtx
         /// What the choice came to.
         UpscalerKind getKind() const;
 
+        /// What the choice came to, as a choice: `Fsr` or `Dlss`, never `Auto`.
+        UpscalerChoice getChoice() const;
+
         /// Whether DLSS runs here, as the attempt left it where one was made.
         DlssAvailability getDlss() const { return mDlss; }
 
@@ -101,7 +105,30 @@ namespace Rtx
         /// input for them.
         UpscaleMasks getMasks() const;
 
-        /// The backend's `resize`: builds what one pair of extents keeps, and starts a history.
+        /// What this upscaler takes from the trace, which decides who filters the light
+        /// (`Reconstruction::resolve`).
+        UpscalerInput getInput() const;
+
+        /// How the resources of a runtime this upscaler drives are named, which records commands of
+        /// its own into the frame's and synchronizes them itself (`ValidationLog::disown`): NGX's,
+        /// under DLSS, and none under FSR, whose every command is the renderer's.
+        std::optional<std::string_view> getRuntimeResources() const;
+
+        /// Makes what the upscaler holds at one pair of extents outside the frame's arena before the
+        /// frame's reserve is set, which counts it: DLSS's feature, which NGX allocates and measures.
+        /// FSR makes everything at `resize`.
+        void prepare(Upscale mode, VkExtent2D render, VkExtent2D output);
+
+        /// Measures what `prepare` would hold at `mode` and these extents, for a reserve kept for a mode
+        /// the run moves to (`RunProfile::mReservedUpscales`).
+        void measure(Upscale mode, VkExtent2D render, VkExtent2D output);
+
+        /// What the upscaler holds now on the device that the allocator did not make, which the
+        /// allocator is told (`MemoryAllocator::holdOutside`).
+        VkDeviceSize getHeldOutside() const;
+
+        /// The backend's `resize`: builds what one pair of extents keeps, after `prepare`, and starts a
+        /// history.
         void resize(Upscale mode, VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
 
         /// The images a reconstruction at these extents places in the frame's arena, appended to
@@ -111,7 +138,8 @@ namespace Rtx
         /// How many images `declareShared` declares.
         std::size_t getSharedCount() const;
 
-        /// What `resize` to these extents builds in the device's memory, apart from the arena's images.
+        /// What `prepare` and `resize` to these extents build in the device's memory, apart from the
+        /// arena's images: DLSS's as `prepare` or `measure` measured it.
         VkDeviceSize bytesAt(VkExtent2D render, VkExtent2D output) const;
 
         /// Lets what `resize` built go, for a mode turned off that may come back.

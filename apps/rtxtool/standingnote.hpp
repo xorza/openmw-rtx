@@ -32,10 +32,11 @@ namespace RtxTool
         /// own is the double a `view` puts back exactly. Both look along `Camera::getOrient`.
         void take(const Rtx::AirClock& air);
 
-        /// The weather and the hour the run stands under, `Thunderstorm, 14:32`, and which weather
-        /// is crossing in where one is, `Clear → Overcast 37%, 14:32`, off the last note; empty until
-        /// a stop has begun and been noted, which in a run nobody plays is at the stop's end.
-        std::string_view describeTitle();
+        /// The upscaler the frames pass through (`describeUpscaler`), then the weather and the hour
+        /// the run stands under, `dlss - Thunderstorm, 14:32`, and which weather is crossing in where
+        /// one is, `fsr - Clear → Overcast 37%, 14:32`, off the last note; the upscaler alone until a
+        /// stop has begun and been noted, which in a run nobody plays is at the stop's end.
+        std::string_view describeTitle(std::string_view upscaler);
 
         /// Where the run was left, as a stop that would put a camera back there, or null where no
         /// frame of a stop was noted.
@@ -60,7 +61,7 @@ namespace RtxTool
         ESM::RefId mNotedCell;
 
         /// What `describeTitle` is written into, once a second and never allocated: room for the
-        /// longest note `writeSkyNote` names.
+        /// longest upscaler, `dlss - `, and the longest note `writeSkyNote` names.
         std::array<char, 48> mTitleNote{};
     };
 }

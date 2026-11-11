@@ -125,7 +125,7 @@ set(RTX_SHADERS
     shaders/trace/denoise/shadowmask.comp
     shaders/trace/denoise/shadowtiles.comp
     shaders/trace/denoise/specular.comp
-    shaders/upscale/dlssinputs.comp
+    shaders/upscale/rrguides.comp
     shaders/upscale/fsraccumulate.comp
     shaders/upscale/fsrchange.comp
     shaders/upscale/fsrchangepyramid.comp

@@ -1,5 +1,6 @@
 #include "upscaler.hpp"
 
+#include <optional>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -7,6 +8,8 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/error.hpp>
+
+#include "ngx.hpp"
 
 namespace Rtx
 {
@@ -49,9 +52,44 @@ namespace Rtx
         return std::holds_alternative<DlssUpscaler>(mBackend) ? UpscalerKind::Dlss : UpscalerKind::Fsr;
     }
 
+    UpscalerChoice Upscaler::getChoice() const
+    {
+        return getKind() == UpscalerKind::Dlss ? UpscalerChoice::Dlss : UpscalerChoice::Fsr;
+    }
+
     UpscaleMasks Upscaler::getMasks() const
     {
         return getKind() == UpscalerKind::Fsr ? UpscaleMasks::Written : UpscaleMasks::Skipped;
+    }
+
+    UpscalerInput Upscaler::getInput() const
+    {
+        return getKind() == UpscalerKind::Dlss ? UpscalerInput::Noisy : UpscalerInput::Filtered;
+    }
+
+    std::optional<std::string_view> Upscaler::getRuntimeResources() const
+    {
+        if (getKind() == UpscalerKind::Dlss)
+            return Dlss::Ngx::sOwnResourcePrefix;
+        return std::nullopt;
+    }
+
+    void Upscaler::prepare(const Upscale mode, const VkExtent2D render, const VkExtent2D output)
+    {
+        if (DlssUpscaler* const dlss = std::get_if<DlssUpscaler>(&mBackend))
+            dlss->prepare(mode, render, output);
+    }
+
+    void Upscaler::measure(const Upscale mode, const VkExtent2D render, const VkExtent2D output)
+    {
+        if (DlssUpscaler* const dlss = std::get_if<DlssUpscaler>(&mBackend))
+            dlss->measure(mode, render, output);
+    }
+
+    VkDeviceSize Upscaler::getHeldOutside() const
+    {
+        const DlssUpscaler* const dlss = std::get_if<DlssUpscaler>(&mBackend);
+        return dlss != nullptr ? dlss->getHeldOutside() : 0;
     }
 
     void Upscaler::resize(const Upscale mode, const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
@@ -73,9 +111,9 @@ namespace Rtx
 
     VkDeviceSize Upscaler::bytesAt(const VkExtent2D render, const VkExtent2D output) const
     {
-        return std::visit(
-            [&](const auto& backend) { return std::decay_t<decltype(backend)>::bytesAt(mDevice, render, output); },
-            mBackend);
+        if (const DlssUpscaler* const dlss = std::get_if<DlssUpscaler>(&mBackend))
+            return dlss->bytesAt(render, output);
+        return FsrUpscaler::bytesAt(mDevice, render, output);
     }
 
     void Upscaler::release()

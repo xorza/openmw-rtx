@@ -401,7 +401,8 @@ namespace Rtx
         const std::uint32_t heap, const MemoryUse use, const VkDeviceSize budget) const
     {
         VkDeviceSize owed = 0;
-        const VkDeviceSize frame = mHeld[heap][static_cast<std::size_t>(MemoryUse::Frame)];
+        const VkDeviceSize frame
+            = mHeld[heap][static_cast<std::size_t>(MemoryUse::Frame)] + (heap == mContent.mHeap ? mHeldOutside : 0);
         if (heap == mContent.mHeap && mFrameReserve > frame)
             owed += mFrameReserve - frame;
         for (std::size_t before = static_cast<std::size_t>(MemoryUse::Essential);
@@ -519,7 +520,7 @@ namespace Rtx
             }
         }
 
-        out.mUses = MemoryUses{ .mFrame = getHeld(mContent.mHeap, MemoryUse::Frame),
+        out.mUses = MemoryUses{ .mFrame = getHeld(mContent.mHeap, MemoryUse::Frame) + mHeldOutside,
             .mFrameReserve = mFrameReserve,
             .mEssential = getHeld(mContent.mHeap, MemoryUse::Essential),
             .mStructures = getHeld(mContent.mHeap, MemoryUse::Structure),

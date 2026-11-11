@@ -129,7 +129,7 @@ void main()
     // **A split pixel is half its own path and half the other's**, which its four neighbours in the other
     // field followed: Quake II RTX's interleave (`checkerboard_interleave.comp`), each path having carried
     // twice its share.
-    if (frame.mAccumulate == 0u && splitAt(at))
+    if (frame.mAccumulate == 0u && frame.mInterleave != 0u && splitAt(at))
     {
         vec3 other = vec3(0.0);
         float taken = 0.0;

@@ -95,7 +95,7 @@ namespace RtxTool
         /// Measures the frame, and asks the game to quit once the last stop is done.
         void frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report) override;
 
-        std::string_view describeTitle() override { return mNote.describeTitle(); }
+        std::string_view describeTitle() override { return mNote.describeTitle(mUpscaler); }
 
         /// After `Engine::go` returns: a run meant to end on its own that ended before its last stop
         /// — a window closed, a script's quit — is abandoned there, so it fails, writes what it
@@ -155,6 +155,10 @@ namespace RtxTool
         Stager mStager;
         CameraDriver mCamera;
         StandingNote mNote;
+
+        /// The upscaler the last frame passed through, as the title names it (`describeUpscaler`):
+        /// read every frame, since a stop may trace at a mode of its own.
+        std::string_view mUpscaler;
         HomeKey mHome;
         SkyKeys mSkyKeys;
         MemoryKey mMemoryKey;

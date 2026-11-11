@@ -538,6 +538,12 @@ namespace RtxTool
         /// and in order. A stop traced at another mode than the stop before then stands the world
         /// that stop stood, which a picture held against another stop's must.
         MWRender::RunSetup rendererSetup() const;
+
+        /// Why the run cannot be traced under an upscaler that takes `input`, or nothing where it can:
+        /// a stop that asks for the light unfiltered at a mode that upscales, which an upscaler that
+        /// filters the light itself cannot give (`Rtx::rendererFilters`). Asked once the renderer has
+        /// resolved its upscaler, before the first frame.
+        std::optional<std::string> refusalUnder(Rtx::UpscalerInput input) const;
     };
 
     /// The exit status of a run whose one fault is a hashed frame that differed from its reference.
