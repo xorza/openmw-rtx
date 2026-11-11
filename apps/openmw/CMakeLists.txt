@@ -1080,7 +1080,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
 endif()
 # The console a Windows build opens beside the game: in Debug and RelWithDebInfo, never in Release,
 # whose output goes to `openmw.log`.
-if(MSVC)
-    target_link_options(openmw PRIVATE $<IF:$<CONFIG:Debug,RelWithDebInfo>,/SUBSYSTEM:CONSOLE,/SUBSYSTEM:WINDOWS>)
-endif()
+set_target_properties(
+    openmw
+    PROPERTIES
+        WIN32_EXECUTABLE
+            $<CONFIG:Release>
+)
 install(TARGETS openmw)

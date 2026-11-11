@@ -52,47 +52,37 @@ install(
 install(FILES "${PROJECT_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg")
 install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources" TYPE DATA)
 
-if(WIN32)
-    # The debug symbols of the configurations that write them.
-    install(
-        DIRECTORY
-            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/"
-        DESTINATION "."
-        CONFIGURATIONS
-            Debug
-            RelWithDebInfo
-        FILES_MATCHING
-        PATTERN "*.pdb"
-        PATTERN ".cmake"
-            EXCLUDE
-        PATTERN ".qt"
-            EXCLUDE
-        PATTERN "_deps"
-            EXCLUDE
-        PATTERN "apps"
-            EXCLUDE
-        PATTERN "bin"
-            EXCLUDE
-        PATTERN "CMakeFiles"
-            EXCLUDE
-        PATTERN "components"
-            EXCLUDE
-        PATTERN "deps"
-            EXCLUDE
-        PATTERN "docs"
-            EXCLUDE
-        PATTERN "extern"
-            EXCLUDE
-        PATTERN "files"
-            EXCLUDE
-        PATTERN "lib"
-            EXCLUDE
-        PATTERN "Testing"
-            EXCLUDE
-        PATTERN "try-compile"
-            EXCLUDE
+if(MSVC)
+    # Each program's debug symbols, in the configurations that write them: its own PDB, and not every binary's
+    # in the folder the programs share with the tests and the harness. The programs are the ones the apps'
+    # `install(TARGETS)` name.
+    foreach(
+        program
+        IN
+        ITEMS
+            openmw
+            openmw-launcher
+            openmw-wizard
+            openmw-cs
+            openmw-bulletobjecttool
+            openmw-essimporter
+            openmw-iniimporter
+            openmw-navmeshtool
+            bsatool
+            esmtool
+            niftest
     )
-else()
+        install(
+            FILES
+                "$<TARGET_PDB_FILE:${program}>"
+            TYPE BIN
+            CONFIGURATIONS
+                Debug
+                RelWithDebInfo
+        )
+    endforeach()
+endif()
+if(NOT WIN32)
     install(
         FILES
             "${PROJECT_BINARY_DIR}/org.openmw.launcher.desktop"

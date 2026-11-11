@@ -406,3 +406,7 @@ made only on the user's explicit yes, after which it is added here.
   against; the `.qm` files through `qt_add_lrelease` in place of the deprecated `qt_add_translation`; Qt's own
   translations from `QT6_INSTALL_TRANSLATIONS` in place of `qmake -query`, `qtbase_` alone, as every language
   has it. The cost is a conflict with an upstream edit to those targets.
+- Install and Windows properties (`.notes/build-cleanup.md`, step 10): each installed program's own PDB, by
+  `$<TARGET_PDB_FILE>`, in place of every `.pdb` in the build's root folder less 14 named folders, which also
+  carried the tests' and the harness's; the game's console by `WIN32_EXECUTABLE` set to `$<CONFIG:Release>` in
+  place of an MSVC branch around `/SUBSYSTEM`. The cost is a conflict with an upstream edit to those lines.
