@@ -252,7 +252,9 @@ class Build:
     def _configure(self, stdout) -> None:
         self._remove_outputs_ahead()
         env = self.env
-        digest = presets.digest(env)
+        # The set's digest beside the presets': its path no longer moves with it (`deps.held_set_dir`), and a cache
+        # configured from another set would keep the paths of libraries the new one names otherwise.
+        digest = f"{presets.digest(env)} {deps.set_digest()}"
         stamp = self.dir / CONFIGURED_FROM
         if configured_from(self.dir, digest):
             self._redate_manifest_inputs()

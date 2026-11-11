@@ -164,10 +164,7 @@ def deps_set(args: list[str]) -> int:
     parts = pack_set(exported / triplet, triplet)
     # The export is the set this desk then builds against, as the published one would be once fetched.
     digest = deps.set_digest()
-    folder = deps.vcpkg_set_dir(digest)
-    shutil.rmtree(folder, ignore_errors=True)
-    folder.mkdir(parents=True)
-    (exported / triplet).replace(folder / triplet)
+    deps.place_set(exported / triplet, digest)
     exported.rmdir()
     print(f"deps-{digest}: " + " ".join(str(part) for part in parts))
     return 0

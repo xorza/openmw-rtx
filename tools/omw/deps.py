@@ -127,24 +127,69 @@ def set_digest(root: Path = ROOT) -> str:
 
 
 
+# **The set a build reads, at one path whatever its digest**: every compile names its headers by this path, so a
+# compile cache keeps each object whose headers a new set leaves as they were, where a path with the digest in it
+# missed every object at every new set. The digest it holds is the file `SET_HELD` beside its export; the sets
+# it does not hold wait in `vcpkg_set_dir`, each under its digest; `held_set_dir` is where it stands.
+SET_HELD = "digest"
+
+
+def held_set_dir() -> Path:
+    return DEPS / "vcpkg-set"
+
+
 def vcpkg_set_dir(digest: str) -> Path:
     return DEPS / f"vcpkg-set-{digest}"
+
+
+def held_set() -> str | None:
+    """The digest of the set `held_set_dir` holds, or none: there is none, or a switch was cut off mid-way."""
+    held = held_set_dir() / SET_HELD
+    return held.read_text().strip() if held.is_file() else None
 
 
 def vcpkg_set() -> Path:
     """**The set of libraries this tree builds against**, vcpkg's export for this system's triplet, which
     a build configures with through its toolchain file: the set `omw deps-set` built on this desk for the
-    inputs as they stand, or else the one `pins.py` names, fetched and joined from its parts. Refused when
-    the inputs moved since the pinned set and this desk built none for them: no other set is theirs."""
+    inputs as they stand, or else the one `pins.py` names, fetched and joined from its parts, put at
+    `held_set_dir`. Refused when the inputs moved since the pinned set and this desk built none for them: no
+    other set is theirs."""
     digest = set_digest()
-    folder = vcpkg_set_dir(digest)
-    if not folder.is_dir():
-        if digest != pins.VCPKG_SET.digest:
-            raise Refusal(f"vcpkg.json or its overlays moved since the set pins.py names (deps-{pins.VCPKG_SET.digest}): "
-                          f"`omw deps-set` builds deps-{digest} here, and the Dependency sets workflow publishes it "
-                          "for pins.py")
-        fetch.build_beside(folder, _fill_set)
-    return folder / TRIPLET
+    if held_set() != digest:
+        waiting = vcpkg_set_dir(digest)
+        if not waiting.is_dir():
+            if digest != pins.VCPKG_SET.digest:
+                raise Refusal(f"vcpkg.json or its overlays moved since the set pins.py names "
+                              f"(deps-{pins.VCPKG_SET.digest}): `omw deps-set` builds deps-{digest} here, and the "
+                              "Dependency sets workflow publishes it for pins.py")
+            fetch.build_beside(waiting, _fill_set)
+        _hold(waiting, digest)
+    return held_set_dir() / TRIPLET
+
+
+def _hold(waiting: Path, digest: str) -> None:
+    """`waiting`, the set of `digest`, put at `held_set_dir`, and the set there before put back under its own
+    digest: a rename each way, and the digest written last, so a switch cut off leaves no set taken for
+    another."""
+    held = held_set()
+    if held is not None:
+        held_set_dir().rename(vcpkg_set_dir(held))
+    else:
+        shutil.rmtree(held_set_dir(), ignore_errors=True)
+    waiting.rename(held_set_dir())
+    (held_set_dir() / SET_HELD).write_text(digest + "\n")
+
+
+def place_set(export: Path, digest: str) -> None:
+    """**A set this desk built, as the one of `digest`**: `export`, a triplet's folder of vcpkg's export, waits
+    under its digest, and the held set gives way where it held the same digest, so the next build takes the
+    new one."""
+    waiting = vcpkg_set_dir(digest)
+    shutil.rmtree(waiting, ignore_errors=True)
+    waiting.mkdir(parents=True)
+    export.replace(waiting / TRIPLET)
+    if held_set() == digest:
+        shutil.rmtree(held_set_dir())
 
 
 def _fill_set(partial: Path) -> None:
@@ -382,7 +427,7 @@ def vulkan_environment(env: dict[str, str]) -> None:
     set, whose toolchain file the presets read from `OMW_VCPKG_SET` and which finds the headers and the
     tools, and the loader the tests load, the set's on Linux from `LD_LIBRARY_PATH` and LunarG's on Windows
     from the PATH, where `omw bootstrap` fetched it."""
-    vcpkg = vcpkg_set_dir(set_digest()) / TRIPLET
+    vcpkg = held_set_dir() / TRIPLET
     env[environment_key("OMW_VCPKG_SET")] = str(vcpkg)
     if WINDOWS:
         prepend_path(env, "PATH", vulkan_loader_dir())
@@ -395,7 +440,7 @@ def pinned_names() -> set[str]:
     each getter above leaves there, so pruning cannot take what a getter fetched."""
     kept = [cmake_dir(), ninja_dir(), clang_format_dir(), gersemi_dir(), vcpkg_root_dir(), appimage_tools_dir(), llvm_dir(),
             VCPKG_BINARY_CACHE, VCPKG_DOWNLOADS, VCPKG_WORK, VCPKG_SETS,
-            vcpkg_set_dir(set_digest()), vcpkg_set_dir(pins.VCPKG_SET.digest)]
+            held_set_dir(), vcpkg_set_dir(set_digest()), vcpkg_set_dir(pins.VCPKG_SET.digest)]
     kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]
     if WINDOWS:
         kept.append(vulkan_loader_dir())

@@ -216,23 +216,47 @@ class VcpkgSetTest(unittest.TestCase):
                 deps.vcpkg_set()
             self.assertEqual(fetched.call_count, 0)
 
-            # This desk's own set for those inputs, which `omw deps-set` left.
-            (folder / f"vcpkg-set-{'b' * 16}" / deps.TRIPLET).mkdir(parents=True)
-            with mock.patch.object(deps, "set_digest", return_value="b" * 16):
-                self.assertEqual(deps.vcpkg_set(), folder / f"vcpkg-set-{'b' * 16}" / deps.TRIPLET)
-            self.assertEqual(fetched.call_count, 0)
+            held = folder / "vcpkg-set"
 
-            # The pinned set, its parts fetched in order, joined, unpacked and gone.
+            # This desk's own set for those inputs, which `omw deps-set` left waiting: put at the one path.
+            (folder / f"vcpkg-set-{'b' * 16}" / deps.TRIPLET / "b").mkdir(parents=True)
+            with mock.patch.object(deps, "set_digest", return_value="b" * 16):
+                self.assertEqual(deps.vcpkg_set(), held / deps.TRIPLET)
+            self.assertEqual(fetched.call_count, 0)
+            self.assertTrue((held / deps.TRIPLET / "b").is_dir())
+            self.assertEqual(deps.held_set(), "b" * 16)
+            self.assertEqual(sorted(path.name for path in folder.iterdir()), ["vcpkg-set"])
+
+            # The pinned set, its parts fetched in order, joined, unpacked, put at the one path, and the set
+            # held before put back under its own digest.
             with mock.patch.object(deps, "set_digest", return_value="a" * 16):
                 found = deps.vcpkg_set()
-                self.assertEqual(found, folder / f"vcpkg-set-{'a' * 16}" / deps.TRIPLET)
+                self.assertEqual(found, held / deps.TRIPLET)
                 self.assertEqual((found / "scripts" / "buildsystems" / "vcpkg.cmake").read_bytes(), b"# toolchain\n")
                 self.assertEqual(len((found / "installed" / deps.TRIPLET / "lib" / "z.lib").read_bytes()), 3000)
                 self.assertEqual([call.args[0].url[-1] for call in fetched.call_args_list], ["0", "1", "2"])
+                self.assertEqual(deps.held_set(), "a" * 16)
                 self.assertEqual(sorted(path.name for path in folder.iterdir()),
-                                 [f"vcpkg-set-{'a' * 16}", f"vcpkg-set-{'b' * 16}"], "a part stayed")
+                                 ["vcpkg-set", f"vcpkg-set-{'b' * 16}"], "a part stayed, or the old set went")
+                self.assertTrue((folder / f"vcpkg-set-{'b' * 16}" / deps.TRIPLET / "b").is_dir())
                 self.assertEqual(deps.vcpkg_set(), found)
                 self.assertEqual(fetched.call_count, 3, "a set already there was fetched again")
+
+            # Back to the desk's: the two change places, nothing fetched.
+            with mock.patch.object(deps, "set_digest", return_value="b" * 16):
+                self.assertEqual(deps.vcpkg_set(), held / deps.TRIPLET)
+            self.assertEqual(fetched.call_count, 3)
+            self.assertTrue((held / deps.TRIPLET / "b").is_dir())
+            self.assertTrue((folder / f"vcpkg-set-{'a' * 16}" / deps.TRIPLET / "scripts").is_dir())
+
+            # A set built again for the held digest gives way, so the next build takes the new one.
+            export = folder / "export" / deps.TRIPLET
+            (export / "new").mkdir(parents=True)
+            deps.place_set(export, "b" * 16)
+            self.assertIsNone(deps.held_set())
+            with mock.patch.object(deps, "set_digest", return_value="b" * 16):
+                deps.vcpkg_set()
+            self.assertTrue((held / deps.TRIPLET / "new").is_dir())
 
 
 class VcpkgRootTest(unittest.TestCase):

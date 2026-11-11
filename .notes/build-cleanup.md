@@ -256,10 +256,8 @@ them on Windows too; the measured ones keep only what a measurement pays for.
     cache.
   - Sharing the cache across worktrees: `base_dir` at the projects folder with `-fdebug-prefix-map`, kept only
     if `omw crash` still names every line from a release's symbols.
-- **Last, and only if the rest leaves time: profile-guided optimisation**, trained on `omw bench`'s suites,
-  measured once for the CPU side (cell loading, scripts). Training needs a GPU, which CI's runners lack, so the
-  profiles would come from the desk and age with the code; it lands only if it pays more than 5% of a frame or of
-  a load.
+- **Not in this step: profile-guided optimisation** (decided 2026-11-11, for now). Training needs a GPU, which
+  CI's runners lack, so profiles would come from the desk and age with the code.
 
 ### 12. One set, pinned, and every change checked by CI at once
 
