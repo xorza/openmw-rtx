@@ -12,6 +12,10 @@ file.
 - **A third-party project's warnings are switched off, not fixed.** The tree does not patch fetched or vendored
   code for its compiler's opinions, and a warning nobody acts on teaches every reader to skip warnings. The
   tree's own targets keep every check, with warnings as errors.
+- **One compiler for everything built on Linux, tools included** (decided 2026-11-11). The set and the tree
+  already build with gcc-toolset-15, as the programs link libstdc++ statically. The env script's tools
+  (autoconf, zsync, `wayland-scanner`) ship nothing, but building them with the same GCC leaves nothing
+  standing on a GCC only a package dependency installs. Refused: AlmaLinux 8's system GCC 8.5 for them.
 - **A tool the build uses is built quietly.** zsync and `wayland-scanner` are built in the env script for what
   they do, not for their source's state.
 - **Output appears on failure only.** A smoke run (benchmarks, integration tests) prints its detail when it
@@ -28,14 +32,21 @@ Each step is checked by the log of the run it changes: no line matching `warning
 `##[warning]` in that step, matched case-insensitively, with one known hit from before the step shown to match
 the same search. The full CI run is the verdict, and `./omw gate` runs once at the end.
 
-### 1. zsync built quietly (`env/install_almalinux_deps.sh`)
+### 1. The env's tools built with GCC 15, quietly (`env/install_almalinux_deps.sh`)
 
-- `CFLAGS="-O2 -std=gnu17 -fpermissive"` becomes `CFLAGS="-O2 -w"`. AlmaLinux 8's system GCC 8.5 builds zsync,
-  since the script enables no gcc-toolset. That GCC rejects `-fpermissive` for C (25 warnings a Linux job),
-  needs no `-std=gnu17`, its default, and has none of GCC 14's new errors, which is what the comment cites.
-  `-w` also takes the warnings of zsync's own code: `_BSD_SOURCE` deprecated (15), `inflate.c`, `client.c` and
-  `zsync.c`.
-- Fix the comment: GCC 8.5 builds it; the flags quiet a tool the build only runs.
+- `source /opt/rh/gcc-toolset-15/enable` right after the `dnf install`, so autoconf, zsync and step 2's
+  `wayland-scanner` build with the GCC everything else does (see Decisions). Today `gcc` there is AlmaLinux
+  8's system 8.5, which only `libtool`'s package dependency installs. `release-base.Dockerfile` sets the
+  toolset's `PATH` only after running the script, so the script enables it itself.
+- zsync's `CFLAGS="-O2 -std=gnu17 -fpermissive"` becomes `CFLAGS="-O2 -fpermissive -w"`. GCC 14 and later
+  make its old pointer code an error, which `-fpermissive` turns back into a warning (it applies to C from
+  GCC 14 on), and `-w` hides that warning. `-w` alone does not do it, as it hides warnings and not errors
+  (checked with GCC 16). This removes the 25 `-fpermissive is valid for C++` warnings a Linux job prints
+  today, GCC 8.5 not taking the flag for C, and the warnings of zsync's own code: `_BSD_SOURCE` deprecated
+  (15), `inflate.c`, `client.c` and `zsync.c`. `-std=gnu17` goes, as it is GCC 15's default.
+- Fix the comment: GCC 15 builds it, and the flags quiet a tool the build only runs.
+- `env/install_almalinux_deps.sh` is one of the set's inputs (`deps.SET_INPUTS`), so this step and step 2
+  change the set's digest and land together with steps 5 and 7, in one set rebuild.
 
 ### 2. `wayland-scanner` that knows SDL's protocols (`env/install_almalinux_deps.sh`)
 
