@@ -362,17 +362,19 @@ made only on the user's explicit yes, after which it is added here.
   `env/release-base.Dockerfile`. `upstream.yml` keeps the folder deleted, which drops an upstream edit to it at
   the merge.
 - Dead CMake gone (`.notes/build-cleanup.md`, step 2): `cmake/escape_regex_control_characters.cmake`, which
-  nothing called; the commit date the root read with `git log` at every configure and no template used; the
+  nothing called; the commit date the root read with `git log` at every configure, which the AppStream
+  metadata's release date reads and step 5 fills in at every build instead; the
   `OPENMW_RESOURCES_ROOT` guards atop `files/data`, `files/data-mw`, `files/shaders` and `files/lua_api`,
   which the root always sets first; the install components, which nothing installs by since CPack went; the
   empty `CMAKE_CXX_CLANG_TIDY` in `extern/`; and `mwmechanics/character.cpp`'s `-Wno-maybe-uninitialized`,
   which every GCC target already has. The cost is a conflict with an upstream edit to those lines.
 - What the pinned set makes constant, no longer tested (`.notes/build-cleanup.md`, step 3):
-  `cmake/CheckOsgMultiview.cmake`'s `try_compile`, as OpenMW's OSG at the pinned commit has multiview, so
-  `OSG_HAS_MULTIVIEW` is always defined; `files/data-mw`'s configure dependency for every generator but
-  Ninja, which is every preset's; and `OPENMW_USE_UNSHIELD`, the tree's own spelling of `NOT WIN32`, which
-  the wizard's list and the unshield search now read directly (the wizard's source keeps its definition). The
-  cost is a conflict with an upstream edit to those lines.
+  `cmake/CheckOsgMultiview.cmake`'s `try_compile`, as OpenMW's OSG at the pinned commit has no multiview, so
+  `OSG_HAS_MULTIVIEW` is never defined and the sources' multiview branches stay unbuilt, as they were;
+  `files/data-mw`'s configure dependency for every generator but Ninja, which is every preset's; and
+  `OPENMW_USE_UNSHIELD`, the tree's own spelling of `NOT WIN32`, which the wizard's list and the unshield search
+  now read directly (the wizard's source keeps its definition). The cost is a conflict with an upstream edit to
+  those lines.
 - Resources through `configure_file` itself (`.notes/build-cleanup.md`, step 4): `copy_resource_file`,
   `configure_resource_file` and `copy_all_resource_files`, which joined a path and called it, go from
   `cmake/OpenMWMacros.cmake`, and `GitVersion.cmake` no longer includes that file. The runtime folder has one

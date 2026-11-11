@@ -214,10 +214,10 @@ part, zsync and `wayland-scanner` under GCC 15, is run once in a plain `almalinu
 
 ### 3. What the pinned set makes constant
 
-- `cmake/CheckOsgMultiview.cmake`: a `try_compile` against the pinned OSG fork, which always has multiview.
-  Define `OSG_HAS_MULTIVIEW` on `OpenSceneGraph::headers` unconditionally, and delete the module with its
-  `try-compile` folder. An OSG without it would fail to compile at the first use of
-  `FACE_CONTROLLED_BY_MULTIVIEW_SHADER`, not quietly lose the feature.
+- `cmake/CheckOsgMultiview.cmake`: a `try_compile` against the pinned OSG fork, which never has multiview
+  (no `osg::Camera::FACE_CONTROLLED_BY_MULTIVIEW_SHADER`, no `osg/Texture2DMultisampleArray` in the set). So
+  `OSG_HAS_MULTIVIEW` stays undefined, as the check always left it, and the module goes with its
+  `try-compile` folder. First written here as "always has": defining it broke `stereo/multiview.cpp`.
 - `files/data-mw`'s `if(NOT CMAKE_GENERATOR MATCHES "Ninja")` block around `CMAKE_CONFIGURE_DEPENDS` goes
   whole (see Decisions). Check that an edit to `files/data/builtin.omwscripts` still regenerates
   `vfs-mw/builtin.omwscripts`.
