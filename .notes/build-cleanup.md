@@ -73,15 +73,6 @@ and every CI build refuses (run 43013973240).
   (`AGENTS.md`, Rules). The build rewrite already made these files differ from upstream's, so each step adds
   little cost to merges. The warnings steps touch only the fork's files: `env/`, `.github/`,
   `cmake/Dependencies.cmake`, `cmake/Tests.cmake` and the overlays.
-- **Not in this plan:**
-  - vcpkg's `qtbase` port maps its `xrender` feature onto `FEATURE_xrender` and `FEATURE_xcb_native_painting`,
-    which Qt 6.11 removed (`src/gui/configure.cmake` has them at 6.8.0 and not at 6.11.0), and passes them
-    whether or not the feature is chosen; vcpkg's master has the same lines. The fix is a pull request to
-    microsoft/vcpkg dropping the two mappings and the matching `CMAKE_DISABLE_FIND_PACKAGE_XRender`. The user
-    opens it, and the registry pin that carries it takes it.
-  - At that same bump, `vcpkg.json` drops qtbase's `xrender` on Linux, a feature Qt 6.11 does not have. On
-    its own it forces all of Qt to rebuild for nothing that shows.
-
 ## Order and checks
 
 The steps run cheapest and widest first:
@@ -289,5 +280,15 @@ Linux set to check it, and the Dependency sets workflow publishes it, which `pin
 - **`openmw-osg` passes only what OSG reads** (`vcpkg/ports/openmw-osg`). On Windows it passes
   `OSGVIEWER_USE_XRANDR` and `_OPENTHREADS_ATOMIC_USE_*`, which OSG's CMake reads none of there ("variables
   are not used"). Pass the X11 one on Linux alone, and delete the Windows atomics options.
-- Check the published run's logs: no unused-variable warning for `openmw-osg`, and no Boost warning in the
-  Windows configure.
+- **qtbase without `xrender`** (`vcpkg.json`). Qt 6.11 removed X11 native painting (qtbase
+  [`93fe512d05`](https://github.com/qt/qtbase/commit/93fe512d053ee57e090e4b150501659e793bc91a)) and with it the
+  `xrender` and `xcb_native_painting` features. vcpkg's qtbase port still maps its `xrender` feature onto both,
+  so the Linux set's qtbase build warns that `FEATURE_xrender` and `FEATURE_xcb_native_painting` are unused.
+  - The port lists a feature turned off as "maybe unused" (`qt_install_submodule.cmake`, "Disable unused
+    warnings for disabled features"), so the warning comes only from `vcpkg.json` asking for `xrender`. Drop
+    it from qtbase's Linux features.
+  - Nothing is lost. Qt draws its cursors and tray icons through xcb-render (`xcb_render_*`, undefined in
+    `libQt6XcbQpa.a`), and no archive of the set calls libXrender (no undefined `XRender*` symbol).
+  - It rebuilds qtbase and every Qt port once, which this step's set rebuild pays for anyway.
+- Check the published run's logs: no unused-variable warning for `openmw-osg` or qtbase, and no Boost warning
+  in the Windows configure.
