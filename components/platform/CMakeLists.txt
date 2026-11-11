@@ -2,7 +2,7 @@
 # and the rest part of `openmw-components`.
 
 # **A file read and written whole, and the process it is written by**, a library of its own: the build's own
-# tools (`rtx_make_table`) write through it, and they link no more of the components than this.
+# tools (`openmw_rtx_table`) write through it, and they link no more of the components than this.
 add_library(openmw-platform-io STATIC)
 target_sources(
     openmw-platform-io

@@ -94,6 +94,13 @@ def _lupdate() -> str:
     raise Refusal("Qt's lupdate is not on the PATH nor in /usr/lib/qt6/bin, and the translations check needs it")
 
 
+def _regenerate(lupdate: str, sources: list[str], ts_files: list[Path], purge: bool) -> None:
+    """lupdate over `sources` into `ts_files`, the one way both the check and `omw translations` run it;
+    `purge` drops the strings no source has any more."""
+    subprocess.run([lupdate, "-silent", "-locations", "none", *(["-no-obsolete"] if purge else []), *sources,
+                    "-ts", *map(str, ts_files)], cwd=ROOT, check=True)
+
+
 def _translations() -> list[str]:
     """The translations regenerated from their sources do not change, **on copies**: regenerating the
     tree's own files and reading `git diff` fails a tree with any change at all."""
@@ -105,12 +112,22 @@ def _translations() -> list[str]:
             copies = [Path(scratch) / original.name for original in originals]
             for original, copy in zip(originals, copies):
                 shutil.copyfile(original, copy)
-            subprocess.run([lupdate, "-silent", "-locations", "none", *sources, "-ts", *map(str, copies)],
-                           cwd=ROOT, check=True)
-            found += [f"{original.relative_to(ROOT).as_posix()}: out of date with its sources; build the "
-                      "`translations` target" for original, copy in zip(originals, copies)
+            _regenerate(lupdate, sources, copies, purge=False)
+            found += [f"{original.relative_to(ROOT).as_posix()}: out of date with its sources; run "
+                      "`omw translations`" for original, copy in zip(originals, copies)
                       if not filecmp.cmp(original, copy, shallow=False)]
     return found
+
+
+def translations(args: list[str]) -> int:
+    """`omw translations [--purge]`: the `.ts` files regenerated from their sources in place, the strings no
+    source has any more kept as obsolete, or with `--purge` dropped."""
+    if args not in ([], ["--purge"]):
+        raise Refusal("translations takes `--purge` or nothing")
+    lupdate = _lupdate()
+    for sources, pattern in TRANSLATIONS:
+        _regenerate(lupdate, sources, sorted((ROOT / "files" / "lang").glob(pattern)), purge=bool(args))
+    return 0
 
 
 def _ran(command: list[str], env: dict[str, str] | None = None) -> list[str]:
@@ -137,9 +154,30 @@ def _driver() -> list[str]:
     return found
 
 
+# The image every Linux build runs in, pinned by digest in one place: the release base's `FROM`.
+RELEASE_BASE_FILE = Path("env") / "release-base.Dockerfile"
+
+
 def _workflows() -> list[str]:
-    """zizmor, offline: a finding is a failure."""
-    return _ran([*command_for(ZIZMOR), "--offline", "."])
+    """zizmor, offline, and every workflow's container the release base's image: a finding is a failure."""
+    return _containers(ROOT) + _ran([*command_for(ZIZMOR), "--offline", "."])
+
+
+def _containers(root: Path) -> list[str]:
+    """**Each `container:` a workflow names is the release base's image, digest and all**, so CI, the
+    published set and a release build on the image a desk's container does. A container chosen by an
+    expression (`${{ matrix.container }}`) is held where the matrix names it."""
+    base = re.search(r"^FROM\s+(\S+)", (root / RELEASE_BASE_FILE).read_text(), re.MULTILINE)
+    assert base is not None, f"{RELEASE_BASE_FILE} names no image"
+    image = base.group(1)
+    found = []
+    for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
+        for number, line in enumerate(workflow.read_text().splitlines(), 1):
+            named = re.match(r"\s*(?:-\s+)?container:\s*(\S+)\s*$", line)
+            if named and not named.group(1).startswith("${{") and named.group(1) != image:
+                found.append(f"{workflow.relative_to(root).as_posix()}:{number}: container {named.group(1)} "
+                             f"is not {RELEASE_BASE_FILE.as_posix()}'s {image}")
+    return found
 
 
 CHECKS: dict[str, Callable[[], list[str]]] = {

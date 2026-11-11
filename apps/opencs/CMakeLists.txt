@@ -534,6 +534,10 @@ if(WIN32)
     target_sources(openmw-cs PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/opencs.rc")
 endif()
 target_link_libraries(openmw-cs PRIVATE openmw-cs-lib)
-
-install(TARGETS openmw-cs)
-install(FILES "$<TARGET_FILE_DIR:openmw-cs>/defaults-cs.bin" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
+# The console a Windows build opens beside the CS: in RelWithDebInfo, never in Release, as the game's.
+set_target_properties(
+    openmw-cs
+    PROPERTIES
+        WIN32_EXECUTABLE
+            $<CONFIG:Release>
+)

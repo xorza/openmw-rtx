@@ -111,12 +111,20 @@ target_sources(
                 nif/node.hpp
                 rtx/support/allocations.hpp
 )
-# The system's half of the test support, one file a system (`rtx/support/testplatform.hpp`).
+# The system's half of the test support, one file a system (`rtx/support/testplatform.hpp`), for every test
+# binary that reads it.
+add_library(openmw-test-platform OBJECT)
 if(WIN32)
-    target_sources(components-tests PRIVATE rtx/support/testplatformwin32.cpp)
+    target_sources(openmw-test-platform PRIVATE rtx/support/testplatformwin32.cpp)
 else()
-    target_sources(components-tests PRIVATE rtx/support/testplatformposix.cpp)
+    target_sources(openmw-test-platform PRIVATE rtx/support/testplatformposix.cpp)
 endif()
+target_link_libraries(
+    components-tests
+    PRIVATE
+        openmw-test-platform
+        openmw-test-options
+)
 target_sources(components-tests PRIVATE config/testlaunchersettings.cpp)
 target_link_libraries(components-tests PRIVATE openmw-components-qt)
 

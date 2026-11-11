@@ -118,5 +118,27 @@ class SourcesTest(unittest.TestCase):
                           "vcpkg/triplets/x64-linux-openmw.cmake"])
 
 
+class ChangedFilesTest(unittest.TestCase):
+    def test_what_changed_against_head_and_what_is_new_and_nothing_deleted(self):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        git = ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t"]
+        subprocess.run(["git", "init", "-q", str(root)], check=True)
+        for name in ("same.cpp", "edited.cpp", "staged.cpp", "gone.cpp"):
+            (root / name).write_text("int a;\n")
+        (root / ".gitignore").write_text("ignored.cpp\n")
+        subprocess.run([*git, "add", "."], check=True)
+        subprocess.run([*git, "commit", "-q", "-m", "x"], check=True)
+        self.assertEqual(formatting.changed_files(root), [], "a clean tree names a file")
+
+        (root / "edited.cpp").write_text("int b;\n")
+        (root / "staged.cpp").write_text("int c;\n")
+        subprocess.run([*git, "add", "staged.cpp"], check=True)
+        (root / "gone.cpp").unlink()
+        (root / "new.cpp").write_text("int d;\n")
+        (root / "ignored.cpp").write_text("int e;\n")
+        self.assertEqual(formatting.changed_files(root), ["edited.cpp", "new.cpp", "staged.cpp"])
+
+
 if __name__ == "__main__":
     unittest.main()

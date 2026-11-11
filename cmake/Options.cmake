@@ -8,8 +8,8 @@ option(BUILD_TESTING "The tests and the benchmarks" ON)
 # **A sanitizer over the whole build**, the fetched projects included: ThreadSanitizer sees a lock only in
 # code it instrumented, so a library left out reports races on what it guards, and AddressSanitizer's
 # reports carry the frames of every library compiled with frame pointers. In the compiler's flags
-# rather than on `openmw-checks`, which reaches the tree's own targets alone. GCC's and Clang's, as
-# MSVC's has not been measured on this tree.
+# rather than on `openmw-checks`, which reaches the tree's own targets alone (`cmake/Flags.cmake`). GCC's and
+# Clang's, as MSVC's has not been measured on this tree.
 set(OPENMW_SANITIZER "" CACHE STRING "A sanitizer over the whole build: address (with undefined behaviour's) or thread")
 set_property(
     CACHE
@@ -20,43 +20,24 @@ set_property(
             address
             thread
 )
-if(OPENMW_SANITIZER)
-    if(MSVC)
-        message(
-            FATAL_ERROR
-            "OPENMW_SANITIZER is GCC's and Clang's: MSVC's sanitizers have not been measured on this tree"
-        )
-    endif()
-    if(OPENMW_SANITIZER STREQUAL "address")
-        set(sanitizer_flags "-fsanitize=address,undefined -fno-omit-frame-pointer")
-    elseif(OPENMW_SANITIZER STREQUAL "thread")
-        set(sanitizer_flags "-fsanitize=thread -fno-omit-frame-pointer")
-    else()
-        message(FATAL_ERROR "OPENMW_SANITIZER is address, thread or empty, not ${OPENMW_SANITIZER}")
-    endif()
-    string(APPEND CMAKE_C_FLAGS " ${sanitizer_flags}")
-    string(APPEND CMAKE_CXX_FLAGS " ${sanitizer_flags}")
-endif()
-
-# libunshield for the wizard, which unpacks the installer's archives everywhere but on Windows, whose
-# players run the installer itself.
-if(NOT WIN32)
-    set(OPENMW_USE_UNSHIELD TRUE)
-endif()
-
-# A bare configure with no build type builds with line tables and the optimizer.
+# The two configurations `cmake/Flags.cmake` gives the tree's flags, a bare configure's the first; any other would
+# build without line tables, x86-64-v2 or the stack protector.
+set(openmw_build_types
+    RelWithDebInfo
+    Release
+)
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build" FORCE)
-    set_property(
-        CACHE
-            CMAKE_BUILD_TYPE
-        PROPERTY
-            STRINGS
-                Debug
-                Release
-                RelWithDebInfo
-                MinSizeRel
-    )
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "RelWithDebInfo or Release" FORCE)
+endif()
+set_property(
+    CACHE
+        CMAKE_BUILD_TYPE
+    PROPERTY
+        STRINGS
+            ${openmw_build_types}
+)
+if(NOT CMAKE_BUILD_TYPE IN_LIST openmw_build_types)
+    message(FATAL_ERROR "CMAKE_BUILD_TYPE is RelWithDebInfo or Release, not ${CMAKE_BUILD_TYPE}")
 endif()
 
 # **One portable layout on every system**: every file in one folder, found relative to the programs, the

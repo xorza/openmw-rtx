@@ -2,37 +2,35 @@
 # of its own. The ray tracer's core stands apart in `rtx/`, a library a layer, and MyGUI's backend on it
 # above the core.
 
-set(VERSION_RESOURCE_FILE_IN "${PROJECT_SOURCE_DIR}/files/version.in")
-set(VERSION_RESOURCE_FILE_RELATIVE "resources/version")
-set(VERSION_CPP_FILE "components/version/version.cpp")
-
-if(GIT_CHECKOUT)
-    add_custom_target(
-        get-version
-        BYPRODUCTS
-            "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}"
-        DEPENDS
-            "${PROJECT_SOURCE_DIR}/${VERSION_CPP_FILE}.in"
-        COMMAND
-            ${CMAKE_COMMAND} -DGIT_EXECUTABLE=${GIT_EXECUTABLE} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
-            -DBINARY_DIR=${PROJECT_BINARY_DIR} -DVERSION_RESOURCE_FILE_IN=${VERSION_RESOURCE_FILE_IN}
-            -DVERSION_RESOURCE_FILE_RELATIVE=${VERSION_RESOURCE_FILE_RELATIVE}
-            -DVERSION_CPP_FILE_IN=${PROJECT_SOURCE_DIR}/${VERSION_CPP_FILE}.in
-            -DVERSION_CPP_FILE_OUT=${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}.out
-            -DOPENMW_VERSION_MAJOR=${OPENMW_VERSION_MAJOR} -DOPENMW_VERSION_MINOR=${OPENMW_VERSION_MINOR}
-            -DOPENMW_VERSION_RELEASE=${OPENMW_VERSION_RELEASE} -DOPENMW_LUA_API_REVISION=${OPENMW_LUA_API_REVISION}
-            -DOPENMW_POSTPROCESSING_API_REVISION=${OPENMW_POSTPROCESSING_API_REVISION}
-            -DOPENMW_VERSION=${OPENMW_VERSION} -DOPENMW_DOC_BASEURL=${OPENMW_DOC_BASEURL}
-            -DMACROSFILE=${PROJECT_SOURCE_DIR}/cmake/OpenMWMacros.cmake -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
-        COMMAND
-            ${CMAKE_COMMAND} -E copy_if_different ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}.out
-            ${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}
-        VERBATIM
-    )
-else()
-    configure_resource_file(${VERSION_RESOURCE_FILE_IN} ${PROJECT_BINARY_DIR} ${VERSION_RESOURCE_FILE_RELATIVE})
-    configure_file("${PROJECT_SOURCE_DIR}/${VERSION_CPP_FILE}.in" "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}")
-endif()
+# What the version states, configured once but for the commit, its date and the latest tag, which `get-version`
+# fills in at every build from Git (`cmake/GitVersion.cmake`): each file from its template, `<name>.in` in
+# `version_templates`, rewritten only where its text moved, so a build after no commit compiles nothing.
+foreach(field IN ITEMS OPENMW_VERSION_COMMITHASH OPENMW_VERSION_COMMITDATE OPENMW_VERSION_TAGHASH)
+    set(${field} "@${field}@")
+endforeach()
+set(version_templates "${CMAKE_CURRENT_BINARY_DIR}/version-templates")
+configure_file(version/version.cpp.in "${version_templates}/version.cpp.in" @ONLY)
+configure_file("${PROJECT_SOURCE_DIR}/files/version.in" "${version_templates}/version.in" @ONLY)
+configure_file("${PROJECT_SOURCE_DIR}/files/openmw.appdata.xml" "${version_templates}/openmw.appdata.xml.in" @ONLY)
+set(version_cpp "${PROJECT_BINARY_DIR}/components/version/version.cpp")
+set(version_files
+    "${version_cpp}"
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/version"
+    "${PROJECT_BINARY_DIR}/openmw.appdata.xml"
+)
+add_custom_target(
+    get-version
+    BYPRODUCTS
+        ${version_files}
+    DEPENDS
+        "${version_templates}/version.cpp.in"
+        "${version_templates}/version.in"
+        "${version_templates}/openmw.appdata.xml.in"
+    COMMAND
+        ${CMAKE_COMMAND} -DGIT_EXECUTABLE=${GIT_EXECUTABLE} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEMPLATES=${version_templates} "-DFILES=${version_files}" -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake
+    VERBATIM
+)
 
 # The OSG plugins `cmake/Dependencies.cmake` links, each registered by name in one file: a reader's by
 # `USE_OSGPLUGIN`, a serializer library's by `USE_SERIALIZER_WRAPPER_LIBRARY`. `osgdb_osg` holds two
@@ -51,14 +49,14 @@ foreach(plugin IN LISTS USED_OSG_PLUGINS)
 endforeach()
 configure_file(resource/osgplugins.cpp.in "${PROJECT_BINARY_DIR}/components/resource/osgplugins.cpp" @ONLY)
 
-copy_resource_file("lua/util.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/util.lua")
-copy_resource_file("lua_ui/content.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/content.lua")
+configure_file("lua/util.lua" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/lua_libs/util.lua" COPYONLY)
+configure_file("lua_ui/content.lua" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/lua_libs/content.lua" COPYONLY)
 
 add_library(openmw-components STATIC)
 target_sources(
     openmw-components
     PRIVATE
-        "${PROJECT_BINARY_DIR}/${VERSION_CPP_FILE}"
+        "${version_cpp}"
         "${PROJECT_BINARY_DIR}/components/resource/osgplugins.cpp"
     PUBLIC
         FILE_SET HEADERS
@@ -1565,18 +1563,6 @@ set_property(
     PROPERTY
         COMPILE_OPTIONS
             $<$<CXX_COMPILER_ID:GNU>:-Wno-null-dereference>
-)
-# MSVC's four code generation threads a file take more than CI's 8 GB beside another `cl.exe` on these two;
-# one thread costs a third more build time, so only the hungriest take it. The compiler's option, not
-# the linker's of the same name.
-set_property(
-    SOURCE
-        detournavigator/tilecachedrecastmeshmanager.cpp
-        lua/utilpackage.cpp
-    APPEND
-    PROPERTY
-        COMPILE_OPTIONS
-            $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>
 )
 
 target_compile_definitions(

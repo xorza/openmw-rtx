@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from omw import deps
-from omw.system import CMAKE_SOURCES, CXX_SOURCES, ROOT, Refusal, jobs, working_tree_files
+from omw.system import CMAKE_SOURCES, CXX_SOURCES, ROOT, Refusal, jobs, output, working_tree_files
 
 
 def format_tree(args: list[str]) -> int:
@@ -50,6 +50,15 @@ def format_tree(args: list[str]) -> int:
         failed += subprocess.run([*deps.gersemi(), *cmake_mode, "--no-cache", "--quiet", *cmake], cwd=ROOT,
                                  check=False).returncode != 0
     return 1 if failed else 0
+
+
+def changed_files(root: Path = ROOT) -> list[str]:
+    """**The files the working tree changed against `HEAD`**, staged or not, and the new ones git does not
+    ignore, from the root, `/`-separated: what a build formats, as the rest is as its commit left it. A
+    deleted file is not among them."""
+    named = {*output(["git", "-C", root, "diff", "--name-only", "HEAD"]).splitlines(),
+             *output(["git", "-C", root, "ls-files", "--others", "--exclude-standard"]).splitlines()}
+    return sorted(name for name in named if (root / name).is_file())
 
 
 def formatted_text(clang_format: Path, text: bytes, path: str) -> bytes:

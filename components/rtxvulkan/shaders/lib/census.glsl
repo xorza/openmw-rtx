@@ -4,7 +4,7 @@
 // The census of stores that were not finite, `Census` in `counts.h`.
 //
 // **Compiled in or out, `RTX_CENSUS`, and never specialized away**: every shader is built twice
-// (`rtx_compile_shader`), and only the harness's set counts.
+// (`openmw_rtx_shader`), and only the harness's set counts.
 
 #ifndef RTX_CENSUS
 #error "every shader is compiled with RTX_CENSUS 0 or 1"

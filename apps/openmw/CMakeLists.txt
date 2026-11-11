@@ -1014,8 +1014,8 @@ target_sources(
                 mwworld/worldmodel.hpp
 )
 
-# GCC reports an uninitialised value inside sol3's stack code inlined here, which no change to these
-# files removes; each loses only the check that fires.
+# GCC reports an uninitialised value inside sol3's stack code inlined here, which no change to this file
+# removes; it loses only the check that fires.
 set_property(
     SOURCE
         mwlua/contentbindings.cpp
@@ -1023,28 +1023,6 @@ set_property(
     PROPERTY
         COMPILE_OPTIONS
             $<$<CXX_COMPILER_ID:GNU>:-Wno-uninitialized>
-)
-set_property(
-    SOURCE
-        mwmechanics/character.cpp
-    APPEND
-    PROPERTY
-        COMPILE_OPTIONS
-            $<$<CXX_COMPILER_ID:GNU>:-Wno-maybe-uninitialized>
-)
-# MSVC's four code generation threads a file take more than CI's 8 GB beside another `cl.exe` on these;
-# one thread costs a third more build time, so only the hungriest take it.
-set_property(
-    SOURCE
-        mwlua/dialoguebindings.cpp
-        mwlua/magicbindings.cpp
-        mwlua/objectbindings.cpp
-        mwlua/stats.cpp
-        mwworld/esmstore.cpp
-    APPEND
-    PROPERTY
-        COMPILE_OPTIONS
-            $<$<CXX_COMPILER_ID:MSVC>:/cgthreads1>
 )
 
 # `PUBLIC`: `mwsound/ffmpegdecoder.hpp` names FFmpeg's types, and the game's headers OpenSceneGraph's,
@@ -1086,9 +1064,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
                 ON
     )
 endif()
-# The console a Windows build opens beside the game: in Debug and RelWithDebInfo, never in Release,
+# The console a Windows build opens beside the game: in RelWithDebInfo, never in Release,
 # whose output goes to `openmw.log`.
-if(MSVC)
-    target_link_options(openmw PRIVATE $<IF:$<CONFIG:Debug,RelWithDebInfo>,/SUBSYSTEM:CONSOLE,/SUBSYSTEM:WINDOWS>)
-endif()
-install(TARGETS openmw)
+set_target_properties(
+    openmw
+    PROPERTIES
+        WIN32_EXECUTABLE
+            $<CONFIG:Release>
+)

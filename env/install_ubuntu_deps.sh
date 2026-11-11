@@ -7,8 +7,9 @@
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get -qq install -y --no-install-recommends \
+# Each download retried, as a runner fails to resolve Ubuntu's mirrors now and then (run 43039336048's tsan leg).
+apt-get -o Acquire::Retries=5 update -qq
+apt-get -o Acquire::Retries=5 -qq install -y --no-install-recommends \
   binutils build-essential ca-certificates ccache curl git mold ninja-build pkg-config python3 unzip zsync \
   libgl-dev libegl-dev libgles-dev libgbm-dev libdrm-dev \
   libx11-dev libx11-xcb-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxinerama-dev \

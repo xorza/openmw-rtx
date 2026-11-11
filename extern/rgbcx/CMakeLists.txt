@@ -3,13 +3,16 @@
 # rgbcx_table4.h, bc7enc.h, bc7enc.cpp, bc7decomp.h and bc7decomp.cpp as the repository holds them, but for each
 # source's include of its header, spelled from the include directory. MIT or public domain, at the end of each; the
 # MIT texts ship as files/licenses/rgbcx.txt and, for bc7enc's later copyright year, files/licenses/bc7enc.txt.
-# Third-party code, built with its own warnings off, as the other fetched libraries are.
-add_library(rgbcx STATIC rgbcx.cpp include/rgbcx/rgbcx.h bc7enc.cpp include/rgbcx/bc7enc.h bc7decomp.cpp
-    include/rgbcx/bc7decomp.h)
+add_library(rgbcx STATIC)
+target_sources(
+    rgbcx
+    PRIVATE
+        rgbcx.cpp
+        bc7enc.cpp
+        bc7decomp.cpp
+        include/rgbcx/rgbcx.h
+        include/rgbcx/bc7enc.h
+        include/rgbcx/bc7decomp.h
+)
 target_include_directories(rgbcx SYSTEM PUBLIC include)
 target_include_directories(rgbcx PRIVATE .)
-if (MSVC)
-    target_compile_options(rgbcx PRIVATE /w)
-else()
-    target_compile_options(rgbcx PRIVATE -w)
-endif()

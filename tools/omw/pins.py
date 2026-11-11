@@ -176,9 +176,10 @@ VULKAN_LOADER_WINDOWS = Pin(
     "a25a927aa8b9f0371048f1861cf88ac3b9bc9b1fb332c42d897c8ab32695769a",
 )
 # vcpkg, which builds the libraries `vcpkg.json` names (`deps.vcpkg_root`): its registry at the commit of
-# release 2026.10.16, whose ports fix every library's version, and the tool that registry names in
-# `scripts/vcpkg-tool-metadata.txt` (2026-09-26), by system. The registry's digest is of GitHub's archive
-# of that commit; the tools' are of Microsoft's releases, Linux's matching the SHA-512 the registry pins.
+# release 2026.10.16, whose ports fix every library's version, and the tool's newest release, 2026-10-29,
+# by system, newer than the 2026-09-26 the registry's `scripts/vcpkg-tool-metadata.txt` names: the set
+# built with the two is what holds them together. The registry's digest is of GitHub's archive of that
+# commit; the tools' are the SHA-256 Microsoft's release lists for each.
 VCPKG_REGISTRY_COMMIT = "9eec002df1cd109f8f104cd966a763daf9751489"
 VCPKG_REGISTRY = Pin(
     f"https://github.com/microsoft/vcpkg/archive/{VCPKG_REGISTRY_COMMIT}.tar.gz",
@@ -186,12 +187,12 @@ VCPKG_REGISTRY = Pin(
 )
 VCPKG_TOOL = {
     "linux": Pin(
-        "https://github.com/microsoft/vcpkg-tool/releases/download/2026-09-26/vcpkg-glibc",
-        "3521ddb09dc4bd0faa5ce7572c46c8e4420167a918fe5087f9f11bd1c27fa38b",
+        "https://github.com/microsoft/vcpkg-tool/releases/download/2026-10-29/vcpkg-glibc",
+        "8b10d43c1392a2d51622b1e439cb952289dcf56cbb595eb935847e79fe00d303",
     ),
     "windows": Pin(
-        "https://github.com/microsoft/vcpkg-tool/releases/download/2026-09-26/vcpkg.exe",
-        "2a4ae1467b9e797964c60c919d057b9e5dc1ec03f4b9632c1150026db25201f2",
+        "https://github.com/microsoft/vcpkg-tool/releases/download/2026-10-29/vcpkg.exe",
+        "191ee64b0887af80aad3eff6c5e888ab733d3ef2182885ed4747b4574c201834",
     ),
 }
 
@@ -199,11 +200,11 @@ VCPKG_TOOL = {
 # for the inputs `deps.set_digest` reads, each system's parts by the SHA-256 its `SHA256SUMS` lists.
 VCPKG_SET = PublishedSet(
     repository="xorza/openmw-rtx",
-    digest="5e394e368d7fabb7",
+    digest="19e1354572579115",
     sha256={
-        "linux": ("ba3c979bfbb9b157858e4dd30b13a8516a454f09021c88b00e9c3d29dba6c8e0",),
-        "windows": ("07dec75b663f14df192fe1e0434e000848820fc37e97f59e7f746cc679bd0c2f",
-                    "b46d3fa04944239b5c4dcfc75764a851e41a79ccad74ff2226f0f45672b718ba"),
+        "linux": ("556a28dba59a1288de10be4f75ffbf1d526ea0e6d228b9cf47dcf35b670efd8e",),
+        "windows": ("7aca6919375d0233f3d63dada1f399e2f2eb7ff3e837d068e36e450d58a192d6",
+                    "7f223a237533c67bbc31bbee87976a7695d822e6d3450a72d309aeef974a3c2f"),
     },
 )
 

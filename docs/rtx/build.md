@@ -47,9 +47,34 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   Recast is the pinned commit, as `NavMeshTileStore::sTileVersion` keys the navigator's tiles by it. Refused:
   `FIND_PACKAGE_ARGS`, which took a desk's own versions; an overlay port for each, a set rebuilt for a bump the tree
   already pins exactly.
+- **Kept as upstream left them**: the platform branches that choose a file per system (platform, crashcatcher,
+  DLSS, NGX, the Windows `.rc` files); the GCC-version-gated warnings in `cmake/Checks.cmake`, as CI's GCC is 15
+  and a desk's 16; the Doxygen branch in `docs/`, a desk's own tool. Gone: `files/data-mw`'s second registration
+  of `builtin.omwscripts` as a configure input, which `files/data`'s `configure_file` already makes, and which
+  under another spelling is Ninja's "multiple rules generate" ([CMake issue 20181](https://gitlab.kitware.com/cmake/cmake/-/issues/20181)).
+- **A third party's warnings are off, not fixed**: the tree does not patch fetched or vendored code for its
+  compiler's opinions, and a warning nobody acts on teaches every reader to skip them. On GCC and Clang, `-w` in
+  the fetched block's and `extern/`'s flags, which wins over any `-W` a project adds after it (checked with GCC
+  16 and Clang 23). On MSVC, `/w` in `extern/`, whose projects set no level; the fetched ones set their own
+  (yaml-cpp and SDL3 `/W3`, Benchmark and Crashpad `/W4`), which `/w` would override with a D9025 a file, so
+  MSVC turns off the one warning a project raises on its target (`/wd4267` on yaml-cpp).
+- **CMake's own warnings are errors**: the presets make its dev and deprecation warnings errors
+  ([cmake-presets(7)](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html)), so a new one stops the
+  configure, a third party's after a bump included. Refused: failing a job on any log line that says `warning`,
+  which tests named after warnings, and the content's own log, would trip.
 - **A short root.** The project, its version, the standard and the folders; options in `cmake/Options.cmake`,
-  install rules in `cmake/Install.cmake`, and what a folder owns in its own file. Refused: CPack, which nothing
+  install rules in `cmake/Install.cmake`, which names the programs once, and what a folder owns in its own file. Refused: CPack, which nothing
   packaged through — the fork ships with `cmake --install`.
+- **A build is of a Git clone**, which a configure without `.git` refuses: every build names its set from Git
+  (`omw`), and the version names its commit. The version is configured once but for the commit, its date and
+  the latest tag, which `get-version` fills in at every build, rewriting a file only where it moved. Refused:
+  empty hashes for a tree without `.git`, a version that names no commit.
+- **CMake's commands before the tree's helpers**: a resource is copied or configured by `configure_file`
+  itself, into `CMAKE_RUNTIME_OUTPUT_DIRECTORY`, the runtime folder's one name. A function stays where it does
+  work of its own for several callers, beside them, with the `openmw_` prefix (`openmw_import_archive` for the
+  set's libraries without CMake targets, `openmw_qt_platforms`, `openmw_rtx_shader`, `openmw_rtx_layer`,
+  `openmw_rtx_table`); one with a single caller is written out there. Modules are included by path, so no
+  `CMAKE_MODULE_PATH` stands between a name and a file of CMake's own.
 - **A sanitizer over the whole build.** `OPENMW_SANITIZER=address|thread` sets the compiler's flags for every
   target, the fetched ones included. Refused: on `openmw-checks` alone, since ThreadSanitizer sees a lock only in
   code it instrumented.
@@ -71,11 +96,40 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
 - **Four flavours, each building every program, the tests and the benchmarks**: `debug` (`RelWithDebInfo`, every
   assert, CI's and the gate's), `release` (the measured build and the archive's), `asan` and `tsan`. Refused: a
   flavour per set of programs, which left the CS and the wizard to CI alone.
-- **Every flag in one file**, `cmake/Flags.cmake`, read through `CMAKE_USER_MAKE_RULES_OVERRIDE` as CMake sets each
-  language's defaults, the same for GCC, Clang and MSVC; presets set none
-  ([CMake](https://cmake.org/cmake/help/latest/variable/CMAKE_USER_MAKE_RULES_OVERRIDE.html)). Line tables and frame
-  pointers in every configuration, so every build profiles and every crash names a line; a PDB on every MSVC
-  link, its information embedded in the objects for ccache; mold by `CMAKE_LINKER_TYPE`, thin archives on Linux.
+- **Every flag in one file, the code generation shared with the set.** `cmake/Flags.cmake`, read through
+  `CMAKE_USER_MAKE_RULES_OVERRIDE` as CMake sets each language's defaults, the same for GCC, Clang and MSVC;
+  presets and folders set none ([CMake](https://cmake.org/cmake/help/latest/variable/CMAKE_USER_MAKE_RULES_OVERRIDE.html)).
+  What every object is compiled with, the set's and the tree's alike (line tables, frame pointers, x86-64-v2,
+  per-function sections, the stack protector), is `vcpkg/flags.cmake`, which both triplets include and name in
+  `VCPKG_HASH_ADDITIONAL_FILES` so an edit rebuilds every port
+  ([vcpkg](https://learn.microsoft.com/vcpkg/users/triplets#vcpkg_hash_additional_files)). Refused: the triplets
+  reading `cmake/Flags.cmake` itself, which would rebuild the whole set for a link flag or a sanitizer that never
+  reaches it. `omw` configures a build directory afresh when either file moves, as CMake reads a language's
+  `_INIT` flags into the cache at a directory's first configure alone (`presets.CACHE_SEEDS`). A PDB on every MSVC
+  link, its information embedded in the objects for ccache; mold by `CMAKE_LINKER_TYPE`, thin archives on Linux;
+  position-independent programs everywhere, as MSVC's always are and the desk's GCC defaults to, where the release
+  base's GCC links a fixed address.
+- **What the link drops and folds.** Every object has each function and global in a section of its own, and the
+  link drops what nothing reaches (`--gc-sections`; MSVC's `/OPT:REF` with `/Gy`, `/Gw` and `/Zc:inline`), which
+  keeps every registration the programs make: their entry points are named to the linker. A release folds identical
+  code (`--icf=safe`, `/OPT:ICF`), which a debugger would name one function for another in, so the debug flavour
+  does not. `-fno-math-errno` for the tree alone, which reads `errno` after system calls only; the set's code was not
+  read for it. Refused: `-fno-plt`, with almost no call left to the dynamic linker; `-fvisibility=hidden`, which a
+  static program exports nothing for; `/fp:fast` and `-ffast-math`, against the tree's float rules;
+  `-gsplit-dwarf`, as `-g1` with mold links fast already; profile-guided optimisation, whose training needs a GPU
+  CI lacks.
+- **No precompiled headers.** Measured on the four heaviest targets, they cut a clean build 14% with ccache off
+  and 19% filling it, and added 5 s to a rebuild from a full cache and 0.7 GB to a build folder
+  (`research/2026-11-11-precompiled-headers.md`). Refused: a file missing an `#include` would compile wherever they
+  are on, against the tree's include-what-you-name rule, for a gain on cold builds alone.
+- **One compiler cache a worktree.** Refused for now: ccache's `base_dir` with `-ffile-prefix-map`, which would let
+  a second worktree (an A/B's) reuse this one's objects, as it pays only when one builds and turns the debug
+  information's and `__FILE__`'s paths relative, which a debugger and `perf annotate` then need a source path for.
+- **Linux's archive built in the release base, its symbols outside it.** `omw archive` builds and packs the AppImage
+  in the AlmaLinux 8 container on a desk and on the release workflow's runner alike, and runs `dump_syms` on the
+  container's build from the host, as Mozilla's Linux build of it asks glibc 2.34. Refused: the release job inside
+  the container, where no `dump_syms` release runs; building `dump_syms` from source there, a Rust toolchain in the
+  image for one tool.
 - **Link-time optimisation for what ships alone.** The release workflow sets `OMW_LTO=ON` for a tagged release, which
   the release preset passes to `CMAKE_INTERPROCEDURAL_OPTIMIZATION`; a desk's release build links without it, and a
   desk that measures what ships turns it on the same way. The distributions that build with it report single-digit
@@ -84,6 +138,14 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
 - **The test binaries' own files at `-Og` on GCC and Clang**: they build 30% faster for runs 10% slower
   (`research/2026-11-11-test-binaries-at-og.md`); the code they test keeps the build's flags, and MSVC's tests too,
   its `/Od` unmeasured.
+- **A smoke run prints on failure alone**, its logs kept either way: the benchmarks are CTest tests running
+  Google Benchmark's dry run, one iteration and no timing to warn about, and CI's integration run prints the
+  game's log only when it fails. `omw release bench` is what measures.
+- **The driver owns the translations' source list**: `omw translations` regenerates the `.ts` files and
+  `omw lint translations` checks them from the one list, so CI's checks job builds nothing; the build only
+  compiles them (`qt_add_lrelease`). Extraction outside the build is how KDE works (`Messages.sh`). Refused:
+  `qt_add_translations(SOURCE_TARGETS …)`, which needs a configured build to check and scans every source of
+  `openmw-components-qt`, adding strings to upstream's `.ts` files.
 - **One portable install layout**, every file beside the programs and found relative to them, as the Windows folder
   and the AppImage both are. Refused: the system-install branch, for a distribution package the fork does not make.
 
@@ -126,6 +188,24 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   built from, and `pins.py` names the parts by SHA-256. A build fetches the pinned set, or the one `omw deps-set`
   built on the desk for inputs that moved, through the toolchain file the presets read from `OMW_VCPKG_SET`.
   Refused: every desk building the set, an hour of Qt each and binaries that differ by compiler.
+- **The set carries what the tree links or runs.** Where a port has a switch, it builds less: qttools without
+  Designer and the programs no build runs, OpenSceneGraph without the libraries and serializers the tree does
+  not register, FFmpeg without encoders and muxers. Where none exists, `omw deps-set` prunes vcpkg's export
+  before packing it: the host programs' debug information (PDBs dropped, ELF programs stripped), and everything
+  but the programs of the ports carried for them, shaderc, glslang and SPIRV-Tools. The desk keeps the pruned
+  export, so it builds against what is published. On Linux this took the set from 831 to 339 MiB packed
+  (`research/2026-11-11-dependency-set-size.md`). Kept: what Qt's package configs import and check for
+  (qtbase's host programs, stripped instead), `harfbuzz-subset`, which harfbuzz's config declares, and what
+  no port lets be turned off.
+- **Line tables on Linux, full CodeView on Windows.** Linux's triplet compiles with `-g1`, GCC's line tables, as
+  the tree's own code does, and FFmpeg is held to it by `--disable-debug`, without which its `configure`
+  appends `-g` after the triplet's flags. MSVC has no line-tables-only mode, as Chromium's `minimal_symbols`
+  notes ("MSVC doesn't have an equivalent option",
+  [BUILD.gn](https://chromium.googlesource.com/chromium/src/+/main/build/config/compiler/BUILD.gn); `/Zd` gone
+  from `cl.exe`, [D114632](https://reviews.llvm.org/D114632)), so Windows keeps vcpkg's `/Z7`. Refused: clang-cl
+  with `-gline-tables-only` for Windows' set, a second compiler on which every port's build then depends; no
+  debug information in Windows' archives, which names a crash frame inside a dependency after the nearest
+  public symbol above it.
 - **Static where the licences permit, which is everywhere the tree links.** The LGPL's libraries (Qt, FFmpeg, OpenAL
   Soft, OpenSceneGraph's OSGPL) may be linked into a GPL program whose source its users receive
   ([FSF](https://www.gnu.org/licenses/gpl-faq.html#LGPLStaticVsDynamic);
@@ -151,6 +231,11 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
 
 ## Systems and compilers
 
+- **A port passes only what it reads**, so a set rebuilds without vcpkg's "variables are not used": qtbase
+  without the `xrender` feature Qt 6.11 removed, `openmw-osg` without its dead atomics options and with XRandR's
+  on Linux alone, and a `vulkan-loader` overlay that marks Python maybe unused. libjpeg-turbo's ARM option
+  waits for the registry release that marks it. Kept: the Qt ports' own messages about system packages, which
+  only a copy of Qt's biggest port of our own would remove.
 - **Linux and Windows alone.** GitLab's pipeline, macOS and Android are gone, files and branches both;
   `upstream.yml` keeps each deleted path deleted at every merge.
 - **AlmaLinux 8 with gcc-toolset-15 for CI's Linux legs, the set and the release**, the stock `almalinux:8`
@@ -163,6 +248,20 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   supports a gcc-toolset about two years, so the base moves to the next one in time. The tsan leg alone runs on the
   runner itself, with Ubuntu's GCC, against the same set: ThreadSanitizer turns address randomisation off through
   `personality`, which Docker's default seccomp profile refuses.
+- **One AlmaLinux 8 image, by digest, and one GCC on it.** `env/release-base.Dockerfile`'s `FROM` is the one place
+  the digest is written; every workflow's `container:` names the same, which `omw lint workflows` holds, and the
+  set's digest reads the Dockerfile, so a new image names a new set. The env script builds its tools (autoconf,
+  zsync, `wayland-scanner`) with gcc-toolset-15 as well, quietly, though none ships. Refused: the bare tag,
+  which moves under CI and the set; AlmaLinux's own GCC 8.5, there only as a package's dependency. `omw deps-set`
+  names the toolset's `gcc` and `g++` in `CC` and `CXX`, which CMake, Meson and Autotools all read, as a port that
+  puts `/usr/bin` ahead on `PATH` found GCC 8.5 as `cc`; and `python3` is 3.12, which vcpkg's ports run, as the
+  meson package brings Python 3.6, whose alternative outranks it.
+- **CI's caches, one way.** Each job keeps its own, named by its `cache-key`, saved on master alone and restored on
+  every branch, so a branch evicts none of master's in the repository's 10 GB: the compiler cache, the
+  FetchContent archives, and the driver's tools, keyed by the folders `omw bootstrap --cached-tools` names, which
+  move with a tool's pin alone. The vcpkg binary cache is saved by run, as a key is written once and a run cut off
+  resumes from the newest by prefix, and the Dependency sets workflow then deletes every older copy of a system
+  and branch.
 - **Fresh compilers, and none older.** GCC 15, gcc-toolset-15's in CI and a desk's own; Clang 23, the editor's
   clangd's major, from kernel.org's build of LLVM's release in CI, made on Debian 10 to run on glibc 2.28, where
   LLVM's own needs a newer one ([kernel.org](https://www.kernel.org/pub/tools/llvm/)); MSVC from Visual Studio 2026.

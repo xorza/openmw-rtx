@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import zipfile
 from dataclasses import dataclass
@@ -48,24 +49,30 @@ HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches
                  "shaders-census", "shaders-census-source", "openmw-rtxtool", "rtx-gpu-tests")
 
 
-# **What an archive carries beside its programs, which link every other library in** (`vcpkg.json`): on
+# **What an archive carries beside its programs, which link every library of the set in** (`vcpkg.json`): on
 # Linux the 1.4 Vulkan loader, which volk opens by name at start, so linuxdeploy never sees it, and without
-# which a host whose own loader is 1.3 refuses the ray tracer; on Windows Crashpad's error-reporting module,
-# which Windows Error Reporting loads by path. A library the archive holds beyond these is one the static
-# build failed to link in, and the program would load the host's.
+# which a host whose own loader is 1.3 refuses the ray tracer, and the release base's own libraries that the
+# AppImage exclude list leaves to the image, which the static Qt's X11 and Wayland platforms ask for
+# (`libxcb-cursor`, which many hosts lack and Qt 6 opens no X11 window without, `libxkbcommon-x11` and the
+# rest); on Windows Crashpad's error-reporting module, which Windows Error Reporting loads by path. A library
+# the archive holds beyond these is one the static build failed to link in, and the program would load the
+# host's.
 @dataclass(frozen=True)
 class ShippedLibraries:
-    """The shared libraries an archive holds: those `pattern` matches from its root, and the `names` it
-    must hold and may hold alone."""
+    """The shared libraries an archive holds: those `pattern` matches from its root, the `names` it must hold,
+    and beside them those of the system it is built on alone, found by name in its folders `system`."""
 
     pattern: str
     names: tuple[str, ...]
+    system: tuple[Path, ...]
 
     def mismatch(self, folder: Path) -> list[str]:
-        """What sets `folder` apart from these: each name it lacks, then each library it holds beyond them."""
+        """What sets `folder` apart from these: each name it lacks, then each library it holds beyond them that
+        is not the system's."""
         held = sorted(path.relative_to(folder).as_posix() for path in folder.glob(self.pattern) if path.is_file())
         return ([f"no {name}" for name in self.names if not (folder / name).is_file()]
-                + [f"{name} beside them" for name in held if name not in self.names])
+                + [f"{name} beside them" for name in held
+                   if name not in self.names and not any((root / Path(name).name).is_file() for root in self.system)])
 
     def refuse_mismatch(self, folder: Path) -> None:
         if mismatch := self.mismatch(folder):
@@ -73,8 +80,9 @@ class ShippedLibraries:
 
 
 LINUX_LOADER = "usr/lib/libvulkan.so.1"
-LINUX_LIBRARIES = ShippedLibraries("usr/lib/**/*.so*", (LINUX_LOADER,))
-WINDOWS_LIBRARIES = ShippedLibraries("*.dll", ("openmw-wer.dll",))
+# The release base's library folders, where the archive is built (`on_release_base`).
+LINUX_LIBRARIES = ShippedLibraries("usr/lib/**/*.so*", (LINUX_LOADER,), (Path("/usr/lib64"), Path("/lib64")))
+WINDOWS_LIBRARIES = ShippedLibraries("*.dll", ("openmw-wer.dll",), ())
 
 
 # The newest glibc an AppImage may ask of its host: AlmaLinux 8's, the release base's.
@@ -109,6 +117,8 @@ def container_command(docker: str, command: list[str], user: str, flavour: str) 
     `flavour` and its compiler cache from `CONTAINER_DIR` in place of the desk's."""
     return [docker, "run", "--rm", "--user", user, "--env", "HOME=/tmp",
             "--env", f"CCACHE_DIR={CONTAINER_DIR / 'ccache'}",
+            # Link-time optimisation where the caller asks for it, as a release does.
+            "--env", "OMW_LTO",
             "--volume", f"{ROOT}:{ROOT}",
             *(word for repository in _repository_beside() for word in ("--volume", f"{repository}:{repository}")),
             "--volume", f"{CONTAINER_DIR / flavour}:{ROOT / f'build-{flavour}'}",
@@ -194,18 +204,24 @@ def prune_empty(folder: Path) -> None:
 def archive(build: Build, args: list[str]) -> int:
     if len(args) > 1:
         raise Refusal("archive takes one name at most")
-    name = args[0] if args else output(["git", "-C", ROOT, "describe", "--tags", "--always"]).strip()
-    if not WINDOWS and needs_container():
-        run(prepare_container("release").command(["python3", "omw", "archive", name]))
-        return 0
-
-    build.build(build.default_targets)
-    DIST.mkdir(exist_ok=True)
+    # After the nearest release's tag, as the dependency sets' tags stand between them.
+    name = args[0] if args else output(["git", "-C", ROOT, "describe", "--tags", "--match", "rtx-v*", "--always"]).strip()
     if WINDOWS:
+        build.build(build.default_targets)
+        DIST.mkdir(exist_ok=True)
         _archive_windows(build, name)
+        symbols(build.dir, name)
+    elif needs_container():
+        # The image in the release base, the symbols out of its build here: `dump_syms` asks a newer glibc than
+        # the release base's.
+        run(prepare_container("release").command(["python3", "omw", "archive", name]))
+        symbols(CONTAINER_DIR / "release", name)
     else:
+        build.build(build.default_targets)
+        DIST.mkdir(exist_ok=True)
         _archive_linux(build, name)
-    symbols(build, name)
+        print("no symbols: dump_syms asks a newer glibc than the release base's, so a host outside it makes them "
+              "from this build", file=sys.stderr)
     # A folder by what it holds, since its own size says nothing of that: the Windows archive is one.
     for item in sorted(DIST.iterdir()):
         files = [item] if item.is_file() else [file for file in item.rglob("*") if file.is_file()]
@@ -221,8 +237,9 @@ def _archive_linux(build: Build, name: str) -> None:
 
     **The programs link every library in**, the vcpkg set's, OpenSceneGraph's plugins and Qt's among them,
     and leave the host what it opens for them: the AppImage exclude list — glibc, the GL stack, X11,
-    Wayland, fontconfig, ALSA — at the versions of AlmaLinux 8, the release base. The one library the
-    image carries is the Vulkan loader, the set's 1.4 one: the loader is not the driver, and a host's 1.3
+    Wayland, fontconfig, ALSA — at the versions of AlmaLinux 8, the release base. The image carries the rest
+    of what they open, the release base's own, as linuxdeploy brings it (`LINUX_LIBRARIES`), and the Vulkan
+    loader, the set's 1.4 one: the loader is not the driver, and a host's 1.3
     loader has none of the 1.4 entry points the backend calls. Copied rather than handed to linuxdeploy,
     whose exclude list names it; the rpath linuxdeploy gives the binaries, `$ORIGIN/../lib`, is where
     volk's `dlopen` finds it. Its Apache-2.0 text goes in beside the licences the install put there.
@@ -293,8 +310,8 @@ def _archive_windows(build: Build, name: str) -> None:
     WINDOWS_LIBRARIES.refuse_mismatch(folder)
 
 
-def symbols(build: Build, name: str) -> None:
-    """**The release's symbols**: every executable the release build made, through `dump_syms` into a
+def symbols(folder: Path, name: str) -> None:
+    """**The release's symbols**: every executable the release build in `folder` made, through `dump_syms` into a
     Breakpad symbol store, `<module>/<id>/<module>.sym`, zipped as
     `dist/openmw-<name>-<system>-symbols.zip`. A release publishes it beside its archive, and
     `omw crash` reads a player's dump against it. The debug information is what
@@ -302,7 +319,7 @@ def symbols(build: Build, name: str) -> None:
     stripped on Linux, and Windows' install leaves a Release build's PDBs out."""
     dump_syms = deps.crash_tool("dump_syms")
     with tempfile.TemporaryDirectory() as store:
-        for executable in executables_in(build.dir):
+        for executable in executables_in(folder):
             run([dump_syms, "--store", store, executable], stdout=subprocess.DEVNULL)
         target = DIST / f"openmw-{name}-{SYSTEM}-symbols.zip"
         with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as zipped:

@@ -40,7 +40,7 @@ endif()
 
 # Upstream's wizard unpacks the installer's archives with libunshield on every system but Windows, whose
 # players run the installer itself.
-if(OPENMW_USE_UNSHIELD)
+if(NOT WIN32)
     target_sources(
         openmw-wizard
         PRIVATE
@@ -55,7 +55,7 @@ if(OPENMW_USE_UNSHIELD)
                     unshield/unshieldworker.hpp
     )
     target_compile_definitions(openmw-wizard PRIVATE OPENMW_USE_UNSHIELD)
-    target_link_libraries(openmw-wizard PRIVATE PkgConfig::unshield)
+    target_link_libraries(openmw-wizard PRIVATE Unshield::Unshield)
 endif()
 
 set_target_properties(
@@ -79,5 +79,3 @@ target_link_libraries(
         Qt::Core
         Qt::Svg
 )
-
-install(TARGETS openmw-wizard)

@@ -3,7 +3,7 @@ import io
 import re
 import unittest
 
-from omw import gate
+from omw import deps, gate
 from omw.main import BUILD_VERBS, BUILDLESS_VERBS, HARNESS_VERBS, USAGE, Line, main, parse
 from omw.system import ROOT, Refusal, read_text, status
 
@@ -64,6 +64,18 @@ class ParseTest(unittest.TestCase):
                 with self.assertRaises(Refusal) as refused:
                     parse(argv)
                 self.assertIn(f"no verb or flavour is called {word!r}", str(refused.exception))
+
+    def test_bootstrap_prints_the_cached_tools_one_a_line_from_the_root_and_takes_no_other_word(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(main(["bootstrap", "--cached-tools"]), 0)
+        self.assertEqual(out.getvalue().splitlines(),
+                         [folder.relative_to(ROOT).as_posix() for folder in deps.cached_tools()])
+        self.assertTrue(all(line.startswith("deps/") for line in out.getvalue().splitlines()))
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertNotEqual(main(["bootstrap", "--tools"]), 0)
+        self.assertEqual(err.getvalue(), "omw: bootstrap takes no arguments but --cached-tools\n")
 
     def test_the_usage_names_every_verb(self):
         for verb in [*BUILD_VERBS, *HARNESS_VERBS, *BUILDLESS_VERBS]:

@@ -361,4 +361,66 @@ made only on the user's explicit yes, after which it is added here.
   build a tree that takes its libraries from the vcpkg set and builds through `omw`: the release's container is
   `env/release-base.Dockerfile`. `upstream.yml` keeps the folder deleted, which drops an upstream edit to it at
   the merge.
-
+- Dead CMake gone: `cmake/escape_regex_control_characters.cmake`, which
+  nothing called; the commit date the root read with `git log` at every configure, which the AppStream
+  metadata's release date reads and `cmake/GitVersion.cmake` fills in at every build instead; the
+  `OPENMW_RESOURCES_ROOT` guards atop `files/data`, `files/data-mw`, `files/shaders` and `files/lua_api`,
+  which the root always sets first; the install components, which nothing installs by since CPack went; the
+  empty `CMAKE_CXX_CLANG_TIDY` in `extern/`; and `mwmechanics/character.cpp`'s `-Wno-maybe-uninitialized`,
+  which every GCC target already has. The cost is a conflict with an upstream edit to those lines.
+- What the pinned set makes constant, no longer tested:
+  `cmake/CheckOsgMultiview.cmake`'s `try_compile`, as OpenMW's OSG at the pinned commit has no multiview, so
+  `OSG_HAS_MULTIVIEW` is never defined and the sources' multiview branches stay unbuilt, as they were;
+  `files/data-mw`'s configure dependency for every generator but Ninja, which is every preset's; and
+  `OPENMW_USE_UNSHIELD`, the tree's own spelling of `NOT WIN32`, which the wizard's list and the unshield search
+  now read directly (the wizard's source keeps its definition). The cost is a conflict with an upstream edit to
+  those lines.
+- Resources through `configure_file` itself: `copy_resource_file`,
+  `configure_resource_file` and `copy_all_resource_files`, which joined a path and called it, go from
+  `cmake/OpenMWMacros.cmake`, and `GitVersion.cmake` no longer includes that file. The runtime folder has one
+  name, CMake's `CMAKE_RUNTIME_OUTPUT_DIRECTORY`, where `OPENMW_RESOURCES_ROOT` and `PROJECT_BINARY_DIR` named
+  it too. The cost is a conflict with an upstream change to a resource list's loop.
+- The version filled once: a build is of a Git clone, which a configure
+  without `.git` refuses, so `GIT_CHECKOUT` and the configure-time fallback with empty hashes go. The version
+  files are configured once with everything but the commit, its date and the latest tag, and
+  `cmake/GitVersion.cmake` fills those three at every build, now into the AppStream metadata too, whose
+  release date had read a date taken at configure. The templates read `PROJECT_VERSION*`, so the
+  `OPENMW_VERSION_*` copies of it go. The cost is a conflict with an upstream edit to the version's templates
+  or its target.
+- Each dependency found one way: libunshield by its header and archive, as
+  MyGUI and LuaJIT are, in place of pkg-config, which no other package needs; Boost in one `find_package`; and
+  Google Test and Google Benchmark under one `BUILD_TESTING`. The cost is a conflict with an upstream edit to
+  those finds.
+- Third-party code in one style and quiet: the vendored projects under
+  `extern/` (`osgQt`, `oics`, `osg-ffmpeg-videoplayer`, `smhasher`, `rgbcx`) named and listed as the tree's own
+  targets are, with keyword links and `osgQt` through `AUTOMOC` in place of `qt_wrap_cpp`, and their warnings
+  off from `extern/`'s directory flags in place of `rgbcx`'s own branch. The cost is a conflict with an upstream
+  edit to one of those lists.
+- Tests and smoke runs: the test binaries' `-Og` an interface target each
+  links where it is defined, in place of a property `openmw_add_test` set once a binary; the system's half of the
+  test support one object library the three binaries that read it link, in place of a choice in each; and the
+  benchmarks CTest tests that run Google Benchmark's dry run, in place of CI's step that ran them. The cost is a
+  conflict with an upstream edit to a test binary's link list.
+- Translations: the `translations` and `purge-obsolete-translations`
+  targets go for `omw translations [--purge]`, which reads the one source list `omw lint translations` checks
+  against; the `.qm` files through `qt_add_lrelease` in place of the deprecated `qt_add_translation`; Qt's own
+  translations from `QT6_INSTALL_TRANSLATIONS` in place of `qmake -query`, `qtbase_` alone, as every language
+  has it. The cost is a conflict with an upstream edit to those targets.
+- Install and Windows properties: each installed program's own PDB, by
+  `$<TARGET_PDB_FILE>`, in place of every `.pdb` in the build's root folder less 14 named folders, which also
+  carried the tests' and the harness's; the game's console by `WIN32_EXECUTABLE` set to `$<CONFIG:Release>` in
+  place of an MSVC branch around `/SUBSYSTEM`. The cost is a conflict with an upstream edit to those lines.
+- `/cgthreads1` gone from its 8 files: upstream's, for a runner with 8 GB,
+  where the fork's public repository's Windows runners have 16 GB; held by three Windows runs without it. The
+  cost is a conflict with an upstream edit to those lists.
+- One set of flags, the set's code generation shared: the sanitizers,
+  MSVC's runtime and debug information format, and position-independent programs in `cmake/Flags.cmake`, out of
+  `cmake/Options.cmake` and the root; the build types narrowed to the two `cmake/Flags.cmake` defines,
+  `RelWithDebInfo` and `Release`. The cost is a conflict with an upstream edit to those lines.
+- The build files in one layout: the installed programs named once in
+  `cmake/Install.cmake`, with their PDBs and `defaults-cs.bin`, in place of an `install(TARGETS)` in each app's
+  folder; the CS's console as the game's, by `WIN32_EXECUTABLE` set to `$<CONFIG:Release>`, where upstream opens
+  one in every configuration; the set's libraries without CMake targets imported by one function; `pack_resource_file`
+  written out in `files/`, its one caller, and `openmw_qt_platforms` beside Qt's `find_package`, so
+  `cmake/OpenMWMacros.cmake` and `CMAKE_MODULE_PATH` go. The cost is a conflict with an upstream edit to an app's
+  install line, the CS's executable, or those finds.

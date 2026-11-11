@@ -1,5 +1,5 @@
 # The Qt programs' translations: `qm-files` compiles them into the resources the launcher and the
-# wizard read, and `translations` and `purge-obsolete-translations` refresh the sources from the code.
+# wizard read. `omw translations` refreshes the sources from the code, as `omw lint translations` checks them.
 
 set(languages
     bg
@@ -20,63 +20,29 @@ foreach(group components launcher wizard)
     )
 endforeach()
 
-get_target_property(lupdate Qt::lupdate IMPORTED_LOCATION)
-set(components_scanned
-    "${PROJECT_SOURCE_DIR}/components/contentselector"
-    "${PROJECT_SOURCE_DIR}/components/process"
-)
-set(launcher_scanned "${PROJECT_SOURCE_DIR}/apps/launcher")
-set(wizard_scanned "${PROJECT_SOURCE_DIR}/apps/wizard")
-foreach(target translations purge-obsolete-translations)
-    set(purge)
-    if(target STREQUAL "purge-obsolete-translations")
-        set(purge -no-obsolete)
-    endif()
-    set(commands)
-    foreach(group components launcher wizard)
-        list(
-            APPEND commands
-            COMMAND
-            ${lupdate}
-            -locations
-            none
-            ${purge}
-            ${${group}_scanned}
-            -ts
-            ${${group}_ts}
-        )
-    endforeach()
-    add_custom_target(${target} ${commands} VERBATIM)
-endforeach()
-
 set(ts
     ${components_ts}
     ${launcher_ts}
     ${wizard_ts}
 )
-qt_add_translation(qm ${ts} OPTIONS -silent)
+qt_add_lrelease(
+    TS_FILES
+        ${ts}
+    QM_FILES_OUTPUT_VARIABLE qm
+    OPTIONS
+        -silent
+    EXCLUDE_FROM_ALL
+    NO_GLOBAL_TARGET
+)
 
 # Qt's own translations of the languages the programs have, beside them, from the vcpkg set's Qt, which the
 # programs link in.
-get_target_property(qmake Qt::qmake IMPORTED_LOCATION)
-execute_process(
-    COMMAND
-        "${qmake}" -query QT_INSTALL_TRANSLATIONS
-    OUTPUT_VARIABLE qt_translations
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    COMMAND_ERROR_IS_FATAL ANY
-)
+set(qt_translations "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}")
 foreach(language IN LISTS languages)
-    if(EXISTS "${qt_translations}/qtbase_${language}.qm")
-        list(APPEND qm "${qt_translations}/qtbase_${language}.qm")
-    elseif(EXISTS "${qt_translations}/qt_${language}.qm")
-        list(APPEND qm "${qt_translations}/qt_${language}.qm")
-    else()
-        message(
-            FATAL_ERROR
-            "Qt translations for '${language}' locale are not found in the '${qt_translations}' folder."
-        )
+    if(NOT EXISTS "${qt_translations}/qtbase_${language}.qm")
+        message(FATAL_ERROR "The set's Qt has no translation of its own for '${language}' (${qt_translations})")
     endif()
+    list(APPEND qm "${qt_translations}/qtbase_${language}.qm")
 endforeach()
 
 set(destination "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/translations")

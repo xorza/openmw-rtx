@@ -10,6 +10,7 @@ on:
       - vcpkg.json
       - vcpkg-configuration.json
       - "vcpkg/**"
+      - env/release-base.Dockerfile
       - env/install_almalinux_deps.sh
       - tools/omw/pins.py
       - tools/omw/depsset.py
@@ -53,7 +54,7 @@ jobs:
     needs: digest
     if: needs.digest.outputs.published == 'false'
     runs-on: ubuntu-26.04
-    container: almalinux:8
+    container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
     permissions:
       contents: read
     timeout-minutes: 360
@@ -66,7 +67,7 @@ jobs:
       - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - run: env/install_almalinux_deps.sh
       # Built packages, so a run cut off by the time limit resumes where it stopped and a set whose inputs
-      # moved rebuilds only the ports they reach.
+      # moved rebuilds only the ports they reach; the newest alone is kept (`caches`).
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: deps/vcpkg-binary-cache
@@ -116,6 +117,28 @@ jobs:
           name: set-windows
           path: deps/sets/vcpkg-x64-windows-openmw.tar.gz.*
           compression-level: 0
+
+  # One binary cache a system and branch. Each run saves its own, as a key is written once: a run cut off saves
+  # what it built, and the next resumes from it by prefix. Every older one is deleted here, or each set's copy (0.5
+  # to 0.8 GB Linux's, 2.7 GB Windows') stays in the repository's 10 GB until eviction takes master's compiler
+  # caches with it. By branch, as a branch restores its own caches and master's alone.
+  caches:
+    name: caches
+    needs: [digest, linux, windows]
+    if: always() && needs.digest.outputs.published == 'false'
+    runs-on: ubuntu-26.04
+    permissions:
+      actions: write
+    timeout-minutes: 5
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for system in linux windows; do
+            gh cache list --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --key "vcpkg-$system-" \
+                --sort created_at --order desc --limit 100 --json id --jq '.[1:][].id' \
+              | xargs -r -n1 gh cache delete --repo "$GITHUB_REPOSITORY"
+          done
 
   publish:
     name: publish

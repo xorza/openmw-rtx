@@ -53,7 +53,7 @@ Copyright 2020 Bret Curtis <psi29a@gmail.com>
   <category>RolePlaying</category>
  </categories>
  <releases>
-  <release version="@OPENMW_VERSION@" date="@OPENMW_VERSION_COMMITDATE@"/>
+  <release version="@PROJECT_VERSION@" date="@OPENMW_VERSION_COMMITDATE@"/>
  </releases>
  <url type="homepage">https://openmw.org</url>
  <url type="bugtracker">https://gitlab.com/OpenMW/openmw/issues</url>

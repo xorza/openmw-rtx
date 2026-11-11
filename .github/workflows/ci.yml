@@ -47,9 +47,10 @@ jobs:
 
       # clang-format is the driver's pinned one, which `omw format` fetches.
       - name: Qt's lupdate
+        # Retried, as a runner fails to resolve Ubuntu's mirrors now and then (run 43039314218).
         run: |
-          sudo apt-get update
-          sudo apt-get install -y qt6-l10n-tools
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y qt6-l10n-tools
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -91,13 +92,13 @@ jobs:
         include:
           - name: linux-gcc
             os: ubuntu-26.04
-            container: almalinux:8
+            container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
             flavour: debug
             ccache-size: 2000M
             tested: true
           - name: linux-clang
             os: ubuntu-26.04
-            container: almalinux:8
+            container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
             flavour: debug
             ccache-size: 1000M
             # Compiled for Clang's warnings, not run, with the Clang the editor's clangd is.
@@ -113,7 +114,7 @@ jobs:
           # sanitizer it would never start here.
           - name: linux-asan
             os: ubuntu-26.04
-            container: almalinux:8
+            container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
             flavour: asan
             build-flags: --without-device
             # At one gigabyte the sanitized objects evicted 335 times a run.
@@ -185,15 +186,6 @@ jobs:
             python omw "$FLAVOUR" test --without-device
           fi
 
-      - name: Benchmarks, run once each as upstream runs them
-        if: matrix.tested && matrix.flavour == 'debug'
-        working-directory: build-debug
-        # Without `.exe`, which Git Bash finds on its own.
-        run: |
-          ./openmw_detournavigator_navmeshtilescache_benchmark
-          ./openmw_esm_refid_benchmark
-          ./openmw_settings_access_benchmark
-
       - name: Install
         if: matrix.tested && matrix.flavour == 'debug'
         run: python omw debug exec cmake --install . --prefix "$RUNNER_TEMP/install"
@@ -206,7 +198,7 @@ jobs:
         env:
           OPENMW_RTX_BACKEND: "null"
           SDL_VIDEO_DRIVER: offscreen
-        run: python omw debug integration --verbose
+        run: python omw debug integration
 
       - name: Logs
         if: failure()

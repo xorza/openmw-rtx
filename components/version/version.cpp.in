@@ -7,7 +7,7 @@ namespace Version
 {
     std::string_view getVersion()
     {
-        return "@OPENMW_VERSION@";
+        return "@PROJECT_VERSION@";
     }
 
     std::string_view getCommitHash()
@@ -55,7 +55,7 @@ namespace Version
     std::string_view getDocumentationUrl()
     {
         if constexpr (std::string_view("@OPENMW_VERSION_COMMITHASH@") == "@OPENMW_VERSION_TAGHASH@")
-            return "@OPENMW_DOC_BASEURL@openmw-@OPENMW_VERSION_MAJOR@.@OPENMW_VERSION_MINOR@.@OPENMW_VERSION_RELEASE@/";
+            return "@OPENMW_DOC_BASEURL@openmw-@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@/";
         else
             return "@OPENMW_DOC_BASEURL@latest/";
     }

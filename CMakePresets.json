@@ -21,7 +21,7 @@
                 "and libraries share the system's one triplet, and the manifest is the set's to install, never a",
                 "configure's. Ninja is the pinned one `omw` names in OMW_NINJA. What the tree fetches is",
                 "`cmake/Dependencies.cmake`'s. Warnings are errors, by CMake's own switch, for the tree's targets",
-                "alone (`cmake/Checks.cmake`)."
+                "alone (`cmake/Checks.cmake`), and so are CMake's own dev and deprecation warnings, a configure's."
             ],
             "cacheVariables": {
                 "CMAKE_TOOLCHAIN_FILE": "$env{OMW_VCPKG_SET}/scripts/buildsystems/vcpkg.cmake",
@@ -31,7 +31,8 @@
                 "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "CMAKE_COMPILE_WARNING_AS_ERROR": "ON"
-            }
+            },
+            "errors": { "dev": true, "deprecated": true }
         },
         {
             "name": "linux",

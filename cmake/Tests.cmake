@@ -2,30 +2,16 @@
 # because the ones that read game data resolve `./resources` as the tool does.
 enable_testing()
 
-# What the suites write, their times and the crash matrix's runs, which the driver reads from
-# `omw-folders.json`.
-set(RTX_TEST_OUTPUT_DIR "${PROJECT_BINARY_DIR}/test-output")
-
 # The test binaries' own files at `-Og` on GCC and Clang, the code they test at the build's flags: their objects
 # build 30% faster for runs 10% slower (`docs/rtx/research/2026-11-11-test-binaries-at-og.md`). MSVC's
-# are at the build's, as its `/Od` was not measured.
-set(openmw_test_compile_options $<$<CXX_COMPILER_ID:GNU,Clang>:-Og>)
+# are at the build's, as its `/Od` was not measured. Each test binary links it where it is defined.
+add_library(openmw-test-options INTERFACE)
+target_compile_options(openmw-test-options INTERFACE $<$<CXX_COMPILER_ID:GNU,Clang>:-Og>)
 
 function(openmw_add_test name target)
     cmake_parse_arguments(PARSE_ARGV 2 TEST "" "" "LABELS;ARGS")
     if(NOT TARGET ${target})
-        return()
-    endif()
-    # Once per binary, which a sharded suite registers once per shard.
-    get_target_property(optioned ${target} OPENMW_TEST_OPTIONED)
-    if(NOT optioned)
-        target_compile_options(${target} PRIVATE ${openmw_test_compile_options})
-        set_target_properties(
-            ${target}
-            PROPERTIES
-                OPENMW_TEST_OPTIONED
-                    ON
-        )
+        message(FATAL_ERROR "The test ${name} runs ${target}, which the build does not define")
     endif()
     add_test(
         NAME ${name}
@@ -69,21 +55,33 @@ openmw_add_test(
 # The property and not `--timeout`, which sets only the limit of a test that states none.
 foreach(shard RANGE 1)
     openmw_add_test(rtx.gpu.${shard} rtx-gpu-tests LABELS device)
-    if(TEST rtx.gpu.${shard})
-        set_property(
-            TEST
-                rtx.gpu.${shard}
-            APPEND
-            PROPERTY
-                ENVIRONMENT
-                    "GTEST_TOTAL_SHARDS=2;GTEST_SHARD_INDEX=${shard}"
-        )
-        set_property(
-            TEST
-                rtx.gpu.${shard}
-            PROPERTY
-                TIMEOUT
-                    900
-        )
-    endif()
+    set_property(
+        TEST
+            rtx.gpu.${shard}
+        APPEND
+        PROPERTY
+            ENVIRONMENT
+                "GTEST_TOTAL_SHARDS=2;GTEST_SHARD_INDEX=${shard}"
+    )
+    set_property(
+        TEST
+            rtx.gpu.${shard}
+        PROPERTY
+            TIMEOUT
+                900
+    )
+endforeach()
+
+# The benchmarks once each, as a smoke run: Google Benchmark's dry run takes one iteration and measures
+# nothing, so its warnings about timings (ASLR, a debug library) do not apply, and CTest shows its output on
+# failure alone. `omw release bench` is what measures.
+foreach(
+    benchmark
+    IN
+    ITEMS
+        openmw_detournavigator_navmeshtilescache_benchmark
+        openmw_esm_refid_benchmark
+        openmw_settings_access_benchmark
+)
+    openmw_add_test(${benchmark} ${benchmark} ARGS --benchmark_dry_run)
 endforeach()

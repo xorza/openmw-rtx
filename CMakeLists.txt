@@ -16,7 +16,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 # The tree has no C++20 modules, and CMP0155's scan would preprocess every file twice.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 # Every preset names ccache, and a box without it compiles without it rather than failing every
 # compile: a release's runner keeps no cache and has none installed.
@@ -32,55 +31,35 @@ endforeach()
 
 include(cmake/Options.cmake)
 include(cmake/Checks.cmake)
-include(OpenMWMacros)
-include(escape_regex_control_characters)
 
-# The version the programs report: the release, the API revisions scripts and shaders check, and on a
-# Git checkout the commit, which `components/version` reads at every build.
-set(OPENMW_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
-set(OPENMW_VERSION_MINOR ${PROJECT_VERSION_MINOR})
-set(OPENMW_VERSION_RELEASE ${PROJECT_VERSION_PATCH})
-set(OPENMW_VERSION ${PROJECT_VERSION})
+# The version the programs report: the release (`project`), the API revisions scripts and shaders check, and
+# the commit, which `components/version` reads at every build. A build is of a Git clone, as every build's
+# set is named from Git (`omw`), and the version names its commit.
 set(OPENMW_LUA_API_REVISION 166)
 set(OPENMW_POSTPROCESSING_API_REVISION 5)
 set(OPENMW_DOC_BASEURL "https://openmw.readthedocs.io/en/")
-set(OPENMW_VERSION_COMMITHASH "")
-set(OPENMW_VERSION_TAGHASH "")
-set(OPENMW_VERSION_COMMITDATE "")
-set(GIT_CHECKOUT FALSE)
-if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
-    find_package(Git)
-    if(GIT_FOUND)
-        set(GIT_CHECKOUT TRUE)
-        execute_process(
-            COMMAND
-                ${GIT_EXECUTABLE} log -1 --format=%as
-            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-            RESULT_VARIABLE failed
-            OUTPUT_VARIABLE OPENMW_VERSION_COMMITDATE
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-        if(failed)
-            set(OPENMW_VERSION_COMMITDATE "")
-        endif()
-    else()
-        message(WARNING "Git executable not found")
-    endif()
+if(NOT EXISTS "${PROJECT_SOURCE_DIR}/.git")
+    message(FATAL_ERROR "Build from a Git clone: the version names its commit")
 endif()
+find_package(Git REQUIRED)
 
 # moc and uic one at a time inside each target: Ninja already runs the targets in parallel, and CI
 # measured the nested parallelism slower.
 set(CMAKE_AUTOGEN_PARALLEL 1)
 
-# MSVC's debug information in each object (`/Z7`), in every configuration: ccache cannot cache a compile
-# that writes a shared PDB, and each program links its PDB from them (`cmake/Flags.cmake`).
-set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
-# MSVC's runtime linked into every program, as the vcpkg set's libraries are (`x64-windows-openmw`): no
-# runtime to ship beside them, and none older installed system-wide to fault in.
-set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
-
-# Link-time optimisation where a configure asks for it with CMake's own `CMAKE_INTERPROCEDURAL_OPTIMIZATION`:
-# the package preset, which a tagged release builds; refused here by name where the compiler has none.
+# What `cmake/Flags.cmake` asks of the compiler, refused here by name where it has none: position-independent
+# programs, which MSVC's always are (`/DYNAMICBASE`) and CMake has no flag of its for, and link-time optimisation
+# where a configure asks for it with CMake's own `CMAKE_INTERPROCEDURAL_OPTIMIZATION` (the package preset, which a
+# tagged release builds).
+if(NOT MSVC)
+    include(CheckPIESupported)
+    check_pie_supported(OUTPUT_VARIABLE pie_output)
+    foreach(language C CXX)
+        if(NOT CMAKE_${language}_LINK_PIE_SUPPORTED)
+            message(FATAL_ERROR "The ${language} linker makes no position-independent program: ${pie_output}")
+        endif()
+    endforeach()
+endif()
 if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
     include(CheckIPOSupported)
     check_ipo_supported()
@@ -89,7 +68,6 @@ endif()
 include(cmake/Dependencies.cmake)
 
 # Every program and its resources in one folder of the build, which the install copies from.
-set(OPENMW_RESOURCES_ROOT "${PROJECT_BINARY_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
 
@@ -102,7 +80,7 @@ add_subdirectory(components)
 # driver keys its cache on the bytes: the renderers read modules without source, which an edited
 # comment leaves unchanged (`RtxTool::DriverCache`), and a profiler reads the same modules with it
 # (`--shader-source`).
-set(RTX_SPIRV_DIR "${OPENMW_RESOURCES_ROOT}/resources/rtx/shaders")
+set(RTX_SPIRV_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/rtx/shaders")
 
 # The harness's folder: its places, suites and scripts, the shaders with their source and the
 # driver's caches. In the build tree, because no install carries the harness. The harness and the
@@ -116,6 +94,9 @@ set(RTX_SPIRV_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-source")
 # measured one reads: the game's modules carry no census code at all, so they are not here.
 set(RTX_SPIRV_CENSUS_DIR "${RTX_HARNESS_DIR}/shaders-census")
 set(RTX_SPIRV_CENSUS_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-census-source")
+
+# What the suites write, their times and the crash matrix's runs (`cmake/Tests.cmake`).
+set(RTX_TEST_OUTPUT_DIR "${PROJECT_BINARY_DIR}/test-output")
 add_subdirectory(components/rtxvulkan)
 
 add_subdirectory(apps/openmw)
@@ -135,10 +116,11 @@ if(BUILD_TESTING)
     add_subdirectory(apps/openmw_tests)
     add_subdirectory(apps/opencs_tests)
     add_subdirectory(apps/benchmarks)
+    # After every folder that defines a test binary, as each test names one.
+    include(cmake/Tests.cmake)
 endif()
 add_subdirectory(docs)
 
-include(cmake/Tests.cmake)
 include(cmake/Install.cmake)
 
 # The folders the driver reads (`Build.folder`), written out of the variables that name them: values a

@@ -10,8 +10,14 @@ include(FetchContent)
 # Each project's own settings stay inside the block; Crashpad's folder leaves it, for
 # `components/crashcatcher/CMakeLists.txt`, which builds one of its files into every executable.
 block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
+    # A third party's warnings are its own (`docs/rtx/build.md`): off, by `-w` on GCC and Clang, which wins over
+    # any `-W` a project adds after it. Each project sets its own MSVC level, which `/w` would override with a
+    # D9025 a file, so MSVC turns off the one warning a project raises, on its target.
+    if(NOT MSVC)
+        string(APPEND CMAKE_C_FLAGS " -w")
+        string(APPEND CMAKE_CXX_FLAGS " -w")
+    endif()
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
-    set(CMAKE_CXX_CLANG_TIDY "")
 
     # SDL3, the pinned release built static, so a package carries it inside the binaries. Ahead of the
     # tree's own definitions, which are not SDL's: Windows's `NOGDI` and `NOMB` take out what SDL's video
@@ -62,6 +68,7 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     )
     set(YAML_BUILD_SHARED_LIBS OFF)
     FetchContent_MakeAvailable(yaml-cpp)
+    target_compile_options(yaml-cpp PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/wd4267>)
 
     if(BUILD_TESTING)
         FetchContent_Declare(
@@ -76,9 +83,7 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
         )
         set(INSTALL_GTEST OFF)
         FetchContent_MakeAvailable(googletest)
-    endif()
 
-    if(BUILD_TESTING)
         # 1.10, whose header no longer reads `__COUNTER__` in an `#if`, which Clang 23 counts a C2y extension
         # and 1.8's own `-pedantic-errors` made an error.
         FetchContent_Declare(
@@ -139,10 +144,46 @@ endblock()
 # against it and nothing else does; imported, so its headers are a system's. No version floors: the set
 # is the one version the tree is built against.
 
+# A library the set installs no CMake files for, or files that define no target: an imported target of its archive,
+# found by `NAMES` (in the folder `IN` alone where it is given), with the folder of its `HEADER` (under one of
+# `HEADER_SUFFIXES`) and `LINKS`, what its archive calls.
+function(openmw_import_archive target)
+    cmake_parse_arguments(PARSE_ARGV 1 archive "" "HEADER;IN" "NAMES;HEADER_SUFFIXES;LINKS")
+    string(MAKE_C_IDENTIFIER "${target}" id)
+    if(archive_IN)
+        set(only NO_DEFAULT_PATH)
+    endif()
+    find_library(
+        ${id}_LIBRARY
+        NAMES
+            ${archive_NAMES}
+        PATHS
+            ${archive_IN}
+            ${only}
+        REQUIRED
+    )
+    add_library(${target} STATIC IMPORTED)
+    set_target_properties(
+        ${target}
+        PROPERTIES
+            IMPORTED_LOCATION
+                "${${id}_LIBRARY}"
+    )
+    if(archive_HEADER)
+        find_path(${id}_INCLUDE_DIR ${archive_HEADER} PATH_SUFFIXES ${archive_HEADER_SUFFIXES} REQUIRED)
+        set_target_properties(
+            ${target}
+            PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES
+                    "${${id}_INCLUDE_DIR}"
+        )
+    endif()
+    target_link_libraries(${target} INTERFACE ${archive_LINKS})
+endfunction()
+
 set(OpenGL_GL_PREFERENCE LEGACY) # GL2; GLVND's is for GL3 and up.
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
-find_package(PkgConfig REQUIRED)
 find_package(Freetype REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(lz4 CONFIG REQUIRED)
@@ -160,23 +201,22 @@ find_package(
     CONFIG
     REQUIRED
     COMPONENTS
+        filesystem
         iostreams
         program_options
 )
 # MyGUI 3.4.3 installs no CMake files, and pkg-config's on Linux alone, which names neither the FreeType its
 # archive calls nor the definitions its headers need: its header and its archive, found in the set.
-find_path(MYGUI_INCLUDE_DIR MyGUI.h PATH_SUFFIXES MYGUI REQUIRED)
-find_library(MYGUI_LIBRARY MyGUIEngineStatic REQUIRED)
-add_library(MyGUI::MyGUI STATIC IMPORTED)
-set_target_properties(
+openmw_import_archive(
     MyGUI::MyGUI
-    PROPERTIES
-        IMPORTED_LOCATION
-            "${MYGUI_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES
-            "${MYGUI_INCLUDE_DIR}"
+    NAMES
+        MyGUIEngineStatic
+    HEADER MyGUI.h
+    HEADER_SUFFIXES
+        MYGUI
+    LINKS
+        Freetype::Freetype
 )
-target_link_libraries(MyGUI::MyGUI INTERFACE Freetype::Freetype)
 target_compile_definitions(
     MyGUI::MyGUI
     INTERFACE
@@ -197,10 +237,19 @@ find_package(
         LinguistTools
         Svg
 )
+# The windowing platforms a Qt program opens on, which the static Qt links into it: Qt's default, X11's on Linux and
+# Windows' own, and on Linux Wayland's beside it, so a session with no XWayland opens it too.
+function(openmw_qt_platforms target)
+    if(LINUX)
+        qt_import_plugins(${target} INCLUDE Qt6::QWaylandIntegrationPlugin)
+    endif()
+endfunction()
 
-if(OPENMW_USE_UNSHIELD)
-    pkg_check_modules(unshield REQUIRED IMPORTED_TARGET libunshield)
-    target_link_libraries(PkgConfig::unshield INTERFACE ZLIB::ZLIB)
+# libunshield for the wizard, which unpacks the installer's archives everywhere but on Windows, whose players run
+# the installer itself. Its port installs no CMake files, and its pkg-config file names none of the zlib its
+# archive calls.
+if(NOT WIN32)
+    openmw_import_archive(Unshield::Unshield NAMES unshield HEADER libunshield.h LINKS ZLIB::ZLIB)
 endif()
 
 # FFmpeg through the set's own find module, which names every library its static ones link.
@@ -229,8 +278,9 @@ target_compile_definitions(Bullet::Bullet INTERFACE BT_USE_DOUBLE_PRECISION)
 
 # OpenSceneGraph, OpenMW's fork, static: one target a library of its, each with the headers and with what
 # its archive calls, which no file of the port states, and the headers alone for what names its types and
-# calls nothing of it, the build's table makers; `osg` with the multiview definition. The plugins the tree
-# reads with are linked into every program that links the components and registered there
+# calls nothing of it, the build's table makers. `OSG_HAS_MULTIVIEW` stays undefined: the fork at the commit
+# the set pins has no multiview (`osg::Camera::FACE_CONTROLLED_BY_MULTIVIEW_SHADER`). The plugins the tree reads
+# with are linked into every program that links the components and registered there
 # (`components/resource/osgplugins.cpp.in`).
 find_package(
     OpenSceneGraph
@@ -246,12 +296,8 @@ find_package(
         osgSim
         osgViewer
 )
-include(CheckOsgMultiview)
 add_library(OpenSceneGraph::headers INTERFACE IMPORTED)
 target_include_directories(OpenSceneGraph::headers INTERFACE ${OPENSCENEGRAPH_INCLUDE_DIRS})
-if(HAVE_MULTIVIEW)
-    target_compile_definitions(OpenSceneGraph::headers INTERFACE OSG_HAS_MULTIVIEW)
-endif()
 foreach(
     library
     OpenThreads
@@ -326,7 +372,6 @@ find_package(JPEG REQUIRED)
 find_package(LibXml2 REQUIRED)
 find_package(minizip CONFIG REQUIRED)
 find_package(uriparser CONFIG REQUIRED)
-find_package(Boost CONFIG REQUIRED COMPONENTS filesystem)
 # By the set's own folder: the port installs its config under `share/collada-dom`, which CMake's search for
 # `collada_dom` does not name, so it would take a system's instead.
 find_package(
@@ -360,27 +405,14 @@ set(osgdb_dae_calls
     uriparser::uriparser
     Boost::filesystem
 )
-get_filename_component(osgdb_folder "${OSGDB_LIBRARY}" DIRECTORY)
+cmake_path(GET OSGDB_LIBRARY PARENT_PATH osgdb_folder)
 foreach(plugin IN LISTS USED_OSG_PLUGINS)
-    find_library(
-        ${plugin}_library
+    openmw_import_archive(
+        OpenSceneGraph::${plugin}
         NAMES
             ${plugin}
-        PATHS
-            "${osgdb_folder}/osgPlugins-${OPENSCENEGRAPH_VERSION}"
-        NO_DEFAULT_PATH
-        REQUIRED
-    )
-    add_library(OpenSceneGraph::${plugin} STATIC IMPORTED)
-    set_target_properties(
-        OpenSceneGraph::${plugin}
-        PROPERTIES
-            IMPORTED_LOCATION
-                "${${plugin}_library}"
-    )
-    target_link_libraries(
-        OpenSceneGraph::${plugin}
-        INTERFACE
+        IN "${osgdb_folder}/osgPlugins-${OPENSCENEGRAPH_VERSION}"
+        LINKS
             OpenSceneGraph::osgDB
             ${${plugin}_calls}
     )
@@ -388,33 +420,16 @@ endforeach()
 
 # LuaJIT, the Lua every build runs scripts on: its header and its archive, as the port installs no CMake files
 # and pkg-config's on Linux alone. `lua51` is its archive's name on Windows.
-find_path(
-    LUAJIT_INCLUDE_DIR
-    luajit.h
-    PATH_SUFFIXES
-        luajit
-        luajit-2.1
-    REQUIRED
-)
-find_library(
-    LUAJIT_LIBRARY
+openmw_import_archive(
+    Lua::Lua
     NAMES
         luajit-5.1
         lua51
-    REQUIRED
-)
-add_library(Lua::Lua STATIC IMPORTED)
-set_target_properties(
-    Lua::Lua
-    PROPERTIES
-        IMPORTED_LOCATION
-            "${LUAJIT_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES
-            "${LUAJIT_INCLUDE_DIR}"
-)
-target_link_libraries(
-    Lua::Lua
-    INTERFACE
+    HEADER luajit.h
+    HEADER_SUFFIXES
+        luajit
+        luajit-2.1
+    LINKS
         ${CMAKE_DL_LIBS}
         $<$<PLATFORM_ID:Linux>:m>
 )

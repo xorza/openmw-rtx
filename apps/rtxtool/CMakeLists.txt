@@ -111,22 +111,20 @@ target_link_libraries(
 # Named viewpoints and the suites that visit them, in the harness's folder (`RTX_HARNESS_DIR`).
 set(RTX_VIEWS_FILE views.cfg)
 set(RTX_SUITES_FILE benches.cfg)
-copy_all_resource_files(
-    "${PROJECT_SOURCE_DIR}/files/rtx"
-    "${RTX_HARNESS_DIR}"
-    "."
-    "${RTX_VIEWS_FILE};${RTX_SUITES_FILE}"
-)
+foreach(file IN ITEMS ${RTX_VIEWS_FILE} ${RTX_SUITES_FILE})
+    configure_file("${PROJECT_SOURCE_DIR}/files/rtx/${file}" "${RTX_HARNESS_DIR}/${file}" COPYONLY)
+endforeach()
 
 # The keys a watched run answers to, as the harness's own data directory: `hosted.cpp` adds it
 # wherever there is a window, and the played game never does.
 set(RTX_KEYS_FOLDER vfs)
-copy_all_resource_files(
-    "${PROJECT_SOURCE_DIR}/files/rtx/vfs"
-    "${RTX_HARNESS_DIR}"
-    "${RTX_KEYS_FOLDER}"
-    "rtxtool.omwscripts;scripts/rtx/hour.lua;scripts/rtx/keys.lua;scripts/rtx/sky.lua"
-)
+foreach(file IN ITEMS rtxtool.omwscripts scripts/rtx/hour.lua scripts/rtx/keys.lua scripts/rtx/sky.lua)
+    configure_file(
+        "${PROJECT_SOURCE_DIR}/files/rtx/vfs/${file}"
+        "${RTX_HARNESS_DIR}/${RTX_KEYS_FOLDER}/${file}"
+        COPYONLY
+    )
+endforeach()
 
 target_compile_definitions(
     openmw-rtxtool-lib

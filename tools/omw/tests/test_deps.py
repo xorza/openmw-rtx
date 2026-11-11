@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
-from omw import deps
+from omw import deps, pins
 from omw.deps import pinned_folder
 from omw.pins import Pin
 from omw.system import DEPS
@@ -109,6 +109,31 @@ class PruneTest(unittest.TestCase):
             self.assertEqual(sorted(path.name for path in folder.iterdir()), kept)
             deps.prune()
             self.assertEqual(sorted(path.name for path in folder.iterdir()), kept, "a second prune took more")
+
+
+class CachedToolsTest(unittest.TestCase):
+    def test_ci_keeps_each_pinned_tool_and_windows_loader_on_windows_alone_and_prune_keeps_them_all(self):
+        expected = [
+            pinned_folder("cmake", pins.CMAKE["linux"]),
+            pinned_folder("ninja", pins.NINJA["linux"]),
+            pinned_folder("llvm", pins.LLVM),
+        ]
+        with mock.patch.object(deps, "SYSTEM", "linux"), mock.patch.object(deps, "WINDOWS", False):
+            self.assertEqual(deps.cached_tools(), expected)
+            self.assertLessEqual({tool.name for tool in deps.cached_tools()}, deps.pinned_names())
+        with mock.patch.object(deps, "SYSTEM", "windows"), mock.patch.object(deps, "WINDOWS", True):
+            self.assertEqual(deps.cached_tools(), [
+                pinned_folder("cmake", pins.CMAKE["windows"]),
+                pinned_folder("ninja", pins.NINJA["windows"]),
+                pinned_folder("llvm", pins.LLVM),
+                pinned_folder("vulkan-loader", pins.VULKAN_LOADER_WINDOWS),
+            ])
+            self.assertLessEqual({tool.name for tool in deps.cached_tools()}, deps.pinned_names())
+        # A set pinned anew moves no tool's folder, so CI's cache of them stays.
+        moved = pins.PublishedSet(**{**vars(pins.VCPKG_SET), "digest": "0" * 16})
+        with mock.patch.object(deps, "SYSTEM", "linux"), mock.patch.object(deps, "WINDOWS", False), \
+                mock.patch.object(pins, "VCPKG_SET", moved):
+            self.assertEqual(deps.cached_tools(), expected)
 
 
 if __name__ == "__main__":

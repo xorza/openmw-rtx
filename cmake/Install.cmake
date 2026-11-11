@@ -1,6 +1,28 @@
-# What an install carries beside the programs, which each app's own `install(TARGETS)` names: the
-# desktop files, the documents and licences, and the game's defaults and resources. `omw archive` and CI install through it; no installer is
-# built from it.
+# What an install carries: the programs, the desktop files, the documents and licences, and the game's defaults and
+# resources. `omw archive` and CI install through it; no installer is built from it.
+
+# The programs a player runs, each with its own PDB on MSVC in the configuration that installs one: RelWithDebInfo's,
+# as a release's symbols are published apart from its archive (`omw archive`), and not every binary's in the folder
+# the programs share with the tests and the harness.
+set(programs
+    openmw
+    openmw-launcher
+    openmw-wizard
+    openmw-cs
+    openmw-bulletobjecttool
+    openmw-essimporter
+    openmw-iniimporter
+    openmw-navmeshtool
+    bsatool
+    esmtool
+    niftest
+)
+install(TARGETS ${programs})
+if(MSVC)
+    foreach(program IN LISTS programs)
+        install(FILES "$<TARGET_PDB_FILE:${program}>" TYPE BIN CONFIGURATIONS RelWithDebInfo)
+    endforeach()
+endif()
 
 # The licences of what the fork compiles into the binaries, beside the GPL's own text: each asks for
 # its notice in every copy, binaries included, but SDL's zlib, which goes in so that no licence of
@@ -46,81 +68,25 @@ install(FILES "${PROJECT_SOURCE_DIR}/AUTHORS.md" TYPE DOC)
 install(
     FILES
         "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/defaults.bin"
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/defaults-cs.bin"
         "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt"
     TYPE SYSCONF
 )
 install(FILES "${PROJECT_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg")
 install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources" TYPE DATA)
 
-if(WIN32)
-    # The debug symbols of the configurations that write them.
-    install(
-        DIRECTORY
-            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/"
-        DESTINATION "."
-        CONFIGURATIONS
-            Debug
-            RelWithDebInfo
-        FILES_MATCHING
-        PATTERN "*.pdb"
-        PATTERN ".cmake"
-            EXCLUDE
-        PATTERN ".qt"
-            EXCLUDE
-        PATTERN "_deps"
-            EXCLUDE
-        PATTERN "apps"
-            EXCLUDE
-        PATTERN "bin"
-            EXCLUDE
-        PATTERN "CMakeFiles"
-            EXCLUDE
-        PATTERN "components"
-            EXCLUDE
-        PATTERN "deps"
-            EXCLUDE
-        PATTERN "docs"
-            EXCLUDE
-        PATTERN "extern"
-            EXCLUDE
-        PATTERN "files"
-            EXCLUDE
-        PATTERN "lib"
-            EXCLUDE
-        PATTERN "Testing"
-            EXCLUDE
-        PATTERN "try-compile"
-            EXCLUDE
-    )
-else()
+if(NOT WIN32)
     install(
         FILES
             "${PROJECT_BINARY_DIR}/org.openmw.launcher.desktop"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications"
-        COMPONENT "openmw"
     )
     install(
         FILES
             "${PROJECT_SOURCE_DIR}/files/launcher/images/openmw.png"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps"
-        COMPONENT "openmw"
     )
-    install(
-        FILES
-            "${PROJECT_BINARY_DIR}/openmw.appdata.xml"
-        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo"
-        COMPONENT "openmw"
-    )
-    install(
-        FILES
-            "${PROJECT_BINARY_DIR}/org.openmw.cs.desktop"
-        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications"
-        COMPONENT "opencs"
-    )
-    install(
-        FILES
-            "${PROJECT_SOURCE_DIR}/files/opencs/openmw-cs.png"
-        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps"
-        COMPONENT "opencs"
-    )
+    install(FILES "${PROJECT_BINARY_DIR}/openmw.appdata.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
+    install(FILES "${PROJECT_BINARY_DIR}/org.openmw.cs.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
+    install(FILES "${PROJECT_SOURCE_DIR}/files/opencs/openmw-cs.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps")
 endif()

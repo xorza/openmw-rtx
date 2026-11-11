@@ -5,26 +5,46 @@ add_subdirectory(lua_api)
 add_subdirectory(lang)
 
 # The settings' defaults, the configuration a build runs with, and what the programs read beside them,
-# into the build where the programs run from.
-pack_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/settings-default.cfg" "${PROJECT_BINARY_DIR}" "defaults.bin")
-pack_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw-cs.cfg" "${PROJECT_BINARY_DIR}" "defaults-cs.bin")
-configure_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw.appdata.xml" "${PROJECT_BINARY_DIR}" "openmw.appdata.xml")
-configure_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw.cfg.local" "${PROJECT_BINARY_DIR}" "openmw.cfg")
-configure_resource_file(
+# into the build where the programs run from. The two defaults packed with base64 (`cmake/base64.cmake`), as the
+# programs read them, at configure as the rest are copied.
+set(packed_sources
+    settings-default.cfg
+    openmw-cs.cfg
+)
+set(packed_files
+    defaults.bin
+    defaults-cs.bin
+)
+foreach(packed IN ZIP_LISTS packed_sources packed_files)
+    execute_process(
+        COMMAND
+            ${CMAKE_COMMAND} "-DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${packed_0}"
+            "-DOUTPUT_FILE=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${packed_1}" -P "${PROJECT_SOURCE_DIR}/cmake/base64.cmake"
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+    set_property(
+        DIRECTORY
+        APPEND
+        PROPERTY
+            CMAKE_CONFIGURE_DEPENDS
+                "${CMAKE_CURRENT_SOURCE_DIR}/${packed_0}"
+    )
+endforeach()
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/openmw.cfg.local" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/openmw.cfg")
+configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/gamecontrollerdb.txt"
-    "${PROJECT_BINARY_DIR}"
-    "gamecontrollerdb.txt"
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt"
 )
 # Copied and not configured: `configure_file` reads to the first null character, which this file holds.
-copy_resource_file(
+configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/opencs/defaultfilters"
-    "${PROJECT_BINARY_DIR}"
-    "resources/defaultfilters"
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/defaultfilters"
+    COPYONLY
 )
-copy_resource_file(
+configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/launcher/images/openmw.png"
-    "${OPENMW_RESOURCES_ROOT}"
-    "resources/openmw.png"
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/openmw.png"
+    COPYONLY
 )
 
 if(NOT WIN32)

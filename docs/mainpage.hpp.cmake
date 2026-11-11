@@ -2,4 +2,4 @@
 ///
 /// This is the source documentation for:
 ///
-/// OpenMW @OPENMW_VERSION@
+/// OpenMW @PROJECT_VERSION@

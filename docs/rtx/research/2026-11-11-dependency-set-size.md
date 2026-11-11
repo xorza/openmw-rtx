@@ -73,6 +73,16 @@ Repacking the export with the prunings above applied and every ELF file under `t
 without rebuilding any port, gives **1,735 MiB unpacked and 392 MiB packed**, down from 3,460 and 831 MiB. The
 FFmpeg changes would come on top of that and were not measured.
 
+### The set rebuilt: `deps-8948c4c640db7edd`
+
+Built by `omw deps-set` with the qttools, FFmpeg and OSG overlays, then pruned and stripped by `prune_set`:
+**1,492 MiB unpacked and 339 MiB packed** (355,301,542 bytes, a single part). `lib/` is 982 MiB, `tools/`
+254 MiB and `include/` 167 MiB. In the archives, 667 of 934 MiB of sections are debug information and its
+relocations. At `-g1` and without encoders, `libavcodec.a` drops from 220 MiB to 42 MiB and `libavformat.a`
+from 53 MiB to 6.3 MiB; no FFmpeg archive has a `.debug_loc` section left, and each still has its
+`.debug_line`. Of the 62 ELF programs under `tools/` and `bin/`, none has a `.symtab`, and `glslc` and
+`lrelease` still run.
+
 ## Windows: 8,291 MiB unpacked, 1,730 MiB packed
 
 | folder | size |
@@ -97,3 +107,12 @@ clang-cl dropped its alias for that reason ([D114632](https://reviews.llvm.org/D
 `/Zi` and `/ZI` formats all carry types ([Microsoft](https://learn.microsoft.com/cpp/build/reference/z7-zi-zi-debug-information-format)).
 A Windows set with line tables only therefore has to be compiled by clang-cl with `-gline-tables-only`, which
 is what Chromium does.
+
+## The published sets
+
+| set | flags | Linux packed | Windows packed |
+|---|---|---|---|
+| `deps-af3310920d0b49b6` | the earlier triplets | 339 MiB (1 part) | 1,205 MiB (2 parts) |
+| `deps-19e1354572579115` | `vcpkg/flags.cmake`: x86-64-v2, per-function sections, the stack protector, no semantic interposition; MSVC's `/arch:SSE4.2 /Gw /Zc:inline` | 352 MiB (368,655,985 bytes, 1 part) | 1,070 MiB (1,121,676,926 bytes, 2 parts) |
+
+Linux's grew 13 MiB and Windows' shrank 135 MiB; which flag moved each was not measured apart.

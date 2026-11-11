@@ -68,5 +68,3 @@ target_link_libraries(
         Qt::Svg
         Qt::Network
 )
-
-install(TARGETS openmw-launcher)

@@ -25,7 +25,7 @@ from omw import (
     testing,
 )
 from omw.build import FLAVOURS, Build
-from omw.system import CI, Refusal, refuse_unsupported, status
+from omw.system import CI, ROOT, Refusal, refuse_unsupported, status
 
 USAGE = """\
 omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI, on Linux and Windows.
@@ -75,7 +75,10 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                formatted, then merged; no flavour
   lint [check...]              the checks CI's checks job runs besides the formatting, every one or
                                those named: names, translations, driver, workflows; no flavour
-  bootstrap                    the pinned dependency set, Windows' Vulkan loader and CMake into deps/; no flavour
+  translations [--purge]       the Qt programs' .ts files regenerated from their sources, as the lint
+                               checks them; --purge drops the strings no source has; no flavour
+  bootstrap [--cached-tools]   the pinned dependency set, Windows' Vulkan loader and CMake into deps/; with
+                               --cached-tools, the folders of the tools CI caches, one a line; no flavour
   deps-set [--digest]          the libraries vcpkg.json names, built static for this system and packed
                                under deps/sets/, Linux's in AlmaLinux 8; with --digest, the set's name
   help                         this page; no flavour
@@ -114,9 +117,12 @@ def _remote(build: Build, args: list[str]) -> int:
 
 
 def _build(build: Build, args: list[str]) -> int:
-    """The tree formatted first, except on CI, whose checks job runs `omw format --check` once for
-    every build job; after the build, `listing.check`."""
-    if not CI and formatting.format_tree([]) != 0:
+    """The files changed against `HEAD` formatted first, except on CI, whose checks job runs
+    `omw format --check` over the whole tree once for every build job; after the build, `listing.check`.
+    Not the whole tree: what a commit holds was formatted before it, and the tree's 4.6 s came to every
+    build."""
+    changed = [] if CI else formatting.changed_files()
+    if changed and formatting.format_tree(changed) != 0:
         return 1
     targets = [arg for arg in args if arg != "--without-device"]
     if targets:
@@ -150,8 +156,12 @@ BUILD_VERBS = {
 
 
 def _bootstrap(args: list[str]) -> int:
+    if args == ["--cached-tools"]:
+        for folder in deps.cached_tools():
+            print(folder.relative_to(ROOT).as_posix())
+        return 0
     if args:
-        raise Refusal("bootstrap takes no arguments")
+        raise Refusal("bootstrap takes no arguments but --cached-tools")
     deps.bootstrap()
     return 0
 
@@ -170,6 +180,7 @@ BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
     "format": formatting.format_tree,
     "merge-file": formatting.merge_file,
     "lint": lint.lint,
+    "translations": lint.translations,
     "bootstrap": _bootstrap,
     "deps-set": depsset.deps_set,
 }

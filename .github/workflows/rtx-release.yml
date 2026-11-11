@@ -24,8 +24,8 @@ jobs:
     # No cache: a release ships what this run fetched and built.
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    # The release base, AlmaLinux 8, whose glibc is the AppImage's floor; none for Windows.
-    container: ${{ matrix.container }}
+    # On the runner itself: `omw archive` builds Linux's in the release base's container, AlmaLinux 8, whose glibc
+    # is the AppImage's floor, and makes the symbols outside it, as `dump_syms` asks a newer glibc.
     permissions:
       contents: read
     timeout-minutes: 180
@@ -35,7 +35,6 @@ jobs:
         include:
           - name: linux-package
             os: ubuntu-26.04
-            container: almalinux:8
             # An AppImage is compressed already; the Windows folder is not.
             compression: 0
           - name: windows-package
@@ -45,14 +44,6 @@ jobs:
       run:
         shell: bash
     steps:
-      # The checkout needs Git in the container before it can run, and Git a repository it was not
-      # handed by its owner.
-      - name: Git
-        if: matrix.container != ''
-        run: |
-          dnf install -y git
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
