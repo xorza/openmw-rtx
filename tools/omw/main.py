@@ -25,7 +25,7 @@ from omw import (
     testing,
 )
 from omw.build import FLAVOURS, Build
-from omw.system import CI, Refusal, refuse_unsupported, status
+from omw.system import CI, ROOT, Refusal, refuse_unsupported, status
 
 USAGE = """\
 omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI, on Linux and Windows.
@@ -77,7 +77,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                those named: names, translations, driver, workflows; no flavour
   translations [--purge]       the Qt programs' .ts files regenerated from their sources, as the lint
                                checks them; --purge drops the strings no source has; no flavour
-  bootstrap                    the pinned dependency set, Windows' Vulkan loader and CMake into deps/; no flavour
+  bootstrap [--cached-tools]   the pinned dependency set, Windows' Vulkan loader and CMake into deps/; with
+                               --cached-tools, the folders of the tools CI caches, one a line; no flavour
   deps-set [--digest]          the libraries vcpkg.json names, built static for this system and packed
                                under deps/sets/, Linux's in AlmaLinux 8; with --digest, the set's name
   help                         this page; no flavour
@@ -155,8 +156,12 @@ BUILD_VERBS = {
 
 
 def _bootstrap(args: list[str]) -> int:
+    if args == ["--cached-tools"]:
+        for folder in deps.cached_tools():
+            print(folder.relative_to(ROOT).as_posix())
+        return 0
     if args:
-        raise Refusal("bootstrap takes no arguments")
+        raise Refusal("bootstrap takes no arguments but --cached-tools")
     deps.bootstrap()
     return 0
 

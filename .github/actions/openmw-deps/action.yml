@@ -3,10 +3,10 @@ description: The packages and SDKs a build of the tree needs, per system.
 
 inputs:
   cache:
-    description: Whether to restore and save the deps/ cache, the FetchContent archives and the compiler cache; false for a release.
+    description: Whether to restore and save the job's caches; false for a release.
     default: "true"
   cache-key:
-    description: The name of the job's compiler cache and FetchContent archives, which begins no other job's; none, and the job keeps neither.
+    description: The name of the job's caches, the driver's tools, the FetchContent archives and the compiler cache, which begins no other job's; none, and the job keeps none.
     default: ""
   ccache-size:
     description: How large the compiler cache may grow.
@@ -41,18 +41,39 @@ runs:
           sudo ln -sf /usr/bin/python3 /usr/local/bin/python
         fi
 
+    # The caches below are the job's own, keyed by its `cache-key`, and saved on master alone, as the compiler
+    # cache is: a branch's copies would evict master's from the repository's 10 GB, past which storage is billed.
+    # A branch restores them, and saves nothing.
+    - name: The driver's tools
+      # The folders `omw` keeps its pinned tools in, each named after its pins: the key moves with a tool and
+      # with nothing else, not with a set pinned anew.
+      if: inputs.cache-key != '' && inputs.cache == 'true'
+      id: tools
+      shell: bash
+      env:
+        CACHE_KEY: ${{ inputs.cache-key }}
+      run: |
+        folders="$(python omw bootstrap --cached-tools)"
+        {
+          echo "paths<<EOF"
+          echo "$folders"
+          echo "EOF"
+          echo "key=tools-$CACHE_KEY-$(echo "$folders" | sha256sum | cut -c1-16)"
+        } >> "$GITHUB_OUTPUT"
+
     - name: The driver's tools cache
-      # CMake, Ninja, LLVM and Windows' Vulkan loader, keyed by their pins: small, and fetched by every job. Not
-      # the vcpkg set, gigabytes unpacked, which a job downloads from its release.
-      if: inputs.cache == 'true'
+      if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref == 'refs/heads/master'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: |
-          deps/cmake-*
-          deps/ninja-*
-          deps/llvm-*
-          deps/vulkan-loader-*
-        key: deps-${{ runner.os }}-${{ hashFiles('tools/omw/pins.py', 'tools/omw/deps.py') }}
+        path: ${{ steps.tools.outputs.paths }}
+        key: ${{ steps.tools.outputs.key }}
+
+    - name: The driver's tools cache, restored
+      if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref != 'refs/heads/master'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.tools.outputs.paths }}
+        key: ${{ steps.tools.outputs.key }}
 
     - name: The FetchContent archives' pins
       # Every archive is declared with its `URL_HASH`, so the hashes are what the archives are: the
@@ -60,18 +81,27 @@ runs:
       if: inputs.cache-key != '' && inputs.cache == 'true'
       id: fetched
       shell: bash
-      run: echo "digest=$(git grep -h URL_HASH -- '*CMakeLists.txt' '*.cmake' | sort | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+      env:
+        CACHE_KEY: ${{ inputs.cache-key }}
+      run: echo "key=fetchcontent-$CACHE_KEY-$(git grep -h URL_HASH -- '*CMakeLists.txt' '*.cmake' | sort | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
 
+    # Where CMake keeps each archive it downloads, and skips the download of one whose hash matches
+    # (`FETCHCONTENT_BASE_DIR`): without it every leg downloaded every source again, and CMake retries no
+    # HTTP error, so one 504 from GitHub failed the leg at configure. A leg's own, since a flavour fetches
+    # what its options build.
     - name: FetchContent archives cache
-      # Where CMake keeps each archive it downloads, and skips the download of one whose hash
-      # matches (`FETCHCONTENT_BASE_DIR`): without it every leg downloaded every source again, and
-      # CMake retries no HTTP error, so one 504 from GitHub failed the leg at configure. A leg's
-      # own, since a flavour fetches what its options build.
-      if: inputs.cache-key != '' && inputs.cache == 'true'
+      if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref == 'refs/heads/master'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: build-*/_deps/*-tmp
-        key: fetchcontent-${{ inputs.cache-key }}-${{ steps.fetched.outputs.digest }}
+        key: ${{ steps.fetched.outputs.key }}
+
+    - name: FetchContent archives cache, restored
+      if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref != 'refs/heads/master'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: build-*/_deps/*-tmp
+        key: ${{ steps.fetched.outputs.key }}
 
     - name: The vcpkg set
       shell: bash
@@ -83,7 +113,4 @@ runs:
       with:
         key: ${{ inputs.cache-key }}
         max-size: ${{ inputs.ccache-size }}
-        # On master alone: a branch's copies would evict master's. The repository's cache limit is
-        # the free 10 GB: past it storage is billed, and with the budget spent every cache is
-        # read-only.
         save: ${{ github.ref == 'refs/heads/master' }}

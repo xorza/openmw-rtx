@@ -134,7 +134,11 @@ Steps leave the list below when they land, and are marked here.
   libraries without targets, `cmake_path` throughout, one `openmw_` prefix, modules by path, and
   `cmake/OpenMWMacros.cmake` gone. Declined: Qt's `CMAKE_AUTOMOC` for the whole tree in place of the per-target
   switches, as with Qt found at the root it gives every target, Qt's or not, an autogen step (checked on a
-  two-library project). Left: the CI caches and the measured items.
+  two-library project). CI's caches: the driver's tools keyed by the job and by the folders
+  `omw bootstrap --cached-tools` names, the tools and FetchContent caches saved on master alone, as the compiler
+  cache is; the vcpkg binary cache still saved by run, as a key is written once and a run cut off twice under one
+  set's key could save nothing more, with every older copy of a system and branch deleted after each set build in
+  place of the plan's key by set digest. Left: the measured items.
 
 ## Steps
 
@@ -239,18 +243,6 @@ recompiling all 2,747 objects; `omw format` taking 4.6 s at every `omw build`; t
 130 MB of code and read-only data; the release base's GCC with other security defaults than the desk's; and
 CI's caches keyed and saved three ways. What landed is under Progress.
 
-- **CI's caches keyed and saved one way** (`.github/actions/openmw-deps/action.yml`, `.github/workflows/deps.yml`):
-  - The driver's tools cache is keyed `deps-<OS>-<pins.py and deps.py>`, shared by every job of a system though
-    their contents differ (LLVM is the Clang job's alone), so the first to save wins and the rest fetch again;
-    and its key moves with every set pin and every edit to `deps.py`, neither of which changes a tool. Key it by
-    the job's `cache-key` and a digest of the tools' pins alone, which `omw` prints.
-  - The compiler cache saves on `master` alone, so a branch's copies evict none of `master`'s inside the 10 GB
-    budget; the tools and FetchContent caches save on every branch. Restore everywhere and save on `master`
-    alone, as the compiler cache does.
-  - The vcpkg binary cache is keyed per run (`github.run_id`), so every set build stores a full copy (0.5 to
-    0.8 GB Linux's, 2.7 GB Windows's): the caches stood at 8 of 10 GB, and run 43030096407 found Linux's evicted
-    and rebuilt all 267 ports. Key it by system and set digest, one copy a set, which still lets a run cut off
-    resume.
 - **Measured, kept only if it pays**, each an A/B with its numbers in a research note:
   - Precompiled headers for the heaviest headers (OSG, Qt, sol3), with ccache's
     `sloppiness=pch_defines,time_macros` and GCC's `-fpch-preprocess`: `build.md` refused them as ccache caching

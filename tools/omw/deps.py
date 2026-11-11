@@ -447,6 +447,17 @@ def pinned_names() -> set[str]:
     return {path.name for path in kept}
 
 
+def cached_tools() -> list[Path]:
+    """**The tools CI keeps between runs** (`.github/actions/openmw-deps`): the pinned CMake, Ninja, LLVM and
+    Windows' Vulkan loader, small and fetched by every job, each in the folder its pins name, so a cache keyed
+    by these names moves with a tool and with nothing else. Not the vcpkg set, gigabytes unpacked, which a job
+    downloads from its release."""
+    tools = [cmake_dir(), ninja_dir(), llvm_dir()]
+    if WINDOWS:
+        tools.append(vulkan_loader_dir())
+    return tools
+
+
 def prune() -> None:
     """**What deps/ holds that the pins no longer name, removed**: a version replaced, and a partial a
     stopped fetch left. Every name there is a getter's, so whatever none of them names is stale, and a
