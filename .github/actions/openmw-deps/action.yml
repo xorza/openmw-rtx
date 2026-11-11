@@ -31,13 +31,13 @@ runs:
       shell: bash
       run: |
         if [ -f /etc/almalinux-release ]; then
-          CI/install_almalinux_deps.sh
+          env/install_almalinux_deps.sh
           ln -sf /usr/bin/python3.12 /usr/local/bin/python
           echo /opt/rh/gcc-toolset-15/root/usr/bin >> "$GITHUB_PATH"
           echo "LD_LIBRARY_PATH=/opt/rh/gcc-toolset-15/root/usr/lib64:/opt/rh/gcc-toolset-15/root/usr/lib" >> "$GITHUB_ENV"
           echo "PKG_CONFIG_PATH=/opt/rh/gcc-toolset-15/root/usr/lib64/pkgconfig" >> "$GITHUB_ENV"
         else
-          sudo CI/install_ubuntu_deps.sh
+          sudo env/install_ubuntu_deps.sh
           sudo ln -sf /usr/bin/python3 /usr/local/bin/python
         fi
 

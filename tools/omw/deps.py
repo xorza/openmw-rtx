@@ -108,7 +108,7 @@ TRIPLET = TRIPLETS[SYSTEM]
 
 # What a set is built from, by path from the root: the manifest, its configuration, the overlay ports and
 # triplets, and the image Linux builds in. With the vcpkg pins, the set's digest.
-SET_INPUTS = ("vcpkg.json", "vcpkg-configuration.json", "vcpkg/*", "CI/install_almalinux_deps.sh")
+SET_INPUTS = ("vcpkg.json", "vcpkg-configuration.json", "vcpkg/*", "env/install_almalinux_deps.sh")
 
 
 def set_digest(root: Path = ROOT) -> str:

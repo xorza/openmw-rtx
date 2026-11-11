@@ -10,7 +10,7 @@ on:
       - vcpkg.json
       - vcpkg-configuration.json
       - "vcpkg/**"
-      - CI/install_almalinux_deps.sh
+      - env/install_almalinux_deps.sh
       - tools/omw/pins.py
       - tools/omw/depsset.py
       - .github/workflows/deps.yml
@@ -64,7 +64,7 @@ jobs:
         with:
           persist-credentials: false
       - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - run: CI/install_almalinux_deps.sh
+      - run: env/install_almalinux_deps.sh
       # Built packages, so a run cut off by the time limit resumes where it stopped and a set whose inputs
       # moved rebuilds only the ports they reach.
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

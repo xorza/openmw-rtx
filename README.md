@@ -94,8 +94,8 @@ Building and running
 
 `./omw` is the one way to build, on Linux and on Windows (`omw.cmd`), and needs Python 3.11 or later.
 Every library comes from the dependency set the driver fetches, built static by vcpkg (`vcpkg.json`); the
-system keeps what the programs open at run time, whose development files `sudo CI/install_ubuntu_deps.sh`
-installs on Ubuntu 26.04 and `CI/install_almalinux_deps.sh` on AlmaLinux 8. On Windows MSVC is all it needs.
+system keeps what the programs open at run time, whose development files `sudo env/install_ubuntu_deps.sh`
+installs on Ubuntu 26.04 and `env/install_almalinux_deps.sh` on AlmaLinux 8. On Windows MSVC is all it needs.
 CMake and clang-format are the driver's own pinned ones on both.
 
 ```

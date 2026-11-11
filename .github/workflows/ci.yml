@@ -3,7 +3,7 @@
 # `rtx-gpu-tests` and the gate stay on a box with a card.
 #
 # Linux builds in AlmaLinux 8 with gcc-toolset-15, the release's base and the vcpkg set's
-# (`CI/release-base.Dockerfile`, `CI/install_almalinux_deps.sh`), so CI builds, tests and ships in one
+# (`env/release-base.Dockerfile`, `env/install_almalinux_deps.sh`), so CI builds, tests and ships in one
 # environment. An AppImage runs on no system older than its own.
 #
 # Job names are the `master` ruleset's required checks: a renamed job is a check that never reports.

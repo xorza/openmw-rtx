@@ -27,8 +27,9 @@ made only on the user's explicit yes, after which it is added here.
   pipe, which a monitor, outliving its client, does not. And each line of the log written in one
   write, its stamp with it (`DebugOutputBase::write`): the monitor appends its summaries to the log
   from a process of its own, and one that landed between a stamp and its text split the line.
-- The fork's own `README.md`, `CI/` and workflows, and the root tooling: `CMakePresets.json`,
-  `.clangd`, `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes` and `.gitignore`.
+- The fork's own `README.md`, `env/` (upstream's `CI/`, renamed for what it holds, the systems a build runs
+  on) and workflows, and the root tooling: `CMakePresets.json`, `.clangd`, `.zed/`, `omw`, `omw.cmd`,
+  `.claude/skills/`, `.gitattributes` and `.gitignore`.
 - The build the presets and Crashpad need: the raised CMake minimum, which reads the presets'
   `$comment`s; the raised Boost minimum, whose flat maps the scene identities are; no scan for modules,
   which preprocessed every file twice for modules the tree has none of; the ccache fallback, so a
@@ -283,11 +284,12 @@ made only on the user's explicit yes, after which it is added here.
   `upstream.yml` keeps them deleted. `.editorconfig` covers the ray tracer's shaders and the headers
   GLSL and C++ share (`.h`, `.rgen`), LF as `.gitattributes` holds C++, and loses the stages the tree has
   no file of.
-- Ubuntu 26.04 for every Linux build in place of 24.04, CI's runners, the release image and the docs
-  image alike, from one package script, `CI/install_ubuntu_deps.sh`, with `install_debian_deps.sh`
-  folded into it: one build system, with GCC 15.2, and GCC 15's false `-Wmaybe-uninitialized` off as
-  14's was. The cost is the AppImage's floor, glibc 2.43, and a conflict with upstream's edits to the
-  package lists.
+- AlmaLinux 8 with gcc-toolset-15 for CI's Linux builds, the vcpkg set and the release image, from
+  `env/install_almalinux_deps.sh`, in place of upstream's Ubuntu 24.04: the AppImage runs on glibc 2.28. A desk on
+  Ubuntu 26.04 installs the same system headers from `env/install_ubuntu_deps.sh`, with upstream's
+  `install_debian_deps.sh` folded into it, and so does CI's tsan job, which runs on the runner itself. GCC's
+  false `-Wmaybe-uninitialized` is off on every GCC. The cost is a conflict with upstream's edits to its package
+  lists.
 - `components/CMakeLists.txt` as `openmw-components` and `openmw-components-qt`, each folder's files
   named in a `target_sources` list and its headers as a file set, in place of the stem macros
   (`add_component_dir`, `add_component_qt_dir`) and the hand-made unity build (`enable_unity_build`,
@@ -355,3 +357,8 @@ made only on the user's explicit yes, after which it is added here.
   static builds did in `imagemanager.cpp`; upstream's run-time check that they can be loaded
   (`Misc::checkRequiredOSGPluginsArePresent`, its call in `apps/openmw/main.cpp`) goes, since the link now holds them.
   The cost is a conflict with an upstream change to a found package, a plugin or the check.
+- `docker/`, upstream's Ubuntu build in a container (OpenMW's PPA, SDL2, Qt 5, `cmake` and `make`), which cannot
+  build a tree that takes its libraries from the vcpkg set and builds through `omw`: the release's container is
+  `env/release-base.Dockerfile`. `upstream.yml` keeps the folder deleted, which drops an upstream edit to it at
+  the merge.
+

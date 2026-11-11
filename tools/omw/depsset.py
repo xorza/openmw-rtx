@@ -1,7 +1,7 @@
 """`omw deps-set [--digest]`: the libraries `vcpkg.json` names, built static by vcpkg for this system's
 triplet and packed into the parts of one archive under `deps/sets/`, which CI publishes as the release named after the
 set's digest; or, with `--digest`, that name alone. Linux builds its set on the release base, AlmaLinux
-8, whose glibc is older than every system the set serves: in its container (`CI/release-base.Dockerfile`)
+8, whose glibc is older than every system the set serves: in its container (`env/release-base.Dockerfile`)
 on a desk that is another system, as `omw archive` builds there."""
 
 import gzip
@@ -140,7 +140,7 @@ def check_container() -> None:
     if SYSTEM != "linux":
         return
     if not package.on_release_base(OS_RELEASE.read_text() if OS_RELEASE.is_file() else ""):
-        raise Refusal("the Linux set is built in AlmaLinux 8 (CI/install_almalinux_deps.sh), "
+        raise Refusal("the Linux set is built in AlmaLinux 8 (env/install_almalinux_deps.sh), "
                       "as .github/workflows/deps.yml does")
     if "gcc-toolset-15" not in os.environ.get("PATH", ""):
         raise Refusal("gcc-toolset-15 is not enabled: `source /opt/rh/gcc-toolset-15/enable`")

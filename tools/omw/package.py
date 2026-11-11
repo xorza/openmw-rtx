@@ -30,7 +30,7 @@ DIST = ROOT / "dist"
 
 # **The system a Linux release and its dependency set are built on**, as `/etc/os-release` names it:
 # AlmaLinux 8, whose glibc 2.28 an AppImage takes as the floor it runs on, with any point release. A desk on
-# another builds in a container of it (`CI/release-base.Dockerfile`), since a binary built against a newer
+# another builds in a container of it (`env/release-base.Dockerfile`), since a binary built against a newer
 # glibc runs only where that glibc is.
 RELEASE_BASE = {"ID": "almalinux", "VERSION_ID": "8"}
 RELEASE_IMAGE = "openmw-rtx-release-base"
@@ -143,7 +143,7 @@ def release_container(flavour: str) -> Container:
     """The release-base image made, which the layers it keeps make a moment's work after the first, and
     the container's build of `flavour` given a folder."""
     docker = require("docker", "a release is built on AlmaLinux 8, and on another system in a container: docker")
-    run([docker, "build", "--tag", RELEASE_IMAGE, "--file", ROOT / "CI" / "release-base.Dockerfile", ROOT / "CI"])
+    run([docker, "build", "--tag", RELEASE_IMAGE, "--file", ROOT / "env" / "release-base.Dockerfile", ROOT / "env"])
     for kept in (flavour, "ccache"):
         (CONTAINER_DIR / kept).mkdir(parents=True, exist_ok=True)
     return Container(docker, user_and_group(), flavour)

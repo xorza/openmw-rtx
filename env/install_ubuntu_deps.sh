@@ -1,7 +1,7 @@
 #!/bin/bash
 # The packages a Linux desk on Ubuntu 26.04 builds with: the compilers and the tools, and the development
 # files of what the programs open at run time and so stay the system's (OpenGL, X11, Wayland, fontconfig,
-# ALSA, PulseAudio, D-Bus), as `CI/install_almalinux_deps.sh` installs them for CI and the release. The
+# ALSA, PulseAudio, D-Bus), as `env/install_almalinux_deps.sh` installs them for CI and the release. The
 # libraries the tree links come from the vcpkg set (`vcpkg.json`), not from here.
 
 set -euo pipefail

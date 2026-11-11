@@ -154,7 +154,7 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
 - **Linux and Windows alone.** GitLab's pipeline, macOS and Android are gone, files and branches both;
   `upstream.yml` keeps each deleted path deleted at every merge.
 - **AlmaLinux 8 with gcc-toolset-15 for CI's Linux legs, the set and the release**, the stock `almalinux:8`
-  container and `CI/install_almalinux_deps.sh`: one environment builds, tests and ships, and the AppImage runs on
+  container and `env/install_almalinux_deps.sh`: one environment builds, tests and ships, and the AppImage runs on
   glibc 2.28 — Ubuntu 20.04 and later, Debian 11, SteamOS — as `omw archive` checks of every program. It is
   manylinux_2_28's way, an old base with Red Hat's newer toolset ([pypa/manylinux](https://github.com/pypa/manylinux);
   [Red Hat](https://access.redhat.com/errata/RHBA-2025:21071)). A set built there serves newer desks unchanged: an

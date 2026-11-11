@@ -180,7 +180,7 @@ jobs:
                   kept_deleted=(
                     .github/workflows/push.yml .github/workflows/macos.yml .github/workflows/windows.yml
                     .github/workflows/release.yml
-                    .gitlab-ci.yml .gitlab/ docker/generic-linux/
+                    .gitlab-ci.yml .gitlab/ docker/
                     CI/ActivateMSVC.ps1 CI/activate_msvc.sh CI/before_install.android.sh CI/before_install.macos.sh
                     CI/before_script.android.sh CI/before_script.linux.sh CI/before_script.macos.sh
                     CI/before_script.msvc.sh CI/check_clang_format.sh CI/check_cmake_format.sh
