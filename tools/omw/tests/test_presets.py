@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from omw.presets import digest, test_environment
+from omw.presets import CACHE_SEEDS, digest, test_environment
 from omw.system import WINDOWS, Refusal, environment_key
 
 
@@ -12,6 +12,9 @@ def presets_root(test: unittest.TestCase, content: dict) -> Path:
     root = Path(tempfile.mkdtemp())
     test.addCleanup(shutil.rmtree, root)
     (root / "CMakePresets.json").write_text(json.dumps(content))
+    for seed in CACHE_SEEDS:
+        (root / seed).parent.mkdir(parents=True, exist_ok=True)
+        (root / seed).write_text("set(flags -O2)\n")
     return root
 
 
@@ -24,6 +27,13 @@ class DigestTest(unittest.TestCase):
         self.assertNotEqual(digest({"PRESET_READS": "2"}, root), base)
         self.assertNotEqual(digest({"PRESET_READS": "1", "CXX": "clang++"}, root), base)
         self.assertNotEqual(digest({"PRESET_READS": "1", "VULKAN_SDK": "/sdk"}, root), base)
+        # Each file that seeds the cache's flags, as an edit to one reaches a build directory only when configured
+        # afresh; and back to its text, the digest it had.
+        for seed in CACHE_SEEDS:
+            (root / seed).write_text("set(flags -O3)\n")
+            self.assertNotEqual(digest({"PRESET_READS": "1"}, root), base, seed)
+            (root / seed).write_text("set(flags -O2)\n")
+            self.assertEqual(digest({"PRESET_READS": "1"}, root), base, seed)
 
     def test_a_presets_file_that_includes_another_is_refused(self):
         root = presets_root(self, {"version": 10, "include": ["other.json"]})

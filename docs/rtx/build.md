@@ -96,7 +96,8 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   `VCPKG_HASH_ADDITIONAL_FILES` so an edit rebuilds every port
   ([vcpkg](https://learn.microsoft.com/vcpkg/users/triplets#vcpkg_hash_additional_files)). Refused: the triplets
   reading `cmake/Flags.cmake` itself, which would rebuild the whole set for a link flag or a sanitizer that never
-  reaches it. A PDB on every MSVC link, its information embedded in the objects for ccache; mold by
+  reaches it. `omw` configures a build directory afresh when either file moves, as CMake reads a language's
+  `_INIT` flags into the cache at a directory's first configure alone (`presets.CACHE_SEEDS`). A PDB on every MSVC link, its information embedded in the objects for ccache; mold by
   `CMAKE_LINKER_TYPE`, thin archives on Linux; position-independent programs everywhere, as MSVC's always are and
   the desk's GCC defaults to, where the release base's GCC links a fixed address.
 - **Link-time optimisation for what ships alone.** The release workflow sets `OMW_LTO=ON` for a tagged release, which

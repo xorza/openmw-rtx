@@ -15,6 +15,11 @@ _MACRO = re.compile(r"\$(p?env)\{([A-Za-z_][A-Za-z0-9_]*)\}")
 # the SDKs are. A change to one is a change to what a configure would find.
 IMPLICIT_INPUTS = ("CC", "CXX", "VULKAN_SDK", "CMAKE_PREFIX_PATH")
 
+# **The files that seed the cache's flags** (`CMAKE_USER_MAKE_RULES_OVERRIDE` and what it includes): CMake reads a
+# language's `_INIT` flags into the cache at the first configure alone, so an edit to one reaches a build directory
+# only through a fresh configure.
+CACHE_SEEDS = ("cmake/Flags.cmake", "vcpkg/flags.cmake")
+
 
 def preset_files(root: Path = ROOT) -> list[Path]:
     files = [root / "CMakePresets.json"]
@@ -26,8 +31,8 @@ def preset_files(root: Path = ROOT) -> list[Path]:
 
 def digest(env: dict[str, str], root: Path = ROOT) -> str:
     """**Everything a preset is expanded from**: the preset files, the value of every environment
-    variable they name, and what CMake reads from the environment besides. Two directories
-    configured from equal digests were handed the same cache variables."""
+    variable they name, what CMake reads from the environment besides, and the files that seed the
+    cache's flags. Two directories configured from equal digests were handed the same cache variables."""
     hashed = hashlib.sha256()
     names = set(IMPLICIT_INPUTS)
     for file in preset_files(root):
@@ -36,6 +41,8 @@ def digest(env: dict[str, str], root: Path = ROOT) -> str:
             raise Refusal(f"{file.name} includes another presets file, which the digest does not read")
         hashed.update(text.encode())
         names.update(name for _, name in _MACRO.findall(text))
+    for seed in CACHE_SEEDS:
+        hashed.update(f"{seed}\0{read_text(root / seed)}\0".encode())
     for name in sorted(names):
         hashed.update(f"{name}={env.get(environment_key(name), '')}\n".encode())
     return hashed.hexdigest()
