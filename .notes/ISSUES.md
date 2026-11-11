@@ -22,4 +22,6 @@
 - The Dependency sets workflow's publish job is refused by GitHub on `deps-set-size` ("HTTP 403: Resource not
   accessible by integration" from `gh release create`, run 43030096407), though the job's token has
   `contents: write` and the same job published from `master` (`deps-a41c0e8b02a43c55`) and from
-  `pinned-static-build` (`deps-5e394e368d7fabb7`).
+  `pinned-static-build` (`deps-5e394e368d7fabb7`). The same `gh release create` from the desk is refused
+  until the login has the `workflow` scope (`gh auth refresh -h github.com -s workflow`), which a workflow's
+  token cannot have: the tag names a commit that changes `.github/workflows`.
