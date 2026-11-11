@@ -119,6 +119,9 @@ Steps leave the list below when they land, and are marked here.
   rule, `wizard_sv.qm`, of the 21, so every build shipped one of the programs' translations; `qt_add_lrelease`
   makes all 21, and those both builds made are byte-identical. `omw translations` on the unchanged tree changes
   no file.
+- [x] 10. Install and Windows properties: `a44f4d54eb`. A probe `AUTHOR_WARNING` now stops the configure
+  ("CMake Error (author)"), and the configure prints no CMake warning. The PDBs and the console are Windows's,
+  checked by step 11's runs.
 
 ## Steps
 
@@ -215,19 +218,6 @@ part, zsync and `wayland-scanner` under GCC 15, is run once in a plain `almalinu
   - each Linux job's container named by the Dockerfile's digest.
 
   `omw lint workflows` fails on a workflow edited back to the bare tag (the known hit).
-
-### 10. Install and Windows properties
-
-- The Windows PDB install (`cmake/Install.cmake`): a walk of the build folder with 14 exclude patterns naming
-  build-tree folders, so any new build folder installs silently. Use
-  `install(FILES $<TARGET_PDB_FILE:target> TYPE BIN OPTIONAL CONFIGURATIONS Debug RelWithDebInfo)` beside
-  each program's `install(TARGETS)`. The configurations are the ones the walk names.
-- The game's console window (`apps/openmw/CMakeLists.txt`): `if(MSVC)` plus a `/SUBSYSTEM` generator
-  expression becomes `WIN32_EXECUTABLE` set to `$<CONFIG:Release>`. The property takes generator expressions
-  and is ignored off Windows (`cmake --help-property WIN32_EXECUTABLE`).
-- The presets turn CMake's dev and deprecation warnings into errors (see Decisions).
-- Check the Windows archive's file list against the one before, and that the debug build opens its console
-  while the release build does not.
 
 ### 11. One set, pinned, and every change checked by CI at once
 
