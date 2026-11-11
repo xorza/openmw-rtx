@@ -11,9 +11,16 @@
 
 if(CMAKE_C_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(openmw_flags_relwithdebinfo "/O2 /Oy-")
-    set(openmw_flags_release "/O2 /Oy- /DNDEBUG")
+    set(openmw_flags_release "/O2 /Oy- /Gw /DNDEBUG")
     set(CMAKE_EXE_LINKER_FLAGS_INIT "/DEBUG")
     set(CMAKE_SHARED_LINKER_FLAGS_INIT "/DEBUG")
+    # `/DEBUG` turns the linker's defaults to `/OPT:NOREF,NOICF`, which keep what nothing references and every
+    # identical copy, so a release asks for both back; `/Gw` gives each global a section of its own to drop, as
+    # `/O2`'s `/Gy` does each function. Not the debug flavour's, whose folded functions a debugger would name
+    # one for another.
+    foreach(kind EXE SHARED)
+        set(CMAKE_${kind}_LINKER_FLAGS_RELEASE_INIT "/OPT:REF /OPT:ICF")
+    endforeach()
 else()
     set(openmw_frame_pointers "-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
     set(openmw_flags_relwithdebinfo "-O2 -g1 ${openmw_frame_pointers}")
