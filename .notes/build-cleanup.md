@@ -97,6 +97,21 @@ Each local step is a configure, `./omw build` and `./omw test`. Two kinds of ste
   matching `warning` in that step's log (case-insensitive), with a known hit from before the step shown to
   match the same search.
 
+## Progress
+
+Steps leave the list below when they land, and are marked here.
+
+- [~] 1. The set's inputs: committed (`29881a0baa`) and pushed; the desk's Linux set built with no unused-variable
+  warning. Waits for the Dependency sets workflow (run 43030096407) to publish `deps-1156990a01a7c89d`.
+- [x] 2. Dead code and stale words: `03adbdb442`, with `5338c04dfc` laying out `Install.cmake`.
+- [x] 3. What the pinned set makes constant: `16efcd3d87`, corrected by `75d690fb89` (the pinned OSG has no
+  multiview, so `OSG_HAS_MULTIVIEW` stays undefined).
+- [x] 4. Resources through `configure_file` and one folder name: `526b5ea37d`; the resources byte-for-byte as before.
+- [x] 5. The version, filled once: `e7979d3c36`. It also fills the AppStream release date step 2 had emptied; a
+  tree without `.git` stops at configure.
+- [~] 6. Dependencies, each found one way: `a80289914a`, building.
+- [~] 7. Third-party code, in one style and quiet: `12c015d20f`, building.
+
 ## Steps
 
 ### 1. The set's inputs, built by CI while the rest goes on
