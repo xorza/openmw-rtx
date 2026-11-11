@@ -22,11 +22,21 @@ dnf install -y \
   wayland-devel wayland-protocols-devel \
   fontconfig-devel alsa-lib-devel pulseaudio-libs-devel dbus-devel systemd-devel libdrm-devel
 
+# A download tried five times: a mirror refuses a runner's connection at times, and AlmaLinux 8's curl
+# retries no refused connection (`--retry-all-errors` is 7.71's).
+fetch() {
+  for attempt in 1 2 3 4 5; do
+    curl -fsSL "$1" -o "$2" && return
+    [ "$attempt" -lt 5 ] && sleep 10
+  done
+  return 1
+}
+
 # Autoconf 2.72, which vcpkg's autotools ports ask for and AlmaLinux 8 ships at 2.69, as upstream's
 # dependency builder does it.
 if ! autoconf --version | grep -q " 2\.72$"; then
   work="$(mktemp -d)"
-  curl -fsSL https://ftp.gnu.org/gnu/autoconf/autoconf-2.72.tar.gz -o "$work/autoconf.tar.gz"
+  fetch https://ftp.gnu.org/gnu/autoconf/autoconf-2.72.tar.gz "$work/autoconf.tar.gz"
   echo "3f71d459e2127ef2c98b37f11f5284f0c92318ad8d31c5b6034bed370adfe9f3d0f7a12f87e2efced06c11e2a159de4d4a292b751104e83daf11342f25ba9721  $work/autoconf.tar.gz" | sha512sum -c -
   tar xf "$work/autoconf.tar.gz" -C "$work"
   (cd "$work/autoconf-2.72" && ./configure --prefix=/usr/local && make -j"$(nproc)" && make install)
@@ -34,10 +44,11 @@ if ! autoconf --version | grep -q " 2\.72$"; then
 fi
 
 # zsync 0.6.2, whose `zsyncmake` writes the .zsync an AppImage's update information names, and which
-# AlmaLinux 8 and EPEL do not carry. Its C predates the stricter pointer checks GCC 14 made errors.
+# AlmaLinux 8 and EPEL do not carry: its release as Debian's mirror keeps it, as zsync's own site refused
+# CI's runners. Its C predates the stricter pointer checks GCC 14 made errors.
 if ! command -v zsyncmake > /dev/null; then
   work="$(mktemp -d)"
-  curl -fsSL https://zsync.moria.org.uk/download/zsync-0.6.2.tar.bz2 -o "$work/zsync.tar.bz2"
+  fetch https://deb.debian.org/debian/pool/main/z/zsync/zsync_0.6.2.orig.tar.bz2 "$work/zsync.tar.bz2"
   echo "56437594831f2320c532759805b5c51116c53c8848f14b54cfd9b76676d1d061abe7fc914264f496ed1c7922fbbd5b884166c855a2fb9eb1285f216e478c5f0d  $work/zsync.tar.bz2" | sha512sum -c -
   tar xf "$work/zsync.tar.bz2" -C "$work"
   (cd "$work/zsync-0.6.2" && ./configure --prefix=/usr/local CFLAGS="-O2 -std=gnu17 -fpermissive" && make -j"$(nproc)" && make install)
