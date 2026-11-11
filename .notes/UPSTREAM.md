@@ -401,3 +401,8 @@ made only on the user's explicit yes, after which it is added here.
   test support one object library the three binaries that read it link, in place of a choice in each; and the
   benchmarks CTest tests that run Google Benchmark's dry run, in place of CI's step that ran them. The cost is a
   conflict with an upstream edit to a test binary's link list.
+- Translations (`.notes/build-cleanup.md`, step 9): the `translations` and `purge-obsolete-translations`
+  targets go for `omw translations [--purge]`, which reads the one source list `omw lint translations` checks
+  against; the `.qm` files through `qt_add_lrelease` in place of the deprecated `qt_add_translation`; Qt's own
+  translations from `QT6_INSTALL_TRANSLATIONS` in place of `qmake -query`, `qtbase_` alone, as every language
+  has it. The cost is a conflict with an upstream edit to those targets.

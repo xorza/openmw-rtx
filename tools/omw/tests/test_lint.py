@@ -69,6 +69,25 @@ class LintTest(unittest.TestCase):
         # The tree's own workflows hold.
         self.assertEqual(lint._containers(lint.ROOT), [])
 
+    def test_translations_regenerates_every_ts_file_and_purges_only_when_asked(self):
+        with mock.patch.object(lint, "_lupdate", return_value="lupdate"), \
+                mock.patch.object(lint.subprocess, "run") as ran:
+            self.assertEqual(lint.translations([]), 0)
+            kept = [call.args[0] for call in ran.call_args_list]
+            ran.reset_mock()
+            self.assertEqual(lint.translations(["--purge"]), 0)
+            purged = [call.args[0] for call in ran.call_args_list]
+        # One lupdate a group, over the group's sources into every one of its .ts files.
+        self.assertEqual(len(kept), len(lint.TRANSLATIONS))
+        for command, (sources, pattern) in zip(kept, lint.TRANSLATIONS):
+            ts = sorted(str(path) for path in (lint.ROOT / "files" / "lang").glob(pattern))
+            self.assertTrue(ts, pattern)
+            self.assertEqual(command, ["lupdate", "-silent", "-locations", "none", *sources, "-ts", *ts])
+        # --purge adds -no-obsolete and changes nothing else.
+        self.assertEqual(purged, [[*command[:4], "-no-obsolete", *command[4:]] for command in kept])
+        with self.assertRaisesRegex(Refusal, "--purge"):
+            lint.translations(["--prune"])
+
     def test_a_check_nobody_has_is_refused_before_any_runs_and_a_refusal_leaves_the_findings_before_it(self):
         with self.assertRaisesRegex(Refusal, "no check is called style"):
             lint.lint(["names", "style"])

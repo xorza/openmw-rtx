@@ -75,6 +75,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                formatted, then merged; no flavour
   lint [check...]              the checks CI's checks job runs besides the formatting, every one or
                                those named: names, translations, driver, workflows; no flavour
+  translations [--purge]       the Qt programs' .ts files regenerated from their sources, as the lint
+                               checks them; --purge drops the strings no source has; no flavour
   bootstrap                    the pinned dependency set, Windows' Vulkan loader and CMake into deps/; no flavour
   deps-set [--digest]          the libraries vcpkg.json names, built static for this system and packed
                                under deps/sets/, Linux's in AlmaLinux 8; with --digest, the set's name
@@ -170,6 +172,7 @@ BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
     "format": formatting.format_tree,
     "merge-file": formatting.merge_file,
     "lint": lint.lint,
+    "translations": lint.translations,
     "bootstrap": _bootstrap,
     "deps-set": depsset.deps_set,
 }

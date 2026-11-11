@@ -94,6 +94,13 @@ def _lupdate() -> str:
     raise Refusal("Qt's lupdate is not on the PATH nor in /usr/lib/qt6/bin, and the translations check needs it")
 
 
+def _regenerate(lupdate: str, sources: list[str], ts_files: list[Path], purge: bool) -> None:
+    """lupdate over `sources` into `ts_files`, the one way both the check and `omw translations` run it;
+    `purge` drops the strings no source has any more."""
+    subprocess.run([lupdate, "-silent", "-locations", "none", *(["-no-obsolete"] if purge else []), *sources,
+                    "-ts", *map(str, ts_files)], cwd=ROOT, check=True)
+
+
 def _translations() -> list[str]:
     """The translations regenerated from their sources do not change, **on copies**: regenerating the
     tree's own files and reading `git diff` fails a tree with any change at all."""
@@ -105,12 +112,22 @@ def _translations() -> list[str]:
             copies = [Path(scratch) / original.name for original in originals]
             for original, copy in zip(originals, copies):
                 shutil.copyfile(original, copy)
-            subprocess.run([lupdate, "-silent", "-locations", "none", *sources, "-ts", *map(str, copies)],
-                           cwd=ROOT, check=True)
-            found += [f"{original.relative_to(ROOT).as_posix()}: out of date with its sources; build the "
-                      "`translations` target" for original, copy in zip(originals, copies)
+            _regenerate(lupdate, sources, copies, purge=False)
+            found += [f"{original.relative_to(ROOT).as_posix()}: out of date with its sources; run "
+                      "`omw translations`" for original, copy in zip(originals, copies)
                       if not filecmp.cmp(original, copy, shallow=False)]
     return found
+
+
+def translations(args: list[str]) -> int:
+    """`omw translations [--purge]`: the `.ts` files regenerated from their sources in place, the strings no
+    source has any more kept as obsolete, or with `--purge` dropped."""
+    if args not in ([], ["--purge"]):
+        raise Refusal("translations takes `--purge` or nothing")
+    lupdate = _lupdate()
+    for sources, pattern in TRANSLATIONS:
+        _regenerate(lupdate, sources, sorted((ROOT / "files" / "lang").glob(pattern)), purge=bool(args))
+    return 0
 
 
 def _ran(command: list[str], env: dict[str, str] | None = None) -> list[str]:
