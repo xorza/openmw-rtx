@@ -10,10 +10,6 @@
   and `aSuboptimalPresentRebuildsOnceAnExtent` fail as `vkCreateSwapchainKHR` answers `VK_ERROR_FORMAT_NOT_SUPPORTED`;
   the same binary passes all three in the logged-in desktop session.
 
-- **The AppImage's libxkbcommon is older than a host's Compose files**: the image carries AlmaLinux 8's
-  `libxkbcommon.so.0`, which reads the host's `/usr/share/X11/locale/*/Compose`; on a current Arch desk every Qt
-  program prints `xkbcommon: ERROR: ... unrecognized keysym "dead_hamza"` for each line naming a keysym it predates.
-
 - **The frame's thread still computes a few shapes on a warm store**: at `seyda-neen-ship` (`scene`,
   `--upscale=off`, second run) the frame's shapes found 1,390 of 1,391 asked on vanilla, 1,395 of 1,396 on the PBR
   install and 1,242 of 1,249 on the Fullrest Repack, each run writing nothing to the store.
