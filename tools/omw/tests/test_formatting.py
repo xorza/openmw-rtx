@@ -120,8 +120,9 @@ class SourcesTest(unittest.TestCase):
 
 class ChangedFilesTest(unittest.TestCase):
     def test_what_changed_against_head_and_what_is_new_and_nothing_deleted(self):
-        root = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, root)
+        # A `TemporaryDirectory`, whose cleanup makes a read-only file writable before removing it, as Windows
+        # removes none of git's objects otherwise.
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
         git = ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t"]
         subprocess.run(["git", "init", "-q", str(root)], check=True)
         for name in ("same.cpp", "edited.cpp", "staged.cpp", "gone.cpp"):
