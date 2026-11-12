@@ -3,7 +3,7 @@
 # no preset and no folder carries a flag. The code generation is the vcpkg set's (`vcpkg/flags.cmake`, and on Linux
 # `vcpkg/linux.cmake`); what is added here is the tree's alone, and the checks that need a compiler are the root's.
 #
-# - RelWithDebInfo, which debug, asan and tsan build: optimised, with every assert.
+# - RelWithDebInfo, which debug, asan and tsan build: optimised, with every assert, the standard library's among them.
 # - Release, the build a number is quoted from and the release ships: CMake's own -O3 and NDEBUG, with identical
 #   functions folded at the link (`/OPT:ICF`, `--icf=safe`), which a debugger would name one for another. A tagged
 #   release adds link-time optimisation (`CMAKE_INTERPROCEDURAL_OPTIMIZATION`): ThinLTO, and MSVC's `/GL`.
@@ -32,7 +32,9 @@ if(CMAKE_C_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
     endif()
     set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
-    set(openmw_flags_relwithdebinfo "/O2 ${openmw_codegen_msvc}")
+    # The STL's hardening, its checks on `operator[]`, `front()` and the like, which is ABI-independent, so the
+    # set's archives built without it link beside it (`_MSVC_STL_HARDENING`, the STL's "STL Hardening").
+    set(openmw_flags_relwithdebinfo "/O2 /D_MSVC_STL_HARDENING=1 ${openmw_codegen_msvc}")
     set(openmw_flags_release "/O2 /DNDEBUG ${openmw_codegen_msvc}")
     # `/DEBUG` turns the linker's defaults to `/OPT:NOREF,NOICF`, so a release asks for both back.
     foreach(kind EXE SHARED)
@@ -51,7 +53,9 @@ else()
     elseif(OPENMW_SANITIZER)
         message(FATAL_ERROR "OPENMW_SANITIZER is address, thread or empty, not ${OPENMW_SANITIZER}")
     endif()
-    set(openmw_flags_relwithdebinfo "-O2 ${openmw_flags_common}")
+    # libstdc++'s cheap checks, bounds on `operator[]`, `front()` and the like, which change no layout or ABI, so
+    # the set's archives built without them link beside them (`_GLIBCXX_ASSERTIONS`, libstdc++'s "Macros").
+    set(openmw_flags_relwithdebinfo "-O2 -D_GLIBCXX_ASSERTIONS ${openmw_flags_common}")
     set(openmw_flags_release "-O3 -DNDEBUG ${openmw_flags_common}")
 endif()
 

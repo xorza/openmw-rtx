@@ -80,6 +80,12 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   which GCC's manual advises as its instrumentation gives the flow warnings false positives
   ([GCC](https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html)); the tree builds with Clang, whose
   warnings come from its front end ahead of the instrumentation.
+- **The standard library's assertions in every flavour but release**: bounds on `operator[]`, `front()` and the
+  like, which change no layout, so the set built without them links beside them — libstdc++'s `_GLIBCXX_ASSERTIONS`
+  ([libstdc++](https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_macros.html)) and the MSVC STL's
+  `_MSVC_STL_HARDENING` ([STL Hardening](https://github.com/microsoft/STL/wiki/STL-Hardening)). Refused:
+  `_GLIBCXX_DEBUG` and `_ITERATOR_DEBUG_LEVEL`, which change the containers' layout, and libc++ for its hardening,
+  which needs a set and a runtime of its own.
 - **CMake 4.4 at least, 4.4.5 exactly where `omw` builds.** `omw` fetches the pinned release into `deps/` on every
   desk, in CI and in the release image, so one CMake configures every build. Refused: the runners' 3.31 beside the
   desks' own.
