@@ -80,7 +80,8 @@ void main()
         }
 
         const SeenSolid seen = seenSolidOf(light,
-            light.mSkyBent ? joinedPassage(skyFirst, skyOver, light.mSkyPath) : skyFirst, lampPassage);
+            light.mSkyBent ? joinedPassage(skyFirst, skyOver, light.mSkyPath, light.mSkySource.mLimb) : skyFirst,
+            lampPassage);
 
         // **The solid's light under the layers**, by what the media and the path let through, as
         // the trace took the water's own light down (`visibility.comp`); **its shadowed sources and

@@ -66,6 +66,15 @@ struct BentPath
     vec2 mMet;
 };
 
+/// The sine of the half angle a sky light's shadow ray is drawn across under the water once the light has
+/// crossed `path` of it: the sky's own, `limb` (`SkySource::mLimb`), widened by `WATER_SHADOW_SPREAD` a unit
+/// up to `WATER_SHADOW_RADIUS`, and never narrower than the sky's own.
+float waterLimb(float limb, float path)
+{
+    const float sky = asin(limb);
+    return sin(min(sky + WATER_SHADOW_SPREAD * path, max(sky, WATER_SHADOW_RADIUS)));
+}
+
 BentPath bentPathAt(vec3 position, SunUnderWater bent)
 {
     const float depth = waterOver(position);
@@ -170,8 +179,11 @@ RayAsk skyPassageFirstAsk(SkyPassageRun run)
     if (!skyPassageBent(run))
         return skyAsk(run.mSky, run.mPosition, run.mOff, run.mDraw, run.mNearest);
 
-    const vec3 up = -run.mBent.mTravelling;
-    return skyLightAsk(leaveSurface(run.mPosition, run.mOff, up), up, run.mBent.mPath, run.mNearest);
+    // Across the water's cone and as far as the surface along the line drawn, which leans further from the
+    // vertical than the bent line by up to the cone.
+    const vec3 up = coneDirection(-run.mBent.mTravelling, waterLimb(run.mSky.mLimb, run.mBent.mPath), run.mDraw);
+    return skyLightAsk(
+        leaveSurface(run.mPosition, run.mOff, up), up, run.mBent.mDepth / max(up.z, 0.05), run.mNearest);
 }
 
 /// The leg over the water, from where the bent path meets the surface: asked whatever the leg under
@@ -184,12 +196,19 @@ RayAsk skyPassageOverAsk(SkyPassageRun run)
 }
 
 /// The passage of a bent path whose leg under the water answered `under` and whose leg over it, leaving the
-/// surface `path` along the bent line, answered `over`.
-Passage joinedPassage(Passage under, Passage over, float path)
+/// surface `path` along the bent line, answered `over`, for a light in the sky whose own cone is `limb`.
+///
+/// **Its occluder is the distance at the sky's own cone whose penumbra (`skyPenumbra`) the bent path's is**: a
+/// stop under the water opens across the water's wider cone (`waterLimb`), so its distance is stretched by how
+/// much wider that cone is, and a stop over it is the leg over the water's plus the path the water widened. A
+/// source with no cone of its own, a moon the sky does not hold, lights nothing and takes the clear penumbra.
+Passage joinedPassage(Passage under, Passage over, float path, float limb)
 {
+    const float widening = tangentOfLimb(waterLimb(limb, path)) / max(tangentOfLimb(limb), 1e-6);
     const float open = under.mOpen * over.mOpen;
     return Passage(open, open > 0.0 ? under.mThrough * over.mThrough : 1.0,
-        under.mOpen < 1.0 ? under.mOccluder : min(path + over.mOccluder, SHADOW_PENUMBRA_CLEAR));
+        min(under.mOpen < 1.0 ? under.mOccluder * widening : path * widening + over.mOccluder,
+            SHADOW_PENUMBRA_CLEAR));
 }
 
 void stepSkyPassage(inout SkyPassageRun run, RayAnswer answered, inout RayAsk ask)
@@ -223,7 +242,7 @@ void stepSkyPassage(inout SkyPassageRun run, RayAnswer answered, inout RayAsk as
         return;
     }
 
-    run.mPassage = joinedPassage(run.mUnder, passageAnswered(answered), run.mBent.mPath);
+    run.mPassage = joinedPassage(run.mUnder, passageAnswered(answered), run.mBent.mPath, run.mSky.mLimb);
     run.mStep = RUN_IDLE;
 }
 

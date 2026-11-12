@@ -600,12 +600,18 @@ RayAsk lampAsk(Reservoir kept, vec3 step, vec2 draw, bool nearest)
         leaveSurface(kept.mFrom, step, towards), towards, along - max(lamp.mClearance, SHADOW_BIAS), nearest);
 }
 
+/// The tangent of a half angle given as its sine (`SkySource::mLimb`): a penumbra's radius over its
+/// occluder's distance.
+float tangentOfLimb(float limb)
+{
+    return limb / sqrt(max(1.0 - limb * limb, 1e-12));
+}
+
 /// How wide the penumbra stands where a ray to a source was stopped `occluder` along it, as its radius in
 /// world units, or `SHADOW_PENUMBRA_CLEAR` where nothing stopped it.
 float skyPenumbra(SkySource sky, float occluder)
 {
-    return occluder < SHADOW_PENUMBRA_CLEAR ? occluder * sky.mLimb / sqrt(max(1.0 - sky.mLimb * sky.mLimb, 1e-12))
-                                            : SHADOW_PENUMBRA_CLEAR;
+    return occluder < SHADOW_PENUMBRA_CLEAR ? occluder * tangentOfLimb(sky.mLimb) : SHADOW_PENUMBRA_CLEAR;
 }
 
 /// The same for a lamp `radius` across at `distance`, `radius occluder / (distance - occluder)`.

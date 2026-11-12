@@ -828,7 +828,8 @@ struct Passage
     float mThrough;
 
     /// How far along the ray the solid that stopped it stood, or `SHADOW_PENUMBRA_CLEAR` where nothing did:
-    /// what the penumbra's width is made of (`skyPenumbra`, `lampPenumbra`).
+    /// what the penumbra's width is made of (`skyPenumbra`, `lampPenumbra`). A path bent at the water holds
+    /// the distance at its source's own cone whose penumbra its two legs' is (`joinedPassage`).
     float mOccluder;
 };
 

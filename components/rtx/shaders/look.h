@@ -234,6 +234,17 @@ namespace Rtx::Shaders
     /// follow the weather, that is the model to follow it with.
     const float SUN_SHADOW_RADIUS = 3.0f * PI / 180.0f;
 
+    /// How fast the cone a sky light's shadow ray is drawn across widens below the water, in radians a unit of
+    /// the path the light crossed under the surface — ten degrees a hundred units — and the widest it gets.
+    ///
+    /// **A choice about the look, as `SUN_SHADOW_RADIUS` is, with a physical shape**: the waves bend the
+    /// refracted light a few degrees either way and the water scatters it a little forward, so light deep in
+    /// the water arrives across more of the sky than over it, and a shadow under the surface is the softer the
+    /// deeper it falls. Without it the leg under the water was drawn along one line, and whatever stood in the
+    /// water cast a razor edge on the bed.
+    const float WATER_SHADOW_SPREAD = 10.0f * PI / 180.0f / 100.0f;
+    const float WATER_SHADOW_RADIUS = 30.0f * PI / 180.0f;
+
     /// What a moon's own texels are worth as radiance.
     ///
     /// **Pinned, and not by taste.** A real full moon is a 640,000th of the sun and there is no scale

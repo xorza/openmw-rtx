@@ -11,10 +11,12 @@
 #include <osg/Math>
 #include <osg/Matrixf>
 #include <osg/Vec2f>
+#include <osg/Vec3d>
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/shadowalpha.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/camera.hpp>
@@ -478,6 +480,109 @@ namespace Rtx::Testing
             const float bent = around(-172.0f);
             const float straight = around(-259.8f);
             EXPECT_LT(bent, 0.7f * straight) << "the roof shades the bed where the bent path leaves it";
+        }
+
+        /// **A shadow under the water is drawn across the water's cone, which widens with the water crossed**
+        /// (`waterLimb`), so what stands in the water casts a soft edge on the bed rather than a razor one.
+        ///
+        /// The bed is 150 units down, so the light crosses `150 · 1.0003` of water nearly overhead and arrives
+        /// across `3° + 15.005°`; a sheet fifty units over the bed covers every x under nought. A bed point a
+        /// distance off the edge keeps the share of that cone the sheet leaves, which this integrates over the
+        /// cone as `coneDirection` draws it: even in solid angle. **The old line, the sun's three degrees, reached
+        /// 2.6 units across the sheet**, so ten units either side of the edge was wholly lit or wholly dark.
+        ///
+        /// The water scatters nothing and the sky is black, so a pixel is the bed's direct light alone and its
+        /// share is the shaded frame over the open one. Every row of a column is one point's share, so the
+        /// tolerance holds `√(0.25 / (65 · 64)) = 0.008` a column, and the pixel's own width about its centre.
+        TEST_F(RtxVisibilityTest, aShadowUnderTheWaterIsDrawnAcrossTheWatersWiderCone)
+        {
+            constexpr std::uint32_t size = 65;
+            constexpr float across = 65.0f;
+            constexpr float depth = 150.0f;
+            constexpr float over = 50.0f;
+            constexpr float wide = 2000.0f;
+
+            const osg::Matrixf view = osg::Matrixf::lookAt(
+                osg::Vec3f(0.0f, 0.0f, -110.0f), osg::Vec3f(0.0f, 0.0f, -depth), osg::Vec3f(0.0f, 1.0f, 0.0f));
+            Shaders::VisibilityConstants camera
+                = constantsFor(makeOrthographicCameraFromView(view, across, across, size, size, 1.0f, 1000.0f).value());
+            litThroughWater(camera);
+            camera.mWaterScatter = osg::Vec3f();
+            camera.mAmbient = osg::Vec3f();
+
+            SceneDesc shaded = makeFlooded(4000.0f, depth);
+            const std::array<osg::Vec3f, 4> sheet{ osg::Vec3f(-wide, -wide, over - depth),
+                osg::Vec3f(0.0f, -wide, over - depth), osg::Vec3f(0.0f, wide, over - depth),
+                osg::Vec3f(-wide, wide, over - depth) };
+            addQuad(shaded, sheet);
+
+            const Shot shot{ .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mFrames = 64 };
+            const Frame open = shoot(makeFlooded(4000.0f, depth), {}, camera, size, shot);
+            const Frame dark = shoot(shaded, {}, camera, size, shot);
+
+            // The cone as the shader opens it: about the bent line, the sun's own half angle widened by the path.
+            const double sun = osg::DegreesToRadians(2.0);
+            const double bentSine = std::sin(sun) / double{ Shaders::WATER_IOR };
+            const osg::Vec3d axis(0.0, -bentSine, std::sqrt(1.0 - bentSine * bentSine));
+            const double path = depth / axis.z();
+            const double half = std::min(double{ Shaders::SUN_SHADOW_RADIUS } + Shaders::WATER_SHADOW_SPREAD * path,
+                std::max(double{ Shaders::SUN_SHADOW_RADIUS }, double{ Shaders::WATER_SHADOW_RADIUS }));
+            ASSERT_NEAR(osg::RadiansToDegrees(half), 18.005, 0.001) << "the cone this test is drawn for";
+
+            // The share the sheet leaves of a point `x` off the edge, over a grid even in solid angle.
+            const osg::Vec3d first = osg::Vec3d(1.0, 0.0, 0.0);
+            const osg::Vec3d second = axis ^ first;
+            const auto kept = [&](double x) {
+                constexpr int steps = 400;
+                int lit = 0;
+                for (int a = 0; a < steps; ++a)
+                    for (int b = 0; b < steps; ++b)
+                    {
+                        const double cosine = 1.0 - (a + 0.5) / steps * (1.0 - std::cos(half));
+                        const double sine = std::sqrt(1.0 - cosine * cosine);
+                        const double turn = 2.0 * osg::PI * (b + 0.5) / steps;
+                        const osg::Vec3d d
+                            = axis * cosine + first * (sine * std::cos(turn)) + second * (sine * std::sin(turn));
+                        lit += x + over * d.x() / d.z() >= 0.0 ? 1 : 0;
+                    }
+                return double(lit) / double(steps * steps);
+            };
+
+            const float pixel = across / size;
+            for (const float x : { -10.0f, 0.0f, 10.0f })
+            {
+                const std::uint32_t column = static_cast<std::uint32_t>(std::lround(x / pixel + 0.5f * (size - 1)));
+                const double centre = (static_cast<double>(column) - 0.5 * (size - 1)) * pixel;
+                double share = 0.0;
+                for (std::uint32_t row = 0; row < size; ++row)
+                {
+                    const std::size_t at = (std::size_t{ row } * size + column) * 4 + 1;
+                    ASSERT_GT(open.at(at), 0.0f) << "the bed lit at row " << row;
+                    share += double{ dark.at(at) } / double{ open.at(at) };
+                }
+                EXPECT_NEAR(share / size, kept(centre), 0.03) << "the share the sheet leaves at " << centre;
+            }
+
+            // **And the denoiser is told the cone's penumbra**, the run's last frame's: a stopped bit's is its
+            // drawn ray's distance to the sheet, `50 / cos` of how far it leans off the vertical, times the
+            // water's tangent, in pixels a unit across — `16.2` to `17.3`, where the sun's own three degrees
+            // made it `2.6`.
+            std::vector<float> bits;
+            std::vector<float> widths;
+            mProbe.readChannel(Channel::Shadowed, bits);
+            Testing::penumbraeOf(bits, widths);
+            const double tangent = std::tan(half) / double{ pixel };
+            const double lean = half + std::asin(bentSine);
+            std::size_t stopped = 0;
+            for (std::size_t at = 0; at < widths.size(); ++at)
+            {
+                if (Testing::shadowOpen(bits[at * 4 + 3]))
+                    continue;
+                ++stopped;
+                EXPECT_GE(widths[at], static_cast<float>(over * tangent * 0.999)) << "pixel " << at;
+                EXPECT_LE(widths[at], static_cast<float>(over / std::cos(lean) * tangent * 1.001)) << "pixel " << at;
+            }
+            EXPECT_GT(stopped, std::size_t{ 20 * size }) << "the sheet stopped too few rays to say";
         }
 
         /// The water *over* an eye dims what the water in front of it scatters.
@@ -1125,15 +1230,18 @@ namespace Rtx::Testing
 
             // **And a strip wholly under the water shadows the water under it**, as it shadows a
             // bed: each scattering point of the middle column asks up its own bent line, which the
-            // sun keeps at x = 0, and a strip a hundred units down and fifty either side of x = 0
-            // covers the whole disc from every one of them — `31` units wide at the nine hundred
-            // units up to it. Asked from where the light met the surface instead, the strip is
+            // sun keeps at x = 0, across the water's cone, which every point here has crossed enough
+            // water to open to its widest, `WATER_SHADOW_RADIUS`. A strip a hundred units down and
+            // five thousand either side of x = 0 covers that whole cone from every one of them: the
+            // bent line leans 14.9 degrees, so the cone's edge leans 44.9, `3882` units across at the
+            // 3900 up from the bed. Asked from where the light met the surface instead, the strip is
             // under that point and hides nothing. Only the rows below the horizon, whose own rays
             // run level or down and never meet the strip; what they keep is the sky's share alone.
-            // Eight frames, because a strip that hides the whole disc leaves no noise to average: the
+            // Eight frames, because a strip that hides the whole cone leaves no noise to average: the
             // share comes out nought over eight as over 128, where the fault hides nothing.
+            ASSERT_LE(Shaders::WATER_SHADOW_RADIUS, 0.5236f) << "a cone wider than thirty degrees, past the strip";
             SceneDesc sunken = makeOpenWater(4000.0f);
-            constexpr float strip = 50.0f;
+            constexpr float strip = 5000.0f;
             const std::array<osg::Vec3f, 4> under{ osg::Vec3f(-strip, -wide, -over), osg::Vec3f(strip, -wide, -over),
                 osg::Vec3f(strip, wide, -over), osg::Vec3f(-strip, wide, -over) };
             addQuad(sunken, under);
