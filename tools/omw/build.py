@@ -152,6 +152,7 @@ def device_free(tests: list[dict]) -> list[str]:
 # before lld on every link.
 ENVIRONMENT_FLAGS = ("CFLAGS", "CXXFLAGS", "CPPFLAGS", "LDFLAGS", "ASMFLAGS")
 
+
 class Build:
     def __init__(self, flavour: str):
         if flavour not in FLAVOURS:
@@ -176,9 +177,9 @@ class Build:
     @property
     def env(self) -> dict[str, str]:
         """The environment every command of this flavour runs under: the vcpkg set and the Vulkan loader
-        (`deps.vulkan_environment`), the pinned CMake, MSVC's or the set's GCC (`deps.compiler_environment`), none
-        of the environment's flags (`ENVIRONMENT_FLAGS`), and the test preset's own — the sanitizers' options,
-        without which the asan build has no device and a race in the tsan build does not fail the run."""
+        (`deps.vulkan_environment`), the pinned CMake, MSVC's or the pinned Clang (`deps.compiler_environment`),
+        none of the environment's flags (`ENVIRONMENT_FLAGS`), and the test preset's own — the sanitizers'
+        options, without which the asan build has no device and a race in the tsan build does not fail the run."""
         if self._env is None:
             if WINDOWS:
                 env = msvc_environment()
@@ -280,8 +281,6 @@ class Build:
         deps.vcpkg_set()
         if WINDOWS:
             deps.vulkan_loader()
-        else:
-            deps.check_compiler(env)
 
         stamp.unlink(missing_ok=True)
         run(["cmake", "-S", ROOT, "--preset", self.preset, "--fresh"], env=env, stdout=stdout)

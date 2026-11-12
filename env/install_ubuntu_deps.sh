@@ -1,8 +1,8 @@
 #!/bin/bash
-# The packages a Linux desk on Ubuntu 26.04 builds with: the compilers and the tools, and the development
-# files of what the programs open at run time and so stay the system's (OpenGL, X11, Wayland, fontconfig,
-# ALSA, PulseAudio, D-Bus), as `env/install_almalinux_deps.sh` installs them for CI and the release. The
-# libraries the tree links come from the vcpkg set (`vcpkg.json`), not from here.
+# The packages a Linux desk on Ubuntu 26.04 builds with: GCC, whose libstdc++ the pinned Clang builds against,
+# the tools, and the development files of what the programs open at run time and so stay the system's (OpenGL,
+# X11, Wayland, fontconfig, ALSA, PulseAudio, D-Bus), as `env/install_almalinux_deps.sh` installs them for CI
+# and the release. The libraries the tree links come from the vcpkg set (`vcpkg.json`), not from here.
 
 set -euo pipefail
 
@@ -10,7 +10,7 @@ export DEBIAN_FRONTEND=noninteractive
 # Each download retried, as a runner fails to resolve Ubuntu's mirrors now and then (run 43039336048's tsan leg).
 apt-get -o Acquire::Retries=5 update -qq
 apt-get -o Acquire::Retries=5 -qq install -y --no-install-recommends \
-  binutils build-essential ca-certificates ccache curl git mold ninja-build pkg-config python3 unzip zsync \
+  binutils build-essential ca-certificates ccache curl git ninja-build pkg-config python3 unzip zsync \
   libgl-dev libegl-dev libgles-dev libgbm-dev libdrm-dev \
   libx11-dev libx11-xcb-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxinerama-dev \
   libxss-dev libxtst-dev libxrender-dev libxkbcommon-dev libxkbcommon-x11-dev \

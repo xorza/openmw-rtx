@@ -18,7 +18,7 @@ IMPLICIT_INPUTS = ("CC", "CXX", "VULKAN_SDK", "CMAKE_PREFIX_PATH")
 # **The files that seed the cache's flags** (`CMAKE_USER_MAKE_RULES_OVERRIDE` and what it includes): CMake reads a
 # language's `_INIT` flags into the cache at the first configure alone, so an edit to one reaches a build directory
 # only through a fresh configure.
-CACHE_SEEDS = ("cmake/Flags.cmake", "vcpkg/flags.cmake")
+CACHE_SEEDS = ("cmake/Flags.cmake", "vcpkg/flags.cmake", "vcpkg/linux.cmake")
 
 
 def preset_files(root: Path = ROOT) -> list[Path]:

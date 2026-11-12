@@ -139,7 +139,7 @@ NINJA = {
     ),
 }
 
-# Clang 23 for CI's clang leg (`deps.llvm`): kernel.org's slim build of LLVM's release, made on Debian 10 so
+# Clang 23, every Linux build's compiler and linker (`deps.llvm`): kernel.org's slim build of LLVM's release, made on Debian 10 so
 # it runs on AlmaLinux 8's glibc 2.28, where LLVM's own Linux release asks a newer one. The digest is the one
 # kernel.org signs in `sha256sums.asc` beside it.
 LLVM = Pin(

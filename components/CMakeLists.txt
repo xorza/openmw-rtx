@@ -1541,7 +1541,7 @@ set_property(
     APPEND
     PROPERTY
         COMPILE_OPTIONS
-            $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-shadow>
+            $<$<CXX_COMPILER_ID:Clang>:-Wno-shadow>
 )
 # The system-wide data and configuration folders `Files::LinuxPath` reads, none in the portable layout every
 # install has: the configuration beside the programs is the global one.
@@ -1553,16 +1553,6 @@ set_property(
         COMPILE_DEFINITIONS
             "GLOBAL_DATA_PATH=\"\""
             "GLOBAL_CONFIG_PATH=\"\""
-)
-# Boost's `typed_value::notify`, which GCC reports as a null dereference: compiled here alone, as
-# `configurationmanager.hpp` says.
-set_property(
-    SOURCE
-        files/configurationmanager.cpp
-    APPEND
-    PROPERTY
-        COMPILE_OPTIONS
-            $<$<CXX_COMPILER_ID:GNU>:-Wno-null-dereference>
 )
 
 target_compile_definitions(

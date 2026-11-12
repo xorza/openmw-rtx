@@ -38,7 +38,7 @@
             "name": "linux",
             "hidden": true,
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
-            "$comment": "The set's triplet; mold and thin archives are `cmake/Flags.cmake`'s, as every system's flags are.",
+            "$comment": "The set's triplet; lld and thin archives are `cmake/Flags.cmake`'s, as every system's flags are.",
             "cacheVariables": {
                 "VCPKG_TARGET_TRIPLET": "x64-linux-openmw",
                 "VCPKG_HOST_TRIPLET": "x64-linux-openmw"

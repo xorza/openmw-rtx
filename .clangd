@@ -1,19 +1,9 @@
 # The debug flavour's compile commands, which every `omw` build directory exports, and the one the gate
-# keeps configured, so tests, the editor and the tools all resolve. Its flags are GCC's, and clangd should
-# check what CI's Clang build checks: GCC's own flags that Clang does not know are passed over, and of
-# those `cmake/Checks.cmake` gives GCC alone, the four Clang reads otherwise go — `-Wdouble-promotion`,
-# which Clang widens to every implicit promotion, and three that turn off a check Clang's build keeps on.
-# What it gives Clang alone comes. Warnings stay warnings: the editor's clangd may be newer than CI's
-# Clang 23.
+# keeps configured, so tests, the editor and the tools all resolve. Its flags are the pinned Clang's, which
+# CI's builds take too. Warnings stay warnings: the editor's clangd may be newer than the pinned Clang 23.
 CompileFlags:
   CompilationDatabase: build-debug
   Remove:
     - -Werror
-    - -Wdouble-promotion
-    - -Wno-unused-but-set-parameter
-    - -Wno-array-bounds
-    - -Wno-null-dereference
   Add:
     - -Wno-unknown-warning-option
-    - -Wno-potentially-evaluated-expression
-    - -Wno-pass-failed
