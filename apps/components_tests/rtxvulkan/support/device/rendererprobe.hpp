@@ -21,6 +21,7 @@ namespace Rtx
     class Device;
     class Image;
     struct SeaState;
+    class TraceChain;
     struct TracePasses;
     class Upscaler;
     class VulkanRenderer;
@@ -59,6 +60,9 @@ namespace Rtx::Testing
 
         /// The upscaler the renderer resolved its choice to, for a test of what it measured and holds.
         const Upscaler& getUpscaler() const;
+
+        /// The frame's chain, for a test of what a change of mode or size makes again.
+        const TraceChain& getChain() const;
 
         /// How long `slot`'s texture array is, holes included: nought where the slot holds nothing.
         std::uint32_t getTextureCount(SceneSlot slot) const;

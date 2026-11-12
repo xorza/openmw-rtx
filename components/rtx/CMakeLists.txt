@@ -62,6 +62,7 @@ openmw_rtx_layer(
     common
     openmw-rtx-shaders
     SOURCES
+        common/frametimehistogram.cpp
         common/runs.cpp
         common/slots.cpp
     HEADERS
@@ -70,9 +71,11 @@ openmw_rtx_layer(
         common/clock.hpp
         common/error.hpp
         common/finite.hpp
+        common/frametimehistogram.hpp
         common/index.hpp
         common/job.hpp
         common/jobprogress.hpp
+        common/mebibytes.hpp
         common/menu.hpp
         common/namedenum.hpp
         common/ownedby.hpp
@@ -90,6 +93,7 @@ openmw_rtx_layer(
     openmw-rtx-common
     SOURCES
         image/alphaimage.cpp
+        image/blockdecode.cpp
         image/chainbuild.cpp
         image/colour.cpp
         image/colourblock.cpp
@@ -102,6 +106,7 @@ openmw_rtx_layer(
         image/textureformat.cpp
     HEADERS
         image/alphaimage.hpp
+        image/blockdecode.hpp
         image/chainbuild.hpp
         image/colour.hpp
         image/colourblock.hpp
@@ -195,6 +200,7 @@ openmw_rtx_layer(
     openmw-rtx-preprocess
     SOURCES
         frame/camera.cpp
+        frame/framepast.cpp
         frame/framesampling.cpp
         frame/specularalbedo.cpp
         frame/spritelistsize.cpp

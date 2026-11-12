@@ -6,10 +6,14 @@
 #include <string_view>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
+#include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/settings/categories.hpp>
+#include <components/settings/settingvalue.hpp>
+
+#include "toolline.hpp"
 
 namespace Files
 {
@@ -102,14 +106,26 @@ namespace RtxTool
         /// Out of `file`, a `defaults.bin`: what a test reads its own of.
         explicit ShippedDefaults(const std::filesystem::path& file);
 
-        /// One setting, read as the game reads its text: a number through
-        /// `Misc::StringUtils::toNumeric`, which refuses one that is not finite, and a switch as
-        /// `true` in any case. Throws naming the setting where the file names none, or the text is
-        /// no number. For `float`, `int`, `bool` and `std::string`, the text itself.
+        /// What the file says of `setting`, the registry's own, read as the game reads its text: a
+        /// number through `Misc::StringUtils::toNumeric`, which refuses one that is not finite, and a
+        /// switch as `true` in any case. Throws naming the setting where the file names none, or the
+        /// text is no number. For `float`, `int`, `bool` and `std::string`, the text itself.
         template <class T>
-        T get(std::string_view category, std::string_view setting) const;
+        T get(const Settings::SettingValue<T>& setting) const;
 
     private:
         Settings::CategorySettingValueMap mShipped;
     };
+
+    /// **A measured run's settings where its line names none**: the shipped defaults, so two
+    /// machines that differ only in their `settings.cfg` measure one scene under one line — but for
+    /// the upscale mode, the upscaler and the bounces, whose defaults for a run are the harness's
+    /// own, the line's (`sUpscaleByDefault`, FSR, the request's), so a measured picture does not
+    /// change with the card it was measured on.
+    MWRender::RtxSettingValues measuredSettings(const ShippedDefaults& shipped, const ToolLine::Frame& line);
+
+    /// **The one rule for what a run's line names**: each setting the line names is the line's,
+    /// and every other is `source`'s — the player's registry for a window they watch, which is the
+    /// played game with the walls off, and `measuredSettings` for a measured run.
+    MWRender::RtxSettingValues overLine(const ToolLine::Frame& line, MWRender::RtxSettingValues source);
 }

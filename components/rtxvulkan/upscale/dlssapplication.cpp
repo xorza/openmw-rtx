@@ -8,6 +8,7 @@
 #include <system_error>
 
 #include <components/debug/debuglog.hpp>
+#include <components/platform/gpu.hpp>
 #include <components/version/version.hpp>
 
 namespace Rtx::Dlss
@@ -111,6 +112,9 @@ namespace Rtx::Dlss
 
     std::vector<std::string> Application::requiredInstanceExtensions() const
     {
+        if (!Platform::Gpu::has(Platform::Gpu::Vendor::Nvidia))
+            return {};
+
         const Ngx::Api* ngx = Ngx::api();
         if (ngx == nullptr)
             return {};
@@ -125,8 +129,11 @@ namespace Rtx::Dlss
     }
 
     std::vector<std::string> Application::requiredDeviceExtensions(
-        const VkInstance instance, const VkPhysicalDevice physicalDevice) const
+        const VkInstance instance, const VkPhysicalDevice physicalDevice, const DriverProfile& driver) const
     {
+        if (!driver.mNgx)
+            return {};
+
         const Ngx::Api* ngx = Ngx::api();
         if (ngx == nullptr)
             return {};
@@ -136,8 +143,13 @@ namespace Rtx::Dlss
         VkExtensionProperties* properties = nullptr;
         const Ngx::Result result
             = ngx->GetFeatureDeviceExtensionRequirements(instance, physicalDevice, &info, &count, &properties);
-        if (result == Ngx::Result::NotImplemented)
-            return coreExtensions(*ngx).mDevice;
-        return namesOf(result, count, properties);
+        std::vector<std::string> names
+            = result == Ngx::Result::NotImplemented ? coreExtensions(*ngx).mDevice : namesOf(result, count, properties);
+
+        std::string named;
+        for (const std::string& extension : names)
+            named += (named.empty() ? "" : ", ") + extension;
+        Log(Debug::Info) << "NVIDIA DLSS: trying" << (named.empty() ? "" : ", NGX asks for " + named);
+        return names;
     }
 }

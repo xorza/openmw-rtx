@@ -2,11 +2,13 @@
 
 #include <algorithm>
 #include <cassert>
+#include <format>
 #include <optional>
 #include <utility>
 
 #include <components/debug/debuglog.hpp>
 #include <components/platform/memory.hpp>
+#include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 
@@ -167,8 +169,9 @@ namespace Rtx
             return true;
 
         Log(Debug::Warning) << "Ray tracing keeps the chain of \"" << SceneUtil::EmbeddedImage::nameOf(file)
-                            << "\" as it stands: making it again needs " << scratch.total() / (1024 * 1024)
-                            << " MiB, and the system has " << *available / (1024 * 1024) << " MiB left";
+                            << "\" as it stands: making it again needs "
+                            << std::format("{:.1f} MiB, and the system has {:.1f} MiB left", mebibytes(scratch.total()),
+                                   mebibytes(*available));
         return false;
     }
 

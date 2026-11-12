@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -36,7 +37,10 @@ namespace Rtx
         /// submit of the device's pool like any other, so it signals the timeline and carries what
         /// was deferred ahead of it — a submit of its own that took a timeline value would let the
         /// graveyard free what a deferred batch names before it ran.
-        Presenter(const Device& device, Surface& surface, SDL_Window* window, VerticalSync verticalSync);
+        /// @param surface the window's, which the device was chosen to present to: this one's from
+        ///        here on, which a rebuild makes again where it was lost.
+        Presenter(
+            const Device& device, std::unique_ptr<Surface> surface, SDL_Window* window, VerticalSync verticalSync);
         ~Presenter();
 
         /// Blits `frame` onto the next swapchain image where `Misc::present` places it, black beside
@@ -151,9 +155,9 @@ namespace Rtx
         /// that, every frame the two differed waited the device idle and made the swapchain again.
         VkExtent2D mAsked;
 
-        /// What the swapchain is made on: the renderer's, which outlives this, and which a rebuild
-        /// makes again where it was lost.
-        Surface& mSurface;
+        /// What the swapchain is made on, and outlives it: this one's alone, which a rebuild makes
+        /// again where it was lost.
+        std::unique_ptr<Surface> mSurface;
         Swapchain mSwapchain;
 
         /// What an acquire signals and the blit behind it waits.

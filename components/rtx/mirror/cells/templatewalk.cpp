@@ -17,6 +17,7 @@
 #include <components/contentstore/store.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/constants.hpp>
+#include <components/rtx/common/finite.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/materialresolver.hpp>
 #include <components/rtx/mirror/worlddescent.hpp>
@@ -165,6 +166,15 @@ namespace Rtx
         if (const Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
         {
             refuse(fits.error());
+            return;
+        }
+
+        // **A place in the model that is not finite stands nothing**, as the frame's walk refuses one
+        // (`SceneExtractor`): the reference's own the cell reader checks, and the product of the two is
+        // what the top level is built from.
+        if (!isFinite(osg::Matrixf(mHere)))
+        {
+            refuse("its place is not a finite number");
             return;
         }
 

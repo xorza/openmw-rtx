@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -172,12 +174,16 @@ namespace Rtx
         /// hands `computeMatrixForFrame` instead.
         void setEye(const std::optional<ViewBasis>& eye) { mEye = eye; }
 
-        /// The nodes the game put somewhere else in one step since the last walk — a door, a
-        /// teleport — whose placements the walks that follow stand with no motion
-        /// (`PlacementTable::jump`), so a history from where they stood is refused where they
-        /// stand. Told per walk, as the eye is, and kept alive by the caller over the walks it is
-        /// told for.
-        void setJumped(std::span<const osg::Node* const> jumped) { mJumped = jumped; }
+        /// The stable identities of the nodes the game put somewhere else in one step since the
+        /// last walk — a door, a teleport — whose placements the walks that follow stand with no
+        /// motion (`PlacementTable::jump`), so a history from where they stood is refused where they
+        /// stand. Ascending, each once. Told per walk, as the eye is, and kept alive by the caller
+        /// over the walks it is told for.
+        void setJumped(std::span<const std::uint64_t> jumped)
+        {
+            assert(std::ranges::is_sorted(jumped) && "the jumps told out of order");
+            mJumped = jumped;
+        }
 
         /// The world's clock, in seconds, once per frame: what everything the graph animates is
         /// driven by. `SceneUtil::FrameTimeSource` reads the simulation time off the visitor's frame
@@ -447,7 +453,7 @@ namespace Rtx
         std::optional<ViewBasis> mEye;
 
         /// See `setJumped`.
-        std::span<const osg::Node* const> mJumped;
+        std::span<const std::uint64_t> mJumped;
 
         /// Every effect this walk entered, in the order it entered them. Which of them the walk
         /// is inside is the traversal's, carried down the subtree beside the class. Reserved once,

@@ -46,6 +46,11 @@ namespace Rtx
         /// write-combined kind ran at 290 MB/s, 28 ms for one picture, against 0.12. The device
         /// reads and writes either kind across the bus alike.
         ReadBack,
+
+        /// Host memory the device writes past its own caches and the host reads as the queue left
+        /// it, even after a hang that flushed nothing: AMD's device-coherent, uncached kind, where
+        /// `VK_AMD_device_coherent_memory` is enabled. The buffer markers' alone.
+        Markers,
     };
 
     /// A `VkBuffer` and the allocation behind it.

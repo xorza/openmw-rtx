@@ -1355,7 +1355,11 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
         vec3 layerEye = vec3(0.0);
         if (HAS_MAPS && detailed)
         {
-            const vec3 across = vec3(1.0, 0.0, 0.0);
+            // **Down y where x is the normal itself**, a face of ground along ±x, where x less its
+            // part along the normal is nought and its normalisation a NaN in every history that read it.
+            // The axis is selected before the one projection, which carried twice held 256 bytes more
+            // of the water's walk in shared memory on NVIDIA's.
+            const vec3 across = abs(normal.x) < 1.0 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
             layerTangent = normalize(across - normal * dot(normal, across));
             layerBitangent = cross(normal, layerTangent);
             layerEye = vec3(dot(layerTangent, -direction), dot(layerBitangent, -direction), dot(normal, -direction));

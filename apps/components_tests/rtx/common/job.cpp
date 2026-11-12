@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/bound.hpp>
 #include <components/platform/thread.hpp>
 #include <components/rtx/common/job.hpp>
 #include <components/rtx/common/jobprogress.hpp>
@@ -54,8 +55,15 @@ namespace Rtx
                 self.advance();
                 self.advance();
                 self.advance();
-                while (!release)
+                for (const Testing::WaitBound bound(Testing::sHandOverPatience); !release;)
+                {
+                    if (bound.passed())
+                    {
+                        ADD_FAILURE() << "the job was never released";
+                        break;
+                    }
                     std::this_thread::yield();
+                }
                 self.advance();
             });
 
@@ -95,12 +103,22 @@ namespace Rtx
                 Job job;
                 job.start("endless", 1, [&](const std::stop_token& stop, Job&) {
                     started = true;
-                    while (!stop.stop_requested())
+                    for (const Testing::WaitBound bound(Testing::sHandOverPatience); !stop.stop_requested();)
+                    {
+                        if (bound.passed())
+                        {
+                            ADD_FAILURE() << "the job was never asked to stop";
+                            break;
+                        }
                         std::this_thread::yield();
+                    }
                     sawStop = true;
                 });
-                while (!started)
+                for (const Testing::WaitBound bound(Testing::sHandOverPatience); !started;)
+                {
+                    ASSERT_FALSE(bound.passed()) << "the job never started";
                     std::this_thread::yield();
+                }
                 began = std::chrono::steady_clock::now();
             }
             EXPECT_TRUE(sawStop);

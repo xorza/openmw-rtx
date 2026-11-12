@@ -62,15 +62,26 @@ namespace Crash
         mWake.notify_one();
     }
 
-    void MonitorLog::flush()
+    void MonitorLog::finish(const std::filesystem::path& fallback)
     {
         std::unique_lock lock(mMutex);
+        if (pathOf(mPage.getLogPath()).empty() && !mWaiting.empty())
+        {
+            // A file of this session's alone, as the game's own log is.
+            Platform::AppendFile::open(fallback, Platform::AppendStart::Emptied);
+            mFallback = fallback;
+        }
+        mWake.notify_one();
         mEmptied.wait_for(lock, std::chrono::seconds(5), [&] { return mWaiting.empty() && !mWriting; });
     }
 
     std::filesystem::path MonitorLog::path() const
     {
-        return pathOf(mPage.getLogPath());
+        const std::filesystem::path named = pathOf(mPage.getLogPath());
+        if (!named.empty())
+            return named;
+        const std::lock_guard lock(mMutex);
+        return mFallback;
     }
 
     std::filesystem::path MonitorLog::pathOf(const std::string& text)
@@ -91,19 +102,32 @@ namespace Crash
         std::unique_lock lock(mMutex);
         for (;;)
         {
-            mWake.wait(lock, [&] { return mEnds || !mWaiting.empty(); });
-            if (mWaiting.empty())
+            // **Read again while what waits has nowhere to go**: the game names its log through the
+            // page, which wakes nothing here.
+            const auto destination = [&] {
+                const std::filesystem::path named = pathOf(mPage.getLogPath());
+                return named.empty() ? mFallback : named;
+            };
+            mWake.wait_for(lock, std::chrono::milliseconds(200),
+                [&] { return mEnds || (!mWaiting.empty() && !destination().empty()); });
+            const std::filesystem::path log = destination();
+            if (mWaiting.empty() && mEnds)
                 return;
+            if (mWaiting.empty() || log.empty())
+            {
+                // Nowhere to write it at the end, and nothing to wait for.
+                if (mEnds)
+                    return;
+                continue;
+            }
 
             std::vector<std::string> blocks;
             blocks.swap(mWaiting);
             mWriting = true;
             lock.unlock();
 
-            const std::filesystem::path log = path();
-            if (!log.empty())
-                for (const std::string& block : blocks)
-                    Platform::AppendFile::open(log, Platform::AppendStart::Kept).write(block);
+            for (const std::string& block : blocks)
+                Platform::AppendFile::open(log, Platform::AppendStart::Kept).write(block);
 
             lock.lock();
             mWriting = false;

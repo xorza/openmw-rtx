@@ -14,6 +14,18 @@
 
 namespace MWRender
 {
+    bool standsAway(const bool sameWorldspace, const ESM::Position& standing, const ESM::Position& placed,
+        const ESM::RefId worldspace)
+    {
+        if (!sameWorldspace)
+            return true;
+        const ESM::ExteriorCellLocation now
+            = ESM::positionToExteriorCellLocation(standing.pos[0], standing.pos[1], worldspace);
+        const ESM::ExteriorCellLocation content
+            = ESM::positionToExteriorCellLocation(placed.pos[0], placed.pos[1], worldspace);
+        return now.mX != content.mX || now.mY != content.mY;
+    }
+
     TracedGround::TracedGround(
         const GroundSpec& spec, Resource::SceneManager& scenes, const unsigned int nodeMask, WorldMirror& mirror)
         : mTerrain(spec.mSceneRoot, spec.mWorldRoot, spec.mStorage, scenes, *this, nodeMask, spec.mWorldspace)
@@ -47,25 +59,16 @@ namespace MWRender
         }
 
         // Read after the game wrote it: a move, a turn and a scale each write the reference's own
-        // data before they tell the paging. **Away where the cell it stands in now is not the one
-        // its content position stands in**, compared as cells: the worldspace the distance found it
-        // in and the grid there. An interior, or another worldspace, is away whatever its
-        // coordinates read as on this one's grid. A cell's own reference may stand past its edge, and
-        // a lantern swung there has gone nowhere.
+        // data before they tell the paging. The worldspace is the one the distance found it in.
         const ESM::Position& position = now.getRefData().getPosition();
-        const ESM::Position& placed = now.getCellRef().getPosition();
         const ESM::RefId worldspace = paged.getCell()->getCell()->getWorldSpace();
         const bool sameWorldspace
             = now.isInCell() && now.getCell()->isExterior() && now.getCell()->getCell()->getWorldSpace() == worldspace;
-        const ESM::ExteriorCellLocation standing
-            = ESM::positionToExteriorCellLocation(position.pos[0], position.pos[1], worldspace);
-        const ESM::ExteriorCellLocation content
-            = ESM::positionToExteriorCellLocation(placed.pos[0], placed.pos[1], worldspace);
         mMirror.getRing().moveReference(refnum,
             Rtx::ReferencePlace{ .mPosition = position.asVec3(),
                 .mRotation = osg::Vec3f(position.rot[0], position.rot[1], position.rot[2]),
                 .mScale = now.getCellRef().getScale() },
-            !sameWorldspace || standing.mX != content.mX || standing.mY != content.mY);
+            standsAway(sameWorldspace, position, now.getCellRef().getPosition(), worldspace));
     }
 
     void TracedGround::setGate(const std::uint32_t gate, const Terrain::GateState state)

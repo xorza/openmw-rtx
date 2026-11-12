@@ -9,7 +9,6 @@ target_sources(
         crashhangwatch.cpp
         crashmonitorarguments.cpp
         crashmonitorlog.cpp
-        crashnote.cpp
         crashpackage.cpp
         crashpage.cpp
         crashsummary.cpp
@@ -23,7 +22,6 @@ target_sources(
                 crashinstall.hpp
                 crashmonitorarguments.hpp
                 crashmonitorlog.hpp
-                crashnote.hpp
                 crashpackage.hpp
                 crashpadclientsystem.hpp
                 crashpadmonitorsystem.hpp
@@ -32,6 +30,21 @@ target_sources(
                 crashsummary.hpp
                 crashuncaught.hpp
 )
+
+# **The crash notes on their own**, a leaf the build's own tools link too: an error the renderer throws
+# carries the thread's note (`Rtx::withNote`), and a tool that throws one links nothing else of this.
+add_library(openmw-crash-notes STATIC crashnote.cpp)
+target_sources(
+    openmw-crash-notes
+    PUBLIC
+        FILE_SET HEADERS
+            BASE_DIRS
+                "${PROJECT_SOURCE_DIR}"
+            FILES
+                crashnote.hpp
+)
+target_link_libraries(openmw-crash-notes PUBLIC openmw-platform-io)
+target_link_libraries(openmw-components PUBLIC openmw-crash-notes)
 
 # The image the monitor reads, which Linux keeps for it and Windows has no need of.
 if(LINUX)

@@ -85,12 +85,21 @@ namespace Rtx
         // What the device half of swapchain maintenance rests on: a present fence is the only
         // thing that says the presentation engine has finished with an image. Surface maintenance
         // rests in turn on the extended surface query, and both are taken where the loader has
-        // both, so a driver without them presents as before.
-        if (!surfaceExtensions.empty() && offers(offered, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME)
-            && offers(offered, VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME))
+        // both, so a driver without them presents as before: **in the promoted spelling where the
+        // loader has it, and in the one before its promotion where it has that alone**, as DXVK
+        // takes either.
+        if (!surfaceExtensions.empty() && offers(offered, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME))
         {
-            extensions.push_back(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
-            extensions.push_back(VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
+            const char* const maintenance = offers(offered, VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME)
+                ? VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME
+                : offers(offered, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME)
+                ? VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME
+                : nullptr;
+            if (maintenance != nullptr)
+            {
+                extensions.push_back(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
+                extensions.push_back(maintenance);
+            }
         }
 
         // Asked for wherever the loader offers it, which is every build: command-buffer labels are
@@ -279,7 +288,8 @@ namespace Rtx
                 throw Unsupported("the validation layer is loaded but the debug messenger's entry points are missing");
 
             VkDebugUtilsMessengerEXT messenger = VK_NULL_HANDLE;
-            checkVk(create(mHandle.get(), &messengerInfo, nullptr, &messenger), "vkCreateDebugUtilsMessengerEXT");
+            checkVkWithoutDevice(
+                create(mHandle.get(), &messengerInfo, nullptr, &messenger), "vkCreateDebugUtilsMessengerEXT");
             mMessenger = decltype(mMessenger)({ mHandle.get(), destroy }, messenger);
         }
     }

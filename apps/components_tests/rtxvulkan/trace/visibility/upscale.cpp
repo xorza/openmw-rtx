@@ -10,6 +10,7 @@
 
 #include <osg/Vec2d>
 #include <osg/Vec3f>
+#include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
@@ -19,11 +20,15 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/frame/gbuffer.hpp>
 #include <components/rtxvulkan/shaders/shared/fsr.h>
+#include <components/rtxvulkan/trace/tracechain.hpp>
+#include <components/rtxvulkan/upscale/upscaler.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -339,6 +344,32 @@ namespace Rtx::Testing
                         worst = std::max(worst, std::abs(int{ withPost[at] } - int{ bare[at] }));
                     }
             EXPECT_LE(worst, 1) << "the post at the left edge moved the right edge's picture";
+        }
+
+        /// **A change of mode makes again only what it moved**, which `FrameTracer::movesTo` alone
+        /// answers: native and off trace and show at one size, and under FSR, which takes the light
+        /// filtered, the renderer filters under both, so the chain stands through them; quality
+        /// traces 64 / 1.5 = 42.7, so 42, a side, a chain made again at that and FSR's targets with
+        /// it, and native again stands them both at 64.
+        TEST_F(RtxVisibilityTest, aChangeOfModeMakesAgainOnlyWhatItMoved)
+        {
+            mRenderer.resize(64, 64);
+            const VkImage off = mProbe.getChain().getChannels().get(Channel::Surface).getHandle();
+            const Upscaler& upscaler = mProbe.getUpscaler();
+
+            const UpscaleFor upscale(mRenderer, Upscale::Native);
+            EXPECT_EQ(mProbe.getChain().getChannels().get(Channel::Surface).getHandle(), off)
+                << "native made the chain again";
+            EXPECT_TRUE(upscaler.isAt({ 64, 64 }, { 64, 64 }));
+
+            mRenderer.setUpscale(Upscale::Quality);
+            EXPECT_EQ(mProbe.getChain().getWidth(), 42u);
+            EXPECT_EQ(mProbe.getChain().getHeight(), 42u);
+            EXPECT_TRUE(upscaler.isAt({ 42, 42 }, { 64, 64 }));
+
+            mRenderer.setUpscale(Upscale::Native);
+            EXPECT_EQ(mProbe.getChain().getWidth(), 64u);
+            EXPECT_TRUE(upscaler.isAt({ 64, 64 }, { 64, 64 }));
         }
 
         /// **The same frames reconstruct to the same picture.** Two runs of 24 upscaled frames from a

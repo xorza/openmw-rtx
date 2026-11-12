@@ -16,6 +16,7 @@
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <components/rtx/common/cardaddress.hpp>
+#include <components/rtx/common/frametimehistogram.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -23,6 +24,7 @@
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -299,6 +301,11 @@ namespace MWRender
             Gui,
         };
 
+        /// **The one rule for what the world tells the renderer** — a cell, an emitter, a cut, a
+        /// worldspace: between two frames, or from the run's hook, which acts on the game as its
+        /// update would. Whatever it changes, the next frame's walk reads.
+        void expectWorldEvent() const { mPhase.expect(Phase::Between, Phase::Run); }
+
         /// Traces the world the walk has just mirrored: the frame behind finished, the scene handed
         /// over, the deferred views drawn, the camera aimed, the frame traced and the report closed.
         /// Its refusals — an empty world, a camera with no roll — are not reasons not to present, so
@@ -401,6 +408,20 @@ namespace MWRender
         /// stop's own mode is: one place changes the targets, ahead of the camera built for them.
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
 
+        /// **What the menu changed of the renderer since the last frame, set at the next frame's
+        /// start** as `mUpscale` is: each can rebuild the targets or the swapchain, which can fail,
+        /// and a failure inside a frame is reported where one inside a call the game made `noexcept`
+        /// ends the process unexplained.
+        struct PendingSettings
+        {
+            std::optional<std::uint32_t> mAnisotropy;
+            std::optional<float> mGamma;
+            std::optional<bool> mIndirectLighting;
+            std::optional<std::uint32_t> mBounceRays;
+            std::optional<Rtx::VerticalSync> mVerticalSync;
+        };
+        PendingSettings mPending;
+
         /// After the backend, because its slot is in the backend's table and goes back before the
         /// table does.
         std::unique_ptr<MyGUI::ITexture> mFrozenFrameTexture;
@@ -451,6 +472,11 @@ namespace MWRender
         /// rate the window's title says: the only instrument on this path, and the number that says
         /// whether this is playable.
         FrameTimer mTimer;
+
+        /// The frames the game drew unpaused, whole as `mTimer` measures them, since the last cut and
+        /// over the session: what the log says of how the session ran, at each cut and at its end.
+        Rtx::FrameTimeHistogram mStretchTimes;
+        Rtx::FrameTimeHistogram mSessionTimes;
 
         /// Where the host's clock stood at the last trace, nothing before the first: what
         /// `Rtx::FrameOptions::mSinceLast` is measured from.

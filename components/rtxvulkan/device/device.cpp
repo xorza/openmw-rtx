@@ -57,16 +57,6 @@ namespace Rtx
             }
         }
 
-        /// One line of a fault report: the last checkpoint `stage` passed, or that the host no longer
-        /// names the one it passed.
-        std::string describePassed(const VkPipelineStageFlagBits stage, const Checkpoint* const checkpoint)
-        {
-            return checkpoint == nullptr
-                ? std::format("\n  {} passed no checkpoint the host still names", checkpointStageName(stage))
-                : std::format("\n  {} last passed `{}` of frame {}", checkpointStageName(stage), checkpoint->mName,
-                      checkpoint->mFrame);
-        }
-
         /// What a faulting address was being used for, as the header spells it.
         std::string_view faultAddressTypeName(VkDeviceFaultAddressTypeEXT type)
         {
@@ -165,8 +155,11 @@ namespace Rtx
                 = std::all_of(option.mExtensions.begin(), option.mExtensions.end(),
                     [&](const char* const name) { return mPhysicalDevice.hasOptionalExtension(name); });
         taken[static_cast<std::size_t>(DeviceOption::PerformanceQuery)] &= mReport.mCounters;
-        taken[static_cast<std::size_t>(DeviceOption::Checkpoints)] &= mReport.mBreadcrumbs;
-        taken[static_cast<std::size_t>(DeviceOption::BufferMarkers)] &= mReport.mBreadcrumbs;
+        taken[static_cast<std::size_t>(DeviceOption::PresentFencesExt)]
+            &= !taken[static_cast<std::size_t>(DeviceOption::PresentFences)];
+        taken[static_cast<std::size_t>(DeviceOption::Checkpoints)] &= mReport.mCheckpoints;
+        taken[static_cast<std::size_t>(DeviceOption::BufferMarkers)] &= mReport.mMarkers;
+        taken[static_cast<std::size_t>(DeviceOption::UncachedMarkers)] &= mReport.mMarkers;
         const auto has = [&](const DeviceOption option) { return taken[static_cast<std::size_t>(option)]; };
 
         // Only what is still taken is chained, into the query and into the creation alike.
@@ -206,6 +199,8 @@ namespace Rtx
         for (const OptionalExtensions& option : getOptionalExtensions())
             if (has(option.mOption))
                 extensions.insert(extensions.end(), option.mExtensions.begin(), option.mExtensions.end());
+        // What was taken, where `PhysicalDevice::describe` says what was offered.
+        Log(Debug::Info) << "Device options taken: " << describeTaken(taken);
 
         DeviceFeatures features;
         requestRequiredFeatures(features);
@@ -223,7 +218,7 @@ namespace Rtx
                 chain(option.mFeature->mStructure(optional));
 
         const bool describesFault = has(DeviceOption::FaultReport);
-        mPresentFences = has(DeviceOption::PresentFences);
+        mPresentFences = has(DeviceOption::PresentFences) || has(DeviceOption::PresentFencesExt);
         mPresentWait = has(DeviceOption::PresentIds) && has(DeviceOption::PresentWait);
 
         const float priority = 1.0f;
@@ -251,7 +246,8 @@ namespace Rtx
         };
 
         VkDevice created = VK_NULL_HANDLE;
-        checkVk(vkCreateDevice(mPhysicalDevice.getHandle(), &createInfo, nullptr, &created), "vkCreateDevice");
+        checkVkWithoutDevice(
+            vkCreateDevice(mPhysicalDevice.getHandle(), &createInfo, nullptr, &created), "vkCreateDevice");
         mHandle = Root<VkDevice, vkDestroyDevice>(created);
 
         // From here on a throw — a driver that advertises an extension it cannot dispatch, which
@@ -297,15 +293,17 @@ namespace Rtx
         mPipelineCache = std::make_unique<PipelineCache>(
             mHandle.get(), mPhysicalDevice.getProperties().mProperties2.properties, cache, mShaderDirectory);
         mMemory = std::make_unique<MemoryAllocator>(*this, instance.getHandle(), mPhysicalDevice.getHandle(),
-            mPhysicalDevice.getProperties().mMemory, has(DeviceOption::MemoryBudget),
-            has(DeviceOption::MemoryPriority));
+            mPhysicalDevice.getProperties().mMemory,
+            MemoryExtensions{ .mBudget = has(DeviceOption::MemoryBudget),
+                .mPriority = has(DeviceOption::MemoryPriority),
+                .mDeviceCoherent = has(DeviceOption::UncachedMarkers) });
         mTimeline = std::make_unique<Timeline>(*this);
         mGraveyard = std::make_unique<Graveyard>(*this);
         // `new` and not `make_unique`, which the pool's private constructor does not admit.
         mPool.reset(new CommandPool(*this));
 
         if (markerWrite != nullptr)
-            mMarkers = std::make_unique<BufferMarkers>(*this, markerWrite);
+            mMarkers = std::make_unique<BufferMarkers>(*this, markerWrite, has(DeviceOption::UncachedMarkers));
 
         if (shaders.mCensus)
             mCensus = std::make_unique<NotFiniteCensus>(*this, mShaderDirectory);
@@ -374,7 +372,7 @@ namespace Rtx
         };
 
         std::uint32_t executables = 0;
-        checkVk(vkGetPipelineExecutablePropertiesKHR(mHandle.get(), &asked, &executables, nullptr),
+        checkVk(*this, vkGetPipelineExecutablePropertiesKHR(mHandle.get(), &asked, &executables, nullptr),
             "vkGetPipelineExecutablePropertiesKHR");
         return executables;
     }
@@ -390,7 +388,7 @@ namespace Rtx
         };
 
         return enumerateVk<VkPipelineExecutableStatisticKHR>(
-            "vkGetPipelineExecutableStatisticsKHR",
+            *this, "vkGetPipelineExecutableStatisticsKHR",
             [&](std::uint32_t* count, VkPipelineExecutableStatisticKHR* into) {
                 return vkGetPipelineExecutableStatisticsKHR(mHandle.get(), &which, count, into);
             },
@@ -418,7 +416,7 @@ namespace Rtx
         };
         const std::vector<VkPipelineExecutablePropertiesKHR> executables
             = enumerateVk<VkPipelineExecutablePropertiesKHR>(
-                "vkGetPipelineExecutablePropertiesKHR",
+                *this, "vkGetPipelineExecutablePropertiesKHR",
                 [&](std::uint32_t* count, VkPipelineExecutablePropertiesKHR* into) {
                     return vkGetPipelineExecutablePropertiesKHR(mHandle.get(), &asked, count, into);
                 },
@@ -437,7 +435,7 @@ namespace Rtx
                 const std::string_view name = statistic.name;
                 const std::uint64_t value = unsignedOf(statistic);
                 if (name == names.mScratch)
-                    raise(use.mScratchBytes, value);
+                    raise(use.mScratchBytes, value & names.mScratchBits);
                 else if (name == names.mRegisters)
                     raise(use.mRegisters, value);
                 else if (name == names.mShared)
@@ -516,10 +514,12 @@ namespace Rtx
             // (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`).
             const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
             for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
-                if (!names.mScratch.empty() && std::string_view(statistic.name) == names.mScratch
-                    && unsignedOf(statistic) > 0)
-                    Log(Debug::Warning) << "pipeline " << name << " uses " << unsignedOf(statistic)
+            {
+                const std::uint64_t scratch = unsignedOf(statistic) & names.mScratchBits;
+                if (!names.mScratch.empty() && std::string_view(statistic.name) == names.mScratch && scratch > 0)
+                    Log(Debug::Warning) << "pipeline " << name << " uses " << scratch
                                         << " bytes of scratch memory a lane";
+            }
         }
     }
 
@@ -539,7 +539,7 @@ namespace Rtx
         // Asked twice: once for the forms and the size of each, and again with room for their
         // bodies, which the first answer is what sizes.
         std::vector<VkPipelineExecutableInternalRepresentationKHR> forms
-            = enumerateVk<VkPipelineExecutableInternalRepresentationKHR>(
+            = enumerateVk<VkPipelineExecutableInternalRepresentationKHR>(*this,
                 "vkGetPipelineExecutableInternalRepresentationsKHR", represent,
                 VkPipelineExecutableInternalRepresentationKHR{
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INTERNAL_REPRESENTATION_KHR,
@@ -556,7 +556,7 @@ namespace Rtx
             forms[form].pData = bodies[form].data();
         }
         auto count = static_cast<std::uint32_t>(forms.size());
-        checkVk(represent(&count, forms.data()), "vkGetPipelineExecutableInternalRepresentationsKHR");
+        checkVk(*this, represent(&count, forms.data()), "vkGetPipelineExecutableInternalRepresentationsKHR");
 
         std::vector<PipelineCodeForm> text;
         for (std::size_t form = 0; form < forms.size(); ++form)
@@ -623,8 +623,8 @@ namespace Rtx
             return {};
 
         const BufferMarkers::Passed passed = mMarkers->read();
-        return describePassed(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, passed.mTop)
-            + describePassed(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, passed.mBottom);
+        return describePassedStage(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, passed.mTop)
+            + describePassedStage(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, passed.mBottom);
     }
 
     std::string Device::describeCheckpoints() const
@@ -655,10 +655,40 @@ namespace Rtx
             if (checkpoint == nullptr)
                 continue;
 
-            report += describePassed(passed[at].stage, checkpoint);
+            report += describePassedStage(passed[at].stage, checkpoint);
         }
 
         return report;
+    }
+
+    std::string describeDeviceFault(const std::string_view description,
+        const std::span<const VkDeviceFaultAddressInfoEXT> addresses,
+        const std::span<const VkDeviceFaultVendorInfoEXT> vendor)
+    {
+        std::string report = "\ndevice fault: ";
+        report += description.substr(0, description.find('\0'));
+        for (const VkDeviceFaultAddressInfoEXT& address : addresses)
+            report += std::format("\n  {} at {:#x}, known to within {:#x}", faultAddressTypeName(address.addressType),
+                address.reportedAddress, address.addressPrecision);
+        for (const VkDeviceFaultVendorInfoEXT& said : vendor)
+            report += std::format("\n  {} (vendor code {:#x}, data {:#x})",
+                std::string_view(said.description, std::char_traits<char>::length(said.description)),
+                said.vendorFaultCode, said.vendorFaultData);
+        return report;
+    }
+
+    std::string describePassedStage(const VkPipelineStageFlagBits stage, const Checkpoint* const checkpoint)
+    {
+        return checkpoint == nullptr
+            ? std::format("\n  {} passed no checkpoint the host still names", checkpointStageName(stage))
+            : std::format("\n  {} last passed `{}` of {} {}", checkpointStageName(stage), checkpoint->mName,
+                  (checkpoint->mFrame & sPictureCheckpoint) != 0 ? "picture" : "frame",
+                  checkpoint->mFrame & ~sPictureCheckpoint);
+    }
+
+    std::string Device::describeInFlight() const
+    {
+        return Rtx::describeInFlight(mTimeline->getNext() - 1, mTimeline->getKnownFinished(), mMemory->report());
     }
 
     std::string Device::describeFault() const
@@ -697,17 +727,9 @@ namespace Rtx
         if (result != VK_SUCCESS && result != VK_INCOMPLETE)
             return sUnsaid + describeCheckpoints();
 
-        std::string report = "\ndevice fault: ";
-        report += info.description;
-        for (std::uint32_t at = 0; at < counts.addressInfoCount; ++at)
-            report += std::format("\n  {} at {:#x}, known to within {:#x}",
-                faultAddressTypeName(addresses[at].addressType), addresses[at].reportedAddress,
-                addresses[at].addressPrecision);
-        for (std::uint32_t at = 0; at < counts.vendorInfoCount; ++at)
-            report += std::format("\n  {} (vendor code {:#x}, data {:#x})", vendor[at].description,
-                vendor[at].vendorFaultCode, vendor[at].vendorFaultData);
-
-        return report + describeCheckpoints();
+        return describeDeviceFault(info.description, std::span(addresses).first(counts.addressInfoCount),
+                   std::span(vendor).first(counts.vendorInfoCount))
+            + describeCheckpoints();
     }
 
     void Device::setNameImpl(VkObjectType type, std::uint64_t handle, const char* name) const

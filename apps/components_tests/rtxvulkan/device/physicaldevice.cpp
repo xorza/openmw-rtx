@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -10,7 +11,6 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/cardmemory.hpp>
-#include <components/platform/gpu.hpp>
 #include <components/rtxvulkan/device/driverprofile.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
@@ -96,6 +96,12 @@ namespace Rtx
                 mProperties.mProperties2.properties.limits.maxPushConstantsSize = sPushConstantsFloor;
                 mProperties.mVulkan12.shaderSignedZeroInfNanPreserveFloat32 = VK_TRUE;
 
+                // The arrays bound after use, at the million NVIDIA's drivers state.
+                mProperties.mVulkan12.maxDescriptorSetUpdateAfterBindSampledImages = 1u << 20;
+                mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSampledImages = 1u << 20;
+                mProperties.mVulkan12.maxDescriptorSetUpdateAfterBindSamplers = 1u << 20;
+                mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSamplers = 1u << 20;
+
                 // Every required format offered whole, in optimal tiling, which is where an image
                 // the trace samples lives.
                 for (const RequiredFormat& required : getRequiredFormats())
@@ -151,24 +157,26 @@ namespace Rtx
             EXPECT_EQ(onTuring.mTextureSide, 32768u);
         }
 
-        /// **A driver's profile is read off its vendor and its driver alone**: NVIDIA's and AMD's ids are
-        /// their vendors and an unlisted one is another's; each driver names its statistics its own way,
-        /// RADV and AMD's own differently on one card, and a driver that names none has none.
-        TEST(RtxPhysicalDeviceTest, aDriversProfileIsItsVendorAndItsStatisticsNames)
+        /// **A driver's profile is read off its vendor and its driver alone**: NGX runs on NVIDIA's id
+        /// and on no other; each driver names its statistics its own way, RADV and AMD's own
+        /// differently on one card, and a driver that names none has none.
+        TEST(RtxPhysicalDeviceTest, aDriversProfileIsItsCapabilitiesAndItsStatisticsNames)
         {
             const DriverProfile nvidia = DriverProfile::of(0x10DE, VK_DRIVER_ID_NVIDIA_PROPRIETARY);
-            EXPECT_EQ(nvidia.mVendor, Platform::Gpu::Vendor::Nvidia);
+            EXPECT_TRUE(nvidia.mNgx);
             EXPECT_EQ(nvidia.mStatistics.mRegisters, "Register Count");
-            EXPECT_TRUE(nvidia.mStatistics.mScratch.empty());
+            EXPECT_EQ(nvidia.mStatistics.mScratch, "Local Memory Size");
+            EXPECT_EQ(nvidia.mStatistics.mScratchBits, 0xFFFFFFFFu);
 
             const DriverProfile radv = DriverProfile::of(0x1002, VK_DRIVER_ID_MESA_RADV);
-            EXPECT_EQ(radv.mVendor, Platform::Gpu::Vendor::Amd);
+            EXPECT_FALSE(radv.mNgx);
             EXPECT_EQ(radv.mStatistics.mScratch, "Scratch size");
+            EXPECT_EQ(radv.mStatistics.mScratchBits, ~std::uint64_t{ 0 });
             const DriverProfile amd = DriverProfile::of(0x1002, VK_DRIVER_ID_AMD_PROPRIETARY);
             EXPECT_EQ(amd.mStatistics.mScratch, "scratchMemUsageInBytes");
 
             const DriverProfile other = DriverProfile::of(0x5143, VK_DRIVER_ID_QUALCOMM_PROPRIETARY);
-            EXPECT_EQ(other.mVendor, Platform::Gpu::Vendor::Other);
+            EXPECT_FALSE(other.mNgx);
             EXPECT_TRUE(other.mStatistics.mRegisters.empty());
         }
 
@@ -346,6 +354,18 @@ namespace Rtx
                 Card cramped(&describeTuring);
                 cramped.mProperties.mProperties2.properties.limits.maxPushConstantsSize = 128;
                 EXPECT_EQ(cramped.profile().mObstacle, "push constants of 128 bytes, under 256");
+            }
+            {
+                // **The texture set's arrays**, two of 8192 images and eight samplers, held to the set's
+                // limit and the stage's, whichever is less.
+                Card few(&describeAda);
+                few.mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSampledImages = 16383;
+                EXPECT_EQ(few.profile().mObstacle, "16383 sampled images bound after use, under 16384");
+                few.mProperties.mVulkan12.maxPerStageDescriptorUpdateAfterBindSampledImages = 16384;
+                few.mProperties.mVulkan12.maxDescriptorSetUpdateAfterBindSamplers = 7;
+                EXPECT_EQ(few.profile().mObstacle, "7 samplers bound after use, under 8");
+                few.mProperties.mVulkan12.maxDescriptorSetUpdateAfterBindSamplers = 8;
+                EXPECT_EQ(few.profile().mObstacle, "") << "exactly what the set needs";
             }
             {
                 // One under the largest frame's side, which RDNA 2 reports exactly.

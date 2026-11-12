@@ -1,5 +1,6 @@
 #include <cfloat>
 #include <cstdint>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -165,6 +166,22 @@ namespace Rtx
             EXPECT_EQ(pyramid.mConstants.mWorkGroups, 510u);
             EXPECT_EQ(pyramid.mConstants.mMips, 10u);
             EXPECT_EQ(pyramid.mConstants.mRenderSize, Shaders::uvec2(1920, 1080));
+        }
+
+        /// **The half grid keeps a texel where a side halves to none**: 1921 / 2 = 960 and 1081 / 2 =
+        /// 540 in whole, and ultra performance's one traced pixel at the smallest frame, 1 / 2 = 0,
+        /// rounds up to one, as does either side alone.
+        TEST(RtxFsrFrameTest, theHalfGridKeepsATexelWhereASideHalvesToNone)
+        {
+            const auto half = [](std::uint32_t width, std::uint32_t height) {
+                const VkExtent2D extent = FsrFrame::halfOf({ width, height });
+                return std::pair(extent.width, extent.height);
+            };
+            EXPECT_EQ(half(1921, 1081), std::pair(960u, 540u));
+            EXPECT_EQ(half(2, 2), std::pair(1u, 1u));
+            EXPECT_EQ(half(1, 1), std::pair(1u, 1u));
+            EXPECT_EQ(half(1, 64), std::pair(1u, 32u));
+            EXPECT_EQ(half(64, 1), std::pair(32u, 1u));
         }
     }
 }

@@ -5,9 +5,11 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -16,6 +18,7 @@
 #include <unistd.h>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/platform/process.hpp>
@@ -87,9 +90,6 @@ namespace CrashTests
             .mFollows = "crash-tests lived on",
             .mReports = false,
             .mKept = true });
-        // **A fork that ends through `exit`**, which keeps the reporter's exit handler and not its thread:
-        // the handler has no report to wait out, and the child ends at once.
-        into.push_back({ "forked-child-exits", "", {}, "crash-tests lived on", false });
         // **A report folder that takes no report**, whose catcher refuses to start and says why:
         // one that Crashpad cannot open, and one that opens and takes no new report.
         into.push_back({ .mName = "folder-unopened",
@@ -107,14 +107,41 @@ namespace CrashTests
         // **Stopped past the limit by somebody else**, as a shell's Ctrl+Z or a debugger stops it:
         // no frame for twice the limit, and no hang, because the game was not what stood still.
         into.push_back({ "stopped-past-limit", "", {}, "crash-tests lived on", false });
-        // **Ended while its report is written**: End answered at once, so the monitor's kill would
-        // land while Crashpad still reads the game, and the hang's dump has to be there all the same.
+        // **Ended by its monitor**: End answered at once, after the hang's dump, which has to be there.
         // POSIX alone, where the end is a signal the run says.
-        into.push_back({ .mName = "ended-in-report",
+        into.push_back({ .mName = "ended-at-once",
             .mHeadline = "Hang: no frame for",
             .mRaised = {},
             .mFollows = "crash-tests stood still",
             .mMarked = ", which draws",
+            .mEndsBy = SIGKILL });
+        // **A crash whose dump could not be written**: the database's folder for new reports refused
+        // it. The session is packaged all the same, with the log alone, which says so. It ends by any
+        // failure: a sanitizer reports a crash its handler passed on as one of its own.
+        into.push_back({ .mName = "dump-unwritten",
+            .mHeadline = "Crash: ",
+            .mRaised = {},
+            .mFollows = "Crash: the game crashed, and no dump of it could be written",
+            .mReports = false,
+            .mLogAlone = true });
+        // **A monitor gone before the crash**: the crash ends the game at once and says it goes
+        // unreported, where Crashpad would hand it to no one; by any failure, as the one above.
+        into.push_back({ .mName = "monitor-killed",
+            .mHeadline = "Crash: ",
+            .mRaised = {},
+            .mFollows = "Crash: the crash catcher's monitor has ended, and this crash goes unreported: crash-tests "
+                        "gave up alone",
+            .mReports = false });
+        // **A handler another installs after the catcher is said**: the renderer's start logs each
+        // hook `Crash::lostHooks` names, and one that names none, or another, fails the mode.
+        into.push_back({ "hook-lost", "", {}, "crash-tests lost SIGSEGV alone", false });
+        // **Ended from outside**, past every handler, as an out-of-memory kill ends it: only the
+        // missing end word says so.
+        into.push_back({ .mName = "killed-from-outside",
+            .mHeadline = "",
+            .mRaised = {},
+            .mFollows = "The game ended without reaching its end and left no report",
+            .mReports = false,
             .mEndsBy = SIGKILL });
     }
 
@@ -191,22 +218,74 @@ namespace CrashTests
             for (;;)
                 pause();
         }
-        if (mode == "forked-child-exits")
+        if (mode == "dump-unwritten")
         {
-            const auto forked = std::chrono::steady_clock::now();
-            const pid_t child = fork();
-            if (child < 0)
+            // After the monitor probed it, which it must pass to watch at all.
+            const std::filesystem::path fresh = std::filesystem::path(std::getenv("OPENMW_CRASH_REPORTS")) / "new";
+            using std::filesystem::perms;
+            std::filesystem::permissions(fresh, perms::owner_write | perms::group_write | perms::others_write,
+                std::filesystem::perm_options::remove);
+            raise(SIGSEGV);
+            return 3;
+        }
+        if (mode == "monitor-killed")
+        {
+            // The monitor is the one process the log names as it; gone once its state is dead or a
+            // zombie, which a container with no reaper leaves it, **and its last thread has ended**:
+            // a killed process's first thread turns zombie before the others end, and its files,
+            // the monitor's end of the connection among them, close with the last.
+            const std::string log
+                = contentsOf(std::filesystem::path(std::getenv("OPENMW_CRASH_REPORTS")).parent_path().parent_path()
+                    / "crash-tests.log");
+            constexpr std::string_view named = "from the monitor process ";
+            const std::size_t at = log.find(named);
+            if (at == std::string::npos)
                 return 3;
-            if (child == 0)
-                std::exit(0);
-
-            int ended = 0;
-            if (waitpid(child, &ended, 0) != child || !WIFEXITED(ended) || WEXITSTATUS(ended) != 0)
+            const pid_t monitor = std::atoi(log.c_str() + at + named.size());
+            if (monitor <= 0 || kill(monitor, SIGKILL) != 0)
                 return 3;
-            // Past the limit a real report gets, which is what a handler waiting on no thread waits.
-            if (std::chrono::steady_clock::now() - forked >= Crash::sReportPatience)
+            const auto running = [&] {
+                const std::string stat = contentsOf("/proc/" + std::to_string(monitor) + "/stat");
+                const std::size_t state = stat.rfind(')') + 2;
+                if (state > 1 && state < stat.size() && stat[state] != 'Z' && stat[state] != 'X')
+                    return true;
+                std::error_code unread;
+                const auto threads = std::distance(
+                    std::filesystem::directory_iterator("/proc/" + std::to_string(monitor) + "/task", unread),
+                    std::filesystem::directory_iterator());
+                return !unread && threads > 1;
+            };
+            for (int waited = 0; running(); ++waited)
+            {
+                if (waited == 1000)
+                    return 3;
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            Crash::fatal("crash-tests gave up alone");
+        }
+        if (mode == "hook-lost")
+        {
+            if (!Crash::lostHooks().empty())
                 return 3;
+            struct sigaction ignored{};
+            ignored.sa_handler = SIG_IGN;
+            sigemptyset(&ignored.sa_mask);
+            struct sigaction kept{};
+            sigaction(SIGSEGV, &ignored, &kept);
+            const std::vector<std::string_view> lost = Crash::lostHooks();
+            sigaction(SIGSEGV, &kept, nullptr);
+            if (lost == std::vector<std::string_view>{ "SIGSEGV" } && Crash::lostHooks().empty())
+                Log(Debug::Info) << "crash-tests lost SIGSEGV alone";
             return livedOn();
+        }
+        if (mode == "killed-from-outside")
+        {
+            for (int i = 0; i < 5; ++i)
+            {
+                Crash::heartbeat();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            raise(SIGKILL);
         }
         if (mode == "stopped-past-limit")
         {

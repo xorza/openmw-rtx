@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <span>
 
@@ -251,9 +252,10 @@ namespace MWRender
         float mDeltaTime = 0.0f;
         bool mPaused = false;
 
-        /// The base nodes of the references the game put somewhere else in one step since the
-        /// last frame — a door, a teleport, a script's `Position` — whose history from where they
-        /// stood is no history of where they stand. Compared by address and never read.
-        std::span<const osg::Node* const> mJumped{};
+        /// The stable identities of the references the game put somewhere else in one step since
+        /// the last frame — a door, a teleport, a script's `Position` — whose history from where
+        /// they stood is no history of where they stand (`SceneUtil::StableIdentity`). Ascending,
+        /// each once.
+        std::span<const std::uint64_t> mJumped{};
     };
 }

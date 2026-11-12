@@ -164,12 +164,15 @@ namespace RtxTool
         TEST(RtxToolOptionsTest, anUpscalerCanBeSelectedWithoutChangingTheQualityMode)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
-            EXPECT_EQ(lineOf(options, {}, Verbs::Bench).mFrame.mUpscaler, Rtx::UpscalerChoice::Fsr);
+            const Named<Rtx::UpscalerChoice> unnamed = lineOf(options, {}, Verbs::Bench).mFrame.mUpscaler;
+            EXPECT_EQ(unnamed.mValue, Rtx::UpscalerChoice::Fsr);
+            EXPECT_FALSE(unnamed.mNamed);
             for (const auto& [kind, name] : Rtx::sUpscalerNames.mNames)
             {
                 const ToolLine line
                     = lineOf(options, { std::format("--upscaler={}", name), "--upscale=quality" }, Verbs::Bench);
-                EXPECT_EQ(line.mFrame.mUpscaler, kind);
+                EXPECT_EQ(line.mFrame.mUpscaler.mValue, kind);
+                EXPECT_TRUE(line.mFrame.mUpscaler.mNamed);
                 EXPECT_EQ(line.mFrame.mUpscale.mValue, Rtx::Upscale::Quality);
             }
             EXPECT_THROW(lineOf(options, { "--upscaler=unknown" }, Verbs::Bench), std::runtime_error);

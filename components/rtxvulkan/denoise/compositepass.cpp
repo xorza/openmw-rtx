@@ -52,16 +52,26 @@ namespace Rtx
         const Image& fill = denoised.mFill;
         const Image& specular = denoised.mSpecular;
         const Image& pane = denoised.mPane;
-        assert(buffer.getWidth() >= constants.mWidth && buffer.getHeight() >= constants.mHeight);
-        assert(indirect.getWidth() >= constants.mWidth && indirect.getHeight() >= constants.mHeight);
-        assert(fill.getWidth() >= constants.mWidth && fill.getHeight() >= constants.mHeight);
-        assert(specular.getWidth() >= constants.mWidth && specular.getHeight() >= constants.mHeight);
-        assert(pane.getWidth() >= constants.mWidth && pane.getHeight() >= constants.mHeight);
-        assert(composed.getWidth() >= constants.mWidth && composed.getHeight() >= constants.mHeight);
+        assert(buffer.getWidth() >= constants.mWidth);
+        assert(buffer.getHeight() >= constants.mHeight);
+        assert(indirect.getWidth() >= constants.mWidth);
+        assert(indirect.getHeight() >= constants.mHeight);
+        assert(fill.getWidth() >= constants.mWidth);
+        assert(fill.getHeight() >= constants.mHeight);
+        assert(specular.getWidth() >= constants.mWidth);
+        assert(specular.getHeight() >= constants.mHeight);
+        assert(pane.getWidth() >= constants.mWidth);
+        assert(pane.getHeight() >= constants.mHeight);
+        assert(composed.getWidth() >= constants.mWidth);
+        assert(composed.getHeight() >= constants.mHeight);
 
         // A sum has to cover the frame it is a sum of; a stand-in never read does not.
         assert(constants.mAccumulate == 0 || sum != nullptr);
-        assert(sum == nullptr || (sum->getWidth() >= constants.mWidth && sum->getHeight() >= constants.mHeight));
+        if (sum != nullptr)
+        {
+            assert(sum->getWidth() >= constants.mWidth);
+            assert(sum->getHeight() >= constants.mHeight);
+        }
 
         // The real sum is the caller's to order; the stand-in is touched by one composite a
         // command buffer, and the head barrier `CommandPool::begin` recorded orders that after the

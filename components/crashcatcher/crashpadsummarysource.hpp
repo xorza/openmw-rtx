@@ -1,6 +1,5 @@
 #pragma once
 
-#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -34,13 +33,15 @@ namespace Crash
         struct Taken
         {
             std::vector<crashpad::UUID> mIds;
+
+            /// Whether a crash's report is among them.
             bool mCrashed = false;
 
             /// A crash is the last report of a session, and a hang the last of one the player ended.
             LastReport mLast;
         };
 
-        void add(const crashpad::UUID& id, bool crashed);
+        void add(const crashpad::UUID& id, ReportKind kind);
         void setLast(LastReport last);
         Taken take();
 
@@ -49,8 +50,9 @@ namespace Crash
         Taken mSession;
     };
 
-    /// **The summary, written where the dump is**: Crashpad calls this with the snapshot the dump is
-    /// written from, in this process and not the crashed one, on every system alike.
+    /// **The summary, written where the dump is**: Crashpad calls this with the snapshot a crash's
+    /// dump is written from, and the monitor with the one it took of a hang, in this process and not
+    /// the game, on every system alike.
     class SummarySource final : public crashpad::UserStreamDataSource
     {
     public:
@@ -58,7 +60,6 @@ namespace Crash
         {
             const MonitorArguments& mArguments;
             const SharedPage& mPage;
-            const std::atomic<std::uint32_t>& mStalledFor;
             MonitorLog& mLog;
             SessionReports& mReports;
         };
@@ -71,10 +72,19 @@ namespace Crash
         SummarySource(const SummarySource&) = delete;
         SummarySource& operator=(const SummarySource&) = delete;
 
+        /// A crash's summary, which the session counts as its report.
         std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> ProduceStreamData(
             crashpad::ProcessSnapshot* snapshot) override;
 
+        /// A hang's summary, for a game that drew no frame for `stalledFor` seconds. The caller counts
+        /// the report once its dump is written.
+        std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> produceHang(
+            const crashpad::ProcessSnapshot& snapshot, std::uint32_t stalledFor);
+
     private:
+        std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> produce(
+            const crashpad::ProcessSnapshot& snapshot, ReportKind kind, std::uint32_t stalledFor);
+
         /// Fills `facts` from `process`, hands the player's summary to the log, keeps the public one
         /// for the issue, and answers the summary the dump carries, whose file is `dump`.
         std::string describe(const crashpad::ProcessSnapshot& process, const std::string& dump, CrashFacts& facts);

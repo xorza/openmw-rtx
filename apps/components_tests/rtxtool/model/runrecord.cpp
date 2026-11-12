@@ -113,7 +113,7 @@ namespace RtxTool
                   "dither off, water interleave on\n"
                   "     gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
                   "     land 4.0 cells, viewing distance 7168, distant statics off, maps player, step 0.0625 s, "
-                  "walks streamed, memory budget 512 MiB, host pages ";
+                  "walks streamed, memory budget 512.0 MiB, host pages ";
             EXPECT_EQ(record.getReport().substr(0, expected.size()), expected) << record.getReport();
 
             // **This process's own share**, read as the first place is added: a share in whole per

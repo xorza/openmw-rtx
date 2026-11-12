@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -13,9 +12,13 @@ namespace Crash
     /// How many bytes a note holds, its terminating nought included. A longer one is cut short.
     inline constexpr std::size_t sNoteCapacity = 256;
 
-    /// How many threads can hold a note at once. A thread past them notes nothing until one of
-    /// them ends, which gives its slot back.
-    inline constexpr std::size_t sNoteThreads = 32;
+    /// **How many threads can hold a note at once**: the prepare pool's hands, one a hardware thread
+    /// but one, and the main, ring, chain and compile threads beside them, on a desk processor of 32
+    /// hardware threads and of nearly twice that. A thread past them notes nothing until one of them
+    /// ends, which gives its slot back, and the report counts the threads that met the table full.
+    /// The table travels as one annotation, whose value Crashpad holds to 20 KiB, which 64 slots fill
+    /// to 17 KiB.
+    inline constexpr std::size_t sNoteThreads = 64;
 
     /// One thread's last note, as a report reads it.
     struct NoteCopy
@@ -30,32 +33,28 @@ namespace Crash
         bool mWhole;
     };
 
-    /// What a report is: a crash, a hang the monitor found, or one the game asked for and lives on.
-    enum class ReportKind : std::uint32_t
-    {
-        Crash,
-        Hang,
-        Report,
-    };
-
     /// Everything the note table says, as a report reads it.
     struct NotesRead
     {
-        ReportKind mKind = ReportKind::Crash;
-
-        /// Why, where the code that asked for the report said: `std::terminate`'s exception, the
-        /// reason given to `Crash::report`. Terminated, and empty for a fault.
+        /// Why, where the code that ended the process said: `std::terminate`'s exception, the reason
+        /// given to `Crash::fatal`. Terminated, and empty for a fault.
         char mReason[sNoteCapacity] = {};
 
         /// The thread the report is about, as `Platform::Process::currentThreadId` gives it: the one
-        /// that faulted or asked, or for a hang the one that draws. Nought where none is known.
+        /// that faulted, or for a hang the one that draws. Nought where none is known.
         std::uint64_t mThread = 0;
+
+        /// Threads that found every slot taken and noted nothing, each counted once.
+        std::uint32_t mRefused = 0;
 
         std::size_t mCount = 0;
 
         /// `mThread`'s first, then the rest in the table's order.
         NoteCopy mNotes[sNoteThreads];
     };
+
+    /// One thread's slot in the table, the note's file's own.
+    struct NoteSlot;
 
     /// **What the calling thread is doing, for as long as a scope lasts**, for a report to name, on
     /// the end of what the thread's note already says: `outer > text`. The scope's end puts the note
@@ -67,6 +66,9 @@ namespace Crash
     /// allocates nothing — what it found is kept in the scope, a note's bytes at most — so a loop
     /// may state each thing it works on. A thread has its own slot, because workers read models
     /// while the render thread uploads textures.
+    ///
+    /// **Ends on the thread it began on**, whose slot it holds and puts back: one kept as a member and
+    /// destroyed on another thread is a broken contract, which a debug build stops at.
     class NoteScope
     {
     public:
@@ -88,11 +90,14 @@ namespace Crash
 
         NoteScope(const NoteScope&) = delete;
         NoteScope& operator=(const NoteScope&) = delete;
+        NoteScope(NoteScope&&) = delete;
+        NoteScope& operator=(NoteScope&&) = delete;
 
     private:
         void begin(std::string_view text);
 
-        bool mNoted = false;
+        /// The slot the note went into, or null where the thread holds none.
+        NoteSlot* mSlot = nullptr;
         std::size_t mFoundLength = 0;
         char mFound[sNoteCapacity];
     };
@@ -101,70 +106,22 @@ namespace Crash
     /// nothing where the thread holds no slot. Valid until the thread's next note changes.
     std::string_view ownNote();
 
-    /// Starts a report of `kind` for `reason`, where no report is in progress, and keeps what the
-    /// table said before for `endReport` to put back; false, changing nothing, where one is.
-    ///
-    /// **One report at a time.** A hang request that landed between a report's saying what it is
-    /// and its dump wrote over both, and a report the game then did not survive read as a hang, or
-    /// as a crash with no reason. Allocates nothing and locks nothing.
-    bool beginReport(ReportKind kind, std::string_view reason);
+    /// **Says why the process ends**, for the crash it ends on: the first call's `reason` stands, cut
+    /// to what a note holds, and a later one, from a second thread failing at the same time, changes
+    /// nothing. Allocates nothing and locks nothing.
+    void endingReason(std::string_view reason);
 
-    /// Ends the report `beginReport` began, putting back the kind and the reason it found there.
-    void endReport();
-
-    /// How long a report the process must not outlast is waited for: a dump of every thread is written
-    /// in about a second, and in a few under a sanitizer. The limit is for a report that cannot finish,
-    /// as one whose monitor died cannot on Windows, where Crashpad waits for the dump with no limit.
-    inline constexpr std::chrono::milliseconds sReportPatience{ 10'000 };
-
-    /// Takes the table for a report the process does not outlive, `kind` for `reason`, once any
-    /// report another thread has in progress has ended or `patience` has passed, and refuses every
-    /// request from then on. A report the calling thread has in progress is taken over. A second
-    /// call keeps the first's kind and reason. Not for a signal handler that may have interrupted a
-    /// report.
-    void finalReport(ReportKind kind, std::string_view reason, std::chrono::milliseconds patience = sReportPatience);
-
-    /// Whether a report is being written, or the process is ending on one. Read by the tests and by
-    /// nothing else: what lets the crash matrix land a fault inside a report.
-    bool isReporting();
-
-    /// What a fault finds at the gate.
-    enum class FaultGate : std::uint8_t
-    {
-        /// Free or ending, and now the fault's: no report starts after it.
-        Taken,
-
-        /// Held by a report the faulting thread itself is writing, which cannot end before it.
-        Own,
-
-        /// Held by a report another thread is writing, whose dump the fault's would write over.
-        Other,
-    };
-
-    /// **For a fault's first-chance handler, on the faulting thread**: takes the gate as `finalReport`
-    /// does where it can, and says where it cannot. A dump in progress and a fault's share one
-    /// exception record in Crashpad's Linux client, so a fault that wrote it then was read as the
-    /// report's; on Windows the fault's dump ended the process before the report's was written.
-    /// Allocates nothing and locks nothing.
-    FaultGate takeForFault();
-
-    /// The table's bytes where they lie, for the monitor to read out of this process.
+    /// The table's bytes where they lie, which the catcher hands Crashpad as one annotation, so every
+    /// dump carries them.
     std::span<const std::byte> noteTable();
 
+    /// The name of the annotation the table travels as, which the monitor and `omw crash` read it by.
+    inline constexpr std::string_view sNotesAnnotation = "openmw-notes";
+
     /// Reads a copy of `noteTable()`'s bytes, taken while no thread of the process that wrote them
-    /// runs, with the report's thread's note first. A thread whose note is empty is doing nothing it
-    /// noted, and is left out. The copy must be the whole table: the monitor is this same
-    /// executable and knows its layout.
-    ///
-    /// **The report's thread is `asked`, the one that faulted or asked for the dump, or for a hang
-    /// `drawing`, the one that draws, where it is known**: a hang's dump is asked for by the reporter
-    /// thread, which is not the one that stopped.
-    ///
-    /// **`faulted` says the dump is of a fault the system raised, not one the process asked for**,
-    /// and such a dump is a crash whatever the table says. A thread that faults while another's hang
-    /// or report is being written finds the table saying `Hang` or `Report`, because the gate holds
-    /// the catcher's own reports and no fault; the kind and the reason are then the other report's,
-    /// and are not read.
-    void readNotes(
-        std::span<const std::byte> table, std::uint64_t asked, std::uint64_t drawing, bool faulted, NotesRead& into);
+    /// runs, with `thread`'s note first: the one that faulted, or for a hang the one that draws. A
+    /// thread whose note is empty is doing nothing it noted, and is left out. The copy must be the
+    /// whole table, since the monitor is this same executable and knows its layout; another size is
+    /// no table, and reads as nothing noted.
+    void readNotes(std::span<const std::byte> table, std::uint64_t thread, NotesRead& into);
 }

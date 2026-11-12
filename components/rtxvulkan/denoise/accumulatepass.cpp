@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <string_view>
 
@@ -50,13 +51,21 @@ namespace Rtx
         }
     }
 
+    namespace
+    {
+        /// Whether the frame traces a fill, the low bit of a pipeline's place.
+        std::size_t fillOf(const DenoiseFrame& frame)
+        {
+            return frame.mSampled.mBounceRays != 0 ? 1u : 0u;
+        }
+    }
+
     AccumulatePass::AccumulatePass(const Device& device)
-        : mPipeline(makeAccumulate(device, true, "accumulate"))
-        , mPipelineNoFill(makeAccumulate(device, false, "accumulate-no-fill"))
-        , mClamp(makeClamp(device, false, true, "accumulate-clamp"))
-        , mClampRing(makeClamp(device, true, true, "accumulate-clamp-ring"))
-        , mClampNoFill(makeClamp(device, false, false, "accumulate-clamp-no-fill"))
-        , mClampRingNoFill(makeClamp(device, true, false, "accumulate-clamp-ring-no-fill"))
+        : mPipelines{ makeAccumulate(device, false, "accumulate-no-fill"), makeAccumulate(device, true, "accumulate") }
+        , mClamps{ makeClamp(device, false, false, "accumulate-clamp-no-fill"),
+            makeClamp(device, false, true, "accumulate-clamp"),
+            makeClamp(device, true, false, "accumulate-clamp-ring-no-fill"),
+            makeClamp(device, true, true, "accumulate-clamp-ring") }
     {
     }
 
@@ -64,10 +73,10 @@ namespace Rtx
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
-        assert(images.mBlended.getWidth() >= camera.mWidth && images.mBlended.getHeight() >= camera.mHeight);
+        assert(images.mBlended.getWidth() >= camera.mWidth);
+        assert(images.mBlended.getHeight() >= camera.mHeight);
 
-        const ComputePipeline<Shaders::AccumulateConstants>& pipeline
-            = frame.mSampled.mBounceRays == 0 ? mPipelineNoFill : mPipeline;
+        const ComputePipeline<Shaders::AccumulateConstants>& pipeline = mPipelines[fillOf(frame)];
         DescriptorWrites writes(pipeline);
         writes.image(Shaders::ACCUMULATE_BIND_INDIRECT, buffer.get(Channel::Indirect).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
@@ -98,9 +107,8 @@ namespace Rtx
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
 
-        const ComputePipeline<Shaders::AccumulateClampConstants>& clamp = frame.mSampled.mBounceRays == 0
-            ? (frame.mFilters.mAntiFirefly ? mClampRingNoFill : mClampNoFill)
-            : (frame.mFilters.mAntiFirefly ? mClampRing : mClamp);
+        const ComputePipeline<Shaders::AccumulateClampConstants>& clamp
+            = mClamps[(frame.mFilters.mAntiFirefly ? 2u : 0u) | fillOf(frame)];
         DescriptorWrites clampWrites(clamp);
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST, images.mFastBlended.describeStorage());

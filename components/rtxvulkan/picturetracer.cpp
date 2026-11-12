@@ -34,6 +34,7 @@ namespace Rtx
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
         , mGlareCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::SunGlareCount), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture sun glare counts"))
+        , mZones(device, false)
     {
     }
 
@@ -110,6 +111,7 @@ namespace Rtx
         if (scene.isWorld())
             parts.mMedia.placeRipples(sampled);
 
+        mZones.beginFrame(sPictureCheckpoint | ++mPictures);
         Batch trace(mDevice.getPool());
         {
             const VkCommandBuffer commands = trace.getCommands();
@@ -127,6 +129,7 @@ namespace Rtx
                     .mSampled = sampled,
                     .mReconstruction = reconstruction,
                     .mPastLost = true,
+                    .mTimer = &mZones,
                 });
 
             // The puffs over the picture — a torch's flame in a doll's hand is a sprite — and the

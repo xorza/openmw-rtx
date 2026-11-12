@@ -9,9 +9,10 @@ namespace Rtx
         using Words = std::array<std::uint32_t, 2>;
     }
 
-    BufferMarkers::BufferMarkers(const Device& device, const PFN_vkCmdWriteBufferMarkerAMD write)
+    BufferMarkers::BufferMarkers(const Device& device, const PFN_vkCmdWriteBufferMarkerAMD write, const bool uncached)
         : mWrite(write)
-        , mWords(Buffer::readBack(device, sizeof(Words), VK_BUFFER_USAGE_TRANSFER_DST_BIT, "markers"))
+        , mWords(Buffer::make(MemoryUse::Essential, device, uncached ? BufferKind::Markers : BufferKind::ReadBack,
+              sizeof(Words), VK_BUFFER_USAGE_TRANSFER_DST_BIT, "markers"))
     {
         // Nought before the first marker, which is what `MarkerRing::find` reads as none written.
         std::memset(mWords.map(), 0, sizeof(Words));

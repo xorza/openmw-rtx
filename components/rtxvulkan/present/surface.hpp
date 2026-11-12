@@ -35,14 +35,16 @@ namespace Rtx
         /// none: the window then has nothing to draw into.
         void remake();
 
-        /// Whether `queueFamily` of `device` can present to this surface.
-        bool supports(VkPhysicalDevice device, std::uint32_t queueFamily) const;
+        /// Whether `queueFamily` of `device` can present to this surface, or nothing where the surface
+        /// is lost.
+        std::optional<bool> supports(VkPhysicalDevice device, std::uint32_t queueFamily) const;
 
-        /// Empty where the surface is lost: the one query asked of a surface after its swapchain's
-        /// first, so the one that can meet a loss before an acquire or a present does.
+        /// **Each query empty where the surface is lost**, which any of them can meet before an
+        /// acquire or a present does: a monitor unplugged while a swapchain is made again. The
+        /// presenter makes the surface again then, where a throw ended the game.
         std::optional<VkSurfaceCapabilitiesKHR> getCapabilities(VkPhysicalDevice device) const;
-        std::vector<VkSurfaceFormatKHR> getFormats(VkPhysicalDevice device) const;
-        std::vector<VkPresentModeKHR> getPresentModes(VkPhysicalDevice device) const;
+        std::optional<std::vector<VkSurfaceFormatKHR>> getFormats(VkPhysicalDevice device) const;
+        std::optional<std::vector<VkPresentModeKHR>> getPresentModes(VkPhysicalDevice device) const;
 
     private:
         VkInstance mInstance = VK_NULL_HANDLE;

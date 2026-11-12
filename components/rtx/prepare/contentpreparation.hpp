@@ -204,9 +204,28 @@ namespace Rtx
         /// `input`'s converted chain claimed for the walk where this run is the first to ask.
         void convert(Hand& hand, const ConversionPass::Input& input);
 
-        /// Whether this run is the first to ask for `name`'s chain as `encoding`: a map many models
-        /// wear is made once a run.
-        bool claim(std::string name);
+        /// **What makes a chain one chain**, as the store keys it: its image's name, its partner's for a
+        /// converted one, its encoding, and its wrap where it matters (a painted colour's or a
+        /// conversion's). Fields and not one string, where the name and the encoding's digit ran into one
+        /// another and a name that ended in a digit met another chain's.
+        struct ChainIdentity
+        {
+            std::string mImage;
+            std::string mPartner;
+            TextureEncoding mEncoding = TextureEncoding::Colour;
+            TextureWrap mWrap = TextureWrap::Repeat;
+
+            bool operator==(const ChainIdentity&) const = default;
+        };
+
+        struct ChainIdentityHash
+        {
+            std::size_t operator()(const ChainIdentity& identity) const;
+        };
+
+        /// Whether this run is the first to ask for `identity`'s chain: a map many models wear is made
+        /// once a run.
+        bool claim(ChainIdentity identity);
 
         /// Counts a job's use of `path`, a model or an image, which the loader's caches let go of once its
         /// last use ends (`letGoOf`). Under the lock.
@@ -270,7 +289,7 @@ namespace Rtx
         /// In a deque, whose elements stand where they are as it grows: a thread makes a chain out of the
         /// lock while a walk queues more.
         std::deque<QueuedChain> mChains;
-        std::unordered_set<std::string> mClaimed;
+        std::unordered_set<ChainIdentity, ChainIdentityHash> mClaimed;
         std::unordered_map<std::string, std::uint32_t> mUses;
 
         /// Each chain's keys and the walk they are filed under, which `finish` adds to the walks' entries.

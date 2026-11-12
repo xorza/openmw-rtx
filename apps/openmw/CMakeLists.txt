@@ -678,6 +678,7 @@ target_sources(
         mwrender/rtx/rippleemitters.cpp
         mwrender/rtx/rtxbackend.cpp
         mwrender/rtx/rtxrenderer.cpp
+        mwrender/rtx/rtxrun.cpp
         mwrender/rtx/rtxsettings.cpp
         mwrender/rtx/rtxsupport.cpp
         mwrender/rtx/rtxwindow.cpp

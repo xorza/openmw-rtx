@@ -929,7 +929,7 @@ namespace RtxTool
         if (verb != Verbs::View)
             frame.mMaps = MapRules::Shipped;
         frame.mUpscale = { Rtx::sUpscaleNames.require(text("upscale"), "an upscale mode"), named("upscale") };
-        frame.mUpscaler = Rtx::sUpscalerNames.require(text("upscaler"), "an upscaler");
+        frame.mUpscaler = { Rtx::sUpscalerNames.require(text("upscaler"), "an upscaler"), named("upscaler") };
         if (named("grass"))
             frame.mGrass = on("grass");
         if (named("distant-cells"))

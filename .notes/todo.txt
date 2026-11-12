@@ -2,3 +2,14 @@
 - all IO serial?
 - artifacts - folder in folder
 - underwater shadows
+- upstream proposals, each waiting for a yes:
+  - crash notes in the game's own work (loading a save, a cell, a script)
+  - crash annotations of where the player was: worldspace, content counts
+  - reference roots named, so refusals name the model file
+  - a ledger entry in UPSTREAM.md for the seam's restructure
+  - a maximized window is not stored as its size
+  - the content handed to the renderer, not pulled: prepareContent from Engine, F3/F4 answered through support()
+  - the model list derived from the records, a record-level answer in MWClass
+  - idiom fixes in LowestPoints and SDLCursorManager
+- decide: the crash monitor as the game's parent
+

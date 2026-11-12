@@ -2,7 +2,8 @@
 
 #include <QApplication>
 #include <QFont>
-#include <QFontInfo>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QStyle>
 
 #include <components/graphite/look.hpp>
@@ -27,8 +28,12 @@ namespace Graphite
             ASSERT_NE(style, nullptr);
             EXPECT_EQ(style->baseStyle()->name(), QStringLiteral("fusion"));
             EXPECT_EQ(QApplication::palette(), qtPaletteOf(sDark));
-            EXPECT_EQ(QApplication::font().pointSizeF(), 12.0) << "16 px at 96 a inch";
-            EXPECT_EQ(QFontInfo(QApplication::font()).pixelSize(), 16);
+            // **16 px where a screen is 96 dots an inch**, as the offscreen one is: the pixels a font
+            // matches at are the platform's font database's, which Windows' offscreen platform has none
+            // of.
+            EXPECT_EQ(QApplication::font().pointSizeF(), 12.0);
+            EXPECT_EQ(QGuiApplication::primaryScreen()->logicalDotsPerInchY(), 96.0);
+            EXPECT_EQ(QApplication::font().pointSizeF() * 96.0 / 72.0, 16.0);
             EXPECT_EQ(QApplication::palette("QMenu").color(QPalette::Window).rgba(), sDark.mElement)
                 << "a combo box's list rows the window's ground";
         }

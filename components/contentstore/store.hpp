@@ -1,10 +1,12 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -47,6 +49,11 @@ namespace ContentStore
 
         /// Asks no entry answered: no file, or one this refused.
         std::uint64_t mMissed = 0;
+
+        /// Entries `holds` found standing, and asks it found none for: apart from the reads, as it reads
+        /// no payload.
+        std::uint64_t mHeld = 0;
+        std::uint64_t mUnheld = 0;
 
         /// Files refused and deleted: a wrong trailer, length or digest, or a payload its owner could not
         /// read (`discard`).
@@ -111,11 +118,14 @@ namespace ContentStore
         /// files a large content list's store holds, its writes included.
         static constexpr std::size_t sStampedMost = std::size_t{ 1 } << 20;
 
-        /// The file format's version, in every trailer; a file of another is a miss.
+        /// The file format's version, in every trailer, and **the folder of the store's that holds its
+        /// files** (`v2`): two builds of different formats on one machine keep apart, and neither deletes
+        /// the other's entries as files it cannot read.
         static constexpr std::uint32_t sFormat = 2;
 
-        /// @param directory where the store stands, made if it is not there.
-        Store(std::filesystem::path directory, const Policy& policy);
+        /// @param directory where the store stands, made if it is not there; its files are in the folder
+        ///        of its format under it.
+        Store(const std::filesystem::path& directory, const Policy& policy);
 
         /// Finishes every write and stamp handed so far, then stops its thread.
         ~Store();
@@ -129,10 +139,11 @@ namespace ContentStore
         /// one was there within `reach`. A refused file is deleted.
         bool read(const Key& key, std::uint32_t kind, std::uint32_t version, Reach reach, Misc::ByteBuffer& payload);
 
-        /// Whether an entry stands under `key` within `reach`, held in memory or as a file, with nothing
-        /// of it read: one `stat`, and the session's stamp queued as a hit queues it. The file is not
-        /// checked, which its reader does: what a preparation asks, which needs the entry stored and
-        /// not its bytes.
+        /// Whether an entry stands under `key` within `reach`, held in memory or as a file whose trailer
+        /// holds for its size, with its payload unread, and the session's stamp queued as a hit queues
+        /// it: what a preparation asks, which needs the entry stored and not its bytes. A file cut short
+        /// or of another's trailer is refused and deleted, as a read refuses it; one whose payload a
+        /// fault changed is found by the read's digest.
         bool holds(const Key& key, Reach reach);
 
         /// Files `payload` under `key` as `kind` at `version`, on the store's thread, once the queue has
@@ -147,6 +158,7 @@ namespace ContentStore
         /// Waits until every write, stamp and the start's sweep handed so far are done.
         void flush();
 
+        /// The folder the store's files are in: its format's under the directory it was made at.
         const std::filesystem::path& getDirectory() const { return mDirectory; }
 
         Stats getStats();
@@ -173,12 +185,13 @@ namespace ContentStore
         };
 
         /// What an entry is: its kind and version, which an ask holds against its own, and its
-        /// payload.
+        /// payload. **Shared and never changed**, so a reader takes it under the lock and copies it
+        /// after, and an entry replaced or discarded meanwhile goes when its last reader lets it go.
         struct Resident
         {
             std::uint32_t mKind;
             std::uint32_t mVersion;
-            Misc::ByteBuffer mPayload;
+            std::shared_ptr<const Misc::ByteBuffer> mPayload;
         };
 
         void serve(const std::stop_token& stop);
@@ -204,12 +217,19 @@ namespace ContentStore
         /// Whether `kind` is held in memory at any size (`Holding::mAtAnySize`), where the store holds entries.
         bool isHeldAtAnySize(std::uint32_t kind) const;
 
-        /// Holds `payload` in memory under `key` where the store holds entries (`Policy::mHolding`) and it is
-        /// small enough (`sResidentMost`) or of a kind held at any size. Under the lock.
-        void keepResident(
-            const Key& key, std::uint32_t kind, std::uint32_t version, std::span<const std::byte> payload);
+        /// The copy of `payload` the store holds in memory where it holds entries (`Policy::mHolding`)
+        /// and it is small enough (`sResidentMost`) or of a kind held at any size, or null. Made outside
+        /// the lock, which `keepResident` takes it under.
+        std::shared_ptr<const Misc::ByteBuffer> residentCopy(
+            std::uint32_t kind, std::span<const std::byte> payload) const;
 
-        void refuse(const std::filesystem::path& path);
+        /// Holds `payload`, a `residentCopy`, in memory under `key` where the bound has room. Under the
+        /// lock.
+        void keepResident(
+            const Key& key, std::uint32_t kind, std::uint32_t version, std::shared_ptr<const Misc::ByteBuffer> payload);
+
+        /// Deletes the file at `path`, which failed `check`, and says so once a session.
+        void refuse(const std::filesystem::path& path, std::string_view check);
 
         const std::filesystem::path mDirectory;
         const Policy mPolicy;
@@ -227,6 +247,11 @@ namespace ContentStore
         /// Whether a failed write was logged: the first is, and the rest are counted (`mDropped`), as a
         /// full disk fails every write after it. The store's thread alone.
         bool mWriteFailureLogged = false;
+
+        /// Whether a refused file, or a read that failed other than for its size, was logged: the first
+        /// of each is, and the rest counted (`mRefused`, `mMissed`). Any thread, so atomic.
+        std::atomic<bool> mRefusalLogged{ false };
+        std::atomic<bool> mReadFailureLogged{ false };
 
         /// Last, so the thread is joined before the members it reads go.
         std::jthread mWorker;

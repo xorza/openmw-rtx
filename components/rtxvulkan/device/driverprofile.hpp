@@ -1,10 +1,9 @@
 #pragma once
 
+#include <cstdint>
 #include <string_view>
 
 #include <vulkan/vulkan_core.h>
-
-#include <components/platform/gpu.hpp>
 
 namespace Rtx
 {
@@ -14,14 +13,21 @@ namespace Rtx
         std::string_view mScratch;
         std::string_view mRegisters;
         std::string_view mShared;
+
+        /// The bits of the scratch statistic that are bytes: NVIDIA's `Local Memory Size` has read
+        /// as 2^36 above the bytes spilled, and as the bytes alone under driver 615.78 on Linux, so
+        /// its low 32 bits are the bytes either way; every other driver's is the bytes.
+        std::uint64_t mScratchBits = ~std::uint64_t{ 0 };
     };
 
     /// What differs by the vendor and the driver of a device, read once off its identity: the one place
     /// a vendor or a driver is told apart (`AGENTS.md`, "GPU vendors stand behind one entity"). Every
-    /// other file reads a fact here and names no vendor.
+    /// other file reads a capability here and names no vendor.
     struct DriverProfile
     {
-        Platform::Gpu::Vendor mVendor = Platform::Gpu::Vendor::Other;
+        /// Whether NVIDIA's NGX, which DLSS runs in, runs on the device: an NVIDIA card's.
+        bool mNgx = false;
+
         StatisticNames mStatistics{};
 
         /// What a device of `vendorId` running `driver` comes to.

@@ -50,10 +50,12 @@ namespace Rtx
         constexpr std::array sMemoryPriority{ VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME };
         constexpr std::array sPageableMemory{ VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME };
         constexpr std::array sPresentFences{ VK_KHR_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME };
+        constexpr std::array sPresentFencesExt{ VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME };
         constexpr std::array sPresentIds{ VK_KHR_PRESENT_ID_EXTENSION_NAME };
         constexpr std::array sPresentWait{ VK_KHR_PRESENT_WAIT_EXTENSION_NAME };
         constexpr std::array sCheckpoints{ VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME };
         constexpr std::array sBufferMarkers{ VK_AMD_BUFFER_MARKER_EXTENSION_NAME };
+        constexpr std::array sCoherentMemory{ VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME };
         constexpr std::array sPerformanceQuery{ VK_KHR_PERFORMANCE_QUERY_EXTENSION_NAME };
 
         /// What the registry says a present fence rests on beside core 1.4: the swapchain, which a
@@ -62,6 +64,12 @@ namespace Rtx
         constexpr std::array sMaintainedSwapchain{
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME,
+        };
+
+        /// The same in the spelling before the promotion.
+        constexpr std::array sMaintainedSwapchainExt{
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME,
         };
 
         /// What the registry says a present's id rests on, and a wait for one beside it.
@@ -104,6 +112,10 @@ namespace Rtx
             = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPresentWait); },
             .mField = [](OptionalFeatures& features) -> VkBool32& { return features.mPresentWait.presentWait; },
         };
+        constexpr OptionalFeature sCoherentFeature{
+            .mStructure = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mCoherent); },
+            .mField = [](OptionalFeatures& features) -> VkBool32& { return features.mCoherent.deviceCoherentMemory; },
+        };
         constexpr OptionalFeature sPerformanceQueryFeature{
             .mStructure
             = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPerformanceQuery); },
@@ -145,6 +157,13 @@ namespace Rtx
                 .mExtensions = sPresentFences,
                 .mNeeds = sMaintainedSwapchain,
                 .mFeature = &sPresentFencesFeature },
+            // The same before its promotion, whose structures are the promoted ones under another
+            // name; `Device` takes it only where the promoted spelling is not offered, since both would
+            // chain the one feature structure twice.
+            OptionalExtensions{ .mOption = DeviceOption::PresentFencesExt,
+                .mExtensions = sPresentFencesExt,
+                .mNeeds = sMaintainedSwapchainExt,
+                .mFeature = &sPresentFencesFeature },
             // An id on each present, which is what a wait for one names. Read only for the wait.
             OptionalExtensions{ .mOption = DeviceOption::PresentIds,
                 .mExtensions = sPresentIds,
@@ -165,6 +184,13 @@ namespace Rtx
             // written at a stage and not a pointer, so the host keeps what each number names
             // (`MarkerRing`).
             OptionalExtensions{ DeviceOption::BufferMarkers, sBufferMarkers, {} },
+            // The markers written past the device's caches, into memory the host reads as the queue
+            // left it: a cached marker a hang never flushed named a zone the queue had long passed,
+            // as AMD's guide to its crash markers warns. After the markers, which it rests on.
+            OptionalExtensions{ .mOption = DeviceOption::UncachedMarkers,
+                .mExtensions = sCoherentMemory,
+                .mNeeds = sBufferMarkers,
+                .mFeature = &sCoherentFeature },
             // The device's own counters of a stretch of work, which `ZoneCounters` reads around each
             // zone. Taken only where the run asks (`DeviceReport::mCounters`): the profiling lock
             // it holds is the whole device's.
@@ -368,6 +394,16 @@ namespace Rtx
         chain(next, mFeatures2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
     }
 
+    std::string describeTaken(const std::span<const bool> taken)
+    {
+        std::string said;
+        for (std::size_t at = 0; at < taken.size(); ++at)
+            if (taken[at])
+                said
+                    += (said.empty() ? "" : ", ") + std::string(sDeviceOptionNames.name(static_cast<DeviceOption>(at)));
+        return said.empty() ? "none" : said;
+    }
+
     OptionalFeatures::OptionalFeatures()
     {
         // Each is chained where the device took its option, and not here: a structure in the chain
@@ -378,6 +414,7 @@ namespace Rtx
         mPresentFences.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR;
         mPresentIds.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR;
         mPresentWait.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR;
+        mCoherent.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COHERENT_MEMORY_FEATURES_AMD;
         mPerformanceQuery.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PERFORMANCE_QUERY_FEATURES_KHR;
     }
 

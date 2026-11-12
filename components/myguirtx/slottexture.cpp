@@ -18,6 +18,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
+#include <components/rtx/image/blockdecode.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureformat.hpp>
@@ -141,8 +142,24 @@ namespace MyGUIRtx
                                     << (described.isOk() ? "its finest level is short" : described.error());
             }
         }
+        else if (const Rtx::TextureFormat blocked
+            = format != Rtx::TextureFormat::Unnamed ? format : Rtx::readFormat(image, Rtx::TextureEncoding::Data);
+            blocked != Rtx::TextureFormat::Unnamed
+            && Rtx::decodeBlocks(blocked,
+                std::as_bytes(std::span(image.data(),
+                    Rtx::layoutOf(blocked).levelBytes(
+                        static_cast<std::uint32_t>(mWidth), static_cast<std::uint32_t>(mHeight)))),
+                static_cast<std::uint32_t>(mWidth), static_cast<std::uint32_t>(mHeight), std::span(into, bytes)))
+        {
+            // **Blocks decoded as the core reads them**: `getColor` decodes the three DXT kinds a
+            // block a texel, sixteen times over, and draws a BC4 or BC5 image as whatever its bytes
+            // read as.
+        }
         else
         {
+            if (image.isCompressed())
+                Log(Debug::Warning) << "The interface texture \"" << mName
+                                    << "\" is in a compressed format this backend does not decode, and may show wrong";
             for (int y = 0; y < mHeight; ++y)
                 for (int x = 0; x < mWidth; ++x, into += 4)
                 {

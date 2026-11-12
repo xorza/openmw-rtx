@@ -56,7 +56,8 @@ namespace Rtx
             .basePipelineIndex = 0,
         };
         VkPipeline made = VK_NULL_HANDLE;
-        checkVk(vkCreateComputePipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, &made),
+        checkVk(device,
+            vkCreateComputePipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, &made),
             "vkCreateComputePipelines");
         Owned<VkPipeline, vkDestroyPipeline> handle(device, made);
 

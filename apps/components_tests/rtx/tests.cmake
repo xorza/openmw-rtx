@@ -11,6 +11,8 @@ target_sources(
         myguirtx/sharedtexture.cpp
         myguirtx/texture.cpp
         platform/linuxtext.cpp
+        rtx/common/error.cpp
+        rtx/common/frametimehistogram.cpp
         rtx/common/halffloat.cpp
         rtx/common/job.cpp
         rtx/common/namedenum.cpp
@@ -34,6 +36,7 @@ target_sources(
         rtx/frame/specularalbedo.cpp
         rtx/frame/spritelistsize.cpp
         rtx/image/alphaimage.cpp
+        rtx/image/blockdecode.cpp
         rtx/image/chainbuild.cpp
         rtx/image/colour.cpp
         rtx/image/shadingmap.cpp
@@ -128,6 +131,7 @@ target_sources(
         rtxvulkan/denoise/temporalturns.cpp
         rtxvulkan/device/buffermarkers.cpp
         rtxvulkan/device/extensionfilter.cpp
+        rtxvulkan/device/faultreport.cpp
         rtxvulkan/device/instance.cpp
         rtxvulkan/device/memory/formats.cpp
         rtxvulkan/device/memory/imagearena.cpp
@@ -138,12 +142,14 @@ target_sources(
         rtxvulkan/device/pipelinecode.cpp
         rtxvulkan/device/requirements.cpp
         rtxvulkan/device/result.cpp
+        rtxvulkan/device/retiring.cpp
         rtxvulkan/device/stagingfit.cpp
         rtxvulkan/device/validation.cpp
         rtxvulkan/device/zonecounters.cpp
         rtxvulkan/frame/gbufferstages.cpp
         rtxvulkan/pipeline/dispatch.cpp
         rtxvulkan/pipeline/passbindings.cpp
+        rtxvulkan/present/swapchain.cpp
         rtxvulkan/scene/backlog.cpp
         rtxvulkan/scene/sceneacceleration.cpp
         rtxvulkan/scene/sceneslots.cpp
@@ -180,6 +186,7 @@ set(RTX_TEST_SUPPORT
     rtxvulkan/support/instanceobstacle.cpp
 )
 set(RTX_TEST_SUPPORT_HEADERS
+    rtx/support/bound.hpp
     rtx/support/cardmemory.hpp
     rtx/support/countingrenderer.hpp
     rtx/support/death.hpp
@@ -243,6 +250,7 @@ target_compile_definitions(
     PRIVATE
         OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}"
         OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}"
+        OPENMW_RTX_TEST_PIPELINE_CACHE_DIR="${CMAKE_BINARY_DIR}/rtx-test-pipeline-cache"
 )
 
 # The same `main.cpp`, which sets up the settings' defaults both binaries read.
@@ -363,4 +371,5 @@ target_compile_definitions(
         OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}"
         OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}"
         OPENMW_RTX_CENSUS_SHADER_DIR="${RTX_SPIRV_CENSUS_DIR}"
+        OPENMW_RTX_TEST_PIPELINE_CACHE_DIR="${CMAKE_BINARY_DIR}/rtx-test-pipeline-cache"
 )

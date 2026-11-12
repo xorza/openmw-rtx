@@ -19,7 +19,10 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/frame/frameextents.hpp>
+#include <components/rtx/shaders/scene.h>
+#include <components/rtxvulkan/shaders/shared/sets.h>
 
 #include "requirements.hpp"
 #include "result.hpp"
@@ -84,7 +87,7 @@ namespace Rtx
             if (driver != nullptr && driver->driverName[0] != '\0')
                 details += std::format(", {} {}", driver->driverName, driver->driverInfo);
             if (memory != nullptr && memory->memoryHeapCount > 0)
-                details += std::format(", {} MiB video memory", sumDeviceLocalHeaps(*memory) / (1024 * 1024));
+                details += std::format(", {:.1f} MiB video memory", mebibytes(sumDeviceLocalHeaps(*memory)));
             return details;
         }
 
@@ -227,7 +230,7 @@ namespace Rtx
                     images.emplace_back();
                 else
                 {
-                    checkVk(asked, "vkGetPhysicalDeviceImageFormatProperties");
+                    checkVkWithoutDevice(asked, "vkGetPhysicalDeviceImageFormatProperties");
                     images.emplace_back(properties);
                 }
             }
@@ -366,6 +369,33 @@ namespace Rtx
         if (pushed < sPushConstantsFloor)
         {
             profile.mObstacle = std::format("push constants of {} bytes, under {}", pushed, sPushConstantsFloor);
+            return profile;
+        }
+
+        // **The texture set's arrays, which a device is asked for and not assumed to hold**: its two
+        // arrays of sampled images and its samplers, bound after use (`TextureArray`), in one set and
+        // in each stage that reads them. A device short of either failed to make the set's layout, a
+        // fault at start, where it is refused here by name.
+        const VkPhysicalDeviceVulkan12Properties& bound = properties.mVulkan12;
+        constexpr std::uint32_t arrayImages = 2 * Shaders::TEXTURE_SLOTS;
+        constexpr std::uint32_t arraySamplers = Shaders::TEXTURE_SAMPLERS;
+        if (std::min(bound.maxDescriptorSetUpdateAfterBindSampledImages,
+                bound.maxPerStageDescriptorUpdateAfterBindSampledImages)
+            < arrayImages)
+        {
+            profile.mObstacle = std::format("{} sampled images bound after use, under {}",
+                std::min(bound.maxDescriptorSetUpdateAfterBindSampledImages,
+                    bound.maxPerStageDescriptorUpdateAfterBindSampledImages),
+                arrayImages);
+            return profile;
+        }
+        if (std::min(bound.maxDescriptorSetUpdateAfterBindSamplers, bound.maxPerStageDescriptorUpdateAfterBindSamplers)
+            < arraySamplers)
+        {
+            profile.mObstacle = std::format("{} samplers bound after use, under {}",
+                std::min(
+                    bound.maxDescriptorSetUpdateAfterBindSamplers, bound.maxPerStageDescriptorUpdateAfterBindSamplers),
+                arraySamplers);
             return profile;
         }
 
@@ -532,7 +562,8 @@ namespace Rtx
             << "driver:            " << mProperties->mVulkan12.driverName << ' ' << mProperties->mVulkan12.driverInfo
             << '\n'
             << "Vulkan:            " << versionString(base.apiVersion) << '\n'
-            << "device-local heap: " << sumDeviceLocalHeaps(mProperties->mMemory) / (1024 * 1024) << " MiB\n"
+            << "device-local heap: " << std::format("{:.1f}", mebibytes(sumDeviceLocalHeaps(mProperties->mMemory)))
+            << " MiB\n"
             << "queue family:      " << mProfile.mQueueFamily << '\n'
             << "subgroup size:     " << mProperties->mVulkan11.subgroupSize << '\n';
 

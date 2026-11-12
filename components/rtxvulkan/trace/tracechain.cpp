@@ -84,7 +84,8 @@ namespace Rtx
     void TraceChain::resize(
         const std::uint32_t width, const std::uint32_t height, const RendererFilter filter, const ArenaRun& shared)
     {
-        assert(width > 0 && height > 0);
+        assert(width > 0);
+        assert(height > 0);
         assert(
             shared.size() == getSharedCount(filter) && "the chain's shared images were not placed as it declared them");
 
@@ -93,20 +94,17 @@ namespace Rtx
         const ArenaRun scratch(shared, GBuffer::sStageImages, scratchCount);
         mCanvas = ArenaRun(shared, GBuffer::sStageImages + scratchCount, 1);
 
-        // **The one owner of "is this a new extent"**: an upscaling mode changed between two that
-        // trace at one size asks this again, and the G-buffer's channels and the fog's images made
-        // anew for it would be made for nothing. **And of whether the filter can run**: `native`
-        // and `off` trace at one size, and under an upscaler that filters the light itself the
-        // first keeps no filter where the second needs one.
-        if (isBuilt() && width == mWidth && height == mHeight && filter == mFilter)
+        if (isBuilt())
         {
+            assert(width == mWidth && "a chain that stands asked for another width, which its owner lets go of first");
+            assert(height == mHeight && "a chain that stands asked for another height");
+            assert(filter == mFilter && "a chain that stands asked for another filter");
             mChannels->place(mDevice, mPasses.mChannels, stages);
             if (mDenoise.has_value())
                 mDenoise->place(scratch);
             return;
         }
 
-        const bool fogMoves = !isBuilt() || width != mWidth || height != mHeight;
         mWidth = width;
         mHeight = height;
         mFilter = filter;
@@ -115,11 +113,9 @@ namespace Rtx
         // rounded up to even (`fieldColumns`); each channel at its own (`GBuffer`), and the fog's
         // froxels at the frame's. The frame before's surfaces are kept only for a filter that reads
         // them.
-        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance,
+        mChannels.emplace(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance,
             ChannelKeeping{ .mPast = mPast, .mFilter = filter, .mMasks = mPasses.mMasks }, stages);
-        if (fogMoves)
-            mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight, mPast);
-        mDenoise.reset();
+        mFogVolume.emplace(mDevice, mPasses.mFog, mWidth, mHeight, mPast);
         if (filter == RendererFilter::Runs)
         {
             mDenoise.emplace(mDevice, mPast);
@@ -279,12 +275,17 @@ namespace Rtx
         // Every frame writes it whole, so what the last frame left is discarded; the head barrier
         // `CommandPool::begin` recorded orders this after the last frame's reads.
         mComposed.transition(commands, Use::sUndefined, Use::sComputeWrite);
-        const std::optional<Denoised> resolved = denoised
-            ? mPasses.mDenoise.record(commands, *mDenoise, *mChannels, what.mSampled, inputs.mSubject.mMapped,
-                  inputs.mSubject.mLamps, composesInCascade, what.mReconstruction, mComposed, what.mTimer)
-            : Denoised::unfiltered(*mChannels, what.mSampled.mBounceRays != 0);
-        assert(resolved.has_value() != composesInCascade
-            && "the cascade composed where it was not asked, or not where it was");
+        const DenoisePasses::Request request{ .mSampled = what.mSampled,
+            .mMapped = inputs.mSubject.mMapped,
+            .mLamps = inputs.mSubject.mLamps,
+            .mReconstruction = what.mReconstruction };
+        std::optional<Denoised> resolved;
+        if (composesInCascade)
+            mPasses.mDenoise.recordComposing(commands, *mDenoise, *mChannels, request, mComposed, what.mTimer);
+        else if (denoised)
+            resolved.emplace(mPasses.mDenoise.record(commands, *mDenoise, *mChannels, request, what.mTimer));
+        else
+            resolved.emplace(Denoised::unfiltered(*mChannels, what.mSampled.mBounceRays != 0));
 
         // **On every frame the cascade did not compose**, from the channels, whatever filtered them:
         // a trace split into stages holds no pixel's whole light in one place, and the frame returns

@@ -188,10 +188,14 @@
             "hidden": true,
             "$comment": [
                 "A race fails the run, as an AddressSanitizer finding does, and its report keeps the stack of the",
-                "other side's lock as well. `omw` runs every tsan program under these."
+                "other side's lock as well. `omw` runs every tsan program under these. Qt paints a large fill on",
+                "a pool of its own threads, which it synchronizes in its own code, built without the sanitizer:",
+                "the sanitizer sees the threads and not the synchronization, and reads Qt's own hand-over as a",
+                "race, so the pool is turned off (`QT_NO_GUI_THREADPOOL`) and Qt paints on the calling thread."
             ],
             "environment": {
-                "TSAN_OPTIONS": "halt_on_error=1:second_deadlock_stack=1:$penv{TSAN_OPTIONS}"
+                "TSAN_OPTIONS": "halt_on_error=1:second_deadlock_stack=1:$penv{TSAN_OPTIONS}",
+                "QT_NO_GUI_THREADPOOL": "1"
             }
         },
         { "name": "debug-linux", "configurePreset": "debug-linux", "inherits": [ "tests" ] },

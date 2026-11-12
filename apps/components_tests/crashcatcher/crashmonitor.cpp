@@ -29,9 +29,8 @@ namespace
     {
         Crash::MonitorArguments written;
         written.mClient = 4242;
-        written.mNotes = 0x7ffd12345678;
         written.mIssues = "https://github.com/xorza/openmw-rtx/issues";
-        written.mAnswering = Crash::EndAfter{ std::chrono::milliseconds(1500), Crash::EndAfter::From::Report };
+        written.mAnswering = Crash::EndAfter{ std::chrono::milliseconds(1500) };
 
         // The name is Crashpad's annotation, which it hands its handler and the monitor reads.
         std::vector<std::string> line{ "openmw", "--database=/home/x/crashes", "--annotation=product=crash-tests" };
@@ -42,22 +41,19 @@ namespace
         std::vector<std::string> handler;
         const Crash::MonitorArguments read = Crash::MonitorArguments::read(line, handler);
         EXPECT_EQ(read.mClient, 4242u);
-        EXPECT_EQ(read.mNotes, 0x7ffd12345678u);
         EXPECT_EQ(read.mApplication, "crash-tests");
         EXPECT_EQ(read.mIssues, "https://github.com/xorza/openmw-rtx/issues");
-        EXPECT_EQ(read.mAnswering,
-            Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(1500), Crash::EndAfter::From::Report }));
+        EXPECT_EQ(read.mAnswering, Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(1500) }));
         EXPECT_EQ(read.mDatabase, std::filesystem::path("/home/x/crashes"));
 
         const std::vector<std::string> crashpads{ "openmw", "--database=/home/x/crashes",
             "--annotation=product=crash-tests", "--initial-client-fd=3" };
         EXPECT_EQ(handler, crashpads);
 
-        // **Each of the three answerings goes and comes back as itself**, an End from either point.
+        // **Each of the three answerings goes and comes back as itself.**
         for (const Crash::Answering& answering :
             { Crash::Answering(Crash::AskThePlayer{}), Crash::Answering(Crash::AskNobody{}),
-                Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(7), Crash::EndAfter::From::Ask }),
-                Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(7), Crash::EndAfter::From::Report }) })
+                Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(7) }) })
         {
             written.mAnswering = answering;
             std::vector<std::string> again;
@@ -66,20 +62,21 @@ namespace
         EXPECT_EQ(written.write().front(), Crash::sMonitorSwitch);
     }
 
-    /// **An End reads as one word of the two `spell` writes, its delay a number to its end**, and
-    /// nothing else is one: a harness's text that reads as no End leaves the answering as it was, and
-    /// a monitor that reads none asks the player rather than ends.
+    /// **An End reads as the word `spell` writes, its delay a number to its end**, and nothing else is
+    /// one: a harness's text that reads as no End leaves the answering as it was, and a monitor that
+    /// reads none asks the player rather than ends. The two words of the builds that counted from
+    /// the ask or the report are none.
     TEST(CrashMonitorArgumentsTest, anEndReadsAsTheWordItSpellsAndNothingElse)
     {
-        const Crash::EndAfter ask{ std::chrono::milliseconds(1), Crash::EndAfter::From::Ask };
-        const Crash::EndAfter report{ std::chrono::milliseconds(5000), Crash::EndAfter::From::Report };
-        EXPECT_EQ(ask.spell(), "end-after-ask-1");
-        EXPECT_EQ(report.spell(), "end-after-report-5000");
-        EXPECT_EQ(Crash::EndAfter::read("end-after-ask-1"), ask);
-        EXPECT_EQ(Crash::EndAfter::read("end-after-report-5000"), report);
+        const Crash::EndAfter soon{ std::chrono::milliseconds(1) };
+        const Crash::EndAfter late{ std::chrono::milliseconds(5000) };
+        EXPECT_EQ(soon.spell(), "end-after-1");
+        EXPECT_EQ(late.spell(), "end-after-5000");
+        EXPECT_EQ(Crash::EndAfter::read("end-after-1"), soon);
+        EXPECT_EQ(Crash::EndAfter::read("end-after-5000"), late);
 
-        for (const std::string_view spelled : { "end-after-7", "end-after-ask-", "end-after-ask-12x",
-                 "end-after-ask--5", "end-after-report-+5", "end-after-later-5", "" })
+        for (const std::string_view spelled : { "end-after-", "end-after-12x", "end-after--5", "end-after-+5",
+                 "end-after-ask-1", "end-after-report-5000", "end-later-5", "" })
         {
             EXPECT_EQ(Crash::EndAfter::read(spelled), std::nullopt) << spelled;
             std::vector<std::string> handler;
@@ -89,14 +86,13 @@ namespace
         }
     }
 
-    /// A note table at an address that does not read as a number to its end is no table, and the
-    /// monitor reads nothing out of the game rather than whatever lies at the part it read.
-    TEST(CrashMonitorArgumentsTest, aNoteTableAtAnAddressThatDoesNotReadIsNoTable)
+    /// **A game that names nothing leaves the monitor its defaults**: no game, and the player to answer.
+    TEST(CrashMonitorArgumentsTest, theGamesIdReadsAsANumberToItsEnd)
     {
         std::vector<std::string> handler;
-        const std::vector<std::string> line{ "openmw", "--openmw-notes=0x1000:9352" };
+        const std::vector<std::string> line{ "openmw" };
         const Crash::MonitorArguments read = Crash::MonitorArguments::read(line, handler);
-        EXPECT_EQ(read.mNotes, 0u);
+        EXPECT_EQ(read.mClient, 0u);
         EXPECT_EQ(read.mAnswering, Crash::Answering(Crash::AskThePlayer{}))
             << "a game that names no answer leaves the player to give one";
         EXPECT_EQ(handler, std::vector<std::string>{ "openmw" });
@@ -139,19 +135,24 @@ namespace
         EXPECT_EQ(std::atomic_ref(monitor.get()->mFrames).load(), 5u);
         EXPECT_EQ(std::atomic_ref(monitor.get()->mHangSeconds).load(), 20u);
 
-        std::atomic_ref(monitor.get()->mHangAsked).fetch_add(1);
-        EXPECT_EQ(std::atomic_ref(game.get()->mHangAsked).load(), 1u) << "the monitor's ask reaches the game";
-
-        // **The game waits for the monitor's answer, not for its opening**: the page opened above,
-        // and a game that waited a millisecond still has none. Each answer then ends the wait at
-        // once, where ten seconds would fail the test's own limit.
-        EXPECT_EQ(game.awaitMonitor(std::chrono::milliseconds(1)), Crash::MonitorAnswer::Unanswered);
+        // **The game reads the monitor's answer, not its opening**: the page opened above, and has
+        // none yet. Each answer reads back with the monitor's id, and a word past the last answer,
+        // which another process wrote, is none.
+        EXPECT_EQ(game.readAnswer(), Crash::MonitorAnswer::Unanswered);
         for (const Crash::MonitorAnswer answer : { Crash::MonitorAnswer::DatabaseUnopened,
                  Crash::MonitorAnswer::ReportUnwritable, Crash::MonitorAnswer::Watching })
         {
-            monitor.answerGame(answer);
-            EXPECT_EQ(game.awaitMonitor(std::chrono::seconds(10)), answer);
+            monitor.answerGame(answer, 777);
+            EXPECT_EQ(game.readAnswer(), answer);
+            EXPECT_EQ(game.getMonitor(), 777u);
         }
+        std::atomic_ref(monitor.get()->mMonitorAnswer).store(99);
+        EXPECT_EQ(game.readAnswer(), Crash::MonitorAnswer::Unanswered);
+
+        // **The end word**: none on a fresh page, then the code the game reached its end with.
+        EXPECT_EQ(monitor.getEnd(), std::nullopt);
+        game.setEnd(3);
+        EXPECT_EQ(monitor.getEnd(), 3);
 
         // **The log goes over once the game knows it**, which is after the monitor has started:
         // nothing before, the path whole after, letters outside ASCII and a space included, and a
@@ -178,26 +179,31 @@ namespace
     }
 
     /// What the monitor adds lands in the game's log, in the order written, stamped as the log stamps a
-    /// line, by the time a flush returns; and nothing is kept for a log the game has not handed over.
-    TEST(CrashMonitorLogTest, entriesLandInOrderOnceAFlushReturnsAndNoneWithoutALog)
+    /// line, by the time `finish` returns; and **what it wrote before the game named its log waits for
+    /// it**, and lands first: a summary of a crash while the configuration was read is not lost.
+    TEST(CrashMonitorLogTest, entriesLandInOrderOnceTheGameNamesItsLog)
     {
         // As `theGameAndItsMonitorShareOnePageByTheGamesId` has it, and apart from that test's.
         const std::uint32_t id = 0x80000003u + Platform::Process::currentId();
         const Crash::SharedPage game = Crash::SharedPage::create(id);
         ASSERT_NE(game.get(), nullptr);
         const std::filesystem::path log = TestingOpenMW::outputDirPath("crash-monitor-log.txt");
+        const std::filesystem::path fallback = TestingOpenMW::outputDirPath("crash-monitor-own.txt");
         std::filesystem::remove(log);
+        std::filesystem::remove(fallback);
 
         Crash::MonitorLog monitor(game);
         monitor.write({ "before the log" });
-        monitor.flush();
         EXPECT_FALSE(std::filesystem::exists(log));
+        EXPECT_EQ(monitor.path(), std::filesystem::path());
 
         ASSERT_TRUE(game.setLogPath(Files::pathToUnicodeString(log)));
         EXPECT_EQ(monitor.path(), log);
         monitor.write({ "Crash: first", "Crash: second" });
         monitor.write({ "Hang: third" });
-        monitor.flush();
+        monitor.finish(fallback);
+        EXPECT_EQ(monitor.path(), log) << "the game named its log, which stays the log";
+        EXPECT_FALSE(std::filesystem::exists(fallback));
 
         std::ifstream file(log);
         std::vector<std::string> said;
@@ -208,7 +214,33 @@ namespace
             EXPECT_EQ(line.substr(13, 3), " E]");
             said.push_back(line.substr(17));
         }
-        EXPECT_EQ(said, (std::vector<std::string>{ "Crash: first", "Crash: second", "Hang: third" }));
+        EXPECT_EQ(said, (std::vector<std::string>{ "before the log", "Crash: first", "Crash: second", "Hang: third" }));
+    }
+
+    /// **A game that never named its log leaves the monitor's lines in a file of its own**, which
+    /// `finish` names and empties first, and which is the log from then on.
+    TEST(CrashMonitorLogTest, aGameThatNeverNamedItsLogLeavesTheLinesInTheMonitorsOwn)
+    {
+        const std::uint32_t id = 0x80000007u + Platform::Process::currentId();
+        const Crash::SharedPage game = Crash::SharedPage::create(id);
+        ASSERT_NE(game.get(), nullptr);
+        const std::filesystem::path fallback = TestingOpenMW::outputDirPath("crash-monitor-fallback.txt");
+        std::filesystem::remove(fallback);
+        {
+            std::ofstream stale(fallback);
+            stale << "a session before\n";
+        }
+
+        Crash::MonitorLog monitor(game);
+        monitor.write({ "Crash: before any log" });
+        monitor.finish(fallback);
+        EXPECT_EQ(monitor.path(), fallback);
+
+        std::ifstream file(fallback);
+        std::vector<std::string> said;
+        for (std::string line; std::getline(file, line);)
+            said.push_back(line.size() > 17 ? line.substr(17) : line);
+        EXPECT_EQ(said, std::vector<std::string>{ "Crash: before any log" });
     }
 
     /// **The log's end writes what still waits**, with no flush: the monitor's last line names the

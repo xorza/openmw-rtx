@@ -7,6 +7,7 @@
 
 #include <apps/components_tests/rtx/support/cardmemory.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
 namespace Rtx
@@ -17,12 +18,14 @@ namespace Rtx
         constexpr VkMemoryPropertyFlags sStaging
             = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         constexpr VkMemoryPropertyFlags sReadBack = sStaging | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+        constexpr VkMemoryPropertyFlags sMarkers
+            = sStaging | VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD | VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD;
 
         /// **Each request is placed in the types its promise names**, on every card in hand: video
         /// memory in the types that are video memory and nothing else, staging in write-combined
-        /// system memory, a read-back in cached system
-        /// memory. RADV lists two of each, a second that only buffers take, and four of AMD's
-        /// device-coherent types after them, none of which any request is placed in.
+        /// system memory, a read-back in cached system memory. RADV lists two of each, a second that
+        /// only buffers take, and four of AMD's device-coherent types after them, which only the
+        /// markers' request, naming them, is placed in: the uncached system memory alone.
         TEST(RtxMemoryTypesTest, eachRequestIsPlacedInTheTypesItsPromiseNames)
         {
             const struct
@@ -32,16 +35,18 @@ namespace Rtx
                 std::uint32_t mVideo;
                 std::uint32_t mStaging;
                 std::uint32_t mReadBack;
+                std::uint32_t mMarkers;
             } cards[] = {
-                { "Turing", Testing::turingMemory(), 1u << 1, 1u << 2, 1u << 3 },
-                { "Ada", Testing::adaMemory(), 1u << 1, 1u << 2, 1u << 3 },
-                { "RDNA 2", Testing::rdna2Memory(), (1u << 0) | (1u << 1), 1u << 2, (1u << 5) | (1u << 6) },
+                { "Turing", Testing::turingMemory(), 1u << 1, 1u << 2, 1u << 3, 0 },
+                { "Ada", Testing::adaMemory(), 1u << 1, 1u << 2, 1u << 3, 0 },
+                { "RDNA 2", Testing::rdna2Memory(), (1u << 0) | (1u << 1), 1u << 2, (1u << 5) | (1u << 6), 1u << 8 },
             };
             for (const auto& card : cards)
             {
                 EXPECT_EQ(memoryTypesFor(card.mMemory, sVideo), card.mVideo) << card.mCard;
                 EXPECT_EQ(memoryTypesFor(card.mMemory, sStaging), card.mStaging) << card.mCard;
                 EXPECT_EQ(memoryTypesFor(card.mMemory, sReadBack), card.mReadBack) << card.mCard;
+                EXPECT_EQ(memoryTypesFor(card.mMemory, sMarkers), card.mMarkers) << card.mCard;
             }
         }
 
@@ -100,6 +105,34 @@ namespace Rtx
             shared.memoryTypeCount = 1;
             shared.memoryTypes[0] = VkMemoryType{ sStaging, 0 };
             EXPECT_THROW(contentTypesOf(shared), Unsupported) << "no type is video memory";
+        }
+
+        /// **A refused essential allocation names what it was for and how full the card was**: the
+        /// library's answer, the bytes, the use and the resource, then every heap as the harness
+        /// prints them. Each use by its own name.
+        TEST(RtxMemoryTypesTest, aRefusedTakeNamesItsSubjectAndTheHeaps)
+        {
+            MemoryReport report;
+            report.mHeapCount = 1;
+            report.mHeaps[0] = HeapUse{ .mSize = 8ull << 30,
+                .mBudget = 0,
+                .mHeld = 0,
+                .mReserved = 7ull << 30,
+                .mLive = 6ull << 30,
+                .mBlocks = 96,
+                .mDeviceLocal = true };
+            EXPECT_EQ(describeRefusedTake(
+                          VK_ERROR_OUT_OF_DEVICE_MEMORY, 268435456, MemoryUse::Essential, "the tables", report),
+                "vmaAllocateMemory answered VK_ERROR_OUT_OF_DEVICE_MEMORY for 268435456 bytes of essential memory "
+                "for \"the tables\"; video memory:\n"
+                    + describeMemory(report));
+            EXPECT_EQ(describeMemory(report),
+                "  heap  0  device    8192.0 MiB   reserved  7168.0   live  6144.0   96 blocks\n");
+
+            EXPECT_EQ(nameOf(MemoryUse::Frame), "frame");
+            EXPECT_EQ(nameOf(MemoryUse::Essential), "essential");
+            EXPECT_EQ(nameOf(MemoryUse::Structure), "structure");
+            EXPECT_EQ(nameOf(MemoryUse::Texture), "texture");
         }
     }
 }

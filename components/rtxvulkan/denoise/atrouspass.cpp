@@ -110,13 +110,29 @@ namespace Rtx
     {
     }
 
-    std::optional<AtrousPass::Filtered> AtrousPass::record(VkCommandBuffer commands,
+    AtrousPass::Filtered AtrousPass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
+        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
+    {
+        return *recordLevels(commands, images, buffer, frame, nullptr, timer);
+    }
+
+    void AtrousPass::recordComposing(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
+        const GBuffer& buffer, const DenoiseFrame& frame, const Composing& composing, GpuTimer* timer) const
+    {
+        [[maybe_unused]] const std::optional<Filtered> answered
+            = recordLevels(commands, images, buffer, frame, &composing, timer);
+        assert(!answered.has_value() && "a composing cascade answered as well");
+    }
+
+    std::optional<AtrousPass::Filtered> AtrousPass::recordLevels(VkCommandBuffer commands,
         const DenoiseHistory::AccumulateImages& images, const GBuffer& buffer, const DenoiseFrame& frame,
         const Composing* composing, GpuTimer* timer) const
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
-        assert(images.mNarrow.getWidth() >= camera.mWidth && images.mNarrow.getHeight() >= camera.mHeight);
-        assert(buffer.getWidth() >= camera.mWidth && buffer.getHeight() >= camera.mHeight);
+        assert(images.mNarrow.getWidth() >= camera.mWidth);
+        assert(images.mNarrow.getHeight() >= camera.mHeight);
+        assert(buffer.getWidth() >= camera.mWidth);
+        assert(buffer.getHeight() >= camera.mHeight);
 
         // One assignment and not eight, so the filter's rays and the trace's cannot come to
         // differ: this pass is handed the one struct, and the shader rebuilds the rays with the
@@ -222,7 +238,7 @@ namespace Rtx
             target = source == narrow ? blended : narrow;
         }
 
-        // The frame, composed over the direct channel, is the caller's to order.
+        // The frame, composed into `Composing::mComposed`, is the caller's to order.
         if (composing != nullptr)
             return std::nullopt;
 

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -175,8 +176,16 @@ namespace Rtx
         // takes a texel only within twice its radius, where `pressed` keeps less than all.
         const float grid = static_cast<float>(sGrid);
         const osg::Vec2f eyeAt = (eye - mOrigin) / Shaders::RIPPLE_TEXEL;
-        mImpulseScratch.clear();
+
+        // **Past what the buffer holds, the nearest the eye, and of two as near the one the game gave
+        // first**, kept in a heap of the buffer's size whose top is the one to give up: a crowded
+        // frame grows nothing, where every candidate kept and trimmed after grew the list past its
+        // reserve. Pressed in the game's order still.
+        const auto nearer = [](const Candidate& left, const Candidate& right) {
+            return left.mDistance != right.mDistance ? left.mDistance < right.mDistance : left.mOrder < right.mOrder;
+        };
         mCandidates.clear();
+        std::uint32_t order = 0;
         for (const RippleImpulse& impulse : impulses)
         {
             const osg::Vec2f at = (impulse.mAt - mOrigin) / Shaders::RIPPLE_TEXEL;
@@ -186,28 +195,27 @@ namespace Rtx
                 || at.y() - reach >= grid - 0.5f)
                 continue;
 
-            mCandidates.push_back(Candidate{
-                .mDistance = (at - eyeAt).length2(), .mOrder = static_cast<std::uint32_t>(mImpulseScratch.size()) });
-            mImpulseScratch.push_back(Shaders::GpuRippleImpulse{ .mAt = at, .mRadius = radius, .mStrength = -1.0f });
+            const Candidate candidate{ .mDistance = (at - eyeAt).length2(),
+                .mOrder = order++,
+                .mImpulse = Shaders::GpuRippleImpulse{ .mAt = at, .mRadius = radius, .mStrength = -1.0f } };
+            if (mCandidates.size() < Shaders::RIPPLE_IMPULSES_MOST)
+            {
+                mCandidates.push_back(candidate);
+                std::ranges::push_heap(mCandidates, nearer);
+            }
+            else if (nearer(candidate, mCandidates.front()))
+            {
+                std::ranges::pop_heap(mCandidates, nearer);
+                mCandidates.back() = candidate;
+                std::ranges::push_heap(mCandidates, nearer);
+            }
         }
+        assert(mCandidates.size() <= Shaders::RIPPLE_IMPULSES_MOST);
 
-        // Past what the buffer holds, the nearest the eye, and of two as near the one the game gave
-        // first; pressed in the game's order still.
-        if (mCandidates.size() > Shaders::RIPPLE_IMPULSES_MOST)
-        {
-            const auto nearer = [](const Candidate& left, const Candidate& right) {
-                return left.mDistance != right.mDistance ? left.mDistance < right.mDistance
-                                                         : left.mOrder < right.mOrder;
-            };
-            const auto kept = mCandidates.begin() + Shaders::RIPPLE_IMPULSES_MOST;
-            std::nth_element(mCandidates.begin(), kept, mCandidates.end(), nearer);
-            mCandidates.erase(kept, mCandidates.end());
-            std::sort(mCandidates.begin(), mCandidates.end(),
-                [](const Candidate& left, const Candidate& right) { return left.mOrder < right.mOrder; });
-            for (std::size_t at = 0; at < mCandidates.size(); ++at)
-                mImpulseScratch[at] = mImpulseScratch[mCandidates[at].mOrder];
-            mImpulseScratch.resize(mCandidates.size());
-        }
+        std::ranges::sort(mCandidates, {}, &Candidate::mOrder);
+        mImpulseScratch.clear();
+        for (const Candidate& candidate : mCandidates)
+            mImpulseScratch.push_back(candidate.mImpulse);
 
         // A still field nothing presses: nothing to step and nothing to compose. The next step
         // after it starts from a field of nought, whose last step is moot.

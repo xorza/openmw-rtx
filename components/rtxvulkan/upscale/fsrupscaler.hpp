@@ -13,7 +13,6 @@
 #include <components/rtx/shaders/camera.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
-#include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
@@ -26,7 +25,6 @@ namespace Rtx
 {
     class Device;
     class GpuTimer;
-    class Uploads;
 
     /// FSR 3.1.4, ported: AMD's temporal upscaler, which also reconstructs a frame at its own size,
     /// as the anti-aliasing. The passes are AMD's (`extern/fidelityfx/`), the bindings and the
@@ -44,11 +42,12 @@ namespace Rtx
         FsrUpscaler(const FsrUpscaler&) = delete;
         FsrUpscaler& operator=(const FsrUpscaler&) = delete;
 
-        /// Builds what the upscaler keeps for one pair of extents, releasing the last, and clears all
-        /// of it: the frame after starts a history of its own. Once per resolution, and never per
-        /// frame. Takes `shared`, the images `declareShared` declared at these extents as the frame's
-        /// arena placed them, whether the extents moved or not. The mode is DLSS's to read: FSR's
-        /// arithmetic follows from the extents alone.
+        /// Builds what the upscaler keeps for one pair of extents, and clears all of it: the frame
+        /// after starts a history of its own. Once per resolution, and never per frame. Takes
+        /// `shared`, the images `declareShared` declared at these extents as the frame's arena placed
+        /// them, whether the extents moved or not; targets that stand are asked at their own extents,
+        /// and let go of first where they moved. The mode is DLSS's to read: FSR's arithmetic follows
+        /// from the extents alone.
         void resize(Upscale mode, VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
 
         /// The images a reconstruction at these extents writes whole before it reads them and no
@@ -82,8 +81,8 @@ namespace Rtx
 
         /// Records one reconstruction at the output extent, and hands over the image it wrote,
         /// which the display composites the puffs over and maps. After `resize`. The frame's
-        /// constants are written through `uploads`, ordered here ahead of the passes.
-        HandedImage record(VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer);
+        /// constants are written in queue order ahead of the passes.
+        HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
 
         /// One line for `info`: which upscaler this renderer has.
         static std::string_view describe() { return "FSR 3.1.4, ported"; }
@@ -109,9 +108,10 @@ namespace Rtx
         std::array<ComputePipeline<NoConstants>, sPasses> mPipelines;
         Sampler mSampler;
 
-        /// The three constant blocks, one buffer a frame in flight: `FSR_BLOCKS_BYTES` written whole
-        /// by the host before the frame's dispatches read it.
-        PerSlot<Buffer> mBlocks;
+        /// The three constant blocks, `FSR_BLOCKS_BYTES` written whole in queue order ahead of the
+        /// frame's dispatches (`Buffer::updateInline`), so one buffer serves every frame, as the
+        /// visibility pass's constants do.
+        Buffer mBlocks;
 
         FsrFrame mFrame;
 

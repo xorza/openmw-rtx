@@ -510,12 +510,19 @@ namespace Debug
             // Every application's reports carry the build they came from, the launcher's and the
             // editor's as well as the game's.
             Crash::annotate("version", Version::getOpenmwVersionDescription());
+            if (std::getenv("APPIMAGE") != nullptr)
+                Crash::annotate("appimage", unkept.empty() ? "kept by its keeper" : unkept);
             if (const Result<Crash::Installed, std::string_view> installed = Crash::install(settings);
                 !installed.isOk())
                 Log(Debug::Warning) << "No crash catcher: " << installed.error();
             else
             {
-                Log(Debug::Info) << "Crash reports go to " << settings.mReportFolder;
+                Log(Debug::Info) << "Crash reports go to " << settings.mReportFolder << ", from the monitor process "
+                                 << installed.value().mMonitor << ", which reads the game under "
+                                 << installed.value().mReading
+                                 << (std::getenv("APPIMAGE") != nullptr && unkept.empty()
+                                            ? ", and the AppImage's keeper holds its mount"
+                                            : "");
                 for (const std::string_view without : installed.value().mWithout)
                     Log(Debug::Warning) << "The crash catcher goes without " << without;
             }
@@ -553,6 +560,7 @@ namespace Debug
         Log::sMinDebugLevel = All;
         Log::sWriteLevel = false;
 
+        Crash::reachedEnd(ret);
         return ret;
     }
 }

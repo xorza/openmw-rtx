@@ -460,8 +460,8 @@ namespace Rtx
     void GBuffer::handOver(VkCommandBuffer commands) const
     {
         // A read after a write, and nothing more: every channel is read-only from here to the end
-        // of the frame but the direct one, which a composite writes the frame over, and the
-        // upscaler's masks, which the pass that composes writes — each ordered for itself after.
+        // of the frame but the upscaler's masks, which the pass that composes writes, ordered for
+        // itself after; the frame is composed into the chain's own image, not over a channel.
         // Sampled as well as loaded, because an upscaler samples what it is handed. The stage
         // record as well, for that pass.
         Barriers barriers(commands);

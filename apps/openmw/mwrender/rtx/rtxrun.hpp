@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <string>
 #include <string_view>
 
 #include <osg/Vec2i>
@@ -75,6 +76,54 @@ namespace MWRender
         /// kernel at no frame.
         Rtx::KernelSet mKernels = Rtx::KernelSet::Drawing;
     };
+
+    /// **What the run was set up with, for the log**: the backend, the window, the layers, the
+    /// breadcrumbs, the upscaler, the kernels waited for, the store and the memory, and whether the
+    /// build validates by default. Said once, where the renderer is made.
+    std::string describe(const RunSetup& setup);
+
+    /// `validation` raised to what the environment asks of the layers.
+    ///
+    /// **The two finer levels, asked for by name and never on by themselves.** The build decides
+    /// whether the layers load; these decide what they check, and each costs far more than the
+    /// core checks do — synchronization validation tracks every access of every resource, and
+    /// the GPU-assisted layer instruments every shader. They are here because the harness names
+    /// a level on its command line and the game has none, and `Rtx::sValidationByDefault` says
+    /// why two hosts of one renderer must not disagree about the layers. What they answer is
+    /// the fault a core-clean run still ends in: a device lost with an address and nothing else.
+    ///
+    /// **The GPU-assisted layer takes the process down on its own**, which is why it is a level
+    /// of its own and never paired with the other: over a window `vkWaitForFences` comes back
+    /// `VK_ERROR_DEVICE_LOST` on three runs of four, somewhere inside a minute, with nothing
+    /// wrong in the frame, and headless it has aborted inside the layer's own thread. So
+    /// `OPENMW_RTX_SYNC_VALIDATION` is the one to reach for in the game, and
+    /// `OPENMW_RTX_GPU_VALIDATION` is there for a session willing to tell the losses apart.
+    /// Either raises the level whatever the build said, which is what lets a Release build be
+    /// asked one question without being rebuilt. `OPENMW_RTX_WATCH_SUBMITS` is asked for by name
+    /// for the same reason: a diagnostic the game has no command line to ask for.
+    Rtx::ValidationOptions askedValidation(Rtx::ValidationOptions validation);
+
+    /// The backend `OPENMW_RTX_BACKEND` names, and the device's where it names none.
+    ///
+    /// **Asked for by name, as the layers' finer levels are** (`askedValidation`): a
+    /// run of the game on a machine with no device — upstream's integration tests on CI — has no
+    /// command line of its own, and a setting would put a game that draws nothing one menu away
+    /// from a player.
+    RtxBackend askedBackend();
+
+    /// What a played session is made with, where the harness installed nothing: what `[RTX]`
+    /// leaves a player, through the one derivation (`RtxSettings`), and the played answer to
+    /// everything else. The knobs a measurement turns — albedo, the filter, the
+    /// exposure, the crossings — are a run's, handed to the constructor by the harness that
+    /// makes one, and a settings file cannot reach them: one that could once turned a played
+    /// game into a fixed-step run for good. A played session shows every frame and sums none,
+    /// and measures its exposure off each. The layers are the build's, which
+    /// `Rtx::sValidationByDefault` says is the one thing that should decide them for a session
+    /// with no command line. The clock is the wall: the eye adapts in real time and the
+    /// upscaler tunes itself against how fast a motion vector was travelled, so each reader
+    /// times what it is about — a setting that could state a step once made a played game step
+    /// by frames, and at two hundred of them a second the world ran three times over.
+    RunSetup playedRunSetup(const std::filesystem::path& cachePath);
 
     /// A run the harness drives through this renderer, as the renderer sees it per frame: what
     /// the run asks of the frame ahead and what it is fed once the frame is drawn. What a run

@@ -274,8 +274,8 @@ void main()
     vec4 bounceOut = vec4(held, sqrt(variance));
     vec4 fillOut = vec4(ACCUMULATE_HOLDS_FILL ? heldFill : vec3(0.0), frames);
     roundedToHalves(bounceOut, fillOut, rounding);
-    RTX_STORE_COUNTED(blended, stored, bounceOut)
-    RTX_STORE_COUNTED(fillBlended, stored, fillOut)
+    RTX_STORE_HISTORY(blended, stored, bounceOut)
+    RTX_STORE_HISTORY(fillBlended, stored, fillOut)
     RTX_STORE_WORDS(fastOut, stored,
         uvec4(packRgb9e5(followed), ACCUMULATE_HOLDS_FILL ? packRgb9e5(followedFill) : 0u, 0u, 0u))
 }

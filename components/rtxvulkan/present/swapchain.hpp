@@ -2,6 +2,8 @@
 
 #include <array>
 #include <cstdint>
+#include <span>
+#include <string_view>
 #include <vector>
 
 #include <volk.h>
@@ -11,6 +13,18 @@
 
 namespace Rtx
 {
+    /// The format a swapchain is made in, of what the surface offers: a plain unsigned-normalised
+    /// one in the sRGB colour space, or the first where none is. Throws `Unsupported` where the
+    /// surface offers none.
+    VkSurfaceFormatKHR chooseSurfaceFormat(std::span<const VkSurfaceFormatKHR> formats);
+
+    /// The present mode `mode` asks for, of `modes`: `Off` is mailbox and not immediate, because
+    /// what a player turning vsync off reaches for is latency and not a torn frame, and immediate
+    /// stands behind it for a surface with no mailbox; `Adaptive` is FIFO that tears when a frame
+    /// misses its refresh, as the rasterizer's does through SDL; `On` is FIFO, which every surface
+    /// has, and FIFO ends every list.
+    VkPresentModeKHR presentModeFor(std::span<const VkPresentModeKHR> modes, VerticalSync mode);
+
     class Device;
     class PresentFence;
     class Surface;
@@ -121,10 +135,10 @@ namespace Rtx
 
     private:
         /// False where the surface is lost.
-        [[nodiscard]] bool create(VkExtent2D extent);
+        [[nodiscard]] bool create(VkExtent2D extent, std::string_view why);
 
-        /// The format and the present mode, from what the surface offers.
-        void choose();
+        /// The format and the present mode, from what the surface offers; false where it is lost.
+        [[nodiscard]] bool choose();
 
         const Device& mDevice;
         const Surface& mSurface;

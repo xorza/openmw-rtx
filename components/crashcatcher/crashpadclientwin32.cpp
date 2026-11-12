@@ -1,5 +1,6 @@
 #include "crashpadclientsystem.hpp"
 
+#include <array>
 #include <csignal>
 #include <cstdint>
 #include <cstdlib>
@@ -27,12 +28,18 @@ namespace Crash::Client
         ///
         /// **Through Crashpad's unhandled-exception path and not its simulated crash**, which waits
         /// for the dump with no limit: where the monitor had died before, the game hung for good
-        /// rather than crashing. This one waits sixty seconds and ends the process either way. Under
+        /// rather than crashing. This one waits sixty seconds and ends the process either way, and
+        /// is not taken at all where the monitor is known to have ended. Under
         /// `sSimulatedException`, so the monitor reads the dump as one the game asked for, and the
         /// notes say why.
         [[noreturn]] void reportAndEnd(std::string_view reason)
         {
-            finalReport(ReportKind::Crash, reason);
+            endingReason(reason);
+            if (!monitorRuns())
+            {
+                sayUnreported(reason);
+                std::_Exit(3);
+            }
 
             CONTEXT context;
             crashpad::CaptureContext(&context);
@@ -42,17 +49,6 @@ namespace Crash::Client
             EXCEPTION_POINTERS pointers{ .ExceptionRecord = &record, .ContextRecord = &context };
             crashpad::CrashpadClient::DumpAndCrash(&pointers);
             std::_Exit(3);
-        }
-
-        /// **A fault waits out a report another thread is writing**, as the POSIX half's does, and for
-        /// a worse reason here: the fault's dump ends the process, and took the report another
-        /// thread had begun with it, which then left no dump at all. Bounded at two seconds, for
-        /// the reason the POSIX half gives. Then Crashpad's own filter takes the fault.
-        bool onFault(EXCEPTION_POINTERS*)
-        {
-            for (int waited = 0; takeForFault() == FaultGate::Other && waited < 2000; ++waited)
-                Sleep(1);
-            return false;
         }
 
         // Three ways MSVC's runtime ends a process without an exception the filter sees: `abort`
@@ -71,6 +67,23 @@ namespace Crash::Client
         void onInvalidParameter(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, uintptr_t)
         {
             reportAndEnd("the C runtime was given an invalid parameter");
+        }
+
+        /// The hooks `lostHooks` checks are still the catcher's, by name, in `SystemState::mHooks`'s
+        /// order. Not the unhandled exception filter, which Windows reads only by setting it, and which
+        /// would stand unset for that moment.
+        constexpr std::array<std::string_view, 3> sHooked{
+            "SIGABRT",
+            "the pure virtual call handler",
+            "the invalid parameter handler",
+        };
+
+        /// What each hook of `sHooked` is now.
+        std::array<std::uintptr_t, 8> currentHooks()
+        {
+            return { reinterpret_cast<std::uintptr_t>(std::signal(SIGABRT, SIG_GET)),
+                reinterpret_cast<std::uintptr_t>(_get_purecall_handler()),
+                reinterpret_cast<std::uintptr_t>(_get_invalid_parameter_handler()) };
         }
 
         /// **Stack a thread keeps for its own stack overflow**, Windows's counterpart of the alternate
@@ -203,7 +216,46 @@ namespace Crash::Client
         std::signal(SIGABRT, onAbort);
         _set_purecall_handler(onPureCall);
         _set_invalid_parameter_handler(onInvalidParameter);
-        crashpad::CrashpadClient::SetFirstChanceExceptionHandler(onFault);
+        systemState().mHooks = currentHooks();
+    }
+
+    void lostHooks(std::vector<std::string_view>& into)
+    {
+        const std::array<std::uintptr_t, 8> now = currentHooks();
+        const std::array<std::uintptr_t, 8>& hooks = systemState().mHooks;
+        for (std::size_t at = 0; at < sHooked.size(); ++at)
+            if (now[at] != hooks[at])
+                into.push_back(sHooked[at]);
+    }
+
+    std::string describeReading()
+    {
+        return "a suspended process";
+    }
+
+    std::string_view unreadable()
+    {
+        // A process reads every other of its user's.
+        return {};
+    }
+
+    bool monitorRuns()
+    {
+        // Before the monitor has answered, `StartHandler` returned once it ran.
+        const std::intptr_t held = systemState().mMonitor;
+        return held < 0 || WaitForSingleObject(reinterpret_cast<HANDLE>(held), 0) == WAIT_TIMEOUT;
+    }
+
+    void watchMonitor(std::uint32_t process)
+    {
+        if (const HANDLE handle = OpenProcess(SYNCHRONIZE, FALSE, static_cast<DWORD>(process)); handle != nullptr)
+            systemState().mMonitor = reinterpret_cast<std::intptr_t>(handle);
+    }
+
+    std::string_view letMonitorRead(std::uint32_t)
+    {
+        // A process of the user's reads this one already.
+        return {};
     }
 
     std::string_view catchPastTheProcess(crashpad::CrashpadClient& client, const std::filesystem::path& executable)

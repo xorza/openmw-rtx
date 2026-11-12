@@ -390,7 +390,7 @@ namespace RtxTool
                 into.mRecord.note(
                     std::format("  {:<8}{:<12} {:>7} asked, {:>7} found, {:>9.1f} ms keying "
                                 "{:>8.1f} MiB, {:>9.1f} ms reading found, {:>9.1f} ms running\n",
-                        thread, name, counted.mAsked, counted.mHits, counted.mKeyMs, Rtx::megabytes(counted.mKeyBytes),
+                        thread, name, counted.mAsked, counted.mHits, counted.mKeyMs, Rtx::mebibytes(counted.mKeyBytes),
                         counted.mFoundMs, counted.mRunMs));
             }
 

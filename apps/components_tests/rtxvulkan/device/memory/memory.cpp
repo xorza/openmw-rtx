@@ -71,7 +71,7 @@ namespace Rtx
             Bound bound;
             bound.mBuffer = Owned<VkBuffer, vkDestroyBuffer>::make(device, vkCreateBuffer, create, "vkCreateBuffer");
             Result<DeviceMemory, MemoryRefusal> memory
-                = device.getMemory().tryTake(bound.mBuffer.get(), properties, alignment, use);
+                = device.getMemory().tryTake(bound.mBuffer.get(), properties, alignment, use, "a test buffer");
             if (!memory.isOk())
             {
                 EXPECT_EQ(memory.error(), MemoryRefusal::NoRoom);
@@ -79,8 +79,9 @@ namespace Rtx
             }
 
             bound.mMemory = std::move(memory.value());
-            checkVk(vkBindBufferMemory(
-                        device.getHandle(), bound.mBuffer.get(), bound.mMemory.getHandle(), bound.mMemory.getOffset()),
+            checkVk(device,
+                vkBindBufferMemory(
+                    device.getHandle(), bound.mBuffer.get(), bound.mMemory.getHandle(), bound.mMemory.getOffset()),
                 "vkBindBufferMemory");
 
             return bound;
@@ -103,7 +104,7 @@ namespace Rtx
                 none.memoryTypes[type].propertyFlags &= ~VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
             EXPECT_THROW(MemoryAllocator(device, mHarness.mInstance->getHandle(),
-                             device.getPhysicalDevice().getHandle(), none, false, false),
+                             device.getPhysicalDevice().getHandle(), none, MemoryExtensions{}),
                 Unsupported);
         }
 

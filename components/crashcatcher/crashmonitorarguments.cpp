@@ -2,8 +2,6 @@
 
 #include <charconv>
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -16,7 +14,6 @@ namespace Crash
     namespace
     {
         constexpr std::string_view sClient = "--openmw-client";
-        constexpr std::string_view sNotes = "--openmw-notes";
         constexpr std::string_view sIssues = "--openmw-issues";
 
         /// Who answers: `player`, `nobody`, or an `EndAfter` as it spells itself.
@@ -61,13 +58,9 @@ namespace Crash
 
     std::vector<std::string> MonitorArguments::write() const
     {
-        char notes[24];
-        std::snprintf(notes, sizeof(notes), "0x%llx", static_cast<unsigned long long>(mNotes));
-
         std::vector<std::string> written{
             std::string(sMonitorSwitch),
             option(sClient, std::to_string(mClient)),
-            option(sNotes, notes),
             option(sIssues, mIssues),
             option(sAnswering, spell(mAnswering)),
         };
@@ -92,15 +85,6 @@ namespace Crash
                 const std::from_chars_result parsed
                     = std::from_chars(client->data(), client->data() + client->size(), id);
                 read.mClient = parsed.ec == std::errc() && parsed.ptr == client->data() + client->size() ? id : 0;
-            }
-            else if (const auto notes = valueOf(argument, sNotes))
-            {
-                // An address that does not read as a number to its end is no table at all.
-                const std::string text(*notes);
-                char* end = nullptr;
-                read.mNotes = std::strtoull(text.c_str(), &end, 16);
-                if (end == text.c_str() || *end != '\0')
-                    read.mNotes = 0;
             }
             else if (const auto issues = valueOf(argument, sIssues))
                 read.mIssues = *issues;

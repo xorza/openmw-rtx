@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -30,9 +31,16 @@ namespace Crash
         std::string mIssues;
     };
 
-    /// What a started catcher goes without, said for the log: each thing it could not hook and why.
+    /// What a started catcher is, said for the log.
     struct Installed
     {
+        /// The monitor's process id.
+        std::uint32_t mMonitor = 0;
+
+        /// How the monitor reads the game: on Linux the Yama scope.
+        std::string mReading;
+
+        /// Each thing it could not hook, and why.
         std::vector<std::string_view> mWithout;
     };
 
@@ -65,6 +73,16 @@ namespace Crash
     /// one through `OPENMW_CRASH_REPORTS`, the package goes beside Crashpad's dumps. Nothing where
     /// no catcher is installed.
     void setReportFolder(const std::filesystem::path& folder);
+
+    /// **The game reached its end**, with `code`, which the monitor reads once the game is gone: a game
+    /// gone without it was ended from outside, or crashed past every handler. Once, as
+    /// `wrapApplication` returns. Nothing where no catcher is installed.
+    void reachedEnd(int code);
+
+    /// The signals and filters whose handler is no longer the catcher's, by name: a library that
+    /// installs its own after the catcher, as a graphics driver may, takes the crashes it does not
+    /// pass on. Empty where every one is the catcher's, or no catcher is installed.
+    std::vector<std::string_view> lostHooks();
 
     /// How long without a heartbeat is a hang; nought, as it is until this is called, turns the
     /// check off, and a limit set again counts from then and not from the last heartbeat. The watch

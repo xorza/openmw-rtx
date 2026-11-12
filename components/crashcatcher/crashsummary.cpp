@@ -73,15 +73,13 @@ namespace Crash
                     return "Crash";
                 case ReportKind::Hang:
                     return "Hang";
-                case ReportKind::Report:
-                    return "Report";
             }
 
             fatal("a report kind the summary does not name");
         }
 
-        /// What the thread the report is about did, as its note says: the one that faulted, the one
-        /// that asked, or the one that draws, which a hang stopped.
+        /// What the thread the report is about did, as its note says: the one that crashed, or the
+        /// one that draws, which a hang stopped.
         std::string_view markOf(ReportKind kind)
         {
             switch (kind)
@@ -90,8 +88,6 @@ namespace Crash
                     return ", which crashed";
                 case ReportKind::Hang:
                     return ", which draws";
-                case ReportKind::Report:
-                    return ", which asked";
             }
 
             fatal("a report kind the summary does not mark");
@@ -99,15 +95,14 @@ namespace Crash
 
         std::string kindPrefix(const CrashFacts& facts)
         {
-            return std::string(kindOf(facts.mNotes.mKind)) + ": ";
+            return std::string(kindOf(facts.mKind)) + ": ";
         }
 
         std::string reasonOf(const CrashFacts& facts)
         {
             // The game gives no reason for a hang, which only its monitor saw.
-            return facts.mNotes.mKind == ReportKind::Hang
-                ? "no frame for " + std::to_string(facts.mStalledFor) + " seconds"
-                : std::string(facts.mNotes.mReason);
+            return facts.mKind == ReportKind::Hang ? "no frame for " + std::to_string(facts.mStalledFor) + " seconds"
+                                                   : std::string(facts.mNotes.mReason);
         }
 
         std::string titleOf(const CrashFacts& facts, const std::string& kind, const std::string& reason)
@@ -186,15 +181,24 @@ namespace Crash
             lines.push_back(std::move(stack));
         }
 
+        // What lines the report up with the log, whose lines are stamped with the time of day only.
+        std::string ran = kind + "after ";
+        if (facts.mUptime.has_value())
+            ran += std::to_string(facts.mUptime->count()) + " seconds and ";
+        lines.push_back(ran + std::to_string(facts.mFrames) + " frames");
+
         for (std::size_t i = 0; i < notes.mCount; ++i)
         {
             const NoteCopy& note = notes.mNotes[i];
             lines.push_back(kind + "note of thread " + std::to_string(note.mThread)
-                + std::string(note.mThread == notes.mThread ? markOf(notes.mKind) : "") + ": " + note.mText
+                + std::string(note.mThread == notes.mThread ? markOf(facts.mKind) : "") + ": " + note.mText
                 + (note.mWhole ? "" : " (half written)"));
         }
         if (notes.mCount == 0)
             lines.push_back(kind + "no thread noted anything");
+        if (notes.mRefused != 0)
+            lines.push_back(kind + std::to_string(notes.mRefused) + (notes.mRefused == 1 ? " thread" : " threads")
+                + " found the note table full and noted nothing");
 
         for (const auto& [key, value] : facts.mAnnotations)
             lines.push_back(kind + key + ": " + value);

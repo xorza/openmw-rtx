@@ -3,13 +3,12 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <string_view>
-#include <thread>
 
 namespace Crash
 {
@@ -31,28 +30,47 @@ namespace Crash
         return page;
     }
 
-    MonitorAnswer SharedPage::awaitMonitor(const std::chrono::milliseconds patience) const
+    MonitorAnswer SharedPage::readAnswer() const
     {
         Heartbeat* const page = get();
-        assert(page != nullptr && "a monitor awaited on a page the system refused");
+        assert(page != nullptr && "a monitor's answer read on a page the system refused");
 
-        const auto until = std::chrono::steady_clock::now() + patience;
-        for (;;)
-        {
-            // A word past the last answer is none, because another process wrote it.
-            const std::uint32_t word = std::atomic_ref(page->mMonitorAnswer).load(std::memory_order_acquire);
-            if (word != 0 && word <= static_cast<std::uint32_t>(MonitorAnswer::ReportUnwritable))
-                return static_cast<MonitorAnswer>(word);
-            if (std::chrono::steady_clock::now() >= until)
-                return MonitorAnswer::Unanswered;
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
+        // A word past the last answer is none, because another process wrote it.
+        const std::uint32_t word = std::atomic_ref(page->mMonitorAnswer).load(std::memory_order_acquire);
+        return word <= static_cast<std::uint32_t>(MonitorAnswer::ReportUnwritable) ? static_cast<MonitorAnswer>(word)
+                                                                                   : MonitorAnswer::Unanswered;
     }
 
-    void SharedPage::answerGame(const MonitorAnswer answer) const
+    std::uint32_t SharedPage::getMonitor() const
     {
-        if (Heartbeat* const page = get())
-            std::atomic_ref(page->mMonitorAnswer).store(static_cast<std::uint32_t>(answer), std::memory_order_release);
+        Heartbeat* const page = get();
+        return page != nullptr ? std::atomic_ref(page->mMonitor).load(std::memory_order_relaxed) : 0;
+    }
+
+    void SharedPage::answerGame(const MonitorAnswer answer, const std::uint32_t monitor) const
+    {
+        Heartbeat* const page = get();
+        if (page == nullptr)
+            return;
+        std::atomic_ref(page->mMonitor).store(monitor, std::memory_order_relaxed);
+        std::atomic_ref(page->mMonitorAnswer).store(static_cast<std::uint32_t>(answer), std::memory_order_release);
+    }
+
+    void SharedPage::setEnd(const int code) const
+    {
+        Heartbeat* const page = get();
+        if (page == nullptr)
+            return;
+        std::atomic_ref(page->mExitCode).store(static_cast<std::uint32_t>(code), std::memory_order_relaxed);
+        std::atomic_ref(page->mEnd).store(sEndReached, std::memory_order_release);
+    }
+
+    std::optional<int> SharedPage::getEnd() const
+    {
+        Heartbeat* const page = get();
+        if (page == nullptr || std::atomic_ref(page->mEnd).load(std::memory_order_acquire) != sEndReached)
+            return std::nullopt;
+        return static_cast<int>(std::atomic_ref(page->mExitCode).load(std::memory_order_relaxed));
     }
 
     SharedPage SharedPage::open(std::uint32_t process)

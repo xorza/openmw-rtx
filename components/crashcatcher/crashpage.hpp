@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -14,6 +15,11 @@ namespace Crash
     /// How many bytes of a path the page holds, as UTF-8: the game's log, and the folder its
     /// packages go to. A longer path is not handed over, and the monitor then does without it.
     inline constexpr std::size_t sPathCapacity = 2048;
+
+    /// **The one limit on a wait for the other side that is still running**: every wait between the
+    /// game and its monitor ends when what it waits for comes or the other side is gone, and this is
+    /// for a side that runs and never answers.
+    inline constexpr std::chrono::seconds sLastResort{ 60 };
 
     /// What the monitor tells the game of itself, once, before Crashpad's handler runs.
     enum class MonitorAnswer : std::uint32_t
@@ -42,23 +48,20 @@ namespace Crash
         /// the one a hang stopped, which a hang's report is about. Nought before the first frame.
         alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mDrawing;
 
-        /// The monitor's `MonitorAnswer`, stored once it has one.
+        /// The monitor's `MonitorAnswer`, stored once it has one, after `mMonitor`.
         alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mMonitorAnswer;
+
+        /// The monitor's process id, which the game lets read it on a system that asks for that.
+        alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mMonitor;
 
         /// How long unchanged is a hang, in seconds; nought turns the check off.
         alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mHangSeconds;
 
-        /// Hang reports the monitor has asked for, which the game's reporter thread reads.
-        alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mHangAsked;
-
-        /// Hang reports the game has finished writing: counted once a report the monitor asked for
-        /// is on disk, which is what the monitor's End waits for before it ends the game, or the
-        /// dump it asked for is lost with it.
-        alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mHangReports;
-
-        /// Dumps whose note table the monitor has read, counted as its summary reads it: a report the
-        /// game asked for puts the table back after this moves and not before (`reportAndContinue`).
-        alignas(std::atomic_ref<std::uint64_t>::required_alignment) std::uint64_t mNotesRead;
+        /// **Whether the game reached its end**, and what it ended with: `sEndReached` once
+        /// `wrapApplication` returns, after `mExitCode`. A game gone without it was ended from outside
+        /// or crashed: an out-of-memory kill or another's `SIGKILL`, which no handler inside it sees.
+        alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mEnd;
+        alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mExitCode;
 
         /// The game's log, which the monitor appends each summary to: nought until the game knows
         /// where it logs, which is after the catcher has started, and then how many bytes of
@@ -73,6 +76,9 @@ namespace Crash
         alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mReportPathLength;
         char mReportPath[sPathCapacity];
     };
+
+    /// What `Heartbeat::mEnd` holds once the game reached its end: a word no fresh page holds.
+    inline constexpr std::uint32_t sEndReached = 0x454E4421;
 
     // An atomic that locks takes its lock in the process it runs in, which the other side never
     // sees: across processes only a lock-free one is atomic at all.
@@ -92,12 +98,21 @@ namespace Crash
 
         Heartbeat* get() const { return static_cast<Heartbeat*>(mMemory.data()); }
 
-        /// Waits up to `patience` for the monitor's answer, and answers it, or `Unanswered` where none
-        /// came.
-        MonitorAnswer awaitMonitor(std::chrono::milliseconds patience) const;
+        /// The monitor's answer where it has given one, or `Unanswered`.
+        MonitorAnswer readAnswer() const;
 
-        /// The monitor's side: tells the game whether it watches. Once, before the handler runs.
-        void answerGame(MonitorAnswer answer) const;
+        /// The monitor's process id, valid once it answered.
+        std::uint32_t getMonitor() const;
+
+        /// The monitor's side: tells the game whether it watches, and which process watches.
+        /// Once, before the handler runs.
+        void answerGame(MonitorAnswer answer, std::uint32_t monitor) const;
+
+        /// The game's side, once `wrapApplication` returns: it reached its end, with `code`.
+        void setEnd(int code) const;
+
+        /// What the game ended with where it reached its end, or nothing where it did not.
+        std::optional<int> getEnd() const;
 
         /// Hands the monitor the game's log, `log` in UTF-8, or says it cannot: no page, a path
         /// longer than `sPathCapacity`, or one handed over already. Once, from the thread that sets

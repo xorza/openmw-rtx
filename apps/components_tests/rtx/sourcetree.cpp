@@ -212,6 +212,24 @@ namespace Rtx
                 << joined(found);
         }
 
+        /// **A call on the device says a lost device as one**: `checkVk` takes the device wherever one
+        /// stands, so `VK_ERROR_DEVICE_LOST` from any call ends as a crash with the fault, and the
+        /// form without one is for the instance, a physical device, and the device's own making.
+        TEST(RtxSourceTreeTest, onlyTheInstanceAndPhysicalDeviceCheckWithoutADevice)
+        {
+            const std::set<std::string> allowed{ "result.hpp", "result.cpp", "owned.hpp", "instance.cpp",
+                "physicaldevice.cpp", "device.cpp", "surface.cpp", "zonecounters.cpp" };
+
+            const std::vector<std::string> found
+                = linesMatching({ sBackend }, allowed, [](const std::string_view code) {
+                      return code.find("checkVkWithoutDevice(") != std::string_view::npos;
+                  });
+
+            EXPECT_TRUE(found.empty()) << "a call checked without its device, whose loss it would then throw "
+                                          "rather than report — hand `checkVk` the device:\n"
+                                       << joined(found);
+        }
+
         /// A scene slot a renderer hands out is held by `Rtx::ViewScene`, which gives it back.
         ///
         /// **A take in a constructor and a drop in a destructor are two classes and a throw apart**:

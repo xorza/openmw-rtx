@@ -1,4 +1,5 @@
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
@@ -36,6 +37,8 @@ namespace
         facts.mNotes.mThread = 12632;
         facts.mWhere = "VCRUNTIME140.dll+0x1dd06";
         facts.mStack = { "openmw.exe+0x112a9a7", "openmw.exe+0x112b1f7" };
+        facts.mUptime = std::chrono::seconds(812);
+        facts.mFrames = 40312;
         facts.mNotes.mCount = 2;
         facts.mNotes.mNotes[0] = noteOf(12632, "staging the texture \"textures/tx_a.dds\"");
         facts.mNotes.mNotes[1] = noteOf(8812, "describing the texture \"textures/tx_b", false);
@@ -48,6 +51,7 @@ namespace
             "Crash: EXCEPTION_ACCESS_VIOLATION reading 0x12204cfe000 in thread 12632",
             "Crash: at VCRUNTIME140.dll+0x1dd06",
             "Crash: return addresses on its stack: openmw.exe+0x112a9a7 openmw.exe+0x112b1f7",
+            "Crash: after 812 seconds and 40312 frames",
             "Crash: note of thread 12632, which crashed: staging the texture \"textures/tx_a.dds\"",
             "Crash: note of thread 8812: describing the texture \"textures/tx_b (half written)",
             "Crash: product: OpenMW",
@@ -78,13 +82,13 @@ namespace
         Crash::summarise(thrown, shared, anybody);
         ASSERT_EQ(shared.size(), expected.size() + 1) << "the reason is followed by the exception it was raised as";
         EXPECT_EQ(shared[0], "Crash: could not write ~/Documents/a.txt or C:/Users/xavier/b.txt in thread 12632");
-        EXPECT_EQ(shared[4], "Crash: note of thread 12632, which crashed: reading ~");
+        EXPECT_EQ(shared[5], "Crash: note of thread 12632, which crashed: reading ~");
         EXPECT_EQ(Crash::title(thrown, anybody), "Crash: could not write ~/Documents/a.txt or C:/Users/xavier/b.txt");
         EXPECT_EQ(
             Crash::title(thrown, player), "Crash: could not write C:/USERS/X/Documents/a.txt or C:/Users/xavier/b.txt");
         lines.clear();
         Crash::summarise(thrown, lines, player);
-        EXPECT_EQ(lines[4], "Crash: note of thread 12632, which crashed: reading C:\\Users\\x") << "the player's own";
+        EXPECT_EQ(lines[5], "Crash: note of thread 12632, which crashed: reading C:\\Users\\x") << "the player's own";
 
         // The words a system's facts are spelt in: an address in hexadecimal, nought included, and a
         // code by its name, or by what the system half says where it has none.
@@ -99,9 +103,8 @@ namespace
     }
 
     /// A reason given by the code that asked leads, and the exception it was raised as follows
-    /// it: `std::terminate`'s abort names nothing of its cause. A report the game asked for marks
-    /// the thread that asked, and a hang the thread that draws. With nothing known, each says so
-    /// rather than leaving a line out.
+    /// it: `std::terminate`'s abort names nothing of its cause. A hang marks the thread that draws.
+    /// With nothing known, each says so rather than leaving a line out.
     TEST(CrashSummaryTest, eachKindHeadsItsLinesAndMarksItsThread)
     {
         Crash::CrashFacts terminate;
@@ -113,35 +116,30 @@ namespace
         EXPECT_EQ(lines[0], "Crash: std::terminate on an uncaught exception: bad in thread 7");
         EXPECT_EQ(Crash::title(terminate, player), "Crash: std::terminate on an uncaught exception: bad");
         EXPECT_EQ(lines[1], "Crash: raised as SIGABRT");
-        EXPECT_EQ(lines[2], "Crash: no thread noted anything");
-        EXPECT_EQ(lines[3], "Crash: no dump was written");
-        EXPECT_EQ(lines.size(), 4u);
-
-        Crash::CrashFacts report;
-        report.mNotes.mKind = Crash::ReportKind::Report;
-        std::strcpy(report.mNotes.mReason, "a contract broken");
-        report.mNotes.mThread = 7;
-        report.mNotes.mCount = 1;
-        report.mNotes.mNotes[0] = noteOf(7, "placing");
-        lines.clear();
-        Crash::summarise(report, lines, player);
-        EXPECT_EQ(lines[0], "Report: a contract broken in thread 7");
-        EXPECT_EQ(Crash::title(report, player), "Report: a contract broken");
-        EXPECT_EQ(lines[1], "Report: note of thread 7, which asked: placing");
+        EXPECT_EQ(lines[2], "Crash: after 0 frames") << "an uptime the snapshot did not say is left out";
+        EXPECT_EQ(lines[3], "Crash: no thread noted anything");
+        EXPECT_EQ(lines[4], "Crash: no dump was written");
+        EXPECT_EQ(lines.size(), 5u);
 
         Crash::CrashFacts hang;
-        hang.mNotes.mKind = Crash::ReportKind::Hang;
+        hang.mKind = Crash::ReportKind::Hang;
         hang.mStalledFor = 20;
         hang.mNotes.mThread = 7;
         hang.mNotes.mCount = 2;
         hang.mNotes.mNotes[0] = noteOf(7, "compiling");
         hang.mNotes.mNotes[1] = noteOf(9, "walking");
+        hang.mNotes.mRefused = 3;
         lines.clear();
         Crash::summarise(hang, lines, player);
         EXPECT_EQ(lines[0], "Hang: no frame for 20 seconds in thread 7");
         EXPECT_EQ(Crash::title(hang, player), "Hang: no frame for 20 seconds");
-        EXPECT_EQ(lines[1], "Hang: note of thread 7, which draws: compiling");
-        EXPECT_EQ(lines[2], "Hang: note of thread 9: walking");
+        EXPECT_EQ(lines[2], "Hang: note of thread 7, which draws: compiling");
+        EXPECT_EQ(lines[3], "Hang: note of thread 9: walking");
+        EXPECT_EQ(lines[4], "Hang: 3 threads found the note table full and noted nothing");
+        hang.mNotes.mRefused = 1;
+        lines.clear();
+        Crash::summarise(hang, lines, player);
+        EXPECT_EQ(lines[4], "Hang: 1 thread found the note table full and noted nothing");
 
         Crash::CrashFacts nothing;
         lines.clear();

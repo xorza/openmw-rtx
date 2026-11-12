@@ -93,7 +93,7 @@ namespace Rtx
         }
     }
 
-    void checkVk(VkResult result, const char* call)
+    void checkVkWithoutDevice(VkResult result, const char* call)
     {
         if (result == VK_SUCCESS)
             return;
@@ -116,7 +116,7 @@ namespace Rtx
 
         std::string message = describeFailure(result, call);
         if (result == VK_ERROR_DEVICE_LOST)
-            deviceFailed(message + device.describeFault());
+            deviceFailed(message + device.describeFault() + device.describeInFlight());
 
         throw DeviceError(message);
     }
@@ -125,6 +125,17 @@ namespace Rtx
     {
         Log(Debug::Error) << "Rtx: " << message;
         Crash::fatal(message);
+    }
+
+    std::string describeInFlight(
+        const std::uint64_t lastSubmitted, const std::uint64_t knownFinished, const MemoryReport& memory)
+    {
+        const std::uint64_t pending = lastSubmitted > knownFinished ? lastSubmitted - knownFinished : 0;
+        std::string lines = "\nsubmits in flight: " + std::to_string(pending);
+        if (pending > 0)
+            lines += ", " + std::to_string(knownFinished + 1) + " to " + std::to_string(lastSubmitted);
+        lines += " (" + std::to_string(knownFinished) + " known finished)\nvideo memory:\n" + describeMemory(memory);
+        return lines;
     }
 
     std::string timedOut(const char* what, std::uint64_t patience)
@@ -142,7 +153,7 @@ namespace Rtx
     void checkVkWait(const Device& device, const VkResult result, const char* what, const std::uint64_t patience)
     {
         if (result == VK_TIMEOUT)
-            deviceFailed(timedOut(what, patience) + device.describeMarkers());
+            deviceFailed(timedOut(what, patience) + device.describeMarkers() + device.describeInFlight());
 
         checkVk(device, result, what);
     }

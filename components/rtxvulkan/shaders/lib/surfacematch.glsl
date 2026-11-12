@@ -200,6 +200,19 @@ ivec2 heldPixelAt(ivec2 stored, uint width, HistoryFields fields)
     return ivec2(pixelOf(uvec2(stored), fields.mHeldSwap, width));
 }
 
+/// `shares` with its `corner`th component `share`, selected: a vector written at an index the compiler
+/// keeps a loop for stands in local memory, 16 bytes a lane on NVIDIA's.
+vec4 cornerSet(vec4 shares, int corner, float share)
+{
+    return mix(shares, vec4(share), equal(ivec4(0, 1, 2, 3), ivec4(corner)));
+}
+
+/// The `corner`th of `shares`, selected, as `cornerSet` writes it.
+float cornerOf(vec4 shares, int corner)
+{
+    return corner == 0 ? shares.x : corner == 1 ? shares.y : corner == 2 ? shares.z : shares.w;
+}
+
 /// What a history fetch takes of each of the four texels `footprint` spans, into a new `vec4` named
 /// `shares`: its bilinear share where it is on the screen, is the surface of `plane` (`heldSurfaceMatches`
 /// against `heldImage`, the frame before's surface channel, at the texel `fields` reads) and holds a
@@ -224,7 +237,7 @@ ivec2 heldPixelAt(ivec2 stored, uint width, HistoryFields fields)
             || !heldSurfaceMatches(imageLoad(heldImage, historyStored).rg, historyPixel, plane)    \
             || !(holds))                                                                           \
             continue;                                                                              \
-        shares[historyCorner] = historyBilinear;                                                   \
+        shares = cornerSet(shares, historyCorner, historyBilinear);                                \
     }
 
 /// Which corners `shares` took, a bit a corner: the match `ACCUMULATE_MATCH` hands on.
@@ -245,7 +258,7 @@ uint historyMatchOf(vec4 shares)
             = heldStoredAt(historyTap(footprint, historyCorner), (extent).x, fields);              \
         if ((((matched) >> uint(historyCorner)) & 1u) == 0u || !(holds))                           \
             continue;                                                                              \
-        shares[historyCorner] = historyShare(footprint, historyCorner);                            \
+        shares = cornerSet(shares, historyCorner, historyShare(footprint, historyCorner));          \
     }
 
 /// How much of a history's footprint its matched taps cover: the shares' sum.

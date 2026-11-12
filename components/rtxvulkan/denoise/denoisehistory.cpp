@@ -497,9 +497,9 @@ namespace Rtx
         };
     }
 
-    DenoiseHistory::SpecularImages DenoiseHistory::specular(const TemporalTurns::Step& step) const
+    DenoiseHistory::LayerImages DenoiseHistory::specular(const TemporalTurns::Step& step) const
     {
-        return SpecularImages{
+        return LayerImages{
             .mMeanBefore = before(DenoiseImage::SpecularMean, step),
             .mMean = now(DenoiseImage::SpecularMean, step),
             .mFast = only(DenoiseImage::SpecularFast),
@@ -508,9 +508,9 @@ namespace Rtx
         };
     }
 
-    DenoiseHistory::PaneImages DenoiseHistory::pane(const TemporalTurns::Step& step) const
+    DenoiseHistory::LayerImages DenoiseHistory::pane(const TemporalTurns::Step& step) const
     {
-        return PaneImages{
+        return LayerImages{
             .mMeanBefore = before(DenoiseImage::PaneMean, step),
             .mMean = now(DenoiseImage::PaneMean, step),
             .mFast = only(DenoiseImage::PaneFast),

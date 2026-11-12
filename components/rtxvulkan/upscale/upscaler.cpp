@@ -101,6 +101,18 @@ namespace Rtx
         return std::nullopt;
     }
 
+    FrameExtents Upscaler::extentsFor(const std::uint32_t width, const std::uint32_t height, const Upscale mode) const
+    {
+        const DlssUpscaler* const dlss = std::get_if<DlssUpscaler>(&mBackend);
+        if (dlss == nullptr || !upscales(mode))
+            return Rtx::extentsFor(width, height, mode);
+
+        const VkExtent2D render = dlss->renderExtentFor(mode, VkExtent2D{ width, height });
+        return FrameExtents{
+            .mRenderWidth = render.width, .mRenderHeight = render.height, .mOutputWidth = width, .mOutputHeight = height
+        };
+    }
+
     void Upscaler::prepare(const Upscale mode, const VkExtent2D render, const VkExtent2D output)
     {
         if (DlssUpscaler* const dlss = std::get_if<DlssUpscaler>(&mBackend))
@@ -168,10 +180,9 @@ namespace Rtx
         return std::visit([](const auto& backend) { return backend.isFresh(); }, mBackend);
     }
 
-    HandedImage Upscaler::record(
-        const VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer)
+    HandedImage Upscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer)
     {
-        return std::visit([&](auto& backend) { return backend.record(commands, uploads, inputs, timer); }, mBackend);
+        return std::visit([&](auto& backend) { return backend.record(commands, inputs, timer); }, mBackend);
     }
 
     std::string_view Upscaler::describe() const

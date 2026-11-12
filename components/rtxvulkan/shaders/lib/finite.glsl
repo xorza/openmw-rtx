@@ -14,4 +14,11 @@ bvec4 notFinite(vec4 value)
     return greaterThanEqual(floatBitsToUint(value) & 0x7FFFFFFFu, uvec4(0x7F800000u));
 }
 
+/// `value` with each component that is a NaN or an infinity at nought, selected and not computed, so
+/// a finite value is kept to the bit.
+vec4 finiteOrNought(vec4 value)
+{
+    return mix(value, vec4(0.0), notFinite(value));
+}
+
 #endif

@@ -19,6 +19,7 @@
 #include <initializer_list>
 #include <iostream>
 #include <iterator>
+#include <latch>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -67,12 +68,9 @@ namespace CrashTests
                 { "terminate", "Crash: std::terminate on an uncaught exception: crash-tests threw", {} },
                 { "fatal", "Crash: crash-tests gave up", {}, "crash-tests: what the reason leaves out", true, crashed },
                 { "two-threads", "Crash: ", raised.mFault },
-                { .mName = "fault-under-report",
-                    .mHeadline = "Crash: ",
-                    .mRaised = raised.mFault,
-                    .mFollows = "which crashed: faulting under a report",
-                    .mAlso = "Report: crash-tests asked under a fault" },
-                { "report", "Report: crash-tests asked", {}, "crash-tests lived on", true, ", which asked" },
+                // **A thread past the note table is counted**, and the crash's summary says how many:
+                // the main thread and 70 more, of which the table's 64 slots hold 64.
+                { "note-table-full", "Crash: ", raised.mFault, "7 threads found the note table full", true, crashed },
                 { "hang", "Hang: no frame for", {}, "Hang: frames again after", true, draws },
                 { "slow-end", "", {}, "crash-tests lived on", false },
                 { "hang-after-pause", "Hang: no frame for", {}, "crash-tests lived on", true, draws },
@@ -136,22 +134,19 @@ namespace CrashTests
             frames(20);
         }
 
-        /// How long after the hang report the modes that answer End late wait before they answer:
-        /// long enough that the game has drawn again, or ended, by then. **After the report, and
-        /// not after the ask** (`Crash::EndAfter::From::Report`): the report holds the game for as
-        /// long as its dump takes, and under AddressSanitizer one took four seconds, which a delay
-        /// from the ask spent and then ended a game that was ending by itself.
+        /// How long after the ask the modes that answer End late wait before they answer: long
+        /// enough that the game has drawn again, or ended, by then. The ask follows the hang's dump,
+        /// which held the game for as long as it took.
         constexpr std::chrono::milliseconds sLateEnd{ 5000 };
 
         /// When a mode's monitor answers End, or nothing for one nobody answers: late for the modes
-        /// that recover or end before it, and at once for the one that tests an End landing on its
-        /// report.
+        /// that recover or end before it, and at once for the one the monitor ends.
         std::optional<Crash::EndAfter> endAfterOf(std::string_view mode)
         {
             if (mode == "recovers-before-end" || mode == "ends-before-end")
-                return Crash::EndAfter{ sLateEnd, Crash::EndAfter::From::Report };
-            if (mode == "ended-in-report")
-                return Crash::EndAfter{ std::chrono::milliseconds(1), Crash::EndAfter::From::Ask };
+                return Crash::EndAfter{ sLateEnd };
+            if (mode == "ended-at-once")
+                return Crash::EndAfter{ std::chrono::milliseconds(1) };
             return std::nullopt;
         }
 
@@ -236,39 +231,21 @@ namespace CrashTests
                 other.join();
                 return 0;
             }
-            if (mode == "fault-under-report")
+            if (mode == "note-table-full")
             {
-                // **A fault on a second thread while the main thread's report is being written**,
-                // which the report's dump took for its own: two dumps are due, each of its own kind
-                // on its own thread. Ordered for a busy machine: a run whose report ended before the
-                // fault came says so, and the matrix runs it again.
-                std::atomic<bool> waiting{ false };
-                std::atomic<bool> ended{ false };
-                std::jthread faulter = Platform::startThread("crash-tests", [&] {
-                    const Crash::NoteScope faulting("faulting under a report");
-                    waiting.store(true, std::memory_order_release);
-                    while (!Crash::isReporting())
-                    {
-                        if (ended.load(std::memory_order_acquire))
-                            return;
-                        std::this_thread::yield();
-                    }
-                    sReadAt(reinterpret_cast<const volatile int*>(static_cast<std::uintptr_t>(0x10)));
-                });
-
-                while (!waiting.load(std::memory_order_acquire))
-                    std::this_thread::yield();
-                Crash::report("crash-tests asked under a fault");
-                ended.store(true, std::memory_order_release);
-                faulter.request_stop();
-                faulter.join();
-                Log(Debug::Warning) << "crash-tests: the fault missed the report";
-                return sInconclusive;
-            }
-            if (mode == "report")
-            {
-                Crash::report("crash-tests asked");
-                return livedOn();
+                // Each holds a note until the crash, which ends them all.
+                constexpr int sCrowd = 70;
+                std::latch crowded(sCrowd);
+                std::vector<std::jthread> crowd;
+                for (int i = 0; i < sCrowd; ++i)
+                    crowd.push_back(Platform::startThread("crash-tests", [&crowded, i] {
+                        const Crash::NoteScope note("crowding the table as thread {}", i);
+                        crowded.count_down();
+                        for (;;)
+                            std::this_thread::sleep_for(std::chrono::seconds(1));
+                    }));
+                crowded.wait();
+                return sReadAt(reinterpret_cast<const volatile int*>(static_cast<std::uintptr_t>(0x10)));
             }
             if (mode == "hang")
             {
@@ -312,7 +289,7 @@ namespace CrashTests
                 frames(20 + sLateEnd / std::chrono::milliseconds(100));
                 return livedOn();
             }
-            if (mode == "ended-in-report")
+            if (mode == "ended-at-once")
             {
                 // Frames, and then none ever again: the monitor ends it.
                 frames(5);
@@ -427,18 +404,10 @@ namespace CrashTests
             return std::nullopt;
         }
 
-        /// Whether a run of a mode ended saying it was not given the case it tests, `sInconclusive`.
-        bool inconclusive(const Platform::Process::CommandEnd& ended)
-        {
-            return ended.mSignal == 0 && ended.mExitCode == static_cast<std::uint32_t>(sInconclusive);
-        }
-
         /// Whether `mode` left what it must in `folder`, and what it did not where it did not.
         std::optional<std::string> check(
             const Mode& mode, const std::filesystem::path& folder, const Platform::Process::CommandEnd& ended)
         {
-            if (inconclusive(ended))
-                return "no run of " + std::to_string(sInconclusiveRuns) + " gave it the case it tests";
             if (mode.mEndsBy != 0)
             {
                 if (ended.mSignal != mode.mEndsBy && ended.mExitCode != 128u + static_cast<std::uint32_t>(mode.mEndsBy))
@@ -455,7 +424,7 @@ namespace CrashTests
             if (mode.mKept && mode.mReports && filesIn(folder, { "user data/crashes" }, ".zip").empty())
                 return "the run ended before its monitor packaged the session";
             // **Read once the monitor is done with it**: it outlives the game and writes on a thread of
-            // its own, so a game ended the moment its report returned, as `ended-in-report` is, is gone
+            // its own, so a game ended the moment its report returned, as `ended-at-once` is, is gone
             // with the summary still queued, and a log read then has none. A mode that leaves no
             // package fails below, after the wait, on whatever it lacks.
             if (mode.mReports)
@@ -476,16 +445,9 @@ namespace CrashTests
                 else
                     said.push_back(line);
 
-            const auto headed = [](const std::string& line) {
-                return line.starts_with("Crash: ") || line.starts_with("Hang: ") || line.starts_with("Report: ");
-            };
-            // The mode's own summary is the first of its kind: a report it leaves beside it, of
-            // another kind, may come first.
-            const auto kindOf = [](std::string_view line) { return line.substr(0, line.find(": ") + 2); };
-            const auto own = [&](const std::string& line) {
-                return headed(line) && (mode.mAlso.empty() || kindOf(line) != kindOf(mode.mAlso));
-            };
-            const auto first = std::find_if(said.begin(), said.end(), own);
+            const auto headed
+                = [](const std::string& line) { return line.starts_with("Crash: ") || line.starts_with("Hang: "); };
+            const auto first = std::find_if(said.begin(), said.end(), headed);
 
             // `setupLogging` says so in the log and carries on, as the game does, where a mode that
             // reports nothing would then pass without a catcher to have kept quiet.
@@ -506,10 +468,15 @@ namespace CrashTests
 
             if (!mode.mReports)
             {
-                if (first != said.end())
+                // A summary has a thread; the lines the monitor writes of a crash it has no dump of
+                // name none.
+                if (first != said.end() && first->find(" in thread ") != std::string::npos)
                     return "reported what it should not: " + *first;
-                if (!filesIn(folder, { "user data/crashes" }, ".zip").empty())
+                if (!mode.mLogAlone && !filesIn(folder, { "user data/crashes" }, ".zip").empty())
                     return "packaged a session that reported nothing";
+                if (mode.mLogAlone)
+                    if (const std::optional<std::string> wrong = checkPackage(folder, {}, {}))
+                        return wrong;
             }
             else
             {
@@ -521,28 +488,18 @@ namespace CrashTests
                     && std::none_of(mode.mRaised.begin(), mode.mRaised.end(),
                         [&](std::string_view raised) { return first->find(raised) != std::string::npos; }))
                     return "the summary names none of the exceptions this mode raises: " + *first;
-                const std::size_t due = mode.mAlso.empty() ? 1 : 2;
+                const std::size_t due = 1;
                 if (std::count_if(said.begin(), said.end(),
                         [&](const std::string& line) {
                             return headed(line) && line.find("in thread") != std::string::npos;
                         })
                     != static_cast<std::ptrdiff_t>(due))
-                    return mode.mAlso.empty() ? "not one summary but several" : "not two summaries";
+                    return "not one summary but several";
 
-                // The headline up to its thread, which a dump's own summary carries, and the thread.
+                // The headline up to its thread, which a dump's own summary carries.
                 const auto threadAt
                     = [](const std::string& line) { return std::min(line.find(" in thread"), line.size()); };
-                std::vector<std::string> headlines{ first->substr(0, threadAt(*first)) };
-                if (!mode.mAlso.empty())
-                {
-                    const auto also = std::find_if(said.begin(), said.end(),
-                        [&](const std::string& line) { return line.starts_with(mode.mAlso); });
-                    if (also == said.end())
-                        return "no summary begins \"" + std::string(mode.mAlso) + "\"";
-                    if (also->substr(threadAt(*also)) == first->substr(threadAt(*first)))
-                        return "the two summaries name one thread: " + *first;
-                    headlines.push_back(also->substr(0, threadAt(*also)));
-                }
+                const std::vector<std::string> headlines{ first->substr(0, threadAt(*first)) };
                 const std::string note = "running the mode \"" + std::string(mode.mName) + "\"";
                 const auto noted = std::find_if(said.begin(), said.end(),
                     [&](const std::string& line) { return line.find(note) != std::string::npos; });
@@ -607,17 +564,11 @@ namespace CrashTests
             };
 
             const auto start = std::chrono::steady_clock::now();
-            Platform::Process::CommandEnd ended;
-            for (int run = 0; run < sInconclusiveRuns; ++run)
-            {
-                std::filesystem::remove_all(folder);
-                std::filesystem::create_directories(folder);
-                ended = Platform::Process::runShell(word(self) + " " + std::string(mode.mName) + " " + word(folder)
-                    + " <" + std::string(nullDevice()) + " >" + word(folder / "stdout.txt") + " 2>"
-                    + word(errorsIn(folder)));
-                if (!inconclusive(ended))
-                    break;
-            }
+            std::filesystem::remove_all(folder);
+            std::filesystem::create_directories(folder);
+            const Platform::Process::CommandEnd ended
+                = Platform::Process::runShell(word(self) + " " + std::string(mode.mName) + " " + word(folder) + " <"
+                    + std::string(nullDevice()) + " >" + word(folder / "stdout.txt") + " 2>" + word(errorsIn(folder)));
 
             const auto took
                 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);

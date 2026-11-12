@@ -32,7 +32,8 @@ namespace Rtx
         /// Waits for what `poll` answers for — `VK_SUCCESS` once it is done, `VK_NOT_READY` while it
         /// runs, an error where the asking failed — and says in the log how long `what` ran to its
         /// end or its failure, and how long it had run at every doubling past a quarter of a second
-        /// while it runs, with what `where` says of the queue.
+        /// while it runs, with what `where` says of the queue. **No longer than any wait on the
+        /// device**, `sPatience`, past which it ends as one that never answered does.
         template <class Poll, class Where>
         void watchToItsEnd(const std::string& what, Poll poll, Where where)
         {
@@ -53,6 +54,8 @@ namespace Rtx
                     Log(Debug::Error) << what << ": " << resultName(status) << " after " << ran.count() << " ms";
                     return;
                 }
+                if (ran >= std::chrono::nanoseconds(sPatience))
+                    deviceFailed(timedOut(what.c_str(), sPatience) + where());
                 if (ran >= reportAt)
                 {
                     Log(Debug::Warning) << what << " still running after " << ran.count() << " ms" << where();
@@ -79,7 +82,7 @@ namespace Rtx
     void CommandPool::defer(VkCommandBuffer commands)
     {
         close(commands);
-        checkVk(vkEndCommandBuffer(commands), "vkEndCommandBuffer");
+        checkVk(mDevice, vkEndCommandBuffer(commands), "vkEndCommandBuffer");
         mDeferred.push_back(commands);
         if (mDevice.watchesSubmits())
             mDeferredNotes.emplace_back(Crash::ownNote());
@@ -214,7 +217,7 @@ namespace Rtx
         const std::span<const VkSemaphoreSubmitInfo> signals)
     {
         close(commands);
-        checkVk(vkEndCommandBuffer(commands), "vkEndCommandBuffer");
+        checkVk(mDevice, vkEndCommandBuffer(commands), "vkEndCommandBuffer");
 
         const std::uint64_t value = submitWithDeferred(commands, waits, signals);
 
@@ -280,7 +283,8 @@ namespace Rtx
         };
 
         VkCommandBuffer commands = VK_NULL_HANDLE;
-        checkVk(vkAllocateCommandBuffers(mDevice.getHandle(), &allocate, &commands), "vkAllocateCommandBuffers");
+        checkVk(
+            mDevice, vkAllocateCommandBuffers(mDevice.getHandle(), &allocate, &commands), "vkAllocateCommandBuffers");
         return commands;
     }
 
@@ -456,7 +460,7 @@ namespace Rtx
     void CommandPool::unwind(VkCommandBuffer commands)
     {
         close(commands);
-        checkVk(vkResetCommandBuffer(commands, 0), "vkResetCommandBuffer");
+        checkVk(mDevice, vkResetCommandBuffer(commands, 0), "vkResetCommandBuffer");
     }
 
     Recording::Recording(CommandPool& pool, VkCommandBuffer commands)
@@ -504,7 +508,7 @@ namespace Rtx
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
             .pInheritanceInfo = nullptr,
         };
-        checkVk(vkBeginCommandBuffer(commands, &begin), "vkBeginCommandBuffer");
+        checkVk(mDevice, vkBeginCommandBuffer(commands, &begin), "vkBeginCommandBuffer");
 
         // **Everything earlier on the queue, before anything in this buffer.** A buffer is recorded
         // over a frame still running, and the barriers inside it are between its own passes; what
@@ -521,7 +525,7 @@ namespace Rtx
     void CommandPool::end(VkCommandBuffer commands)
     {
         close(commands);
-        checkVk(vkEndCommandBuffer(commands), "vkEndCommandBuffer");
+        checkVk(mDevice, vkEndCommandBuffer(commands), "vkEndCommandBuffer");
     }
 
     VkCommandBuffer CommandPool::beginBatch()
@@ -538,7 +542,7 @@ namespace Rtx
 
     void CommandPool::endAndWait(VkCommandBuffer commands)
     {
-        checkVk(vkEndCommandBuffer(commands), "vkEndCommandBuffer");
+        checkVk(mDevice, vkEndCommandBuffer(commands), "vkEndCommandBuffer");
 
         mDevice.waitFor(submitWithDeferred(commands, {}, {}), "a one-off submit");
 

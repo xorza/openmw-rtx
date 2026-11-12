@@ -41,7 +41,6 @@
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
-#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/frame/framestep.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
@@ -380,11 +379,6 @@ namespace Rtx
 
         static_assert(sharedInOrder(), "the shared table is indexed by Shared");
 
-        constexpr VkExtent2D halfOf(const VkExtent2D render)
-        {
-            return VkExtent2D{ std::max(render.width / 2, 1u), std::max(render.height / 2, 1u) };
-        }
-
         ImageDescription imageOf(const VkExtent2D extent, const VkFormat format, const std::uint32_t levels = 1)
         {
             return ImageDescription{ .mWidth = extent.width,
@@ -396,8 +390,9 @@ namespace Rtx
 
         ImageDescription descriptionOf(const SharedDeclared& declared, const VkExtent2D render, const VkExtent2D output)
         {
-            const VkExtent2D extent
-                = declared.mGrid == Grid::Render ? render : (declared.mGrid == Grid::Half ? halfOf(render) : output);
+            const VkExtent2D extent = declared.mGrid == Grid::Render
+                ? render
+                : (declared.mGrid == Grid::Half ? FsrFrame::halfOf(render) : output);
             return imageOf(extent, declared.mFormat, declared.mChain ? levelsTo1x1(extent.width, extent.height) : 1);
         }
 
@@ -440,8 +435,8 @@ namespace Rtx
         Targets(const Targets&) = delete;
         Targets& operator=(const Targets&) = delete;
 
-        /// Every image of its own the constructor made, which is what a resize clears: the one list
-        /// `add` fills, so an image cannot be made and left out of it.
+        /// Every image of its own the constructor made, which is what the first record lays out and
+        /// clears: the one list `add` fills, so an image cannot be made and left out of it.
         const std::vector<const Image*>& every() const { return mEvery; }
 
         const Image& shared(const Shared which) const { return mShared[static_cast<std::size_t>(which)]; }
@@ -463,6 +458,9 @@ namespace Rtx
         /// The images `declareShared` declared, as the frame's arena placed them.
         ArenaRun mShared;
 
+        /// Whether a record laid out and cleared what `every` lists, which the first does.
+        bool mLaidOut = false;
+
     private:
         std::vector<const Image*> mEvery;
 
@@ -477,10 +475,8 @@ namespace Rtx
         : mDevice(device)
         , mPipelines(makePasses(device, std::make_index_sequence<sPasses>{}))
         , mSampler(makeTargetSampler(device, "fsr linear clamp"))
-        , mBlocks([&](const FrameSlot) {
-            return Buffer::hostWritten(
-                device, Shaders::FSR_BLOCKS_BYTES, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, "fsr constants");
-        })
+        , mBlocks(Buffer::deviceLocal(device, Shaders::FSR_BLOCKS_BYTES,
+              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "fsr constants"))
     {
     }
 
@@ -505,10 +501,11 @@ namespace Rtx
         assert(render.width > 0 && render.height > 0 && output.width >= render.width && output.height >= render.height);
         assert(shared.size() == sSharedCount && "the upscaler's shared images were not placed as it declared them");
 
-        // **The one owner of "is this a new extent"**, as `TraceChain::resize` is: a mode changed
-        // between two that trace and show at one size keeps the targets and the history in them.
-        if (isAt(render, output))
+        // Targets that stand are asked at their own extents: the frame's owner decides what moved,
+        // and lets go of targets that did (`FrameTracer::Moves`).
+        if (mTargets != nullptr)
         {
+            assert(isAt(render, output) && "FSR's targets asked for other extents, which the frame lets go of first");
             mTargets->mShared = shared;
             return;
         }
@@ -519,15 +516,6 @@ namespace Rtx
             });
         mTargets->mShared = shared;
         mFrame.restart();
-
-        // Every image defined from the first frame, where the SDK clears the four it reads before
-        // writing and leaves the rest to its passes: a frame that read one uncleared texel differs
-        // from the next run of itself, and `repeat` reads that as a hazard.
-        mDevice.getPool().submitAndWait([&](VkCommandBuffer commands) {
-            for (const Image* image : mTargets->every())
-                image->clear(commands, Use::sUndefined, sNought, Use::sComputeReadWrite);
-            mTargets->mFrameInfo.clear(commands, Use::sComputeReadWrite, sFreshFrameInfo, Use::sComputeReadWrite);
-        });
     }
 
     void FsrUpscaler::release()
@@ -551,8 +539,7 @@ namespace Rtx
         return bytes;
     }
 
-    HandedImage FsrUpscaler::record(
-        const VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer)
+    HandedImage FsrUpscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer)
     {
         const GpuZone timed(timer, commands, FrameZone::Upscale);
 
@@ -571,15 +558,18 @@ namespace Rtx
         });
         const FsrFrame::Pyramid& pyramid = targets.mPyramid;
 
-        const Buffer& blocks = mBlocks.at(inputs.mSlot);
+        const Buffer& blocks = mBlocks;
         const Shaders::UpscaleInputConstants inputConstants{
             .mEyes = inputs.mEyes, .mNear = sUpscaleNear, .mFrame = inputs.mFrame
         };
-        uploads.write(blocks, Shaders::FSR_BLOCK_CONSTANTS, std::span(&constants, 1));
-        uploads.write(blocks, Shaders::FSR_BLOCK_PYRAMID, std::span(&pyramid.mConstants, 1));
-        uploads.write(blocks, Shaders::FSR_BLOCK_INPUTS, std::span(&inputConstants, 1));
-        uploads.order();
-        blocks.nameForNext();
+        std::array<std::byte, Shaders::FSR_BLOCKS_BYTES> blockBytes{};
+        const auto place = [&](const std::uint32_t offset, const auto& block) {
+            std::ranges::copy(std::as_bytes(std::span(&block, 1)), blockBytes.begin() + offset);
+        };
+        place(Shaders::FSR_BLOCK_CONSTANTS, constants);
+        place(Shaders::FSR_BLOCK_PYRAMID, pyramid.mConstants);
+        place(Shaders::FSR_BLOCK_INPUTS, inputConstants);
+        blocks.updateInline(commands, Use::sBufferUniformRead, blockBytes);
 
         // The SDK's pairs by the frame's parity: an odd frame reads the second of each history and
         // writes the first, and writes its luma into the second, which it reads as current and the
@@ -714,10 +704,27 @@ namespace Rtx
         // **The images the frame's arena holds are laid out first**, from what held their memory
         // before them in this buffer, if anything did: the SDK clears two of them, and the passes
         // write the rest whole before reading them.
+        //
+        // **Its own images are laid out by the first frame after they were made**, in its own
+        // buffer and not in a submit a resize waits for, and cleared whole: the SDK clears the four
+        // it reads before writing and leaves the rest to its passes, and a frame that read one
+        // uncleared texel differs from the next run of itself, which `repeat` reads as a hazard. The
+        // first frame is a reset, whose clears follow behind one barrier more.
+        const bool unlaid = !std::exchange(targets.mLaidOut, true);
         Barriers laid(commands);
+        if (unlaid)
+            for (const Image* image : targets.every())
+                image->addTransition(laid, Use::sUndefined, sPassImage);
         for (std::size_t at = 0; at < sSharedCount; ++at)
             targets.mShared[at].addTransition(laid, targets.mShared.firstUseOf(at), sPassImage);
         laid.flush();
+        if (unlaid)
+        {
+            assert(reset && "the first frame of new targets reads a history");
+            for (const Image* image : targets.every())
+                image->clearInGeneral(commands, sNought);
+            between();
+        }
 
         if (reset)
         {
@@ -740,7 +747,8 @@ namespace Rtx
         between();
         run(Pass::ChangePyramid, overPyramid);
         between();
-        run(Pass::Change, Groups::covering(render.width / 2, render.height / 2, Shaders::FSR_WORKGROUP));
+        const VkExtent2D half = FsrFrame::halfOf(render);
+        run(Pass::Change, Groups::covering(half.width, half.height, Shaders::FSR_WORKGROUP));
         between();
         run(Pass::Reactivity, overRender);
         between();

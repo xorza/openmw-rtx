@@ -16,6 +16,7 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/bytebuffer.hpp>
+#include <components/misc/hash.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/heap.hpp>
 #include <components/platform/thread.hpp>
@@ -354,6 +355,8 @@ namespace Rtx
         // **The ground layers first**, as a scheduler hands out its longest jobs first: they hold the
         // largest maps, and served last they left the PBR replacers' last seconds to a few threads.
         const std::size_t at = next < mLayers.size() ? mModels.size() + next : next - mLayers.size();
+        // Before the manifest's question, which reads every file the model named for its stamps.
+        const Crash::NoteScope noted("preparing \"{}\"", nameOf(at));
         hand.mFiles.clear();
         hand.mMet.clear();
         hand.mMetBytes = 0;
@@ -408,7 +411,6 @@ namespace Rtx
     void ContentPreparation::walk(Hand& hand, const std::size_t at)
     {
         const std::string& path = mModels[at];
-        const Crash::NoteScope noted("preparing the model \"{}\"", path);
         hand.mFiles.push_back(path);
 
         if (const osg::ref_ptr<const osg::Node> node = mContent.getTemplate(VFS::Path::NormalizedView(path.c_str())))
@@ -465,7 +467,6 @@ namespace Rtx
 
     void ContentPreparation::read(Hand& hand, const PreparationLayer& layer)
     {
-        const Crash::NoteScope noted("preparing the ground layer \"{}\"", layer.mDiffuse);
         hand.mFiles.push_back(layer.mDiffuse);
 
         // As the cell reader reads a layer: the diffuse as `layerEncodingOf` binds it, the normal map a
@@ -499,11 +500,10 @@ namespace Rtx
             return;
 
         // Claimed by its name, its encoding and, for a painted colour, its wrap: what the store keys it by.
-        std::string name(SceneUtil::EmbeddedImage::nameOf(input.mImage));
-        name += static_cast<char>('0' + static_cast<int>(input.mEncoding));
-        if (input.mEncoding == TextureEncoding::Painted)
-            name += static_cast<char>('0' + static_cast<int>(input.mWrap));
-        if (claim(std::move(name)))
+        if (claim(ChainIdentity{ .mImage = std::string(SceneUtil::EmbeddedImage::nameOf(input.mImage)),
+                .mPartner = {},
+                .mEncoding = input.mEncoding,
+                .mWrap = input.mEncoding == TextureEncoding::Painted ? input.mWrap : TextureWrap::Repeat }))
             hand.mQueued.push_back(QueuedChain{ .mImage = &input.mImage,
                 .mPartner = nullptr,
                 .mEncoding = input.mEncoding,
@@ -514,12 +514,10 @@ namespace Rtx
     void ContentPreparation::convert(Hand& hand, const ConversionPass::Input& input)
     {
         // Claimed by both names, the encoding and the wrap: what the store keys it by.
-        std::string name(SceneUtil::EmbeddedImage::nameOf(input.mImage));
-        name += '|';
-        name += SceneUtil::EmbeddedImage::nameOf(input.mPartner);
-        name += static_cast<char>('0' + static_cast<int>(input.mEncoding));
-        name += static_cast<char>('0' + static_cast<int>(input.mWrap));
-        if (claim(std::move(name)))
+        if (claim(ChainIdentity{ .mImage = std::string(SceneUtil::EmbeddedImage::nameOf(input.mImage)),
+                .mPartner = std::string(SceneUtil::EmbeddedImage::nameOf(input.mPartner)),
+                .mEncoding = input.mEncoding,
+                .mWrap = input.mWrap }))
             hand.mQueued.push_back(QueuedChain{ .mImage = &input.mImage,
                 .mPartner = &input.mPartner,
                 .mEncoding = input.mEncoding,
@@ -527,10 +525,20 @@ namespace Rtx
                 .mWalk = 0 });
     }
 
-    bool ContentPreparation::claim(std::string name)
+    std::size_t ContentPreparation::ChainIdentityHash::operator()(const ChainIdentity& identity) const
+    {
+        std::size_t seed = 0;
+        Misc::hashCombine(seed, identity.mImage);
+        Misc::hashCombine(seed, identity.mPartner);
+        Misc::hashCombine(seed, static_cast<std::size_t>(identity.mEncoding));
+        Misc::hashCombine(seed, static_cast<std::size_t>(identity.mWrap));
+        return seed;
+    }
+
+    bool ContentPreparation::claim(ChainIdentity identity)
     {
         const std::lock_guard lock(mMutex);
-        return mClaimed.insert(std::move(name)).second;
+        return mClaimed.insert(std::move(identity)).second;
     }
 
     bool ContentPreparation::finish()

@@ -50,6 +50,20 @@ namespace MWRender
             return;
         }
 
+        // The world is asked only where an actor may wade: the strikes need none of it.
+        if (!mEmitters.empty())
+            pressWakes();
+
+        for (const osg::Vec3f& strike : mStrikes)
+            if (strikesWater(strike.z(), water.mHeight))
+                mImpulses.push_back(
+                    Rtx::RippleImpulse{ .mAt = osg::Vec2f(strike.x(), strike.y()), .mSize = sRippleSize });
+
+        mStrikes.clear();
+    }
+
+    void RippleEmitters::pressWakes()
+    {
         const MWBase::World& world = *MWBase::Environment::get().getWorld();
         const MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
 
@@ -71,13 +85,6 @@ namespace MWRender
             const osg::Vec3f at = ptr.getRefData().getPosition().asVec3();
             mImpulses.push_back(Rtx::RippleImpulse{ .mAt = osg::Vec2f(at.x(), at.y()), .mSize = sRippleSize });
         }
-
-        for (const osg::Vec3f& strike : mStrikes)
-            if (strikesWater(strike.z(), water.mHeight))
-                mImpulses.push_back(
-                    Rtx::RippleImpulse{ .mAt = osg::Vec2f(strike.x(), strike.y()), .mSize = sRippleSize });
-
-        mStrikes.clear();
     }
 
     void RippleEmitters::clear()

@@ -80,7 +80,7 @@ namespace Rtx
                 mDevice = std::make_unique<Device>(*mInstance,
                     PhysicalDevice::select(mInstance->getHandle(),
                         [&](VkPhysicalDevice physical, std::uint32_t family) {
-                            return mSurface->supports(physical, family);
+                            return mSurface->supports(physical, family).value_or(false);
                         }),
                     Testing::getCensusShaders(), Testing::getPipelineCacheSpec(), DeviceReport{});
             }
@@ -116,7 +116,7 @@ namespace Rtx
             const VkExtent2D extent{ 64, 32 };
             PresentTarget target;
             target.resize(*mDevice, extent.width, extent.height);
-            Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, VerticalSync::Off);
+            Presenter presenter(*mDevice, std::move(mSurface), mVideo.mWindow, VerticalSync::Off);
             const auto show
                 = [&] { presenter.present(target.getShown(), PresentTarget::sResting, [](VkCommandBuffer) {}); };
 
@@ -161,7 +161,7 @@ namespace Rtx
             const VkExtent2D wider{ 96, 32 };
             PresentTarget target;
             target.resize(*mDevice, extent.width, extent.height);
-            Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, VerticalSync::Off);
+            Presenter presenter(*mDevice, std::move(mSurface), mVideo.mWindow, VerticalSync::Off);
             presenter.present(target.getShown(), PresentTarget::sResting, [](VkCommandBuffer) {});
             EXPECT_FALSE(presenter.wantsResize(extent));
 
@@ -190,7 +190,7 @@ namespace Rtx
             const VkExtent2D extent{ 64, 32 };
             PresentTarget target;
             target.resize(*mDevice, extent.width, extent.height);
-            Presenter presenter(*mDevice, *mSurface, mVideo.mWindow, VerticalSync::On);
+            Presenter presenter(*mDevice, std::move(mSurface), mVideo.mWindow, VerticalSync::On);
 
             constexpr int frames = 4;
             const auto began = std::chrono::steady_clock::now();

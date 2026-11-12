@@ -37,20 +37,53 @@ namespace Rtx
         }
     }
 
+    const Image& DenoisePasses::clampLayer(VkCommandBuffer commands, const TemporalLayerPass& layer,
+        const DenoiseHistory::LayerImages& images, const GBuffer& buffer, const DenoiseFrame& frame) const
+    {
+        mHistoryClamp.record(commands,
+            HistoryClampPass::Images{ .mSampled = buffer.get(layer.getRow().mSampled),
+                .mMean = images.mMean,
+                .mFastBlended = images.mFastBlended,
+                .mFast = images.mFast },
+            Shaders::HistoryClampConstants{ .mWidth = frame.mSampled.mEyes.mWorld.mWidth,
+                .mHeight = frame.mSampled.mEyes.mWorld.mHeight,
+                .mAntilag = frame.mFilters.mAntilag ? 1u : 0u,
+                .mFrame = frame.mSampled.mFrame,
+                .mLayer = layer.getRow().mClampLayer });
+        return images.mMean;
+    }
+
     DenoisePasses::DenoisePasses(const Device& device, const UpscaleMasks masks)
         : mAccumulate(device)
         , mShadow(device)
         , mHistoryClamp(device)
-        , mSpecular(device)
-        , mPane(device)
+        , mSpecular(device, TemporalLayer::Glossy)
+        , mPane(device, TemporalLayer::Pane)
         , mFilter(device, masks)
     {
     }
 
-    std::optional<Denoised> DenoisePasses::record(VkCommandBuffer commands, DenoiseHistory& history,
-        const GBuffer& buffer, const Shaders::VisibilityConstants& sampled, const bool mapped, const bool lamps,
-        const bool composes, const Reconstruction& reconstruction, const Image& composed, GpuTimer* const timer) const
+    Denoised DenoisePasses::record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
+        const Request& request, GpuTimer* const timer) const
     {
+        return *recordAll(commands, history, buffer, request, nullptr, timer);
+    }
+
+    void DenoisePasses::recordComposing(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
+        const Request& request, const Image& composed, GpuTimer* const timer) const
+    {
+        [[maybe_unused]] const std::optional<Denoised> answered
+            = recordAll(commands, history, buffer, request, &composed, timer);
+        assert(!answered.has_value() && "a composing cascade answered as well");
+    }
+
+    std::optional<Denoised> DenoisePasses::recordAll(VkCommandBuffer commands, DenoiseHistory& history,
+        const GBuffer& buffer, const Request& request, const Image* const composed, GpuTimer* const timer) const
+    {
+        const Shaders::VisibilityConstants& sampled = request.mSampled;
+        const bool mapped = request.mMapped;
+        const bool lamps = request.mLamps;
+        const Reconstruction& reconstruction = request.mReconstruction;
         // **Each field of the shadow denoiser only where its source can light anything**: the sky's
         // where the sun or a moon lights, the lamps' where a lamp does. A room with no lamp has
         // neither, and every tile of it would be classified, found to receive nothing and copied
@@ -82,11 +115,10 @@ namespace Rtx
         runs[Temporal::Fill] = sampled.mBounceRays != 0;
 
         const TemporalTurns::Step step = history.turn(runs, sampled.mFrame);
-        assert(
-            (!step.mFresh[Temporal::Accumulate]
-                || (step.mFresh[Temporal::SkyShadow] && step.mFresh[Temporal::LampShadow]
-                    && step.mFresh[Temporal::Specular] && step.mFresh[Temporal::Pane] && step.mFresh[Temporal::Fill]))
-            && "a fresh accumulator beside a history that is not");
+        if (step.mFresh[Temporal::Accumulate])
+            for ([[maybe_unused]] const Temporal other :
+                { Temporal::SkyShadow, Temporal::LampShadow, Temporal::Specular, Temporal::Pane, Temporal::Fill })
+                assert(step.mFresh[other] && "a fresh accumulator beside a history that is not");
         history.discard(commands, step);
 
         const DenoiseHistory::AccumulateImages accumulated = history.accumulate(step);
@@ -112,8 +144,8 @@ namespace Rtx
             fields[running++] = &lamped;
         const std::span<const DenoiseHistory::ShadowImages* const> shadows(fields.data(), running);
 
-        const DenoiseHistory::SpecularImages glossy = history.specular(step);
-        const DenoiseHistory::PaneImages layers = history.pane(step);
+        const DenoiseHistory::LayerImages glossy = history.specular(step);
+        const DenoiseHistory::LayerImages layers = history.pane(step);
         {
             const GpuZone timed(timer, commands, FrameZone::Temporal);
             mAccumulate.record(commands, accumulated, buffer, frame);
@@ -133,8 +165,8 @@ namespace Rtx
             for (const DenoiseHistory::ShadowImages* field : shadows)
                 mShadow.recordTiles(commands, *field, buffer, frame);
             if (runs[Temporal::Specular])
-                specular = &mSpecular.recordClamp(commands, glossy, buffer, frame, mHistoryClamp);
-            pane = &mPane.recordClamp(commands, layers, buffer, frame, mHistoryClamp);
+                specular = &clampLayer(commands, mSpecular, glossy, buffer, frame);
+            pane = &clampLayer(commands, mPane, layers, buffer, frame);
         }
 
         const Image* skyShadow = runs[Temporal::SkyShadow] ? &sky.mVisibility : nullptr;
@@ -175,19 +207,22 @@ namespace Rtx
             image->addTransition(ready, Use::sComputeRead, Use::sComputeWrite);
         ready.flush();
 
-        const AtrousPass::Composing composing{ .mComposed = composed,
-            .mSpecular = *specular,
-            .mPane = *pane,
-            .mSkyShadow = skyShadow,
-            .mLampShadow = lampShadow,
-            .mLobed = mapped };
-        const std::optional<AtrousPass::Filtered> filtered
-            = mFilter.record(commands, accumulated, buffer, frame, composes ? &composing : nullptr, timer);
-        if (!filtered.has_value())
+        if (composed != nullptr)
+        {
+            mFilter.recordComposing(commands, accumulated, buffer, frame,
+                AtrousPass::Composing{ .mComposed = *composed,
+                    .mSpecular = *specular,
+                    .mPane = *pane,
+                    .mSkyShadow = skyShadow,
+                    .mLampShadow = lampShadow,
+                    .mLobed = mapped },
+                timer);
             return std::nullopt;
+        }
 
-        return Denoised{ .mIndirect = filtered->mIndirect,
-            .mFill = filtered->mFill,
+        const AtrousPass::Filtered filtered = mFilter.record(commands, accumulated, buffer, frame, timer);
+        return Denoised{ .mIndirect = filtered.mIndirect,
+            .mFill = filtered.mFill,
             .mSpecular = *specular,
             .mPane = *pane,
             .mSkyShadow = skyShadow,

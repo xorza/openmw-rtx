@@ -73,6 +73,7 @@ target_link_libraries(
     PRIVATE
         smhasher
         openmw-platform-io
+        openmw-crash-notes
 )
 add_executable(openmw-rtx-spirv-pin spirv/spirvpintool.cpp)
 target_link_libraries(openmw-rtx-spirv-pin PRIVATE openmw-rtx-spirv)
@@ -429,9 +430,8 @@ target_sources(
         denoise/denoisehistory.cpp
         denoise/denoisepasses.cpp
         denoise/historyclamppass.cpp
-        denoise/panepass.cpp
         denoise/shadowpass.cpp
-        denoise/specularpass.cpp
+        denoise/temporallayerpass.cpp
         trace/fogvolume.cpp
         frame/gbuffer.cpp
         trace/ripplepass.cpp
@@ -596,9 +596,8 @@ target_sources(
                 denoise/denoisehistory.hpp
                 denoise/denoisepasses.hpp
                 denoise/historyclamppass.hpp
-                denoise/panepass.hpp
                 denoise/shadowpass.hpp
-                denoise/specularpass.hpp
+                denoise/temporallayerpass.hpp
                 denoise/temporalturns.hpp
                 trace/fogvolume.hpp
                 frame/framestep.hpp

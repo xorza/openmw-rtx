@@ -68,10 +68,31 @@ namespace Rtx
             deviceFailed(std::string("SDL would not make the window's surface again: ") + SDL_GetError());
     }
 
-    bool Surface::supports(const VkPhysicalDevice device, const std::uint32_t queueFamily) const
+    namespace
+    {
+        /// `checkVkWithoutDevice`, but for a lost surface, which it notes in `lost` and does not raise.
+        struct SurfaceCheck
+        {
+            bool& mLost;
+
+            void operator()(const VkResult result, const char* const call) const
+            {
+                if (result == VK_ERROR_SURFACE_LOST_KHR)
+                    mLost = true;
+                else
+                    checkVkWithoutDevice(result, call);
+            }
+        };
+    }
+
+    std::optional<bool> Surface::supports(const VkPhysicalDevice device, const std::uint32_t queueFamily) const
     {
         VkBool32 supported = VK_FALSE;
-        checkVk(mGetSupport(device, queueFamily, mHandle, &supported), "vkGetPhysicalDeviceSurfaceSupportKHR");
+        bool lost = false;
+        SurfaceCheck{ lost }(
+            mGetSupport(device, queueFamily, mHandle, &supported), "vkGetPhysicalDeviceSurfaceSupportKHR");
+        if (lost)
+            return std::nullopt;
         return supported == VK_TRUE;
     }
 
@@ -81,21 +102,33 @@ namespace Rtx
         const VkResult result = mGetCapabilities(device, mHandle, &capabilities);
         if (result == VK_ERROR_SURFACE_LOST_KHR)
             return std::nullopt;
-        checkVk(result, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
+        checkVkWithoutDevice(result, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
         return capabilities;
     }
 
-    std::vector<VkSurfaceFormatKHR> Surface::getFormats(const VkPhysicalDevice device) const
+    std::optional<std::vector<VkSurfaceFormatKHR>> Surface::getFormats(const VkPhysicalDevice device) const
     {
-        return enumerateVk<VkSurfaceFormatKHR>("vkGetPhysicalDeviceSurfaceFormatsKHR",
-            [&](std::uint32_t* count, VkSurfaceFormatKHR* into) { return mGetFormats(device, mHandle, count, into); });
+        bool lost = false;
+        std::vector<VkSurfaceFormatKHR> formats = enumerateChecked(
+            SurfaceCheck{ lost }, "vkGetPhysicalDeviceSurfaceFormatsKHR",
+            [&](std::uint32_t* count, VkSurfaceFormatKHR* into) { return mGetFormats(device, mHandle, count, into); },
+            VkSurfaceFormatKHR{});
+        if (lost)
+            return std::nullopt;
+        return formats;
     }
 
-    std::vector<VkPresentModeKHR> Surface::getPresentModes(const VkPhysicalDevice device) const
+    std::optional<std::vector<VkPresentModeKHR>> Surface::getPresentModes(const VkPhysicalDevice device) const
     {
-        return enumerateVk<VkPresentModeKHR>(
-            "vkGetPhysicalDeviceSurfacePresentModesKHR", [&](std::uint32_t* count, VkPresentModeKHR* into) {
+        bool lost = false;
+        std::vector<VkPresentModeKHR> modes = enumerateChecked(
+            SurfaceCheck{ lost }, "vkGetPhysicalDeviceSurfacePresentModesKHR",
+            [&](std::uint32_t* count, VkPresentModeKHR* into) {
                 return mGetPresentModes(device, mHandle, count, into);
-            });
+            },
+            VkPresentModeKHR{});
+        if (lost)
+            return std::nullopt;
+        return modes;
     }
 }

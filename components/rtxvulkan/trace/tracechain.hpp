@@ -3,7 +3,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <optional>
 #include <vector>
 
@@ -75,10 +74,11 @@ namespace Rtx
         /// What the running sum at this extent takes, which only a trace that averages makes.
         static VkDeviceSize sumBytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
 
-        /// Builds the chain at exactly this extent and under `filter`, whatever it was before, and
-        /// nothing where it already stands so, with the images `declareShared` declared as `shared`
-        /// placed them: taken again whether anything moved or not, since an arena is made again
-        /// whenever anything it holds moves.
+        /// Builds the chain at this extent and under `filter`, with the images `declareShared`
+        /// declared as `shared` placed them; where it stands, only takes them again, since an arena is
+        /// made again whenever anything it holds moves. **A chain that stands is asked at its own
+        /// extent and filter**: its owner decides what moved, and lets go of a chain that did
+        /// (`FrameTracer::Moves`).
         void resize(std::uint32_t width, std::uint32_t height, RendererFilter filter, const ArenaRun& shared);
 
         /// Lets every image go, until the next `resize`.
@@ -95,7 +95,7 @@ namespace Rtx
         RendererFilter getFilter() const { return mFilter; }
 
         /// Whether the images exist, which is the same question as whether the extent is set.
-        bool isBuilt() const { return mChannels != nullptr; }
+        bool isBuilt() const { return mChannels.has_value(); }
 
         /// Whether a picture this big fits what is built: a smaller picture uses a corner of a larger
         /// one's images.
@@ -136,8 +136,8 @@ namespace Rtx
         const TracePast mPast;
         RendererFilter mFilter = RendererFilter::Runs;
 
-        std::unique_ptr<GBuffer> mChannels;
-        std::unique_ptr<FogVolume> mFogVolume;
+        std::optional<GBuffer> mChannels;
+        std::optional<FogVolume> mFogVolume;
 
         /// The frame in its own order, `getColour`.
         Image mComposed;

@@ -78,7 +78,8 @@ namespace ContentStore
         }
 
         /// One entry written and read back: the file stands where the key names it, as long as its
-        /// header and payload, 56 + 5000 = 5056 bytes, in the folder of the key's first byte, `01`; and
+        /// header and payload, 56 + 5000 = 5056 bytes, in the folder of the key's first byte, `01`, in
+        /// the folder of the format, `v2`; and
         /// another store on the same folder reads it whole from its file. The frame's reach, memory
         /// alone, does not find an entry too large to hold there.
         TEST(ContentStoreTest, anEntryWrittenIsReadBackWholeByAnotherStoreOnTheSameFolder)
@@ -90,10 +91,11 @@ namespace ContentStore
                 store.write(sKey, sFact, 3, payload, Reach::Disk);
                 store.flush();
                 EXPECT_EQ(store.getStats().mWritten, 1u);
-                EXPECT_EQ(store.pathOf(sKey), folder / "01" / "0123456789abcdeffedcba9876543210");
+                EXPECT_EQ(store.pathOf(sKey), folder / "v2" / "01" / "0123456789abcdeffedcba9876543210");
+                EXPECT_EQ(Store::sFormat, 2u);
             }
-            EXPECT_EQ(
-                std::filesystem::file_size(folder / "01" / "0123456789abcdeffedcba9876543210"), sTrailerBytes + sLarge);
+            EXPECT_EQ(std::filesystem::file_size(folder / "v2" / "01" / "0123456789abcdeffedcba9876543210"),
+                sTrailerBytes + sLarge);
             EXPECT_EQ(countFiles(folder, ".partial"), 0u) << "the temporary was renamed into place";
 
             Store again(folder, sPolicy);
@@ -162,13 +164,16 @@ namespace ContentStore
 
         /// **Every file is untrusted**: a file shorter than its trailer, one whose magic, format, key,
         /// kind, length or digest is not what it should be, and one the ask holds against another
-        /// version, are each a miss, and the file is gone after.
+        /// version, are each a miss, and the file is gone after. **`holds` checks the trailer as the read
+        /// does**, for the file's size, and refuses as the read refuses; the payload's digest and the
+        /// version are the read's, so a file faulted there is held.
         TEST(ContentStoreTest, aFileThatDoesNotMatchIsAMissAndIsDeleted)
         {
             struct Fault
             {
                 const char* mName;
                 std::function<void(std::vector<char>&)> mSpoil;
+                bool mHeld = false;
                 std::uint32_t mAskedVersion = 3;
             };
             const std::vector<Fault> faults{
@@ -177,11 +182,11 @@ namespace ContentStore
                 { "its format", [](std::vector<char>& bytes) { bytes[sLarge + 4] ^= 1; } },
                 { "a kind past the last", [](std::vector<char>& bytes) { bytes[sLarge + 8] = 99; } },
                 { "another key", [](std::vector<char>& bytes) { bytes[sLarge + 16] ^= 1; } },
-                { "another digest", [](std::vector<char>& bytes) { bytes[sLarge + 32] ^= 1; } },
-                { "its payload", [](std::vector<char>& bytes) { bytes[100] ^= 1; } },
+                { "another digest", [](std::vector<char>& bytes) { bytes[sLarge + 32] ^= 1; }, true },
+                { "its payload", [](std::vector<char>& bytes) { bytes[100] ^= 1; }, true },
                 { "a length past the file", [](std::vector<char>& bytes) { bytes[sLarge + 48] += 1; } },
                 { "a length short of the file", [](std::vector<char>& bytes) { bytes.push_back(0); } },
-                { "asked at another version", [](std::vector<char>&) {}, 4 },
+                { "asked at another version", [](std::vector<char>&) {}, true, 4 },
             };
 
             for (const Fault& fault : faults)
@@ -198,6 +203,11 @@ namespace ContentStore
                 std::vector<char> bytes = readAll(path);
                 fault.mSpoil(bytes);
                 writeAll(path, bytes);
+
+                EXPECT_EQ(again.holds(sKey, Reach::Disk), fault.mHeld) << fault.mName;
+                EXPECT_EQ(std::filesystem::exists(path), fault.mHeld) << fault.mName;
+                EXPECT_EQ(again.getStats().mHeld, fault.mHeld ? 1u : 0u) << fault.mName;
+                EXPECT_EQ(again.getStats().mUnheld, fault.mHeld ? 0u : 1u) << fault.mName;
 
                 Misc::ByteBuffer read;
                 EXPECT_FALSE(again.read(sKey, sFact, fault.mAskedVersion, Reach::Disk, read)) << fault.mName;
@@ -235,8 +245,10 @@ namespace ContentStore
                 std::filesystem::last_write_time(middle, now - std::chrono::hours(2));
                 std::filesystem::last_write_time(newest, now - std::chrono::hours(1));
 
-                const std::filesystem::path stale = folder / "01" / "0123456789abcdeffedcba9876543210.9-1.partial";
-                const std::filesystem::path live = folder / "01" / "0123456789abcdeffedcba9876543210.9-2.partial";
+                const std::filesystem::path stale
+                    = folder / "v2" / "01" / "0123456789abcdeffedcba9876543210.9-1.partial";
+                const std::filesystem::path live
+                    = folder / "v2" / "01" / "0123456789abcdeffedcba9876543210.9-2.partial";
                 writeAll(stale, { 'x' });
                 writeAll(live, { 'x' });
                 std::filesystem::last_write_time(stale, now - std::chrono::hours(48));

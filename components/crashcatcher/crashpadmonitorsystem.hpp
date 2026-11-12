@@ -1,14 +1,23 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
+#include <functional>
+#include <map>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <vector>
+
+#include <handler/user_stream_data_source.h>
+#include <util/misc/uuid.h>
 
 #include <components/platform/uniquehold.hpp>
 
 namespace crashpad
 {
     class ExceptionSnapshot;
+    class ProcessSnapshot;
 }
 
 /// **The monitor's side of the catcher that each system spells its own way**, in
@@ -25,6 +34,16 @@ namespace Crash::Monitor
 
         /// The monitor holds nothing to end it by, or the system refused.
         Failed,
+    };
+
+    /// What a snapshot the monitor takes itself carries, as Crashpad's handler stamps its own.
+    struct SnapshotStamp
+    {
+        crashpad::UUID mReport;
+        crashpad::UUID mClient;
+
+        /// The annotations Crashpad's handler was started with: the application's name.
+        std::map<std::string, std::string> mAnnotations;
     };
 
     /// The game itself, held from the monitor's start, so an End reaches the process that started
@@ -46,6 +65,17 @@ namespace Crash::Monitor
         /// not its parent: Windows does, and a POSIX system tells the parent alone.
         std::optional<std::uint32_t> exitCode() const;
 
+        /// Whether the game has ended. Where the system holds nothing to ask by, it has.
+        bool isGone() const;
+
+        /// **Reads the whole game from outside, while it stands still**, and hands `use` the
+        /// snapshot, stamped with `stamp`: what a hang's dump is written from, as Crashpad's
+        /// `generate_dump` writes one. Through ptrace on Linux, and on Windows with the process
+        /// suspended. False where the game could not be read, or `use` said it failed; Crashpad has
+        /// logged why.
+        bool readWhole(
+            const SnapshotStamp& stamp, const std::function<bool(const crashpad::ProcessSnapshot&)>& use) const;
+
     private:
         std::uint32_t mId = 0;
 
@@ -60,6 +90,27 @@ namespace Crash::Monitor
         Platform::UniqueHold<Closing> mHold;
     };
 
+    /// What the monitor's handler needs beside its command line.
+    struct HandlerParts
+    {
+        /// What every dump Crashpad writes carries beside its own streams: the summary.
+        const crashpad::UserStreamDataSources& mSources;
+
+        /// Held while a dump reads the game, by the handler and by a hang's dump alike: on Linux
+        /// both read it through ptrace, which one reader at a time can.
+        std::mutex& mReading;
+
+        /// Set where the handler took a crash and could not write its dump.
+        std::atomic<bool>& mUnwritten;
+    };
+
+    /// **Runs Crashpad's handler** on `arguments`, Crashpad's own, `argv[0]` first, until the game is
+    /// gone, and answers what the process would exit with. On Linux the monitor's own loop around
+    /// Crashpad's server and handler, as `handler_main.cc` builds it, so a crash's dump takes
+    /// `HandlerParts::mReading` and says whether it was written; on Windows `HandlerMain` itself,
+    /// whose dumps suspend the game, which nests with a hang's.
+    int runHandler(std::vector<std::string>& arguments, const HandlerParts& parts);
+
     /// The exception as the system names it, or nothing where the dump was asked for rather than
     /// raised by a fault. `process` is the game's id, by which a signal it sent itself is told from
     /// one another process sent.
@@ -67,4 +118,8 @@ namespace Crash::Monitor
 
     /// An exit code as the system names it, where it has a name, and in hex where it has none.
     std::string describeExitCode(std::uint32_t code);
+
+    /// Whether a game that exited with `code` crashed: an exception the system names, which a
+    /// fail-fast leaves, or the code Crashpad ends a crash it could not dump with.
+    bool isCrashCode(std::uint32_t code);
 }

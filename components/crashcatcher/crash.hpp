@@ -5,11 +5,11 @@
 
 /// **The crash catcher**, the same on Windows and Linux, the systems the fork builds it for.
 ///
-/// A monitor process, this same executable started with `--crash-monitor`, reads a crashed,
-/// hung or reporting game from outside: Crashpad writes a minidump of every thread, and the
-/// monitor appends a summary to the game's log. Once the game is gone, the monitor zips the log and
-/// the session's dumps into one file and a dialog names it. Nothing but Crashpad's own signal-safe
-/// step runs in the crashed process. What starts it is `crashinstall.hpp`'s.
+/// A monitor process, this same executable started with `--crash-monitor`, reads a crashed or
+/// hung game from outside: Crashpad writes a minidump of every thread of a crash, the monitor
+/// writes one of a hang itself, and appends a summary of each to the game's log. Once the game is
+/// gone, the monitor zips the log and the session's dumps into one file and a dialog names it. Nothing but Crashpad's
+/// own signal-safe step runs in the crashed process. What starts it is `crashinstall.hpp`'s.
 namespace Crash
 {
     /// Once for each frame the game draws, a loading screen's included: one relaxed store.
@@ -19,6 +19,8 @@ namespace Crash
     inline constexpr std::size_t sAnnotationLength = 255;
 
     /// A key and a value every later report carries: the version, the renderer, the device.
+    /// **From one thread**, the one that first annotates, since Crashpad's dictionary locks nothing;
+    /// a debug build stops at a second.
     void annotate(std::string_view key, std::string_view value);
 
     /// **Ends the process as a crash**, for a failure nothing can go on from: every thread is dumped
@@ -51,12 +53,4 @@ namespace Crash
             fatal(what);
         return pointer;
     }
-
-    /// A report without a crash, for a contract broken where the game can go on: a dump of every
-    /// thread and a summary, and the game continues. Nothing where no catcher is installed.
-    ///
-    /// **Kept with no caller in the game**, as `fatal`'s counterpart for what the game survives: the
-    /// path a hang report takes, which the crash matrix drives through this to put a fault under a
-    /// report at a moment it chooses.
-    void report(std::string_view reason);
 }

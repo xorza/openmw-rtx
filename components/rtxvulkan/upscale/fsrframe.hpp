@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 
 #include <vulkan/vulkan_core.h>
@@ -63,6 +64,13 @@ namespace Rtx
             std::uint32_t mGroupsY = 0;
         };
         static Pyramid pyramidFor(VkExtent2D render);
+
+        /// The half grid the shading change is found on, which a side of one rounds up to one texel
+        /// and not down to none, so the pass that writes it covers what reactivity reads.
+        static constexpr VkExtent2D halfOf(const VkExtent2D render)
+        {
+            return VkExtent2D{ std::max(render.width / 2, 1u), std::max(render.height / 2, 1u) };
+        }
 
         /// Whether the frame `advance` last stepped to reads the first of each pair of histories
         /// (`false`) or the second. FSR's `resourceFrameIndex & 1`, which turns every frame.

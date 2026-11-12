@@ -1,11 +1,10 @@
 #include <algorithm>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <future>
 #include <latch>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
@@ -15,6 +14,8 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/death.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/platform/process.hpp>
 
@@ -25,7 +26,7 @@ namespace
     Crash::NotesRead readAll()
     {
         Crash::NotesRead read;
-        Crash::readNotes(Crash::noteTable(), Platform::Process::currentThreadId(), 0, false, read);
+        Crash::readNotes(Crash::noteTable(), Platform::Process::currentThreadId(), read);
         return read;
     }
 
@@ -87,22 +88,24 @@ namespace
     }
 
     /// The table holds one note a thread for as many threads as it has slots, and a thread past
-    /// them notes nothing rather than over another's. This thread holds one slot, so of as many
-    /// threads again as there are slots, all but one hold the rest. As they end, the slots come
-    /// back: a second crowd fills the table again, which it could not where an ended thread kept
-    /// its slot.
+    /// them notes nothing rather than over another's, **and is counted once**, however often it
+    /// tries. This thread holds one slot, so of as many threads again as there are slots, all but
+    /// one hold the rest. As they end, the slots come back: a second crowd fills the table again,
+    /// which it could not where an ended thread kept its slot.
     TEST(CrashNoteTest, aThreadPastTheTableNotesNothingAndEndedThreadsGiveTheirSlotsBack)
     {
         const Crash::NoteScope noted("filling the table");
 
         for (int crowd = 0; crowd < 2; ++crowd)
         {
+            const std::uint32_t refusedBefore = readAll().mRefused;
             std::latch noting(Crash::sNoteThreads);
             std::latch read(1);
             std::vector<std::thread> threads;
             for (std::size_t i = 0; i < Crash::sNoteThreads; ++i)
                 threads.emplace_back([&, i] {
                     const Crash::NoteScope mine("thread \"{}\"", std::to_string(i));
+                    const Crash::NoteScope again("again");
                     noting.count_down();
                     read.wait();
                 });
@@ -110,6 +113,7 @@ namespace
             noting.wait();
             const Crash::NotesRead full = readAll();
             EXPECT_EQ(full.mCount, Crash::sNoteThreads) << "crowd " << crowd;
+            EXPECT_EQ(full.mRefused, refusedBefore + 1) << "crowd " << crowd;
             EXPECT_EQ(std::string_view(full.mNotes[0].mText), "filling the table");
 
             read.count_down();
@@ -201,42 +205,10 @@ namespace
         }
     }
 
-    /// **One report at a time, and the one before it back afterwards.** A request that finds a
-    /// report in progress changes nothing — the hang request that landed inside a report's window
-    /// wrote over its kind and its reason — and a report that ends puts back what it found, so
-    /// the next crash reads as a crash with the reason it had, and not as the report before it.
-    TEST(CrashNoteTest, aReportInProgressRefusesAnotherAndPutsBackWhatItFound)
-    {
-        const auto kindAndReason = [] {
-            Crash::NotesRead read;
-            Crash::readNotes(Crash::noteTable(), 0, 0, false, read);
-            return std::pair{ read.mKind, std::string(read.mReason) };
-        };
-
-        const auto before = kindAndReason();
-        EXPECT_FALSE(Crash::isReporting());
-
-        ASSERT_TRUE(Crash::beginReport(Crash::ReportKind::Report, "asked"));
-        EXPECT_TRUE(Crash::isReporting());
-        EXPECT_EQ(kindAndReason(), std::pair(Crash::ReportKind::Report, std::string("asked")));
-
-        EXPECT_FALSE(Crash::beginReport(Crash::ReportKind::Hang, {})) << "a hang request inside a report";
-        EXPECT_EQ(kindAndReason(), std::pair(Crash::ReportKind::Report, std::string("asked")))
-            << "the refused request wrote over the report in progress";
-
-        Crash::endReport();
-        EXPECT_FALSE(Crash::isReporting());
-        EXPECT_EQ(kindAndReason(), before) << "what the report found was not put back";
-
-        ASSERT_TRUE(Crash::beginReport(Crash::ReportKind::Hang, {})) << "the gate did not open again";
-        Crash::endReport();
-    }
-
     /// **The table as the monitor reads it**: a copy of its bytes, taken from outside, put in the
-    /// order a report wants, with the thread it is about first and what the next report is and why.
-    /// A hang is about the thread that draws, not the one that took the request. A note whose thread
-    /// stopped in the middle of writing it reads as half written, and a copy of another size is no
-    /// table, and reads as nothing noted.
+    /// order a report wants, with the thread it is about first, and the reason the process ends on. A
+    /// note whose thread stopped in the middle of writing it reads as half written, and a copy of
+    /// another size is no table, and reads as nothing noted.
     TEST(CrashNoteTest, aCopyOfTheTableReadsAsTheLiveOneWithTheNamedThreadFirst)
     {
         const Crash::NoteScope drawing("drawing");
@@ -251,63 +223,34 @@ namespace
         });
         noted.wait();
 
-        ASSERT_TRUE(Crash::beginReport(Crash::ReportKind::Report, "a contract broken"));
         const std::span<const std::byte> live = Crash::noteTable();
         const std::vector<std::byte> copy(live.begin(), live.end());
-        Crash::endReport();
-        ASSERT_TRUE(Crash::beginReport(Crash::ReportKind::Hang, {}));
-        const std::vector<std::byte> hanging(live.begin(), live.end());
-        Crash::endReport();
         copied.count_down();
         worker.join();
 
         Crash::NotesRead read;
-        Crash::readNotes(copy, other, 0, false, read);
-        EXPECT_EQ(read.mKind, Crash::ReportKind::Report);
-        EXPECT_EQ(std::string_view(read.mReason), "a contract broken");
+        Crash::readNotes(copy, other, read);
+        EXPECT_EQ(std::string_view(read.mReason), "") << "no process ended, and no reason was given";
         ASSERT_EQ(read.mCount, 2u);
         EXPECT_EQ(read.mNotes[0].mThread, other);
         EXPECT_EQ(std::string_view(read.mNotes[0].mText), "walking the cell \"Seyda Neen\"");
         EXPECT_EQ(std::string_view(read.mNotes[1].mText), "drawing");
-        EXPECT_TRUE(read.mNotes[0].mWhole && read.mNotes[1].mWhole);
+        EXPECT_TRUE(read.mNotes[0].mWhole);
+        EXPECT_TRUE(read.mNotes[1].mWhole);
         EXPECT_EQ(read.mThread, other);
 
-        // The worker took the hang request here, and this thread draws: the hang is this thread's,
-        // and with no thread known to draw, the one that asked stands for it. A fault that lands
-        // under the hang is the faulting thread's.
+        // This thread first where it is the one named, as the one that draws is for a hang.
         const std::uint64_t self = Platform::Process::currentThreadId();
-        Crash::readNotes(hanging, other, self, false, read);
-        EXPECT_EQ(read.mKind, Crash::ReportKind::Hang);
-        EXPECT_EQ(read.mThread, self) << "a hang named the thread that took the request";
+        Crash::readNotes(copy, self, read);
+        EXPECT_EQ(read.mThread, self);
         ASSERT_EQ(read.mCount, 2u);
         EXPECT_EQ(std::string_view(read.mNotes[0].mText), "drawing");
         EXPECT_EQ(std::string_view(read.mNotes[1].mText), "walking the cell \"Seyda Neen\"");
-        Crash::readNotes(hanging, other, 0, false, read);
-        EXPECT_EQ(read.mThread, other);
-        EXPECT_EQ(std::string_view(read.mNotes[0].mText), "walking the cell \"Seyda Neen\"");
-        Crash::readNotes(hanging, other, self, true, read);
-        EXPECT_EQ(read.mKind, Crash::ReportKind::Crash);
-        EXPECT_EQ(read.mThread, other) << "a fault under a hang named the thread that draws";
-        // A report the game asked for is the asking thread's whoever draws.
-        Crash::readNotes(copy, other, self, false, read);
-        EXPECT_EQ(read.mThread, other);
 
-        // **A fault taken while the report was written is a crash**, with no reason: the table's
-        // kind and reason are the report's, which the faulting thread never passed the gate for.
-        // Its notes are its own all the same.
-        Crash::readNotes(copy, other, 0, true, read);
-        EXPECT_EQ(read.mKind, Crash::ReportKind::Crash) << "a fault read as the report it landed in";
-        EXPECT_EQ(std::string_view(read.mReason), "") << "a fault was given the report's reason";
+        // With no thread named, the table's order.
+        Crash::readNotes(copy, 0, read);
+        EXPECT_EQ(read.mThread, 0u);
         EXPECT_EQ(read.mCount, 2u);
-
-        // A table that says crash keeps its reason under a fault: `std::terminate`'s abort raises
-        // a signal after saying why.
-        ASSERT_TRUE(Crash::beginReport(Crash::ReportKind::Crash, "std::terminate"));
-        const std::vector<std::byte> ending(Crash::noteTable().begin(), Crash::noteTable().end());
-        Crash::endReport();
-        Crash::readNotes(ending, other, 0, true, read);
-        EXPECT_EQ(read.mKind, Crash::ReportKind::Crash);
-        EXPECT_EQ(std::string_view(read.mReason), "std::terminate");
 
         // A slot is its thread's id and then its sequence count, which a note in progress leaves
         // odd: one step on from the count the copy holds is the worker stopped halfway.
@@ -322,48 +265,55 @@ namespace
         ++sequence;
         std::memcpy(halfway.data() + slots[0] + sizeof(other), &sequence, sizeof(sequence));
 
-        Crash::readNotes(halfway, other, 0, false, read);
+        Crash::readNotes(halfway, other, read);
         ASSERT_EQ(read.mCount, 2u);
         EXPECT_FALSE(read.mNotes[0].mWhole) << "a note stopped halfway read as whole";
         EXPECT_EQ(std::string_view(read.mNotes[0].mText), "walking the cell \"Seyda Neen\"");
         EXPECT_TRUE(read.mNotes[1].mWhole);
 
-        Crash::readNotes(std::span(copy).first(copy.size() - 1), other, 0, false, read);
+        Crash::readNotes(std::span(copy).first(copy.size() - 1), other, read);
         EXPECT_EQ(read.mCount, 0u) << "a table of another size was read";
-        EXPECT_EQ(read.mKind, Crash::ReportKind::Crash);
 
-        EXPECT_EQ(readAll().mKind, Crash::ReportKind::Crash) << "the report kind outlived its report";
+        // The table travels as one Crashpad annotation, whose value is held below 20 KiB.
+        EXPECT_LT(copy.size(), 5u * 4096u);
     }
 
-    /// **A report that never ends does not hold the last one.** Crashpad on Windows waits for a dump with
-    /// no limit, so a monitor that died during a report left `Crash::fatal` waiting for good. Its own
-    /// process, because the gate stays taken: past the wait, the table says this report and nothing else.
-    TEST(CrashNoteTest, aFinalReportGoesOnPastAReportThatNeverEnds)
+    /// **The first reason the process ends on stands**: a second thread failing at the same time
+    /// changes nothing. Its own process, since the reason is the table's for good.
+    TEST(CrashNoteTest, theFirstEndingReasonStands)
     {
         EXPECT_EXIT(
             {
-                std::promise<void> begun;
-                std::promise<void> released;
-                std::thread stuck([&] {
-                    Crash::beginReport(Crash::ReportKind::Report, "never ends");
-                    begun.set_value();
-                    released.get_future().wait();
-                    Crash::endReport();
-                });
-                begun.get_future().wait();
-
-                Crash::finalReport(Crash::ReportKind::Crash, "the last", std::chrono::milliseconds(1));
-
-                // The report that stood ends after all, and puts nothing back over this one.
-                released.set_value();
-                stuck.join();
-
+                Crash::endingReason("the first");
+                Crash::endingReason("the second");
                 Crash::NotesRead read;
-                Crash::readNotes(Crash::noteTable(), 0, 0, false, read);
-                const bool taken = read.mKind == Crash::ReportKind::Crash
-                    && std::string_view(read.mReason) == "the last" && !Crash::beginReport(Crash::ReportKind::Hang, {});
-                std::_Exit(taken ? 7 : 8);
+                Crash::readNotes(Crash::noteTable(), 0, read);
+                std::_Exit(std::string_view(read.mReason) == "the first" ? 7 : 8);
             },
             ::testing::ExitedWithCode(7), "");
+    }
+
+    /// **A scope ends on the thread it began on**: one ended on another would write that thread's
+    /// note, and a debug build stops at it.
+    TEST(CrashNoteTest, aScopeEndedOnAnotherThreadDies)
+    {
+        Rtx::Testing::expectAssertDies(
+            [] {
+                auto scope = std::make_unique<Crash::NoteScope>("moved across");
+                std::thread([&] { scope.reset(); }).join();
+            },
+            "a note scope ended on a thread other than the one it began on");
+    }
+
+    /// **Crashpad's annotations lock nothing**, so they are set from one thread, the first to set one:
+    /// a second dies in a debug build. In a process of its own, as the first thread is the process's.
+    TEST(CrashNoteTest, annotationsFromASecondThreadDie)
+    {
+        Rtx::Testing::expectAssertDies(
+            [] {
+                Crash::annotate("first", "this thread");
+                std::thread([] { Crash::annotate("second", "another thread"); }).join();
+            },
+            "Crash::annotate was called from a second thread");
     }
 }

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cstdlib>
 #include <span>
 #include <string>
 #include <string_view>
@@ -10,6 +9,7 @@
 
 #include <vulkan/vk_platform.h>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 
 namespace Rtx
@@ -39,13 +39,12 @@ namespace Rtx
                 text += ": ";
                 text += data->pMessage;
                 Log(Debug::Error) << "Vulkan validation: " << text;
-                log.recordError(std::move(text));
 
+                // **A crash whose report says what the layers said**, cut to a note's length, where an
+                // abort's said nothing but `SIGABRT`; the whole message is in the log above.
                 if (log.abortsOnError())
-                {
-                    Log(Debug::Error) << "Aborting: validation errors are fatal when the layers are enabled.";
-                    std::abort();
-                }
+                    Crash::fatal("Vulkan validation: " + text);
+                log.recordError(std::move(text));
             }
             else
                 Log(Debug::Warning) << "Vulkan validation: " << id << ": " << data->pMessage;

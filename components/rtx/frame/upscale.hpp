@@ -138,8 +138,9 @@ namespace Rtx
     /// fixed ratios (`ffxFsr3UpscalerGetUpscaleRatioFromQualityMode`) — 3, 2, 1.7 and 1.5 from ultra
     /// performance to quality, and one where every pixel is traced, natively or with no upscaler.
     ///
-    /// **The upscaler's arithmetic, stated in the core**, because the upscaler is FSR and FSR's
-    /// sizes are arithmetic: a table a backend answered was a question a test needed a device for.
+    /// **FSR's arithmetic, stated in the core**, because FSR's sizes are arithmetic: a table a
+    /// backend answered was a question a test needed a device for. DLSS's are NGX's to give, and
+    /// the backend asks them (`Upscaler::extentsFor`).
     constexpr float upscaleRatio(Upscale mode)
     {
         switch (mode)

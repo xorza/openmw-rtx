@@ -47,7 +47,8 @@ namespace Crash
 
     /// **The one file a player sends**, once the game is gone and its log is whole: `log`, where the
     /// game had one, and every dump of `dumps`, in a new package in `folder` named after
-    /// `application` and `local`. Nothing where `dumps` is empty, since then nothing was reported.
+    /// `application` and `local`. The log alone where `dumps` is empty: a crash whose dump could
+    /// not be written.
     /// **And the oldest of `application`'s packages in `folder` past `sKeptPackages` go**, by the
     /// time and the number their names carry (`freePackagePath`); no other file is touched.
     /// Throws nothing: the monitor that packages a crash must not become one, so whatever goes

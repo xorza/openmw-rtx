@@ -87,7 +87,7 @@ namespace Rtx
         const MemoryUse use, const Device& device, const ImageDescription& description, const std::string_view name)
         : Image(Unbound{}, device, description, name)
     {
-        mMemory = device.getMemory().take(mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use);
+        mMemory = device.getMemory().take(mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use, name);
         bind(mMemory.getHandle(), mMemory.getOffset(), name);
     }
 
@@ -124,7 +124,7 @@ namespace Rtx
     {
         Image made(Unbound{}, device, description, name);
         Result<DeviceMemory, MemoryRefusal> memory
-            = device.getMemory().tryTake(made.mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use);
+            = device.getMemory().tryTake(made.mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use, name);
         if (!memory.isOk())
             return Err{ memory.error() };
 
@@ -154,7 +154,7 @@ namespace Rtx
         const bool volume = mDepth > 1;
         const bool twoFormats = mStorageFormat != VK_FORMAT_UNDEFINED && mStorageFormat != mFormat;
 
-        checkVk(vkBindImageMemory(device.getHandle(), mHandle.get(), memory, offset), "vkBindImageMemory");
+        checkVk(device, vkBindImageMemory(device.getHandle(), mHandle.get(), memory, offset), "vkBindImageMemory");
 
         const VkImageViewUsageCreateInfo sampledOnly{
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,

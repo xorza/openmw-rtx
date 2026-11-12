@@ -53,7 +53,7 @@ namespace Rtx
 
         /// Runs every level, or the first alone where no bounce is traced, and returns the images the
         /// result ended up in, because the levels alternate and a copy back would be bandwidth spent on
-        /// tidiness.
+        /// tidiness: a frame that sums, which the composite composes.
         ///
         /// @param images the accumulator's: its blends of this frame's bounce and fill, with the
         ///        bounce's variance that turns a difference in brightness into an edge or into noise,
@@ -63,14 +63,21 @@ namespace Rtx
         /// @param buffer handed over, so the trace's writes are visible. Only the surface is read
         ///        from it.
         /// @param frame whose two eyes the edge tests rebuild the trace's rays through.
-        /// @param composing where the last level composes the frame over `CHANNEL_DIRECT`, which it
-        ///        reads and writes: the caller has ordered it for both, and orders it for what reads it
-        ///        next. Null where the composite does, a frame that sums.
-        /// @return the last level's answer, or nothing where it composed the frame instead.
-        std::optional<Filtered> record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-            const GBuffer& buffer, const DenoiseFrame& frame, const Composing* composing, GpuTimer* timer) const;
+        Filtered record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images, const GBuffer& buffer,
+            const DenoiseFrame& frame, GpuTimer* timer) const;
+
+        /// `record`, whose last level composes the frame into `composing.mComposed`, from
+        /// `CHANNEL_DIRECT` and the filters' answers, in place of its own answer: the caller has
+        /// ordered the composed image for the write, and orders it for what reads it next.
+        void recordComposing(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
+            const GBuffer& buffer, const DenoiseFrame& frame, const Composing& composing, GpuTimer* timer) const;
 
     private:
+        /// The levels of `record` and of `recordComposing`, which hands `composing`; the answer where
+        /// nothing composed.
+        std::optional<Filtered> recordLevels(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
+            const GBuffer& buffer, const DenoiseFrame& frame, const Composing* composing, GpuTimer* timer) const;
+
         /// The first level, wide, and every level after it, narrow (`ATROUS_WIDE`).
         ComputePipeline<Shaders::AtrousConstants> mWide;
         ComputePipeline<Shaders::AtrousConstants> mNarrow;

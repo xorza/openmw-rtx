@@ -70,8 +70,9 @@ namespace Rtx
             .basePipelineIndex = 0,
         };
         VkPipeline made = VK_NULL_HANDLE;
-        checkVk(vkCreateRayTracingPipelinesKHR(
-                    device.getHandle(), VK_NULL_HANDLE, device.getPipelineCache(), 1, &pipeline, nullptr, &made),
+        checkVk(device,
+            vkCreateRayTracingPipelinesKHR(
+                device.getHandle(), VK_NULL_HANDLE, device.getPipelineCache(), 1, &pipeline, nullptr, &made),
             "vkCreateRayTracingPipelinesKHR");
         Owned<VkPipeline, vkDestroyPipeline> handle(device, made);
 
@@ -97,8 +98,9 @@ namespace Rtx
                 | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             name);
         mRecord.assign(stride, std::byte{ 0 });
-        checkVk(vkGetRayTracingShaderGroupHandlesKHR(
-                    device.getHandle(), pipeline, 0, 1, limits.shaderGroupHandleSize, mRecord.data()),
+        checkVk(device,
+            vkGetRayTracingShaderGroupHandlesKHR(
+                device.getHandle(), pipeline, 0, 1, limits.shaderGroupHandleSize, mRecord.data()),
             "vkGetRayTracingShaderGroupHandlesKHR");
 
         // A shader binding table's buffer is placed at the base alignment by the allocator —

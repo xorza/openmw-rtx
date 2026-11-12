@@ -20,33 +20,12 @@ namespace Rtx
 {
     class Device;
     class GpuTimer;
-    class Uploads;
 
     /// Which upscaler runs: what an `UpscalerChoice` came to on this machine.
     enum class UpscalerKind
     {
         Fsr,
         Dlss,
-    };
-
-    /// Whether DLSS runs on this machine: each fact `Auto` and the menus read, in the order they are
-    /// asked, and what the attempt came to once one was made.
-    enum class DlssAvailability
-    {
-        /// The renderer's device is not NVIDIA's.
-        NotNvidia,
-
-        /// The player's feature library is not where NGX looks.
-        NotInstalled,
-
-        /// Every fact holds, and no DLSS was made: what `Auto` resolves to DLSS by.
-        Present,
-
-        /// DLSS was made and refused, so `Auto` came to FSR.
-        Refused,
-
-        /// DLSS runs.
-        Ready,
     };
 
     /// Whether a menu offers DLSS under `availability`: where it runs, or where every fact holds and
@@ -120,6 +99,11 @@ namespace Rtx
         /// under DLSS, and none under FSR, whose every command is the renderer's.
         std::optional<std::string_view> getRuntimeResources() const;
 
+        /// What a frame shown at `width` by `height` is traced at under `mode`: FSR's arithmetic
+        /// (`Rtx::extentsFor`), and under DLSS the extent NGX gives for the mode, which Ray
+        /// Reconstruction takes and no other.
+        FrameExtents extentsFor(std::uint32_t width, std::uint32_t height, Upscale mode) const;
+
         /// Makes what the upscaler holds at one pair of extents outside the frame's arena before the
         /// frame's reserve is set, which counts it: DLSS's feature, which NGX allocates and measures.
         /// FSR makes everything at `resize`.
@@ -161,7 +145,7 @@ namespace Rtx
         bool isFresh() const;
 
         /// Records one reconstruction at the output extent and hands over the image it wrote.
-        HandedImage record(VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer);
+        HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
 
         /// One line for `info`: which upscaler this renderer has.
         std::string_view describe() const;

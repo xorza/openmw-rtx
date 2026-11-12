@@ -9,6 +9,7 @@
 
 #include <volk.h>
 
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -36,6 +37,7 @@ namespace Rtx
 
     GuiSlot GuiTextures::add(std::uint32_t width, std::uint32_t height)
     {
+        const Crash::NoteScope noted("making an interface texture of {}x{}", width, height);
         // **A size no image takes fails that one texture**, as the GL backend's does, and not the
         // game: a mod's interface image past the device's side, or a widget made at nought.
         const std::uint32_t side = mDevice.getPhysicalDevice().getTextureSide();

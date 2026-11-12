@@ -124,11 +124,25 @@ namespace Rtx
                 (std::vector<std::string_view>{
                     VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME }));
 
+            // **And in the spelling before the promotion**, on the instance's half of the same, with the
+            // promoted one's feature, whose structure is the same.
+            const OptionalExtensions& fencesExt = options[static_cast<std::size_t>(DeviceOption::PresentFencesExt)];
+            EXPECT_EQ(names(fencesExt.mExtensions),
+                (std::vector<std::string_view>{ VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME }));
+            EXPECT_EQ(names(fencesExt.mNeeds),
+                (std::vector<std::string_view>{
+                    VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME }));
+            EXPECT_EQ(fencesExt.mFeature, fences.mFeature);
+
             // A present's id rests on a swapchain, and a wait for one on the id as well.
             EXPECT_EQ(names(options[static_cast<std::size_t>(DeviceOption::PresentIds)].mNeeds),
                 (std::vector<std::string_view>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME }));
             EXPECT_EQ(names(options[static_cast<std::size_t>(DeviceOption::PresentWait)].mNeeds),
                 (std::vector<std::string_view>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_PRESENT_ID_EXTENSION_NAME }));
+
+            // Uncached markers rest on the markers.
+            EXPECT_EQ(names(options[static_cast<std::size_t>(DeviceOption::UncachedMarkers)].mNeeds),
+                (std::vector<std::string_view>{ VK_AMD_BUFFER_MARKER_EXTENSION_NAME }));
 
             // Paging by priority rests on the priority.
             const OptionalExtensions& pageable = options[static_cast<std::size_t>(DeviceOption::PageableMemory)];
@@ -173,6 +187,8 @@ namespace Rtx
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR);
             reaches(DeviceOption::PresentWait, &features.mPresentWait, &features.mPresentWait.presentWait,
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR);
+            reaches(DeviceOption::UncachedMarkers, &features.mCoherent, &features.mCoherent.deviceCoherentMemory,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COHERENT_MEMORY_FEATURES_AMD);
             reaches(DeviceOption::PerformanceQuery, &features.mPerformanceQuery,
                 &features.mPerformanceQuery.performanceCounterQueryPools,
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PERFORMANCE_QUERY_FEATURES_KHR);
@@ -221,6 +237,15 @@ namespace Rtx
             dropUnmetNeeds(options, taken,
                 [](const char* name) { return std::string_view(name) == VK_KHR_SWAPCHAIN_EXTENSION_NAME; });
             EXPECT_FALSE(taken[index(DeviceOption::PresentWait)]);
+
+            // **Uncached markers fall with the markers**, which a run that wants none leaves out.
+            taken.fill(true);
+            taken[index(DeviceOption::BufferMarkers)] = false;
+            dropUnmetNeeds(options, taken, [](const char*) { return false; });
+            EXPECT_FALSE(taken[index(DeviceOption::UncachedMarkers)]);
+            taken.fill(true);
+            dropUnmetNeeds(options, taken, [](const char*) { return false; });
+            EXPECT_TRUE(taken[index(DeviceOption::UncachedMarkers)]);
         }
 
         /// The two directions of the table have to agree: what `requestRequiredFeatures` writes is
@@ -238,6 +263,17 @@ namespace Rtx
             missing.clear();
             findMissingFeatures(features, missing);
             EXPECT_TRUE(missing.empty()) << "first still missing: " << (missing.empty() ? "" : missing.front());
+        }
+
+        /// **The log names what a device took**, in the options' order, and says none for none.
+        TEST(RtxRequirementsTest, theOptionsTakenAreNamedInOrder)
+        {
+            std::array<bool, sDeviceOptions> taken{};
+            EXPECT_EQ(describeTaken(taken), "none");
+            taken[static_cast<std::size_t>(DeviceOption::UncachedMarkers)] = true;
+            taken[static_cast<std::size_t>(DeviceOption::FaultReport)] = true;
+            taken[static_cast<std::size_t>(DeviceOption::PresentWait)] = true;
+            EXPECT_EQ(describeTaken(taken), "fault report, present wait, uncached markers");
         }
     }
 }

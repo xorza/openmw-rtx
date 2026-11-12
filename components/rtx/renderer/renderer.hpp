@@ -113,11 +113,15 @@ namespace Rtx
         /// submit that never finished. Each costs the overlap of the CPU with the GPU.
         bool mWatchSubmits = false;
 
-        /// Whether the queue marks each zone it passes, so a lost device names the last zone each
-        /// stage reached (NVIDIA's checkpoints, AMD's buffer markers): one call a zone. On where the
-        /// build validates, and asked for by name in any other (`OPENMW_RTX_BREADCRUMBS`), so a shipped
-        /// build can report where its device was lost.
-        bool mBreadcrumbs = sValidationByDefault;
+        /// Whether the queue writes a buffer marker at each zone it passes, so a lost device names
+        /// the last zone each stage reached (AMD's markers, which RADV has too): two writes a zone,
+        /// which cost nothing a bench can see, so on in every build.
+        bool mMarkers = true;
+
+        /// The same through NVIDIA's checkpoints, which the driver keeps for every command buffer
+        /// that sets one: on where the build validates, and asked for by name in any other
+        /// (`OPENMW_RTX_BREADCRUMBS`), so a shipped build can report where its device was lost.
+        bool mCheckpoints = sValidationByDefault;
     };
 
     /// What a run decides once of how the renderer works: the knobs the frames are traced under,

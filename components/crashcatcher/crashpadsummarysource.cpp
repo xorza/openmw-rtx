@@ -1,6 +1,8 @@
 #include "crashpadsummarysource.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -15,6 +17,7 @@
 #include <vector>
 
 #include <minidump/minidump_user_extension_stream_data_source.h>
+#include <snapshot/annotation_snapshot.h>
 #include <snapshot/cpu_context.h>
 #include <snapshot/exception_snapshot.h>
 #include <snapshot/memory_snapshot.h>
@@ -22,7 +25,6 @@
 #include <snapshot/process_snapshot.h>
 #include <snapshot/thread_snapshot.h>
 #include <util/misc/uuid.h>
-#include <util/process/process_memory.h>
 
 #include <components/files/conversion.hpp>
 #include <components/platform/userhome.hpp>
@@ -139,11 +141,11 @@ namespace Crash
         };
     }
 
-    void SessionReports::add(const crashpad::UUID& id, const bool crashed)
+    void SessionReports::add(const crashpad::UUID& id, const ReportKind kind)
     {
         const std::lock_guard lock(mMutex);
         mSession.mIds.push_back(id);
-        mSession.mCrashed = mSession.mCrashed || crashed;
+        mSession.mCrashed = mSession.mCrashed || kind == ReportKind::Crash;
     }
 
     void SessionReports::setLast(LastReport last)
@@ -163,17 +165,36 @@ namespace Crash
     {
         crashpad::UUID report;
         snapshot->ReportID(&report);
+        std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> summary
+            = produce(*snapshot, ReportKind::Crash, 0);
+        mParts.mReports.add(report, ReportKind::Crash);
+        return summary;
+    }
+
+    std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> SummarySource::produceHang(
+        const crashpad::ProcessSnapshot& snapshot, const std::uint32_t stalledFor)
+    {
+        return produce(snapshot, ReportKind::Hang, stalledFor);
+    }
+
+    std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> SummarySource::produce(
+        const crashpad::ProcessSnapshot& snapshot, const ReportKind kind, const std::uint32_t stalledFor)
+    {
+        crashpad::UUID report;
+        snapshot.ReportID(&report);
 
         // **The dump is written whatever the summary comes to**: this runs inside Crashpad's
         // handler, which a throw ends with the dump unwritten and the game left waiting on
         // it, and the monitor that reports a crash must not become one. What went wrong
         // stands where the summary would have.
         CrashFacts facts;
+        facts.mKind = kind;
+        facts.mStalledFor = stalledFor;
         std::string text;
         std::string failure;
         try
         {
-            text = describe(*snapshot, report.ToString() + ".dmp", facts);
+            text = describe(snapshot, report.ToString() + ".dmp", facts);
         }
         catch (const std::exception& thrown)
         {
@@ -193,14 +214,8 @@ namespace Crash
             text = std::string(unsummarised) + ": " + failure;
             mParts.mLog.write({ text });
             text += '\n';
-        }
-
-        mParts.mReports.add(report, facts.mNotes.mKind == ReportKind::Crash);
-        // After the read, which the game waits for before it puts its note table back.
-        if (Heartbeat* const page = mParts.mPage.get())
-            std::atomic_ref(page->mNotesRead).fetch_add(1, std::memory_order_release);
-        if (!failure.empty())
             mParts.mReports.setLast(LastReport{ std::string(unsummarised), { std::string(unsummarised) } });
+        }
         return std::make_unique<TextStream>(std::move(text));
     }
 
@@ -208,27 +223,37 @@ namespace Crash
         const crashpad::ProcessSnapshot& process, const std::string& dump, CrashFacts& facts)
     {
         const crashpad::ExceptionSnapshot* const exception = process.Exception();
-        const std::uint64_t asked = exception != nullptr ? exception->ThreadID() : 0;
-        facts.mStalledFor = mParts.mStalledFor.load();
         if (exception != nullptr)
             facts.mException = Monitor::describeException(*exception, mParts.mArguments.mClient);
 
-        // The exception says what the dump is, and the table only what a dump asked for is:
-        // `describeException` names every fault and nothing the game asked for.
-        std::vector<std::byte> table(noteTable().size());
-        const crashpad::ProcessMemory* const memory = process.Memory();
-        const bool read = memory != nullptr && mParts.mArguments.mNotes != 0
-            && memory->Read(mParts.mArguments.mNotes, table.size(), table.data());
+        // **A crash is about the thread that raised it, and a hang about the one that draws**, which
+        // the page names: a hang's snapshot has no exception.
         Heartbeat* const page = mParts.mPage.get();
-        const std::uint64_t drawing = page != nullptr ? std::atomic_ref(page->mDrawing).load() : 0;
-        readNotes(read ? std::span<const std::byte>(table) : std::span<const std::byte>(), asked, drawing,
-            !facts.mException.empty(), facts.mNotes);
+        const std::uint64_t thread = facts.mKind == ReportKind::Hang
+            ? (page != nullptr ? std::atomic_ref(page->mDrawing).load() : 0)
+            : (exception != nullptr ? exception->ThreadID() : 0);
+        if (page != nullptr)
+            facts.mFrames = std::atomic_ref(page->mFrames).load();
 
-        // A hang's report is about the thread that draws, whose context is its own: the
-        // exception's is the thread's that took the monitor's request.
-        const std::uint64_t thread = facts.mNotes.mThread;
-        const crashpad::CPUContext* const context
-            = exception != nullptr && thread == asked ? exception->Context() : contextOf(process, thread);
+        // The table travels as an annotation of the module that holds it, which is this executable.
+        // Copied, as a module answers its annotations by value.
+        std::vector<std::uint8_t> table;
+        for (const crashpad::ModuleSnapshot* module : process.Modules())
+            for (crashpad::AnnotationSnapshot& annotation : module->AnnotationObjects())
+                if (annotation.name == sNotesAnnotation)
+                    table = std::move(annotation.value);
+        readNotes(std::as_bytes(std::span(table)), thread, facts.mNotes);
+
+        timeval started{};
+        timeval taken{};
+        process.ProcessStartTime(&started);
+        process.SnapshotTime(&taken);
+        if (started.tv_sec != 0 && taken.tv_sec >= started.tv_sec)
+            facts.mUptime = std::chrono::seconds(taken.tv_sec - started.tv_sec);
+
+        const crashpad::CPUContext* const context = exception != nullptr && thread == exception->ThreadID()
+            ? exception->Context()
+            : contextOf(process, thread);
         if (context != nullptr)
         {
             facts.mWhere = locate(process.Modules(), context->InstructionPointer());

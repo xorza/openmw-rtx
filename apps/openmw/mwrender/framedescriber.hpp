@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -8,6 +10,8 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
+
+#include <components/sceneutil/stableidentity.hpp>
 
 #include "sceneframe.hpp"
 
@@ -100,13 +104,19 @@ namespace MWRender
             mPaused = paused;
         }
 
-        /// Says `node` was put somewhere else in one step, for the next frame described:
-        /// `SceneFrame::mJumped`. Never between `describe` and `frameDrawn`, where the described
-        /// frame spans the list and a growth would leave it dangling.
+        /// Says `node`, a reference's base node, was put somewhere else in one step, for the next
+        /// frame described: `SceneFrame::mJumped`, by the identity the game stamped on it. Never
+        /// between `describe` and `frameDrawn`, where the described frame spans the list and a
+        /// growth would leave it dangling.
         void noteJumped(const osg::Node& node)
         {
             assert(!mDescribed && "a jump noted while a described frame spans the list");
-            mJumped.push_back(&node);
+            const SceneUtil::StableIdentity* const stamped = SceneUtil::StableIdentity::find(node);
+            assert(stamped != nullptr && "a jump of a node the game stamped no identity on");
+            const std::uint64_t id = stamped->getId();
+            const auto at = std::ranges::lower_bound(mJumped, id);
+            if (at == mJumped.end() || *at != id)
+                mJumped.insert(at, id);
         }
 
         /// The described frame was drawn: lets go of the jumps it carried.
@@ -136,8 +146,8 @@ namespace MWRender
         bool mPaused = true;
 
         /// Kept across frames and cleared, so a frame allocates none of it once the most jumps any
-        /// frame held have been held.
-        std::vector<const osg::Node*> mJumped;
+        /// frame held have been held. Ascending, each once, which the walk searches.
+        std::vector<std::uint64_t> mJumped;
 
         /// Whether a frame `describe` made is not drawn yet, so its span of `mJumped` stands.
         bool mDescribed = false;

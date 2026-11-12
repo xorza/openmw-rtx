@@ -57,6 +57,10 @@ namespace MWRender
         void clear();
 
     private:
+        /// A ring under each emitter that wades, asked of the world: where the actor stands and
+        /// whether in water.
+        void pressWakes();
+
         std::vector<MWWorld::ConstPtr> mEmitters;
 
         /// Strikes since the last update, and the impulses the last update decided. Both refilled

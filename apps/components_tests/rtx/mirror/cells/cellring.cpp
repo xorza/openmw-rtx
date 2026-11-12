@@ -491,8 +491,16 @@ namespace Rtx::Testing
             {
                 ExtractionStats total;
                 ExtractionStats last;
+                // A walk a cell and one to see none added, and room past them for a cell walked twice.
+                const std::size_t most = 4 * sPreparedCells + 16;
+                std::size_t walks = 0;
                 do
                 {
+                    if (walks++ == most)
+                    {
+                        ADD_FAILURE() << "the ring still adopted cells after " << most << " walks";
+                        break;
+                    }
                     last = walk(mWalked++);
                     total += last;
                 } while (last.mMeshesAdded > 0);
@@ -599,6 +607,7 @@ namespace Rtx::Testing
             ExtractionStats walked;
             do
             {
+                ASSERT_LT(frame, 4 * sPreparedCells + 16) << "the ring still adopted cells";
                 mScene.clearPlacement();
                 ring->follow(mAround);
                 walked = mExtractor.extractWorld(*mEmpty, 0, frame++, *ring);

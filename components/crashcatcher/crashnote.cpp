@@ -3,9 +3,9 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
+#include <cstddef>
 #include <cstring>
 #include <string_view>
-#include <thread>
 #include <type_traits>
 
 #include <components/platform/process.hpp>
@@ -15,66 +15,67 @@ namespace Crash
     namespace
     {
         using Thread = std::atomic_ref<std::uint64_t>;
-        using Sequence = std::atomic_ref<std::uint32_t>;
+        using Word = std::atomic_ref<std::uint32_t>;
+    }
 
-        /// One thread's note, written by that thread alone and read by any.
-        ///
-        /// **A sequence counter and not a lock**, because the reader is the monitor, and a crash
-        /// stops the owner anywhere: odd while the owner writes, so a note stopped halfway is known
-        /// as one. Plain words reached through `std::atomic_ref`, so the table is trivially
-        /// copyable and the monitor can read it as the bytes it took out of the game.
-        struct Slot
-        {
-            alignas(Thread::required_alignment) std::uint64_t mThread;
-            alignas(Sequence::required_alignment) std::uint32_t mSequence;
-            char mText[sNoteCapacity];
-        };
+    /// One thread's note, written by that thread alone and read by any.
+    ///
+    /// **A sequence counter and not a lock**, because the reader is the monitor, and a crash stops
+    /// the owner anywhere: odd while the owner writes, so a note stopped halfway is known as one.
+    /// Plain words reached through `std::atomic_ref`, so the table is trivially copyable and the
+    /// monitor can read it as the bytes it took out of the game.
+    struct NoteSlot
+    {
+        alignas(Thread::required_alignment) std::uint64_t mThread;
+        alignas(Word::required_alignment) std::uint32_t mSequence;
+        char mText[sNoteCapacity];
+    };
 
+    namespace
+    {
         struct Table
         {
-            alignas(Sequence::required_alignment) std::uint32_t mKind;
             char mReason[sNoteCapacity];
-            Slot mSlots[sNoteThreads];
+            alignas(Word::required_alignment) std::uint32_t mRefused;
+            NoteSlot mSlots[sNoteThreads];
         };
 
         static_assert(std::is_trivially_copyable_v<Table>);
 
+        // The layout `omw crash` reads the table's annotation by (`tools/omw/crash.py`).
+        static_assert(offsetof(Table, mRefused) == sNoteCapacity);
+        static_assert(offsetof(Table, mSlots) == 264);
+        static_assert(sizeof(NoteSlot) == 272);
+        static_assert(offsetof(NoteSlot, mSequence) == 8);
+        static_assert(offsetof(NoteSlot, mText) == 12);
+
+        // Crashpad's `Annotation::kValueMaxSize`, which the table travels as one value of.
+        static_assert(sizeof(Table) < 5 * 4096);
+
         // A signal handler may touch only what never locks.
         static_assert(Thread::is_always_lock_free);
-        static_assert(Sequence::is_always_lock_free);
+        static_assert(Word::is_always_lock_free);
 
         Table sTable{};
 
-        /// Where a report stands: none, one being written, or the process ending on one.
-        enum Gate : std::uint32_t
-        {
-            Idle,
-            Busy,
-
-            /// A report's end, putting back what it found: a moment no other thread waits out by a limit.
-            Closing,
-
-            Ending,
-        };
-
-        std::atomic<std::uint32_t> sGate{ Idle };
-        static_assert(std::atomic<std::uint32_t>::is_always_lock_free);
-
-        /// The thread writing the report in progress, as `Platform::Process::currentThreadId` gives
-        /// it: what tells a fault inside a report from a fault beside one.
-        std::atomic<std::uint64_t> sReporter{ 0 };
-        static_assert(std::atomic<std::uint64_t>::is_always_lock_free);
-
-        /// What the table said before the report in progress, for `endReport` to put back. Touched
-        /// only by whoever holds the gate.
-        std::uint32_t sSavedKind = 0;
-        char sSavedReason[sNoteCapacity] = {};
+        /// Whether the process is ending on a report, whose reason the table then holds for good.
+        std::atomic<bool> sEnding{ false };
+        static_assert(std::atomic<bool>::is_always_lock_free);
 
         /// A thread's hold on its slot, given back as the thread ends, so that threads made and
         /// ended by the hundred do not fill the table with the dead.
         struct Claim
         {
-            Slot* mSlot = nullptr;
+            NoteSlot* mSlot = nullptr;
+
+            /// Whether this thread found the table full and was counted for it.
+            bool mRefused = false;
+
+            Claim() = default;
+            Claim(const Claim&) = delete;
+            Claim& operator=(const Claim&) = delete;
+            Claim(Claim&&) = delete;
+            Claim& operator=(Claim&&) = delete;
 
             ~Claim()
             {
@@ -83,9 +84,9 @@ namespace Crash
             }
         };
 
-        Slot* claimSlot(std::uint64_t thread)
+        NoteSlot* claimSlot(std::uint64_t thread)
         {
-            for (Slot& slot : sTable.mSlots)
+            for (NoteSlot& slot : sTable.mSlots)
             {
                 std::uint64_t free = 0;
                 if (Thread(slot.mThread).compare_exchange_strong(free, thread, std::memory_order_acq_rel))
@@ -118,29 +119,45 @@ namespace Crash
             std::copy_n(text.data(), length, into + at);
             return at + length;
         }
-    }
 
-    namespace
-    {
+        /// The calling thread's hold on its slot, which it may not have claimed yet.
+        Claim& ownClaim()
+        {
+            thread_local Claim claim;
+            return claim;
+        }
+
         /// The calling thread's slot, claimed on its first note and not before, so a thread that
         /// never notes holds none, and asked again while the table is full, so a thread that met it
         /// full notes once one ends. Null while the table is full.
-        Slot* ownSlot()
+        NoteSlot* ownSlot()
         {
-            thread_local Claim claim;
+            Claim& claim = ownClaim();
             if (claim.mSlot == nullptr)
+            {
                 claim.mSlot = claimSlot(Platform::Process::currentThreadId());
+                if (claim.mSlot == nullptr && !claim.mRefused)
+                {
+                    claim.mRefused = true;
+                    Word(sTable.mRefused).fetch_add(1, std::memory_order_relaxed);
+                }
+            }
             return claim.mSlot;
+        }
+
+        std::size_t lengthOf(const NoteSlot& slot)
+        {
+            return static_cast<std::size_t>(std::find(slot.mText, slot.mText + sNoteCapacity - 1, '\0') - slot.mText);
         }
 
         /// Runs `write` over the slot's text between the two steps of its sequence, and ends the
         /// text where `write` says.
         template <class Write>
-        void rewrite(Slot& slot, Write write)
+        void rewrite(NoteSlot& slot, Write write)
         {
-            Sequence(slot.mSequence).fetch_add(1, std::memory_order_acq_rel);
+            Word(slot.mSequence).fetch_add(1, std::memory_order_acq_rel);
             slot.mText[write(slot.mText)] = '\0';
-            Sequence(slot.mSequence).fetch_add(1, std::memory_order_release);
+            Word(slot.mSequence).fetch_add(1, std::memory_order_release);
         }
     }
 
@@ -151,118 +168,47 @@ namespace Crash
 
     void NoteScope::begin(std::string_view text)
     {
-        Slot* const slot = ownSlot();
-        if (slot == nullptr)
+        mSlot = ownSlot();
+        if (mSlot == nullptr)
             return;
 
-        mNoted = true;
-        mFoundLength
-            = static_cast<std::size_t>(std::find(slot->mText, slot->mText + sNoteCapacity - 1, '\0') - slot->mText);
-        std::memcpy(mFound, slot->mText, mFoundLength);
-        rewrite(*slot, [&](char (&into)[sNoteCapacity]) {
+        mFoundLength = lengthOf(*mSlot);
+        std::memcpy(mFound, mSlot->mText, mFoundLength);
+        rewrite(*mSlot, [&](char (&into)[sNoteCapacity]) {
             const std::size_t at = mFoundLength == 0 ? 0 : append(into, mFoundLength, " > ");
             return append(into, at, text);
         });
     }
 
-    std::string_view ownNote()
-    {
-        const Slot* const slot = ownSlot();
-        if (slot == nullptr)
-            return {};
-
-        return std::string_view(slot->mText,
-            static_cast<std::size_t>(std::find(slot->mText, slot->mText + sNoteCapacity - 1, '\0') - slot->mText));
-    }
-
     NoteScope::~NoteScope()
     {
-        if (!mNoted)
+        if (mSlot == nullptr)
             return;
 
-        rewrite(*ownSlot(), [&](char (&text)[sNoteCapacity]) {
+        assert(Thread(mSlot->mThread).load(std::memory_order_relaxed) == Platform::Process::currentThreadId()
+            && "a note scope ended on a thread other than the one it began on");
+        rewrite(*mSlot, [&](char (&text)[sNoteCapacity]) {
             std::memcpy(text, mFound, mFoundLength);
             return mFoundLength;
         });
     }
 
-    namespace
+    std::string_view ownNote()
     {
-        void setReport(ReportKind kind, std::string_view reason)
-        {
-            sTable.mReason[append(sTable.mReason, 0, reason)] = '\0';
-            Sequence(sTable.mKind).store(static_cast<std::uint32_t>(kind), std::memory_order_release);
-        }
+        // Read without a claim: a thread that never noted has nothing to say, and asking takes no slot.
+        const NoteSlot* const slot = ownClaim().mSlot;
+        if (slot == nullptr)
+            return {};
+
+        return std::string_view(slot->mText, lengthOf(*slot));
     }
 
-    bool beginReport(ReportKind kind, std::string_view reason)
+    void endingReason(std::string_view reason)
     {
-        std::uint32_t idle = Idle;
-        if (!sGate.compare_exchange_strong(idle, Busy, std::memory_order_acq_rel))
-            return false;
-
-        sReporter.store(Platform::Process::currentThreadId(), std::memory_order_release);
-        sSavedKind = Sequence(sTable.mKind).load(std::memory_order_relaxed);
-        std::memcpy(sSavedReason, sTable.mReason, sNoteCapacity);
-        setReport(kind, reason);
-        return true;
-    }
-
-    void endReport()
-    {
-        // **A report a final one took over puts nothing back**: that one's kind and reason are the
-        // table's now, and the dump being written reads them.
-        std::uint32_t found = Busy;
-        if (!sGate.compare_exchange_strong(found, Closing, std::memory_order_acq_rel))
-        {
-            assert(found == Ending && "a report ended that nothing began");
+        if (sEnding.exchange(true, std::memory_order_acq_rel))
             return;
-        }
 
-        std::memcpy(sTable.mReason, sSavedReason, sNoteCapacity);
-        Sequence(sTable.mKind).store(sSavedKind, std::memory_order_release);
-        sReporter.store(0, std::memory_order_release);
-        sGate.store(Idle, std::memory_order_release);
-    }
-
-    void finalReport(ReportKind kind, std::string_view reason, const std::chrono::milliseconds patience)
-    {
-        // Waited for rather than refused: the report in progress is another thread's and ends by
-        // itself, and this one is the last the process writes. **Taken over where it is this
-        // thread's own**, which nothing would end while this thread waits: a fatal error on the
-        // thread a report is being written from. **And where the wait runs out**, where a wait with no
-        // limit left a fatal error standing for good behind a report whose monitor had died: that
-        // report puts nothing back should it end after all (`endReport`).
-        const std::uint64_t self = Platform::Process::currentThreadId();
-        const auto due = std::chrono::steady_clock::now() + patience;
-        for (std::uint32_t found = Idle; !sGate.compare_exchange_weak(found, Ending, std::memory_order_acq_rel);
-            found = Idle)
-        {
-            if (found == Ending)
-                return;
-            if (found == Busy
-                && (sReporter.load(std::memory_order_acquire) == self || std::chrono::steady_clock::now() >= due)
-                && sGate.compare_exchange_strong(found, Ending, std::memory_order_acq_rel))
-                break;
-            std::this_thread::yield();
-        }
-
-        setReport(kind, reason);
-    }
-
-    FaultGate takeForFault()
-    {
-        std::uint32_t found = Idle;
-        if (sGate.compare_exchange_strong(found, Ending, std::memory_order_acq_rel) || found == Ending)
-            return FaultGate::Taken;
-
-        return sReporter.load(std::memory_order_acquire) == Platform::Process::currentThreadId() ? FaultGate::Own
-                                                                                                 : FaultGate::Other;
-    }
-
-    bool isReporting()
-    {
-        return sGate.load(std::memory_order_acquire) != Idle;
+        sTable.mReason[append(sTable.mReason, 0, reason)] = '\0';
     }
 
     std::span<const std::byte> noteTable()
@@ -270,34 +216,25 @@ namespace Crash
         return std::as_bytes(std::span(&sTable, 1));
     }
 
-    void readNotes(std::span<const std::byte> table, const std::uint64_t asked, const std::uint64_t drawing,
-        const bool faulted, NotesRead& into)
+    void readNotes(std::span<const std::byte> table, const std::uint64_t thread, NotesRead& into)
     {
         // Bytes out of another process, which a crash may have left any shape: a table of another
-        // size is no table, and a kind past the known ones is a crash's.
+        // size is no table.
         into = NotesRead{};
-        into.mThread = asked;
+        into.mThread = thread;
         if (table.size() != sizeof(Table))
             return;
 
         Table copy;
         std::memcpy(&copy, table.data(), sizeof(Table));
-        const ReportKind said = copy.mKind <= static_cast<std::uint32_t>(ReportKind::Report)
-            ? static_cast<ReportKind>(copy.mKind)
-            : ReportKind::Crash;
-        if (!faulted || said == ReportKind::Crash)
-        {
-            into.mKind = said;
-            std::memcpy(into.mReason, copy.mReason, sNoteCapacity);
-            into.mReason[sNoteCapacity - 1] = '\0';
-        }
-        if (into.mKind == ReportKind::Hang && drawing != 0)
-            into.mThread = drawing;
+        std::memcpy(into.mReason, copy.mReason, sNoteCapacity);
+        into.mReason[sNoteCapacity - 1] = '\0';
+        into.mRefused = copy.mRefused;
 
         // The process stands still while its table is copied, so a note whose count is odd is one
-        // its thread stopped in the middle of.
-        // A note stopped in its middle is kept even where it reads empty: something was being noted.
-        const auto take = [&](const Slot& slot) {
+        // its thread stopped in the middle of. Such a note is kept even where it reads empty:
+        // something was being noted.
+        const auto take = [&](const NoteSlot& slot) {
             const bool whole = slot.mSequence % 2 == 0;
             if (whole && slot.mText[0] == '\0')
                 return;
@@ -309,13 +246,13 @@ namespace Crash
             note.mWhole = whole;
         };
 
-        if (into.mThread != 0)
-            for (const Slot& slot : copy.mSlots)
-                if (slot.mThread == into.mThread)
+        if (thread != 0)
+            for (const NoteSlot& slot : copy.mSlots)
+                if (slot.mThread == thread)
                     take(slot);
 
-        for (const Slot& slot : copy.mSlots)
-            if (slot.mThread != 0 && slot.mThread != into.mThread)
+        for (const NoteSlot& slot : copy.mSlots)
+            if (slot.mThread != 0 && slot.mThread != thread)
                 take(slot);
     }
 }

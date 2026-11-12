@@ -1,6 +1,8 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -20,18 +22,34 @@ namespace Crash
     /// then name; Windows alone writes a code for it.
     inline constexpr std::uint32_t sSimulatedException = 0x517a7ed;
 
+    /// What a report is: a crash, which Crashpad's handler took, or a hang, which the monitor's watch
+    /// found and took a dump of itself.
+    enum class ReportKind : std::uint8_t
+    {
+        Crash,
+        Hang,
+    };
+
     /// What the monitor learnt of one report, in words and numbers it can print on any system.
     struct CrashFacts
     {
+        ReportKind mKind = ReportKind::Crash;
+
         NotesRead mNotes;
 
         /// The exception, as the system names it and with what it says of the fault: "SIGSEGV at
-        /// 0x10", "EXCEPTION_ACCESS_VIOLATION reading 0x10". Empty for a report the game asked
-        /// for, which faulted nothing.
+        /// 0x10", "EXCEPTION_ACCESS_VIOLATION reading 0x10". Empty for a hang, and for a crash the
+        /// game asked for, which faulted nothing.
         std::string mException;
 
-        /// How long the game drew no frame, where the monitor asked for a hang report.
+        /// How long the game drew no frame, for a hang.
         std::uint32_t mStalledFor = 0;
+
+        /// How long the game had run when the dump was taken, where the snapshot says.
+        std::optional<std::chrono::seconds> mUptime;
+
+        /// Frames the game had drawn, as the page counted them: what lines a report up with the log.
+        std::uint64_t mFrames = 0;
 
         /// The instruction it stopped at, as a module and an offset in it.
         std::string mWhere;

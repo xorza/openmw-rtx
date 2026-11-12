@@ -22,10 +22,6 @@ namespace Crash
         /// named none.
         std::uint32_t mClient = 0;
 
-        /// Where the note table lies in the game. Its length is `noteTable().size()`: the monitor
-        /// is this same executable.
-        std::uint64_t mNotes = 0;
-
         /// The application's name, read off Crashpad's own `product` annotation, which the game
         /// starts the monitor with (`Settings::mApplication`): not written a second time.
         std::string mApplication;

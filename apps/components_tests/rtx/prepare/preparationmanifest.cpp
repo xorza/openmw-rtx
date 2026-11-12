@@ -140,6 +140,14 @@ namespace Rtx
             EXPECT_EQ(patched(bytes.size() - 12, 2u), 0u) << "an index past the two names";
             EXPECT_EQ(patched(bytes.size() - 4, 1u), 0u) << "an index past the one key";
             EXPECT_EQ(patched(bytes.size() - 4, 0u), 1u) << "the file as written";
+
+            // **And a name no path of the game's spells**: the first name's one character made a
+            // capital, which a normalized path never holds, and the digest's view would throw on.
+            std::string upper = bytes;
+            ASSERT_EQ(upper[namesAt + 4 + 2], 'm') << "the layout this test reads is the one written";
+            upper[namesAt + 4 + 2] = 'M';
+            ASSERT_TRUE(Platform::writeWhole(path, std::string_view(upper), Platform::Durability::Whole).isOk());
+            EXPECT_EQ(PreparationManifest::read(path, sSignature).size(), 0u) << "a name not normalized";
         }
 
         /// **A model is kept until no run named it for `sUnnamedDaysMost` days, and a naming is a change

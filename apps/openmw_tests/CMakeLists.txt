@@ -23,13 +23,16 @@ target_sources(
         mwrender/precipitation.cpp
         mwrender/readworld.cpp
         mwrender/renderer.cpp
+        mwrender/rippleemitters.cpp
         mwrender/ripples.cpp
         mwrender/rtxrenderer.cpp
+        mwrender/rtxrun.cpp
         mwrender/rtxsettings.cpp
         mwrender/rtxsupport.cpp
         mwrender/rtxwindow.cpp
         mwrender/searules.cpp
         mwrender/skystate.cpp
+        mwrender/tracedground.cpp
         mwrender/tracedgroundcover.cpp
         mwrender/tracedterrain.cpp
         mwrender/viewschedule.cpp

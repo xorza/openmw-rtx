@@ -1,5 +1,6 @@
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <optional>
 #include <span>
@@ -44,6 +45,7 @@
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/sceneutil/extradata.hpp>
+#include <components/sceneutil/stableidentity.hpp>
 
 #include "fixture.hpp"
 
@@ -687,6 +689,8 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Group> root = new osg::Group;
             osg::ref_ptr<osg::MatrixTransform> jumper = new osg::MatrixTransform(osg::Matrix::translate(1.0, 0.0, 0.0));
             osg::ref_ptr<osg::MatrixTransform> walker = new osg::MatrixTransform(osg::Matrix::translate(0.0, 1.0, 0.0));
+            SceneUtil::StableIdentity::stamp(*jumper, 7);
+            SceneUtil::StableIdentity::stamp(*walker, 8);
             jumper->addChild(makeQuad());
             walker->addChild(makeQuad());
             root->addChild(jumper);
@@ -698,7 +702,7 @@ namespace Rtx::Testing
 
             jumper->setMatrix(osg::Matrix::translate(4000.0, 0.0, 0.0));
             walker->setMatrix(osg::Matrix::translate(0.0, 2.0, 0.0));
-            const std::array<const osg::Node*, 1> jumped{ jumper.get() };
+            const std::array<std::uint64_t, 1> jumped{ 7 };
             mExtractor.setJumped(jumped);
             mScene.clearPlacement();
             walk(*root, 0, 1);

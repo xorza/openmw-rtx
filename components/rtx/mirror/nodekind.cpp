@@ -5,6 +5,7 @@
 #include <osgParticle/ParticleProcessor>
 #include <osgParticle/ParticleSystem>
 #include <osgParticle/ParticleSystemUpdater>
+#include <typeinfo>
 
 #include <components/nifosg/autotransform.hpp>
 #include <components/sceneutil/lightmanager.hpp>
@@ -45,11 +46,10 @@ namespace Rtx
 
     NodeKind NodeKinds::of(const osg::Object& object) const
     {
-        const char* const library = object.libraryName();
-        const char* const name = object.className();
+        const std::type_info* const type = &typeid(object);
 
         for (std::size_t at = 0; at < mHeld; ++at)
-            if (mLearned[at].mLibrary == library && mLearned[at].mClass == name)
+            if (mLearned[at].mClass == type)
                 return mLearned[at].mKind;
 
         return learn(object);
@@ -61,7 +61,7 @@ namespace Rtx
 
         if (mHeld < mLearned.size())
         {
-            mLearned[mHeld] = Learned{ object.libraryName(), object.className(), kind };
+            mLearned[mHeld] = Learned{ &typeid(object), kind };
             ++mHeld;
         }
         else

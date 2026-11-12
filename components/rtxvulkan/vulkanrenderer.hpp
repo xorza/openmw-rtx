@@ -143,8 +143,8 @@ namespace Rtx
         bool tracePicture(GuiSlot texture, SceneSlot scene, const Shaders::VisibilityConstants& camera,
             const GuiTraceOptions& options);
 
-        /// @param width, height what the frame is presented at. What it is traced at is that over
-        ///        the mode's ratio, `extentsFor`.
+        /// @param width, height what the frame is presented at. What it is traced at is the
+        ///        upscaler's answer for the mode, `Upscaler::extentsFor`.
         void createTargets(std::uint32_t width, std::uint32_t height);
 
         /// Everything the queue was given and everything waiting to be given it, finished, and
@@ -172,7 +172,7 @@ namespace Rtx
         Instance mInstance;
 
         /// The window's surface, or null for no window: before the device, which is chosen for a
-        /// queue that presents to it, and after the presenter, which presents to it.
+        /// queue that presents to it, and handed to the presenter, its one owner from then on.
         std::unique_ptr<Surface> mSurface;
 
         Device mDevice;

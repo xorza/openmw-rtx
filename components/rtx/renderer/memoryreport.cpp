@@ -15,13 +15,13 @@ namespace Rtx
             // largest, and read as video memory it is a card with more room than it has. The index
             // takes two places, which sixteen heaps need.
             out += std::format(
-                "  heap {:>2}  {}  {:8.1f} MiB   ", heap, use.mDeviceLocal ? "device" : "system", megabytes(use.mSize));
-            out += std::format("reserved {:7.1f}   live {:7.1f}", megabytes(use.mReserved), megabytes(use.mLive));
+                "  heap {:>2}  {}  {:8.1f} MiB   ", heap, use.mDeviceLocal ? "device" : "system", mebibytes(use.mSize));
+            out += std::format("reserved {:7.1f}   live {:7.1f}", mebibytes(use.mReserved), mebibytes(use.mLive));
 
             // Nought from a driver that would not say, which is not the same answer as a budget of
             // none — so the columns are left off rather than printed as zeroes.
             if (use.mBudget > 0)
-                out += std::format("   budget {:7.1f}   held {:7.1f}", megabytes(use.mBudget), megabytes(use.mHeld));
+                out += std::format("   budget {:7.1f}   held {:7.1f}", mebibytes(use.mBudget), mebibytes(use.mHeld));
 
             out += std::format("   {} blocks\n", use.mBlocks);
         }
@@ -33,9 +33,9 @@ namespace Rtx
             out += std::format(
                 "  uses  frame {:.1f} of {:.1f} kept   essential {:.1f}   structures {:.1f}, room {:.1f}   "
                 "textures {:.1f}, room {:.1f}\n",
-                megabytes(uses.mFrame), megabytes(uses.mFrameReserve), megabytes(uses.mEssential),
-                megabytes(uses.mStructures), megabytes(uses.mStructureRoom), megabytes(uses.mTextures),
-                megabytes(uses.mTextureRoom));
+                mebibytes(uses.mFrame), mebibytes(uses.mFrameReserve), mebibytes(uses.mEssential),
+                mebibytes(uses.mStructures), mebibytes(uses.mStructureRoom), mebibytes(uses.mTextures),
+                mebibytes(uses.mTextureRoom));
 
         return out;
     }

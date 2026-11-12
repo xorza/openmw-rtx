@@ -77,7 +77,7 @@ namespace RtxTool
 
             /// `--upscaler`: which backend runs, FSR by default so a measured picture does not
             /// change with the card it was measured on.
-            Rtx::UpscalerChoice mUpscaler = Rtx::UpscalerChoice::Fsr;
+            Named<Rtx::UpscalerChoice> mUpscaler{ Rtx::UpscalerChoice::Fsr };
 
             std::optional<bool> mGrass;
             std::optional<float> mDistantCells;

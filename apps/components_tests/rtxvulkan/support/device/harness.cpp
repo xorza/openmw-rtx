@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <exception>
+#include <format>
 #include <memory>
 #include <span>
 #include <stdexcept>
@@ -13,9 +14,9 @@
 
 #include <volk.h>
 
+#include <apps/components_tests/rtx/support/bound.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtxvulkan/support/instanceobstacle.hpp>
-#include <components/files/configurationmanager.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -101,7 +102,7 @@ namespace Rtx::Testing
 
         harness->mDevice = std::make_unique<Device>(*harness->mInstance,
             PhysicalDevice::select(harness->mInstance->getHandle(), {}), getCensusShaders(), getPipelineCacheSpec(),
-            DeviceReport{ .mStatistics = PipelineStatistics::Captured, .mBreadcrumbs = true });
+            DeviceReport{ .mStatistics = PipelineStatistics::Captured, .mMarkers = true, .mCheckpoints = true });
         if (ValidationLog* log = harness->mInstance->getValidationLog(); log != nullptr)
             log->takeErrorsOnThisThread(harness->mMadeWith);
 
@@ -234,11 +235,10 @@ namespace Rtx::Testing
 
     PipelineCacheSpec getPipelineCacheSpec()
     {
-        // Silent, and built once: what is wanted is the path rule and not a configuration, and this
-        // constructor reads no files to answer it.
-        static const std::filesystem::path directory = Files::ConfigurationManager(true).getCachePath();
-
-        return PipelineCacheSpec{ .mDirectory = directory };
+        // **The suite's own, in its build folder**, kept across runs so a run compiles what changed:
+        // the player's cache under the home folder made what a test compiled, and how long it took,
+        // depend on what a game on the machine had left there.
+        return PipelineCacheSpec{ .mDirectory = std::filesystem::path(OPENMW_RTX_TEST_PIPELINE_CACHE_DIR) };
     }
 
     RendererOptions describeRenderer(std::uint32_t width, std::uint32_t height, bool validation)
@@ -268,9 +268,12 @@ namespace Rtx::Testing
 
     void awaitKernels(Renderer& renderer)
     {
-        while (!renderer.awaitKernels(KernelSet::Every, std::chrono::milliseconds(100)).isDone())
-        {
-        }
+        const WaitBound bound(sColdPatience);
+        for (JobProgress progress = renderer.awaitKernels(KernelSet::Every, std::chrono::milliseconds(100));
+            !progress.isDone(); progress = renderer.awaitKernels(KernelSet::Every, std::chrono::milliseconds(100)))
+            if (bound.passed())
+                throw std::runtime_error(std::format(
+                    "the renderer's kernels were {} of {} made after five minutes", progress.mMade, progress.mCount));
     }
 
     VulkanRenderer& getRenderer()
@@ -334,11 +337,15 @@ namespace Rtx::Testing
         // costs every history, as it does the game.
         mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
 
-        // And none of what a previous test told the renderer: its gamma, which every picture after
-        // it would be raised by, its upscaler, its filtering and its bounces, as the renderer was
-        // made with them, and its sea. The fog's field is put back by the one test that states
-        // another, since a field told drains the frames.
-        const RenderProfile made = describeRenderer(1, 1, true).mRun.mProfile;
+        // And none of what a previous test told the renderer: the modes its reserve keeps room for,
+        // its gamma, which every picture after it would be raised by, its upscaler, its filtering
+        // and its bounces, as the renderer was made with them, and its sea — so a test that failed
+        // before it put one back leaks nothing into the rest of the shard. The fog's field is put
+        // back by the one test that states another, under a guard, since a field told drains the
+        // frames.
+        const RunProfile madeRun = describeRenderer(1, 1, true).mRun;
+        const RenderProfile& made = madeRun.mProfile;
+        mProbe.setReservedUpscales(madeRun.mReservedUpscales);
         mRenderer.setGamma(made.mGamma);
         mRenderer.setUpscale(made.mUpscale);
         mRenderer.setAnisotropy(made.mAnisotropy);

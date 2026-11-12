@@ -66,9 +66,9 @@ namespace RtxTool
         void applyShippedMapNames(const ShippedDefaults& shipped)
         {
             Settings::ShadersCategory& shaders = Settings::shaders();
-            shaders.mNormalMapPattern.set(shipped.get<std::string>("Shaders", "normal map pattern"));
-            shaders.mNormalHeightMapPattern.set(shipped.get<std::string>("Shaders", "normal height map pattern"));
-            shaders.mSpecularMapPattern.set(shipped.get<std::string>("Shaders", "specular map pattern"));
+            shaders.mNormalMapPattern.set(shipped.get(shaders.mNormalMapPattern));
+            shaders.mNormalHeightMapPattern.set(shipped.get(shaders.mNormalHeightMapPattern));
+            shaders.mSpecularMapPattern.set(shipped.get(shaders.mSpecularMapPattern));
         }
     }
 

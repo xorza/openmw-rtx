@@ -374,8 +374,8 @@ namespace
 
     /// **The log is what the game had**: none at all, from a crash before the log was set up, is no
     /// missing file and packages the dumps alone, and one named but gone is a missing one. A
-    /// session with no dump reported nothing and is not packaged, and one with nothing on disk
-    /// says so. Neither leaves a file.
+    /// session with no dump, a crash whose dump could not be written, packages the log alone, and
+    /// one with nothing on disk says so and leaves no file.
     TEST_F(CrashPackageTest, aSessionPackagesOnlyWhatItReported)
     {
         const std::filesystem::path dump = write("only.dmp", "MDMP");
@@ -403,10 +403,13 @@ namespace
 
         const std::vector<std::filesystem::path> before = contents();
 
-        const Crash::SessionPackage nothingReported = Crash::writeSessionPackage(mFolder, "OpenMW", log, {}, local);
-        EXPECT_EQ(nothingReported.mZip, std::filesystem::path());
-        EXPECT_EQ(nothingReported.mFailure, "");
-        EXPECT_TRUE(nothingReported.mMissing.empty());
+        const Crash::SessionPackage logAlone = Crash::writeSessionPackage(mFolder, "OpenMW", log, {}, local);
+        EXPECT_EQ(logAlone.mFailure, "");
+        EXPECT_TRUE(logAlone.mMissing.empty());
+        ASSERT_EQ(CrashTests::readZip(logAlone.mZip, entries), std::nullopt);
+        ASSERT_EQ(entries.size(), 1u);
+        EXPECT_EQ(entries[0].mName, "openmw.log");
+        std::filesystem::remove(logAlone.mZip);
 
         const Crash::SessionPackage nothingOnDisk
             = Crash::writeSessionPackage(mFolder, "OpenMW", goneLog, { &goneDump, 1 }, local);

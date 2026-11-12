@@ -7,6 +7,7 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
@@ -68,7 +69,7 @@ namespace Rtx
         /// extent, on a batch that rides the next submit and that nobody here waits for: the next
         /// placement of the scene waits for what its tables say, and what the picture writes
         /// nothing else reads. Not counted and not timed, because the hit count and the report are
-        /// the frame's.
+        /// the frame's; checkpointed (`mZones`).
         void trace(GuiSlot texture, SceneSlot scene, const Shaders::VisibilityConstants& camera,
             const GuiTraceOptions& options, DeviceScene& traced, const RenderProfile& profile, const Parts& parts);
 
@@ -90,5 +91,12 @@ namespace Rtx
         /// traced beside it must not add to them. Bound because the shaders write both regardless.
         Buffer mCounts;
         Buffer mGlareCounts;
+
+        /// **Zones that only checkpoint**, so a device lost inside a picture names it and its pass
+        /// rather than the last zone of the frame before (`sPictureCheckpoint`); untimed, since the
+        /// report is the frame's. A picture's zones reuse the last picture's checkpoints in place, so a
+        /// fault in a picture still queued behind a newer one reads as the newer one.
+        GpuTimer mZones;
+        std::uint64_t mPictures = 0;
     };
 }

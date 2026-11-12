@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
@@ -36,11 +38,10 @@ namespace Rtx
             const GBuffer& buffer, const DenoiseFrame& frame) const;
 
     private:
-        ComputePipeline<Shaders::AccumulateConstants> mPipeline;
-        ComputePipeline<Shaders::AccumulateConstants> mPipelineNoFill;
-        ComputePipeline<Shaders::AccumulateClampConstants> mClamp;
-        ComputePipeline<Shaders::AccumulateClampConstants> mClampRing;
-        ComputePipeline<Shaders::AccumulateClampConstants> mClampNoFill;
-        ComputePipeline<Shaders::AccumulateClampConstants> mClampRingNoFill;
+        /// The accumulator without a fill and with one, by `fill` (`ACCUMULATE_SPEC_FILL`).
+        std::array<ComputePipeline<Shaders::AccumulateConstants>, 2> mPipelines;
+
+        /// The clamp by `ring << 1 | fill` (`ACCUMULATE_CLAMP_SPEC_RING`, `ACCUMULATE_CLAMP_SPEC_FILL`).
+        std::array<ComputePipeline<Shaders::AccumulateClampConstants>, 4> mClamps;
     };
 }

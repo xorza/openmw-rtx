@@ -49,8 +49,9 @@ namespace Rtx
 
         /// **A chain asked for the extent it stands at keeps what it holds**: an upscaling mode
         /// changed between two that trace at one size asks again, and the channels made anew for it
-        /// were fourteen images for nothing. A new width or a new height is a new chain, and every
-        /// chain stores its radiance at the width it was made with.
+        /// were fourteen images for nothing. A chain let go of stands again at a new width, a new
+        /// height or with the filter gone, and every chain stores its radiance at the width it was
+        /// made with.
         TEST_F(RtxTraceChainTest, aResizeToTheExtentItStandsAtRebuildsNothing)
         {
             for (const RadianceWidth radiance : { RadianceWidth::Summed, RadianceWidth::Shown })
@@ -60,30 +61,25 @@ namespace Rtx
 
                 const ImageArena wide = arenaFor(device, 64, 32, radiance);
                 chain.resize(64, 32, RendererFilter::Runs, everyOf(wide));
-                const GBuffer* const built = &chain.getChannels();
+                const VkImage built = chain.getChannels().get(Channel::Surface).getHandle();
                 EXPECT_EQ(chain.getColour().getFormat(), radianceFormat(radiance));
                 chain.resize(64, 32, RendererFilter::Runs, everyOf(wide));
-                EXPECT_EQ(&chain.getChannels(), built) << "the same extent made the channels anew";
+                EXPECT_EQ(chain.getChannels().get(Channel::Surface).getHandle(), built)
+                    << "the same extent made the channels anew";
 
-                const ImageArena narrow = arenaFor(device, 48, 32, radiance);
-                chain.resize(48, 32, RendererFilter::Runs, everyOf(narrow));
-                EXPECT_NE(&chain.getChannels(), built) << "another width kept the channels";
-                EXPECT_EQ(chain.getWidth(), 48u);
-                EXPECT_EQ(chain.getHeight(), 32u);
-                EXPECT_EQ(chain.getColour().getFormat(), radianceFormat(radiance)) << "a resize changed the width";
-
-                const GBuffer* const narrower = &chain.getChannels();
+                chain.release();
                 const ImageArena low = arenaFor(device, 48, 16, radiance);
                 chain.resize(48, 16, RendererFilter::Runs, everyOf(low));
-                EXPECT_NE(&chain.getChannels(), narrower) << "another height kept the channels";
+                EXPECT_EQ(chain.getWidth(), 48u);
+                EXPECT_EQ(chain.getHeight(), 16u);
+                EXPECT_EQ(chain.getColour().getFormat(), radianceFormat(radiance)) << "a resize changed the width";
 
                 // **The same extent with the filter gone is a new chain**: `native` and `off` trace at
                 // one size, and under an upscaler that filters the light itself only the second
                 // keeps a filter. Its histories go with it, and come back with it.
-                const GBuffer* const filtered = &chain.getChannels();
+                chain.release();
                 const ImageArena bare = arenaFor(device, 48, 16, radiance, RendererFilter::Absent);
                 chain.resize(48, 16, RendererFilter::Absent, everyOf(bare));
-                EXPECT_NE(&chain.getChannels(), filtered) << "the filter went and the channels stayed";
                 EXPECT_EQ(chain.getFilter(), RendererFilter::Absent);
                 for (const Channel channel : { Channel::PaneSurface, Channel::PaneMotion })
                 {
@@ -99,11 +95,12 @@ namespace Rtx
                 for (const Image* image : written)
                     EXPECT_EQ(image, nullptr) << "a chain with no filter named an image of one";
 
-                const GBuffer* const unfiltered = &chain.getChannels();
+                const VkImage unfiltered = chain.getChannels().get(Channel::Surface).getHandle();
                 chain.resize(48, 16, RendererFilter::Absent, everyOf(bare));
-                EXPECT_EQ(&chain.getChannels(), unfiltered) << "the same extent and filter made the channels anew";
+                EXPECT_EQ(chain.getChannels().get(Channel::Surface).getHandle(), unfiltered)
+                    << "the same extent and filter made the channels anew";
+                chain.release();
                 chain.resize(48, 16, RendererFilter::Runs, everyOf(low));
-                EXPECT_NE(&chain.getChannels(), unfiltered) << "the filter came back and the channels stayed";
                 EXPECT_EQ(chain.getFilter(), RendererFilter::Runs);
                 EXPECT_EQ(
                     chain.getChannels().get(Channel::PaneSurface).getWidth(), channelWidth(Channel::PaneSurface, 48))

@@ -1,3 +1,5 @@
+#include <array>
+
 #include <gtest/gtest.h>
 
 #include <components/rtx/frame/framepast.hpp>
@@ -41,15 +43,34 @@ namespace Rtx
         /// a cut and another worldspace lose the wake. What was lost stays lost.
         TEST(RtxFramePastTest, eventsBeforeOneFrameCostWhatEitherCosts)
         {
+            const auto lost = [](const FramePast& past) {
+                return std::array{ past.mReprojectionLost, past.mEyeLost, past.mWaterLost };
+            };
             FramePast past = FramePast::resized();
             past |= FramePast::of(HistoryLoss::Cut);
-            EXPECT_EQ(past, FramePast::of(HistoryLoss::Cut));
+            EXPECT_EQ(lost(past), lost(FramePast::of(HistoryLoss::Cut)));
+            EXPECT_EQ(describe(past), "a cut and a new extent: the reprojection and the eye");
 
             past |= FramePast::of(HistoryLoss::Worldspace);
-            EXPECT_EQ(past, FramePast::everything());
+            EXPECT_EQ(lost(past), lost(FramePast::everything()));
 
             past |= FramePast::of(HistoryLoss::None);
-            EXPECT_EQ(past, FramePast::everything()) << "a frame with nothing to say gave a loss back";
+            EXPECT_EQ(lost(past), lost(FramePast::everything())) << "a frame with nothing to say gave a loss back";
+            EXPECT_EQ(
+                describe(past), "a cut, another worldspace and a new extent: the reprojection, the eye and the wake");
+        }
+
+        /// **A reset says what caused it and what it cost**, each cause by its name, and nothing
+        /// where nothing is lost.
+        TEST(RtxFramePastTest, aResetSaysItsCauseAndItsCost)
+        {
+            EXPECT_EQ(describe(FramePast{}), "");
+            EXPECT_EQ(describe(FramePast::of(HistoryLoss::None)), "");
+            EXPECT_EQ(describe(FramePast::resized()), "a new extent: the reprojection");
+            EXPECT_EQ(describe(FramePast::everything()), "a new world: the reprojection, the eye and the wake");
+            EXPECT_EQ(describe(FramePast::of(HistoryLoss::Worldspace)),
+                "another worldspace: the reprojection, the eye and the wake");
+            EXPECT_EQ(describe(FramePast{ .mEyeLost = true }), "a loss nobody named: the eye");
         }
     }
 }

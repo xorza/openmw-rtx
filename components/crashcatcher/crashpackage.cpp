@@ -353,9 +353,6 @@ namespace Crash
         const std::filesystem::path& log, std::span<const std::filesystem::path> dumps, const std::tm& local)
     {
         SessionPackage package;
-        if (dumps.empty())
-            return package;
-
         try
         {
             std::vector<PackageFile> files;

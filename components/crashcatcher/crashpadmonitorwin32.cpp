@@ -1,14 +1,20 @@
 #include "crashpadmonitorsystem.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include <handler/handler_main.h>
 #include <snapshot/exception_snapshot.h>
+#include <snapshot/win/process_snapshot_win.h>
+#include <util/win/scoped_process_suspend.h>
+#include <util/win/termination_codes.h>
 
 #include <components/misc/windows.hpp>
 
@@ -44,8 +50,10 @@ namespace Crash::Monitor
     GameProcess::GameProcess(std::uint32_t id)
         : mId(id)
     {
-        const HANDLE handle
-            = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, FALSE, static_cast<DWORD>(id));
+        // What `ProcessSnapshotWin` reads a hang's dump with besides: the memory, and a suspension.
+        const HANDLE handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_SUSPEND_RESUME
+                | PROCESS_DUP_HANDLE | PROCESS_TERMINATE | SYNCHRONIZE,
+            FALSE, static_cast<DWORD>(id));
         if (handle != nullptr)
             mHold = Platform::UniqueHold<Closing>(reinterpret_cast<std::intptr_t>(handle));
     }
@@ -81,9 +89,48 @@ namespace Crash::Monitor
         return static_cast<std::uint32_t>(code);
     }
 
+    bool GameProcess::isGone() const
+    {
+        const HANDLE handle = handleOf(mHold.get());
+        return handle == nullptr || WaitForSingleObject(handle, 0) != WAIT_TIMEOUT;
+    }
+
+    bool GameProcess::readWhole(
+        const SnapshotStamp& stamp, const std::function<bool(const crashpad::ProcessSnapshot&)>& use) const
+    {
+        const HANDLE handle = handleOf(mHold.get());
+        if (handle == nullptr)
+            return false;
+
+        // Suspensions count, so a crash's dump that suspends the game meanwhile nests with this one.
+        const crashpad::ScopedProcessSuspend suspended(handle);
+        crashpad::ProcessSnapshotWin snapshot;
+        if (!snapshot.Initialize(handle, crashpad::ProcessSuspensionState::kSuspended, 0, 0))
+            return false;
+        snapshot.SetReportID(stamp.mReport);
+        snapshot.SetClientID(stamp.mClient);
+        snapshot.SetAnnotationsSimpleMap(stamp.mAnnotations);
+        return use(snapshot);
+    }
+
+    int runHandler(std::vector<std::string>& arguments, const HandlerParts& parts)
+    {
+        std::vector<char*> argv;
+        for (std::string& argument : arguments)
+            argv.push_back(argument.data());
+        argv.push_back(nullptr);
+        return crashpad::HandlerMain(static_cast<int>(argv.size() - 1), argv.data(), &parts.mSources);
+    }
+
     std::string describeExitCode(std::uint32_t code)
     {
         return nameOf(sExceptionNames, code, hex(code));
+    }
+
+    bool isCrashCode(std::uint32_t code)
+    {
+        return code == crashpad::kTerminationCodeCrashNoDump
+            || std::ranges::any_of(sExceptionNames, [&](const auto& named) { return named.first == code; });
     }
 
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t)

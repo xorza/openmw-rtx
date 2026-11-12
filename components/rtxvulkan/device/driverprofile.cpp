@@ -1,5 +1,7 @@
 #include "driverprofile.hpp"
 
+#include <components/platform/gpu.hpp>
+
 namespace Rtx
 {
     namespace
@@ -15,9 +17,10 @@ namespace Rtx
                 case VK_DRIVER_ID_MESA_RADV:
                     return StatisticNames{ .mScratch = "Scratch size", .mRegisters = "VGPRs", .mShared = "LDS size" };
                 case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
-                    return StatisticNames{
-                        .mScratch = {}, .mRegisters = "Register Count", .mShared = "Shared Memory Size"
-                    };
+                    return StatisticNames{ .mScratch = "Local Memory Size",
+                        .mRegisters = "Register Count",
+                        .mShared = "Shared Memory Size",
+                        .mScratchBits = 0xFFFFFFFF };
                 default:
                     return StatisticNames{};
             }
@@ -26,6 +29,7 @@ namespace Rtx
 
     DriverProfile DriverProfile::of(const std::uint32_t vendorId, const VkDriverId driver)
     {
-        return DriverProfile{ .mVendor = Platform::Gpu::vendorOf(vendorId), .mStatistics = statisticNamesOf(driver) };
+        return DriverProfile{ .mNgx = Platform::Gpu::vendorOf(vendorId) == Platform::Gpu::Vendor::Nvidia,
+            .mStatistics = statisticNamesOf(driver) };
     }
 }

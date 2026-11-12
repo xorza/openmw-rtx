@@ -8,6 +8,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
 namespace Rtx
@@ -157,6 +158,20 @@ namespace Rtx
                 EXPECT_NE(std::string(e.what()).find("a driver that never settles"), std::string::npos) << e.what();
                 EXPECT_NE(std::string(e.what()).find(std::to_string(sEnumerationTries)), std::string::npos) << e.what();
             }
+        }
+
+        /// **A lost device names what was in flight**: the submits after the last the host knew
+        /// finished, by their timeline values, and every heap; none in flight says so.
+        TEST(RtxResultTest, aLostDeviceNamesWhatWasInFlight)
+        {
+            MemoryReport memory;
+            memory.mHeapCount = 1;
+            memory.mHeaps[0] = HeapUse{ .mSize = 1ull << 30, .mReserved = 1ull << 20, .mLive = 1ull << 20 };
+            const std::string heaps = describeMemory(memory);
+            EXPECT_EQ(describeInFlight(1207, 1204, memory),
+                "\nsubmits in flight: 3, 1205 to 1207 (1204 known finished)\nvideo memory:\n" + heaps);
+            EXPECT_EQ(describeInFlight(12, 12, memory),
+                "\nsubmits in flight: 0 (12 known finished)\nvideo memory:\n" + heaps);
         }
     }
 }

@@ -2,6 +2,9 @@
 
 #include <cstdint>
 
+#include <components/esm/position.hpp>
+#include <components/esm/refid.hpp>
+
 #include <apps/openmw/mwrender/ground.hpp>
 
 #include "tracedterrain.hpp"
@@ -13,6 +16,14 @@ namespace Resource
 
 namespace MWRender
 {
+    /// **Whether a reference moved to `standing` has gone away from the cell its content places it
+    /// in, `placed`**, compared as cells on `worldspace`'s grid: the paging's own reference may stand
+    /// past its cell's edge, and a lantern swung there has gone nowhere. One standing in an interior
+    /// or another worldspace, which `sameWorldspace` says it does not, is away whatever its
+    /// coordinates read as on this grid.
+    bool standsAway(
+        bool sameWorldspace, const ESM::Position& standing, const ESM::Position& placed, ESM::RefId worldspace);
+
     class WorldMirror;
 
     /// The ground and the distance as the ray tracer has them: a `TracedTerrain` that draws no

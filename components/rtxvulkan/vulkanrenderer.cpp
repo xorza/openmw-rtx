@@ -20,10 +20,10 @@
 #include <osg/Vec2f>
 #include <vulkan/vulkan_core.h>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/dlss/dlss.hpp>
-#include <components/platform/gpu.hpp>
 #include <components/platform/memory.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
@@ -85,7 +85,7 @@ namespace Rtx
             const std::span<const ArenaImage> declared)
         {
             const VkExtent2D output{ width, height };
-            const FrameExtents extents = extentsFor(width, height, profile.mUpscale);
+            const FrameExtents extents = upscaler.extentsFor(width, height, profile.mUpscale);
             const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
             VkDeviceSize bytes = PresentTarget::bytesAt(device, width, height)
                 + DisplayChain::bytesAt(device, width, height)
@@ -113,18 +113,10 @@ namespace Rtx
             return Surface::getInstanceExtensions();
         }
 
-        /// What NGX needs on the instance, asked before the instance exists: its discovery call
-        /// says "before `vkCreateInstance`", and a missing extension would otherwise turn into a
-        /// feature that cannot be created after the device is already made. **Only where the system
-        /// has an NVIDIA adapter**, the one fact there is before a device is chosen: a Windows
-        /// machine keeps the NGX core in its DriverStore after its NVIDIA card is gone, and the
-        /// core is not to be loaded beside another vendor's driver for nothing.
+        /// What NGX needs on the instance, where the run may use DLSS.
         std::vector<std::string> dlssInstanceExtensionsFor(const std::optional<Dlss::Application>& application)
         {
-            if (!application.has_value() || !Platform::Gpu::has(Platform::Gpu::Vendor::Nvidia))
-                return {};
-
-            return application->requiredInstanceExtensions();
+            return application.has_value() ? application->requiredInstanceExtensions() : std::vector<std::string>();
         }
 
         /// Whether the frames report to the host (`RendererOptions::mReporting`).
@@ -143,10 +135,7 @@ namespace Rtx
             return std::optional<Dlss::Application>(std::in_place, options.mDlss);
         }
 
-        /// What NGX asks of an NVIDIA device for DLSS, where the run may use DLSS. **Tried on every
-        /// NVIDIA card the build has NGX for**: the query NGX answers before a device exists can be
-        /// inconclusive, and a false negative there must not silently cost an RTX card its upscaler.
-        /// Feature creation is the real answer (`DlssUpscaler`).
+        /// What NGX asks of a device for DLSS, where the run may use DLSS.
         std::function<std::vector<std::string>(VkInstance, VkPhysicalDevice, const DriverProfile&)> dlssExtensionsFor(
             const std::optional<Dlss::Application>& application)
         {
@@ -155,28 +144,8 @@ namespace Rtx
 
             const Dlss::Application& asked = *application;
             return [&asked](const VkInstance instance, const VkPhysicalDevice device, const DriverProfile& driver) {
-                if (driver.mVendor != Platform::Gpu::Vendor::Nvidia)
-                    return std::vector<std::string>();
-
-                std::vector<std::string> names = asked.requiredDeviceExtensions(instance, device);
-                std::string named;
-                for (const std::string& extension : names)
-                    named += (named.empty() ? "" : ", ") + extension;
-                Log(Debug::Info) << "NVIDIA DLSS: trying" << (named.empty() ? "" : ", NGX asks for " + named);
-                return names;
+                return asked.requiredDeviceExtensions(instance, device, driver);
             };
-        }
-
-        /// Whether DLSS runs here, as far as the facts before an attempt say: the device's vendor and the
-        /// player's library, asked in that order, whatever the run chose, so a run that chose FSR still
-        /// offers DLSS for the next start.
-        DlssAvailability dlssAvailabilityFor(const RendererOptions& options, const Device& device)
-        {
-            if (device.getPhysicalDevice().getDriver().mVendor != Platform::Gpu::Vendor::Nvidia)
-                return DlssAvailability::NotNvidia;
-            if (!DlssLibrary::installedIn(options.mDlss))
-                return DlssAvailability::NotInstalled;
-            return DlssAvailability::Present;
         }
 
         /// Whether a queue family presents to `surface`, or nothing to ask for no window.
@@ -185,8 +154,10 @@ namespace Rtx
             if (surface == nullptr)
                 return {};
 
-            return
-                [surface](VkPhysicalDevice device, std::uint32_t family) { return surface->supports(device, family); };
+            return [surface](VkPhysicalDevice device, std::uint32_t family) {
+                // A surface lost while the device is chosen presents nothing yet.
+                return surface->supports(device, family).value_or(false);
+            };
         }
     }
 
@@ -200,9 +171,11 @@ namespace Rtx
                   .mStatistics = measured(options) ? PipelineStatistics::Captured : PipelineStatistics::Skipped,
                   .mCodeFolder = options.mRun.mPipelineCode,
                   .mCounters = options.mRun.mZoneCounters,
-                  .mBreadcrumbs = options.mRun.mValidation.mBreadcrumbs,
+                  .mMarkers = options.mRun.mValidation.mMarkers,
+                  .mCheckpoints = options.mRun.mValidation.mCheckpoints,
                   .mAskedExtensions = dlssExtensionsFor(mDlss) })
-        , mUpscaler(mDevice, options.mRun.mProfile.mUpscaler, dlssAvailabilityFor(options, mDevice),
+        , mUpscaler(mDevice, options.mRun.mProfile.mUpscaler,
+              DlssUpscaler::availabilityOn(mDevice.getPhysicalDevice().getDriver(), options.mDlss),
               mDlss.has_value() ? &*mDlss : nullptr)
         , mUpscalers(offeredUpscalers(offersDlss(mUpscaler.getDlss())))
         , mCounting(measured(options))
@@ -234,7 +207,8 @@ namespace Rtx
                 log->disown(std::string(*runtime));
 
         if (options.mWindow != nullptr)
-            mPresenter = std::make_unique<Presenter>(mDevice, *mSurface, options.mWindow, options.mVerticalSync);
+            mPresenter
+                = std::make_unique<Presenter>(mDevice, std::move(mSurface), options.mWindow, options.mVerticalSync);
 
         createTargets(options.mWidth, options.mHeight);
     }
@@ -276,36 +250,41 @@ namespace Rtx
     {
         assert(width > 0 && height > 0);
 
-        // What to trace at is the mode's arithmetic, `extentsFor`, and the output where nothing
+        // What to trace at is the upscaler's answer for the mode, and the output where nothing
         // upscales.
         const VkExtent2D output{ width, height };
-        const FrameExtents extents = extentsFor(width, height, mProfile.mUpscale);
+        const FrameExtents extents = mUpscaler.extentsFor(width, height, mProfile.mUpscale);
         const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
-
-        // A frame of a different size is not one this one can be reprojected against; a mode that
-        // traces and shows at the sizes the last did keeps every history.
-        const bool traceMoves
-            = render.width != mFrame.getChain().getWidth() || render.height != mFrame.getChain().getHeight();
-        const bool outputMoves = !mTarget.isOpen() || output.width != mTarget.getExtent().width
-            || output.height != mTarget.getExtent().height;
-        if (traceMoves || outputMoves)
-            mDescriber.lose(FramePast::resized());
-
-        // Each time the targets are made, which a change of size or of mode is: the mode alone, Native
-        // against Off, moves no extent.
-        Log(Debug::Info) << std::format("Frame: {}x{} shown, traced at {}x{} ({}, {:.1f}% a side)", output.width,
-            output.height, render.width, render.height, sUpscaleNames.name(mProfile.mUpscale),
-            100.0 * render.width / output.width);
+        const Crash::NoteScope noted("making the frame's targets: {}x{} shown, traced at {}x{}, upscale {}",
+            output.width, output.height, render.width, render.height, sUpscaleNames.name(mProfile.mUpscale));
 
         std::vector<ArenaImage> declared;
         FrameTracer::declare(render, output, mProfile, mUpscaler, declared);
         const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared, mUpscaler);
 
+        // A frame of a different size is not one this one can be reprojected against; a mode that
+        // traces and shows at the sizes the last did keeps every history.
+        if (moves.mRenderExtent || moves.mOutputExtent)
+            mDescriber.lose(FramePast::resized());
+
+        // **Each time the targets are made**, which a change of size or of mode is, everything that
+        // decides the picture: the mode alone, Native against Off, moves no extent, and a mode that
+        // keeps its extents keeps the chain and every history.
+        const std::string frame
+            = std::format("{}x{} shown, traced at {}x{} ({}, {:.1f}% a side), by {}, the light filtered by the {}",
+                output.width, output.height, render.width, render.height, sUpscaleNames.name(mProfile.mUpscale),
+                100.0 * render.width / output.width, sUpscalerNames.name(mUpscaler.getChoice()),
+                rendererFilters(mProfile.mUpscale, mUpscaler.getInput()) ? "renderer" : "upscaler");
+        Log(Debug::Info) << "Frame: " << frame << ", the trace chain " << (moves.mTrace ? "made again" : "kept")
+                         << ", the upscaler's targets " << (moves.mUpscaler ? "made again" : "kept");
+        // What a report of a crash after this says the frame was.
+        Crash::annotate("frame", frame);
+
         // **The targets a mode does not keep go before the new are made**, so a change of mode
         // holds one set of them and never two: content stops where the set it takes still fits
         // (`MemoryUse::Frame`), which leaves no room for a second beside the first. A change of mode
         // may wait, as a new world does.
-        const bool shownMoves = mTarget.isOpen() && outputMoves;
+        const bool shownMoves = mTarget.isOpen() && moves.mOutputExtent;
         const bool picturesMove = mPictures.isBuilt() && !mPictures.isAt(mPictureRoom);
         if (mFrame.releases(moves) || shownMoves || picturesMove)
         {
@@ -318,7 +297,7 @@ namespace Rtx
             }
             if (picturesMove)
                 mPictures.release();
-            if (traceMoves || moves.mArena)
+            if (moves.mRenderExtent || moves.mArena)
                 mShownRadiance = nullptr;
             mDevice.collectIdle();
         }
@@ -333,7 +312,7 @@ namespace Rtx
         for (const Upscale mode : mReservedUpscales)
             if (upscales(mode) && mode != mProfile.mUpscale)
             {
-                const FrameExtents its = extentsFor(width, height, mode);
+                const FrameExtents its = mUpscaler.extentsFor(width, height, mode);
                 mUpscaler.measure(mode, VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output);
             }
         MemoryAllocator& memory = mDevice.getMemory();
@@ -348,7 +327,7 @@ namespace Rtx
         {
             RenderProfile reserved = mProfile;
             reserved.mUpscale = mode;
-            const FrameExtents its = extentsFor(width, height, mode);
+            const FrameExtents its = mUpscaler.extentsFor(width, height, mode);
             std::vector<ArenaImage> itsDeclared;
             FrameTracer::declare(
                 VkExtent2D{ its.mRenderWidth, its.mRenderHeight }, output, reserved, mUpscaler, itsDeclared);
@@ -378,7 +357,7 @@ namespace Rtx
         }
 
         // **Placed again only where the arena moved**, which the device was drained for.
-        mFrame.resize(render, output, mProfile.mUpscale, std::move(declared), mUpscaler);
+        mFrame.resize(moves, render, output, mProfile.mUpscale, std::move(declared), mUpscaler);
 
         mTarget.resize(mDevice, width, height);
 
@@ -411,7 +390,7 @@ namespace Rtx
         report += "\nmemory\n" + describeMemory(mDevice.getMemory().report());
         const std::optional<std::uint64_t> system = Platform::availableMemory();
         report += system.has_value()
-            ? std::format("  system memory the process may still take: {:.1f} MiB\n", megabytes(*system))
+            ? std::format("  system memory the process may still take: {:.1f} MiB\n", mebibytes(*system))
             : std::string("  system memory the process may still take: not stated\n");
 
         // Reaching here is the part that proves the rest: the device resolved every entry point the
@@ -868,6 +847,8 @@ namespace Rtx
         // with the previous camera kept, a reprojection would fetch one room onto another. Spent
         // here, by the frame it describes, whatever made it.
         const FramePast past = mDescriber.takePast(options.mLoss);
+        if (past.losesAny())
+            Log(Debug::Verbose) << "History reset by " << describe(past);
 
         Shaders::VisibilityConstants sampled = sampleFrame(
             camera, options, mProfile, reconstruction, world.getCounts(), mDescriber.reprojectingFrom(past));
@@ -966,7 +947,7 @@ namespace Rtx
             if (!reconstruction.upscaled())
                 return traced.mColour;
 
-            return mUpscaler.record(commands, uploads,
+            return mUpscaler.record(commands,
                 UpscaleInputs{
                     .mColour = traced.mColour,
                     .mSurface = channels.get(Channel::Surface),
@@ -981,7 +962,6 @@ namespace Rtx
                     .mFrame = sampled.mFrame,
                     .mJitterPhases = reconstruction.mJitterPhases,
                     .mSeconds = options.mSinceLast,
-                    .mSlot = mRing.getRecordingSlot(),
                 },
                 &timer);
         }();

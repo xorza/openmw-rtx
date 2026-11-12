@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
 
 #include <vulkan/vulkan_core.h>
@@ -103,6 +104,15 @@ namespace Rtx
 
     inline constexpr std::size_t sMemoryUses = static_cast<std::size_t>(MemoryUse::Texture) + 1;
 
+    /// What `use` is called in a message: "frame", "essential", "structure", "texture".
+    std::string_view nameOf(MemoryUse use);
+
+    /// **What a refused `take` says**: the library's answer, the bytes, the use and the resource it
+    /// was for, then every heap as `describeMemory` reads them. Out of memory names its subject and
+    /// how full the card was, where the call alone said nothing of either.
+    std::string describeRefusedTake(
+        VkResult result, VkDeviceSize bytes, MemoryUse use, std::string_view name, const MemoryReport& report);
+
     /// Whether `use` is memory nothing stands in for, which `MemoryAllocator::take` makes and never
     /// refuses.
     constexpr bool isNeverRefused(const MemoryUse use)
@@ -184,20 +194,32 @@ namespace Rtx
     /// device-address flag, because every buffer here may be addressed; a host-visible range is
     /// mapped as it is made. Thread-safe, because `VisibilityPass::compileEvery` reaches `take`
     /// from a thread per core.
+    /// The extensions of the device's memory that were enabled, which the allocator works with.
+    struct MemoryExtensions
+    {
+        /// `VK_EXT_memory_budget`. Optional, because a driver without it only leaves the ceilings
+        /// on the library's own estimate — four fifths of each heap, less what it holds itself —
+        /// and the report without its budget.
+        bool mBudget = false;
+
+        /// `VK_EXT_memory_priority`. Content then goes below what the frame holds, so a driver
+        /// moving video memory out under pressure moves structures and textures first; without it
+        /// every allocation is one priority.
+        bool mPriority = false;
+
+        /// `VK_AMD_device_coherent_memory`, which the uncached buffer markers are placed in
+        /// (`BufferKind::Markers`); nothing else is.
+        bool mDeviceCoherent = false;
+    };
+
     class MemoryAllocator
     {
     public:
         /// @param memory the device's heaps and types, read once when the device was chosen. Kept
         ///        for the report, which says what each heap is beside what it holds.
-        /// @param budget whether `VK_EXT_memory_budget` was enabled. Optional, because a driver
-        ///        without it only leaves the ceilings on the library's own estimate — four fifths
-        ///        of each heap, less what it holds itself — and the report without its budget.
-        /// @param priority whether `VK_EXT_memory_priority` was enabled. Content then goes below
-        ///        what the frame holds, so a driver moving video memory out under pressure moves
-        ///        structures and textures first; without it every allocation is one priority.
         /// @param device whose graveyard a range goes to as it is let go.
         MemoryAllocator(const Device& device, VkInstance instance, VkPhysicalDevice physicalDevice,
-            const VkPhysicalDeviceMemoryProperties& memory, bool budget, bool priority);
+            const VkPhysicalDeviceMemoryProperties& memory, MemoryExtensions extensions);
         ~MemoryAllocator();
 
         MemoryAllocator(const MemoryAllocator&) = delete;
@@ -207,19 +229,21 @@ namespace Rtx
         /// driver's alignment for binding it and `alignment` — what the buffer's use owes beyond the
         /// bind, which `Buffer` reads off its usage — as `use`: the frame's targets or other
         /// essential memory, so never refused here. Throws `DeviceError` where the device has no
-        /// room, and `Unsupported` where it offers no memory type that is `properties`, which on
-        /// hardware that meets the requirements means the request was wrong.
-        DeviceMemory take(VkBuffer buffer, VkMemoryPropertyFlags properties, VkDeviceSize alignment, MemoryUse use);
+        /// room, naming `name`, the bytes, the use and every heap (`describeRefusedTake`), and
+        /// `Unsupported` where it offers no memory type that is `properties`, which on hardware
+        /// that meets the requirements means the request was wrong.
+        DeviceMemory take(VkBuffer buffer, VkMemoryPropertyFlags properties, VkDeviceSize alignment, MemoryUse use,
+            std::string_view name);
 
         /// The same for an image, at the driver's alignment, which the allocator keeps its
         /// granularity away from a buffer's, as `use`: the frame's targets or other essential
         /// memory.
-        DeviceMemory take(VkImage image, VkMemoryPropertyFlags properties, MemoryUse use);
+        DeviceMemory take(VkImage image, VkMemoryPropertyFlags properties, MemoryUse use, std::string_view name);
 
         /// Video memory that `requirements` asks, which the caller binds resources into at offsets of
         /// its own — an arena's (`ImageArena`) — as `use`: the frame's targets or other essential
         /// memory, so never refused here, and throwing as `take` for a buffer does.
-        DeviceMemory take(const VkMemoryRequirements& requirements, MemoryUse use);
+        DeviceMemory take(const VkMemoryRequirements& requirements, MemoryUse use, std::string_view name);
 
         /// Room for `buffer` as `use`, or why there is none. Out of the blocks content already
         /// holds wherever it fits there, because that costs the heap nothing; otherwise out of new
@@ -232,11 +256,13 @@ namespace Rtx
         /// block the frame's own memory opened would take room the frame had already been given,
         /// past every ceiling; in blocks of their own, what each use holds and what it may take
         /// are both exact to the block.
-        Result<DeviceMemory, MemoryRefusal> tryTake(
-            VkBuffer buffer, VkMemoryPropertyFlags properties, VkDeviceSize alignment, MemoryUse use);
+        /// `name` is what `take` names, for a use never refused here.
+        Result<DeviceMemory, MemoryRefusal> tryTake(VkBuffer buffer, VkMemoryPropertyFlags properties,
+            VkDeviceSize alignment, MemoryUse use, std::string_view name);
 
         /// The same for an image.
-        Result<DeviceMemory, MemoryRefusal> tryTake(VkImage image, VkMemoryPropertyFlags properties, MemoryUse use);
+        Result<DeviceMemory, MemoryRefusal> tryTake(
+            VkImage image, VkMemoryPropertyFlags properties, MemoryUse use, std::string_view name);
 
         /// About how many bytes of video memory `use` may still take: what content's blocks have
         /// free, and the whole blocks its ceiling leaves room for. For a caller sizing what it asks
@@ -307,6 +333,11 @@ namespace Rtx
             bool mOwn = false;
         };
 
+        /// Throws what `take` throws where the library answered `result` for `bytes` as `use` for
+        /// `name`, and returns where it placed them.
+        void checkTaken(VkResult result, VkMemoryPropertyFlags properties, VkDeviceSize bytes, MemoryUse use,
+            std::string_view name) const;
+
         /// `Requirements` as `Query`, `vkGetBufferMemoryRequirements2` or its image's, answers `info`.
         template <auto& Query, class Info>
         Requirements requirementsOf(const Info& info) const;
@@ -315,7 +346,7 @@ namespace Rtx
         /// is handed, which place the resource at `alignment` at least.
         template <class Allocate>
         Result<DeviceMemory, MemoryRefusal> tryAllocate(const Requirements& requirements, VkDeviceSize alignment,
-            VkMemoryPropertyFlags properties, MemoryUse use, Allocate&& allocate);
+            VkMemoryPropertyFlags properties, MemoryUse use, std::string_view name, Allocate&& allocate);
 
         /// What the library placed, as a range counted for `use`.
         DeviceMemory hold(VmaAllocation_T* allocation, VkDeviceMemory handle, VkDeviceSize offset, void* mapped,
@@ -356,7 +387,8 @@ namespace Rtx
         class Library
         {
         public:
-            Library(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device, bool budget, bool priority);
+            Library(const Device& device, VkInstance instance, VkPhysicalDevice physicalDevice,
+                MemoryExtensions extensions);
             ~Library();
 
             Library(const Library&) = delete;
@@ -369,7 +401,7 @@ namespace Rtx
             VmaPool_T* poolOf(std::uint32_t type) const { return mPools[type]; }
 
             /// Makes the pool over `type`.
-            void makePool(std::uint32_t type);
+            void makePool(const Device& device, std::uint32_t type);
 
         private:
             VmaAllocator_T* mAllocator = nullptr;

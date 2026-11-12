@@ -30,11 +30,13 @@ namespace RtxTool
     }
 
     template <class T>
-    T ShippedDefaults::get(const std::string_view category, const std::string_view setting) const
+    T ShippedDefaults::get(const Settings::SettingValue<T>& setting) const
     {
-        const auto found = mShipped.find(Settings::CategorySetting(category, setting));
+        const std::string_view category = setting.mCategory;
+        const std::string_view name = setting.mName;
+        const auto found = mShipped.find(Settings::CategorySetting(category, name));
         if (found == mShipped.end())
-            throw std::runtime_error(std::format("defaults.bin names no [{}] {}", category, setting));
+            throw std::runtime_error(std::format("defaults.bin names no [{}] {}", category, name));
 
         const std::string& text = found->second;
         if constexpr (std::is_same_v<T, std::string>)
@@ -47,14 +49,60 @@ namespace RtxTool
                 return *number;
 
             throw std::runtime_error(
-                std::format("defaults.bin's [{}] {} is not a finite number: \"{}\"", category, setting, text));
+                std::format("defaults.bin's [{}] {} is not a finite number: \"{}\"", category, name, text));
         }
     }
 
-    template float ShippedDefaults::get<float>(std::string_view, std::string_view) const;
-    template int ShippedDefaults::get<int>(std::string_view, std::string_view) const;
-    template bool ShippedDefaults::get<bool>(std::string_view, std::string_view) const;
-    template std::string ShippedDefaults::get<std::string>(std::string_view, std::string_view) const;
+    template float ShippedDefaults::get<float>(const Settings::SettingValue<float>&) const;
+    template int ShippedDefaults::get<int>(const Settings::SettingValue<int>&) const;
+    template bool ShippedDefaults::get<bool>(const Settings::SettingValue<bool>&) const;
+    template std::string ShippedDefaults::get<std::string>(const Settings::SettingValue<std::string>&) const;
+
+    MWRender::RtxSettingValues measuredSettings(const ShippedDefaults& shipped, const ToolLine::Frame& line)
+    {
+        const Rtx::SamplingSwitches& sampling = line.mReconstruction.mSampling;
+        return MWRender::RtxSettingValues{
+            .mUpscale = line.mUpscale.mValue,
+            .mUpscaler = line.mUpscaler.mValue,
+            .mIndirectLighting = sampling.mIndirect,
+            .mBounceRays = static_cast<int>(sampling.mBounceRays),
+            .mDistantLandCells = shipped.get(Settings::rtx().mDistantLandCells),
+            .mViewingDistance = shipped.get(Settings::camera().mViewingDistance),
+            .mObjectPaging = shipped.get(Settings::terrain().mObjectPaging),
+            .mObjectPagingMinSize = shipped.get(Settings::terrain().mObjectPagingMinSize),
+            .mGroundcover = shipped.get(Settings::groundcover().mEnabled),
+            .mGroundcoverDistance = shipped.get(Settings::groundcover().mRenderingDistance),
+            .mGroundcoverDensity = shipped.get(Settings::groundcover().mDensity),
+            .mGroundcoverPointLighting = shipped.get(Settings::groundcover().mPointLighting),
+            .mAnisotropy = shipped.get(Settings::general().mAnisotropy),
+            .mGamma = shipped.get(Settings::video().mGamma),
+            .mLitEnvironmentMaps = shipped.get(Settings::shaders().mApplyLightingToEnvironmentMaps),
+        };
+    }
+
+    MWRender::RtxSettingValues overLine(const ToolLine::Frame& line, MWRender::RtxSettingValues source)
+    {
+        const auto take = [](auto& into, const auto& named) {
+            if (named.has_value())
+                into = *named;
+        };
+        const auto takeNamed = [](auto& into, const auto& named) {
+            if (named.mNamed)
+                into = named.mValue;
+        };
+        takeNamed(source.mUpscale, line.mUpscale);
+        takeNamed(source.mUpscaler, line.mUpscaler);
+        const Rtx::SamplingSwitches& sampling = line.mReconstruction.mSampling;
+        if (line.mBouncesNamed.mIndirect)
+            source.mIndirectLighting = sampling.mIndirect;
+        if (line.mBouncesNamed.mBounceRays)
+            source.mBounceRays = static_cast<int>(sampling.mBounceRays);
+        take(source.mGroundcover, line.mGrass);
+        take(source.mDistantLandCells, line.mDistantCells);
+        take(source.mObjectPaging, line.mDistantStatics);
+        take(source.mGamma, line.mGamma);
+        return source;
+    }
 
     void WindowRequest::keepPlayersLimit()
     {

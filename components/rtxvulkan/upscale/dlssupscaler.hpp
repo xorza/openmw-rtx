@@ -8,6 +8,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/dlss/dlss.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
@@ -22,8 +23,28 @@ namespace Rtx::Dlss
 namespace Rtx
 {
     class Device;
+    struct DriverProfile;
     class GpuTimer;
-    class Uploads;
+
+    /// Whether DLSS runs on this machine: each fact `Auto` and the menus read, in the order they are
+    /// asked, and what the attempt came to once one was made.
+    enum class DlssAvailability
+    {
+        /// The renderer's device is not NVIDIA's.
+        NotNvidia,
+
+        /// The player's feature library is not where NGX looks.
+        NotInstalled,
+
+        /// Every fact holds, and no DLSS was made: what `Auto` resolves to DLSS by.
+        Present,
+
+        /// DLSS was made and refused, so `Auto` came to FSR.
+        Refused,
+
+        /// DLSS runs.
+        Ready,
+    };
 
     /// NVIDIA DLSS Ray Reconstruction, through the NGX runtime the driver installs: one learned pass
     /// that denoises the noisy frame and upscales it, in place of the renderer's own filter and an
@@ -42,6 +63,11 @@ namespace Rtx
     class DlssUpscaler
     {
     public:
+        /// Whether DLSS runs on a device of `driver` with the player's library looked for in
+        /// `folders`, as far as the facts before an attempt say: the device first, then the library,
+        /// whatever the run chose, so a run that chose FSR still offers DLSS for the next start.
+        static DlssAvailability availabilityOn(const DriverProfile& driver, const DlssLibrary::Folders& folders);
+
         /// Throws `UpscalerRefused`, naming why, where the driver, the card or the library refuses.
         /// @param application what NGX is told of the application, which outlives this; null in a
         ///        run that never asked for DLSS, whose device is no candidate and is refused first.
@@ -50,6 +76,11 @@ namespace Rtx
 
         DlssUpscaler(const DlssUpscaler&) = delete;
         DlssUpscaler& operator=(const DlssUpscaler&) = delete;
+
+        /// What `mode` traces at for `output`: NGX's optimal settings, as the feature is made for, since
+        /// Ray Reconstruction takes no extent but the one it gives (DLSS-RR Integration Guide 3.3).
+        /// Throws `DeviceError` where NGX gives none.
+        VkExtent2D renderExtentFor(Upscale mode, VkExtent2D output) const;
 
         /// Makes the feature at `mode`'s quality for one pair of extents, where it does not stand at
         /// them already, and measures what NGX holds for it (`bytesAt`): **ahead of the frame's
@@ -94,9 +125,8 @@ namespace Rtx
         bool isFresh() const { return mFresh; }
 
         /// Records the guide pass and the NGX evaluation, and hands the output image to the display.
-        /// After `resize`. The frame's constants are written through `uploads`, ordered here ahead of
-        /// the guide pass.
-        HandedImage record(VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer);
+        /// After `resize`. The frame's constants are written in queue order ahead of the guide pass.
+        HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer);
 
         /// One line for `info`: the backend, and no version, since the version is the player's
         /// library and not the build's.

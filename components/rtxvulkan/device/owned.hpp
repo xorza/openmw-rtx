@@ -81,7 +81,7 @@ namespace Rtx
         static Handled make(const Ending& ending, Create create, const Info& info, const char* call)
         {
             Handle made = VK_NULL_HANDLE;
-            checkVk(create(ending.parent(), &info, nullptr, &made), call);
+            ending.check(create(ending.parent(), &info, nullptr, &made), call);
             return Handled(ending, made);
         }
 
@@ -112,6 +112,9 @@ namespace Rtx
 
         VkDevice parent() const { return vulkanHandleOf(*mDevice); }
 
+        /// What a create answered, as a call on the device it belongs to.
+        void check(VkResult result, const char* call) const { checkVk(*mDevice, result, call); }
+
         void end(Handle handle) const { buryHandle(*mDevice, &endNow, std::bit_cast<std::uint64_t>(handle)); }
 
         static void endNow(const Device& device, const std::uint64_t handle)
@@ -136,6 +139,10 @@ namespace Rtx
         }
 
         Parent parent() const { return mParent; }
+
+        /// What a create answered, about a handle the device itself must outlive, which holds no
+        /// device to say a loss through.
+        void check(VkResult result, const char* call) const { checkVkWithoutDevice(result, call); }
 
         void end(Handle handle) const { mDestroy(mParent, handle, nullptr); }
 

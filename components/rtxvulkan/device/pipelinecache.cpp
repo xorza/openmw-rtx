@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <format>
 #include <span>
 #include <string>
 #include <string_view>
@@ -12,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/bytebuffer.hpp>
@@ -20,6 +22,7 @@
 #include <components/misc/result.hpp>
 #include <components/platform/folder.hpp>
 #include <components/platform/wholefile.hpp>
+#include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 
 #include "result.hpp"
@@ -213,6 +216,9 @@ namespace Rtx
         , mProperties(properties)
         , mPath(cachePath(spec, properties, shaderDirectory))
     {
+        // A player whose driver chokes on the cache reads which file to delete.
+        const Crash::NoteScope noted("loading the pipeline cache \"{}\"", Files::pathToUnicodeString(mPath));
+
         // No file is no object: `PipelineCacheSpec::mDirectory` says why a measuring process may
         // not share even an empty one between its compiles.
         if (mPath.empty())
@@ -338,8 +344,8 @@ namespace Rtx
         // would have the run after that grow past the cap again from where this one did.
         if (bytes > sMostBytes)
         {
-            Log(Debug::Warning) << "Rtx: the pipeline cache reached " << bytes / (1024 * 1024)
-                                << " MiB and was dropped rather than kept";
+            Log(Debug::Warning) << std::format(
+                "Rtx: the pipeline cache reached {:.1f} MiB and was dropped rather than kept", mebibytes(bytes));
 
             std::error_code tooBig;
             std::filesystem::remove(mPath, tooBig);

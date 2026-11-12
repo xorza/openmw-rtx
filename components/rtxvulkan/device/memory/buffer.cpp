@@ -35,6 +35,9 @@ namespace Rtx
                 case BufferKind::ReadBack:
                     return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
                         | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+                case BufferKind::Markers:
+                    return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+                        | VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD | VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD;
             }
 
             return 0;
@@ -111,7 +114,8 @@ namespace Rtx
     void Buffer::bind(DeviceMemory&& memory)
     {
         mMemory = std::move(memory);
-        checkVk(vkBindBufferMemory(mDevice->getHandle(), mHandle.get(), mMemory.getHandle(), mMemory.getOffset()),
+        checkVk(*mDevice,
+            vkBindBufferMemory(mDevice->getHandle(), mHandle.get(), mMemory.getHandle(), mMemory.getOffset()),
             "vkBindBufferMemory");
 
         if (mAddressable)
@@ -173,7 +177,8 @@ namespace Rtx
         const VkBufferUsageFlags usage, const std::string_view name)
     {
         Buffer made(device, kind, size, usage, name);
-        made.bind(device.getMemory().take(made.mHandle.get(), propertiesOf(kind), alignmentOwedBy(device, usage), use));
+        made.bind(
+            device.getMemory().take(made.mHandle.get(), propertiesOf(kind), alignmentOwedBy(device, usage), use, name));
         return made;
     }
 
@@ -181,8 +186,8 @@ namespace Rtx
         const VkDeviceSize size, const VkBufferUsageFlags usage, const std::string_view name)
     {
         Buffer made(device, kind, size, usage, name);
-        Result<DeviceMemory, MemoryRefusal> memory
-            = device.getMemory().tryTake(made.mHandle.get(), propertiesOf(kind), alignmentOwedBy(device, usage), use);
+        Result<DeviceMemory, MemoryRefusal> memory = device.getMemory().tryTake(
+            made.mHandle.get(), propertiesOf(kind), alignmentOwedBy(device, usage), use, name);
         if (!memory.isOk())
             return Err{ memory.error() };
 
@@ -322,6 +327,9 @@ namespace Rtx
         assert(!isEmpty() && "a write into a buffer nobody made");
 
         assert(bytes.size() <= mSize);
+        // `vkCmdUpdateBuffer`'s own limits (VUID-vkCmdUpdateBuffer-dataSize-00033 and -00037).
+        assert(bytes.size() % 4 == 0 && "an inline write of a part of a word");
+        assert(bytes.size() <= 65536 && "an inline write past what one command carries");
 
         // Both directions, because one buffer serves every frame: the write has to wait for the
         // last pass that read it and for the last write, and the next pass for the write.

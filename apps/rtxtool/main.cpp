@@ -152,54 +152,18 @@ namespace RtxTool
             framed.mDay = line.mDay.mValue;
             framed.mMaps = line.mMaps;
 
-            // **The settings the ray tracer reads, from the harness's own sources and through the
-            // game's one derivation.** Given on the line, the line's; a window's, the player's; a
-            // measured run's, the file's default, every one of them — but for the upscaler, whose
-            // default for a run is the harness's own (`sUpscaleByDefault`). So two machines that
-            // differ only in their `settings.cfg` measure one scene under one line.
-            const bool grass = line.mGrass.has_value() ? *line.mGrass
-                : watched                              ? Settings::groundcover().mEnabled.get()
-                                                       : command.mShipped.get<bool>("Groundcover", "enabled");
+            // **The settings the ray tracer reads, from one source chosen here and through the
+            // game's one derivation**: the line's where it names them, and the player's for a
+            // window, the shipped defaults' for a measured run, where it does not (`overLine`).
+            const MWRender::RtxSettingValues values = overLine(
+                line, watched ? MWRender::RtxSettingValues::fromRegistry() : measuredSettings(command.mShipped, line));
 
             // The world reads the groundcover files only where `[Groundcover] enabled` says
             // (`World::loadGroundcoverFiles`), so the run's answer is written where the world reads
             // it, as the companion maps' rules are.
-            Settings::groundcover().mEnabled.set(grass);
+            Settings::groundcover().mEnabled.set(values.mGroundcover);
 
-            const Rtx::SamplingSwitches& sampling = line.mReconstruction.mSampling;
-            const MWRender::RtxSettings derived = MWRender::RtxSettings::derive(MWRender::RtxSettingValues{
-                .mUpscale = !watched || line.mUpscale.mNamed ? line.mUpscale.mValue : Settings::rtx().mUpscale.get(),
-                .mUpscaler = line.mUpscaler,
-                .mIndirectLighting = watched && !line.mBouncesNamed.mIndirect ? Settings::rtx().mIndirectLighting.get()
-                                                                              : sampling.mIndirect,
-                .mBounceRays = watched && !line.mBouncesNamed.mBounceRays ? Settings::rtx().mBounceRays.get()
-                                                                          : static_cast<int>(sampling.mBounceRays),
-                .mDistantLandCells = line.mDistantCells.has_value() ? *line.mDistantCells
-                    : watched ? Settings::rtx().mDistantLandCells.get()
-                              : command.mShipped.get<float>("RTX", "distant land cells"),
-                .mViewingDistance = watched ? Settings::camera().mViewingDistance.get()
-                                            : command.mShipped.get<float>("Camera", "viewing distance"),
-                .mObjectPaging = line.mDistantStatics.has_value() ? *line.mDistantStatics
-                    : watched ? Settings::terrain().mObjectPaging.get()
-                              : command.mShipped.get<bool>("Terrain", "object paging"),
-                .mObjectPagingMinSize = watched ? Settings::terrain().mObjectPagingMinSize.get()
-                                                : command.mShipped.get<float>("Terrain", "object paging min size"),
-                .mGroundcover = grass,
-                .mGroundcoverDistance = watched ? Settings::groundcover().mRenderingDistance.get()
-                                                : command.mShipped.get<float>("Groundcover", "rendering distance"),
-                .mGroundcoverDensity = watched ? Settings::groundcover().mDensity.get()
-                                               : command.mShipped.get<float>("Groundcover", "density"),
-                .mGroundcoverPointLighting = watched ? Settings::groundcover().mPointLighting.get()
-                                                     : command.mShipped.get<bool>("Groundcover", "point lighting"),
-                .mAnisotropy
-                = watched ? Settings::general().mAnisotropy.get() : command.mShipped.get<int>("General", "anisotropy"),
-                .mGamma = line.mGamma.has_value() ? *line.mGamma
-                    : watched                     ? Settings::video().mGamma.get()
-                                                  : command.mShipped.get<float>("Video", "gamma"),
-                .mLitEnvironmentMaps = watched
-                    ? Settings::shaders().mApplyLightingToEnvironmentMaps.get()
-                    : command.mShipped.get<bool>("Shaders", "apply lighting to environment maps"),
-            });
+            const MWRender::RtxSettings derived = MWRender::RtxSettings::derive(values);
             framed.mSetup.mMirror = derived.mMirror;
 
             // **The layers the command's row says, unless the line names some**: `VerbPolicy`.

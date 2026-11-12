@@ -53,7 +53,7 @@ namespace Rtx
             return;
 
         const Laid laid = layOutOn(device, declared);
-        mMemory = device.getMemory().take(laid.mWhole, MemoryUse::Frame);
+        mMemory = device.getMemory().take(laid.mWhole, MemoryUse::Frame, "the frame's image arena");
 
         mImages.reserve(declared.size());
         mFirstUses.reserve(declared.size());

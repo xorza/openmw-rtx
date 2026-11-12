@@ -15,6 +15,10 @@ namespace Crash
     /// **What the monitor adds to the game's log, on a thread of its own**, stamped as the log stamps
     /// its own lines. A dump is written on Crashpad's thread, with the game stopped, and a log on a slow
     /// disk must not hold it. The game holds the file open, and shares its writing.
+    ///
+    /// **Nothing written before the game names its log is lost**: it waits until the game does, and
+    /// where the game never does, as one that crashed while reading its configuration, `finish` puts
+    /// it in a file of the monitor's own.
     class MonitorLog
     {
     public:
@@ -35,11 +39,14 @@ namespace Crash
         /// lands before them or after them and never between two of them.
         void write(const std::vector<std::string>& lines);
 
-        /// Waits for what was queued before this, for a few seconds at the most.
-        void flush();
+        /// **Once the game is gone**: what waits goes to the game's log, or where the game never named
+        /// one, to `fallback`, which is the log from then on. Waits for it, for a few seconds at the
+        /// most.
+        void finish(const std::filesystem::path& fallback);
 
-        /// The game's log, which it hands over through the page once it knows it; empty before, and
-        /// where the page holds no path (`pathOf`). An entry written before then is in its dump alone.
+        /// The game's log, which it hands over through the page once it knows it, or the fallback
+        /// `finish` took where it never did; empty before both, and where the page holds no path
+        /// (`pathOf`).
         std::filesystem::path path() const;
 
         /// `text`, bytes the game wrote into the page, as a path, or empty where the system reads it
@@ -52,7 +59,8 @@ namespace Crash
         void run();
 
         const SharedPage& mPage;
-        std::mutex mMutex;
+        mutable std::mutex mMutex;
+        std::filesystem::path mFallback;
         std::condition_variable mWake;
         std::condition_variable mEmptied;
         std::vector<std::string> mWaiting;

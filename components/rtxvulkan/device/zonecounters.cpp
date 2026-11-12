@@ -18,8 +18,8 @@ namespace Rtx
         const std::uint32_t family = device.getPhysicalDevice().getQueueFamily();
 
         std::uint32_t offered = 0;
-        checkVk(vkEnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
-                    physical, family, &offered, nullptr, nullptr),
+        checkVkWithoutDevice(vkEnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
+                                 physical, family, &offered, nullptr, nullptr),
             "vkEnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR");
         std::vector<VkPerformanceCounterKHR> counters(offered,
             VkPerformanceCounterKHR{ .sType = VK_STRUCTURE_TYPE_PERFORMANCE_COUNTER_KHR,
@@ -35,8 +35,8 @@ namespace Rtx
                 .name = {},
                 .category = {},
                 .description = {} });
-        checkVk(vkEnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
-                    physical, family, &offered, counters.data(), descriptions.data()),
+        checkVkWithoutDevice(vkEnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
+                                 physical, family, &offered, counters.data(), descriptions.data()),
             "vkEnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR");
 
         pickOnePass(
@@ -96,7 +96,7 @@ namespace Rtx
             .flags = 0,
             .timeout = sPatience,
         };
-        checkVk(vkAcquireProfilingLockKHR(mDevice, &lock), "vkAcquireProfilingLockKHR");
+        checkVk(device, vkAcquireProfilingLockKHR(mDevice, &lock), "vkAcquireProfilingLockKHR");
     }
 
     ZoneCounters::~ZoneCounters()

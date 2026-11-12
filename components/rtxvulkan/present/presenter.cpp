@@ -8,6 +8,7 @@
 #include <osg/Vec2i>
 #include <volk.h>
 
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/presentation.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -33,11 +34,12 @@ namespace Rtx
         }
     }
 
-    Presenter::Presenter(const Device& device, Surface& surface, SDL_Window* window, const VerticalSync verticalSync)
+    Presenter::Presenter(
+        const Device& device, std::unique_ptr<Surface> surface, SDL_Window* window, const VerticalSync verticalSync)
         : mDevice(device)
         , mAsked(drawableSize(window))
-        , mSurface(surface)
-        , mSwapchain(device, mSurface, mAsked, verticalSync)
+        , mSurface(std::move(surface))
+        , mSwapchain(device, *mSurface, mAsked, verticalSync)
     {
         try
         {
@@ -139,6 +141,8 @@ namespace Rtx
 
     void Presenter::rebuild(const VkExtent2D extent)
     {
+        const Crash::NoteScope noted("rebuilding the swapchain at {}x{}{}", extent.width, extent.height,
+            mLost ? " on a surface made again" : "");
         if (extent.width != mAsked.width || extent.height != mAsked.height)
         {
             mSuboptimalRebuilt = false;
@@ -185,8 +189,10 @@ namespace Rtx
         mDevice.waitIdle();
         releaseImageSync();
         mSwapchain.release();
-        mSurface.remake();
-        if (!mSurface.supports(mDevice.getPhysicalDevice().getHandle(), mDevice.getQueueFamily()))
+        mSurface->remake();
+        const std::optional<bool> presents
+            = mSurface->supports(mDevice.getPhysicalDevice().getHandle(), mDevice.getQueueFamily());
+        if (!presents.value_or(true))
             deviceFailed("the device's queue does not present to the window's surface made again");
         Log(Debug::Warning) << "The window's surface was lost and was made again";
 

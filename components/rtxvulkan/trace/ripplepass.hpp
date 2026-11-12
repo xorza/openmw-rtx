@@ -138,6 +138,7 @@ namespace Rtx
         {
             float mDistance;
             std::uint32_t mOrder;
+            Shaders::GpuRippleImpulse mImpulse;
         };
         std::vector<Candidate> mCandidates;
 

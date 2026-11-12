@@ -7,6 +7,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/dlss/dlss.hpp>
+#include <components/rtxvulkan/device/driverprofile.hpp>
 
 #include "ngx.hpp"
 
@@ -34,13 +35,21 @@ namespace Rtx::Dlss
         const wchar_t* getDataPath() const { return mDataPath.c_str(); }
 
         /// The instance extensions NGX needs for DLSS on this driver, which the instance must enable
-        /// before it is made. Empty where NGX cannot answer, and in a build without the backend.
+        /// before it is made: its discovery call says "before `vkCreateInstance`". Empty where NGX
+        /// cannot answer, in a build without the backend, and **where the system has no NVIDIA
+        /// adapter**, the one fact there is before a device is chosen: a Windows machine keeps the
+        /// NGX core in its DriverStore after its NVIDIA card is gone, and the core is not to be
+        /// loaded beside another vendor's driver for nothing.
         std::vector<std::string> requiredInstanceExtensions() const;
 
-        /// The device extensions NGX needs for DLSS on this driver, which a device must enable
-        /// before it is made. Empty where NGX cannot answer, which leaves feature creation to report
+        /// The device extensions NGX needs for DLSS on `physicalDevice`, which a device must enable
+        /// before it is made, where `driver` runs NGX. **Asked of every such device**: the query NGX
+        /// answers before a device exists can be inconclusive, and a false negative there must not
+        /// silently cost an RTX card its upscaler; feature creation is the real answer
+        /// (`DlssUpscaler`). Empty where NGX cannot answer, which leaves feature creation to report
         /// why, and in a build without the backend.
-        std::vector<std::string> requiredDeviceExtensions(VkInstance instance, VkPhysicalDevice physicalDevice) const;
+        std::vector<std::string> requiredDeviceExtensions(
+            VkInstance instance, VkPhysicalDevice physicalDevice, const DriverProfile& driver) const;
 
     private:
         Ngx::FeatureDiscoveryInfo discovery() const;

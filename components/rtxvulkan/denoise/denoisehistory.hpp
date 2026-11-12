@@ -203,28 +203,17 @@ namespace Rtx
             bool mFresh;
         };
 
-        /// The glossy filter's: the mean and its frame count, the last frame's and this one's; and
-        /// the fast mean (`HISTORY_CLAMP_FAST`), which the filter reads as last frame's and the clamp
-        /// writes, and the filter's blend of it, which the clamp reads at a pixel's neighbours as it
-        /// writes the pixel's.
-        struct SpecularImages
+        /// A temporal layer's filter's (`TemporalLayerPass`), the glossy layer's or the pane's: the mean
+        /// and its frame count, the last frame's and this one's; and the fast mean
+        /// (`HISTORY_CLAMP_FAST`), which the filter reads as last frame's and the clamp writes, and the
+        /// filter's blend of it, which the clamp reads at a pixel's neighbours as it writes the pixel's.
+        struct LayerImages
         {
             const Image& mMeanBefore;
             const Image& mMean;
             const Image& mFast;
             const Image& mFastBlended;
 
-            bool mFresh;
-        };
-
-        /// The pane filter's: the mean with its frame count, the last frame's and this one's; and the
-        /// fast mean, as the glossy filter keeps it.
-        struct PaneImages
-        {
-            const Image& mMeanBefore;
-            const Image& mMean;
-            const Image& mFast;
-            const Image& mFastBlended;
             bool mFresh;
         };
 
@@ -234,8 +223,8 @@ namespace Rtx
 
         AccumulateImages accumulate(const TemporalTurns::Step& step) const;
         ShadowImages shadow(ShadowField field, const TemporalTurns::Step& step) const;
-        SpecularImages specular(const TemporalTurns::Step& step) const;
-        PaneImages pane(const TemporalTurns::Step& step) const;
+        LayerImages specular(const TemporalTurns::Step& step) const;
+        LayerImages pane(const TemporalTurns::Step& step) const;
 
     private:
         const Device& mDevice;

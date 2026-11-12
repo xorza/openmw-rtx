@@ -1,5 +1,6 @@
 #include "frametracer.hpp"
 
+#include <cassert>
 #include <cstddef>
 #include <utility>
 
@@ -38,10 +39,14 @@ namespace Rtx
     FrameTracer::Moves FrameTracer::movesTo(const VkExtent2D render, const VkExtent2D output, const Upscale upscale,
         const std::vector<ArenaImage>& declared, const Upscaler& upscaler) const
     {
-        const bool traceMoves = render.width != mChain.getWidth() || render.height != mChain.getHeight()
-            || rendererFilterUnder(upscale, upscaler.getInput()) != mChain.getFilter();
+        const auto differ
+            = [](const VkExtent2D a, const VkExtent2D b) { return a.width != b.width || a.height != b.height; };
+        const bool renderMoves = differ(render, mRender);
         return Moves{
-            .mTrace = mChain.isBuilt() && traceMoves,
+            .mRenderExtent = renderMoves,
+            .mOutputExtent = differ(output, mOutput),
+            .mTrace = mChain.isBuilt()
+                && (renderMoves || rendererFilterUnder(upscale, upscaler.getInput()) != mChain.getFilter()),
             .mUpscaler = upscaler.isBuilt() && !(upscales(upscale) && upscaler.isAt(render, output)),
             .mArena = declared != mDeclared,
         };
@@ -57,11 +62,19 @@ namespace Rtx
             mArena = ImageArena();
     }
 
-    void FrameTracer::resize(const VkExtent2D render, const VkExtent2D output, const Upscale upscale,
-        std::vector<ArenaImage>&& declared, Upscaler& upscaler)
+    void FrameTracer::resize(const Moves& moves, const VkExtent2D render, const VkExtent2D output,
+        const Upscale upscale, std::vector<ArenaImage>&& declared, Upscaler& upscaler)
     {
-        if (declared == mDeclared)
+        mRender = render;
+        mOutput = output;
+        // What the chain and the upscaler stand at is in the declarations, so neither is made
+        // again under an arena that stays.
+        if (!moves.mArena)
+        {
+            assert(!moves.mTrace);
+            assert(!moves.mUpscaler);
             return;
+        }
 
         mArena = ImageArena(mDevice, declared);
         mDeclared = std::move(declared);

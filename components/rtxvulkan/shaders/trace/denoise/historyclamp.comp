@@ -133,6 +133,6 @@ void main()
     const vec3 held = max(mix(slow.rgb, clamped.mHeld, antilag) + pushed * toward, vec3(0.0));
     const uint seed = frame.mLayer == HISTORY_CLAMP_PANE ? SEED_PANE_CLAMP_ROUNDING : SEED_GLOSSY_CLAMP_ROUNDING;
     uint rounding = seededKey(pixelKey(uvec2(at)) + seed, frame.mFrame);
-    RTX_STORE_COUNTED(mean, stored, roundedToHalf(vec4(held, slow.a), rounding))
+    RTX_STORE_HISTORY(mean, stored, roundedToHalf(vec4(held, slow.a), rounding))
     RTX_STORE_WORDS(fastOut, stored, uvec4(packRgb9e5(fastHere + pushed * toward), 0u, 0u, 0u))
 }

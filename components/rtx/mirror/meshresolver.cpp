@@ -130,8 +130,13 @@ namespace Rtx
         // check runs before a row is made, so a refusal leaves the scene as it was. The refusal is
         // kept under the drawable, stamped as the walk meets it, so a file the renderer cannot
         // take is read once for as long as it stands rather than once a frame.
+        // Where a read first meets a drawable, which the frame then holds: a mesh a fold or a crease
+        // split fails on names itself, its drawable and the model's root.
+        const osg::Node* const model = modelOf(path);
+        const Crash::NoteScope noted("reading the mesh \"{}\" of the model \"{}\"", drawable.getName(),
+            model != nullptr ? std::string_view(model->getName()) : std::string_view());
         MeshReading reading;
-        const Result<bool, std::string> readMesh = mReader.read(mContent, read, modelOf(path), reading);
+        const Result<bool, std::string> readMesh = mReader.read(mContent, read, model, reading);
         if (!readMesh.isOk())
             return refuse(drawable, readMesh.error());
 

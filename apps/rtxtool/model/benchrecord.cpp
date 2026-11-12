@@ -16,6 +16,7 @@
 #include <apps/rtxtool/instruments/jsontext.hpp>
 #include <apps/rtxtool/instruments/reportfile.hpp>
 #include <components/files/conversion.hpp>
+#include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/renderer/framespend.hpp>
@@ -287,8 +288,8 @@ namespace RtxTool
             if (scene.mCompactableBytes == 0 || scene.mCompactableNowBytes <= scene.mCompactableBytes)
                 return {};
 
-            return std::format(" ({:.1f} of them would compact to {:.1f})", Rtx::megabytes(scene.mCompactableNowBytes),
-                Rtx::megabytes(scene.mCompactableBytes));
+            return std::format(" ({:.1f} of them would compact to {:.1f})", Rtx::mebibytes(scene.mCompactableNowBytes),
+                Rtx::mebibytes(scene.mCompactableBytes));
         }
 
         /// How many textures stand smaller than their files, and nothing where none does: a place
@@ -332,7 +333,7 @@ namespace RtxTool
 
         std::string describeBudget(const std::optional<std::uint64_t>& budget)
         {
-            return budget.has_value() ? std::format("{} MiB", *budget / (1024 * 1024)) : std::string("none");
+            return budget.has_value() ? std::format("{:.1f} MiB", Rtx::mebibytes(*budget)) : std::string("none");
         }
 
         std::string describeHugePages(const std::optional<float>& share)
@@ -360,13 +361,13 @@ namespace RtxTool
             "tables, {:.1f} MiB working   {} textures, "
             "{:.1f} MiB{}: files {:.1f}, bakes {:.1f}, ground {:.1f}, gloss {:.1f}",
             scene.mInstances.mPlaced, scene.mInstances.mCutout, scene.mInstanceSlots,
-            Rtx::megabytes(scene.mStructureLiveBytes), Rtx::megabytes(scene.mStructureBytes), describeCompaction(scene),
-            Rtx::megabytes(scene.mTableBytes), Rtx::megabytes(scene.mWorkBytes), scene.mTextureCount,
-            Rtx::megabytes(scene.mTextureBytes), describeReduced(scene),
-            Rtx::megabytes(scene.mTextureBytesBySource.mFiles),
-            Rtx::megabytes(scene.mTextureBytesBySource.mSpriteBakes),
-            Rtx::megabytes(scene.mTextureBytesBySource.mGroundComposites),
-            Rtx::megabytes(scene.mTextureBytesBySource.mGroundGloss));
+            Rtx::mebibytes(scene.mStructureLiveBytes), Rtx::mebibytes(scene.mStructureBytes), describeCompaction(scene),
+            Rtx::mebibytes(scene.mTableBytes), Rtx::mebibytes(scene.mWorkBytes), scene.mTextureCount,
+            Rtx::mebibytes(scene.mTextureBytes), describeReduced(scene),
+            Rtx::mebibytes(scene.mTextureBytesBySource.mFiles),
+            Rtx::mebibytes(scene.mTextureBytesBySource.mSpriteBakes),
+            Rtx::mebibytes(scene.mTextureBytesBySource.mGroundComposites),
+            Rtx::mebibytes(scene.mTextureBytesBySource.mGroundGloss));
     }
 
     std::string describeHostHeld(const Rtx::ContentMemory& content)
@@ -383,8 +384,8 @@ namespace RtxTool
             "  runs  layers {}   masks {}   rig runs {}   influences {}   offsets {}   pose words {}   "
             "bind vertices {}\n",
             content.mVerticesUsed / 1e6, content.mVertexEnd / 1e6, content.mIndicesUsed / 1e6, content.mIndexEnd / 1e6,
-            Rtx::megabytes(reader.mLentBytes), reader.mLentModels, Rtx::megabytes(reader.mSpareBytes),
-            reader.mSpareModels, Rtx::megabytes(reader.mFiledBytes), reader.mFiledModels, content.mLayerEnd,
+            Rtx::mebibytes(reader.mLentBytes), reader.mLentModels, Rtx::mebibytes(reader.mSpareBytes),
+            reader.mSpareModels, Rtx::mebibytes(reader.mFiledBytes), reader.mFiledModels, content.mLayerEnd,
             content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
             content.mBindVertexEnd);
     }

@@ -2,6 +2,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -9,6 +10,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/bound.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/common/jobprogress.hpp>
@@ -30,6 +32,42 @@ namespace Rtx
 {
     namespace
     {
+        /// **Every tuple compiled once for the binary**, and read by every test that reads the
+        /// specialized table: two tests that each made it compiled every tuple twice, 57 s between them.
+        /// On the unvalidated device, which lives for the binary as this does.
+        struct SpecializedKernels
+        {
+            explicit SpecializedKernels(const Device& device)
+                : mTextures(TextureArray::describeLayout(device))
+                , mChannels(GBuffer::describeLayout(device))
+                , mVolume(FogVolume::describeLayout(device))
+                , mPass(device, mTextures, mChannels, mVolume, false, true, UpscaleMasks::Written)
+            {
+                mPass.listKernels(mKernels);
+            }
+
+            SpecializedKernels(const SpecializedKernels&) = delete;
+            SpecializedKernels& operator=(const SpecializedKernels&) = delete;
+            SpecializedKernels(SpecializedKernels&&) = delete;
+            SpecializedKernels& operator=(SpecializedKernels&&) = delete;
+
+            SetLayout mTextures;
+            SetLayout mChannels;
+            SetLayout mVolume;
+            VisibilityPass mPass;
+            std::vector<VisibilityPass::NamedKernel> mKernels;
+        };
+
+        /// Let go of after the suite's last test, while the device it stands on is whole.
+        Testing::Once<SpecializedKernels> sSpecialized;
+
+        const std::vector<VisibilityPass::NamedKernel>& specializedKernels()
+        {
+            return sSpecialized
+                .get([] { return std::make_unique<SpecializedKernels>(*Testing::getUnvalidatedHarness().mDevice); })
+                .mKernels;
+        }
+
         /// The three layouts every kernel of the pass names, which the renderer would own.
         ///
         /// **On the unvalidated device**, for the reason `getUnvalidatedHarness` gives: the layers
@@ -41,6 +79,8 @@ namespace Rtx
                 : Testing::DeviceTest(false)
             {
             }
+
+            static void TearDownTestSuite() { sSpecialized.release(); }
 
             SetLayout mTextures = TextureArray::describeLayout(getDevice());
             SetLayout mChannels = GBuffer::describeLayout(getDevice());
@@ -65,8 +105,10 @@ namespace Rtx
             constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5;
 
             JobProgress progress = pass.awaitKernels(KernelSet::Drawing, std::chrono::milliseconds::zero());
+            const Testing::WaitBound bound(Testing::sColdPatience);
             while (!progress.isDone())
             {
+                ASSERT_FALSE(bound.passed()) << progress.mMade << " of " << progress.mCount << " kernels made";
                 ASSERT_EQ(progress.mCount, drawing);
                 ASSERT_LT(progress.mMade, progress.mCount);
 
@@ -164,18 +206,21 @@ namespace Rtx
                 { "bounce", 0, 144, 2048 },
             } };
             // Measured on a high-end NVIDIA laptop GPU, whose compiler holds a stage at 128 registers and
-            // keeps what does not fit in shared memory.
+            // keeps what does not fit in shared memory, and the whole tuple's `media` 32 bytes of local
+            // memory a lane, under driver 615.78. The water at 3456 bytes of shared memory, from 2944, since
+            // a mapped ground's tangent selects its axis (`traversal.glsl`): the price of no NaN on a face
+            // along ±x, which at 128 registers' 16 warps an SM's shared memory holds all the same.
             constexpr std::array<Ceiling, 5> sNvidiaWithoutDarkAlpha{ {
-                { "water", 0, 128, 2944 },
+                { "water", 0, 128, 3456 },
                 { "direct", 0, 128, 1664 },
                 { "media", 0, 128, 6272 },
                 { "panes", 0, 168, 5760 },
                 { "landing", 0, 128, 896 },
             } };
             constexpr std::array<Ceiling, 6> sNvidiaWhole{ {
-                { "water", 0, 128, 2944 },
+                { "water", 0, 128, 3456 },
                 { "direct", 0, 128, 1920 },
-                { "media", 0, 128, 6272 },
+                { "media", 32, 128, 6272 },
                 { "panes", 0, 168, 6272 },
                 { "landing", 0, 128, 896 },
                 { "fog integrate", 0, 128, 1792 },
@@ -213,9 +258,7 @@ namespace Rtx
             const auto measured = std::ranges::find(sDrivers, driver, &DriverCeilings::mDriver);
             ASSERT_NE(measured, sDrivers.end()) << "no ceilings measured for driver " << driver;
 
-            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, true, UpscaleMasks::Written);
-            std::vector<VisibilityPass::NamedKernel> kernels;
-            pass.listKernels(kernels);
+            const std::vector<VisibilityPass::NamedKernel>& kernels = specializedKernels();
 
             const std::uint32_t whole = VisibilityVariant{}.index();
             const std::uint32_t withoutDarkAlpha = VisibilityVariant{ .mDarkAlpha = false }.index();
@@ -285,9 +328,7 @@ namespace Rtx
         /// constant, so no two of its tuples share one. Of the 324 stage pipelines listed, 80 are shared.
         TEST_F(RtxVisibilityKernelsTest, tuplesAStageReadsAlikeShareItsPipeline)
         {
-            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, true, UpscaleMasks::Written);
-            std::vector<VisibilityPass::NamedKernel> kernels;
-            pass.listKernels(kernels);
+            const std::vector<VisibilityPass::NamedKernel>& kernels = specializedKernels();
             const auto of = [&](std::string_view name, VisibilityVariant tuple) {
                 const auto found = std::ranges::find_if(kernels, [&](const VisibilityPass::NamedKernel& kernel) {
                     return kernel.mName == name && kernel.mTuple == tuple.index();

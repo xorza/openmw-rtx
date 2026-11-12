@@ -41,6 +41,7 @@
 #include <components/platform/memory.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
@@ -328,7 +329,6 @@ namespace MWRender
         // CPU says whether they waited, and the passes say on what the CPU went.
         const Rtx::PreparationTimes times = mPreparing->mRun.getTimes();
         using Seconds = std::chrono::duration<double>;
-        constexpr double mebibyte = 1024.0 * 1024.0;
         Log(Debug::Info) << std::format(
             "Prepared {} of {} models and ground layers in {:.2f} s, {:.1f} s of CPU on {} threads; the rest "
             "stood as the last preparation found them",
@@ -336,10 +336,10 @@ namespace MWRender
             Seconds(times.mWall).count(), Seconds(times.mThreadsCpu).count(), times.mThreads);
         if (times.mBudget.has_value())
             Log(Debug::Info) << std::format("  its jobs held at most {:.0f} MiB of a budget of {:.0f} MiB",
-                static_cast<double>(times.mHeldMost) / mebibyte, static_cast<double>(*times.mBudget) / mebibyte);
+                Rtx::mebibytes(times.mHeldMost), Rtx::mebibytes(*times.mBudget));
         else
             Log(Debug::Info) << std::format("  its jobs held at most {:.0f} MiB, with no budget the system states",
-                static_cast<double>(times.mHeldMost) / mebibyte);
+                Rtx::mebibytes(times.mHeldMost));
         for (const auto& [pass, name] : Rtx::sContentPasses.mNames)
         {
             const Rtx::PassStats& counted = stats.at(pass);

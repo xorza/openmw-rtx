@@ -1,11 +1,32 @@
 #pragma once
 
 #include <stdexcept>
+#include <string>
+#include <string_view>
+
+#include <components/crashcatcher/crashnote.hpp>
 
 namespace Rtx
 {
     // **Four failures and no common base**, so a catch of one never takes another. A contract this
     // code broke is none of them: it is an assert, or `Crash::contract` where release must not go on.
+
+    /// **`what`, and what the throwing thread's crash note said**: `what, while <note>`. The note
+    /// unwinds with the stack before the error is shown, and a thrown error leaves no dump, so the
+    /// message is the one place that keeps it. `what` alone where the thread noted nothing, or where
+    /// `what` ends with the note already: an error raised again as another.
+    inline std::string withNote(std::string_view what)
+    {
+        std::string message(what);
+        const std::string_view note = Crash::ownNote();
+        if (note.empty())
+            return message;
+
+        const std::string noted = ", while " + std::string(note);
+        if (!message.ends_with(noted))
+            message += noted;
+        return message;
+    }
 
     /// What the configuration or the installation supplied, and this renderer cannot run with: a
     /// command line, a setting, a shader file, a file the harness reads. All or nothing, so it ends
@@ -16,7 +37,10 @@ namespace Rtx
     class InputError : public std::runtime_error
     {
     public:
-        using std::runtime_error::runtime_error;
+        explicit InputError(std::string_view what)
+            : std::runtime_error(withNote(what))
+        {
+        }
     };
 
     /// This machine cannot run the backend — so a test suite can skip on a machine with no driver
@@ -35,7 +59,10 @@ namespace Rtx
     class UpscalerRefused : public std::runtime_error
     {
     public:
-        using std::runtime_error::runtime_error;
+        explicit UpscalerRefused(std::string_view what)
+            : std::runtime_error(withNote(what))
+        {
+        }
     };
 
     /// The device or its driver refused while the renderer ran: a call that failed, memory it had
@@ -45,6 +72,9 @@ namespace Rtx
     class DeviceError : public std::runtime_error
     {
     public:
-        using std::runtime_error::runtime_error;
+        explicit DeviceError(std::string_view what)
+            : std::runtime_error(withNote(what))
+        {
+        }
     };
 }

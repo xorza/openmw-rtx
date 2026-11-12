@@ -32,10 +32,6 @@ namespace CrashTests
         /// crashing stack points at.
         bool mHeap = false;
 
-        /// A report the mode leaves beside its own, by the start of its summary, of another kind and
-        /// on another thread: a second summary and a second dump are then due, each its own.
-        std::string_view mAlso = {};
-
         /// The signal the run must end by, or nought. A shell that runs the mode as its child says
         /// it as `128 + mEndsBy`.
         int mEndsBy = 0;
@@ -50,6 +46,10 @@ namespace CrashTests
 
         /// Whether the application throws, which `wrapApplication` catches and ends with one.
         bool mThrows = false;
+
+        /// Whether the session is packaged with no summary and the log alone in it: a crash whose
+        /// dump could not be written.
+        bool mLogAlone = false;
     };
 
     /// How this system names what the modes every system has raise, one of each list.
@@ -95,10 +95,4 @@ namespace CrashTests
 
     /// The whole of the file at `path`, or nothing where it cannot be read. The shared file's.
     std::string contentsOf(const std::filesystem::path& path);
-
-    /// What a mode exits with where the run did not give it the case it tests, which a mode that
-    /// races two threads cannot promise: the matrix empties its folder and runs it again, up to
-    /// `sInconclusiveRuns` times. `EX_TEMPFAIL`'s number, which no mode's own end shares.
-    constexpr int sInconclusive = 75;
-    constexpr int sInconclusiveRuns = 8;
 }

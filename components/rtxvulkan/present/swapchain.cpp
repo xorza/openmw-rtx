@@ -3,8 +3,11 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <format>
 #include <initializer_list>
 #include <optional>
+#include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -33,30 +36,11 @@ namespace Rtx
             return extent.width == 0 || extent.height == 0;
         }
 
-        VkSurfaceFormatKHR chooseFormat(const Surface& surface, VkPhysicalDevice device)
-        {
-            const std::vector<VkSurfaceFormatKHR> formats = surface.getFormats(device);
-
-            if (formats.empty())
-                throw Unsupported("the surface offers no formats");
-
-            // A plain unsigned-normalised format, because the blit that fills it converts between
-            // formats and an sRGB target would encode an image that `TonePass` has already encoded:
-            // the curve and the transfer function have both run by the time anything reaches here.
-            for (const VkSurfaceFormatKHR& format : formats)
-                if (format.format == VK_FORMAT_B8G8R8A8_UNORM || format.format == VK_FORMAT_R8G8B8A8_UNORM)
-                    return format;
-
-            Log(Debug::Warning) << "This surface offers no unsigned-normalised format, so the blit that "
-                                   "fills it will encode an image that is already display-referred.";
-            return formats.front();
-        }
-
         /// What the surface will accept, in the order the caller would rather have. FIFO is the
         /// only mode a surface must support, so it ends every list here and nothing below has to
         /// answer for a driver that offers little else.
         VkPresentModeKHR chooseFrom(
-            const std::vector<VkPresentModeKHR>& modes, std::initializer_list<VkPresentModeKHR> wanted)
+            const std::span<const VkPresentModeKHR> modes, std::initializer_list<VkPresentModeKHR> wanted)
         {
             for (const VkPresentModeKHR mode : wanted)
                 if (std::find(modes.begin(), modes.end(), mode) != modes.end())
@@ -65,24 +49,22 @@ namespace Rtx
             return VK_PRESENT_MODE_FIFO_KHR;
         }
 
-        /// The present mode a vertical sync setting asks for. `Off` is mailbox and not
-        /// immediate, because what a player turning vsync off reaches for is latency and not a
-        /// torn frame; immediate stands behind it for a surface with no mailbox. `Adaptive` is FIFO
-        /// that tears when a frame misses its refresh, as the rasterizer's does through SDL.
-        /// `On` is FIFO: a frame that meets the refresh is the promise.
-        VkPresentModeKHR presentModeFor(const std::vector<VkPresentModeKHR>& modes, VerticalSync mode)
+        /// A surface format as the log says it: the two this renderer asks for by name, and any
+        /// other by its numbers.
+        std::string describeFormat(const VkSurfaceFormatKHR format)
         {
-            switch (mode)
+            const std::string space = format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+                ? std::string("sRGB")
+                : "colour space " + std::to_string(static_cast<int>(format.colorSpace));
+            switch (format.format)
             {
-                case VerticalSync::Off:
-                    return chooseFrom(modes, { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR });
-                case VerticalSync::Adaptive:
-                    return chooseFrom(modes, { VK_PRESENT_MODE_FIFO_RELAXED_KHR });
-                case VerticalSync::On:
-                    break;
+                case VK_FORMAT_B8G8R8A8_UNORM:
+                    return "B8G8R8A8_UNORM in " + space;
+                case VK_FORMAT_R8G8B8A8_UNORM:
+                    return "R8G8B8A8_UNORM in " + space;
+                default:
+                    return "format " + std::to_string(static_cast<int>(format.format)) + " in " + space;
             }
-
-            return VK_PRESENT_MODE_FIFO_KHR;
         }
 
         std::string_view nameOf(VkPresentModeKHR mode)
@@ -101,6 +83,42 @@ namespace Rtx
         }
     }
 
+    VkSurfaceFormatKHR chooseSurfaceFormat(const std::span<const VkSurfaceFormatKHR> formats)
+    {
+        if (formats.empty())
+            throw Unsupported("the surface offers no formats");
+
+        // A plain unsigned-normalised format, because the blit that fills it converts between formats
+        // and an sRGB target would encode an image that `TonePass` has already encoded: the curve and
+        // the transfer function have both run by the time anything reaches here. **In the sRGB
+        // colour space**, the one the curve encodes for: the same format is offered again in HDR10's
+        // or a linear one, which would show the encoded image as something else, and a format is
+        // matched with its space, as vk-bootstrap matches the pair.
+        for (const VkSurfaceFormatKHR& format : formats)
+            if ((format.format == VK_FORMAT_B8G8R8A8_UNORM || format.format == VK_FORMAT_R8G8B8A8_UNORM)
+                && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+                return format;
+
+        Log(Debug::Warning) << "This surface offers no unsigned-normalised format in sRGB, so the blit that "
+                               "fills it will encode an image that is already display-referred.";
+        return formats.front();
+    }
+
+    VkPresentModeKHR presentModeFor(const std::span<const VkPresentModeKHR> modes, const VerticalSync mode)
+    {
+        switch (mode)
+        {
+            case VerticalSync::Off:
+                return chooseFrom(modes, { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR });
+            case VerticalSync::Adaptive:
+                return chooseFrom(modes, { VK_PRESENT_MODE_FIFO_RELAXED_KHR });
+            case VerticalSync::On:
+                break;
+        }
+
+        return VK_PRESENT_MODE_FIFO_KHR;
+    }
+
     Swapchain::Swapchain(
         const Device& device, const Surface& surface, VkExtent2D extent, const VerticalSync verticalSync)
         : mDevice(device)
@@ -108,17 +126,15 @@ namespace Rtx
         , mVerticalSync(verticalSync)
     {
         const VkPhysicalDevice physical = device.getPhysicalDevice().getHandle();
-        Crash::contract(surface.supports(physical, device.getQueueFamily()),
+        const std::optional<bool> presents = surface.supports(physical, device.getQueueFamily());
+        Crash::contract(presents.value_or(true),
             "a device chosen for a queue that does not present to its window (`PhysicalDevice::select`)");
 
-        choose();
-        if (!create(extent))
+        if (!presents.has_value() || !choose() || !create(extent, "the first"))
             throw DeviceError("the window's surface was lost as its first swapchain was made");
-
-        Log(Debug::Info) << "Swapchain: " << mImages.size() << " images, " << nameOf(mPresentMode);
     }
 
-    bool Swapchain::create(VkExtent2D extent)
+    bool Swapchain::create(VkExtent2D extent, const std::string_view why)
     {
         const Crash::NoteScope noted("making the swapchain at {}x{}", extent.width, extent.height);
         const std::optional<VkSurfaceCapabilitiesKHR> asked
@@ -182,24 +198,34 @@ namespace Rtx
         const VkResult result = vkCreateSwapchainKHR(mDevice.getHandle(), &create, nullptr, &made);
         if (result == VK_ERROR_SURFACE_LOST_KHR)
             return false;
-        checkVk(result, "vkCreateSwapchainKHR");
+        checkVk(mDevice, result, "vkCreateSwapchainKHR");
         mHandle = Immediate<VkSwapchainKHR, vkDestroySwapchainKHR>(mDevice.getHandle(), made);
         mPassed = 0;
         mQueued = {};
         mAwaited = 0;
 
-        mImages = enumerateVk<VkImage>("vkGetSwapchainImagesKHR", [&](std::uint32_t* count, VkImage* into) {
+        mImages = enumerateVk<VkImage>(mDevice, "vkGetSwapchainImagesKHR", [&](std::uint32_t* count, VkImage* into) {
             return vkGetSwapchainImagesKHR(mDevice.getHandle(), mHandle.get(), count, into);
         });
+
+        // **A line a swapchain**, so a log that ends in a present names the one it was made on.
+        Log(Debug::Info) << std::format("Swapchain, {}: {}x{}, {} images, {}, {}, present fences {}, present wait {}",
+            why, mExtent.width, mExtent.height, mImages.size(), describeFormat(mFormat), nameOf(mPresentMode),
+            mDevice.hasPresentFences() ? "on" : "off", mDevice.hasPresentWait() ? "on" : "off");
         return true;
     }
 
-    void Swapchain::choose()
+    bool Swapchain::choose()
     {
         const VkPhysicalDevice physical = mDevice.getPhysicalDevice().getHandle();
-        mFormat = chooseFormat(mSurface, physical);
-        mPresentModes = mSurface.getPresentModes(physical);
+        const std::optional<std::vector<VkSurfaceFormatKHR>> formats = mSurface.getFormats(physical);
+        std::optional<std::vector<VkPresentModeKHR>> modes = mSurface.getPresentModes(physical);
+        if (!formats.has_value() || !modes.has_value())
+            return false;
+        mFormat = chooseSurfaceFormat(*formats);
+        mPresentModes = std::move(*modes);
         mPresentMode = presentModeFor(mPresentModes, mVerticalSync);
+        return true;
     }
 
     void Swapchain::release()
@@ -214,14 +240,13 @@ namespace Rtx
     bool Swapchain::recreate(VkExtent2D extent)
     {
         release();
-        return create(extent);
+        return create(extent, "made again");
     }
 
     bool Swapchain::renew(VkExtent2D extent)
     {
         assert(!isMade() && "a swapchain renewed before the old one was let go");
-        choose();
-        return create(extent);
+        return choose() && create(extent, "on a surface made again");
     }
 
     bool Swapchain::setVerticalSync(VerticalSync mode)

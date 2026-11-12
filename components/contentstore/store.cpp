@@ -7,6 +7,8 @@
 #include <cstddef>
 #include <cstring>
 #include <format>
+#include <fstream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -50,6 +52,48 @@ namespace ContentStore
         /// "RTXC", read as a little-endian word: the ray tracer's store had the format first, and a magic of
         /// another would have refused every entry it holds.
         constexpr std::uint32_t sMagic = 0x43585452u;
+
+        /// **The one check of a trailer**, `read`'s and `holds`'s: the check that failed, or nothing
+        /// where it holds for `key`, a file of `fileBytes`, and `kinds` kinds. The payload's digest is
+        /// the read's alone, which has the payload.
+        std::string_view checkTrailer(
+            const EntryTrailer& trailer, const Key& key, const std::uint64_t fileBytes, const std::uint32_t kinds)
+        {
+            if (trailer.mMagic != sMagic)
+                return "its magic";
+            if (trailer.mFormat != Store::sFormat)
+                return "its format";
+            if (trailer.mKey != key.mHash)
+                return "its key";
+            if (trailer.mKind >= kinds)
+                return "its kind";
+            if (fileBytes < sizeof(EntryTrailer) || trailer.mPayloadBytes != fileBytes - sizeof(EntryTrailer))
+                return "its length";
+            return {};
+        }
+
+        /// The last `sizeof(EntryTrailer)` bytes of the file at `path`, and the file's size, or nothing
+        /// where it is shorter or does not read.
+        struct TailRead
+        {
+            EntryTrailer mTrailer;
+            std::uint64_t mBytes;
+        };
+
+        std::optional<TailRead> readTrailer(const std::filesystem::path& path)
+        {
+            std::ifstream file(path, std::ios::binary | std::ios::ate);
+            if (!file)
+                return std::nullopt;
+            const std::streamoff bytes = file.tellg();
+            if (bytes < static_cast<std::streamoff>(sizeof(EntryTrailer)))
+                return TailRead{ EntryTrailer{}, static_cast<std::uint64_t>(std::max<std::streamoff>(bytes, 0)) };
+            TailRead read{ EntryTrailer{}, static_cast<std::uint64_t>(bytes) };
+            file.seekg(bytes - static_cast<std::streamoff>(sizeof(EntryTrailer)));
+            if (!file.read(reinterpret_cast<char*>(&read.mTrailer), sizeof(EntryTrailer)))
+                return std::nullopt;
+            return read;
+        }
 
         Misc::DigestWords digestOf(std::span<const std::byte> payload)
         {
@@ -150,8 +194,8 @@ namespace ContentStore
         }
     }
 
-    Store::Store(std::filesystem::path directory, const Policy& policy)
-        : mDirectory(std::move(directory))
+    Store::Store(const std::filesystem::path& directory, const Policy& policy)
+        : mDirectory(directory / ("v" + std::to_string(sFormat)))
         , mPolicy(policy)
     {
         if (mPolicy.mHolding.has_value() && mPolicy.mKindCount < 64)
@@ -193,20 +237,24 @@ namespace ContentStore
             return true;
         };
 
+        // **Copied after the lock**, which the frame's thread asks for every shape under: the entry is
+        // shared and never changed, so the reference taken under it is all the lock is held for.
         bool stamp = false;
-        const bool resident = mMonitor.under([&] {
+        const std::shared_ptr<const Misc::ByteBuffer> resident = mMonitor.under([&] {
             const auto held = mResident.find(key);
             if (held == mResident.end() || held->second.mKind != kind || held->second.mVersion != version)
-                return false;
-            payload.assign(held->second.mPayload.begin(), held->second.mPayload.end());
+                return std::shared_ptr<const Misc::ByteBuffer>();
             ++mStats.mFound;
             stamp = stampOnce();
-            return true;
+            return held->second.mPayload;
         });
         if (stamp)
             mMonitor.give([] {});
-        if (resident)
+        if (resident != nullptr)
+        {
+            payload.assign(resident->begin(), resident->end());
             return true;
+        }
 
         // **The path made only where the ask reaches the disk**: three allocations, which a miss on the
         // frame's thread, whose asks reach memory alone, would pay for nothing.
@@ -222,11 +270,12 @@ namespace ContentStore
             // is a fault in the file, and not another kind's entry.
             if (found && (readKind != kind || readVersion != version))
             {
-                refuse(path);
+                refuse(path, readKind != kind ? "the kind asked for" : "the version asked for");
                 found = false;
             }
         }
 
+        std::shared_ptr<const Misc::ByteBuffer> kept = found ? residentCopy(kind, payload) : nullptr;
         stamp = false;
         mMonitor.under([&] {
             if (!found)
@@ -235,7 +284,8 @@ namespace ContentStore
                 return;
             }
             ++mStats.mFound;
-            keepResident(key, kind, version, payload);
+            if (kept != nullptr)
+                keepResident(key, kind, version, std::move(kept));
             stamp = stampOnce();
         });
         if (stamp)
@@ -247,17 +297,27 @@ namespace ContentStore
     bool Store::holds(const Key& key, const Reach reach)
     {
         const bool resident = mMonitor.under([&] { return mResident.contains(key); });
-        std::error_code failed;
-        const bool found = resident || (reach == Reach::Disk && std::filesystem::is_regular_file(pathOf(key), failed));
+        bool found = resident;
+        if (!resident && reach == Reach::Disk)
+        {
+            const std::filesystem::path path = pathOf(key);
+            if (const std::optional<TailRead> tail = readTrailer(path))
+            {
+                const std::string_view failed = checkTrailer(tail->mTrailer, key, tail->mBytes, mPolicy.mKindCount);
+                found = failed.empty();
+                if (!found)
+                    refuse(path, failed);
+            }
+        }
 
         bool stamp = false;
         mMonitor.under([&] {
             if (!found)
             {
-                ++mStats.mMissed;
+                ++mStats.mUnheld;
                 return;
             }
-            ++mStats.mFound;
+            ++mStats.mHeld;
             stamp = stampsOnce(key);
             if (stamp)
                 mQueue.push_back(Task{ .mKind = TaskKind::Stamp, .mKey = key });
@@ -279,19 +339,16 @@ namespace ContentStore
         const auto fits
             = [&] { return mQueuedBytes == 0 || payload.size() <= sQueuedMost - std::min(mQueuedBytes, sQueuedMost); };
 
-        // **Moved into the queue under the lock, and copied nowhere**: the frame's thread asks the
-        // store's memory under the same lock, and a copy of a chain there held it for milliseconds.
-        bool resident = false;
+        // **Moved into the queue under the lock, and copied before it**: the frame's thread asks the
+        // store's memory under the same lock, and a copy of a chain made there held it for milliseconds.
+        std::shared_ptr<const Misc::ByteBuffer> kept = residentCopy(kind, payload);
         while (true)
         {
             bool queued = false;
             bool dropped = false;
             mMonitor.under([&] {
-                if (!resident)
-                {
-                    keepResident(key, kind, version, payload);
-                    resident = true;
-                }
+                if (kept != nullptr)
+                    keepResident(key, kind, version, std::move(kept));
                 if (!fits())
                 {
                     if (reach == Reach::Memory)
@@ -336,7 +393,7 @@ namespace ContentStore
             const auto held = mResident.find(key);
             if (held != mResident.end())
             {
-                mResidentBytes -= residentBytesOf(held->second.mPayload.size());
+                mResidentBytes -= residentBytesOf(held->second.mPayload->size());
                 mResident.erase(held);
             }
             mQueue.push_back(Task{ .mKind = TaskKind::Discard, .mKey = key });
@@ -354,22 +411,25 @@ namespace ContentStore
         return mMonitor.under([&] { return mStats; });
     }
 
-    void Store::keepResident(
-        const Key& key, const std::uint32_t kind, const std::uint32_t version, std::span<const std::byte> payload)
+    std::shared_ptr<const Misc::ByteBuffer> Store::residentCopy(
+        const std::uint32_t kind, const std::span<const std::byte> payload) const
     {
-        if (!mPolicy.mHolding.has_value())
-            return;
-        if (payload.size() > sResidentMost && !isHeldAtAnySize(kind))
-            return;
+        if (!mPolicy.mHolding.has_value() || (payload.size() > sResidentMost && !isHeldAtAnySize(kind)))
+            return nullptr;
+        return std::make_shared<const Misc::ByteBuffer>(payload.begin(), payload.end());
+    }
 
+    void Store::keepResident(const Key& key, const std::uint32_t kind, const std::uint32_t version,
+        std::shared_ptr<const Misc::ByteBuffer> payload)
+    {
         // **Over what was held under the key**, as two writers of one key replace it.
         const auto held = mResident.find(key);
-        const std::size_t replaced = held != mResident.end() ? residentBytesOf(held->second.mPayload.size()) : 0;
-        const std::size_t bytes = residentBytesOf(payload.size());
+        const std::size_t replaced = held != mResident.end() ? residentBytesOf(held->second.mPayload->size()) : 0;
+        const std::size_t bytes = residentBytesOf(payload->size());
         if (mResidentBytes - replaced + bytes > sResidentBytesMost)
             return;
 
-        mResident.insert_or_assign(key, Resident{ kind, version, Misc::ByteBuffer(payload.begin(), payload.end()) });
+        mResident.insert_or_assign(key, Resident{ kind, version, std::move(payload) });
         mResidentBytes = mResidentBytes - replaced + bytes;
     }
 
@@ -431,7 +491,7 @@ namespace ContentStore
                 stampFile(task.mKey);
                 return;
             case TaskKind::Discard:
-                refuse(pathOf(task.mKey));
+                refuse(pathOf(task.mKey), "a payload its owner could not read");
                 return;
         }
     }
@@ -475,8 +535,10 @@ namespace ContentStore
 
             std::uint32_t kind = 0;
             std::uint32_t version = 0;
-            if (readFile(entry->mPath, entry->mKey, kind, version, payload) && !isHeldAtAnySize(kind))
-                mMonitor.under([&] { keepResident(entry->mKey, kind, version, payload); });
+            if (!readFile(entry->mPath, entry->mKey, kind, version, payload) || isHeldAtAnySize(kind))
+                continue;
+            if (std::shared_ptr<const Misc::ByteBuffer> kept = residentCopy(kind, payload))
+                mMonitor.under([&] { keepResident(entry->mKey, kind, version, std::move(kept)); });
         }
     }
 
@@ -490,24 +552,32 @@ namespace ContentStore
             !read.isOk())
         {
             if (read.error().mFailure == Platform::IoFailure::TooLarge)
-                refuse(path);
+                refuse(path, "its size");
+            // **The first failure of a read that is no missing file is said**, and the rest counted:
+            // a miss that is a folder the store cannot read is no miss a player should not hear of.
+            else if (read.error().mFailure != Platform::IoFailure::NotFound
+                && !mReadFailureLogged.exchange(true, std::memory_order_relaxed))
+                Log(Debug::Warning) << "The content store could not read " << Files::pathToUnicodeString(path)
+                                    << ", and counts every miss after it: " << read.error().mCode.message();
             return false;
         }
 
         EntryTrailer trailer{};
         if (payload.size() < sizeof(trailer))
         {
-            refuse(path);
+            refuse(path, "its length");
             return false;
         }
-        const std::size_t payloadBytes = payload.size() - sizeof(trailer);
+        const std::size_t fileBytes = payload.size();
+        const std::size_t payloadBytes = fileBytes - sizeof(trailer);
         std::memcpy(&trailer, payload.data() + payloadBytes, sizeof(trailer));
         payload.resize(payloadBytes);
-        if (trailer.mMagic != sMagic || trailer.mFormat != sFormat || trailer.mKey != key.mHash
-            || trailer.mKind >= mPolicy.mKindCount || trailer.mPayloadBytes != payloadBytes
-            || digestOf(payload) != trailer.mDigest)
+        std::string_view failed = checkTrailer(trailer, key, fileBytes, mPolicy.mKindCount);
+        if (failed.empty() && digestOf(payload) != trailer.mDigest)
+            failed = "its digest";
+        if (!failed.empty())
         {
-            refuse(path);
+            refuse(path, failed);
             return false;
         }
 
@@ -516,11 +586,14 @@ namespace ContentStore
         return true;
     }
 
-    void Store::refuse(const std::filesystem::path& path)
+    void Store::refuse(const std::filesystem::path& path, const std::string_view check)
     {
         std::error_code failed;
         std::filesystem::remove(path, failed);
         mMonitor.under([&] { ++mStats.mRefused; });
+        if (!mRefusalLogged.exchange(true, std::memory_order_relaxed))
+            Log(Debug::Warning) << "The content store refused " << Files::pathToUnicodeString(path) << " on " << check
+                                << ", deleted it, and counts every refusal after it";
     }
 
     void Store::writeFile(const Task& task)

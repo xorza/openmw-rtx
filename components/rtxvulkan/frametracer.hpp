@@ -38,11 +38,19 @@ namespace Rtx
         static VkDeviceSize bytesAt(const Device& device, VkExtent2D render, VkExtent2D output, Upscale upscale,
             const Upscaler& upscaler, RadianceWidth radiance, std::span<const ArenaImage> declared);
 
-        /// What a move to `render` and `output` under `upscale` makes again, with the arena
-        /// `declared`: the chain where it stands at another extent, the upscaler where it stands at
-        /// other extents or a mode turned it off, and the arena where its declarations moved.
+        /// **The one answer to what a move to `render` and `output` under `upscale` moved**, with the
+        /// arena `declared`, which every part that keeps something across it is handed: the extents
+        /// against the last `resize`'s, and what is made again — the chain where it stands at another
+        /// extent or filter, the upscaler where it stands at other extents or a mode turned it off,
+        /// and the arena where its declarations moved. A part made again is let go first (`release`),
+        /// so a part asked to stand where it stands only takes its place in the new arena.
         struct Moves
         {
+            /// The traced extent, and the shown one, where they differ from the last `resize`'s: no
+            /// history reprojects across either.
+            bool mRenderExtent = false;
+            bool mOutputExtent = false;
+
             bool mTrace = false;
             bool mUpscaler = false;
             bool mArena = false;
@@ -61,10 +69,10 @@ namespace Rtx
         void release(const Moves& moves, Upscaler& upscaler);
 
         /// Makes the arena of `declared` and places the chain and, where `upscale` upscales, the
-        /// upscaler in it, where the declarations moved: the chain writes its sets anew, and a set a
-        /// frame in flight reads is not written.
-        void resize(VkExtent2D render, VkExtent2D output, Upscale upscale, std::vector<ArenaImage>&& declared,
-            Upscaler& upscaler);
+        /// upscaler in it, where `moves` says the declarations moved: the chain writes its sets anew,
+        /// and a set a frame in flight reads is not written. After `release(moves)`.
+        void resize(const Moves& moves, VkExtent2D render, VkExtent2D output, Upscale upscale,
+            std::vector<ArenaImage>&& declared, Upscaler& upscaler);
 
         TraceChain& getChain() { return mChain; }
         const TraceChain& getChain() const { return mChain; }
@@ -75,6 +83,10 @@ namespace Rtx
         /// Before the two that place their images in it, which go first.
         ImageArena mArena;
         std::vector<ArenaImage> mDeclared;
+
+        /// What the last `resize` was to, which `movesTo` measures against: none before the first.
+        VkExtent2D mRender{};
+        VkExtent2D mOutput{};
 
         TraceChain mChain;
     };

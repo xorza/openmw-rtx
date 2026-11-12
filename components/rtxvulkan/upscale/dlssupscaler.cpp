@@ -11,20 +11,18 @@
 #include <utility>
 #include <vector>
 
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/dlss/dlss.hpp>
-#include <components/platform/gpu.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/driverprofile.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
-#include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
-#include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/frame/framestep.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -201,6 +199,7 @@ namespace Rtx
                 : mApi(api)
                 , mDevice(device.getHandle())
             {
+                const Crash::NoteScope noted("initializing NVIDIA's NGX");
                 const Ngx::Result init = api.InitWithProjectId(Dlss::sProjectId, Ngx::Engine::Custom,
                     Version::getVersion().data(), application.getDataPath(), device.getInstanceHandle(),
                     device.getPhysicalDevice().getHandle(), mDevice, vkGetInstanceProcAddr, vkGetDeviceProcAddr,
@@ -260,6 +259,8 @@ namespace Rtx
                 const Ngx::RayReconstructionFeature& create)
                 : mApi(api)
             {
+                const Crash::NoteScope noted("creating NVIDIA DLSS's feature at {}x{} to {}x{}", create.mRender.width,
+                    create.mRender.height, create.mOutput.width, create.mOutput.height);
                 Ngx::Result result = Ngx::Result::Failure;
                 device.getPool().submitAndWait([&](const VkCommandBuffer commands) {
                     result = Ngx::createRayReconstruction(api, commands, parameters, create, &mHandle);
@@ -311,10 +312,8 @@ namespace Rtx
             , mCapabilities(api, api.GetCapabilityParameters, "capabilities")
             , mParameters(api, api.AllocateParameters, "parameter map")
             , mGuides(device, sGuideBindings, {}, "rrguides.comp.spv", "rr guides")
-            , mBlocks([&](const FrameSlot) {
-                return Buffer::hostWritten(
-                    device, sizeof(Shaders::RrGuideConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, "rr constants");
-            })
+            , mBlocks(Buffer::deviceLocal(device, sizeof(Shaders::RrGuideConstants),
+                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "rr constants"))
         {
             // **The capabilities and the features from maps of their own**, as the programming guide
             // (5.2.6) has them: a map NGX fills with every capability is not one to carry through
@@ -353,7 +352,9 @@ namespace Rtx
         ParameterMap mCapabilities;
         ParameterMap mParameters;
         ComputePipeline<NoConstants> mGuides;
-        PerSlot<Buffer> mBlocks;
+        /// The guide pass's constants, written in queue order (`Buffer::updateInline`): one buffer
+        /// for every frame.
+        Buffer mBlocks;
     };
 
     struct DlssUpscaler::Targets
@@ -384,7 +385,7 @@ namespace Rtx
         // its card was taken out loads on any machine, and another vendor's device is not one to
         // hand it. Both asked before the context's pipeline and buffers are made, so a machine that
         // refuses pays for neither.
-        if (device.getPhysicalDevice().getDriver().mVendor != Platform::Gpu::Vendor::Nvidia)
+        if (!device.getPhysicalDevice().getDriver().mNgx)
             throw UpscalerRefused(std::format("NVIDIA DLSS needs an NVIDIA card, and the renderer runs on {}",
                 device.getPhysicalDevice().getProperties().mProperties2.properties.deviceName));
         assert(application != nullptr && "a DLSS candidate in a run that never asked for DLSS");
@@ -395,9 +396,21 @@ namespace Rtx
         return std::make_unique<Context>(*api, device, *application);
     }
 
+    DlssAvailability DlssUpscaler::availabilityOn(const DriverProfile& driver, const DlssLibrary::Folders& folders)
+    {
+        if (!driver.mNgx)
+            return DlssAvailability::NotNvidia;
+        if (!DlssLibrary::installedIn(folders))
+            return DlssAvailability::NotInstalled;
+        return DlssAvailability::Present;
+    }
+
     DlssUpscaler::DlssUpscaler(const Device& device, const Dlss::Application* application)
         : mDevice(device)
-        , mContext(makeContext(device, application))
+        , mContext([&] {
+            const Crash::NoteScope noted("starting NVIDIA DLSS Ray Reconstruction");
+            return makeContext(device, application);
+        }())
     {
     }
 
@@ -423,6 +436,19 @@ namespace Rtx
     std::size_t DlssUpscaler::getSharedCount()
     {
         return sShared;
+    }
+
+    VkExtent2D DlssUpscaler::renderExtentFor(const Upscale mode, const VkExtent2D output) const
+    {
+        // NGX rounds its own ratios (balanced at 1920 by 1080 is 1114 by 626, where 1.7 truncates to
+        // 1129 by 635), which only it knows: the extent is asked, never worked out.
+        Ngx::OptimalSettings settings;
+        const Ngx::Result asked
+            = Ngx::optimalSettings(mContext->mCapabilities.get(), output, qualityOf(mode), settings);
+        if (Ngx::failed(asked) || settings.mOptimal.width == 0 || settings.mOptimal.height == 0)
+            throw DeviceError(std::format("NVIDIA DLSS gave no extent to trace {} at for {}x{}: {}",
+                sUpscaleNames.name(mode), output.width, output.height, resultText(asked)));
+        return settings.mOptimal;
     }
 
     VkDeviceSize DlssUpscaler::bytesAt(const VkExtent2D render, const VkExtent2D output) const
@@ -474,9 +500,10 @@ namespace Rtx
         const Ngx::Result now = Ngx::statsBytes(capabilities, after);
         if (Ngx::failed(was) || Ngx::failed(now))
             throw DeviceError("NVIDIA DLSS could not say what its feature holds: " + resultText(now));
-        Log(Debug::Verbose) << std::format(
-            "NVIDIA DLSS Ray Reconstruction at {}x{} to {}x{}: {} bytes before, {} after", render.width, render.height,
-            output.width, output.height, before, after);
+        // At Info, once a mode's feature is made: a player's log then says what the card held for it.
+        Log(Debug::Info) << std::format(
+            "NVIDIA DLSS Ray Reconstruction's feature, {} at {}x{} to {}x{}: NGX holds {} bytes, {} before it",
+            sUpscaleNames.name(mode), render.width, render.height, output.width, output.height, after, before);
         return Measured{ .mRender = render, .mOutput = output, .mBytes = after > before ? after - before : 0 };
     }
 
@@ -520,8 +547,7 @@ namespace Rtx
         return mTargets != nullptr && sameExtent(mTargets->mRender, render) && sameExtent(mTargets->mOutput, output);
     }
 
-    HandedImage DlssUpscaler::record(
-        const VkCommandBuffer commands, Uploads& uploads, const UpscaleInputs& inputs, GpuTimer* timer)
+    HandedImage DlssUpscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer)
     {
         const GpuZone timed(timer, commands, FrameZone::Upscale);
 
@@ -537,10 +563,8 @@ namespace Rtx
             },
             .mLobed = inputs.mLobed ? 1u : 0u,
         };
-        const Buffer& block = mContext->mBlocks.at(inputs.mSlot);
-        uploads.write(block, 0, std::span(&constants, 1));
-        uploads.order();
-        block.nameForNext();
+        const Buffer& block = mContext->mBlocks;
+        block.updateInline(commands, Use::sBufferUniformRead, std::as_bytes(std::span(&constants, 1)));
 
         // **The guide pass writes every pixel of every guide**, so their previous contents are
         // discarded: the mode's own edge is the first frame after a resize, and the feature is new
@@ -602,10 +626,21 @@ namespace Rtx
             .mReset = reset,
             .mFrameMs = inputs.mSeconds * 1000.0f };
 
+        const Crash::NoteScope noted("evaluating NVIDIA DLSS at {}x{}", frame.mRender.width, frame.mRender.height);
         const Ngx::Result result = Ngx::evaluateRayReconstruction(
             mContext->mApi, commands, targets.mFeature.get(), mContext->mParameters.get(), frame);
         if (Ngx::failed(result))
-            throw DeviceError("NVIDIA DLSS failed to evaluate a frame: " + resultText(result));
+            throw DeviceError(std::format("NVIDIA DLSS failed to evaluate a frame traced at {}x{}{}: {}",
+                frame.mRender.width, frame.mRender.height, reset ? ", its history reset" : "", resultText(result)));
+
+        // **The colour back where the trace handed it**, which is where a reader of the composite
+        // after the frame meets it (`UpscaleInputs::mColour`): one barrier, against a second
+        // answer to where the composite stands that every later reader would have to be handed.
+        {
+            Barriers barriers(commands);
+            inputs.mColour.mImage.addTransition(barriers, sDlssRead, inputs.mColour.mLeftAs);
+            barriers.flush();
+        }
 
         return HandedImage{ .mImage = targets.mShared[sOutput], .mLeftAs = sDlssWrite };
     }

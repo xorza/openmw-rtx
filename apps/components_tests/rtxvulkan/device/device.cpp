@@ -80,7 +80,15 @@ namespace Rtx
                 std::string("a submit nobody made did not complete within 1 ms; the device has stopped answering")
                     + (marks ? "\n  the top of the pipe last passed `probe` of frame 9"
                                "\n  the bottom of the pipe last passed `probe` of frame 9"
-                             : ""));
+                             : "")
+                    + "\nsubmits in flight: 0 \\(");
+
+            // A picture's checkpoint names the picture, and not a frame.
+            const Checkpoint picture{ "probe", sPictureCheckpoint | 4 };
+            getPool().submitAndWait([&](VkCommandBuffer commands) { device.checkpoint(commands, &picture); });
+            if (marks)
+                Testing::expectDies([&] { awaitVk(device, fence, "a submit nobody made", 1'000'000ull); },
+                    "the top of the pipe last passed `probe` of picture 4");
 
             vkDestroyFence(device.getHandle(), fence, nullptr);
         }

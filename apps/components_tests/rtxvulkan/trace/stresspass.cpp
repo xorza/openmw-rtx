@@ -76,7 +76,9 @@ namespace Rtx
 
             StressPass four(device, 4.0);
             StressPass twentyFour(device, 24.0);
-            if (card.getDriver().mVendor == Platform::Gpu::Vendor::Nvidia)
+            // A fact of one vendor's clock, which no capability states.
+            if (Platform::Gpu::vendorOf(card.getProperties().mProperties2.properties.vendorID)
+                == Platform::Gpu::Vendor::Nvidia)
             {
                 EXPECT_EQ(card.timestampMs(1), 1.0e-6) << "NVIDIA's clock counts nanoseconds";
             }

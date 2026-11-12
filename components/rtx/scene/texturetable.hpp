@@ -254,10 +254,10 @@ namespace Rtx
         FormatCensus mFormats;
     };
 
-    /// Which of up to sixteen takes of one image the table refused, and how many slots it had freed
-    /// then (`TextureTable::getFreedCount`). A refused take is asked again once that count moves,
-    /// because nothing else makes room, and not before, because until then asking is a path built
-    /// to be refused. The one rule for every resolver that takes a texture.
+    /// Which takes of one image the table refused, a bit a take, an encoding and a wrap each, and how
+    /// many slots it had freed then (`TextureTable::getFreedCount`). A refused take is asked again once that count
+    /// moves, because nothing else makes room, and not before, because until then asking is a path built to be refused.
+    /// The one rule for every resolver that takes a texture.
     class RefusedTakes
     {
     public:
@@ -276,5 +276,7 @@ namespace Rtx
     private:
         std::uint32_t mBits = 0;
         std::uint64_t mAt = 0;
+
+        static_assert(sTextureEncodingCount * sTextureWrapCount <= 32, "a take of every encoding and wrap a bit");
     };
 }

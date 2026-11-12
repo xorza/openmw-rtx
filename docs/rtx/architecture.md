@@ -130,6 +130,19 @@ what to report. A played session installs nothing and gets the played answers.
 `RtxSettings::derive` is the one derivation of the ray tracer's settings, and the harness fills
 it from its command line. The core reads no settings.
 
+- **Settings apply at the next frame** (`PendingSettings`): a menu's change waits for the next frame's start, so a
+  rebuild it fails is reported there. Refused: a rebuild inside the settings window's call, mid-frame, whose failure
+  ended the process.
+- **World events take one phase rule** (`RtxRenderer::expectWorldEvent`): a cell, a cut, a worldspace or a ripple
+  arrives between frames or from the run's hook, the widest the emitters already needed.
+- **Jumps are told by stable identity, sorted** (`SceneUtil::StableIdentity` on the reference's base node), so a node
+  freed and another made at its address is no jump, and the walk searches a sorted list. Refused: the node's address.
+- **Ripple candidates are a bounded max-heap** of `RIPPLE_IMPULSES_MOST`, the farthest on top and given up for a
+  nearer one, so a crowded frame grows nothing; ties keep the game's earlier impulse, as the sort did.
+- **A played session's frame times are a histogram of a tenth of a millisecond to 250 ms**
+  (`Rtx::FrameTimeHistogram`), the worst kept exactly and a quantile never past it, logged at each cut and at the
+  end. Refused: every sample kept, as the harness keeps them, which a session of hours cannot.
+
 ## The interface
 
 MyGUI draws the whole interface, as upstream. Only its backend changes.
@@ -439,6 +452,9 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
   Fullrest Repack's frame reaches 222 MiB of shapes; a larger one the frame computes as it did. **The start loads no
   shape**: the preparation reads the content's own as it finds each model standing, where a sweep that ranks files
   by their time alone filled the bound with another profile's first. Refused: a file read on the frame's thread.
+- **Resident entries are `std::shared_ptr<const ByteBuffer>`**, taken under the lock and copied after it, and a copy
+  to keep is made before the lock is taken, since the frame's thread asks under the same lock. Refused: a reader's
+  copy under the lock, which held it for a chain's milliseconds.
 - **No size cap**, by the user's decision: an entry stays until its file is refused or deleted by hand, since the
   preparation trusts its manifest and a store that evicted a profile's chains made play compute them. The 16 GiB cap,
   least recently used first as ccache and bazel-remote evict, held under the two large content lists' 14 GiB and no
@@ -530,6 +546,9 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
 - **A pass's version is held by a test** (`RtxPassVersionsTest`): each pass's outputs over fixed inputs are digested
   beside its `sVersion`, so a forgotten bump fails, and a version moves whenever an output for the same input moves,
   an encoder's update included. Refused: the build's revision in every key, which empties the store at every build.
+- **The store's format is its folder** (`rtx-content/v2/`), and a manifest that does not parse is refused whole. A
+  cache of an earlier layout stays beside it until a player deletes it. Refused: a sweep of the old layout, a
+  migration kept for good.
 - **A store that cannot be written is a store that misses**: a full disk or a failed rename is logged once, and the
   game computes what it would have stored.
 - **The scene graph stays the renderer's one input**: the store holds what the mirror derives, not models that would
@@ -562,6 +581,18 @@ at the top, over all of them.
   never reads it on the frame path. The graveyard keeps what a submit may still read until the
   timeline passes it, so a buffer replaced or a scene let go is safe with frames in flight. A
   missing required feature refuses the device; an optional extension is taken whole or not at all.
+- **A call without a device to lose is spelled so**, `checkVkWithoutDevice`, confined by `RtxSourceTreeTest` to the
+  instance, the physical device and the device's making; `Owned` checks through the device its handle is buried
+  with. Refused: one overload taking an optional device, which a caller could leave out anywhere.
+- **Buffer markers in every build, NVIDIA's checkpoints on request**: a marker is two writes a zone, and a
+  checkpoint runs where the build validates or `OPENMW_RTX_BREADCRUMBS` asks. Uncached markers are an option of
+  their own, `VK_AMD_device_coherent_memory`, with VMA told it may use the types and no request but the markers'
+  naming them ([VMA](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/vk_amd_device_coherent_memory.html)).
+  Refused: a checkpoint per pass, since the zones name the pass family and NGX's half of the upscale takes none.
+- **`Retiring` is a growable ring**, so a wait moves nothing that stays; it grows only past the busiest frame.
+- **The loader's entry points, not the device's** (`volkLoadDevice` refused): it rebinds the process's entry points
+  to one device, which the GPU tests' second devices would then call through, and a `VolkDeviceTable` is every call
+  site, for a trampoline not measured to cost anything.
 - **The command pool** (`device/commands.hpp`): commands recorded again and again are lent
   (`LentCommands`), one scope's span to its submit is a `Recording`, setup work with its staging is
   a `Batch`, and no other submit is made while a recording is open. Refused: a pool a frame slot,
@@ -654,6 +685,10 @@ at the top, over all of them.
 - **The swapchain is made again once the window's drawable settles** (`RtxWindow::fit`), so a
   drag makes it once. Refused: a swapchain made over `oldSwapchain`, for a resize that comes a few
   times a session.
+- **Present fences in either spelling**: the instance takes `VK_KHR_surface_maintenance1` where the loader has it
+  and the `EXT` one where it has that alone, and the device the `EXT` swapchain option only where the promoted one
+  is not offered, since both name one feature structure, which chained twice would loop. As DXVK takes either. A
+  lost surface is answered as nothing by every query, and the presenter makes it again.
 - **The glossy lobe's images exist on every install**, by the user's decision: 37 MB at a 720p
   trace. Refused: making them only where the content wears a map, since a scan of the file index
   cannot see a map a model names in its own file, and a missed map costs a drain or a wrong picture.
@@ -692,6 +727,19 @@ at the top, over all of them.
   set every key the SDK's helpers set (`ngx.cpp`), the unused ones null, so a carried map reads no
   earlier frame's; linear radiance at a pre-exposure of one, as RTX Remix hands it, since RR takes no
   exposure; the library's default preset.
+- **Ray Reconstruction traces at the extents NGX gives the mode** (`Upscaler::extentsFor`,
+  `NGX_DLSSD_GET_OPTIMAL_SETTINGS`), as the DLSS-RR Integration Guide (3.2) and the DLSS Programming
+  Guide (3.2.1) ask: NGX rounds its own ratios (balanced at 1920×1080 is 1114×626, where FSR's 1.7
+  truncates to 1129×635). Refused: FSR's arithmetic for both, which only holds while a library takes
+  any extent in its range. The colour NGX reads in its wrapper's layout is put back where the trace
+  handed it, so the composite reads the same after either upscaler.
+- **The upscalers' constants are written inline in queue order** (`Buffer::updateInline`), one buffer each, as the
+  visibility pass's are; FSR lays its targets out at its first record. Refused: a staged upload and a blocking
+  submit at a resize.
+- **What a move makes again is one answer, `FrameTracer::movesTo`**: the extents against the last
+  resize's and what is made again, which the renderer, the chain and FSR are handed; a part that moved
+  is let go of first, and a part that stands is asked at its own extents, which it asserts. Refused: each
+  part comparing its own extents, five answers to one question that a mode change can tell apart.
 - **What NGX allocates is frame memory the reserve counts** (`Upscaler::prepare`, `MemoryAllocator::holdOutside`):
   the feature is made before the reserve is set, measured off NGX's stats as what it added to what
   every feature holds (measured: 26.6 MB at 426×240 to 640×360 and 45.5 MB native, 72.1 MB with both),
@@ -819,6 +867,9 @@ at the top, over all of them.
   `FrameHashes` reports a difference in a denoised composed frame beside the verdict, and `shot`
   holds a denoised picture to within `sDenoiserNoiseLevels`. The evidence is in `8deca8c8f7`
   (`.notes/denoiser-nondeterminism.md`).
+- **A history store selects each non-finite component to nought** (`RTX_STORE_HISTORY`, `finiteOrNought`), after
+  the census counts it: one select a store, no branch, and a finite value kept to the bit. Refused: a guard per
+  sample.
 
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
 `shaders/lib/`). The trace is six compute stages in one fixed order: `trace/visibility.comp`
@@ -1091,11 +1142,37 @@ no device with the features — throws `Rtx::Unsupported`, which ends the start 
 failure does, and names what is missing. A device that refuses throws `Rtx::DeviceError`. A lost device or a wait that never
 ends crashes where it was found, so the crash report shows it.
 
-- **A hang report is taken on one thread of the game's own, up before any hang, which the process's end waits
-  for** (`takeHangReports`, `stopReporter`), on every system. Refused: a signal on POSIX and a thread the
-  monitor starts in the game on Windows, as Chromium does for a hung renderer. Each started a report at a moment
-  and on a thread nothing owned: a Windows game that ended during one freed Crashpad's lock under it, and the
-  new thread waited on a loader lock the stall could hold. The monitor only rings, through the shared page.
+- **A hang's dump is taken by the monitor from outside the game** (`dumpHang`), as Crashpad's `generate_dump`,
+  Firefox's `HangMonitorParent::TakeBrowserMinidump` and Breakpad's out-of-process writer take one: through ptrace
+  on Linux, under a lock the monitor's own loop around Crashpad's handler takes for every crash's dump too, and on
+  Windows with the game suspended, where suspensions nest. Refused: a dump the game takes of itself through
+  Crashpad's simulated crash, from a thread of its own the monitor rang, whose waits were timed polls, whose fault
+  under a report shared the client's one exception record, and whose gate and first-chance waits existed only to
+  keep that safe; and a signal or a thread the monitor starts in the game, which waited on a loader lock the stall
+  could hold.
+- **Linux runs the monitor's own loop around Crashpad's server and handler**, as
+  [`handler_main.cc`](https://chromium.googlesource.com/crashpad/crashpad/+/main/handler/handler_main.cc) builds it,
+  with a delegate that takes one lock around the stock `CrashReportExceptionHandler` and records a dump it failed.
+  Refused: `HandlerMain` beside a ptrace hang dump, which a crash during the attach would fail. Windows keeps
+  `HandlerMain`, whose suspensions nest.
+- **The game names the monitor as its tracer** (`PR_SET_PTRACER`) once it answers, as Crashpad's own crash path does
+  for one request (`ScopedPrSetPtracer`); [Yama](https://www.kernel.org/doc/html/latest/admin-guide/LSM/Yama.html)
+  scope 2 without root, and 3, refuse the catcher at install.
+- **The note table holds 64 slots**, the most whose table stays under Crashpad's 20 KiB annotation value
+  (`Annotation::kValueMaxSize`), and counts each thread that met it full. Refused: two annotations for more slots,
+  as the count already says when a machine runs past them.
+- **The crash notes are a leaf library**, `openmw-crash-notes`, which the build's own tools link: every error the
+  renderer throws carries the thread's note (`Rtx::withNote`). Refused: the note added where the fatal box shows
+  it, by which time it has unwound.
+- **The monitor's lines before the game names its log wait for it**, and where it never does, go to
+  `<application>-monitor.log` beside the reports, emptied for the session, which the package then holds.
+- **A replaced crash handler is logged, not taken back.** Sentry Native reinstalls its handler; Crashpad offers no
+  reinstall, and a driver's handler is the driver's to chain. On Windows the unhandled-exception filter is left out
+  of the check: reading it means setting it, which leaves a moment with none.
+- **Every wait between the game and its monitor ends when the other side is gone** (`Client::monitorRuns`,
+  `GameProcess::isGone`), as Crashpad's own `SignalCrashDump` waits only while the handler's socket lives; one
+  limit, `sLastResort`, is for a side that runs and never answers. Refused: a limit a wait for a slow side ends on,
+  which a cold disk, a sanitizer or a busy runner passed and a fix moved again.
 - **A file is read whole and written whole, through one primitive** (`Platform::readWhole`, `writeWhole`), as
   Rust's `std::fs::read` and `write` and Go's `os.ReadFile` and `WriteFile` are; what is appended to is
   `Platform::AppendFile`'s. A write goes to a temporary in the target's folder and is renamed over it, as Go's
@@ -1122,6 +1199,17 @@ never the reverse.
 | `openmw-tests`     | the game side: the renderer, the mirror, the terrain              |
 | `rtx-gpu-tests`    | what opens a device; fails without one                           |
 | `crash-tests`      | every way a game ends, and the report the catcher left           |
+
+- **The harness chooses its settings source once** (`overLine`): the registry for a window, `measuredSettings` for a
+  measured run. Two lists stay, the game's and the harness's, since the harness library does not link the game.
+- **Every waiting loop of a test has a bound** (`Testing::WaitBound`): five minutes for what a cold cache makes, ten
+  seconds for another thread's hand-over, a count of walks for the cell ring; past it the loop fails naming what it
+  waited for.
+- **The GPU suite keeps its own pipeline cache** in its build folder (`OPENMW_RTX_TEST_PIPELINE_CACHE_DIR`), kept
+  across runs, rather than the player's.
+- **Qt's painting pool is off under ThreadSanitizer** (`QT_NO_GUI_THREADPOOL`): Qt is built without the sanitizer,
+  which sees its pool's threads and not their hand-over. Refused: a suppressions file, which hides a race rather
+  than the pool.
 
 Rendering changes are checked without a window. `AGENTS.md` lists the commands.
 

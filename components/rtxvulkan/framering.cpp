@@ -9,6 +9,7 @@
 #include <string_view>
 #include <utility>
 
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
@@ -167,6 +168,7 @@ namespace Rtx
         FrameRecord& frame = slotOf(mFinished);
         frame.mState.expect(FrameState::Submitted);
 
+        const Crash::NoteScope noted("waiting for frame {}, submitted at {}", mFinished, frame.mSubmitted);
         const auto start = std::chrono::steady_clock::now();
         mDevice.waitFor(frame.mSubmitted, "a frame");
         const double waited = since(start, std::chrono::steady_clock::now());

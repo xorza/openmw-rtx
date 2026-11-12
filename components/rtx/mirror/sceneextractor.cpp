@@ -23,6 +23,7 @@
 #include <osgParticle/ParticleSystem>
 #include <osgParticle/ParticleSystemUpdater>
 
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/result.hpp>
 #include <components/nifosg/autotransform.hpp>
 #include <components/rtx/common/finite.hpp>
@@ -158,10 +159,16 @@ namespace Rtx
         /// not before, so a placement lands on the bits `computeLocalToWorld` would have landed it.
         osg::Matrixf placed() const { return osg::Matrixf(mHere) * mRoot; }
 
-        /// Whether `node` jumped, or stands under a node that did.
+        /// Whether `node` jumped, or stands under a node that did: asked of its identity where
+        /// the game stamped one, and of nothing while nothing jumped.
         bool jumps(const osg::Node& node) const
         {
-            return mJumping || std::ranges::find(mJumped, &node) != mJumped.end();
+            if (mJumping)
+                return true;
+            if (mJumped.empty())
+                return false;
+            const SceneUtil::StableIdentity* const stamped = SceneUtil::StableIdentity::find(node);
+            return stamped != nullptr && std::ranges::binary_search(mJumped, stamped->getId());
         }
 
         SceneExtractor& mExtractor;
@@ -206,7 +213,7 @@ namespace Rtx
         bool mLampBody = false;
 
         /// `SceneExtractor::setJumped`, read once at `begin`.
-        std::span<const osg::Node* const> mJumped;
+        std::span<const std::uint64_t> mJumped;
 
         WalkGlows mInside;
 
@@ -350,7 +357,14 @@ namespace Rtx
             mChangeable = jumped;
         }
 
-        enterWalked(node, identity, kind);
+        // **A reference walked, and not one passed frozen**, so the note is paid where the walk is.
+        if (root)
+        {
+            const Crash::NoteScope walking("walking the reference \"{}\"", node.getName());
+            enterWalked(node, identity, kind);
+        }
+        else
+            enterWalked(node, identity, kind);
 
         if (root)
             mExtractor.mFrozen.end(node, face, mChangeable, mExtractor.mWorldWalk, mExtractor.frozenHolders(),

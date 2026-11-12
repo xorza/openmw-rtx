@@ -92,10 +92,10 @@ namespace Rtx
 
     /// Brackets a piece of work where there is a timer to bracket it with: opened where it is made
     /// and closed where it goes, so no path out of the work, a return or a throw, leaves the zone
-    /// open. Nothing for a null timer: a scene arriving and a picture inside the interface record
-    /// the same commands and are not frames, so zones opened there would land in whichever frame
-    /// report came next. A zone that must end before the work after it is made in a block of its
-    /// own.
+    /// open. Nothing for a null timer: a scene arriving records the same commands and is not a
+    /// frame, so zones opened there with the frame's timer would land in whichever frame report came
+    /// next; a picture inside the interface has an untimed timer of its own. A zone that must end
+    /// before the work after it is made in a block of its own.
     class [[nodiscard]] GpuZone
     {
     public:

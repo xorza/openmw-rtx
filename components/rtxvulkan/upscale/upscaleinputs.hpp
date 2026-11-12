@@ -3,7 +3,6 @@
 #include <cstdint>
 
 #include <components/rtx/shaders/camera.h>
-#include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 
 namespace Rtx
@@ -14,7 +13,8 @@ namespace Rtx
     {
         /// The frame at render resolution, as the trace chain composed it: denoised where the
         /// denoisers ran, and the trace's own composite where nothing filtered it. With the use the
-        /// chain left it in, which an upscaler that reads it in another layout transitions from.
+        /// chain left it in, which an upscaler that reads it in another layout transitions from, and
+        /// back to once it has read it.
         const HandedImage& mColour;
 
         /// `CHANNEL_SURFACE`: the distance from the eye along each pixel's ray in `g`, which the
@@ -55,8 +55,5 @@ namespace Rtx
 
         /// How long since the previous frame, in seconds, or nought where there was none.
         float mSeconds = 0.0f;
-
-        /// The frame in flight this reconstruction is recorded into, whose constants it writes.
-        FrameSlot mSlot;
     };
 }

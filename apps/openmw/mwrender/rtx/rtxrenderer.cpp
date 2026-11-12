@@ -41,6 +41,7 @@
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -107,99 +108,10 @@ namespace MWRender
             Crash::fatal("a vertical sync mode past the three");
         }
 
-        /// Whether an environment variable is set to anything other than nothing or `0`.
-        bool askedFor(const char* name)
-        {
-            const char* const value = std::getenv(name);
-            return value != nullptr && *value != '\0' && std::strcmp(value, "0") != 0;
-        }
-
-        /// `validation` raised to what the environment asks of the layers.
-        ///
-        /// **The two finer levels, asked for by name and never on by themselves.** The build decides
-        /// whether the layers load; these decide what they check, and each costs far more than the
-        /// core checks do — synchronization validation tracks every access of every resource, and
-        /// the GPU-assisted layer instruments every shader. They are here because the harness names
-        /// a level on its command line and the game has none, and `Rtx::sValidationByDefault` says
-        /// why two hosts of one renderer must not disagree about the layers. What they answer is
-        /// the fault a core-clean run still ends in: a device lost with an address and nothing else.
-        ///
-        /// **The GPU-assisted layer takes the process down on its own**, which is why it is a level
-        /// of its own and never paired with the other: over a window `vkWaitForFences` comes back
-        /// `VK_ERROR_DEVICE_LOST` on three runs of four, somewhere inside a minute, with nothing
-        /// wrong in the frame, and headless it has aborted inside the layer's own thread. So
-        /// `OPENMW_RTX_SYNC_VALIDATION` is the one to reach for in the game, and
-        /// `OPENMW_RTX_GPU_VALIDATION` is there for a session willing to tell the losses apart.
-        /// Either raises the level whatever the build said, which is what lets a Release build be
-        /// asked one question without being rebuilt. `OPENMW_RTX_WATCH_SUBMITS` is asked for by name
-        /// for the same reason: a diagnostic the game has no command line to ask for.
-        Rtx::ValidationOptions askedValidation(Rtx::ValidationOptions validation)
-        {
-            if (askedFor("OPENMW_RTX_SYNC_VALIDATION"))
-                validation.mLevel = std::max(validation.mLevel, Rtx::ValidationLevel::Sync);
-            if (askedFor("OPENMW_RTX_GPU_VALIDATION"))
-                validation.mLevel = Rtx::ValidationLevel::Gpu;
-            validation.mWatchSubmits = validation.mWatchSubmits || askedFor("OPENMW_RTX_WATCH_SUBMITS");
-            validation.mBreadcrumbs = validation.mBreadcrumbs || askedFor("OPENMW_RTX_BREADCRUMBS");
-            return validation;
-        }
-
-        /// The backend `OPENMW_RTX_BACKEND` names, and the device's where it names none.
-        ///
-        /// **Asked for by name, as the layers' finer levels are** (`askedValidation`): a
-        /// run of the game on a machine with no device — upstream's integration tests on CI — has no
-        /// command line of its own, and a setting would put a game that draws nothing one menu away
-        /// from a player.
-        RtxBackend askedBackend()
-        {
-            const char* const named = std::getenv("OPENMW_RTX_BACKEND");
-            if (named == nullptr || *named == '\0')
-                return RtxBackend::Vulkan;
-            return sRtxBackendNames.require(named, "a backend `OPENMW_RTX_BACKEND` names");
-        }
-
-        /// What a played session is made with, where the harness installed nothing: what `[RTX]`
-        /// leaves a player, through the one derivation (`RtxSettings`), and the played answer to
-        /// everything else. The knobs a measurement turns — albedo, the filter, the
-        /// exposure, the crossings — are a run's, handed to the constructor by the harness that
-        /// makes one, and a settings file cannot reach them: one that could once turned a played
-        /// game into a fixed-step run for good. A played session shows every frame and sums none,
-        /// and measures its exposure off each. The layers are the build's, which
-        /// `Rtx::sValidationByDefault` says is the one thing that should decide them for a session
-        /// with no command line. The clock is the wall: the eye adapts in real time and the
-        /// upscaler tunes itself against how fast a motion vector was travelled, so each reader
-        /// times what it is about — a setting that could state a step once made a played game step
-        /// by frames, and at two hundred of them a second the world ran three times over.
-        RunSetup playedRunSetup(const RendererSpec& spec)
-        {
-            const RtxSettings settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
-            const RtxBackend backend = askedBackend();
-
-            Rtx::RenderProfile profile{
-                .mExposure = Rtx::ExposureRule{},
-                .mRadianceWidth = Rtx::RadianceWidth::Shown,
-            };
-            settings.applyTo(profile);
-
-            return RunSetup{
-                .mRun = {
-                    .mProfile = profile,
-                    .mValidation
-                    = { .mLevel = Rtx::sValidationByDefault ? Rtx::ValidationLevel::On : Rtx::ValidationLevel::Off },
-                },
-                .mMirror = settings.mMirror,
-                .mBackend = backend,
-                .mHeadless = backend == RtxBackend::Null,
-                .mSettled = std::nullopt,
-                .mContentStore = spec.mCachePath.empty()
-                    ? std::nullopt
-                    : std::optional(spec.mCachePath / Rtx::sContentStoreFolder),
-            };
-        }
     }
 
     RtxRenderer::RtxRenderer(const RendererSpec& spec, const RtxSetup* const run)
-        : RtxRenderer(spec, run, run != nullptr ? run->mSetup : playedRunSetup(spec))
+        : RtxRenderer(spec, run, run != nullptr ? run->mSetup : playedRunSetup(spec.mCachePath))
     {
     }
 
@@ -273,12 +185,9 @@ namespace MWRender
         // nor its buffers. The census is the shaders' (`RunSetup::mShaders`).
         options.mReporting = run != nullptr ? Rtx::Reporting::Measured : Rtx::Reporting::Played;
 
-        // **Said once, where it is decided.** What reconstructs the frame does not change while the
-        // session runs, so it does not belong in the periodic line; what that line carries is the
-        // one word a reader of any single line needs, and the rest — at what pair of sizes — is here,
-        // where it was chosen.
-        Log(Debug::Info) << "Ray tracing: upscaler " << Rtx::sUpscalerNames.name(setup.mRun.mProfile.mUpscaler)
-                         << ", upscale " << Rtx::sUpscaleNames.name(setup.mRun.mProfile.mUpscale);
+        // **Said once, where it is decided**, as none of it changes while the session runs but the
+        // upscale, which the line where the targets are made says at what pair of sizes.
+        Log(Debug::Info) << "Ray tracing run: " << describe(setup);
 
         // **A switch the player turned on for what this renderer declines is said once, with the
         // declaration's reason**: a second eye, a shader chain. Said and not refused, because
@@ -298,6 +207,12 @@ namespace MWRender
 
         // What `auto` came to is the device's description's `upscaler` line.
         Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
+
+        // **A driver that takes a crash signal for itself as it starts** leaves the crash catcher
+        // blind to every crash after it: said once, here, where the device has just been made.
+        for (const std::string_view lost : Crash::lostHooks())
+            Log(Debug::Warning) << "The crash catcher no longer handles " << lost
+                                << ": something the renderer started replaced its handler";
 
         mWindow.apply(*mRenderer, getCamera(), getPresentation());
 
@@ -327,13 +242,16 @@ namespace MWRender
 
         // **What the content store did, said once a session**, where its failures are counted and
         // not each logged: a session's drops are a store that missed what it would have kept.
+        Log(Debug::Info) << "Frame times of the session: " << Rtx::describe(mSessionTimes.summarise());
+
         if (mContentStore != nullptr)
         {
             const ContentStore::Stats store = mContentStore->getStats();
             Log(Debug::Info) << "Rtx: the content store found " << store.mFound << " entries and missed "
-                             << store.mMissed << "; wrote " << store.mWritten << ", dropped " << store.mDropped
-                             << ", refused " << store.mRefused << ", stamped " << store.mStamped << " and swept "
-                             << store.mStale << " temporaries";
+                             << store.mMissed << ", held " << store.mHeld << " of " << store.mHeld + store.mUnheld
+                             << " asked whether it held them; wrote " << store.mWritten << ", dropped "
+                             << store.mDropped << ", refused " << store.mRefused << ", stamped " << store.mStamped
+                             << " and swept " << store.mStale << " temporaries";
         }
     }
 
@@ -422,31 +340,31 @@ namespace MWRender
 
     void RtxRenderer::addCell(const MWWorld::CellStore* cell) noexcept
     {
-        mPhase.expect(Phase::Between);
+        expectWorldEvent();
         mMirror.standSea(*cell);
     }
 
     void RtxRenderer::removeCell(const MWWorld::CellStore* cell) noexcept
     {
-        mPhase.expect(Phase::Between);
+        expectWorldEvent();
         mRipples.removeCell(*cell);
     }
 
     void RtxRenderer::addWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectWorldEvent();
         mRipples.add(ptr);
     }
 
     void RtxRenderer::removeWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectWorldEvent();
         mRipples.remove(ptr);
     }
 
     void RtxRenderer::emitWaterRipple(const osg::Vec3f& position) noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
+        expectWorldEvent();
         mRipples.splash(position);
     }
 
@@ -646,7 +564,8 @@ namespace MWRender
         // on but one**, the main thread's, which draws the screen and sleeps: the PBR replacers' cold
         // preparation took 64 s on 31 threads where it took 80 on 16
         // (`docs/rtx/research/2026-11-09-content-preparation-cost.md`, "Threads").
-        if (const MWWorld::ESMStore* const store = MWBase::Environment::get().getESMStore())
+        const MWWorld::ESMStore* const store = MWBase::Environment::get().getESMStore();
+        if (store != nullptr)
             mMirror.startPreparing(getResources(), contentModels(*store, getResources()),
                 contentLayers(*store, getResources()),
                 std::max<std::size_t>(1, Platform::Process::usableCpuCount() - 1));
@@ -682,8 +601,8 @@ namespace MWRender
             // (`Rtx::ContentPreparation`, `Resource::SceneManager::letGo`), so the walk's memory stays
             // within the jobs' own: cleared once a second instead, the caches held what a second of walks
             // loaded, 7.3 GiB at the peak of a PBR start whose manifest walked every model again, and aged
-            // by their expiry, 14.7 GB. The clear at the end drops what a job's files did not name. Each
-            // wait sleeps until a job is done or the screen's frame is due, as the kernels' does.
+            // by their expiry, 14.7 GB. Each wait sleeps until a job is done or the screen's frame is
+            // due, as the kernels' does.
             constexpr std::chrono::milliseconds patience{ 8 };
             while (!progress.isDone())
             {
@@ -691,10 +610,15 @@ namespace MWRender
                 listener.setProgress(progress.mMade);
                 progress = mMirror.awaitPreparing(patience);
             }
-            getResources().clearCache();
             listener.setNote({});
         }
         mWalked.mSession.mLoading += mMirror.finishPreparing();
+
+        // **The clear at the end drops what a job's files did not name**, once the jobs are done and
+        // whichever of the kernels and the preparation ended first, so the models a run keeps do not
+        // hang on the threads' timing.
+        if (store != nullptr)
+            getResources().clearCache();
     }
 
     osg::ref_ptr<osg::Image> RtxRenderer::readFrame(const int width, const int height, const Rtx::Channels channels)
@@ -772,7 +696,7 @@ namespace MWRender
     void RtxRenderer::setVSync(SDLUtil::VSyncMode mode) noexcept
     {
         mPhase.expect(Phase::Between, Phase::Run);
-        mRenderer->setVerticalSync(verticalSyncOf(mode));
+        mPending.mVerticalSync = verticalSyncOf(mode);
     }
 
     void RtxRenderer::awaitPresented() noexcept
@@ -803,6 +727,7 @@ namespace MWRender
         const bool gamma = changed.contains({ "Video", "gamma" });
         if (!upscale && !indirect && !bounceRays && !reach && !anisotropy && !gamma)
             return;
+        const Crash::NoteScope noted("applying the settings the menu changed");
 
         // What asks is somebody choosing from a menu, so a value the derivation refuses is reported
         // and everything is left where it was.
@@ -827,16 +752,13 @@ namespace MWRender
             mMirror.setReach(settings->mMirror.mReach);
 
         if (anisotropy)
-            mRenderer->setAnisotropy(settings->mAnisotropy);
-
+            mPending.mAnisotropy = settings->mAnisotropy;
         if (gamma)
-            mRenderer->setGamma(settings->mGamma);
-
+            mPending.mGamma = settings->mGamma;
         if (indirect)
-            mRenderer->setIndirectLighting(settings->mIndirectLighting);
-
+            mPending.mIndirectLighting = settings->mIndirectLighting;
         if (bounceRays)
-            mRenderer->setBounceRays(settings->mBounceRays);
+            mPending.mBounceRays = settings->mBounceRays;
     }
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept
@@ -861,6 +783,7 @@ namespace MWRender
             mFrozenFrame->setImage(black);
         }
 
+        assert(mGui != nullptr && "a frame frozen before the interface was made");
         if (mFrozenFrameTexture == nullptr)
             mFrozenFrameTexture = mGui->shareTexture(*mFrozenFrame);
 
@@ -883,7 +806,10 @@ namespace MWRender
 
     void RtxRenderer::notifyCut() noexcept
     {
-        mPhase.expect(Phase::Between);
+        expectWorldEvent();
+        // How the stretch the cut ends ran, which a player's report reads beside where it went.
+        Log(Debug::Info) << "Frame times since the last cut: " << Rtx::describe(mStretchTimes.summarise());
+        mStretchTimes.clear();
         // **Told rather than worked out.** The mirror grows and recycles its slots and is never
         // cleared, so a cell load leaves it looking exactly as a step across a room does; the
         // renderer has nothing to notice. Kept for the next frame the world is traced in, which a
@@ -893,7 +819,7 @@ namespace MWRender
 
     void RtxRenderer::notifyWorldspaceChanged() noexcept
     {
-        mPhase.expect(Phase::Between);
+        expectWorldEvent();
         mLoss = Rtx::HistoryLoss::Worldspace;
         mRipples.dropStrikes();
         mViews.leaveScene();
@@ -924,6 +850,11 @@ namespace MWRender
         report.mSpend.at(Rtx::Timing::Update) = mTimer.sinceLeft(arrived);
         report.mSpend.at(Rtx::Timing::Sleep) = std::chrono::duration<double, std::milli>(getLastHold()).count();
         const std::optional<double> since = mTimer.enter(arrived);
+        if (since.has_value() && !frame.mPaused)
+        {
+            mStretchTimes.add(*since);
+            mSessionTimes.add(*since);
+        }
 
         // The sky's own clock, stepped where the game stepped the dome's: every unpaused frame the
         // sky is on, whether or not this one is drawn.
@@ -946,6 +877,17 @@ namespace MWRender
         if (const Rtx::Upscale wanted = mRun.getUpscale().value_or(mUpscale);
             wanted != mRenderer->getProfile().mUpscale)
             mRenderer->setUpscale(wanted);
+        const PendingSettings pending = std::exchange(mPending, PendingSettings{});
+        if (pending.mVerticalSync.has_value())
+            mRenderer->setVerticalSync(*pending.mVerticalSync);
+        if (pending.mAnisotropy.has_value())
+            mRenderer->setAnisotropy(*pending.mAnisotropy);
+        if (pending.mGamma.has_value())
+            mRenderer->setGamma(*pending.mGamma);
+        if (pending.mIndirectLighting.has_value())
+            mRenderer->setIndirectLighting(*pending.mIndirectLighting);
+        if (pending.mBounceRays.has_value())
+            mRenderer->setBounceRays(*pending.mBounceRays);
 
         // **A frame under a cover is the interface and nothing else.** No walk, because the
         // update traversal did not run either, and no trace, because the interface covers every

@@ -10,6 +10,7 @@
 #include <osg/Camera>
 
 #include <apps/openmw/mwrender/renderer.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/sdlutil/sdlvideowrapper.hpp>
@@ -43,6 +44,8 @@ namespace MWRender
         mWindow.reset(openWindow(surface.value_or(SDL_WindowFlags{ 0 }), pixels));
         if (mWindow == nullptr)
             throw std::runtime_error(std::string("failed to create SDL window: ") + SDL_GetError());
+        if (const char* const driver = SDL_GetCurrentVideoDriver())
+            Crash::annotate("video driver", driver);
 
         // **Hidden and not absent.** A surface still needs a window, and a swapchain built on one
         // nobody is looking at costs a present per frame and nothing else — so a headless run is

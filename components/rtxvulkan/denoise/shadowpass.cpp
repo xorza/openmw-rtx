@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
+#include <string_view>
 
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
@@ -22,6 +23,14 @@ namespace Rtx
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::SHADOW_FILTER_BINDINGS> sFilterBindings
             = computeBindings<Shaders::SHADOW_FILTER_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
+        /// Each filter's name, by level and by its fields less one: a name a pipeline alone has, so a
+        /// capture, a compile time or a fault names the one it means.
+        constexpr std::array<std::array<std::string_view, 3>, 3> sFilterNames{ {
+            { "shadow-filter-0-sky", "shadow-filter-0-lamps", "shadow-filter-0-both" },
+            { "shadow-filter-1-sky", "shadow-filter-1-lamps", "shadow-filter-1-both" },
+            { "shadow-filter-2-sky", "shadow-filter-2-lamps", "shadow-filter-2-both" },
+        } };
+
         /// The level's module over the fields `fields`' bits name, `SHADOW_SPEC_FIELDS`.
         ComputePipeline<Shaders::ShadowFilterConstants> makeFilter(
             const Device& device, const std::uint32_t level, const std::uint32_t fields)
@@ -30,7 +39,7 @@ namespace Rtx
             specialization[Shaders::SHADOW_SPEC_LEVEL] = level;
             specialization[Shaders::SHADOW_SPEC_FIELDS] = fields;
             return ComputePipeline<Shaders::ShadowFilterConstants>(
-                device, sFilterBindings, {}, "shadowfilter.comp.spv", "shadow-filter", specialization);
+                device, sFilterBindings, {}, "shadowfilter.comp.spv", sFilterNames[level][fields - 1], specialization);
         }
 
         std::array<ComputePipeline<Shaders::ShadowFilterConstants>, (1u << Shaders::SHADOW_FIELD_COUNT) - 1u>
@@ -51,8 +60,10 @@ namespace Rtx
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
-        assert(images.mVisibility.getWidth() >= camera.mWidth && images.mVisibility.getHeight() >= camera.mHeight);
-        assert(buffer.getWidth() >= camera.mWidth && buffer.getHeight() >= camera.mHeight);
+        assert(images.mVisibility.getWidth() >= camera.mWidth);
+        assert(images.mVisibility.getHeight() >= camera.mHeight);
+        assert(buffer.getWidth() >= camera.mWidth);
+        assert(buffer.getHeight() >= camera.mHeight);
 
         const Image& shadowed = buffer.get(images.mField == ShadowField::Sky ? Channel::Shadowed : Channel::Lamped);
 

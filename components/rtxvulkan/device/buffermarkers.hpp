@@ -56,7 +56,9 @@ namespace Rtx
     {
     public:
         /// @param write the device's `vkCmdWriteBufferMarkerAMD`.
-        BufferMarkers(const Device& device, PFN_vkCmdWriteBufferMarkerAMD write);
+        /// @param uncached whether `VK_AMD_device_coherent_memory` was enabled, and so the words go
+        ///        in memory no cache of the device's holds (`BufferKind::Markers`).
+        BufferMarkers(const Device& device, PFN_vkCmdWriteBufferMarkerAMD write, bool uncached);
 
         /// Marks the queue's progress with `checkpoint`, both words.
         void mark(VkCommandBuffer commands, const Checkpoint* checkpoint);
@@ -70,8 +72,8 @@ namespace Rtx
         };
 
         /// What the words hold as the device left them. After a loss, which ended every write: the
-        /// words are host memory of the cached kind, which the device writes across the bus
-        /// coherently.
+        /// words are host memory the device writes across the bus coherently, and past its own
+        /// caches where they are uncached.
         Passed read() const;
 
     private:

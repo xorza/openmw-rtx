@@ -111,6 +111,13 @@ namespace Rtx::Testing
 
             const Frame summed = shoot(scene, {}, camera, size, { .mFrames = 1 });
             EXPECT_EQ(summed.mRadiance, raw.mRadiance) << "the sum of one unfiltered frame is that frame";
+
+            // **The cascade's compose and the composite's are one picture**: a filtered frame nothing
+            // sums is composed in the wavelet's last level (`atrouscompose.comp`), and one summed by the
+            // composite after it; frame nought of each, value for value.
+            const Frame filteredSummed = shoot(scene, {}, camera, size, { .mFrames = 1, .mFilter = true });
+            EXPECT_EQ(filteredSummed.mRadiance, filtered.mRadiance)
+                << "the cascade composed another picture than the composite";
         }
 
         /// **A lamp that goes out leaves the picture on the frame it goes.** One lamp over a floor for

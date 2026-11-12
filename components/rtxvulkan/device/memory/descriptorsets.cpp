@@ -43,7 +43,8 @@ namespace Rtx
             .pSetLayouts = layouts.data(),
         };
         mSets.resize(count);
-        checkVk(vkAllocateDescriptorSets(device.getHandle(), &allocate, mSets.data()), "vkAllocateDescriptorSets");
+        checkVk(
+            device, vkAllocateDescriptorSets(device.getHandle(), &allocate, mSets.data()), "vkAllocateDescriptorSets");
     }
 
     void updateSets(const Device& device, const std::span<const VkWriteDescriptorSet> writes)

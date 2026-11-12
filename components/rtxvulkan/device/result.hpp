@@ -12,6 +12,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/renderer/memoryreport.hpp>
 
 namespace Rtx
 {
@@ -20,15 +21,17 @@ namespace Rtx
     /// Name of a `VkResult` as it is spelled in the header, for messages.
     std::string_view resultName(VkResult result);
 
-    /// Throws `DeviceError` naming `call` and the result unless `result` is `VK_SUCCESS`.
-    /// `VK_INCOMPLETE` is a failure here, and `enumerateVk` is the one caller that answers it
-    /// instead of raising it.
-    void checkVk(VkResult result, const char* call);
-
-    /// The same, for a call that can lose the device: a submit, a wait, an acquire or a present.
-    /// `VK_ERROR_DEVICE_LOST` is `deviceFailed` with what the device says about the fault, from
-    /// `Device::describeFault`, which is the one moment that question may be asked.
+    /// **Throws `DeviceError` naming `call` and the result unless `result` is `VK_SUCCESS`**, for a
+    /// call on the device. `VK_ERROR_DEVICE_LOST` is `deviceFailed` with what the device says about
+    /// the fault, from `Device::describeFault`, which is the one moment that question may be asked.
+    /// `VK_INCOMPLETE` is a failure here, and `enumerateVk` is the one caller that answers it instead
+    /// of raising it. One overload wherever a device stands, so no call that can lose it takes the
+    /// path that cannot say so (`RtxSourceTreeTest`).
     void checkVk(const Device& device, VkResult result, const char* call);
+
+    /// The same for a call on the instance or a physical device, which no device stands behind to
+    /// lose: before one is made, or about the card rather than it.
+    void checkVkWithoutDevice(VkResult result, const char* call);
 
     /// **Ends the process as a crash where the device was lost or stopped answering**, which
     /// nothing below the seam can go on from: the report is taken where the failure was found,
@@ -57,6 +60,11 @@ namespace Rtx
     /// @param patience nanoseconds to allow; a parameter so a test can reach the failure.
     void awaitVk(const Device& device, VkFence fence, const char* what, std::uint64_t patience = sPatience);
 
+    /// **What was in flight when the device was lost**, as lines for its report: the submits after
+    /// the last the host knew finished, up to the last made, and every heap as `describeMemory`
+    /// reads them.
+    std::string describeInFlight(std::uint64_t lastSubmitted, std::uint64_t knownFinished, const MemoryReport& memory);
+
     /// What a wait that ran out is called.
     std::string timedOut(const char* what, std::uint64_t patience);
 
@@ -70,22 +78,22 @@ namespace Rtx
     /// The two-call enumeration every Vulkan list query is made of, asked until the driver has
     /// nothing left to add: `VK_INCOMPLETE` is a legal answer to the second call, and a surface
     /// that offered one more format than it had a moment earlier ended the process during
-    /// start-up.
+    /// start-up. `check` raises what a call answered.
     ///
     /// @param call the entry point's own name, for the message a failure carries.
     /// @param enumerate invoked as `(std::uint32_t* count, T* into)`, exactly as the entry point
     ///        takes them.
     /// @param prototype what every element is set to before the fill, which is how a structure that
     ///        has to carry its own `sType` is given one.
-    template <class T, class Enumerate>
-    std::vector<T> enumerateVk(const char* call, Enumerate&& enumerate, const T& prototype = T{})
+    template <class T, class Check, class Enumerate>
+    std::vector<T> enumerateChecked(const Check& check, const char* call, Enumerate&& enumerate, const T& prototype)
     {
         std::vector<T> into;
 
         for (int asked = 0; asked < sEnumerationTries; ++asked)
         {
             std::uint32_t count = 0;
-            checkVk(enumerate(&count, nullptr), call);
+            check(enumerate(&count, nullptr), call);
             if (count == 0)
                 return into;
 
@@ -95,7 +103,7 @@ namespace Rtx
             if (filled == VK_INCOMPLETE)
                 continue;
 
-            checkVk(filled, call);
+            check(filled, call);
 
             // Down to what the fill wrote and never up. A list that shrank between the two
             // calls leaves elements nothing touched, and a driver that reported more than it was
@@ -105,6 +113,21 @@ namespace Rtx
         }
 
         throw DeviceError(neverSettled(call));
+    }
+
+    /// A list of the instance or a physical device, as `enumerateChecked` asks it.
+    template <class T, class Enumerate>
+    std::vector<T> enumerateVk(const char* call, Enumerate&& enumerate, const T& prototype = T{})
+    {
+        return enumerateChecked(checkVkWithoutDevice, call, std::forward<Enumerate>(enumerate), prototype);
+    }
+
+    /// A list of `device`'s, as `enumerateChecked` asks it.
+    template <class T, class Enumerate>
+    std::vector<T> enumerateVk(const Device& device, const char* call, Enumerate&& enumerate, const T& prototype = T{})
+    {
+        return enumerateChecked([&](const VkResult result, const char* const named) { checkVk(device, result, named); },
+            call, std::forward<Enumerate>(enumerate), prototype);
     }
 
     /// Logs `failure` and what was raised. `tearDown` calls this and nothing else should.

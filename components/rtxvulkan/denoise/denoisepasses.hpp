@@ -11,9 +11,8 @@
 #include "atrouspass.hpp"
 #include "denoised.hpp"
 #include "historyclamppass.hpp"
-#include "panepass.hpp"
 #include "shadowpass.hpp"
-#include "specularpass.hpp"
+#include "temporallayerpass.hpp"
 
 namespace Rtx
 {
@@ -40,30 +39,54 @@ namespace Rtx
         /// @param masks whether the upscaler reads the masks: `AtrousPass` says what it changes.
         DenoisePasses(const Device& device, UpscaleMasks masks);
 
+        /// What the frame asks of the denoisers.
+        struct Request
+        {
+            /// The camera the trace sampled: both eyes, the previous basis and the far plane.
+            const Shaders::VisibilityConstants& mSampled;
+
+            /// `TraceSubject::mMapped`: whether any surface of the frame has a lobe.
+            bool mMapped;
+
+            /// `TraceSubject::mLamps`: whether the scene holds a lamp.
+            bool mLamps;
+
+            /// What puts the frame back together, of which this reads the accumulator's and the
+            /// wavelet's switches.
+            const Reconstruction& mReconstruction;
+        };
+
         /// Records every pass over `buffer`, which must have been handed over, and hands back where
-        /// the light ended up — or, where `composes`, composes the frame over `CHANNEL_DIRECT` in the
-        /// wavelet's last level and hands back nothing: the composite's work, done where the cascade
-        /// ends, for a frame nothing sums. The direct channel is then left as `Use::sComputeReadWrite`,
-        /// for the caller to order for what reads it next.
+        /// the light ended up, which the composite composes: a frame that sums, or one where water may
+        /// split a pixel.
         ///
-        /// @param sampled the camera the trace sampled: both eyes, the previous basis and the far
-        ///        plane.
-        /// @param mapped `TraceSubject::mMapped`: whether any surface of the frame has a lobe.
-        /// @param lamps `TraceSubject::mLamps`: whether the scene holds a lamp.
-        /// @param reconstruction what puts the frame back together, of which this reads the
-        ///        accumulator's and the wavelet's switches.
-        /// @param composed where the frame goes where the cascade composes it, writable by compute.
         /// @param timer null where the run is not being timed, which a picture is not.
-        std::optional<Denoised> record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
-            const Shaders::VisibilityConstants& sampled, bool mapped, bool lamps, bool composes,
-            const Reconstruction& reconstruction, const Image& composed, GpuTimer* timer) const;
+        Denoised record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
+            const Request& request, GpuTimer* timer) const;
+
+        /// `record`, composing the frame into `composed` in the wavelet's last level, from
+        /// `CHANNEL_DIRECT` and the filters' answers: the composite's work, done where the cascade
+        /// ends, for a frame nothing sums. `composed`, writable by compute, is then left as
+        /// `Use::sComputeWrite`, for the caller to order for what reads it next.
+        void recordComposing(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
+            const Request& request, const Image& composed, GpuTimer* timer) const;
 
     private:
+        /// The passes of `record` and of `recordComposing`, which hands `composed`; the answer where
+        /// nothing composed.
+        std::optional<Denoised> recordAll(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
+            const Request& request, const Image* composed, GpuTimer* timer) const;
+
+        /// Holds `layer`'s mean to its fast means by the history clamp, behind a dependency on the
+        /// layer's dispatch the caller records, and hands back the filtered light as the clamp left it.
+        const Image& clampLayer(VkCommandBuffer commands, const TemporalLayerPass& layer,
+            const DenoiseHistory::LayerImages& images, const GBuffer& buffer, const DenoiseFrame& frame) const;
+
         AccumulatePass mAccumulate;
         ShadowPass mShadow;
         HistoryClampPass mHistoryClamp;
-        SpecularPass mSpecular;
-        PanePass mPane;
+        TemporalLayerPass mSpecular;
+        TemporalLayerPass mPane;
         AtrousPass mFilter;
     };
 }

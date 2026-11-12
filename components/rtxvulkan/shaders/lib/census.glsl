@@ -64,6 +64,17 @@ void countNotFinite(float value)
         imageStore((target), (at), crossing);                                                                          \
     }
 
+/// Stores `value` into the history `target` at `at`, counted first, and each component that is not
+/// finite as nought: **one sample that is not a number dies with its frame**, where a history kept
+/// it in the slow mean through `mix`, and the wavelet that reads the history spread it every frame
+/// after. The census still counts it, so a source of such samples is still found.
+#define RTX_STORE_HISTORY(target, at, value)                                                                           \
+    {                                                                                                                  \
+        const vec4 crossing = (value);                                                                                 \
+        countNotFinite(crossing);                                                                                      \
+        imageStore((target), (at), finiteOrNought(crossing));                                                          \
+    }
+
 /// Stores the words `value` into the integer image `target` at `at`, uncounted: bits and packs,
 /// whose packing counted the floats it took (`packRgb9e5`). A `uvec4` local, which no float
 /// converts into without a cast the line shows.

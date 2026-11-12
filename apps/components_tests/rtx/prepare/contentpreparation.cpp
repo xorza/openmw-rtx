@@ -21,9 +21,11 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/bound.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/surfacedescription.hpp>
 #include <components/rtx/prepare/contentpreparation.hpp>
@@ -141,9 +143,15 @@ namespace Rtx
         {
             const auto began = std::chrono::steady_clock::now();
             ContentPreparation preparation(setup, std::move(models), std::move(layers));
-            while (!preparation.awaitProgress(std::chrono::milliseconds(100)).isDone())
-            {
-            }
+            const Testing::WaitBound bound(Testing::sColdPatience);
+            for (JobProgress progress = preparation.awaitProgress(std::chrono::milliseconds(100)); !progress.isDone();
+                progress = preparation.awaitProgress(std::chrono::milliseconds(100)))
+                if (bound.passed())
+                {
+                    ADD_FAILURE() << "the preparation was " << progress.mMade << " of " << progress.mCount
+                                  << " jobs done after five minutes";
+                    break;
+                }
             const bool written = preparation.finish();
             const std::chrono::nanoseconds around = std::chrono::steady_clock::now() - began;
             return Prepared{ .mWalked = preparation.getWalked(),

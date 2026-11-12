@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -28,10 +29,10 @@ namespace Rtx
     struct CompiledUse
     {
         /// The scratch memory a lane uses, in bytes — what the compiler spilled out of the
-        /// registers, and any array indexed at run time: AMD's `scratchMemUsageInBytes` and RADV's
-        /// `Scratch size`, where its `Spilled VGPRs` land. NVIDIA's `Local Memory Size` reads 64 GiB for
-        /// every pipeline, and is not read. RADV's `Spilled SGPRs` are not a spill to memory: ACO keeps a
-        /// scalar register spilled in a vector register's lanes.
+        /// registers, and any array indexed at run time: AMD's `scratchMemUsageInBytes`, RADV's
+        /// `Scratch size`, where its `Spilled VGPRs` land, and NVIDIA's `Local Memory Size`, read in
+        /// its bytes (`StatisticNames::mScratchBits`). RADV's `Spilled SGPRs` are not a spill to
+        /// memory: ACO keeps a scalar register spilled in a vector register's lanes.
         std::optional<std::uint64_t> mScratchBytes;
 
         /// The vector registers a lane holds, which is how many waves share a SIMD's register file:
@@ -91,8 +92,10 @@ namespace Rtx
         /// driver offers them: `RunProfile::mZoneCounters`.
         bool mCounters = false;
 
-        /// Whether the queue marks each zone it passes: `ValidationOptions::mBreadcrumbs`.
-        bool mBreadcrumbs = false;
+        /// Whether the queue marks each zone it passes with buffer markers, and with NVIDIA's
+        /// checkpoints: `ValidationOptions::mMarkers` and `mCheckpoints`.
+        bool mMarkers = false;
+        bool mCheckpoints = false;
 
         /// The device extensions something besides the renderer needs of this device, asked once it is
         /// chosen and before it is made, since none can be enabled after: an upscaler's runtime. Each
@@ -164,6 +167,20 @@ namespace Rtx
         std::string_view mName;
         std::uint64_t mFrame = 0;
     };
+
+    /// The bit a checkpoint's `mFrame` carries where it counts pictures and not frames: a map tile or
+    /// the doll traced inside the interface (`PictureTracer`).
+    inline constexpr std::uint64_t sPictureCheckpoint = std::uint64_t{ 1 } << 63;
+
+    /// **What `VK_EXT_device_fault` says, as lines of a lost device's report**: the driver's
+    /// description, each address with what it was used for and how precisely it is known, and each
+    /// of the vendor's codes.
+    std::string describeDeviceFault(std::string_view description,
+        std::span<const VkDeviceFaultAddressInfoEXT> addresses, std::span<const VkDeviceFaultVendorInfoEXT> vendor);
+
+    /// The line a lost device's report says of the last checkpoint `stage` passed, or that the host
+    /// no longer names it: the frame's or the picture's it was set in.
+    std::string describePassedStage(VkPipelineStageFlagBits stage, const Checkpoint* checkpoint);
 
     /// A logical device, its single queue, and the extension entry points.
     class Device
@@ -343,6 +360,10 @@ namespace Rtx
         /// (`VUID-vkGetQueueCheckpointDataNV-queue-02025`). Nothing where the driver offers no
         /// markers.
         std::string describeMarkers() const;
+
+        /// The submits the queue had not finished as far as the host knew, and every heap
+        /// (`describeInFlight`), for the report of a lost device or a wait that ran out.
+        std::string describeInFlight() const;
 
         // Read by the tests and by nothing else.
         /// Whether the driver offers `VK_EXT_device_fault` with its feature, and so whether

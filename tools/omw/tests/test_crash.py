@@ -4,10 +4,63 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from omw.crash import Dump, Module, dumps_in, parse_module, store_of
+from omw.crash import (
+    CRASHPAD_INFO_STREAM,
+    NOTE_SLOT_SIZE,
+    NOTE_SLOTS_AT,
+    SUMMARY_STREAM,
+    Dump,
+    Module,
+    describe_dump,
+    dumps_in,
+    parse_module,
+    store_of,
+)
 from omw.system import Refusal
 
 OPENMW = Module(file="openmw.exe", debug_file="openmw.pdb", debug_id="A1B0E0D6C3904C1FA4157C04BD01FF477")
+
+
+def note_table(reason: str, refused: int, notes: list[tuple[int, int, str]]) -> bytes:
+    """A note table as `crashnote.cpp` lays it out, of 64 slots: `notes` is (thread, sequence, text)."""
+    table = bytearray(NOTE_SLOTS_AT + 64 * NOTE_SLOT_SIZE)
+    table[0:len(reason)] = reason.encode()
+    table[256:260] = refused.to_bytes(4, "little")
+    for slot, (thread, sequence, text) in enumerate(notes):
+        at = NOTE_SLOTS_AT + slot * NOTE_SLOT_SIZE
+        table[at:at + 8] = thread.to_bytes(8, "little")
+        table[at + 8:at + 12] = sequence.to_bytes(4, "little")
+        table[at + 12:at + 12 + len(text)] = text.encode()
+    return bytes(table)
+
+
+def minidump(summary: str, simple: list[tuple[str, str]], objects: dict[str, bytes]) -> bytes:
+    """A minidump of the two streams `describe_dump` reads, laid out as `minidump_extensions.h` has
+    them: the summary, and Crashpad's info with one module's annotations."""
+    data = bytearray(32)
+    words = lambda *values: b"".join(value.to_bytes(4, "little") for value in values)
+
+    def put(blob: bytes) -> int:
+        at = len(data)
+        data.extend(blob)
+        data.extend(b"\0" * (-len(data) % 4))
+        return at
+
+    def text(value: str) -> int:
+        return put(words(len(value.encode())) + value.encode() + b"\0")
+
+    entries = b"".join(words(text(key), text(value)) for key, value in simple)
+    dictionary = put(words(len(simple)) + entries)
+    listed = b"".join(words(text(name)) + (0).to_bytes(4, "little") + words(put(words(len(value)) + value))
+                      for name, value in objects.items())
+    annotations = put(words(len(objects)) + listed)
+    module = put(words(1, 0, 0, len(entries) + 4, dictionary, len(listed) + 4, annotations))
+    modules = put(words(1, 0, 20, module))
+    info = put(words(1) + bytes(32) + words(0, 0, 16, modules, 0) + bytes(8))
+    text_at = put(summary.encode())
+    directory = put(words(SUMMARY_STREAM, len(summary.encode()), text_at, CRASHPAD_INFO_STREAM, 60, info))
+    data[0:16] = b"MDMP" + words(0xA793, 2, directory)
+    return bytes(data)
 
 
 class CrashTest(unittest.TestCase):
@@ -75,3 +128,28 @@ class CrashTest(unittest.TestCase):
         self.assertEqual(store_of(OPENMW, store, out), store)
         # A folder with neither the store's layout nor the executable: no `dump_syms` is run.
         self.assertIsNone(store_of(OPENMW, self.root / "out", out))
+
+    def test_a_dump_alone_says_what_the_log_said(self):
+        table = note_table("std::terminate", 3, [(77, 2, "drawing frame 9"), (78, 5, "walking"), (0, 0, "")])
+        data = minidump("Crash: SIGABRT in thread 77\nCrash: dump 1.dmp", [("version", "0.53")],
+                        {"openmw-notes": table, "other": b"x"})
+        self.assertEqual(describe_dump(data), [
+            "summary:",
+            "  Crash: SIGABRT in thread 77",
+            "  Crash: dump 1.dmp",
+            "annotations:",
+            "  version: 0.53",
+            "notes:",
+            "  reason: std::terminate",
+            "  note of thread 77: drawing frame 9",
+            "  note of thread 78: walking (half written)",
+            "  3 threads found the note table full",
+        ])
+
+        # A dump the monitor could not summarise, nor annotate, says so line by line.
+        self.assertEqual(describe_dump(minidump("", [], {})), [
+            "summary:", "  (none)", "annotations:", "  (none)", "notes:", "  (none)",
+        ])
+        # A table of another layout is named, not read.
+        self.assertEqual(describe_dump(minidump("", [], {"openmw-notes": b"short"}))[-1],
+                         "  a note table of 5 bytes, which this driver does not read")

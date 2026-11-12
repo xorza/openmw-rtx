@@ -209,3 +209,21 @@ https://github.com/xorza/openmw-rtx/actions/runs/41385212538 green.
   specification's ray traversal chapter (micromap states against the instance flags),
   [NVIDIA OMM SDK](https://github.com/NVIDIA-RTX/OMM) and its integration guide.
 
+# review-fork — left for a bench session
+
+Each needs a quiet-desktop A/B per candidate, built side by side in an `optimize-perf` session.
+
+## Ideas
+
+- **64-lane trace workgroups**: at 128 registers a Turing or Ampere SM holds 16 warps, which its 16-block cap
+  matches, so the cap binds the kernels under 128 (bounce at 80–124) on those cards alone; needs such a card.
+- **Occupancy redesigns**: shared tiles in their source encodings, a ray's request not carried through the loop, the
+  relief marches sharing a fetch, visibility storing before fog and sprites, panes carrying less through traversal,
+  bounce keeping its record packed, then the register reductions (Nsight for the peaks).
+- **The à-trous edge stop states its departure, or matches SVGF**: an `./omw release noise --ab` suite decides.
+- **NVIDIA's checkpoints on by default**: their cost on a bench.
+- **The cell ring adopts by a budget**: a resumable adoption through the models, the ground and the holds, worth it
+  only if a cell's arrival measures a worst frame.
+- **A staging ring**, and the submit patience covering bounded work on it: DeviceScene recording across submits in
+  its builds, for a host peak and a submit length no run has measured past what the machines hold.
+

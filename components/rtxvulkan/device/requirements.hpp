@@ -11,6 +11,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/common/namedenum.hpp>
+
 namespace Rtx
 {
     /// Whether this build names its Vulkan objects, labels its command buffers and sets checkpoints:
@@ -155,14 +157,39 @@ namespace Rtx
         MemoryPriority,
         PageableMemory,
         PresentFences,
+
+        /// The same as the extensions spelled before their promotion, which a driver of before it
+        /// offers alone: taken where the promoted spelling is not, as DXVK takes either.
+        PresentFencesExt,
         PresentIds,
         PresentWait,
         Checkpoints,
         BufferMarkers,
+        UncachedMarkers,
         PerformanceQuery,
     };
 
     inline constexpr std::size_t sDeviceOptions = static_cast<std::size_t>(DeviceOption::PerformanceQuery) + 1;
+
+    /// How an option is named in the log, which says once which a device took.
+    inline constexpr NamedEnum sDeviceOptionNames{ std::array{
+        std::pair{ DeviceOption::FaultReport, std::string_view("fault report") },
+        std::pair{ DeviceOption::MemoryBudget, std::string_view("memory budget") },
+        std::pair{ DeviceOption::MemoryPriority, std::string_view("memory priority") },
+        std::pair{ DeviceOption::PageableMemory, std::string_view("pageable memory") },
+        std::pair{ DeviceOption::PresentFences, std::string_view("present fences") },
+        std::pair{ DeviceOption::PresentFencesExt, std::string_view("present fences (EXT)") },
+        std::pair{ DeviceOption::PresentIds, std::string_view("present ids") },
+        std::pair{ DeviceOption::PresentWait, std::string_view("present wait") },
+        std::pair{ DeviceOption::Checkpoints, std::string_view("checkpoints") },
+        std::pair{ DeviceOption::BufferMarkers, std::string_view("buffer markers") },
+        std::pair{ DeviceOption::UncachedMarkers, std::string_view("uncached markers") },
+        std::pair{ DeviceOption::PerformanceQuery, std::string_view("performance query") },
+    } };
+    static_assert(sDeviceOptionNames.mNames.size() == sDeviceOptions, "every option named");
+
+    /// The options `taken` holds, as the log says them: their names, a comma between, or "none".
+    std::string describeTaken(std::span<const bool> taken);
 
     /// The features the options bring, each in its own structure: what a device that took an option
     /// is asked for, and enabled with where it has it. Outside `DeviceFeatures`, which is what the
@@ -180,6 +207,7 @@ namespace Rtx
         VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR mPresentFences{};
         VkPhysicalDevicePresentIdFeaturesKHR mPresentIds{};
         VkPhysicalDevicePresentWaitFeaturesKHR mPresentWait{};
+        VkPhysicalDeviceCoherentMemoryFeaturesAMD mCoherent{};
         VkPhysicalDevicePerformanceQueryFeaturesKHR mPerformanceQuery{};
     };
 

@@ -34,7 +34,7 @@ namespace Rtx
     {
         assert(!mOwed && "a present fence handed to a present before the last present that signals it was waited");
         const VkFence fence = mFence.get();
-        checkVk(vkResetFences(device.getHandle(), 1, &fence), "vkResetFences");
+        checkVk(device, vkResetFences(device.getHandle(), 1, &fence), "vkResetFences");
         return fence;
     }
 

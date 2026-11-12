@@ -122,9 +122,12 @@ namespace Rtx
 
         PreparationManifest manifest;
         std::string name;
+        // **A name no path of the game's spells is no manifest**: the digest reads each as a
+        // normalized path, whose view throws on one that is not, on the prepare worker, at every start
+        // until the file was deleted by hand.
         for (std::uint32_t at = 0; at < names; ++at)
         {
-            if (!reader.take(name) || manifest.intern(name) != at)
+            if (!reader.take(name) || !VFS::Path::isNormalized(name) || manifest.intern(name) != at)
                 return {};
         }
 

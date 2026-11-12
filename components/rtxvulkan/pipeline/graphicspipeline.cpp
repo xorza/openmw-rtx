@@ -177,7 +177,8 @@ namespace Rtx
             .basePipelineIndex = 0,
         };
         VkPipeline made = VK_NULL_HANDLE;
-        checkVk(vkCreateGraphicsPipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, &made),
+        checkVk(device,
+            vkCreateGraphicsPipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, &made),
             "vkCreateGraphicsPipelines");
         Owned<VkPipeline, vkDestroyPipeline> handle(device, made);
 
