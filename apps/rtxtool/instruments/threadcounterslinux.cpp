@@ -102,6 +102,9 @@ namespace RtxTool
         /// Why the kernel refused the last event it refused, kept before a close could change it.
         int mRefusal = 0;
 
+        /// Why the window `start` opened counts nothing: the kernel refused to reset, read or enable a group.
+        std::string_view mStartRefused{};
+
         ~Events() { closeAll(); }
 
         void closeAll()
@@ -186,13 +189,29 @@ namespace RtxTool
             return;
 
         assert(static_cast<pid_t>(syscall(SYS_gettid)) == mEvents->mThread && "counted on another thread");
+        mEvents->mStartRefused = {};
         for (Group& group : mEvents->mGroups)
         {
-            ioctl(group.mFds[0], PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
+            if (ioctl(group.mFds[0], PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP) == -1)
+            {
+                mEvents->mStartRefused = "the kernel refused to reset the counters";
+                return;
+            }
+            // The times at the window's start, which a reset leaves running: without them the window's would be
+            // every one since the group opened.
             const std::optional<GroupRead> before = readGroup(group);
-            group.mEnabledAt = before.has_value() ? before->mEnabled : 0;
-            group.mRunningAt = before.has_value() ? before->mRunning : 0;
-            ioctl(group.mFds[0], PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
+            if (!before.has_value())
+            {
+                mEvents->mStartRefused = "the kernel's read of the counters came back short";
+                return;
+            }
+            group.mEnabledAt = before->mEnabled;
+            group.mRunningAt = before->mRunning;
+            if (ioctl(group.mFds[0], PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP) == -1)
+            {
+                mEvents->mStartRefused = "the kernel refused to start the counters";
+                return;
+            }
         }
     }
 
@@ -201,8 +220,14 @@ namespace RtxTool
         if (mEvents == nullptr)
             return ThreadCounts{ .mWhyNot = mWhyNot };
 
+        // Every group stopped, whatever `start` managed: a group it enabled before one it could not counts on.
+        bool stopped = true;
         for (const Group& group : mEvents->mGroups)
-            ioctl(group.mFds[0], PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP);
+            stopped = ioctl(group.mFds[0], PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP) != -1 && stopped;
+        if (!mEvents->mStartRefused.empty())
+            return ThreadCounts{ .mWhyNot = mEvents->mStartRefused };
+        if (!stopped)
+            return ThreadCounts{ .mWhyNot = "the kernel refused to stop the counters" };
 
         // A group for each kind of core at most, which a part has one or two of.
         std::array<GroupCounts, 2> reads{};
