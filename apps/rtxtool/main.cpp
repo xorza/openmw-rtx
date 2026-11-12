@@ -811,7 +811,7 @@ namespace RtxTool
 
             std::filesystem::path video = directory / keys.stem();
             video += ".mp4";
-            const std::string encode = encodeCommand(frames, video, pacing.getRate());
+            const std::string encode = encodeCommand(frames, video, plan.getFrames(), pacing.getRate());
             if (!line.mEncode)
             {
                 Debug::getRawStdout() << "\nthe frames are in " << Files::pathToUnicodeString(frames)

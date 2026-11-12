@@ -275,9 +275,9 @@ namespace RtxTool
     /// is what ffmpeg reads the sequence back by and what `clearFrames` removes.
     std::string frameName(std::uint32_t number);
 
-    /// Removes every file in `frames` that `frameName` could have written, and nothing else: the
-    /// encoder reads a sequence up to its first gap, so a longer film's last frames left behind
-    /// would play on after this one. Returns how many it removed.
+    /// Removes everything in the folder `frames` named as `frameName` names a frame, and nothing else, so the
+    /// folder holds one film's frames. Returns how many it removed; throws where the folder cannot be listed or a
+    /// frame removed, as the film would otherwise be written in among the last one's.
     std::size_t clearFrames(const std::filesystem::path& frames);
 
     /// The encoder a film is written with: H.264, which every player decodes.
@@ -291,10 +291,11 @@ namespace RtxTool
     /// of them do not.
     inline constexpr std::string_view sVideoPixels = "yuv420p";
 
-    /// The ffmpeg line that encodes the frames in `frames` into `video` at `framesPerSecond`, for
-    /// the system's shell: `sVideoCodec` at `sVideoQuality` under the slow preset, in
-    /// `sVideoPixels`; the index at the front, so a browser plays it before it has it all; and an
-    /// odd side padded by one, which H.264 refuses.
-    std::string encodeCommand(
-        const std::filesystem::path& frames, const std::filesystem::path& video, float framesPerSecond);
+    /// The ffmpeg line that encodes the first `frameCount` frames in `frames` into `video` at `framesPerSecond`,
+    /// for the system's shell: `sVideoCodec` at `sVideoQuality` under the slow preset, in `sVideoPixels`; the index
+    /// at the front, so a browser plays it before it has it all; and an odd side padded by one, which H.264
+    /// refuses. **The film's count and not the folder's**, as ffmpeg reads a sequence up to its first gap, and a
+    /// longer film's frames left past this one's would play on after it.
+    std::string encodeCommand(const std::filesystem::path& frames, const std::filesystem::path& video,
+        std::uint32_t frameCount, float framesPerSecond);
 }

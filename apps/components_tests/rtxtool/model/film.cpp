@@ -697,23 +697,28 @@ namespace RtxTool
             EXPECT_TRUE(std::filesystem::exists(frames / "0000001.png"));
             EXPECT_TRUE(std::filesystem::exists(frames / "00000a.png"));
 
-            EXPECT_EQ(clearFrames(frames / "nowhere"), 0u);
+            // A folder that cannot be listed is a film that would be written in among the last one's.
+            EXPECT_THROW(clearFrames(frames / "nowhere"), std::runtime_error);
+            EXPECT_THROW(clearFrames(frames / "notes.txt"), std::runtime_error);
             EXPECT_EQ(frameName(42), "000042.png");
         }
 
         /// Each path is one word to the shell, as `Platform::Process::shellWord` makes one: the frames'
-        /// pattern under their folder, and the video, a quote in its name included.
-        TEST(RtxFilmTest, theEncoderIsHandedEachPathAsOneWord)
+        /// pattern under their folder, and the video, a quote in its name included. The film's own count of
+        /// frames bounds what is read, so a longer film's left past it never plays on.
+        TEST(RtxFilmTest, theEncoderIsHandedEachPathAsOneWordAndReadsTheFilmsFramesAlone)
         {
             const auto word = [](const std::filesystem::path& path) {
                 return Platform::Process::shellWord(Files::pathToUnicodeString(path));
             };
-            EXPECT_EQ(encodeCommand("/tmp/film/frames", "/tmp/it's here/tour.mp4", 60.0f),
+            EXPECT_EQ(encodeCommand("/tmp/film/frames", "/tmp/it's here/tour.mp4", 300, 60.0f),
                 "ffmpeg -hide_banner -loglevel warning -y -framerate 60 -i "
                     + word(std::filesystem::path("/tmp/film/frames") / "%06d.png")
                     + " -vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p "
-                      "-movflags +faststart "
+                      "-movflags +faststart -frames:v 300 "
                     + word("/tmp/it's here/tour.mp4"));
+            EXPECT_NE(
+                encodeCommand("/tmp/film/frames", "/tmp/tour.mp4", 7, 60.0f).find("-frames:v 7 "), std::string::npos);
         }
     }
 }

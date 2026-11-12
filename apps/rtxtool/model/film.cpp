@@ -854,8 +854,10 @@ namespace RtxTool
 
     std::size_t clearFrames(const std::filesystem::path& frames)
     {
-        if (!std::filesystem::is_directory(frames))
-            return 0;
+        const std::optional<std::vector<std::filesystem::directory_entry>> listed = Platform::listFolder(frames);
+        if (!listed.has_value())
+            throw std::runtime_error(
+                std::format("the frames in {} could not be listed", Files::pathToUnicodeString(frames)));
 
         const auto written = [](const std::string& name) {
             return name.size() == sFrameDigits + sFrameExtension.size() && name.ends_with(sFrameExtension)
@@ -863,25 +865,32 @@ namespace RtxTool
         };
 
         std::size_t removed = 0;
-        for (const std::filesystem::directory_entry& entry :
-            Platform::listFolder(frames).value_or(std::vector<std::filesystem::directory_entry>()))
-            if (std::error_code typed; entry.is_regular_file(typed)
-                && written(Files::pathToUnicodeString(entry.path().filename()))
-                && std::filesystem::remove(entry.path(), typed))
+        for (const std::filesystem::directory_entry& entry : *listed)
+        {
+            if (!written(Files::pathToUnicodeString(entry.path().filename())))
+                continue;
+            // The message's own spelling of the path, as `filesystem_error` narrows it through the code page. A
+            // frame gone since the listing is no failure, and none removed.
+            std::error_code error;
+            if (std::filesystem::remove(entry.path(), error))
                 ++removed;
+            else if (error)
+                throw std::runtime_error(std::format("the last film's frame {} could not be removed: {}",
+                    Files::pathToUnicodeString(entry.path()), error.message()));
+        }
         return removed;
     }
 
-    std::string encodeCommand(
-        const std::filesystem::path& frames, const std::filesystem::path& video, const float framesPerSecond)
+    std::string encodeCommand(const std::filesystem::path& frames, const std::filesystem::path& video,
+        const std::uint32_t frameCount, const float framesPerSecond)
     {
         const auto word = [](const std::filesystem::path& path) {
             return Platform::Process::shellWord(Files::pathToUnicodeString(path));
         };
         return std::format(
             "ffmpeg -hide_banner -loglevel warning -y -framerate {:g} -i {} -vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" "
-            "-c:v {} -preset slow -crf {} -pix_fmt {} -movflags +faststart {}",
+            "-c:v {} -preset slow -crf {} -pix_fmt {} -movflags +faststart -frames:v {} {}",
             framesPerSecond, word(frames / std::format("%0{}d{}", sFrameDigits, sFrameExtension)), sVideoCodec,
-            sVideoQuality, sVideoPixels, word(video));
+            sVideoQuality, sVideoPixels, frameCount, word(video));
     }
 }

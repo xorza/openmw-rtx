@@ -1,7 +1,5 @@
 # Open issues
 
-- **A film can keep an earlier film's frames**: `clearFrames` (`apps/rtxtool/model/film.cpp`) reads a failed
-  `Platform::listFolder` as an empty folder, so the frames a longer earlier film left stay beside the new ones.
 - **A refused counter ioctl reads as a thread never counted**: `ThreadCounters::start` and `stop`
   (`threadcounterslinux.cpp`) ignore the results of `PERF_EVENT_IOC_RESET`, `_ENABLE` and `_DISABLE`, so a kernel
   that refused them yields zero counts, reported as a thread the processor never ran.
