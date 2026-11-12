@@ -93,6 +93,7 @@ target_sources(
         rtx/sourcetree.cpp
         rtx/support/halfstep.cpp
         rtx/tables/tablesource.cpp
+        rtxbuild/run.cpp
         rtx/view/offscreentrace.cpp
         rtx/world/fogbuilder.cpp
         rtx/world/frameworld.cpp
@@ -242,6 +243,7 @@ target_link_libraries(
         openmw-rtxtool-lib
         openmw-rtx-spirv
         openmw-rtx-vulkan-api
+        openmw-rtx-buildverbs
 )
 
 # Where the build wrote the shaders, told to the two test binaries alone: a build-tree path is no
