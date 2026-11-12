@@ -1,7 +1,7 @@
 #!/bin/bash
 # The packages an AlmaLinux 8 build needs, in CI's containers and the release image alike: GCC 15 from
 # Red Hat's gcc-toolset, whose libstdc++, start files and binutils the pinned Clang builds and links with
-# (`vcpkg/flags.cmake`), the tools vcpkg's ports and the tree build with (ccache the tree's), and
+# (`vcpkg/linux.cmake`), the tools vcpkg's ports and the tree build with (ccache the tree's), and
 # the development files of what the programs open at run time and so stay the system's (OpenGL, X11,
 # Wayland, fontconfig, ALSA, PulseAudio, D-Bus).
 # The libraries the tree links come from the vcpkg set (`vcpkg.json`), not from here.

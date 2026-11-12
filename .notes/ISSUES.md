@@ -13,10 +13,6 @@
 - **`openmw-lib.lib` stands near the size a COFF archive holds under MSVC's link-time code generation**: a release
   build on Windows makes it 3.6 GB with each target's PDB, of the 4 GB past which `lib.exe` stops on LNK1248.
 
-- **`env/install_almalinux_deps.sh`'s header names `vcpkg/flags.cmake`** as the file through which the pinned Clang
-  builds and links with gcc-toolset-15's libstdc++, start files and binutils; `vcpkg/linux.cmake` names that
-  installation.
-
 - **`RtxRayReconstructionFrameTest` runs past a second**: a validated renderer of its own with DLSS, its NGX
   feature made twice, takes 1.0–1.2 s on a high-end NVIDIA laptop GPU.
 
