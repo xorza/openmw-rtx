@@ -1679,6 +1679,8 @@ target_link_libraries(
         openmw-components
         Qt::Widgets
         Qt::Core
+    PRIVATE
+        openmw-graphite
 )
 set_target_properties(
     openmw-components-qt
@@ -1692,6 +1694,26 @@ set_target_properties(
 )
 
 add_dependencies(openmw-components-qt qm-files)
+
+# The launcher's and the wizard's look, palantir's dark palette over Fusion: Qt's alone, beside the
+# components that read the game's files.
+add_library(openmw-graphite STATIC)
+target_sources(
+    openmw-graphite
+    PRIVATE
+        graphite/colour.cpp
+        graphite/look.cpp
+        graphite/palette.cpp
+    PUBLIC
+        FILE_SET HEADERS
+            BASE_DIRS
+                "${PROJECT_SOURCE_DIR}"
+            FILES
+                graphite/colour.hpp
+                graphite/look.hpp
+                graphite/palette.hpp
+)
+target_link_libraries(openmw-graphite PUBLIC Qt::Widgets)
 
 add_subdirectory(rtx)
 

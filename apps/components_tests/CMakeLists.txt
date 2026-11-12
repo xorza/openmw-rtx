@@ -127,6 +127,23 @@ target_link_libraries(
 )
 target_sources(components-tests PRIVATE config/testlaunchersettings.cpp)
 target_link_libraries(components-tests PRIVATE openmw-components-qt)
+target_sources(
+    components-tests
+    PRIVATE
+        graphite/colour.cpp
+        graphite/look.cpp
+        graphite/offscreen.cpp
+        graphite/palette.cpp
+    PRIVATE
+        FILE_SET HEADERS
+            BASE_DIRS
+                "${PROJECT_SOURCE_DIR}"
+            FILES
+                graphite/offscreen.hpp
+)
+target_link_libraries(components-tests PRIVATE openmw-graphite)
+# The platform the look's tests draw on, in memory: the static Qt links the platforms it is told of.
+qt_import_plugins(components-tests INCLUDE Qt6::QOffscreenIntegrationPlugin)
 
 target_link_libraries(
     components-tests

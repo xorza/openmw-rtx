@@ -3,12 +3,20 @@
 
 namespace Platform
 {
+    /// What a program looks like: the system's, which on Windows follows its dark mode, or the fork's
+    /// own (`Graphite::apply`), the same on every system.
+    enum class Look
+    {
+        System,
+        Graphite,
+    };
+
     class Application : public QApplication
     {
         Q_OBJECT
 
     public:
-        Application(int& argc, char* argv[]);
+        Application(int& argc, char* argv[], Look look);
 
 #if defined(WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
         void init();

@@ -111,6 +111,7 @@ renderer without a window.
 
 * [Architecture](docs/rtx/architecture.md) — the seam, the layers, who owns whom, the order a
   frame is computed in
+* [The launcher's look](docs/rtx/look.md) — the palette and the style the launcher and the wizard wear
 * [Settings](docs/source/reference/modding/settings/rtx.rst) — every `[RTX]` setting, and what the
   ray tracer declines of upstream's
 

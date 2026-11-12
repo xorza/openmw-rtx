@@ -8,6 +8,7 @@
 #include <QStyleHints>
 
 #include <components/debug/debuglog.hpp>
+#include <components/graphite/look.hpp>
 #include <components/misc/scalableicon.hpp>
 
 namespace Platform
@@ -40,10 +41,15 @@ namespace Platform
         Log(level) << qUtf8Printable(qFormatLogMessage(type, context, msg));
     }
 
-    Application::Application(int& argc, char* argv[])
+    Application::Application(int& argc, char* argv[], const Look look)
         : QApplication(argc, argv)
     {
         qInstallMessageHandler(qtMessageHandler);
+        if (look == Look::Graphite)
+        {
+            Graphite::apply();
+            return;
+        }
 #if defined(WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
         init();
     }

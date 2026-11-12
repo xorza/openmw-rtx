@@ -30,12 +30,7 @@ target_sources(
                 methodselectionpage.hpp
 )
 if(WIN32)
-    target_sources(
-        openmw-wizard
-        PRIVATE
-            "${PROJECT_SOURCE_DIR}/files/windows/openmw-wizard.rc"
-            "${PROJECT_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc"
-    )
+    target_sources(openmw-wizard PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/openmw-wizard.rc")
 endif()
 
 # Upstream's wizard unpacks the installer's archives with libunshield on every system but Windows, whose

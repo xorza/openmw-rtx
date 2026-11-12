@@ -53,7 +53,7 @@ int runApplication(int argc, char* argv[])
     setQSurfaceFormat();
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
 
-    Platform::Application application(argc, argv);
+    Platform::Application application(argc, argv, Platform::Look::System);
 
     application.setDesktopFileName("org.openmw.cs");
     application.setWindowIcon(QIcon(":openmw-cs"));

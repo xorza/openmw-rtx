@@ -28,7 +28,7 @@ int runLauncher(int argc, char* argv[])
 
     try
     {
-        Platform::Application app(argc, argv);
+        Platform::Application app(argc, argv, Platform::Look::Graphite);
 
         app.setDesktopFileName("org.openmw.launcher");
 

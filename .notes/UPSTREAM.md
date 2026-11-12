@@ -424,3 +424,7 @@ made only on the user's explicit yes, after which it is added here.
   written out in `files/`, its one caller, and `openmw_qt_platforms` beside Qt's `find_package`, so
   `cmake/OpenMWMacros.cmake` and `CMAKE_MODULE_PATH` go. The cost is a conflict with an upstream edit to an app's
   install line, the CS's executable, or those finds.
+- The launcher's and the wizard's look (`docs/rtx/look.md`): `Platform::Application` takes a `Platform::Look`,
+  and for `Graphite` dresses the program in the fork's palette and style and skips upstream's Windows dark
+  mode, which the editor keeps; the launcher and the wizard no longer build upstream's Windows dark sheet in.
+  The cost is a conflict with an upstream edit to the application's constructor or to those three calls.

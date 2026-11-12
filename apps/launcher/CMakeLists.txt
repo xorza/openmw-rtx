@@ -36,12 +36,7 @@ target_sources(
                 utils/textinputdialog.hpp
 )
 if(WIN32)
-    target_sources(
-        openmw-launcher
-        PRIVATE
-            "${PROJECT_SOURCE_DIR}/files/windows/launcher.rc"
-            "${PROJECT_SOURCE_DIR}/files/windows/QWindowsVistaDark/dark.qrc"
-    )
+    target_sources(openmw-launcher PRIVATE "${PROJECT_SOURCE_DIR}/files/windows/launcher.rc")
 endif()
 
 set_target_properties(

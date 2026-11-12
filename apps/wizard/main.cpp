@@ -21,7 +21,7 @@ int runWizard(int argc, char* argv[])
 
     Debug::setupLogging(configurationManager.getLogPath(), "Wizard");
 
-    Platform::Application app(argc, argv);
+    Platform::Application app(argc, argv, Platform::Look::Graphite);
 
     // Now we make sure the current dir is set to application path
     QDir dir(QCoreApplication::applicationDirPath());
