@@ -26,7 +26,11 @@ set(tools_programs
 # tests, the benchmarks, the harness or the editor, each another link under link-time optimisation. The programs
 # bring the rest of the install, the shaders and the translations among it, as their own dependencies.
 add_custom_target(openmw-installed)
-add_dependencies(openmw-installed ${game_programs} ${tools_programs})
+add_dependencies(
+    openmw-installed
+    ${game_programs}
+    ${tools_programs}
+)
 
 # The licences of what the fork compiles into the binaries, beside the GPL's own text: each asks for
 # its notice in every copy, binaries included, but SDL's zlib, which goes in so that no licence of
@@ -51,12 +55,7 @@ foreach(component game tools)
     install(TARGETS ${${component}_programs} COMPONENT ${component})
     if(MSVC)
         foreach(program IN LISTS ${component}_programs)
-            install(
-                FILES "$<TARGET_PDB_FILE:${program}>"
-                TYPE BIN
-                CONFIGURATIONS RelWithDebInfo
-                COMPONENT ${component}
-            )
+            install(FILES "$<TARGET_PDB_FILE:${program}>" TYPE BIN CONFIGURATIONS RelWithDebInfo COMPONENT ${component})
         endforeach()
     endif()
 
@@ -79,7 +78,8 @@ foreach(component game tools)
         COMPONENT ${component}
     )
     install(
-        DIRECTORY "${PROJECT_SOURCE_DIR}/files/licenses/crashpad/"
+        DIRECTORY
+            "${PROJECT_SOURCE_DIR}/files/licenses/crashpad/"
         DESTINATION "${licenses}/crashpad"
         COMPONENT ${component}
     )
@@ -95,7 +95,13 @@ foreach(component game tools)
     install(FILES "${PROJECT_SOURCE_DIR}/AUTHORS.md" TYPE DOC COMPONENT ${component})
 
     install(FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/defaults.bin" TYPE SYSCONF COMPONENT ${component})
-    install(FILES "${PROJECT_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg" COMPONENT ${component})
+    install(
+        FILES
+            "${PROJECT_SOURCE_DIR}/files/openmw.cfg.local"
+        TYPE SYSCONF
+        RENAME "openmw.cfg"
+        COMPONENT ${component}
+    )
 endforeach()
 
 # The resources the game reads whole, and of them the tools the virtual file system's, which

@@ -48,6 +48,10 @@ CONTAINER_DIR = ROOT / "build-container"
 INSTALLED = "openmw-installed"
 COMPONENTS = ("game", "tools")
 
+# What every archive's name starts with: the fork's own, apart from upstream's releases, whose versions it would
+# otherwise read as.
+PRODUCT = "OpenMW-RTX"
+
 # What the harness and the tests are and write under the build, which no install may carry, by name wherever they
 # land: the one list the packages check their install against.
 HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches.cfg", "shaders-source",
@@ -224,6 +228,14 @@ def prune_empty(folder: Path) -> None:
             path.rmdir()
 
 
+def archive_stem(name: str, component: str = "game") -> str:
+    """`OpenMW-RTX-<version>`, and `-<component>` past it for an archive but the game's: the version is `name` past
+    the release tags' `rtx-v`, so `rtx-v0.5.1` names `0.5.1` and a commit past it `0.5.1-12-gabc1234`, and a name of
+    no tag stands as it is."""
+    stem = f"{PRODUCT}-{name.removeprefix('rtx-v')}"
+    return stem if component == "game" else f"{stem}-{component}"
+
+
 def install(build: Build, component: str, prefix: Path) -> None:
     """`component` of the build installed under `prefix`, its manifest beside the build's other component's."""
     run(["cmake", "--install", build.dir, "--component", component, "--prefix", prefix], env=build.env,
@@ -317,8 +329,8 @@ def _archive_linux(build: Build, name: str) -> None:
     # FUSE 2, FUSE 3 or none; AppStream validation is off, as upstream's metainfo carries warnings it refuses.
     env.update(LDAI_RUNTIME_FILE=str(appimage / "runtime-x86_64"), LDAI_NO_APPSTREAM="1",
                LDAI_UPDATE_INFORMATION=("gh-releases-zsync|xorza|openmw-rtx|latest|"
-                                        "openmw-rtx-v*-linux-x86_64.AppImage.zsync"),
-               LDAI_OUTPUT=str(DIST / f"openmw-{name}-linux-x86_64.AppImage"))
+                                        f"{PRODUCT}-*-linux-x86_64.AppImage.zsync"),
+               LDAI_OUTPUT=str(DIST / f"{archive_stem(name)}-linux-x86_64.AppImage"))
     run([appimage / "linuxdeploy-plugin-appimage", "--appdir", appdir], env=env, cwd=DIST)
     shutil.rmtree(appdir)
 
@@ -326,7 +338,7 @@ def _archive_linux(build: Build, name: str) -> None:
 def _archive_linux_tools(build: Build, name: str) -> None:
     """**The tools as a tarball**: console programs that link every library in, so a folder of them runs on any
     host the AppImage does, with the configuration and the resources they read beside them."""
-    folder = DIST / f"openmw-{name}-linux-x86_64-tools"
+    folder = DIST / f"{archive_stem(name, 'tools')}-linux-x86_64"
     shutil.rmtree(folder, ignore_errors=True)
     install(build, "tools", folder)
     _refuse_harness(folder)
@@ -354,7 +366,7 @@ def _archive_windows(build: Build, name: str) -> None:
     so a fork unpacks beside a stock OpenMW rather than register itself where one would. The zip around each is made
     where it is handed out."""
     for component in COMPONENTS:
-        folder = DIST / (f"openmw-{name}-windows-x64" + ("" if component == "game" else f"-{component}"))
+        folder = DIST / f"{archive_stem(name, component)}-windows-x64"
         shutil.rmtree(folder, ignore_errors=True)
         install(build, component, folder)
         prune_empty(folder)
@@ -370,7 +382,7 @@ def symbols(folder: Path, name: str) -> None:
     with tempfile.TemporaryDirectory() as store:
         for executable in installed_programs(folder):
             run([dump_syms, "--store", store, executable], stdout=subprocess.DEVNULL)
-        target = DIST / f"openmw-{name}-{SYSTEM}-symbols.zip"
+        target = DIST / f"{archive_stem(name)}-{SYSTEM}-symbols.zip"
         with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as zipped:
             for file in sorted(Path(store).rglob("*")):
                 if file.is_file():

@@ -15,6 +15,7 @@ from omw.package import (
     RELEASE_IMAGE,
     WINDOWS_LIBRARIES,
     _archive_windows,
+    archive_stem,
     ShippedLibraries,
     archive,
     container_command,
@@ -135,11 +136,17 @@ class ArchiveTest(unittest.TestCase):
         with patch("omw.package.install", side_effect=install) as installed, patch("omw.package.DIST", self.dist):
             _archive_windows(build, "rtx-v1")
         self.assertEqual(installed.call_args_list,
-                         [call(build, "game", self.dist / "openmw-rtx-v1-windows-x64"),
-                          call(build, "tools", self.dist / "openmw-rtx-v1-windows-x64-tools")])
+                         [call(build, "game", self.dist / "OpenMW-RTX-1-windows-x64"),
+                          call(build, "tools", self.dist / "OpenMW-RTX-1-tools-windows-x64")])
         self.assertEqual(sorted(path.name for path in self.dist.iterdir()),
-                         ["openmw-rtx-v1-windows-x64", "openmw-rtx-v1-windows-x64-tools"])
-        self.assertFalse((self.dist / "openmw-rtx-v1-windows-x64-tools" / "resources").exists(), "an empty folder")
+                         ["OpenMW-RTX-1-tools-windows-x64", "OpenMW-RTX-1-windows-x64"])
+        self.assertFalse((self.dist / "OpenMW-RTX-1-tools-windows-x64" / "resources").exists(), "an empty folder")
+
+    def test_an_archive_is_named_after_the_fork_and_the_version_past_the_tags_prefix(self):
+        self.assertEqual(archive_stem("rtx-v0.5.1"), "OpenMW-RTX-0.5.1")
+        self.assertEqual(archive_stem("rtx-v0.5.1-12-gabc1234"), "OpenMW-RTX-0.5.1-12-gabc1234")
+        self.assertEqual(archive_stem("master"), "OpenMW-RTX-master", "a name of no tag stands as it is")
+        self.assertEqual(archive_stem("rtx-v0.5.1", "tools"), "OpenMW-RTX-0.5.1-tools")
 
     def test_an_unnamed_archive_is_named_after_the_nearest_release_tag(self):
         build = Mock(dir=ROOT / "build-release")

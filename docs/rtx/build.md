@@ -154,6 +154,9 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   the virtual file system they read. **OpenMW-CS is built and not shipped**: upstream's editor draws through the
   rasterizer, and its Qt needs the host libraries only the AppImage carries. Refused: one archive, whose AppImage
   reaches no program but the launcher; the tools unpacked into the game's folder, which no AppImage can be.
+- **Each archive named `OpenMW-RTX-<version>`**, the version the release tag's past its `rtx-v`, then the tools' part
+  and the system: `OpenMW-RTX-0.5.1-linux-x86_64.AppImage`, `OpenMW-RTX-0.5.1-tools-windows-x64.zip`. Refused: a bare
+  `OpenMW-`, which reads as one of upstream's releases. AppImages made before the name changed find no update.
 - **Linux's archive built in the release base, its symbols outside it.** `omw archive` builds and packs the AppImage
   in the AlmaLinux 8 container on a desk and on the release workflow's runner alike, and runs `dump_syms` on the
   container's build from the host, as Mozilla's Linux build of it asks glibc 2.34. The symbols are the installed
