@@ -5,8 +5,3 @@
 - shipped resources cleanup
 - docs cleanup
 - build tools as separate release archive
-
-- upstream proposals, each waiting for a yes:
-  - the model list derived from the records, a record-level answer in MWClass
-  - an idiom fix in SDLCursorManager
-- decide: the crash monitor as the game's parent
