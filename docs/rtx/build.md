@@ -76,7 +76,10 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   `CMAKE_MODULE_PATH` stands between a name and a file of CMake's own.
 - **A sanitizer over the whole build.** `OPENMW_SANITIZER=address|thread` sets the compiler's flags for every
   target, the fetched ones included. Refused: on `openmw-checks` alone, since ThreadSanitizer sees a lock only in
-  code it instrumented.
+  code it instrumented. **Warnings are errors under it too**, as in every flavour. Refused: off under a sanitizer,
+  which GCC's manual advises as its instrumentation gives the flow warnings false positives
+  ([GCC](https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html)); the tree builds with Clang, whose
+  warnings come from its front end ahead of the instrumentation.
 - **CMake 4.4 at least, 4.4.5 exactly where `omw` builds.** `omw` fetches the pinned release into `deps/` on every
   desk, in CI and in the release image, so one CMake configures every build. Refused: the runners' 3.31 beside the
   desks' own.

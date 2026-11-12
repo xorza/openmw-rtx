@@ -97,7 +97,20 @@ Building and running
 Every library comes from the dependency set the driver fetches, built static by vcpkg (`vcpkg.json`); the
 system keeps what the programs open at run time, whose development files `sudo env/install_ubuntu_deps.sh`
 installs on Ubuntu 26.04 and `env/install_almalinux_deps.sh` on AlmaLinux 8. On Windows MSVC is all it needs.
-CMake and clang-format are the driver's own pinned ones on both.
+
+What differs from upstream's build:
+
+* **Two compilers**: on Linux the pinned Clang 23 and its lld, which the driver fetches, over GCC 15's
+  libstdc++; on Windows MSVC from Visual Studio 2026. GCC is not supported as a compiler, and a configure
+  refuses it.
+* **Pinned tools**: CMake, Ninja, clang-format and the dependency set are the driver's own, fetched into
+  `deps/` at the versions `tools/omw/pins.py` names, so every desk and CI build alike.
+* **Flavours, not build types**: `debug`, `release`, `asan` and `tsan`, each a preset of
+  `CMakePresets.json` in a `build-<flavour>` folder. Warnings are errors in every one.
+* **Releases**: link-time optimisation where `OMW_LTO=ON` (ThinLTO, and MSVC's `/GL`), and the Linux
+  AppImage built on AlmaLinux 8, in a container of it on any other system.
+
+Details and the reasons behind them are in [the build](docs/rtx/build.md).
 
 ```
 ./omw bootstrap                          # the pinned dependency set and CMake, into deps/
