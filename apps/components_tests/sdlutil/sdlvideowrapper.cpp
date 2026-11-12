@@ -50,5 +50,17 @@ namespace SDLUtil
             EXPECT_FALSE(isWindowShown(SDL_WINDOW_OCCLUDED | SDL_WINDOW_INPUT_FOCUS));
             EXPECT_FALSE(isWindowShown(SDL_WINDOW_MINIMIZED | SDL_WINDOW_OCCLUDED));
         }
+
+        /// A size is the player's to keep only from a window standing at it: not maximized, minimized or
+        /// fullscreen, whatever else is set.
+        TEST(SDLUtilVideoWrapperTest, aMaximizedMinimizedOrFullscreenWindowIsNotAtItsRestoredSize)
+        {
+            EXPECT_TRUE(isRestoredSize(0));
+            EXPECT_TRUE(isRestoredSize(SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OCCLUDED));
+            EXPECT_FALSE(isRestoredSize(SDL_WINDOW_MAXIMIZED));
+            EXPECT_FALSE(isRestoredSize(SDL_WINDOW_MINIMIZED));
+            EXPECT_FALSE(isRestoredSize(SDL_WINDOW_FULLSCREEN));
+            EXPECT_FALSE(isRestoredSize(SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE | SDL_WINDOW_INPUT_FOCUS));
+        }
     }
 }

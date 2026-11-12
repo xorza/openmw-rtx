@@ -1305,8 +1305,10 @@ namespace MWGui
 
     void WindowManager::windowSized(int width, int height)
     {
-        // The size the player left a window at; a fullscreen window is the display's size.
-        if (Settings::video().mWindowMode.get() != Settings::WindowMode::Windowed)
+        // The size the player left a window at: a fullscreen window is the display's size, and a maximized one
+        // the desktop's, which a next start would open an unmaximized window at.
+        if (Settings::video().mWindowMode.get() != Settings::WindowMode::Windowed
+            || !SDLUtil::isRestoredSize(SDL_GetWindowFlags(mRenderer.getWindow())))
             return;
 
         Settings::video().mWindowWidth.set(width);

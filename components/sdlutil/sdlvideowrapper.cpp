@@ -64,6 +64,11 @@ namespace SDLUtil
         return (flags & (SDL_WINDOW_HIDDEN | SDL_WINDOW_MINIMIZED | SDL_WINDOW_OCCLUDED)) == 0;
     }
 
+    bool isRestoredSize(SDL_WindowFlags flags)
+    {
+        return (flags & (SDL_WINDOW_MAXIMIZED | SDL_WINDOW_MINIMIZED | SDL_WINDOW_FULLSCREEN)) == 0;
+    }
+
     void setVideoMode(SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder)
     {
         SDL_SetWindowFullscreen(window, false);

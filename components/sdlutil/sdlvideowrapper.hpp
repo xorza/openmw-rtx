@@ -32,6 +32,10 @@ namespace SDLUtil
     /// False for a hidden, minimized or occluded window.
     bool isWindowShown(SDL_WindowFlags flags);
 
+    /// Whether a window stands at the size the player left it at, which a next start opens at: not while it is
+    /// maximized, minimized or fullscreen, whose sizes are the display's or the system's.
+    bool isRestoredSize(SDL_WindowFlags flags);
+
     /// Puts `window` in `windowMode`: exclusive fullscreen at the display's desktop mode, borderless
     /// fullscreen on the whole display, or a window of `width` by `height` in the desktop's unit
     /// (`SDL_GetWindowSize`'s) centred on its display. Never another display mode: the frame's
