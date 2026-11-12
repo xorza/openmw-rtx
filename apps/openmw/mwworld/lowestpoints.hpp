@@ -3,6 +3,11 @@
 #include <set>
 #include <unordered_map>
 
+namespace MWPhysics
+{
+    class Object;
+}
+
 namespace MWWorld
 {
     /// The lowest of one height per object, read without a scan. It holds one entry per object it was given.
@@ -10,10 +15,10 @@ namespace MWWorld
     {
     public:
         /// Adds the object or moves it. A NaN has no order, so it leaves the object with no height.
-        void set(const void* object, float z);
+        void set(const MWPhysics::Object* object, float z);
 
         /// An object it does not hold is left as it is.
-        void remove(const void* object);
+        void remove(const MWPhysics::Object* object);
 
         void clear();
 
@@ -22,6 +27,6 @@ namespace MWWorld
 
     private:
         std::multiset<float> mHeights;
-        std::unordered_map<const void*, std::multiset<float>::iterator> mHeightOf;
+        std::unordered_map<const MWPhysics::Object*, std::multiset<float>::iterator> mHeightOf;
     };
 }

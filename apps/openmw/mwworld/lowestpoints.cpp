@@ -6,7 +6,7 @@
 
 namespace MWWorld
 {
-    void LowestPoints::set(const void* object, float z)
+    void LowestPoints::set(const MWPhysics::Object* object, float z)
     {
         if (std::isnan(z))
         {
@@ -27,7 +27,7 @@ namespace MWWorld
         found->second = mHeights.insert(std::move(node));
     }
 
-    void LowestPoints::remove(const void* object)
+    void LowestPoints::remove(const MWPhysics::Object* object)
     {
         const auto found = mHeightOf.find(object);
         if (found == mHeightOf.end())

@@ -11,11 +11,12 @@ namespace MWWorld
     {
         constexpr float nothingHeld = std::numeric_limits<float>::max();
 
-        // Elements of one array, since MSVC's identical data folding may give equal constants one address.
+        // Elements of one array, since MSVC's identical data folding may give equal constants one address. Cast,
+        // as the points tell objects apart by their address alone and never read one.
         const std::array<int, 3> objects{};
-        const void* const a = &objects[0];
-        const void* const b = &objects[1];
-        const void* const c = &objects[2];
+        const auto* const a = reinterpret_cast<const MWPhysics::Object*>(&objects[0]);
+        const auto* const b = reinterpret_cast<const MWPhysics::Object*>(&objects[1]);
+        const auto* const c = reinterpret_cast<const MWPhysics::Object*>(&objects[2]);
 
         TEST(LowestPointsTest, HoldsNothingAtFirstAndAfterClear)
         {
