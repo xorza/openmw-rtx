@@ -1,7 +1,6 @@
-"""`omw format [--check] [file...]`: the C++ sources of the working tree through the pinned
-clang-format (`deps.clang_format`) and its CMake files through the pinned gersemi (`deps.gersemi`),
-rewritten in place — or, with `--check`, left alone and every difference reported, which is what the
-gate asks. And `omw merge-file`, git's merge driver for the C++, which `upstream.yml` configures."""
+"""`omw format [--check] [file...]`: the working tree's C++ through the pinned clang-format and its CMake through
+the pinned gersemi, rewritten, or with `--check` every difference reported; and `omw merge-file`, git's merge driver
+for the C++."""
 
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
@@ -12,17 +11,9 @@ from omw.system import CMAKE_SOURCES, CXX_SOURCES, ROOT, Refusal, jobs, output, 
 
 
 def format_tree(args: list[str]) -> int:
-    """**Rewrites unless asked to check**, as `cargo fmt` does, so the verb does the work its name
-    says; the check is the gate's. **Every C++ source and CMake file of the tree, or those named**: a
-    named file that is neither, a vendored one or another language's, is left alone, so a caller can
-    hand over every file it changed.
-
-    **Every source in the working tree, and not every one git tracks.** `git ls-files` names a file
-    a move has deleted and misses one it has created, so a check that walks it fails a tree with an
-    uncommitted move on the file that was gone and passes it on the file that was new. **One
-    clang-format on every system**, the pinned one: a desk's own, of another version, lays the same
-    file out otherwise. **In batches**, because one process for every file leaves nothing to run
-    beside it: 8.5 s on one core, and 1 s in batches of 64."""
+    """**Rewrites unless asked to check**, as `cargo fmt` does. Every C++ source and CMake file of the working tree,
+    or those of them named, so a caller can hand over every file it changed. **In batches of 64** on every core:
+    8.5 s a file at a time, 1 s so."""
     check = "--check" in args
     named = [arg for arg in args if arg != "--check"]
     if any(arg.startswith("-") for arg in named):
@@ -43,8 +34,7 @@ def format_tree(args: list[str]) -> int:
 
     with ThreadPoolExecutor(max_workers=jobs()) as pool:
         failed = sum(1 for code in pool.map(formatted, batches) if code != 0)
-    # gersemi takes every file at once and spreads them over its own workers. Without its cache, which
-    # would be state kept outside the tree.
+    # gersemi spreads every file over its own workers; without its cache, which is state outside the tree.
     if cmake:
         cmake_mode = ["--check", "--diff"] if check else ["--in-place"]
         failed += subprocess.run([*deps.gersemi(), *cmake_mode, "--no-cache", "--quiet", *cmake], cwd=ROOT,
@@ -53,28 +43,24 @@ def format_tree(args: list[str]) -> int:
 
 
 def changed_files(root: Path = ROOT) -> list[str]:
-    """**The files the working tree changed against `HEAD`**, staged or not, and the new ones git does not
-    ignore, from the root, `/`-separated: what a build formats, as the rest is as its commit left it. A
-    deleted file is not among them."""
+    """**The files the working tree changed against `HEAD`**, staged or not, and the new ones git does not ignore,
+    from the root, `/`-separated; a deleted file is none."""
     named = {*output(["git", "-C", root, "diff", "--name-only", "HEAD"]).splitlines(),
              *output(["git", "-C", root, "ls-files", "--others", "--exclude-standard"]).splitlines()}
     return sorted(name for name in named if (root / name).is_file())
 
 
 def formatted_text(clang_format: Path, text: bytes, path: str) -> bytes:
-    """`text` laid out as the tree's `path` would be, by `.clang-format` from that path's folder up;
-    the text as it was where clang-format refuses it, which `git merge-file` then merges as it is."""
+    """`text` laid out as the tree's `path` would be; as it was where clang-format refuses it, to be merged as is."""
     done = subprocess.run([clang_format, f"--assume-filename={path}"], input=text, cwd=ROOT,
                           capture_output=True, check=False)
     return done.stdout if done.returncode == 0 else text
 
 
 def merge_file(args: list[str]) -> int:
-    """**Git's merge driver for C++** (`merge=clang-format` in `.gitattributes`), as `upstream.yml`
-    configures it: `omw merge-file %O %A %B %L %P`. The base and both sides are each laid out by the
-    pinned clang-format before `git merge-file` merges them into `%A`, so an upstream edit to a file
-    the fork reformatted conflicts only where the edit itself does, as `merge.renormalize` does for
-    line endings. The exit status is `git merge-file`'s: nought for a clean merge."""
+    """**Git's merge driver for C++** (`merge=clang-format`), `omw merge-file %O %A %B %L %P`: the base and both
+    sides laid out by the pinned clang-format before `git merge-file` merges them into `%A`, so an upstream edit to a
+    file the fork reformatted conflicts only where the edit does. The status is `git merge-file`'s."""
     if len(args) != 5:
         raise Refusal("merge-file takes the base, ours, theirs, the marker size and the path: %O %A %B %L %P")
     base, ours, theirs, marker_size, path = args

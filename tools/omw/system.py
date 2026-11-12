@@ -14,24 +14,23 @@ from typing import IO, NoReturn
 
 ROOT = Path(__file__).resolve().parents[2]
 DEPS = ROOT / "deps"
-# The systems the driver builds on, by `sys.platform`, each with its half of a preset's name. A third
-# system is refused before any verb (`refuse_unsupported`), rather than taking Linux's SDK and presets.
+# The systems the driver builds on, by `sys.platform`, each with its half of a preset's name. Any other is refused
+# before any verb (`refuse_unsupported`), rather than taking Linux's SDK and presets.
 SYSTEMS = {"linux": "linux", "win32": "windows"}
 WINDOWS = sys.platform == "win32"
 SYSTEM = SYSTEMS.get(sys.platform, "")
 EXE = ".exe" if WINDOWS else ""
-# Upstream's branch, which the fork merges: what its tree has at the merge base is upstream's code. **Fetched into a
-# ref of the driver's own at every ask** (`fetch_upstream`): no remote for a clone to configure, and never stale, as
-# a ref fetched once and merged past named the files upstream added since the fork's own.
+# Upstream's branch, whose tree at the merge base is upstream's code. Fetched into a ref of the driver's own at
+# every ask (`fetch_upstream`): no remote to configure, and never stale.
 UPSTREAM_URL = "https://github.com/OpenMW/openmw.git"
 UPSTREAM = "refs/omw/upstream"
 # Set by GitHub Actions, as by every CI service: CI checks what the desk rewrites.
 CI = os.environ.get("CI", "").lower() in ("true", "1")
 # The tree's own C++, which the formatting and the file names are checked over: `extern/` is vendored.
 CXX_SOURCES = (":(exclude)extern/", "*.cpp", "*.hpp", "*.h")
-# The CMake files the tree formats: every one but those of the libraries vendored under `extern/`, the vcpkg
-# ports copied from their registries under `vcpkg/ports/`, kept as written so a registry's next version
-# compares line for line, and the Doxygen templates `docs/` names `.cmake`, which are no CMake.
+# The CMake files the tree formats: not those vendored under `extern/`, nor the vcpkg ports copied from their
+# registries, kept as written so a registry's next version compares line for line, nor the Doxygen templates
+# `docs/` names `.cmake`.
 CMAKE_SOURCES = ("*CMakeLists.txt", "*.cmake", ":(exclude)extern/*/*", ":(exclude)vcpkg/ports/*",
                  ":(exclude)docs/*.cmake")
 
@@ -41,10 +40,9 @@ class Refusal(Exception):
 
 
 class Switches(argparse.ArgumentParser):
-    """A driver verb's own switches, and nothing else: `parse_known_args` returns what the verb
-    declared and leaves the rest for the program the verb runs. **No abbreviations**, because a prefix of a switch
-    the harness owns would otherwise be taken for one of the verb's. A switch spelled wrong is a
-    `Refusal`, as every other mistake on the line is, and not argparse's exit."""
+    """A driver verb's own switches: `parse_known_args` leaves the rest for the program the verb runs. **No
+    abbreviations**, or a prefix of a harness switch would be taken for the verb's; a switch spelled wrong is a
+    `Refusal`, not argparse's exit."""
 
     def __init__(self, verb: str, description: str):
         super().__init__(prog=f"omw {verb}", description=description, allow_abbrev=False)
@@ -69,11 +67,9 @@ def require(tool: str, why: str) -> str:
 
 
 def resolved(command: list, env: dict[str, str] | None, cwd: str | Path | None = None) -> list[str]:
-    """The command with its program found where it runs: a bare name on the PATH of the environment
-    it runs under, a relative path from the directory it runs in. POSIX does both itself. Windows
-    searches the driver's own PATH, which lacks what VsDevCmd added, and its own directory before
-    any PATH, and reads a relative path from that directory and not `cwd`. `Path` drops a leading
-    `./`, so the string tells a bare name from a path."""
+    """The command with its program found where it runs: a bare name on the PATH of `env`, a relative path from
+    `cwd`. POSIX does both itself; Windows searches the driver's own PATH, which lacks what VsDevCmd added, and
+    reads a relative path from the driver's directory. A string, since `Path` drops a leading `./`."""
     parts = [str(part) for part in command]
     program = parts[0]
     if not os.path.dirname(program):
@@ -89,10 +85,9 @@ def resolved(command: list, env: dict[str, str] | None, cwd: str | Path | None =
 
 
 def on_path(program: str, path: str | None = None) -> str | None:
-    """`program` from the folders `path` names alone, the driver's own PATH unless told, and never
-    the working directory: on Windows `shutil.which` searches it first, where a bare name found the
-    driver's own files before the PATH's. On Windows a name with none of `PATHEXT`'s extensions is
-    tried with each, which Python 3.11's `which` does not do for a name with a folder in it."""
+    """`program` from the folders `path` names alone, the driver's PATH by default, and never the working
+    directory, which `shutil.which` searches first on Windows. There a name without a `PATHEXT` extension is
+    tried with each, which Python 3.11's `which` skips for a name with a folder in it."""
     searched = os.environ.get("PATH", "") if path is None else path
     names = [program]
     if WINDOWS:
@@ -113,29 +108,29 @@ def run(command: list, **options) -> subprocess.CompletedProcess:
     return subprocess.run(resolved(command, options.get("env"), options.get("cwd")), check=True, **options)
 
 
+def output(command: list, **options) -> str:
+    """What a command run to its end printed, as text."""
+    return subprocess.run(resolved(command, options.get("env"), options.get("cwd")), check=True, capture_output=True,
+                          encoding="utf-8", errors="replace", **options).stdout
+
+
 def report(findings: list[str]) -> int:
-    """A check's findings, a line each as it ends, and its exit status: nought where it found nothing."""
+    """A check's findings, a line each, and its exit status: nought where it found nothing."""
     for line in findings:
         print(line, flush=True)
     return 1 if findings else 0
 
 
 def status(code: int) -> int:
-    """A child's `returncode` as the shell spells an exit status: a death by signal N is `128 + N`.
-    Python says `-N`, and an exit of `-N` wraps to `256 - N`, which put a SIGSEGV at 245 and not 139."""
+    """A child's `returncode` as the shell spells an exit status: a death by signal N is `128 + N`, where an exit
+    of Python's `-N` wraps to `256 - N`."""
     return 128 - code if code < 0 else code
-
-
-def output(command: list, **options) -> str:
-    return subprocess.run(resolved(command, options.get("env"), options.get("cwd")), check=True, capture_output=True,
-                          encoding="utf-8", errors="replace", **options).stdout
 
 
 @contextlib.contextmanager
 def temporary_folder(prefix: str) -> Iterator[Path]:
-    """A folder for a run's logs and pictures, removed where an exception leaves it empty — a build
-    that failed before the first run wrote nothing a message could name — and kept in every other
-    case, because the message names what is in it."""
+    """A folder for a run's logs and pictures, removed where an exception leaves it empty and kept otherwise,
+    because the message names what is in it."""
     folder = Path(tempfile.mkdtemp(prefix=prefix))
     try:
         yield folder
@@ -147,9 +142,8 @@ def temporary_folder(prefix: str) -> Iterator[Path]:
 
 
 def _take_lock(held: IO[str], wait: bool) -> bool:
-    """Takes the whole-process lock on the open file `held`, waiting for it where `wait` says, and
-    answers whether it did. Closing the file or ending the process lets it go, so a run that dies
-    leaves nothing to clear."""
+    """Takes the whole-process lock on the open file `held`, waiting where `wait` says, and answers whether it
+    did. Closing the file or ending the process lets it go, so a run that dies leaves nothing to clear."""
     if sys.platform == "win32":
         import msvcrt
 
@@ -174,10 +168,9 @@ def _take_lock(held: IO[str], wait: bool) -> bool:
 
 @contextlib.contextmanager
 def exclusive(lock_file: Path, what: str) -> Iterator[None]:
-    """Only one process at a time inside: a second waits, and says what for, rather than running
-    beside the first."""
+    """One process at a time inside: a second waits, and says what for."""
     lock_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(lock_file, "a+") as held:
+    with lock_file.open("a+") as held:
         if not _take_lock(held, wait=False):
             print(f"omw: waiting for another omw that is {what}", file=sys.stderr, flush=True)
             _take_lock(held, wait=True)
@@ -185,23 +178,21 @@ def exclusive(lock_file: Path, what: str) -> Iterator[None]:
 
 
 def read_text(path: Path) -> str:
-    """A file the tree, the build or a program wrote, as text. **UTF-8 whatever the locale**: Python reads
-    with the locale's encoding unless told, which is cp1252 on Windows, and every program here writes
-    UTF-8. What does not decode is replaced, so a log a crash cut mid-character still reads."""
+    """A file as text, **UTF-8 whatever the locale**, which is cp1252 on Windows; what does not decode is
+    replaced, so a log a crash cut mid-character still reads."""
     return path.read_text(encoding="utf-8", errors="replace")
 
 
 def working_tree_files(*pathspecs: str, root: Path = ROOT) -> list[str]:
-    """The files `pathspecs` name in the working tree, from the root, `/`-separated: tracked or new and
-    not ignored. **The working tree's, and not the index's**: a file a move or a delete has taken
-    still stands in the index, and one a move has made is not in it yet."""
+    """The files `pathspecs` name in the working tree, tracked or new and not ignored, from the root,
+    `/`-separated. **Not the index's**, which still holds a file a move took and lacks one it made."""
     listed = output(["git", "-C", root, "ls-files", "--cached", "--others", "--exclude-standard", "--",
                      *pathspecs]).splitlines()
     return [name for name in listed if (root / name).is_file()]
 
 
 def fetch_upstream(root: Path = ROOT, url: str = UPSTREAM_URL) -> None:
-    """Upstream's master into `UPSTREAM`, what it lacks of it fetched."""
+    """Upstream's master into `UPSTREAM`."""
     try:
         output(["git", "-C", root, "fetch", "--quiet", "--no-tags", url, f"+master:{UPSTREAM}"])
     except subprocess.CalledProcessError as error:
@@ -219,16 +210,14 @@ def files_upstream_lacks(root: Path = ROOT) -> frozenset[str]:
 
 @functools.cache
 def fork_files(root: Path = ROOT) -> frozenset[str]:
-    """**The fork's own files, which the fork's checks hold**: those upstream's tree lacks (`files_upstream_lacks`)
-    against upstream's master as it stands now (`fetch_upstream`). Upstream's are upstream's to change. Derived and
-    not listed: a list by folder missed every file the fork adds beside upstream's, and a file the fork adds
-    anywhere is its own the moment it exists."""
+    """**The fork's own files, which the fork's checks hold**: those upstream's master lacks as it stands now.
+    Derived and not listed, so a file the fork adds anywhere is its own the moment it exists."""
     fetch_upstream(root)
     return files_upstream_lacks(root)
 
+
 def user_and_group() -> str:
-    """This process's user and group as `uid:gid`, the form `chown` and `docker --user` take.
-    POSIX's: Windows has neither, and no step of the driver there asks."""
+    """This process's user and group as `uid:gid`, the form `chown` and `docker --user` take; POSIX's alone."""
     # An `if` and not an `assert`, which mypy does not read a platform through inside a function.
     if WINDOWS:
         raise AssertionError("a user and a group are POSIX's, and no step on Windows asks for them")
@@ -240,8 +229,7 @@ def jobs() -> int:
 
 
 def environment_key(name: str) -> str:
-    """A variable's name as a dictionary of the environment holds it: Windows reads names without
-    case, and `os.environ` there holds each in capitals."""
+    """A variable's name as `os.environ` holds it: in capitals on Windows, which reads names without case."""
     return name.upper() if WINDOWS else name
 
 
@@ -251,8 +239,7 @@ def prepend_path(env: dict[str, str], name: str, directory: Path) -> None:
 
 
 def parse_set_output(text: str) -> dict[str, str]:
-    """The variables cmd's `set` printed, a `NAME=value` a line. cmd's own per-drive entries, `=C:`,
-    are not variables."""
+    """The variables cmd's `set` printed, a `NAME=value` a line; cmd's per-drive `=C:` entries are none."""
     variables: dict[str, str] = {}
     for line in text.splitlines():
         name, equals, value = line.partition("=")
@@ -262,24 +249,20 @@ def parse_set_output(text: str) -> dict[str, str]:
 
 
 def msvc_environment() -> dict[str, str]:
-    """**MSVC's environment, the way setuptools takes it**, over the driver's own, a copy the
-    caller may change. `cl` finds its headers and libraries through `INCLUDE` and `LIB`, which Ninja
-    does not bake into the build, so every build needs them and not only the configure.
-    `VsDevCmd.bat` sets them for the installation vswhere names, and a `set` in the same `cmd`
-    prints the whole environment it left, as UTF-16 under `/u`. `VSCMD_VER` is the documented sign
-    that a shell has them already. vswhere's directory goes on the PATH, because the batch file
-    looks for it there, and `-startdir=none` keeps it from moving the shell. **Once a process**:
-    the batch file takes seconds, and the gate's two flavours asked it twice."""
+    """**MSVC's environment, the way setuptools takes it**, a copy the caller may change: `VsDevCmd.bat` for the
+    installation vswhere names, then `set` in the same `cmd`. Every build needs it, as Ninja does not bake `INCLUDE`
+    and `LIB` in. Once a process, since the batch file takes seconds."""
     return dict(_msvc_activated())
 
 
 @functools.cache
 def _msvc_activated() -> dict[str, str]:
     env = dict(os.environ)
+    # The documented sign that a shell has the environment already.
     if env.get(environment_key("VSCMD_VER")):
         return env
 
-    programs = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))
+    programs = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))  # noqa: SIM112 Windows' name
     installer = programs / "Microsoft Visual Studio" / "Installer"
     vswhere = installer / "vswhere.exe"
     if not vswhere.is_file():
@@ -291,9 +274,11 @@ def _msvc_activated() -> dict[str, str]:
         raise Refusal("vswhere found no Visual Studio with the C++ tools")
 
     batch = Path(studio) / "Common7" / "Tools" / "VsDevCmd.bat"
+    # The batch file looks for vswhere on the PATH, and `-startdir=none` keeps it from moving the shell.
     searched = dict(env)
     prepend_path(searched, "PATH", installer)
-    # One string, because `/s` takes the first and the last quote off it and runs the rest as typed.
+    # One string, because `/s` takes the first and the last quote off it and runs the rest as typed; `/u` prints
+    # UTF-16.
     line = f'cmd.exe /u /s /c "call "{batch}" -no_logo -arch=amd64 -host_arch=amd64 -startdir=none && set"'
     dumped = subprocess.run(line, check=True, capture_output=True, env=searched).stdout
     activated = parse_set_output(dumped.decode("utf-16-le", errors="replace"))

@@ -30,7 +30,7 @@ class MergeFileTest(unittest.TestCase):
 
     def sides(self, base: str, ours: str, theirs: str) -> list[Path]:
         paths = [self.folder / name for name in ("base", "ours", "theirs")]
-        for path, text in zip(paths, (base, ours, theirs)):
+        for path, text in zip(paths, (base, ours, theirs), strict=True):
             path.write_text(text)
         return paths
 
@@ -79,14 +79,18 @@ class FormatTreeTest(unittest.TestCase):
             return subprocess.CompletedProcess(command, codes[command[0]])
 
         def files(*pathspecs):
-            return ["CMakeLists.txt", "cmake/x.cmake"] if pathspecs == formatting.CMAKE_SOURCES else ["a.cpp", "b.hpp", "c.h"]
+            if pathspecs == formatting.CMAKE_SOURCES:
+                return ["CMakeLists.txt", "cmake/x.cmake"]
+            return ["a.cpp", "b.hpp", "c.h"]
 
         with (mock.patch.object(formatting, "working_tree_files", side_effect=files),
               mock.patch.object(formatting.deps, "clang_format", return_value=Path("cf")),
               mock.patch.object(formatting.deps, "gersemi", return_value=["g"]),
               mock.patch.object(formatting.subprocess, "run", side_effect=run)):
-            self.assertEqual(formatting.format_tree(["./a.cpp", "c.h", "extern/x.cpp", "README.md", "CMakeLists.txt"]), 0)
-            self.assertEqual(ran, [["cf", "-i", "a.cpp", "c.h"], ["g", "--in-place", "--no-cache", "--quiet", "CMakeLists.txt"]])
+            named = ["./a.cpp", "c.h", "extern/x.cpp", "README.md", "CMakeLists.txt"]
+            self.assertEqual(formatting.format_tree(named), 0)
+            self.assertEqual(ran, [["cf", "-i", "a.cpp", "c.h"],
+                                   ["g", "--in-place", "--no-cache", "--quiet", "CMakeLists.txt"]])
             ran.clear()
             # No CMake file named, no gersemi.
             self.assertEqual(formatting.format_tree(["b.hpp"]), 0)
@@ -94,7 +98,8 @@ class FormatTreeTest(unittest.TestCase):
             ran.clear()
             self.assertEqual(formatting.format_tree(["--check"]), 0)
             self.assertEqual(ran, [["cf", "--dry-run", "-Werror", "a.cpp", "b.hpp", "c.h"],
-                                   ["g", "--check", "--diff", "--no-cache", "--quiet", "CMakeLists.txt", "cmake/x.cmake"]])
+                                   ["g", "--check", "--diff", "--no-cache", "--quiet", "CMakeLists.txt",
+                                    "cmake/x.cmake"]])
             # A CMake file out of its layout fails the check as a C++ source does.
             codes["g"] = 1
             self.assertEqual(formatting.format_tree(["--check"]), 1)

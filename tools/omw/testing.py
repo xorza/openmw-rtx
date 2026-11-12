@@ -9,10 +9,8 @@ from omw.system import ROOT, Refusal, fork_files, read_text, status
 
 
 def test(build: Build, args: list[str]) -> int:
-    """Every suite the build has. `--without-device` leaves out the GPU binary, which refuses to start
-    without a device rather than skip; the rest of the line goes to CTest.
-
-    Named first, a binary is built and run alone with the rest of the line, for a filter."""
+    """Every suite the build has, the rest of the line to CTest, `--without-device` leaving out the GPU binary; or,
+    named first, one binary built and run alone with the rest of the line, for a filter."""
     if args and not args[0].startswith("-"):
         return _one(build, args[0], args[1:])
 
@@ -27,8 +25,8 @@ def test(build: Build, args: list[str]) -> int:
 
 
 def ctest_arguments(args: list[str]) -> list[str]:
-    """The line in CTest's words. The suites run side by side, one job per processor: here, because the
-    test preset's version takes only a fixed count."""
+    """The line in CTest's words, the suites side by side, a job a processor: here, as the preset takes only a
+    fixed count."""
     passed: list[str] = ["--parallel"]
     for arg in args:
         if arg == "--without-device":
@@ -45,8 +43,8 @@ def _one(build: Build, binary: str, args: list[str]) -> int:
     return status(build.run_here([build.binary(binary), *args]).returncode)
 
 
-# Two seconds, in the debug build: the fork's slowest test took 0.9 s alone and 1.1 s beside the other
-# suites. A death test starts the binary again and stands up a device, about a quarter of a second each.
+# Two seconds, in the debug build: the fork's slowest test took 0.9 s alone, and a death test that starts the binary
+# again and stands up a device about a quarter of a second each.
 LIMIT_SECONDS = 2.0
 
 
@@ -65,10 +63,8 @@ def durations(report: dict, fork: frozenset[str], root: Path = ROOT) -> dict[str
 
 
 def timing(build: Build) -> int:
-    """**No test of the fork's takes longer than `LIMIT_SECONDS`, measured alone.** Beside the other suites a
-    test waits for the processors and the card they share. So the last `test` run's reports name the
-    candidates, and each runs again by itself, warm, where its time is its own: what is under the limit
-    beside the others is under it alone."""
+    """**No test of the fork's takes longer than `LIMIT_SECONDS`, measured alone**: the last `test` run's reports
+    name the candidates, which ran beside the others, and each runs again by itself, warm."""
     targets = {test["name"]: target for test in build.tests()
                if (target := properties_of(test).get("OPENMW_TARGET")) is not None}
     alone = build.folder("RTX_TEST_OUTPUT_DIR") / "alone.json"

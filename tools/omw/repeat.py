@@ -1,33 +1,10 @@
-"""`omw [flavour] repeat [--pairs=N] [bench args]`: two runs of one binary walk `one-cell-walk` for
-six seconds and must agree.
+"""`omw [flavour] repeat [--pairs=N] [bench args]`: runs of one binary walk `one-cell-walk` for six seconds and
+must agree frame for frame (`bench --against`), so a run is a function of the binary alone. **Processes, not stops
+of one**, which start from the world the last left; **a walk, not a still**, which hid both defects this caught; the
+upscaler and the denoiser off, so what is compared is what a reconstruction is fed.
 
-**One walk, always the same**, so every repeat is comparable to every other.
-
-**Two processes and not two stops of one.** A second stop starts from the world the first one left,
-so the two cannot be compared frame for frame. What this asks is whether a run of the binary is a
-function of the binary, and only a second run of it answers that. A walk and not a still, because a
-still passed through both of the defects this catches: a camera that stands still was exactly
-reproducible while `osg::FrameStamp`'s reference time aged OpenMW's caches by the wall, and again
-while MyGUI aged the hit overlay by one.
-
-**The upscaler and the denoiser are off**, so what is walked is what a reconstruction is fed, which
-is where every defect this has caught showed itself. The exposure stays measured; add `--exposure=1`
-to read a difference in the picture, since a measured exposure couples every pixel to every other
-and every frame to the one before.
-
-**Every column is the gate.** The second run is compared by `bench --against`, which names the
-frames whose picture moved and the parts of the scene that did, and fails on either. One pair gates
-and ten read. Both legs' hashes are kept beside the logs of a pair that differed.
-
-**Every other run holds the queue behind the host**, as far as `check` holds it. Two runs of one
-binary keep the same phase between the host and the device, so a frame that read the device's clock
-could repeat exactly and still be a function of the wall; `Rtx::Timeline` says why no frame reads it
-now. Held, the device trails by half a frame, which is the other phase a run can have.
-
-**A chain and not separate pairs**: each run is compared with the one before it, and the two always
-differ in the hold, so every comparison is a held run against a free one, as a pair was. `--pairs=N`
-is N comparisons, over N + 1 runs rather than 2N, and each run past the first is a fresh draw of
-its phase that two comparisons read."""
+**A chain, every other run holding the queue behind the host**: each run is compared with the one before, so every
+comparison is a held phase against a free one, and `--pairs=N` is N comparisons over N + 1 runs."""
 
 import shutil
 import subprocess
@@ -41,8 +18,8 @@ from omw.system import Refusal, Switches, read_text, temporary_folder
 # `RtxTool::sDifferedStatus`: the run's one fault is a frame that differed from its reference.
 DIFFERED_STATUS = 3
 
-# **What `repeat` sets on every run, in one list**: what the walk is and how it is taken. Named twice,
-# `bench` refuses the line and the run reads as failed, so each is refused here first.
+# **What `repeat` sets on every run**: what the walk is and how it is taken. Named twice, `bench` refuses the line,
+# so each is refused here first.
 WALK = {"--views": "one-cell-walk", "--seconds": "6"}
 TAKEN = {"--window": "false", "--upscale": "off", "--filter": "false"}
 
@@ -85,9 +62,8 @@ def repeat(build: Build, args: list[str]) -> int:
             log = out / f"{index}.log"
             held = ["--hold"] if index % 2 else []
             against = [f"--against={out / str(index - 1)}"] if index else []
-            # **Through a pipe and not into the log**: the crash monitor shares the run's output and
-            # ends after the harness, so a file handed to the harness is still open when it returns,
-            # and Windows refuses to remove it. A pipe ends with its last writer.
+            # **Through a pipe and not into the log**: the crash monitor shares the output and ends after the
+            # harness, and Windows refuses to remove a file still open.
             ended = build.harness("bench", *bench, *held, f"--out={out / str(index)}", *against,
                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             log.write_bytes(ended.stdout)

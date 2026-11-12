@@ -1,16 +1,7 @@
-"""`omw [flavour] integration [script args]`: upstream's integration tests — the Lua and game-logic
-suites its GitLab pipeline runs (`scripts/integration_tests.py`) — on the example suite at the
-revision that pipeline pins (`EXAMPLE_SUITE_REVISION`), against this build's `openmw`.
-
-**Over whichever backend the environment names, in a window of SDL's offscreen driver**: the
-device's on a box with a card, which is what reads the ray tracer's whole effect on the game, and on
-CI's runners, which have none, the null backend (`OPENMW_RTX_BACKEND=null`). The offscreen driver
-needs no display, so the game opens no window on a desk and runs on a box with no monitor; the
-device then traces every frame and presents none (`MWRender::RtxWindow::hasDisplay`).
-
-**The suite as GitLab's archive of the pinned revision**, which carries its LFS files whole, so no
-`git-lfs` is needed: fetched once into the build directory beside a stamp naming the revision, and
-again only when the revision moves."""
+"""`omw [flavour] integration [script args]`: upstream's integration tests (`scripts/integration_tests.py`) on the
+example suite at the revision its GitLab pipeline pins, against this build's `openmw`, over whichever backend the
+environment names, in a window of SDL's offscreen driver, which needs no display. The suite is GitLab's archive of
+the revision, which carries its LFS files whole, fetched once beside a stamp naming it."""
 
 import shutil
 import sys
@@ -68,9 +59,8 @@ def script_line(openmw: Path, workdir: Path, suite: Path, args: list[str]) -> li
 
 
 def integration(build: Build, args: list[str]) -> int:
-    """Builds `openmw`, fetches the suite, and runs the tests; `args` go to the script, such as
-    `--test_filter=<pattern>`. **No crash dialog and no fatal error box**: either would wait for a
-    click in a run nobody watches."""
+    """Builds `openmw`, fetches the suite, and runs the tests, `args` to the script. **No crash dialog and no fatal
+    error box**, which would wait for a click nobody makes."""
     build.build(["openmw"])
     suite = fetch_suite(build, EXAMPLE_SUITE_REVISION)
     command = script_line(build.binary("openmw"), build.dir / "integration_tests_output", suite, args)

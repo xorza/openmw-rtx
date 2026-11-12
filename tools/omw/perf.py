@@ -1,18 +1,7 @@
-"""`omw profile [--offcpu] [--out=<dir>] [bench args]`: the renderer's CPU side under perf, over one
-place or a whole suite, in the release build. The reports are text files, and `perf report -i
-<dir>/cpu.data --no-inline` walks the call graph.
-
-**What `--offcpu` can and cannot see.** BPF collects its stacks by frame pointer and the graphics
-driver has none, so a wait that starts inside `vkWaitForFences` is recorded as an address rather than
-as the frame that asked for it, and no other unwinding can help: a BPF-collected stack cannot be
-unwound any other way. What the mode does establish is the shape — which library the process waits
-in, and whether a wait passes through this fork's own code at all. Read `blocked-libraries.txt`; the
-total the summary prints is dominated by driver worker threads parked for the length of the run.
-
-**It profiles the build `omw release` measures, and does not have one of its own.** A profile is only
-as good as its call graph, and a stock Release build has neither line numbers nor frame pointers — so
-the release flavour carries `-g1 -fno-omit-frame-pointer` instead, which costs less than the
-run-to-run spread. A second build directory would explain a frame nobody timed."""
+"""`omw profile [--offcpu] [--out=<dir>] [bench args]`: the renderer's CPU side under perf, over one place or a
+suite, in the release build, which carries line tables and frame pointers so no second build explains a frame
+nobody timed. **`--offcpu` sees the shape alone**: BPF walks frame pointers, which the driver lacks, so a wait inside
+it is an address; read `blocked-libraries.txt` for which library the process waits in."""
 
 import json
 import os
@@ -42,42 +31,35 @@ def profile(build: Build, args: list[str]) -> int:
     require("perf", "it is what records the profile: perf")
     offcpu: bool = asked.offcpu
     out: Path = asked.out
-    # One place unless told otherwise. A profile that averaged an exterior and an interior would
-    # describe neither: the two do not spend their frame on the same thing.
+    # One place unless told otherwise: an exterior and an interior do not spend their frame on the same thing.
     named = any(arg.split("=", 1)[0] in ("--views", "--suite") for arg in extra)
     place = [] if named else ["--views=seyda-neen-ship"]
 
-    # One file per question. On-CPU and off-CPU are two recordings rather than two events in one,
-    # because `perf report` writes every event in a file to the same page and cannot be asked for one.
+    # On-CPU and off-CPU are two recordings, as `perf report` writes every event of a file to one page.
     out.mkdir(parents=True, exist_ok=True)
     data = out / ("blocked.data" if offcpu else "cpu.data")
 
-    # perf's control fifo. `--delay=-1` starts the counters off and `bench` turns them on around the
-    # frames it measures, so the recording is those frames: not the engine starting, not a cell
-    # coming off the disk, not the renderer being taken down.
+    # perf's control fifo: `--delay=-1` starts the counters off and `bench` turns them on around the frames it
+    # measures, so the recording is those frames alone.
     control = out / "control.fifo"
     control.unlink(missing_ok=True)
     os.mkfifo(control)
     try:
-        # **The ring buffer is perf's own default**, because `perf_event_mlock_kb` is 2048 on this
-        # box and `-m` above that is refused rather than clamped. A dropped sample is counted.
+        # **perf's default ring buffer**, as `-m` past `perf_event_mlock_kb` is refused rather than clamped.
         record = ["perf", "record", "--delay=-1", f"--control=fifo:{control}", "-o", str(data)]
         if offcpu:
-            # `dummy` never fires: it gives perf an event to attach to, so the only samples in the
-            # file are the BPF profiler's. A millisecond, against a default of five hundred: half a
-            # second is thirty frames, so the default would see none of the waits a frame is made of.
+            # `dummy` never fires, so the samples are the BPF profiler's alone; waits of a millisecond and more, as
+            # the default half second sees none of a frame's.
             record += ["-e", "dummy", "--off-cpu", "--off-cpu-thresh", "1", "--call-graph", "fp"]
         else:
-            # **`task-clock` rather than `cycles`, because this machine's CPU is hybrid**: `cycles`
-            # is two events, one per core type, and a thread that migrated splits across both.
-            # `task-clock` is one software event, and it counts nanoseconds, which a frame budget is
-            # denominated in.
+            # **`task-clock` rather than `cycles`**, which a hybrid CPU counts as one event a core type, splitting
+            # a thread that migrated; `task-clock` is one event, in nanoseconds.
             record += ["-e", "task-clock", "-F", SAMPLES_A_SECOND, "--call-graph", "fp"]
 
         bench = [str(part) for part in build.harness_line("bench", "--window=false", *place,
                                                           f"--perf-control={control}", f"--json={out / 'bench.json'}",
                                                           *extra)]
-        with open(out / "bench.txt", "w", encoding="utf-8") as log:
+        with (out / "bench.txt").open("w", encoding="utf-8") as log:
             if offcpu:
                 elevate = _elevation()
                 code = _record_offcpu(build.dir, build.env, [*elevate, *record], bench, log)
@@ -110,8 +92,7 @@ class Measured:
 
 
 def measured_window(record: dict) -> Measured:
-    """The frames `bench --json` measured and the wall seconds they took, over every place: the window
-    the recording is bounded to."""
+    """The frames `bench --json` measured and the wall seconds they took, over every place: the recording's window."""
     places = record.get("places", [])
     return Measured(sum(int(place["frames"]) for place in places),
                     sum(float(place["wallSeconds"]) for place in places))
@@ -123,8 +104,7 @@ def _perf_report(*args: str) -> str:
 
 
 def _narrow(line: str, width: int = 86) -> str:
-    """The symbol column, narrowed to something a terminal can hold. Templates make a C++ symbol as
-    long as it likes, and the part that identifies it is at the front."""
+    """The symbol column, narrowed to a terminal's width: what identifies a C++ symbol is at its front."""
     return line if len(line) <= width else line[:width - 1] + "…"
 
 
@@ -133,14 +113,9 @@ def _symbol(line: str) -> str:
 
 
 def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
-    """**What the run itself said it measured**, which is exactly what the recording is bounded to:
-    every figure is per second of that window, so it means the same whether the profile covers one
-    place or six.
-
-    **`--no-inline` throughout.** perf resolves the inline stack at a return address, and at this
-    optimisation level that address usually lands in whatever was inlined *after* the call — so a
-    chain through `placeScene` comes back as `~basic_string`. Real symbols and a chain that can be
-    read beat inline names that name the wrong thing."""
+    """The reports, every figure per second of what the run said it measured, which the recording is bounded to.
+    **`--no-inline` throughout**: perf resolves the inline stack at a return address, which lands in whatever was
+    inlined after the call and names the wrong thing."""
     measured = measured_window(json.loads(read_text(out / "bench.json")))
     frames, wall = measured.frames, measured.seconds
 
@@ -149,8 +124,7 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
     lost = next((line.split()[-1] for line in summary.splitlines() if "Total Lost Samples" in line), None)
     nanoseconds = next((line.split()[-1] for line in summary.splitlines() if "Event count" in line), None)
 
-    # Last run's reports go before this one's are written, so a file a mode no longer writes cannot
-    # be read as part of this profile.
+    # The last run's reports go first, so none is read as part of this profile.
     for stale in [*out.glob(f"{slug}-*.txt"), out / f"{slug}.folded", out / f"{slug}.svg"]:
         stale.unlink(missing_ok=True)
 
@@ -159,15 +133,13 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
         "self": _perf_report(*common, "--no-children", "-g", "none", "--percent-limit", "0.3"),
         "total": _perf_report(*common, "--children", "-g", "none", "--sort", "symbol", "--percent-limit", "0.5"),
         "callers": _perf_report(*common, "--no-children", "-g", "graph,2,caller", "--percent-limit", "1"),
-        # What `-g1` is in the release build for. A line resolves what a symbol cannot: the hottest
-        # entry after `Group::traverse` is an address in libc until the line tables say `memmove`.
+        # What `-g1` is in the release build for: a line resolves what a symbol cannot, such as libc's `memmove`.
         "lines": _perf_report(*common, "--no-children", "-g", "none", "--sort", "srcline", "--percent-limit", "0.5"),
     }
     for name, text in reports.items():
         (out / f"{slug}-{name}.txt").write_text(text)
 
-    # A flame graph if something on this box can fold a stack. Nothing depends on one: the reports
-    # are the same data, and the callers file is the same shape read the other way up.
+    # A flame graph where something on this box folds a stack; the reports are the same data.
     folders = [("inferno-collapse-perf", "inferno-flamegraph"), ("stackcollapse-perf.pl", "flamegraph.pl")]
     folder = next((pair for pair in folders if on_path(pair[0])), None)
     if folder is not None:
@@ -188,9 +160,8 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
         else:
             print(f"  on-CPU   {share:6.2f} cores busy, all the time")
 
-    # **Pass-through frames come out.** A frame that spent nothing itself and cost what the frame
-    # above it cost is a link in a chain, not a place the time went. Dropping them starts the list
-    # where the cost first divides, and keeps every frame that did work or where a chain forked.
+    # **Pass-through frames come out**: one that spent nothing itself and cost what the frame above it cost is a
+    # link in a chain, so the list starts where the cost first divides.
     print("\n  by total time — self and everything it called:")
     shown = 0
     above: float | None = None
@@ -232,12 +203,9 @@ def _tee(process: subprocess.Popen, log: IO[str]) -> None:
 
 
 def _elevation() -> list[str]:
-    """**Off-CPU sampling is BPF, and BPF here is privileged.** A `perf` that carries the
-    capabilities needs nothing more — `sudo setcap cap_perfmon,cap_bpf,cap_sys_ptrace+ep
-    "$(command -v perf)"` — and one without runs under sudo. Asked of the binary rather than assumed
-    either way: a `perf` upgrade drops what was set on the file, and a `sudo` asked for every time is
-    a password prompt in front of a profile that did not need one. A box without `getcap` reads as a
-    `perf` without them."""
+    """**Off-CPU sampling is BPF, which is privileged**: a `perf` carrying `cap_bpf` (`sudo setcap
+    cap_perfmon,cap_bpf,cap_sys_ptrace+ep "$(command -v perf)"`) needs nothing more, one without runs under sudo.
+    Asked of the binary each time, as an upgrade drops what was set on it."""
     perf = on_path("perf") or "perf"
     getcap = on_path("getcap")
     capabilities = "" if getcap is None else subprocess.run(
@@ -250,10 +218,9 @@ def _elevation() -> list[str]:
 
 
 def _record_offcpu(cwd: Path, env: dict[str, str], record: list[str], bench: list[str], log: IO[str]) -> int:
-    """The harness started as the user, where it has a home, a Wayland socket and a GPU, and `record`
-    attached to it. **Both owned to the end**: a reader that stops reading — `omw profile | head` —
-    takes the harness down rather than leaving it running. A `perf` that refused shows as its own
-    status, and not as the harness's wait for a control fifo nobody opened."""
+    """The harness started as the user, with a home, a Wayland socket and a GPU, and `record` attached to it.
+    **Both owned to the end**, so `omw profile | head` takes the harness down; a `perf` that refused shows as its
+    own status."""
     # The harness waits at its first place until perf opens the control fifo, so perf starts now.
     with (subprocess.Popen(bench, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                            encoding="utf-8", errors="replace") as harness,

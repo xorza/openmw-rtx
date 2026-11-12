@@ -21,11 +21,8 @@ class UnlistedTest(unittest.TestCase):
             "apps/wizard/installationpage.cpp",
             "extern/oics/tinyxml.cpp",
         ]
-        # Every flavour builds every program, so the CS's file nothing compiled is forgotten; a header is
-        # no source; a file of another system and the generator are excused.
-        # The system decides which half of a pair is the other's: each build compiles its own.
-        # The wizard's unshield half is Windows's to leave out, and every other system's to build. A
-        # facility only Linux has is a `linux` file and its absence a `none` one, each the other's.
+        # A file nothing compiled is forgotten, a header is no source, and the generator and the other system's
+        # half of a pair are excused: `linux` against `none`, the wizard's unshield half on Windows.
         forgotten = ["apps/opencs/main.cpp", "apps/openmw/forgotten.cpp", "components/misc/forgotten.cpp"]
         wizard = "apps/wizard/installationpage.cpp"
         for windows, own, counts in ((False, "components/platform/processposix.cpp", "apps/openmw/countslinux.cpp"),
@@ -43,14 +40,17 @@ class MisplacedChecksTest(unittest.TestCase):
     def test_the_checks_reach_the_tree_s_sources_and_no_third_party_s(self):
         root = "/tree"
         database = [
-            {"file": "/tree/components/misc/rng.cpp", "command": "c++ -Wall -Wzero-as-null-pointer-constant -c rng.cpp"},
+            {"file": "/tree/components/misc/rng.cpp",
+             "command": "c++ -Wall -Wzero-as-null-pointer-constant -c rng.cpp"},
             {"file": "/tree/apps/openmw/engine.cpp", "arguments": ["cl", "/W4", "/w14855", "/c", "engine.cpp"]},
             {"file": "/tree/apps/openmw/main.cpp", "command": "c++ -Wall -Wextra -c main.cpp"},
             {"file": "/tree/extern/oics/tinyxml.cpp", "command": "c++ -c tinyxml.cpp"},
             {"file": "/tree/extern/Base64/base64.cpp", "command": "c++ -Wzero-as-null-pointer-constant -c base64.cpp"},
             {"file": "/tree/build-full/_deps/sdl3-src/src/SDL.c", "command": "cc -c SDL.c"},
-            {"file": "/tree/build-full/fetched/yaml-cpp/src/node.cpp", "command": "c++ -Wzero-as-null-pointer-constant -c node.cpp"},
-            {"file": "/tree/build-full/components/osgpluginchecker.cpp", "command": "c++ -Wzero-as-null-pointer-constant -c x.cpp"},
+            {"file": "/tree/build-full/fetched/yaml-cpp/src/node.cpp",
+             "command": "c++ -Wzero-as-null-pointer-constant -c node.cpp"},
+            {"file": "/tree/build-full/components/osgpluginchecker.cpp",
+             "command": "c++ -Wzero-as-null-pointer-constant -c x.cpp"},
             {"file": "/elsewhere/fetched/zlib.c", "command": "cc -Wzero-as-null-pointer-constant -c zlib.c"},
         ]
         # `-Wall -Wextra` is not the checks, which a third party's build adds too: their mark is

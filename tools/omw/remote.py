@@ -1,29 +1,7 @@
-"""`omw [flavour] remote <host> <verb> [args]`: openmw-rtxtool's `verb` on another Linux machine over
-SSH — an AMD handheld, or any box whose driver is the question — with what it writes brought back.
-
-**Built where the release is built**: in the release-base container on a desk that is another system
-(`package.needs_container`), so the binary asks no newer glibc than AlmaLinux 8's, and run against
-the other machine's own Vulkan loader and driver, which are what the run measures. The binary links
-the vcpkg set in, and a system library it links that the other machine has no soname of goes beside
-it; everything it does have is its own.
-
-**At the same path there**, `build-<flavour>` under this tree, because the harness reads its folder,
-its views and its shaders at the paths the build compiled in. The machine's user owns the tree's
-parent folder, made once by hand.
-
-**Headless**: a hidden window on the machine's own Wayland session where it has one, and SDL's
-offscreen driver where it has none (`SESSION` says why the session first), and a bench is told
-`--window=false` unless the line says otherwise. On the offscreen driver the run presents nothing
-(`MWRender::RtxWindow::hasDisplay`), so a measured one there times no present. A run that measures (`bench`, `noise`) holds a
-SteamOS GPU clock at its top through `steamos-manager` for its frames, and puts it back after: the
-handheld otherwise moves its clock with its power, and two runs at two clocks are no A/B. Not a run with
-`--counters`, which holds nothing: RADV puts the card in a profiling state of the kernel's while it
-reads them, which on the handheld holds 1300 MHz, `standard` and `peak` alike, and the report's clock
-line says so.
-
-**The files a run names come back**: `--json`, `--frame-times`, `--out` and `--pipeline-code` are
-written there at the same absolute path and copied here after it, and what `--against` and `--keys`
-name is copied there first."""
+"""`omw [flavour] remote <host> <verb> [args]`: openmw-rtxtool's `verb` on another Linux machine over SSH, with what
+it writes brought back. **Built where the release is**, so it asks no newer glibc than AlmaLinux 8's, and run there
+against the machine's own loader and driver, with the libraries it lacks beside it, **at the same path**, which the
+harness reads its folders at. Headless (`SESSION`); a measured run holds a SteamOS GPU clock at its top."""
 
 import base64
 import os
@@ -54,7 +32,7 @@ LIBRARIES = "remote-lib"
 OUTPUTS = ("json", "frame-times", "out", "pipeline-code")
 INPUTS = ("against", "keys")
 
-# A switch that names something of this machine's that the other cannot reach: perf's fifo.
+# A switch that names what the other machine cannot reach: perf's fifo.
 LOCAL = ("perf-control",)
 
 # The verbs whose figures are quoted, which run under a held clock.
@@ -62,16 +40,15 @@ MEASURED = ("bench", "noise")
 
 SSH = ("-o", "BatchMode=yes")
 
-# **The machine's own Wayland session where it has one, and SDL's offscreen driver where it has
-# none** — `dummy` has no Vulkan. The session first, because a hidden window on its compositor
-# presents as a played game does, and under the offscreen driver the run presents nothing.
+# **The machine's own Wayland session where it has one, and SDL's offscreen driver where it has none**, as `dummy`
+# has no Vulkan: the session first, where a hidden window presents as a played game does.
 SESSION = ('runtime=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}; '
            'if [ -S "$runtime/wayland-0" ]; then '
            'export XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=wayland-0 SDL_VIDEO_DRIVER=wayland; '
            'else export SDL_VIDEO_DRIVER=offscreen; fi')
 
-# Where `steamos-manager` keeps the GPU's performance level and its manual clock, which it writes to
-# the card again and again: a level written to sysfs past it did not hold.
+# Where `steamos-manager` keeps the GPU's performance level and its manual clock, which it writes to the card again
+# and again, so a level written to sysfs past it does not hold.
 GPU_LEVEL = ("com.steampowered.SteamOSManager1 /com/steampowered/SteamOSManager1 "
              "com.steampowered.SteamOSManager1.GpuPerformanceLevel1")
 
@@ -82,8 +59,8 @@ def sonames(ldconfig: str) -> set[str]:
 
 
 def linked(ldd: str) -> dict[str, str]:
-    """`soname: path` for each library an `ldd` listing resolves, once each. The loader, the vDSO and
-    what did not resolve name no file to copy."""
+    """`soname: path` for each library an `ldd` listing resolves, once each; the loader, the vDSO and what did not
+    resolve name no file."""
     found: dict[str, str] = {}
     for line in ldd.splitlines():
         name, arrow, rest = line.strip().partition(" => ")
@@ -100,17 +77,15 @@ def lacking(libraries: dict[str, str], offered: set[str]) -> dict[str, str]:
 
 @dataclass
 class RemoteLine:
-    """A harness line for the other machine: its paths made absolute, with the files it writes and
-    the ones it reads."""
+    """A harness line for the other machine: its paths made absolute, with the files it writes and reads."""
     args: list[str]
     outputs: list[Path] = field(default_factory=list)
     inputs: list[Path] = field(default_factory=list)
 
 
 def remote_line(args: list[str], verb: str, here: Path) -> RemoteLine:
-    """`args` with every path `OUTPUTS` and `INPUTS` name made absolute against `here`, in either of
-    the forms the harness takes — `--name=value` and `--name value` — and a bench told
-    `--window=false` where it says nothing of a window."""
+    """`args` with every path `OUTPUTS` and `INPUTS` name made absolute against `here`, as `--name=value` or `--name
+    value`, and a bench told `--window=false` where it says nothing of a window."""
     line = RemoteLine(args=[])
     at = 0
     while at < len(args):
@@ -140,8 +115,8 @@ def remote_line(args: list[str], verb: str, here: Path) -> RemoteLine:
 
 
 def remote_script(folder: Path, verb: str, args: list[str], measured: bool) -> str:
-    """What runs on the other machine, as bash: in `folder`, under its libraries, the harness's `verb`.
-    **Not exec'd**, so the clock a measured run held is put back however the run ends."""
+    """What runs on the other machine, as bash: the harness's `verb` in `folder`, under its libraries. **Not
+    exec'd**, so the clock a measured run held is put back however the run ends."""
     libraries = shlex.quote(str(folder / LIBRARIES))
     lines = [
         "set -u",
@@ -207,11 +182,12 @@ def remote(build: Build, args: list[str], harness_verbs: tuple[str, ...]) -> int
 
     for path in line.inputs:
         run([ssh, *SSH, host, f"mkdir -p {shlex.quote(str(path.parent))}"])
-        run([rsync, "-a", f"{path}/" if path.is_dir() else str(path), f"{host}:{path}" + ("/" if path.is_dir() else "")])
+        trailing = "/" if path.is_dir() else ""
+        run([rsync, "-a", f"{path}{trailing}", f"{host}:{path}{trailing}"])
     for path in line.outputs:
         run([ssh, *SSH, host, f"mkdir -p {shlex.quote(str(path.parent))}"])
 
-    # Not a counters run: RADV holds the kernel's profiling clock under it whatever is set.
+    # Not a `--counters` run: RADV holds the kernel's profiling clock under it whatever is set.
     held = verb in MEASURED and not any(word == "--counters" or word.startswith("--counters=") for word in rest)
     script = remote_script(folder, verb, line.args, held)
     encoded = base64.b64encode(script.encode()).decode()
@@ -227,10 +203,8 @@ def remote(build: Build, args: list[str], harness_verbs: tuple[str, ...]) -> int
 
 
 def build_refusal(host: str, parent: Path, status: int) -> str | None:
-    """Why the build cannot go under `parent` on `host`, read off the status ssh exits with from `test -w`
-    run there, or nothing where it can. **255 is ssh's own**: ssh exits with the remote command's status,
-    or with 255 where it failed itself, a host it cannot reach or log in to among them, and `test`
-    answers 0 or 1."""
+    """Why the build cannot go under `parent` on `host`, read off ssh's status from `test -w` there, or nothing where
+    it can. **255 is ssh's own failure**, a host it cannot reach among them; `test` answers 0 or 1."""
     if status == 0:
         return None
     if status == 255:
@@ -240,10 +214,8 @@ def build_refusal(host: str, parent: Path, status: int) -> str | None:
 
 
 def fetch_note(status: int) -> str:
-    """What a path brought back is said with, read off rsync's status: nothing where it came, and where
-    it did not, whether the run wrote none or the copy failed. **23 is a source that is not there**, rsync's
-    partial transfer, which a file the run never wrote ends in; any other status is the copy's own, a
-    connection that dropped among them, and says nothing of what the run wrote."""
+    """What a path brought back is said with, by rsync's status: nothing where it came, and where it did not, whether
+    the run wrote none — **23**, rsync's partial transfer, a missing source — or the copy itself failed."""
     if status == 0:
         return ""
     if status == 23:
@@ -253,8 +225,8 @@ def fetch_note(status: int) -> str:
 
 @dataclass(frozen=True)
 class Staged:
-    """The harness built where a release is built: its folder as this desk sees it, the container it
-    was built in or none for the desk's own build, and what `ldd` says the harness links."""
+    """The harness built where a release is: its folder as this desk sees it, the container it was built in or none,
+    and what `ldd` says it links."""
     folder: Path
     container: Container | None
     ldd: str
@@ -270,19 +242,14 @@ class Staged:
 
 
 def _build(build: Build) -> Staged:
-    container = prepare_container(build.flavour) if needs_container() else None
-    if container is None:
+    if not needs_container():
         build.build_harness()
-        reading = build
-    else:
-        run(container.command(["python3", "omw", build.flavour, "build", "openmw-rtxtool"]))
-        reading = Build(build.flavour)
-        reading.dir = CONTAINER_DIR / build.flavour
-
+        return Staged(build.dir, None, output(["ldd", str(build.binary("openmw-rtxtool"))]))
+    container = prepare_container(build.flavour)
+    run(container.command(["python3", "omw", build.flavour, "build", "openmw-rtxtool"]))
     # The binary at the path the container sees its build at, which is the desk's own build's.
-    listing = ["ldd", str(build.dir / "openmw-rtxtool")]
-    ldd = output(container.command(listing) if container is not None else listing)
-    return Staged(reading.dir, container, ldd)
+    ldd = output(container.command(["ldd", str(build.binary("openmw-rtxtool"))]))
+    return Staged(CONTAINER_DIR / build.flavour, container, ldd)
 
 
 def _stage_libraries(staged: Staged, missing: dict[str, str]) -> None:

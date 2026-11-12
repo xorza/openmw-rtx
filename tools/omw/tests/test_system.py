@@ -71,7 +71,8 @@ class SystemTest(unittest.TestCase):
             git("init", "-q", str(root))
             with mock.patch.dict(os.environ, alone):
                 fetch_upstream(root, str(source))
-                self.assertEqual(git("-C", str(root), "rev-parse", UPSTREAM), git("-C", str(source), "rev-parse", "HEAD"))
+                self.assertEqual(git("-C", str(root), "rev-parse", UPSTREAM),
+                                 git("-C", str(source), "rev-parse", "HEAD"))
                 self.assertEqual(git("-C", str(root), "remote"), "", "no remote is configured")
                 with self.assertRaisesRegex(Refusal, "upstream's master, which tells the fork's files from upstream's, "
                                                      "could not be fetched from .*absent"):

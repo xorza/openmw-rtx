@@ -1,6 +1,5 @@
-"""What `CMakePresets.json` says, read the way CMake reads it, for the two questions the driver asks
-of it: whether a build directory was configured from what the presets say now, and what environment
-a flavour's programs run under."""
+"""What `CMakePresets.json` says, read as CMake reads it, for the driver's two questions: whether a build directory
+was configured from what the presets say now, and what environment a flavour's programs run under."""
 
 import hashlib
 import json
@@ -15,9 +14,8 @@ _MACRO = re.compile(r"\$(p?env)\{([A-Za-z_][A-Za-z0-9_]*)\}")
 # the SDKs are. A change to one is a change to what a configure would find.
 IMPLICIT_INPUTS = ("CC", "CXX", "VULKAN_SDK", "CMAKE_PREFIX_PATH")
 
-# **The files that seed the cache's flags** (`CMAKE_USER_MAKE_RULES_OVERRIDE` and what it includes): CMake reads a
-# language's `_INIT` flags into the cache at the first configure alone, so an edit to one reaches a build directory
-# only through a fresh configure.
+# **The files that seed the cache's flags** (`CMAKE_USER_MAKE_RULES_OVERRIDE` and its includes), which CMake reads at
+# the first configure alone, so an edit to one reaches a build directory only through a fresh configure.
 CACHE_SEEDS = ("cmake/Flags.cmake", "vcpkg/flags.cmake", "vcpkg/linux.cmake")
 
 
@@ -30,9 +28,8 @@ def preset_files(root: Path = ROOT) -> list[Path]:
 
 
 def digest(env: dict[str, str], root: Path = ROOT) -> str:
-    """**Everything a preset is expanded from**: the preset files, the value of every environment
-    variable they name, what CMake reads from the environment besides, and the files that seed the
-    cache's flags. Two directories configured from equal digests were handed the same cache variables."""
+    """**Everything a preset is expanded from**: the preset files, every environment variable they name, what CMake
+    reads from the environment besides, and the files that seed the cache's flags."""
     hashed = hashlib.sha256()
     names = set(IMPLICIT_INPUTS)
     for file in preset_files(root):
@@ -53,10 +50,9 @@ def _expand(value: str, env: dict[str, str]) -> str:
 
 
 def test_environment(name: str, env: dict[str, str], root: Path = ROOT) -> dict[str, str]:
-    """The `environment` of the test preset `name`, with what it inherits, expanded against `env`:
-    what CTest runs the tests under, and so what every program of that flavour runs under. Only
-    `$env{}` and `$penv{}` are read, which is all the presets use; a variable a preset names as
-    `null` is taken away. A name is matched as the system matches it, so on Windows without case."""
+    """The `environment` of the test preset `name` with what it inherits, expanded against `env`: what every program
+    of the flavour runs under. Only `$env{}` and `$penv{}` are read, all the presets use; a `null` takes the
+    variable away."""
     presets = _test_presets(root)
 
     def gathered(preset_name: str) -> dict[str, str | None]:

@@ -175,11 +175,9 @@ VULKAN_LOADER_WINDOWS = Pin(
     f"https://sdk.lunarg.com/sdk/download/{VULKAN_LOADER_WINDOWS_VERSION}/windows/VulkanRT-X64-{VULKAN_LOADER_WINDOWS_VERSION}-Components.zip",
     "a25a927aa8b9f0371048f1861cf88ac3b9bc9b1fb332c42d897c8ab32695769a",
 )
-# vcpkg, which builds the libraries `vcpkg.json` names (`deps.vcpkg_root`): its registry at the commit of
-# release 2026.10.16, whose ports fix every library's version, and the tool's newest release, 2026-10-29,
-# by system, newer than the 2026-09-26 the registry's `scripts/vcpkg-tool-metadata.txt` names: the set
-# built with the two is what holds them together. The registry's digest is of GitHub's archive of that
-# commit; the tools' are the SHA-256 Microsoft's release lists for each.
+# vcpkg (`deps.vcpkg_root`): its registry at release 2026.10.16's commit, whose ports fix every library's version,
+# and the tool's 2026-10-29 release, newer than the one the registry names; the set built with the two holds them
+# together. The registry's digest is of GitHub's archive of the commit, the tools' those Microsoft's release lists.
 VCPKG_REGISTRY_COMMIT = "9eec002df1cd109f8f104cd966a763daf9751489"
 VCPKG_REGISTRY = Pin(
     f"https://github.com/microsoft/vcpkg/archive/{VCPKG_REGISTRY_COMMIT}.tar.gz",

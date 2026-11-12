@@ -1,28 +1,11 @@
-"""`omw [flavour] noise --ab=<switch>[=<a>,<b>] [--still] [noise args]`: one harness switch's A/B on the
-`noise` verb, both sides of each leg in one run, and the figures beside each other.
+"""`omw [flavour] noise --ab=<switch>[=<a>,<b>] [--still] [noise args]`: one harness switch's A/B on `noise`, the
+figures side by side. **Both sides in one run a leg** (`noise --versus`), so the second draws what the first drew;
+a second process beside it would only share the card it keeps busy.
 
-**One run a leg, both sides in it** (`noise --versus`): the second side draws what the first drew,
-and where the switch is one only the filters read, its reference and its bar are the first side's,
-which half of a run is. A run of `noise` warms each of its independent draws for 128 frames before
-it measures: some 9,400 frames a place, five minutes for the bounce suite on the high-end NVIDIA laptop GPU,
-which it keeps at 99%, so a second process beside it only shares the card.
-
-**The moving legs, and the still one only where it is asked for.** What makes an A/B cheaper is
-fewer runs, and the moving legs are where the denoiser's switches are mostly felt: the strafe and the
-walk are the default legs, each 150 units, as `look.h` quotes them, and a distance of nought leaves
-one out. An investigation narrows to the place and the leg that show the effect first, with
-`--views=` and `--strafe=0 --walk=0 --still`, and the whole suite is its verdict. **The still leg is
-not unmoved by them**: under the upscaler's jitter an edge keeps a short history however long the
-eye stands, and the anti-firefly ring moved the bounce suite's still frames by up to 0.09 of noise
-and 0.11 of bias. `--still` adds it, and `--strafe=N` or `--walk=N` moves a leg's distance.
-`--cut=N` adds the frame `N` frames after a cut, standing, once for each `N` named: the first frames
-after a door, where the fireflies were reported.
-
-**A boolean switch by its name**: `--ab=antifirefly` runs `--antifirefly=true` and then
-`--antifirefly=false`. A switch of values names its two: `--ab=noise=blue-noise,white-hash`.
-
-**Every run keeps its pictures and its log**, under `--out` where it is given and a directory of its
-own where it is not, one directory a leg, because what an A/B finds is read in them."""
+The strafe and the walk legs by default, 150 units each as `look.h` quotes them, a distance of nought leaving one
+out; `--still` adds the still leg, which the upscaler's jitter still moves, and each `--cut=N` the frame N frames
+after a cut. `--ab=antifirefly` runs true then false, `--ab=noise=blue-noise,white-hash` two values. Every leg keeps
+its pictures and its log, under `--out` or a folder of its own."""
 
 import contextlib
 import json
@@ -36,9 +19,8 @@ from omw.system import Refusal, Switches, read_text, temporary_folder
 # The distance `look.h` quotes the moving legs at.
 DEFAULT_DISTANCE = "150"
 
-# `RtxTool::judgeNoise`'s statuses: every frame as clean, or one noisier, which is an A/B's to read.
-# Any other ended the run before it judged, and a crash after some places printed reads as a
-# shorter suite.
+# `RtxTool::judgeNoise`'s statuses: every frame as clean, or one noisier, which is an A/B's to read. Any other
+# ended the run before it judged.
 JUDGED = (0, 1)
 
 # What `noise` names the record it writes beside its pictures (`RtxTool::sNoiseRecord`).
@@ -131,8 +113,8 @@ def read_record(record: dict) -> tuple[dict[str, Figures], ...]:
 
 
 def table(leg: str, sides: tuple[Side, Side], first: dict[str, Figures], second: dict[str, Figures]) -> str:
-    """One leg's places, each side's noise and bias beside the other's. **Every column as wide as the
-    longer label**, because a side is named by what the line gave it: `spatiotemporal` is fourteen."""
+    """One leg's places, each side's noise and bias beside the other's, every column as wide as the longer label,
+    which the line names."""
     a, b = sides
     label = max(len(a.label), len(b.label))
     mean, p99, bias, fly = max(label, 8), max(label, 5), max(label, 6), max(label, 9)
@@ -152,8 +134,8 @@ def table(leg: str, sides: tuple[Side, Side], first: dict[str, Figures], second:
 
 
 def leg_log(folder: Path) -> Path:
-    """The log beside a leg's folder: its whole name and `.log`, which `with_suffix` is not for a
-    decimal distance's — `walk1.5` became `walk1.log`, the log of a leg of one."""
+    """The log beside a leg's folder: its whole name and `.log`, where `with_suffix` turned `walk1.5` into
+    `walk1.log`."""
     return folder.parent / (folder.name + ".log")
 
 
@@ -170,7 +152,7 @@ def ab(build: Build, args: list[str]) -> int:
             folder = out / leg.label.replace(" ", "")
             log = leg_log(folder)
             print(f"noise: {leg.label}, {first.switch} against {second.switch}", flush=True)
-            with open(log, "w", encoding="utf-8") as written:
+            with log.open("w", encoding="utf-8") as written:
                 ended = build.harness("noise", first.switch, f"--versus={second.switch.removeprefix('--')}",
                                       *leg.switches, *asked.rest, f"--out={folder}", stdout=written, stderr=written)
             record = folder / RECORD

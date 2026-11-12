@@ -43,7 +43,8 @@ class BuildFolderTest(unittest.TestCase):
                          "remote: ssh reached no shell on user@host, as it says above")
         self.assertEqual(build_refusal("user@host", parent, 1),
                          "user@host cannot write /home/user/Projects/openmw, where the build goes: make it once there "
-                         "with `sudo mkdir -p /home/user/Projects/openmw && sudo chown $USER: /home/user/Projects/openmw`")
+                         "with `sudo mkdir -p /home/user/Projects/openmw && "
+                         "sudo chown $USER: /home/user/Projects/openmw`")
 
     def test_a_file_the_run_did_not_write_is_told_from_a_copy_that_failed(self):
         self.assertEqual(fetch_note(0), "")

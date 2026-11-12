@@ -28,7 +28,7 @@ class ImportingBuild:
         return name
 
     def run_here(self, command: list, check: bool = False, **options) -> subprocess.CompletedProcess:
-        with open(command[-1], "a") as cfg:
+        with Path(command[-1]).open("a") as cfg:
             cfg.write("fallback=Weather_" if self.fails else "fallback=Weather_Sunrise_Time,6\n")
         if self.fails:
             raise subprocess.CalledProcessError(1, command)

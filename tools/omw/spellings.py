@@ -1,9 +1,7 @@
-"""Spellings the fork's own code refuses: each a fault the compiler passes, checked in the gate.
+"""Spellings the fork's own code refuses, each a fault the compiler passes, checked in the gate.
 
-**A path narrowed with `.string()` or `.generic_string()`.** On Windows it goes through the ANSI
-code page, which throws for a name outside it, so a checkout or a profile under such a name failed
-the harness at start. `Files::pathToUnicodeString` spells a path as UTF-8, and
-`Platform::Process::setEnvironmentPath` hands one to the environment whole."""
+**A path narrowed with `.string()` or `.generic_string()`**, which on Windows goes through the ANSI code page and
+throws for a name outside it: `Files::pathToUnicodeString` spells one as UTF-8."""
 
 import re
 

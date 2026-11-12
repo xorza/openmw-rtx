@@ -19,6 +19,7 @@ from omw.package import (
     glibc_versions,
     harness_files,
     installed_programs,
+    needs_container,
     on_release_base,
     os_release,
     prune_empty,
@@ -50,6 +51,14 @@ class ReleaseBaseTest(unittest.TestCase):
                       'ID="almalinux"\nVERSION_ID="18.0"\n', 'NAME="Ubuntu"\nVERSION_ID="26.04"\nID=ubuntu\n', ""):
             with self.subTest(other=other):
                 self.assertFalse(on_release_base(other))
+
+        # A system with no os-release says nothing of itself, so it builds in the container.
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        with patch("omw.package.OS_RELEASE", folder / "os-release"):
+            self.assertTrue(needs_container())
+            (folder / "os-release").write_text(alma)
+            self.assertFalse(needs_container())
 
     def test_the_container_runs_omw_on_the_tree_with_its_own_build_and_cache(self):
         tree = f"{ROOT}:{ROOT}"

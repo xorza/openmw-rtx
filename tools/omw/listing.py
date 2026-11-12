@@ -1,10 +1,6 @@
-"""Every tracked source is one the build compiles: checked after `omw build` and in the gate.
-
-A `CMakeLists.txt` lists files by base name, and a source no list names is never compiled, which
-nothing else reports. So the compile database is read against `git ls-files`: every flavour builds
-every program. Excused by rule: a file for another system (named `win32` or `posix` for the other one,
-`linux` on Windows and `none` on Linux — the build of a facility only Linux has, and of its absence —
-`stdio`, and `NOT_ON_WINDOWS` on Windows), and `ELSEWHERE`."""
+"""Every tracked source is one the build compiles, since a source no `CMakeLists.txt` names is never compiled and
+nothing else says so: the compile database read against the working tree after `omw build` and in the gate.
+Excused: a file for another system by its name's ending, `NOT_ON_WINDOWS` on Windows, and `ELSEWHERE`."""
 
 import json
 import os
@@ -54,7 +50,8 @@ def third_party(name: str) -> bool:
 
 def misplaced_checks(database: list[dict], root: str) -> list[str]:
     """**The tree's checks reach its own sources and no third party's**: a source under `apps/` or
-    `components/` whose command lacks them, and a third party's whose command has them. `root` is the tree's, as the database spells paths."""
+    `components/` whose command lacks them, and a third party's whose command has them. `root` is the tree's, as
+    the database spells paths."""
     found = []
     for entry in database:
         name = os.path.relpath(entry["file"], root).replace(os.sep, "/")

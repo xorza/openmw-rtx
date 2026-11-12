@@ -26,15 +26,13 @@ def parse_folders(printed: str) -> GameFolders:
 
 
 def game_folders(build: Build) -> GameFolders:
-    """**The game's own answer and not a copy of it**: `Files` answers where the game reads its
-    configuration on every system, and a restatement here had already gone wrong once."""
+    """**The game's own answer and not a copy of it**: `Files` says where the game reads its configuration."""
     printed = build.harness("info", "--folders", check=True, capture_output=True, encoding="utf-8").stdout
     return parse_folders(printed)
 
 
 def game(build: Build, args: list[str]) -> int:
-    """The newest quicksave of any character unless the line names a save, so the driver names
-    nobody's."""
+    """The newest quicksave of any character, unless the line names a save."""
     named = any(arg.startswith("--load-savegame") for arg in args)
     # In one Ninja run: the harness only where it is asked where the saves are.
     build.build(["openmw"] if named else ["openmw", "openmw-rtxtool"])
@@ -49,13 +47,9 @@ def game(build: Build, args: list[str]) -> int:
 
 
 def setup(build: Build, args: list[str]) -> int:
-    """**What upstream's wizard does, on a box with no Qt to run it.** A fresh box has no
-    `openmw.cfg`, and the harness stages no world until one names the game: `data=` says where
-    `Data Files` is, and upstream's `openmw-iniimporter`, which every preset builds for this, reads
-    `Morrowind.ini` for the content files, the archives and the five hundred `fallback=` values the
-    weather, the sky and the lighting are read from — without which the sky is black. The file is
-    written where the game reads it, and never over one that is there: a box that has one has
-    settings in it."""
+    """**What upstream's wizard does, on a box with no Qt to run it**: `data=` names `Data Files`, and
+    `openmw-iniimporter` reads `Morrowind.ini` for the content files, the archives and the `fallback=` values the
+    sky and the lighting are read from. Written where the game reads it, and never over one that is there."""
     install = Path(args[0]).resolve() if len(args) == 1 else None
     if install is None or not (install / "Morrowind.ini").is_file() or not (install / "Data Files").is_dir():
         raise Refusal("setup takes the Morrowind directory: the one holding Morrowind.ini and Data Files")

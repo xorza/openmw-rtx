@@ -12,7 +12,7 @@ from omw.build import (
     BUILD_LOCK,
     CONFIGURED_FROM,
     MANIFEST_AGED,
-    configured_from,
+    configured_digest,
     deps_inputs,
     device_free,
     manifest_inputs,
@@ -63,23 +63,22 @@ class ExclusiveTest(unittest.TestCase):
             pass
 
 
-class ConfiguredFromTest(unittest.TestCase):
+class ConfiguredDigestTest(unittest.TestCase):
     def test_a_directory_is_configured_only_with_its_stamp_its_cache_and_its_ninja_file(self):
         folder = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, folder)
-        self.assertFalse(configured_from(folder, "abc"), "an empty directory")
+        self.assertIsNone(configured_digest(folder), "an empty directory")
 
         (folder / CONFIGURED_FROM).write_text("abc\n")
         (folder / "CMakeCache.txt").write_text("")
         (folder / "build.ninja").write_text("")
-        self.assertTrue(configured_from(folder, "abc"))
-        self.assertFalse(configured_from(folder, "abd"), "a preset that has changed since")
+        self.assertEqual(configured_digest(folder), "abc")
 
         for missing in ("CMakeCache.txt", "build.ninja", CONFIGURED_FROM):
             with self.subTest(missing=missing):
                 content = (folder / missing).read_text()
                 (folder / missing).unlink()
-                self.assertFalse(configured_from(folder, "abc"))
+                self.assertIsNone(configured_digest(folder))
                 (folder / missing).write_text(content)
 
 

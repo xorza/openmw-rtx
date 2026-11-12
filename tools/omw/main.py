@@ -101,8 +101,7 @@ HARNESS_VERBS = ("info", "scene", "shot", "view", "bench", "check", "film", "noi
 
 
 def _harness(build: Build, verb: str, args: list[str]) -> int:
-    """**No `--validation` of the driver's own.** Each build's binary already defaults to its
-    flavour's layers, and a level on the line reads as asked for."""
+    """No `--validation` of the driver's own: each build's binary defaults to its flavour's layers."""
     return status(build.harness(verb, *args).returncode)
 
 
@@ -117,10 +116,8 @@ def _remote(build: Build, args: list[str]) -> int:
 
 
 def _build(build: Build, args: list[str]) -> int:
-    """The files changed against `HEAD` formatted first, except on CI, whose checks job runs
-    `omw format --check` over the whole tree once for every build job; after the build, `listing.check`.
-    Not the whole tree: what a commit holds was formatted before it, and the tree's 4.6 s came to every
-    build."""
+    """The files changed against `HEAD` formatted first, and not the whole tree, whose 4.6 s came to every build;
+    not on CI, whose checks job checks the whole tree once. After the build, `listing.check`."""
     changed = [] if CI else formatting.changed_files()
     if changed and formatting.format_tree(changed) != 0:
         return 1
@@ -172,8 +169,7 @@ def _help(args: list[str]) -> int:
     return 0
 
 
-# Verbs no build is configured for: reading a dump or formatting the tree needs none, and a verb
-# that configured one first fetched a dependency set and started MSVC to read a file.
+# Verbs no build is configured for, so reading a dump fetches no dependency set and starts no MSVC.
 BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
     "help": _help,
     "crash": crash.read_crash,
@@ -195,12 +191,9 @@ class Line:
 
 
 def parse(argv: list[str]) -> Line:
-    """**The flavour is a closed set of words**, so a first word that is one is the flavour and any
-    other is the verb, and the flavour can be left out: debug, or the one flavour a verb is made of.
-    **The verb stays before the switches.** The harness reads its verb off its first argument and
-    takes a leading dash to mean nobody named one, so a switch put first once ran `view` instead.
-    **The flavour stays before the verb.** No verb takes a flavour's name for its first argument, and
-    `omw build release` once built a target called `release` in the debug tree."""
+    """**The flavour is a closed set of words**, so a first word that is one is the flavour, and left out it is
+    debug or the one flavour a verb is made of. **The verb comes before the switches**, as the harness takes a
+    leading dash for no verb, and **the flavour before the verb**, or `omw build release` builds a target."""
     flavour = argv[0] if argv and argv[0] in FLAVOURS else None
     rest = argv[1:] if flavour else argv
     if not rest:

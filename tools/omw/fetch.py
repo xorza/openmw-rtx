@@ -1,6 +1,5 @@
-"""Downloads, each written beside its final name and given it only once its checksum has passed: a
-run cut off mid-way, or a mirror that served something else, leaves nothing a later run mistakes for
-the file."""
+"""Downloads, each written beside its final name and given it only once its checksum has passed, so a run cut off
+or a mirror that served something else leaves nothing a later run mistakes for the file."""
 
 import contextlib
 import hashlib
@@ -40,10 +39,8 @@ def partial_of(path: Path) -> Path:
 
 
 def build_beside(final: Path, make: Callable[[Path], object], within: str = "") -> Path:
-    """**Made beside its final name, and given it only once the whole of it is there**, as a download
-    is: `make` fills a partial directory, and `within`, a path inside it, is what takes the name. A
-    run cut off mid-way leaves a partial the next run clears, and never a directory taken for
-    installed."""
+    """**Made beside its final name, and given it only once the whole of it is there**: `make` fills a partial
+    folder, and `within`, a path inside it, takes the name. A run cut off leaves a partial the next run clears."""
     partial = partial_of(final)
     shutil.rmtree(partial, ignore_errors=True)
     make(partial)
@@ -54,14 +51,13 @@ def build_beside(final: Path, make: Callable[[Path], object], within: str = "") 
 
 
 def digest_of(path: Path, algorithm: str) -> str:
-    with open(path, "rb") as file:
+    with path.open("rb") as file:
         return hashlib.file_digest(file, algorithm).hexdigest()
 
 
 def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | None = None) -> None:
-    """`url` into `file`, checked against the digest given; three tries against a network or a server
-    that fails once in a while — a connection cut mid-file among them, which `http.client` raises as
-    its own — and one against an answer that says the file is not there, or a checksum that fails."""
+    """`url` into `file`, checked against the digest given: three tries against a network or a server that fails
+    once in a while, a connection cut mid-file among them, and one against a 4xx or a checksum that fails."""
     if not url.startswith("https://"):
         raise Refusal(f"{url} is not HTTPS")
     print(f"fetching {file.name}", file=sys.stderr)
@@ -69,7 +65,7 @@ def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | N
     partial = partial_of(file)
     for attempt in range(3):
         try:
-            with _opener.open(url, timeout=60) as response, open(partial, "wb") as out:
+            with _opener.open(url, timeout=60) as response, partial.open("wb") as out:
                 shutil.copyfileobj(response, out, 1 << 20)
             break
         except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ConnectionError) as error:
@@ -83,8 +79,7 @@ def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | N
 
 
 def settle(partial: Path, file: Path, url: str, *, sha256: str | None = None, sha512: str | None = None) -> None:
-    """A download given its final name once each digest asked for has passed, and removed where one
-    has not."""
+    """A download given its final name once each digest asked for has passed, and removed where one has not."""
     for algorithm, expected in (("sha256", sha256), ("sha512", sha512)):
         if expected is None:
             continue
@@ -100,8 +95,7 @@ def download_pin(pin: Pin, file: Path) -> None:
 
 
 def seven_zip() -> Path:
-    """7-Zip, the one tool the SDK installers do not bring, for the .7z set; looked for where its
-    installer puts it."""
+    """7-Zip for a .7z, from the PATH or where its installer puts it."""
     found = on_path("7z")
     path = Path(found) if found else Path(r"C:\Program Files\7-Zip\7z.exe")
     if not path.is_file():
@@ -115,8 +109,7 @@ def unpack_7z(archive: Path, into: Path) -> None:
 
 @contextlib.contextmanager
 def _member(archive: Path, name: str) -> Iterator[IO[bytes]]:
-    """The one file called `name` inside a .zip, a wheel, which is one, or a .tar.xz, wherever in it,
-    open to read."""
+    """The one file called `name` inside a .zip, a wheel or a tar archive, wherever in it, open to read."""
     if archive.name.endswith((".zip", ".whl")):
         with zipfile.ZipFile(archive) as zipped:
             entry = next((info for info in zipped.infolist()
@@ -138,13 +131,12 @@ def _member(archive: Path, name: str) -> Iterator[IO[bytes]]:
 
 
 def extract_member(archive: Path, name: str, into: Path) -> Path:
-    """The one file called `name` inside a .zip, a wheel or a .tar.xz, wherever in it, into `into`
-    under its own name — written beside it and given the name once it is whole, so an extract cut off
-    leaves no truncated tool that a later run takes for the one it asked for."""
+    """The one file called `name` inside a .zip, a wheel or a tar archive, into `into` under its own name, given it
+    once whole, so an extract cut off leaves no truncated tool."""
     into.mkdir(parents=True, exist_ok=True)
     target = into / name
     partial = partial_of(target)
-    with _member(archive, name) as source, open(partial, "wb") as out:
+    with _member(archive, name) as source, partial.open("wb") as out:
         shutil.copyfileobj(source, out)
     if not WINDOWS:
         partial.chmod(0o755)
@@ -153,9 +145,8 @@ def extract_member(archive: Path, name: str, into: Path) -> Path:
 
 
 def unpack_stripped(archive: Path, into: Path) -> None:
-    """**A tar archive unpacked into `into` without its one top folder**, as GitHub's archives of a commit
-    and most release tarballs wrap their contents: a hard link names its target from the archive's root,
-    so it loses the folder too."""
+    """**A tar archive unpacked into `into` without its one top folder**, which GitHub's archives and most release
+    tarballs wrap their contents in; a hard link's target loses the folder too."""
     with tarfile.open(archive) as tarred:
         members = []
         for member in tarred.getmembers():

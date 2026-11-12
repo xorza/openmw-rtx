@@ -1,24 +1,10 @@
-"""`omw [flavour] kernels [--against=<file>]`: what each kernel is once its constants are fixed, as
-one digest per tuple.
+"""`omw [flavour] kernels [--against=<file>]`: one digest per shader and tuple of its constants, the exact answer to
+"does this change move a frame" asked of the shaders, not of a run the driver compiles. Each module is specialized to
+every tuple (`domains`), optimized, stripped and digested by `openmw-rtx-spirv-digest`, which names ids by what they
+are (`Rtx::digestProgram`); with `--against`, the tuples that moved are named and the status says whether any did.
 
-The exact answer to "does this change move a vanilla frame", asked of the shaders and not of a run:
-two runs are the driver's code, and its code of a module is not a function of the module alone
-(`RtxTool::DriverCache`). A module is specialized to each tuple of its constants — a boolean both
-ways, and a `uint` over the domain `DOMAINS` reads for it from the header that sizes it, so no
-constant stays at its default unnoticed — optimized so the branches its constants decide are gone, stripped of its
-source and of constants nothing reads, and digested by `openmw-rtx-spirv-digest`, which names every
-id by what it is and not by its number (`Rtx::digestProgram` says how, and why
-`spirv-opt --canonicalize-ids` could not). Equal digests are one program for that tuple as far as its
-instructions can say; with `--against`, a file this wrote before, the tuples that moved are named
-and the exit status says whether any did.
-
-**The spec-constant operations are folded before `-O`, which holds no pass that folds them.**
-Freezing makes the constants themselves constant and leaves `!HAS_MAPS` or `WATER && HAS_SEA` an
-operation, which no branch pass reads through: unfolded, every tuple with the maps off digests the
-specular half, and every tuple with no water the water. **What still stays is float arithmetic on
-constants that the build marked `NoContraction`**, which the optimizer will not fold even where the
-result is exact; a block behind such a sum can only make a tuple move that did not, and taking the
-decoration off to fold it would let the optimizer reassociate what it must not."""
+**The spec-constant operations are folded before `-O`**, which holds no pass that folds `!HAS_MAPS`. Float
+arithmetic marked `NoContraction` stays unfolded, which can only make a tuple move that did not."""
 
 import itertools
 import re
@@ -62,9 +48,8 @@ def header_count(header: str, name: str) -> int:
 
 
 def domains() -> dict[str, tuple[int, ...]]:
-    """**Each unsigned constant's values, by its `OpName`, read from the header that sizes it**, as
-    `listing.py` reads the CMake text: the shadow filter's level, one module per level, and the set of
-    fields it filters, a bit a field and never none, since a frame no field runs on records no level."""
+    """**Each unsigned constant's values, by its `OpName`, read from the header that sizes it**: the shadow
+    filter's level, and the set of fields it filters, a bit a field and never none."""
     shadow = read_text(ROOT / "components" / "rtxvulkan" / "shaders" / "shared" / "shadow.h")
     return {
         "SHADOW_LEVEL": tuple(range(header_count(shadow, "SHADOW_FILTER_LEVELS"))),
@@ -78,11 +63,9 @@ def _string(words: tuple[int, ...]) -> str:
 
 
 def spec_constants(module: bytes, known: dict[str, tuple[int, ...]]) -> list[SpecConstant]:
-    """The specialization constants of a SPIR-V module, by `SpecId`, read off its binary: each named
-    by its `OpName` where the module keeps one, and `constant<id>` where it does not. A boolean takes
-    both values; an unsigned integer takes the values `known` holds under its name, and **one with no
-    domain is refused**, as is a constant of any other type: left at its default, a tuple the module
-    can be specialized to would go undigested in silence."""
+    """The specialization constants of a SPIR-V module, by `SpecId`, named by `OpName` or `constant<id>`: a boolean
+    takes both values, an unsigned integer those `known` holds for it. **One with no domain is refused**, or a tuple
+    would go undigested in silence."""
     if len(module) < 20 or len(module) % 4:
         raise Refusal("not a SPIR-V module: its length is no whole number of words past the header")
     order = "<" if struct.unpack_from("<I", module)[0] == _MAGIC else ">"
@@ -129,8 +112,7 @@ def spec_constants(module: bytes, known: dict[str, tuple[int, ...]]) -> list[Spe
 
 @dataclass(frozen=True)
 class Setting:
-    """One setting of a module's constants: what `spirv-opt` is handed, and how the listing names
-    it."""
+    """One setting of a module's constants: what `spirv-opt` is handed, and how the listing names it."""
     constants: str
     label: str
 
@@ -147,8 +129,8 @@ def settings(constants: list[SpecConstant]) -> list[Setting]:
     for reversed_values in itertools.product(*(constant.values for constant in reversed(constants))):
         values = reversed_values[::-1]
         every.append(Setting(
-            " ".join(f"{c.spec_id}:{_value(c, value)}" for c, value in zip(constants, values)),
-            ",".join(f"{c.name}={value}" for c, value in zip(constants, values)),
+            " ".join(f"{c.spec_id}:{_value(c, value)}" for c, value in zip(constants, values, strict=True)),
+            ",".join(f"{c.name}={value}" for c, value in zip(constants, values, strict=True)),
         ))
     return every
 
@@ -165,9 +147,8 @@ def moved(before: dict[str, str], now: dict[str, str]) -> list[str]:
 
 
 def keyed(lines: list[str], source: str) -> dict[str, str]:
-    """A listing's lines by module and tuple. **A line that is not `<module> <tuple> <digest>` is refused**:
-    the file `--against` names is whatever was redirected into it, a build's own lines or an error among
-    them."""
+    """A listing's lines by module and tuple. **A line that is not `<module> <tuple> <digest>` is refused**, as the
+    file `--against` names is whatever was redirected into it."""
     found = {}
     for number, line in enumerate(lines, 1):
         fields = line.split()
@@ -193,8 +174,7 @@ R = TypeVar("R")
 
 def map_cancelling(function: Callable[[T], R], items: list[T], workers: int) -> list[R]:
     """`function` of every item, in order, on `workers` threads. **The first failure cancels what has not
-    started**: a refusal says what is wrong with the tree, and the hundred tuples queued behind it
-    would only say it again after minutes."""
+    started**, which would only say it again after minutes."""
     pool = ThreadPoolExecutor(max_workers=workers)
     try:
         return list(pool.map(function, items))
@@ -224,11 +204,10 @@ def kernels(build: Build, args: list[str]) -> int:
     known = domains()
     work: list[tuple[Path, Setting]] = []
     for module in sorted(shaders.glob("*.spv")):
-        # The constants off the module the driver is handed, their names off the same module with its
-        # source, which keeps the ids it has.
+        # The names off the same module with its source, which keeps the ids the driver's module has.
         named = sources / module.name
-        for setting in settings(spec_constants((named if named.is_file() else module).read_bytes(), known)):
-            work.append((module, setting))
+        constants = spec_constants((named if named.is_file() else module).read_bytes(), known)
+        work.extend((module, setting) for setting in settings(constants))
 
     def digest(item: tuple[Path, Setting]) -> str:
         module, setting = item
@@ -237,8 +216,9 @@ def kernels(build: Build, args: list[str]) -> int:
         specialize = ["--set-spec-const-default-value", setting.constants] if setting.constants else []
         # Through a pipe and not a file: the specialized module is read once, by the disassembler.
         specialized = _produced([optimizer, "--target-env=vulkan1.4", "--scalar-block-layout", *specialize,
-                                 "--freeze-spec-const", "--fold-spec-const-op-composite", "-O", "--eliminate-dead-const",
-                                 "--strip-debug", "--strip-nonsemantic", module, "-o", "-"], f"spirv-opt refused {at}")
+                                 "--freeze-spec-const", "--fold-spec-const-op-composite", "-O",
+                                 "--eliminate-dead-const", "--strip-debug", "--strip-nonsemantic", module, "-o", "-"],
+                                f"spirv-opt refused {at}")
         disassembly = _produced([disassembler, "--raw-id", "--no-header", "-"], f"spirv-dis refused {at}", specialized)
         hashed = _produced([program_digest], f"{at} could not be digested", disassembly)
         return f"{module.name.removesuffix('.spv')} {label} {hashed.decode().strip()}"

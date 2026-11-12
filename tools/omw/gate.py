@@ -1,11 +1,6 @@
-"""`omw gate`: everything a change owes before it is called done, in order of cost, stopping at the
-first failure — so a formatting slip is found in seconds and not after the walk.
-
-**In the debug flavour**, which builds every program the tree has, as CI's legs build and test them: a
-CS or a wizard the gate never compiled was a failure only CI found.
-
-**Never a gate beside a build, or beside another gate**: the reading is then about the machine.
-`check` writes its pictures where it always does, under `check/` in the build."""
+"""`omw gate`: everything a change owes before it is called done, in order of cost, stopping at the first failure.
+In the debug flavour, which builds every program as CI's legs do. **Never beside a build or another gate**, or the
+reading is about the machine."""
 
 import unittest
 from collections.abc import Callable
@@ -29,16 +24,14 @@ def _build(build: Build) -> int:
 
 
 def _release_compile(build: Build) -> int:
-    """The release build too: without its asserts, the optimizer proves paths the debug build never
-    shows a warning on, such as a lookup that can now reach a null. **Every program the preset
-    configures**, as CI's `full` builds every program the tree has: a tool only CI linked, such as
-    `openmw-rtx-spirv-digest`, was a link error the gate passed and every CI platform failed."""
+    """The release build too, every program: without its asserts the optimizer warns on paths the debug build
+    never shows, and a tool only CI linked was a link error only CI found."""
     Build("release").build(["all"])
     return 0
 
 
-# **The steps, in the order `gate` runs them**: each a name, which `omw help` prints, and what it
-# runs on the gate's build, nought where it passed. A build that fails raises before it answers.
+# **The steps, in the order `gate` runs them**: each a name, which `omw help` prints, and what it runs on the
+# gate's build, nought where it passed.
 STEPS: tuple[tuple[str, Callable[[Build], int]], ...] = (
     ("format check", lambda build: formatting.format_tree(["--check"])),
     ("spellings", lambda build: spellings.check()),

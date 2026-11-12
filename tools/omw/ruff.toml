@@ -1,0 +1,9 @@
+# The driver's lint, which `omw lint driver` and an editor both read.
+line-length = 120
+target-version = "py311"
+
+[lint]
+# pycodestyle, Pyflakes, pyupgrade, bugbear, simplify, comprehensions, misc idioms, performance, Ruff's own, and
+# `Path.open` over `open`; the rest of flake8-use-pathlib stays off, since `system.on_path` keeps program names as
+# strings on purpose.
+select = ["E", "F", "W", "UP", "B", "SIM", "C4", "PIE", "PERF", "RUF", "PTH123"]

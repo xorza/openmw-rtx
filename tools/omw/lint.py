@@ -1,10 +1,8 @@
-"""`omw lint [check...]`: the checks CI's `checks` job runs besides the formatting, run by the gate
-through the same code, so a tree the gate passes is one the job passes: upstream's CMake indentation
-and file names, its Qt translations, and the fork's own lint of the driver and audit of the workflows.
+"""`omw lint [check...]`: the checks CI's `checks` job runs besides the formatting, run by the gate through the same
+code: upstream's file names and Qt translations, the fork's lint of the driver and audit of the workflows.
 
-**The pins are here and nowhere else.** The desk runs the pinned tool from the PATH, and refuses
-another version rather than reading its findings as CI's; CI, which installs nothing ahead, runs the
-pin through `pipx run`, which the desk never does unasked."""
+**The pins are here and nowhere else**: the desk runs the pinned tool from the PATH and refuses another version; CI
+runs the pin through `pipx run`, which the desk never does unasked."""
 
 import filecmp
 import os
@@ -23,6 +21,7 @@ from omw.system import (
     SYSTEMS,
     Refusal,
     on_path,
+    read_text,
     report,
     require,
     working_tree_files,
@@ -42,15 +41,14 @@ ZIZMOR = Pinned("zizmor", "1.32.0")
 
 
 def version_of(said: str) -> str | None:
-    """The version a tool's `--version` printed, its second word: `ruff 0.16.9`, `mypy 2.3.1
-    (compiled: yes)`, `zizmor 1.30.1`."""
+    """The version a tool's `--version` printed, its second word: `mypy 2.3.1 (compiled: yes)`."""
     words = said.split()
     return words[1] if len(words) > 1 else None
 
 
 def command_for(tool: Pinned, ci: bool = CI) -> list[str]:
-    """How `tool` at its pin is started: from the PATH where the version there is the pin, through
-    `pipx run` on CI, and otherwise refused with the command that installs it."""
+    """How `tool` at its pin is started: from the PATH where the version there is the pin, through `pipx run` on
+    CI, and otherwise refused with the command that installs it."""
     found = on_path(tool.name)
     said = "" if found is None else subprocess.run([found, "--version"], capture_output=True, text=True,
                                                    check=False).stdout.strip()
@@ -86,8 +84,7 @@ TRANSLATIONS = (
 
 
 def _lupdate() -> str:
-    """Qt's `lupdate`: where `LUPDATE` says, as CI says it, or on the PATH, or where Qt 6 keeps its
-    tools off the PATH, as some distributions do."""
+    """Qt's `lupdate`: where `LUPDATE` says, on the PATH, or where some distributions keep Qt 6's tools off it."""
     for candidate in (os.environ.get("LUPDATE"), on_path("lupdate"), "/usr/lib/qt6/bin/lupdate"):
         if candidate and Path(candidate).is_file():
             return candidate
@@ -95,33 +92,33 @@ def _lupdate() -> str:
 
 
 def _regenerate(lupdate: str, sources: list[str], ts_files: list[Path], purge: bool) -> None:
-    """lupdate over `sources` into `ts_files`, the one way both the check and `omw translations` run it;
-    `purge` drops the strings no source has any more."""
+    """lupdate over `sources` into `ts_files`, as both the check and `omw translations` run it; `purge` drops the
+    strings no source has."""
     subprocess.run([lupdate, "-silent", "-locations", "none", *(["-no-obsolete"] if purge else []), *sources,
                     "-ts", *map(str, ts_files)], cwd=ROOT, check=True)
 
 
 def _translations() -> list[str]:
-    """The translations regenerated from their sources do not change, **on copies**: regenerating the
-    tree's own files and reading `git diff` fails a tree with any change at all."""
+    """The translations regenerated from their sources do not change, **on copies**, so a tree with other changes
+    still passes."""
     lupdate = _lupdate()
     found = []
     with tempfile.TemporaryDirectory(prefix="omw-lint-") as scratch:
         for sources, pattern in TRANSLATIONS:
             originals = sorted((ROOT / "files" / "lang").glob(pattern))
             copies = [Path(scratch) / original.name for original in originals]
-            for original, copy in zip(originals, copies):
+            for original, copy in zip(originals, copies, strict=True):
                 shutil.copyfile(original, copy)
             _regenerate(lupdate, sources, copies, purge=False)
             found += [f"{original.relative_to(ROOT).as_posix()}: out of date with its sources; run "
-                      "`omw translations`" for original, copy in zip(originals, copies)
+                      "`omw translations`" for original, copy in zip(originals, copies, strict=True)
                       if not filecmp.cmp(original, copy, shallow=False)]
     return found
 
 
 def translations(args: list[str]) -> int:
-    """`omw translations [--purge]`: the `.ts` files regenerated from their sources in place, the strings no
-    source has any more kept as obsolete, or with `--purge` dropped."""
+    """`omw translations [--purge]`: the `.ts` files regenerated in place, the strings no source has kept as
+    obsolete, or with `--purge` dropped."""
     if args not in ([], ["--purge"]):
         raise Refusal("translations takes `--purge` or nothing")
     lupdate = _lupdate()
@@ -131,21 +128,17 @@ def translations(args: list[str]) -> int:
 
 
 def _ran(command: list[str], env: dict[str, str] | None = None) -> list[str]:
-    """A tool that prints its own findings: nothing where it passed, and the line that names it where
-    it did not."""
+    """A tool that prints its own findings: nothing where it passed, and the line that names it where it did not."""
     code = subprocess.run(command, cwd=ROOT, env=env, check=False).returncode
     return [] if code == 0 else [f"`{' '.join(command)}` exited with {code}"]
 
 
 def _driver() -> list[str]:
-    """Ruff's default rules at the tree's 120 columns, and mypy, both against the oldest Python `omw`
-    supports. **Mypy once for each system the driver builds on**, since it reads `os` as the system
-    named has it: checked as the system it ran on, the Windows desk refused `os.getuid`, which CI's
-    Linux passed, and CI never read the driver as Windows runs it. `WINDOWS` is a constant to it, as
-    `sys.platform` is, so a branch only the other system takes is not checked against this one."""
+    """Ruff by `ruff.toml`, which an editor reads too, and mypy, against the oldest Python `omw` supports. **Mypy
+    once for each system the driver builds on**, with `WINDOWS` a constant to it, so each system's branches are
+    checked against that system's `os`."""
     env = {**os.environ, "MYPYPATH": str(ROOT / "tools")}
-    found = _ran([*command_for(RUFF), "check", "--line-length", "120", "--target-version", "py311",
-                  "tools/omw", "omw"])
+    found = _ran([*command_for(RUFF), "check", "--config", "tools/omw/ruff.toml", "tools/omw", "omw"])
     mypy = command_for(MYPY)
     for platform in SYSTEMS:
         windows = "true" if platform == "win32" else "false"
@@ -164,15 +157,14 @@ def _workflows() -> list[str]:
 
 
 def _containers(root: Path) -> list[str]:
-    """**Each `container:` a workflow names is the release base's image, digest and all**, so CI, the
-    published set and a release build on the image a desk's container does. A container chosen by an
-    expression (`${{ matrix.container }}`) is held where the matrix names it."""
-    base = re.search(r"^FROM\s+(\S+)", (root / RELEASE_BASE_FILE).read_text(), re.MULTILINE)
+    """**Each `container:` a workflow names is the release base's image, digest and all**, so CI builds on the
+    image a desk's container does. One chosen by an expression is held where the matrix names it."""
+    base = re.search(r"^FROM\s+(\S+)", read_text(root / RELEASE_BASE_FILE), re.MULTILINE)
     assert base is not None, f"{RELEASE_BASE_FILE} names no image"
     image = base.group(1)
     found = []
     for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
-        for number, line in enumerate(workflow.read_text().splitlines(), 1):
+        for number, line in enumerate(read_text(workflow).splitlines(), 1):
             named = re.match(r"\s*(?:-\s+)?container:\s*(\S+)\s*$", line)
             if named and not named.group(1).startswith("${{") and named.group(1) != image:
                 found.append(f"{workflow.relative_to(root).as_posix()}:{number}: container {named.group(1)} "
@@ -189,9 +181,8 @@ CHECKS: dict[str, Callable[[], list[str]]] = {
 
 
 def lint(args: list[str]) -> int:
-    """The checks named, or every one: each run whatever the one before found, so one pass says all
-    of it, and each check's findings printed as it ends, so a later check refused for a missing tool
-    leaves the earlier ones said."""
+    """The checks named, or every one, each run whatever the one before found and its findings printed as it
+    ends."""
     unknown = [name for name in args if name not in CHECKS]
     if unknown:
         raise Refusal(f"no check is called {', '.join(unknown)}: {', '.join(CHECKS)}")

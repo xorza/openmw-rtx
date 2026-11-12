@@ -38,7 +38,9 @@ def minidump(summary: str, simple: list[tuple[str, str]], objects: dict[str, byt
     """A minidump of the two streams `describe_dump` reads, laid out as `minidump_extensions.h` has
     them: the summary, and Crashpad's info with one module's annotations."""
     data = bytearray(32)
-    words = lambda *values: b"".join(value.to_bytes(4, "little") for value in values)
+
+    def words(*values: int) -> bytes:
+        return b"".join(value.to_bytes(4, "little") for value in values)
 
     def put(blob: bytes) -> int:
         at = len(data)
@@ -150,6 +152,12 @@ class CrashTest(unittest.TestCase):
         self.assertEqual(describe_dump(minidump("", [], {})), [
             "summary:", "  (none)", "annotations:", "  (none)", "notes:", "  (none)",
         ])
+        # A string that says it runs past the dump is refused, not read as a shorter one.
+        cut = bytearray(minidump("", [("key", "value")], {}))
+        at = cut.index((5).to_bytes(4, "little") + b"value")
+        cut[at:at + 4] = (1 << 20).to_bytes(4, "little")
+        with self.assertRaisesRegex(Refusal, "cut short"):
+            describe_dump(bytes(cut))
         # A table of another layout is named, not read.
         self.assertEqual(describe_dump(minidump("", [], {"openmw-notes": b"short"}))[-1],
                          "  a note table of 5 bytes, which this driver does not read")

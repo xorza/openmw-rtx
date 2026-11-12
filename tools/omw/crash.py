@@ -1,7 +1,5 @@
-"""`omw crash <dump> [symbols]`: a player's crash dump, or the package it came in, read against the
-symbols of the build that wrote it — every thread, with the function and the line of each frame. No
-build is configured for it: reading a dump needs the symbols and Breakpad's walker, and nothing this
-tree compiles."""
+"""`omw crash <dump> [symbols]`: a player's crash dump, or the package it came in, read against the symbols of the
+build that wrote it, every thread with the function and the line of each frame. No build is configured for it."""
 
 import json
 import subprocess
@@ -22,9 +20,8 @@ MINIDUMP = b"MDMP"
 SUMMARY_STREAM = 0x4F4D5701
 CRASHPAD_INFO_STREAM = 0x43500001
 
-# The note table's annotation, `Crash::sNotesAnnotation`, laid out as `crashnote.cpp`'s `Table`, whose
-# static asserts hold these numbers: the reason, the count of threads refused, then each slot's
-# thread, sequence and text.
+# The note table's annotation, `Crash::sNotesAnnotation`, laid out as `crashnote.cpp`'s `Table`, whose static
+# asserts hold these numbers: the reason, the count of threads refused, then each slot's thread, sequence and text.
 NOTES_ANNOTATION = "openmw-notes"
 NOTE_CAPACITY = 256
 NOTE_SLOTS_AT = 264
@@ -32,33 +29,32 @@ NOTE_SLOT_SIZE = 272
 
 
 class Minidump:
-    """**The bytes of a minidump, read where a field says**: a dump is a player's, so every offset is
-    checked against its size, and one that leaves it reads as nothing."""
+    """**The bytes of a minidump, read where a field says**: a dump is a player's, so every read is checked against
+    its size, and one that leaves it is refused as a dump cut short."""
 
     def __init__(self, data: bytes):
         self.data = data
 
-    def word(self, at: int, size: int = 4) -> int:
+    def bytes_at(self, at: int, size: int) -> bytes:
         if at < 0 or at + size > len(self.data):
             raise Refusal("the dump is cut short")
-        return int.from_bytes(self.data[at:at + size], "little")
+        return self.data[at:at + size]
+
+    def word(self, at: int, size: int = 4) -> int:
+        return int.from_bytes(self.bytes_at(at, size), "little")
 
     def located(self, at: int) -> bytes:
         """The bytes a `MINIDUMP_LOCATION_DESCRIPTOR` at `at` names."""
         size, rva = self.word(at), self.word(at + 4)
-        if rva + size > len(self.data):
-            raise Refusal("the dump is cut short")
-        return self.data[rva:rva + size]
+        return self.bytes_at(rva, size)
 
     def text(self, rva: int) -> str:
         """A `MinidumpUTF8String`."""
-        length = self.word(rva)
-        return self.data[rva + 4:rva + 4 + length].decode("utf-8", "replace")
+        return self.byte_array(rva).decode("utf-8", "replace")
 
     def byte_array(self, rva: int) -> bytes:
-        """A `MinidumpByteArray`."""
-        length = self.word(rva)
-        return self.data[rva + 4:rva + 4 + length]
+        """A `MinidumpByteArray`, as a `MinidumpUTF8String` is laid out too: a length, then the bytes."""
+        return self.bytes_at(rva + 4, self.word(rva))
 
     def streams(self) -> dict[int, int]:
         """Where each stream's location descriptor lies, by its type."""
@@ -106,8 +102,7 @@ class Minidump:
 
 
 def describe_notes(table: bytes) -> list[str]:
-    """The note table as the monitor reads it: the reason, each thread's note, and the threads that
-    found it full."""
+    """The note table as the monitor reads it: the reason, each thread's note, and the threads that found it full."""
     if len(table) < NOTE_SLOTS_AT or (len(table) - NOTE_SLOTS_AT) % NOTE_SLOT_SIZE != 0:
         return [f"a note table of {len(table)} bytes, which this driver does not read"]
 
@@ -129,8 +124,8 @@ def describe_notes(table: bytes) -> list[str]:
 
 
 def describe_dump(data: bytes) -> list[str]:
-    """**What the log said of a dump**, out of the dump alone, for a player who sent only that: the
-    monitor's summary, the annotations, and the note table."""
+    """**What the log said of a dump**, out of the dump alone, for a player who sent only that: the monitor's
+    summary, the annotations, and the note table."""
     dump = Minidump(data)
     lines = ["summary:"] + [f"  {line}" for line in dump.summary() or ["(none)"]]
     simple, objects = dump.annotations()
@@ -177,9 +172,9 @@ class Dump:
 
 
 def dumps_in(path: Path, folder: Path) -> list[Dump]:
-    """**The dumps `path` holds**: itself where it is one, or each dump of the package a player sends,
-    written into `folder` under a name of the driver's own. A player's package is untrusted, and on
-    Windows a name of its own could still leave the folder (`C:x.dmp`) or open a device (`CON.dmp`)."""
+    """**The dumps `path` holds**: itself where it is one, or each dump of the package a player sends, written into
+    `folder` under a name of the driver's own, as on Windows a package's could leave it (`C:x.dmp`) or open a device
+    (`CON.dmp`)."""
     with path.open("rb") as file:
         if file.read(len(MINIDUMP)) == MINIDUMP:
             return [Dump(path.name, path)]
@@ -201,9 +196,8 @@ def dumps_in(path: Path, folder: Path) -> list[Dump]:
 
 
 def store_of(module: Module, source: Path, folder: Path) -> Path | None:
-    """**A symbols store that holds `module`'s, or none**, from a release's `-symbols.zip`, a folder
-    of one, or the build folder that made the executable, whose symbols are made into `folder`. A
-    store of another build is none: the walker reads a dump against it and names no frame."""
+    """**A symbols store that holds `module`'s, or none**: a release's `-symbols.zip`, a folder of one, or the build
+    folder that made the executable, whose symbols are made into `folder`. Another build's store names no frame."""
     if source.is_file():
         with zipfile.ZipFile(source) as zipped:
             if not any(name.startswith(module.stored()) for name in zipped.namelist()):
@@ -225,8 +219,8 @@ def store_of(module: Module, source: Path, folder: Path) -> Path | None:
 
 
 def symbols_for(module: Module, named: Path | None, folder: Path) -> Path:
-    """The store `named` gives for `module`, or the newest of `dist/`'s that holds it, or a refusal
-    that says whose symbols the dump needs."""
+    """The store `named` gives for `module`, or the newest of `dist/`'s that holds it, or a refusal that says whose
+    symbols the dump needs."""
     if named is not None:
         store = store_of(module, named, folder)
         if store is None:

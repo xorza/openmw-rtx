@@ -47,6 +47,16 @@ class CMakeTest(unittest.TestCase):
                     entry.mode = 0o755
                     tarred.addfile(entry, io.BytesIO(program))
 
+        def cut_off(_pin: Pin, file: Path) -> None:
+            file.write_bytes(b"half")
+            raise KeyboardInterrupt
+
+        with (mock.patch.object(deps, "DEPS", folder), mock.patch.dict(deps.pins.CMAKE, {deps.SYSTEM: pin}),
+              mock.patch.object(deps.fetch, "download_pin", side_effect=cut_off), self.assertRaises(KeyboardInterrupt)):
+            deps.cmake()
+        # A download cut off is inside the partial the next fetch clears, and nowhere else.
+        self.assertEqual([path.name for path in folder.iterdir()], [f"{pinned_folder('cmake', pin).name}.partial"])
+
         with (mock.patch.object(deps, "DEPS", folder), mock.patch.dict(deps.pins.CMAKE, {deps.SYSTEM: pin}),
               mock.patch.object(deps.fetch, "download_pin", side_effect=download) as fetched):
             found = deps.cmake()
