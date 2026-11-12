@@ -92,6 +92,9 @@ made only on the user's explicit yes, after which it is added here.
   adds to upstream's, and the hunks in upstream code that keep it clean under them, the patches to
   `extern/sol3` and `components/files/configurationmanager` included. MSVC's `4244` and `4267` are
   off, since GCC's `-Wall -Wextra` leave `-Wconversion` out.
+- A post-processing technique's integer is held to `int`'s range before it is converted
+  (`fx::Lexer::scanNumber`): a double past it converts to no int, which upstream's check read back after the
+  conversion, and Clang, which builds the fork, folded that check away, so `18446744073709551615` parsed.
 - A number read from text is finite (`Misc::StringUtils::toNumeric`, which the settings read
   through): `std::from_chars` reads `inf` and `nan`. Where `from_chars` has no floating point, the
   stream reads only the prefix it would (`floatPrefix`), so a spelling is one number everywhere.

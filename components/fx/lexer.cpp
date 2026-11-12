@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <format>
+#include <limits>
 
 #include <components/misc/strings/algorithm.hpp>
 
@@ -318,7 +319,10 @@ namespace Fx
             constexpr std::string_view floatCharacters = ".eE";
             if (!isDefinitelyAFloat && literal.find_first_of(floatCharacters) == std::string_view::npos)
             {
-                // This is supposed to be an int, but that doesn't mean it can fit in one
+                // This is supposed to be an int, but that doesn't mean it can fit in one. A double past int's range
+                // converts to no int at all, which Clang assumes never happens, so the range is held first.
+                if (buffer < std::numeric_limits<int>::min() || buffer > std::numeric_limits<int>::max())
+                    error("number out of range");
                 int intValue = static_cast<int>(buffer);
                 if (intValue != buffer)
                     error("number out of range");
