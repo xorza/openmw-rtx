@@ -23,7 +23,7 @@ namespace Crash
     {
     public:
         /// Entries waiting at the most: a few a report, and reports are rare. Past it an entry is
-        /// dropped, since a monitor that cannot write its log has nothing better to do with it.
+        /// dropped, and counted among those `finish` says were not written.
         static constexpr std::size_t sMostWaiting = 64;
 
         /// `page` outlives this.
@@ -41,8 +41,10 @@ namespace Crash
 
         /// **Once the game is gone**: what waits goes to the game's log, or where the game never named
         /// one, to `fallback`, which is the log from then on. Waits for it, for a few seconds at the
-        /// most.
-        void finish(const std::filesystem::path& fallback);
+        /// most. **Returns how many entries were not written**: dropped past `sMostWaiting`, refused by
+        /// the file, or not yet written where the wait ran out or `fallback` could not be opened, so the
+        /// monitor can say so where the log cannot.
+        [[nodiscard]] std::size_t finish(const std::filesystem::path& fallback);
 
         /// The game's log, which it hands over through the page once it knows it, or the fallback
         /// `finish` took where it never did; empty before both, and where the page holds no path
@@ -63,7 +65,9 @@ namespace Crash
         std::condition_variable mWake;
         std::condition_variable mEmptied;
         std::vector<std::string> mWaiting;
-        bool mWriting = false;
+        std::size_t mUnwritten = 0;
+        /// The entries the writer took out of `mWaiting` and has not finished writing.
+        std::size_t mInFlight = 0;
         bool mEnds = false;
 
         /// Last, so that it starts on everything above.

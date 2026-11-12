@@ -201,7 +201,7 @@ namespace
         EXPECT_EQ(monitor.path(), log);
         monitor.write({ "Crash: first", "Crash: second" });
         monitor.write({ "Hang: third" });
-        monitor.finish(fallback);
+        EXPECT_EQ(monitor.finish(fallback), 0u);
         EXPECT_EQ(monitor.path(), log) << "the game named its log, which stays the log";
         EXPECT_FALSE(std::filesystem::exists(fallback));
 
@@ -233,7 +233,7 @@ namespace
 
         Crash::MonitorLog monitor(game);
         monitor.write({ "Crash: before any log" });
-        monitor.finish(fallback);
+        EXPECT_EQ(monitor.finish(fallback), 0u);
         EXPECT_EQ(monitor.path(), fallback);
 
         std::ifstream file(fallback);
@@ -241,6 +241,50 @@ namespace
         for (std::string line; std::getline(file, line);)
             said.push_back(line.size() > 17 ? line.substr(17) : line);
         EXPECT_EQ(said, std::vector<std::string>{ "Crash: before any log" });
+    }
+
+    /// **What the log could not write is counted**, for the monitor to say where the log cannot: a log the game
+    /// named that refuses every write, a file of the monitor's own that cannot be opened, which leaves nothing to wait
+    /// for, and an entry past `sMostWaiting`, dropped.
+    TEST(CrashMonitorLogTest, finishingSaysHowManyEntriesWereNotWritten)
+    {
+        const std::uint32_t id = 0x80000009u + Platform::Process::currentId();
+        const std::filesystem::path folder = TestingOpenMW::outputDirPath("crash-monitor-unwritten");
+        std::filesystem::remove_all(folder);
+        std::filesystem::create_directories(folder);
+        {
+            // A folder, which no file opens to append.
+            const Crash::SharedPage game = Crash::SharedPage::create(id);
+            ASSERT_NE(game.get(), nullptr);
+            ASSERT_TRUE(game.setLogPath(Files::pathToUnicodeString(folder)));
+            Crash::MonitorLog monitor(game);
+            monitor.write({ "Crash: first" });
+            monitor.write({ "Crash: second", "Crash: third" });
+            EXPECT_EQ(monitor.finish(folder / "own.txt"), 2u) << "two entries, refused";
+        }
+        {
+            const Crash::SharedPage game = Crash::SharedPage::create(id + 1);
+            ASSERT_NE(game.get(), nullptr);
+            Crash::MonitorLog monitor(game);
+            monitor.write({ "Crash: before any log" });
+            EXPECT_EQ(monitor.finish(folder / "nowhere" / "own.txt"), 1u);
+            EXPECT_EQ(monitor.path(), std::filesystem::path()) << "no file was opened, so none is the log";
+        }
+        {
+            const Crash::SharedPage game = Crash::SharedPage::create(id + 2);
+            ASSERT_NE(game.get(), nullptr);
+            Crash::MonitorLog monitor(game);
+            for (std::size_t entry = 0; entry <= Crash::MonitorLog::sMostWaiting; ++entry)
+                monitor.write({ "Crash: entry " + std::to_string(entry) });
+            const std::filesystem::path own = folder / "own.txt";
+            EXPECT_EQ(monitor.finish(own), 1u) << "the one past the bound";
+
+            std::ifstream file(own);
+            std::size_t lines = 0;
+            for (std::string line; std::getline(file, line);)
+                ++lines;
+            EXPECT_EQ(lines, Crash::MonitorLog::sMostWaiting);
+        }
     }
 
     /// **The log's end writes what still waits**, with no flush: the monitor's last line names the

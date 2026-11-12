@@ -618,7 +618,15 @@ namespace Crash
 
             // Before the package, which holds the log: where the game never named one, the monitor's
             // lines go to a file of its own beside the reports, which the package then holds.
-            monitor.mLog.finish(monitor.getReportFolder() / (monitor.mApplication + "-monitor.log"));
+            const std::filesystem::path own = monitor.getReportFolder() / (monitor.mApplication + "-monitor.log");
+            if (const std::size_t lost = monitor.mLog.finish(own); lost > 0)
+            {
+                // Where the log cannot say it, as the package's path is said below.
+                const std::filesystem::path log = monitor.mLog.path();
+                std::cerr << monitor.mApplication << ": " << lost
+                          << " entries of the crash monitor's log could not be written to "
+                          << Files::pathToUnicodeString(log.empty() ? own : log) << '\n';
+            }
             const bool told = session.mCrashed || unwritten || monitor.mEnded;
             const std::filesystem::path package
                 = told || !dumps.empty() ? packageSession(monitor, dumps) : std::filesystem::path();

@@ -56,23 +56,30 @@ namespace Crash
         {
             const std::lock_guard lock(mMutex);
             if (mWaiting.size() >= sMostWaiting)
+            {
+                ++mUnwritten;
                 return;
+            }
             mWaiting.push_back(std::move(block));
         }
         mWake.notify_one();
     }
 
-    void MonitorLog::finish(const std::filesystem::path& fallback)
+    std::size_t MonitorLog::finish(const std::filesystem::path& fallback)
     {
         std::unique_lock lock(mMutex);
         if (pathOf(mPage.getLogPath()).empty() && !mWaiting.empty())
         {
-            // A file of this session's alone, as the game's own log is.
-            Platform::AppendFile::open(fallback, Platform::AppendStart::Emptied);
+            // A file of this session's alone, as the game's own log is; one that cannot be opened leaves
+            // nowhere to write what waits, and nothing to wait for.
+            if (!Platform::AppendFile::open(fallback, Platform::AppendStart::Emptied).isOpen())
+                return mUnwritten + mWaiting.size() + mInFlight;
             mFallback = fallback;
         }
         mWake.notify_one();
-        mEmptied.wait_for(lock, std::chrono::seconds(5), [&] { return mWaiting.empty() && !mWriting; });
+        mEmptied.wait_for(lock, std::chrono::seconds(5), [&] { return mWaiting.empty() && mInFlight == 0; });
+        // What the writer holds where the wait ran out is not written yet either.
+        return mUnwritten + mWaiting.size() + mInFlight;
     }
 
     std::filesystem::path MonitorLog::path() const
@@ -123,14 +130,17 @@ namespace Crash
 
             std::vector<std::string> blocks;
             blocks.swap(mWaiting);
-            mWriting = true;
+            mInFlight = blocks.size();
             lock.unlock();
 
+            std::size_t refused = 0;
             for (const std::string& block : blocks)
-                Platform::AppendFile::open(log, Platform::AppendStart::Kept).write(block);
+                if (!Platform::AppendFile::open(log, Platform::AppendStart::Kept).write(block))
+                    ++refused;
 
             lock.lock();
-            mWriting = false;
+            mUnwritten += refused;
+            mInFlight = 0;
             if (mWaiting.empty())
                 mEmptied.notify_all();
         }
