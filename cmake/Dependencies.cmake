@@ -236,6 +236,7 @@ find_package(
         OpenGLWidgets
         LinguistTools
         Svg
+        UiTools
 )
 # The windowing platforms a Qt program opens on, which the static Qt links into it: Qt's default, X11's on Linux and
 # Windows' own, and on Linux Wayland's beside it, so a session with no XWayland opens it too.

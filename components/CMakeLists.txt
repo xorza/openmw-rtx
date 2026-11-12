@@ -1702,6 +1702,7 @@ target_sources(
     openmw-graphite
     PRIVATE
         graphite/colour.cpp
+        graphite/glyphs.cpp
         graphite/look.cpp
         graphite/palette.cpp
         graphite/style.cpp
@@ -1711,11 +1712,12 @@ target_sources(
                 "${PROJECT_SOURCE_DIR}"
             FILES
                 graphite/colour.hpp
+                graphite/glyphs.hpp
                 graphite/look.hpp
                 graphite/palette.hpp
                 graphite/style.hpp
 )
-target_link_libraries(openmw-graphite PUBLIC Qt::Widgets)
+target_link_libraries(openmw-graphite PUBLIC Qt::Widgets PRIVATE Qt::Svg)
 
 add_subdirectory(rtx)
 

@@ -19,6 +19,7 @@
 #include <QStyleOption>
 #include <QTabBar>
 
+#include "glyphs.hpp"
 #include "palette.hpp"
 
 namespace Graphite
@@ -56,6 +57,19 @@ namespace Graphite
         constexpr int sSpinColumn = 20;
         constexpr qreal sSpinChevronWidth = 8.0;
         constexpr qreal sSpinChevronHeight = 4.0;
+
+        /// The accent's pill that marks what is in use, Fluent 2's selection indicator: 3 px across, held 6 px
+        /// off a row's ends.
+        constexpr qreal sMark = 3.0;
+        constexpr qreal sMarkInset = 6.0;
+
+        /// A view's row padding above and below its text, palantir's chip inset `space.xs`, and what its text
+        /// moves in beyond Fusion's 2 px so it starts 8 px in, clear of the selected row's pill.
+        constexpr int sItemPadding = 4;
+        constexpr int sItemTextInset = 6;
+
+        constexpr int sLayoutMargin = 12;
+        constexpr int sLayoutSpacing = 8;
 
         /// palantir's menu padding, `space.xs`, above its first row and below its last.
         constexpr int sMenuPadding = 4;
@@ -297,6 +311,16 @@ namespace Graphite
             return QStyle::visualRect(option.direction, rect, laidOut);
         }
 
+        /// Where the accent's pill marks `rect`: along its start, held off its ends by the row padding, or
+        /// along its foot, held off its sides by the corner's radius.
+        QRectF markOf(const QRect& rect, Qt::Orientation along)
+        {
+            const QRectF area = rect;
+            if (along == Qt::Vertical)
+                return { area.left(), area.top() + sMarkInset, sMark, std::max(area.height() - 2 * sMarkInset, sMark) };
+            return { area.left() + sControlRadius, area.bottom() - sMark, area.width() - 2 * sControlRadius, sMark };
+        }
+
         /// The square of `sToggleSide` centred in `rect`, whatever size the caller laid out.
         QRectF toggleBox(const QRect& rect)
         {
@@ -327,6 +351,11 @@ namespace Graphite
             case PE_PanelButtonTool:
                 paint(*painter, option->rect, sControlRadius,
                     has(*option, State_AutoRaise) ? subtleChrome(*option) : buttonChrome(*option, false));
+                // A checked rising button, the launcher's page in use, carries the accent's pill at its foot,
+                // as a tab in use its cap.
+                if (has(*option, State_AutoRaise) && has(*option, State_On) && has(*option, State_Enabled))
+                    paint(
+                        *painter, markOf(option->rect, Qt::Horizontal), sMark / 2.0, { sDark.mAccent, sDark.mAccent });
                 return;
             case PE_PanelLineEdit:
             {
@@ -420,12 +449,25 @@ namespace Graphite
             case PE_FrameMenu:
                 paint(*painter, option->rect, 0.0, { sNone, borderMid(sDark) });
                 return;
-            // A view's row: the selection's tint, or `mElementMid` under the pointer.
+            // A view's row: selected, a fill and the accent's pill at its start, as Fluent 2 marks a selected
+            // list item; `mElementMid` under the pointer. Each cell of a row draws its part, the first the pill.
             case PE_PanelItemViewItem:
             {
+                const bool enabled = has(*option, State_Enabled);
+                const bool hovered = enabled && has(*option, State_MouseOver);
                 if (has(*option, State_Selected))
-                    painter->fillRect(option->rect, QColor::fromRgba(selectionWash(sDark)));
-                else if (has(*option, State_MouseOver) && has(*option, State_Enabled))
+                {
+                    painter->fillRect(
+                        option->rect, QColor::fromRgba(hovered ? sDark.mElementStrong : sDark.mElementMid));
+                    const auto* item = qstyleoption_cast<const QStyleOptionViewItem*>(option);
+                    const bool first = item == nullptr || item->viewItemPosition == QStyleOptionViewItem::Beginning
+                        || item->viewItemPosition == QStyleOptionViewItem::OnlyOne
+                        || item->viewItemPosition == QStyleOptionViewItem::Invalid;
+                    if (first)
+                        paint(*painter, markOf(option->rect, Qt::Vertical), sMark / 2.0,
+                            { sDark.mAccent, sDark.mAccent });
+                }
+                else if (hovered)
                     painter->fillRect(option->rect, QColor::fromRgba(sDark.mElementMid));
                 return;
             }
@@ -543,6 +585,19 @@ namespace Graphite
                 QStyleOptionMenuItem resting = *item;
                 resting.state &= ~State_Selected;
                 QProxyStyle::drawControl(element, &resting, painter, widget);
+                return;
+            }
+            // A rule is palantir's separator: the soft edge, a pixel across the middle of its frame.
+            case CE_ShapedFrame:
+            {
+                const auto* frame = qstyleoption_cast<const QStyleOptionFrame*>(option);
+                if (frame == nullptr || (frame->frameShape != QFrame::HLine && frame->frameShape != QFrame::VLine))
+                    break;
+                const QRect rect = option->rect;
+                painter->fillRect(frame->frameShape == QFrame::HLine
+                        ? QRect(rect.left(), rect.center().y(), rect.width(), 1)
+                        : QRect(rect.center().x(), rect.top(), 1, rect.height()),
+                    QColor::fromRgba(borderSoft(sDark)));
                 return;
             }
             case CE_HeaderSection:
@@ -669,6 +724,18 @@ namespace Graphite
         {
             case PM_MenuVMargin:
                 return sMenuPadding;
+            // A header's label starts where a field's text does.
+            case PM_HeaderMargin:
+                return sFieldInset;
+            // Layouts on palantir's grid: `space.md` at a page's or a group's edge, `space.sm` between widgets.
+            case PM_LayoutLeftMargin:
+            case PM_LayoutTopMargin:
+            case PM_LayoutRightMargin:
+            case PM_LayoutBottomMargin:
+                return sLayoutMargin;
+            case PM_LayoutHorizontalSpacing:
+            case PM_LayoutVerticalSpacing:
+                return sLayoutSpacing;
             case PM_ScrollBarExtent:
                 return sScrollThickness + sScrollGap;
             case PM_ScrollBarSliderMin:
@@ -749,10 +816,31 @@ namespace Graphite
         }
     }
 
+    QIcon Style::standardIcon(StandardPixmap icon, const QStyleOption* option, const QWidget* widget) const
+    {
+        // A message box's icon is a Lucide glyph in the ink of what it says, where Fusion's are blue.
+        switch (icon)
+        {
+            case SP_MessageBoxQuestion:
+                return glyphIcon(Glyph::Question, sDark.mText);
+            case SP_MessageBoxInformation:
+                return glyphIcon(Glyph::Information, sDark.mText);
+            case SP_MessageBoxWarning:
+                return glyphIcon(Glyph::Warning, sDark.mWarning);
+            case SP_MessageBoxCritical:
+                return glyphIcon(Glyph::Critical, errorInk(sDark));
+            default:
+                return QProxyStyle::standardIcon(icon, option, widget);
+        }
+    }
+
     QRect Style::subElementRect(SubElement element, const QStyleOption* option, const QWidget* widget) const
     {
         // A field's text starts at the field's inset; one with no frame lies in a spin box's or a combo
         // box's field, which placed it.
+        // A row's text clears the selected row's pill, by what a field's text is inset beyond Fusion's.
+        if (element == SE_ItemViewItemText)
+            return QProxyStyle::subElementRect(element, option, widget).adjusted(sItemTextInset, 0, 0, 0);
         const auto* frame = qstyleoption_cast<const QStyleOptionFrame*>(option);
         if (element == SE_LineEditContents && frame != nullptr && frame->lineWidth > 0)
         {
@@ -786,15 +874,24 @@ namespace Graphite
                     size.rwidth() += std::max(0, fusion - ours);
                 };
                 if (type == CT_ComboBox)
+                {
                     widen(qstyleoption_cast<const QStyleOptionComboBox*>(option), CC_ComboBox, SC_ComboBoxEditField);
-                else
-                    widen(qstyleoption_cast<const QStyleOptionSpinBox*>(option), CC_SpinBox, SC_SpinBoxEditField);
-                size.setHeight(std::max(size.height(), rowHeight(*option)));
+                    size.setHeight(std::max(size.height(), rowHeight(*option)));
+                    return size;
+                }
+                // Exactly a row: a spin box's contents are its line edit's hint, which already stands a row
+                // tall, and Fusion's frame around it would take it past one.
+                widen(qstyleoption_cast<const QStyleOptionSpinBox*>(option), CC_SpinBox, SC_SpinBoxEditField);
+                size.setHeight(rowHeight(*option));
                 return size;
             }
             case CT_PushButton:
             case CT_LineEdit:
                 size.setHeight(std::max(size.height(), rowHeight(*option)));
+                return size;
+            case CT_ItemViewItem:
+                size.rheight() += 2 * sItemPadding;
+                size.rwidth() += sItemTextInset;
                 return size;
             default:
                 return size;
@@ -812,6 +909,8 @@ namespace Graphite
             // A dialog's buttons are their words, as palantir's are: the platform's stock icons beside them
             // are another look's.
             case SH_DialogButtonBox_ButtonsHaveIcons:
+            // A mnemonic is underlined only while Alt is held, as Windows and macOS draw it.
+            case SH_UnderlineShortcut:
                 return 0;
             default:
                 return QProxyStyle::styleHint(hint, option, widget, returnData);

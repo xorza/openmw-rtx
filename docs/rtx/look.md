@@ -20,7 +20,8 @@ and the tests in `apps/components_tests/graphite/` hold each to what it must cle
   colour scheme asked for as dark (`QStyleHints::setColorScheme`), which Windows answers with a dark title
   bar and a platform whose theme takes no request ignores.
 - **The system's family at 16 px**, palantir's title step, by the user's decision: Qt's own default on Linux is 9
-  points, 12 px, and palantir's 14 px body still read small. Logical pixels, which a display's scale multiplies.
+  points, 12 px, and palantir's 14 px body still read small. Set as 12 points, which Qt's logical pixels stand at
+  96 an inch: a font sized in pixels has no point size, and `QWizard` grows its page title from the point size.
 - **A button, a field, a combo box and a spin box are one row's height**: the text with palantir's row padding,
   8 px above and below, inside the hairline, by the user's decision, where palantir pads a button 4 px; so a
   button beside a field lines up with it.
@@ -56,4 +57,18 @@ and the tests in `apps/components_tests/graphite/` hold each to what it must cle
 - **A combo box's list is a menu**: the menus' palette is the floating panel's ground, which the list fills each
   row with, and the list leaves the menu's panel showing; a menu pads 4 px above and below, its separator the
   soft edge held off its sides.
+- **A selected row is a fill and the accent's pill at its start**, as Fluent 2 marks a selected list item
+  (<https://fluent2.microsoft.design/components/web/react/core/list/usage>): `#454545`, the pill 3 px across and
+  drawn by a row's first cell alone, its text 8 px in and clear of it; a row stands 4 px above and below its
+  text. The tint stays for selected text in a field. Refused: the tint for rows, where it read as a muddy wash;
+  the accent's full fill, under which a row's text must turn dark. The launcher's page in use carries the same
+  pill at its foot, as a tab its cap.
+- **A mnemonic is underlined only while Alt is held**, as Windows and macOS draw it; **layouts sit on palantir's
+  grid**, 12 px at an edge and 8 between widgets; **a rule is the soft edge**.
+- **A message box's icon and the wizard's are Lucide's too**: the wizard's four as `ScalableIcon` templates it
+  already loads them through, the launcher's contains-data mark likewise, and a message box's question, notice,
+  warning and failure drawn by the style in the text's, the warning's and the error's ink.
+- **Every page is read in the look by a test** (`GraphiteGalleryTest`): each `.ui` file of the launcher and the
+  wizard loaded through Qt's UI loader, its buttons, fields, combo boxes and spin boxes held to one row's height,
+  so a page upstream adds is seen.
 

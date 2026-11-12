@@ -2,13 +2,15 @@
 <qresource prefix="images">
     <file alias="openmw.png">images/openmw.png</file>
     <file alias="openmw-header.png">images/openmw-header.png</file>
-    <file alias="openmw-plugin.png">images/openmw-plugin.png</file>
 </qresource>
 <qresource prefix="icons/pages">
     <file alias="data.svg">icons/pages/data.svg</file>
     <file alias="display.svg">icons/pages/display.svg</file>
     <file alias="settings.svg">icons/pages/settings.svg</file>
     <file alias="import.svg">icons/pages/import.svg</file>
+</qresource>
+<qresource prefix="icons/marks">
+    <file alias="contains-data.svg">icons/marks/contains-data.svg</file>
 </qresource>
 <qresource prefix="icons/fallback">
     <file alias="index.theme">icons/fallback/index.theme</file>

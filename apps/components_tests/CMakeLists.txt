@@ -131,6 +131,7 @@ target_sources(
     components-tests
     PRIVATE
         graphite/colour.cpp
+        graphite/gallery.cpp
         graphite/icons.cpp
         graphite/look.cpp
         graphite/offscreen.cpp
@@ -143,7 +144,13 @@ target_sources(
             FILES
                 graphite/offscreen.hpp
 )
-target_link_libraries(components-tests PRIVATE openmw-graphite)
+# Qt's UI loader reads the launcher's and the wizard's pages as the programs build them (`graphite/gallery.cpp`).
+target_link_libraries(
+    components-tests
+    PRIVATE
+        openmw-graphite
+        Qt::UiTools
+)
 # The platform the look's tests draw on, in memory: the static Qt links the platforms it is told of.
 qt_import_plugins(components-tests INCLUDE Qt6::QOffscreenIntegrationPlugin)
 

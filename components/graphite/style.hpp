@@ -21,6 +21,7 @@ namespace Graphite
             const QWidget* widget) const override;
         QRect subControlRect(ComplexControl control, const QStyleOptionComplex* option, SubControl subControl,
             const QWidget* widget) const override;
+        QIcon standardIcon(StandardPixmap icon, const QStyleOption* option, const QWidget* widget) const override;
         QRect subElementRect(SubElement element, const QStyleOption* option, const QWidget* widget) const override;
         int pixelMetric(PixelMetric metric, const QStyleOption* option, const QWidget* widget) const override;
         QSize sizeFromContents(

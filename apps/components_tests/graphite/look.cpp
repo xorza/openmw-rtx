@@ -2,6 +2,7 @@
 
 #include <QApplication>
 #include <QFont>
+#include <QFontInfo>
 #include <QStyle>
 
 #include <components/graphite/look.hpp>
@@ -26,7 +27,8 @@ namespace Graphite
             ASSERT_NE(style, nullptr);
             EXPECT_EQ(style->baseStyle()->name(), QStringLiteral("fusion"));
             EXPECT_EQ(QApplication::palette(), qtPaletteOf(sDark));
-            EXPECT_EQ(QApplication::font().pixelSize(), 16);
+            EXPECT_EQ(QApplication::font().pointSizeF(), 12.0) << "16 px at 96 a inch";
+            EXPECT_EQ(QFontInfo(QApplication::font()).pixelSize(), 16);
             EXPECT_EQ(QApplication::palette("QMenu").color(QPalette::Window).rgba(), sDark.mElement)
                 << "a combo box's list rows the window's ground";
         }

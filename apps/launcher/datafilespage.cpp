@@ -31,6 +31,7 @@
 #include <components/bsa/compressedbsafile.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/qtconversion.hpp>
+#include <components/misc/scalableicon.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/navmeshtool/protocol.hpp>
 #include <components/settings/values.hpp>
@@ -380,7 +381,7 @@ void Launcher::DataFilesPage::populateFileViews(const QString& contentModelName)
     if (!resourcesVfs.isEmpty())
         directories.insert(0, { resourcesVfs });
 
-    QIcon containsDataIcon(":/images/openmw-plugin.png");
+    const QIcon containsDataIcon = Misc::ScalableIcon::load(":/icons/marks/contains-data.svg");
 
     QProgressDialog progressBar("Adding data directories", {}, 0, static_cast<int>(directories.size()), this);
     progressBar.setWindowModality(Qt::WindowModal);

@@ -432,4 +432,7 @@ made only on the user's explicit yes, after which it is added here.
   code rather than Oxygen's PNGs in `mainwindow.ui`, which leave the tree, its fallback icon theme always taken
   and redrawn from Lucide, and an invalid profile name in the look's error ink rather than `Qt::red`. The
   cost is a conflict with an upstream edit to those icons or to the two lines that colour a name.
+- The launcher's contains-data mark from Lucide through `Misc::ScalableIcon` rather than Oxygen's
+  `openmw-plugin.png`, which leaves the tree, and the wizard's four icons redrawn from Lucide in place
+  (`docs/rtx/look.md`). The cost is a conflict with an upstream edit to that line or to those icons.
 

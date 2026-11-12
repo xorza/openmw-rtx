@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <functional>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -7,6 +9,8 @@
 #include <QApplication>
 #include <QColor>
 #include <QComboBox>
+#include <QFrame>
+#include <QIcon>
 #include <QImage>
 #include <QPainter>
 #include <QRgb>
@@ -141,6 +145,13 @@ namespace Graphite
             EXPECT_EQ(at(rising | QStyle::State_On).pixel(sMiddle), sDark.mElementMid);
             EXPECT_EQ(at(rising | QStyle::State_Sunken).pixel(sMiddle), sDark.mElementStrong);
             EXPECT_EQ(at(sEnabled).pixel(sMiddle), sDark.mElementMid);
+
+            // The page in use: the accent's pill at its foot, held off its sides by the corner.
+            const QImage page = at(rising | QStyle::State_On);
+            EXPECT_EQ(page.pixel(sWidth / 2, sHeight - 1), sDark.mAccent);
+            EXPECT_EQ(page.pixel(sWidth / 2, sHeight - 4), sDark.mElementMid);
+            EXPECT_EQ(at(rising | QStyle::State_MouseOver).pixel(sWidth / 2, sHeight - 1), sDark.mElementMid)
+                << "a pill on a page not in use";
         }
 
         /// **A field is `#454545` behind the soft edge, which the focus turns the accent's at the same
@@ -304,21 +315,44 @@ namespace Graphite
             EXPECT_EQ(menu.pixel(sEdge), blended(borderMid(sDark), sDark.mElement));
         }
 
-        /// **A view's row**: the selection's tint over what is under it, `#454545` under the pointer, and
-        /// nothing at rest.
-        TEST_F(GraphiteStyleTest, aSelectedRowIsTheTintAndAHoveredOneTheMiddleRung)
+        /// **A selected row is a fill and the accent's pill at its start**: `#454545`, `#525252` under the
+        /// pointer, the pill 3 px across held 6 px off the row's ends and drawn by the row's first cell
+        /// alone; a row under the pointer `#454545`, and nothing at rest.
+        TEST_F(GraphiteStyleTest, aSelectedRowIsAFillAndTheAccentsPillAtItsStart)
         {
-            const auto at = [&](QStyle::State state) {
-                const QStyleOptionViewItem option = optionOf<QStyleOptionViewItem>(state);
+            const auto at = [&](QStyle::State state,
+                                QStyleOptionViewItem::ViewItemPosition position = QStyleOptionViewItem::OnlyOne) {
+                QStyleOptionViewItem option = optionOf<QStyleOptionViewItem>(state);
+                option.viewItemPosition = position;
                 return rendered(
                     [&](QPainter& painter) {
                         mStyle.drawPrimitive(QStyle::PE_PanelItemViewItem, &option, &painter, nullptr);
                     },
                     sWidth, sHeight, sGround);
             };
-            EXPECT_EQ(at(sEnabled | QStyle::State_Selected).pixel(sMiddle), blended(selectionWash(sDark), sGround));
+            const QImage selected = at(sEnabled | QStyle::State_Selected);
+            EXPECT_EQ(selected.pixel(sMiddle), sDark.mElementMid);
+            EXPECT_EQ(selected.pixel(1, sHeight / 2), sDark.mAccent);
+            EXPECT_EQ(selected.pixel(4, sHeight / 2), sDark.mElementMid) << "a pill wider than 3";
+            EXPECT_EQ(selected.pixel(1, 2), sDark.mElementMid) << "a pill reaching the row's end";
+            EXPECT_EQ(
+                at(sEnabled | QStyle::State_Selected | QStyle::State_MouseOver).pixel(sMiddle), sDark.mElementStrong);
+            EXPECT_EQ(at(sEnabled | QStyle::State_Selected, QStyleOptionViewItem::Middle).pixel(1, sHeight / 2),
+                sDark.mElementMid)
+                << "a pill in a row's middle cell";
             EXPECT_EQ(at(sEnabled | QStyle::State_MouseOver).pixel(sMiddle), sDark.mElementMid);
             EXPECT_EQ(at(sEnabled).pixel(sMiddle), sGround);
+
+            QStyleOptionViewItem item = optionOf<QStyleOptionViewItem>(sEnabled);
+            const QSize fusion
+                = mStyle.baseStyle()->sizeFromContents(QStyle::CT_ItemViewItem, &item, QSize(40, 16), nullptr);
+            EXPECT_EQ(
+                mStyle.sizeFromContents(QStyle::CT_ItemViewItem, &item, QSize(40, 16), nullptr), fusion + QSize(6, 8))
+                << "a row 4 px above and below, and as wide again as its text moves in";
+            item.text = QStringLiteral("Morrowind.esm");
+            EXPECT_EQ(mStyle.subElementRect(QStyle::SE_ItemViewItemText, &item, nullptr),
+                mStyle.baseStyle()->subElementRect(QStyle::SE_ItemViewItemText, &item, nullptr).adjusted(6, 0, 0, 0));
+            EXPECT_EQ(mStyle.pixelMetric(QStyle::PM_HeaderMargin, nullptr, nullptr), 8);
         }
 
         /// **A progress bar is `#454545` filled with the accent as far as it came**: half of 80 pixels is
@@ -405,9 +439,11 @@ namespace Graphite
                 << "a track behind the thumb";
         }
 
-        /// **A dialog's buttons are their words**, and disabled text is never dithered or etched.
+        /// **A dialog's buttons are their words**, disabled text is never dithered or etched, and a mnemonic
+        /// is underlined only while Alt is held.
         TEST_F(GraphiteStyleTest, aDialogsButtonsCarryNoIcons)
         {
+            EXPECT_EQ(mStyle.styleHint(QStyle::SH_UnderlineShortcut, nullptr, nullptr, nullptr), 0);
             EXPECT_EQ(mStyle.styleHint(QStyle::SH_DialogButtonBox_ButtonsHaveIcons, nullptr, nullptr, nullptr), 0);
             EXPECT_EQ(mStyle.styleHint(QStyle::SH_DitherDisabledText, nullptr, nullptr, nullptr), 0);
             EXPECT_EQ(mStyle.styleHint(QStyle::SH_EtchDisabledText, nullptr, nullptr, nullptr), 0);
@@ -425,9 +461,13 @@ namespace Graphite
             {
                 const QSize contents(40, option.fontMetrics.height());
                 EXPECT_EQ(mStyle.sizeFromContents(type, &option, contents, nullptr).height(), row) << type;
-                EXPECT_EQ(mStyle.sizeFromContents(type, &option, QSize(40, 3 * row), nullptr).height(),
-                    mStyle.baseStyle()->sizeFromContents(type, &option, QSize(40, 3 * row), nullptr).height())
-                    << type << ": a content taller than the row kept";
+                if (type != QStyle::CT_SpinBox)
+                    EXPECT_EQ(mStyle.sizeFromContents(type, &option, QSize(40, 3 * row), nullptr).height(),
+                        mStyle.baseStyle()->sizeFromContents(type, &option, QSize(40, 3 * row), nullptr).height())
+                        << type << ": a content taller than the row kept";
+                else
+                    EXPECT_EQ(mStyle.sizeFromContents(type, &option, QSize(40, row), nullptr).height(), row)
+                        << "a spin box's line edit, already a row, taken past one by Fusion's frame";
             }
             EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_CheckBox, &option, QSize(40, 10), nullptr),
                 mStyle.baseStyle()->sizeFromContents(QStyle::CT_CheckBox, &option, QSize(40, 10), nullptr))
@@ -515,6 +555,57 @@ namespace Graphite
             };
             grown(QStyle::CT_ComboBox, combo, QStyle::CC_ComboBox, QStyle::SC_ComboBoxEditField);
             grown(QStyle::CT_SpinBox, spin, QStyle::CC_SpinBox, QStyle::SC_SpinBoxEditField);
+        }
+
+        /// **Layouts sit on palantir's grid**, 12 px at an edge and 8 between widgets, and **a rule is the soft
+        /// edge**, one pixel across its frame's middle, either way round.
+        TEST_F(GraphiteStyleTest, layoutsSitOnTheGridAndARuleIsTheSoftEdge)
+        {
+            for (const QStyle::PixelMetric margin : { QStyle::PM_LayoutLeftMargin, QStyle::PM_LayoutTopMargin,
+                     QStyle::PM_LayoutRightMargin, QStyle::PM_LayoutBottomMargin })
+                EXPECT_EQ(mStyle.pixelMetric(margin, nullptr, nullptr), 12) << margin;
+            EXPECT_EQ(mStyle.pixelMetric(QStyle::PM_LayoutHorizontalSpacing, nullptr, nullptr), 8);
+            EXPECT_EQ(mStyle.pixelMetric(QStyle::PM_LayoutVerticalSpacing, nullptr, nullptr), 8);
+
+            const auto ruled = [&](QFrame::Shape shape) {
+                QStyleOptionFrame option = optionOf<QStyleOptionFrame>(sEnabled);
+                option.frameShape = shape;
+                return rendered(
+                    [&](QPainter& painter) { mStyle.drawControl(QStyle::CE_ShapedFrame, &option, &painter, nullptr); },
+                    sWidth, sHeight, sGround);
+            };
+            const QRgb rule = blended(borderSoft(sDark), sGround);
+            const QImage across = ruled(QFrame::HLine);
+            EXPECT_EQ(across.pixel(sWidth / 2, (sHeight - 1) / 2), rule);
+            EXPECT_EQ(across.pixel(sWidth / 2, (sHeight - 1) / 2 + 1), sGround);
+            const QImage down = ruled(QFrame::VLine);
+            EXPECT_EQ(down.pixel((sWidth - 1) / 2, sHeight / 2), rule);
+            EXPECT_EQ(down.pixel((sWidth - 1) / 2 + 1, sHeight / 2), sGround);
+        }
+
+        /// **A message box's icon is a Lucide glyph in the ink of what it says**: a question and a notice in
+        /// the text's, a warning in the warning's, a failure in the error ink, and any of them disabled in the
+        /// disabled ink; every solid pixel of one drawn at 48 px is that ink.
+        TEST_F(GraphiteStyleTest, aMessageBoxsIconIsAGlyphInTheInkOfWhatItSays)
+        {
+            const auto inkOf = [&](QStyle::StandardPixmap icon, QIcon::Mode mode) {
+                const QImage drawn = mStyle.standardIcon(icon, nullptr, nullptr)
+                                         .pixmap(48, 48, mode)
+                                         .toImage()
+                                         .convertToFormat(QImage::Format_ARGB32);
+                std::vector<QRgb> inks;
+                for (int y = 0; y < drawn.height(); ++y)
+                    for (int x = 0; x < drawn.width(); ++x)
+                        if (qAlpha(drawn.pixel(x, y)) == 255
+                            && std::find(inks.begin(), inks.end(), drawn.pixel(x, y)) == inks.end())
+                            inks.push_back(drawn.pixel(x, y));
+                return inks;
+            };
+            EXPECT_EQ(inkOf(QStyle::SP_MessageBoxQuestion, QIcon::Normal), std::vector<QRgb>{ sDark.mText });
+            EXPECT_EQ(inkOf(QStyle::SP_MessageBoxInformation, QIcon::Normal), std::vector<QRgb>{ sDark.mText });
+            EXPECT_EQ(inkOf(QStyle::SP_MessageBoxWarning, QIcon::Normal), std::vector<QRgb>{ sDark.mWarning });
+            EXPECT_EQ(inkOf(QStyle::SP_MessageBoxCritical, QIcon::Normal), std::vector<QRgb>{ errorInk(sDark) });
+            EXPECT_EQ(inkOf(QStyle::SP_MessageBoxWarning, QIcon::Disabled), std::vector<QRgb>{ sDark.mTextDisabled });
         }
     }
 }

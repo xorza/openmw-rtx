@@ -57,16 +57,21 @@ namespace Graphite
                     << name;
         }
 
-        /// **The toolbar's pages are templates `Misc::ScalableIcon` recolours**, in its own ink, so they
-        /// draw in the palette's text whatever it is: every solid pixel of one drawn under the look is
-        /// `mText`.
-        TEST(GraphiteIconsTest, thePagesAreTemplatesTheScalableIconRecolours)
+        /// **The toolbar's pages, the data mark and the wizard's icons are templates `Misc::ScalableIcon`
+        /// recolours**, in its own ink, so they draw in the palette's text whatever it is: every solid pixel
+        /// of one drawn under the look is `mText`.
+        TEST(GraphiteIconsTest, theTemplateIconsAreOnesTheScalableIconRecolours)
         {
             offscreenApplication();
             apply();
-            for (const char* name : { "data", "display", "settings", "import" })
+            const std::filesystem::path wizard
+                = std::filesystem::path(OPENMW_PROJECT_SOURCE_DIR) / "files/wizard/icons";
+            for (const std::filesystem::path& file :
+                { sIcons / "pages/data.svg", sIcons / "pages/display.svg", sIcons / "pages/settings.svg",
+                    sIcons / "pages/import.svg", sIcons / "marks/contains-data.svg", wizard / "folder.svg",
+                    wizard / "dollar.svg", wizard / "system-installer.svg", wizard / "preferences-desktop-locale.svg" })
             {
-                const std::filesystem::path file = sIcons / "pages" / (std::string(name) + ".svg");
+                const std::string name = Files::pathToUnicodeString(file.filename());
                 const QString svg = contentOf(file);
                 EXPECT_TRUE(svg.startsWith(QStringLiteral("<?xml"))) << name << ": the icon loads as a plain file";
                 EXPECT_EQ(coloursOf(svg), std::vector<std::string>{ "#4d4d4d" }) << name;
