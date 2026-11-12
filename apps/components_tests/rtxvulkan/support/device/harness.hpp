@@ -98,11 +98,11 @@ namespace Rtx::Testing
 
     /// Where a device this suite makes keeps what it compiled, and what that cache is keyed on.
     ///
-    /// **The user's own cache directory, the same one the game uses.** The whole point of keeping a
-    /// pipeline cache is that a later process finds what an earlier one compiled, and a suite with a
-    /// directory of its own is a suite that pays for a cold compile the game has already paid for.
-    /// `PipelineCache` keys the file on the driver and on the shaders, so the two share it only
-    /// while they agree about both.
+    /// **The suite's own, in its build folder**, kept across runs so a run compiles what changed: the
+    /// player's cache under the home folder made what a test compiled, and how long it took, depend on
+    /// what a game on the machine had left there. `PipelineCache` keys the file on the driver and on the
+    /// shaders. **None in a death test's child**, which read the suite's 118 MB file and hashed it, a
+    /// fifth of its start, for a statement that compiles nothing.
     ///
     /// **And the driver's own cache stays on, unlike a measuring process's** — `RtxRenderer` says
     /// what a pipeline out of a cache draws differently. A suite holds its pictures against values

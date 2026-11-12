@@ -23,15 +23,21 @@ namespace Rtx::Testing
     /// **gtest runs the whole binary again in the child**, its global set-up included, and says so
     /// only through a flag of its own that it tells user code not to read. A set-up that builds what
     /// every test shares — `rtx-gpu-tests`'s renderer, three and a half seconds — would build it
-    /// again for a statement that aborts. `expectDies` sets this before its child starts; the parent
-    /// keeps it too and never reads it again, having set itself up before any test ran.
+    /// again for a statement that aborts. `expectDies` sets this before its child starts, and the parent
+    /// keeps it too.
     inline constexpr const char* sDeathChildVariable = "RTX_TESTS_DEATH_CHILD";
 
-    /// Whether this process is a death test's child, `sDeathChildVariable`.
-    inline bool inDeathChild()
-    {
+    /// **Whether this process started as a death test's child**, `sDeathChildVariable` read once as it
+    /// starts: the parent holds the variable as well from its first death test on, and a question asked
+    /// after that, as what a device made later keeps (`getPipelineCacheSpec`), would take it for one.
+    inline const bool sStartedAsDeathChild = [] {
         const char* const value = std::getenv(sDeathChildVariable);
         return value != nullptr && std::string_view(value) == "1";
+    }();
+
+    inline bool inDeathChild()
+    {
+        return sStartedAsDeathChild;
     }
 
     /// Expects `statement` to end the process with `message`, the way a failed `assert` does.

@@ -1,12 +1,14 @@
 #include <algorithm>
 #include <cstddef>
+#include <memory>
 #include <span>
 #include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
 
-#include <apps/components_tests/rtxvulkan/support/instanceobstacle.hpp>
+#include <apps/components_tests/rtxvulkan/support/testinstance.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/loaderlayers.hpp>
@@ -22,12 +24,12 @@ namespace Rtx
         /// the shared harness always asks for validation.
         TEST(RtxInstanceTest, objectNamesDoNotNeedTheValidationLayers)
         {
-            if (const std::string obstacle = Testing::findInstanceObstacle(); !obstacle.empty())
-                GTEST_SKIP() << obstacle;
-
             // Its own instance rather than the harness's, because what is being asserted is what an
             // unvalidated one carries — and the harness's comes with a device this does not need.
-            const Instance instance{ ValidationOptions{}, std::span<const char* const>{} };
+            const Result<std::unique_ptr<Instance>, std::string> made = Testing::makeInstance(ValidationOptions{});
+            if (!made.isOk())
+                GTEST_SKIP() << made.error();
+            const Instance& instance = *made.value();
 
             EXPECT_EQ(instance.getValidationLog(), nullptr);
             EXPECT_EQ(instance.hasDebugUtils(), sDebugNames);

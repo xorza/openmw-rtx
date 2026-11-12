@@ -183,7 +183,7 @@ set(RTX_TEST_SUPPORT
     rtx/support/guiinstance.cpp
     rtx/support/ownedtexture.cpp
     rtx/support/spritelightbake.cpp
-    rtxvulkan/support/instanceobstacle.cpp
+    rtxvulkan/support/testinstance.cpp
 )
 set(RTX_TEST_SUPPORT_HEADERS
     rtx/support/bound.hpp
@@ -211,7 +211,7 @@ set(RTX_TEST_SUPPORT_HEADERS
     rtx/support/testplatform.hpp
     rtx/support/testtexture.hpp
     rtx/support/wavemoments.hpp
-    rtxvulkan/support/instanceobstacle.hpp
+    rtxvulkan/support/testinstance.hpp
 )
 target_sources(components-tests PRIVATE ${RTX_TEST_SUPPORT} PRIVATE FILE_SET HEADERS FILES ${RTX_TEST_SUPPORT_HEADERS})
 

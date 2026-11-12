@@ -17,7 +17,8 @@
 
 #include <apps/components_tests/rtx/support/bound.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <apps/components_tests/rtxvulkan/support/instanceobstacle.hpp>
+#include <apps/components_tests/rtxvulkan/support/testinstance.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -79,9 +80,6 @@ namespace Rtx::Testing
 
     std::unique_ptr<Harness> makeHarness(bool validation)
     {
-        if (const std::string obstacle = findInstanceObstacle(); !obstacle.empty())
-            throw std::runtime_error(obstacle);
-
         // Tests provoke errors deliberately and assert on them; aborting would take the suite
         // down with the first one. Synchronization validation is **the same switch
         // `describeRenderer` sets, for the same reason**: a test that drives Vulkan directly
@@ -94,8 +92,12 @@ namespace Rtx::Testing
             .mAbortOnError = false,
         };
 
+        Result<std::unique_ptr<Instance>, std::string> instance = makeInstance(options);
+        if (!instance.isOk())
+            throw std::runtime_error(instance.error());
+
         auto harness = std::make_unique<Harness>();
-        harness->mInstance = std::make_unique<Instance>(options, std::span<const char* const>{});
+        harness->mInstance = std::move(instance.value());
 
         std::uint32_t count = 0;
         if (vkEnumeratePhysicalDevices(harness->mInstance->getHandle(), &count, nullptr) != VK_SUCCESS || count == 0)
@@ -236,9 +238,8 @@ namespace Rtx::Testing
 
     PipelineCacheSpec getPipelineCacheSpec()
     {
-        // **The suite's own, in its build folder**, kept across runs so a run compiles what changed:
-        // the player's cache under the home folder made what a test compiled, and how long it took,
-        // depend on what a game on the machine had left there.
+        if (inDeathChild())
+            return PipelineCacheSpec{};
         return PipelineCacheSpec{ .mDirectory = std::filesystem::path(OPENMW_RTX_TEST_PIPELINE_CACHE_DIR) };
     }
 

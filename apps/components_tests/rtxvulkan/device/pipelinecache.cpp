@@ -2,6 +2,8 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -15,6 +17,7 @@
 
 #include <volk.h>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
@@ -78,6 +81,23 @@ namespace Rtx
                 return names;
             }
         };
+
+        /// **A death test's child keeps no pipeline cache, and its parent keeps the suite's** after it, as
+        /// before: the parent holds the variable that marks a child from its first death test on, and
+        /// read again there, it took the parent for one and every device made later for a child's.
+        TEST_F(RtxPipelineCacheTest, aDeathTestsChildKeepsNoCacheAndItsParentStillKeepsTheSuites)
+        {
+            Testing::expectDies(
+                [] {
+                    std::fputs(Testing::getPipelineCacheSpec().mDirectory.empty() ? "a child keeps no cache\n"
+                                                                                  : "a child keeps a cache\n",
+                        stderr);
+                    std::abort();
+                },
+                "a child keeps no cache");
+            EXPECT_FALSE(Testing::inDeathChild());
+            EXPECT_FALSE(Testing::getPipelineCacheSpec().mDirectory.empty());
+        }
 
         /// A cache saved while it stands is on the disk before it goes, and a save with nothing
         /// compiled since writes nothing, then or as it goes.
