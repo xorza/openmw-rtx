@@ -12,7 +12,8 @@ from omw.system import (
     UPSTREAM,
     Refusal,
     environment_key,
-    fork_files,
+    fetch_upstream,
+    files_upstream_lacks,
     on_path,
     parse_set_output,
     refuse_unsupported,
@@ -46,7 +47,7 @@ class SystemTest(unittest.TestCase):
             (root / "extern" / "vendored.cpp").write_text("")
             git("add", ".")
             git("commit", "-q", "-m", "upstream")
-            git("update-ref", f"refs/remotes/{UPSTREAM}", "HEAD")
+            git("update-ref", UPSTREAM, "HEAD")
             (root / "committed.cpp").write_text("")
             git("add", "committed.cpp")
             git("commit", "-q", "-m", "fork")
@@ -54,15 +55,27 @@ class SystemTest(unittest.TestCase):
             (root / "extern" / "added.cpp").write_text("")
             (root / "upstream.cpp").write_text("changed")
 
-            self.assertEqual(fork_files(root), {"committed.cpp", "new.cpp"})
+            self.assertEqual(files_upstream_lacks(root), {"committed.cpp", "new.cpp"})
 
-    def test_a_tree_without_upstream_is_refused_with_how_to_fetch_it(self):
+    def test_upstreams_master_is_fetched_into_the_drivers_own_ref_and_a_failed_fetch_is_refused(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            subprocess.run(["git", "-C", root, "init", "-q"], check=True, capture_output=True)
-            with self.assertRaises(Refusal) as refused:
-                fork_files(root)
-            self.assertIn("git fetch upstream", str(refused.exception))
+            alone = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+            source, root = Path(folder) / "upstream", Path(folder) / "fork"
+
+            def git(*args: str) -> str:
+                return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                                      check=True, capture_output=True, text=True, env=alone).stdout.strip()
+
+            git("init", "-q", "-b", "master", str(source))
+            git("-C", str(source), "commit", "-q", "--allow-empty", "-m", "upstream")
+            git("init", "-q", str(root))
+            with mock.patch.dict(os.environ, alone):
+                fetch_upstream(root, str(source))
+                self.assertEqual(git("-C", str(root), "rev-parse", UPSTREAM), git("-C", str(source), "rev-parse", "HEAD"))
+                self.assertEqual(git("-C", str(root), "remote"), "", "no remote is configured")
+                with self.assertRaisesRegex(Refusal, "upstream's master, which tells the fork's files from upstream's, "
+                                                     "could not be fetched from .*absent"):
+                    fetch_upstream(root, str(Path(folder) / "absent"))
 
     def test_linux_and_windows_are_taken_and_any_other_system_is_refused_before_any_verb(self):
         refuse_unsupported("linux")

@@ -20,8 +20,11 @@ SYSTEMS = {"linux": "linux", "win32": "windows"}
 WINDOWS = sys.platform == "win32"
 SYSTEM = SYSTEMS.get(sys.platform, "")
 EXE = ".exe" if WINDOWS else ""
-# Upstream's branch, which the fork merges: what its tree has at the merge base is upstream's code.
-UPSTREAM = "upstream/master"
+# Upstream's branch, which the fork merges: what its tree has at the merge base is upstream's code. **Fetched into a
+# ref of the driver's own at every ask** (`fetch_upstream`): no remote for a clone to configure, and never stale, as
+# a ref fetched once and merged past named the files upstream added since the fork's own.
+UPSTREAM_URL = "https://github.com/OpenMW/openmw.git"
+UPSTREAM = "refs/omw/upstream"
 # Set by GitHub Actions, as by every CI service: CI checks what the desk rewrites.
 CI = os.environ.get("CI", "").lower() in ("true", "1")
 # The tree's own C++, which the formatting and the file names are checked over: `extern/` is vendored.
@@ -197,20 +200,31 @@ def working_tree_files(*pathspecs: str, root: Path = ROOT) -> list[str]:
     return [name for name in listed if (root / name).is_file()]
 
 
-@functools.cache
-def fork_files(root: Path = ROOT) -> frozenset[str]:
-    """**The fork's own files, which the fork's checks hold**: the working tree's that upstream's tree lacks
-    at its merge base with `HEAD`, from the root, `/`-separated, the vendored `extern/` aside. Upstream's
-    are upstream's to change. Derived and not listed: a list by folder missed every file the fork adds
-    beside upstream's, and a file the fork adds anywhere is its own the moment it exists."""
+def fetch_upstream(root: Path = ROOT, url: str = UPSTREAM_URL) -> None:
+    """Upstream's master into `UPSTREAM`, what it lacks of it fetched."""
     try:
-        base = output(["git", "-C", root, "merge-base", "HEAD", UPSTREAM]).strip()
+        output(["git", "-C", root, "fetch", "--quiet", "--no-tags", url, f"+master:{UPSTREAM}"])
     except subprocess.CalledProcessError as error:
-        raise Refusal(f"no `{UPSTREAM}` to tell the fork's files from upstream's: "
-                      "`git remote add upstream https://github.com/OpenMW/openmw.git` and `git fetch upstream`") from error
+        raise Refusal(f"upstream's master, which tells the fork's files from upstream's, could not be fetched from "
+                      f"{url}: {error.stderr.strip()}") from error
+
+
+def files_upstream_lacks(root: Path = ROOT) -> frozenset[str]:
+    """The working tree's files that `UPSTREAM`'s tree lacks at its merge base with `HEAD`, from the root,
+    `/`-separated, the vendored `extern/` aside."""
+    base = output(["git", "-C", root, "merge-base", "HEAD", UPSTREAM]).strip()
     upstream = set(output(["git", "-C", root, "ls-tree", "-r", "-z", "--name-only", base]).split("\0"))
     return frozenset(name for name in working_tree_files(":(exclude)extern/", root=root) if name not in upstream)
 
+
+@functools.cache
+def fork_files(root: Path = ROOT) -> frozenset[str]:
+    """**The fork's own files, which the fork's checks hold**: those upstream's tree lacks (`files_upstream_lacks`)
+    against upstream's master as it stands now (`fetch_upstream`). Upstream's are upstream's to change. Derived and
+    not listed: a list by folder missed every file the fork adds beside upstream's, and a file the fork adds
+    anywhere is its own the moment it exists."""
+    fetch_upstream(root)
+    return files_upstream_lacks(root)
 
 def user_and_group() -> str:
     """This process's user and group as `uid:gid`, the form `chown` and `docker --user` take.
