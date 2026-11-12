@@ -53,6 +53,25 @@ namespace Rtx
         Markers,
     };
 
+    /// Whether the host reads what a buffer of `kind` holds (`Buffer::map`): cached memory and AMD's uncached kind,
+    /// and never write-combined memory, which a read crawls through, or memory the host cannot see. **Every kind
+    /// answers**, as it answers what memory it is made in: a kind added without saying was a read asserted away.
+    constexpr bool readsOnHost(const BufferKind kind)
+    {
+        switch (kind)
+        {
+            case BufferKind::ReadBack:
+            case BufferKind::Markers:
+                return true;
+            case BufferKind::DeviceLocal:
+            case BufferKind::HostWritten:
+            case BufferKind::Staging:
+                return false;
+        }
+
+        return false;
+    }
+
     /// A `VkBuffer` and the allocation behind it.
     class Buffer
     {
@@ -173,11 +192,11 @@ namespace Rtx
         /// write of it and before their next. One buffer then serves every frame.
         void updateInline(VkCommandBuffer commands, const BufferUse& readers, std::span<const std::byte> bytes) const;
 
-        /// The whole buffer in main memory, for a caller that reads it back. Only a read-back
-        /// buffer's, which is asserted: the other two host-visible kinds are write-combined.
+        /// The whole buffer in main memory, for a caller that reads it back: a kind the host reads alone
+        /// (`readsOnHost`), which is asserted.
         void* map() const
         {
-            assert(mKind == BufferKind::ReadBack && "a read of memory that is written and never read back");
+            assert(readsOnHost(mKind) && "a read of memory that is written and never read back");
 
             return mMemory.map();
         }

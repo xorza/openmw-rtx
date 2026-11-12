@@ -27,6 +27,14 @@ namespace Rtx
 {
     namespace
     {
+        // **The host reads the cached kind and AMD's uncached one**, which the buffer markers read after a hang,
+        // and no other: the staging kind is write-combined, and the other two are video memory.
+        static_assert(readsOnHost(BufferKind::ReadBack));
+        static_assert(readsOnHost(BufferKind::Markers));
+        static_assert(!readsOnHost(BufferKind::Staging));
+        static_assert(!readsOnHost(BufferKind::HostWritten));
+        static_assert(!readsOnHost(BufferKind::DeviceLocal));
+
         struct RtxBufferTest : Testing::DeviceTest
         {
         };
