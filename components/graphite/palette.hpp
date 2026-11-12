@@ -52,7 +52,13 @@ namespace Graphite
         QRgb mSuccess;
     };
 
-    /// palantir's `Palette::DARK` at `67955d19f`, with Ayu Graphite's `error`, `warning` and `success`.
+    /// Morrowind's own leather: the mean of the main menu's art, `textures/menu_morrowind.dds` in
+    /// `Morrowind.bsa`, the brown the game's title stands on.
+    inline constexpr QRgb sMenuLeather = 0xff764316;
+
+    /// palantir's `Palette::DARK` at `67955d19f`, with Ayu Graphite's `error`, `warning` and `success`, and
+    /// the accent Morrowind's leather: `sMenuLeather` lifted at its own hue until it reads 3:1 on a field,
+    /// as a focused edge must (`liftedToClear`, which a test holds it to).
     inline constexpr Palette sDark{
         .mText = 0xffebebeb,
         .mTextMuted = 0xffb2b2b2,
@@ -62,8 +68,8 @@ namespace Graphite
         .mElement = 0xff383838,
         .mElementMid = 0xff454545,
         .mElementStrong = 0xff525252,
-        .mBorderFocused = 0xffd1ff02,
-        .mAccent = 0xffd1ff02,
+        .mBorderFocused = 0xffbc8458,
+        .mAccent = 0xffbc8458,
         .mOnAccent = 0xff141414,
         .mShadow = 0x80000000,
         .mError = 0xffff8b8c,

@@ -3,7 +3,9 @@
 #include <cassert>
 
 #include <QApplication>
+#include <QColor>
 #include <QFont>
+#include <QPalette>
 #include <QStyleHints>
 
 #include "palette.hpp"
@@ -17,6 +19,11 @@ namespace Graphite
         // The application takes the style and deletes it with itself.
         QApplication::setStyle(new Style);
         QApplication::setPalette(qtPaletteOf(sDark));
+        // A menu's ground is palantir's floating panel, `mElement`, and a combo box's list takes a menu's
+        // palette and fills each row with its window colour.
+        QPalette menu = qtPaletteOf(sDark);
+        menu.setColor(QPalette::Window, QColor::fromRgba(sDark.mElement));
+        QApplication::setPalette(menu, "QMenu");
         QFont font = QApplication::font();
         font.setPixelSize(sBodyPixels);
         QApplication::setFont(font);

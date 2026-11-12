@@ -27,6 +27,8 @@ namespace Graphite
             EXPECT_EQ(style->baseStyle()->name(), QStringLiteral("fusion"));
             EXPECT_EQ(QApplication::palette(), qtPaletteOf(sDark));
             EXPECT_EQ(QApplication::font().pixelSize(), 16);
+            EXPECT_EQ(QApplication::palette("QMenu").color(QPalette::Window).rgba(), sDark.mElement)
+                << "a combo box's list rows the window's ground";
         }
     }
 }

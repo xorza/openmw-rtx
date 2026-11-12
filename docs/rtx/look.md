@@ -5,12 +5,15 @@ and the tests in `apps/components_tests/graphite/` hold each to what it must cle
 
 - **The Qt programs wear palantir's dark palette**, `Palette::DARK` at palantir's `67955d19f`: Ayu Graphite's
   semantic layer with palantir's moves, a ground a rung under Ayu Graphite's `bg`, a muted ink lifted to read
-  4.5:1 on a field, a lime accent. Ayu Graphite's `error`, `warning` and `success` stand beside it, as
+  4.5:1 on a field. Ayu Graphite's `error`, `warning` and `success` stand beside it, as
   palantir's palette names none. What derives from the table is derived in code, palantir's way: the border
   ladder, the selection's tint and the default button's states. The tint is solved in encoded sRGB, where
   `QPainter` blends it, rather than in linear light, where palantir's renderer does. Refused: a target of
   the ayu-graphite repository writing the table, whose semantic layer is not this look; a build reaching
   into palantir's sources.
+- **The accent is Morrowind's leather**, by the user's decision, in place of palantir's lime: the mean of the main
+  menu's art (`menu_morrowind.dds`), `#764316`, lifted at its own hue until a focused edge reads 3:1 on a field,
+  `#bc8458`, as the error ink is lifted. Its dark ink reads 5.77:1 on it.
 - **Always dark, on every system**, by the user's decision: the launcher and the wizard choose the look
   (`Platform::Look::Graphite`), and the editor keeps upstream's, which on Windows follows the system's dark
   mode; its tables and scene colours were made for upstream's palettes. Fusion under the palette, and the
@@ -45,4 +48,12 @@ and the tests in `apps/components_tests/graphite/` hold each to what it must cle
   glyphs left black, unreadable on the ground; Oxygen's PNGs beside line icons, two looks on one toolbar.
 - **A dialog's buttons are their words**: no stock icons beside them, the platform's look and not this one.
 - **An invalid name is the error ink**, where the launcher wrote it in `Qt::red`, 2.40:1 on a field.
+- **A field's text starts 8 px in**, palantir's field inset, in a line edit, a spin box and a combo box alike; a
+  combo box and a spin box grow by what the inset takes from Fusion's field, so the text Fusion sized them for
+  still fits.
+- **A spin box's arrows are one column of 20 px**, the up arrow above the down, each half lit under the pointer,
+  soft hairlines beside the field and between the two.
+- **A combo box's list is a menu**: the menus' palette is the floating panel's ground, which the list fills each
+  row with, and the list leaves the menu's panel showing; a menu pads 4 px above and below, its separator the
+  soft edge held off its sides.
 

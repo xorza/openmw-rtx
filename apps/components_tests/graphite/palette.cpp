@@ -84,22 +84,25 @@ namespace Graphite
         }
 
         /// **The derived colours, each worked out by hand from the table.** The ladder is `#b2b2b2` at
-        /// 46, 56 and 89 of 255. The wash is the accent at 58: over `#454545` each channel is
-        /// (c · 58 + 69 · 197) / 255, (209, 255, 2) to (101, 111, 54), where `#ebebeb` reads 4.54:1,
-        /// and at 59 it reads under 4.5:1. The accent button moves 12 % and 24 % of the way to white in
-        /// linear light, `#d7ff61` and `#ddff87`. The error ink is `#ff8b8c` lifted to `#ff9494`.
+        /// 46, 56 and 89 of 255. The accent is the main menu's leather `#764316` lifted at its hue to
+        /// `#bc8458`, 3.00:1 on `#454545`, where a step less misses it. The wash is the accent at its cap of
+        /// 61: over `#454545` each channel is (c · 61 + 69 · 194) / 255, (188, 132, 88) to (97, 84, 74),
+        /// where `#ebebeb` reads past 4.5:1. The accent button moves 12 % and 24 % of the way to white in
+        /// linear light, `#c69a7d` and `#cfad98`. The error ink is `#ff8b8c` lifted to `#ff9494`.
         TEST(GraphitePaletteTest, theDerivedColoursAreTheTablesWorkedOut)
         {
             EXPECT_EQ(borderSoft(sDark), qRgba(0xb2, 0xb2, 0xb2, 46));
             EXPECT_EQ(borderMid(sDark), qRgba(0xb2, 0xb2, 0xb2, 56));
             EXPECT_EQ(borderStrong(sDark), qRgba(0xb2, 0xb2, 0xb2, 89));
 
-            EXPECT_EQ(selectionWash(sDark), qRgba(0xd1, 0xff, 0x02, 58));
-            EXPECT_EQ(over(selectionWash(sDark), sDark.mElementMid), qRgb(101, 111, 54));
-            EXPECT_LT(contrast(sDark.mText, over(qRgba(0xd1, 0xff, 0x02, 59), sDark.mElementMid)), 4.5);
+            EXPECT_EQ(liftedToClear(sMenuLeather, sDark.mElementMid, 3.0), sDark.mAccent);
+            EXPECT_EQ(sDark.mBorderFocused, sDark.mAccent);
 
-            EXPECT_EQ(accentHovered(sDark), qRgb(0xd7, 0xff, 0x61));
-            EXPECT_EQ(accentPressed(sDark), qRgb(0xdd, 0xff, 0x87));
+            EXPECT_EQ(selectionWash(sDark), qRgba(0xbc, 0x84, 0x58, sSelectionMost));
+            EXPECT_EQ(over(selectionWash(sDark), sDark.mElementMid), qRgb(97, 84, 74));
+            EXPECT_GE(contrast(sDark.mText, over(selectionWash(sDark), sDark.mElementMid)), 4.5);
+            EXPECT_EQ(accentHovered(sDark), qRgb(0xc6, 0x9a, 0x7d));
+            EXPECT_EQ(accentPressed(sDark), qRgb(0xcf, 0xad, 0x98));
             EXPECT_EQ(errorInk(sDark), qRgb(0xff, 0x94, 0x94));
         }
 

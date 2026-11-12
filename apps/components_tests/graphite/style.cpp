@@ -2,9 +2,11 @@
 
 #include <gtest/gtest.h>
 
+#include <QAbstractItemView>
 #include <QAbstractSpinBox>
 #include <QApplication>
 #include <QColor>
+#include <QComboBox>
 #include <QImage>
 #include <QPainter>
 #include <QRgb>
@@ -430,6 +432,89 @@ namespace Graphite
             EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_CheckBox, &option, QSize(40, 10), nullptr),
                 mStyle.baseStyle()->sizeFromContents(QStyle::CT_CheckBox, &option, QSize(40, 10), nullptr))
                 << "a check box is no row";
+        }
+
+        /// **A field's text starts 8 px in**, the 2 px a line edit adds inside the rectangle included; a
+        /// field with no frame lies in a spin box or a combo box, which placed it.
+        TEST_F(GraphiteStyleTest, aFieldsTextStartsAtTheFieldsInset)
+        {
+            QStyleOptionFrame framed = optionOf<QStyleOptionFrame>(sEnabled);
+            framed.lineWidth = 1;
+            EXPECT_EQ(mStyle.subElementRect(QStyle::SE_LineEditContents, &framed, nullptr), QRect(6, 1, 68, 22));
+            QStyleOptionFrame bare = framed;
+            bare.lineWidth = 0;
+            EXPECT_EQ(mStyle.subElementRect(QStyle::SE_LineEditContents, &bare, nullptr),
+                mStyle.baseStyle()->subElementRect(QStyle::SE_LineEditContents, &bare, nullptr));
+
+            // A combo box's label, which adds 1 px, and its editor, which adds 2, both at 8, up to the arrow
+            // Fusion places.
+            QStyleOptionComboBox combo = optionOf<QStyleOptionComboBox>(sEnabled);
+            const int arrow
+                = mStyle.subControlRect(QStyle::CC_ComboBox, &combo, QStyle::SC_ComboBoxArrow, nullptr).left();
+            ASSERT_GT(arrow, 7);
+            EXPECT_EQ(mStyle.subControlRect(QStyle::CC_ComboBox, &combo, QStyle::SC_ComboBoxEditField, nullptr),
+                QRect(7, 1, arrow - 7, 22));
+            combo.editable = true;
+            EXPECT_EQ(mStyle.subControlRect(QStyle::CC_ComboBox, &combo, QStyle::SC_ComboBoxEditField, nullptr),
+                QRect(6, 1, arrow - 6, 22));
+        }
+
+        /// **A spin box is a field and a column of 20 px**, its up arrow above its down, each half of a row;
+        /// one that shows no arrows is the field alone.
+        TEST_F(GraphiteStyleTest, aSpinBoxIsAFieldAndAColumnOfTwoArrows)
+        {
+            QStyleOptionSpinBox option = optionOf<QStyleOptionSpinBox>(sEnabled);
+            const auto rectOf = [&](QStyle::SubControl part) {
+                return mStyle.subControlRect(QStyle::CC_SpinBox, &option, part, nullptr);
+            };
+            EXPECT_EQ(rectOf(QStyle::SC_SpinBoxUp), QRect(60, 0, 20, 12));
+            EXPECT_EQ(rectOf(QStyle::SC_SpinBoxDown), QRect(60, 12, 20, 12));
+            EXPECT_EQ(rectOf(QStyle::SC_SpinBoxEditField), QRect(6, 1, 54, 22));
+            EXPECT_EQ(rectOf(QStyle::SC_SpinBoxFrame), QRect(0, 0, sWidth, sHeight));
+            option.buttonSymbols = QAbstractSpinBox::NoButtons;
+            EXPECT_TRUE(rectOf(QStyle::SC_SpinBoxUp).isEmpty());
+            EXPECT_EQ(rectOf(QStyle::SC_SpinBoxEditField), QRect(6, 1, 74, 22));
+        }
+
+        /// **A menu pads 4 px above and below, its separator the soft edge held 4 px off its sides**, and a
+        /// combo box's list leaves the menu's panel showing.
+        TEST_F(GraphiteStyleTest, aMenuPadsItsRowsAndItsSeparatorIsTheSoftEdge)
+        {
+            EXPECT_EQ(mStyle.pixelMetric(QStyle::PM_MenuVMargin, nullptr, nullptr), 4);
+
+            QStyleOptionMenuItem separator = optionOf<QStyleOptionMenuItem>(sEnabled);
+            separator.menuItemType = QStyleOptionMenuItem::Separator;
+            const QImage drawn = rendered(
+                [&](QPainter& painter) { mStyle.drawControl(QStyle::CE_MenuItem, &separator, &painter, nullptr); },
+                sWidth, sHeight, sGround);
+            EXPECT_EQ(drawn.pixel(sWidth / 2, separator.rect.center().y()), blended(borderSoft(sDark), sGround));
+            EXPECT_EQ(drawn.pixel(2, separator.rect.center().y()), sGround);
+            EXPECT_EQ(drawn.pixel(sWidth / 2, separator.rect.center().y() + 1), sGround);
+
+            QComboBox combo;
+            mStyle.polish(&combo);
+            EXPECT_FALSE(combo.view()->viewport()->autoFillBackground());
+        }
+
+        /// **A combo box and a spin box grow by what the inset and the column take from Fusion's field**,
+        /// so the text Fusion sized them for still fits.
+        TEST_F(GraphiteStyleTest, aComboAndASpinBoxGrowByWhatTheirInsetTakes)
+        {
+            QStyleOptionComboBox combo = optionOf<QStyleOptionComboBox>(sEnabled);
+            QStyleOptionSpinBox spin = optionOf<QStyleOptionSpinBox>(sEnabled);
+            const QSize contents(100, 16);
+            const auto grown = [&](QStyle::ContentsType type, auto option, QStyle::ComplexControl control,
+                                   QStyle::SubControl field) {
+                const QSize fusion = mStyle.baseStyle()->sizeFromContents(type, &option, contents, nullptr);
+                option.rect = QRect(QPoint(0, 0), fusion);
+                const int taken = mStyle.baseStyle()->subControlRect(control, &option, field, nullptr).width()
+                    - mStyle.subControlRect(control, &option, field, nullptr).width();
+                EXPECT_GT(taken, 0) << type;
+                EXPECT_EQ(mStyle.sizeFromContents(type, &option, contents, nullptr).width(), fusion.width() + taken)
+                    << type;
+            };
+            grown(QStyle::CT_ComboBox, combo, QStyle::CC_ComboBox, QStyle::SC_ComboBoxEditField);
+            grown(QStyle::CT_SpinBox, spin, QStyle::CC_SpinBox, QStyle::SC_SpinBoxEditField);
         }
     }
 }

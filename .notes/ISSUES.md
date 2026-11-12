@@ -9,3 +9,8 @@
   Windows 11, `RtxPresenterTest.aLostSurfaceIsMadeAgainAndTheFramesGoOn`, `aFrameUnderFifoWaitsForThePresentTwoBeforeIt`
   and `aSuboptimalPresentRebuildsOnceAnExtent` fail as `vkCreateSwapchainKHR` answers `VK_ERROR_FORMAT_NOT_SUPPORTED`;
   the same binary passes all three in the logged-in desktop session.
+
+- **`DetourNavigatorAsyncNavMeshUpdaterTest.repeated_tile_updates_should_be_delayed` fails now and then under
+  ThreadSanitizer**: on CI's `linux-tsan` (run 43133364352) the second post read `stats.mWaiting.mDelayed` as 0
+  where the test expects 49, against a `mMinUpdateInterval` of 250 ms; the run before it on the same tree passed.
+

@@ -8,6 +8,7 @@
 #include <QAbstractSpinBox>
 #include <QColor>
 #include <QComboBox>
+#include <QFrame>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPainterStateGuard>
@@ -44,6 +45,20 @@ namespace Graphite
 
         /// palantir's row padding above and below a control's text, `space.sm`.
         constexpr int sRowPadding = 8;
+
+        /// Where a field's text starts, palantir's field inset `space.sm`, and the 2 px `QLineEdit` and a
+        /// combo box's label already add inside the rectangle the style hands them.
+        constexpr int sFieldInset = 8;
+        constexpr int sEditMargin = 2;
+        constexpr int sLabelMargin = 1;
+
+        /// A spin box's column of two arrows, and the chevron each carries.
+        constexpr int sSpinColumn = 20;
+        constexpr qreal sSpinChevronWidth = 8.0;
+        constexpr qreal sSpinChevronHeight = 4.0;
+
+        /// palantir's menu padding, `space.xs`, above its first row and below its last.
+        constexpr int sMenuPadding = 4;
 
         /// A menu row's inset from its menu's sides, palantir's `space.xs`.
         constexpr int sMenuRowInset = 4;
@@ -184,12 +199,13 @@ namespace Graphite
         };
 
         /// palantir's chevron: three points, the middle one the tip, a fine stroke, centred in `box`.
-        void chevron(QPainter& painter, const QRectF& box, Pointing pointing, QRgb ink)
+        void chevron(QPainter& painter, const QRectF& box, Pointing pointing, QRgb ink, qreal width = sChevronWidth,
+            qreal height = sChevronHeight)
         {
             const QPointF centre = box.center();
             const bool across = pointing == Pointing::Up || pointing == Pointing::Down;
-            const qreal halfWide = (across ? sChevronWidth : sChevronHeight) / 2.0;
-            const qreal halfTall = (across ? sChevronHeight : sChevronWidth) / 2.0;
+            const qreal halfWide = (across ? width : height) / 2.0;
+            const qreal halfTall = (across ? height : width) / 2.0;
             std::array<QPointF, 3> points;
             switch (pointing)
             {
@@ -245,6 +261,40 @@ namespace Graphite
         int rowHeight(const QStyleOption& option)
         {
             return option.fontMetrics.height() + 2 * sRowPadding + 2 * static_cast<int>(sHairline);
+        }
+
+        /// A spin box's parts: the field from its inset, and on the far side a column of `sSpinColumn` split
+        /// into the up arrow above the down, or the field alone where the box shows no arrows.
+        QRect spinBoxRect(const QStyleOptionComplex& option, QStyle::SubControl part)
+        {
+            const auto* spin = qstyleoption_cast<const QStyleOptionSpinBox*>(&option);
+            const bool arrows = spin == nullptr || spin->buttonSymbols != QAbstractSpinBox::NoButtons;
+            const QRect& rect = option.rect;
+            const int column = arrows ? sSpinColumn : 0;
+            const int half = rect.height() / 2;
+            QRect laidOut;
+            switch (part)
+            {
+                case QStyle::SC_SpinBoxFrame:
+                    return rect;
+                case QStyle::SC_SpinBoxEditField:
+                    laidOut = QRect(rect.left() + sFieldInset - sEditMargin, rect.top() + 1,
+                        rect.width() - column - (sFieldInset - sEditMargin), rect.height() - 2);
+                    break;
+                case QStyle::SC_SpinBoxUp:
+                    if (!arrows)
+                        return {};
+                    laidOut = QRect(rect.right() + 1 - column, rect.top(), column, half);
+                    break;
+                case QStyle::SC_SpinBoxDown:
+                    if (!arrows)
+                        return {};
+                    laidOut = QRect(rect.right() + 1 - column, rect.top() + half, column, rect.height() - half);
+                    break;
+                default:
+                    return {};
+            }
+            return QStyle::visualRect(option.direction, rect, laidOut);
         }
 
         /// The square of `sToggleSide` centred in `rect`, whatever size the caller laid out.
@@ -474,7 +524,18 @@ namespace Graphite
             case CE_MenuItem:
             {
                 const auto* item = qstyleoption_cast<const QStyleOptionMenuItem*>(option);
-                if (item == nullptr || !has(*option, State_Selected))
+                if (item == nullptr)
+                    break;
+                // A separator is palantir's: the soft edge, held off the menu's sides as its rows are.
+                if (item->menuItemType == QStyleOptionMenuItem::Separator)
+                {
+                    const QRect rect = option->rect;
+                    painter->fillRect(
+                        QRect(rect.left() + sMenuRowInset, rect.center().y(), rect.width() - 2 * sMenuRowInset, 1),
+                        QColor::fromRgba(borderSoft(sDark)));
+                    return;
+                }
+                if (!has(*option, State_Selected))
                     break;
                 if (has(*option, State_Enabled) && item->menuItemType != QStyleOptionMenuItem::Separator)
                     paint(*painter, QRectF(option->rect).adjusted(sMenuRowInset, 0, -sMenuRowInset, 0), sControlRadius,
@@ -566,6 +627,19 @@ namespace Graphite
                 if (spin == nullptr)
                     break;
                 paint(*painter, option->rect, sControlRadius, fieldChrome(*option));
+                // The column's soft hairlines: one beside the field, one between its two arrows, each held off
+                // the edges as palantir's separator is.
+                if (spin->subControls.testFlag(SC_SpinBoxUp) && spin->subControls.testFlag(SC_SpinBoxDown))
+                {
+                    const QRect up = subControlRect(CC_SpinBox, option, SC_SpinBoxUp, widget);
+                    const QRect down = subControlRect(CC_SpinBox, option, SC_SpinBoxDown, widget);
+                    const QColor rule = QColor::fromRgba(borderSoft(sDark));
+                    painter->fillRect(
+                        QRect(up.left(), up.top() + sMenuPadding, 1, down.bottom() - up.top() - 2 * sMenuPadding + 1),
+                        rule);
+                    painter->fillRect(
+                        QRect(up.left() + sMenuPadding, down.top(), up.width() - 2 * sMenuPadding, 1), rule);
+                }
                 for (const auto& [part, pointing, step] :
                     { std::tuple{ SC_SpinBoxUp, Pointing::Up, QAbstractSpinBox::StepUpEnabled },
                         std::tuple{ SC_SpinBoxDown, Pointing::Down, QAbstractSpinBox::StepDownEnabled } })
@@ -578,7 +652,8 @@ namespace Graphite
                     if (active && (has(*option, State_Sunken) || has(*option, State_MouseOver)))
                         paint(*painter, QRectF(rect).adjusted(2, 2, -2, -2), sControlRadius - 1,
                             { sDark.mElementStrong, sDark.mElementStrong });
-                    chevron(*painter, rect, pointing, steps ? sDark.mText : sDark.mTextDisabled);
+                    chevron(*painter, rect, pointing, steps ? sDark.mText : sDark.mTextDisabled, sSpinChevronWidth,
+                        sSpinChevronHeight);
                 }
                 return;
             }
@@ -592,6 +667,8 @@ namespace Graphite
     {
         switch (metric)
         {
+            case PM_MenuVMargin:
+                return sMenuPadding;
             case PM_ScrollBarExtent:
                 return sScrollThickness + sScrollGap;
             case PM_ScrollBarSliderMin:
@@ -609,6 +686,19 @@ namespace Graphite
     QRect Style::subControlRect(
         ComplexControl control, const QStyleOptionComplex* option, SubControl subControl, const QWidget* widget) const
     {
+        if (control == CC_SpinBox)
+            return spinBoxRect(*option, subControl);
+        if (control == CC_ComboBox && subControl == SC_ComboBoxEditField)
+        {
+            // From the field's inset to the arrow, the text placed where a line edit's is.
+            const auto* combo = qstyleoption_cast<const QStyleOptionComboBox*>(option);
+            const QRect arrow = QProxyStyle::subControlRect(control, option, SC_ComboBoxArrow, widget);
+            const int inset = sFieldInset - (combo != nullptr && combo->editable ? sEditMargin : sLabelMargin);
+            const QRect laidOut = visualRect(option->direction, option->rect, arrow);
+            const QRect field(option->rect.left() + inset, option->rect.top() + 1,
+                laidOut.left() - option->rect.left() - inset, option->rect.height() - 2);
+            return visualRect(option->direction, option->rect, field);
+        }
         const auto* bar = qstyleoption_cast<const QStyleOptionSlider*>(option);
         if (control != CC_ScrollBar || bar == nullptr)
             return QProxyStyle::subControlRect(control, option, subControl, widget);
@@ -650,14 +740,26 @@ namespace Graphite
     void Style::polish(QWidget* widget)
     {
         QProxyStyle::polish(widget);
-        // A combo box's list is palantir's dropdown, a menu: `mElement`, where a view's ground is the
-        // window's.
+        // A combo box's list is palantir's dropdown, a menu: its popup draws the menu's panel, and the list
+        // inside leaves it showing, where a view fills itself with the window's ground.
         if (auto* combo = qobject_cast<QComboBox*>(widget))
         {
-            QPalette palette = combo->view()->palette();
-            palette.setColor(QPalette::Base, QColor::fromRgba(sDark.mElement));
-            combo->view()->setPalette(palette);
+            combo->view()->viewport()->setAutoFillBackground(false);
+            combo->view()->setFrameShape(QFrame::NoFrame);
         }
+    }
+
+    QRect Style::subElementRect(SubElement element, const QStyleOption* option, const QWidget* widget) const
+    {
+        // A field's text starts at the field's inset; one with no frame lies in a spin box's or a combo
+        // box's field, which placed it.
+        const auto* frame = qstyleoption_cast<const QStyleOptionFrame*>(option);
+        if (element == SE_LineEditContents && frame != nullptr && frame->lineWidth > 0)
+        {
+            const int inset = sFieldInset - sEditMargin;
+            return option->rect.adjusted(inset, 1, -inset, -1);
+        }
+        return QProxyStyle::subElementRect(element, option, widget);
     }
 
     QSize Style::sizeFromContents(
@@ -668,10 +770,30 @@ namespace Graphite
         {
             // One row's height for a button and the fields beside it: the text, palantir's row padding
             // above and below, and the hairline edge.
-            case CT_PushButton:
-            case CT_LineEdit:
             case CT_ComboBox:
             case CT_SpinBox:
+            {
+                // As wide again as the field's inset and the spin box's column take from Fusion's edit field,
+                // so the text Fusion sized it for still fits.
+                // Each laid out as its own option, whose subclass the edit field's rectangle reads.
+                const auto widen = [&]<class Option>(const Option* control, ComplexControl kind, SubControl field) {
+                    if (control == nullptr)
+                        return;
+                    Option laidOut = *control;
+                    laidOut.rect = QRect(QPoint(0, 0), size);
+                    const int fusion = baseStyle()->subControlRect(kind, &laidOut, field, widget).width();
+                    const int ours = subControlRect(kind, &laidOut, field, widget).width();
+                    size.rwidth() += std::max(0, fusion - ours);
+                };
+                if (type == CT_ComboBox)
+                    widen(qstyleoption_cast<const QStyleOptionComboBox*>(option), CC_ComboBox, SC_ComboBoxEditField);
+                else
+                    widen(qstyleoption_cast<const QStyleOptionSpinBox*>(option), CC_SpinBox, SC_SpinBoxEditField);
+                size.setHeight(std::max(size.height(), rowHeight(*option)));
+                return size;
+            }
+            case CT_PushButton:
+            case CT_LineEdit:
                 size.setHeight(std::max(size.height(), rowHeight(*option)));
                 return size;
             default:
