@@ -36,10 +36,13 @@ if(CMAKE_C_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # set's archives built without it link beside it (`_MSVC_STL_HARDENING`, the STL's "STL Hardening").
     set(openmw_flags_relwithdebinfo "/O2 /D_MSVC_STL_HARDENING=1 ${openmw_codegen_msvc}")
     set(openmw_flags_release "/O2 /DNDEBUG ${openmw_codegen_msvc}")
-    # `/DEBUG` turns the linker's defaults to `/OPT:NOREF,NOICF`, so a release asks for both back.
+    # `/DEBUG` turns the linker's defaults to `/OPT:NOREF,NOICF`, so a release asks for both back. RelWithDebInfo
+    # links whole, as a release does, in place of CMake's `/INCREMENTAL`: incremental links amended the harness's PDB
+    # until it reached 6.4 GB, past the 4 GiB a PDB of 4 KiB pages holds, and the link failed (LNK1318).
     foreach(kind EXE SHARED)
         set(CMAKE_${kind}_LINKER_FLAGS_INIT "/DEBUG")
         set(CMAKE_${kind}_LINKER_FLAGS_RELEASE_INIT "/OPT:REF /OPT:ICF")
+        set(CMAKE_${kind}_LINKER_FLAGS_RELWITHDEBINFO_INIT "/INCREMENTAL:NO")
     endforeach()
 else()
     include("${CMAKE_CURRENT_LIST_DIR}/../vcpkg/linux.cmake")
