@@ -105,7 +105,10 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   reading `cmake/Flags.cmake` itself, which would rebuild the whole set for a link flag or a sanitizer that never
   reaches it. `omw` configures a build directory afresh when either file moves, as CMake reads a language's
   `_INIT` flags into the cache at a directory's first configure alone (`presets.CACHE_SEEDS`). A PDB on every MSVC
-  link, its information embedded in the objects for ccache; mold by `CMAKE_LINKER_TYPE`, thin archives on Linux;
+  link, its information embedded in the objects for ccache, but under link-time code generation, whose objects carry
+  their intermediate code beside it: `openmw-lib`'s 414 came to 4.9 GB, past the 4 GB a COFF archive holds
+  (LNK1248), so a tagged release, which builds cold, writes each target's PDB (`/Zi`), and the archive comes to
+  3.6 GB. mold by `CMAKE_LINKER_TYPE`, thin archives on Linux;
   position-independent programs everywhere, as MSVC's always are and the desk's GCC defaults to, where the release
   base's GCC links a fixed address.
 - **What the link drops and folds.** Every object has each function and global in a section of its own, and the

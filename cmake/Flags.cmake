@@ -7,9 +7,9 @@
 # - Release, the build a number is quoted from and the release ships: CMake's own -O3 and NDEBUG, with identical
 #   functions folded at the link (`/OPT:ICF`, `--icf=safe`), which a debugger would name one for another.
 #
-# On MSVC the debug information is embedded in each object (`/Z7`), which ccache can cache, and every program
-# links a PDB; the C runtime is linked in, as the set's libraries have it (`x64-windows-openmw`): no runtime to
-# ship beside the programs, and none older installed system-wide to fault in.
+# On MSVC the debug information is embedded in each object (`/Z7`), which ccache can cache, but under link-time
+# code generation, and every program links a PDB; the C runtime is linked in, as the set's libraries have it
+# (`x64-windows-openmw`): no runtime to ship beside the programs, and none older installed system-wide to fault in.
 #
 # Every program is position-independent, as MSVC's always are (`/DYNAMICBASE`), the desk's GCC and Clang default
 # to, and the set's archives (`-fPIC`) allow; the release base's GCC would otherwise link a fixed address.
@@ -25,7 +25,15 @@ if(CMAKE_C_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             "OPENMW_SANITIZER is GCC's and Clang's: MSVC's sanitizers have not been measured on this tree"
         )
     endif()
-    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
+    # Under link-time code generation the debug information goes to each target's PDB (`/Zi`) instead: an
+    # object then carries its intermediate code beside its debug information, and `openmw-lib`'s 414 came to
+    # 4.9 GB, past the 4 GB a COFF archive holds (LNK1248); with the PDB, 3.6 GB. A tagged release, which alone
+    # asks for it, builds cold.
+    if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT ProgramDatabase)
+    else()
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
+    endif()
     set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
     set(openmw_flags_relwithdebinfo "/O2 ${openmw_codegen_msvc}")
     set(openmw_flags_release "/O2 /DNDEBUG ${openmw_codegen_msvc}")

@@ -14,3 +14,6 @@
   ThreadSanitizer**: on CI's `linux-tsan` (run 43133364352) the second post read `stats.mWaiting.mDelayed` as 0
   where the test expects 49, against a `mMinUpdateInterval` of 250 ms; the run before it on the same tree passed.
 
+
+- **`openmw-lib.lib` stands near the size a COFF archive holds under MSVC's link-time code generation**: a release
+  build on Windows makes it 3.6 GB with each target's PDB, of the 4 GB past which `lib.exe` stops on LNK1248.
