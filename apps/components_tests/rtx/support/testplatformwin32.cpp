@@ -2,6 +2,7 @@
 
 #include <cstddef>
 
+#include <Windows.h>
 #include <malloc.h>
 
 namespace Rtx::Testing::TestPlatform
@@ -19,4 +20,14 @@ namespace Rtx::Testing::TestPlatform
     // A crash on Windows leaves a dump only where something asks for one, and the test binaries ask
     // for none.
     void disableCoreDump() {}
+
+    bool showsADesktop()
+    {
+        USEROBJECTFLAGS flags{};
+        DWORD needed = 0;
+        // Where the station cannot be asked, the tests that present run and say what failed.
+        if (!GetUserObjectInformationW(GetProcessWindowStation(), UOI_FLAGS, &flags, sizeof(flags), &needed))
+            return true;
+        return (flags.dwFlags & WSF_VISIBLE) != 0;
+    }
 }

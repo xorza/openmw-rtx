@@ -12,6 +12,7 @@
 #include <volk.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <apps/components_tests/rtx/support/testplatform.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -60,10 +61,11 @@ namespace Rtx
         /// A device of its own, on an instance with the window system's extensions, which the shared
         /// harness's headless instance has none of.
         ///
-        /// **On the session's display, and skipped without one**, as a box with no monitor has none:
-        /// NVIDIA's driver presents nothing to a `VK_EXT_headless_surface` surface, so SDL's offscreen
-        /// video gives no swapchain to test on every card. The desk and every box with a session
-        /// test it. A window SDL refuses on a display it did start is a failure.
+        /// **On the session's display, and skipped without one**, as a box with no monitor and a session a
+        /// service started have none (`TestPlatform::showsADesktop`): NVIDIA's driver presents nothing to a
+        /// `VK_EXT_headless_surface` surface, so SDL's offscreen video gives no swapchain to test on every
+        /// card. The desk and every box with a session test it. A window SDL refuses on a display it did
+        /// start is a failure.
         class RtxPresenterTest : public ::testing::Test
         {
         protected:
@@ -71,6 +73,8 @@ namespace Rtx
             {
                 if (!mVideo.mStarted)
                     GTEST_SKIP() << "no display to open the test's window on: " << mVideo.mWhyNot;
+                if (!Testing::TestPlatform::showsADesktop())
+                    GTEST_SKIP() << "the session shows no desktop to present to: a service's, as SSH's is";
                 ASSERT_NE(mVideo.mWindow, nullptr) << SDL_GetError();
 
                 mInstance = std::make_unique<Instance>(

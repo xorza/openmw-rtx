@@ -40,4 +40,9 @@ namespace Rtx::Testing::TestPlatform
         setrlimit(RLIMIT_CORE, &none);
 #endif
     }
+
+    bool showsADesktop()
+    {
+        return true;
+    }
 }

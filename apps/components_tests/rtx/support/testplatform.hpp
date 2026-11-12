@@ -3,9 +3,9 @@
 #include <cstddef>
 
 /// What the test binaries ask of the system and the game never does: an allocation at an alignment,
-/// which the counting `operator new` hands out (`allocations.cpp`), and a process that leaves no
-/// core (`death.hpp`). One header over a POSIX and a Windows file that CMake chooses, the way
-/// `components/platform` keeps the game's own.
+/// which the counting `operator new` hands out (`allocations.cpp`), a process that leaves no core
+/// (`death.hpp`), and whether a window here is shown at all. One header over a POSIX and a Windows
+/// file that CMake chooses, the way `components/platform` keeps the game's own.
 namespace Rtx::Testing::TestPlatform
 {
     /// `size` bytes at `alignment`, a power of two, or null, as `operator new` reports a failure.
@@ -18,4 +18,11 @@ namespace Rtx::Testing::TestPlatform
     /// Leaves the system nothing to keep of this process when it aborts: for a process that dies on
     /// purpose, as a death test's child does, whose core nobody wants.
     void disableCoreDump();
+
+    /// Whether this process's session shows a desktop, which a swapchain is presented to. **A Windows
+    /// session a service starts shows none**, as OpenSSH's do: its window station is not visible
+    /// (`WSF_VISIBLE`), though a window opens there and the system counts a monitor, and an AMD
+    /// driver refuses a swapchain on that window with `VK_ERROR_FORMAT_NOT_SUPPORTED`. Elsewhere true:
+    /// whether a display server is there is SDL's to find as it starts its video.
+    bool showsADesktop();
 }
