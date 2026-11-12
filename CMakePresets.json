@@ -15,7 +15,7 @@
             "hidden": true,
             "generator": "Ninja",
             "$comment": [
-                "Every flavour, each building every program, the tests and the benchmarks. ccache drives GCC and MSVC,",
+                "Every flavour, each building every program, the tests and the benchmarks. ccache drives Clang and MSVC,",
                 "and the compile database is what an editor reads. The libraries are the vcpkg set `omw` names in",
                 "OMW_VCPKG_SET (`omw deps-set`, `pins.py`), built static, through its own toolchain file: host tools",
                 "and libraries share the system's one triplet, and the manifest is the set's to install, never a",
@@ -38,7 +38,7 @@
             "name": "linux",
             "hidden": true,
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
-            "$comment": "The set's triplet; mold and thin archives are `cmake/Flags.cmake`'s, as every system's flags are.",
+            "$comment": "The set's triplet; lld and thin archives are `cmake/Flags.cmake`'s, as every system's flags are.",
             "cacheVariables": {
                 "VCPKG_TARGET_TRIPLET": "x64-linux-openmw",
                 "VCPKG_HOST_TRIPLET": "x64-linux-openmw"

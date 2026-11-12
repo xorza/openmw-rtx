@@ -139,9 +139,9 @@ NINJA = {
     ),
 }
 
-# Clang 23 for CI's clang leg (`deps.llvm`): kernel.org's slim build of LLVM's release, made on Debian 10 so
-# it runs on AlmaLinux 8's glibc 2.28, where LLVM's own Linux release asks a newer one. The digest is the one
-# kernel.org signs in `sha256sums.asc` beside it.
+# Clang 23, every Linux build's compiler and linker (`deps.llvm`): kernel.org's slim build of LLVM's release, made
+# on Debian 10 so it runs on AlmaLinux 8's glibc 2.28, where LLVM's own Linux release asks a newer one. The digest is
+# the one kernel.org signs in `sha256sums.asc` beside it.
 LLVM = Pin(
     "https://www.kernel.org/pub/tools/llvm/files/llvm-23.1.5-x86_64.tar.xz",
     "b69433120ad62420d789f601c58a5472873c724be088c99a70b72fd30ca4af3c",
@@ -200,11 +200,11 @@ VCPKG_TOOL = {
 # for the inputs `deps.set_digest` reads, each system's parts by the SHA-256 its `SHA256SUMS` lists.
 VCPKG_SET = PublishedSet(
     repository="xorza/openmw-rtx",
-    digest="19e1354572579115",
+    digest="e475dd47ac4dfc33",
     sha256={
-        "linux": ("556a28dba59a1288de10be4f75ffbf1d526ea0e6d228b9cf47dcf35b670efd8e",),
-        "windows": ("7aca6919375d0233f3d63dada1f399e2f2eb7ff3e837d068e36e450d58a192d6",
-                    "7f223a237533c67bbc31bbee87976a7695d822e6d3450a72d309aeef974a3c2f"),
+        "linux": ("70a800fc5398d6c0b21044b34eb7ec85d783592f2e027604e0585a76f57c1cd1",),
+        "windows": ("862189eebf06b1f2ad50bdd75842d2c77f646132a81ee3a0ce1048fda5111b19",
+                    "2989c4b78e12533d6b629dc456ca06878da48ededaeb18ae294c1721aadb6377"),
     },
 )
 

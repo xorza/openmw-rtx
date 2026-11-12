@@ -26,7 +26,7 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   sees another's includes and unnamed namespace. `omw`'s listing check holds the rule.
 - **A library a layer for the ray tracer, one for upstream's components.** The core is `openmw-rtx-<layer>`, each
   linking the layer below, in `architecture.md`'s order. Upstream's component folders include each other in one
-  cycle, so `openmw-components` stays whole. The link graph does not hold the order on every linker — mold and
+  cycle, so `openmw-components` stays whole. The link graph does not hold the order on every linker — lld and
   MSVC's resolve an archive in any order — so `RtxSourceTreeTest` holds it too.
 - **CMake's own names for the system, the compiler and the configuration.** `if (WIN32)`, `if (LINUX)` and
   `if (MSVC)` where a list of files differs, a generator expression where a flag does; never `CMAKE_BUILD_TYPE` in
@@ -51,12 +51,12 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   DLSS, NGX, the Windows `.rc` files); the Doxygen branch in `docs/`, a desk's own tool. Gone: `files/data-mw`'s
   second registration of `builtin.omwscripts` as a configure input, which `files/data`'s `configure_file` already
   makes, and which under another spelling is Ninja's "multiple rules generate" ([CMake issue 20181](https://gitlab.kitware.com/cmake/cmake/-/issues/20181)).
-- **A third party's warnings are off, not fixed**: the tree does not patch fetched or vendored code for its
-  compiler's opinions, and a warning nobody acts on teaches every reader to skip them. On GCC and Clang, `-w` in
-  the fetched block's and `extern/`'s flags, which wins over any `-W` a project adds after it (checked with GCC
-  16 and Clang 23). On MSVC, `/w` in `extern/`, whose projects set no level; the fetched ones set their own
-  (yaml-cpp and SDL3 `/W3`, Benchmark and Crashpad `/W4`), which `/w` would override with a D9025 a file, so
-  MSVC turns off the one warning a project raises on its target (`/wd4267` on yaml-cpp).
+- **A third party's warnings are off, not fixed**: the tree does not patch fetched or vendored code for its compiler's
+  opinions, and a warning nobody acts on teaches every reader to skip them. On Clang, `-w` in the fetched block's and
+  `extern/`'s flags, which wins over any `-W` a project adds after it (checked with Clang 23). On MSVC, `/w` in
+  `extern/`, whose projects set no level; the fetched ones set their own (yaml-cpp and SDL3 `/W3`, Benchmark and
+  Crashpad `/W4`), which `/w` would override with a D9025 a file, so MSVC turns off the one warning a project raises on
+  its target (`/wd4267` on yaml-cpp).
 - **CMake's own warnings are errors**: the presets make its dev and deprecation warnings errors
   ([cmake-presets(7)](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html)), so a new one stops the
   configure, a third party's after a bump included. Refused: failing a job on any log line that says `warning`,
@@ -88,26 +88,28 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   ([cmake-presets(7)](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html)). `omw` configures, builds
   and tests through the same presets and adds what CMake has no step for: formatting, the listing check, the
   harness's verbs.
-- **One compile database for the editor.** `.clangd` names `build-debug`'s, which is GCC's, and removes the four
-  flags of GCC's alone that Clang reads otherwise, passing over the rest as unknown, so clangd checks what CI's Clang
-  build checks ([clangd configuration](https://clangd.llvm.org/config)). Refused: a database copied or linked to the
+- **One compile database for the editor.** `.clangd` names `build-debug`'s, the pinned Clang's flags, so clangd checks
+  what CI checks ([clangd configuration](https://clangd.llvm.org/config)). Refused: a database copied or linked to the
   root, which follows the last flavour configured.
 - **Four flavours, each building every program, the tests and the benchmarks**: `debug` (`RelWithDebInfo`, every
   assert, CI's and the gate's), `release` (the measured build and the archive's), `asan` and `tsan`. Refused: a
   flavour per set of programs, which left the CS and the wizard to CI alone.
 - **Every flag in one file, the code generation shared with the set.** `cmake/Flags.cmake`, read through
-  `CMAKE_USER_MAKE_RULES_OVERRIDE` as CMake sets each language's defaults, the same for GCC, Clang and MSVC;
-  presets and folders set none ([CMake](https://cmake.org/cmake/help/latest/variable/CMAKE_USER_MAKE_RULES_OVERRIDE.html)).
-  What every object is compiled with, the set's and the tree's alike (line tables, frame pointers, x86-64-v2,
-  per-function sections, the stack protector), is `vcpkg/flags.cmake`, which both triplets include and name in
-  `VCPKG_HASH_ADDITIONAL_FILES` so an edit rebuilds every port
-  ([vcpkg](https://learn.microsoft.com/vcpkg/users/triplets#vcpkg_hash_additional_files)). Refused: the triplets
-  reading `cmake/Flags.cmake` itself, which would rebuild the whole set for a link flag or a sanitizer that never
-  reaches it. `omw` configures a build directory afresh when either file moves, as CMake reads a language's
-  `_INIT` flags into the cache at a directory's first configure alone (`presets.CACHE_SEEDS`). A PDB on every MSVC
-  link, its information embedded in the objects for ccache; mold by `CMAKE_LINKER_TYPE`, thin archives on Linux;
-  position-independent programs everywhere, as MSVC's always are and the desk's GCC defaults to, where the release
-  base's GCC links a fixed address.
+  `CMAKE_USER_MAKE_RULES_OVERRIDE` as CMake sets each language's defaults, the same for Clang and MSVC; presets and
+  folders set none ([CMake](https://cmake.org/cmake/help/latest/variable/CMAKE_USER_MAKE_RULES_OVERRIDE.html)). What
+  every object is compiled with, the set's and the tree's alike (line tables, frame pointers, x86-64-v2, per-function
+  sections, the stack protector), is `vcpkg/flags.cmake`, which both triplets include and name in
+  `VCPKG_HASH_ADDITIONAL_FILES` so an edit rebuilds every port, and what Linux's Clang adds is `vcpkg/linux.cmake`,
+  which the Linux triplet alone reads, so an edit leaves Windows' ports as they were
+  ([vcpkg](https://learn.microsoft.com/vcpkg/users/triplets#vcpkg_hash_additional_files)). Refused: the triplets reading
+  `cmake/Flags.cmake` itself, which would rebuild the whole set for a link flag or a sanitizer that never reaches it.
+  `omw` configures a build directory afresh when either file moves, as CMake reads a language's `_INIT` flags into the
+  cache at a directory's first configure alone (`presets.CACHE_SEEDS`). A PDB on every MSVC link, its information
+  embedded in the objects for ccache, except under link-time code generation, whose objects carry their intermediate
+  code beside it: `openmw-lib`'s 414 came to 4.9 GB, past the 4 GB a COFF archive holds (LNK1248), so a tagged release,
+  which builds cold, writes each target's PDB (`/Zi`), and the archive comes to 3.6 GB. lld by `CMAKE_LINKER_TYPE` and
+  thin archives by LLVM's `ar`, which indexes bitcode, on Linux; position-independent programs everywhere, as MSVC's
+  always are and Clang defaults to.
 - **What the link drops and folds.** Every object has each function and global in a section of its own, and the
   link drops what nothing reaches (`--gc-sections`; MSVC's `/OPT:REF` with `/Gy`, `/Gw` and `/Zc:inline`), which
   keeps every registration the programs make: their entry points are named to the linker. A release folds identical
@@ -115,7 +117,7 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   does not. `-fno-math-errno` for the tree alone, which reads `errno` after system calls only; the set's code was not
   read for it. Refused: `-fno-plt`, with almost no call left to the dynamic linker; `-fvisibility=hidden`, which a
   static program exports nothing for; `/fp:fast` and `-ffast-math`, against the tree's float rules;
-  `-gsplit-dwarf`, as `-g1` with mold links fast already; profile-guided optimisation, whose training needs a GPU
+  `-gsplit-dwarf`, as `-g1` with lld links fast already; profile-guided optimisation, whose training needs a GPU
   CI lacks.
 - **No precompiled headers.** Measured on the four heaviest targets, they cut a clean build 14% with ccache off
   and 19% filling it, and added 5 s to a rebuild from a full cache and 0.7 GB to a build folder
@@ -136,9 +138,9 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   desk that measures what ships turns it on the same way. The distributions that build with it report single-digit
   gains for a slower, hungrier link ([Fedora](https://fedoraproject.org/wiki/LTOByDefault);
   [Ubuntu](https://wiki.ubuntu.com/ToolChain/LTO)).
-- **The test binaries' own files at `-Og` on GCC and Clang**: they build 30% faster for runs 10% slower
-  (`research/2026-11-11-test-binaries-at-og.md`); the code they test keeps the build's flags, and MSVC's tests too,
-  its `/Od` unmeasured.
+- **The test binaries' own files at `-Og` on Clang**: they built 30% faster for runs 10% slower under GCC
+  (`research/2026-11-11-test-binaries-at-og.md`), and Clang reads `-Og` as `-O1`; the code they test keeps the build's
+  flags, and MSVC's tests too, its `/Od` unmeasured.
 - **A smoke run prints on failure alone**, its logs kept either way: the benchmarks are CTest tests running
   Google Benchmark's dry run, one iteration and no timing to warn about, and CI's integration run prints the
   game's log only when it fails. `omw release bench` is what measures.
@@ -207,7 +209,7 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   half, which fills the core's own structures, crashed beside a host's newer core. Refused: a static 1.13.2 in
   the set, by the user's decision, stale again once a host's Compose files outgrow it, and found by SDL's
   configure, whose Wayland driver then asked the loader for the archive and left the game on XWayland.
-- **Line tables on Linux, full CodeView on Windows.** Linux's triplet compiles with `-g1`, GCC's line tables, as
+- **Line tables on Linux, full CodeView on Windows.** Linux's triplet compiles with `-g1`, Clang's line tables, as
   the tree's own code does, and FFmpeg is held to it by `--disable-debug`, without which its `configure`
   appends `-g` after the triplet's flags. MSVC has no line-tables-only mode, as Chromium's `minimal_symbols`
   notes ("MSVC doesn't have an equivalent option",
@@ -248,34 +250,49 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   only a copy of Qt's biggest port of our own would remove.
 - **Linux and Windows alone.** GitLab's pipeline, macOS and Android are gone, files and branches both;
   `upstream.yml` keeps each deleted path deleted at every merge.
-- **AlmaLinux 8 with gcc-toolset-15 for CI's Linux legs, the set and the release**, the stock `almalinux:8`
-  container and `env/install_almalinux_deps.sh`: one environment builds, tests and ships, and the AppImage runs on
-  glibc 2.28 — Ubuntu 20.04 and later, Debian 11, SteamOS — as `omw archive` checks of every program. It is
-  manylinux_2_28's way, an old base with Red Hat's newer toolset ([pypa/manylinux](https://github.com/pypa/manylinux);
-  [Red Hat](https://access.redhat.com/errata/RHBA-2025:21071)). A set built there serves newer desks unchanged: an
-  older glibc's objects link and run against a newer one. Refused: Valve's sniper SDK, whose compiler is older than
-  the floor; Ubuntu 26.04, a glibc 2.43 floor; an image of the fork's own, a registry and a tag to keep. Red Hat
-  supports a gcc-toolset about two years, so the base moves to the next one in time. The tsan leg alone runs on the
-  runner itself, with Ubuntu's GCC, against the same set: ThreadSanitizer turns address randomisation off through
-  `personality`, which Docker's default seccomp profile refuses.
-- **One AlmaLinux 8 image, by digest, and one GCC on it.** `env/release-base.Dockerfile`'s `FROM` is the one place
-  the digest is written; every workflow's `container:` names the same, which `omw lint workflows` holds, and the
-  set's digest reads the Dockerfile, so a new image names a new set. The env script builds its tools (autoconf,
-  zsync, `wayland-scanner`) with gcc-toolset-15 as well, quietly, though none ships. Refused: the bare tag,
-  which moves under CI and the set; AlmaLinux's own GCC 8.5, there only as a package's dependency. `omw deps-set`
-  names the toolset's `gcc` and `g++` in `CC` and `CXX`, which CMake, Meson and Autotools all read, as a port that
-  puts `/usr/bin` ahead on `PATH` found GCC 8.5 as `cc`; and `python3` is 3.12, which vcpkg's ports run, as the
-  meson package brings Python 3.6, whose alternative outranks it.
+- **AlmaLinux 8 with gcc-toolset-15 for CI's Linux legs, the set and the release**, the stock `almalinux:8` container
+  and `env/install_almalinux_deps.sh`: one environment builds, tests and ships, and the AppImage runs on glibc 2.28 —
+  Ubuntu 20.04 and later, Debian 11, SteamOS — as `omw archive` checks of every program. The pinned Clang compiles
+  there, over the toolset's libstdc++. It is manylinux_2_28's way, an old base with Red Hat's newer toolset
+  ([pypa/manylinux](https://github.com/pypa/manylinux); [Red Hat](https://access.redhat.com/errata/RHBA-2025:21071)). A
+  set built there serves newer desks unchanged: an older glibc's objects link and run against a newer one. Refused:
+  Valve's sniper SDK, whose compiler is older than the floor; Ubuntu 26.04, a glibc 2.43 floor; an image of the fork's
+  own, a registry and a tag to keep. Red Hat supports a gcc-toolset about two years, so the base moves to the next one
+  in time. The tsan leg alone runs on the runner itself, with the same Clang over Ubuntu's GCC 15's libstdc++, against
+  the same set: ThreadSanitizer turns address randomisation off through `personality`, which Docker's default seccomp
+  profile refuses.
+- **One AlmaLinux 8 image, by digest, and one libstdc++ on it.** `env/release-base.Dockerfile`'s `FROM` is the one place
+  the digest is written; every workflow's `container:` names the same, which `omw lint workflows` holds, and the set's
+  digest reads the Dockerfile, so a new image names a new set. The env script builds its tools (autoconf, zsync,
+  `wayland-scanner`) with gcc-toolset-15 as well, quietly, though none ships. Refused: the bare tag, which moves under
+  CI and the set; AlmaLinux's own GCC 8.5, there only as a package's dependency. `omw deps-set` names the pinned `clang`
+  and `clang++` in `CC` and `CXX`, which CMake, Meson and Autotools all read, as a port that puts `/usr/bin` ahead on
+  `PATH` found GCC 8.5 as `cc`; and `python3` is 3.12, which vcpkg's ports run, as the meson package brings Python 3.6,
+  whose alternative outranks it.
 - **CI's caches, one way.** Each job keeps its own, named by its `cache-key`, saved on master alone and restored on
   every branch, so a branch evicts none of master's in the repository's 10 GB: the compiler cache, the
   FetchContent archives, and the driver's tools, keyed by the folders `omw bootstrap --cached-tools` names, which
   move with a tool's pin alone. The vcpkg binary cache is saved by run, as a key is written once and a run cut off
   resumes from the newest by prefix, and the Dependency sets workflow then deletes every older copy of a system
   and branch.
-- **Fresh compilers, and none older; GCC the set's major.** GCC 15, gcc-toolset-15's in CI and a desk's `gcc-15`,
-  which `omw` names in `CC` and `CXX`: libstdc++'s C++20 half keeps no ABI across majors, and GCC 16 beside the
-  set's OpenAL Soft printed `std::format`'s integers in hexadecimal, so `omw` refuses another GCC major before
-  a configure (`deps.check_compiler`);
-  Clang 23, the editor's clangd's major, from kernel.org's build of LLVM's release in CI, made on Debian 10 to run on
-  glibc 2.28, where LLVM's own needs a newer one ([kernel.org](https://www.kernel.org/pub/tools/llvm/)); MSVC from Visual Studio 2026.
+- **One compiler and one linker on Linux: the pinned Clang 23 and its lld**, for the set and every flavour, on
+  every desk, in CI and in the release container, by `omw` in `CC` and `CXX`. GCC's link-time optimisation broke the
+  release's Qt programs against the set's static Qt, whose inline templates it built hidden: the link kept the
+  optimised program's copy and the optimiser then dropped it, under mold ("refers to a discarded COMDAT section",
+  [GCC PR 105933](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105933)) and GNU ld alike (`undefined reference to
+  QArrayDataPointer<int>::detachAndGrow`), where ThinLTO with lld linked all four. Firefox ships Clang with LTO on
+  Linux ([glandium.org](https://glandium.org/blog/?p=3888)). Over GCC 15's libstdc++,
+  whose installation `vcpkg/linux.cmake` names to every compile and link (`--gcc-install-dir`), as Clang takes the
+  newest GCC it finds and none in gcc-toolset's folder: libstdc++'s C++20 half keeps no ABI across majors, and GCC
+  16's beside the set's OpenAL Soft printed `std::format`'s integers in hexadecimal. No contraction
+  (`-ffp-contract=off`), so the arithmetic rounds as written, as x86-64-v2 has no fused multiply-add: Clang's
+  default makes `a * b + c` an `llvm.fmuladd`, which the optimiser folds fused where its operands are constant
+  and the processor runs unfused, and a release build's `GroundReader::maskTransform` differed by an ulp
+  between a test that folded it and the reader that ran it. kernel.org's build of LLVM's
+  release, made on Debian 10 to run on glibc 2.28, where LLVM's own needs a newer one
+  ([kernel.org](https://www.kernel.org/pub/tools/llvm/)). Refused: GCC beside it, whose archives beside Clang's
+  objects crashed mold on COMDAT groups as well; mold, which reads bitcode only through `LLVMgold.so`, which that
+  build lacks; libc++, as it brings no start files or compiler runtime, so GCC's stay; a Clang configuration file
+  beside the compiler, which a desk and the container share through `deps/` but whose GCC 15 stands in different
+  folders. MSVC from Visual Studio 2026 on Windows.
   `cmake/Checks.cmake` stops an older one, rather than a build failing inside a bug a workaround was dropped for.

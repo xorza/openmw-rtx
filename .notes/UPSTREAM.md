@@ -90,8 +90,16 @@ made only on the user's explicit yes, after which it is added here.
     every start. The harness states its window in pixels (`RunSetup::mWindowPixels`).
 - One set of checks for every file, on every compiler: the checks the top-level `CMakeLists.txt`
   adds to upstream's, and the hunks in upstream code that keep it clean under them, the patches to
-  `extern/sol3` and `components/files/configurationmanager` included. MSVC's `4244` and `4267` are
-  off, since GCC's `-Wall -Wextra` leave `-Wconversion` out.
+  `extern/sol3` included. MSVC's `4244` and `4267` are off, since `-Wall -Wextra` leave `-Wconversion`
+  out.
+- A post-processing technique's integer is held to `int`'s range before it is converted
+  (`fx::Lexer::scanNumber`): a double past it converts to no int, which upstream's check read back after the
+  conversion, and Clang, which builds the fork, folded that check away, so `18446744073709551615` parsed.
+- MurmurHash3 reads its blocks through bytes (`extern/smhasher`): it cast a key at any address to
+  `const uint64_t*`, which Clang's undefined-behaviour check stopped on as a misaligned pointer.
+- `CSMWorldUniversalIdTest.shouldFailToConstructFromNoneWithInvalidType` builds its unknown type one past
+  the last, inside the enumeration's range, where `INT_MAX` was outside it and so no value of the type,
+  which Clang's undefined-behaviour check stopped on.
 - A number read from text is finite (`Misc::StringUtils::toNumeric`, which the settings read
   through): `std::from_chars` reads `inf` and `nan`. Where `from_chars` has no floating point, the
   stream reads only the prefix it would (`floatPrefix`), so a spelling is one number everywhere.
@@ -287,9 +295,9 @@ made only on the user's explicit yes, after which it is added here.
 - AlmaLinux 8 with gcc-toolset-15 for CI's Linux builds, the vcpkg set and the release image, from
   `env/install_almalinux_deps.sh`, in place of upstream's Ubuntu 24.04: the AppImage runs on glibc 2.28. A desk on
   Ubuntu 26.04 installs the same system headers from `env/install_ubuntu_deps.sh`, with upstream's
-  `install_debian_deps.sh` folded into it, and so does CI's tsan job, which runs on the runner itself. GCC's
-  false `-Wmaybe-uninitialized` is off on every GCC. The cost is a conflict with upstream's edits to its package
-  lists.
+  `install_debian_deps.sh` folded into it, and so does CI's tsan job, which runs on the runner itself. Both build with
+  the pinned Clang over GCC 15's libstdc++, in place of upstream's GCC. The cost is a conflict with upstream's edits to
+  its package lists.
 - `components/CMakeLists.txt` as `openmw-components` and `openmw-components-qt`, each folder's files
   named in a `target_sources` list and its headers as a file set, in place of the stem macros
   (`add_component_dir`, `add_component_qt_dir`) and the hand-made unity build (`enable_unity_build`,
@@ -367,7 +375,7 @@ made only on the user's explicit yes, after which it is added here.
   `OPENMW_RESOURCES_ROOT` guards atop `files/data`, `files/data-mw`, `files/shaders` and `files/lua_api`,
   which the root always sets first; the install components, which nothing installs by since CPack went; the
   empty `CMAKE_CXX_CLANG_TIDY` in `extern/`; and `mwmechanics/character.cpp`'s `-Wno-maybe-uninitialized`,
-  which every GCC target already has. The cost is a conflict with an upstream edit to those lines.
+  a flag of GCC's, which builds nothing of the tree. The cost is a conflict with an upstream edit to those lines.
 - What the pinned set makes constant, no longer tested:
   `cmake/CheckOsgMultiview.cmake`'s `try_compile`, as OpenMW's OSG at the pinned commit has no multiview, so
   `OSG_HAS_MULTIVIEW` is never defined and the sources' multiview branches stay unbuilt, as they were;

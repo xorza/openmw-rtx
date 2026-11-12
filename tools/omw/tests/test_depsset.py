@@ -61,22 +61,25 @@ class SetDigestTest(unittest.TestCase):
 
 
 class ContainerTest(unittest.TestCase):
-    def test_linux_builds_its_set_in_almalinux_8_with_gcc_toolset_15_named_by_path(self):
+    def test_linux_builds_its_set_in_almalinux_8_with_the_pinned_clang_named_by_path(self):
         folder = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, folder)
+        pinned = Path("/deps/llvm-0123456789abcdef")
 
         def compilers(release: str, path: str) -> dict[str, str]:
             (folder / "os-release").write_text(release)
             with (mock.patch.object(depsset, "SYSTEM", "linux"),
                   mock.patch.object(depsset, "OS_RELEASE", folder / "os-release"),
+                  mock.patch.object(deps, "WINDOWS", False),
+                  mock.patch.object(deps, "llvm", return_value=pinned),
                   mock.patch.dict(os.environ, {"PATH": path})):
                 return depsset.container_compilers()
 
         almalinux = 'ID="almalinux"\nVERSION_ID="8.10"\n'
-        # The toolset's drivers, whatever comes first on `PATH` when a port runs.
+        # The pinned drivers, whatever comes first on `PATH` when a port runs; the toolset enabled for its
+        # libstdc++ (`vcpkg/linux.cmake`).
         self.assertEqual(compilers(almalinux, "/opt/rh/gcc-toolset-15/root/usr/bin:/usr/bin"),
-                         {"CC": "/opt/rh/gcc-toolset-15/root/usr/bin/gcc",
-                          "CXX": "/opt/rh/gcc-toolset-15/root/usr/bin/g++"})
+                         {"CC": str(pinned / "bin" / "clang"), "CXX": str(pinned / "bin" / "clang++")})
         with self.assertRaisesRegex(Refusal, "AlmaLinux 8"):
             compilers('ID="ubuntu"\nVERSION_ID="26.04"\n', "/opt/rh/gcc-toolset-15/root/usr/bin")
         with self.assertRaisesRegex(Refusal, "AlmaLinux 8"):

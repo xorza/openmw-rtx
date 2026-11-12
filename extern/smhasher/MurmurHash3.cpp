@@ -47,10 +47,10 @@ inline uint64_t rotl64 ( uint64_t x, int8_t r )
 // Block read - if your platform needs to do endian-swapping or can only
 // handle aligned reads, do the conversion here
 
-FORCE_INLINE uint64_t getblock64 ( const uint64_t * p, int i )
+FORCE_INLINE uint64_t getblock64 ( const uint8_t * p, int i )
 {
   uint64_t result = 0;
-  std::memcpy(&result, p + i, sizeof(result));
+  std::memcpy(&result, p + i * sizeof(result), sizeof(result));
   return result;
 }
 
@@ -84,7 +84,7 @@ void MurmurHash3_x64_128 ( const void * key, const int len,
   //----------
   // body
 
-  const uint64_t * blocks = (const uint64_t *)(data);
+  const uint8_t * blocks = data;
 
   for(int i = 0; i < nblocks; i++)
   {

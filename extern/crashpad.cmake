@@ -52,6 +52,25 @@ set(CRASHPAD_ENABLE_INSTALL_DEV OFF CACHE BOOL "" FORCE)
 # tree's.
 add_subdirectory(${crashpad_SOURCE_DIR} ${crashpad_BINARY_DIR} EXCLUDE_FROM_ALL SYSTEM)
 
+# Crashpad's Windows objects with the standard library's exceptions, as every other object of the program has them.
+# Chromium builds a whole program with `_HAS_EXCEPTIONS=0`, under which MSVC's `std::exception` takes a virtual
+# function more; beside the tree's objects, every standard exception had two vtables of different sizes, an ODR
+# violation link-time code generation stops on (C4743 under Crashpad's `/WX`, LNK1257).
+foreach(target crashpad_interface mini_chromium)
+    foreach(property INTERFACE_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
+        get_target_property(definitions ${target} ${property})
+        if(definitions)
+            list(FILTER definitions EXCLUDE REGEX "^_HAS_EXCEPTIONS(=|$)")
+            set_target_properties(
+                ${target}
+                PROPERTIES
+                    ${property}
+                        "${definitions}"
+            )
+        endif()
+    endforeach()
+endforeach()
+
 # `capture_context_linux.S` states nothing of the stack, and a linker that meets an object
 # without the note makes the whole executable's stack executable, as Ubuntu 24.04's does.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")

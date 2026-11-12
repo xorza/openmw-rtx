@@ -109,8 +109,12 @@ namespace CrashTests
             // A way out no call takes, so the compiler does not call the recursion endless and fold it.
             if (depth < 0)
                 return 0;
+            // Every byte written, top down, so the frame is the whole page and each page under it is touched
+            // in turn: Clang kept the one byte a single write reached, the frames were 48 bytes, and under
+            // ThreadSanitizer the 65 536 calls its shadow stack holds were spent before the stack was.
             volatile char frame[4096];
-            frame[0] = static_cast<char>(depth);
+            for (std::size_t i = sizeof(frame); i-- > 0;)
+                frame[i] = static_cast<char>(depth);
             return sRecurse(depth + 1) + frame[0];
         }
 

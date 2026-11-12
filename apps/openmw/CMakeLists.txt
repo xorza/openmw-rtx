@@ -1014,17 +1014,6 @@ target_sources(
                 mwworld/worldmodel.hpp
 )
 
-# GCC reports an uninitialised value inside sol3's stack code inlined here, which no change to this file
-# removes; it loses only the check that fires.
-set_property(
-    SOURCE
-        mwlua/contentbindings.cpp
-    APPEND
-    PROPERTY
-        COMPILE_OPTIONS
-            $<$<CXX_COMPILER_ID:GNU>:-Wno-uninitialized>
-)
-
 # `PUBLIC`: `mwsound/ffmpegdecoder.hpp` names FFmpeg's types, and the game's headers OpenSceneGraph's,
 # MyGUI's and SDL's.
 target_link_libraries(

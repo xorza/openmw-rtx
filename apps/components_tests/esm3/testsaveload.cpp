@@ -841,7 +841,7 @@ namespace ESM
 
         TEST_P(Esm3SaveLoadRecordTest, creatureShouldNotChange)
         {
-#if !defined(__clang__) && defined(__GNUC__)
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
             _Pragma("GCC diagnostic push");
             _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
 #endif
@@ -890,7 +890,7 @@ namespace ESM
                 .mAiPackage{},
                 .mTransport{},
             };
-#if !defined(__clang__) && defined(__GNUC__)
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
             _Pragma("GCC diagnostic pop");
 #endif
 
@@ -971,7 +971,7 @@ namespace ESM
 
         TEST_P(Esm3SaveLoadRecordTest, npcShouldNotChange)
         {
-#if !defined(__clang__) && defined(__GNUC__)
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
             _Pragma("GCC diagnostic push");
             _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
 #endif
@@ -1024,7 +1024,7 @@ namespace ESM
                 .mHair = generateRandomRefId(32),
                 .mHead = generateRandomRefId(32),
             };
-#if !defined(__clang__) && defined(__GNUC__)
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
             _Pragma("GCC diagnostic pop");
 #endif
 
@@ -1062,7 +1062,7 @@ namespace ESM
 
         TEST_P(Esm3SaveLoadRecordTest, raceShouldNotChange)
         {
-#if !defined(__clang__) && defined(__GNUC__)
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
             _Pragma("GCC diagnostic push");
             _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
 #endif
@@ -1082,7 +1082,7 @@ namespace ESM
                 .mId = generateRandomRefId(32),
                 .mPowers{},
             };
-#if !defined(__clang__) && defined(__GNUC__)
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
             _Pragma("GCC diagnostic pop");
 #endif
 

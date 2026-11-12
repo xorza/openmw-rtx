@@ -14,3 +14,17 @@
   ThreadSanitizer**: on CI's `linux-tsan` (run 43133364352) the second post read `stats.mWaiting.mDelayed` as 0
   where the test expects 49, against a `mMinUpdateInterval` of 250 ms; the run before it on the same tree passed.
 
+- **`openmw-lib.lib` stands near the size a COFF archive holds under MSVC's link-time code generation**: a release
+  build on Windows makes it 3.6 GB with each target's PDB, of the 4 GB past which `lib.exe` stops on LNK1248.
+
+- **`GraphiteLookTest.theLookIsTheStyleOverFusionInThePalette` fails on Windows CI**: on `windows-msvc` (master's
+  run 43136468291) `QFontInfo(QApplication::font()).pixelSize()` reads -1 where the test expects 16.
+
+- **ThreadSanitizer reports a race inside Qt's raster thread pool**: on `linux-tsan` (master's run 43136468291) a
+  `QGenericRunnable` that `blend_color_argb` starts from `Graphite::Style::drawPrimitive` in
+  `GraphiteStyleTest.thePanesAndFramesAreTheirGroundsBehindTheirEdges` is freed on a pooled thread against its
+  allocation on the main thread.
+
+- **`env/install_almalinux_deps.sh`'s header names `vcpkg/flags.cmake`** as the file through which the pinned Clang
+  builds and links with gcc-toolset-15's libstdc++, start files and binutils; `vcpkg/linux.cmake` names that
+  installation.

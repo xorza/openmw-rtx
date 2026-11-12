@@ -16,8 +16,6 @@ from omw.system import EXE, ROOT, SYSTEM, Refusal, run
 
 # The file a Linux system names itself in.
 OS_RELEASE = Path("/etc/os-release")
-# Where the release base keeps GCC 15 (`env/install_almalinux_deps.sh`).
-TOOLSET_BIN = Path("/opt/rh/gcc-toolset-15/root/usr/bin")
 
 # GitHub refuses a release asset of 2 GiB or more ("About releases", docs.github.com), and Windows' set, whose
 # libraries carry MSVC's full debug information (`/Z7`), packs to more than half of that: so a set is cut into
@@ -174,10 +172,11 @@ def deps_set(args: list[str]) -> int:
 
 def container_compilers() -> dict[str, str]:
     """**The compilers every port builds with, by path**: Linux builds its set on the release base alone, with
-    its GCC 15, as a set built on a newer glibc would raise the release's floor to that glibc. Named in `CC` and
-    `CXX`, which CMake, Meson and Autotools all read, rather than left to `PATH`: a port that puts a folder of
-    its own ahead on it (vcpkg's Meson puts Python's, `/usr/bin`) found AlmaLinux 8's own GCC 8.5 as `cc`.
-    Windows' is the Visual Studio vcpkg finds."""
+    the pinned Clang the tree builds with (`deps.compiler_environment`), against gcc-toolset-15's libstdc++
+    (`vcpkg/linux.cmake`), as a set built on a newer glibc would raise the release's floor to that glibc. Named
+    in `CC` and `CXX`, which CMake, Meson and Autotools all read, rather than left to `PATH`: a port that puts a
+    folder of its own ahead on it (vcpkg's Meson puts Python's, `/usr/bin`) found AlmaLinux 8's own GCC 8.5 as
+    `cc`. Windows' is the Visual Studio vcpkg finds."""
     if SYSTEM != "linux":
         return {}
     if not package.on_release_base(OS_RELEASE.read_text() if OS_RELEASE.is_file() else ""):
@@ -185,4 +184,6 @@ def container_compilers() -> dict[str, str]:
                       "as .github/workflows/deps.yml does")
     if "gcc-toolset-15" not in os.environ.get("PATH", ""):
         raise Refusal("gcc-toolset-15 is not enabled: `source /opt/rh/gcc-toolset-15/enable`")
-    return {"CC": str(TOOLSET_BIN / "gcc"), "CXX": str(TOOLSET_BIN / "g++")}
+    env: dict[str, str] = {}
+    deps.compiler_environment(env)
+    return env

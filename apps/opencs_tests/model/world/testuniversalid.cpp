@@ -14,8 +14,8 @@ namespace CSMWorld
 
         TEST(CSMWorldUniversalIdTest, shouldFailToConstructFromNoneWithInvalidType)
         {
-            EXPECT_THROW(
-                UniversalId{ static_cast<UniversalId::Type>(std::numeric_limits<int>::max()) }, std::logic_error);
+            // One past the last type, which the enumeration's range holds: a value outside it is undefined.
+            EXPECT_THROW(UniversalId{ static_cast<UniversalId::Type>(UniversalId::Type_RunLog + 1) }, std::logic_error);
         }
 
         TEST(CSMWorldUniversalIdTest, shouldFailToConstructFromStringWithInvalidType)

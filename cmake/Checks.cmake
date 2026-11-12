@@ -4,12 +4,10 @@
 # for the tree's own under `components/` and `apps/` and no third party's. A directory's
 # `add_compile_options` reached a target or not by the order its folder was added in.
 
-# The compilers the tree is built and checked with, and none older: GCC 15, AlmaLinux 8's gcc-toolset-15,
-# Clang 23, the clang job's and the editor's, and MSVC 19.44, which Visual Studio 2026's passes. An older one
-# stops here, and not inside a bug a workaround below was dropped for.
+# The compilers the tree is built and checked with, and none older: Clang 23, the pinned one every Linux build
+# compiles with (`vcpkg/linux.cmake`) and the editor's, and MSVC 19.44, which Visual Studio 2026's passes. An
+# older one stops here, and not inside a bug a workaround below was dropped for.
 set(openmw_compiler_floors
-    GNU
-    15
     Clang
     23
     MSVC
@@ -17,7 +15,7 @@ set(openmw_compiler_floors
 )
 list(FIND openmw_compiler_floors "${CMAKE_CXX_COMPILER_ID}" at)
 if(at EQUAL -1)
-    message(FATAL_ERROR "${CMAKE_CXX_COMPILER_ID} is no compiler the tree is built with: GCC, Clang or MSVC")
+    message(FATAL_ERROR "${CMAKE_CXX_COMPILER_ID} is no compiler the tree is built with: Clang or MSVC")
 endif()
 math(EXPR at "${at} + 1")
 list(GET openmw_compiler_floors ${at} floor)
@@ -71,7 +69,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             /wd4127 # Conditional expression is constant
             /wd4996 # Function was declared deprecated
             /wd5054 # Deprecated operations between enumerations of different types caused by Qt headers
-            /wd4244 # Implicit narrowing between arithmetic types (-Wconversion, which GCC's -Wall -Wextra leave out)
+            /wd4244 # Implicit narrowing between arithmetic types (-Wconversion, which -Wall -Wextra leave out)
             /wd4267 # Implicit narrowing of a size_t (the same)
             /w14855 # implicit capture of 'this' via '[=]' is deprecated in 'version'
     )
@@ -93,40 +91,11 @@ else()
             -Wcast-qual
             $<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>
             $<$<COMPILE_LANGUAGE:CXX>:-Wzero-as-null-pointer-constant>
+            -Wno-potentially-evaluated-expression
+            # libstdc++ 15's `std::find_if` asks `#pragma GCC unroll 4`, which Clang 23 cannot always honour and
+            # reports from inside the system header, where no other warning of its comes from.
+            -Wno-pass-failed
     )
-
-    if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
-        target_compile_options(
-            openmw-checks
-            INTERFACE
-                -Wno-potentially-evaluated-expression
-                # GCC 15's `std::find_if` asks `#pragma GCC unroll 4`, which Clang 23 cannot always honour and
-                # reports from inside the system header, where no other warning of its comes from.
-                -Wno-pass-failed
-        )
-    endif()
-
-    if(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
-        target_compile_options(
-            openmw-checks
-            INTERFACE
-                # GCC's alone: Clang's check of that name takes every implicit promotion, not arithmetic's
-                # only, and fired 614 times in a tree GCC's passes.
-                -Wdouble-promotion
-                -Wno-unused-but-set-parameter
-                -Wduplicated-branches
-                -Wduplicated-cond
-                -Wlogical-op
-                # GCC bug 105438, which GCC 15.2 still reports in sol's `stack_field.hpp`, a string literal's
-                # bounds against another's length.
-                -Wno-array-bounds
-                # Copies of a `std::optional` (GCC bug 80635) where inlining reaches across the set's headers:
-                # `MaterialResolver::read`'s `SurfaceDescription`.
-                -Wno-maybe-uninitialized
-                # OSG's inline `pushOntoNodePath`.
-                -Wno-null-dereference
-        )
-    endif()
 endif()
 
 # Warnings are errors where a preset sets CMake's own `CMAKE_COMPILE_WARNING_AS_ERROR`: for the tree's
