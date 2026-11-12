@@ -23,7 +23,6 @@ from omw.system import (
     build_dir,
     environment_key,
     exclusive,
-    jobs,
     msvc_environment,
     output,
     read_text,
@@ -305,7 +304,7 @@ class Build:
             self.configure(stdout)
             self._redate_inputs_ahead(wanted)
             # Through the flavour's build preset, which CMake reads from the source tree alone.
-            run(["cmake", "--build", "--preset", self.preset, f"-j{jobs()}", "--target", *wanted, "--", "-k", "0"],
+            run(["cmake", "--build", "--preset", self.preset, "--target", *wanted, "--", "-k", "0"],
                 env=self.env, cwd=ROOT, stdout=stdout)
         self._built.update(wanted)
 

@@ -194,6 +194,7 @@ namespace Rtx
             { Shaders::STAGE_LANDING_RAY_ALONG, GBUFFER_STAGE_RAY, "stage landing ray along", FrameStep::Trace,
                 StageRead::SeveralRays },
             { Shaders::STAGE_RELIEF, GBUFFER_STAGE_RELIEF, "stage relief" },
+            { Shaders::STAGE_SHAFTS, GBUFFER_STAGE_SHAFTS, "stage shafts" },
         } };
 
         constexpr bool stagesInOrder()

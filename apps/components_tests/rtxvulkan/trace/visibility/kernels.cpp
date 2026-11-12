@@ -178,24 +178,26 @@ namespace Rtx
 
             // Measured on a low-end AMD integrated GPU under AMD's Windows driver. `visibility` at 145 ("The
             // sea's walk, a stage of its own"); the water and media at what they hold since each walk resolves
-            // its hit once ("A walk resolves the surface it ends on once"); the whole tuple's `media` at 224
+            // its hit once ("A walk resolves the surface it ends on once"); the whole tuple's `media` at 220
             // since a read pairs an image with its sampler (`TEXTURE`), still four waves on an RDNA SIMD
             // (`docs/research/2026-11-09-separate-samplers.md`); the landing at 144 since a sheet takes its
-            // span off the corners the hit carried (`docs/research/2026-11-09-sheet-span.md`).
+            // span off the corners the hit carried (`docs/research/2026-11-09-sheet-span.md`); `panes` with
+            // no scratch since a layer under the water takes its column's shafts from `media`
+            // (`docs/research/2026-11-12-panes-column-ratio.md`).
             constexpr std::array<Ceiling, 6> sAmdWithoutDarkAlpha{ {
                 { "visibility", 0, 145, 2048 },
                 { "water", 0, 177, 2048 },
                 { "direct", 0, 160, 2048 },
                 { "media", 0, 192, 2048 },
-                { "panes", 80, 256, 2048 },
+                { "panes", 0, 248, 2048 },
                 { "landing", 0, 144, 2048 },
             } };
             constexpr std::array<Ceiling, 7> sAmdWhole{ {
                 { "visibility", 0, 145, 2048 },
                 { "water", 0, 190, 2048 },
                 { "direct", 0, 144, 2048 },
-                { "media", 0, 224, 2048 },
-                { "panes", 80, 256, 2048 },
+                { "media", 0, 220, 2048 },
+                { "panes", 0, 254, 2048 },
                 { "landing", 0, 144, 2048 },
                 { "bounce", 0, 144, 2048 },
             } };

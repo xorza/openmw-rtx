@@ -278,6 +278,28 @@ vec3 surfaceLiftAt(ivec2 pixel, uint width, uint swap)
     return through.rgb * through.a * vec3(unpackHalf2x16(halves.x), unpackHalf2x16(halves.y).x);
 }
 
+/// Stores `ratio`, what the sun's shafts made of the eye's water column (`ColumnRun::mRatio`), at
+/// `stored` (`STAGE_SHAFTS`): the media stage's, for the layers' stage, which builds each layer's column
+/// in its closed form and scales its beam by it.
+///
+/// **One ratio for every layer along the ray**, exact where the shafts' share of the beam is even along
+/// it, and the ray of the eye the solid stands behind (`StageRecord::mArms`): the arms' layers in front of
+/// the world's solid take the world's, over a stretch of water a hand long. Refused: a march a layer,
+/// which held the layers' stage at the end of its register file, where an
+/// edit anywhere moved its spill by hundreds of bytes
+/// (`docs/research/2026-11-12-panes-column-ratio.md`).
+void storeStageShafts(ivec2 stored, vec3 ratio)
+{
+    RTX_STORE_WORDS(stageShafts, stored, uvec4(packHalf2x16(ratio.rg), packHalf2x16(vec2(ratio.b, 0.0)), 0u, 0u))
+}
+
+/// The ratio `storeStageShafts` stored at `stored`.
+vec3 stageShaftsAt(ivec2 stored)
+{
+    const uvec2 halves = imageLoad(stageShafts, stored).xy;
+    return vec3(unpackHalf2x16(halves.x), unpackHalf2x16(halves.y).x);
+}
+
 /// The surface's lift as the pixel shows it: a split pixel's blended with its split neighbours', as
 /// the composite blends its light, and in a sum as well, which the lift is not.
 vec3 shownSurfaceLift(ivec2 pixel, uint width, uint swap, bool split)

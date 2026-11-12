@@ -74,7 +74,7 @@ void main()
     // pane mask holds the nearest layer's against.
     vec3 endMotion = vec3(0.0);
 
-    // **One eye ray a turn of the peel, and each layer's light and medium in loops of their own**, as the
+    // **One eye ray a turn of the peel, and each layer's light in a loop of its own**, as the
     // trace peels in straight code (`tracePixel`): one loop over every walk kept the union of their records
     // live through every turn, which this stage spilled (`docs/architecture.md`, "A stage's phases are
     // loops of their own").
@@ -124,6 +124,9 @@ void main()
         // water first and the air over what it left. Above the surface it is the air alone (a ray that meets the water
         // is stopped by its surface, whose shading charges what stands under it); under it, the water as far as the
         // ray stays under the plane (`waterAlong`), then the air past where it rose through it.
+        //
+        // **The water's column in its closed form, its beam scaled by what the media stage's march found the
+        // shafts make of the eye's whole column** (`storeStageShafts`), and one where that stage did not run.
         const float air = layer.mDistance;
         const WorldRay ray = WorldRay(peel.mOrigin, peel.mDirection);
         MediumAhead ahead = MediumAhead(vec3(0.0), vec3(1.0));
@@ -135,28 +138,9 @@ void main()
         else
         {
             const float under = waterAlong(ray.mFrom, ray.mAlong, air);
-            const Cone cone = coneAt(eyeOf(uint(peel.mArms)));
-            ColumnRun column = columnRunOf(ray.mFrom, ray.mAlong, under, cone.mWidth + cone.mSpread * under);
-            SkyPassageRun skyPassage = skyPassageRunOf(
-                frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
-            skyPassage.mStep = RUN_IDLE;
-            RayAsk ask = noRay();
-            [[dont_unroll]] while ((ask.mTraced || column.mStep != RUN_IDLE) && turns < WALK_TURNS)
-            {
-                ++turns;
-                RayAnswer answered = RayAnswer(false, unansweredScene());
-                if (ask.mTraced)
-                    answered = RayAnswer(true, queryScene(ask.mQuery));
-                ask = noRay();
-
-                if (skyPassage.mStep != RUN_IDLE)
-                    stepSkyPassage(skyPassage, answered, ask);
-                else
-                    stepColumn(column, skyPassage, pixel);
-            }
-            if (column.mStep != RUN_IDLE)
-                break;
-            ahead = mediumOverColumn(ray, under, air, air, column.mColumn);
+            const vec3 ratio = written.mMedia ? stageShaftsAt(storedAt(ivec2(pixel), width, swap)) : vec3(1.0);
+            ahead = mediumOverColumn(
+                ray, under, air, air, columnOf(columnStartOf(ray.mFrom, ray.mAlong, under), ratio));
         }
 
         if (peel.mLayer == 0u)

@@ -216,6 +216,62 @@ namespace Rtx::Testing
             EXPECT_NEAR(beside / open, 1.0f, 0.01f) << "and one that merely stands over them";
         }
 
+        /// **A layer under the water takes its column's shafts from the media stage's march**
+        /// (`storeStageShafts`): the layers' stage builds the water in front of a layer in its closed form and
+        /// scales the beam by what the march of the eye's whole column found, tracing no ray of its own.
+        ///
+        /// The open water and the black sky of the shaft's lid, with a black layer half the way up, half
+        /// opaque and facing the eye, so the frame is the beam in front of the layer and half the beam behind
+        /// it. Under a lid over all the water the march finds no step lit and its ratio is nought, so the beam
+        /// in front of the layer goes out with the rest; in its closed form alone the layer's column would
+        /// keep that share of the open frame.
+        TEST_F(RtxVisibilityTest, aLayerUnderTheWaterTakesItsColumnsShaftsFromTheMediaStage)
+        {
+            constexpr std::uint32_t size = 48;
+            constexpr std::size_t count = std::size_t{ size } * size;
+            constexpr float eye = 500.0f;
+
+            const auto shaft = [&](bool layered, bool lidded) {
+                SceneDesc scene = makeOpenWater(4000.0f);
+                if (lidded)
+                    addQuad(scene, sheetAt(4000.0f, 500.0f));
+                if (layered)
+                {
+                    // Wound to face down, toward the eye under it.
+                    const std::array<osg::Vec3f, 4> up = sheetAt(4000.0f, -eye / 2.0f);
+                    addQuad(scene, std::array{ up[3], up[2], up[1], up[0] },
+                        scene.addMaterial(Material{
+                            .mDiffuseColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
+                            .mOpacity = 0.5f,
+                            .mAlphaMode = AlphaMode::Blend,
+                        }));
+                }
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -0.05f, -eye), osg::Vec3f(0.0f, 0.0f, -eye + 10.0f), 60.0f, size, size, 10000.0f);
+                litThroughWater(camera, osg::DegreesToRadians(45.0f));
+
+                const Frame frame = shoot(scene, {}, camera, size);
+
+                float total = 0.0f;
+                for (std::size_t i = 0; i < count; ++i)
+                    total += frame.at(i * 4 + 1);
+
+                return total / static_cast<float>(count);
+            };
+
+            const float open = shaft(false, false);
+            const float layer = shaft(true, false);
+            const float covered = shaft(true, true);
+
+            // Measured at 0.564 of the open frame.
+            ASSERT_GT(open, 0.0f) << "there is a shaft to block";
+            EXPECT_NEAR(layer / open, 0.564f, 0.01f) << "the layer takes half of the beam behind it";
+
+            // Measured at 2.4e-5 of the open frame.
+            EXPECT_LT(covered, 1.0e-4f * open) << "a lid over the water puts out the beam in front of the layer too";
+        }
+
         /// The waves gather the sun into moving lines on the bed, and move light rather than make it. Caustics
         /// are ray density, the determinant of the Jacobian of the map from where light met the surface to
         /// where it landed, and what isolates that term from everything else in the frame is a ratio: the same

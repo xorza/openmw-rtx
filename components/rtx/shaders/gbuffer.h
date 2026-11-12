@@ -85,6 +85,12 @@
 // made from, so the landing divides by the number the lamps' half did.
 #define GBUFFER_STAGE_BOUNCE STORAGE_RGBA32UI
 
+// **And what the sun's shafts made of the eye's water column, three halves**, which the media stage
+// marched and every layer under the water in front of the eye scales its own column's beam by, so the
+// layers' stage traces no ray for its columns (`ColumnRun::mRatio`). Halves, because the ratio is a
+// march of `WATER_SHAFT_STEPS` samples whose noise is far past a half's rounding.
+#define GBUFFER_STAGE_SHAFTS STORAGE_RG32UI
+
 // Which binding of `SET_CHANNELS` each channel is, named so that the shader's layout qualifiers and
 // the C++ layout and writes cannot agree only for as long as nobody reorders a list.
 
@@ -254,7 +260,8 @@ namespace Rtx::Shaders
     /// each pixel's solid (`StageRecord`), the throughput to it, the surface's lift, and the solid's
     /// hit with the ray's start and direction (`storeStageSolid`); what the bounce hands its landing
     /// (`storeBounce`); the landing's hit, laid out as the solid's (`storeLandingHit`); and, past the
-    /// tile lists (`STAGE_RELIEF`), how far toward the eye the solid's relief showed its texture. **The
+    /// tile lists, how far toward the eye the solid's relief showed its texture (`STAGE_RELIEF`) and what
+    /// the shafts made of the eye's water column (`STAGE_SHAFTS`). **The
     /// landing's apart from the solid's for every bounce ray but the frame's last**, because a ray
     /// after it leaves the solid again; the last stores its landing in the solid's place
     /// (`GBuffer::declareStages`). In fields, as the trace writes them; no channel, so nothing reads
@@ -308,8 +315,13 @@ namespace Rtx::Shaders
     /// before the march existed (`HAS_RELIEF`).
     const uint STAGE_RELIEF = CHANNEL_COUNT + 11u;
 
-    /// How many bindings the set holds: the channels, the stage images, the tile lists and the relief.
-    const uint CHANNEL_SET_BINDINGS = CHANNEL_COUNT + 12u;
+    /// The shaft ratio of the eye's water column the media stage hands the layers' stage
+    /// (`GBUFFER_STAGE_SHAFTS`), past the relief for the reason the relief stands past the lists.
+    const uint STAGE_SHAFTS = CHANNEL_COUNT + 12u;
+
+    /// How many bindings the set holds: the channels, the stage images, the tile lists, the relief and
+    /// the shafts.
+    const uint CHANNEL_SET_BINDINGS = CHANNEL_COUNT + 13u;
 
     /// Whether `binding` of the set is a stage image: every binding past the channels but the tile
     /// lists, which are a buffer.

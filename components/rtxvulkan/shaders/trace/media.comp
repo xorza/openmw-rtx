@@ -90,6 +90,12 @@ void main()
             stepColumn(column, skyPassage, pixel);
     }
 
+    // **What the shafts made of the eye's column, for the layers' stage** (`storeStageShafts`): stored at
+    // every layered pixel this stage runs on, so the layers' stage reads one wherever the record says this
+    // stage ran, and one where the eye stands dry or the walk ran out of turns short of the march's end.
+    if (record.mLayered)
+        storeStageShafts(storedAt(ivec2(pixel), width, swap), column.mStep == RUN_IDLE ? column.mRatio : vec3(1.0));
+
     // **The medium in front of the point**, a turn of its own, and a water path's walk started.
     bool done = false;
     vec3 shafts = vec3(0.0);
@@ -99,9 +105,9 @@ void main()
     if (column.mStep == RUN_IDLE && turns < WALK_TURNS)
     {
         ++turns;
-        through = under ? mediumOverColumn(eye, underPath, reach, air, column.mColumn).mThrough
+        through = under ? mediumOverColumn(eye, underPath, reach, air, columnOf(column)).mThrough
                         : vec3(fogAlong(pixel, eye, air).w);
-        shafts = under ? column.mShafts : vec3(0.0);
+        shafts = under ? shaftsOf(column) : vec3(0.0);
         done = !metWater;
         if (metWater)
         {
@@ -141,7 +147,7 @@ void main()
 
     // **A leg's change by what the medium in front of the water lets through**, as the trace takes
     // the water's light down by it: the walk's last step and the phase's, a turn each.
-    const vec3 legShafts = leg ? legShare * column.mShafts : vec3(0.0);
+    const vec3 legShafts = leg ? legShare * shaftsOf(column) : vec3(0.0);
     const uint left = leg ? 2u : 1u;
     if (metWater && column.mStep == RUN_IDLE && (water.mStep == RUN_IDLE || leg) && turns + left <= WALK_TURNS)
     {

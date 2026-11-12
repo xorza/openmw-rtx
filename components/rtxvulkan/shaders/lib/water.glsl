@@ -361,7 +361,7 @@ void stepWater(
         if (run.mUnderwater)
         {
             const ColumnStart start = columnStartOf(run.mPath.mFrom, direction, run.mDistance);
-            const WaterColumn under = closedColumnOf(start);
+            const WaterColumn under = columnOf(start, vec3(1.0));
             run.mMarches = start.mMarches;
             run.mWeight = vec3(shares.mWhole) + shares.mThrough * under.mTransmittance;
             run.mScattered = shares.mThrough * under.mScattered;
@@ -379,10 +379,10 @@ void stepWater(
         return;
     }
 
-    const WaterColumn under = column.mColumn;
+    const WaterColumn under = columnOf(column);
     run.mWeight = vec3(shares.mWhole) + shares.mThrough * under.mTransmittance;
     run.mScattered = shares.mThrough * under.mScattered;
-    run.mShafts = shares.mThrough * column.mShafts;
+    run.mShafts = shares.mThrough * shaftsOf(column);
     run.mStep = RUN_IDLE;
 }
 

@@ -351,19 +351,20 @@ ColumnStart columnStartOf(vec3 from, vec3 direction, float path)
     return ColumnStart(transmittance, sky + moons, beam, share, !(share < WATER_SHAFT_FLOOR));
 }
 
-/// The column the closed forms give: what a march leaves of them where it does not run, and what the
-/// trace composes, the march's change to it being the media stage's (`media.comp`).
-WaterColumn closedColumnOf(ColumnStart start)
+/// The column the closed forms give with the sun's beam scaled by `ratio`, what a march found the shafts
+/// make of it (`ColumnRun::mRatio`): one where no march ran, which is what the trace composes, the march's
+/// change to it being the media stage's (`media.comp`).
+WaterColumn columnOf(ColumnStart start, vec3 ratio)
 {
-    return WaterColumn(start.mTransmittance, start.mSkyMoons + start.mBeam);
+    return WaterColumn(start.mTransmittance, start.mSkyMoons + start.mBeam * ratio);
 }
 
-/// `WaterColumn` as a walk a step a shaft ray, for the walk's one traversal (`media.comp`,
-/// `panes.comp`): the closed forms when it starts, and then a step of the march each time the sky's
-/// passage (`SkyPassageRun`) answers.
+/// `WaterColumn` as a walk a step a shaft ray, for the walk's one traversal (`media.comp`): the closed
+/// forms when it starts, and then a step of the march each time the sky's passage (`SkyPassageRun`)
+/// answers.
 struct ColumnRun
 {
-    /// `RUN_IDLE` once `mColumn` holds the answer.
+    /// `RUN_IDLE` once `mRatio` holds the answer.
     uint mStep;
 
     /// Where the stretch starts, the unit direction along it, and how long it is. All three are
@@ -377,10 +378,8 @@ struct ColumnRun
     /// shaft is visible.
     float mFootprint;
 
-    /// The closed forms, and the march's sums so far.
-    vec3 mTransmittance;
-    vec3 mSkyMoons;
-    vec3 mBeam;
+    /// The closed forms the walk starts from, and the march's sums so far.
+    ColumnStart mStart;
     SunUnderWater mSun;
     float mShow;
     vec3 mLit;
@@ -394,11 +393,23 @@ struct ColumnRun
     /// visibility multiplies once its ray answers.
     vec3 mLensed;
 
-    /// The answer, and what the march changed of the closed forms' scattering in it: the beam by the
-    /// share its shafts gathered or lost, nought where no march ran.
-    WaterColumn mColumn;
-    vec3 mShafts;
+    /// What the march found the shafts make of the beam, the answer with `mStart`: one where no march
+    /// ran.
+    vec3 mRatio;
 };
+
+/// The column `run` answers once it is idle.
+WaterColumn columnOf(ColumnRun run)
+{
+    return columnOf(run.mStart, run.mRatio);
+}
+
+/// What the march changed of the closed forms' scattering in `run`'s answer: the beam by the share its
+/// shafts gathered or lost, nought where no march ran.
+vec3 shaftsOf(ColumnRun run)
+{
+    return run.mStart.mBeam * (run.mRatio - 1.0);
+}
 
 const uint COLUMN_START = 1u;
 const uint COLUMN_SHAFT = 2u;
@@ -411,9 +422,7 @@ ColumnRun columnRunOf(vec3 from, vec3 direction, float path, float footprint)
     run.mDirection = direction;
     run.mPath = path;
     run.mFootprint = footprint;
-    run.mTransmittance = vec3(0.0);
-    run.mSkyMoons = vec3(0.0);
-    run.mBeam = vec3(0.0);
+    run.mStart = ColumnStart(vec3(0.0), vec3(0.0), vec3(0.0), 0.0, false);
     run.mSun = SunUnderWater(vec3(0.0), 0.0);
     run.mShow = 0.0;
     run.mLit = vec3(0.0);
@@ -423,8 +432,7 @@ ColumnRun columnRunOf(vec3 from, vec3 direction, float path, float footprint)
     run.mAimed = vec2(0.0);
     run.mShaft = 0u;
     run.mLensed = vec3(0.0);
-    run.mColumn = WaterColumn(vec3(0.0), vec3(0.0));
-    run.mShafts = vec3(0.0);
+    run.mRatio = vec3(1.0);
     return run;
 }
 
@@ -463,11 +471,10 @@ void stepColumn(inout ColumnRun run, inout SkyPassageRun skyPassage, uvec2 pixel
 {
     if (run.mStep == COLUMN_START)
     {
-        const ColumnStart start = columnStartOf(run.mFrom, run.mDirection, run.mPath);
-        if (!start.mMarches)
+        run.mStart = columnStartOf(run.mFrom, run.mDirection, run.mPath);
+        if (!run.mStart.mMarches)
         {
-            run.mColumn = closedColumnOf(start);
-            run.mShafts = vec3(0.0);
+            run.mRatio = vec3(1.0);
             run.mStep = RUN_IDLE;
             return;
         }
@@ -477,11 +484,8 @@ void stepColumn(inout ColumnRun run, inout SkyPassageRun skyPassage, uvec2 pixel
         // the surface's lens at every step and once without. `WATER_SHAFT_STEPS` jittered steps are a poor
         // quadrature of either and an excellent one of what separates them: the step count, the jitter and the
         // exponentials all cancel, and what is left multiplies the closed form above.
-        run.mTransmittance = start.mTransmittance;
-        run.mSkyMoons = start.mSkyMoons;
-        run.mBeam = start.mBeam;
         run.mSun = sunUnderWater(frame.mSun.mDirection);
-        run.mShow = smoothstep(WATER_SHAFT_FLOOR, WATER_SHAFT_SHOWN, start.mShare);
+        run.mShow = smoothstep(WATER_SHAFT_FLOOR, WATER_SHAFT_SHOWN, run.mStart.mShare);
         run.mLit = vec3(0.0);
         run.mPlain = vec3(0.0);
         run.mBehind = 0.0;
@@ -507,9 +511,7 @@ void stepColumn(inout ColumnRun run, inout SkyPassageRun skyPassage, uvec2 pixel
         return;
     }
 
-    const vec3 ratio = run.mLit / max(run.mPlain, vec3(1.0e-20));
-    run.mColumn = WaterColumn(run.mTransmittance, run.mSkyMoons + run.mBeam * ratio);
-    run.mShafts = run.mBeam * (ratio - 1.0);
+    run.mRatio = run.mLit / max(run.mPlain, vec3(1.0e-20));
     run.mStep = RUN_IDLE;
 }
 

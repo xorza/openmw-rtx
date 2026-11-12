@@ -462,6 +462,11 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
 - **A stage's phases are loops of their own**, so only one walk's records stay live across a traversal; a stage whose
   rays wait on no other's answer works out its light first, as NVIDIA's best practices ask
   (`research/2026-10-30-amd-handheld-stage-times.md`).
+- **A layer under the water takes its column's shafts from `media`**: its column in the closed form, the beam scaled
+  by the ratio `media` marched over the eye's whole column (`STAGE_SHAFTS`), the medium integrated once along the ray
+  and read at each depth, as Frostbite's volumetrics light transparents (Hillaire 2015); exact where the shafts' share
+  is even along the ray. Refused: a march a layer, which held `panes` at AMD's 256 registers and spilled up to 272
+  bytes (`research/2026-11-12-panes-column-ratio.md`); the closed form alone, which dims the shafts in front of a layer.
 - **The landing and the sea's walk are stages of their own over the pixels and tiles that need them**
   (`research/2026-10-21-nvidia-stage-costs.md`, `research/2026-11-02-water-stage.md`); a walk resolves the surface it
   ends on once, after it (`research/2026-11-09-walks-resolve-once.md`).

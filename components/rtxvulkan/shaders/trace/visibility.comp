@@ -274,7 +274,7 @@ TracedLists tracePixel(uvec2 pixel)
             = waterUnbounded(answer.mHit, origin, direction) ? WATER_UNBOUNDED_PATH : answer.mDistance;
         const float under = waterAlong(path.mFrom, path.mAlong, waterDistance);
         const ColumnStart start = columnStartOf(path.mFrom, path.mAlong, under);
-        ahead = mediumOverColumn(path, under, waterDistance, answer.mDistance, closedColumnOf(start));
+        ahead = mediumOverColumn(path, under, waterDistance, answer.mDistance, columnOf(start, vec3(1.0)));
         marches = marches || start.mMarches;
     }
 

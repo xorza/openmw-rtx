@@ -156,6 +156,10 @@ layout(set = SET_CHANNELS, binding = STAGE_LANDING_RAY_ALONG, GBUFFER_STAGE_RAY)
 /// what it holds.
 layout(set = SET_CHANNELS, binding = STAGE_RELIEF, GBUFFER_STAGE_RELIEF) uniform image2D stageRelief;
 
+/// What the sun's shafts made of the eye's water column (`STAGE_SHAFTS`): `storeStageShafts` says what it
+/// holds.
+layout(set = SET_CHANNELS, binding = STAGE_SHAFTS, GBUFFER_STAGE_SHAFTS) uniform uimage2D stageShafts;
+
 /// The tiles the later stages run over, which the trace appends, and the pixels the landing's stage runs
 /// over, which the bounce's appends (`STAGE_TILES`): each tile list's count in its indirect dispatch's `x`,
 /// which the frame's `GBuffer::begin` sets to nought, and each tile list `stageTileCapacity` long; each
