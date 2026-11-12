@@ -10,16 +10,16 @@
 
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/renderer/renderer.hpp>
-#include <components/rtx/shaders/digest.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
+#include <components/rtxvulkan/frame/digestimages.hpp>
 #include <components/rtxvulkan/frame/digestpass.hpp>
+#include <components/rtxvulkan/frame/notfinitekeep.hpp>
 
 namespace Rtx
 {
@@ -135,13 +135,22 @@ namespace Rtx
         /// last pass that writes `target`.
         void readPicture(FrameRecord& frame, VkCommandBuffer commands, const Image& target);
 
-        /// Records the fold of `channels` and of what the denoisers wrote, null where a filter did not
-        /// run, into the frame's digest, and notes `facts` for the report — `FrameResult::mDigest`,
-        /// whose words are read once the frame is waited for.
-        void readDigest(FrameRecord& frame, VkCommandBuffer commands,
-            const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels, std::uint32_t channelsInFields,
-            const std::array<const Image*, sDenoiserImageCount>& denoiser, VkExtent2D extent, std::uint32_t frameNumber,
-            const FrameDigest& facts, GpuTimer* timer);
+        /// Records the fold of `images` into the frame's digest, and notes `facts` for the report —
+        /// `FrameResult::mDigest`, whose words are read once the frame is waited for. `sampleFrame` is the
+        /// frame's sample number, which says how its fields lie.
+        void readDigest(FrameRecord& frame, VkCommandBuffer commands, const DigestImages& images,
+            std::uint32_t sampleFrame, const FrameDigest& facts, GpuTimer* timer);
+
+        /// Whether the device counts, and so keeps the first frame that stored a value not finite
+        /// (`NotFiniteKeep`), which `keepNotFinite` records the turn of.
+        bool keepsNotFinite() const { return mKeep.has_value(); }
+
+        /// Records the frame's turn to be kept, `NotFiniteKeep::record`'s, over `images`, of the frame being
+        /// recorded: at the digest's step, as `readDigest`.
+        void keepNotFinite(VkCommandBuffer commands, const DigestImages& images, std::uint32_t sampleFrame);
+
+        /// What the device kept (`Renderer::takeNotFiniteFrame`), with every frame in flight waited out first.
+        std::optional<NotFiniteFrame> takeNotFiniteFrame();
 
         /// The recording of `frame`'s trace, begun on the frame's own buffer. An exception that
         /// leaves it unsubmitted ends the renderer: the passes recorded into it already took their
@@ -226,6 +235,9 @@ namespace Rtx
         /// What folds a frame's images into its digest, on the frames that ask; none in a ring that
         /// reads nothing back.
         std::optional<DigestPass> mDigest;
+
+        /// What keeps the first frame that stored a value not finite, on a device that counts.
+        std::optional<NotFiniteKeep> mKeep;
 
         /// The next frame to record and the next to finish. Everything from `mFinished` to `mFrame`
         /// is in flight, and there are never more of those than there are slots.

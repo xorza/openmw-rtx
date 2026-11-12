@@ -20,6 +20,7 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/frame/digestimages.hpp>
 #include <components/rtxvulkan/frame/digestpass.hpp>
 #include <components/rtxvulkan/shaders/shared/fields.h>
 
@@ -96,10 +97,12 @@ namespace Rtx
             /// Digests `images` and the bound of `denoiser` in one record, from where `from` left
             /// them, over the first image's extent. The pass takes the frame's count of channels, so
             /// the last one given stands in for the rest; they are in the frame's order, and the
-            /// denoiser's in fields (`fielded`) as frame number `frame` lays them.
+            /// denoiser's in fields (`fielded`) as frame number `frame` lays them. The channels `holes` names, a
+            /// bit at each one's index, are left null, as a channel kept a texel wide is.
             Digested digest(const std::span<Image* const> images,
                 const std::array<const Image*, sDenoiserImageCount>& denoiser = {},
-                const ImageUse& from = Use::sTextureSample, const std::uint32_t frame = 0)
+                const ImageUse& from = Use::sTextureSample, const std::uint32_t frame = 0,
+                const std::uint32_t holes = 0)
             {
                 Device& device = getDevice();
                 const DigestPass pass(device);
@@ -108,7 +111,7 @@ namespace Rtx
 
                 std::array<const Image*, Shaders::DIGEST_IMAGES> digested{};
                 for (std::size_t at = 0; at < digested.size(); ++at)
-                    digested[at] = images[std::min(at, images.size() - 1)];
+                    digested[at] = (holes & (1u << at)) != 0 ? nullptr : images[std::min(at, images.size() - 1)];
 
                 Digested read;
                 Batch batch(getPool());
@@ -118,8 +121,9 @@ namespace Rtx
                     if (image != nullptr && std::ranges::find(images, image) == images.end())
                         image->transition(batch.getCommands(), from, Use::sComputeRead);
                 const VkExtent2D extent{ images.front()->getWidth(), images.front()->getHeight() };
-                read.mFrame.mDenoiserTaken
-                    = pass.record(batch.getCommands(), digested, 0, denoiser, extent, frame, lanes, nullptr);
+                const DigestImages bound(digested, 0, denoiser, extent);
+                read.mFrame.mDenoiserTaken = bound.getDenoiserTaken();
+                pass.record(batch.getCommands(), bound, frame, lanes, nullptr);
                 batch.flush();
 
                 const auto* const words = static_cast<const std::uint32_t*>(lanes.map());
@@ -128,7 +132,7 @@ namespace Rtx
                     for (std::size_t lane = 0; lane < Shaders::DIGEST_LANES; ++lane)
                         read.mChannels[image][lane] = words[image * Shaders::DIGEST_LANES + lane];
                 for (std::size_t lane = Shaders::DIGEST_IMAGES * Shaders::DIGEST_LANES;
-                    lane < DigestPass::sImages * Shaders::DIGEST_LANES; ++lane)
+                    lane < DigestImages::sCount * Shaders::DIGEST_LANES; ++lane)
                     read.mDenoiserLanesHeld += words[lane] != 0 ? 1 : 0;
 
                 DigestPass::unpack(lanes, read.mFrame);
@@ -217,6 +221,10 @@ namespace Rtx
 
             EXPECT_EQ(digest(once, {}, Use::sComputeRead).mChannels, first)
                 << "the same image twice is the same digest";
+
+            const std::vector<Lanes> holed = digest(once, {}, Use::sComputeRead, 0, 1u << 3).mChannels;
+            EXPECT_EQ(holed[3], Lanes{}) << "a channel the frame has none of digests as nothing";
+            EXPECT_EQ(holed[2], expected) << "and moves no other";
 
             EXPECT_EQ(digested.mFrame.mDenoiserTaken, 0u) << "no denoiser image was handed over";
             EXPECT_EQ(digested.mDenoiserLanesHeld, 0u) << "a stand-in folds nothing";

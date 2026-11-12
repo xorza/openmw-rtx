@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <format>
+#include <optional>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/error.hpp>
@@ -65,6 +66,12 @@ namespace Rtx
     {
         const auto* const stores = static_cast<const Shaders::Census*>(copied.map());
         for (std::uint32_t kernel = 0; kernel < mNamed; ++kernel)
-            into.add(mNames[kernel], stores->mNotFinite[kernel]);
+        {
+            const std::uint32_t first = stores->mFirst[kernel];
+            into.add(mNames[kernel], stores->mNotFinite[kernel],
+                first == 0 ? std::nullopt
+                           : std::optional(NotFiniteAt{
+                                 .mX = Shaders::censusFirstX(first), .mY = Shaders::censusFirstY(first) }));
+        }
     }
 }

@@ -59,6 +59,7 @@
 #include <components/rtxvulkan/device/result.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/device/validation.hpp>
+#include <components/rtxvulkan/frame/digestimages.hpp>
 #include <components/rtxvulkan/frame/gbuffer.hpp>
 #include <components/rtxvulkan/frame/tracepast.hpp>
 #include <components/rtxvulkan/present/presenter.hpp>
@@ -859,9 +860,9 @@ namespace Rtx
         const GBuffer& channels = traced.mInputs.mChannels;
 
         // Before anything past the trace has a say; `FrameDigest` says why the picture is not enough.
-        if (options.mReadBack)
+        if (options.mReadBack || mRing.keepsNotFinite())
         {
-            // **The direct channel's slot digests the composed frame**: the picture, in the frame's own
+            // **The direct channel's slot holds the composed frame**: the picture, in the frame's own
             // order, which is what two runs of one frame are held to (`FrameDigest`).
             std::array<const Image*, Shaders::DIGEST_IMAGES> digested{};
             std::uint32_t inFields = 0;
@@ -878,15 +879,19 @@ namespace Rtx
             std::array<const Image*, sDenoiserImageCount> denoiser{};
             chain.denoiserWritten(denoiser);
 
-            mRing.readDigest(frame, commands, digested, inFields, denoiser,
-                VkExtent2D{ sampled.mEyes.mWorld.mWidth, sampled.mEyes.mWorld.mHeight }, sampled.mFrame,
-                FrameDigest{
-                    .mJitterX = sampled.mEyes.mWorld.mJitter.x(),
-                    .mJitterY = sampled.mEyes.mWorld.mJitter.y(),
-                    .mFrameDeltaMs = sinceLastMs,
-                    .mReset = reconstruction.upscaled() && mUpscaler.isFresh() ? 1u : 0u,
-                },
-                &timer);
+            const DigestImages images(
+                digested, inFields, denoiser, VkExtent2D{ sampled.mEyes.mWorld.mWidth, sampled.mEyes.mWorld.mHeight });
+            if (options.mReadBack)
+                mRing.readDigest(frame, commands, images, sampled.mFrame,
+                    FrameDigest{
+                        .mJitterX = sampled.mEyes.mWorld.mJitter.x(),
+                        .mJitterY = sampled.mEyes.mWorld.mJitter.y(),
+                        .mFrameDeltaMs = sinceLastMs,
+                        .mReset = reconstruction.upscaled() && mUpscaler.isFresh() ? 1u : 0u,
+                    },
+                    &timer);
+            if (mRing.keepsNotFinite())
+                mRing.keepNotFinite(commands, images, sampled.mFrame);
         }
 
         // The rest of the frame runs over the reconstruction where something upscales and over the trace's
@@ -1018,6 +1023,11 @@ namespace Rtx
         const Image& picture = mTarget.getPicture();
         pixels.resize(picture.getReadBytes());
         picture.read(VK_IMAGE_LAYOUT_GENERAL, mReadBack, std::as_writable_bytes(std::span(pixels)));
+    }
+
+    std::optional<NotFiniteFrame> VulkanRenderer::takeNotFiniteFrame()
+    {
+        return mRing.takeNotFiniteFrame();
     }
 
     void VulkanRenderer::readDeepPixels(std::vector<std::uint16_t>& samples)

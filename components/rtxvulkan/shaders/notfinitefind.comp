@@ -1,0 +1,60 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// Each kept image's first texel that is not finite, on the frame a counting device keeps (`notfinitekeep.h`):
+// the topmost, then the leftmost, as the census keys one (`censusFirst`), over one run of the digest's float
+// slots at each pixel's place, as the digest reads them.
+
+#include "shared/counts.h"
+#include "shared/notfinitekeep.h"
+#include "shared/sets.h"
+
+#include "lib/finite.glsl"
+#include "lib/pixels.glsl"
+
+layout(local_size_x = KEEP_FIND_WORKGROUP, local_size_y = KEEP_FIND_WORKGROUP) in;
+
+layout(set = SET_PASS, binding = KEEP_BIND_IMAGES) uniform readonly image2D images[DIGEST_FLOAT_SLOTS];
+
+layout(set = SET_PASS, binding = KEEP_BIND_KEPT, scalar) buffer KeptBlock
+{
+    NotFiniteKept kept;
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    NotFiniteKeepConstants push;
+};
+
+/// The workgroup's own first texel a slot, so the kept block sees one atomic a slot a workgroup.
+shared uint firstOf[DIGEST_FLOAT_SLOTS];
+
+bool bound(uint slots, uint slot)
+{
+    return (slots & (1u << slot)) != 0u;
+}
+
+void main()
+{
+    if (gl_LocalInvocationIndex < DIGEST_FLOAT_SLOTS)
+        firstOf[gl_LocalInvocationIndex] = 0u;
+    barrier();
+
+    const uvec2 pixel = gl_GlobalInvocationID.xy;
+    if (!outsideOf(pixel, uvec2(push.mWidth, push.mHeight)))
+    {
+        const uint swap = fieldSwapOf(push.mFrame);
+        for (uint slot = 0u; slot < DIGEST_FLOAT_SLOTS; ++slot)
+            if (bound(push.mFloats, slot)
+                && any(notFinite(imageLoad(images[slot],
+                    bound(push.mFloatsInFields, slot) ? storedAt(ivec2(pixel), push.mWidth, swap) : ivec2(pixel)))))
+                atomicMax(firstOf[slot], censusFirst(pixel.x, pixel.y));
+    }
+    barrier();
+
+    const uint slot = gl_LocalInvocationIndex;
+    if (slot < DIGEST_FLOAT_SLOTS && firstOf[slot] != 0u)
+        atomicMax(kept.mFirst[push.mKeptAt[slot]], firstOf[slot]);
+}

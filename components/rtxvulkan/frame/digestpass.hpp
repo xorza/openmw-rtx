@@ -1,18 +1,18 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/shaders/digest.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/channeldigest.h>
+
+#include "digestimages.hpp"
 
 namespace Rtx
 {
@@ -25,43 +25,25 @@ namespace Rtx
     class DigestPass
     {
     public:
-        /// How many images a frame digests: every channel, then every image of the denoiser
-        /// (`Rtx::DenoiserImage`), the ones held in floats before the ones held in words.
-        static constexpr std::size_t sImages = Shaders::DIGEST_IMAGES + sDenoiserImageCount;
-
         /// What `record` copies into its buffer, which is what that buffer has to have room for.
-        static constexpr VkDeviceSize sBytes = sizeof(std::uint32_t) * sImages * Shaders::DIGEST_LANES;
+        static constexpr VkDeviceSize sBytes = sizeof(std::uint32_t) * DigestImages::sCount * Shaders::DIGEST_LANES;
 
         explicit DigestPass(const Device& device);
 
-        /// `channels` and the bound images of `denoiser` into `into`, ordered for a host read last:
-        /// image `i` of the channels fills the `DIGEST_LANES` words from `i * DIGEST_LANES`, and
-        /// the denoiser's images follow (`lanesOf`). Each is read over the frame's `extent` at each
-        /// pixel's place: in its field, as frame number `frame` lays them, for the channels
-        /// `channelsInFields` names (a bit at each one's index), and for every denoiser image. Each
-        /// is a storage image in `GENERAL`; the denoiser's, null where the frame wrote none, are
-        /// ordered here behind the passes that wrote them. Hands back which it took, a bit at each
-        /// one's index (`FrameDigest::mDenoiserTaken`).
-        std::uint32_t record(VkCommandBuffer commands, const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels,
-            std::uint32_t channelsInFields, const std::array<const Image*, sDenoiserImageCount>& denoiser,
-            VkExtent2D extent, std::uint32_t frame, const Buffer& into, GpuTimer* timer) const;
+        /// `images` into `into`, ordered for a host read last: image `i` of the floats fills the
+        /// `DIGEST_LANES` words from `i * DIGEST_LANES`, and the words follow (`lanesOf`). Each is a storage
+        /// image in `GENERAL`; the denoiser's are ordered here behind the passes that wrote them. `frame` is
+        /// the frame's sample number, which says how its fields lie.
+        void record(VkCommandBuffer commands, const DigestImages& images, std::uint32_t frame, const Buffer& into,
+            GpuTimer* timer) const;
 
         /// The words `record` copied into `lanes`, into `into`: the channels', and the denoiser's
         /// where `into.mDenoiserTaken` says it took them.
         static void unpack(const Buffer& lanes, FrameDigest& into);
 
     private:
-        /// Where a denoiser image is bound and its words lie: among the floats after the channels,
-        /// or among the words after those, by what its image holds. Its place among its own kind.
-        struct Slot
-        {
-            bool mWords;
-            std::uint32_t mAt;
-        };
-        static Slot slotOf(DenoiserImage image);
-
-        /// Where a denoiser image's words lie in the lanes, counted in images.
-        static std::size_t lanesOf(DenoiserImage image);
+        /// Where image `image` of the frame's words lie in the lanes, counted in images.
+        static std::size_t lanesOf(std::size_t image);
 
         ComputePipeline<Shaders::DigestConstants> mPipeline;
 

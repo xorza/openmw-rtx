@@ -281,8 +281,15 @@ namespace RtxTool
     /// The header as the lines the report opens with.
     std::string describeHeader(const BenchHeader& header);
 
-    /// What `wrote` holds as a report says it: the stores in all, and each module's after a colon.
+    /// What `wrote` holds as a report says it: the stores in all, and each module's after a colon, with where it
+    /// first stored one where the census said.
     std::string describeNotFinite(const Rtx::NotFinite& wrote);
+
+    /// What the renderer kept of a frame that stored a value not finite, as a file says it: the frame, each
+    /// image's first texel not finite, and each image's window around the centre a row a line, a texel's four
+    /// components apart from the next by a bar, as floats or, for an image of words, as words. A texel past the
+    /// frame's edge is a dash.
+    std::string describeNotFiniteFrame(const Rtx::NotFiniteFrame& kept);
 
     /// What a whole run came to, under the places. Empty for a run of one place, which has already
     /// said everything this would.

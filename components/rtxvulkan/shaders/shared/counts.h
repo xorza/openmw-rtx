@@ -59,11 +59,36 @@ namespace Rtx::Shaders
     struct Census
     {
         uint mNotFinite[CENSUS_KERNELS];
+
+        /// Where each module first stored one, as `censusFirst` keys the invocation that did: the topmost,
+        /// then the leftmost, of a frame, whichever lane got there first, so a run drawn again names the same.
+        /// Nought where the module stored none.
+        uint mFirst[CENSUS_KERNELS];
     };
+
+    /// The word `Census::mFirst` holds for an invocation at `x`, `y`: the largest for the topmost and leftmost,
+    /// so the largest written wins, and never nought, which a cleared census holds for none, as `y` stops a
+    /// row short of sixteen bits. Every frame and every launch the renderer makes fits.
+    RTX_SHADER uint censusFirst(uint x, uint y)
+    {
+        return 0xffffffffu - ((min(y, 0xfffeu) << 16u) | min(x, 0xffffu));
+    }
+
+    /// The `x` that `censusFirst` keyed into `word`, which is not nought.
+    RTX_SHADER uint censusFirstX(uint word)
+    {
+        return (0xffffffffu - word) & 0xffffu;
+    }
+
+    /// The `y` that `censusFirst` keyed into `word`, which is not nought.
+    RTX_SHADER uint censusFirstY(uint word)
+    {
+        return (0xffffffffu - word) >> 16u;
+    }
 
 #ifdef RTX_HOST
     static_assert(sizeof(FrameCounts) == 16, "FrameCounts must be scalar-packed on every side");
-    static_assert(sizeof(Census) == 4 * CENSUS_KERNELS, "Census must be scalar-packed on every side");
+    static_assert(sizeof(Census) == 8 * CENSUS_KERNELS, "Census must be scalar-packed on every side");
 }
 #endif
 

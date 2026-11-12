@@ -358,6 +358,10 @@ namespace Rtx::Testing
         reportStores(mProbe.takeCountedStores(), "in frames of the test");
         reportStores(takeUncountedStores(mProbe.getDevice()), "that no frame of the test reported");
         reportErrors(mRenderer, "validation error");
+
+        // What the renderer kept of a frame that stored one, so the next test's keep starts empty: a test that
+        // stored one on purpose has said what it asks of the stores.
+        mRenderer.takeNotFiniteFrame();
     }
 
     void RendererTest::forgetErrors(VulkanRenderer& renderer)

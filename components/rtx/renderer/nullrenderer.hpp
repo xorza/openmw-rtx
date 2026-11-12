@@ -88,6 +88,7 @@ namespace Rtx
         const SceneStats& getSceneStats() const override { return mStats; }
         void readPixels(std::vector<std::uint8_t>& pixels) override;
         void readDeepPixels(std::vector<std::uint16_t>& samples) override;
+        std::optional<NotFiniteFrame> takeNotFiniteFrame() override { return std::nullopt; }
 
     private:
         /// What a GUI slot holds: whether it is handed out, and whether a trace into it left a copy,

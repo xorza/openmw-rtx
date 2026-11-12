@@ -155,6 +155,7 @@ target_sources(
         rtxvulkan/scene/sceneacceleration.cpp
         rtxvulkan/scene/sceneslots.cpp
         rtxvulkan/shaders/accumulate.cpp
+        rtxvulkan/shaders/counts.cpp
         rtxvulkan/shaders/exposure.cpp
         rtxvulkan/shaders/fields.cpp
         rtxvulkan/shaders/medium.cpp
@@ -284,6 +285,7 @@ target_sources(
         rtxvulkan/display/bloompass.cpp
         rtxvulkan/display/exposurepass.cpp
         rtxvulkan/frame/digestpass.cpp
+        rtxvulkan/frame/notfinitekeep.cpp
         rtxvulkan/framering.cpp
         rtxvulkan/frames.cpp
         rtxvulkan/gui/guipass.cpp
@@ -340,6 +342,7 @@ target_sources(
             BASE_DIRS
                 "${PROJECT_SOURCE_DIR}"
             FILES
+                rtxvulkan/support/device/censusprobe.hpp
                 rtxvulkan/support/device/harness.hpp
                 rtxvulkan/support/device/heldsubmit.hpp
                 rtxvulkan/support/device/hostwritten.hpp

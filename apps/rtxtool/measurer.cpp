@@ -9,6 +9,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <system_error>
 #include <utility>
 
 #include <apps/openmw/mwbase/environment.hpp>
@@ -20,12 +21,15 @@
 #include <apps/rtxtool/instruments/framehashes.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
 #include <apps/rtxtool/instruments/png.hpp>
+#include <apps/rtxtool/instruments/reportfile.hpp>
+#include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
@@ -132,7 +136,7 @@ namespace RtxTool
         }
 
         if (report.mResult.has_value())
-            answered(stop, *report.mResult, renderer.getExtents());
+            answered(stop, *report.mResult, renderer);
         if (!mFailure.empty())
             return Verdict::Failed;
 
@@ -200,11 +204,17 @@ namespace RtxTool
         return drawn < measured && !arrived ? Verdict::Going : Verdict::Ended;
     }
 
-    void Measurer::answered(const Stop& stop, const Rtx::FrameResult& finished, const Rtx::FrameExtents& extents)
+    void Measurer::answered(const Stop& stop, const Rtx::FrameResult& finished, Rtx::Renderer& renderer)
     {
+        // The first failure is the one the run ends on: a stop's drain answers for frames after a frame that
+        // stopped it, and a later frame that stored one would say another frame's count, with nothing kept.
+        if (!mFailure.empty())
+            return;
+
         if (std::optional<std::string> stopping = mRequest.stopAt(finished); stopping.has_value())
         {
             mFailure = std::move(*stopping);
+            writeNotFiniteFrame(renderer);
             return;
         }
 
@@ -213,6 +223,7 @@ namespace RtxTool
             || finished.mFrame < mProgress.mFirstMeasured)
             return;
 
+        const Rtx::FrameExtents extents = renderer.getExtents();
         mProgress.mReconstruction = finished.mReconstruction;
         mProgress.mPlace.mOverlap.add(finished.mInFlight);
         mProgress.mGpu.add(finished.mGpu.spans(), finished.mGpu.counterNames(), finished.mGpu.counters());
@@ -232,6 +243,25 @@ namespace RtxTool
 
         if (stop.mActions.mFilm.has_value())
             writeFilmFrame(stop, finished, extents);
+    }
+
+    void Measurer::writeNotFiniteFrame(Rtx::Renderer& renderer)
+    {
+        const std::optional<Rtx::NotFiniteFrame> kept = renderer.takeNotFiniteFrame();
+        if (!kept.has_value())
+        {
+            mFailure += "; the renderer kept no frame of it";
+            return;
+        }
+
+        // A folder that could not be made shows as the write's failure, which names the file and the reason.
+        std::error_code unmade;
+        std::filesystem::create_directories(mRequest.mKeptFrames, unmade);
+        const std::filesystem::path file = mRequest.mKeptFrames / std::format("frame-{}-not-finite.txt", kept->mFrame);
+        const Result<void, std::string> written = writeReport(file, describeNotFiniteFrame(*kept));
+        mFailure += written.isOk()
+            ? std::format("; what frame {} held is in {}", kept->mFrame, Files::pathToUnicodeString(file))
+            : std::format("; what frame {} held was not written: {}", kept->mFrame, written.error());
     }
 
     void Measurer::writeFilmFrame(const Stop& stop, const Rtx::FrameResult& finished, const Rtx::FrameExtents& extents)
@@ -337,7 +367,7 @@ namespace RtxTool
         // stop's to pay and never a frame's, so every measured frame's figures and picture are in
         // the place they belong to.
         while (const std::optional<Rtx::FrameResult> finished = renderer.finishFrame())
-            answered(stop, *finished, extents);
+            answered(stop, *finished, renderer);
 
         // Drained, so a film frame still numbered is one whose picture will not come: the film
         // stops at that gap, and the run that made it may not end as though it had not.

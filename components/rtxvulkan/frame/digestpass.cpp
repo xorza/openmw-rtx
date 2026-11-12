@@ -1,6 +1,5 @@
 #include "digestpass.hpp"
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstddef>
@@ -11,11 +10,9 @@
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
-#include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
-#include <components/rtxvulkan/shaders/shared/fields.h>
 
 namespace Rtx
 {
@@ -29,34 +26,8 @@ namespace Rtx
             computeBinding(Shaders::DIGEST_BIND_LANES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
         };
 
-        /// Which of the denoiser's images hold words — fast means, shadow words and moments —
-        /// which a float view cannot read, at each one's index. A slot's own and not read off the
-        /// image, because the layout binds each kind apart; `record` holds each image to it.
-        constexpr std::array<bool, sDenoiserImageCount> sHeldInWords = [] {
-            std::array<bool, sDenoiserImageCount> words{};
-            for (const DenoiserImage image : { DenoiserImage::AccumulateFast, DenoiserImage::SkyShadowMoments,
-                     DenoiserImage::LampShadowMoments, DenoiserImage::PaneFast, DenoiserImage::SpecularFast,
-                     DenoiserImage::SkyShadowLevel0, DenoiserImage::LampShadowLevel0, DenoiserImage::SkyShadowLevel1,
-                     DenoiserImage::LampShadowLevel1, DenoiserImage::SkyShadowLevel2, DenoiserImage::LampShadowLevel2 })
-                words[static_cast<std::size_t>(image)] = true;
-            return words;
-        }();
-
-        constexpr std::size_t countHeldInWords()
-        {
-            std::size_t words = 0;
-            for (const bool held : sHeldInWords)
-                words += held ? 1 : 0;
-            return words;
-        }
-
         static_assert(
             Shaders::DIGEST_SLOTS <= DescriptorWrites::sMostImages, "a run of more images than a push carries");
-
-        /// How many of the denoiser's images are held in words, and so how many images of the frame
-        /// a float view reads: the channels and the rest of the denoiser's.
-        constexpr auto sDenoiserWords = static_cast<std::uint32_t>(countHeldInWords());
-        constexpr std::uint32_t sFloatImages = static_cast<std::uint32_t>(DigestPass::sImages) - sDenoiserWords;
 
         Misc::DigestWords wordsAt(const std::uint32_t* words, const std::size_t image)
         {
@@ -66,20 +37,10 @@ namespace Rtx
         }
     }
 
-    DigestPass::Slot DigestPass::slotOf(const DenoiserImage image)
+    std::size_t DigestPass::lanesOf(const std::size_t image)
     {
-        const auto at = static_cast<std::size_t>(image);
-        assert(at < sDenoiserImageCount);
-        std::uint32_t before = 0;
-        for (std::size_t other = 0; other < at; ++other)
-            before += sHeldInWords[other] == sHeldInWords[at] ? 1u : 0u;
-        return Slot{ .mWords = sHeldInWords[at], .mAt = before };
-    }
-
-    std::size_t DigestPass::lanesOf(const DenoiserImage image)
-    {
-        const Slot slot = slotOf(image);
-        return slot.mWords ? sFloatImages + slot.mAt : Shaders::DIGEST_IMAGES + slot.mAt;
+        const DigestImages::Slot slot = DigestImages::slotOf(image);
+        return slot.mWords ? DigestImages::sFloats + slot.mAt : slot.mAt;
     }
 
     DigestPass::DigestPass(const Device& device)
@@ -92,44 +53,14 @@ namespace Rtx
     {
     }
 
-    std::uint32_t DigestPass::record(const VkCommandBuffer commands,
-        const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels, const std::uint32_t channelsInFields,
-        const std::array<const Image*, sDenoiserImageCount>& denoiser, const VkExtent2D extent,
-        const std::uint32_t frame, const Buffer& into, GpuTimer* const timer) const
+    void DigestPass::record(const VkCommandBuffer commands, const DigestImages& images, const std::uint32_t frame,
+        const Buffer& into, GpuTimer* const timer) const
     {
         assert(into.getSize() >= sBytes && "a digest of more images than the frame has room for");
 
-        [[maybe_unused]] const auto reaches = [&](const Image& image, const bool inFields) {
-            return image.getWidth() >= (inFields ? Shaders::storedWidth(extent.width) : extent.width)
-                && image.getHeight() >= extent.height;
-        };
-
-        // Every image of the frame in the order its lanes lie: the floats, the channels first, and
-        // then the words. Null where the denoiser wrote none.
-        std::array<const Image*, sFloatImages> floats{};
-        std::array<const Image*, sDenoiserWords> words{};
-        for (std::size_t at = 0; at < channels.size(); ++at)
-        {
-            assert(reaches(*channels[at], (channelsInFields & (1u << at)) != 0) && "a digest past an image's edge");
-            assert(!holdsWords(channels[at]->getFormat()) && "a channel of words bound as floats");
-            floats[at] = channels[at];
-        }
-
-        std::uint32_t taken = 0;
-        for (std::size_t at = 0; at < denoiser.size(); ++at)
-        {
-            const Slot slot = slotOf(static_cast<DenoiserImage>(at));
-            const Image* const image = denoiser[at];
-            assert((image == nullptr || reaches(*image, true)) && "a digest past an image's edge");
-            assert((image == nullptr || holdsWords(image->getFormat()) == slot.mWords)
-                && "a denoiser image bound as the kind of texel it does not hold");
-            (slot.mWords ? words[slot.mAt] : floats[Shaders::DIGEST_IMAGES + slot.mAt]) = image;
-            taken |= image != nullptr ? 1u << at : 0u;
-        }
-
         // The denoiser's images were written by its passes, which the frame's own barriers order
         // for whatever composes the frame and not for this.
-        if (taken != 0)
+        if (images.getDenoiserTaken() != 0)
             handOver(commands,
                 BufferUse{ VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT },
                 BufferUse{ VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT });
@@ -141,44 +72,24 @@ namespace Rtx
         mLanes.clear(commands);
         mLanes.transition(commands, Use::sBufferClearWrite, Use::sBufferComputeReadWrite);
 
-        // A run of each kind a dispatch, as many dispatches as the longer kind needs. Each lands in lanes of
-        // their own and the folds commute, so nothing orders one dispatch against the next.
-        constexpr std::size_t sRuns = std::max(groupsFor(sFloatImages, Shaders::DIGEST_FLOAT_SLOTS),
-            groupsFor(sDenoiserWords, Shaders::DIGEST_WORD_SLOTS));
-        for (std::uint32_t run = 0; run < sRuns; ++run)
+        // Each run lands in lanes of its own and the folds commute, so nothing orders one dispatch against
+        // the next.
+        const VkExtent2D extent = images.getExtent();
+        for (std::uint32_t run = 0; run < DigestImages::sRuns; ++run)
         {
-            std::array<VkDescriptorImageInfo, Shaders::DIGEST_FLOAT_SLOTS> runFloats{};
-            std::array<VkDescriptorImageInfo, Shaders::DIGEST_WORD_SLOTS> runWords{};
-            Shaders::DigestConstants constants{ .mWidth = extent.width,
+            const DigestImages::Run bound = images.run(run, mNoFloats, mNoWords);
+            const Shaders::DigestConstants constants{ .mWidth = extent.width,
                 .mHeight = extent.height,
                 .mFloatFirst = run * Shaders::DIGEST_FLOAT_SLOTS,
-                .mFloats = 0,
-                .mFloatsInFields = 0,
+                .mFloats = bound.mFloats,
+                .mFloatsInFields = bound.mFloatsInFields,
                 .mFrame = frame,
-                .mWordFirst = sFloatImages + run * Shaders::DIGEST_WORD_SLOTS,
-                .mWords = 0 };
-
-            for (std::uint32_t slot = 0; slot < runFloats.size(); ++slot)
-            {
-                const std::size_t at = constants.mFloatFirst + slot;
-                const Image* const image = at < floats.size() ? floats[at] : nullptr;
-                runFloats[slot] = (image != nullptr ? *image : mNoFloats).describeStorage();
-                constants.mFloats |= image != nullptr ? 1u << slot : 0u;
-                // Past the channels, the denoiser's, which are all in fields.
-                const bool inFields = at < channels.size() ? (channelsInFields & (1u << at)) != 0 : true;
-                constants.mFloatsInFields |= image != nullptr && inFields ? 1u << slot : 0u;
-            }
-            for (std::uint32_t slot = 0; slot < runWords.size(); ++slot)
-            {
-                const std::size_t at = run * Shaders::DIGEST_WORD_SLOTS + slot;
-                const Image* const image = at < words.size() ? words[at] : nullptr;
-                runWords[slot] = (image != nullptr ? *image : mNoWords).describeStorage();
-                constants.mWords |= image != nullptr ? 1u << slot : 0u;
-            }
+                .mWordFirst = DigestImages::sFloats + run * Shaders::DIGEST_WORD_SLOTS,
+                .mWords = bound.mWords };
 
             DescriptorWrites writes(mPipeline);
-            writes.images(Shaders::DIGEST_BIND_IMAGES, runFloats);
-            writes.images(Shaders::DIGEST_BIND_WORDS, runWords);
+            writes.images(Shaders::DIGEST_BIND_IMAGES, bound.mFloatViews);
+            writes.images(Shaders::DIGEST_BIND_WORDS, bound.mWordViews);
             writes.buffer(Shaders::DIGEST_BIND_LANES, mLanes.describe());
             dispatch(commands, mPipeline, writes, constants,
                 Groups::covering(extent.width, extent.height, Shaders::DIGEST_WORKGROUP));
@@ -190,7 +101,6 @@ namespace Rtx
         mLanes.copyTo(commands, into, sBytes);
 
         into.orderForHostRead(commands);
-        return taken;
     }
 
     void DigestPass::unpack(const Buffer& lanes, FrameDigest& into)
@@ -201,7 +111,7 @@ namespace Rtx
 
         for (std::size_t image = 0; image < into.mDenoiser.size(); ++image)
             into.mDenoiser[image] = (into.mDenoiserTaken & (1u << image)) != 0
-                ? wordsAt(words, lanesOf(static_cast<DenoiserImage>(image)))
+                ? wordsAt(words, lanesOf(Shaders::DIGEST_IMAGES + image))
                 : Misc::DigestWords{};
     }
 }

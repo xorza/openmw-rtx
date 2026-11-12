@@ -126,6 +126,7 @@ namespace Rtx
         void finishGuiTraces() override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
         void readDeepPixels(std::vector<std::uint16_t>& samples) override;
+        std::optional<NotFiniteFrame> takeNotFiniteFrame() override;
 
     private:
         /// What a test asks of this backend and a game never does, defined in the test tree, so

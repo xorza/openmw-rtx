@@ -1,4 +1,6 @@
+#include <bit>
 #include <cstdint>
+#include <format>
 #include <optional>
 #include <span>
 #include <string>
@@ -10,6 +12,7 @@
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
+#include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -237,18 +240,70 @@ namespace RtxTool
             Rtx::FrameResult stored;
             stored.mFrame = 42;
             stored.mNotFinite.add("shadowtiles.comp", 3);
-            stored.mNotFinite.add("shadowfilter.comp", 7);
+            stored.mNotFinite.add("shadowfilter.comp", 7, Rtx::NotFiniteAt{ .mX = 812, .mY = 403 });
 
             SessionRequest played;
             played.mPlayed = true;
             EXPECT_EQ(played.stopAt(clean), std::nullopt);
             EXPECT_EQ(played.stopAt(stored),
-                std::optional<std::string>(
-                    "frame 42: 10 stores not finite: 3 in shadowtiles.comp, 7 in shadowfilter.comp"));
+                std::optional<std::string>("frame 42: 10 stores not finite: 3 in shadowtiles.comp, 7 in "
+                                           "shadowfilter.comp (first at 812, 403)"));
 
             const SessionRequest measured;
             EXPECT_EQ(measured.stopAt(clean), std::nullopt);
             EXPECT_EQ(measured.stopAt(stored), std::nullopt);
+        }
+
+        /// **A kept frame reads as its images' firsts and their windows**: a row a line from the centre's
+        /// radius above and left of it, a dash past the frame's edge, a texel's components as floats, a NaN
+        /// as `nan`, or as words for an image of words; and a frame no image held one of as its images'
+        /// lines alone.
+        TEST(RtxBenchRunTest, aKeptFrameReadsAsItsImagesFirstsAndWindows)
+        {
+            constexpr std::uint32_t nan = 0x7fc00000u;
+            Rtx::NotFiniteImage indirect{
+                .mName = "g-indirect", .mWords = false, .mFirst = Rtx::NotFiniteAt{ .mX = 1, .mY = 0 }, .mTexels = {}
+            };
+            // 4, 4 of the window is its centre, 1, 0; 3, 4 of it is 0, 0, the frame's other pixel.
+            indirect.mTexels[4 * 9 + 4]
+                = { nan, std::bit_cast<std::uint32_t>(1.0f), 0, std::bit_cast<std::uint32_t>(1.0f) };
+            indirect.mTexels[4 * 9 + 3] = { std::bit_cast<std::uint32_t>(0.5f), std::bit_cast<std::uint32_t>(1.0f),
+                std::bit_cast<std::uint32_t>(2.0f), std::bit_cast<std::uint32_t>(3.0f) };
+            Rtx::NotFiniteImage fast{
+                .mName = "accumulate-fast", .mWords = true, .mFirst = std::nullopt, .mTexels = {}
+            };
+            fast.mTexels[4 * 9 + 4] = { nan + 920, 0, 0, 1 };
+            Rtx::NotFiniteImage albedo{ .mName = "g-albedo", .mWords = false, .mFirst = std::nullopt, .mTexels = {} };
+
+            Rtx::NotFiniteFrame kept{ .mFrame = 42,
+                .mWidth = 2,
+                .mHeight = 1,
+                .mCentre = Rtx::NotFiniteAt{ .mX = 1, .mY = 0 },
+                .mImages = { indirect, fast } };
+
+            const std::string outside = ": - | - | - | - | - | - | - | - | -\n";
+            std::string above;
+            for (const int y : { -4, -3, -2, -1 })
+                above += std::format("  y {}{}", y, outside);
+            const std::string below = "  y 1" + outside + "  y 2" + outside + "  y 3" + outside + "  y 4" + outside;
+            EXPECT_EQ(describeNotFiniteFrame(kept),
+                "frame 42, 2 by 1, kept around 1, 0\n"
+                "g-indirect: first not finite at 1, 0\n"
+                "  from x -3:\n"
+                    + above + "  y 0: - | - | - | 0.5 1 2 3 | nan 1 0 1 | - | - | - | -\n" + below
+                    + "accumulate-fast: words, not searched\n"
+                      "  from x -3:\n"
+                    + above
+                    + "  y 0: - | - | - | 0x00000000 0x00000000 0x00000000 0x00000000 | 0x7fc00398 0x00000000 "
+                      "0x00000000 0x00000001 | - | - | - | -\n"
+                    + below);
+
+            kept.mCentre = std::nullopt;
+            kept.mImages = { albedo, fast };
+            EXPECT_EQ(describeNotFiniteFrame(kept),
+                "frame 42, 2 by 1: no image held a value not finite, so no window was kept\n"
+                "g-albedo: none not finite\n"
+                "accumulate-fast: words, not searched\n");
         }
 
         /// **A run reserves room for its own upscaling mode and for every one a stop takes**, each

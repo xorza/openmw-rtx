@@ -25,11 +25,19 @@ layout(set = SET_PASS, binding = BIND_CENSUS, scalar) buffer CensusBlock
     Census census;
 };
 
-/// Counts `value` against this module where any component of it is a NaN or an infinity.
+/// Counts `value` against this module where any component of it is a NaN or an infinity, and keeps where
+/// the module first stored one: the invocation that asked, `RTX_INVOCATION`, which the build names for each
+/// stage that has a place on a frame or a launch. A vertex has none, and its stage names none.
 void countNotFinite(vec4 value)
 {
     if (any(notFinite(value)))
+    {
         atomicAdd(census.mNotFinite[CENSUS_KERNEL], 1u);
+#ifdef RTX_INVOCATION
+        const uvec2 at = RTX_INVOCATION;
+        atomicMax(census.mFirst[CENSUS_KERNEL], censusFirst(at.x, at.y));
+#endif
+    }
 }
 
 #else

@@ -1,0 +1,82 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// The window of one run of the digest's slots around the kept frame's centre (`notfinitekeep.h`): the first
+// texel not finite of the first kept image that held one, which `notfinitefind.comp` found, read at each
+// pixel's place as the digest reads them. Nothing where no image held one.
+
+#include "shared/counts.h"
+#include "shared/notfinitekeep.h"
+#include "shared/sets.h"
+
+#include "lib/pixels.glsl"
+
+layout(local_size_x = KEEP_SIDE, local_size_y = KEEP_SIDE) in;
+
+layout(set = SET_PASS, binding = KEEP_BIND_IMAGES) uniform readonly image2D images[DIGEST_FLOAT_SLOTS];
+layout(set = SET_PASS, binding = KEEP_BIND_WORDS) uniform readonly uimage2D words[DIGEST_WORD_SLOTS];
+
+layout(set = SET_PASS, binding = KEEP_BIND_KEPT, scalar) buffer KeptBlock
+{
+    NotFiniteKept kept;
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    NotFiniteKeepConstants push;
+};
+
+bool bound(uint slots, uint slot)
+{
+    return (slots & (1u << slot)) != 0u;
+}
+
+/// Writes `bits` as texel `texel` of kept image `image`'s window.
+void keep(uint image, uint texel, uvec4 bits)
+{
+    const uint first = (image * KEEP_TEXELS + texel) * 4u;
+    kept.mTexels[first] = bits.r;
+    kept.mTexels[first + 1u] = bits.g;
+    kept.mTexels[first + 2u] = bits.b;
+    kept.mTexels[first + 3u] = bits.a;
+}
+
+void main()
+{
+    const bool corner = gl_LocalInvocationIndex == 0u;
+    for (uint slot = 0u; slot < DIGEST_FLOAT_SLOTS; ++slot)
+        if (corner && bound(push.mFloats, slot))
+            kept.mTaken[push.mKeptAt[slot]] = 1u;
+    for (uint slot = 0u; slot < DIGEST_WORD_SLOTS; ++slot)
+        if (corner && bound(push.mWords, slot))
+            kept.mTaken[push.mKeptAt[DIGEST_FLOAT_SLOTS + slot]] = 1u;
+
+    // The first image in the frame's order that held one, which every lane of every run finds alike.
+    uint centre = 0u;
+    for (uint image = 0u; image < KEEP_IMAGES; ++image)
+        centre = centre != 0u ? centre : kept.mFirst[image];
+    if (centre == 0u)
+        return;
+
+    if (corner)
+        kept.mCentre = centre;
+
+    const ivec2 pixel = ivec2(censusFirstX(centre), censusFirstY(centre)) + ivec2(gl_LocalInvocationID.xy)
+        - ivec2(KEEP_RADIUS);
+    if (outsideOf(pixel, uvec2(push.mWidth, push.mHeight)))
+        return;
+
+    const uint texel = gl_LocalInvocationID.y * KEEP_SIDE + gl_LocalInvocationID.x;
+    const uint swap = fieldSwapOf(push.mFrame);
+    for (uint slot = 0u; slot < DIGEST_FLOAT_SLOTS; ++slot)
+        if (bound(push.mFloats, slot))
+            keep(push.mKeptAt[slot], texel,
+                floatBitsToUint(imageLoad(
+                    images[slot], bound(push.mFloatsInFields, slot) ? storedAt(pixel, push.mWidth, swap) : pixel)));
+    for (uint slot = 0u; slot < DIGEST_WORD_SLOTS; ++slot)
+        if (bound(push.mWords, slot))
+            keep(push.mKeptAt[DIGEST_FLOAT_SLOTS + slot], texel,
+                imageLoad(words[slot], storedAt(pixel, push.mWidth, swap)));
+}

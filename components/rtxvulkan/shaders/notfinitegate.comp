@@ -1,0 +1,54 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// Whether this frame is the one a counting device keeps (`notfinitekeep.h`): the first whose census counted a
+// store that was not finite by the digest's step. Sizes the two dispatches after it, nought on every other
+// frame, so a frame that keeps nothing pays one lane and two empty dispatches.
+
+#include "shared/counts.h"
+#include "shared/notfinitekeep.h"
+#include "shared/sets.h"
+
+layout(local_size_x = 1) in;
+
+/// The device's census, which every layout of a counting device binds here: these modules run on no other.
+layout(set = SET_PASS, binding = BIND_CENSUS, scalar) readonly buffer CensusBlock
+{
+    Census census;
+};
+
+layout(set = SET_PASS, binding = KEEP_BIND_KEPT, scalar) buffer KeptBlock
+{
+    NotFiniteKept kept;
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    NotFiniteGateConstants push;
+};
+
+void main()
+{
+    bool stored = false;
+    for (uint kernel = 0u; kernel < CENSUS_KERNELS; ++kernel)
+        stored = stored || census.mNotFinite[kernel] != 0u;
+
+    const bool keeps = stored && kept.mKept == 0u;
+    if (keeps)
+    {
+        kept.mKept = 1u;
+        kept.mFrameLow = push.mFrameLow;
+        kept.mFrameHigh = push.mFrameHigh;
+        kept.mWidth = push.mWidth;
+        kept.mHeight = push.mHeight;
+    }
+
+    const uint runs = keeps ? 1u : 0u;
+    kept.mFind[0] = runs * ((push.mWidth + KEEP_FIND_WORKGROUP - 1u) / KEEP_FIND_WORKGROUP);
+    kept.mFind[1] = runs * ((push.mHeight + KEEP_FIND_WORKGROUP - 1u) / KEEP_FIND_WORKGROUP);
+    kept.mFind[2] = runs;
+    kept.mCopy[0] = runs;
+    kept.mCopy[1] = runs;
+    kept.mCopy[2] = runs;
+}

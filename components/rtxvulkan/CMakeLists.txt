@@ -80,6 +80,9 @@ target_link_libraries(
 )
 set(RTX_SHADERS
     shaders/digest.comp
+    shaders/notfinitefind.comp
+    shaders/notfinitegate.comp
+    shaders/notfinitekeep.comp
     shaders/display/bloomdown.comp
     shaders/display/bloomup.comp
     shaders/display/exposure.comp
@@ -196,6 +199,22 @@ function(openmw_rtx_shader shader census sourcedDir strippedDir)
     set(spv "${strippedDir}/${name}.spv")
     set(depfile "${CMAKE_CURRENT_BINARY_DIR}/${name}.census${census}.d")
 
+    # The invocation a census names where a module first stored a value not finite (`lib/census.glsl`): the
+    # stage's own, which only its stage declares. A vertex has no place on the frame, and an index into the
+    # frame's vertices outgrows the sixteen bits a place keeps, so its stage names none.
+    cmake_path(GET shader EXTENSION LAST_ONLY stage)
+    if(stage STREQUAL ".comp")
+        set(invocation "-DRTX_INVOCATION=gl_GlobalInvocationID.xy")
+    elseif(stage STREQUAL ".rgen")
+        set(invocation "-DRTX_INVOCATION=gl_LaunchIDEXT.xy")
+    elseif(stage STREQUAL ".frag")
+        set(invocation "-DRTX_INVOCATION=uvec2(gl_FragCoord.xy)")
+    elseif(stage STREQUAL ".vert")
+        set(invocation "")
+    else()
+        message(FATAL_ERROR "${shader}: a stage the census names no invocation of")
+    endif()
+
     add_custom_command(
         # The module glslc writes first, because it is the one its depfile names.
         OUTPUT
@@ -206,7 +225,7 @@ function(openmw_rtx_shader shader census sourcedDir strippedDir)
             "${CMAKE_COMMAND}" -E make_directory "${strippedDir}" "${sourcedDir}"
             "${CMAKE_CURRENT_BINARY_DIR}/compiled/census${census}"
         COMMAND
-            "${OPENMW_GLSLC}" ${RTX_GLSLC_FLAGS} --target-env=vulkan1.4 -DRTX_CENSUS=${census} -I
+            "${OPENMW_GLSLC}" ${RTX_GLSLC_FLAGS} --target-env=vulkan1.4 -DRTX_CENSUS=${census} ${invocation} -I
             "${RTX_SHADER_INCLUDE}" -I "${RTX_SHADER_ROOT}" -I "${RTX_SHADER_VENDORED}" -I "${PROJECT_SOURCE_DIR}" -MD
             -MF "${depfile}" -o "${compiled}" "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
         COMMAND
@@ -391,7 +410,9 @@ target_sources(
         device/timeline.cpp
         device/zonecounters.cpp
         device/validation.cpp
+        frame/digestimages.cpp
         frame/digestpass.cpp
+        frame/notfinitekeep.cpp
         display/bloompass.cpp
         display/displaychain.cpp
         display/exposurepass.cpp
@@ -504,7 +525,9 @@ target_sources(
                 device/timeline.hpp
                 device/zonecounters.hpp
                 device/validation.hpp
+                frame/digestimages.hpp
                 frame/digestpass.hpp
+                frame/notfinitekeep.hpp
                 display/bloompass.hpp
                 display/displaychain.hpp
                 display/exposurepass.hpp
@@ -563,6 +586,7 @@ target_sources(
                 shaders/shared/line.h
                 shaders/shared/medium.h
                 shaders/shared/normalspread.h
+                shaders/shared/notfinitekeep.h
                 shaders/shared/pane.h
                 shaders/shared/pinning.h
                 shaders/shared/probe.h

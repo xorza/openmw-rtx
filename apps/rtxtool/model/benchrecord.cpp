@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -339,7 +340,64 @@ namespace RtxTool
         for (const Rtx::NotFiniteStores& kernel : wrote.kernels())
         {
             text += std::format("{}{} in {}", separator, kernel.mStores, kernel.mKernel);
+            if (kernel.mFirst.has_value())
+                text += std::format(" (first at {}, {})", kernel.mFirst->mX, kernel.mFirst->mY);
             separator = ", ";
+        }
+        return text;
+    }
+
+    std::string describeNotFiniteFrame(const Rtx::NotFiniteFrame& kept)
+    {
+        std::string text = std::format("frame {}, {} by {}", kept.mFrame, kept.mWidth, kept.mHeight);
+        text += kept.mCentre.has_value() ? std::format(", kept around {}, {}\n", kept.mCentre->mX, kept.mCentre->mY)
+                                         : std::string(": no image held a value not finite, so no window was kept\n");
+
+        for (const Rtx::NotFiniteImage& image : kept.mImages)
+        {
+            text += image.mName;
+            if (image.mWords)
+                text += ": words, not searched\n";
+            else if (image.mFirst.has_value())
+                text += std::format(": first not finite at {}, {}\n", image.mFirst->mX, image.mFirst->mY);
+            else
+                text += ": none not finite\n";
+
+            if (!kept.mCentre.has_value())
+                continue;
+
+            constexpr auto sRadius = static_cast<std::int64_t>(Rtx::NotFiniteImage::sRadius);
+            const std::int64_t left = std::int64_t{ kept.mCentre->mX } - sRadius;
+            const std::int64_t top = std::int64_t{ kept.mCentre->mY } - sRadius;
+            text += std::format("  from x {}:\n", left);
+            for (std::uint32_t row = 0; row < Rtx::NotFiniteImage::sSide; ++row)
+            {
+                const std::int64_t y = top + row;
+                text += std::format("  y {}:", y);
+                std::string_view separator = " ";
+                for (std::uint32_t column = 0; column < Rtx::NotFiniteImage::sSide; ++column)
+                {
+                    const std::int64_t x = left + column;
+                    text += separator;
+                    separator = " | ";
+                    if (x < 0 || y < 0 || x >= kept.mWidth || y >= kept.mHeight)
+                    {
+                        text += '-';
+                        continue;
+                    }
+
+                    const std::array<std::uint32_t, 4>& texel
+                        = image.mTexels[row * Rtx::NotFiniteImage::sSide + column];
+                    if (image.mWords)
+                        text += std::format(
+                            "{:#010x} {:#010x} {:#010x} {:#010x}", texel[0], texel[1], texel[2], texel[3]);
+                    else
+                        text += std::format("{} {} {} {}", std::bit_cast<float>(texel[0]),
+                            std::bit_cast<float>(texel[1]), std::bit_cast<float>(texel[2]),
+                            std::bit_cast<float>(texel[3]));
+                }
+                text += '\n';
+            }
         }
         return text;
     }

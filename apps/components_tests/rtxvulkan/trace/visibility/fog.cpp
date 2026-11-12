@@ -974,7 +974,18 @@ namespace Rtx::Testing
             EXPECT_EQ(frame.mNotFinite.of("fogscatter.rgen"), froxels)
                 << "8 by 8 columns by 64 slices, every one in air short of a wall behind the eye";
             EXPECT_EQ(frame.mNotFinite.kernels().size(), 1u) << "no other module stores one";
+            EXPECT_EQ(frame.mNotFinite.kernels()[0].mFirst, (NotFiniteAt{ .mX = 0, .mY = 0 }))
+                << "every froxel's launch stored one, so the first is the launch's first column";
             EXPECT_EQ(frame.mNotFinite.total(), froxels);
+
+            // Kept, since the census counted one by the digest's step, and with no window: the froxels are no
+            // image the frame keeps, and no store past them was other than finite.
+            const std::optional<NotFiniteFrame> kept = mRenderer.takeNotFiniteFrame();
+            ASSERT_TRUE(kept.has_value());
+            EXPECT_EQ(kept->mCentre, std::nullopt);
+            for (const NotFiniteImage& image : kept->mImages)
+                EXPECT_EQ(image.mFirst, std::nullopt) << image.mName;
+
             EXPECT_EQ(mProbe.takeCountedStores().total(), froxels)
                 << "the frames whose reports the test read count as well, the clear ones' nought";
 

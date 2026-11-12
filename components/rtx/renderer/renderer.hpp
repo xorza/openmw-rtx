@@ -339,12 +339,24 @@ namespace Rtx
     /// holds to this.
     inline constexpr std::uint32_t sMaxCensusKernels = 96;
 
-    /// One shader module's stores that were not finite.
+    /// Where a shader module stored a value that was not finite: the invocation that did, whose x and y a
+    /// kernel over a frame's pixels takes from the pixel, and a launch from its ray. A vertex stage names none.
+    struct NotFiniteAt
+    {
+        std::uint32_t mX = 0;
+        std::uint32_t mY = 0;
+
+        bool operator==(const NotFiniteAt&) const = default;
+    };
+
+    /// One shader module's stores that were not finite, and where the first frame they came in stored its first:
+    /// the topmost, then the leftmost invocation, where a census says where (`Shaders::Census::mFirst`).
     struct NotFiniteStores
     {
         /// The module's name, which the backend keeps for as long as it lives.
         std::string_view mKernel;
         std::uint32_t mStores = 0;
+        std::optional<NotFiniteAt> mFirst;
     };
 
     /// Stores whose value was a NaN or an infinity, by the shader module that wrote them — the
@@ -355,8 +367,9 @@ namespace Rtx
     class NotFinite
     {
     public:
-        /// Adds `stores` against `kernel`, beside what it holds already.
-        void add(std::string_view kernel, std::uint32_t stores)
+        /// Adds `stores` against `kernel`, beside what it holds already, and where they were first stored: the
+        /// first a kernel came with is kept, the frame before's over the frame after's.
+        void add(std::string_view kernel, std::uint32_t stores, std::optional<NotFiniteAt> first = std::nullopt)
         {
             if (stores == 0)
                 return;
@@ -366,18 +379,20 @@ namespace Rtx
                 if (mKernels[at].mKernel == kernel)
                 {
                     mKernels[at].mStores += stores;
+                    if (!mKernels[at].mFirst.has_value())
+                        mKernels[at].mFirst = first;
                     return;
                 }
             }
 
             assert(mCount < sMaxCensusKernels && "more modules than a census tells apart");
-            mKernels[mCount++] = NotFiniteStores{ .mKernel = kernel, .mStores = stores };
+            mKernels[mCount++] = NotFiniteStores{ .mKernel = kernel, .mStores = stores, .mFirst = first };
         }
 
         void add(const NotFinite& more)
         {
             for (const NotFiniteStores& kernel : more.kernels())
-                add(kernel.mKernel, kernel.mStores);
+                add(kernel.mKernel, kernel.mStores, kernel.mFirst);
         }
 
         std::uint32_t total() const
@@ -402,6 +417,51 @@ namespace Rtx
     private:
         std::array<NotFiniteStores, sMaxCensusKernels> mKernels{};
         std::uint32_t mCount = 0;
+    };
+
+    /// One image of what a counting renderer kept of a frame (`NotFiniteFrame`).
+    struct NotFiniteImage
+    {
+        /// How far a window reaches from its centre, its side, and its texels.
+        static constexpr std::uint32_t sRadius = 4;
+        static constexpr std::uint32_t sSide = 2 * sRadius + 1;
+        static constexpr std::uint32_t sTexels = sSide * sSide;
+
+        /// What a capture and a dump call it: a channel's name, `composed` for the frame the composite wrote,
+        /// or a denoiser image's. Text that lives as long as the program.
+        std::string_view mName;
+
+        /// Whether its texels are the words a pass packed, and not floats.
+        bool mWords = false;
+
+        /// Its first texel that was not finite, the topmost and then the leftmost; never for words, which hold
+        /// whatever their pass packed.
+        std::optional<NotFiniteAt> mFirst;
+
+        /// Its window around the frame's centre, a row at a time from the top left, four words a texel: a
+        /// float's bits as the shaders load the texel, or the words. Nought past the frame's edge.
+        std::array<std::array<std::uint32_t, 4>, sTexels> mTexels{};
+    };
+
+    /// What a renderer whose shaders count kept of the first frame whose census counted a store that was not
+    /// finite by the time the denoiser's answers were read (`Renderer::takeNotFiniteFrame`): its images around
+    /// the first texel that held one. The census's report comes back frames late, after later frames wrote
+    /// over every one of them, so the renderer keeps them as the frame runs.
+    struct NotFiniteFrame
+    {
+        /// Which frame, as `FrameResult::mFrame` numbers it, and the extent its images were read over.
+        std::uint64_t mFrame = 0;
+        std::uint32_t mWidth = 0;
+        std::uint32_t mHeight = 0;
+
+        /// The texel the windows stand around: the first image's first texel that was not finite, in
+        /// `mImages`' order. Nothing where none held one, and then no window holds anything: what the census
+        /// counted was written over by then, or was written into none of these images.
+        std::optional<NotFiniteAt> mCentre;
+
+        /// The images the frame had, in the order the frame writes them: the trace's channels, the
+        /// denoiser's in the order its stages run, and the composed frame last.
+        std::vector<NotFiniteImage> mImages;
     };
 
     struct FrameResult
@@ -634,6 +694,12 @@ namespace Rtx
         /// the levels a byte holds. Undithered and without the debug lines. Asked after a frame that
         /// did not sum, it is an assert. Submits and waits, as `readPixels` does.
         virtual void readDeepPixels(std::vector<std::uint16_t>& samples) = 0;
+
+        /// What the renderer kept of the first frame that stored a value not finite since the last call
+        /// (`NotFiniteFrame`), or nothing where none has or the shaders do not count (`ShaderSet::mCensus`); the
+        /// next such frame is kept after it. Waits out every frame in flight first, since a frame after the one
+        /// whose report said so may be the one kept: not on a frame path.
+        virtual std::optional<NotFiniteFrame> takeNotFiniteFrame() = 0;
 
     protected:
         Renderer() = default;

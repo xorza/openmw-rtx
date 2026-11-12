@@ -11,6 +11,11 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 
+namespace Rtx::Testing
+{
+    class CensusProbe;
+}
+
 namespace Rtx
 {
     class Device;
@@ -49,11 +54,15 @@ namespace Rtx
         /// reads back is what the queue counted since the frame before ended.
         void record(VkCommandBuffer commands, const Buffer& into) const;
 
-        /// Adds what `copied`, a copy `record` made and the host may read, says each module wrote,
-        /// by the module's name without its `.spv`, which the census keeps for as long as it lives.
+        /// Adds what `copied`, a copy `record` made and the host may read, says each module wrote and where it
+        /// first wrote it, by the module's name without its `.spv`, which the census keeps for as long as it
+        /// lives.
         void readInto(const Buffer& copied, NotFinite& into) const;
 
     private:
+        /// What a test writes into the census, defined in the test tree, so none of it ships.
+        friend class Testing::CensusProbe;
+
         Buffer mWords;
 
         /// The set's modules without their `.spv`, sorted: a module's word is its place.

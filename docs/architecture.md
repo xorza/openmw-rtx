@@ -481,7 +481,10 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
 
 Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`). Every store of an image
 or float goes through the census (`lib/census.glsl`): the harness's modules count each NaN or infinity a module stores,
-which `check` asserts away and `view` stops at; the game's modules carry none.
+which `check` asserts away and `view` stops at; the game's modules carry none. Each counts where it first stored one,
+and the device keeps the first such frame's images around the first texel not finite, deciding as the frame runs
+(`NotFiniteKeep`): the report comes back frames late, after later frames wrote over them. Refused: a copy of every
+frame's images, a cost on every frame of every census run.
 
 ## Ownership
 

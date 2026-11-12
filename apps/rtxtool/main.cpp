@@ -273,6 +273,7 @@ namespace RtxTool
             request.mSetup = framed.mSetup;
             request.mStep = framed.mStep;
             request.mPlayed = policy.mPlayed;
+            request.mKeptFrames = outOf(command);
             request.mMeasures = policy.mMeasures;
             request.mMaps = framed.mMaps;
             request.mHud = line.mHud;

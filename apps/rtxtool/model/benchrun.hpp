@@ -519,6 +519,10 @@ namespace RtxTool
         /// Where a window writes the picture of every Home press, the press's block inside it.
         std::filesystem::path mHomePictures;
 
+        /// Where a run that stops on a store not finite (`stopAt`) writes what the renderer kept of the frame
+        /// that stored one (`Rtx::Renderer::takeNotFiniteFrame`): the verb's folder.
+        std::filesystem::path mKeptFrames;
+
         /// perf's control fifo, or empty where the run is not being profiled.
         std::filesystem::path mPerfControl;
 

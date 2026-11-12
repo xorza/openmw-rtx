@@ -50,5 +50,23 @@ namespace Rtx
             EXPECT_EQ(stop.of("atrous.comp"), 0u) << "added as nought, so never held";
             EXPECT_EQ(stop.of("tone.comp"), 0u);
         }
+
+        /// **The first place a module stored one is the earliest frame's that said one**: a later frame's never
+        /// replaces it, and a frame that said none leaves the next to say it.
+        TEST(RtxNotFiniteTest, theFirstPlaceIsTheEarliestFramesThatSaidOne)
+        {
+            NotFinite stop;
+            stop.add("atrous.comp", 2);
+            stop.add("atrous.comp", 4, NotFiniteAt{ .mX = 812, .mY = 403 });
+            stop.add("atrous.comp", 1, NotFiniteAt{ .mX = 3, .mY = 5 });
+
+            ASSERT_EQ(stop.kernels().size(), 1u);
+            EXPECT_EQ(stop.kernels()[0].mStores, 7u);
+            EXPECT_EQ(stop.kernels()[0].mFirst, (NotFiniteAt{ .mX = 812, .mY = 403 }));
+
+            NotFinite merged;
+            merged.add(stop);
+            EXPECT_EQ(merged.kernels()[0].mFirst, (NotFiniteAt{ .mX = 812, .mY = 403 })) << "carried by a whole census";
+        }
     }
 }

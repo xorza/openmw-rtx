@@ -104,8 +104,13 @@ namespace RtxTool
     private:
         /// Takes in what the device answered for one frame of `stop`, under the number of the frame
         /// it answers for: the figures a frame has only once the device is done with it, and its
-        /// picture. Nothing for a frame ahead of the measurement.
-        void answered(const Stop& stop, const Rtx::FrameResult& finished, const Rtx::FrameExtents& extents);
+        /// picture. Nothing for a frame ahead of the measurement. Where the run stops on it, what
+        /// `renderer` kept of the frame that stored a value not finite is written for the stop to name.
+        void answered(const Stop& stop, const Rtx::FrameResult& finished, Rtx::Renderer& renderer);
+
+        /// Writes what `renderer` kept of the frame that stored a value not finite into the run's folder
+        /// for them, and says where in the failure; says why where it could not.
+        void writeNotFiniteFrame(Rtx::Renderer& renderer);
 
         /// Hashes a frame's picture into the record, and writes it where the request asked for the
         /// pictures themselves, at `extents`.

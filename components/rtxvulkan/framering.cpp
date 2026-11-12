@@ -13,7 +13,6 @@
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
-#include <components/rtx/shaders/digest.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -49,6 +48,8 @@ namespace Rtx
     {
         if (reporting == Reporting::Measured)
             mDigest.emplace(device);
+        if (device.getCensus() != nullptr)
+            mKeep.emplace(device);
         for (GrowableBuffer& picture : mPictures)
             picture = GrowableBuffer(device, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame readback");
     }
@@ -98,17 +99,31 @@ namespace Rtx
         frame.mReadBackBytes = bytes;
     }
 
-    void FrameRing::readDigest(FrameRecord& frame, const VkCommandBuffer commands,
-        const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels, const std::uint32_t channelsInFields,
-        const std::array<const Image*, sDenoiserImageCount>& denoiser, const VkExtent2D extent,
-        const std::uint32_t frameNumber, const FrameDigest& facts, GpuTimer* const timer)
+    void FrameRing::readDigest(FrameRecord& frame, const VkCommandBuffer commands, const DigestImages& images,
+        const std::uint32_t sampleFrame, const FrameDigest& facts, GpuTimer* const timer)
     {
         frame.mState.expect(FrameState::Begun);
         assert(mDigest.has_value() && "a digest asked of a renderer made reading nothing back");
 
         frame.mDigest = facts;
-        frame.mDigest->mDenoiserTaken = mDigest->record(
-            commands, channels, channelsInFields, denoiser, extent, frameNumber, frame.mDigestLanes, timer);
+        frame.mDigest->mDenoiserTaken = images.getDenoiserTaken();
+        mDigest->record(commands, images, sampleFrame, frame.mDigestLanes, timer);
+    }
+
+    void FrameRing::keepNotFinite(
+        const VkCommandBuffer commands, const DigestImages& images, const std::uint32_t sampleFrame)
+    {
+        assert(isOpen() && "a keep recorded outside a frame");
+        mKeep->record(commands, images, mFrame, sampleFrame);
+    }
+
+    std::optional<NotFiniteFrame> FrameRing::takeNotFiniteFrame()
+    {
+        if (!mKeep.has_value())
+            return std::nullopt;
+
+        finishAll();
+        return mKeep->take();
     }
 
     VkCommandBuffer FrameRing::takePlaceCommands(FrameRecord& frame)

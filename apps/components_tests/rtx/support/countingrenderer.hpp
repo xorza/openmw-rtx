@@ -208,6 +208,7 @@ namespace Rtx::Testing
         void finishGuiTraces() override {}
         void readPixels(std::vector<std::uint8_t>&) override {}
         void readDeepPixels(std::vector<std::uint16_t>&) override {}
+        std::optional<Rtx::NotFiniteFrame> takeNotFiniteFrame() override { return std::nullopt; }
 
         /// The first texel of each described texture's second level, beside `mDescribedSlots`, or
         /// nought for one of one level: what says which chain a slot was described with.
