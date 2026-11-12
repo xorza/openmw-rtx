@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -23,6 +24,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/dlss/dlss.hpp>
 #include <components/platform/gpu.hpp>
+#include <components/platform/memory.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -289,6 +291,12 @@ namespace Rtx
         if (traceMoves || outputMoves)
             mDescriber.lose(FramePast::resized());
 
+        // Each time the targets are made, which a change of size or of mode is: the mode alone, Native
+        // against Off, moves no extent.
+        Log(Debug::Info) << std::format("Frame: {}x{} shown, traced at {}x{} ({}, {:.1f}% a side)", output.width,
+            output.height, render.width, render.height, sUpscaleNames.name(mProfile.mUpscale),
+            100.0 * render.width / output.width);
+
         std::vector<ArenaImage> declared;
         FrameTracer::declare(render, output, mProfile, mUpscaler, declared);
         const FrameTracer::Moves moves = mFrame.movesTo(render, output, mProfile.mUpscale, declared, mUpscaler);
@@ -396,7 +404,15 @@ namespace Rtx
         report += mDevice.getPhysicalDevice().describe();
         report += mInstance.getLayers().describe();
 
-        report += "\nupscaler:          " + std::string(mUpscaler.describe()) + '\n';
+        report += "\nupscaler:          " + mUpscaler.describeChoice() + '\n';
+
+        // What the video memory comes to once the frame's targets stand, and what the system leaves the
+        // process beside it: the two figures a report of running short is read against.
+        report += "\nmemory\n" + describeMemory(mDevice.getMemory().report());
+        const std::optional<std::uint64_t> system = Platform::availableMemory();
+        report += system.has_value()
+            ? std::format("  system memory the process may still take: {:.1f} MiB\n", megabytes(*system))
+            : std::string("  system memory the process may still take: not stated\n");
 
         // Reaching here is the part that proves the rest: the device resolved every entry point the
         // required extensions promise, and a driver advertising one it cannot dispatch fails before

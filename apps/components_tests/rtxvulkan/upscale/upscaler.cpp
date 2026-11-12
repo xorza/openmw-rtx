@@ -36,5 +36,24 @@ namespace Rtx
                 EXPECT_EQ(offersDlss(row.mAvailability), row.mOffered) << at;
             }
         }
+
+        /// **The upscaler's line says what runs, what was asked, and why `auto` passed DLSS over**: each
+        /// fact that stops DLSS names itself, a refusal carries what NGX said, and a concrete choice or
+        /// an `auto` that came to DLSS says nothing more.
+        TEST(RtxUpscalerTest, theChoicesLineSaysWhatWasAskedAndWhyAutoPassedDlssOver)
+        {
+            EXPECT_EQ(describeUpscalerChoice("FSR", UpscalerChoice::Auto, DlssAvailability::NotNvidia, ""),
+                "FSR (asked auto, DLSS passed over: the device is not NVIDIA's)");
+            EXPECT_EQ(describeUpscalerChoice("FSR", UpscalerChoice::Auto, DlssAvailability::NotInstalled, ""),
+                "FSR (asked auto, DLSS passed over: its library is not installed)");
+            EXPECT_EQ(describeUpscalerChoice("FSR", UpscalerChoice::Auto, DlssAvailability::Refused, "out of memory"),
+                "FSR (asked auto, DLSS passed over: it could not start, out of memory)");
+            EXPECT_EQ(
+                describeUpscalerChoice("DLSS", UpscalerChoice::Auto, DlssAvailability::Ready, ""), "DLSS (asked auto)");
+            EXPECT_EQ(
+                describeUpscalerChoice("DLSS", UpscalerChoice::Dlss, DlssAvailability::Ready, ""), "DLSS (asked dlss)");
+            EXPECT_EQ(
+                describeUpscalerChoice("FSR", UpscalerChoice::Fsr, DlssAvailability::NotNvidia, ""), "FSR (asked fsr)");
+        }
     }
 }

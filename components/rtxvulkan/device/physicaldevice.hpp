@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -17,6 +18,27 @@
 
 namespace Rtx
 {
+    /// One device the loader listed, as selection found it: what stops this renderer running on it,
+    /// empty where nothing does, and what a log names it by.
+    struct SurveyedDevice
+    {
+        std::string mName;
+
+        /// Its kind, identifiers, Vulkan version, driver and video memory, as far as it answered.
+        std::string mDetails;
+
+        std::string mObstacle;
+        bool mDiscrete = false;
+    };
+
+    /// The device selection takes of `devices`: the first discrete one nothing stops, else the first
+    /// one nothing stops, or none.
+    std::optional<std::size_t> chooseDevice(std::span<const SurveyedDevice> devices);
+
+    /// One line a device of `devices`, saying whether it is `chosen`, passed over for it, or refused
+    /// and why; no line break after the last, which a log and an error message each end as they do.
+    std::string describeSurvey(std::span<const SurveyedDevice> devices, std::optional<std::size_t> chosen);
+
     /// A physical device that qualified, what it reported about itself, and what this renderer
     /// decided from that. `select` asks the device and `profileOf` decides, so a test can judge a
     /// card nobody here owns. A device that lacks a required extension or feature is rejected
@@ -73,9 +95,9 @@ namespace Rtx
         /// Whether a queue family of a device presents to the window; empty for no window.
         using PresentQuery = std::function<bool(VkPhysicalDevice device, std::uint32_t family)>;
 
-        /// Picks a device, preferring discrete over anything else. Throws `Unsupported` listing
-        /// every candidate and what each was missing when none qualifies — the one moment where a
-        /// wall of text is the useful answer.
+        /// Picks a device (`chooseDevice`) and logs every one the loader listed with what became of it
+        /// (`describeSurvey`). Throws `Unsupported` listing every candidate and what each was missing
+        /// when none qualifies — the one moment where a wall of text is the useful answer.
         static PhysicalDevice select(VkInstance instance, const PresentQuery& presents);
 
         VkPhysicalDevice getHandle() const { return mHandle; }

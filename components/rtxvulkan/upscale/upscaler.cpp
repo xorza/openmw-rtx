@@ -1,6 +1,8 @@
 #include "upscaler.hpp"
 
+#include <format>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -13,8 +15,31 @@
 
 namespace Rtx
 {
+    std::string describeUpscalerChoice(const std::string_view running, const UpscalerChoice asked,
+        const DlssAvailability dlss, const std::string_view refusal)
+    {
+        std::string said = std::format("{} (asked {}", running, sUpscalerNames.name(asked));
+        if (asked == UpscalerChoice::Auto)
+            switch (dlss)
+            {
+                case DlssAvailability::NotNvidia:
+                    said += ", DLSS passed over: the device is not NVIDIA's";
+                    break;
+                case DlssAvailability::NotInstalled:
+                    said += ", DLSS passed over: its library is not installed";
+                    break;
+                case DlssAvailability::Refused:
+                    said += std::format(", DLSS passed over: it could not start, {}", refusal);
+                    break;
+                case DlssAvailability::Present:
+                case DlssAvailability::Ready:
+                    break;
+            }
+        return said + ')';
+    }
+
     Upscaler::Backend Upscaler::makeBackend(const Device& device, const UpscalerChoice choice,
-        DlssAvailability& availability, const Dlss::Application* application)
+        DlssAvailability& availability, std::string& refusal, const Dlss::Application* application)
     {
         // Each backend is made in place and returned as it is, which the backends, pinned to their
         // device, need: a prvalue initialises the member with no move.
@@ -32,6 +57,7 @@ namespace Rtx
                 if (choice == UpscalerChoice::Dlss)
                     throw;
                 availability = DlssAvailability::Refused;
+                refusal = refused.what();
                 Log(Debug::Warning) << "NVIDIA DLSS could not start, so FSR is used: " << refused.what();
             }
         }
@@ -42,8 +68,9 @@ namespace Rtx
     Upscaler::Upscaler(const Device& device, const UpscalerChoice choice, const DlssAvailability availability,
         const Dlss::Application* application)
         : mDevice(device)
+        , mAsked(choice)
         , mDlss(availability)
-        , mBackend(makeBackend(device, choice, mDlss, application))
+        , mBackend(makeBackend(device, choice, mDlss, mRefusal, application))
     {
     }
 
@@ -150,5 +177,10 @@ namespace Rtx
     std::string_view Upscaler::describe() const
     {
         return std::visit([](const auto& backend) { return std::decay_t<decltype(backend)>::describe(); }, mBackend);
+    }
+
+    std::string Upscaler::describeChoice() const
+    {
+        return describeUpscalerChoice(describe(), mAsked, mDlss, mRefusal);
     }
 }

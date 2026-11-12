@@ -365,5 +365,41 @@ namespace Rtx
                 EXPECT_EQ(walled.profile().mObstacle, "");
             }
         }
+
+        /// **The first discrete device nothing stops is chosen, else the first nothing stops**, and the
+        /// survey says of every device what became of it: a laptop's integrated card listed before its
+        /// discrete one is passed over for it, a second discrete one for the first, and a software
+        /// rasterizer is refused with its obstacle. With no discrete card, the first device standing is
+        /// chosen and the one after it passed over for it; with none standing, none is.
+        TEST(RtxPhysicalDeviceTest, theFirstDiscreteDeviceIsChosenAndTheSurveySaysWhatBecameOfEachDevice)
+        {
+            const SurveyedDevice integrated{ .mName = "Intel UHD", .mDetails = "integrated", .mObstacle = "" };
+            const SurveyedDevice rtx{ .mName = "RTX", .mDetails = "discrete", .mObstacle = "", .mDiscrete = true };
+            const SurveyedDevice second{ .mName = "RTX 2", .mDetails = "discrete", .mObstacle = "", .mDiscrete = true };
+            const SurveyedDevice software{
+                .mName = "llvmpipe", .mDetails = "software", .mObstacle = "no ray tracing pipeline"
+            };
+
+            const std::vector<SurveyedDevice> laptop{ integrated, software, rtx, second };
+            ASSERT_EQ(chooseDevice(laptop), 2u);
+            EXPECT_EQ(describeSurvey(laptop, 2),
+                "  Intel UHD: passed over for a discrete device (integrated)\n"
+                "  llvmpipe: refused, no ray tracing pipeline (software)\n"
+                "  RTX: chosen (discrete)\n"
+                "  RTX 2: passed over for one listed before it (discrete)");
+
+            const std::vector<SurveyedDevice> handheld{ software, integrated, integrated };
+            ASSERT_EQ(chooseDevice(handheld), 1u);
+            EXPECT_EQ(describeSurvey(handheld, 1),
+                "  llvmpipe: refused, no ray tracing pipeline (software)\n"
+                "  Intel UHD: chosen (integrated)\n"
+                "  Intel UHD: passed over for one listed before it (integrated)");
+
+            const std::vector<SurveyedDevice> none{ software };
+            EXPECT_EQ(chooseDevice(none), std::nullopt);
+            EXPECT_EQ(describeSurvey(none, std::nullopt), "  llvmpipe: refused, no ray tracing pipeline (software)");
+            EXPECT_EQ(describeSurvey(std::vector<SurveyedDevice>{}, std::nullopt), "");
+            EXPECT_EQ(chooseDevice(std::vector<SurveyedDevice>{}), std::nullopt);
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -71,6 +72,11 @@ namespace Rtx
         }
         return offersDlss(availability) ? UpscalerKind::Dlss : UpscalerKind::Fsr;
     }
+
+    /// What a log says of an upscaler: `running`, its backend's name, then the choice `asked` and, where
+    /// `Auto` passed DLSS over, why — `dlss`, and the `refusal` where it was made and refused.
+    std::string describeUpscalerChoice(
+        std::string_view running, UpscalerChoice asked, DlssAvailability dlss, std::string_view refusal);
 
     /// The reconstruction between the trace and the display, whichever backend makes it. Both
     /// upscalers write an arena image and hand it to the display, so the rest of the frame never
@@ -160,16 +166,23 @@ namespace Rtx
         /// One line for `info`: which upscaler this renderer has.
         std::string_view describe() const;
 
+        /// Which upscaler this renderer has, what was asked, and why `Auto` passed DLSS over where it
+        /// did (`describeUpscalerChoice`).
+        std::string describeChoice() const;
+
     private:
         using Backend = std::variant<FsrUpscaler, DlssUpscaler>;
 
+        /// @param refusal what NGX said where DLSS was made and refused.
         static Backend makeBackend(const Device& device, UpscalerChoice choice, DlssAvailability& availability,
-            const Dlss::Application* application);
+            std::string& refusal, const Dlss::Application* application);
 
         const Device& mDevice;
+        const UpscalerChoice mAsked;
 
-        /// Before the backend, which the constructor resolves it with.
+        /// Before the backend, which the constructor resolves them with.
         DlssAvailability mDlss;
+        std::string mRefusal;
 
         /// The one backend the constructor resolved, fixed for the run: a settings change asks for
         /// a restart, so nothing swaps it afterwards.

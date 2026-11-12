@@ -17,6 +17,7 @@
 #include <volk.h>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 
@@ -48,6 +49,43 @@ namespace Rtx
                 if (memory.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
                     total += memory.memoryHeaps[i].size;
             return total;
+        }
+
+        std::string_view kindOf(const VkPhysicalDeviceType type)
+        {
+            switch (type)
+            {
+                case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+                    return "discrete";
+                case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+                    return "integrated";
+                case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+                    return "virtual";
+                case VK_PHYSICAL_DEVICE_TYPE_CPU:
+                    return "software";
+                default:
+                    return "other";
+            }
+        }
+
+        /// A device's kind and its PCI vendor and device identifiers.
+        std::string identityOf(const VkPhysicalDeviceProperties& base)
+        {
+            return std::format("{}, {:04x}:{:04x}", kindOf(base.deviceType), base.vendorID, base.deviceID);
+        }
+
+        /// `identityOf` and its Vulkan version, then its driver and video memory where it was asked them:
+        /// a device below the renderer's version, or one that answered with an error, was asked its
+        /// plain properties alone.
+        std::string detailsOf(const VkPhysicalDeviceProperties& base, const VkPhysicalDeviceVulkan12Properties* driver,
+            const VkPhysicalDeviceMemoryProperties* memory)
+        {
+            std::string details = std::format("{}, Vulkan {}", identityOf(base), versionString(base.apiVersion));
+            if (driver != nullptr && driver->driverName[0] != '\0')
+                details += std::format(", {} {}", driver->driverName, driver->driverInfo);
+            if (memory != nullptr && memory->memoryHeapCount > 0)
+                details += std::format(", {} MiB video memory", sumDeviceLocalHeaps(*memory) / (1024 * 1024));
+            return details;
         }
 
         bool has(std::span<const std::string> names, std::string_view name)
@@ -356,6 +394,48 @@ namespace Rtx
             [name](const char* const listed) { return std::strcmp(listed, name) == 0; });
     }
 
+    std::optional<std::size_t> chooseDevice(const std::span<const SurveyedDevice> devices)
+    {
+        std::optional<std::size_t> chosen;
+        for (std::size_t at = 0; at < devices.size(); ++at)
+        {
+            const SurveyedDevice& device = devices[at];
+            if (!device.mObstacle.empty())
+                continue;
+            if (device.mDiscrete)
+                return at;
+            if (!chosen.has_value())
+                chosen = at;
+        }
+        return chosen;
+    }
+
+    std::string describeSurvey(const std::span<const SurveyedDevice> devices, const std::optional<std::size_t> chosen)
+    {
+        if (chosen.has_value())
+        {
+            assert(*chosen < devices.size() && "a choice past the devices");
+            assert(devices[*chosen].mObstacle.empty() && "a device chosen that something stops");
+        }
+
+        std::string out;
+        for (std::size_t at = 0; at < devices.size(); ++at)
+        {
+            const SurveyedDevice& device = devices[at];
+            const std::string verdict = [&]() -> std::string {
+                if (!device.mObstacle.empty())
+                    return "refused, " + device.mObstacle;
+                assert(chosen.has_value() && "a device nothing stops beside no choice");
+                if (*chosen == at)
+                    return "chosen";
+                return devices[*chosen].mDiscrete && !device.mDiscrete ? "passed over for a discrete device"
+                                                                       : "passed over for one listed before it";
+            }();
+            out += std::format("{}  {}: {} ({})", at == 0 ? "" : "\n", device.mName, verdict, device.mDetails);
+        }
+        return out;
+    }
+
     PhysicalDevice PhysicalDevice::select(VkInstance instance, const PresentQuery& presents)
     {
         // **The loader answers `VK_ERROR_INITIALIZATION_FAILED` where none of its drivers found a
@@ -372,58 +452,52 @@ namespace Rtx
         if (handles.empty())
             throw Unsupported("no Vulkan device is installed");
 
-        std::string rejections;
-        PhysicalDevice best;
-        bool bestIsDiscrete = false;
-
-        for (const VkPhysicalDevice handle : handles)
+        std::vector<Candidate> candidates(handles.size());
+        std::vector<SurveyedDevice> surveyed(handles.size());
+        for (std::size_t at = 0; at < handles.size(); ++at)
         {
             // **A device that answers a question with an error is rejected, and the rest asked**:
             // a broken second driver or a software rasterizer short of memory ended selection for
             // every card in the machine, and as a fault to report where it is a machine to skip.
-            Candidate found;
             try
             {
-                found = examine(handle, presents);
+                candidates[at] = examine(handles[at], presents);
             }
             catch (const DeviceError& failure)
             {
                 VkPhysicalDeviceProperties plain{};
-                vkGetPhysicalDeviceProperties(handle, &plain);
-                rejections += "\n  ";
-                rejections += plain.deviceName;
-                rejections += ": answered a question with an error, ";
-                rejections += failure.what();
-                continue;
-            }
-            if (!found.mProfile.mObstacle.empty())
-            {
-                rejections += "\n  ";
-                rejections += found.mProperties->mProperties2.properties.deviceName;
-                rejections += ": ";
-                rejections += found.mProfile.mObstacle;
+                vkGetPhysicalDeviceProperties(handles[at], &plain);
+                surveyed[at] = SurveyedDevice{ .mName = plain.deviceName,
+                    .mDetails = detailsOf(plain, nullptr, nullptr),
+                    .mObstacle = std::string("answered a question with an error, ") + failure.what(),
+                    .mDiscrete = plain.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU };
                 continue;
             }
 
-            const bool discrete
-                = found.mProperties->mProperties2.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-            if (best.mHandle != VK_NULL_HANDLE && (bestIsDiscrete || !discrete))
-                continue;
-
-            best.mHandle = handle;
-            best.mProperties = std::move(found.mProperties);
-            best.mProfile = std::move(found.mProfile);
-            bestIsDiscrete = discrete;
+            const DeviceProperties& found = *candidates[at].mProperties;
+            const VkPhysicalDeviceProperties& base = found.mProperties2.properties;
+            surveyed[at] = SurveyedDevice{ .mName = base.deviceName,
+                .mDetails = detailsOf(base, &found.mVulkan12, &found.mMemory),
+                .mObstacle = candidates[at].mProfile.mObstacle,
+                .mDiscrete = base.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU };
         }
 
-        if (best.mHandle == VK_NULL_HANDLE)
-            throw Unsupported("no Vulkan device meets this renderer's requirements:" + rejections);
+        const std::optional<std::size_t> chosen = chooseDevice(surveyed);
+        const std::string survey = describeSurvey(surveyed, chosen);
+        if (!chosen.has_value())
+            throw Unsupported("no Vulkan device meets this renderer's requirements:\n" + survey);
+        Log(Debug::Info) << "Vulkan devices\n" << survey;
+
+        PhysicalDevice best;
+        best.mHandle = handles[*chosen];
+        best.mProperties = std::move(candidates[*chosen].mProperties);
+        best.mProfile = std::move(candidates[*chosen].mProfile);
 
         // Every report from here on names the card and the driver it ran on.
-        const DeviceProperties& chosen = *best.mProperties;
-        Crash::annotate("device", chosen.mProperties2.properties.deviceName);
-        Crash::annotate(
-            "driver", std::string(chosen.mVulkan12.driverName) + " " + std::string(chosen.mVulkan12.driverInfo));
+        const DeviceProperties& properties = *best.mProperties;
+        Crash::annotate("device", properties.mProperties2.properties.deviceName);
+        Crash::annotate("driver",
+            std::string(properties.mVulkan12.driverName) + " " + std::string(properties.mVulkan12.driverInfo));
 
         return best;
     }
@@ -450,7 +524,11 @@ namespace Rtx
         const VkPhysicalDeviceAccelerationStructurePropertiesKHR& as = mProperties->mAccelerationStructure;
 
         std::ostringstream out;
-        out << "device:            " << base.deviceName << '\n'
+        out << "device:            " << base.deviceName << " (" << identityOf(base);
+        if (const std::optional<VkPhysicalDevicePCIBusInfoPropertiesEXT>& bus = mProperties->mPciBus)
+            out << std::format(
+                ", PCI {:04x}:{:02x}:{:02x}.{:x}", bus->pciDomain, bus->pciBus, bus->pciDevice, bus->pciFunction);
+        out << ")\n"
             << "driver:            " << mProperties->mVulkan12.driverName << ' ' << mProperties->mVulkan12.driverInfo
             << '\n'
             << "Vulkan:            " << versionString(base.apiVersion) << '\n'
