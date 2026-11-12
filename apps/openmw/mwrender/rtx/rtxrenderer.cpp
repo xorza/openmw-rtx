@@ -539,10 +539,11 @@ namespace MWRender
             // draws, the count moved or not: the draw pumps the window's events and beats the crash catcher's
             // heart, and one kernel alone takes seconds cold.
             constexpr std::chrono::milliseconds patience{ 8 };
+            listener.setProgress(progress.mMade);
             while (!progress.isDone())
             {
-                listener.setProgress(progress.mMade);
                 progress = mRenderer->awaitKernels(mKernels, patience);
+                listener.setProgress(progress.mMade);
             }
         }
 
@@ -559,11 +560,12 @@ namespace MWRender
             // (`Rtx::ContentPreparation`, `Resource::SceneManager::letGo`): cleared once a second the caches
             // held 7.3 GiB at the peak of a PBR start, and aged by their expiry, 14.7 GB.
             constexpr std::chrono::milliseconds patience{ 8 };
+            // Each report draws a frame, as above, the last one the whole count.
+            listener.setProgress(progress.mMade);
             while (!progress.isDone())
             {
-                // Each report draws a frame, as above.
-                listener.setProgress(progress.mMade);
                 progress = mMirror.awaitPreparing(patience);
+                listener.setProgress(progress.mMade);
             }
             listener.setNote({});
         }

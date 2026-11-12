@@ -89,10 +89,12 @@ namespace RtxTool
         // whatever clock it was taken.
         mScratch.resize(sSamplesReserved);
         unsigned count = 0;
+        // A prime that failed leaves no point to count from, so every sample the driver holds would count.
         const Return primed = fetch(count);
-        if (primed == sNotSupported)
+        if (primed != sSuccess)
         {
-            mUnsampled = "the driver keeps no process samples for this device";
+            mUnsampled = primed == sNotSupported ? "the driver keeps no process samples for this device"
+                                                 : "the driver refused the first read of its process samples";
             mProcessUtilization = nullptr;
             return;
         }
