@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from omw import build
 from omw.build import (
     BUILD_LOCK,
     CONFIGURED_FROM,
@@ -278,6 +279,20 @@ class DeviceFreeTest(unittest.TestCase):
                  suite("crash-tests", "device"), suite("crash-tests"), {"name": "no target", "properties": []}]
         self.assertEqual(device_free(tests), ["components-tests", "crash-tests"])
         self.assertEqual(device_free([]), [])
+
+
+class EnvironmentTest(unittest.TestCase):
+    def test_no_flag_the_environment_holds_reaches_a_build_and_the_rest_of_it_does(self):
+        flags = {"CFLAGS": "-O0", "CXXFLAGS": "-O0", "CPPFLAGS": "-DX", "LDFLAGS": "-fuse-ld=mold", "ASMFLAGS": "-g"}
+        with (mock.patch.dict(os.environ, {**flags, "HOME": "/home/desk"}),
+              mock.patch.object(build, "WINDOWS", False),
+              mock.patch.object(build.deps, "compiler_environment"),
+              mock.patch.object(build.deps, "vulkan_environment"),
+              mock.patch.object(build.deps, "cmake_environment")):
+            env = build.Build("debug").env
+        self.assertEqual(sorted(flags), sorted(build.ENVIRONMENT_FLAGS))
+        self.assertFalse(set(flags) & set(env))
+        self.assertEqual(env["HOME"], "/home/desk")
 
 
 if __name__ == "__main__":
