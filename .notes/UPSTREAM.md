@@ -264,6 +264,10 @@ made only on the user's explicit yes, after which it is added here.
   change to the navigator's database worker, its input serialization or `openmw-navmeshtool`. Recast is the
   commit `extern/` pins on every system, its headers included as a system's, since the tile version cannot
   follow a distribution's build.
+  A tile is keyed on the triangles of its recast mesh, and `MeshSource`, which carried each model's file and transform
+  into upstream's database key, is gone with the source arguments of `RecastMesh` and `RecastMeshBuilder::addObject`:
+  a key of the file and the transform read a tile built in one pose of an animated part back for every pose. The cost
+  is a conflict with an upstream edit to those signatures or to `TileCachedRecastMeshManager::makeMesh`.
 - GitLab's pipeline, macOS and Android, out of the tree: the fork's CI is GitHub's and it builds
   Linux and Windows alone. `.gitlab-ci.yml`, `.gitlab/`, every `CI/` script only that pipeline ran,
   `docker/generic-linux`, and the groups of `CI/install_debian_deps.sh` only it installed go;

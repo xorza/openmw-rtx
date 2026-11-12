@@ -1,6 +1,5 @@
 #include "navmeshtilestore.hpp"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <exception>
@@ -12,8 +11,6 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/bytebuffer.hpp>
 #include <components/misc/compression.hpp>
-#include <components/misc/digestwords.hpp>
-#include <components/resource/bulletshape.hpp>
 
 #include "agentbounds.hpp"
 #include "preparednavmeshdata.hpp"
@@ -59,6 +56,14 @@ namespace DetourNavigator
 
         void addMesh(ContentStore::Digest& digest, const RecastMesh& recastMesh)
         {
+            // **The triangles themselves**, which Recast builds the tile from: whatever made them — a model's
+            // file, where its object stands, an animated part's pose, a scaling — moves them. Sorted by the
+            // builder, so two starts that added the objects in two orders key one tile alike.
+            const Mesh& mesh = recastMesh.getMesh();
+            digest.add(std::span<const float>(mesh.getVertices()));
+            digest.add(std::span<const int>(mesh.getIndices()));
+            digest.add(std::span<const AreaType>(mesh.getAreaTypes()));
+
             digest.add(static_cast<std::uint64_t>(recastMesh.getWater().size()));
             for (const CellWater& water : recastMesh.getWater())
             {
@@ -96,9 +101,8 @@ namespace DetourNavigator
     {
     }
 
-    std::optional<ContentStore::Key> NavMeshTileStore::keyOf(const RecastSettings& settings,
-        const AgentBounds& agentBounds, const ESM::RefId worldspace, const TilePosition& tilePosition,
-        const RecastMesh& recastMesh)
+    ContentStore::Key NavMeshTileStore::keyOf(const RecastSettings& settings, const AgentBounds& agentBounds,
+        const ESM::RefId worldspace, const TilePosition& tilePosition, const RecastMesh& recastMesh)
     {
         ContentStore::Digest digest("navmesh tile", sTileVersion);
         addSettings(digest, settings);
@@ -109,26 +113,6 @@ namespace DetourNavigator
         digest.add(tilePosition);
         addMesh(digest, recastMesh);
 
-        // **A source is its model's path and the hash of its file's bytes**, which a mod that replaces the file
-        // moves, and the transform it stands at; its triangles are what the two make. **Each its own digest, in
-        // their order**, as the water and the heights are sorted: the mesh lists its sources as its index finds
-        // them, which follows the order the objects were added in, and two starts add them in two orders.
-        std::vector<Misc::DigestWords> sources;
-        sources.reserve(recastMesh.getMeshSources().size());
-        for (const MeshSource& source : recastMesh.getMeshSources())
-        {
-            if (source.mShape->mFileHash.empty())
-                return std::nullopt;
-            ContentStore::Digest sourceDigest("navmesh tile source", sTileVersion);
-            sourceDigest.add(source.mAreaType);
-            sourceDigest.add(std::span<const char>(source.mShape->mFileName.value()));
-            sourceDigest.add(std::span<const char>(source.mShape->mFileHash));
-            sourceDigest.add(source.mObjectTransform.mPosition);
-            sourceDigest.add(source.mObjectTransform.mScale);
-            sources.push_back(sourceDigest.getKey().mHash);
-        }
-        std::sort(sources.begin(), sources.end());
-        digest.add(std::span<const Misc::DigestWords>(sources));
         return digest.getKey();
     }
 

@@ -4,8 +4,6 @@
 #include "recastmesh.hpp"
 #include "tilebounds.hpp"
 
-#include <components/resource/bulletshape.hpp>
-
 #include <osg/Vec3f>
 
 #include <LinearMath/btTransform.h>
@@ -40,8 +38,7 @@ namespace DetourNavigator
     public:
         explicit RecastMeshBuilder(const TileBounds& bounds) noexcept;
 
-        void addObject(const btCollisionShape& shape, const btTransform& transform, const AreaType areaType,
-            std::shared_ptr<const Resource::BulletShape> source, const ObjectTransform& objectTransform);
+        void addObject(const btCollisionShape& shape, const btTransform& transform, const AreaType areaType);
 
         void addObject(const btCompoundShape& shape, const btTransform& transform, const AreaType areaType);
 
@@ -66,9 +63,6 @@ namespace DetourNavigator
         std::vector<CellWater> mWater;
         std::vector<Heightfield> mHeightfields;
         std::vector<FlatHeightfield> mFlatHeightfields;
-        std::vector<MeshSource> mSources;
-
-        inline void addObject(const btCollisionShape& shape, const btTransform& transform, const AreaType areaType);
 
         void addObject(const btConcaveShape& shape, const btTransform& transform, btTriangleCallback&& callback);
 

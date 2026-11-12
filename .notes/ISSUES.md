@@ -1,6 +1,5 @@
 # Open issues
 
-- **A cached navmesh tile ignores an animated collision's pose**: a tile's key in the disk cache holds each source's
-  shape and its object's transform (`MeshSource`), and not a compound shape's child transforms, which
-  `RecastMeshObject::update` follows. A tile written with an animated part in one pose is read back for every pose of
-  that object at that transform.
+- **An object's `ObjectTransform` reaches the navigator and nothing reads it**: `Navigator::addObject` takes it in
+  `ObjectShapes` and `DoorShapes`, `CollisionShape` and `RecastMeshObject` keep it, and since the tile store keys a
+  tile on its triangles (`NavMeshTileStore::keyOf`), no code reads `RecastMeshObject::getObjectTransform`.

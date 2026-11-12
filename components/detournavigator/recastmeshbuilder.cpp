@@ -138,14 +138,6 @@ namespace DetourNavigator
     {
     }
 
-    void RecastMeshBuilder::addObject(const btCollisionShape& shape, const btTransform& transform,
-        const AreaType areaType, std::shared_ptr<const Resource::BulletShape> source,
-        const ObjectTransform& objectTransform)
-    {
-        addObject(shape, transform, areaType);
-        mSources.push_back(MeshSource{ std::move(source), objectTransform, areaType });
-    }
-
     void RecastMeshBuilder::addObject(
         const btCollisionShape& shape, const btTransform& transform, const AreaType areaType)
     {
@@ -276,8 +268,8 @@ namespace DetourNavigator
         std::sort(mHeightfields.begin(), mHeightfields.end());
         std::sort(mFlatHeightfields.begin(), mFlatHeightfields.end());
         Mesh mesh = makeMesh(std::move(mTriangles));
-        return std::make_shared<RecastMesh>(version, std::move(mesh), std::move(mWater), std::move(mHeightfields),
-            std::move(mFlatHeightfields), std::move(mSources));
+        return std::make_shared<RecastMesh>(
+            version, std::move(mesh), std::move(mWater), std::move(mHeightfields), std::move(mFlatHeightfields));
     }
 
     void RecastMeshBuilder::addObject(

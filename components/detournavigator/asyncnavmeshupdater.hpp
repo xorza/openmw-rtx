@@ -60,8 +60,8 @@ namespace DetourNavigator
         JobState mState = JobState::Initial;
         std::shared_ptr<RecastMesh> mRecastMesh;
 
-        /// The key the store files the tile under, once the store's reader made it: nothing where a source has
-        /// no file hash, and the tile is generated and not stored.
+        /// The key the store files the tile under, once the store's reader made it: nothing before, and where
+        /// there is no store.
         std::optional<ContentStore::Key> mKey;
         std::unique_ptr<PreparedNavMeshData> mStoredNavMeshData;
         std::unique_ptr<PreparedNavMeshData> mGeneratedNavMeshData;

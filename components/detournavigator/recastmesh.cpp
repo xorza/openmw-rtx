@@ -17,14 +17,12 @@ namespace DetourNavigator
     }
 
     RecastMesh::RecastMesh(const Version& version, Mesh mesh, std::vector<CellWater> water,
-        std::vector<Heightfield> heightfields, std::vector<FlatHeightfield> flatHeightfields,
-        std::vector<MeshSource> meshSources)
+        std::vector<Heightfield> heightfields, std::vector<FlatHeightfield> flatHeightfields)
         : mVersion(version)
         , mMesh(std::move(mesh))
         , mWater(std::move(water))
         , mHeightfields(std::move(heightfields))
         , mFlatHeightfields(std::move(flatHeightfields))
-        , mMeshSources(std::move(meshSources))
     {
         mWater.shrink_to_fit();
         mHeightfields.shrink_to_fit();

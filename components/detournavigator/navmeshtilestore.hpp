@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
-#include <optional>
 #include <string_view>
 
 #include <components/contentstore/key.hpp>
@@ -30,16 +29,16 @@ namespace DetourNavigator
     class NavMeshTileStore
     {
     public:
-        /// What a key and the tile it names are made by: the key's layout, the recast mesh builder, the
-        /// collision a model's file makes, and Recast and Detour. `DetourNavigatorTileVersionTest` holds it.
-        static constexpr std::uint32_t sTileVersion = 2;
+        /// What a key and the tile it names are made by: the key's layout, the recast mesh builder, and Recast
+        /// and Detour. `DetourNavigatorTileVersionTest` holds it.
+        static constexpr std::uint32_t sTileVersion = 3;
 
         /// @param directory where the store stands, made if it is not there.
         explicit NavMeshTileStore(std::filesystem::path directory);
 
-        /// The key of the tile `recastMesh` makes for `agentBounds` at `tilePosition` of `worldspace`, or nothing
-        /// where a source's model has no file hash: its path alone would keep a replaced file's tile.
-        static std::optional<ContentStore::Key> keyOf(const RecastSettings& settings, const AgentBounds& agentBounds,
+        /// The key of the tile `recastMesh` makes for `agentBounds` at `tilePosition` of `worldspace`: a digest of
+        /// everything Recast builds it from, the mesh's triangles among them.
+        static ContentStore::Key keyOf(const RecastSettings& settings, const AgentBounds& agentBounds,
             ESM::RefId worldspace, const TilePosition& tilePosition, const RecastMesh& recastMesh);
 
         /// The tile stored under `key`, or nothing. A payload that does not read is discarded, and the tile made

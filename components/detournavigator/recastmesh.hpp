@@ -2,11 +2,7 @@
 #define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESH_H
 
 #include "areatype.hpp"
-#include "objecttransform.hpp"
 #include "version.hpp"
-#include <memory>
-
-#include <components/resource/bulletshape.hpp>
 
 #include <osg/Vec2i>
 #include <osg/Vec3f>
@@ -118,19 +114,11 @@ namespace DetourNavigator
         return tie(lhs) < tie(rhs);
     }
 
-    struct MeshSource
-    {
-        std::shared_ptr<const Resource::BulletShape> mShape;
-        ObjectTransform mObjectTransform;
-        AreaType mAreaType;
-    };
-
     class RecastMesh
     {
     public:
         explicit RecastMesh(const Version& version, Mesh mesh, std::vector<CellWater> water,
-            std::vector<Heightfield> heightfields, std::vector<FlatHeightfield> flatHeightfields,
-            std::vector<MeshSource> sources);
+            std::vector<Heightfield> heightfields, std::vector<FlatHeightfield> flatHeightfields);
 
         const Version& getVersion() const noexcept { return mVersion; }
 
@@ -142,15 +130,12 @@ namespace DetourNavigator
 
         const std::vector<FlatHeightfield>& getFlatHeightfields() const noexcept { return mFlatHeightfields; }
 
-        const std::vector<MeshSource>& getMeshSources() const noexcept { return mMeshSources; }
-
     private:
         Version mVersion;
         Mesh mMesh;
         std::vector<CellWater> mWater;
         std::vector<Heightfield> mHeightfields;
         std::vector<FlatHeightfield> mFlatHeightfields;
-        std::vector<MeshSource> mMeshSources;
 
         friend inline std::size_t getSize(const RecastMesh& value) noexcept
         {

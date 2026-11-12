@@ -11,6 +11,7 @@
 #include <cstring>
 #include <list>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <vector>
 

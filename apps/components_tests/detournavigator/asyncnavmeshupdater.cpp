@@ -190,56 +190,39 @@ namespace
         }
     }
 
+    /// **A generated tile is written to the store under the key of its mesh**, read back as the store's, a tile
+    /// of a model with no file hash too: the key is the triangles, whatever file made them.
     TEST_F(DetourNavigatorAsyncNavMeshUpdaterTest, post_should_write_generated_tile_to_store)
     {
-        mRecastMeshManager.setWorldspace(mWorldspace, nullptr);
-        addHeightFieldPlane(mRecastMeshManager);
-        addObject(mBox, mRecastMeshManager);
-        const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "navmesh";
-        const TilePosition tilePosition{ 0, 0 };
+        for (const std::string fileHash : { "test_hash", "" })
         {
-            AsyncNavMeshUpdater updater(
-                mSettings, mRecastMeshManager, mOffMeshConnectionsManager, std::make_unique<NavMeshTileStore>(folder));
-            const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
-            const std::map<TilePosition, ChangeType> changedTiles{ { tilePosition, ChangeType::add } };
-            updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
-            updater.wait(WaitConditionType::allJobsDone, &mListener);
-            updater.stop();
+            SCOPED_TRACE(fileHash);
+            TileCachedRecastMeshManager recastMeshManager(mSettings.mRecast);
+            recastMeshManager.setWorldspace(mWorldspace, nullptr);
+            addHeightFieldPlane(recastMeshManager);
+            addObject(mBox, recastMeshManager, fileHash);
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / ("navmesh" + fileHash);
+            const TilePosition tilePosition{ 0, 0 };
+            {
+                AsyncNavMeshUpdater updater(mSettings, recastMeshManager, mOffMeshConnectionsManager,
+                    std::make_unique<NavMeshTileStore>(folder));
+                const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+                const std::map<TilePosition, ChangeType> changedTiles{ { tilePosition, ChangeType::add } };
+                updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
+                updater.wait(WaitConditionType::allJobsDone, &mListener);
+                EXPECT_EQ(updater.getStats().mStoreWrites, 1u);
+                updater.stop();
+            }
+            const auto recastMesh = recastMeshManager.getMesh(mWorldspace, tilePosition);
+            ASSERT_NE(recastMesh, nullptr);
+            const ContentStore::Key key
+                = NavMeshTileStore::keyOf(mSettings.mRecast, mAgentBounds, mWorldspace, tilePosition, *recastMesh);
+            NavMeshTileStore store(folder);
+            ASSERT_TRUE(store.holds(key));
+            const std::unique_ptr<PreparedNavMeshData> stored = store.read(key);
+            ASSERT_NE(stored, nullptr);
+            EXPECT_EQ(stored->mUserId, 1u) << "a tile the store answered";
         }
-        const auto recastMesh = mRecastMeshManager.getMesh(mWorldspace, tilePosition);
-        ASSERT_NE(recastMesh, nullptr);
-        const std::optional<ContentStore::Key> key
-            = NavMeshTileStore::keyOf(mSettings.mRecast, mAgentBounds, mWorldspace, tilePosition, *recastMesh);
-        ASSERT_TRUE(key.has_value());
-        NavMeshTileStore store(folder);
-        const std::unique_ptr<PreparedNavMeshData> stored = store.read(*key);
-        ASSERT_NE(stored, nullptr);
-        EXPECT_EQ(stored->mUserId, 1u) << "a tile the store answered";
-    }
-
-    /// A source whose model has no file hash keys no tile: its path alone would keep a replaced file's tile.
-    TEST_F(DetourNavigatorAsyncNavMeshUpdaterTest, post_should_not_write_tile_of_source_without_file_hash)
-    {
-        mRecastMeshManager.setWorldspace(mWorldspace, nullptr);
-        addHeightFieldPlane(mRecastMeshManager);
-        addObject(mBox, mRecastMeshManager, "");
-        const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "navmesh";
-        {
-            AsyncNavMeshUpdater updater(
-                mSettings, mRecastMeshManager, mOffMeshConnectionsManager, std::make_unique<NavMeshTileStore>(folder));
-            const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
-            const std::map<TilePosition, ChangeType> changedTiles{ { TilePosition{ 0, 0 }, ChangeType::add } };
-            updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
-            updater.wait(WaitConditionType::allJobsDone, &mListener);
-            ASSERT_NE(navMeshCacheItem->lockConst()->getImpl().getTileRefAt(0, 0, 0), 0u) << "the tile is made";
-            EXPECT_EQ(updater.getStats().mStoreWrites, 0u);
-        }
-        NavMeshTileStore store(folder);
-        EXPECT_EQ(store.getStats().mWritten, 0u);
-        std::size_t files = 0;
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(folder))
-            files += entry.is_regular_file() ? 1 : 0;
-        EXPECT_EQ(files, 0u);
     }
 
     TEST_F(DetourNavigatorAsyncNavMeshUpdaterTest, post_should_read_from_store_on_cache_miss)

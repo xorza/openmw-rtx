@@ -893,7 +893,6 @@ namespace DetourNavigator
         Log(Debug::Debug) << "Processing store read job " << job.mId;
         job.mKey = NavMeshTileStore::keyOf(
             mRecastSettings, job.mAgentBounds, job.mWorldspace, job.mChangedTile, *job.mRecastMesh);
-        if (job.mKey.has_value())
-            job.mStoredNavMeshData = mStore.read(*job.mKey);
+        job.mStoredNavMeshData = mStore.read(*job.mKey);
     }
 }

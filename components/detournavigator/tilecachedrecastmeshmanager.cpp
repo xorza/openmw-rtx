@@ -516,7 +516,8 @@ namespace DetourNavigator
     std::shared_ptr<RecastMesh> TileCachedRecastMeshManager::makeMesh(const TilePosition& tilePosition) const
     {
         RecastMeshBuilder builder(makeRealTileBoundsWithBorder(mSettings, tilePosition));
-        using Object = std::tuple<std::shared_ptr<const Resource::BulletShapeInstance>, ObjectTransform,
+        // The instance holds its shape alive once the lock is let go, and the mesh is built after it.
+        using Object = std::tuple<std::shared_ptr<const Resource::BulletShapeInstance>,
             std::reference_wrapper<const btCollisionShape>, btTransform, AreaType>;
         std::vector<Object> objects;
         Version version;
@@ -539,8 +540,8 @@ namespace DetourNavigator
             for (auto it = mObjectIndex.qbegin(makeIndexQuery(tilePosition)); it != mObjectIndex.qend(); ++it)
             {
                 const auto& object = it->second->mObject;
-                objects.emplace_back(object.getInstance(), object.getObjectTransform(), object.getShape(),
-                    object.getTransform(), object.getAreaType());
+                objects.emplace_back(
+                    object.getInstance(), object.getShape(), object.getTransform(), object.getAreaType());
                 hasInput = true;
             }
             if (hasInput)
@@ -557,8 +558,8 @@ namespace DetourNavigator
         }
         if (!hasInput)
             return nullptr;
-        for (const auto& [instance, objectTransform, shape, transform, areaType] : objects)
-            builder.addObject(shape, transform, areaType, instance->getSource(), objectTransform);
+        for (const auto& [instance, shape, transform, areaType] : objects)
+            builder.addObject(shape, transform, areaType);
         return std::move(builder).create(version);
     }
 

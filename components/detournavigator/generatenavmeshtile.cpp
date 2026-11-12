@@ -79,20 +79,20 @@ namespace DetourNavigator
             if (recastMesh == nullptr || isEmpty(*recastMesh))
                 return;
 
-            const std::optional<ContentStore::Key> key
+            const ContentStore::Key key
                 = NavMeshTileStore::keyOf(mSettings.mRecast, mAgentBounds, mWorldspace, mTilePosition, *recastMesh);
 
             // A stored tile is read only where its polygons are counted, and otherwise only found.
-            if (key.has_value() && mCollectStats)
+            if (mCollectStats)
             {
-                if (const std::unique_ptr<PreparedNavMeshData> stored = consumer->read(*key))
+                if (const std::unique_ptr<PreparedNavMeshData> stored = consumer->read(key))
                 {
                     reportPolyCount(
                         *consumer, makeNavMeshTileData(*stored, {}, mAgentBounds, mTilePosition, mSettings.mRecast));
                     return;
                 }
             }
-            else if (key.has_value() && consumer->holds(*key))
+            else if (consumer->holds(key))
                 return;
 
             const std::unique_ptr<PreparedNavMeshData> data
@@ -104,8 +104,7 @@ namespace DetourNavigator
             // Verify generated data before consuming.
             const NavMeshData tileData = makeNavMeshTileData(*data, {}, mAgentBounds, mTilePosition, mSettings.mRecast);
 
-            if (key.has_value())
-                consumer->write(*key, *data);
+            consumer->write(key, *data);
 
             if (mCollectStats)
                 reportPolyCount(*consumer, tileData);

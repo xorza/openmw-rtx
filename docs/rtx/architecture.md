@@ -436,16 +436,18 @@ screen. The measurements are in `research/2026-11-08-normal-map-chains.md`.
   which empties every store; one residency for every owner.
 - **The navigator's tiles in the content store** (`DetourNavigator::NavMeshTileStore`), by the user's decision, in
   `<cache>/navmesh`, which every profile shares, holding nothing in memory: a tile is keyed by its worldspace, its
-  position, the recast settings, the agent's bounds, the water and the heights by value, and each source's model path,
-  file hash, area and transform, so a mod that replaces a mesh, moves an object or edits the land keys a new tile; the
-  sources each a digest, sorted, since the mesh lists them in the order the objects were added. The code between the
-  bytes and the tile is `sTileVersion`, which `DetourNavigatorTileVersionTest` holds; Recast is the commit
-  `cmake/Dependencies.cmake` pins on every system, since a distribution's build makes other tiles under the same version (OpenMW's Ubuntu
-  package did). A source with no file hash keys
-  nothing. No cap and no removal, as above, and one setting, `enable nav mesh disk cache`, for reads and writes; the
-  old `navmesh.db` is left where it stands. Refused: SQLite, a dependency for one store, keyed by a blob and shape ids
-  a second table handed out, one file a profile; a removal of unused tiles, which a store every profile shares cannot
-  know; a read-only mode, a second switch for one store; and deleting a file in the player's user data folder unasked
+  position, the recast settings, the agent's bounds, and everything Recast builds it from by value — the mesh's
+  triangles, the water and the heights — so whatever moves a triangle keys a new tile: a mod that replaces a mesh, an
+  object moved, scaled, added or taken away, an animated part's pose, the land edited. The builder sorts the triangles,
+  so two starts that add the objects in two orders key one tile. Refused: a key of each source's model path, file hash
+  and transform, which read a tile built in one pose of an animated part back for every pose and stored nothing for a
+  model with no file hash. The code between the bytes and the tile is `sTileVersion`, which
+  `DetourNavigatorTileVersionTest` holds; Recast is the commit `cmake/Dependencies.cmake` pins on every system, since a
+  distribution's build makes other tiles under the same version (OpenMW's Ubuntu package did). No cap and no removal, as
+  above, and one setting, `enable nav mesh disk cache`, for reads and writes; the old `navmesh.db` is left where it
+  stands. Refused: SQLite, a dependency for one store, keyed by a blob and shape ids a second table handed out, one file
+  a profile; a removal of unused tiles, which a store every profile shares cannot know; a read-only mode, a second
+  switch for one store; and deleting a file in the player's user data folder unasked
   (`research/2026-11-10-navmesh-cache.md`).
 - **The frame reaches the store's memory alone** (`ContentStore::Reach`): an entry of 4 KiB or less is held once read or
   written and loaded at the start's sweep, and a shape at any size once read or written, bounded at 512 MiB, as the
