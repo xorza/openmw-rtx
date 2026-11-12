@@ -65,6 +65,10 @@ namespace Rtx
     /// its template's mark, so a template and every clone of it answer alike.
     const osg::Node* modelOf(std::span<osg::Node* const> path);
 
+    /// What a report calls the model at `model`: the path the loader read it from (`Misc::OsgUserValues::sFilePath`),
+    /// or its root's name where it was read from none, as a model built in memory. Valid as long as `model` is.
+    std::string_view modelNameOf(const osg::Node& model);
+
     /// What one drawable's triangles come to once read and shaped — `ShapePass`: spans into the
     /// geometry's own arrays and into the reader's scratch, valid until the reader reads again.
     struct MeshReading

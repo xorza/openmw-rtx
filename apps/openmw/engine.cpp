@@ -46,6 +46,7 @@
 #include <components/settings/values.hpp>
 
 #include "mwinput/inputmanagerimp.hpp"
+#include "mwinput/rendererkeys.hpp"
 
 #include "mwgui/windowmanagerimp.hpp"
 
@@ -378,6 +379,7 @@ OMW::Engine::~Engine()
     mScriptManager = nullptr;
     mSoundManager = nullptr;
     mInputManager = nullptr;
+    mRendererKeys = nullptr;
     mStateManager = nullptr;
     mLuaManager = nullptr;
     mL10nManager = nullptr;
@@ -557,8 +559,9 @@ void OMW::Engine::prepareEngine()
         mWindowManager->setScriptMessageBoxesShown(mHost->showsScriptMessageBoxes());
     mEnvironment.setWindowManager(*mWindowManager);
 
+    mRendererKeys = std::make_unique<MWInput::RendererKeys>(*mRenderer);
     mInputManager = std::make_unique<MWInput::InputManager>(*mRenderer,
-        std::make_unique<SDLUtil::InputWrapper>(mRenderer->getWindow(), *mRenderer, mGrab), keybinderUser,
+        std::make_unique<SDLUtil::InputWrapper>(mRenderer->getWindow(), *mRendererKeys, mGrab), keybinderUser,
         keybinderUserExists, userGameControllerdb, gameControllerdb);
     mEnvironment.setInputManager(*mInputManager);
 
@@ -633,7 +636,7 @@ void OMW::Engine::prepareEngine()
             asyncListener.update();
         dataLoading.get();
     }
-    mRenderer->awaitShaders(*listener);
+    mRenderer->prepareContent(mWorld->getStore(), *listener);
     mSoundManager->warmStoreSounds();
     listener->loadingOff();
 

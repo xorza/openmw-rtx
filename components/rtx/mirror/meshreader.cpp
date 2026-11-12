@@ -16,6 +16,7 @@
 #include <osg/Transform>
 #include <osg/TriangleIndexFunctor>
 #include <osg/UserDataContainer>
+#include <osg/ValueObject>
 #include <osg/Vec4f>
 
 #include <components/misc/osguservalues.hpp>
@@ -402,6 +403,15 @@ namespace Rtx
         }
 
         return nullptr;
+    }
+
+    std::string_view modelNameOf(const osg::Node& model)
+    {
+        const osg::UserDataContainer* data = model.getUserDataContainer();
+        const auto* path = data != nullptr
+            ? dynamic_cast<const osg::StringValueObject*>(data->getUserObject(Misc::OsgUserValues::sFilePath))
+            : nullptr;
+        return path != nullptr ? std::string_view(path->getValue()) : std::string_view(model.getName());
     }
 
     const MeshReader::ShapeFaces& MeshReader::facesOf(const osg::Geometry& geometry)

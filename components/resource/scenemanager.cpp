@@ -28,6 +28,7 @@
 #include <osgDB/Registry>
 #include <osgDB/SharedStateManager>
 
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 
 #include <components/nifosg/controller.hpp>
@@ -1004,6 +1005,8 @@ namespace Resource
             return osg::ref_ptr<const osg::Node>(static_cast<osg::Node*>(obj.get()));
         else
         {
+            // What a crash while the model is read and readied names, on whichever thread loads it.
+            const Crash::NoteScope noted("loading the model \"{}\"", path.value());
             osg::ref_ptr<osg::Node> loaded;
             try
             {
@@ -1052,6 +1055,8 @@ namespace Resource
             else
                 loaded->getBound();
 
+            // The file it was read from, on its root beside its hash, so what reads the scene can name the model.
+            loaded->setUserValue(Misc::OsgUserValues::sFilePath, std::string(path.value()));
             mCache->addEntryToObjectCache(path.value(), loaded);
             return loaded;
         }

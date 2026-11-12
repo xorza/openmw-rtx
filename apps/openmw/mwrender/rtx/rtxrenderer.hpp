@@ -15,6 +15,7 @@
 
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/renderer.hpp>
+#include <components/esm/refid.hpp>
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/frametimehistogram.hpp>
 #include <components/rtx/common/stepped.hpp>
@@ -92,7 +93,7 @@ namespace MWRender
     /// itself, the scene-graph half of what `osgViewer::Viewer` does, with no cull because rays go
     /// everywhere; the mirror runs after the update traversal and the present after the mirror.
     ///
-    /// The seam calls are `noexcept` but the constructor, `awaitShaders`, `renderFrame` and `functionKey`,
+    /// The seam calls are `noexcept` but the constructor, `prepareContent` and `renderFrame`,
     /// whose failures a player is told in words. The engine calls the rest inside `Engine::frame`'s update,
     /// which logs what it catches and goes on: a cell change stopped halfway, over a renderer stopped
     /// mid-frame, is no game to go on with, so a throw there ends the process where it was thrown.
@@ -156,7 +157,6 @@ namespace MWRender
 
         /// F3 and F4, which the rasterizer hands OpenSceneGraph's overlays: a message box saying
         /// why `rtxSupport` declines them, once a press as F2 is, and nothing else.
-        void functionKey(int index, SDLUtil::KeyChange change) override;
 
         void advance(double simulationTime) noexcept override;
         void updateTraversal() noexcept override;
@@ -188,8 +188,8 @@ namespace MWRender
         void renderGui() noexcept override;
 
         /// A step of its own on the loading screen, where the kernels are not all made by the time
-        /// the content is read: `Rtx::Renderer::awaitKernels`.
-        void awaitShaders(Loading::Listener& listener) override;
+        /// the content is read: `Rtx::Renderer::awaitKernels`; and the content's preparation beside it.
+        void prepareContent(const MWWorld::ESMStore& store, Loading::Listener& listener) override;
 
         void capture(osg::Image& image, int width, int height) noexcept override;
         void saveScreenshot() noexcept override;
@@ -373,7 +373,7 @@ namespace MWRender
         /// `RunSetup::mInterface`: read by every frame's `drawGui`.
         bool mInterface;
 
-        /// `RunSetup::mKernels`: what `awaitShaders` waits for.
+        /// `RunSetup::mKernels`: what `prepareContent` waits for.
         Rtx::KernelSet mKernels;
 
         /// Before the backend, whose surface is on it: the members below die first.
@@ -437,6 +437,9 @@ namespace MWRender
         /// What the host said the next traced frame's past is worth, `notifyCut` and
         /// `notifyWorldspaceChanged`, kept until a frame traces the world and spends it.
         Rtx::HistoryLoss mLoss = Rtx::HistoryLoss::None;
+
+        /// The worldspace the crash catcher was last told the player is in, so a load's every cell tells it once.
+        ESM::RefId mWorldspace;
 
         /// The scene root this renderer made for the game, held from `createSceneRoot` until
         /// `onAttachWorld` hangs it under the world root.

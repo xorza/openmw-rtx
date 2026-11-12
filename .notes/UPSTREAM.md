@@ -4,6 +4,28 @@ The fork's changes to upstream code that stay, each approved by the user and kep
 given. A change to upstream code that is not here is held to `AGENTS.md`'s first rule: proposed, and
 made only on the user's explicit yes, after which it is added here.
 
+**The seam**, `MWRender::Renderer`, which both renderers stand behind (`AGENTS.md`), so the game owns no
+OpenSceneGraph viewer and the ray tracer can draw the picture. The cost is a conflict with any upstream edit to
+the lines each item names, which the merge resolves by keeping the seam:
+
+- `OMW::Engine` loses `createWindow`, its `osgViewer::Viewer`, `Stereo::Manager`, `Resource::Profiler`, the
+  `StatsHandler` and `OPENMW_OSG_STATS_FILE`: the renderer the host makes owns the window and its frame, and hands
+  the content to prepare to `Renderer::prepareContent`, which reaches no game manager for it.
+- `MWWorld::World::init`, `RenderingManager` and `MWGui::WindowManager` take the `Renderer`; `SDLUtil::InputWrapper`
+  takes a `SDLUtil::GraphicsListener`, which the engine makes a `MWInput::RendererKeys` over the renderer, so a key
+  whose request the renderer declines (F3 and F4's overlays) is told to the player by the game.
+- `CharacterPreview`, `LocalMap` and `GlobalMap` stand on the renderer's `OffscreenView` and `MapOverlay`, and the
+  post-processor's exterior flag is set from `GlWorld`.
+
+**What a crash report says**, which upstream's code is the only place to say:
+
+- A crash note (`Crash::NoteScope`) where the game's own work starts: `Resource::SceneManager::getTemplate`'s load
+  of a model, on whichever thread, `StateManager::loadGame`'s save and each of its records, and the cell changes
+  of `Scene::changeCellGrid` and `Scene::changeToInteriorCell`. The save's name is a report's annotation from its
+  load on. The cost is a conflict with an upstream edit to those lines.
+- The model's VFS path on its root beside its hash (`Misc::OsgUserValues::sFilePath`, set in `getTemplate`), so a
+  refused mesh and a crash note name the file. The cost is a conflict with an upstream edit to that line.
+
 **The rasterizer's picture**, each moved where the ray tracer needed it and upstream's was wrong:
 
 - the optimizer merges in child order, not address order;
@@ -125,7 +147,7 @@ made only on the user's explicit yes, after which it is added here.
   (`LuaUtil::LuaState::seedRandom`): seeded from the clock, the fish `cellhandlers.lua` spawns stood
   elsewhere in every run.
 - What the loading screen's preparation reads of the content (`Rtx::ContentPreparation`, run inside
-  `Renderer::awaitShaders`): `ESMTerrain::Storage::getLayerInfo` made public and `Store<ESM::LandTexture>`'s
+  `Renderer::prepareContent`): `ESMTerrain::Storage::getLayerInfo` made public and `Store<ESM::LandTexture>`'s
   `begin` and `end`, which list the ground layers as the ground reader finds them (`MWRender::contentLayers`), and
   the `PreparingContent` label in each of the engine's six languages. And the note the loading screen shows above
   its label while the preparation runs (`Loading::Listener::setNote`, `PreparingContentNote`): a cold start with a

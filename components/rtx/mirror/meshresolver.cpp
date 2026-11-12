@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <format>
 #include <span>
 #include <string>
 #include <string_view>
@@ -132,11 +133,11 @@ namespace Rtx
         // drawable and the model's root.
         const osg::Node* const model = modelOf(path);
         const Crash::NoteScope noted("reading the mesh \"{}\" of the model \"{}\"", drawable.getName(),
-            model != nullptr ? std::string_view(model->getName()) : std::string_view());
+            model != nullptr ? modelNameOf(*model) : std::string_view());
         MeshReading reading;
         const Result<bool, std::string> readMesh = mReader.read(mContent, read, model, reading);
         if (!readMesh.isOk())
-            return refuse(drawable, readMesh.error());
+            return refuse(drawable, model, readMesh.error());
 
         // Vertices and no triangle: nothing to place, and filed as a refusal is, with nothing to
         // report, so the next walk does not read and decode it again. Lines and points the reader
@@ -150,7 +151,7 @@ namespace Rtx
 
         const Result<Index, std::string> added = addMesh(read, reading);
         if (!added.isOk())
-            return refuse(drawable, added.error());
+            return refuse(drawable, model, added.error());
 
         const Index mesh = added.value();
 
@@ -239,9 +240,13 @@ namespace Rtx
         mMeshes.hold(known);
     }
 
-    Index MeshResolver::refuse(const osg::Drawable& drawable, std::string_view why)
+    Index MeshResolver::refuse(const osg::Drawable& drawable, const osg::Node* model, std::string_view why)
     {
-        mScene.refusals().refuse(Refused::Mesh, drawable.getName(), why);
+        // Once a drawable, which the refusal is kept under, so the name is made once too.
+        const std::string named = model != nullptr
+            ? std::format("{} of the model {}", drawable.getName(), modelNameOf(*model))
+            : drawable.getName();
+        mScene.refusals().refuse(Refused::Mesh, named, why);
         mMeshes.add(&drawable, KnownMesh{});
         return sNoIndex;
     }

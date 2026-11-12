@@ -224,6 +224,22 @@ namespace Rtx::Testing
             EXPECT_EQ(modelOf({}), nullptr);
         }
 
+        /// **A model is named by the file it was read from**, which the loader puts on its root, and by its root's
+        /// name where it was read from none.
+        TEST(RtxMeshReaderTest, aModelIsNamedByItsFileAndElseByItsRoot)
+        {
+            osg::ref_ptr<osg::Group> read = new osg::Group;
+            read->setName("Scene Root");
+            read->setUserValue(Misc::OsgUserValues::sFilePath, std::string("meshes/x/ex_hlaalu_b_01.nif"));
+            EXPECT_EQ(modelNameOf(*read), "meshes/x/ex_hlaalu_b_01.nif");
+
+            osg::ref_ptr<osg::Group> built = new osg::Group;
+            built->setName("built in memory");
+            EXPECT_EQ(modelNameOf(*built), "built in memory");
+            built->setUserValue(Misc::OsgUserValues::sFileHash, std::string("hash"));
+            EXPECT_EQ(modelNameOf(*built), "built in memory") << "a hash names no file";
+        }
+
         TEST(RtxMeshReaderTest, aReadingIsWhatTheGeometryHoldsFoldedAndAnOverallNormalIsSpread)
         {
             osg::ref_ptr<osg::Geometry> quad = makeQuad();

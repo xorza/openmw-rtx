@@ -6,6 +6,8 @@
 
 #include <SDL3/SDL_clipboard.h>
 
+#include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 
 #include <components/esm3/actoridconverter.hpp>
@@ -457,6 +459,11 @@ void MWState::StateManager::loadGame(const Character* character, const std::file
 
         Log(Debug::Info) << "Reading save file " << filepath.filename();
 
+        // Which save a crash while it is read, or any time after, came from.
+        const std::string saveName = Files::pathToUnicodeString(filepath.filename());
+        Crash::annotate("save", saveName);
+        const Crash::NoteScope noted("loading the save \"{}\"", saveName);
+
         ESM::ESMReader reader;
         reader.open(filepath);
 
@@ -489,6 +496,7 @@ void MWState::StateManager::loadGame(const Character* character, const std::file
         {
             ESM::NAME n = reader.getRecName();
             reader.getRecHeader();
+            const Crash::NoteScope record("its record {}", n.toStringView());
 
             switch (n.toInt())
             {

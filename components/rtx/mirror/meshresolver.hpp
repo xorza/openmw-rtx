@@ -144,9 +144,9 @@ namespace Rtx
         /// targets do not pose exactly its vertices, because a vertex count comes out of a content file.
         Result<Index, std::string> addMesh(const DrawableRead& read, const MeshReading& reading);
 
-        /// Refuses `drawable` to the scene for `why`, and keeps the refusal under it so it is read
-        /// no more. Answers the index a refused drawable resolves to, which is none.
-        Index refuse(const osg::Drawable& drawable, std::string_view why);
+        /// Refuses `drawable` of `model`, or of none, to the scene for `why`, named with its model, and keeps the
+        /// refusal under it so it is read no more. Answers the index a refused drawable resolves to, which is none.
+        Index refuse(const osg::Drawable& drawable, const osg::Node* model, std::string_view why);
 
         /// Files `mesh` under `drawable`, and the entry's hold on it, which `retire`, an abandon or
         /// the destructor gives back.

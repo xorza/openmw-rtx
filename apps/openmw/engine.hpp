@@ -74,6 +74,7 @@ namespace MWRender
 namespace MWInput
 {
     class InputManager;
+    class RendererKeys;
 }
 
 namespace MWSound
@@ -169,6 +170,8 @@ namespace OMW
         std::unique_ptr<MWMechanics::MechanicsManager> mMechanicsManager;
         std::unique_ptr<MWDialogue::DialogueManager> mDialogueManager;
         std::unique_ptr<MWDialogue::Journal> mJournal;
+        // Before the input manager, whose wrapper hands it the window's own keys.
+        std::unique_ptr<MWInput::RendererKeys> mRendererKeys;
         std::unique_ptr<MWInput::InputManager> mInputManager;
         std::unique_ptr<MWState::StateManager> mStateManager;
         std::unique_ptr<MWLua::LuaManager> mLuaManager;

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <format>
 #include <limits>
 #include <optional>
 #include <ratio>
@@ -13,6 +14,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include <MyGUI_ITexture.h>
 #include <SDL3/SDL_video.h>
@@ -29,14 +31,14 @@
 #include <osg/Vec2i>
 #include <osg/Vec3f>
 
-#include <apps/openmw/mwbase/environment.hpp>
-#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/mapoverlay.hpp>
 #include <apps/openmw/mwrender/offscreenview.hpp>
 #include <apps/openmw/mwrender/sceneframe.hpp>
 #include <apps/openmw/mwrender/skystate.hpp>
 #include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwworld/cell.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/contentstore/store.hpp>
@@ -327,6 +329,13 @@ namespace MWRender
     {
         expectWorldEvent();
         mMirror.standSea(*cell);
+
+        // Where the player is, for a report: the cells a load adds share their worldspace, an interior's its own.
+        if (const ESM::RefId worldspace = cell->getCell()->getWorldSpace(); worldspace != mWorldspace)
+        {
+            mWorldspace = worldspace;
+            Crash::annotate("worldspace", worldspace.toDebugString());
+        }
     }
 
     void RtxRenderer::removeCell(const MWWorld::CellStore* cell) noexcept
@@ -364,17 +373,6 @@ namespace MWRender
     {
         mPhase.expect(Phase::Between);
         SkyReader::listAssets(*getResources().getVFS(), models, textures);
-    }
-
-    void RtxRenderer::functionKey(const int index, const SDLUtil::KeyChange change)
-    {
-        mPhase.expect(Phase::Between, Phase::Run);
-        // F3 and F4: the indices count from F1.
-        if (change != SDLUtil::KeyChange::Pressed || (index != 2 && index != 3))
-            return;
-
-        MWBase::Environment::get().getWindowManager()->messageBox(
-            notAvailable("The statistics overlay", support().declinedRequest(PictureRequest::StatsOverlay)));
     }
 
     void RtxRenderer::windowResized(int, int, const int width, const int height) noexcept
@@ -515,7 +513,7 @@ namespace MWRender
         mPhase.step(Phase::Between, Phase::Gui);
     }
 
-    void RtxRenderer::awaitShaders(Loading::Listener& listener)
+    void RtxRenderer::prepareContent(const MWWorld::ESMStore& store, Loading::Listener& listener)
     {
         mPhase.expect(Phase::Between, Phase::Run);
 
@@ -523,11 +521,12 @@ namespace MWRender
         // otherwise compute (`Rtx::ContentPreparation`). Every CPU but the main thread's, which draws the
         // screen and sleeps: 64 s on 31 threads against 80 on 16
         // (`docs/rtx/research/2026-11-09-content-preparation-cost.md`, "Threads").
-        const MWWorld::ESMStore* const store = MWBase::Environment::get().getESMStore();
-        if (store != nullptr)
-            mMirror.startPreparing(getResources(), contentModels(*store, getResources()),
-                contentLayers(*store, getResources()),
-                std::max<std::size_t>(1, Platform::Process::usableCpuCount() - 1));
+        std::vector<std::string> models = contentModels(store, getResources());
+        std::vector<Rtx::PreparationLayer> layers = contentLayers(store, getResources());
+        // How much content the session holds, which a report reads beside what it crashed on.
+        Crash::annotate("content", std::format("{} models, {} land texture layers", models.size(), layers.size()));
+        mMirror.startPreparing(getResources(), std::move(models), std::move(layers),
+            std::max<std::size_t>(1, Platform::Process::usableCpuCount() - 1));
 
         Rtx::JobProgress progress = mRenderer->awaitKernels(mKernels, std::chrono::milliseconds::zero());
         if (!progress.isDone())
@@ -572,8 +571,7 @@ namespace MWRender
         mWalked.mSession.mLoading += mMirror.finishPreparing();
 
         // Drops what a job's files did not name, so the models a run keeps do not hang on the threads' timing.
-        if (store != nullptr)
-            getResources().clearCache();
+        getResources().clearCache();
     }
 
     osg::ref_ptr<osg::Image> RtxRenderer::readFrame(const int width, const int height, const Rtx::Channels channels)

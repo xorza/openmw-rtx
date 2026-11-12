@@ -320,6 +320,7 @@ target_sources(
         mwinput/inputmanagerimp.cpp
         mwinput/keyboardmanager.cpp
         mwinput/mousemanager.cpp
+        mwinput/rendererkeys.cpp
         mwinput/sensormanager.cpp
     PUBLIC
         FILE_SET HEADERS

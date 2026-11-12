@@ -8,6 +8,7 @@
 
 #include <osg/ref_ptr>
 
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/agentbounds.hpp>
 #include <components/detournavigator/debug.hpp>
@@ -617,6 +618,8 @@ namespace MWWorld
 
     void Scene::changeCellGrid(const osg::Vec3f& pos, ESM::ExteriorCellLocation playerCellIndex, bool changeEvent)
     {
+        // What a crash while the cells around the player load names.
+        const Crash::NoteScope noted("moving to the exterior cell {}, {}", playerCellIndex.mX, playerCellIndex.mY);
         const int halfGridSize
             = isEsm4Ext(playerCellIndex.mWorldspace) ? Constants::ESM4CellGridRadius : Constants::CellGridRadius;
         auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
@@ -933,6 +936,7 @@ namespace MWWorld
     void Scene::changeToInteriorCell(
         std::string_view cellName, const ESM::Position& position, bool adjustPlayerPos, bool changeEvent)
     {
+        const Crash::NoteScope noted("moving into the interior \"{}\"", cellName);
         CellStore& cell = mWorld.getWorldModel().getInterior(cellName);
         bool useFading = (mCurrentCell != nullptr);
         if (useFading)

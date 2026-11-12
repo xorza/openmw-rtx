@@ -72,7 +72,8 @@ namespace MWRender
         static_assert(noexcept(std::declval<RtxRenderer&>().getStartTick()));
 
         static_assert(!noexcept(std::declval<RtxRenderer&>().renderFrame(std::declval<const SceneFrame&>())));
-        static_assert(!noexcept(std::declval<RtxRenderer&>().awaitShaders(std::declval<Loading::Listener&>())));
+        static_assert(!noexcept(std::declval<RtxRenderer&>().prepareContent(
+            std::declval<const MWWorld::ESMStore&>(), std::declval<Loading::Listener&>())));
         static_assert(!std::is_nothrow_constructible_v<RtxRenderer, const RendererSpec&>);
 
         /// Counts the traversals that reached the node it hangs on.
