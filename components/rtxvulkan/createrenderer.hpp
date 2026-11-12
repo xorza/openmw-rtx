@@ -17,7 +17,7 @@ namespace Rtx
     std::unique_ptr<Renderer> createVulkanRenderer(const RendererOptions& options);
 
     /// This backend's shaders as the game ships them, compiled into the program by the build
-    /// (`openmw-rtx-spirv-embed`): without their source, and counting nothing into the census. What a host
+    /// (`openmw-rtx-build embed`): without their source, and counting nothing into the census. What a host
     /// hands `RendererOptions::mShaders` where it brings no set of its own.
     const ShaderSet& shippedVulkanShaders();
 

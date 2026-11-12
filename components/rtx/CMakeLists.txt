@@ -397,9 +397,9 @@ add_library(openmw-rtx INTERFACE)
 target_link_libraries(openmw-rtx INTERFACE openmw-rtx-view)
 
 # What the ray tracer would otherwise compute at every start from no content, made by the build and
-# compiled in: each table's maker, a tool that writes the table as a source, and the source, compiled into
-# the layer whose header names it. The makers are a library of their own, which the tools and the test
-# holding each table to its maker link, so the game carries no maker.
+# compiled in: each table's maker, a verb of `openmw-rtx-build` that writes the table as a source, and the
+# source, compiled into the layer whose header names it. The makers are a library of their own, which the
+# build tool and the test holding each table to its maker link, so the game carries no maker.
 add_library(
     openmw-rtx-tablemakers
     STATIC
@@ -421,23 +421,21 @@ target_link_libraries(
         OpenSceneGraph::headers
 )
 
-function(openmw_rtx_table tool source table layer)
-    add_executable(${tool} ${source})
-    target_link_libraries(${tool} PRIVATE openmw-rtx-tablemakers)
+function(openmw_rtx_table verb table layer)
     set(made "${CMAKE_CURRENT_BINARY_DIR}/${table}")
     add_custom_command(
         OUTPUT
             "${made}"
         COMMAND
-            ${tool} "${made}"
+            openmw-rtx-build ${verb} "${made}"
         DEPENDS
-            ${tool}
+            openmw-rtx-build
         COMMENT "Making ${table}"
         VERBATIM
     )
     target_sources(${layer} PRIVATE "${made}")
 endfunction()
 
-openmw_rtx_table(openmw-rtx-blue-noise tables/bluenoisetool.cpp rtxbluenoise.cpp openmw-rtx-frame)
-openmw_rtx_table(openmw-rtx-fog-noise tables/fognoisetool.cpp rtxfognoise.cpp openmw-rtx-world)
-openmw_rtx_table(openmw-rtx-specular-albedo tables/specularalbedotool.cpp rtxspecularalbedo.cpp openmw-rtx-frame)
+openmw_rtx_table(blue-noise rtxbluenoise.cpp openmw-rtx-frame)
+openmw_rtx_table(fog-noise rtxfognoise.cpp openmw-rtx-world)
+openmw_rtx_table(specular-albedo rtxspecularalbedo.cpp openmw-rtx-frame)

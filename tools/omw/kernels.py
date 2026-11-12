@@ -1,6 +1,6 @@
 """`omw [flavour] kernels [--against=<file>]`: one digest per shader and tuple of its constants, the exact answer to
 "does this change move a frame" asked of the shaders, not of a run the driver compiles. Each module is specialized to
-every tuple (`domains`), optimized, stripped and digested by `openmw-rtx-spirv-digest`, which names ids by what they
+every tuple (`domains`), optimized, stripped and digested by `openmw-rtx-build digest`, which names ids by what they
 are (`Rtx::digestProgram`); with `--against`, the tuples that moved are named and the status says whether any did.
 
 **The spec-constant operations are folded before `-O`**, which holds no pass that folds `!HAS_MAPS`. Float
@@ -188,7 +188,7 @@ def kernels(build: Build, args: list[str]) -> int:
     against: Path | None = switches.parse_args(args).against
 
     # The build's own lines on stderr, because the listing is what a caller keeps.
-    build.build(["openmw-rtx-vulkan-shaders", "openmw-rtx-spirv-digest"], stdout=sys.stderr)
+    build.build(["openmw-rtx-vulkan-shaders", "openmw-rtx-build"], stdout=sys.stderr)
 
     optimizer = build.cached("OPENMW_SPIRV_OPT")
     if not Path(optimizer).is_file():
@@ -197,7 +197,7 @@ def kernels(build: Build, args: list[str]) -> int:
     disassembler = Path(optimizer).with_name("spirv-dis" + Path(optimizer).suffix)
     if not disassembler.is_file():
         raise Refusal(f"there is no spirv-dis beside {optimizer}")
-    program_digest = build.dir / "components" / "rtxvulkan" / f"openmw-rtx-spirv-digest{EXE}"
+    program_digest = [build.dir / "apps" / "rtxbuild" / f"openmw-rtx-build{EXE}", "digest"]
 
     shaders = build.folder("RTX_SPIRV_DIR")
     sources = build.folder("RTX_SPIRV_SOURCE_DIR")
@@ -220,7 +220,7 @@ def kernels(build: Build, args: list[str]) -> int:
                                  "--eliminate-dead-const", "--strip-debug", "--strip-nonsemantic", module, "-o", "-"],
                                 f"spirv-opt refused {at}")
         disassembly = _produced([disassembler, "--raw-id", "--no-header", "-"], f"spirv-dis refused {at}", specialized)
-        hashed = _produced([program_digest], f"{at} could not be digested", disassembly)
+        hashed = _produced(program_digest, f"{at} could not be digested", disassembly)
         return f"{module.name.removesuffix('.spv')} {label} {hashed.decode().strip()}"
 
     listed = sorted(map_cancelling(digest, work, jobs()))

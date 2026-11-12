@@ -38,7 +38,7 @@ namespace Rtx
         }
 
         /// **The one reader takes a module as its words and refuses anything else, naming the file**, for the
-        /// renderer's modules and for the build's pin tool alike. By hand: the magic 0x07230203 then 0x00010600 is two
+        /// renderer's modules and for the build's pinning alike. By hand: the magic 0x07230203 then 0x00010600 is two
         /// words, little-endian on the file; six bytes is a word and a half; two whole words of anything else begin
         /// with no magic.
         TEST(RtxSpirvFileTest, aModuleIsItsWordsAndAnythingElseIsRefusedByName)

@@ -50,14 +50,18 @@ fused (`spirv/spirvpin.hpp`), so every compile of a module computes the same fra
 read are headers that compile as C++ and GLSL (`components/rtx/shaders/*.h`, `components/rtxvulkan/shaders/shared/*.h`),
 and each module's interface is held to the C++ beside it at load (`spirvinterface.hpp`).
 
-- **The game's shaders are compiled into it** (`Rtx::shippedVulkanShaders`, made by `openmw-rtx-spirv-embed`) as word
+- **The game's shaders are compiled into it** (`Rtx::shippedVulkanShaders`, made by `openmw-rtx-build embed`) as word
   arrays, as ANGLE compiles its internal Vulkan shaders in, so no shader file is installed or read at a start. The
   harness's census and with-source sets and the tests' stay folders in the build tree (`Rtx::ShaderFolder`). Refused:
   `#embed`, which MSVC lacks; an assembler's `.incbin` beside Windows resources, two routes; the with-source sets
   compiled in, 23 MB each to compile again at every shader edit.
 - **What a start would compute from no content is made by the build** and compiled in: the blue noise tile, the
-  fog's field and the specular albedo's table, each by a tool running its maker (`openmw-rtx-tablemakers`), held to
-  the maker by a test.
+  fog's field and the specular albedo's table, each by its maker, held to the maker by a test.
+- **One program for every step the build runs** (`openmw-rtx-build`, a verb a step: the shaders' guard and pinning,
+  the embedding, the tables, `omw kernels`' digest), as `llvm-tblgen` is one generator with a backend a table. Every
+  shader step depends on it, so any edit to it compiles every shader again, about 8 s on a desk. Refused: a program a
+  step, six links and targets for one job; two programs, the SPIR-V's and the tables', which saved those seconds on
+  rare edits.
 
 ## The seam: `MWRender::Renderer`
 

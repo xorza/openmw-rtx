@@ -47,8 +47,8 @@ unset(_openmw_spirv_fma)
 
 # The guard and the pinning every shader takes around the optimizer (`spirv/spirvpin.hpp`), the digest
 # `omw kernels` names kernels by, and a set of shaders read from a folder (`spirv/shaderfolder.hpp`): a
-# library the tests and the harness reach into, and tools the build runs. They link nothing of the
-# renderer's, which waits for the shaders, and stay out of every install.
+# library the tests, the harness and `openmw-rtx-build` reach into. It links nothing of the renderer's,
+# which waits for the shaders, and stays out of every install.
 add_library(openmw-rtx-spirv STATIC)
 target_sources(
     openmw-rtx-spirv
@@ -78,37 +78,6 @@ target_link_libraries(
         openmw-platform-io
         openmw-crash-notes
 )
-add_executable(openmw-rtx-spirv-pin spirv/spirvpintool.cpp)
-target_link_libraries(openmw-rtx-spirv-pin PRIVATE openmw-rtx-spirv)
-set_target_properties(
-    openmw-rtx-spirv-pin
-    PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY
-            "${CMAKE_CURRENT_BINARY_DIR}"
-)
-add_executable(openmw-rtx-spirv-digest spirv/spirvdigesttool.cpp)
-target_link_libraries(openmw-rtx-spirv-digest PRIVATE openmw-rtx-spirv)
-set_target_properties(
-    openmw-rtx-spirv-digest
-    PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY
-            "${CMAKE_CURRENT_BINARY_DIR}"
-)
-add_executable(openmw-rtx-spirv-embed spirv/spirvembedtool.cpp)
-target_link_libraries(
-    openmw-rtx-spirv-embed
-    PRIVATE
-        openmw-rtx-spirv
-        openmw-platform-io
-        smhasher
-)
-set_target_properties(
-    openmw-rtx-spirv-embed
-    PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY
-            "${CMAKE_CURRENT_BINARY_DIR}"
-)
-
 set(RTX_SHADERS
     shaders/digest.comp
     shaders/display/bloomdown.comp
@@ -241,11 +210,11 @@ function(openmw_rtx_shader shader census sourcedDir strippedDir)
             "${RTX_SHADER_INCLUDE}" -I "${RTX_SHADER_ROOT}" -I "${RTX_SHADER_VENDORED}" -I "${PROJECT_SOURCE_DIR}" -MD
             -MF "${depfile}" -o "${compiled}" "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
         COMMAND
-            openmw-rtx-spirv-pin --guard "${compiled}"
+            openmw-rtx-build guard "${compiled}"
         COMMAND
             "${OPENMW_SPIRV_OPT}" -O --target-env=vulkan1.4 --scalar-block-layout -o "${sourced}" "${compiled}"
         COMMAND
-            openmw-rtx-spirv-pin "${sourced}"
+            openmw-rtx-build pin "${sourced}"
         # --scalar-block-layout because the shared C++/GLSL headers rely on the feature the
         # device enables; without the flag the validator applies std430 straddling rules.
         COMMAND
@@ -256,7 +225,7 @@ function(openmw_rtx_shader shader census sourcedDir strippedDir)
         # The tool as well as the shader, so a change to what pinning does compiles every shader again.
         DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
-            openmw-rtx-spirv-pin
+            openmw-rtx-build
         DEPFILE "${depfile}"
         COMMENT "Compiling, guarding, optimizing, pinning and validating ${name}, census ${census}"
         VERBATIM
@@ -366,10 +335,10 @@ add_custom_command(
     OUTPUT
         "${RTX_SHIPPED_SOURCE}"
     COMMAND
-        openmw-rtx-spirv-embed "${RTX_SHIPPED_SOURCE}" ${RTX_SHIPPED_MODULES}
+        openmw-rtx-build embed "${RTX_SHIPPED_SOURCE}" ${RTX_SHIPPED_MODULES}
     DEPENDS
         ${RTX_SHIPPED_MODULES}
-        openmw-rtx-spirv-embed
+        openmw-rtx-build
     COMMENT "Compiling the shipped shaders into the program"
     VERBATIM
 )

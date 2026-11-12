@@ -99,6 +99,7 @@ set(RTX_SPIRV_CENSUS_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-census-source")
 # What the suites write, their times and the crash matrix's runs (`cmake/Tests.cmake`).
 set(RTX_TEST_OUTPUT_DIR "${PROJECT_BINARY_DIR}/test-output")
 add_subdirectory(components/rtxvulkan)
+add_subdirectory(apps/rtxbuild)
 
 add_subdirectory(apps/openmw)
 add_subdirectory(apps/rtxtool)
