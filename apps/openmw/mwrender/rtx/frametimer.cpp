@@ -6,6 +6,7 @@
 #include <optional>
 #include <utility>
 
+#include <apps/openmw/mwrender/renderer.hpp>
 #include <components/rtx/common/clock.hpp>
 
 namespace MWRender
@@ -59,7 +60,7 @@ namespace MWRender
         char* out = mTitle.data();
         const auto room = [&] { return static_cast<std::size_t>(mTitle.data() + mTitle.size() - 1 - out); };
 
-        out = std::format_to_n(out, room(), "OpenMW").out;
+        out = std::format_to_n(out, room(), "{}", sWindowTitle).out;
         if (mSecondMeanMs > 0.0)
             out = std::format_to_n(out, room(), " - {:.0f} fps, {:.1f} ms, worst {:.1f} ms", sSecondMs / mSecondMeanMs,
                 mSecondMeanMs, mSecondWorstMs)

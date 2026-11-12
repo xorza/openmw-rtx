@@ -49,6 +49,9 @@ the lines each item names, which the merge resolves by keeping the seam:
   pipe, which a monitor, outliving its client, does not. And each line of the log written in one
   write, its stamp with it (`DebugOutputBase::write`): the monitor appends its summaries to the log
   from a process of its own, and one that landed between a stamp and its text split the line.
+- The fork's name, OpenMW RTX, where a player tells it from an installed upstream OpenMW: the launcher's and the
+  wizard's window titles, with each translation of them renamed in step, the menu entry's `Name` and the AppStream
+  `<name>`. The cost is a conflict with an upstream edit to those lines or those translations.
 - The fork's own `README.md`, `env/` (upstream's `CI/`, renamed for what it holds, the systems a build runs
   on) and workflows, and the root tooling: `CMakePresets.json`, `.clangd`, `.zed/`, `omw`, `omw.cmd`,
   `.claude/skills/`, `.gitattributes` and `.gitignore`.

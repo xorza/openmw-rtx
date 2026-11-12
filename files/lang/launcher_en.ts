@@ -698,7 +698,7 @@ Logs and settings changed through the launcher and in-game will be saved here.</
 <context>
     <name>MainWindow</name>
     <message>
-        <source>OpenMW Launcher</source>
+        <source>OpenMW RTX Launcher</source>
         <translation></translation>
     </message>
     <message>

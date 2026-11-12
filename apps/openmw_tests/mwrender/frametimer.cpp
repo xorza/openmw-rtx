@@ -16,12 +16,12 @@ namespace MWRender
         TEST(RtxFrameTimerTest, aSecondOfFramesClosesOneRateAndTheNextStartsFromNothing)
         {
             FrameTimer timer;
-            EXPECT_EQ(timer.writeTitle({}), "OpenMW") << "no second has run out";
+            EXPECT_EQ(timer.writeTitle({}), "OpenMW RTX") << "no second has run out";
 
             // Ninety-nine frames of ten milliseconds are 990 ms, which is short of a second.
             for (int at = 0; at < 99; ++at)
                 EXPECT_FALSE(timer.addFrame(10.0)) << "frame " << at + 1 << " closed a second early";
-            EXPECT_EQ(timer.writeTitle({}), "OpenMW") << "an open second has no rate";
+            EXPECT_EQ(timer.writeTitle({}), "OpenMW RTX") << "an open second has no rate";
 
             const std::size_t before = Rtx::Testing::getAllocationCount();
             const bool closed = timer.addFrame(10.0);
@@ -30,18 +30,18 @@ namespace MWRender
 
             EXPECT_TRUE(closed) << "the hundredth frame is the second";
             EXPECT_EQ(spent, 0u) << "closing a second reached the heap " << spent << " times";
-            EXPECT_EQ(title, "OpenMW - 100 fps, 10.0 ms, worst 10.0 ms");
+            EXPECT_EQ(title, "OpenMW RTX - 100 fps, 10.0 ms, worst 10.0 ms");
 
             // Forty frames alternating 5 and 45 ms sum to 20 x 5 + 20 x 45 = 1000 exactly, with a
             // mean of 25 — so the worst is the figure the mean hides. The first thirty-nine are
             // 20 x 5 + 19 x 45 = 955, which is still open.
             for (int at = 0; at < 39; ++at)
                 EXPECT_FALSE(timer.addFrame(at % 2 == 0 ? 5.0 : 45.0)) << "frame " << at + 1 << " of the second second";
-            EXPECT_EQ(timer.writeTitle({}), "OpenMW - 100 fps, 10.0 ms, worst 10.0 ms")
+            EXPECT_EQ(timer.writeTitle({}), "OpenMW RTX - 100 fps, 10.0 ms, worst 10.0 ms")
                 << "an open second leaves the rate alone";
 
             EXPECT_TRUE(timer.addFrame(45.0));
-            EXPECT_EQ(timer.writeTitle({}), "OpenMW - 40 fps, 25.0 ms, worst 45.0 ms")
+            EXPECT_EQ(timer.writeTitle({}), "OpenMW RTX - 40 fps, 25.0 ms, worst 45.0 ms")
                 << "the first second's worst did not carry over";
 
             // A rate that does not divide a second: 117 x 8.5 = 994.5 is open and 118 x 8.5 = 1003
@@ -49,11 +49,11 @@ namespace MWRender
             for (int at = 0; at < 117; ++at)
                 EXPECT_FALSE(timer.addFrame(8.5));
             EXPECT_TRUE(timer.addFrame(8.5));
-            EXPECT_EQ(timer.writeTitle({}), "OpenMW - 118 fps, 8.5 ms, worst 8.5 ms");
+            EXPECT_EQ(timer.writeTitle({}), "OpenMW RTX - 118 fps, 8.5 ms, worst 8.5 ms");
 
             // One frame longer than a second is a second on its own: 1000 / 1500 rounds to one.
             EXPECT_TRUE(timer.addFrame(1500.0));
-            EXPECT_EQ(timer.writeTitle({}), "OpenMW - 1 fps, 1500.0 ms, worst 1500.0 ms");
+            EXPECT_EQ(timer.writeTitle({}), "OpenMW RTX - 1 fps, 1500.0 ms, worst 1500.0 ms");
         }
 
         /// Ten frames of a hundred milliseconds close a second, and the title of that second is the
@@ -66,10 +66,10 @@ namespace MWRender
                 EXPECT_FALSE(timer.addFrame(100.0)) << "frame " << frame << " of a second not yet run out";
             ASSERT_TRUE(timer.addFrame(100.0));
 
-            EXPECT_EQ(timer.writeTitle({}), "OpenMW - 10 fps, 100.0 ms, worst 100.0 ms");
+            EXPECT_EQ(timer.writeTitle({}), "OpenMW RTX - 10 fps, 100.0 ms, worst 100.0 ms");
 
             const std::string_view whole = timer.writeTitle("Thunderstorm, 14:32");
-            EXPECT_EQ(whole, "OpenMW - 10 fps, 100.0 ms, worst 100.0 ms - Thunderstorm, 14:32");
+            EXPECT_EQ(whole, "OpenMW RTX - 10 fps, 100.0 ms, worst 100.0 ms - Thunderstorm, 14:32");
             EXPECT_EQ(whole.data()[whole.size()], '\0') << "ends in the nought a C string wants";
         }
     }

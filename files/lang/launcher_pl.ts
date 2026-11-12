@@ -706,8 +706,8 @@ Logi i ustawienia zmienione za pomocą programu uruchamiającego i w grze zostan
 <context>
     <name>MainWindow</name>
     <message>
-        <source>OpenMW Launcher</source>
-        <translation>Program uruchamiający OpenMW</translation>
+        <source>OpenMW RTX Launcher</source>
+        <translation>Program uruchamiający OpenMW RTX</translation>
     </message>
     <message>
         <source>OpenMW version</source>

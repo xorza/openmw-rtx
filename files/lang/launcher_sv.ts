@@ -705,8 +705,8 @@ Loggar och inställningar som ändras genom startaren och inne i spelet kommer s
 <context>
     <name>MainWindow</name>
     <message>
-        <source>OpenMW Launcher</source>
-        <translation>OpenMW Startare</translation>
+        <source>OpenMW RTX Launcher</source>
+        <translation>OpenMW RTX Startare</translation>
     </message>
     <message>
         <source>OpenMW version</source>

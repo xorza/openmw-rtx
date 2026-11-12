@@ -450,7 +450,7 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
 <context>
     <name>Wizard::MainWizard</name>
     <message>
-        <source>OpenMW Wizard</source>
+        <source>OpenMW RTX Wizard</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

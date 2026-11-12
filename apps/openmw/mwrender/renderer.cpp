@@ -374,7 +374,7 @@ namespace MWRender
             flags |= SDL_WINDOW_BORDERLESS;
 
         const SDL_PropertiesID properties = SDL_CreateProperties();
-        SDL_SetStringProperty(properties, SDL_PROP_WINDOW_CREATE_TITLE_STRING, "OpenMW");
+        SDL_SetStringProperty(properties, SDL_PROP_WINDOW_CREATE_TITLE_STRING, sWindowTitle.data());
         SDL_SetNumberProperty(properties, SDL_PROP_WINDOW_CREATE_X_NUMBER, SDL_WINDOWPOS_CENTERED_DISPLAY(display));
         SDL_SetNumberProperty(properties, SDL_PROP_WINDOW_CREATE_Y_NUMBER, SDL_WINDOWPOS_CENTERED_DISPLAY(display));
         SDL_SetNumberProperty(properties, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, width);

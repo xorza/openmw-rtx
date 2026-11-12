@@ -580,6 +580,10 @@ namespace MWRender
     /// The kind as the log and a crash report name it.
     std::string_view nameOf(RendererKind kind);
 
+    /// The game window's title, which the ray tracer's frame timer writes its figures after: the fork's name, apart
+    /// from an upstream OpenMW's. A literal, so `data()` ends where the title does.
+    inline constexpr std::string_view sWindowTitle = "OpenMW RTX";
+
     /// The game's own choice. A host with a renderer of its own — the harness, with its run —
     /// makes it itself, as the engine's host (`OMW::EngineHost::createRenderer`).
     std::unique_ptr<Renderer> createRenderer(RendererKind kind, const RendererSpec& spec);

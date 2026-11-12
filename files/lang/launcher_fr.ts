@@ -701,8 +701,8 @@ Les logs et préférences modifiées y seront sauvegardés.</translation>
 <context>
     <name>MainWindow</name>
     <message>
-        <source>OpenMW Launcher</source>
-        <translation>Lanceur d&apos;OpenMW</translation>
+        <source>OpenMW RTX Launcher</source>
+        <translation>Lanceur d&apos;OpenMW RTX</translation>
     </message>
     <message>
         <source>OpenMW version</source>

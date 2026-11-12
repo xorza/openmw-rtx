@@ -35,7 +35,7 @@ Wizard::MainWizard::MainWizard(Files::ConfigurationManager&& cfgMgr, QWidget* pa
 {
     setWizardStyle(QWizard::ModernStyle);
 
-    setWindowTitle(tr("OpenMW Wizard"));
+    setWindowTitle(tr("OpenMW RTX Wizard"));
     setWindowIcon(QIcon(QStringLiteral(":/images/openmw-wizard.png")));
     setMinimumWidth(550);
 
