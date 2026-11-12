@@ -42,6 +42,9 @@ namespace Graphite
         constexpr int sScrollGap = 4;
         constexpr int sScrollThumbLeast = 24;
 
+        /// palantir's row padding above and below a control's text, `space.sm`.
+        constexpr int sRowPadding = 8;
+
         /// A menu row's inset from its menu's sides, palantir's `space.xs`.
         constexpr int sMenuRowInset = 4;
 
@@ -236,6 +239,12 @@ namespace Graphite
             const std::array<QPointF, 3> points{ box.topLeft() + QPointF(4.0, 8.5) * scale,
                 box.topLeft() + QPointF(7.0, 11.5) * scale, box.topLeft() + QPointF(12.0, 5.0) * scale };
             painter.drawPolyline(points.data(), static_cast<int>(points.size()));
+        }
+
+        /// A control's height: its text, `sRowPadding` above and below, and a hairline each side.
+        int rowHeight(const QStyleOption& option)
+        {
+            return option.fontMetrics.height() + 2 * sRowPadding + 2 * static_cast<int>(sHairline);
         }
 
         /// The square of `sToggleSide` centred in `rect`, whatever size the caller laid out.
@@ -648,6 +657,25 @@ namespace Graphite
             QPalette palette = combo->view()->palette();
             palette.setColor(QPalette::Base, QColor::fromRgba(sDark.mElement));
             combo->view()->setPalette(palette);
+        }
+    }
+
+    QSize Style::sizeFromContents(
+        ContentsType type, const QStyleOption* option, const QSize& contents, const QWidget* widget) const
+    {
+        QSize size = QProxyStyle::sizeFromContents(type, option, contents, widget);
+        switch (type)
+        {
+            // One row's height for a button and the fields beside it: the text, palantir's row padding
+            // above and below, and the hairline edge.
+            case CT_PushButton:
+            case CT_LineEdit:
+            case CT_ComboBox:
+            case CT_SpinBox:
+                size.setHeight(std::max(size.height(), rowHeight(*option)));
+                return size;
+            default:
+                return size;
         }
     }
 

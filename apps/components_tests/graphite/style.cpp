@@ -410,5 +410,26 @@ namespace Graphite
             EXPECT_EQ(mStyle.styleHint(QStyle::SH_DitherDisabledText, nullptr, nullptr, nullptr), 0);
             EXPECT_EQ(mStyle.styleHint(QStyle::SH_EtchDisabledText, nullptr, nullptr, nullptr), 0);
         }
+
+        /// **A button and the fields beside it are one row's height**: the text, 8 px above and below and the
+        /// hairline each side, 18 px over the font's height, and never under what Fusion asked.
+        TEST_F(GraphiteStyleTest, aButtonAndTheFieldsBesideItAreOneRowsHeight)
+        {
+            QStyleOptionButton option = optionOf<QStyleOptionButton>(sEnabled);
+            option.text = QStringLiteral("Launch");
+            const int row = option.fontMetrics.height() + 18;
+            for (const QStyle::ContentsType type :
+                { QStyle::CT_PushButton, QStyle::CT_LineEdit, QStyle::CT_ComboBox, QStyle::CT_SpinBox })
+            {
+                const QSize contents(40, option.fontMetrics.height());
+                EXPECT_EQ(mStyle.sizeFromContents(type, &option, contents, nullptr).height(), row) << type;
+                EXPECT_EQ(mStyle.sizeFromContents(type, &option, QSize(40, 3 * row), nullptr).height(),
+                    mStyle.baseStyle()->sizeFromContents(type, &option, QSize(40, 3 * row), nullptr).height())
+                    << type << ": a content taller than the row kept";
+            }
+            EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_CheckBox, &option, QSize(40, 10), nullptr),
+                mStyle.baseStyle()->sizeFromContents(QStyle::CT_CheckBox, &option, QSize(40, 10), nullptr))
+                << "a check box is no row";
+        }
     }
 }

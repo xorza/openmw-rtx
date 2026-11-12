@@ -22,6 +22,8 @@ namespace Graphite
         QRect subControlRect(ComplexControl control, const QStyleOptionComplex* option, SubControl subControl,
             const QWidget* widget) const override;
         int pixelMetric(PixelMetric metric, const QStyleOption* option, const QWidget* widget) const override;
+        QSize sizeFromContents(
+            ContentsType type, const QStyleOption* option, const QSize& contents, const QWidget* widget) const override;
         int styleHint(StyleHint hint, const QStyleOption* option, const QWidget* widget,
             QStyleHintReturn* returnData) const override;
 

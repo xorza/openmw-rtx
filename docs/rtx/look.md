@@ -16,6 +16,11 @@ and the tests in `apps/components_tests/graphite/` hold each to what it must cle
   mode; its tables and scene colours were made for upstream's palettes. Fusion under the palette, and the
   colour scheme asked for as dark (`QStyleHints::setColorScheme`), which Windows answers with a dark title
   bar and a platform whose theme takes no request ignores.
+- **The system's family at 16 px**, palantir's title step, by the user's decision: Qt's own default on Linux is 9
+  points, 12 px, and palantir's 14 px body still read small. Logical pixels, which a display's scale multiplies.
+- **A button, a field, a combo box and a spin box are one row's height**: the text with palantir's row padding,
+  8 px above and below, inside the hairline, by the user's decision, where palantir pads a button 4 px; so a
+  button beside a field lines up with it.
 - **The error ink is lifted at its own hue until it reads**: Ayu Graphite's `#ff8b8c` reads 4.26:1 on a
   field's `#454545`, so it is raised in Oklab lightness, its hue kept and its chroma where sRGB holds it, to
   the least colour that clears 4.5:1, as palantir lifts its muted ink over Ayu Graphite's.

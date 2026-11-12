@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include <QApplication>
+#include <QFont>
 #include <QStyleHints>
 
 #include "palette.hpp"
@@ -16,6 +17,9 @@ namespace Graphite
         // The application takes the style and deletes it with itself.
         QApplication::setStyle(new Style);
         QApplication::setPalette(qtPaletteOf(sDark));
+        QFont font = QApplication::font();
+        font.setPixelSize(sBodyPixels);
+        QApplication::setFont(font);
         QGuiApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
     }
 }
