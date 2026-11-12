@@ -10,8 +10,12 @@
 #include <QColor>
 #include <QComboBox>
 #include <QFrame>
+#include <QGroupBox>
 #include <QIcon>
 #include <QImage>
+#include <QLabel>
+#include <QListView>
+#include <QMargins>
 #include <QPainter>
 #include <QRgb>
 #include <QStyleOption>
@@ -347,12 +351,33 @@ namespace Graphite
             const QSize fusion
                 = mStyle.baseStyle()->sizeFromContents(QStyle::CT_ItemViewItem, &item, QSize(40, 16), nullptr);
             EXPECT_EQ(
-                mStyle.sizeFromContents(QStyle::CT_ItemViewItem, &item, QSize(40, 16), nullptr), fusion + QSize(6, 8))
-                << "a row 4 px above and below, and as wide again as its text moves in";
-            item.text = QStringLiteral("Morrowind.esm");
-            EXPECT_EQ(mStyle.subElementRect(QStyle::SE_ItemViewItemText, &item, nullptr),
-                mStyle.baseStyle()->subElementRect(QStyle::SE_ItemViewItemText, &item, nullptr).adjusted(6, 0, 0, 0));
+                mStyle.sizeFromContents(QStyle::CT_ItemViewItem, &item, QSize(40, 16), nullptr), fusion + QSize(0, 8))
+                << "a row 4 px above and below";
             EXPECT_EQ(mStyle.pixelMetric(QStyle::PM_HeaderMargin, nullptr, nullptr), 8);
+        }
+
+        /// **What a view's row shows starts 8 px in**, its check box where it has one and its text where it has
+        /// none, clear of the selected row's pill: a view lays a row out a margin and one more in from its ends,
+        /// and the margin is 7 for a view alone, where every other widget keeps Fusion's.
+        TEST_F(GraphiteStyleTest, aViewsRowStartsAtTheFieldsInset)
+        {
+            QListView view;
+            view.setStyle(&mStyle);
+            EXPECT_EQ(mStyle.pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, &view), 7);
+            const QWidget other;
+            EXPECT_EQ(mStyle.pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, &other),
+                mStyle.baseStyle()->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, &other));
+
+            QStyleOptionViewItem item = optionOf<QStyleOptionViewItem>(sEnabled, QRect(0, 0, 200, sHeight));
+            item.widget = &view;
+            item.text = QStringLiteral("Morrowind.esm");
+            item.features = QStyleOptionViewItem::HasDisplay;
+
+            item.features |= QStyleOptionViewItem::HasCheckIndicator;
+            const QRect check = mStyle.subElementRect(QStyle::SE_ItemViewItemCheckIndicator, &item, &view);
+            EXPECT_EQ(check.left(), 8) << "the check box first";
+            EXPECT_GT(mStyle.subElementRect(QStyle::SE_ItemViewItemText, &item, &view).left(), check.right())
+                << "and the text after it";
         }
 
         /// **A progress bar is `#454545` filled with the accent as far as it came**: half of 80 pixels is
@@ -449,13 +474,13 @@ namespace Graphite
             EXPECT_EQ(mStyle.styleHint(QStyle::SH_EtchDisabledText, nullptr, nullptr, nullptr), 0);
         }
 
-        /// **A button and the fields beside it are one row's height**: the text, 8 px above and below and the
-        /// hairline each side, 18 px over the font's height, and never under what Fusion asked.
+        /// **A button and the fields beside it are one row's height**: the text, 6 px above and below and the
+        /// hairline each side, 14 px over the font's height, and never under what Fusion asked.
         TEST_F(GraphiteStyleTest, aButtonAndTheFieldsBesideItAreOneRowsHeight)
         {
             QStyleOptionButton option = optionOf<QStyleOptionButton>(sEnabled);
             option.text = QStringLiteral("Launch");
-            const int row = option.fontMetrics.height() + 18;
+            const int row = option.fontMetrics.height() + 14;
             for (const QStyle::ContentsType type :
                 { QStyle::CT_PushButton, QStyle::CT_LineEdit, QStyle::CT_ComboBox, QStyle::CT_SpinBox })
             {
@@ -469,9 +494,81 @@ namespace Graphite
                     EXPECT_EQ(mStyle.sizeFromContents(type, &option, QSize(40, row), nullptr).height(), row)
                         << "a spin box's line edit, already a row, taken past one by Fusion's frame";
             }
-            EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_CheckBox, &option, QSize(40, 10), nullptr),
-                mStyle.baseStyle()->sizeFromContents(QStyle::CT_CheckBox, &option, QSize(40, 10), nullptr))
-                << "a check box is no row";
+            // A push button pads its text 12 either side and the hairline, never narrower than Fusion's.
+            EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_PushButton, &option, QSize(200, 10), nullptr).width(), 226);
+            const int fusionShort
+                = mStyle.baseStyle()->sizeFromContents(QStyle::CT_PushButton, &option, QSize(10, 10), nullptr).width();
+            EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_PushButton, &option, QSize(10, 10), nullptr).width(),
+                std::max(fusionShort, 36));
+
+            for (const QStyle::ContentsType type : { QStyle::CT_CheckBox, QStyle::CT_RadioButton })
+            {
+                const QSize fusion = mStyle.baseStyle()->sizeFromContents(type, &option, QSize(40, 10), nullptr);
+                EXPECT_EQ(mStyle.sizeFromContents(type, &option, QSize(40, 10), nullptr),
+                    QSize(fusion.width(), option.fontMetrics.height() + 8))
+                    << type << ": a toggle stands its text and 4 px above and below, as wide as Fusion's";
+            }
+
+            // A tool button that shows only its icon is a row's square; one with its text keeps Fusion's size.
+            QStyleOptionToolButton tool = optionOf<QStyleOptionToolButton>(sEnabled);
+            tool.toolButtonStyle = Qt::ToolButtonIconOnly;
+            EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_ToolButton, &tool, QSize(16, 16), nullptr), QSize(row, row));
+            const QSize wide
+                = mStyle.baseStyle()->sizeFromContents(QStyle::CT_ToolButton, &tool, QSize(3 * row, 16), nullptr);
+            EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_ToolButton, &tool, QSize(3 * row, 16), nullptr),
+                QSize(wide.width(), wide.width()))
+                << "an icon wider than a row, square at Fusion's width";
+            tool.toolButtonStyle = Qt::ToolButtonTextUnderIcon;
+            EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_ToolButton, &tool, QSize(40, 50), nullptr),
+                mStyle.baseStyle()->sizeFromContents(QStyle::CT_ToolButton, &tool, QSize(40, 50), nullptr));
+        }
+
+        /// **A group box with no title draws no frame**, one with a title its soft edge: the frame's left side,
+        /// half way down, is the ground under the one and the edge over it under the other.
+        TEST_F(GraphiteStyleTest, aGroupBoxWithNoTitleDrawsNoFrame)
+        {
+            constexpr int tall = 60;
+            const auto at = [&](const QString& title) {
+                QStyleOptionGroupBox group = optionOf<QStyleOptionGroupBox>(sEnabled, QRect(0, 0, sWidth, tall));
+                group.text = title;
+                group.subControls = QStyle::SC_GroupBoxFrame | QStyle::SC_GroupBoxLabel;
+                return rendered(
+                    [&](QPainter& painter) {
+                        mStyle.drawComplexControl(QStyle::CC_GroupBox, &group, &painter, nullptr);
+                    },
+                    sWidth, tall, sGround);
+            };
+            EXPECT_EQ(at(QString()).pixel(0, tall / 2), sGround);
+            EXPECT_EQ(at(QStringLiteral("Content List")).pixel(0, tall / 2), blended(borderSoft(sDark), sGround));
+
+            // **And lays out with no margin of its own**, where one with a title, or one that can be checked, keeps
+            // the layout's 12.
+            QGroupBox bare;
+            QGroupBox titled(QStringLiteral("Content List"));
+            QGroupBox checkable;
+            checkable.setCheckable(true);
+            for (const QStyle::PixelMetric margin : { QStyle::PM_LayoutLeftMargin, QStyle::PM_LayoutTopMargin,
+                     QStyle::PM_LayoutRightMargin, QStyle::PM_LayoutBottomMargin })
+            {
+                EXPECT_EQ(mStyle.pixelMetric(margin, nullptr, &bare), 0) << margin;
+                EXPECT_EQ(mStyle.pixelMetric(margin, nullptr, &titled), 12) << margin;
+                EXPECT_EQ(mStyle.pixelMetric(margin, nullptr, &checkable), 12) << margin;
+                EXPECT_EQ(mStyle.pixelMetric(margin, nullptr, nullptr), 12) << margin;
+            }
+        }
+
+        /// **A label held to the top of its cell stands its text on the line a field's does**, the row's 6 px and
+        /// its hairline further down; a label in its cell's middle is left as it was.
+        TEST_F(GraphiteStyleTest, aTopAlignedLabelStandsOnAFieldsTextLine)
+        {
+            QLabel top(QStringLiteral("Resolution"));
+            top.setAlignment(Qt::AlignLeft | Qt::AlignTop);
+            mStyle.polish(&top);
+            EXPECT_EQ(top.contentsMargins(), QMargins(0, 7, 0, 0));
+
+            QLabel middle(QStringLiteral("Screen"));
+            mStyle.polish(&middle);
+            EXPECT_EQ(middle.contentsMargins(), QMargins(0, 0, 0, 0));
         }
 
         /// **A field's text starts 8 px in**, the 2 px a line edit adds inside the rectangle included; a
@@ -486,30 +583,33 @@ namespace Graphite
             EXPECT_EQ(mStyle.subElementRect(QStyle::SE_LineEditContents, &bare, nullptr),
                 mStyle.baseStyle()->subElementRect(QStyle::SE_LineEditContents, &bare, nullptr));
 
-            // A combo box's label, which adds 1 px, and its editor, which adds 2, both at 8, up to the arrow
-            // Fusion places.
+            // A combo box's label, which adds 1 px, and its editor, which adds 2, both at 8, up to the chevron's
+            // column at the far end: the chevron's 10 with 8 either side, `80 - 26 = 54`.
             QStyleOptionComboBox combo = optionOf<QStyleOptionComboBox>(sEnabled);
-            const int arrow
-                = mStyle.subControlRect(QStyle::CC_ComboBox, &combo, QStyle::SC_ComboBoxArrow, nullptr).left();
-            ASSERT_GT(arrow, 7);
+            EXPECT_EQ(mStyle.subControlRect(QStyle::CC_ComboBox, &combo, QStyle::SC_ComboBoxArrow, nullptr),
+                QRect(54, 0, 26, sHeight));
             EXPECT_EQ(mStyle.subControlRect(QStyle::CC_ComboBox, &combo, QStyle::SC_ComboBoxEditField, nullptr),
-                QRect(7, 1, arrow - 7, 22));
+                QRect(7, 1, 54 - 7, 22));
             combo.editable = true;
             EXPECT_EQ(mStyle.subControlRect(QStyle::CC_ComboBox, &combo, QStyle::SC_ComboBoxEditField, nullptr),
-                QRect(6, 1, arrow - 6, 22));
+                QRect(6, 1, 54 - 6, 22));
+            combo.direction = Qt::RightToLeft;
+            EXPECT_EQ(mStyle.subControlRect(QStyle::CC_ComboBox, &combo, QStyle::SC_ComboBoxArrow, nullptr),
+                QRect(0, 0, 26, sHeight))
+                << "the chevron at the far end, which is the left under a right-to-left layout";
         }
 
-        /// **A spin box is a field and a column of 20 px**, its up arrow above its down, each half of a row;
-        /// one that shows no arrows is the field alone.
+        /// **A spin box is a field and a column of 26 px**, a combo box's chevron column, its up arrow above its
+        /// down, each half of a row; one that shows no arrows is the field alone.
         TEST_F(GraphiteStyleTest, aSpinBoxIsAFieldAndAColumnOfTwoArrows)
         {
             QStyleOptionSpinBox option = optionOf<QStyleOptionSpinBox>(sEnabled);
             const auto rectOf = [&](QStyle::SubControl part) {
                 return mStyle.subControlRect(QStyle::CC_SpinBox, &option, part, nullptr);
             };
-            EXPECT_EQ(rectOf(QStyle::SC_SpinBoxUp), QRect(60, 0, 20, 12));
-            EXPECT_EQ(rectOf(QStyle::SC_SpinBoxDown), QRect(60, 12, 20, 12));
-            EXPECT_EQ(rectOf(QStyle::SC_SpinBoxEditField), QRect(6, 1, 54, 22));
+            EXPECT_EQ(rectOf(QStyle::SC_SpinBoxUp), QRect(54, 0, 26, 12));
+            EXPECT_EQ(rectOf(QStyle::SC_SpinBoxDown), QRect(54, 12, 26, 12));
+            EXPECT_EQ(rectOf(QStyle::SC_SpinBoxEditField), QRect(6, 1, 48, 22));
             EXPECT_EQ(rectOf(QStyle::SC_SpinBoxFrame), QRect(0, 0, sWidth, sHeight));
             option.buttonSymbols = QAbstractSpinBox::NoButtons;
             EXPECT_TRUE(rectOf(QStyle::SC_SpinBoxUp).isEmpty());

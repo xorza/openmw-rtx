@@ -19,6 +19,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QPalette>
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QSaveFile>
@@ -98,6 +99,8 @@ Launcher::GraphicsPage::GraphicsPage(const DlssLibrary::Folders& dlss, QWidget* 
     connect(screenComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &GraphicsPage::screenChanged);
     connect(framerateLimitCheckBox, &QCheckBox::toggled, this, &GraphicsPage::slotFramerateLimitToggled);
     connect(downloadDlssButton, &QPushButton::clicked, this, &GraphicsPage::downloadDlss);
+    // A note on the setting above it, in the muted ink a secondary line takes, one line with its action beside it.
+    dlssStatusLabel->setForegroundRole(QPalette::PlaceholderText);
 }
 
 /// What one download of the DLSS library holds while it runs: the bytes go into the file and the
@@ -175,10 +178,9 @@ void Launcher::GraphicsPage::refreshDlssState()
     setDlssItemEnabled(mDlssInstalled);
     downloadDlssButton->setVisible(!mDlssInstalled);
     dlssStatusLabel->setVisible(true);
-    dlssStatusLabel->setText(mDlssInstalled
-            ? tr("DLSS is installed.")
-            : tr("DLSS is not installed. <a href=\"%1\">NVIDIA's licence</a> applies to the download.")
-                  .arg(textOf(DlssLibrary::sLicenseUrl)));
+    dlssStatusLabel->setText(mDlssInstalled ? tr("DLSS is installed.")
+                                            : tr("DLSS is not installed. <a href=\"%1\">NVIDIA's licence</a> applies.")
+                                                  .arg(textOf(DlssLibrary::sLicenseUrl)));
 }
 
 void Launcher::GraphicsPage::setDlssItemEnabled(const bool enabled)

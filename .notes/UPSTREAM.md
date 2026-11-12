@@ -493,4 +493,11 @@ the lines each item names, which the merge resolves by keeping the seam:
 - The launcher's contains-data mark from Lucide through `Misc::ScalableIcon` rather than Oxygen's
   `openmw-plugin.png`, which leaves the tree, and the wizard's four icons redrawn from Lucide in place
   (`docs/look.md`). The cost is a conflict with an upstream edit to that line or to those icons.
+- The launcher's window 900 by 760 at first and with no minimum of its own (`mainwindow.ui`), by the user's
+  decision, so Qt holds it to what its pages need: a stated 775 by 635 overrode that, and a window restored
+  shorter than a page squeezed the page's nested rows below a row's height. The cost is a conflict with an
+  upstream edit to the window's size.
+- The content selector's game file list a third of its row and the search field two (`horizLayout`'s
+  stretch in `contentselector.ui`), by the user's decision, where the list hugged its longest name and its
+  chevron. The cost is a conflict with an upstream edit to that layout.
 

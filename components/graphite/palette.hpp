@@ -56,15 +56,16 @@ namespace Graphite
     /// `Morrowind.bsa`, the brown the game's title stands on.
     inline constexpr QRgb sMenuLeather = 0xff764316;
 
-    /// palantir's `Palette::DARK` at `67955d19f`, with Ayu Graphite's `error`, `warning` and `success`, and
-    /// the accent Morrowind's leather: `sMenuLeather` lifted at its own hue until it reads 3:1 on a field,
-    /// as a focused edge must (`liftedToClear`, which a test holds it to).
+    /// palantir's `Palette::DARK` at `67955d19f`, with Ayu Graphite's `error`, `warning` and `success`, the
+    /// accent Morrowind's leather: `sMenuLeather` lifted at its own hue until it reads 3:1 on a field, as a
+    /// focused edge must (`liftedToClear`, which a test holds it to); and the window and the band a rung
+    /// lighter, Fluent 2's dark `colorNeutralBackground2` and `1`, where palantir's `#141414` read too dark.
     inline constexpr Palette sDark{
         .mText = 0xffebebeb,
         .mTextMuted = 0xffb2b2b2,
         .mTextDisabled = 0xff797979,
-        .mWindow = 0xff141414,
-        .mSurround = 0xff1f1f1f,
+        .mWindow = 0xff1f1f1f,
+        .mSurround = 0xff292929,
         .mElement = 0xff383838,
         .mElementMid = 0xff454545,
         .mElementStrong = 0xff525252,

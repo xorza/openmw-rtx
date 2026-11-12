@@ -219,7 +219,23 @@
            </widget>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="dlssDownloadLayout">
+           <layout class="QHBoxLayout" name="dlssDownloadLayout" stretch="1,0">
+            <item>
+             <widget class="QLabel" name="dlssStatusLabel">
+              <property name="visible">
+               <bool>false</bool>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="textFormat">
+               <enum>Qt::RichText</enum>
+              </property>
+              <property name="openExternalLinks">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
             <item>
              <widget class="QPushButton" name="downloadDlssButton">
               <property name="visible">
@@ -230,25 +246,6 @@
               </property>
               <property name="text">
                <string>Download DLSS</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="dlssStatusLabel">
-              <property name="visible">
-               <bool>false</bool>
-              </property>
-              <property name="text">
-               <string/>
-              </property>
-              <property name="wordWrap">
-               <bool>true</bool>
-              </property>
-              <property name="textFormat">
-               <enum>Qt::RichText</enum>
-              </property>
-              <property name="openExternalLinks">
-               <bool>true</bool>
               </property>
              </widget>
             </item>
@@ -273,7 +270,7 @@
           </property>
          </widget>
         </item>
-        <item row="10" column="0">
+        <item row="11" column="0">
          <spacer name="verticalSpacer">
           <property name="orientation">
            <enum>Qt::Vertical</enum>

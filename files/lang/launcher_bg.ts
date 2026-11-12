@@ -448,10 +448,6 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
         <translation>DLSS е инсталиран.</translation>
     </message>
     <message>
-        <source>DLSS is not installed. &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies to the download.</source>
-        <translation>DLSS не е инсталиран. За изтеглянето важи &lt;a href=&quot;%1&quot;&gt;лицензът на NVIDIA&lt;/a&gt;.</translation>
-    </message>
-    <message>
         <source>Download DLSS</source>
         <translation>Изтегляне на DLSS</translation>
     </message>
@@ -490,6 +486,10 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
     <message>
         <source>Screen </source>
         <translation>Екран </translation>
+    </message>
+    <message>
+        <source>DLSS is not installed. &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies.</source>
+        <translation>DLSS не е инсталиран. Важи &lt;a href=&quot;%1&quot;&gt;лицензът на NVIDIA&lt;/a&gt;.</translation>
     </message>
     <message>
         <source>Cancel</source>

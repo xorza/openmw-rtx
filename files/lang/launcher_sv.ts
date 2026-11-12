@@ -449,10 +449,6 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
         <translation>DLSS är installerat.</translation>
     </message>
     <message>
-        <source>DLSS is not installed. &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies to the download.</source>
-        <translation>DLSS är inte installerat. Nedladdningen omfattas av &lt;a href=&quot;%1&quot;&gt;NVIDIAs licens&lt;/a&gt;.</translation>
-    </message>
-    <message>
         <source>Download DLSS</source>
         <translation>Ladda ner DLSS</translation>
     </message>
@@ -491,6 +487,10 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
     <message>
         <source>Screen </source>
         <translation>Skärm </translation>
+    </message>
+    <message>
+        <source>DLSS is not installed. &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies.</source>
+        <translation>DLSS är inte installerat. &lt;a href=&quot;%1&quot;&gt;NVIDIAs licens&lt;/a&gt; gäller.</translation>
     </message>
     <message>
         <source>Cancel</source>

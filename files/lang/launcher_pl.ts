@@ -450,10 +450,6 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
         <translation>DLSS jest zainstalowany.</translation>
     </message>
     <message>
-        <source>DLSS is not installed. &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies to the download.</source>
-        <translation>DLSS nie jest zainstalowany. Pobranie podlega &lt;a href=&quot;%1&quot;&gt;licencji NVIDIA&lt;/a&gt;.</translation>
-    </message>
-    <message>
         <source>Download DLSS</source>
         <translation>Pobierz DLSS</translation>
     </message>
@@ -492,6 +488,10 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
     <message>
         <source>Screen </source>
         <translation>Ekran </translation>
+    </message>
+    <message>
+        <source>DLSS is not installed. &lt;a href=&quot;%1&quot;&gt;NVIDIA&apos;s licence&lt;/a&gt; applies.</source>
+        <translation>DLSS nie jest zainstalowany. Obowiązuje &lt;a href=&quot;%1&quot;&gt;licencja NVIDIA&lt;/a&gt;.</translation>
     </message>
     <message>
         <source>Cancel</source>

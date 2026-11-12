@@ -43,7 +43,7 @@
         <property name="focusPolicy">
          <enum>Qt::NoFocus</enum>
         </property>
-        <layout class="QHBoxLayout" name="horizLayout">
+        <layout class="QHBoxLayout" name="horizLayout" stretch="1,2,0,0">
          <property name="leftMargin">
           <number>0</number>
          </property>

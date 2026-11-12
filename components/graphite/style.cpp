@@ -9,6 +9,8 @@
 #include <QColor>
 #include <QComboBox>
 #include <QFrame>
+#include <QGroupBox>
+#include <QLabel>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPainterStateGuard>
@@ -44,8 +46,13 @@ namespace Graphite
         constexpr int sScrollGap = 4;
         constexpr int sScrollThumbLeast = 24;
 
-        /// palantir's row padding above and below a control's text, `space.sm`.
-        constexpr int sRowPadding = 8;
+        /// A row's padding above and below a control's text: 6 px, by the user's decision, where palantir's `space.sm`
+        /// of 8 stood a row taller than the launcher wanted.
+        constexpr int sRowPadding = 6;
+
+        /// A check box's or a radio's padding above and below its text, by the user's decision: a column of them
+        /// stood looser than the fields around it at a row's.
+        constexpr int sTogglePadding = 4;
 
         /// Where a field's text starts, palantir's field inset `space.sm`, and the 2 px `QLineEdit` and a
         /// combo box's label already add inside the rectangle the style hands them.
@@ -53,23 +60,27 @@ namespace Graphite
         constexpr int sEditMargin = 2;
         constexpr int sLabelMargin = 1;
 
-        /// A spin box's column of two arrows, and the chevron each carries.
-        constexpr int sSpinColumn = 20;
-        constexpr qreal sSpinChevronWidth = 8.0;
-        constexpr qreal sSpinChevronHeight = 4.0;
+        /// The column at a combo box's or a spin box's far end its chevrons stand in: a chevron with a field's
+        /// inset either side, so the text stops as far short of it as it starts in from the near end, and the two
+        /// boxes' columns are one width.
+        constexpr int sArrowColumn = static_cast<int>(sChevronWidth) + 2 * sFieldInset;
 
         /// The accent's pill that marks what is in use, Fluent 2's selection indicator: 3 px across, held 6 px
         /// off a row's ends.
         constexpr qreal sMark = 3.0;
         constexpr qreal sMarkInset = 6.0;
 
-        /// A view's row padding above and below its text, palantir's chip inset `space.xs`, and what its text
-        /// moves in beyond Fusion's 2 px so it starts 8 px in, clear of the selected row's pill.
+        /// A view's row padding above and below its text, palantir's chip inset `space.xs`, and how far in
+        /// from the row's ends what it shows starts, its check box, icon or text, clear of the selected row's
+        /// pill: a field's inset.
         constexpr int sItemPadding = 4;
-        constexpr int sItemTextInset = 6;
+        constexpr int sItemInset = sFieldInset;
 
         constexpr int sLayoutMargin = 12;
         constexpr int sLayoutSpacing = 8;
+
+        /// A push button's padding either side of its text, palantir's button inset `space.md`.
+        constexpr int sButtonPadding = 12;
 
         /// palantir's menu padding, `space.xs`, above its first row and below its last.
         constexpr int sMenuPadding = 4;
@@ -277,14 +288,21 @@ namespace Graphite
             return option.fontMetrics.height() + 2 * sRowPadding + 2 * static_cast<int>(sHairline);
         }
 
-        /// A spin box's parts: the field from its inset, and on the far side a column of `sSpinColumn` split
+        /// A check box's or a radio's height: its text and `sTogglePadding` above and below, a row less what a
+        /// toggle has no edge or fill to need. Centred in a field's row beside it, its text stands on the field's.
+        int toggleHeight(const QStyleOption& option)
+        {
+            return option.fontMetrics.height() + 2 * sTogglePadding;
+        }
+
+        /// A spin box's parts: the field from its inset, and on the far side a column of `sArrowColumn` split
         /// into the up arrow above the down, or the field alone where the box shows no arrows.
         QRect spinBoxRect(const QStyleOptionComplex& option, QStyle::SubControl part)
         {
             const auto* spin = qstyleoption_cast<const QStyleOptionSpinBox*>(&option);
             const bool arrows = spin == nullptr || spin->buttonSymbols != QAbstractSpinBox::NoButtons;
             const QRect& rect = option.rect;
-            const int column = arrows ? sSpinColumn : 0;
+            const int column = arrows ? sArrowColumn : 0;
             const int half = rect.height() / 2;
             QRect laidOut;
             switch (part)
@@ -430,6 +448,7 @@ namespace Graphite
                 return;
             case PE_FrameTabBarBase:
                 return;
+            // A group box's card: its soft edge, which one with no title leaves out (`CC_GroupBox`).
             case PE_FrameGroupBox:
                 paint(*painter, option->rect, sCardRadius, { sNone, borderSoft(sDark) });
                 return;
@@ -670,7 +689,12 @@ namespace Graphite
                 const auto* group = qstyleoption_cast<const QStyleOptionGroupBox*>(option);
                 if (group == nullptr)
                     break;
+                // **A group box with no title draws no frame**: it only gathers what it holds, and its edge inside
+                // the page's or the pane's is a frame within a frame, which KDE's and Apple's guidelines both
+                // advise against. One with a title keeps its card, which the title names.
                 QStyleOptionGroupBox muted = *group;
+                if (muted.text.isEmpty() && !muted.subControls.testFlag(SC_GroupBoxCheckBox))
+                    muted.subControls &= ~SC_GroupBoxFrame;
                 muted.palette.setColor(QPalette::WindowText, QColor::fromRgba(sDark.mTextMuted));
                 muted.textColor = QColor::fromRgba(sDark.mTextMuted);
                 QProxyStyle::drawComplexControl(control, &muted, painter, widget);
@@ -707,8 +731,7 @@ namespace Graphite
                     if (active && (has(*option, State_Sunken) || has(*option, State_MouseOver)))
                         paint(*painter, QRectF(rect).adjusted(2, 2, -2, -2), sControlRadius - 1,
                             { sDark.mElementStrong, sDark.mElementStrong });
-                    chevron(*painter, rect, pointing, steps ? sDark.mText : sDark.mTextDisabled, sSpinChevronWidth,
-                        sSpinChevronHeight);
+                    chevron(*painter, rect, pointing, steps ? sDark.mText : sDark.mTextDisabled);
                 }
                 return;
             }
@@ -728,11 +751,16 @@ namespace Graphite
             case PM_HeaderMargin:
                 return sFieldInset;
             // Layouts on palantir's grid: `space.md` at a page's or a group's edge, `space.sm` between widgets.
+            // A group box with no title draws no frame (`CC_GroupBox`), so its layout stands where it does with
+            // no margin of its own, as a plain container's would: one more 12 in from the page's.
             case PM_LayoutLeftMargin:
             case PM_LayoutTopMargin:
             case PM_LayoutRightMargin:
             case PM_LayoutBottomMargin:
-                return sLayoutMargin;
+            {
+                const auto* group = qobject_cast<const QGroupBox*>(widget);
+                return group != nullptr && group->title().isEmpty() && !group->isCheckable() ? 0 : sLayoutMargin;
+            }
             case PM_LayoutHorizontalSpacing:
             case PM_LayoutVerticalSpacing:
                 return sLayoutSpacing;
@@ -745,6 +773,11 @@ namespace Graphite
             case PM_ExclusiveIndicatorWidth:
             case PM_ExclusiveIndicatorHeight:
                 return sToggleSide;
+            // A view lays its row's check box, icon and text out this far in, and one more, from the row's ends.
+            case PM_FocusFrameHMargin:
+                if (qobject_cast<const QAbstractItemView*>(widget) != nullptr)
+                    return sItemInset - 1;
+                return QProxyStyle::pixelMetric(metric, option, widget);
             default:
                 return QProxyStyle::pixelMetric(metric, option, widget);
         }
@@ -755,16 +788,21 @@ namespace Graphite
     {
         if (control == CC_SpinBox)
             return spinBoxRect(*option, subControl);
+        if (control == CC_ComboBox && subControl == SC_ComboBoxArrow)
+        {
+            const QRect& rect = option->rect;
+            return visualRect(option->direction, rect,
+                QRect(rect.right() + 1 - sArrowColumn, rect.top(), sArrowColumn, rect.height()));
+        }
         if (control == CC_ComboBox && subControl == SC_ComboBoxEditField)
         {
-            // From the field's inset to the arrow, the text placed where a line edit's is.
+            // From the field's inset to the chevron's column, the text placed where a line edit's is.
             const auto* combo = qstyleoption_cast<const QStyleOptionComboBox*>(option);
-            const QRect arrow = QProxyStyle::subControlRect(control, option, SC_ComboBoxArrow, widget);
             const int inset = sFieldInset - (combo != nullptr && combo->editable ? sEditMargin : sLabelMargin);
-            const QRect laidOut = visualRect(option->direction, option->rect, arrow);
-            const QRect field(option->rect.left() + inset, option->rect.top() + 1,
-                laidOut.left() - option->rect.left() - inset, option->rect.height() - 2);
-            return visualRect(option->direction, option->rect, field);
+            const QRect& rect = option->rect;
+            const QRect field(
+                rect.left() + inset, rect.top() + 1, rect.width() - sArrowColumn - inset, rect.height() - 2);
+            return visualRect(option->direction, rect, field);
         }
         const auto* bar = qstyleoption_cast<const QStyleOptionSlider*>(option);
         if (control != CC_ScrollBar || bar == nullptr)
@@ -814,6 +852,10 @@ namespace Graphite
             combo->view()->viewport()->setAutoFillBackground(false);
             combo->view()->setFrameShape(QFrame::NoFrame);
         }
+        // A label held to the top of its cell names a field of several rows, and its text stands on the line the
+        // first row's does: the row's padding and its edge further down.
+        if (auto* label = qobject_cast<QLabel*>(widget); label != nullptr && label->alignment().testFlag(Qt::AlignTop))
+            label->setContentsMargins(0, sRowPadding + static_cast<int>(sHairline), 0, 0);
     }
 
     QIcon Style::standardIcon(StandardPixmap icon, const QStyleOption* option, const QWidget* widget) const
@@ -838,9 +880,6 @@ namespace Graphite
     {
         // A field's text starts at the field's inset; one with no frame lies in a spin box's or a combo
         // box's field, which placed it.
-        // A row's text clears the selected row's pill, by what a field's text is inset beyond Fusion's.
-        if (element == SE_ItemViewItemText)
-            return QProxyStyle::subElementRect(element, option, widget).adjusted(sItemTextInset, 0, 0, 0);
         const auto* frame = qstyleoption_cast<const QStyleOptionFrame*>(option);
         if (element == SE_LineEditContents && frame != nullptr && frame->lineWidth > 0)
         {
@@ -856,7 +895,7 @@ namespace Graphite
         QSize size = QProxyStyle::sizeFromContents(type, option, contents, widget);
         switch (type)
         {
-            // One row's height for a button and the fields beside it: the text, palantir's row padding
+            // One row's height for a button and the fields beside it: the text, the row padding
             // above and below, and the hairline edge.
             case CT_ComboBox:
             case CT_SpinBox:
@@ -885,13 +924,30 @@ namespace Graphite
                 size.setHeight(rowHeight(*option));
                 return size;
             }
+            // A push button pads its text `sButtonPadding` either side, never narrower than Fusion's.
             case CT_PushButton:
+                size.setWidth(
+                    std::max(size.width(), contents.width() + 2 * sButtonPadding + 2 * static_cast<int>(sHairline)));
+                size.setHeight(std::max(size.height(), rowHeight(*option)));
+                return size;
             case CT_LineEdit:
                 size.setHeight(std::max(size.height(), rowHeight(*option)));
                 return size;
+            case CT_CheckBox:
+            case CT_RadioButton:
+                size.setHeight(std::max(size.height(), toggleHeight(*option)));
+                return size;
+            // A tool button that shows only its icon is a row's square, as wide as the fields beside it are tall.
+            case CT_ToolButton:
+            {
+                const auto* tool = qstyleoption_cast<const QStyleOptionToolButton*>(option);
+                if (tool == nullptr || tool->toolButtonStyle != Qt::ToolButtonIconOnly)
+                    return size;
+                const int side = std::max({ size.width(), size.height(), rowHeight(*option) });
+                return { side, side };
+            }
             case CT_ItemViewItem:
                 size.rheight() += 2 * sItemPadding;
-                size.rwidth() += sItemTextInset;
                 return size;
             default:
                 return size;
