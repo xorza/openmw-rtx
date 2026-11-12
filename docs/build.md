@@ -38,7 +38,9 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   rewrites only when it moves.
 - **CMake's commands before the tree's helpers**; a function stays where several callers share its work
   (`openmw_rtx_shader`, `openmw_rtx_table`, …), and modules are included by path.
-- **A sanitizer over the whole build** (`OPENMW_SANITIZER=address|thread`), with warnings as errors under it too.
+- **A sanitizer over the whole build** (`OPENMW_SANITIZER=address|thread`), with warnings as errors under it too;
+  `address` adds UndefinedBehaviorSanitizer, which recovers from nothing (`-fno-sanitize-recover=undefined`), so a
+  finding ends the run however it was started.
   Refused: off under a sanitizer, GCC's advice for its flow warnings
   ([GCC](https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html)); Clang warns before it instruments.
 - **The standard library's assertions in every flavour but release**: libstdc++'s `_GLIBCXX_ASSERTIONS` and the MSVC

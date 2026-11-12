@@ -46,8 +46,10 @@ else()
     # `sqrt` and the like as one instruction rather than a call that sets `errno`, with the same result: the tree
     # reads `errno` after system calls alone. The tree's, not the set's, whose code was not read for it.
     set(openmw_flags_common "${openmw_codegen_gnu} ${openmw_codegen_linux} -fno-math-errno")
+    # UndefinedBehaviorSanitizer beside AddressSanitizer, its first finding the end of the process however the
+    # program was started, where `UBSAN_OPTIONS=halt_on_error=1` stops it only under the test presets.
     if(OPENMW_SANITIZER STREQUAL "address")
-        string(APPEND openmw_flags_common " -fsanitize=address,undefined")
+        string(APPEND openmw_flags_common " -fsanitize=address,undefined -fno-sanitize-recover=undefined")
     elseif(OPENMW_SANITIZER STREQUAL "thread")
         string(APPEND openmw_flags_common " -fsanitize=thread")
     elseif(OPENMW_SANITIZER)
