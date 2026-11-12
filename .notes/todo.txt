@@ -1,5 +1,4 @@
 - bake distant land into one mesh
 - all IO serial?
 - underwater shadows
-- shipped resources cleanup
-- docs cleanup
+- merge tools?
