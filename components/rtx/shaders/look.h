@@ -243,7 +243,7 @@ namespace Rtx::Shaders
     /// deeper it falls. Without it the leg under the water was drawn along one line, and whatever stood in the
     /// water cast a razor edge on the bed.
     const float WATER_SHADOW_SPREAD = 10.0f * PI / 180.0f / 100.0f;
-    const float WATER_SHADOW_RADIUS = 30.0f * PI / 180.0f;
+    const float WATER_SHADOW_RADIUS = 20.0f * PI / 180.0f;
 
     /// What a moon's own texels are worth as radiance.
     ///

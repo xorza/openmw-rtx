@@ -165,6 +165,20 @@ bool skyPassageBent(SkyPassageRun run)
     return run.mBent.mDepth > 0.0;
 }
 
+/// Which way the leg under the water is drawn: across the water's cone about the bent line (`waterLimb`),
+/// which leans further from the vertical than the bent line by up to the cone. One draw for both legs, so the
+/// leg over the surface leaves from where this one comes up.
+vec3 drawnUnder(SkyPassageRun run)
+{
+    return coneDirection(-run.mBent.mTravelling, waterLimb(run.mSky.mLimb, run.mBent.mPath), run.mDraw);
+}
+
+/// How far up the line `up` the point's depth of water reaches the surface.
+float toSurface(SkyPassageRun run, vec3 up)
+{
+    return run.mBent.mDepth / max(up.z, 0.05);
+}
+
 /// The passage's first leg: the one leg where the point is dry, and the leg under the water where it is
 /// not. None for a picture with shadows off.
 ///
@@ -179,19 +193,22 @@ RayAsk skyPassageFirstAsk(SkyPassageRun run)
     if (!skyPassageBent(run))
         return skyAsk(run.mSky, run.mPosition, run.mOff, run.mDraw, run.mNearest);
 
-    // Across the water's cone and as far as the surface along the line drawn, which leans further from the
-    // vertical than the bent line by up to the cone.
-    const vec3 up = coneDirection(-run.mBent.mTravelling, waterLimb(run.mSky.mLimb, run.mBent.mPath), run.mDraw);
-    return skyLightAsk(
-        leaveSurface(run.mPosition, run.mOff, up), up, run.mBent.mDepth / max(up.z, 0.05), run.mNearest);
+    const vec3 up = drawnUnder(run);
+    return skyLightAsk(leaveSurface(run.mPosition, run.mOff, up), up, toSurface(run, up), run.mNearest);
 }
 
-/// The leg over the water, from where the bent path meets the surface: asked whatever the leg under
+/// The leg over the water, from where the leg under it reaches the surface: asked whatever the leg under
 /// it met, so it is known before either is answered. None where the passage is one leg.
+///
+/// **From where the line drawn under the water comes up, and not from where the bent line does**, so what
+/// stands over the surface is seen across the water's cone too: from the bent line's one point, a hull that
+/// rose out of the water cast its edge on the bed as hard as the sky's own cone left it.
 RayAsk skyPassageOverAsk(SkyPassageRun run)
 {
+    const vec3 up = drawnUnder(run);
+    const vec2 surfaced = run.mPosition.xy + up.xy * toSurface(run, up);
     return skyPassageBent(run)
-        ? skyAsk(run.mSky, vec3(run.mBent.mMet, frame.mWaterLevel), vec3(0.0), run.mDraw, run.mNearest)
+        ? skyAsk(run.mSky, vec3(surfaced, frame.mWaterLevel), vec3(0.0), run.mDraw, run.mNearest)
         : noRay();
 }
 

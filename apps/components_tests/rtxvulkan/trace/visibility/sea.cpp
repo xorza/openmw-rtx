@@ -198,16 +198,18 @@ namespace Rtx::Testing
             EXPECT_GT(open, 0.0f) << "there is a shaft to block";
             EXPECT_LT(covered, 1.0e-4f * open) << "and a lid over all of the water puts it out";
 
-            // A strip takes nearly all of it and not half, because the beam is a narrow lobe: Henyey-Greenstein
-            // at 0.92 puts the shaft in the pixels looking up-sun, and a ray that climbs toward the sun gains y
-            // as fast as its entry point does, so its whole march enters the water through a stretch a couple of
-            // tens of units long and one strip covers it. The pixels the strip misses were dark anyway.
+            // The beam is a narrow lobe: Henyey-Greenstein at 0.92 puts the shaft in the pixels looking up-sun,
+            // and a ray that climbs toward the sun gains y as fast as its entry point does, so its whole march
+            // enters the water about one stretch of surface, which the strip stands over. The pixels the strip
+            // misses were dark anyway.
             //
-            // Sixteen per cent and not five, because the shadow has the edge every shadow has: the entry's ray
-            // is drawn across the sun's own penumbra (`SUN_SHADOW_RADIUS`, three degrees, twenty-six units either
-            // side of a lid's edge at five hundred up), so entries under the strip's rim take part of the sun.
-            // Measured at 0.160 with the four steps the march takes.
-            EXPECT_NEAR(shaded / open, 0.160f, 0.02f) << "a lid whose shadow falls on the entries";
+            // It keeps two fifths and not five per cent, because the water spreads where the light entered: each point
+            // of the march is drawn across the water's cone, five hundred units down and more past its widest
+            // (`WATER_SHADOW_RADIUS`, twenty degrees), so its entries come up across some four hundred units of
+            // surface and the strip's 170 shade a part of them; past that, the entry's own ray is drawn across
+            // the sun's penumbra (`SUN_SHADOW_RADIUS`). Measured at 0.387 with the four steps the march takes,
+            // and 0.160 where every point's entries came up from the bent line's one point.
+            EXPECT_NEAR(shaded / open, 0.387f, 0.02f) << "a lid whose shadow falls on the entries";
 
             // **The one that says where the gap belongs**, and it is 0.9991 of the open shaft.
             // Standing over the same water and casting its shadow elsewhere, it changes nothing.
