@@ -47,12 +47,7 @@ namespace
         constexpr VFS::Path::NormalizedView test("test.nif");
         bulletShape->mFileName = test;
         bulletShape->mFileHash = fileHash;
-        ObjectTransform objectTransform;
-        std::fill(std::begin(objectTransform.mPosition.pos), std::end(objectTransform.mPosition.pos), 0.1f);
-        std::fill(std::begin(objectTransform.mPosition.rot), std::end(objectTransform.mPosition.rot), 0.2f);
-        objectTransform.mScale = 3.14f;
-        const CollisionShape collisionShape(
-            std::make_shared<Resource::BulletShapeInstance>(bulletShape), shape, objectTransform);
+        const CollisionShape collisionShape(std::make_shared<Resource::BulletShapeInstance>(bulletShape), shape);
         recastMeshManager.addObject(id, collisionShape, btTransform::getIdentity(), AreaType_ground, nullptr);
     }
 

@@ -15,11 +15,10 @@ namespace
     struct DetourNavigatorRecastMeshObjectTest : Test
     {
         btBoxShape mBoxShapeImpl{ btVector3(1, 2, 3) };
-        const ObjectTransform mObjectTransform{ ESM::Position{ { 1, 2, 3 }, { 1, 2, 3 } }, 0.5f };
-        CollisionShape mBoxShape{ nullptr, mBoxShapeImpl, mObjectTransform };
+        CollisionShape mBoxShape{ nullptr, mBoxShapeImpl };
         btCompoundShape mCompoundShapeImpl{ true };
-        CollisionShape mCompoundShape{ nullptr, mCompoundShapeImpl, mObjectTransform };
-        btTransform mTransform{ Misc::Convert::makeBulletTransform(mObjectTransform.mPosition) };
+        CollisionShape mCompoundShape{ nullptr, mCompoundShapeImpl };
+        btTransform mTransform{ Misc::Convert::makeBulletTransform(ESM::Position{ { 1, 2, 3 }, { 1, 2, 3 } }) };
 
         DetourNavigatorRecastMeshObjectTest()
         {

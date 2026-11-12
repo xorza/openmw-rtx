@@ -48,13 +48,12 @@ namespace DetourNavigator
     bool NavigatorImpl::addObjectImpl(
         const ObjectId id, const ObjectShapes& shapes, const btTransform& transform, const UpdateGuard* guard)
     {
-        const CollisionShape collisionShape(
-            shapes.mShapeInstance, *shapes.mShapeInstance->mCollisionShape, shapes.mTransform);
+        const CollisionShape collisionShape(shapes.mShapeInstance, *shapes.mShapeInstance->mCollisionShape);
         bool result = mNavMeshManager.addObject(id, collisionShape, transform, AreaType_ground, guard);
         if (const btCollisionShape* const avoidShape = shapes.mShapeInstance->mAvoidCollisionShape.get())
         {
             const ObjectId avoidId(avoidShape);
-            const CollisionShape avoidCollisionShape(shapes.mShapeInstance, *avoidShape, shapes.mTransform);
+            const CollisionShape avoidCollisionShape(shapes.mShapeInstance, *avoidShape);
             if (mNavMeshManager.addObject(avoidId, avoidCollisionShape, transform, AreaType_null, guard))
             {
                 updateAvoidShapeId(id, avoidId, guard);

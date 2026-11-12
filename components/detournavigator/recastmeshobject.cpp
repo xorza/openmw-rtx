@@ -74,7 +74,6 @@ namespace DetourNavigator
     RecastMeshObject::RecastMeshObject(
         const CollisionShape& shape, const btTransform& transform, const AreaType areaType)
         : mInstance(shape.getInstance())
-        , mObjectTransform(shape.getObjectTransform())
         , mImpl(shape.getShape(), transform, areaType)
     {
     }

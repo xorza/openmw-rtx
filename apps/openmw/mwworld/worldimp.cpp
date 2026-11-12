@@ -1441,9 +1441,7 @@ namespace MWWorld
     {
         if (object.getShapeInstance()->mVisualCollisionType != Resource::VisualCollisionType::None)
             return;
-        const MWWorld::Ptr ptr = object.getPtr();
-        const DetourNavigator::ObjectShapes shapes(object.getShapeInstance(),
-            DetourNavigator::ObjectTransform{ ptr.getRefData().getPosition(), ptr.getCellRef().getScale() });
+        const DetourNavigator::ObjectShapes shapes(object.getShapeInstance());
         mNavigator->updateObject(
             DetourNavigator::ObjectId(&object), shapes, object.getTransform(), navigatorUpdateGuard);
     }

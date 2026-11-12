@@ -162,9 +162,6 @@ namespace
         {
             setLowestPoint(lowestPoints, *object);
 
-            const DetourNavigator::ObjectTransform objectTransform{ ptr.getRefData().getPosition(),
-                ptr.getCellRef().getScale() };
-
             if (ptr.getClass().isDoor() && !ptr.getCellRef().getTeleport())
             {
                 btVector3 aabbMin;
@@ -195,14 +192,13 @@ namespace
                 const auto connectionEnd = endPoint.mHit ? endPoint.mHitPos : end;
 
                 navigator.addObject(DetourNavigator::ObjectId(object),
-                    DetourNavigator::DoorShapes(
-                        object->getShapeInstance(), objectTransform, connectionStart, connectionEnd),
-                    transform, navigatorUpdateGuard);
+                    DetourNavigator::DoorShapes(object->getShapeInstance(), connectionStart, connectionEnd), transform,
+                    navigatorUpdateGuard);
             }
             else if (object->getShapeInstance()->mVisualCollisionType == Resource::VisualCollisionType::None)
             {
                 navigator.addObject(DetourNavigator::ObjectId(object),
-                    DetourNavigator::ObjectShapes(object->getShapeInstance(), objectTransform), object->getTransform(),
+                    DetourNavigator::ObjectShapes(object->getShapeInstance()), object->getTransform(),
                     navigatorUpdateGuard);
             }
         }

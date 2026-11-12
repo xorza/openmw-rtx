@@ -68,7 +68,6 @@ namespace
         const osg::Vec2i mCellPosition{ 0, 0 };
         const float mEndTolerance = 0;
         const btTransform mTransform{ btMatrix3x3::getIdentity(), btVector3(256, 256, 0) };
-        const ObjectTransform mObjectTransform{ ESM::Position{ { 256, 256, 0 }, { 0, 0, 0 } }, 0.0f };
     };
 
     constexpr std::array<float, 5 * 5> defaultHeightfieldData{ {
@@ -240,8 +239,8 @@ namespace
 
         {
             auto updateGuard = mNavigator->makeUpdateGuard();
-            mNavigator->addObject(ObjectId(&compound.shape()), ObjectShapes(compound.instance(), mObjectTransform),
-                mTransform, updateGuard.get());
+            mNavigator->addObject(
+                ObjectId(&compound.shape()), ObjectShapes(compound.instance()), mTransform, updateGuard.get());
             mNavigator->update(mPlayerPosition, updateGuard.get());
         }
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
@@ -271,8 +270,7 @@ namespace
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
-        mNavigator->addObject(
-            ObjectId(&compound.shape()), ObjectShapes(compound.instance(), mObjectTransform), mTransform, nullptr);
+        mNavigator->addObject(ObjectId(&compound.shape()), ObjectShapes(compound.instance()), mTransform, nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -289,8 +287,7 @@ namespace
 
         compound.shape().updateChildTransform(0, btTransform(btMatrix3x3::getIdentity(), btVector3(1000, 0, 0)));
 
-        mNavigator->updateObject(
-            ObjectId(&compound.shape()), ObjectShapes(compound.instance(), mObjectTransform), mTransform, nullptr);
+        mNavigator->updateObject(ObjectId(&compound.shape()), ObjectShapes(compound.instance()), mTransform, nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -321,14 +318,13 @@ namespace
         CollisionShapeInstance heightfield2(makeSquareHeightfieldTerrainShape(heightfieldData2));
         heightfield2.shape().setLocalScaling(btVector3(128, 128, 1));
 
-        const ObjectTransform objectTransform{ ESM::Position{ { 256, 256, -50 }, { 0, 0, 0 } }, 0.0f };
         const btTransform transform{ btMatrix3x3::getIdentity(), btVector3(256, 256, -50) };
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
-        mNavigator->addObject(ObjectId(&heightfield1.shape()), ObjectShapes(heightfield1.instance(), objectTransform),
-            transform, nullptr);
-        mNavigator->addObject(ObjectId(&heightfield2.shape()), ObjectShapes(heightfield2.instance(), objectTransform),
-            transform, nullptr);
+        mNavigator->addObject(
+            ObjectId(&heightfield1.shape()), ObjectShapes(heightfield1.instance()), transform, nullptr);
+        mNavigator->addObject(
+            ObjectId(&heightfield2.shape()), ObjectShapes(heightfield2.instance()), transform, nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -395,8 +391,7 @@ namespace
         auto instance = std::make_shared<const Resource::BulletShapeInstance>(bulletShape);
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
-        mNavigator->addObject(
-            ObjectId(instance->mCollisionShape.get()), ObjectShapes(instance, mObjectTransform), mTransform, nullptr);
+        mNavigator->addObject(ObjectId(instance->mCollisionShape.get()), ObjectShapes(instance), mTransform, nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -548,12 +543,10 @@ namespace
         CollisionShapeInstance heightfield(makeSquareHeightfieldTerrainShape(defaultHeightfieldDataScalar));
         heightfield.shape().setLocalScaling(btVector3(128, 128, 1));
 
-        const ObjectTransform objectTransform{ ESM::Position{ { 256, 256, -50 }, { 0, 0, 0 } }, 0.0f };
         const btTransform transform{ btMatrix3x3::getIdentity(), btVector3(256, 256, -50) };
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
-        mNavigator->addObject(
-            ObjectId(&heightfield.shape()), ObjectShapes(heightfield.instance(), objectTransform), transform, nullptr);
+        mNavigator->addObject(ObjectId(&heightfield.shape()), ObjectShapes(heightfield.instance()), transform, nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -561,8 +554,7 @@ namespace
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
-        mNavigator->addObject(
-            ObjectId(&heightfield.shape()), ObjectShapes(heightfield.instance(), objectTransform), transform, nullptr);
+        mNavigator->addObject(ObjectId(&heightfield.shape()), ObjectShapes(heightfield.instance()), transform, nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -659,8 +651,7 @@ namespace
             const btScalar diameter = static_cast<btScalar>(i) * 10;
             const btTransform transform(
                 btMatrix3x3::getIdentity(), btVector3(shift.x() + diameter, shift.y() + diameter, diameter));
-            mNavigator->addObject(
-                ObjectId(&boxes[i].shape()), ObjectShapes(boxes[i].instance(), mObjectTransform), transform, nullptr);
+            mNavigator->addObject(ObjectId(&boxes[i].shape()), ObjectShapes(boxes[i].instance()), transform, nullptr);
         }
 
         std::this_thread::sleep_for(std::chrono::microseconds(1));
@@ -671,7 +662,7 @@ namespace
             const btTransform transform(
                 btMatrix3x3::getIdentity(), btVector3(shift.x() + diameter, shift.y() + diameter, diameter));
             mNavigator->updateObject(
-                ObjectId(&boxes[i].shape()), ObjectShapes(boxes[i].instance(), mObjectTransform), transform, nullptr);
+                ObjectId(&boxes[i].shape()), ObjectShapes(boxes[i].instance()), transform, nullptr);
         }
 
         mNavigator->update(mPlayerPosition, nullptr);
@@ -701,8 +692,7 @@ namespace
         {
             const btScalar diameter = static_cast<btScalar>(i) * 32;
             const btTransform transform(btMatrix3x3::getIdentity(), btVector3(diameter, diameter, diameter));
-            mNavigator->addObject(
-                ObjectId(&shapes[i].shape()), ObjectShapes(shapes[i].instance(), mObjectTransform), transform, nullptr);
+            mNavigator->addObject(ObjectId(&shapes[i].shape()), ObjectShapes(shapes[i].instance()), transform, nullptr);
         }
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
@@ -713,7 +703,7 @@ namespace
             const btScalar diameter = static_cast<btScalar>(i) * 32 + 1;
             const btTransform transform(btMatrix3x3::getIdentity(), btVector3(diameter, diameter, diameter));
             mNavigator->updateObject(
-                ObjectId(&shapes[i].shape()), ObjectShapes(shapes[i].instance(), mObjectTransform), transform, nullptr);
+                ObjectId(&shapes[i].shape()), ObjectShapes(shapes[i].instance()), transform, nullptr);
         }
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
@@ -723,7 +713,7 @@ namespace
             const btScalar diameter = static_cast<btScalar>(i) * 32 + 2;
             const btTransform transform(btMatrix3x3::getIdentity(), btVector3(diameter, diameter, diameter));
             mNavigator->updateObject(
-                ObjectId(&shapes[i].shape()), ObjectShapes(shapes[i].instance(), mObjectTransform), transform, nullptr);
+                ObjectId(&shapes[i].shape()), ObjectShapes(shapes[i].instance()), transform, nullptr);
         }
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
@@ -764,11 +754,10 @@ namespace
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
-        mNavigator->addObject(ObjectId(&oscillatingBox.shape()),
-            ObjectShapes(oscillatingBox.instance(), mObjectTransform),
+        mNavigator->addObject(ObjectId(&oscillatingBox.shape()), ObjectShapes(oscillatingBox.instance()),
             btTransform(btMatrix3x3::getIdentity(), oscillatingBoxShapePosition), nullptr);
         // add this box to make navmesh bound box independent from oscillatingBoxShape rotations
-        mNavigator->addObject(ObjectId(&borderBox.shape()), ObjectShapes(borderBox.instance(), mObjectTransform),
+        mNavigator->addObject(ObjectId(&borderBox.shape()), ObjectShapes(borderBox.instance()),
             btTransform(btMatrix3x3::getIdentity(), oscillatingBoxShapePosition + btVector3(0, 0, 200)), nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
@@ -783,8 +772,8 @@ namespace
         {
             const btTransform transform(
                 btQuaternion(btVector3(0, 0, 1), n * 2 * osg::PI / 10), oscillatingBoxShapePosition);
-            mNavigator->updateObject(ObjectId(&oscillatingBox.shape()),
-                ObjectShapes(oscillatingBox.instance(), mObjectTransform), transform, nullptr);
+            mNavigator->updateObject(
+                ObjectId(&oscillatingBox.shape()), ObjectShapes(oscillatingBox.instance()), transform, nullptr);
             mNavigator->update(mPlayerPosition, nullptr);
             mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
         }
@@ -823,8 +812,7 @@ namespace
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
-        mNavigator->addObject(
-            ObjectId(&compound.shape()), ObjectShapes(compound.instance(), mObjectTransform), mTransform, nullptr);
+        mNavigator->addObject(ObjectId(&compound.shape()), ObjectShapes(compound.instance()), mTransform, nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -849,8 +837,7 @@ namespace
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
         mNavigator->addHeightfield(mCellPosition, cellSize, surface, nullptr);
-        mNavigator->addObject(
-            ObjectId(&compound.shape()), ObjectShapes(compound.instance(), mObjectTransform), mTransform, nullptr);
+        mNavigator->addObject(ObjectId(&compound.shape()), ObjectShapes(compound.instance()), mTransform, nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -902,17 +889,13 @@ namespace
     {
         const float size = static_cast<float>((1 << 22) - 1);
         CollisionShapeInstance bigBox(std::make_unique<btBoxShape>(btVector3(size, size, 1)));
-        const ObjectTransform objectTransform{
-            .mPosition = ESM::Position{ .pos = { 0, 0, 0 }, .rot{ 0, 0, 0 } },
-            .mScale = 1.0f,
-        };
         const std::optional<CellGridBounds> cellGridBounds = std::nullopt;
         const osg::Vec3f playerPosition(32, 1024, 0);
 
         mNavigator->updateBounds(mWorldspace, cellGridBounds, playerPosition, nullptr);
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
-        mNavigator->addObject(ObjectId(&bigBox.shape()), ObjectShapes(bigBox.instance(), objectTransform),
-            btTransform::getIdentity(), nullptr);
+        mNavigator->addObject(
+            ObjectId(&bigBox.shape()), ObjectShapes(bigBox.instance()), btTransform::getIdentity(), nullptr);
 
         bool updated = false;
         std::condition_variable updateFinished;
@@ -952,10 +935,6 @@ namespace
     {
         const float size = static_cast<float>((1 << 22) - 1);
         CollisionShapeInstance bigBox(std::make_unique<btBoxShape>(btVector3(size, size, 1)));
-        const ObjectTransform objectTransform{
-            .mPosition = ESM::Position{ .pos = { 0, 0, 0 }, .rot{ 0, 0, 0 } },
-            .mScale = 1.0f,
-        };
         const CellGridBounds cellGridBounds{
             .mCenter = osg::Vec2i(0, 0),
             .mHalfSize = 1,
@@ -964,8 +943,8 @@ namespace
 
         mNavigator->updateBounds(mWorldspace, cellGridBounds, playerPosition, nullptr);
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
-        mNavigator->addObject(ObjectId(&bigBox.shape()), ObjectShapes(bigBox.instance(), objectTransform),
-            btTransform::getIdentity(), nullptr);
+        mNavigator->addObject(
+            ObjectId(&bigBox.shape()), ObjectShapes(bigBox.instance()), btTransform::getIdentity(), nullptr);
 
         bool updated = false;
         std::condition_variable updateFinished;
@@ -1236,8 +1215,7 @@ namespace
         const btTransform transform{ btMatrix3x3::getIdentity(), btVector3(100512, 256, 0) };
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
-        mNavigator->addObject(
-            ObjectId(&compound.shape()), ObjectShapes(compound.instance(), mObjectTransform), transform, nullptr);
+        mNavigator->addObject(ObjectId(&compound.shape()), ObjectShapes(compound.instance()), transform, nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -1253,8 +1231,7 @@ namespace
         const btTransform transform{ btMatrix3x3::getIdentity(), btVector3(100512, 256, 0) };
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
-        mNavigator->addObject(
-            ObjectId(&compound.shape()), ObjectShapes(compound.instance(), mObjectTransform), transform, nullptr);
+        mNavigator->addObject(ObjectId(&compound.shape()), ObjectShapes(compound.instance()), transform, nullptr);
         mNavigator->update(mPlayerPosition, nullptr);
         mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
 
@@ -1490,15 +1467,11 @@ namespace
     {
         const float mSize = 8192;
         CollisionShapeInstance<btBoxShape> mBox{ std::make_unique<btBoxShape>(btVector3(mSize, mSize, 1)) };
-        const ObjectTransform mTransform{
-            .mPosition = ESM::Position{ .pos = { 0, 0, 0 }, .rot{ 0, 0, 0 } },
-            .mScale = 1.0f,
-        };
 
         void operator()(Navigator& navigator) const
         {
-            navigator.addObject(ObjectId(&mBox.shape()), ObjectShapes(mBox.instance(), mTransform),
-                btTransform::getIdentity(), nullptr);
+            navigator.addObject(
+                ObjectId(&mBox.shape()), ObjectShapes(mBox.instance()), btTransform::getIdentity(), nullptr);
         }
     };
 

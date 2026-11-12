@@ -2,7 +2,6 @@
 #define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESHOBJECT_H
 
 #include "areatype.hpp"
-#include "objecttransform.hpp"
 #include <memory>
 
 #include <components/resource/bulletshape.hpp>
@@ -20,22 +19,18 @@ namespace DetourNavigator
     class CollisionShape
     {
     public:
-        CollisionShape(std::shared_ptr<const Resource::BulletShapeInstance> instance, const btCollisionShape& shape,
-            const ObjectTransform& transform)
+        CollisionShape(std::shared_ptr<const Resource::BulletShapeInstance> instance, const btCollisionShape& shape)
             : mInstance(std::move(instance))
             , mShape(shape)
-            , mObjectTransform(transform)
         {
         }
 
         const std::shared_ptr<const Resource::BulletShapeInstance>& getInstance() const { return mInstance; }
         const btCollisionShape& getShape() const { return mShape; }
-        const ObjectTransform& getObjectTransform() const { return mObjectTransform; }
 
     private:
         std::shared_ptr<const Resource::BulletShapeInstance> mInstance;
         std::reference_wrapper<const btCollisionShape> mShape;
-        ObjectTransform mObjectTransform;
     };
 
     class ChildRecastMeshObject
@@ -74,11 +69,8 @@ namespace DetourNavigator
 
         AreaType getAreaType() const { return mImpl.getAreaType(); }
 
-        const ObjectTransform& getObjectTransform() const { return mObjectTransform; }
-
     private:
         std::shared_ptr<const Resource::BulletShapeInstance> mInstance;
-        ObjectTransform mObjectTransform;
         ChildRecastMeshObject mImpl;
     };
 }

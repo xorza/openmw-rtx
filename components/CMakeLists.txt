@@ -257,7 +257,6 @@ target_sources(
                 detournavigator/navmeshtilestore.hpp
                 detournavigator/navmeshtileview.hpp
                 detournavigator/objectid.hpp
-                detournavigator/objecttransform.hpp
                 detournavigator/offmeshconnection.hpp
                 detournavigator/offmeshconnectionsmanager.hpp
                 detournavigator/preparednavmeshdata.hpp

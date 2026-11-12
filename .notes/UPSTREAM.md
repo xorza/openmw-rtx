@@ -268,6 +268,10 @@ made only on the user's explicit yes, after which it is added here.
   into upstream's database key, is gone with the source arguments of `RecastMesh` and `RecastMeshBuilder::addObject`:
   a key of the file and the transform read a tile built in one pose of an animated part back for every pose. The cost
   is a conflict with an upstream edit to those signatures or to `TileCachedRecastMeshManager::makeMesh`.
+  `ObjectTransform` is gone with it, an object's position and scale that only that key read: `ObjectShapes`,
+  `DoorShapes`, `CollisionShape` and `RecastMeshObject` carry none, and the scene, the world and `openmw-navmeshtool`
+  build none. The cost is a conflict with an upstream edit to the navigator's calls in `MWWorld::Scene`'s
+  `addObject` and `World::updateNavigatorObject`, or to the navmeshtool's objects.
 - GitLab's pipeline, macOS and Android, out of the tree: the fork's CI is GitHub's and it builds
   Linux and Windows alone. `.gitlab-ci.yml`, `.gitlab/`, every `CI/` script only that pipeline ran,
   `docker/generic-linux`, and the groups of `CI/install_debian_deps.sh` only it installed go;

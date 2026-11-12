@@ -9,7 +9,6 @@
 #include "cellgridbounds.hpp"
 #include "heightfieldshape.hpp"
 #include "objectid.hpp"
-#include "objecttransform.hpp"
 #include "recastmeshtiles.hpp"
 #include "sharednavmeshcacheitem.hpp"
 #include "updateguard.hpp"
@@ -39,12 +38,9 @@ namespace DetourNavigator
     struct ObjectShapes
     {
         std::shared_ptr<const Resource::BulletShapeInstance> mShapeInstance;
-        ObjectTransform mTransform;
 
-        ObjectShapes(
-            const std::shared_ptr<const Resource::BulletShapeInstance>& shapeInstance, const ObjectTransform& transform)
+        explicit ObjectShapes(const std::shared_ptr<const Resource::BulletShapeInstance>& shapeInstance)
             : mShapeInstance(shapeInstance)
-            , mTransform(transform)
         {
             assert(mShapeInstance != nullptr);
         }
@@ -56,8 +52,8 @@ namespace DetourNavigator
         osg::Vec3f mConnectionEnd;
 
         DoorShapes(const std::shared_ptr<const Resource::BulletShapeInstance>& shapeInstance,
-            const ObjectTransform& transform, const osg::Vec3f& connectionStart, const osg::Vec3f& connectionEnd)
-            : ObjectShapes(shapeInstance, transform)
+            const osg::Vec3f& connectionStart, const osg::Vec3f& connectionEnd)
+            : ObjectShapes(shapeInstance)
             , mConnectionStart(connectionStart)
             , mConnectionEnd(connectionEnd)
         {

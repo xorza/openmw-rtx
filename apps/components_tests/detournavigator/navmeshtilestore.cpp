@@ -27,7 +27,6 @@
 #include <components/detournavigator/makenavmesh.hpp>
 #include <components/detournavigator/navmeshtilestore.hpp>
 #include <components/detournavigator/objectid.hpp>
-#include <components/detournavigator/objecttransform.hpp>
 #include <components/detournavigator/preparednavmeshdata.hpp>
 #include <components/detournavigator/recastmesh.hpp>
 #include <components/detournavigator/recastmeshprovider.hpp>
@@ -58,16 +57,12 @@ namespace DetourNavigator
         };
 
         /// A model's collision as the game hands the navigator one: the shape, and the file it was read from.
-        CollisionShape collisionOf(
-            const btCollisionShape& shape, std::string_view path, std::string_view hash, float scale = 1, float x = 0)
+        CollisionShape collisionOf(const btCollisionShape& shape, std::string_view path, std::string_view hash)
         {
             auto source = std::make_shared<Resource::BulletShape>();
             source->mFileName = VFS::Path::Normalized(path);
             source->mFileHash = hash;
-            ObjectTransform transform{};
-            transform.mPosition.pos[0] = x;
-            transform.mScale = scale;
-            return CollisionShape(std::make_shared<Resource::BulletShapeInstance>(source), shape, transform);
+            return CollisionShape(std::make_shared<Resource::BulletShapeInstance>(source), shape);
         }
 
         /// A manager over `input`'s land and water in cell (0, 0), as the game's holds them.
@@ -96,7 +91,7 @@ namespace DetourNavigator
             // Scaled as the game scales an object's collision, by the shape's own scaling.
             btBoxShape box(input.mBoxHalfExtents);
             box.setLocalScaling(btVector3(input.mScale, input.mScale, input.mScale));
-            const CollisionShape collision = collisionOf(box, "meshes/box.nif", "box hash", input.mScale, input.mBoxX);
+            const CollisionShape collision = collisionOf(box, "meshes/box.nif", "box hash");
             manager.addObject(ObjectId(&box), collision,
                 btTransform(btMatrix3x3::getIdentity(), btVector3(input.mBoxX, 0, 0)), input.mAreaType, nullptr);
             return manager.getMesh(input.mWorldspace, input.mTilePosition);
@@ -172,7 +167,7 @@ namespace DetourNavigator
                 manager.setWorldspace(input.mWorldspace, nullptr);
                 const auto add = [&](const btBoxShape& box) {
                     const float x = &box == &first ? 0.f : 300.f;
-                    manager.addObject(ObjectId(&box), collisionOf(box, "meshes/box.nif", "box hash", 1, x),
+                    manager.addObject(ObjectId(&box), collisionOf(box, "meshes/box.nif", "box hash"),
                         btTransform(btMatrix3x3::getIdentity(), btVector3(x, 0, 0)), AreaType_ground, nullptr);
                 };
                 add(a);

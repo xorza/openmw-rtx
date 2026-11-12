@@ -46,7 +46,6 @@ namespace NavMeshTool
         using DetourNavigator::HeightfieldShape;
         using DetourNavigator::HeightfieldSurface;
         using DetourNavigator::ObjectId;
-        using DetourNavigator::ObjectTransform;
         using DetourNavigator::TilesPositionsRange;
 
         struct CellRef
@@ -413,8 +412,8 @@ namespace NavMeshTool
                     const btTransform& transform = object.getCollisionObject().getWorldTransform();
 
                     const ObjectId objectId(++objectsCounter);
-                    const CollisionShape shape(object.getShapeInstance(),
-                        *object.getCollisionObject().getCollisionShape(), object.getObjectTransform());
+                    const CollisionShape shape(
+                        object.getShapeInstance(), *object.getCollisionObject().getCollisionShape());
 
                     if (!manager.addObject(objectId, shape, transform, DetourNavigator::AreaType_ground, guard.get()))
                         throw std::logic_error(
@@ -429,7 +428,7 @@ namespace NavMeshTool
                     if (const btCollisionShape* avoid = object.getShapeInstance()->mAvoidCollisionShape.get())
                     {
                         const ObjectId avoidObjectId(++objectsCounter);
-                        const CollisionShape avoidShape(object.getShapeInstance(), *avoid, object.getObjectTransform());
+                        const CollisionShape avoidShape(object.getShapeInstance(), *avoid);
                         if (!manager.addObject(
                                 avoidObjectId, avoidShape, transform, DetourNavigator::AreaType_null, guard.get()))
                             throw std::logic_error(
