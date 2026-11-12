@@ -12,3 +12,7 @@
   2.03 and 2.12 s in two `./omw gate` runs; `theVolumeLightsTheAirUpToASurfaceWhereverInASliceItStands` 1.57 and 2.03 s,
   and `theLampsLightIsExactOnAnOpenFloorAndTheirShadowsComeOutQuieter` 1.98 and 2.00 s, in the same two runs. Each
   run failed on them alone.
+- **`SceneUtil::Material`'s `.osgt` wrapper is registered only by `SceneUtil::writeScene`**
+  (`SceneUtil::registerSerializers`): a model the game loads that names `SceneUtil::Material` loses its material, and
+  the log says `InputStream::readObject(): Unsupported wrapper class SceneUtil::Material`. The embedded error marker
+  (`Resource::ErrorMarker::sValue`) names one.
