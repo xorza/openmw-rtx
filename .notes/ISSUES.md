@@ -31,3 +31,7 @@
 - **The test suites run past the 30 s and 1 s limits**: the GPU suite's shards take 84–86 s under `./omw test`, and
   about twenty of the fork's tests take 1–4 s each.
 
+
+- **`ChangedFilesTest.test_what_changed_against_head_and_what_is_new_and_nothing_deleted` errors on Windows**: the
+  driver's tests on the Windows box (Python 3.14) end in `PermissionError: [WinError 5]` as `shutil.rmtree` removes the
+  test's temporary repository, at a read-only file under `.git\objects`.
