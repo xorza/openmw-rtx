@@ -10,8 +10,5 @@
   and `aSuboptimalPresentRebuildsOnceAnExtent` fail as `vkCreateSwapchainKHR` answers `VK_ERROR_FORMAT_NOT_SUPPORTED`;
   the same binary passes all three in the logged-in desktop session.
 
-- **`openmw-lib.lib` stands near the size a COFF archive holds under MSVC's link-time code generation**: a release
-  build on Windows makes it 3.6 GB with each target's PDB, of the 4 GB past which `lib.exe` stops on LNK1248.
-
 - **The test suites run past the 30 s and 1 s limits**: the GPU suite's shards take 84–86 s under `./omw test`, and
   about twenty of the fork's tests take 1–4 s each.

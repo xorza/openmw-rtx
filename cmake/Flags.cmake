@@ -24,9 +24,10 @@ if(CMAKE_C_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         message(FATAL_ERROR "OPENMW_SANITIZER is Clang's: MSVC's sanitizers have not been measured on this tree")
     endif()
     # Under link-time code generation the debug information goes to each target's PDB (`/Zi`) instead: an
-    # object then carries its intermediate code beside its debug information, and `openmw-lib`'s 414 came to
-    # 4.9 GB, past the 4 GB a COFF archive holds (LNK1248); with the PDB, 3.6 GB. A tagged release, which alone
-    # asks for it, builds cold.
+    # object then carries its intermediate code beside its debug information, which took `openmw-lib`'s archive
+    # from 3.6 GB to 4.9 GB, past the 4 GB a COFF archive holds (LNK1248). It is objects now, and the archives
+    # left stand at 2.3 GB (`openmw-cs-lib`) and 2.0 GB (`openmw-components`) with the PDB, where that growth
+    # would take the larger to 3.1 GB. A tagged release, which alone asks for it, builds cold.
     if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
         set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT ProgramDatabase)
     else()

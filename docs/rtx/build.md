@@ -106,10 +106,18 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   `omw` configures a build directory afresh when either file moves, as CMake reads a language's `_INIT` flags into the
   cache at a directory's first configure alone (`presets.CACHE_SEEDS`). A PDB on every MSVC link, its information
   embedded in the objects for ccache, except under link-time code generation, whose objects carry their intermediate
-  code beside it: `openmw-lib`'s 414 came to 4.9 GB, past the 4 GB a COFF archive holds (LNK1248), so a tagged release,
-  which builds cold, writes each target's PDB (`/Zi`), and the archive comes to 3.6 GB. lld by `CMAKE_LINKER_TYPE` and
+  code beside it: there a tagged release, which builds cold, writes each target's PDB (`/Zi`), and its largest archive,
+  `openmw-cs-lib`, comes to 2.3 GB of the 4 GB a COFF archive holds (LNK1248). lld by `CMAKE_LINKER_TYPE` and
   thin archives by LLVM's `ar`, which indexes bitcode, on Linux; position-independent programs everywhere, as MSVC's
   always are and Clang defaults to.
+- **The game's code as objects, not an archive.** `openmw-lib` is an object library (GN's `source_set`), which the
+  game, the harness and `openmw-tests` link whole: under MSVC's link-time code generation its archive came to 3.6 GB
+  of the 4 GB `lib.exe` writes, and to 4.9 GB with the debug information in the objects. Refused: cutting it into
+  archives by folder, which only moves the limit.
+- **As many links at once as the memory holds** (`cmake/Links.cmake`): the machine's memory over what one link of the
+  build was measured to take, with a margin, never fewer than one, as LLVM bounds its own
+  (`LLVM_PARALLEL_LINK_JOBS`). Every release program linking at once swapped a 28 GB box until it answered nothing.
+  Refused: one link at a time for every build, which held a 64 GB desk's lld links, a second each, to one core.
 - **What the link drops and folds.** Every object has each function and global in a section of its own, and the
   link drops what nothing reaches (`--gc-sections`; MSVC's `/OPT:REF` with `/Gy`, `/Gw` and `/Zc:inline`), which
   keeps every registration the programs make: their entry points are named to the linker. A release folds identical
@@ -137,7 +145,9 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   the release preset passes to `CMAKE_INTERPROCEDURAL_OPTIMIZATION`; a desk's release build links without it, and a
   desk that measures what ships turns it on the same way. The distributions that build with it report single-digit
   gains for a slower, hungrier link ([Fedora](https://fedoraproject.org/wiki/LTOByDefault);
-  [Ubuntu](https://wiki.ubuntu.com/ToolChain/LTO)).
+  [Ubuntu](https://wiki.ubuntu.com/ToolChain/LTO)). ThinLTO on Linux, CMake's own for Clang. Refused: full LTO, which
+  ran the frame thread 3% fewer instructions in as many cycles, moved no row of `bench` past its noise, and linked
+  the harness in 200 s and 7.1 GB against 33 s and 3.8 GB (`research/2026-11-12-full-lto-against-thinlto.md`).
 - **The test binaries' own files at `-Og` on Clang**: they built 30% faster for runs 10% slower under GCC
   (`research/2026-11-11-test-binaries-at-og.md`), and Clang reads `-Og` as `-O1`; the code they test keeps the build's
   flags, and MSVC's tests too, its `/Od` unmeasured.
