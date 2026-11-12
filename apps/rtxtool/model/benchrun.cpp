@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <optional>
 #include <string>
@@ -13,6 +14,7 @@
 
 #include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <components/rtx/common/namedenum.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 
 #include "blockfile.hpp"
@@ -160,6 +162,15 @@ namespace RtxTool
         return cell;
     }
 
+    std::uint32_t HeldFrames::under(const Rtx::FrameExtents& traced) const
+    {
+        const std::uint64_t tracedPixels = std::uint64_t{ traced.mRenderWidth } * traced.mRenderHeight;
+        const std::uint64_t shownPixels = std::uint64_t{ traced.mOutputWidth } * traced.mOutputHeight;
+        assert(shownPixels > 0 && "extents no renderer made");
+        const std::uint64_t held = mAfter * tracedPixels / shownPixels;
+        return static_cast<std::uint32_t>(std::clamp<std::uint64_t>(held, 1, mMost));
+    }
+
     void measureFrames(Stop& stop, const std::uint32_t frames)
     {
         stop.mSchedule.mSpec = BenchSpec{ .mRun = { .mFrames = frames }, .mWarm = { .mFrames = sHistoryFrames } };
@@ -257,6 +268,24 @@ namespace RtxTool
                     stop.mName, Rtx::sUpscaleNames.name(upscale));
         }
         return std::nullopt;
+    }
+
+    void SessionRequest::settleUnder(const Rtx::FrameExtents& traced)
+    {
+        for (Stop& stop : mStops)
+        {
+            Schedule& schedule = stop.mSchedule;
+            if (!schedule.mHeld.has_value())
+                continue;
+
+            const std::uint32_t frames = schedule.mHeld->under(traced);
+            schedule.mSpec.mRun = BenchSpan{ .mFrames = frames };
+            schedule.mAccumulate = frames;
+            schedule.mHeld.reset();
+        }
+
+        if (mTraced != nullptr)
+            *mTraced = traced;
     }
 
     MWRender::RunSetup SessionRequest::rendererSetup() const

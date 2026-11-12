@@ -37,27 +37,19 @@ namespace RtxTool
         }
     }
 
-    std::uint32_t noiseBarFramesAfter(const std::uint32_t frames, const Rtx::FrameExtents& extents)
+    Result<NoiseFrame, std::string> noiseFrameFor(const std::uint32_t cut, const bool flies)
     {
-        const std::uint64_t traced = std::uint64_t{ extents.mRenderWidth } * extents.mRenderHeight;
-        const std::uint64_t shown = std::uint64_t{ extents.mOutputWidth } * extents.mOutputHeight;
-        const std::uint64_t held = frames * traced / shown;
-        return static_cast<std::uint32_t>(std::clamp<std::uint64_t>(held, 1, sNoiseBarFrames));
-    }
-
-    Result<NoiseFrame, std::string> noiseFrameFor(
-        const std::uint32_t cut, const bool flies, const Rtx::FrameExtents& extents)
-    {
+        const auto barAfter
+            = [](const std::uint32_t frames) { return HeldFrames{ .mAfter = frames, .mMost = sNoiseBarFrames }; };
         if (cut > 0 && flies)
             return Err{ std::string(
                 "--cut takes the frame standing after a cut, and --strafe and --walk fly it in: name one") };
 
         if (flies)
-            return NoiseFrame{ .mWarmup = std::nullopt,
-                .mBarFrames = noiseBarFramesAfter(sNoiseFlightFrames, extents) };
+            return NoiseFrame{ .mWarmup = std::nullopt, .mBar = barAfter(sNoiseFlightFrames) };
         if (cut > 0)
-            return NoiseFrame{ .mWarmup = cut - 1, .mBarFrames = noiseBarFramesAfter(cut + 1, extents) };
-        return NoiseFrame{ .mWarmup = std::nullopt, .mBarFrames = noiseBarFramesAfter(sHistoryFrames + 2, extents) };
+            return NoiseFrame{ .mWarmup = cut - 1, .mBar = barAfter(cut + 1) };
+        return NoiseFrame{ .mWarmup = std::nullopt, .mBar = barAfter(sHistoryFrames + 2) };
     }
 
     int judgeNoise(const PictureShelf& drawn, const std::filesystem::path& wrote,
@@ -230,11 +222,10 @@ namespace RtxTool
 
         // Each leg's frame is held to the samples a shown pixel its history could hold
         // (`noiseFrameFor`), standing as well.
-        const Result<NoiseFrame, std::string> taken = noiseFrameFor(ask.mCut, flies, ask.mExtents);
+        const Result<NoiseFrame, std::string> taken = noiseFrameFor(ask.mCut, flies);
         if (!taken.isOk())
             throw std::runtime_error(taken.error());
         const NoiseFrame& leg = taken.value();
-        const std::uint32_t barFrames = leg.mBarFrames;
 
         // The frame's own stop, flying in where the line asks: a route that holds the world, so
         // the frame flies through the world the reference stands in (`applyPolicy`).
@@ -311,8 +302,10 @@ namespace RtxTool
             {
                 // Unfiltered at a held exposure, so the air's is its one history (`sAirFrames`).
                 const std::uint32_t shortened = sHistoryFrames - sAirFrames;
-                Stop averaged
-                    = picture(place, sNoiseBarSuffix, barFrames, true, side.unfiltered(), held, Rtx::Upscale::Off);
+                // No length of its own here: its frames summed, as many as the frame's history holds samples
+                // (`NoiseFrame::mBar`), which the session counts once the renderer has made the run's extents.
+                Stop averaged = picture(place, sNoiseBarSuffix, 0, false, side.unfiltered(), held, Rtx::Upscale::Off);
+                averaged.mSchedule.mHeld = leg.mBar;
                 averaged.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = sAirFrames };
                 averaged.mSchedule.mSampleOffset = offsetAt(1, shortened);
                 into.push_back(averaged);
@@ -325,7 +318,7 @@ namespace RtxTool
         };
 
         NoisePlan plan;
-        plan.mBarFrames = barFrames;
+        plan.mBar = leg.mBar;
         plan.mOwnBar = ownBar;
         plan.mOwnReference = ownReference;
         plan.mStops.reserve(ask.mPlaces.size() * stopsASide * (versus.has_value() ? 2 : 1));

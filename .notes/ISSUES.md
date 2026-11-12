@@ -21,10 +21,6 @@
   builds and links with gcc-toolset-15's libstdc++, start files and binutils; `vcpkg/linux.cmake` names that
   installation.
 
-- **`noise` plans its bar from FSR's extents under DLSS**: `apps/rtxtool/main.cpp` hands `planNoise` the extents
-  `Rtx::extentsFor` gives before the renderer is made, which under Ray Reconstruction are not the extents NGX
-  gives the mode and the run traces at (`Upscaler::extentsFor`).
-
 - **`RtxRayReconstructionFrameTest` runs past a second**: a validated renderer of its own with DLSS, its NGX
   feature made twice, takes 1.0–1.2 s on a high-end NVIDIA laptop GPU.
 

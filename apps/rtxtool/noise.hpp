@@ -12,7 +12,6 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/pictureshelf.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/look.h>
 
@@ -34,7 +33,7 @@ namespace RtxTool
     /// **The bar at 16 is a decision, not a derivation**: the frame a player sees is to be as clean
     /// as sixteen samples a pixel, a quarter of one sample's noise. Moving it moves what the claim
     /// says. A frame whose history could not hold that many is held to what it could —
-    /// `noiseBarFramesAfter`.
+    /// `NoiseFrame::mBar`.
     inline constexpr std::uint32_t sNoiseReferenceFrames = 256;
     inline constexpr std::uint32_t sNoiseBarFrames = 16;
 
@@ -60,18 +59,6 @@ namespace RtxTool
     /// of world, which over 150 units is a player running.
     inline constexpr std::uint32_t sNoiseFlightFrames = 30;
 
-    /// How many frames the bar averages for a frame whose history is `frames` long: as many samples a
-    /// shown pixel as that history could hold, and never more than `sNoiseBarFrames`.
-    ///
-    /// **A trace that covers fewer pixels than it shows has fewer samples to show.** An upscaled mode
-    /// traces the share `extents` say of the shown pixels, so after a flight's thirty frames quality
-    /// holds at most 13 samples a shown pixel and ultra performance 3, however well each is used.
-    /// Held to sixteen, every upscaled mode failed strafed by arithmetic, in the order of their
-    /// shares (the pond 2.64 at quality to 3.41 at ultra performance, against 2.54); held to what it
-    /// had, the verdict says whether the chain uses its samples as well as plain averaging does.
-    /// Rounded down, since the history holds at most that many; never under one.
-    std::uint32_t noiseBarFramesAfter(std::uint32_t frames, const Rtx::FrameExtents& extents);
-
     /// How `noise` takes the frame it judges, out of what the line asked.
     struct NoiseFrame
     {
@@ -79,8 +66,16 @@ namespace RtxTool
         /// one every picture of a place converges over.
         std::optional<std::uint32_t> mWarmup;
 
-        /// How many frames the bar averages: `noiseBarFramesAfter` the history the frame holds.
-        std::uint32_t mBarFrames = 0;
+        /// How many frames the bar averages: as many samples a shown pixel as the frame's history holds, and
+        /// never more than `sNoiseBarFrames`, settled once the renderer has made the run's extents.
+        ///
+        /// **A trace that covers fewer pixels than it shows has fewer samples to show.** An upscaled mode
+        /// traces the share its extents say of the shown pixels, so after a flight's thirty frames quality
+        /// holds at most 13 samples a shown pixel and ultra performance 3, however well each is used.
+        /// Held to sixteen, every upscaled mode failed strafed by arithmetic, in the order of their
+        /// shares (the pond 2.64 at quality to 3.41 at ultra performance, against 2.54); held to what it
+        /// had, the verdict says whether the chain uses its samples as well as plain averaging does.
+        HeldFrames mBar;
     };
 
     /// The frame `noise` judges: standing after its history converged, flown in over
@@ -99,7 +94,7 @@ namespace RtxTool
     /// teleport, before a history holds enough to tell a rare bright bounce from the light.
     ///
     /// A cut and a flight are two ways to take the frame, and a line naming both is refused.
-    Result<NoiseFrame, std::string> noiseFrameFor(std::uint32_t cut, bool flies, const Rtx::FrameExtents& extents);
+    Result<NoiseFrame, std::string> noiseFrameFor(std::uint32_t cut, bool flies);
 
     /// What `noise` names the pictures of a place, after the place's own name: the reference, the
     /// bar, the bar's limit and the frame's mean. The frame is the place's name alone.
@@ -189,9 +184,6 @@ namespace RtxTool
         /// `--cut`: the frame taken this many frames after its stop's cut, or nought for none.
         std::uint32_t mCut = 0;
 
-        /// What the run traces and shows, which the bar is held to.
-        Rtx::FrameExtents mExtents;
-
         /// How far the world steps a frame, in seconds (`worldStep`), which a flight is paced by.
         float mStep = 0.0f;
     };
@@ -205,8 +197,8 @@ namespace RtxTool
         std::vector<NoiseSide> mSides;
         std::vector<NoiseSide> mVersusSides;
 
-        /// How many frames the bars average: `NoiseFrame::mBarFrames`.
-        std::uint32_t mBarFrames = 0;
+        /// How many frames the bars average: `NoiseFrame::mBar`, which the session settles in the bars' stops.
+        HeldFrames mBar;
 
         /// Whether the other side traces a bar and a reference of its own.
         bool mOwnBar = false;

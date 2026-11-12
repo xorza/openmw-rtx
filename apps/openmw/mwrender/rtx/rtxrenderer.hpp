@@ -18,6 +18,7 @@
 #include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/frametimehistogram.hpp>
 #include <components/rtx/common/stepped.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/drawableposer.hpp>
@@ -120,6 +121,10 @@ namespace MWRender
         /// What the backend's upscaler takes from the trace, for a harness that refuses a run its
         /// upscaler cannot trace (`Rtx::Renderer::getUpscalerInput`).
         Rtx::UpscalerInput getUpscalerInput() const;
+
+        /// What the backend traces and shows a frame at, for a harness whose run is planned by them
+        /// (`Rtx::GuiRenderer::getExtents`).
+        Rtx::FrameExtents getExtents() const;
 
         /// A plain group: the lights are gathered on this renderer's own walk, so nothing here
         /// wants a light manager's method.

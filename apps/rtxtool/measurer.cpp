@@ -1,6 +1,7 @@
 #include "measurer.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -50,14 +51,21 @@ namespace RtxTool
         , mRecord(record)
         , mProfiling(request.mPerfControl)
     {
+    }
+
+    void Measurer::reserve()
+    {
         // Reserved once at the longest stop's length, so no measured frame grows a vector — a
         // benchmark that stops to reallocate is measuring its own allocator. A window that runs
         // until it is closed is not a benchmark, and room for its "length" is thirty gigabytes a
         // row: Linux promised that and never gave it, and Windows refuses it outright.
         std::uint32_t longest = 0;
-        for (const Stop& stop : request.mStops)
+        for (const Stop& stop : mRequest.mStops)
+        {
+            assert(!stop.mSchedule.mHeld.has_value() && "a stop's length read before the session settled it");
             if (!stop.mSchedule.mSpec.mRun.isUntilClosed())
-                longest = std::max(longest, stop.mSchedule.mSpec.getMeasured(worldStep(request.mStep)));
+                longest = std::max(longest, stop.mSchedule.mSpec.getMeasured(worldStep(mRequest.mStep)));
+        }
 
         mProgress.mSamples.reserve(longest);
         mProgress.mGpu.reserve(longest);
@@ -68,6 +76,7 @@ namespace RtxTool
         // **First, because everything below writes into it.** A stop's progress is one object so
         // that a field added to it is reset here whether or not its author remembered to.
         mProgress.restart();
+        assert(!stop.mSchedule.mHeld.has_value() && "a stop begun before the session settled its length");
 
         const float step = worldStep(mRequest.mStep);
         mProgress.mWindow = MeasureWindow(stop.mSchedule.mSpec.getWarmup(step),

@@ -11,6 +11,7 @@
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -302,6 +303,43 @@ namespace RtxTool
             EXPECT_NE(request.refusalUnder(Rtx::UpscalerInput::Noisy), std::nullopt)
                 << "a stop's own unfiltered request at a mode of its own that upscales";
             EXPECT_EQ(request.refusalUnder(Rtx::UpscalerInput::Filtered), std::nullopt);
+        }
+
+        /// **A stop's length in samples a shown pixel settles at the extents the renderer made, and every other
+        /// stop keeps its own.** Nine frames of history at 2560 by 1440: NGX's quality traces 1707 by 960, so
+        /// `9 * 1707 * 960 / (2560 * 1440)` = 4.0008 holds 4, where FSR's 1706 by 960 is 3.998 and holds 3;
+        /// the 130 of a standing frame, held to at most 16, holds 16. Each held stop is then summed over what
+        /// it came to, no longer held, and the extents written where the request points.
+        TEST(RtxBenchRunTest, aHeldLengthSettlesAtTheExtentsTheRendererMade)
+        {
+            const auto settled = [](const std::uint32_t renderWidth) {
+                SessionRequest request;
+                request.mStops.resize(3);
+                request.mStops[0].mSchedule.mHeld = HeldFrames{ .mAfter = 9, .mMost = 16 };
+                request.mStops[1].mSchedule.mHeld = HeldFrames{ .mAfter = 130, .mMost = 16 };
+                measureFrames(request.mStops[2], 30);
+                Rtx::FrameExtents traced;
+                request.mTraced = &traced;
+                const Rtx::FrameExtents made{
+                    .mRenderWidth = renderWidth, .mRenderHeight = 960, .mOutputWidth = 2560, .mOutputHeight = 1440
+                };
+                request.settleUnder(made);
+                EXPECT_EQ(traced.mRenderWidth, renderWidth);
+                EXPECT_EQ(traced.mRenderHeight, 960u);
+                EXPECT_EQ(traced.mOutputWidth, 2560u);
+                EXPECT_EQ(traced.mOutputHeight, 1440u);
+                for (const Stop& stop : request.mStops)
+                    EXPECT_FALSE(stop.mSchedule.mHeld.has_value());
+                EXPECT_EQ(request.mStops[1].mSchedule.mSpec.mRun.mFrames, 16u);
+                EXPECT_EQ(request.mStops[1].mSchedule.mAccumulate, 16u);
+                EXPECT_EQ(request.mStops[2].mSchedule.mSpec.mRun.mFrames, 30u) << "a stop of frames kept its own";
+                EXPECT_EQ(request.mStops[2].mSchedule.mAccumulate, 0u);
+                EXPECT_EQ(request.mStops[0].mSchedule.mAccumulate, request.mStops[0].mSchedule.mSpec.mRun.mFrames);
+                return request.mStops[0].mSchedule.mSpec.mRun.mFrames;
+            };
+
+            EXPECT_EQ(settled(1707), 4u) << "NGX's quality";
+            EXPECT_EQ(settled(1706), 3u) << "FSR's quality";
         }
     }
 }

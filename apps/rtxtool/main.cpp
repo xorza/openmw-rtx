@@ -738,11 +738,11 @@ namespace RtxTool
         /// is a sequence neither of the others draws from, so it shares no sample with them, and at
         /// no texture level epsilon; its exposure is measured as a played frame's is, and it is
         /// written as the renderer summed it, at sixteen bits a channel and undithered
-        /// (`Actions::Capture::Depth::Deep`), so no byte stands under the bias measured against it. The bar averages
-        /// `sNoiseBarFrames` frames, unfiltered and as the run otherwise traces — or, flown in, as many as the frame's
-        /// history could hold, `noiseBarFramesAfter`. The frame is the run's own, after the warm-up its history
-        /// converges over, upscaled as the run is — or, with `--strafe` or `--walk`, after it flew into the place
-        /// from the side or from behind (`Stand::approachFrom`). The reference and the bar are traced with no upscaler,
+        /// (`Actions::Capture::Depth::Deep`), so no byte stands under the bias measured against it. The bar averages as
+        /// many frames as the frame's history holds samples a shown pixel, at most `sNoiseBarFrames`, unfiltered and as
+        /// the run otherwise traces (`NoiseFrame::mBar`). The frame is the run's own, after the warm-up its history
+        /// converges over, upscaled as the run is — or, with `--strafe` or `--walk`, after it flew into the place from
+        /// the side or from behind (`Stand::approachFrom`). The reference and the bar are traced with no upscaler,
         /// at the frame's own output size, so an upscaled frame is held to the picture it stands for and not to another
         /// upscale of it. The bar's limit is `sNoiseMeanDraws` draws of the bar, and the frame's mean `sNoiseMeanDraws`
         /// draws of the frame, each its own stop over the same warm-up as the frame: what each converges to, drawn its
@@ -793,8 +793,6 @@ namespace RtxTool
                 .mStrafe = line.mStrafe,
                 .mWalk = line.mWalk,
                 .mCut = line.mCut,
-                .mExtents
-                = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mRun.mProfile.mUpscale),
                 .mStep = worldStep(framed.mStep),
             });
             framed.mSetup.mRun.mProfile.mReconstruction.mSampling.mBounceRays = mostRays;
@@ -803,6 +801,8 @@ namespace RtxTool
             request.mSuite = run.mSuite;
             PictureShelf drawn;
             request.mShelf = &drawn;
+            Rtx::FrameExtents traced;
+            request.mTraced = &traced;
 
             // An earlier run's record goes before this one draws, so a run that ends before it judges
             // leaves none to be read as its own.
@@ -812,14 +812,16 @@ namespace RtxTool
             if (const int status = runHosted(command, framed, std::move(request)); status != 0)
                 return status;
 
+            // What the session settled the bars' stops to, from the extents the run was traced at.
+            const std::uint32_t barFrames = plan.mBar.under(traced);
             std::array<std::vector<NoiseFigures>, 2> measured;
-            int judged = judgeNoise(drawn, folder, plan.mSides, plan.mBarFrames, measured[0]);
+            int judged = judgeNoise(drawn, folder, plan.mSides, barFrames, measured[0]);
             if (versus.has_value())
             {
                 Debug::getRawStdout() << std::format("versus --{}{}{}\n", asked,
                     plan.mOwnBar ? ", against a bar of its own" : "",
                     plan.mOwnReference ? " and a reference of its own" : "");
-                judged = std::max(judged, judgeNoise(drawn, folder, plan.mVersusSides, plan.mBarFrames, measured[1]));
+                judged = std::max(judged, judgeNoise(drawn, folder, plan.mVersusSides, barFrames, measured[1]));
             }
 
             const std::span<const std::vector<NoiseFigures>> written(measured.data(), versus.has_value() ? 2 : 1);

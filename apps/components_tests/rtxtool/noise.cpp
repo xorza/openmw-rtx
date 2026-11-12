@@ -46,7 +46,8 @@ namespace RtxTool
         TEST(RtxNoiseFrameTest, aStrafedBarAveragesAsManyFramesAsTheHistoryCouldHold)
         {
             const auto after = [](std::uint32_t frames, Rtx::Upscale mode) {
-                return noiseBarFramesAfter(frames, Rtx::extentsFor(1920, 1080, mode));
+                return HeldFrames{ .mAfter = frames, .mMost = sNoiseBarFrames }.under(
+                    Rtx::extentsFor(1920, 1080, mode));
             };
 
             EXPECT_EQ(after(30, Rtx::Upscale::Off), sNoiseBarFrames);
@@ -56,24 +57,26 @@ namespace RtxTool
             EXPECT_EQ(after(8, Rtx::Upscale::Native), 8u);
             EXPECT_EQ(after(1, Rtx::Upscale::UltraPerformance), 1u);
 
-            const auto taken = [](std::uint32_t cut, bool flies, Rtx::Upscale mode) {
-                return noiseFrameFor(cut, flies, Rtx::extentsFor(1920, 1080, mode));
-            };
-            const NoiseFrame standing = taken(0, false, Rtx::Upscale::Native).value();
+            const auto bar
+                = [](std::uint32_t frames) { return HeldFrames{ .mAfter = frames, .mMost = sNoiseBarFrames }; };
+            const NoiseFrame standing = noiseFrameFor(0, false).value();
             EXPECT_FALSE(standing.mWarmup.has_value());
-            EXPECT_EQ(standing.mBarFrames, sNoiseBarFrames);
-            EXPECT_EQ(taken(0, false, Rtx::Upscale::UltraPerformance).value().mBarFrames, 14u);
-            const NoiseFrame flown = taken(0, true, Rtx::Upscale::Quality).value();
+            EXPECT_EQ(standing.mBar, bar(130));
+            EXPECT_EQ(after(130, Rtx::Upscale::Native), sNoiseBarFrames);
+            EXPECT_EQ(after(130, Rtx::Upscale::UltraPerformance), 14u);
+            const NoiseFrame flown = noiseFrameFor(0, true).value();
             EXPECT_FALSE(flown.mWarmup.has_value());
-            EXPECT_EQ(flown.mBarFrames, 13u);
-            const NoiseFrame first = taken(1, false, Rtx::Upscale::Native).value();
+            EXPECT_EQ(flown.mBar, bar(30));
+            const NoiseFrame first = noiseFrameFor(1, false).value();
             EXPECT_EQ(first.mWarmup, 0u);
-            EXPECT_EQ(first.mBarFrames, 2u);
-            EXPECT_EQ(taken(1, false, Rtx::Upscale::Quality).value().mBarFrames, 1u);
-            const NoiseFrame fourth = taken(4, false, Rtx::Upscale::Native).value();
+            EXPECT_EQ(first.mBar, bar(2));
+            EXPECT_EQ(after(2, Rtx::Upscale::Native), 2u);
+            EXPECT_EQ(after(2, Rtx::Upscale::Quality), 1u);
+            const NoiseFrame fourth = noiseFrameFor(4, false).value();
             EXPECT_EQ(fourth.mWarmup, 3u);
-            EXPECT_EQ(fourth.mBarFrames, 5u);
-            EXPECT_FALSE(taken(2, true, Rtx::Upscale::Native).isOk());
+            EXPECT_EQ(fourth.mBar, bar(5));
+            EXPECT_EQ(after(5, Rtx::Upscale::Native), 5u);
+            EXPECT_FALSE(noiseFrameFor(2, true).isOk());
         }
 
         /// A place at the origin facing a point a hundred units north, level.
@@ -90,7 +93,6 @@ namespace RtxTool
                 .mFolder = "out",
                 .mPlayed = Rtx::ReconstructionRequest{},
                 .mVersus = std::nullopt,
-                .mExtents = Rtx::extentsFor(1920, 1080, Rtx::Upscale::Off),
                 .mStep = 0.1f };
         }
 
@@ -111,8 +113,8 @@ namespace RtxTool
         /// the stride `S` = 1000003 and the bar's warm-up `128 - 39 = 89` frames shorter than the
         /// frame's:
         /// - the reference, 256 frames summed, unfiltered and jittered on white noise, at offset 0;
-        /// - the bar, 16 frames summed (the frame's history of 130, held to 16), warmed over the air's
-        ///   39, at `S + 89` = 1000092;
+        /// - the bar, summed over as many frames as the frame's history of 130 holds samples, at most 16, which
+        ///   the session settles (`HeldFrames`), warmed over the air's 39, at `S + 89` = 1000092;
         /// - the bar's limit, 32 draws at `(2 + d) * S + 89`, the last `33 * S + 89` = 33000188;
         /// - the frame, one frame at the run's own reconstruction, at `34 * S` = 34000102;
         /// - its mean, 32 draws at `(35 + d) * S`, the last `66 * S` = 66000198.
@@ -122,7 +124,7 @@ namespace RtxTool
             const NoisePlan plan = planNoise(askAt(places));
 
             ASSERT_EQ(plan.mStops.size(), 67u);
-            EXPECT_EQ(plan.mBarFrames, 16u);
+            EXPECT_EQ(plan.mBar, (HeldFrames{ .mAfter = 130, .mMost = 16 }));
             EXPECT_FALSE(plan.mOwnBar);
             EXPECT_FALSE(plan.mOwnReference);
             ASSERT_EQ(plan.mSides.size(), 1u);
@@ -151,7 +153,9 @@ namespace RtxTool
 
             const Stop& bar = plan.mStops[1];
             EXPECT_EQ(bar.mName, "pier-averaged");
-            EXPECT_EQ(bar.mSchedule.mAccumulate, 16u);
+            EXPECT_EQ(bar.mSchedule.mHeld, plan.mBar) << "summed over what the session settles";
+            EXPECT_EQ(bar.mSchedule.mAccumulate, 0u);
+            EXPECT_EQ(bar.mSchedule.mSpec.mRun.mFrames, 0u);
             EXPECT_EQ(bar.mSchedule.mSpec.mWarm.mFrames, 39u);
             EXPECT_EQ(bar.mSchedule.mSampleOffset, 1000092u);
             EXPECT_EQ(bar.mSchedule.mReconstruction, Rtx::ReconstructionRequest{}.unfiltered());
@@ -165,12 +169,14 @@ namespace RtxTool
             ASSERT_TRUE(lastLimit.mActions.mMean.has_value());
             EXPECT_EQ(lastLimit.mActions.mMean->mFile, std::filesystem::path("out") / "pier-averaged-limit.png");
             EXPECT_EQ(lastLimit.mActions.mMean->mOf, 32u);
+            EXPECT_EQ(lastLimit.mSchedule.mHeld, plan.mBar) << "each of the limit's draws as long as the bar";
 
             const Stop& frame = plan.mStops[34];
             EXPECT_EQ(frame.mName, "pier");
             EXPECT_EQ(frame.mSchedule.mSpec.mRun.mFrames, 1u);
             EXPECT_EQ(frame.mSchedule.mSpec.mWarm.mFrames, 128u);
             EXPECT_EQ(frame.mSchedule.mAccumulate, 0u);
+            EXPECT_FALSE(frame.mSchedule.mHeld.has_value());
             EXPECT_EQ(frame.mSchedule.mSampleOffset, 34000102u);
             EXPECT_EQ(frame.mSchedule.mReconstruction, Rtx::ReconstructionRequest{});
             EXPECT_FALSE(frame.mSchedule.mUpscale.has_value()) << "the frame upscales as the run does";
@@ -249,7 +255,7 @@ namespace RtxTool
             NoiseAsk cut = askAt(places);
             cut.mCut = 4;
             const NoisePlan afterCut = planNoise(cut);
-            EXPECT_EQ(afterCut.mBarFrames, 5u);
+            EXPECT_EQ(afterCut.mBar, (HeldFrames{ .mAfter = 5, .mMost = 16 }));
             EXPECT_EQ(afterCut.mStops[34].mSchedule.mSpec.mWarm.mFrames, 3u);
             EXPECT_EQ(afterCut.mStops[35].mSchedule.mSpec.mWarm.mFrames, 3u) << "the frame's mean draws the frame";
             EXPECT_EQ(afterCut.mStops[0].mSchedule.mSpec.mWarm.mFrames, 128u) << "the reference kept its own";

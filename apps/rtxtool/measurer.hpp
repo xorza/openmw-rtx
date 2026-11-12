@@ -51,9 +51,12 @@ namespace RtxTool
             Failed,
         };
 
-        /// Reserves every series at the longest stop of `request`, so no measured frame grows one;
-        /// `record` is what the run is written into.
+        /// Measures the stops of `request` into `record`.
         Measurer(const SessionRequest& request, RunRecord& record);
+
+        /// Reserves every series at the request's longest stop, so no measured frame grows one: once the
+        /// renderer is made and the stops' lengths are settled (`SessionRequest::settleUnder`).
+        void reserve();
 
         /// Starts watching `card`, the renderer's, once the renderer stands: before the content
         /// loads, so the window before the first stop holds the load, at the card's idle clock,

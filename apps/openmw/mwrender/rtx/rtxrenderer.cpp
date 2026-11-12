@@ -233,6 +233,11 @@ namespace MWRender
         return mRenderer->getUpscalerInput();
     }
 
+    Rtx::FrameExtents RtxRenderer::getExtents() const
+    {
+        return mRenderer->getExtents();
+    }
+
     // Out of line because the members it destroys are only forward declared in the header.
     RtxRenderer::~RtxRenderer()
     {

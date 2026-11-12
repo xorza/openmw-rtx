@@ -48,6 +48,9 @@ namespace RtxTool
         // trace would otherwise break the reconstruction's contract on its first frame.
         if (const std::optional<std::string> refused = mRequest.refusalUnder(renderer->getUpscalerInput()))
             throw std::runtime_error("the run cannot be traced: " + *refused);
+        // And the stops' lengths, where one is what the run's frames hold, at the extents the renderer made.
+        mRequest.settleUnder(renderer->getExtents());
+        mMeasurer.reserve();
         mMeasurer.watchCard(renderer->getCardAddress());
         return renderer;
     }

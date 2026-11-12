@@ -11,6 +11,7 @@
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -291,6 +292,23 @@ namespace RtxTool
         Route mRoute;
     };
 
+    /// **A length in samples a shown pixel**: as many frames, summed, as a frame of the run's own mode holds
+    /// samples a shown pixel after `mAfter` frames of history, rounded down, at most `mMost` and never under
+    /// one. A mode that upscales traces the share of the shown pixels its extents say, and **those are the
+    /// renderer's to give**: DLSS's are NGX's, and an upscaler the run asks for as `auto` is chosen only as the
+    /// renderer is made. So a stop states its length this way, and the session settles it into frames once the
+    /// renderer has made its extents (`SessionRequest::settleUnder`).
+    struct HeldFrames
+    {
+        std::uint32_t mAfter = 0;
+        std::uint32_t mMost = 0;
+
+        /// The frames this comes to where the run's frames are traced and shown at `traced`.
+        std::uint32_t under(const Rtx::FrameExtents& traced) const;
+
+        bool operator==(const HeldFrames&) const = default;
+    };
+
     /// How long a stop runs and what moves while it does.
     struct Schedule
     {
@@ -308,6 +326,11 @@ namespace RtxTool
         /// converged reference is the only ground truth a sampled renderer has: error falls as the
         /// square root of this, a hundred is a clean picture and a thousand is a reference.
         std::uint32_t mAccumulate = 0;
+
+        /// How many frames the stop measures and sums where that is the samples a frame of the run's mode holds,
+        /// which no reader of the stop sees: `SessionRequest::settleUnder` fills `mSpec.mRun` and `mAccumulate`
+        /// from it and clears it before the first frame.
+        std::optional<HeldFrames> mHeld{};
 
         /// Where the stop's frames start in the sampler's sequence: added to the count of its
         /// frames the renderer samples by (`MWRender::RtxRun::getSampleFrame`). Two stops at one
@@ -511,6 +534,11 @@ namespace RtxTool
         /// run is over, or null where it judges none. The verb's, and outlives the run.
         PictureShelf* mShelf = nullptr;
 
+        /// Where the extents the run's frames were traced and shown at are written once the renderer has made
+        /// them (`settleUnder`), for the verb whose figures follow from them, as `noise`'s bar does, or null
+        /// where none does. The verb's, and outlives the run.
+        Rtx::FrameExtents* mTraced = nullptr;
+
         /// Where a window appends a film's key on every Home press, or empty for none.
         std::filesystem::path mKeys;
 
@@ -544,6 +572,11 @@ namespace RtxTool
         /// filters the light itself cannot give (`Rtx::rendererFilters`). Asked once the renderer has
         /// resolved its upscaler, before the first frame.
         std::optional<std::string> refusalUnder(Rtx::UpscalerInput input) const;
+
+        /// Settles every stop whose length is samples a shown pixel (`Schedule::mHeld`) into frames under
+        /// `traced`, what the renderer traces and shows the run's mode at, and writes `traced` where `mTraced`
+        /// points. Asked once the renderer is made, before the first frame and before any stop's length is read.
+        void settleUnder(const Rtx::FrameExtents& traced);
     };
 
     /// The exit status of a run whose one fault is a hashed frame that differed from its reference.
