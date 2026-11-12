@@ -43,11 +43,10 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// A camera with nothing in the air but the world's edge, under an even sky.
-        ///
-        /// The weather's own extinction stays at nothing, so the second element of the air is the
-        /// only thing between the eye and what it looks at. An even sky, because a wall's radiance
-        /// is then exactly its albedo times that one number whatever direction the bounce takes.
+        /// A camera with nothing in the air but the world's edge, under an even sky. The weather's own
+        /// extinction stays at nothing so the edge is the only thing between the eye and what it looks at, and
+        /// the sky is even so a wall's radiance is exactly its albedo times one number whatever way the bounce
+        /// goes.
         Shaders::VisibilityConstants underTheEdge(const osg::Vec3f& eye, std::uint32_t size, float edge)
         {
             Shaders::VisibilityConstants camera
@@ -111,17 +110,12 @@ namespace Rtx::Testing
             EXPECT_EQ(hidden.byte(middle), 255);
         }
 
-        /// Both moons light a floor, and the two slots are one code path.
-        ///
-        /// **What the pair of them costs is one loop, so what proves the loop is the second slot.**
-        /// Masser and Secunda are carried in an array of two and gathered by one pass over it; a
-        /// shader that reached only the first entry would leave every Secunda-lit night dark, and
-        /// nothing in a picture would say so while the brighter moon was up. So the same moon is put
-        /// in each slot in turn and has to light the same floor by the same amount.
-        ///
-        /// A floor of albedo 0.5 under an irradiance of 2 straight down returns `0.5 * 2 / pi`,
-        /// which is 0.31831. Nothing stands on the floor, so the shadow ray always clears and the
-        /// estimate carries no variance to average away.
+        /// Both moons light a floor, and the two slots are one code path. Masser and Secunda are carried in an
+        /// array of two and gathered by one pass over it; a shader that reached only the first entry would
+        /// leave every Secunda-lit night dark and nothing in a picture would say so while the brighter moon was
+        /// up. So the same moon is put in each slot in turn and must light the same floor by the same amount.
+        /// A floor of albedo 0.5 under an irradiance of 2 straight down returns `0.5 * 2 / pi` = 0.31831;
+        /// nothing stands on the floor, so the shadow ray always clears and the estimate has no variance.
         TEST_F(RtxVisibilityTest, bothMoonsLightAndTheTwoSlotsAreOneCodePath)
         {
             constexpr std::uint32_t size = 32;
@@ -170,22 +164,18 @@ namespace Rtx::Testing
             EXPECT_FLOAT_EQ(dark.at(centreValueOf(size)), 0.0f);
         }
 
-        /// A moon hides the sky behind it, which is the order the engine draws its own in.
+        /// A moon hides the sky behind it, which is the order the engine draws its own in:
+        /// `SkyManager::create` builds the sky as atmosphere, night sky, sun, Masser, Secunda, cloud, and
+        /// `paintMoon` writes `color.a = maskAlpha` under a `(ONE, ONE_MINUS_SRC_ALPHA)` blend, so an opaque
+        /// moon replaces whatever the sun and the other moon put behind it.
         ///
-        /// **`SkyManager::create` builds the sky as atmosphere, night sky, sun, Masser, Secunda,
-        /// cloud**, and `paintMoon` writes `color.a = maskAlpha` under a `(ONE, ONE_MINUS_SRC_ALPHA)`
-        /// blend — so an opaque moon replaces whatever the sun and the other moon put behind it.
-        /// This renderer added the moons to the sky instead and took a share of the sun alone.
+        /// The star field is not in this: the display pass draws it at the resolution the frame is shown at, so
+        /// nothing of it reaches the channel measured (`ToneConstants::mStars`).
         ///
-        /// **The star field is not in this any more and cannot be.** It is drawn by the display
-        /// pass, at the resolution the frame is shown at, so nothing of it reaches the channel this
-        /// measures — `ToneConstants::mStars` carries why.
-        ///
-        /// A full moon of white at the middle of its own disc is `MOON_RADIANCE`: the incidence and
-        /// the emission cosines are both one there, so McEwen's term is `2 * 1 / (1 + 1)`, and the
-        /// sky behind it is set to nothing so no gradient is in the way. A face painted a quarter
-        /// grey takes it to a quarter, and a face that stands in is no face: the disc is its colour,
-        /// as one with none is.
+        /// A full moon of white at the middle of its disc is `MOON_RADIANCE`: the incidence and emission
+        /// cosines are both one, so McEwen's term is `2 * 1 / (1 + 1)`, and the sky behind it is nothing so no
+        /// gradient is in the way. A face painted a quarter grey takes it to a quarter, and a face that stands
+        /// in is no face: the disc is its colour, as one with none is.
         TEST_F(RtxVisibilityTest, aMoonHidesWhatStandsBehindIt)
         {
             constexpr std::uint32_t size = 32;
@@ -247,13 +237,11 @@ namespace Rtx::Testing
             EXPECT_NEAR(sky(centre), 0.25f * Shaders::MOON_RADIANCE, 0.01f) << "two moons were added together";
         }
 
-        /// A painted patch of the night sky adds its sheet where it stands, and nothing where its
-        /// sheet stands in.
-        ///
-        /// One patch square to the camera's axis, forty-five degrees up, over a sky set to nothing
-        /// and under a star field faded full, which is what the patches are drawn under. A sheet of
-        /// one white texel adds `NEBULA_RADIANCE` at the middle of the patch; the stand-in's grey
-        /// would add a quarter of it, and a patch whose sheet stands in adds nothing at all.
+        /// A painted patch of the night sky adds its sheet where it stands, and nothing where its sheet stands
+        /// in. One patch square to the camera's axis, forty-five degrees up, over a sky of nothing and under a
+        /// star field faded full, which is what the patches are drawn under. A sheet of one white texel adds
+        /// `NEBULA_RADIANCE` at the middle of the patch; the stand-in's grey would add a quarter of it, and a
+        /// patch whose sheet stands in adds nothing.
         TEST_F(RtxVisibilityTest, aSkyPatchAddsItsSheetAndNothingWhereTheSheetStandsIn)
         {
             constexpr std::uint32_t size = 32;
@@ -292,12 +280,10 @@ namespace Rtx::Testing
             EXPECT_EQ(sky(), 0.0f) << "a patch whose sheet stands in was added";
         }
 
-        /// **The deck stands in no ray's way.** The content dims the sun for each weather
-        /// (`Sun_*_Color`), and that is the whole of what a deck does to the light under it.
-        ///
-        /// A floor of albedo 0.5 under a sun of 2 delivers `0.5 * 2 / pi` = 0.31831 where nothing
-        /// stands over it, and a sheet opaque in every texel over the whole sky, at full opacity,
-        /// leaves it all of that.
+        /// The deck stands in no ray's way: the content dims the sun for each weather (`Sun_*_Color`), and
+        /// that is all a deck does to the light under it. A floor of albedo 0.5 under a sun of 2 delivers
+        /// `0.5 * 2 / pi` = 0.31831 where nothing stands over it, and a sheet opaque in every texel over the
+        /// whole sky, at full opacity, leaves it all of that.
         TEST_F(RtxVisibilityTest, theDeckCastsNoShadow)
         {
             constexpr std::uint32_t size = 32;
@@ -334,20 +320,16 @@ namespace Rtx::Testing
 
         /// The deck takes its shape from what the sheet paints, read against what that sheet averages.
         ///
-        /// **A sheet of one white texel with the mean moved under it**, which is `CloudDeck::mMean`'s
-        /// ratio measured four times with no filter in the way. The ratio reaches a cloud in full sun
-        /// at `CLOUD_THICKNESS_MAX` times the mean, so a white texel against a mean of one is half
-        /// way between the two colours the deck was handed, against a half it is fully lit, and
-        /// against a quarter it is over and held there. A sheet nothing could average takes no ratio
-        /// and reads as the average cloud it could not measure.
+        /// A sheet of one white texel with the mean moved under it, which is `CloudSheet::mMean`'s ratio
+        /// measured four times with no filter in the way. The ratio reaches a cloud in full sun at
+        /// `CLOUD_THICKNESS_MAX` times the mean, so a white texel against a mean of one is half way between the
+        /// two colours the deck was handed, against a half it is fully lit, and against a quarter it is over
+        /// and held there. A sheet nothing could average takes no ratio and reads as the average cloud.
         ///
-        /// **A sheet that stands in is no sheet.** The weather ahead blended in whole, at a quarter
-        /// of the mean, is `0.2 + 0.4 * 0.25 / 2 = 0.25`; the same sheet standing in leaves the near
-        /// one alone at 0.4, and a near sheet that stands in is no deck, which leaves the sky behind
-        /// it: nothing.
-        ///
-        /// The sky behind it is set to nothing and the deck covers everything, so what the middle
-        /// pixel carries is the deck alone.
+        /// A sheet that stands in is no sheet: the weather ahead blended in whole, at a quarter of the mean, is
+        /// `0.2 + 0.4 * 0.25 / 2 = 0.25`; the same sheet standing in leaves the near one alone at 0.4, and a
+        /// near sheet that stands in is no deck, which leaves the sky behind it: nothing. The sky behind is
+        /// nothing and the deck covers everything, so the middle pixel carries the deck alone.
         TEST_F(RtxVisibilityTest, theDeckTakesItsShapeFromWhatTheSheetPaints)
         {
             constexpr std::uint32_t size = 32;
@@ -407,12 +389,11 @@ namespace Rtx::Testing
             EXPECT_EQ(deck(1.0f), 0.0f) << "a deck whose sheet stands in was drawn";
         }
 
-        /// **The deck turns about the eye**, as the rasterizer turns its cloud mesh about the camera,
-        /// so the sheet overhead stays where it is whichever way a storm drives it.
-        ///
-        /// A sheet of red, green, blue and white quadrants, at a hundredth of a tile a unit. The eye stands at `(10025,
-        /// 25)`, so overhead is `(100.25, 0.25)` on the sheet: the middle of the red texel. Turned a quarter about the
-        /// world's origin instead, overhead would be `(-0.25, 100.25)`, the middle of the green one.
+        /// The deck turns about the eye, as the rasterizer turns its cloud mesh about the camera, so the sheet
+        /// overhead stays where it is whichever way a storm drives it. A sheet of red, green, blue and white
+        /// quadrants at a hundredth of a tile a unit; the eye at `(10025, 25)` has overhead at `(100.25, 0.25)`
+        /// on the sheet, the middle of the red texel, where turned a quarter about the world's origin it would
+        /// be `(-0.25, 100.25)`, the middle of the green one.
         TEST_F(RtxVisibilityTest, theDeckTurnsAboutTheEyeAndOverheadStaysPut)
         {
             constexpr std::uint32_t size = 33;
@@ -470,14 +451,13 @@ namespace Rtx::Testing
                 << "the sheet's texel is not what this reads";
         }
 
-        /// **The deck is read at the level the ray's cone covers where it crosses**, as a surface is,
-        /// and not at the finest. A sheet whose finest level is white and whose two levels under it
-        /// are black, looked at from below at a hundredth of a tile a unit: the cone is the camera's
-        /// spread over the altitude, about 0.0053 radians at ten degrees over 33 pixels, so at an
-        /// altitude of a thousand it covers `0.0053 × 1000 × 0.01 × 4` = 0.21 of a texel, the finest
-        /// level, and at a hundred thousand 21 texels, past the last. White against the sheet's own
-        /// mean is half lit (`theDeckTakesItsShapeFromWhatTheSheetPaints`), and black is the shadowed
-        /// colour of nothing.
+        /// The deck is read at the level the ray's cone covers where it crosses, as a surface is, and not at
+        /// the finest. A sheet whose finest level is white and whose two levels under it are black, looked at
+        /// from below at a hundredth of a tile a unit: the cone is the camera's spread over the altitude, about
+        /// 0.0053 radians at ten degrees over 33 pixels, so at an altitude of a thousand it covers
+        /// `0.0053 × 1000 × 0.01 × 4` = 0.21 of a texel, the finest level, and at a hundred thousand 21 texels,
+        /// past the last. White against the sheet's own mean is half lit
+        /// (`theDeckTakesItsShapeFromWhatTheSheetPaints`), and black is the shadowed colour of nothing.
         TEST_F(RtxVisibilityTest, theDeckIsReadAtTheLevelItsConeCovers)
         {
             constexpr std::uint32_t size = 33;
@@ -535,16 +515,12 @@ namespace Rtx::Testing
             EXPECT_NE(near, far);
         }
 
-        /// The display pass draws the star field, and draws it only where a ray reached the sky.
-        ///
-        /// **It is drawn there because a point source is what an upscaler removes.** The trace no
-        /// longer draws the field at all, so the only place it can be checked is the picture — after
-        /// the tone curve, which is what `renderPicture` gives. What that costs is exactness: the
-        /// assertions below are about which pixels carry a star, not about how bright one is.
-        ///
-        /// **A sheet of one white texel**, so every direction the field reaches carries one. Half the
-        /// view is a floor four hundred units down and half is sky, and the floor must be as dark
-        /// with the field as without it — a star drawn over geometry is the failure this guards.
+        /// The display pass draws the star field, and draws it only where a ray reached the sky: a point
+        /// source is what an upscaler removes, so the trace does not draw it and the only place to check it is
+        /// the picture, after the tone curve (`renderPicture`). That costs exactness: the assertions are about
+        /// which pixels carry a star and not how bright one is. A sheet of one white texel, so every direction
+        /// the field reaches carries one. Half the view is a floor four hundred units down and half is sky, and
+        /// the floor must be as dark with the field as without it: a star drawn over geometry is the failure.
         TEST_F(RtxVisibilityTest, theDisplayPassDrawsTheFieldOnlyOverSky)
         {
             constexpr std::uint32_t size = 32;
@@ -626,24 +602,21 @@ namespace Rtx::Testing
             EXPECT_EQ(brightest(true)[0], without[0]) << "a field whose sheet stands in drew stars";
         }
 
-        /// The sun glare fader washes the whole picture by how much of the sun's quad the eye can
-        /// see, faded by how far the eye's axis stands from the sun.
+        /// The sun glare fader washes the whole picture by how much of the sun's quad the eye can see, faded by
+        /// how far the eye's axis stands from the sun.
         ///
-        /// **`SunGlareCallback`, measured at a corner the sun is nowhere near.** The wash is a
-        /// full-screen quad added in the display's own values, so a corner of black sky under a
-        /// colour of pure red at a strength of 0.4 reads exactly `0.4 * 255 = 102` red and nothing
-        /// else; the same eye turned twenty degrees off a sun that fades out at ninety reads
-        /// `0.4 * (1 - 20 / 90) * 255 = 79.3`, so 79; a wall across the view hides the whole quad,
-        /// and the query then counts nothing seen and the wash is nothing; and a strength of nought
-        /// is a frame with no fader in it. A fresh history on every shot, so the share is what
-        /// this frame's rays found and not an easing from the shot before.
+        /// `SunGlareCallback`, measured at a corner the sun is nowhere near. The wash is a full-screen quad
+        /// added in the display's own values, so a corner of black sky under pure red at a strength of 0.4
+        /// reads exactly `0.4 * 255 = 102` red; the same eye turned twenty degrees off a sun that fades out at
+        /// ninety reads `0.4 * (1 - 20 / 90) * 255 = 79.3`, so 79; a wall across the view hides the whole quad
+        /// and the wash is nothing; a strength of nought is a frame with no fader. A fresh history on every
+        /// shot, so the share is what this frame's rays found and not an easing from the shot before.
         ///
-        /// **The player's arms over the left half of the disc leave half of it seen, whatever
-        /// their own field of view.** The disc is the sun's quad on the screen, and an even frame
-        /// splits it between two columns into mirror halves: `0.4 * 0.5 * 255 = 51`. Counted along
-        /// the arms' own ninety-degree eye under the world's sixty, an arm pixel lies `tan(45) /
-        /// tan(30)` = 1.73 times as far off the axis, so the disc's six pixels on the arms' side
-        /// counted as two, and the share read `6 / 8`.
+        /// The player's arms over the left half of the disc leave half of it seen, whatever their own field of
+        /// view. The disc is the sun's quad on the screen and an even frame splits it between two columns into
+        /// mirror halves: `0.4 * 0.5 * 255 = 51`. Counted along the arms' own ninety-degree eye under the
+        /// world's sixty, an arm pixel lies `tan(45) / tan(30)` = 1.73 times as far off the axis, so the disc's
+        /// six pixels on the arms' side would count as two and the share read `6 / 8`.
         TEST_F(RtxVisibilityTest, theSunGlareFaderWashesByWhatTheEyeSeesOfTheSun)
         {
             constexpr std::uint32_t size = 32;
@@ -724,27 +697,22 @@ namespace Rtx::Testing
             EXPECT_EQ(armsWider.mGreen, 0);
         }
 
-        /// Night-Eye's lift is laid over the picture after the curve, by what each lit thing the pixel
-        /// shows reflects of an ambient, and the meter never sees it.
+        /// Night-Eye's lift is laid over the picture after the curve, by what each lit thing the pixel shows
+        /// reflects of an ambient, and the meter never sees it. The rasterizer adds `0.7 × magnitude / 100` to
+        /// the ambient of every fragment it lights, so a fragment shows `texture × A × lift` more in the values
+        /// it displays; `CHANNEL_LIFT` holds the encoded ambient albedo of what the pixel shows, by the share of
+        /// the pixel each is, and the display pass adds the lift by it.
         ///
-        /// **The rasterizer's rule, in its own values.** It adds `0.7 × magnitude / 100` to the
-        /// ambient of every fragment it lights, so a fragment shows `texture × A × lift` more, in the
-        /// values it displays. Here `CHANNEL_LIFT` holds the encoded ambient albedo of what the pixel
-        /// shows, by the share of the pixel each is, and the display pass adds the lift by it.
-        ///
-        /// - **A floor in the dark** shows the lift alone: its diffuse colour a half and its ambient
-        ///   a quarter, untextured, so its ambient albedo is 0.25 and the channel holds
-        ///   `encodeSrgb(0.25)` = 0.53709, a byte of 137. A lift of 0.2 shows `0.2 × 137` = 27.4, so
-        ///   27. The diffuse colour is not in it.
-        /// - **Half a white pane over it** shows half of each: `0.5 × 1 + 0.5 × 0.53709` = 0.76855,
-        ///   a byte of 196.
-        /// - **Lit, under an exposure the frame measures for itself**, the lift is the same sum on
-        ///   top of a picture the lift did not move: told no past, the eye arrives at once, and it
-        ///   arrives at what it would without the lift.
-        /// - **Flat water** shows what its two rays found by their shares. The eye grazing it at ten
-        ///   degrees reflects `0.02 + 0.98 (1 - sin 10°)^5` = 0.39745 of a grey wall, whose ambient
-        ///   albedo is its half, encoded 0.73536: 0.29227. The refraction finds nothing under it, and
-        ///   the sky the mirror shows without the wall is lit by no ambient.
+        /// - A floor in the dark shows the lift alone: diffuse colour a half and ambient a quarter,
+        ///   untextured, so its ambient albedo is 0.25 and the channel holds `encodeSrgb(0.25)` = 0.53709, a
+        ///   byte of 137. A lift of 0.2 shows `0.2 × 137` = 27.4, so 27; the diffuse colour is not in it.
+        /// - Half a white pane over it shows half of each: `0.5 × 1 + 0.5 × 0.53709` = 0.76855, a byte of 196.
+        /// - Lit, under an exposure the frame measures for itself, the lift is the same sum on a picture the
+        ///   lift did not move: told no past, the eye arrives at once, at what it would without the lift.
+        /// - Flat water shows what its two rays found by their shares. The eye grazing it at ten degrees
+        ///   reflects `0.02 + 0.98 (1 - sin 10°)^5` = 0.39745 of a grey wall, whose ambient albedo is its half,
+        ///   encoded 0.73536: 0.29227. The refraction finds nothing under it, and the sky the mirror shows
+        ///   without the wall is lit by no ambient.
         TEST_F(RtxVisibilityTest, nightEyesLiftIsLaidOverThePictureByTheAmbientAlbedoAndTheMeterNeverSeesIt)
         {
             constexpr std::uint32_t size = 16;
@@ -832,31 +800,23 @@ namespace Rtx::Testing
             EXPECT_EQ(water[centre], 0.0f) << "and the sky lit by no ambient";
         }
 
-        /// The world's edge is nothing over the ground the player stands on and total at the last
-        /// cell.
+        /// The world's edge is nothing over the ground the player stands on and total at the last cell. It is
+        /// the reason for a second element of the air: Morrowind's own fog depth is measured over the same
+        /// reach the ground is built to, and clear weather leaves a third of the last cell showing, so the ring
+        /// where the terrain stops is visible as a cut.
         ///
-        /// **The whole reason for a second element of the air.** Morrowind's own fog depth is
-        /// measured over the same reach the ground is built to, and clear weather leaves a third of
-        /// the last cell showing — so the ring where the terrain stops is visible as a cut. Thicken
-        /// the weather until it is not, and every weather becomes a fog bank.
-        ///
-        /// **An exponential in the range from the eye is what separates the two.** The wall here is
-        /// lit by the sky alone, so it reads `0.5 * 0.6 = 0.3` with nothing over it and
-        /// `0.6 - 0.3 * T` with the edge in front of it — the sky's own colour in place of what the
-        /// edge took. `T` is `(1/256)^crossed` for
+        /// An exponential in the range from the eye separates the two. The wall is lit by the sky alone, so it
+        /// reads `0.5 * 0.6 = 0.3` with nothing over it and `0.6 - 0.3 * T` with the edge in front (the sky's
+        /// own colour in place of what the edge took), `T` being `(1/256)^crossed` for
         ///
         ///     crossed = (exp(range / 0.125) - 1) / (exp(8) - 1),  range = distance / reach,
         ///
-        /// where `distance` is the ray's own and not its shadow on the ground — the camera here runs
-        /// level, so the two agree and the figures are about the ramp alone.
-        ///
-        /// so a half, three quarters and all of the reach come to 0.017986, 0.135045 and 1 of the
-        /// ramp — transmittances of 0.90507, 0.47290 and 0.003906, and radiances of 0.32848,
-        /// 0.45813 and 0.59883.
-        ///
-        /// **Those three are the shape and not just the endpoint.** Half the world costs six bytes,
-        /// the next quarter costs twenty-five, and the last quarter costs the rest: a uniform medium
-        /// reaching the same place at the edge would have taken half of the near wall with it.
+        /// with `distance` the ray's own and not its shadow on the ground (the camera runs level, so they
+        /// agree). A half, three quarters and all of the reach come to 0.017986, 0.135045 and 1 of the ramp:
+        /// transmittances of 0.90507, 0.47290 and 0.003906, radiances of 0.32848, 0.45813 and 0.59883. Those
+        /// three are the shape and not just the endpoint: half the world costs six bytes, the next quarter
+        /// twenty-five, and the last quarter the rest, where a uniform medium reaching the same place would
+        /// have taken half of the near wall with it.
         TEST_F(RtxVisibilityTest, theWorldsEdgeClosesOverTheLastCellAndLeavesTheGroundNearby)
         {
             constexpr std::uint32_t size = 33;
@@ -885,21 +845,16 @@ namespace Rtx::Testing
                 EXPECT_EQ(look(distance, false), int{ encodeSrgb(0.3f) }) << "with no edge at " << distance;
         }
 
-        /// A ray that climbs leaves the world's edge behind, and one that descends never does.
+        /// A ray that climbs leaves the world's edge behind, and one that descends never does. What is missing
+        /// is a ring on the ground and not a dome over it: air that closed over everything at the reach would
+        /// put the horizon's colour across the whole upper sky, so `FOG_EDGE_RISE` cuts it off at twenty-five
+        /// degrees of climb. And at no descent whatever, the half that is easy to get wrong: an eye high enough
+        /// to see the ring looks down at it, so a mask that read the elevation either way would take the air off
+        /// exactly where the world stops hiding itself.
         ///
-        /// **What is missing is a ring on the ground and not a dome over it.** Air that closed over
-        /// everything at the reach would put the horizon's colour across the whole upper sky, so
-        /// `FOG_EDGE_RISE` cuts it off at twenty-five degrees of climb.
-        ///
-        /// **And at no descent whatever, which is the half that is easy to get wrong.** An eye high
-        /// enough to see the ring looks *down* at it — the steeper the view, the more of the cut it
-        /// can see — so a mask that read the elevation either way would take the air off exactly
-        /// where the world stops hiding itself.
-        ///
-        /// Three frames of the same wall at the same range, differing in the elevation the eye
-        /// reaches it at and in nothing else. Thirty degrees, which is `direction.z` of exactly a
-        /// half against the sine of the twenty-five the mask ends at, so the smoothstep is saturated
-        /// either way and the answers are the two ends rather than points along it.
+        /// Three frames of the same wall at the same range, differing only in the elevation the eye reaches it
+        /// at. Thirty degrees is `direction.z` of exactly a half against the sine of the twenty-five the mask
+        /// ends at, so the smoothstep is saturated either way and the answers are the two ends.
         TEST_F(RtxVisibilityTest, aClimbLeavesTheWorldsEdgeBehindAndADescentNeverDoes)
         {
             constexpr std::uint32_t size = 33;
@@ -926,18 +881,13 @@ namespace Rtx::Testing
                 << "and the same wall along the ground, still showing";
         }
 
-        /// The world's edge leaves the sky exactly where it was.
-        ///
-        /// **Because it scatters the sky's own gradient rather than the fog's colour.** The two are
-        /// one colour at the horizon — Morrowind records `mFogColour` and `mSkyHorizon` from the
-        /// same byte triple — but above it they are not, and air that put the horizon across the
-        /// lower sky would flatten the gradient the game draws. Handed the gradient instead, a ray
-        /// that reaches nothing gets `g * T + g * (1 - T)`, which is `g`.
-        ///
-        /// **The fog's colour is set here and is not the sky's**, which is what makes this an
-        /// assertion rather than a tautology: an edge that in-scattered `mFogColour` would paint the
-        /// lower half of this frame red. Its extinction stays at nothing, so the weather's own march
-        /// contributes none of it.
+        /// The world's edge leaves the sky exactly where it was, because it scatters the sky's own gradient
+        /// and not the fog's colour. The two are one colour at the horizon (Morrowind records `mFogColour` and
+        /// `mSkyHorizon` from the same byte triple) but not above it, and air that put the horizon across the
+        /// lower sky would flatten the gradient the game draws; handed the gradient, a ray that reaches
+        /// nothing gets `g * T + g * (1 - T)`, which is `g`. The fog's colour is set here and is not the
+        /// sky's, which makes this an assertion and not a tautology: an edge that in-scattered `mFogColour`
+        /// would paint the lower half red. Its extinction stays at nothing, so the weather's march adds none.
         TEST_F(RtxVisibilityTest, theWorldsEdgeLeavesTheSkyExactlyWhereItWas)
         {
             constexpr std::uint32_t size = 48;
@@ -966,11 +916,10 @@ namespace Rtx::Testing
             for (std::size_t at = 0; at < open.size(); ++at)
                 ASSERT_NEAR(edged[at], open[at], 1.0e-5f) << "at " << at;
 
-            // **And there was a gradient to leave alone.** Ninety degrees of frame reaches forty-five
-            // either side of the horizon, so the bottom row is under it and the top row's middle looks
-            // up at `tan e = 47/48`, where the camera's sky (`Testing::sHemisphereRamp`) has faded
-            // `tan e / (1 + tan e)` = 0.494737 of the way: 0.148421 of red's range of 0.3. A flat sky
-            // would pass the loop above without saying anything.
+            // And there is a gradient to leave alone: ninety degrees of frame reaches forty-five either side of
+            // the horizon, so the bottom row is under it and the top row's middle looks up at `tan e = 47/48`,
+            // where the camera's sky (`Testing::sHemisphereRamp`) has faded `tan e / (1 + tan e)` = 0.494737 of
+            // the way: 0.148421 of red's range of 0.3. A flat sky would pass the loop above without saying anything.
             const std::size_t bottom = (std::size_t{ size - 1 } * size + size / 2) * 4;
             EXPECT_NEAR(edged[size / 2 * 4] - edged[bottom], 0.148421f, 1.0e-4f)
                 << "the sky's own gradient, still in it";

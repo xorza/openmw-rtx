@@ -19,11 +19,10 @@ namespace Rtx
     class SpriteBinPass;
     class SpriteShadePass;
 
-    /// Where a bin's sprites are seen from and what lights them, off the camera the caller asked
-    /// for: a bin is a screen-space tile, and the jitter a trace samples by would move every tile by
-    /// a fraction of a pixel a frame, for nothing. A record and not an argument list, because
-    /// `mOrigin` is a place and `mToSun` a direction and the two are one type, so a list takes
-    /// either for the other.
+    /// Where a bin's sprites are seen from and what lights them, off the camera the caller asked for: a bin is a
+    /// screen-space tile, and the jitter a trace samples by would move every tile by a fraction of a pixel a frame. A
+    /// record and not an argument list, because `mOrigin` and `mToSun` are one type and a list takes either for the
+    /// other.
     struct BinCamera
     {
         /// Where the eye stands, and the camera whose screen tiles the sprites are binned into.
@@ -74,13 +73,11 @@ namespace Rtx
         GpuTimer* mTimer = nullptr;
     };
 
-    /// The sprite tables a trace makes for itself: the sprites shaded against its sun, the depth
-    /// order and the rectangles the passes scratch in, the screen tiles' list the trace reads, and
-    /// the report of how long that list needed to be. **The trace's and not the placement's**,
-    /// because every one of them is a function of a camera and a sun — and the placement copy they
-    /// lived in was read by a frame in flight while the next trace's bin rewrote the sprites in
-    /// place from the host. One per frame in flight in the world's chain, and one for the pictures,
-    /// whose batches are ordered on the queue and touch nothing from the host.
+    /// The sprite tables a trace makes for itself: the sprites shaded against its sun, the depth order and the
+    /// rectangles the passes scratch in, the screen tiles' list the trace reads, and the report of how long that list
+    /// needed to be. The trace's and not the placement's, because every one is a function of a camera and a sun, and
+    /// the placement copy was read by a frame in flight while the next bin rewrote it from the host. One per frame in
+    /// flight in the world's chain, and one for the pictures, whose batches are ordered on the queue.
     class SpriteBin
     {
     public:
@@ -88,13 +85,11 @@ namespace Rtx
         /// @param pass what bins them, the chain's as well.
         SpriteBin(const Device& device, const SpriteShadePass& shading, const SpriteBinPass& pass);
 
-        /// Grows every table here to what `source` and the tiles of `camera` need — the list from
-        /// what the last bin here reported it needed, where the timeline says that report has
-        /// landed — and copies `source`'s sprites into this bin's own, on the queue, left where a
-        /// launch or a dispatch may read and write them. First, and apart from `record`, because
-        /// what stands between the two is the frame block: `getTables` names them only once they
-        /// are grown, the block carries them, and the shelter launch that zeroes the sheltered
-        /// sprites reads the block before the shade reads the sprites.
+        /// Grows every table here to what `source` and the tiles of `camera` need — the list from what the last bin
+        /// here reported, where the timeline says that report has landed — and copies `source`'s sprites into this
+        /// bin's own, on the queue, left where a launch or a dispatch may read and write them. First, and apart from
+        /// `record`, because the frame block carries `getTables`' addresses and the shelter launch that zeroes the
+        /// sheltered sprites reads the block before the shade reads the sprites.
         void take(const SpriteSource& source, const Shaders::Camera& camera, VkCommandBuffer commands);
 
         /// Shades the sprites `take` copied against the sun in place, and records the bin of them

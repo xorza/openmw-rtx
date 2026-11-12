@@ -22,16 +22,15 @@ namespace Rtx
     class Uploads;
 
     /// What one scene's deforming meshes are posed from: their bind poses, their rigs and morphs,
-    /// and the poses a frame writes. The bind poses live here and not in the shared vertex
-    /// blocks, because those blocks are the pose's destination and what it reads from has to be
-    /// somewhere the frame never writes — a table of the deforming meshes alone, indexed by
-    /// `MeshRange::mBindOffset`. Plain buffers made at the scene's room and grown by doubling past
-    /// it, because the kernel is handed each run's address in its push constants; a growth copies
-    /// the table on the queue and buries the one it displaced, so an arrival stages only itself.
-    /// Device memory, written on the queue and by nothing else. The poses are per frame in flight
-    /// and host-written, because `SkinPass::record` writes and reads them in one placement, and
-    /// never rewritten on growth — one table for both kinds, in the words `Rtx::PoseWord` lays
-    /// either in.
+    /// and the poses a frame writes. The bind poses live here and not in the shared vertex blocks,
+    /// because those are the pose's destination and what it reads from must be somewhere the frame
+    /// never writes — a table of the deforming meshes alone, indexed by `MeshRange::mBindOffset`.
+    /// Plain buffers made at the scene's room and grown by doubling past it, because the kernel is
+    /// handed each run's address in its push constants; a growth copies the table on the queue and
+    /// buries the one it displaced, so an arrival stages only itself. Device memory, written on the
+    /// queue. The poses are per frame in flight and host-written, because `SkinPass::record` writes
+    /// and reads them in one placement, and never rewritten on growth — one table for both kinds,
+    /// in the words `Rtx::PoseWord` lays either in.
     class SkinTables
     {
     public:
@@ -45,18 +44,17 @@ namespace Rtx
 
         /// Takes in what the scene says arrived: the bind poses of the deforming meshes, the
         /// deformers, and the arrived meshes' poses into the first copy, which is the one an
-        /// arrival is posed into. Through `batch` and not from the host: a run an arrival was
-        /// given may be one a mesh that went held until the last sweep, and the frame that posed
-        /// that mesh can still be on the queue reading it — a copy recorded now runs behind that
-        /// frame, where a host write would land under it. Ends in the barrier the dispatch over the
-        /// arrivals needs.
+        /// arrival is posed into. Through `batch` and not from the host: a run an arrival was given
+        /// may be one a departed mesh held, which a frame on the queue can still be reading — a copy
+        /// recorded now runs behind that frame, where a host write would land under it. Ends in the
+        /// barrier the dispatch over the arrivals needs.
         void extend(Batch& batch, const SceneDesc& scene);
 
         /// Waits until nothing on the queue reads or writes `slot`'s poses, ahead of a placement
         /// that writes them from the host. The reader is usually the placement before last's
         /// dispatch, long finished; after an arrival it is `extend`'s staged poses and the dispatch
-        /// over them, carried by whatever submit came next. Each copy carries the value, so the
-        /// wait is for that submit and not for the frame behind it.
+        /// over them. Each copy carries the value, so the wait is for that submit and not for the
+        /// frame behind it.
         void finishReads(FrameSlot slot) const;
 
         /// Writes the poses of `meshes` into `slot`'s copy through `uploads`, for dispatches recorded

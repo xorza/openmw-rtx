@@ -193,12 +193,10 @@ namespace Rtx
 
         /// A surface shows one face unless a stencil property draws both.
         ///
-        /// **The default is what the scene root does, and the record is the only thing that changes
-        /// it.** The game turns `GL_CULL_FACE` on over the whole scene and the three shipped archives
-        /// hold no `NiStencilProperty` at all, so nearly every surface in Morrowind is the first row.
-        /// The three shapes differ in the one property, so the difference in the answer can only be the
-        /// draw mode — and the two-sided row is what keeps the other two from being an assertion of the
-        /// default.
+        /// **The default is what the scene root does, and the record is the only thing that changes it.** The game
+        /// turns `GL_CULL_FACE` on over the whole scene and the three shipped archives hold no `NiStencilProperty`, so
+        /// nearly every Morrowind surface is the first row. The shapes differ in the one property, so the draw mode
+        /// alone can differ the answer, and the two-sided row keeps the other two from asserting the default.
         TEST_F(RtxNifSurfaceTest, aSurfaceShowsOneFaceUnlessAStencilPropertyDrawsBoth)
         {
             using DrawMode = Nif::NiStencilProperty::DrawMode;

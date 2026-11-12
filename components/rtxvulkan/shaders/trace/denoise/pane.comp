@@ -4,18 +4,13 @@
 #extension GL_EXT_shader_image_load_formatted : require
 
 // The pane filter: what was drawn for the see-through layers in front of the surface, `CHANNEL_PANE`,
-// averaged with what was drawn for the same layer on the frames before.
+// averaged with what was drawn for the same layer on the frames before. Over time, not across the screen, as
+// the glossy filter is.
 //
-// **Over time and not across the screen**, as the glossy filter is.
-//
-// **Its own history, reprojected by the nearest layer's own motion and held against the nearest layer's own
-// surface**, which the channels the other filters read do not describe: those are the surface behind the
-// stack.
-//
-// **The glossy filter's rules otherwise**: bilinear over the four texels the motion lands between, each
-// only if it is this layer by `heldSurfaceMatches`, and `blendedMean` into the history, with the whole of
-// it kept — a layer's light does not turn with the view — beside a fast mean, which `historyclamp.comp`
-// holds the slow one to.
+// Its history is reprojected by the nearest layer's own motion and held against the nearest layer's own
+// surface, which the channels the other filters read do not describe (they are the surface behind the stack).
+// The glossy filter's rules otherwise, with the whole history kept: a layer's light does not turn with the
+// view.
 
 #include "shared/accumulate.h"
 #include "gbuffer.h"

@@ -100,10 +100,9 @@ namespace Rtx
 
         assert(mOpen == mZones.size() && "a zone was opened while another was still open");
 
-        // **A frame that wants more zones than the pool holds broke `sMaxGpuZones`**, which counts
-        // what one frame opens, and a report short of its last zones would say nothing of it. Left
-        // out past the assert rather than written past the pool; the label above still names it for
-        // a capture.
+        // **A frame that wants more zones than the pool holds broke `sMaxGpuZones`**, which counts what one
+        // frame opens. Left out past the assert rather than written past the pool; the label above still
+        // names it for a capture.
         assert(mZones.size() < sMaxGpuZones && "a frame opened more zones than `sMaxGpuZones` counts");
         if (mZones.size() >= sMaxGpuZones)
             return;
@@ -116,9 +115,9 @@ namespace Rtx
         if (!mTimes)
             return;
 
-        // Reset here rather than once per command buffer. The zones of one frame are spread over
-        // three submits and this class is not told where the boundaries are; resetting the pair
-        // about to be written, in the buffer about to write it, is correct wherever it lands.
+        // Reset here rather than once per command buffer: the zones of one frame are spread over three
+        // submits and this class is not told where the boundaries are, so resetting the pair about to be
+        // written, in the buffer about to write it, is correct wherever it lands.
         vkCmdResetQueryPool(commands, mHandle.get(), first, 2);
         vkCmdWriteTimestamp2(commands, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, mHandle.get(), first);
         if (mCounters != nullptr)
@@ -152,11 +151,10 @@ namespace Rtx
         std::array<std::uint64_t, sMaxGpuZones * 2 * 2> results{};
         const auto count = static_cast<std::uint32_t>(mZones.size()) * 2;
 
-        // **No wait for availability.** Every submit these were written into has already been
-        // waited for, so every query a zone wrote is there; a wait could only be for a query no
-        // submit will ever write — a zone in a batch that was discarded — and would last for ever,
-        // outside every patience the device keeps. So an unwritten query is read as one, and it is
-        // this code's broken contract and not a fault of the device's.
+        // **No wait for availability.** Every submit these were written into has been waited for, so every
+        // query is there; a wait could only be for a query no submit will ever write (a zone in a discarded
+        // batch) and would outlast every patience the device keeps. An unwritten query is this code's
+        // broken contract and not a fault of the device's.
         const VkResult read = vkGetQueryPoolResults(mDevice.getHandle(), mHandle.get(), 0, count,
             count * 2 * sizeof(std::uint64_t), results.data(), 2 * sizeof(std::uint64_t),
             VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);

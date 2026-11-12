@@ -29,8 +29,7 @@ namespace MWRender
 {
     class ViewQueue;
 
-    /// Which of the seam's two pictures a view is: `Rtx::ViewRequest::mSubject`'s own word, said as
-    /// a word rather than as a pointer that repeats the spec's scene.
+    /// Which of the seam's two pictures a view is: `Rtx::ViewRequest::mSubject`'s own word.
     enum class ViewKind
     {
         /// A tile of the world, traced against the scene the renderer holds.
@@ -40,24 +39,16 @@ namespace MWRender
         Subject,
     };
 
-    /// An offscreen view as a ray tracer makes one: the GUI's side of `Rtx::OffscreenTrace`.
-    ///
-    /// **What is here is what the trace is not.** The picture itself — the camera, the subject's own
-    /// mirrored scene, the hand-over and the trace — is `Rtx::OffscreenTrace`, which names no GUI
-    /// and which the harness draws a doll with. This owns the `MyGUI::ITexture` the trace writes
-    /// into, the copy in main memory the global map asks for, and the one piece of scheduling only
-    /// the game has: a map tile asked for before there is a world to draw it against.
-    ///
-    /// **One class for both kinds of picture**, answering `SubjectView` and handed out as the base
-    /// for a tile: the trace underneath is one object either way, and what a subject adds — an
-    /// extent, a rebuild, a pick — the trace already answers for a subject and is never asked for
-    /// a tile.
+    /// An offscreen view as a ray tracer makes one: the GUI's side of `Rtx::OffscreenTrace`, which names no
+    /// GUI and draws the picture itself. This owns the `MyGUI::ITexture` the trace writes into, the copy in
+    /// main memory the global map asks for, and the scheduling only the game has: a map tile asked for before
+    /// there is a world to draw it against. One class for both kinds of picture, as the trace underneath is
+    /// one object either way and a subject's extras are never asked of a tile.
     class TracedView final : public SubjectView
     {
     public:
-        /// **`context` is the frame thread's, which every mirror walk here shares** — the world's
-        /// and every view's. A subtree both can reach would otherwise be posed by whichever counter
-        /// got there first and frozen for the other, and a subject's `_spec` maps mean the world's.
+        /// `context` is the frame thread's, shared by every mirror walk: a subtree both can reach would
+        /// otherwise be posed by whichever counter got there first and frozen for the other.
         ///
         /// @param backend what the trace is recorded into.
         /// @param views the list this joins and asks to be drawn on, which outlives it.
@@ -71,29 +62,25 @@ namespace MWRender
         void sceneChanged() override;
         void redraw() override;
 
-        /// The drawing `redraw` asked for: the subject posed at `posing`, walked and handed over,
-        /// and the trace recorded. The queue calls it inside the frame's window, once there is a
-        /// world. **Asked for again while a slot of the subject stands its file and its image is
-        /// made**, as the world stands a slot again once made: a picture is drawn only when asked
-        /// for, and the frame waits on nothing, where a settled run's hand-over waits for the images
-        /// as `ring`'s walk waits for its cells.
+        /// The drawing `redraw` asked for: the subject posed at `posing`, walked and handed over, and the
+        /// trace recorded. The queue calls it inside the frame's window, once there is a world. Asked for
+        /// again while a slot of the subject stands its file and its image is made, as the world stands a
+        /// slot again once made: the frame waits on nothing.
         ///
-        /// @param posing the renderer's own clock, which advances once per drawn frame whether or
-        ///        not the world's does: a doll posed against a stopped clock is a doll frozen the
-        ///        first time it was drawn. Asked for per redraw and never stored.
+        /// @param posing the renderer's own clock, which advances once per drawn frame whether or not the
+        ///        world's does: a doll posed against a stopped clock is frozen at its first drawing. Never stored.
         /// @param releasing what a subject's sweep lets go of goes into (`OffscreenTrace::rebuildSubject`).
         void draw(const Rtx::CellRing& ring, const osg::FrameStamp& posing, Rtx::Released& releasing);
 
         bool isOfWorld() const { return mTrace.isOfWorld(); }
 
-        /// Whether this is a picture of the world taken straight down over `over`: an
-        /// orthographic world view whose footprint holds the point. What the harness asks to find
-        /// the map tile of the cell it stands in, of the renderer that drew it.
+        /// Whether this is a picture of the world taken straight down over `over`: an orthographic world view
+        /// whose footprint holds the point. The harness asks it to find a cell's map tile.
         bool coversFromAbove(const osg::Vec2f& over) const;
 
-        /// Whether this picture of the world taken straight down still waits for ground under its
-        /// box: `ring` holds a cell there in the band it asked for and has not adopted it. A tile
-        /// taken before then shows the cell's objects on nothing, and nothing asks for it again.
+        /// Whether this picture of the world taken straight down still waits for ground under its box: `ring`
+        /// holds a cell there in the band it asked for and has not adopted it. A tile taken before then shows
+        /// the cell's objects on nothing, and nothing asks for it again.
         bool waitsForGround(const Rtx::CellRing& ring) const;
 
         /// Gives up the redraw asked for, which the queue will not draw: its scene was left.
@@ -117,15 +104,9 @@ namespace MWRender
         /// other view.
         std::optional<Footprint> footprintFromAbove() const;
 
-        /// Where the copy in main memory stands, for `getCopy`.
-        ///
-        /// **`OffscreenView::getCopy` promises null until the copy holds the picture the most
-        /// recent `redraw()` asked for**, and a black image is not a picture that has not arrived —
-        /// it is a picture of nothing. The global map paints the tile it is handed and marks the
-        /// cell done, so answering early paints that cell black for the rest of the session. So
-        /// between `redraw` and the `draw` the host answers it with, and until the trace that
-        /// `draw` recorded has landed, the answer is null: what the backend holds until then is
-        /// the trace before.
+        /// Where the copy in main memory stands, for `getCopy`: `OffscreenView::getCopy` promises null until
+        /// the copy holds the picture the most recent `redraw()` asked for, since the global map paints the
+        /// tile it is handed and marks the cell done, and a black image would stay black for the session.
         enum class CopyState
         {
             /// Nobody asked `keepCopy`, so no trace leaves one.
@@ -144,9 +125,8 @@ namespace MWRender
         ViewQueue& mViews;
         Rtx::OffscreenTrace mTrace;
 
-        /// The interface's own texture, taken from the manager under a name of this view's own:
-        /// its slot in the renderer's table is what is traced into, and the handle is what gives
-        /// both back.
+        /// The interface's own texture, taken from the manager under a name of this view's own: its slot in
+        /// the renderer's table is what is traced into, and the handle gives both back.
         MyGUIRtx::TextureHandle mTexture;
 
         osg::ref_ptr<osg::Image> mCopy;

@@ -79,13 +79,10 @@ namespace Rtx
             Shaders::StorageFormat mFormat;
             Role mRole;
 
-            /// Two halves, the last frame's and this one's, by `TemporalTurns::Step`, where one dispatch
-            /// reads last frame's at its neighbours' texels while it writes this frame's. One image
-            /// where nothing reads it on the next frame, or where the frame reads it before a later pass
-            /// writes it again: the shadow's history, which its temporal pass reads and its first
-            /// filter level writes; the bounce's and the fill's means, which the accumulator reads and
-            /// the cascade's first level writes; and each fast mean, which a filter reads and its clamp
-            /// writes.
+            /// Two halves, the last frame's and this one's (`TemporalTurns::Step`), where one dispatch reads
+            /// last frame's at its neighbours' texels while it writes this frame's. One image where nothing
+            /// reads it on the next frame, or the frame reads it before a later pass writes it again: the
+            /// shadow's history, the bounce's and the fill's means, and each fast mean.
             bool mPair;
 
             Grid mGrid;

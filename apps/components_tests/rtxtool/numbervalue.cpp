@@ -55,9 +55,9 @@ namespace RtxTool
             EXPECT_EQ(wholeNumber<unsigned int>("-1"), std::nullopt);
         }
 
-        /// **One rule for a number the line gives**: the whole text, a finite number, inside the
-        /// range the option states — and the help prints that range where Boost prints `arg`.
-        /// Boost's own reader took `nan` and `inf`, and `--delight=5` passed a range the help stated.
+        /// **One rule for a number the line gives**: the whole text, a finite number, inside the range the
+        /// option states, and the help prints that range where Boost prints `arg` (Boost's own reader
+        /// takes `nan` and `inf`).
         TEST(RtxNumberValueTest, aNumberIsTheWholeTextFiniteAndInsideItsRange)
         {
             float read = -1.0f;

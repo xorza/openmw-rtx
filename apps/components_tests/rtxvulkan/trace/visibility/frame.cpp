@@ -46,13 +46,10 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// A mesh moved by its instance and a mesh whose vertices were already moved must render to
-        /// the same bytes.
-        ///
-        /// The transform path has a unit test, and a unit test is not enough on its own: every other
-        /// test here places its geometry with the identity, so a transposed rotation would sail
-        /// through all of them. This is the one that puts a rotation through the acceleration
-        /// structure and compares the result against arithmetic done on the CPU.
+        /// A mesh moved by its instance and a mesh whose vertices were already moved must render to the same
+        /// bytes. The transform path has a unit test, but every other test here places its geometry with the
+        /// identity, so a transposed rotation would sail through them; this puts a rotation through the
+        /// acceleration structure and compares against arithmetic done on the CPU.
         TEST_F(RtxVisibilityTest, aRotatedInstanceRendersAsIfItsVerticesHadBeenMoved)
         {
             const osg::Matrixf transform = osg::Matrixf::scale(1.5f, 1.5f, 1.5f)
@@ -94,19 +91,13 @@ namespace Rtx::Testing
             EXPECT_EQ(byInstance.bytes(), byVertex.bytes());
         }
 
-        /// Parallel rays, and the whole difference between them and a pinhole's.
-        ///
-        /// **The count is exact, so the arithmetic is the assertion.** A sheet fifty units across
-        /// lies two hundred units under an eye looking straight down. The orthographic camera's box
-        /// is two hundred across, so the sheet covers a quarter of each axis: pixel `p` of
-        /// sixty-four samples the world at `100 * ((p + 0.5) / 32 - 1)`, which is inside twenty-five
-        /// for `p` in 24..39 — sixteen columns, sixteen rows, **256 hits**, and no pixel near enough
-        /// the boundary for rounding to argue.
-        ///
-        /// The same viewpoint as a pinhole with a ninety-degree field of view spans four hundred
-        /// units at that distance rather than two hundred, so the sheet covers an eighth of each
-        /// axis: `p` in 28..35, **64 hits**. That the two differ is the point — a parallel ray that
-        /// quietly fanned out would still fill a plausible-looking image.
+        /// Parallel rays, and the whole difference between them and a pinhole's. The count is exact, so the
+        /// arithmetic is the assertion: a sheet fifty units across lies two hundred under an eye looking
+        /// straight down, and the orthographic box is two hundred across, so pixel `p` of sixty-four samples
+        /// `100 * ((p + 0.5) / 32 - 1)`, inside twenty-five for `p` in 24..39: sixteen columns and rows,
+        /// **256 hits**, no pixel near the boundary. A pinhole with a ninety-degree field of view spans four
+        /// hundred units there, `p` in 28..35, **64 hits**; that the two differ is the point, since a parallel
+        /// ray that quietly fanned out would still fill a plausible-looking image.
         TEST_F(RtxVisibilityTest, anOrthographicCameraSendsItsRaysParallelRatherThanThroughAnEye)
         {
             constexpr std::uint32_t size = 64;
@@ -161,16 +152,12 @@ namespace Rtx::Testing
             }
         }
 
-        /// A wall bigger than the field of view leaves no room for sky.
-        ///
-        /// At a hundred units from a sixty-degree camera the frame is 2 * 100 * tan(30) = 115 units
-        /// tall; the wall is four hundred. Every ray must land on it, so the answer is exact rather
-        /// than a threshold.
-        ///
-        /// The colour is exact too. The wall wears the tests' grey with no map, a linear albedo of
-        /// 0.5, which the shader encodes on the way out as 1.055 * 0.5^(1/2.4) - 0.055 = 0.735, or
-        /// 187 of 255. **A surface with no map is its material's colour**, as the game draws one: the
-        /// texel under it is white, so a wall with no material at all is white whole, 255.
+        /// A wall bigger than the field of view leaves no room for sky. At a hundred units from a sixty-degree
+        /// camera the frame is 2 * 100 * tan(30) = 115 units tall and the wall is four hundred, so every ray
+        /// lands on it. The colour is exact too: the wall wears the tests' grey with no map, a linear albedo of
+        /// 0.5, which the shader encodes as 1.055 * 0.5^(1/2.4) - 0.055 = 0.735, 187 of 255. A surface with no
+        /// map is its material's colour, as the game draws one: the texel under it is white, so a wall with no
+        /// material at all is 255.
         TEST_F(RtxVisibilityTest, aWallLargerThanTheFrameIsHitByEveryRay)
         {
             constexpr std::uint32_t size = 64;
@@ -194,27 +181,23 @@ namespace Rtx::Testing
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_EQ(white.byte(centreValueOf(size) + channel), 255) << "channel " << channel;
 
-            // **The same frame, measured rather than held, and the whole of the arithmetic is
-            // here.** A flat frame is the one input whose exposure can be worked out by hand, and
-            // working it out means going through the binning rather than around it — which is the
-            // half a check against "it got darker" would not cover.
+            // The same frame, measured rather than held, with the arithmetic worked out by hand: a flat frame
+            // is the one input whose exposure can be, and doing it goes through the binning, which a check
+            // against "it got darker" would not cover.
             //
-            // Luminance is 0.5, so `log2` is -1 and the histogram places it at
-            // `uint((-1 + 10) / span * 254) + 1`, the span being `16 + log2 DAYLIGHT_GAIN` stops.
-            // Every lit pixel lands in that one bin, so the reduction reads back that bin's lower
-            // edge — at a gain of one bin 143 and `(143 - 1) / 254 * 16 - 10 = -1.055118`, a
-            // luminance of 0.481258, which is the quantisation and not a mistake. The key over that,
-            // to the adaptation power, is `(0.18 / 0.481258)^0.75 = 0.478268`, times two to the
-            // compensation — a frame built by hand has no day to adapt to — and the contrast
-            // grade then multiplies by `(0.5 * exposure / 0.18)^(contrast - 1)`. The saturation grade
-            // leaves a grey where it is.
+            // Luminance 0.5 has `log2` -1 and the histogram places it at `uint((-1 + 10) / span * 254) + 1`, the
+            // span being `16 + log2 DAYLIGHT_GAIN` stops. Every lit pixel lands in that one bin, so the reduction
+            // reads back its lower edge: at a gain of one, bin 143 and `(143 - 1) / 254 * 16 - 10 = -1.055118`,
+            // a luminance of 0.481258 (the quantisation, not a mistake). The key over that to the adaptation
+            // power is `(0.18 / 0.481258)^0.75 = 0.478268`, times two to the compensation (a frame built by hand
+            // has no day to adapt to); the contrast grade multiplies by `(0.5 * exposure / 0.18)^(contrast - 1)`
+            // and the saturation grade leaves a grey where it is.
             //
-            // At a compensation of nought and a contrast of one the frame reaches the curve at
-            // 0.239134 linear. The curve takes its shadow offset off that — 0.239134 is past three
-            // times it, so the whole 0.04 comes off — and leaves the rest alone, being far under the
-            // compression point: `1.055 * 0.199134^(1/2.4) - 0.055 = 0.483578`, or 123 of 255.
-            // **Worked out from the dials rather than written as 123**, so a look tuned in `look.h`
-            // leaves this test holding the arithmetic and not the old look.
+            // At a compensation of nought and a contrast of one the frame reaches the curve at 0.239134 linear.
+            // The curve takes its 0.04 shadow offset off (0.239134 is past three times it) and leaves the rest,
+            // being far under the compression point: `1.055 * 0.199134^(1/2.4) - 0.055 = 0.483578`, 123 of 255.
+            // Worked out from the dials and not written as 123, so a look tuned in `look.h` leaves this test
+            // holding the arithmetic and not the old look.
             const float metered = Shaders::binLuminance(static_cast<float>(Shaders::luminanceBin(0.5f)));
             const float exposure = std::exp2(Shaders::EXPOSURE_COMPENSATION)
                 * std::pow(Shaders::EXPOSURE_KEY / metered, Shaders::EXPOSURE_ADAPTATION);
@@ -233,14 +216,11 @@ namespace Rtx::Testing
             }
         }
 
-        /// The player's gamma over the picture: every byte where the picture at a gamma of one says
-        /// it can be, and some byte lifted.
-        ///
-        /// **An interval and not a tolerance.** At a gamma of one the store is of a value `v`, so the
-        /// byte `b` says only that `v` was within half a step of `b / 255`; at a gamma of two the
-        /// store is of `v^(1/2)`, which over that half step is between the square roots of its ends.
-        /// Floor and ceiling of those, because a `UNORM` store may round either way. The exposures
-        /// run the wall from its darks, where a gamma does most, to its middle.
+        /// The player's gamma over the picture: every byte where the picture at a gamma of one says it can be,
+        /// and some byte lifted. An interval and not a tolerance: at a gamma of one the byte `b` says only that
+        /// `v` was within half a step of `b / 255`; at a gamma of two the store is of `v^(1/2)`, between the
+        /// square roots of that interval's ends, floored and ceilinged because a `UNORM` store may round either
+        /// way. The exposures run the wall from its darks, where a gamma does most, to its middle.
         TEST_F(RtxVisibilityTest, theGammaRaisesEveryByteToThePowerOfOneOverIt)
         {
             constexpr std::uint32_t size = 16;
@@ -281,15 +261,12 @@ namespace Rtx::Testing
             EXPECT_TRUE(lifted) << "a gamma of two lifted nothing";
         }
 
-        /// The bloom weighs a frame by the exposure that frame's curve maps it with, and not by the
-        /// one before it.
-        ///
-        /// **A bright patch over a black sky**, whose rim is where the Karis average weighs a bright
-        /// tap against dark ones: each tap's weight is `1 / (1 + luma × exposure)`, so the rim's
-        /// halving, and the veil the curve lays over the picture from it, moves with the exposure.
-        /// One frame at a fixed exposure of one after a frame at a hundredth, against one after a
-        /// frame at one: the same input, so the same bytes, where a pyramid weighed by what the
-        /// buffer held from the frame before differs at the rim.
+        /// The bloom weighs a frame by the exposure that frame's curve maps it with, and not by the one before
+        /// it. A bright patch over a black sky, whose rim is where the Karis average weighs a bright tap
+        /// against dark ones: each weight is `1 / (1 + luma × exposure)`, so the rim's halving and the veil
+        /// the curve lays from it move with the exposure. One frame at a fixed exposure of one after a frame at
+        /// a hundredth equals one after a frame at one, where a pyramid weighed by what the buffer held from
+        /// the frame before differs at the rim.
         TEST_F(RtxVisibilityTest, theBloomWeighsAFrameByItsOwnExposure)
         {
             constexpr std::uint32_t size = 32;
@@ -315,24 +292,21 @@ namespace Rtx::Testing
             EXPECT_EQ(afterDim, afterSame) << "the pyramid was weighed by the frame before's exposure";
         }
 
-        /// The dither keeps a flat grey's mean inside the byte the curve rounds it to, a step either
-        /// way at most, and grey, and a mean that follows the curve's level within that byte.
+        /// The dither keeps a flat grey's mean inside the byte the curve rounds it to, a step either way at
+        /// most, and grey, and a mean that follows the curve's level within that byte.
         ///
-        /// **The arithmetic.** The white wall under the albedo view reaches the curve at the
-        /// exposure, so the curve stores a level `v` and, undithered, the byte `round(v)`. The
-        /// dither adds `d`, triangular over `(-1, 1)` steps, so a byte is `v + d` rounded: never
-        /// more than a step from `round(v)`, since `v` is within half a step of it, and of mean `v`
-        /// exactly, which is what a triangular dither is for — the first moment of its rounding
-        /// error is nought for every `v`. The frame is the tile's own 64 square, so each frame
-        /// draws every one of the tile's 4096 ranks once, and the mean of the bytes is `v` to well
-        /// under a hundredth of a step.
+        /// The white wall under the albedo view reaches the curve at the exposure, so the curve stores a level
+        /// `v` and, undithered, the byte `round(v)`. The dither adds `d`, triangular over `(-1, 1)` steps, so a
+        /// byte is `v + d` rounded: never more than a step from `round(v)`, and of mean `v` exactly, since the
+        /// first moment of a triangular dither's rounding error is nought for every `v`. The frame is the
+        /// tile's own 64 square, so each frame draws every one of its 4096 ranks once and the mean of the bytes
+        /// is `v` to well under a hundredth of a step.
         ///
-        /// **Three levels inside one byte, from the host's curve**: 109.7, 110 and 110.3. The
-        /// device's curve stands up to 0.05 of a step from the host's here (its own arithmetic and
-        /// the veil's), so the test takes the device's level from nowhere: each mean has to lie
-        /// within the half step about the byte the undithered picture stored, which is where `v`
-        /// lies, and the three have to rise with the exposure, three tenths of a step apart and so
-        /// well clear of that difference. Undithered, all three pictures are the one byte, 110.
+        /// Three levels inside one byte, from the host's curve: 109.7, 110 and 110.3. The device's curve stands
+        /// up to 0.05 of a step from the host's here (its own arithmetic and the veil's), so the test takes the
+        /// level from nowhere: each mean must lie within the half step about the byte the undithered picture
+        /// stored, and the three must rise with the exposure, three tenths of a step apart. Undithered, all
+        /// three are one byte, 110.
         TEST_F(RtxVisibilityTest, theDitherKeepsAFlatGreysMeanInsideItsByte)
         {
             constexpr std::uint32_t size = Shaders::BLUE_NOISE_EXTENT;
@@ -394,17 +368,14 @@ namespace Rtx::Testing
             }
         }
 
-        /// A summed frame's picture at sixteen bits a channel is its bytes' picture with the fraction
-        /// the byte rounded off still in it, undithered.
-        ///
-        /// **The arithmetic.** The white wall under the albedo view, held at an exposure, reaches the
-        /// curve as one level `v` at every pixel and every frame, so two frames summed are `v` again.
-        /// The byte is `round(v)` and the sixteen-bit sample `round(257 v)`, one float stored twice,
-        /// so the sample over 257 is within half a level of the byte — a 257th of it, plus the
-        /// sample's own half step. The three levels the dither's test takes, 109.7, 110 and 110.3,
-        /// are one byte, 110, and three samples 77 apart by the host's curve: they rise, where the
-        /// bytes stand still. With the dither on, the bytes scatter and the samples do not: the
-        /// second store is undithered, so every pixel holds the one sample.
+        /// A summed frame's picture at sixteen bits a channel is its bytes' picture with the fraction the byte
+        /// rounded off still in it, undithered. The white wall under the albedo view, held at an exposure,
+        /// reaches the curve as one level `v` at every pixel and frame, so two frames summed are `v` again.
+        /// The byte is `round(v)` and the sixteen-bit sample `round(257 v)`, one float stored twice, so the
+        /// sample over 257 is within half a level of the byte, a 257th of it, plus the sample's own half step.
+        /// The three levels of the dither's test, 109.7, 110 and 110.3, are one byte and three samples 77 apart
+        /// by the host's curve: they rise where the bytes stand still. With the dither on the bytes scatter and
+        /// the samples do not, the second store being undithered.
         TEST_F(RtxVisibilityTest, aSummedFramesPictureIsWrittenAtSixteenBitsBesideItsBytes)
         {
             constexpr std::uint32_t size = 16;
@@ -462,11 +433,9 @@ namespace Rtx::Testing
             EXPECT_EQ(keptSamples, samples) << "a change of mode dropped the sixteen-bit picture";
         }
 
-        /// A wall smaller than the frame leaves sky around it, and the count is the area it covers.
-        ///
-        /// The frame is 115.47 units tall at a hundred units, so a wall 60 units across covers
-        /// 60 / 115.47 of the image in each direction: 0.5196 squared, which is 27.0% of 4096
-        /// pixels — 1106 of them, give or take the pixels the edge falls inside.
+        /// A wall smaller than the frame leaves sky around it, and the count is the area it covers. The frame
+        /// is 115.47 units tall at a hundred units, so a wall 60 across covers 60 / 115.47 of the image in each
+        /// direction: 0.5196 squared, 27.0% of 4096 pixels, 1106, give or take the pixels the edge falls inside.
         TEST_F(RtxVisibilityTest, aWallSmallerThanTheFrameCoversTheAreaItSubtends)
         {
             constexpr std::uint32_t size = 64;
@@ -491,14 +460,10 @@ namespace Rtx::Testing
             EXPECT_NEAR(static_cast<double>(hits), static_cast<double>(expected), tolerance);
         }
 
-        /// Which way the jitter moves the picture, which is the half of this that looks fine wrong.
-        ///
-        /// **A wrong sign still antialiases**, so nothing about a smoothed edge can catch one, and
-        /// the reference implementation shipped both axes inverted. What catches it is an edge and a
-        /// direction: a wall covering the left half of the frame, and a sample point moved right,
-        /// has to lose exactly one column of hits.
-        ///
-        /// Half a pixel exactly, so the answer is a whole column and no pixel lands on the boundary.
+        /// Which way the jitter moves the picture, which is the half that looks fine wrong. A wrong sign still
+        /// antialiases, so nothing about a smoothed edge catches one; an edge and a direction do: a wall
+        /// covering the left half of the frame, and a sample point moved right, loses exactly one column of
+        /// hits. Half a pixel exactly, so the answer is a whole column and no pixel lands on the boundary.
         TEST_F(RtxVisibilityTest, theJitterMovesTheSampleTheWayTheImageIsIndexed)
         {
             constexpr std::uint32_t size = 64;
@@ -546,16 +511,12 @@ namespace Rtx::Testing
             EXPECT_EQ(covered(0.0f), centred - size) << "and a pixel left";
         }
 
-        /// Jitter and the reference mode together, which is the only thing jitter is good for.
-        ///
-        /// **One jittered frame is just a frame sampled slightly wrong.** What the sequence buys is
-        /// what several of them cover between them: over sixteen frames the sample points spread
-        /// across the pixel, so a pixel the edge cuts through averages the two sides in proportion
-        /// to how much of it each covers. Unjittered, every frame samples the same point and the
-        /// average is as hard-edged as one frame is.
-        ///
-        /// The edge is put a quarter of a pixel off the centre line, so the column it crosses is
-        /// three quarters wall and one quarter sky and cannot come out as either.
+        /// Jitter and the reference mode together, which is the only thing jitter is good for. One jittered
+        /// frame is a frame sampled slightly wrong; what the sequence buys is what several cover between them:
+        /// over sixteen frames the sample points spread across the pixel, so a pixel the edge cuts through
+        /// averages the two sides in proportion to their coverage, where unjittered every frame samples the
+        /// same point. The edge is a quarter of a pixel off the centre line, so the column it crosses is three
+        /// quarters wall and one quarter sky and cannot come out as either.
         TEST_F(RtxVisibilityTest, jitteredFramesAverageIntoAnAntialiasedEdge)
         {
             constexpr std::uint32_t size = 64;
@@ -602,31 +563,23 @@ namespace Rtx::Testing
             EXPECT_LT(redAt(soft, size / 2), 180) << "and did not become it";
         }
 
-        /// Motion vectors, which can be plausible and wrong in three separate ways.
+        /// Motion vectors, which can be plausible and wrong in three separate ways, so all three are asserted:
+        /// a still camera leaves every pixel where it is; a camera that only turns moves a surface by an amount
+        /// independent of its distance; a camera that steps moves a near surface further than a far one.
         ///
-        /// So all three are asserted: a still camera leaves every pixel where it is; a camera that
-        /// only *turns* moves a surface by an amount that does not depend on how far away it is; and
-        /// a camera that *steps* moves a near surface further than a far one.
+        /// The same pixel at two depths and not two pixels at one depth: a perspective rotation is not a
+        /// uniform slide (a point at the frame's edge moves further than one at its centre, screen position
+        /// going as the tangent), so comparing two places in one frame would call that a depth error.
         ///
-        /// **The same pixel at two depths, and not two pixels at one depth.** A perspective rotation
-        /// is not a uniform slide — a point at the edge of the frame moves further than one at its
-        /// centre, because screen position goes as the tangent of the angle. Comparing two places in
-        /// one frame would measure that and call it a depth error, so each depth gets its own frame
-        /// and the same pixel is read from both.
+        /// The step: moving the eye `s` sideways leaves the point now straight ahead `s` to the side of where
+        /// the eye was, so its old screen position had `tan(angle) = s / d`. The basis carries `tan(30)` as its
+        /// half width, so that is `(s / d) / tan(30)` in a coordinate running -1 to 1, and 32 pixels to the
+        /// unit: `55.426 * s / d`. Four units at two hundred is 1.1085 pixels, at four hundred 0.5543.
         ///
-        /// The step's arithmetic. Moving the eye `s` sideways leaves the point now straight ahead
-        /// standing `s` to the side of where the eye used to be, so its old screen position had
-        /// `tan(angle) = s / d`. The basis carries `tan(30)` as its half width, so that is
-        /// `(s / d) / tan(30)` in a coordinate running -1 to 1 across the frame, and 32 pixels to
-        /// the unit over 64: `55.426 * s / d`. Four units at two hundred is 1.1085 pixels, at four
-        /// hundred 0.5543.
-        ///
-        /// **Through the arms' own eye, the step reprojects through the arms' own plane.** The same
-        /// four units at two hundred, on a wall placed as first person and seen through arms at
-        /// ninety degrees under a sixty-degree world: the arms' half width is `tan(45)` against the
-        /// world's `tan(30)`, so `mArmsSpread` is `1 / tan(30)` and the old screen position is
-        /// `(s / d) / tan(30) / (1 / tan(30)) = s / d`, which at 32 pixels to the unit is 0.64 —
-        /// where the world's plane would read 1.1085.
+        /// Through the arms' own eye the step reprojects through the arms' own plane: the same four units at
+        /// two hundred on a wall placed as first person, seen through arms at ninety degrees under a
+        /// sixty-degree world. `mArmsSpread` is `1 / tan(30)`, so the old screen position is
+        /// `(s / d) / tan(30) / (1 / tan(30)) = s / d`, 0.64 pixels where the world's plane would read 1.1085.
         TEST_F(RtxVisibilityTest, aMotionVectorSaysWhereItsSurfaceWasAndNotWhereTheWorldIs)
         {
             constexpr std::uint32_t size = 64;
@@ -672,11 +625,10 @@ namespace Rtx::Testing
                 EXPECT_EQ(held.z(), 0.0f) << "and its distance is its history's to the bit";
             }
 
-            // **A still eye standing on a surface**, which a ray meets at a distance of nought: the
-            // offset and the step are both nought, so the surface stands no farther than its history
-            // did, where the quotient that measures it is `0 / 0`. `shoot` holds that no module stored
-            // a value that is not finite. Whether a ray commits a hit at nought is the driver's: AMD's
-            // Windows driver commits every one here, and NVIDIA's none, which sees the sky through it.
+            // A still eye standing on a surface, which a ray meets at a distance of nought: the offset and the
+            // step are both nought, so the quotient that measures the surface against its history is `0 / 0`.
+            // `shoot` holds that no module stored a value that is not finite. Whether a ray commits a hit at
+            // nought is the driver's: AMD's Windows driver commits every one here, NVIDIA's none.
             {
                 SceneDesc scene;
                 addQuad(scene, wallAt(0.0f));
@@ -690,15 +642,11 @@ namespace Rtx::Testing
                 EXPECT_EQ(motion[centre * 4 + 2], 0.0f) << "a surface at the eye stands where its history did";
             }
 
-            // **A still camera that jitters**, which is every frame an upscaler ever sees. Where in
-            // its pixel a frame chose to sample says nothing about where the surface went, so this
-            // is the same zero as above — and it is a separate case because the jitter is exactly
-            // what a reprojection can leave in by accident: the ray that found the surface carries
-            // the offset, and the pixel it is being compared against does not.
-            //
-            // Two different terms of the sequence, because a wrong answer that happened to be the
-            // same both frames would still hold an upscaler's history in one wrong place rather
-            // than shaking it between two.
+            // A still camera that jitters, which is every frame an upscaler ever sees. Where in its pixel a
+            // frame sampled says nothing about where the surface went, so this is the same zero as above, and a
+            // separate case because the ray that found the surface carries the offset and the pixel it is
+            // compared against does not. Two different terms of the sequence, since a wrong answer that was the
+            // same both frames would hold an upscaler's history in one wrong place rather than shake it.
             {
                 SceneDesc scene;
                 addQuad(scene, wallAt(200.0f));
@@ -766,19 +714,14 @@ namespace Rtx::Testing
                 EXPECT_EQ(out, nearer) << "and as near a long way from the origin";
             }
 
-            // **The same step, a hundred thousand units from the origin**, which is where Morrowind
-            // actually is: the far corner of the map is past 200,000 and every cell but one is
-            // somewhere out there.
+            // The same step a hundred thousand units from the origin, which is where Morrowind actually is (the
+            // far corner of the map is past 200,000). The formulation keeps every device-side number small: the
+            // only subtraction of two world points happens on the host, between two camera positions a step
+            // apart, and the device adds that delta to an offset from its own eye.
             //
-            // **The formulation keeps every device-side number small**, which is why the answer
-            // out here is the same as the answer at the origin: the only subtraction of two world
-            // points happens on the host, between two camera positions a step apart, and the device
-            // adds that small delta to an offset from its own eye.
-            //
-            // Measured, and worth writing down: taking the difference on the device instead gives
-            // bit-identical results at this distance, because the compiler folds `(o + x) - (o - m)`
-            // back to `x + m`. So this asserts the answer rather than proving the formulation
-            // necessary — what it would catch is a reprojection that built world-space clip
+            // Taking the difference on the device instead gives bit-identical results at this distance, since
+            // the compiler folds `(o + x) - (o - m)` back to `x + m`; so this asserts the answer and does not
+            // prove the formulation necessary. It would catch a reprojection that built world-space clip
             // coordinates, whose intermediates really are six figures long.
             {
                 const osg::Vec3f somewhere(100000.0f, 100000.0f, 0.0f);
@@ -817,13 +760,11 @@ namespace Rtx::Testing
                 EXPECT_NEAR(motion[centre * 4 + 1], 0.0f, 1e-3f);
             }
 
-            // **And the sky seen past a see-through arm is the world's eye's.** The arms faded to
-            // half and nothing behind them, under a still camera: the sky did not move. Carried on
-            // along the arms' ray, the centre pixel's sky leaned `0.5 / 32` of the arms' half width
-            // `tan(45)` off the axis on each side, which read through the world's plane is
-            // `(1 / 64) / tan(30)` = 0.0271 of a half width, or `0.0271 * 32` = 0.866 of a pixel
-            // where the ray's own centre is 0.5 — a motion of 0.366 of a pixel under a camera that
-            // stood still.
+            // And the sky seen past a see-through arm is the world eye's: the arms faded to half and nothing
+            // behind them, under a still camera, so the sky did not move. Carried on along the arms' ray, the
+            // centre pixel's sky leaned `0.5 / 32` of the arms' half width `tan(45)` off the axis, which read
+            // through the world's plane is `(1 / 64) / tan(30)` = 0.0271 of a half width, `0.0271 * 32` = 0.866 of
+            // a pixel where the ray's own centre is 0.5: a motion of 0.366 of a pixel under a still camera.
             {
                 SceneDesc scene;
                 scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, wallAt(200.0f)),
@@ -861,29 +802,22 @@ namespace Rtx::Testing
             }
         }
 
-        /// The sky moves when the eye turns and stands still when it walks, and an upscaler is told
-        /// which.
+        /// The sky moves when the eye turns and stands still when it walks, and an upscaler is told which.
         ///
-        /// **A miss stores motion too.** That the sky does not move is true of walking and false of
-        /// looking around, which is most of what a player does: with nothing stored, the upscaler
-        /// fetches the sky's history from the pixel it already occupies and every turn of the head
-        /// smears it. A gradient hides that; a field of stars does not.
-        ///
-        /// **The claim is exact rather than approximate.** Under a rotation about the eye, where a
-        /// point lands on screen depends on its direction and not on how far away it is — so the sky
-        /// and a wall at any distance all move by the same number of pixels, and that is what makes
-        /// this an equality and not a "something happened".
+        /// A miss stores motion too: the sky does not move when walking but does when looking around, which is
+        /// most of what a player does, and with nothing stored the upscaler fetches the sky's history from the
+        /// pixel it occupies and every turn of the head smears it (a field of stars shows it, a gradient does
+        /// not). The claim is exact: under a rotation about the eye a point lands on screen by its direction
+        /// and not its distance, so the sky and a wall at any distance move by the same number of pixels.
         TEST_F(RtxVisibilityTest, theSkyReprojectsByTheTurnAloneAndAWallAtAnyDistanceAgrees)
         {
             constexpr std::uint32_t size = 64;
             constexpr std::size_t centre = centreOf(size);
 
-            /// The centre pixel's motion after the camera moves from the origin, looking along +y, to
-            /// `eye` looking at `at`, with a wall `away` units along that axis.
-            ///
-            /// **A negative `away` puts it behind the eye**, which is a frame of nothing but sky and
-            /// is not the same thing as a scene with nothing in it — a renderer with no geometry at
-            /// all has no acceleration structure to trace, and that is a different test.
+            /// The centre pixel's motion after the camera moves from the origin, looking along +y, to `eye`
+            /// looking at `at`, with a wall `away` units along that axis. A negative `away` puts it behind the
+            /// eye: a frame of nothing but sky, which is not a scene with nothing in it, since a renderer with
+            /// no geometry has no acceleration structure to trace.
             const auto motion = [&](float away, const osg::Vec3f& eye, const osg::Vec3f& at) {
                 const std::array wall = wallAt(away);
 
@@ -932,19 +866,16 @@ namespace Rtx::Testing
 
         /// The two answers the surface channel carries, against hand-computed values for both.
         ///
-        /// **The normal's code in `r`**, which the wall facing the eye, `(0, -1, 0)`, folds onto the
-        /// square's `(0, -1)`: a cardinal direction, which the code holds exactly, so the pixel
-        /// holds `packSurfaceNormal` of it to the bit. The corner sees the same wall, so
-        /// it holds the same code.
+        /// The normal's code in `r`: the wall facing the eye, `(0, -1, 0)`, folds onto the square's `(0, -1)`,
+        /// a cardinal direction the code holds exactly, so the pixel holds `packSurfaceNormal` of it to the
+        /// bit, the corner too.
         ///
-        /// **Distance from the eye in `g`**, in world units, along the ray, and **not the depth a
-        /// rasterizer would have written**: at the corner of the frame the same plane is further away
-        /// and no deeper. A 64-pixel square at a sixty-degree field of view puts pixel zero at
-        /// `uv = 0.5/64 * 2 - 1 = -0.984375` on both axes, so its ray is
-        /// `normalize(F - 0.984375 R + 0.984375 U)` with `|R| = |U| = tan(30°)`; the cosine to the
-        /// view axis is `1 / sqrt(1 + 2 (0.984375 tan 30°)^2) = 1 / 1.2829652`. So the corner reads
-        /// 1.2829652 times the centre's distance. The centre pixel is itself half a pixel off-axis,
-        /// which is the 1.0000814 below.
+        /// Distance from the eye in `g`, in world units along the ray and not the depth a rasterizer would have
+        /// written: at the corner the same plane is further away and no deeper. A 64-pixel square at sixty
+        /// degrees puts pixel zero at `uv = 0.5/64 * 2 - 1 = -0.984375` on both axes, so its ray is
+        /// `normalize(F - 0.984375 R + 0.984375 U)` with `|R| = |U| = tan(30°)` and the cosine to the view axis
+        /// `1 / sqrt(1 + 2 (0.984375 tan 30°)^2) = 1 / 1.2829652`. The corner reads 1.2829652 times the
+        /// centre's distance; the centre pixel is itself half a pixel off-axis, the 1.0000814 below.
         TEST_F(RtxVisibilityTest, theSurfaceChannelHoldsTheNormalsCodeAndTheDistanceAlongTheRay)
         {
             constexpr std::uint32_t size = 64;
@@ -1008,20 +939,14 @@ namespace Rtx::Testing
             }
         }
 
-        /// A mesh whose pose changed is traced against the vertices the device computed from it,
-        /// without a scene rebuild.
-        ///
-        /// **What a skinned body needs and moving an instance cannot give.** A crate that moves says
-        /// so with its transform; an arm that swings does not — the actor's transform is where the
-        /// actor stands, and the pose lives in vertices underneath it. So this wall stays at the
-        /// identity throughout and only its one bone is written again: the skinning pass has to
-        /// compute the corners from the bind pose and the refit has to follow them, and a
-        /// `placeScene` that rebuilt the top level over an untouched bottom level would trace the
-        /// first wall every time and read the first distance.
-        ///
-        /// The distance is the assertion rather than the hit count, because it names *where* the
-        /// new triangles are and not merely that something changed. Its 1.0000814 is the centre
-        /// pixel's own half-pixel offset from the view axis, worked out in the surface test above.
+        /// A mesh whose pose changed is traced against the vertices the device computed from it, without a
+        /// scene rebuild. A crate that moves says so with its transform, but an arm that swings does not: the
+        /// actor's transform is where it stands and the pose lives in vertices underneath. So this wall stays
+        /// at the identity and only its one bone is written again: the skinning pass must compute the corners
+        /// from the bind pose and the refit follow them, where a `placeScene` that rebuilt the top level over an
+        /// untouched bottom level would trace the first wall every time. The distance is the assertion and not
+        /// the hit count, since it names where the new triangles are. Its 1.0000814 is the centre pixel's
+        /// half-pixel offset from the view axis, worked out in the surface test above.
         TEST_F(RtxVisibilityTest, aDeformedMeshIsTracedAgainstItsNewVerticesWithoutRebuildingTheScene)
         {
             constexpr std::uint32_t size = 64;
@@ -1067,15 +992,11 @@ namespace Rtx::Testing
             EXPECT_EQ(mRenderer.finishFrame().value().mHits, 0u);
         }
 
-        /// A debug line is drawn over the picture where it stands in front of what was traced,
-        /// and not where it stands behind it.
-        ///
-        /// **The trace's own depth is the test.** A wall a hundred units ahead, and a red line
-        /// across the middle of the frame: fifty units ahead it is drawn, replacing the wall's
-        /// grey along the middle row at full alpha; a hundred and fifty units ahead it is behind
-        /// the wall and the row is the wall. A triangle over the lower half of the frame at a
-        /// quarter alpha is blended, so the pixel it covers is a quarter of the way from the
-        /// wall to red and the pixel it does not cover is the wall.
+        /// A debug line is drawn over the picture where it stands in front of what was traced, and not where
+        /// it stands behind it. The trace's own depth is the test: a wall a hundred units ahead and a red line
+        /// across the middle of the frame, drawn at fifty units ahead (replacing the wall's grey along the
+        /// middle row at full alpha) and hidden at a hundred and fifty. A triangle over the lower half at a
+        /// quarter alpha is blended, so a pixel it covers is a quarter of the way from the wall to red.
         TEST_F(RtxVisibilityTest, aDebugLineIsDrawnInFrontOfTheTraceAndNotBehindIt)
         {
             constexpr std::uint32_t size = 33;
@@ -1138,25 +1059,20 @@ namespace Rtx::Testing
             EXPECT_NEAR(int{ shown(50.0f, {}, 0.25f, 2.0f)[middle] }, 128, 1) << "the line at a gamma of two";
         }
 
-        /// The player's arms are seen through their own eye and stand in front of everything.
+        /// The player's arms are seen through their own eye and stand in front of everything: two decisions the
+        /// rasterizer makes for `Mask_FirstPerson`. `NpcAnimation` swaps the projection under the arms for
+        /// `first person field of view` and clears the depth under them so no wall clips a hand. An eye a
+        /// hundred units short of a grey wall that fills the frame, and a red pane placed as first person a
+        /// hundred units past the wall, ten units either side of `x = 70`: through a thirty-degree eye the pane
+        /// is off the picture (the eye reaches 53.6 units either side at its depth) and every pixel is the
+        /// wall; through arms at sixty degrees the eye reaches 115.5, and column 26 of thirty-three, whose
+        /// centre looks seventy units across, is the pane, red and at the pane's own distance, with the wall a
+        /// hundred units nearer along the world's ray. The middle of the frame is the wall either way.
         ///
-        /// **Two decisions the rasterizer makes for `Mask_FirstPerson`, both of them the
-        /// picture's.** `NpcAnimation` swaps the projection under the arms for
-        /// `first person field of view`, and clears the depth under them so no wall clips a
-        /// hand. An eye a hundred units short of a grey wall that fills the frame, and a red pane
-        /// placed as first person a hundred units past the wall, ten units either side of
-        /// `x = 70`: through a thirty-degree eye the pane is off the picture, since that eye
-        /// reaches 53.6 units either side at the pane's depth, and every pixel is the wall;
-        /// through arms at sixty degrees the eye reaches 115.5, and column 26 of thirty-three —
-        /// whose centre looks seventy units across at that depth — is the pane, red and at the
-        /// pane's own distance, with the wall a hundred units nearer along the world's ray. The
-        /// middle of the frame is the wall either way.
-        ///
-        /// **And behind a see-through arm is the world the eye sees beside it**, which is the
-        /// rasterizer's blend of the arms over what the world's own projection drew. The pane faded
-        /// to half: column 26 finds the wall along the thirty-degree eye's ray, to the bit, where the
-        /// arms' ray carried on past the pane would have found nothing at all behind it — and every
-        /// other pixel's depth is the depth the frame has with no arm in it.
+        /// Behind a see-through arm is the world the eye sees beside it, the rasterizer's blend of the arms
+        /// over what the world's own projection drew. The pane faded to half: column 26 finds the wall along
+        /// the thirty-degree eye's ray, to the bit, where the arms' ray carried on past the pane would find
+        /// nothing, and every other pixel's depth is the depth the frame has with no arm in it.
         TEST_F(RtxVisibilityTest, theArmsAreSeenThroughTheirOwnEyeAndInFrontOfEverything)
         {
             constexpr std::uint32_t size = 33;
@@ -1254,16 +1170,13 @@ namespace Rtx::Testing
             EXPECT_NE(faded.mArm, narrow.mArm) << "the faded arm was not drawn at all";
         }
 
-        /// A glossy surface of the player's arms reflects through the arms' own cone, whatever the
-        /// world's is.
-        ///
-        /// **How wide a reflection's cone grows is the eye's that found the surface.** A white metal
-        /// pane two hundred ahead reflects a wall behind the eye painted with the mip ladder, whose
-        /// levels are different greys, so the level the reflected cone reads is what the pixel shows.
-        /// The arms are thirty degrees in all three runs: under a thirty-degree world and a
-        /// ninety-degree one the pixel is the same to the bit, and widening the arms' own eye moves
-        /// it — the world's spread, three times the arms', read the ladder a level and a half
-        /// coarser.
+        /// A glossy surface of the player's arms reflects through the arms' own cone, whatever the world's is:
+        /// how wide a reflection's cone grows is the eye's that found the surface. A white metal pane two
+        /// hundred ahead reflects a wall behind the eye painted with the mip ladder, whose levels are different
+        /// greys, so the level the reflected cone reads is what the pixel shows. The arms are thirty degrees in
+        /// all three runs: under a thirty-degree world and a ninety-degree one the pixel is the same to the
+        /// bit, and widening the arms' own eye moves it (the world's spread, three times the arms', read the
+        /// ladder a level and a half coarser).
         TEST_F(RtxVisibilityTest, aGlossyArmReflectsThroughTheArmsOwnCone)
         {
             constexpr std::uint32_t size = 33;

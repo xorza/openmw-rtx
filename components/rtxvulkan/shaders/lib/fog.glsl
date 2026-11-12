@@ -4,9 +4,8 @@
 // The air between the eye and everything else: how much of it there is at a point, what it scatters toward
 // the eye, and what a ray loses crossing it.
 //
-// **Two elements, and they answer different questions.** The weather's air is Morrowind's own record of
-// what the sky is like. The world's edge is this renderer's own, and covers the ring where its ground
-// stops.
+// Two elements that answer different questions: the weather's air is Morrowind's own record of what the sky
+// is like; the world's edge is this renderer's own, and covers the ring where its ground stops.
 
 #extension GL_EXT_control_flow_attributes : require
 
@@ -29,10 +28,9 @@ const mat2 FOG_TURN[FOG_SCALES] = mat2[FOG_SCALES](mat2(1.0, 0.0, 0.0, 1.0),
     mat2(FOG_TURN_MIDDLE.x, FOG_TURN_MIDDLE.y, -FOG_TURN_MIDDLE.y, FOG_TURN_MIDDLE.x),
     mat2(FOG_TURN_FINE.x, FOG_TURN_FINE.y, -FOG_TURN_FINE.y, FOG_TURN_FINE.x));
 
-/// The field at a place, at one scale, read at whatever level the march can tell apart.
-///
-/// **A level of the chain is the field averaged over twice the texels of the one under it**, so the level a
-/// step reaches is the one whose texel is the step's own width.
+/// The field at a place, at one scale, read at whatever level the march can tell apart. A level of the chain
+/// is the field averaged over twice the texels of the one under it, so the level a step reaches is the one
+/// whose texel is the step's own width.
 ///
 /// @param spacing how far apart the march is sampling here.
 /// @param scale which of `VisibilityConstants::mFogOffsets` the read is moved by.
@@ -46,12 +44,9 @@ vec2 fogFieldAt(vec3 position, float tile, float spacing, uint scale)
 
 /// The fog's shape at a point: one volume read at three scales, over a domain the coarsest drags.
 ///
-/// **Fetched rather than computed.** A field hashed at every step is eight lattice corners per octave and
-/// five octaves — forty hashes at every step of a twenty-four step march, which is nearly the whole of a
-/// trace. Three fetches stand for all of it, and what they read is that trilinear value noise, drawn once.
-///
-/// **The three scales are the fractal**: amplitudes halving, frequencies stepping by `FOG_LACUNARITY`, each
-/// on its own drift.
+/// Fetched rather than computed: a field hashed at every step is forty hashes at every step of a
+/// twenty-four step march, nearly the whole of a trace. Three fetches stand for all of it. The three scales
+/// are the fractal: amplitudes halving, frequencies stepping by `FOG_LACUNARITY`, each on its own drift.
 float fogShape(vec3 position, float spacing)
 {
     // **The coarsest scale is read undisplaced.** What a warp is for is breaking the regularity of
@@ -59,11 +54,9 @@ float fogShape(vec3 position, float spacing)
     // with something laid on it.
     const vec2 coarse = fogFieldAt(position, FOG_TILE, spacing, 0u);
 
-    // Two channels of a fetch already taken, which is what makes a vector out of a scalar field cost
-    // nothing at all.
-    //
-    // **Horizontal, and the volume does not change that.** The vertical shape of this air is the height
-    // falloff, and dragging the domain across it would blur the layer it is meant to have.
+    // Two channels of a fetch already taken, so a vector out of a scalar field costs nothing. Horizontal, and
+    // the volume does not change that: the vertical shape is the height falloff, which dragging the domain
+    // across would blur.
     const vec3 warped = position + vec3((coarse - 0.5) * (FOG_WARP / FOG_FIELD_SPREAD), 0.0);
 
     float total = coarse.x - 0.5;
@@ -95,12 +88,9 @@ bool fogPools()
     return HAS_SEA && !isinf(frame.mWaterLevel);
 }
 
-/// The height the fog pools at.
-///
-/// **Measured from the water, not from the origin.** Fog gathers over water and drains off high ground, so
-/// the level a cell records is where its layer sits — and above the layer there is none of it, which is
-/// what standing on a hill is supposed to look like. A dry cell falls back to sea level rather than putting
-/// the layer infinitely far below the world.
+/// The height the fog pools at. Measured from the water, not from the origin: fog gathers over water and
+/// drains off high ground, and above the layer there is none. A dry cell falls back to sea level rather
+/// than putting the layer infinitely far below the world.
 float fogBase()
 {
     return fogPools() ? frame.mWaterLevel : FOG_BASE;
@@ -108,11 +98,9 @@ float fogBase()
 
 /// What the coverage band and the water leave of the layer's strength at a point, as a fraction.
 ///
-/// **The half of the air that varies along a ray in a way nothing integrates.** The other half is the
-/// height falloff, which is an exponential in `z` and has a closed form — `fogColumn`. Splitting them is
-/// what lets a reader take the layer exactly and sample only what it has to: a walk that wants the whole
-/// density at a point multiplies the two, and one that wants a whole path takes the column exactly and this
-/// once.
+/// The half of the air that varies along a ray in a way nothing integrates; the other half is the height
+/// falloff, which has a closed form (`fogColumn`). Splitting them lets a reader take the layer exactly and
+/// sample only what it has to.
 ///
 /// @param spacing how far apart the reader is sampling here, which decides how much of the band it
 ///        can resolve.
@@ -125,24 +113,18 @@ float fogCoverageAt(vec3 position, float spacing)
     if (waterOver(position) > 0.0)
         return 0.0;
 
-    // **Even indoors, and banked out of doors.** Banks are something weather does to a landscape; a room is
-    // smaller than one bank and its air is still, so what belongs there is a faint uniform haze rather than
-    // a rendering fault. One is what the band averages to, so moving between them changes the air's
-    // character and never how much of it there is.
-    //
-    // **A far step keeps its banks rather than giving them up for even air.** The two hold the same amount
-    // of air on average, so trading one for the other looks free, and it is not: even air is a screen that
-    // glows wherever a lamp lights it, where banked air has gaps to see a lit tree through.
-    // `FOG_FIELD_COARSEST` is what keeps the far end banked.
+    // Even indoors, and banked out of doors: a room is smaller than one bank and its air is still, so what
+    // belongs there is a faint uniform haze. One is what the band averages to, so moving between them never
+    // changes how much air there is. A far step keeps its banks (`FOG_FIELD_COARSEST`) rather than trading
+    // them for even air, which is a screen that glows wherever a lamp lights it.
     return mix(
         smoothstep(FOG_CLEARING, FOG_SOLID, fogShape(position, spacing)) / FOG_COVERAGE, 1.0, frame.mFogUniform);
 }
 
 /// The layer's falloff with height at a point: one at the fog's base and under it, `1/e` a scale height
 /// above it.
-///
-/// **How deep the layer stands is the weather's and not a constant.** `FOG_HEIGHT` is the bank clear
-/// weather makes in dead still air, and `mFogLift` is what every other weather does to it.
+/// How deep the layer stands is the weather's: `FOG_HEIGHT` is the bank clear weather makes in dead still
+/// air, and `mFogLift` is what every other weather does to it.
 float fogHeightAt(vec3 position)
 {
     return exp(-max(position.z - fogBase(), 0.0) / (FOG_HEIGHT * frame.mFogLift));
@@ -167,15 +149,11 @@ float fogDensityAt(vec3 position, float spacing)
 
 /// What the fog sends toward the eye per steradian, `cosine` off the sun's line.
 ///
-/// **Mie, not Henyey-Greenstein.** A single lobe is the usual choice and it cannot do this shape: real
-/// droplets throw a diffraction peak within a degree of the light that is orders of magnitude above
-/// anything one `g` reaches, and they still send a sixth of isotropic *backwards*. Both are what fog looks
-/// like — the blaze around a low sun, and fog not going black when you turn away from it.
-///
-/// **Per steradian, and that is not a detail.** The sky needs no phase function at all — it arrives from
-/// every direction and a phase function integrates to one over the sphere, so the whole of it scatters in
-/// whatever shape the fog has. The sun arrives from one direction as *irradiance*, and what comes back is
-/// that irradiance times this.
+/// Mie, not Henyey-Greenstein: a single lobe cannot do this shape, since real droplets throw a diffraction
+/// peak within a degree of the light orders of magnitude above anything one `g` reaches, and still send a
+/// sixth of isotropic backwards. Per steradian because the sun arrives from one direction as irradiance and
+/// what comes back is that irradiance times this; the sky arrives from every direction and needs no phase
+/// function.
 float fogPhase(float cosine)
 {
     const float peak = exp(-0.0990567 / (FOG_DROPLET - 1.67154));
@@ -191,12 +169,9 @@ float fogPhase(float cosine)
     return mix(henyeyGreenstein(peak, cosine), draine, share);
 }
 
-/// How much fog stands between `position` and the sky along the line `towards` a light.
-///
-/// **Fog shadows itself, and leaving that out is what makes single scattering white out.** Light reaching a
-/// point deep in a bank crossed the whole bank to get there; without this, every point is lit as though it
-/// were the first the sun touched — and a phase function that aims the sun at the eye then multiplies
-/// something already several times too large.
+/// How much fog stands between `position` and the sky along the line `towards` a light. Fog shadows
+/// itself, and leaving that out is what makes single scattering white out: light reaching a point deep in a
+/// bank crossed the whole bank to get there.
 ///
 /// @param towards unit, from the point toward the light. Each source owes its own slant: at night
 ///        the sun points down, and a moon standing high crosses far less air than one on the rim.
@@ -214,11 +189,9 @@ struct MoonTerms
     vec3 mSecunda;
 };
 
-/// One of them.
-///
-/// **The phase held at the moon's own limb, inside its disc.** The phase takes the moon for a point at
-/// the disc's centre, which is good for a sun half a degree across and not for a moon of twelve and
-/// more: its diffraction peak drew a bright spot on the disc's dark side, whichever side was lit.
+/// One of them. The phase is held at the moon's own limb, inside its disc: it takes the moon for a point at
+/// the disc's centre, which fits a sun half a degree across and not a moon of twelve and more, whose
+/// diffraction peak drew a bright spot on the disc's dark side.
 vec3 fogMoonTerm(SkySource moon, vec3 direction)
 {
     const float limb = sqrt(max(1.0 - moon.mLimb * moon.mLimb, 0.0));
@@ -228,62 +201,48 @@ vec3 fogMoonTerm(SkySource moon, vec3 direction)
 /// What one froxel is to do about the sky's own lights: whether the sun is up, what the moons put into the
 /// air, and which of the pair the one ray goes to.
 ///
-/// **Hoisted because a directional source holds its angle to the ray**, so its phase function is one
-/// evaluation for the whole of it — which is what makes a function of `fogPhase`'s shape affordable at all.
+/// Hoisted because a directional source holds its angle to the ray, so its phase function is one
+/// evaluation for the whole of it.
 struct FogSources
 {
     /// Whether there is a sun at all, which an interior and a night both answer no to.
     bool mSunlit;
 
-    /// **The moons light the air too, and nothing was saying so.** At night the only thing lighting this
-    /// haze was `mFogColour`, the dome's own colour — so the air around a moon came back blue-grey however
-    /// red the moon, and since the disc itself is dimmed by the air in front of it, a rainy night drew the
-    /// fog's colour and none of Masser's.
-    ///
-    /// **The pair whole, because a pair not worth a ray is delivered whole.** It was a `vec3[2]`
-    /// subscripted by the draw, which is a function-scope array on this hardware and so a read of scratch
-    /// memory.
+    /// The moons light the air too: at night the only other light is `mFogColour`, the dome's own colour,
+    /// which would make the air around a red moon blue-grey. The pair whole, because a `vec3[2]`
+    /// subscripted by the draw is a function-scope array on this hardware and so a read of scratch memory.
     MoonTerms mTerms;
 
     /// Whether the pair is worth the one ray they share.
     ///
-    /// **A moon casts a shaft too, and at night it is the only thing that can.** A headland is not a
-    /// penumbra: air standing behind one gets no moonlight at all, and without the test the march lit the
-    /// mist in front of a cliff from a moon the cliff was covering.
-    ///
-    /// **The ray and nothing else.** What the pair delivers is `moonsInAir` either way — this said whether
-    /// the moons lit the air at all, so a moon whose share of the sky's term fell under `FOG_SHAFT_FLOOR`
-    /// lost its whole contribution rather than only its shadow.
+    /// A moon casts a shaft too, and at night it is the only thing that can: air standing behind a headland
+    /// gets no moonlight at all. This says whether the pair is worth the one ray; what the pair delivers is
+    /// `moonsInAir` either way, so a moon under `FOG_SHAFT_FLOOR` loses its whole contribution, not only its
+    /// shadow.
     bool mMoonlit;
 
     /// What the one the draw landed on puts into the air, and the chance it was drawn.
     ///
-    /// **Drawn in proportion to what each delivers, the way a surface draws them and the lamps are drawn.**
-    /// Masser is the larger and the brighter almost always, so it is nearly always the draw; a second ray
-    /// to place Secunda's shadow separately would cost as much again for a light a quarter its size. The
-    /// sun's own ray is not traced at night, so this spends what the day already spends.
+    /// Drawn in proportion to what each delivers, as a surface draws them and the lamps are drawn. Masser is
+    /// almost always the larger and the brighter, so a second ray for Secunda's shadow would cost as much
+    /// again for a light a quarter its size. The sun's own ray is not traced at night, so this spends what
+    /// the day already spends.
     vec3 mDrawn;
     float mChance;
 
     /// The one the draw landed on, so a ray can be aimed at it and its slant through the fog taken.
-    ///
-    /// **A `SkySource` and not an index into `frame.mMoons`.** `moonsInAir` read the pair at a subscript
-    /// the draw decided and `fogscatter.rgen` added the same subscript to `SKY_SOURCE_MASSER` to ask
-    /// `skyVisible` — two places deriving one thing from a number, where the thing itself fits here.
+    /// A `SkySource` and not an index into `frame.mMoons`, so the thing itself is carried instead of two
+    /// places deriving it from a number (`moonsInAir`, `fogscatter.rgen`).
     SkySource mDrawnSky;
 };
 
-/// What the sun puts into one point of the air, before its own colour and before a phase function.
+/// What the sun puts into one point of the air, before its own colour and before a phase function. Both
+/// are functions of the direction alone, so they factor out of the integral and the trace puts them back at
+/// the pixel's own angle; the froxel volume keeps the sun in an image of its own for that reason.
 ///
-/// **The colour is left to the caller and so is the phase**, because the froxel volume keeps the sun in an
-/// image of its own for exactly that reason: both are functions of the direction alone, so they factor out
-/// of the integral and the trace puts them back at the pixel's own angle.
-///
-/// **Nothing here asks the hour.** At night `mSun.mDirection` points below the horizon, the floor in
-/// `fogBeamDepth` pins it, and the beam comes back as nothing at all.
-///
-/// **And nothing here asks what water stands over the point**, which is what keeps this one channel rather
-/// than three.
+/// Nothing here asks the hour: at night `mSun.mDirection` points below the horizon, the floor in
+/// `fogBeamDepth` pins it, and the beam comes back as nothing. Nor does it ask what water stands over the
+/// point, which keeps this one channel rather than three.
 ///
 /// @param visible what a shadow ray found between the point and the sun.
 float sunInAir(vec3 position, float visible)
@@ -293,12 +252,11 @@ float sunInAir(vec3 position, float visible)
 
 /// What the two moons put into one point of the air.
 ///
-/// **Each on its own slant and not the sun's**, which `fogBeamDepth` is where it matters: a moon standing
-/// high crosses far less air than one on the rim.
+/// Each on its own slant and not the sun's, which `fogBeamDepth` is where it matters.
 ///
-/// **The one drawn, divided by its chance, where a ray was cast — and both whole where none was.** That is
-/// the lamps' estimator and the surface's: unbiased for the pair, with the noise of one draw where a
-/// froxel's history is what averages it.
+/// The one drawn, divided by its chance, where a ray was cast, and both whole where none was: the lamps'
+/// estimator and the surface's, unbiased for the pair, with the noise of one draw where a froxel's history
+/// is what averages it.
 ///
 /// @param lunar what a shadow ray found between the point and the moon the draw named, which is
 ///        read only where `FogSources::mMoonlit` said the pair was worth casting it.
@@ -312,14 +270,12 @@ vec3 moonsInAir(vec3 position, FogSources sources, float lunar)
         * (lunar / sources.mChance);
 }
 
-/// **The column's half of `FogSources`.** A directional source holds its angle to a straight ray, so this
-/// is one evaluation for the whole ray — and every froxel of a column samples the column's ray, so it is
-/// one evaluation for the whole column. `fogdepth.rgen` works it out once and stores it a layer a moon; the
-/// scatter pass reads two texels where it evaluated two Mie phases.
+/// The column's half of `FogSources`. A directional source holds its angle to a straight ray, so this is
+/// one evaluation for the whole column (every froxel samples the column's ray): `fogdepth.rgen` works it
+/// out once and stores it a layer a moon.
 ///
-/// **The sun is not one of them.** Its irradiance and its phase are functions of the direction alone, so
-/// the trace puts both back at the pixel's own angle rather than the column's — what the froxel keeps for
-/// the sun is a transport and nothing else. A third layer carried the sun's term and no pass ever read it.
+/// The sun is not one of them: its irradiance and phase are functions of the direction alone, so the trace
+/// puts both back at the pixel's own angle, and what the froxel keeps for the sun is a transport.
 MoonTerms fogMoonTermsAlong(vec3 direction)
 {
     return MoonTerms(fogMoonTerm(skySourceAt(SKY_SOURCE_MASSER), direction),
@@ -356,12 +312,11 @@ Ray fogColumnRayAt(uvec2 column, vec2 inside)
 
 /// The ray one column of the fog volume samples its air along this frame.
 ///
-/// **Stated once, because two passes have to agree about it exactly.** `fogdepth.rgen` traces it to find
-/// where the column's view of the air ends, and `fogscatter.rgen` draws every froxel's sample along it — so
-/// a froxel's "short of the surface" is measured along the ray the surface was found on.
-///
-/// **Through a point drawn inside the block, and a different point every frame**, so that over frames the
-/// column's froxels cover the block rather than one line through it.
+/// Stated once, because two passes have to agree about it exactly: `fogdepth.rgen` traces it to find where
+/// the column's view of the air ends and `fogscatter.rgen` draws every froxel's sample along it, so a
+/// froxel's "short of the surface" is measured along the ray the surface was found on. Through a point
+/// drawn inside the block, and a different one every frame, so that over frames the column's froxels
+/// cover the block rather than one line through it.
 Ray fogColumnRay(uvec2 column)
 {
     return fogColumnRayAt(column, unitPair(column, STREAM_FOG_COLUMN));
@@ -382,23 +337,19 @@ FogSlice fogSliceAt(vec2 across, float depth)
 
 /// What the weather's own air takes out of what is behind it, and what it puts in on the way.
 ///
-/// **Read out of `Rtx::FogVolume` rather than marched.** The field is the same one, the sources are the
-/// same and the arithmetic is the one `fogscatter.rgen` carries — what changes is that a column of the
-/// frustum answers for `FOG_VOLUME_SCALE` squared pixels instead of each of them paying for its own
-/// twenty-four steps and its own eight sun probes.
+/// Read out of `Rtx::FogVolume` rather than marched: the field, the sources and the arithmetic are
+/// `fogscatter.rgen`'s, but a column of the frustum answers for `FOG_VOLUME_SCALE` squared pixels instead of
+/// each paying for its own twenty-four steps and eight sun probes.
 ///
-/// **The accumulation up to the last edge passed, and then the slice the surface stands in, stepped through
-/// the way `fogintegrate.comp` stepped it.** Slice `k` holds everything up to `fogDepth((k + 1) /
-/// FOG_VOLUME_SLICES) * FOG_REACH`, and the sampler's line between two of those is the wrong shape for the
-/// rest: `FogSlice` says what shape it drew. So the read takes the edge before the surface exactly, and
-/// carries the ray from there along the same two straight pieces the integrate pass used — cut short at the
-/// surface — so that a surface standing exactly on a slice's far edge reads exactly what that slice
-/// accumulated.
+/// The accumulation up to the last edge passed, then the slice the surface stands in, stepped the way
+/// `fogintegrate.comp` stepped it: slice `k` holds everything up to `fogDepth((k + 1) / FOG_VOLUME_SLICES) *
+/// FOG_REACH` and the sampler's line between two of those is the wrong shape for the rest (`FogSlice`), so
+/// the ray goes on along the same two straight pieces the integrate pass used, cut short at the surface, and
+/// a surface exactly on a slice's far edge reads exactly what that slice accumulated.
 ///
-/// **The sun is put back here and not stored.** `fogVolumeSunward` holds the sun's transport with the
-/// irradiance and the phase function taken off it, both of which depend on the direction and on nothing
-/// along the ray — so the blaze around a low sun keeps the pixel's own angle rather than the column's.
-/// `Rtx::FogVolume` says why the moons do not.
+/// The sun is put back here and not stored: `fogVolumeSunward` holds its transport with the irradiance and
+/// phase taken off, so the blaze around a low sun keeps the pixel's own angle. `Rtx::FogVolume` says why
+/// the moons do not.
 vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
 {
     const vec2 across = fogVolumeAcross(vec2(pixel) + 0.5, frame.mFogColumns);
@@ -451,11 +402,9 @@ vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
 
 /// What a column of air along one ray is, before anything says how far to follow it.
 ///
-/// **Split out because the sprite march asks for the same ray at a hundred distances.** Every term here is
-/// a function of the origin and the direction alone, and one of them is an exponential.
-///
-/// **The exponential it hoists is not what it is for**: the compiler already lifts it out of the loop, and
-/// the split reads the same.
+/// Split out because the sprite march asks for the same ray at a hundred distances: every term here is a
+/// function of the origin and the direction alone. The exponential it hoists is not what it is for, since
+/// the compiler already lifts it out of the loop; the split reads the same.
 struct FogRay
 {
     /// How far the eye stands over the fog's base, which may be under it.
@@ -496,11 +445,9 @@ FogRay fogRayFrom(vec3 origin, vec3 direction)
 
 /// The layer's optical depth over the first `span` of a ray, exactly, before the coverage band.
 ///
-/// **The half of the air a closed form reaches.** What varies along a ray is a height falloff and a
-/// coverage band, and only the first is an exponential in `z` — so the integral of it is the one every
-/// layered atmosphere has a closed form for, and twenty-four samples of that curve are twenty-four samples
-/// of two `exp`. A reader multiplies this by `fogCoverageAt` at the path's mean-value point, which is the
-/// one term nothing integrates.
+/// The half of the air a closed form reaches: what varies along a ray is a height falloff and a coverage
+/// band, and only the first is an exponential in `z`, so its integral is the one every layered atmosphere
+/// has a closed form for. A reader multiplies this by `fogCoverageAt` at the path's mean-value point.
 float fogColumnOver(FogRay ray, float span)
 {
     const float under = ray.mUnder;
@@ -512,9 +459,9 @@ float fogColumnOver(FogRay ray, float span)
     // The stretch spent above the base: the heights it runs between, and its own length. `enters` is `from`
     // or nought and never anything else, which is what `mEntering` was taken from.
     //
-    // **One expression for the four cases the two signs make, and each case is the bits its own branch
-    // gave.** Both ends above: `x / x` is one. One end above: `from - 0` is `from`, and `(-to) / (from -
-    // to)` is `to / (to - from)` because a negation is exact.
+    // One expression for the four cases the two signs make, each the bits its own branch gave. Both ends
+    // above: `x / x` is one. One end above: `from - 0` is `from`, and `(-to) / (from - to)` is
+    // `to / (to - from)` because a negation is exact.
     const float enters = max(from, 0.0);
     const float leaves = max(to, 0.0);
     const float above = from == to ? (from > 0.0 ? span : 0.0) : span * ((enters - leaves) / (from - to));
@@ -542,17 +489,14 @@ float fogColumn(vec3 origin, vec3 direction, float span)
 
 /// Weighs every lamp reaching a stretch of a ray into `kept`, and returns what they scatter into it.
 ///
-/// **One walk of the light grid rather than one per step**, which is the cost that made the air expensive
-/// in a room: a cell's list is the same list over the whole stretch the ray spends inside it, so it is
-/// asked once and each lamp of it is integrated over that stretch.
+/// One walk of the light grid rather than one per step, which is the cost that made the air expensive in a
+/// room: a cell's list is the same over the stretch the ray spends in it, so it is asked once. The air's
+/// density and what is left of the ray are read at the lamp's closest approach, held inside the stretch.
 ///
-/// **The air's own density and what is left of the ray are read at the lamp's closest approach**, held
-/// inside the stretch.
-///
-/// **The sum and the reservoir are one estimator and not two answers.** Every lamp is offered with the
-/// weight of its own share of the sum, so the one held is drawn in proportion to what it contributes — and
-/// `sum * lampVisible(kept)` then carries the expectation of the whole sum shadowed lamp by lamp, exactly.
-/// What is left of the draw is which lamp the one ray goes to.
+/// The sum and the reservoir are one estimator: every lamp is offered with the weight of its share of the
+/// sum, so the one held is drawn in proportion to its contribution and `sum * lampVisible(kept)` carries the
+/// expectation of the whole sum shadowed lamp by lamp, exactly. What is left of the draw is which lamp the
+/// one ray goes to.
 vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direction, float entry, float exit)
 {
     // None, for a picture no lamp lights: one answer for the whole frame.
@@ -629,17 +573,15 @@ vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direct
             const float low = max(behind - closest, -halfChord);
             const float high = min(ahead - closest, halfChord);
 
-            // **A lamp that reaches none of the stretch is passed by**, where the surface's walk offers
-            // every lamp (`weighLamps`): the integral of a lamp that does not reach is nought exactly, and
-            // computing it anyway cost the air's zone 2–4 % at the median on a high-end NVIDIA laptop GPU,
-            // 5 to 9 microseconds a frame at each place of the default suite over three rounds each way,
-            // the p99 unmoved (2026-11-01).
+            // A lamp that reaches none of the stretch is passed by, where the surface's walk offers every
+            // lamp (`weighLamps`): its integral is nought exactly, and computing it anyway cost the air's
+            // zone 2-4 % at the median on a high-end NVIDIA laptop GPU (2026-11-01).
             if (!(high > low))
                 continue;
 
-            // **The falloff is what stands in for a mean**, and it is the one thing approximated: a lamp's
-            // falloff and the air's own density do not correlate over the stretch, the one varying over a
-            // lamp's reach and the other over a scale height.
+            // The falloff stands in for a mean and is the one thing approximated: a lamp's falloff and the
+            // air's density do not correlate over the stretch, the one varying over a lamp's reach and the
+            // other over a scale height.
             const float crossed = falloffAlong(perpendicular, low, high, held.mReach, held.mSourceRadius);
 
             const vec3 share = held.mIntensity * (INV_FOUR_PI * crossed);
@@ -669,26 +611,21 @@ float fogEdgeCrossed(float distance)
 
 /// What the far end of the world takes out of what is behind it, and what it puts in on the way.
 ///
-/// **The second element of the air, and it is about this renderer rather than about the weather.** The
-/// ground stops at `mFogEdge` and the ring where it stops is a cut edge in mid-air. The weather's own
-/// extinction cannot close it — it is Morrowind's record of what the air is like, it is measured over that
-/// same reach, and clear weather leaves a third of the last cell showing.
+/// The second element of the air, about this renderer rather than the weather. The ground stops at
+/// `mFogEdge` and the ring where it stops is a cut edge in mid-air, which the weather's own extinction
+/// cannot close: it is Morrowind's record of the air over that same reach, and clear weather leaves a third
+/// of the last cell showing.
 ///
-/// **Closed form, because there is nothing along this ray to sample.** The density is a function of the
-/// range from the eye alone — no noise, no height, no lamps — so the optical depth is its integral and not
-/// a march. Uniform, which is what makes it one.
+/// Closed form, because the density is a function of the range from the eye alone (no noise, height or
+/// lamps), so the optical depth is its integral and not a march. The range is the ray's own and not its
+/// shadow on the ground, as the terrain itself is culled (`Rtx::CellGrid::reachOf`).
 ///
-/// **The range is the ray's own and not its shadow on the ground**, because that is how the terrain itself
-/// is culled — `Rtx::CellGrid::reachOf` says the rest.
+/// It scatters the sky's own gradient rather than the fog's colour: they are one at the horizon, so nothing
+/// is lost near the ring, and above it the gradient is what a ray that reaches nothing already returns, so
+/// the world's edge converges onto the sky beside it without flattening its lower half.
 ///
-/// **And it scatters the sky's own gradient rather than the fog's colour.** They are the same thing at the
-/// horizon — Morrowind records one colour for both — so nothing is lost near the ring, and above it the
-/// gradient is what a ray that reaches nothing already comes back with. So this term converges the world's
-/// edge onto exactly the sky beside it, and leaves that sky where it was instead of flattening its lower
-/// half toward the horizon.
-///
-/// **Over the stretch of a ray from `from` to `to` of range from the eye**: the eye's own ray from nought,
-/// and a leg a surface sent on from the range the eye's ray had already come.
+/// Over the stretch of a ray from `from` to `to` of range from the eye: the eye's own ray from nought, and a
+/// leg a surface sent on from the range the eye's ray had already come.
 vec4 fogEdgeOver(vec3 direction, float from, float to)
 {
     // A room has no edge to hide, and neither has a test that did not ask for one.
@@ -721,14 +658,11 @@ float fogThroughLeg(vec3 origin, vec3 direction, float span)
 }
 
 /// The air along a ray the eye did not cast, over `span` of it: what a mirror sees across, which the eye's
-/// own air in front of the mirror does not cover.
-///
-/// **What scatters in is the weather's own colour**, the ambient half of what the volume holds, and not the
-/// sun's or the lamps': what those send along a ray is a question of shadow at every point, which a leg
-/// cannot ask of froxels only the eye's rays fill.
-///
-/// **And the world's edge beyond it**, over the range this leg adds to the `before` the eye's ray had come,
-/// so a mirror shows no more of the ring than the eye's own ray would.
+/// own air in front of the mirror does not cover. What scatters in is the weather's own colour, the ambient
+/// half of what the volume holds, and not the sun's or the lamps': that is a question of shadow at every
+/// point, which a leg cannot ask of froxels only the eye's rays fill. The world's edge beyond it is over the
+/// range this leg adds to the `before` the eye's ray had come, so a mirror shows no more of the ring than the
+/// eye's own ray would.
 vec4 fogAlongLeg(vec3 origin, vec3 direction, float span, float before)
 {
     const float through = fogThroughLeg(origin, direction, span);
@@ -741,28 +675,23 @@ vec4 fogAlongLeg(vec3 origin, vec3 direction, float span, float before)
 
 /// The air between the eye and everything else: the weather's, and the world's own edge beyond it.
 ///
-/// **The edge stands beyond the weather and not in front of it**, which is where its air actually is: its
-/// density is nothing until the last quarter of the reach, so what it scatters has the whole of the
-/// weather's air in front of it and arrives dimmed by exactly that.
+/// The edge stands beyond the weather and not in front of it, where its air actually is: its density is
+/// nothing until the last quarter of the reach, so what it scatters arrives dimmed by the whole of the
+/// weather's air in front of it.
 vec4 fogAlong(uvec2 pixel, WorldRay ray, float distance)
 {
-    // **Air only, and an eye under the surface has none of it in front of it.** The water stands in front,
-    // and what air a ray reaches past the plane is behind it — `mediumOverColumn` charges that as a leg's
-    // air, from where the ray rose through the plane, because the froxels hold none of it: `MASK_WATER`
-    // stops `fogdepth.rgen`'s column at the surface.
-    //
-    // **Here rather than in each element, because only one of the three could tell.** `fogCoverageAt` gives
-    // nothing under the surface and `fogColumn` integrates nothing there, so the field and the closed form
-    // the sprites and the shells read were already right. The volume is not a field read along the pixel's
-    // ray but an accumulation along its column's, and the slices past where that column met the surface
-    // hold whatever they held when the eye was above it — `fogintegrate.comp` says why it keeps them.
+    // Air only, and an eye under the surface has none in front of it: the water stands in front, and the air
+    // a ray reaches past the plane is behind it (`mediumOverColumn` charges it as a leg's air, from where the
+    // ray rose through the plane), because `MASK_WATER` stops `fogdepth.rgen`'s column at the surface. Here
+    // rather than in each element because only one of the three could tell: the volume accumulates along its
+    // column, and the slices past where that column met the surface hold whatever they held when the eye was
+    // above it (`fogintegrate.comp` says why it keeps them).
     if (waterOver(ray.mFrom) > 0.0)
         return vec4(0.0, 0.0, 0.0, 1.0);
 
-    // **The volume, whatever kind of air this is.** A room could read a closed form instead — its field is
-    // even, so the transmittance integrates exactly and only the shadow rays are left to march — but that
-    // is a lamp reservoir and a ray *per pixel*, where the volume walks the lamps once per froxel and hands
-    // this two fetches, which costs an interior less.
+    // The volume, whatever kind of air this is. A room could read a closed form instead, but that is a lamp
+    // reservoir and a ray per pixel, where the volume walks the lamps once per froxel and hands this two
+    // fetches, which costs an interior less.
     const vec4 weather = fogVolumeAlong(pixel, ray.mAlong, distance);
 
     const vec4 edge = fogEdgeOver(ray.mAlong, 0.0, distance);

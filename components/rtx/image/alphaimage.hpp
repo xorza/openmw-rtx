@@ -78,14 +78,13 @@ namespace Rtx
         std::vector<osg::Vec3f> mColours;
     };
 
-    /// `image`'s finest level as `reachesSolid` and `meanTexel` read it, described into `scratch`'s
-    /// buffers with every coarser level left off: a chain is the same picture at lower rates, and
-    /// neither question needs more than the finest. Nothing for an image this cannot describe,
-    /// which is the same image whose arrival in the texture table refuses it by name.
+    /// `image`'s finest level as `reachesSolid` and `meanTexel` read it, described into `scratch`'s buffers
+    /// with every coarser level left off, which neither question needs. Nothing for an image this cannot
+    /// describe, which the texture table refuses by name on arrival too.
     ///
-    /// @param scratch cleared and refilled here. The description spans it, or `image`'s own bytes
-    ///        where they need no laying out (`describeImage`), so it lasts until the next reading and
-    ///        no longer than `image` does.
+    /// @param scratch cleared and refilled here. The description spans it, or `image`'s own bytes where they
+    ///        need no laying out (`describeImage`), so it lasts until the next reading and no longer than
+    ///        `image` does.
     std::optional<TextureData> describeFinest(const osg::Image& image, TexelScratch& scratch);
 
     /// Whether any texel of a finest level `describeFinest` gave is fully opaque — what tells a wisp

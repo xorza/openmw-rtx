@@ -43,16 +43,14 @@ namespace Rtx
             return osg::Vec2f(std::max(0.0f, scaleOver / scaleUnder), std::max(0.0f, biasOver / biasUnder));
         }
 
-        /// **The table is the integral of the lobe the shader draws**, against a quadrature that
-        /// shares nothing with its draws: at nodes from a cosine of 0.004 to square on and from
-        /// half rough to roughest, both edges included. The smoother rows are the rule's to miss
-        /// and not the table's — its even steps in the light's cosine are too coarse near the pole
-        /// for an alpha under about 0.07.
+        /// **The table is the integral of the lobe the shader draws**, against a quadrature that shares nothing
+        /// with its draws, at nodes from a cosine of 0.004 to square on and from half rough to roughest. The
+        /// smoother rows are the rule's to miss: its even steps in the light's cosine are too coarse near the
+        /// pole for an alpha under about 0.07.
         ///
-        /// **5e-4 is the two errors added, with room.** At the grazing node the table's 4096
-        /// visible-normal draws a node are 2.3e-4 off the integral drawn with 2^20, and the rule is
-        /// 1.3e-4 off it the other way; elsewhere the two are within 1.6e-4 and 2e-5. A table drawn
-        /// from the distribution alone is 4.1e-3 off at the grazing node, and fails it.
+        /// **5e-4 is the two errors added, with room.** At the grazing node the table's 4096 visible-normal draws
+        /// are 2.3e-4 off the integral and the rule 1.3e-4 off it the other way; elsewhere the two are within
+        /// 1.6e-4 and 2e-5. A table drawn from the distribution alone is 4.1e-3 off there, and fails.
         TEST(RtxSpecularAlbedoTest, theTableIsTheIntegralOfTheLobe)
         {
             for (const std::uint32_t row : { 32u, 48u, 63u })

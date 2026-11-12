@@ -29,11 +29,10 @@ namespace MWRender
     class Precipitation;
     struct SkyState;
 
-    /// What kind of place the player is standing in, as the cell record says. Three and not two,
-    /// because a quasi-exterior — Vivec's cantons — is an interior cell with a sky and weather: the
-    /// shader chain's exterior mask counts it as outside, and `MWRender::SkyReader::read` as
-    /// neither, because it stands in a weather's air with no ring of cut ground under it. The
-    /// `isInterior` uniform follows neither and reads `WorldState::mSkyShown`.
+    /// What kind of place the player is standing in, as the cell record says. Three and not two, because a
+    /// quasi-exterior (Vivec's cantons) is an interior cell with a sky and weather: the shader chain's
+    /// exterior mask counts it as outside, and `MWRender::SkyReader::read` as neither, as it has no ring of
+    /// cut ground under it. The `isInterior` uniform reads `WorldState::mSkyShown` instead.
     enum class Location
     {
         Interior,
@@ -62,19 +61,14 @@ namespace MWRender
         float mEnd = 0.0f;
     };
 
-    /// What the game itself decides about the world this frame, read off where it keeps the
-    /// value — the sun light, `FogManager`, the cell, the toggles — so it cannot disagree with
-    /// what is drawn. What the weather settled is `SkyState`, the weather manager's own, which
-    /// the frame carries beside this. In the world's own numbers, undecoded: every colour is a
-    /// content file's three bytes over 255, and what that means is a question about a renderer's
-    /// transport.
+    /// What the game itself decides about the world this frame, read off where it keeps the value so it
+    /// cannot disagree with what is drawn; the weather's is `SkyState`, carried beside this. In the world's
+    /// own numbers, undecoded: every colour is a content file's three bytes over 255.
     struct WorldState
     {
-        /// The sun light as `RenderingManager` keeps it, which `setSunDirection`, `setSunColour`,
-        /// `setAmbientColour` and `configureAmbient` write: where it comes from, with
-        /// `match sunlight to sun` already applied, and in a room the position Morrowind points a
-        /// room's sun. The rasterizer lights through the light itself; the chain and the tracer
-        /// read these.
+        /// The sun light as `RenderingManager` keeps it, with `match sunlight to sun` already applied and, in
+        /// a room, the position Morrowind points a room's sun. The rasterizer lights through the light itself;
+        /// the chain and the tracer read these.
         osg::Vec4f mSunLightPosition;
         osg::Vec4f mSunColour;
 
@@ -82,10 +76,9 @@ namespace MWRender
         /// `mRoom` is the record.
         osg::Vec4f mAmbientColour;
 
-        /// The ambient before `updateAmbient` added the Night-Eye effect, as the weather and the
-        /// cell left it. Carried and not recovered from the two around it: `mAmbientColour` less
-        /// `mNightEye` misses it by an ulp past a doubling, and a colour stated as `k / 255` then
-        /// decodes off the curve and not off the byte's table.
+        /// The ambient before `updateAmbient` added the Night-Eye effect. Carried and not recovered:
+        /// `mAmbientColour` less `mNightEye` misses it by an ulp past a doubling, and a colour stated as
+        /// `k / 255` then decodes off the curve and not off the byte's table.
         osg::Vec4f mAmbientBeforeNightEye;
 
         /// What `updateAmbient` added to the ambient for the Night-Eye effect, in the file's space.
@@ -110,9 +103,8 @@ namespace MWRender
 
         WaterState mWater;
 
-        /// Whether the eye is under `mWater`: the water's own rule, asked at the camera's position
-        /// as upstream asked it for the rasterizer's fog and its post-processing. The ray tracer
-        /// takes its medium from the eye it traces, and the precipitation answers for itself.
+        /// Whether the eye is under `mWater`: the water's own rule, asked at the camera's position as upstream
+        /// asks it. The ray tracer takes its medium from the eye it traces.
         bool mUnderwater = false;
 
         /// Fog above the water, which a renderer whose fog is a medium reads even with the eye
@@ -126,11 +118,10 @@ namespace MWRender
         /// Where the player stands, which the rasterizer's vegetation bends away from.
         osg::Vec3f mPlayerPosition;
 
-        /// The `AMBI` record of the room the player is standing in, or nothing anywhere else. The
-        /// record and not `mAmbientColour`, because `configureAmbient` lifts an interior's ambient
-        /// to `minimum interior brightness` for the rasterizer's own falloff and turns its sunlight
-        /// into a directional light. Only in an `Interior`: a quasi-exterior's light is the
-        /// weather's.
+        /// The `AMBI` record of the room the player is in, or nothing elsewhere. The record and not
+        /// `mAmbientColour`, because `configureAmbient` lifts an interior's ambient to `minimum interior
+        /// brightness` and turns its sunlight directional. Only in an `Interior`: a quasi-exterior's light
+        /// is the weather's.
         std::optional<ESM::Cell::AMBIstruct> mRoom;
 
         float mGameHour = 0.0f;
@@ -139,9 +130,8 @@ namespace MWRender
         /// or nothing where `day night switches` is off and each shows the child its file opens on.
         std::optional<unsigned int> mNightDayMode;
 
-        /// Game seconds since the game began, `MWWorld::DateTimeManager::getGameTime`: what the star
-        /// sphere is turned by (`Sky::starRoll`), as a function of the clock and not a sum of
-        /// frames, so a clock set or run forward turns the stars with it.
+        /// Game seconds since the game began, `MWWorld::DateTimeManager::getGameTime`: the stars are turned by
+        /// the clock and not a sum of frames, so a clock set or run forward turns them with it.
         double mGameTime = 0.0;
 
         /// The `timescale` global: game seconds to each real one, which a renderer steps its own
@@ -152,10 +142,9 @@ namespace MWRender
         /// `MWWorld::WeatherManager` registers.
         int mWeatherId = 0;
 
-        /// Which one it is turning into, and nothing while it is turning into none. The world says
-        /// -1 there, and a default of zero would have said "a transition to Clear, just finished".
-        /// The two fields below are read unconditionally — by the shader chain and by
-        /// `Rtx::describeClouds` — and hold whatever the weather manager last left.
+        /// Which one it is turning into, and nothing while it is turning into none: the world says -1 there,
+        /// and a default of zero would say "a transition to Clear, just finished". The two fields below are
+        /// read unconditionally and hold whatever the weather manager last left.
         std::optional<int> mNextWeatherId;
 
         /// How far that transition has left to run: one when it begins and zero when it ends, the
@@ -172,24 +161,21 @@ namespace MWRender
         bool isOutdoors() const { return mLocation != Location::Interior; }
     };
 
-    /// Where the sun's disc is drawn, off the two records: the weather's orbit bent into the sky
-    /// where the weather ran, and where it has not — a room — the point `configureAmbient` aimed
-    /// the light, with no night. One rule, because the shader chain and the trace both place a
-    /// disc, and upstream's `RenderingManager::update` told the chain the same two answers.
+    /// Where the sun's disc is drawn: the weather's orbit where the weather ran, and in a room the point
+    /// `configureAmbient` aimed the light, with no night. One rule, because the shader chain and the trace
+    /// both place a disc.
     osg::Vec4f sunDiscOf(const SkyState& sky, const WorldState& world);
 
-    /// Where the frame is seen from, and how far it can see: the eye's, not the world's, because
-    /// the same world is drawn through several — the frame's, a map tile's, a doll's. Where the
-    /// eye stands is the camera's own view matrix, which the update traversal writes after this
-    /// is described: a renderer reads it off the camera it adopted, at the moment it draws.
+    /// Where the frame is seen from, and how far it can see: the eye's, not the world's, because the same
+    /// world is drawn through several. Where the eye stands is the camera's own view matrix, which the update
+    /// traversal writes after this is described: a renderer reads it off the camera it adopted when it draws.
     struct EyeState
     {
         float mNearClip = 0.0f;
         float mViewDistance = 0.0f;
 
-        /// How far a script asked the player to see, `camera.setViewDistance`, where that is not
-        /// the setting. The rasterizer's far clip is `mViewDistance` either way; the ray tracer
-        /// closes its air here and keeps the world standing to the setting's reach, so a script
+        /// How far a script asked the player to see, `camera.setViewDistance`, where that is not the setting.
+        /// The ray tracer closes its air here and keeps the world standing to the setting's reach, so a script
         /// never rebuilds the world.
         std::optional<float> mScriptViewDistance;
 
@@ -199,10 +185,9 @@ namespace MWRender
 
         osg::Matrixf mProjectionMatrix{};
 
-        /// A script's `camera.setProjectionOffset`, as the translation `mProjectionMatrix` carries
-        /// after its perspective: in clip units, x right and y up, nought without one. Said apart
-        /// for a renderer that builds its own projection, which the ray tracer does at its traced
-        /// extent: the picture then moves by the same fraction of itself on both.
+        /// A script's `camera.setProjectionOffset`, as the translation `mProjectionMatrix` carries after its
+        /// perspective: clip units, x right and y up. Said apart for a renderer that builds its own projection
+        /// at its traced extent, so the picture moves by the same fraction of itself.
         osg::Vec2f mProjectionShift{};
 
         /// The one the world settled on: the override wherever something asked for one, and the
@@ -214,9 +199,8 @@ namespace MWRender
         float mArmsFieldOfView = 0.0f;
     };
 
-    /// What there is to draw, and what the world is doing while it is drawn. Handed down rather
-    /// than reached up for, so a renderer knows only what a frame is; where there is no world —
-    /// the main menu, a loading screen — `Renderer::renderGui` is called instead.
+    /// What there is to draw, and what the world is doing while it is drawn. Handed down rather than reached
+    /// up for; where there is no world, `Renderer::renderGui` is called instead.
     struct SceneFrame
     {
         /// The whole world, from the top. Not the cull's results: rays go everywhere.
@@ -229,9 +213,8 @@ namespace MWRender
         /// What the weather settled, the weather manager's own.
         const SkyState& mSky;
 
-        /// What the weather drops, as the game's particle systems: both renderers walk them, and
-        /// each asks what it needs of them — the nodes, the occluder's box, how much rings the
-        /// water.
+        /// What the weather drops, as the game's particle systems: both renderers walk them, each asking what
+        /// it needs.
         const Precipitation& mPrecipitation;
 
         const WorldState& mWorld;
@@ -252,10 +235,9 @@ namespace MWRender
         float mDeltaTime = 0.0f;
         bool mPaused = false;
 
-        /// The stable identities of the references the game put somewhere else in one step since
-        /// the last frame — a door, a teleport, a script's `Position` — whose history from where
-        /// they stood is no history of where they stand (`SceneUtil::StableIdentity`). Ascending,
-        /// each once.
+        /// The stable identities of the references the game put somewhere else in one step since the last
+        /// frame (a door, a teleport, a script's `Position`), whose history is no history of where they now
+        /// stand (`SceneUtil::StableIdentity`). Ascending, each once.
         std::span<const std::uint64_t> mJumped{};
     };
 }

@@ -77,11 +77,10 @@ namespace ContentStore
             return count;
         }
 
-        /// One entry written and read back: the file stands where the key names it, as long as its
-        /// header and payload, 56 + 5000 = 5056 bytes, in the folder of the key's first byte, `01`, in
-        /// the folder of the format, `v2`; and
-        /// another store on the same folder reads it whole from its file. The frame's reach, memory
-        /// alone, does not find an entry too large to hold there.
+        /// One entry written and read back: the file stands where the key names it, as long as its header and
+        /// payload, 56 + 5000 = 5056 bytes, in the folder of the key's first byte, `01`, in the folder of the
+        /// format, `v2`, and another store on the same folder reads it whole. Memory alone does not find an
+        /// entry too large to hold there.
         TEST(ContentStoreTest, anEntryWrittenIsReadBackWholeByAnotherStoreOnTheSameFolder)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";

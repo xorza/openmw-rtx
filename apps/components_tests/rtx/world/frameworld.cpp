@@ -153,7 +153,6 @@ namespace Rtx
         /// **One place fills them for the game and the harness both**, so the two cannot drift apart:
         /// a sea's clock filled by one and left at zero by the other, or the outdoor fog field run
         /// in the game's interiors.
-        /// One conversion is what fixed that; this is what says the conversion is complete.
         ///
         /// Written against a zeroed frame so that a field `describeWorld` forgets stays zero and
         /// fails here, rather than quietly carrying whatever the camera left behind.

@@ -92,10 +92,9 @@ namespace Rtx
             EXPECT_NEAR(waves.getSlope(), std::sqrt(wantedSlope), 1e-4f * std::sqrt(wantedSlope))
                 << "the slope the pass hands over";
 
-            // **And the curvature the same way, which is what sizes the caustic's own fold.** There
-            // is no chain of it left to read: the tile that carried `(tr H)^2` went when the fold
-            // stopped being differenced per pixel, so this is the whole of what says the number the
-            // shader divides by describes the water the shader is looking at.
+            // **And the curvature the same way, which is what sizes the caustic's own fold.** No chain
+            // carries it, so this is the whole of what says the number the shader divides by
+            // describes the water the shader is looking at.
             EXPECT_NEAR(waves.getMoments().mWhole, wantedTrace, 1e-4f * wantedTrace)
                 << "the curvature the pass hands over";
 
@@ -180,7 +179,7 @@ namespace Rtx
 
         /// The table of resolved curvature is what a sampler reading the chain would find.
         ///
-        /// **The caustic's fold is read from a table now and not differenced out of a mip**, so the
+        /// **The caustic's fold is read from a table and not differenced out of a mip**, so the
         /// table has to describe what `textureLod` returns — which is not what the texels hold.
         /// A level's own transfer is Dirichlet's kernel, and then the tap reconstructs between its
         /// samples bilinearly, which is a second filter: it passes `(2 + cos(k w)) / 3` of a

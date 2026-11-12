@@ -36,12 +36,12 @@ namespace Rtx
 
         /// `channels` and the bound images of `denoiser` into `into`, ordered for a host read last:
         /// image `i` of the channels fills the `DIGEST_LANES` words from `i * DIGEST_LANES`, and
-        /// the denoiser's images follow (`lanesOf`). Each is read over the frame's `extent`, at
-        /// each pixel's place: in its field, as frame number `frame` lays them, for the channels
-        /// `channelsInFields` names, a bit at each one's index, and for every image of the
-        /// denoiser's. Each is readable as a storage image in `GENERAL`; the denoiser's, null where
-        /// the frame wrote none, are ordered here behind the passes that wrote them. Hands back
-        /// which of them it took, a bit at each one's index (`FrameDigest::mDenoiserTaken`).
+        /// the denoiser's images follow (`lanesOf`). Each is read over the frame's `extent` at each
+        /// pixel's place: in its field, as frame number `frame` lays them, for the channels
+        /// `channelsInFields` names (a bit at each one's index), and for every denoiser image. Each
+        /// is a storage image in `GENERAL`; the denoiser's, null where the frame wrote none, are
+        /// ordered here behind the passes that wrote them. Hands back which it took, a bit at each
+        /// one's index (`FrameDigest::mDenoiserTaken`).
         std::uint32_t record(VkCommandBuffer commands, const std::array<const Image*, Shaders::DIGEST_IMAGES>& channels,
             std::uint32_t channelsInFields, const std::array<const Image*, sDenoiserImageCount>& denoiser,
             VkExtent2D extent, std::uint32_t frame, const Buffer& into, GpuTimer* timer) const;
@@ -65,10 +65,10 @@ namespace Rtx
 
         ComputePipeline<Shaders::DigestConstants> mPipeline;
 
-        /// Where the words are folded, in the device's own memory, and copied out of once:
-        /// folded straight into the frame's read-back buffer, every atomic was a transaction across
-        /// the bus, and the pass took twenty-four milliseconds a frame. One, and not one a frame in
-        /// flight, because the copy out of it stands in the queue before the next frame's clear.
+        /// Where the words are folded, in the device's own memory, and copied out of once: folded
+        /// straight into the host-visible read-back buffer every atomic is a transaction across the
+        /// bus (twenty-four milliseconds a frame). One, and not one a frame in flight, because the
+        /// copy out of it stands in the queue before the next frame's clear.
         Buffer mLanes;
 
         /// What a denoiser image the frame wrote none of is bound as, a float view and a word one,

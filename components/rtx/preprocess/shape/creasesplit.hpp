@@ -17,40 +17,29 @@ namespace Rtx
     /// normal a mesh ends with describes the surface around it.
     ///
     /// **Why a ray tracer needs it.** A shadow ray leaves from the surface the vertex normals
-    /// describe, and not from the flat facet, or a coarse solid shadows itself facet by facet
-    /// (`Surface::mLift`). That is sound only where the normals describe a surface — Hanika's own
-    /// assumption: a crease is authored as two normals, one for each side. Vanilla content mostly
-    /// is not: 94 of every hundred edges two triangles share are smoothed, the right angles of the
-    /// furniture included. `furn_de_table_04.nif` carries no split edge at all and 129 smoothed
-    /// ones of sixty degrees and more, so its normals describe a dome and its shadow rays would
-    /// leave from above it.
+    /// describe, and not from the flat facet, or a coarse solid shadows itself facet by facet. That
+    /// is sound only where the normals describe a surface: a crease is authored as two normals, one
+    /// for each side. Vanilla content mostly is not: 94 of every hundred edges two triangles share
+    /// are smoothed, the right angles of the furniture included, so a table's normals describe a dome
+    /// and its shadow rays would leave from above it.
     ///
     /// **Every smoothing group that bends takes its faces' weighted mean.** At each position, the
     /// corners that carry one authored normal are the artist's smoothing group there. Where its
     /// faces stand in more than one plane, it is cut along every edge of `sHardCosine` and more into
     /// the pieces its smooth edges still join, and each piece takes the mean of its own faces, each
     /// weighed by its corner angle (Thürmer and Wüthrich, "Computing vertex normals from polygonal
-    /// facets", 1998), which no way of cutting a polygon into triangles changes, and by its area, as
-    /// face-weighted normals weigh it (Blender's Weighted Normal modifier), so a broad face stays flat
-    /// and the narrow bevel beside it carries the bend. A vertex whose corners fall into two pieces
-    /// becomes two vertices.
+    /// facets", 1998) and by its area (Blender's Weighted Normal modifier), so a broad face stays
+    /// flat and the narrow bevel beside it carries the bend: the content chamfers its boxes and
+    /// smooths them whole. A vertex whose corners fall into two pieces becomes two vertices.
     ///
-    /// **The area, because the content chamfers its boxes and smooths them whole.**
-    /// `ex_vivec_b_wb_gap_01.nif`, a segment of a Vivec bridge, smooths each 108-unit face into the
-    /// 10-unit bevels round it, and its corners lean 14.6 and 30.4 degrees off the face: every
-    /// segment lit as a cushion, in blocks along the bridge. Weighed by area and angle they lean 4.8.
-    ///
-    /// **A group whose faces are one plane keeps the normal the content wrote**: no face of it says
-    /// what else the normal could be, and a normal bent off a flat card is bent on purpose.
+    /// **A group whose faces are one plane keeps the normal the content wrote**: a normal bent off a
+    /// flat card is bent on purpose.
     ///
     /// **Across the shapes of a model, and not only inside one.** A Morrowind model is one shape a
-    /// texture, and its exporter smoothed the normals over the whole model: the floor of
-    /// `in_dwrv_corr2_03.nif` is one shape and its walls another, and the floor's corners along the
-    /// wall carry `(0, 0.707, 0.707)`, the mean of the two across a right angle. Read alone, the
-    /// floor's every face is flat and no edge in it is hard, so those corners kept a normal leaning
-    /// forty-five degrees off it and lit metres of floor in wedges. So the faces the model holds
-    /// beside the mesh (`Beside`) join its smoothing groups, find their hard edges and weigh in
-    /// their pieces' normals, and only the mesh's own corners are written.
+    /// texture, and its exporter smoothed the normals over the whole model, so a floor's corners along
+    /// a wall carry the mean of the two across a right angle. So the faces the model holds beside the
+    /// mesh (`Beside`) join its smoothing groups, find their hard edges and weigh in their pieces'
+    /// normals, and only the mesh's own corners are written.
     class CreaseSplit
     {
     public:
@@ -74,14 +63,10 @@ namespace Rtx
             std::vector<std::uint32_t>& mSources;
         };
 
-        /// The cosine of the angle between two faces from which the edge they share is hard:
-        /// fifty-five degrees, just under the fifty-six the Seyda Neen dry-stone wall smooths its
-        /// segments into its cap at. Kept smooth, that crease lit the wall in bands wherever the
-        /// cap's lean met the sun. An octagonal prism's forty-five stays round, and a hexagonal
-        /// prism's sixty is cut into its faces. Modelling tools default on either side of it —
-        /// Blender's auto-smooth at thirty, Unity's importer at sixty. Over the vanilla archives it
-        /// moves 1.6 corners in a hundred of the Bitter Coast rocks' and 4.4 of all rocks', none of
-        /// the Seyda Neen boulder's, and 62 in a hundred of the tables'.
+        /// The cosine of the angle between two faces from which the edge they share is hard: fifty-five
+        /// degrees, just under the fifty-six the Seyda Neen dry-stone wall smooths its segments into its
+        /// cap at, which lit the wall in bands where kept smooth. An octagonal prism's forty-five stays
+        /// round, and a hexagonal prism's sixty is cut into its faces.
         static constexpr float sHardCosine = 0.57357644f;
 
         /// The cosine of the angle within which two faces are one plane: one degree. A flat

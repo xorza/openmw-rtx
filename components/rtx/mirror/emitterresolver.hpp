@@ -47,11 +47,10 @@ namespace Rtx
     class EmitterResolver
     {
     public:
-        /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
-        ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
-        ///        two answers.
-        /// @param thread the thread's content, whose image facts are shared with the materials,
-        ///        because a flame's texture is a sheet's too and one file is read once.
+        /// @param pass the walk in progress: its sweep stamp and its counts, read at every call. Borrowed, so that the
+        ///        mirror and everything resolving into it cannot come to hold two answers.
+        /// @param thread the thread's content, whose image facts are shared with the materials, because a flame's
+        ///        texture is a sheet's too and one file is read once.
         EmitterResolver(SceneDesc& scene, const MirrorPass& pass, ThreadContent& thread)
             : mScene(scene)
             , mPass(pass)
@@ -95,13 +94,10 @@ namespace Rtx
         std::uint32_t countPastRoom() const { return mHeld.getPastRoom(); }
 
     private:
-        /// What one particle system draws with, read off its state-set chain once and kept: the
-        /// entry's hold on its sprite texture and on the bake of that texture's alpha its sprites
-        /// are lit by, how
-        /// they composite, and the image itself. Read again only where a link of the chain
-        /// animates, because nothing else can change what a system draws with — and describing
-        /// a chain is a walk of its state sets, which hundreds of emitters a frame paid for
-        /// nothing.
+        /// What one particle system draws with, read off its state-set chain once and kept: the entry's hold on its
+        /// sprite texture and on the bake of that texture's alpha its sprites are lit by, how they composite, and the
+        /// image itself. Read again only where a link of the chain animates, because nothing else can change what a
+        /// system draws with.
         struct HeldSprite
         {
             TextureHold mSlot;
@@ -111,12 +107,10 @@ namespace Rtx
             /// How the system's sprites composite: one that adds is light and must not be lit.
             BlendKind mBlend = BlendKind::Over;
 
-            /// What the sprites' colour and alpha are read off, which is the material's vertex
-            /// mode: under `Tint` the particle's own colour and its two alpha ramps, as
-            /// `osgParticle` hands them to the vertex; under anything else the material's diffuse
-            /// and its opacity, with the particle's ignored — which is what the rasterizer's
-            /// `getDiffuseColor` reads under `None`, and what the mist in every ancestral tomb is
-            /// authored as: a material at half opacity over a particle that says one.
+            /// What the sprites' colour and alpha are read off, which is the material's vertex mode: under `Tint` the
+            /// particle's own colour and its two alpha ramps, as `osgParticle` hands them to the vertex; under anything
+            /// else the material's diffuse and its opacity, with the particle's ignored, as the rasterizer's
+            /// `getDiffuseColor` reads under `None`.
             VertexColour mVertexColour = VertexColour::None;
             osg::Vec3f mDiffuseColour{ 1.0f, 1.0f, 1.0f };
             float mOpacity = 1.0f;

@@ -44,11 +44,10 @@ namespace Rtx
         sampled.mEyes.mWorld.mJitter
             = reconstruction.mJitter ? haltonJitter(phase) : options.mJitter.value_or(osg::Vec2f());
 
-        // The six consequences of the reconstruction the trace reads for itself: where its draws
-        // come from, how far the shown pixel narrows every texture level, whether the eye may draw a
-        // soft edge's texels by their alpha, under which share a source is never drawn for the
-        // shadow bit, how many lamps a composing point draws, and how many bounce rays the eye's surface traces. A
-        // picture's `Reconstruction{}` says the tile, nought, no and the three defaults.
+        // The six consequences of the reconstruction the trace reads for itself: where its draws come from,
+        // how far the shown pixel narrows every texture level, whether the eye may draw a soft edge's texels
+        // by their alpha, under which share a source is never drawn for the shadow bit, how many lamps a
+        // composing point draws, and how many bounce rays the eye's surface traces.
         sampled.mNoise
             = reconstruction.mNoise == NoiseSource::WhiteHash ? Shaders::NOISE_WHITE_HASH : Shaders::NOISE_BLUE_TILE;
         sampled.mLevelBias = reconstruction.mLevelBias;

@@ -45,18 +45,15 @@ namespace Rtx::Testing
     {
         /// What the walk stopped finding leaves the scene, and what stayed keeps working.
         ///
-        /// **The whole reason this exists is not memory but identity.** The mesh cache is keyed on
-        /// the `osg::Drawable*`, which is what makes a crate met in a second cell resolve to the
-        /// crate already uploaded — and an address the engine freed when a cell unloaded can be
-        /// handed straight back for something else. Sweeping is what stops the next thing allocated
-        /// there inheriting a mesh it has nothing to do with.
+        /// **The whole reason this exists is not memory but identity.** The mesh cache is keyed on the
+        /// `osg::Drawable*`, so a crate met in a second cell resolves to the one already uploaded, but an address
+        /// the engine freed on a cell unload can be handed straight back for something else; sweeping stops the
+        /// next thing allocated there inheriting a mesh it has nothing to do with.
         ///
-        /// **The torn figure a change of clothes produced.** `NpcAnimation::updateParts` frees the
-        /// body parts that changed and builds their replacements, and the allocator is free to put a
-        /// new part exactly where a retired one was; a map keyed on the bare address then finds the
-        /// retired part's entry under the new part's and mirrors geometry that has nothing to do with
-        /// it. The entry owns its subject, so that address is not available to hand out again until
-        /// the sweep lets go — which is what makes the identity true rather than likely.
+        /// **The torn figure a change of clothes produced.** `NpcAnimation::updateParts` frees changed body parts
+        /// and builds replacements, which the allocator may put exactly where a retired one was. The entry owns its
+        /// subject, so that address is not available again until the sweep lets go, which makes the identity true
+        /// rather than likely.
         TEST_F(RtxSceneExtractorTest, aDrawableTheGraphLetGoKeepsItsAddressUntilTheSweepReleasesIt)
         {
 
@@ -80,8 +77,7 @@ namespace Rtx::Testing
             ASSERT_EQ(was->referenceCount(), 1) << "something other than the identity map is holding it";
             ASSERT_TRUE(watch.valid()) << "the map let it go while its entry still stood";
 
-            // So the replacement cannot land where it was, which is the whole of the fix: the
-            // address is spoken for.
+            // So the replacement cannot land where it was: the address is spoken for.
             osg::ref_ptr<osg::Geometry> replacement = makeQuad();
             static_cast<osg::Vec3Array*>(replacement->getVertexArray())->at(0).z() = 5.0f;
             ASSERT_NE(replacement.get(), was) << "the replacement landed on the retired part's address";
@@ -97,11 +93,9 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.meshes().getRows().size(), 2u);
             EXPECT_EQ(mScene.meshes().getMeshPositions(1)[0].z(), 5.0f);
 
-            // **And the sweep is what lets go**, into the extractor's sink and not on the frame
-            // thread: the drawable outlives its entry by the sink's one reference, until the owner
-            // hands the sink to whatever releases the game's own — here, a clear. Holding the key
-            // is what costs: geometry the graph dropped outlives its owner until here, and a caller
-            // that never sweeps holds every drawable it has ever walked.
+            // **And the sweep is what lets go**, into the extractor's sink and not on the frame thread: the drawable
+            // outlives its entry by the sink's one reference, until the owner hands the sink to whatever releases the
+            // game's own (here, a clear). A caller that never sweeps holds every drawable it has ever walked.
             const Retirement went = mExtractor.retire();
             EXPECT_EQ(went.mMeshes, 1u);
             ASSERT_TRUE(watch.valid()) << "the sweep dropped the drawable on the frame thread";
@@ -110,13 +104,11 @@ namespace Rtx::Testing
             EXPECT_FALSE(watch.valid()) << "the sink was cleared and kept the drawable alive";
         }
 
-        /// **The same figure, torn one level up, and the walk holds nothing for it.** A placement is
-        /// known by where its drawable stands in the structure under the nearest stamped node —
-        /// which child of which child — and never by a node's address. So a part the engine frees
-        /// and builds again in the same place, as `NpcAnimation::updateParts` does for a body part
-        /// whose mesh the cache shares, is the placement it replaces, moved: it keeps its slot and
-        /// the history a reprojection reads. Nothing is held to make that true, so the freed node
-        /// goes the moment the graph lets it go.
+        /// **The same figure, torn one level up, and the walk holds nothing for it.** A placement is known by where
+        /// its drawable stands under the nearest stamped node (which child of which child), never by a node's
+        /// address, so a part the engine frees and builds again in the same place (`NpcAnimation::updateParts`) is
+        /// the placement it replaces, moved: it keeps its slot and its history. Nothing is held to make that true,
+        /// so the freed node goes the moment the graph lets it go.
         TEST_F(RtxSceneExtractorTest, aNodeRebuiltInItsPlaceIsThePlacementItReplaces)
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;
@@ -158,9 +150,9 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
         }
 
-        /// **A stamped node is known by its stamp, wherever it sits among its siblings.** The engine
-        /// stamps every reference root, so a crate is the same placement after the crate before it
-        /// in the cell has gone — which under a structural identity alone it would not be.
+        /// **A stamped node is known by its stamp, wherever it sits among its siblings.** The engine stamps every
+        /// reference root, so a crate is the same placement after the crate before it has gone, which a structural
+        /// identity alone would not give.
         TEST_F(RtxSceneExtractorTest, aStampedNodeKeepsItsPlacementWhenTheSiblingBeforeItGoes)
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;
@@ -197,10 +189,9 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
         }
 
-        /// **A stamp deeper than the walk was told to look is not read**, so the same two crates
-        /// under a walk told nought are known by their places alone: the second is walked as the
-        /// first, moved. The depth is what keeps the look off the fifty thousand nodes under the
-        /// stamps, and this is what says the look actually stops there.
+        /// **A stamp deeper than the walk was told to look is not read**, so two crates under a walk told nought are
+        /// known by their places alone: the second is walked as the first, moved. The depth keeps the look off the
+        /// fifty thousand nodes under the stamps, and this says it stops there.
         TEST_F(RtxSceneExtractorTest, aStampBelowTheStatedDepthIsNotRead)
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;
@@ -227,11 +218,10 @@ namespace Rtx::Testing
             EXPECT_EQ(placedAt(mScene, 0), osg::Vec3f(5.0f, 0.0f, 0.0f));
         }
 
-        /// **And an unstamped node is known by its place, so a sibling that shifts into another's
-        /// place takes over that placement.** The trade the structural identity makes, said out
-        /// loud: two like parts under one unstamped node and the first goes, the second is walked as
-        /// the first, moved. One frame of history read from where the first stood, for the siblings
-        /// of one node — and no address, no hold and no allocator anywhere in the answer.
+        /// **And an unstamped node is known by its place, so a sibling that shifts into another's place takes over
+        /// that placement.** The trade the structural identity makes: two like parts under one unstamped node and
+        /// the first goes, the second is walked as the first, moved, with one frame of history read from where the
+        /// first stood, and no address, hold or allocator in the answer.
         TEST_F(RtxSceneExtractorTest, anUnstampedNodeIsKnownByItsPlaceAmongItsSiblings)
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;
@@ -263,11 +253,9 @@ namespace Rtx::Testing
             EXPECT_FALSE(mScene.placements().isPlaced(1)) << "the second's old slot was kept";
         }
 
-        /// A mesh and a material of the scene's own, which no drawable names.
-        ///
-        /// What the cell ring does for a cell's ground: the rows are added straight to the scene,
-        /// held on it, and let go of by giving the holds back — outside any walk, which is when a
-        /// detached world lets go of everything.
+        /// A mesh and a material of the scene's own, which no drawable names: what the cell ring does for a cell's
+        /// ground. The rows are added straight to the scene, held on it, and let go by giving the holds back,
+        /// outside any walk, as a detached world lets go of everything.
         class OwnedRows
         {
         public:
@@ -308,10 +296,9 @@ namespace Rtx::Testing
             Index mSlot = sNoIndex;
         };
 
-        /// **A row something holds survives every retire, and goes with the last hold given back,
-        /// which the next retire counts.** The identity maps hold nothing for it, so without the
-        /// hold a row stood outside a walk would have nothing keeping it — the ground under the
-        /// player's feet.
+        /// **A row something holds survives every retire, and goes with the last hold given back, which the next
+        /// retire counts.** The identity maps hold nothing for it, so without the hold a row stood outside a walk
+        /// (the ground under the player's feet) would have nothing keeping it.
         TEST_F(RtxSceneExtractorTest, aRowAHoldKeepsIsKeptWhileHeldAndReleasedWhenLetGo)
         {
             OwnedRows rows(mScene);
@@ -399,9 +386,8 @@ namespace Rtx::Testing
             EXPECT_EQ(went.mMeshes, 1u);
             EXPECT_EQ(went.mMaterials, 0u) << "an untextured quad has no state set and so no material";
 
-            // **The table is the same size and the survivors are where they were.** Freeing a slot
-            // in place is what lets a cell leave without renumbering every mesh in the world, and
-            // renumbering is what made a boundary cost a full rebuild.
+            // **The table is the same size and the survivors are where they were.** Freeing a slot in place lets a cell
+            // leave without renumbering every mesh in the world.
             ASSERT_EQ(mScene.meshes().getRows().size(), 3u);
             EXPECT_EQ(mScene.meshes().getRows()[1].mVertices.mCount, 0u) << "the middle slot should be free";
             EXPECT_EQ(mScene.meshes().getMeshPositions(2)[0].z(), 7.0f) << "a survivor moved";
@@ -412,11 +398,10 @@ namespace Rtx::Testing
             EXPECT_EQ(after.mMeshesAdded, 0u) << "a survivor was re-added rather than recognised";
             EXPECT_EQ(after.mMeshesReused, 2u);
 
-            // **Three slots and two standing in them.** A placement is its place in the structure:
-            // the walk under `less` finds the first quad where it was, and in the second's place a
-            // different mesh, so that placement is stood again in the slot it freed. The third
-            // quad's old place is what nothing walks any more, and the sweep took it. A dropped
-            // placement leaves its slot behind rather than closing the gap.
+            // **Three slots and two standing in them.** A placement is its place in the structure: the walk under
+            // `less` finds the first quad where it was and a different mesh in the second's place, so that placement is
+            // stood again in the slot it freed. The third quad's old place is walked no more and the sweep took it; a
+            // dropped placement leaves its slot behind rather than closing the gap.
             ASSERT_EQ(mScene.placements().getCounts().mPlaced, 2u);
             ASSERT_EQ(mScene.placements().getRows().size(), 3u);
             EXPECT_FALSE(mScene.placements().isPlaced(2)) << "slot 2 should be a gap";
@@ -445,18 +430,14 @@ namespace Rtx::Testing
 
         /// A cell that unloads takes its creatures with it, and the cell beside it keeps its own.
         ///
-        /// **The shape the game makes, which `aSweepDropsWhatTheWalkNoLongerFindsAndCarriesTheRest`
-        /// is not.** That one hands the walk a smaller graph; this one keeps the root and takes a
-        /// child off it, because that is all `MWWorld::Scene` unloading a cell does to the picture.
-        /// `MWRender::Objects` parents every reference in a cell — actors among them — to one group
-        /// under the scene root, and `Objects::removeCell` takes that group off. The root never
-        /// changes, so nothing announces that a cell has gone: what drops the actors that left with
-        /// it is the sweep, and only the sweep.
+        /// **The shape the game makes, which `aSweepDropsWhatTheWalkNoLongerFindsAndCarriesTheRest` is not.** That
+        /// one hands the walk a smaller graph; this one keeps the root and takes a child off it, as
+        /// `MWRender::Objects::removeCell` does with the one group a cell's references hang under. The root
+        /// never changes, so only the sweep drops the actors that left with the cell.
         ///
-        /// **Actors and not crates, because an actor goes on costing after it is out of reach.** A
-        /// deforming drawable is a bottom-level structure rebuilt from a pose every frame, so a
-        /// creature the sweep missed is not only a body standing in an unloaded town but the price
-        /// of one — which is why the one that leaves is posed again after it has.
+        /// **Actors and not crates, because an actor goes on costing after it is out of reach**: a deforming
+        /// drawable is a bottom-level structure rebuilt from a pose every frame, so a creature the sweep missed is
+        /// the price of one as well as a body in an unloaded town.
         TEST_F(RtxSceneExtractorTest, aCellTakenOffTheRootTakesItsActorsAndLeavesItsNeighboursStanding)
         {
             RiggedQuad leaves;
@@ -525,17 +506,14 @@ namespace Rtx::Testing
                 << "the rig of the one that left went with it and the survivor's stayed";
         }
 
-        /// A slot the walk stopped naming is freed on the frame it stopped, however whole the map is,
-        /// and the placement that stood on it is stood again on the mesh that replaced it.
+        /// A slot the walk stopped naming is freed on the frame it stopped, however whole the map is, and the
+        /// placement that stood on it is stood again on the mesh that replaced it.
         ///
-        /// **What the sweep's own guard cannot see.** A frame where every entry was reached has
-        /// nothing stale in it, so the sweep and the release are both skipped — but a deforming
-        /// drawable whose source geometry was replaced is not stale, it is wrong: `MeshResolver`
-        /// lets go of that entry in the middle of the walk and mirrors the drawable afresh. The map
-        /// ends the frame the size it started, every entry in it stamped, and the slot the abandoned
-        /// entry named is named by nothing at all — the placement found under the drawable's path
-        /// included, which would otherwise stand on the freed row and trace whatever is put there
-        /// next.
+        /// **What the sweep's own guard cannot see.** A frame where every entry was reached skips the sweep and the
+        /// release, but a deforming drawable whose source geometry was replaced is not stale, it is wrong:
+        /// `MeshResolver` lets go of that entry mid-walk and mirrors the drawable afresh. The map ends the frame
+        /// the size it started, and the abandoned slot is named by nothing, including the placement found under
+        /// the drawable's path, which would otherwise trace whatever is put on the freed row next.
         TEST_F(RtxSceneExtractorTest, aSlotAbandonedInsideAWalkIsFreedByTheSameFrameThatAbandonedIt)
         {
             RiggedQuad actor;
@@ -556,9 +534,9 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.meshes().getRows()[0].mVertices.mCount, 4u)
                 << "the actor is the first drawable under the root";
 
-            // **The rig re-pointed at a longer mesh, which is the same rig.** Posing six vertices
-            // into a run of four is not a wrong pose: the run lives in one shared vertex buffer, so
-            // the kernel would write over the meshes that follow it.
+            // **The rig re-pointed at a longer mesh, which is the same rig.** Posing six vertices into a run of four is
+            // not a wrong pose: the run lives in one shared vertex buffer, so the kernel would overwrite the
+            // meshes that follow it.
             osg::ref_ptr<osg::Geometry> longer = new osg::Geometry;
             longer->setVertexArray(makePositions({
                 osg::Vec3f(0.0f, 0.0f, 0.0f),
@@ -600,17 +578,13 @@ namespace Rtx::Testing
             EXPECT_TRUE(actorStands) << "the actor's placement kept standing on the abandoned slot";
         }
 
-        /// Everything under a root the caller names a class is placed as that class, and the
-        /// innermost named root stands for the path — but under the arms, which keep what is marked
-        /// inside them.
+        /// Everything under a root the caller names a class is placed as that class, and the innermost named root
+        /// stands for the path, but under the arms, which keep what is marked inside them.
         ///
-        /// The game marks the root of an actor, an effect or the player's arms and not their
-        /// drawables, so the mark is carried down the subtree: a quad under the arms' group takes
-        /// `MASK_FIRST_PERSON`, one under the actor's takes `MASK_ACTOR`, one under an effect hung
-        /// on that actor takes `MASK_EFFECT` — the class a camera with no `Mask_Effect` leaves out
-        /// — and one beside them all, with the mask every drawable is born with, stays static.
-        /// Read by the water's rule, no bit outside the named one, so the all-ones default never
-        /// matches.
+        /// The game marks the root of an actor, an effect or the player's arms and not their drawables, so the mark
+        /// is carried down: a quad under the arms takes `MASK_FIRST_PERSON`, under the actor `MASK_ACTOR`, under an
+        /// effect on that actor `MASK_EFFECT` (which a camera with no `Mask_Effect` leaves out), and one beside them
+        /// all with the all-ones mask every drawable is born with stays static, read by the water's rule.
         TEST_F(RtxSceneExtractorTest, whatStandsUnderANamedRootIsPlacedAsItsClass)
         {
             constexpr osg::Node::NodeMask sFirstPerson = 1u << 9;
@@ -688,31 +662,27 @@ namespace Rtx::Testing
             EXPECT_EQ(went.mMeshes, 1u);
             EXPECT_EQ(went.mMaterials, 1u);
 
-            // **Freed, not removed.** The slots stay where they are so nothing above them is
-            // renumbered — there is nothing above them here, but the rule is what a cell boundary
-            // depends on — and what they held is gone.
+            // **Freed, not removed.** The slots stay where they are so nothing above them is renumbered (the rule a
+            // cell boundary depends on), and what they held is gone.
             ASSERT_EQ(mScene.meshes().getRows().size(), 1u);
             EXPECT_EQ(mScene.meshes().getRows()[0].mVertices.mCount, 0u);
             EXPECT_EQ(mScene.materials().getRows().size(), 1u);
             EXPECT_EQ(mScene.materials().getRows()[0].mDiffuse, Rtx::sNoIndex);
 
-            // **The slot stays, and that is deliberate.** It lives in a bindless array a material
-            // indexes by position, so reclaiming one renumbers the rest and the array is built again
-            // — a fifth of a second, against nothing saved but a texture's bytes. What goes is what
-            // was in it: the material that named it was the last thing naming it.
+            // **The slot stays, and that is deliberate.** It lives in a bindless array a material indexes by position,
+            // so reclaiming one renumbers the rest and rebuilds the array, a fifth of a second to save a texture's
+            // bytes. What goes is what was in it.
             EXPECT_EQ(mScene.textures().getRows().size(), 1u);
             EXPECT_TRUE(mScene.textures().getRows()[0].mPath.value().empty()) << "a texture nothing names was kept";
         }
 
-        /// A placement found under its path wears what the walk resolved this frame, or it is
-        /// dropped and stood again — and then the sweep frees what it wore before, since nothing
-        /// stands on it any more.
+        /// A placement found under its path wears what the walk resolved this frame, or it is dropped and stood
+        /// again, and then the sweep frees what it wore before.
         ///
-        /// The key is a hash of node addresses nothing keeps alive, so a path whose nodes were freed
-        /// and allotted again between two walks finds the entry of what stood there before; a
-        /// state set the game swaps under a drawable is the same case in one node. Either way a
-        /// placement that was only moved would carry the old material at the new place — and, once
-        /// the sweep freed that material's row, whatever material takes the row next.
+        /// The key is a hash of node addresses nothing keeps alive, so a path whose nodes were freed and allotted
+        /// again between two walks finds the entry of what stood there before (a state set the game swaps under a
+        /// drawable is the same case in one node). A merely moved placement would carry the old material, and
+        /// after the sweep freed its row, whatever material takes the row next.
         TEST_F(RtxSceneExtractorTest, aPlacementFoundUnderItsPathIsStoodAgainWhereItResolvesToAnotherSurface)
         {
             osg::ref_ptr<osg::Geometry> stone = makeQuad();
@@ -747,12 +717,10 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.materials().getRows()[0].mDiffuse, Rtx::sNoIndex) << "the stone's row was kept";
         }
 
-        /// **A walked scene is handed over after its sweep and never before it.** Between the two
-        /// the scene still holds every slot the walk stopped finding, where the last frame left it,
-        /// and a backend handed that traces it once more: the world's frame swept after its trace,
-        /// and the player's body — stamped afresh on every cell it entered — drew as a double of
-        /// itself a frame behind. The mark a walk leaves outlives a clear of the frame's lists,
-        /// because clearing them settles nothing of the sweep; only the sweep does.
+        /// **A walked scene is handed over after its sweep and never before it.** Between the two the scene still
+        /// holds every slot the walk stopped finding, and a backend handed that traces it once more (the player's
+        /// body, stamped afresh on every cell it entered, drew as a double of itself a frame behind). The mark a
+        /// walk leaves outlives a clear of the frame's lists; only the sweep settles it.
         TEST_F(RtxSceneExtractorTest, aWalkedSceneHandedOverBeforeItsSweepDies)
         {
             osg::ref_ptr<osg::Geometry> quad = makeQuad();

@@ -10,13 +10,13 @@ namespace Rtx
 {
     namespace
     {
-        /// The two halves of the bin mapping are inverses of each other, and a luminance lands in
-        /// the bin that stands for it.
+        /// The two halves of the bin mapping are inverses of each other, and a luminance lands in the bin that stands
+        /// for it.
         ///
-        /// **Hand-placed at the scale's ends and at one.** The scale runs from `2^-13` at bin one to
-        /// `2^(6 + log2 DAYLIGHT_GAIN)` at bin `EXPOSURE_BINS - 1`, so a luminance of one is
-        /// `13 / (19 + log2 DAYLIGHT_GAIN)` of the way along it. At a gain of ten that is
-        /// `13 / 22.3219 * 254 = 147.93`, and the bin under it plus the black bin is 148.
+        /// **Hand-placed at the scale's ends and at one.** The scale runs from `2^-13` at bin one to `2^(6 + log2
+        /// DAYLIGHT_GAIN)` at bin `EXPOSURE_BINS - 1`, so a luminance of one is `13 / (19 + log2 DAYLIGHT_GAIN)` of
+        /// the way along it. At a gain of ten that is `13 / 22.3219 * 254 = 147.93`, and the bin under it plus the
+        /// black bin is 148.
         TEST(RtxExposureBinTest, aLuminanceLandsInTheBinThatStandsForIt)
         {
             EXPECT_EQ(Shaders::luminanceBin(std::exp2(Shaders::MIN_LOG_LUMINANCE)), 1u) << "the bottom of the scale";

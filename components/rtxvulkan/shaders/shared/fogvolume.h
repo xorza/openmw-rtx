@@ -9,24 +9,22 @@
 // What the fog volume's images are made of and where each one is bound, said once for both sides
 // that have to agree. `gbuffer.h` says what a channel costs when its format and its image's drift.
 //
-// **Four formats and not one.** Two of these images hold a single channel: the sun's
-// transport is a product of transmittances and carries no colour, so the accumulated and the
-// per-slice copies of it are half floats one wide. The column depth is a world distance and is the
-// one thing here a half float cannot hold.
+// **Four formats and not one.** Two of these images hold a single channel: the sun's transport is a product
+// of transmittances and carries no colour, so its accumulated and per-slice copies are one-wide half
+// floats. The column depth is a world distance and is the one thing here a half float cannot hold.
 //
-// **The column's moon terms are the fourth, and they stay full width for what a half would move
-// rather than for what it could not hold.** `fogPhase` peaks at 345 at exact forward scatter and
-// the brightest pixel this game reaches is under nine, so a half has room to spare — and rounding
-// the term every froxel of a night reads would move the night's air for a megabyte at 1080p.
+// **The column's moon terms are the fourth, and they stay full width for what a half would move rather than
+// for what it could not hold.** `fogPhase` peaks at 345 at exact forward scatter and the brightest pixel this
+// game reaches is under nine, so a half has room to spare, but rounding the term every froxel of a night
+// reads would move the night's air for a megabyte at 1080p.
 //
-// **The scatter pass's two answers are a history, in halves rounded at random**: the next frame's
-// scatter pass reads them back into its own blend (`FOG_VOLUME_HISTORY`), and a half store rounds
-// toward nought on this card (`RtxHalfStoreTest`), so stored as computed the blend fell a little at
-// every store and settled about 0.3% under the air it averages — ten times a store's mean loss at a
-// history weight of nine tenths. `roundedToHalf` rounds each value up or down by a draw before the
-// store, which is unbiased, as the denoiser's histories are kept; `Shaders::mayRoundTowardNought`
-// is the rule, which `FogVolume` checks, as `DenoiseHistory` checks the denoiser's. Full floats cost
-// sixteen bytes a froxel in four volumes, some 236 MB at a 3840×2160 traced frame.
+// **The scatter pass's two answers are a history, in halves rounded at random**: the next frame's scatter
+// pass reads them back into its own blend (`FOG_VOLUME_HISTORY`), and a half store rounds toward nought on
+// this card (`RtxHalfStoreTest`), so as computed the blend fell a little at every store and settled about
+// 0.3% under the air it averages. `roundedToHalf` rounds each value up or down by a draw before the store,
+// which is unbiased, as the denoiser's histories are kept; `Shaders::mayRoundTowardNought` is the rule, which
+// `FogVolume` checks as `DenoiseHistory` checks the denoiser's. Full floats cost sixteen bytes a froxel in
+// four volumes, some 236 MB at a 3840×2160 traced frame.
 
 #define FOG_VOLUME_FORMAT STORAGE_RGBA16F
 #define FOG_HISTORY_FORMAT STORAGE_RGBA16F
@@ -37,10 +35,9 @@
 // Which binding of `SET_VOLUME` each image is, for the shaders that declare them and the owner that
 // writes them.
 //
-// **Eleven images and nineteen bindings, eight of them named twice**, because Vulkan has no
-// descriptor a shader may both sample and store through — and every one but a pair's history is
-// written by one pass and read by the next. The column depth is named once: both passes reach it
-// through the one storage binding.
+// **Eleven images and nineteen bindings, eight of them named twice**, because Vulkan has no descriptor a
+// shader may both sample and store through, and every one but a pair's history is written by one pass and
+// read by the next. The column depth is named once: both passes reach it through the one storage binding.
 //
 // **Sampled first and storage after**, so `FOG_SAMPLED_COUNT` is a bound rather than a table, and
 // the layout and the writes cannot disagree about which kind a binding is.
@@ -99,9 +96,8 @@ namespace Rtx::Shaders
     /// scatter pass reads it once a froxel, which is the phase function evaluated once where it was
     /// evaluated sixty-four times.
     ///
-    /// **The sun is not one of them.** Its irradiance and its phase are functions of the direction
-    /// alone, and `fogscatter.rgen` says why the trace puts both back at the pixel's own angle
-    /// rather than the column's — so a third layer held the sun's term and no pass ever read it.
+    /// **The sun is not one of them.** Its irradiance and its phase are functions of the direction alone, and
+    /// `fogscatter.rgen` says why the trace puts both back at the pixel's own angle rather than the column's.
     const uint BIND_FOG_COLUMN_MOONS = 19;
 
     /// Where the sampled bindings end and the storage ones begin, and how many the set declares.
@@ -110,9 +106,10 @@ namespace Rtx::Shaders
 
     /// How many columns one workgroup of the integrate pass covers, on each axis.
     ///
-    /// **A thread to a column there, and that is not a shape to be improved.** Front to back is the
-    /// only order transmittance can be carried in, so the sixty-four slices of a column are a scan
-    /// and not a fan-out — and the scan is reads and multiply-adds, with no ray and no walk in it.
+    /// **A thread to a column there, and that is not a shape to be improved.** Front to back is the only order
+    /// transmittance can be carried in, so the sixty-four slices of a column are a scan and not a fan-out, of
+    /// reads and multiply-adds with no ray and no walk in it.
+
     const uint FOG_COLUMN_WORKGROUP = 8u;
 
 #ifdef RTX_HOST

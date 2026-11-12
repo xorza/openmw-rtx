@@ -6,17 +6,16 @@
 // placement that wrote the chunk's material row.
 //
 // **The same sum the trace's shading runs, once a texel instead of once a hit.** `ground.glsl` is the sum,
-// written once for both, so a flattened chunk cannot disagree with the stack it replaces — the albedo into
-// the composite, and the gloss into a second image where a layer reflects, both out of one pass over the
-// stack: each layer's weight off its mask, its texel off its own tiling at the level a texel of the
-// composite resolves, the light painted into it divided out in full, and the stack summed in light. The
-// albedo is stored display-encoded through a `UNORM` view of the composite's `SRGB` image, which is what
-// the trace then samples as any file.
+// written once for both, so a flattened chunk cannot disagree with the stack it replaces: the albedo into the
+// composite and the gloss into a second image where a layer reflects, both out of one pass over the stack
+// (each layer's weight off its mask, its texel off its own tiling at the level a texel of the composite
+// resolves, the painted light divided out in full, the stack summed in light). The albedo is stored
+// display-encoded through a `UNORM` view of the composite's `SRGB` image, which the trace then samples as any
+// file.
 //
-// **On the device and in the placement rather than on threads of the host**, where this was tens of
-// milliseconds a chunk and dozens of chunks a ring fill: the layers are textures the device already holds,
-// the masks and the layer rows are tables it already reads, and a texture nothing reads back has no
-// business crossing to the host at all.
+// **On the device and in the placement rather than on threads of the host**: the layers are textures the
+// device already holds and the masks and layer rows are tables it already reads, so a texture nothing reads
+// back has no business crossing to the host (it was tens of milliseconds a chunk, dozens a ring fill).
 
 #include "colour.h"
 #include "shared/ground.h"

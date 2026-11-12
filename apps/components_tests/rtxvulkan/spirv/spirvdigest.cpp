@@ -245,11 +245,11 @@ OpFunctionEnd
             EXPECT_EQ(digestProgram(list), digestProgram(renumbered));
         }
 
-        /// **A global is named by what it is to its full depth.** Both modules declare the same
-        /// globals: a struct holding a pointer to a struct holding a float, one holding a pointer to
-        /// a struct holding an int, and a variable of each. They differ only in which variable the
-        /// code loads, and the two variables' types part four levels down — which the refinement's
-        /// first rounds cannot see, and a refinement stopped early would name one program.
+        /// **A global is named by what it is to its full depth.** Both modules declare the same globals: a struct
+        /// holding a pointer to a struct holding a float, one holding a pointer to a struct holding an int, and a
+        /// variable of each. They differ only in which variable the code loads, and the two variables' types part four
+        /// levels down, which the refinement's first rounds cannot see and a refinement stopped early would name one
+        /// program.
         TEST(RtxSpirvDigestTest, aGlobalIsNamedByWhatItIsToItsFullDepth)
         {
             constexpr std::string_view deep = R"(OpCapability Shader
@@ -287,11 +287,10 @@ OpFunctionEnd
                     replaced(deep, "%kept = OpLoad %outerFloat %heldFloat", "%kept = OpLoad %outerInt %heldInt")));
         }
 
-        /// **The phis at a block's head and each phi's pairs have no order**: the loop with its
-        /// head's phis turned round, or with a pair turned round, is one program. Nothing but a phi
-        /// reads `%a` or `%b`, so the refinement and not the program's reads orders them. The
-        /// comparison reading its two phis the other way round, or a phi taking another from the
-        /// body, is another program.
+        /// **The phis at a block's head and each phi's pairs have no order**: the loop with its head's phis turned
+        /// round, or with a pair turned round, is one program. Nothing but a phi reads `%a` or `%b`, so the refinement
+        /// and not the program's reads orders them. The comparison reading its two phis the other way round, or a phi
+        /// taking another from the body, is another program.
         TEST(RtxSpirvDigestTest, thePhisOfABlockAndThePairsOfAPhiHaveNoOrder)
         {
             const auto digest = digestProgram(sLoop);

@@ -551,11 +551,10 @@ namespace Rtx
             EXPECT_GT(pinned.mBound, highest);
         }
 
-        /// **The guard marks what the pinning takes off, and the two together are the pinning.** Every
-        /// rounding operation the source left unmarked is `NoContraction` beside the guard's
-        /// `UserSemantic`; one the source marked `precise` keeps its own mark and takes no second.
-        /// Pinned, the guarded module is word for word the module pinned unguarded. A module older
-        /// than SPIR-V 1.4, which has no `UserSemantic`, is refused.
+        /// **The guard marks what the pinning takes off, and the two together are the pinning.** Every rounding
+        /// operation the source left unmarked is `NoContraction` beside the guard's `UserSemantic`; one the source
+        /// marked `precise` keeps its own mark and takes no second. Pinned, the guarded module is word for word the
+        /// module pinned unguarded. A module older than SPIR-V 1.4, which has no `UserSemantic`, is refused.
         TEST(RtxSpirvPinTest, theGuardIsWhatThePinningTakesOffAndNothingElse)
         {
             Writer writer;
@@ -590,14 +589,12 @@ namespace Rtx
             EXPECT_THROW(guardFloatArithmetic(older), std::runtime_error);
         }
 
-        /// **Arithmetic on constants is its value, correctly rounded, and a division by a constant the
-        /// multiply by its reciprocal.** Each figure is the float operation itself, which is the
-        /// correct rounding: `0.1f + 0.2f` is 0x3e99999a, folded again where a product reads it, and
-        /// per component in a vector. `x / 3` is `x 0x3eaaaaab`, `1/3` rounded once, and `x / 4` is
-        /// `x 0.25`, exactly; `x / (3 + 3)` is `x (1/6)`, its divisor folded first; `0.1f / 3` is
-        /// folded whole. What the device may compute otherwise is left
-        /// to it: a subnormal operand, a division by a subnormal, whose reciprocal is no normal float,
-        /// and a NaN.
+        /// **Arithmetic on constants is its value, correctly rounded, and a division by a constant the multiply by its
+        /// reciprocal.** Each figure is the float operation itself: `0.1f + 0.2f` is 0x3e99999a, folded again where a
+        /// product reads it, and per component in a vector. `x / 3` is `x 0x3eaaaaab`, `1/3` rounded once, and `x / 4`
+        /// is `x 0.25`, exactly; `x / (3 + 3)` is `x (1/6)`, its divisor folded first; `0.1f / 3` is folded whole.
+        /// What the device may compute otherwise is left to it: a subnormal operand, a division by a subnormal, whose
+        /// reciprocal is no normal float, and a NaN.
         TEST(RtxSpirvPinTest, constantArithmeticIsFoldedHereAndADivisionByAConstantIsItsReciprocal)
         {
             Writer writer;
@@ -700,11 +697,10 @@ namespace Rtx
             EXPECT_LT(lastImport, memoryModel) << "an import after the memory model is out of SPIR-V's layout";
         }
 
-        /// **A module with nothing to pin comes back as it was but for its float environment**:
-        /// integer arithmetic, a square root and an exponential are left to the device. What it
-        /// gains is the preservation of signed zeros, infinities and NaNs, at its one entry point
-        /// for both float widths it declares, and the capability for it — written by hand here and
-        /// compared word for word.
+        /// **A module with nothing to pin comes back as it was but for its float environment**: integer arithmetic, a
+        /// square root and an exponential are left to the device. It gains the preservation of signed zeros,
+        /// infinities and NaNs, at its one entry point for both float widths it declares, and the capability for it,
+        /// written by hand here and compared word for word.
         TEST(RtxSpirvPinTest, aModuleWithNothingToPinComesBackAsItWasButForItsFloatEnvironment)
         {
             Writer writer;

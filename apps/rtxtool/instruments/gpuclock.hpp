@@ -30,9 +30,8 @@ namespace RtxTool
     /// a card moves while a place is measured, and `CardWatch` samples through the frames because
     /// two ends cannot say what the clock did between them.
     ///
-    /// **What an instrument cannot read is unknown and not nought**: AMD's sysfs states no reasons a
-    /// card is held back, and a missing hwmon file no temperature, and a report that printed nought
-    /// for either would claim an unthrottled card at freezing point.
+    /// What an instrument cannot read is unknown and not nought: AMD's sysfs states no reasons a card is held
+    /// back and a missing hwmon file no temperature, and nought would claim an unthrottled card at freezing point.
     struct GpuClock
     {
         /// The graphics clock, and the memory's, each kept the same way: the mean is what a frame

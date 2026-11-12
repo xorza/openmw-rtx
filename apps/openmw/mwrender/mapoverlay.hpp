@@ -61,7 +61,7 @@ namespace MWRender
         virtual void clear() = 0;
 
         /// The overlay as it stands in main memory, for the save and the PNG. What a paint put into
-        /// the texture reaches this a frame or two later under the rasterizer, as it always did.
+        /// the texture reaches this a frame or two later under the rasterizer.
         virtual const osg::Image& getImage() const = 0;
 
         virtual MyGUI::ITexture& getTexture() = 0;

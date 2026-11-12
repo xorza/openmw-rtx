@@ -19,30 +19,22 @@ namespace SceneUtil
         std::uint32_t mPaints = 0;
     };
 
-    /// A picture the game paints into in main memory, and the rectangle it painted last: the fog of
-    /// war, written a few texels at a time as the player walks, and the world map's overlay, written
-    /// one cell at a time as one is explored. `osg::Image::dirty` names no rectangle, so whatever
-    /// drew the texture from the image sent the whole of it — the whole overlay, megabytes, at
-    /// every cell crossing — or compared every row to find the change. The painter says where it
-    /// painted instead, and every reader uploads that.
+    /// A picture the game paints into in main memory, and the rectangle it painted last: the fog of war
+    /// and the world map's overlay. `osg::Image::dirty` names no rectangle, so whatever drew the texture
+    /// sent the whole of it (megabytes at every cell crossing) or compared every row; the painter says
+    /// where it painted instead, and every reader uploads that.
     ///
-    /// **Any number of readers, and none of them clears anything.** The rasterizer's upload, and
-    /// one mirror per widget the picture is drawn in — the HUD and the map window both show the
-    /// fog — each remember the paint count they last uploaded to, and `since` answers each one the
-    /// union of what came after. A reader further behind than this remembers takes the whole
-    /// picture, which is right and only slower.
+    /// **Any number of readers, and none of them clears anything.** Each remembers the paint count it last
+    /// uploaded to, and `since` answers the union of what came after; a reader further behind than this
+    /// remembers takes the whole picture, which is right and only slower.
     ///
-    /// **RGBA, one byte a channel, tightly packed**, which is what both painters allocate and what
-    /// every reader copies rows of; an image of another kind is a logic error at construction. The
-    /// image is the caller's to write and belongs to this texture for the rest of its life. Drawn
-    /// clamped and filtered linearly, as both painters want their picture drawn.
+    /// **RGBA, one byte a channel, tightly packed**, which both painters allocate and every reader copies
+    /// rows of; another kind is a logic error at construction. The image is the caller's to write and
+    /// belongs to this texture for the rest of its life.
     ///
-    /// **The rasterizer uploads it as upstream uploads the fog**: `paint` dirties the image, and
-    /// the texture sends the whole of it on its next apply — a fog tile is 32 by 32 texels, and the
-    /// world map's overlay under the rasterizer is not one of these. The rectangles are for the
-    /// mirrors. The draw thread reads what the game thread paints, as it read the image before; a
-    /// frame that reads a rectangle half painted draws it again next frame, since the count moves
-    /// after the bytes.
+    /// **The rasterizer uploads it as upstream uploads the fog**: `paint` dirties the image and the
+    /// texture sends the whole of it on its next apply; the rectangles are for the mirrors. A frame that
+    /// reads a rectangle half painted draws it again next frame, since the count moves after the bytes.
     class PaintedTexture : public osg::Texture2D
     {
     public:
@@ -66,9 +58,8 @@ namespace SceneUtil
         std::uint32_t getPaintCount() const { return mPaints; }
 
     private:
-        /// How many paints a reader may fall behind before it is handed the whole picture. Eight
-        /// is a few frames of walking on the fog, and past that the union has grown to most of a
-        /// tile anyway.
+        /// How many paints a reader may fall behind before it is handed the whole picture: a few frames of
+        /// walking on the fog, past which the union is most of a tile anyway.
         static constexpr std::size_t sRemembered = 8;
 
         /// The last `sRemembered` paints, the paint numbered `n` at `(n - 1) % sRemembered`.

@@ -19,9 +19,8 @@ namespace Settings
                 std::pair{ CategorySetting("Video", "resolution y"), windowHeight },
             };
 
-            // **Either side alone is upstream's window**: upstream writes a value only where it
-            // differs from its default of 800 × 600, so a window of 800 × 480 is a file that holds
-            // `resolution y` alone. A file that names a window of its own is the fork's, from
+            // **Either side alone is upstream's window**: upstream writes a value only where it differs
+            // from its default of 800 × 600. A file that names a window of its own is the fork's, from
             // before the marker.
             const bool upstream = (user.contains(moved[0].first) || user.contains(moved[1].first))
                 && !user.contains(windowWidth) && !user.contains(windowHeight);

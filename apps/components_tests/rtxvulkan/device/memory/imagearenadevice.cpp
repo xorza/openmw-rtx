@@ -27,15 +27,13 @@ namespace Rtx
             .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
             .mUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT };
 
-        /// **Three images, two of which are never in use at once**: the first and the second share
-        /// memory and the third, in use beside both, stands past them, so the arena is two images
-        /// long — each image's size, the third's on its alignment past the first. Counted as the
-        /// frame's targets, at what `bytesFor` says. The first and the third begin in nothing; the
-        /// second begins in the first's memory, and so discards from its writes.
+        /// **Three images, two of which are never in use at once**: the first and the second share memory and the
+        /// third, in use beside both, stands past them, so the arena is two images long. The second begins in the
+        /// first's memory, and so discards from its writes.
         ///
-        /// **And what the second writes is what it reads**, with the first written over the same
-        /// memory before it and the third beside both untouched: cleared under the layers' checks of
-        /// the barriers between them, which `Use::sAliased` records.
+        /// **And what the second writes is what it reads**, with the first written over the same memory before it and
+        /// the third untouched: cleared under the layers' checks of the barriers between them, which `Use::sAliased`
+        /// records.
         TEST_F(RtxImageArenaDeviceTest, imagesNeverInUseAtOnceShareMemoryAndHandOverThroughABarrier)
         {
             const Device& device = getDevice();

@@ -58,18 +58,17 @@ namespace Rtx
                     << "binding " << at;
         }
 
-        /// **No module starts a ray query at more places than its ceiling**, counted in every
-        /// module the build ships once the optimizer has inlined it. AMD's Windows compiler writes
-        /// a whole software traversal at each, and a stage that held fifty did not compile in 52 GB
-        /// (`docs/rtx/research/2026-10-19-amd-windows-trace-compile-memory.md`). Read here, a site
-        /// too many fails on every runner and not only on an AMD card.
+        /// **No module starts a ray query at more places than its ceiling**, counted in every module the build ships
+        /// once the optimizer has inlined it. AMD's Windows compiler writes a whole software traversal at each, and a
+        /// stage that held fifty did not compile in 52 GB
+        /// (`docs/rtx/research/2026-10-19-amd-windows-trace-compile-memory.md`). Read here, a site too many fails on
+        /// every runner and not only on an AMD card.
         ///
-        /// **One a module, and the few small launches at what they hold**, which only falls: each
-        /// compiles in milliseconds, since the cost of a site is the code inlined around it. **And the
-        /// stages at a site a phase**: the trace's water walk apart from its peel, each layer's
-        /// light and medium apart from the layers' peel, and the media's eye, its column, its
-        /// water's walk and its leg's march. The bounce's ray and its landing's visit are stages of
-        /// their own, at one each.
+        /// **One a module, and the few small launches at what they hold**, which only falls: each compiles in
+        /// milliseconds, since the cost of a site is the code inlined around it. **And the stages at a site a phase**:
+        /// the trace's water walk apart from its peel, each layer's light and medium apart from the layers' peel, and
+        /// the media's eye, its column, its water's walk and its leg's march. The bounce's ray and its landing's visit
+        /// are stages of their own, at one each.
         TEST(RtxSpirvInterfaceTest, noModuleStartsARayQueryAtMorePlacesThanItsCeiling)
         {
             constexpr std::array<std::pair<std::string_view, std::size_t>, 6> sHeld{ {
@@ -113,11 +112,10 @@ namespace Rtx
                 ADD_FAILURE() << module << " places that start a ray query";
         }
 
-        /// **No module but the trace's stages binds a stage image**, which is what lets the frame's
-        /// arena lay the denoiser's and the upscaler's images over them: `GBuffer::declareStages` spans
-        /// them over the trace alone (`FrameStep::Trace`), and a pass after it that read one would read
-        /// another image's bits. Read in every module the build ships, so a new reader fails here and
-        /// not as a picture that moves.
+        /// **No module but the trace's stages binds a stage image**, which is what lets the frame's arena lay the
+        /// denoiser's and the upscaler's images over them: `GBuffer::declareStages` spans them over the trace alone
+        /// (`FrameStep::Trace`), and a pass after it that read one would read another image's bits. Read in every
+        /// module the build ships, so a new reader fails here and not as a picture that moves.
         TEST(RtxSpirvInterfaceTest, onlyTheTracesStagesBindItsStageImages)
         {
             std::vector<std::string> binding;
@@ -188,11 +186,10 @@ namespace Rtx
             EXPECT_NO_THROW(readInterface(whole)) << "a decoration of a set, whole";
         }
 
-        /// **The rest of a module's interface reads as its GLSL states it**: the line pass's vertex
-        /// stage reads a position of three components and a colour of four, and its push block
-        /// ends where `LineConstants` does, eighty-four bytes in; the interface's fragment stage
-        /// specializes on one `bool` and its vertex stage on nothing, and a module the build counts
-        /// in specializes on its census's word as well.
+        /// **The rest of a module's interface reads as its GLSL states it**: the line pass's vertex stage reads a
+        /// position of three components and a colour of four, and its push block ends where `LineConstants` does,
+        /// eighty-four bytes in; the interface's fragment stage specializes on one `bool` and its vertex stage on
+        /// nothing, and a module the build counts in specializes on its census's word as well.
         TEST(RtxSpirvInterfaceTest, inputsThePushBlocksEndAndTheSpecializationConstantsReadAsTheGlslStatesThem)
         {
             const ModuleInterface line = interfaceOf("line.vert.spv");
@@ -220,13 +217,12 @@ namespace Rtx
                 << "the census's word is no specialization of a counted module";
         }
 
-        /// **A push block's end is where its last byte is read**, through a nested structure, an
-        /// array and a matrix: a block of a `float` at nought and, at sixteen, a structure of a
-        /// three-element array of `vec2` strided by eight and a matrix strided by sixteen at
-        /// twenty-four. The array ends at 2·8 + 8 = 24 into the structure. A column-major `mat2x3`,
-        /// two columns of three, ends at 24 + 16 + 3·4 = 52, its second column read whole, so the
-        /// block at 16 + 52 = 68; row-major, its three rows of two end at 24 + 2·16 + 2·4 = 64, and
-        /// the block at 80. A `mat3x2`, three columns of two, is the same two the other way round.
+        /// **A push block's end is where its last byte is read**, through a nested structure, an array and a matrix: a
+        /// block of a `float` at nought and, at sixteen, a structure of a three-element array of `vec2` strided by
+        /// eight and a matrix strided by sixteen at twenty-four. The array ends at 2·8 + 8 = 24 into the structure. A
+        /// column-major `mat2x3`, two columns of three, ends at 24 + 16 + 3·4 = 52, so the block at 16 + 52 = 68;
+        /// row-major, its three rows of two end at 24 + 2·16 + 2·4 = 64, and the block at 80. A `mat3x2` is the same
+        /// two the other way round.
         TEST(RtxSpirvInterfaceTest, aPushBlocksEndIsItsLastByteThroughStructuresArraysAndMatrices)
         {
             const auto instruction = [](spv::Op op, std::vector<std::uint32_t> operands) {
@@ -279,11 +275,10 @@ namespace Rtx
             EXPECT_EQ(readInterface(module(true, 3)).mPushEnd, std::optional<std::uint32_t>(68u));
         }
 
-        /// **A layout C++ cannot mirror is refused**: a structure of a 64-bit address at nought and a
-        /// `uint` at eight ends at twelve, and C++ rounds it to its eight-byte alignment, sixteen. A
-        /// member after it at twelve stands where C++ has padding, and one at sixteen where C++ has
-        /// the next member; an array of it strided by twelve is short of C++'s stride, and one
-        /// strided by sixteen is C++'s.
+        /// **A layout C++ cannot mirror is refused**: a structure of a 64-bit address at nought and a `uint` at eight
+        /// ends at twelve, and C++ rounds it to its eight-byte alignment, sixteen. A member after it at twelve stands
+        /// where C++ has padding, and one at sixteen where C++ has the next member; an array of it strided by twelve
+        /// is short of C++'s stride, and one strided by sixteen is C++'s.
         TEST(RtxSpirvInterfaceTest, aLayoutCppCannotMirrorIsRefused)
         {
             const auto instruction = [](spv::Op op, std::vector<std::uint32_t> operands) {

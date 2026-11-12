@@ -112,9 +112,8 @@ namespace RtxTool
             EXPECT_EQ(trimmed("  "), "");
         }
 
-        /// **Blocks come back in the order they were written, and a name written twice is two
-        /// blocks.** The settings parser the views were read with kept a map keyed by section, so
-        /// `--list-views` printed them sorted and two sections of one name merged their fields.
+        /// **Blocks come back in the order they were written, and a name written twice is two blocks**,
+        /// where a map keyed by section would sort them and merge two sections' fields.
         TEST(RtxBlockFileTest, blocksKeepTheFilesOrderAndARepeatedNameIsTwo)
         {
             const BlockFile file = readBlocks(

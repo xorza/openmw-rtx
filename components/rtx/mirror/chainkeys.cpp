@@ -55,15 +55,14 @@ namespace Rtx
 
     void ChainKeys::retire(Released& released)
     {
-        // Until nothing goes, because a pair that went let go of the key above it, which may then
-        // be held by this table alone. A chain is a handful of pairs deep.
+        // Until nothing goes, because a pair that went let go of the key above it, which may then be held by this table
+        // alone. A chain is a handful of pairs deep.
         //
-        // **What the sink holds of a key is no hold on it**: the sink is what the frame let go of,
-        // a material's key among it, waiting for its owner to hand it over. Each pass sorts only
-        // what the pairs that went before it put into the sink, a run of its own beside the runs
-        // before, and a key is counted in each: copied and sorted whole each pass, a crossing's
-        // sink of ten thousand was sorted three to five times. Runs and not a merge, which takes a
-        // buffer from the heap.
+        // **What the sink holds of a key is no hold on it**: the sink is what the frame let go of, waiting for its
+        // owner to hand it over. Each pass sorts only what the pairs that went before it put into the sink, a run of
+        // its own beside the runs before, and a key is counted in each: copied and sorted whole each pass, a crossing's
+        // sink of ten thousand was sorted three to five times. Runs and not a merge, which takes a buffer from the
+        // heap.
         mReleasedScratch.clear();
         mReleasedRuns.clear();
         for (std::size_t gone = 1; gone != 0;)

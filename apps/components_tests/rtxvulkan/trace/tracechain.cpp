@@ -47,11 +47,10 @@ namespace Rtx
             return ArenaRun(arena, 0, arena.size());
         }
 
-        /// **A chain asked for the extent it stands at keeps what it holds**: an upscaling mode
-        /// changed between two that trace at one size asks again, and the channels made anew for it
-        /// were fourteen images for nothing. A chain let go of stands again at a new width, a new
-        /// height or with the filter gone, and every chain stores its radiance at the width it was
-        /// made with.
+        /// **A chain asked for the extent it stands at keeps what it holds**: an upscaling mode changed between
+        /// two that trace at one size asks again, and remaking the channels would be wasted. A chain let go of
+        /// stands again at a new width, a new height or with the filter gone, and stores its radiance at the
+        /// width it was made with.
         TEST_F(RtxTraceChainTest, aResizeToTheExtentItStandsAtRebuildsNothing)
         {
             for (const RadianceWidth radiance : { RadianceWidth::Summed, RadianceWidth::Shown })

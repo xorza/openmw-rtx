@@ -132,9 +132,9 @@ namespace Rtx
         /// none of it ships.
         friend class Testing::RendererProbe;
 
-        /// A frame traced from a block written whole, which `renderFrame` describes and then hands
-        /// here: what a test of one field traces as well, which no world describes the way the
-        /// test needs it. Every field `sampleFrame` writes is left at nought.
+        /// A frame traced from a block written whole: what `renderFrame` hands on once it has described
+        /// the world, and what a test of one field traces directly. Every field `sampleFrame` writes is
+        /// left at nought.
         void traceFrame(const Shaders::VisibilityConstants& constants, const FrameOptions& options,
             const WorldOptions& described = {});
 
@@ -147,14 +147,11 @@ namespace Rtx
         ///        upscaler's answer for the mode, `Upscaler::extentsFor`.
         void createTargets(std::uint32_t width, std::uint32_t height);
 
-        /// Everything the queue was given and everything waiting to be given it, finished, and
-        /// everything buried let go: the one way the queue is emptied — for a new world, so the old
-        /// one's memory is free before the new one's is taken, for a swapchain remade, for a harness
-        /// waiting on its pictures, and at the end. In the one order that is right — the
-        /// interface's batch and the deferred one first, because they ride the next submit and
-        /// nothing else will make one; the frames in flight, so the ring's account is settled; the
-        /// device, for the presenter's submits the ring does not count; and the graveyard last,
-        /// once nothing can be reading.
+        /// The one way the queue is emptied: everything given to it and everything waiting finished,
+        /// everything buried let go. The order is load-bearing — the interface's batch and the deferred
+        /// one first, since they ride the next submit and nothing else will make one; then the frames in
+        /// flight; then the device, for the presenter's submits the ring does not count; the graveyard
+        /// last, once nothing can be reading.
         void drain();
 
         /// Whether a frame is upscaled, which is the mode alone: the upscaler's pipelines are built
@@ -177,11 +174,9 @@ namespace Rtx
 
         Device mDevice;
 
-        /// Before the trace's passes, whose kernels are specialized on the masks it reads, and before
-        /// the menu, which offers DLSS by what its attempt came to. Its pipelines are made with the renderer
-        /// whatever the mode, so a player who never upscales pays their compile once, from the
-        /// cache; it outlives a mode being turned off, so the mode and not this says whether a frame
-        /// is upscaled.
+        /// Before the trace's passes, whose kernels are specialized on the masks it reads, and before the
+        /// menu, which offers DLSS by what its attempt came to. Its pipelines are made whatever the mode,
+        /// so the mode and not this says whether a frame is upscaled.
         Upscaler mUpscaler;
 
         /// `getUpscalers`' answer, a prefix of `sUpscalerMenu`: DLSS where it runs or was not tried and
@@ -195,13 +190,9 @@ namespace Rtx
         /// Whether `awaitKernels` has seen the start's compile whole and saved the pipeline cache.
         bool mKernelsSaved = false;
 
-        /// What the run decided once, read where each knob is used: how wide both chains store
-        /// their radiance, how long the queue is held, and what the frames are traced under —
-        /// `mUpscale` as it was handed over, and then whatever `setUpscale` moved it to, which
-        /// rebuilds every target and is why the mode is a setting rather than a frame option. What
-        /// a frame carries — the reconstruction request, the exposure, the sample —
-        /// is read off the frame's own blocks instead, which is where a frame that asks otherwise
-        /// says so.
+        /// What the run decided once, read where each knob is used. `mUpscale` is a setting and not a frame
+        /// option because `setUpscale` rebuilds every target; what a frame carries (the reconstruction
+        /// request, the exposure, the sample) is read off its own blocks instead.
         RenderProfile mProfile;
 
         /// One over `mProfile.mGamma`, which the display curve is handed: worked out where the
@@ -215,24 +206,20 @@ namespace Rtx
         /// The frames in flight and what each came to.
         FrameRing mRing;
 
-        /// The frame as bytes at the output extent, the picture and what is shown, which is what
-        /// anything outside this reads. It is also where that extent is stated —
-        /// `PresentTarget::getExtent` — rather than beside it in a pair of members something would
-        /// have to keep level.
+        /// The frame as bytes at the output extent, which is what anything outside this reads, and the
+        /// one place that extent is stated (`PresentTarget::getExtent`), so no pair of members must be
+        /// kept level.
         PresentTarget mTarget;
 
-        /// Where `readPixels` and `readDeepPixels` land the picture, grown at the first and kept, so
-        /// a run that writes a picture at every stop makes one buffer and not one a stop: past half
-        /// a block, each was an allocation of its own.
+        /// Where `readPixels` and `readDeepPixels` land the picture, grown at the first and kept, so a run
+        /// that writes a picture at every stop allocates once.
         GrowableBuffer mReadBack;
 
         /// Before the trace's passes and the display, which read the scenes' texture layout.
         ScenePasses mScenePasses;
 
-        /// What every scene's arriving textures are recorded through, handed to each at the call:
-        /// its rooms are scratch grown to the largest group any scene met, where one a scene grew
-        /// them to the largest group it alone met and kept them, a 4096-square map's means and
-        /// canvas a scene that met one.
+        /// What every scene's arriving textures are recorded through, handed to each at the call: its
+        /// rooms are scratch grown to the largest group any scene met, not one copy per scene.
         TextureArrival mArrival;
 
         /// Whether a scene was extended since the last frame was traced, which staged what it

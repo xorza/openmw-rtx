@@ -106,12 +106,8 @@ namespace MWRender
             }
         };
 
-        /// **The eye is updated without the world being walked a second time.**
-        ///
-        /// A renderer that drives its own frame walks the scene from its own root — for the node
-        /// path, which must not start at an `ABSOLUTE_RF` camera — and then wants the one callback
-        /// the camera carries. Accepting on the camera to get it ran every animation controller,
-        /// every `LightController` and `LightManager::update` twice in the same frame, at the same
+        /// The eye is updated without the world being walked a second time: accepting on the camera ran every
+        /// animation controller, `LightController` and `LightManager::update` twice in one frame at the same
         /// traversal number.
         TEST(RtxRendererTest, updatingTheEyeRunsTheCamerasCallbackAndNothingBelowIt)
         {

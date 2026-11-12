@@ -47,11 +47,10 @@ namespace Rtx::Testing
 
         /// A skinned body is mirrored as its bind pose and its bone rows, and not as vertices.
         ///
-        /// **Nothing else poses this graph**, which is the whole assertion: the rows exist only
-        /// because the walk read the matrices the update traversal left in the skeleton and
-        /// composed them the way `RigGeometry::cull` does. The bone is moved off the origin so that
-        /// the two possible answers are two different numbers: a rig read without its skeleton
-        /// carries the identity, and the pose carries it moved by five.
+        /// **Nothing else poses this graph**, which is the whole assertion: the rows exist only because the walk read
+        /// the matrices the update traversal left in the skeleton and composed them as `RigGeometry::cull` does. The
+        /// bone sits off the origin so the two possible answers differ: a rig read without its skeleton carries the
+        /// identity, the pose carries it moved by five.
         TEST_F(RtxSceneExtractorTest, aSkinnedBodyIsMirroredAsItsBindPoseAndItsBoneRows)
         {
             RiggedQuad rigged;
@@ -124,12 +123,10 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.meshes().getDeformed().size(), 1u);
             EXPECT_EQ(mScene.meshes().getDeformed()[0], 0u);
 
-            // **A frame the bone stood still on costs nothing.** The walk poses every rig it meets
-            // and the scene compares the rows against the ones it holds.
-            //
-            // Nothing off the heap either, which is the second half of "costs nothing". A rig met
-            // again is found in the skin map once and stamped through the same entry, and the count
-            // that says the slot still fits is read from the arrays as they stand.
+            // **A frame the bone stood still on costs nothing.** The walk poses every rig it meets and the scene
+            // compares the rows against the ones it holds. Nothing off the heap either: a rig met again is found in the
+            // skin map once and stamped through the same entry, and the count saying the slot still fits is
+            // read from the arrays as they stand.
             rigged.update(3);
             mScene.clearPlacement();
 
@@ -144,9 +141,9 @@ namespace Rtx::Testing
                 << "and it is the same bind pose";
             EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 7.0f)) << "held where the bone left it";
 
-            // **And no traversal number gates it.** A walk on the same frame after the bone moved
-            // again reads the matrices the update left, whatever number the walk runs at — where a
-            // pose read off a cull traversal's own copy was frozen at the number it last saw.
+            // **And no traversal number gates it.** A walk on the same frame after the bone moved again reads the
+            // matrices the update left, whatever number it runs at; a pose read off a cull traversal's copy would be
+            // frozen at the last number it saw.
             rigged.mBone->setMatrix(osg::Matrix::translate(0.0, 0.0, 99.0));
             rigged.update(4);
 
@@ -154,9 +151,8 @@ namespace Rtx::Testing
             walk(*rigged.mSkeleton, 0, 2);
             EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 99.0f));
 
-            // **A bone that is not a finite number keeps the last pose**, refused once under the
-            // drawable's name: carried, it is a store that is not finite in the skin and a refit
-            // that changes which triangles are active.
+            // **A bone that is not a finite number keeps the last pose**, refused once under the drawable's name:
+            // carried, it would be a non-finite store in the skin and a refit that changes which triangles are active.
             const std::uint32_t refused = mScene.refusals().count(Rtx::Refused::Mesh);
             rigged.mBone->setMatrix(osg::Matrix::translate(0.0, std::numeric_limits<double>::quiet_NaN(), 0.0));
             rigged.update(5);
@@ -187,14 +183,11 @@ namespace Rtx::Testing
         /// A drawable whose geometry is not the geometry the mirror met under that address is
         /// mirrored again rather than posed into the slot the first one took.
         ///
-        /// **Because the map is keyed on an address and the engine reuses them.** A body part taken
-        /// off and another put on lands where the first was, so the walk that meets it finds an
-        /// entry describing something else. The slot is a run inside one shared vertex buffer, and
-        /// the kernel writes `mVertexCount` vertices from it: a longer mesh would run over the
-        /// meshes that follow, which is not a wrong pose but a torn model — and in a release build
-        /// the count is not asserted, so nothing says so. Changing the source geometry under one
-        /// rig is the same fact without needing the allocator to hand back an address, and the
-        /// skin rewritten in place under the same address is the same fact again for the rig.
+        /// **Because the map is keyed on an address and the engine reuses them.** A body part taken off and another
+        /// put on lands where the first was, so the walk finds an entry describing something else. The slot is a run
+        /// inside one shared vertex buffer and the kernel writes `mVertexCount` vertices from it: a longer mesh would
+        /// run over the meshes that follow (a torn model, and release builds do not assert the count). Changing the
+        /// source geometry under one rig, or rewriting the skin in place, is the same fact without the allocator.
         TEST_F(RtxSceneExtractorTest, aDeformingDrawableThatChangedShapeIsMirroredAgainRatherThanWrittenOver)
         {
             RiggedQuad rigged;
@@ -248,12 +241,10 @@ namespace Rtx::Testing
 
         /// An actor the game has marked semi-active goes on animating under a walk that reaches it.
         ///
-        /// **Every actor but the player is semi-active** — `MWMechanics::Actors` hands the player
-        /// `Active` and everyone else `SemiActive` — and a semi-active skeleton skips its update
-        /// traversal, and so stops moving its bones, once several traversals have passed with
-        /// nothing reaching it. Under a renderer that culls, its cull is what keeps saying so. This
-        /// walk is what says so here, and without it a street of people slides about in the pose
-        /// they were in three frames after they loaded.
+        /// **Every actor but the player is semi-active** (`MWMechanics::Actors` hands the player `Active`), and a
+        /// semi-active skeleton skips its update traversal, so stops moving its bones, once several traversals have
+        /// passed with nothing reaching it. Under a renderer that culls, its cull keeps saying so; here the walk
+        /// does, or a street of people would slide about in the pose they held three frames after loading.
         TEST_F(RtxSceneExtractorTest, aSemiActiveSkeletonGoesOnAnimatingUnderAWalkThatReachesIt)
         {
             /// Moves the bone from inside the update traversal, which is where a keyframe
@@ -291,17 +282,13 @@ namespace Rtx::Testing
 
         /// What `Inactive` actually does, and why the node mask beside it is what matters.
         ///
-        /// **`Inactive` is not a defect, and this is what keeps that true.** It reads like a
-        /// rasterizer decision the mirror inherited — `MWMechanics::Actors` sets it for actors
-        /// outside the processing range — and the fear was that the mirror would go on reaching such
-        /// an actor and find a skeleton refusing to move. It would: `SceneUtil::Skeleton::traverse`
-        /// turns back an **update** visitor, so the bones stop being animated while the mirror goes
-        /// on posing them, and what it hands over is the pose the last update left.
+        /// **`Inactive` is not a defect, and this keeps that true.** `MWMechanics::Actors` sets it for actors outside
+        /// the processing range, and `SceneUtil::Skeleton::traverse` turns back an **update** visitor, so a mirror
+        /// that kept reaching such an actor would pose the last update's frozen bones.
         ///
-        /// What makes that harmless is the base node mask, which the same code zeroes in the same
-        /// breath — so the mirror never reaches the actor at all. That is an invariant of
-        /// `MWMechanics::Actors` and of nothing here, so it is written down as a test: the day the
-        /// mask stops being zero, this fails and says what the consequence is.
+        /// What makes that harmless is the base node mask the same code zeroes in the same breath, so the mirror
+        /// never reaches the actor. That is an invariant of `MWMechanics::Actors`, written down as a test: the day
+        /// the mask stops being zero this fails and says what the consequence is.
         TEST_F(RtxSceneExtractorTest, anInactiveActorStopsAnimatingAndIsKeptOutOfReachByItsMask)
         {
             /// The same clock the `SemiActive` case uses: the bone moves only because the update
@@ -319,10 +306,9 @@ namespace Rtx::Testing
             RiggedQuad rigged;
             rigged.mBone->addUpdateCallback(new BoneClock);
 
-            // **Under a parent, because that is where a node mask is read.** OSG checks a node's
-            // mask in whatever traverses *to* it, so a walk handed the masked node itself as its
-            // root never asks — and a test that did would report the mask working when it was only
-            // never consulted.
+            // **Under a parent, because that is where a node mask is read.** OSG checks a mask in whatever traverses
+            // *to* a node, so a walk handed the masked node as its root never asks, and would report the mask working
+            // when it was only never consulted.
             osg::ref_ptr<osg::Group> world = new osg::Group;
             world->addChild(rigged.mSkeleton);
 
@@ -331,9 +317,8 @@ namespace Rtx::Testing
             walk(*world);
             ASSERT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
 
-            // Out of range. The update traversal is turned back from here on, so the bone stops at
-            // one however far the clock runs — and the mirror goes on placing the actor there, and
-            // names no structure to refit while it does.
+            // Out of range. The update traversal is turned back from here on, so the bone stops however far the clock
+            // runs, while the mirror goes on placing the actor and names no structure to refit.
             rigged.mSkeleton->setActive(SceneUtil::Skeleton::Inactive);
 
             for (unsigned int traversal = 2; traversal <= 4; ++traversal)
@@ -358,21 +343,18 @@ namespace Rtx::Testing
             rigged.update(5);
             const ExtractionStats missed = walk(*world, 0, 4);
 
-            // **What the walk found, and not what the scene holds.** A slot survives
-            // `clearPlacement` — that is the whole of "slots, not compaction" — and it is
-            // `retire` that decides a slot nobody stood in is nobody's, on evidence this test does
-            // not have: it is still holding the rig alive itself.
+            // **What the walk found, and not what the scene holds.** A slot survives `clearPlacement`; `retire` decides
+            // a slot nobody stood in is nobody's, on evidence this test lacks (it holds the rig alive itself).
             EXPECT_EQ(missed.mInstances, 0u) << "an actor the game put out of reach was mirrored anyway";
             EXPECT_EQ(missed.mDeformed, 0u) << "and its pose was computed on the way past";
         }
 
         /// A rig no update traversal has resolved is mirrored as a rig in its bind pose, and counted.
         ///
-        /// **The rasterizer draws such a rig in its bind pose too**: `RigGeometry::cull` finds no
-        /// skeleton and returns before it skins. So this is what the game shows and not a loss — and
-        /// the count is what says a walk ran before the update it depends on. **A rig by its content**,
-        /// so a template, which no update reaches, reads as its clone does, and the update that finds
-        /// the skeleton poses the same slot rather than building another.
+        /// **The rasterizer draws such a rig in its bind pose too**: `RigGeometry::cull` finds no skeleton and
+        /// returns before it skins. So this is what the game shows, and the count says a walk ran before the update
+        /// it depends on. **A rig by its content**: a template, which no update reaches, reads as its clone does, and
+        /// the update that finds the skeleton poses the same slot rather than building another.
         TEST_F(RtxSceneExtractorTest, aRigWhoseSkeletonNoUpdateFoundIsMirroredInItsBindPose)
         {
             RiggedQuad rigged;
@@ -546,10 +528,9 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.deformers().getHolds(0), 2u);
         }
 
-        /// **A skin that names a bone it has not got, or weighs a vertex by no number, is refused**,
-        /// and nothing of it reaches the scene: the kernel reads a bone's rows at whatever index the
-        /// skin holds, and a weight that is not finite poses its vertex nowhere. The quad's rig has
-        /// one bone, so bone 1 is past it.
+        /// **A skin that names a bone it has not got, or weighs a vertex by no number, is refused**, and nothing of
+        /// it reaches the scene: the kernel reads a bone's rows at whatever index the skin holds, and a non-finite
+        /// weight poses its vertex nowhere. The quad's rig has one bone, so bone 1 is past it.
         TEST_F(RtxSceneExtractorTest, aSkinNamingABoneItHasNotOrWeighingByNoNumberIsRefused)
         {
             using BoneWeight = SceneUtil::RigGeometry::BoneWeight;
@@ -575,10 +556,10 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A skin of other bones over the same source is a new deformer**, because a pose is a row
-        /// set per bone and the run a mesh holds was given out for the skin it arrived with. The
-        /// deformer is keyed on the source geometry, which both rigs share, so the fit is what has
-        /// to say so; reused, the second rig's two rows would be written over the first's one.
+        /// **A skin of other bones over the same source is a new deformer**, because a pose is a row set per bone and
+        /// the run a mesh holds was given out for the skin it arrived with. Both rigs share the source geometry
+        /// the deformer is keyed on, so the fit has to say so; reused, the second rig's two rows would be
+        /// written over the first's one.
         TEST_F(RtxSceneExtractorTest, aSkinOfOtherBonesOverTheSameSourceIsANewDeformer)
         {
             RiggedQuad rigged;
@@ -648,14 +629,11 @@ namespace Rtx::Testing
 
         /// Shading that exists only inside a cull traversal is applied by the walk and read from it.
         ///
-        /// **This is what a fire is.** `NifOsg` hangs the controllers of anything marked
-        /// `AnimFlag_AutoPlay` from a cull callback, and `SceneUtil::StateSetUpdater` as a cull
-        /// callback writes into a state set it keys on the visitor and pushes onto that visitor's
-        /// stack — never onto the node. A mirror that walked outside a cull would find the node
-        /// bare and draw the frame it first met for ever.
-        ///
-        /// The slot is the second half of it: the surface has not moved and its material must not
-        /// be dropped and added again to say so.
+        /// **This is what a fire is.** `NifOsg` hangs the controllers of anything marked `AnimFlag_AutoPlay` from a
+        /// cull callback, and `SceneUtil::StateSetUpdater` there writes into a state set it keys on the visitor and
+        /// pushes onto that visitor's stack, never onto the node: a mirror walking outside a cull would find the node
+        /// bare. The slot is the second half: the surface has not moved, so its material must not be dropped and
+        /// added again to say so.
         TEST_F(RtxSceneExtractorTest, shadingOnlyACullTraversalSeesIsAppliedAndReadAgainEachFrame)
         {
             osg::ref_ptr<ColourController> controller = new ColourController;

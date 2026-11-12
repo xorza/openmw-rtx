@@ -52,14 +52,13 @@ namespace Rtx::Testing
             return scene;
         }
 
-        /// **A floor every ray reaches, and a floor no ray reaches, come back exact.** Every tile of
-        /// either is cleared — each receiver and its neighbours alike — so nothing is filtered, and
-        /// the composite multiplies the sun by exactly one or exactly nought. The frame the shadow
-        /// denoiser composes is then the frame the trace composes with the rays' own bits, value for
-        /// value. The bits themselves are read off `CHANNEL_SHADOWED`: all one under the open sky, and
-        /// all nought under the roof, with the sun's light standing behind both. **And so for a
-        /// flooded floor's field that refracts**, whose bit is what the refraction found; the field
-        /// that reflects finds the black sky and holds no sun at all.
+        /// A floor every ray reaches, and a floor no ray reaches, come back exact. Every tile of either is
+        /// cleared (each receiver and its neighbours alike), so nothing is filtered and the composite
+        /// multiplies the sun by exactly one or nought: the shadow denoiser's frame is the trace's with the
+        /// rays' own bits, value for value. The bits are read off `CHANNEL_SHADOWED`: all one under the open
+        /// sky, all nought under the roof, with the sun's light behind both. So too for a flooded floor's field
+        /// that refracts, whose bit is what the refraction found; the field that reflects finds the black sky
+        /// and holds no sun.
         TEST_F(RtxVisibilityTest, theShadowDenoiserLeavesAFloorWhollyLitOrWhollyShadowedExact)
         {
             constexpr std::uint32_t size = 64;
@@ -100,11 +99,11 @@ namespace Rtx::Testing
                     EXPECT_EQ(filtered.mRadiance, raw.mRadiance);
                 }
 
-            // **And a picture with shadows off is open to the sky under the water as over it.** A
-            // slab in the water fifty units over the flooded floor, over half of it, under a sun 45
-            // degrees off the zenith from that side: bent to 32 degrees under the surface, its shadow
-            // runs `50 tan 32°` = 31 units past the slab's edge onto the bed the eye sees. The leg
-            // under the surface asked the occluders itself, where the leg over it asked the flag.
+            // And a picture with shadows off is open to the sky under the water as over it. A slab in the water
+            // fifty units over the flooded floor, over half of it, under a sun 45 degrees off the zenith from
+            // that side: bent to 32 degrees under the surface, its shadow runs `50 tan 32°` = 31 units past the
+            // slab's edge onto the bed the eye sees. The leg under the surface asked the occluders itself,
+            // where the leg over it asked the flag.
             {
                 SCOPED_TRACE("a slab in the water");
                 Shaders::VisibilityConstants camera = overheadSun(size);
@@ -130,16 +129,14 @@ namespace Rtx::Testing
                 }
             }
 
-            // **And the roofed floor beside a wall the sun does not light stays dark.** The wall
-            // faces the eye square to the overhead sun, so the sun adds nothing to it and its bit is
-            // one, since nothing was split off it. Counted in the temporal pass's local mean, those
-            // bits held the floor at the wall's foot up to a seam of sunlight the roof hides. The
-            // roof's penumbra is `2000 * 0.0349` = 70 units, fourteen pixels of the floor, so the
-            // temporal pass blends rather than handing each bit on. The roof reaches past the floor
-            // on every side, so no sun lands where a bounce could carry it back, and every value of
-            // the frame is nought.
-            // The eye looks 20 degrees down at the wall's foot, so the frame's top edge meets the
-            // wall 150 + 300 tan 10° = 203 units up, under its top, and its bottom edge the floor.
+            // And the roofed floor beside a wall the sun does not light stays dark. The wall faces the eye
+            // square to the overhead sun, so the sun adds nothing to it and its bit is one, nothing having been
+            // split off it; counted in the temporal pass's local mean, those bits would hold the floor at the
+            // wall's foot up to a seam of sunlight the roof hides. The roof's penumbra is `2000 * 0.0349` = 70
+            // units, fourteen pixels, so the temporal pass blends rather than handing each bit on. The roof
+            // reaches past the floor on every side, so no sun lands where a bounce could carry it back and every
+            // value of the frame is nought. The eye looks 20 degrees down at the wall's foot, so the frame's top
+            // edge meets the wall 150 + 300 tan 10° = 203 units up, under its top, and its bottom edge the floor.
             SCOPED_TRACE("beside a wall");
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -300.0f, 150.0f), osg::Vec3f(0.0f, 0.0f, 40.0f), 60.0f, size, size, 100000.0f);
@@ -176,17 +173,16 @@ namespace Rtx::Testing
             EXPECT_EQ(filtered.mRadiance, raw.mRadiance);
         }
 
-        /// **The floor at a wall's foot is shadowed by the wall, however near it stands.** A sun 14
-        /// degrees up behind a wall, and the eye ten units off the wall's foot, where a pixel is a
-        /// fifth of a unit of floor. A shadow ray from the floor `d` short of the wall meets it after
-        /// `d / cos 14°` = `1.031 d`, so every floor point within a unit of the wall asks about an
-        /// occluder nearer than a unit — which a ray that skipped its first unit never met, and lit.
+        /// The floor at a wall's foot is shadowed by the wall, however near it stands. A sun 14 degrees up
+        /// behind a wall and the eye ten units off its foot, where a pixel is a fifth of a unit of floor: a
+        /// shadow ray from the floor `d` short of the wall meets it after `d / cos 14°` = `1.031 d`, so every
+        /// floor point within a unit of the wall asks about an occluder nearer than a unit, which a ray that
+        /// skipped its first unit never met, and lit.
         ///
-        /// **Drawn from both faces and from the one facing the floor**, which is Mournhold's city wall:
-        /// a quasi-exterior's shell faces in, and a sun ray that culled the face it met went through
-        /// it and lit the plaza at its foot (`skyLightAsk`).
-        ///
-        /// Every pixel the sun adds light to is floor in front of the wall, and its bit is nought.
+        /// Drawn from both faces and from the one facing the floor, which is Mournhold's city wall: a
+        /// quasi-exterior's shell faces in, and a sun ray that culled the face it met went through it and lit
+        /// the plaza at its foot (`skyLightAsk`). Every pixel the sun adds light to is floor in front of the
+        /// wall, and its bit is nought.
         TEST_F(RtxVisibilityTest, theFloorAtAWallsFootIsShadowedByTheWallNoMatterHowNear)
         {
             constexpr std::uint32_t size = 64;
@@ -229,18 +225,17 @@ namespace Rtx::Testing
             }
         }
 
-        /// **The sky's shadowed light is every source's, and a source under a floor draws no bit.**
-        /// An open floor under the sun overhead, with Masser up at 60 degrees from the zenith: by day
-        /// a thousandth of the sun, at dusk a fifth of the light and blue where the sun is red.
+        /// The sky's shadowed light is every source's, and a source under a floor draws no bit. An open floor
+        /// under the sun overhead, with Masser up at 60 degrees from the zenith: by day a thousandth of the
+        /// sun, at dusk a fifth of the light and blue where the sun is red.
         ///
-        /// `CHANNEL_SHADOWED.rgb` is the sum of what each source delivers, `E cos / pi` times the
-        /// grey's albedo of a half, in every pixel of one frame: the sun's `(2, 1, 0.5) / 2 pi`, and
-        /// Masser's `E * cos 60° / 2 pi` beside it. A pick of one source over its chance put each pixel's hue on
-        /// the pick, the sun's or the moon's. Nothing stands on the floor, so every bit is one; the
-        /// penumbra says whether it was drawn. With no floor, the default, a bit is drawn wherever a
-        /// second source lights the pixel at all, the daylight moon too: `SHADOW_PENUMBRA_DRAWN`.
-        /// Under a floor of 1/64 the daylight moon is under it and the sun holds all but it,
-        /// `SHADOW_PENUMBRA_CLEAR`, and the dusk moon, a fifth of the light, is over it and drawn.
+        /// `CHANNEL_SHADOWED.rgb` is the sum of what each source delivers, `E cos / pi` times the grey's albedo
+        /// of a half, in every pixel of one frame: the sun's `(2, 1, 0.5) / 2 pi` and Masser's
+        /// `E * cos 60° / 2 pi` beside it (a pick of one source over its chance would put each pixel's hue on
+        /// the pick). Nothing stands on the floor, so every bit is one and the penumbra says whether it was
+        /// drawn. With no floor, the default, a bit is drawn wherever a second source lights the pixel at all,
+        /// the daylight moon too (`SHADOW_PENUMBRA_DRAWN`); under a floor of 1/64 the daylight moon is under
+        /// it and the sun holds all but it (`SHADOW_PENUMBRA_CLEAR`), and the dusk moon is over it and drawn.
         TEST_F(RtxVisibilityTest, theSkysShadowedLightIsEverySourcesAndAMinorOneDrawsNoBit)
         {
             constexpr std::uint32_t size = 32;
@@ -294,23 +289,19 @@ namespace Rtx::Testing
                 ASSERT_EQ(width, Shaders::SHADOW_PENUMBRA_DRAWN) << "a dusk moon drew no bit";
         }
 
-        /// **A thin hard shadow keeps its depth through the denoiser, and a bit's penumbra is its
-        /// occluder's distance times the source's half angle.** A bar 40 units wide, 100 units over
-        /// the floor under the overhead sun, seen from 300 units up at 96 pixels square, with no
-        /// indirect light, so the sun is the frame: its shadow is 7 to 9 pixels wide.
+        /// A thin hard shadow keeps its depth through the denoiser, and a bit's penumbra is its occluder's
+        /// distance times the source's half angle. A bar 40 units wide, 100 over the floor under the overhead
+        /// sun, seen from 300 units up at 96 pixels square, with no indirect light so the sun is the frame: its
+        /// shadow is 7 to 9 pixels wide.
         ///
-        /// By hand: the sun's shadow cone is stated here at a sine of 0.0349, two degrees and not the
-        /// look's `SUN_SHADOW_RADIUS`, so that how hard a shadow is stays this test's own: a tangent
-        /// of 0.03493, so a ray stopped by the bar 100 units up has a penumbra 3.493 units in radius.
-        /// A pixel there is `mSpreadAngle` × its distance wide, and the floor under the bar stands 300
-        /// to 360 units from the eye: the penumbra is 3.493 over 300 and over 360 pixel widths of
-        /// the frame's spread, under one pixel, and a shadow that hard is noiseless. Every open ray
-        /// holds `SHADOW_PENUMBRA_CLEAR`.
-        ///
-        /// So the denoised frame is the raw one, value for value, after 96 frames of history whose
-        /// last draws what the raw frame draws: the temporal pass hands a hard bit on as it is, and
-        /// no filter level is narrower than nothing. Before, the clamp's box and the levels held the
-        /// umbra at 31 of 255 where the raw frame's stood at 17.
+        /// By hand: the sun's cone is stated here at a sine of 0.0349 (two degrees, not the look's
+        /// `SUN_SHADOW_RADIUS`, so how hard a shadow is stays this test's own), a tangent of 0.03493, so a ray
+        /// stopped by the bar 100 units up has a penumbra 3.493 units in radius. A pixel there is
+        /// `mSpreadAngle` × its distance wide and the floor under the bar stands 300 to 360 units from the
+        /// eye, so the penumbra is under one pixel and a shadow that hard is noiseless; every open ray holds
+        /// `SHADOW_PENUMBRA_CLEAR`. So the denoised frame is the raw one, value for value, after 96 frames of
+        /// history whose last draws what the raw frame draws: the temporal pass hands a hard bit on as it is
+        /// and no filter level is narrower than nothing.
         TEST_F(RtxVisibilityTest, aThinHardShadowKeepsItsDepth)
         {
             constexpr std::uint32_t size = 96;
@@ -360,33 +351,30 @@ namespace Rtx::Testing
             EXPECT_EQ(denoised.mRadiance, raw.mRadiance);
         }
 
-        /// **A penumbra is its nearest occluder's, laid on the receiver, and a stopped ray lets
-        /// everything through.** The bar of `aThinHardShadowKeepsItsDepth` over a floor, seen from
-        /// 300 units up, where a pixel is 3.61 units across, and 3.61 to 4.66 over the frame, under
-        /// that test's own sun of two degrees, a sine of 0.0349, so how hard a penumbra is stays
-        /// this test's and not the look's `SUN_SHADOW_RADIUS`.
+        /// A penumbra is its nearest occluder's, laid on the receiver, and a stopped ray lets everything
+        /// through. The bar of `aThinHardShadowKeepsItsDepth` over a floor seen from 300 units up, a pixel
+        /// 3.61 to 4.66 units across, under that test's own sun of two degrees (sine 0.0349), so how hard a
+        /// penumbra is stays this test's and not the look's `SUN_SHADOW_RADIUS`.
         ///
-        /// A sun 60 degrees from the zenith across the bar, from -x, the bar 20 units up and a roof
-        /// 500 up over the whole floor: every ray is stopped, and beside the bar, where its shadow
-        /// falls `20 tan 60°` = 34.6 units off it toward +x, the nearest solid is the bar. Its penumbra is
+        /// A sun 60 degrees from the zenith across the bar from -x, the bar 20 units up and a roof 500 up over
+        /// the whole floor: every ray is stopped and beside the bar, where its shadow falls `20 tan 60°` =
+        /// 34.6 units toward +x, the nearest solid is the bar. Its penumbra is
         /// `20 / cos 60° * 0.03493 / cos 60°` = 2.79 units on the floor, under a pixel; the roof's is
-        /// `500 / cos 60° * 0.03493 / cos 60°` = 69.9 units, over fifteen pixels. A ray that ended on
-        /// the first solid traversal found took the roof's on whichever pixels it found the roof
-        /// first.
+        /// `500 / cos 60° * 0.03493 / cos 60°` = 69.9 units, over fifteen pixels. A ray that ended on the first
+        /// solid traversal found would take the roof's on whichever pixels it found the roof first.
         ///
         /// The same sun and the bar 100 up with no roof, its shadow 173 units off it: the bar stands
-        /// `100 / cos 60°` = 200 along the ray, and the penumbra square to the light,
-        /// `200 * 0.03493`, lies up to `1 / cos 60°` = twice as long on the floor, along the light's
-        /// azimuth: 13.97 units, the reach the shadow denoiser is handed, where the light's own plane
-        /// read half.
+        /// `100 / cos 60°` = 200 along the ray and the penumbra square to the light, `200 * 0.03493`, lies up
+        /// to `1 / cos 60°` = twice as long on the floor along the light's azimuth: 13.97 units, the reach the
+        /// shadow denoiser is handed.
         ///
-        /// And under a black pane half there at 40 units, over the whole floor, and a roof over half
-        /// the floor at 100, the eye 30 units up under them both: every pixel's shadowed light is the
-        /// sun's whole, `2 * 0.5 / pi` = 0.31831, and what the pane lets through is drawn into the bit.
-        /// The roofed half's bit is shut, whatever the stopped ray met first, and its penumbra the
-        /// roof's; the open half's is open on half its draws, the pane's opacity, and takes the drawn
-        /// reach. Over 32 frames of at least 768 such pixels, n >= 24576 independent draws of a
-        /// half: the mean's deviation is `0.5 / sqrt(n)` <= 0.0032, held at four of it.
+        /// And under a black pane half there at 40 units over the whole floor and a roof over half the floor
+        /// at 100, the eye 30 units up under them both: every pixel's shadowed light is the sun's whole,
+        /// `2 * 0.5 / pi` = 0.31831, and what the pane lets through is drawn into the bit. The roofed half's
+        /// bit is shut whatever the stopped ray met first and its penumbra the roof's; the open half's is open
+        /// on half its draws, the pane's opacity, and takes the drawn reach. Over 32 frames of at least 768
+        /// such pixels, n >= 24576 independent draws of a half: the mean's deviation is `0.5 / sqrt(n)` <=
+        /// 0.0032, held at four of it.
         TEST_F(RtxVisibilityTest, aPenumbraIsItsNearestOccludersOnTheReceiverAndAStoppedRayLetsAllThrough)
         {
             constexpr std::uint32_t size = 96;
@@ -490,13 +478,11 @@ namespace Rtx::Testing
                 << "the bit's mean is what the pane lets through";
         }
 
-        /// **A pane's dark map hazes its shadow as it hazes the pane.** The black pane of the test
-        /// above, half there, wears a dark map whose alpha is 128 of 255 and falls below solid
-        /// (`Material::mDarkBelowSolid`): the eye sees it at `0.5 * 128 / 255` = 0.25098 of the
-        /// way there, and so a shadow ray meets it as often, and the bit opens on 0.74902 of its
-        /// draws where it opened on a half before the dark map's alpha counted. Over 32 frames of
-        /// the 96 by 96 floor, n >= 32 * 96 * 96 draws: the mean's deviation is
-        /// `sqrt(0.25 * 0.75 / n)` <= 0.0025, held at four of it.
+        /// A pane's dark map hazes its shadow as it hazes the pane. The black pane of the test above, half
+        /// there, wears a dark map whose alpha is 128 of 255 and falls below solid (`Material::mDarkBelowSolid`):
+        /// the eye sees it at `0.5 * 128 / 255` = 0.25098 of the way there, so a shadow ray meets it as often
+        /// and the bit opens on 0.74902 of its draws. Over 32 frames of the 96 by 96 floor, n >= 32 * 96 * 96
+        /// draws: the mean's deviation is `sqrt(0.25 * 0.75 / n)` <= 0.0025, held at four of it.
         TEST_F(RtxVisibilityTest, aPanesDarkMapHazesItsShadowAsItHazesThePane)
         {
             constexpr std::uint32_t size = 96;
@@ -550,13 +536,12 @@ namespace Rtx::Testing
                 << "the bit's mean is what the pane and its dark map let through";
         }
 
-        /// **A penumbra's bits are drawn blue, so a little blur takes most of their noise.** The roof
-        /// of the penumbra test below over half the floor, 2000 units up, where the penumbra runs 140
-        /// units across; one frame's bits, each blurred over the 5 by 5 pixels around it, against the
-        /// mean of 256 frames' bits. Drawn from the tile (`STREAM_SUN_DISC`), a pixel's error is
-        /// arranged against its neighbours' and the box averages it away; hashed, it is white, and
-        /// the box keeps a fifth of it. Asserted as the blue frame's error under three quarters of the
-        /// white one's.
+        /// A penumbra's bits are drawn blue, so a little blur takes most of their noise. The roof of the
+        /// penumbra test below over half the floor, 2000 units up, where the penumbra runs 140 units across;
+        /// one frame's bits, each blurred over the 5 by 5 pixels around it, against the mean of 256 frames'
+        /// bits. Drawn from the tile (`STREAM_SUN_DISC`) a pixel's error is arranged against its neighbours'
+        /// and the box averages it away; hashed it is white and the box keeps a fifth of it. Asserted as the
+        /// blue frame's error under three quarters of the white one's.
         TEST_F(RtxVisibilityTest, aPenumbrasBitsAreDrawnBlueSoABlurTakesTheirNoise)
         {
             constexpr std::uint32_t size = 64;
@@ -605,13 +590,12 @@ namespace Rtx::Testing
             EXPECT_LT(blue, 0.75 * white) << "blue " << blue << ", white " << white;
         }
 
-        /// **The noise of a penumbra comes off and its light stays where it was.** A roof over half
-        /// the floor, two thousand units up, under a sun whose shadow cone is `SUN_SHADOW_RADIUS`
-        /// either way: the penumbra is `2 * 2000 * 0.0524` = 210 units across, three fifths of the
-        /// 346 the frame spans, and one ray a pixel speckles it. Measured against a reference of 128
-        /// unfiltered frames, one frame's error and the denoised frame's after sixty-four frames of
-        /// history — on a dry floor, and on a flooded one seen through the water, whose sun is what
-        /// the refraction found. Two tests on one body, since each is 193 frames.
+        /// The noise of a penumbra comes off and its light stays where it was. A roof over half the floor, two
+        /// thousand units up, under a sun whose shadow cone is `SUN_SHADOW_RADIUS` either way: the penumbra is
+        /// `2 * 2000 * 0.0524` = 210 units across, three fifths of the 346 the frame spans, and one ray a
+        /// pixel speckles it. Measured against a reference of 128 unfiltered frames, one frame's error and the
+        /// denoised frame's after sixty-four frames of history, on a dry floor and on a flooded one seen
+        /// through the water (whose sun is what the refraction found). Two tests on one body, each 193 frames.
         class RtxPenumbraDenoiseTest : public RtxVisibilityTest
         {
         protected:
@@ -642,13 +626,11 @@ namespace Rtx::Testing
                 ASSERT_GT(rawError, 0.01f) << "a penumbra one ray a pixel draws is noisy, or this proves nothing";
                 EXPECT_LT(denoisedError, rawError * kept) << "raw " << rawError << ", denoised " << denoisedError;
 
-                // **The denoiser keeps the penumbra's light to a quarter of a per cent**: measured at
-                // +0.03% dry and +0.10% flooded. Its history is read back into its own blend, so it is
-                // kept in full floats (`DenoiseHistory`): kept in halves, whose store rounds toward
-                // nought here, it stood at -0.57% and -0.41% after these frames and -0.68% and -0.47%
-                // after 256. The SDK's contrast step, which darkened the penumbra by 3.4% on purpose,
-                // is not ported, and the frame's edge no longer counts as shadow; either would fail
-                // this.
+                // The denoiser keeps the penumbra's light to a quarter of a per cent (+0.03% dry, +0.10%
+                // flooded). Its history is read back into its own blend, so it is kept in full floats
+                // (`DenoiseHistory`): kept in halves, whose store rounds toward nought here, it stood at -0.57%
+                // and -0.41% after these frames. The SDK's contrast step, which darkened the penumbra by 3.4% on
+                // purpose, is not ported, and the frame's edge does not count as shadow; either would fail this.
                 EXPECT_NEAR(denoised.mean(), reference.mean(), reference.mean() * 0.0025f)
                     << "the denoiser moved the light it was smoothing";
             }
@@ -661,29 +643,26 @@ namespace Rtx::Testing
             penumbraOn(false, 0.1f);
         }
 
-        /// Measured at a fifth: 0.0242 raw against 0.0045 denoised, and against a reference of 128
-        /// frames on a low-end AMD integrated GPU 0.0242 against 0.0047; held under a quarter. **The
-        /// water splits the floor's pixels between its two paths**, and the reflection finds a black
-        /// sky: the composite's blend of each pixel with the four across it takes part of the raw
-        /// frame's noise before any filter runs, and the shadow filter finds half its taps, the other
-        /// field holding no sun, which a measurement at a shore is still to weigh.
+        /// Held under a quarter of the raw error (0.0242 raw against 0.0045 denoised, 0.0047 on a low-end AMD
+        /// integrated GPU). The water splits the floor's pixels between its two paths and the reflection finds
+        /// a black sky: the composite's blend of each pixel with the four across it takes part of the raw
+        /// frame's noise before any filter runs, and the shadow filter finds half its taps, the other field
+        /// holding no sun.
         TEST_F(RtxPenumbraDenoiseTest, theShadowDenoiserTakesTheNoiseOffAPenumbraSeenThroughTheWater)
         {
             penumbraOn(true, 0.25f);
         }
 
-        /// **A shadow's history takes nothing from a pixel that receives nothing.** A floor of two
-        /// halves on one plane, the near one lit by a lamp and the far one a material the lamps do not
-        /// light, so every pixel of it is a non-receiver, whose history holds nought. Bars ten units
-        /// wide every thirty, thirty units over the floor, cross the seam under a lamp ten units
-        /// across sixty units up, so every tile along the seam holds lit receivers, receivers in a
-        /// soft penumbra, and non-receivers. The eye moves half a pixel a frame across the seam, so
-        /// each history fetch falls between two texels, one of them across the seam for the row
-        /// beside it. Held against the same run over a floor the lamp lights whole: the near half's
-        /// rays and bits are the same in both, so the row beside the seam filters to the same light.
-        /// A tap taken from a non-receiver pulls its history toward nought, and the row reads darker:
-        /// measured at +0.7% against the whole floor, the spatial filter's own difference across the
-        /// seam, and at -7.5% with every tap taken.
+        /// A shadow's history takes nothing from a pixel that receives nothing. A floor of two halves on one
+        /// plane, the near one lit by a lamp and the far one a material the lamps do not light, so every pixel
+        /// of it is a non-receiver whose history holds nought. Bars ten units wide every thirty, thirty over
+        /// the floor, cross the seam under a lamp ten units across sixty up, so every tile along the seam holds
+        /// lit receivers, receivers in a soft penumbra, and non-receivers. The eye moves half a pixel a frame
+        /// across the seam, so each history fetch falls between two texels, one across the seam for the row
+        /// beside it. Held against the same run over a floor the lamp lights whole: the near half's rays and
+        /// bits are the same in both, so the row beside the seam filters to the same light, and a tap taken
+        /// from a non-receiver pulls its history toward nought (+0.7% against the whole floor, the spatial
+        /// filter's own difference across the seam; -7.5% with every tap taken).
         TEST_F(RtxVisibilityTest, aShadowsHistoryTakesNothingFromAPixelThatReceivesNothing)
         {
             constexpr std::uint32_t size = 64;
@@ -762,14 +741,13 @@ namespace Rtx::Testing
             EXPECT_NEAR(seamSum / wholeSum, 1.0, 0.025) << "the row beside the seam took history from across it";
         }
 
-        /// **The lamps' light is the shadow denoiser's, exact where nothing stands in its way and quieter
-        /// where something does.** Four lamps of four colours over a floor under a black sky, so the
-        /// lamps are the frame's whole light: each pixel's reservoir holds one, weighed against the
-        /// other three, and its ray decides the pixel's bit. The light the bit multiplies is every
-        /// lamp's summed, so on the open floor, where every bit is one, one frame is the reference.
-        /// A square sixty units across, thirty over the floor, casts four overlapping shadows of four
-        /// colours, and there the bits are noisy. Measured against 256 unfiltered frames, a raw frame
-        /// and a denoised one after sixteen of history.
+        /// The lamps' light is the shadow denoiser's, exact where nothing stands in its way and quieter where
+        /// something does. Four lamps of four colours over a floor under a black sky, so the lamps are the
+        /// frame's whole light: each pixel's reservoir holds one, weighed against the other three, and its ray
+        /// decides the bit. The light the bit multiplies is every lamp's summed, so on the open floor, where
+        /// every bit is one, one frame is the reference. A square sixty units across, thirty over the floor,
+        /// casts four overlapping shadows of four colours, and there the bits are noisy. Measured against 256
+        /// unfiltered frames, a raw frame and a denoised one after sixteen of history.
         TEST_F(RtxVisibilityTest, theLampsLightIsExactOnAnOpenFloorAndTheirShadowsComeOutQuieter)
         {
             constexpr std::uint32_t size = 64;
@@ -852,16 +830,14 @@ namespace Rtx::Testing
             }
         }
 
-        /// **The sun's bit and a lamp's are kept apart, and neither is filtered into the other's
-        /// light.** A floor under `overheadSun`, roofed two thousand units up, so the sun's ray is
-        /// stopped at every pixel, and a lamp sixty units over its near half, whose material the lamps
-        /// light; the far half's they do not. At every pixel of every frame, each source's channel
-        /// holds its own light and bit, as it does with the other source out: the sun's bit nought
-        /// and the lamp's one. And the far half, where the sun's light stands under a bit of nought,
-        /// filters to the frame without the lamp. One bit a pixel for both, drawn by the light each
-        /// adds, carried the near half's open lamp bits across the seam into the sun's light: the
-        /// bright line a replacer's strong sun lobe showed at `-2,-9`. Measured: no difference at all,
-        /// where one bit for both put 0.051 of the sun's 0.318 into the far half.
+        /// The sun's bit and a lamp's are kept apart, and neither is filtered into the other's light. A floor
+        /// under `overheadSun`, roofed two thousand units up so the sun's ray is stopped at every pixel, and a
+        /// lamp sixty units over its near half, whose material the lamps light; the far half's they do not. At
+        /// every pixel of every frame each source's channel holds its own light and bit, as with the other
+        /// source out: the sun's bit nought and the lamp's one. The far half, where the sun's light stands under
+        /// a bit of nought, filters to the frame without the lamp: one bit for both, drawn by the light each
+        /// adds, would carry the near half's open lamp bits across the seam into the sun's light (the bright
+        /// line a replacer's strong sun lobe showed), where this measures no difference at all.
         TEST_F(RtxVisibilityTest, theSunsBitAndALampsAreKeptApartAndNeitherIsFilteredIntoTheOthersLight)
         {
             constexpr std::uint32_t size = 64;

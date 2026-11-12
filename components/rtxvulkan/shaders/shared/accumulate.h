@@ -12,21 +12,20 @@
 // What the wavelet's temporal half needs. Included verbatim by both sides, for the reason
 // `visibility.h` is.
 
-// What the pass's two histories are made of, said once for both sides that have to agree: the mean
-// and its moments. **Not the surface a history belongs to**, which is the held `CHANNEL_SURFACE`,
-// `STORAGE_RG32F`, that the trace keeps beside its own channel and every temporal filter reads its
-// match against.
+// What the pass's two histories are made of, said once for both sides that have to agree: the mean and its
+// moments. **Not the surface a history belongs to**, which is the held `CHANNEL_SURFACE`, `STORAGE_RG32F`,
+// that the trace keeps beside its own channel and every temporal filter reads its match against.
 //
-// **Halves for the mean**, which is the cascade's first level's (`atrous.h` says why), rounded at
-// random at every store; the fill's alpha holds how many frames it is of.
+// **Halves for the mean**, the cascade's first level's (`atrous.h` says why), rounded at random at every
+// store; the fill's alpha holds how many frames it is of.
 //
-// **And the moments as the mean and the deviation of the luminance, not its first two moments.**
-// `E[l²] - E[l]²` is a difference of two numbers that are nearly equal once a pixel has settled, and
-// a half that rounds each of them loses the whole of what is left; the running variance, `S' = (1 -
-// a)(S + a(l - mean)²)`, is the same number in exact arithmetic (Finch 2009, eq. 143) and keeps its
-// own precision. Its root is kept, which spans half the variance's exponents, so a half holds it
-// where a dim pixel's variance would fall under the least normal half. A mixture of texels is formed
-// in full floats, as `S + mean²` summed and the square of the mean's sum taken off.
+// **The moments as the mean and the deviation of the luminance, not its first two moments**: `E[l²] - E[l]²`
+// is a difference of two nearly equal numbers once a pixel has settled, and a half that rounds each loses
+// what is left, where the running variance, `S' = (1 - a)(S + a(l - mean)²)`, is the same number in exact
+// arithmetic (Finch 2009, eq. 143) and keeps its own precision. Its root is kept, which spans half the
+// variance's exponents, so a half holds it where a dim pixel's variance would fall under the least normal
+// half. A mixture of texels is formed in full floats, as `S + mean²` summed and the square of the mean's sum
+// taken off.
 
 // **The mean is the cascade's format, by definition and not by agreement**: the cascade's first
 // level writes the mean through the one declaration every level writes through, `ATROUS_CHANNEL`,
@@ -146,12 +145,12 @@ namespace Rtx::Shaders
     /// fast mean's (`fast`, `fastFill`) by `share`, of the bounce as held. Exactly `slowFill` where
     /// the clamp moved nothing.
     ///
-    /// **A share of the bounce, and not the fill moved on its own**, because the fill is a part of
-    /// the bounce (`CHANNEL_FILL`) and the composite gives the rest of the bounce the diffuse albedo
-    /// and the fill the ambient one. The clamp holds each axis of the bounce to its box, and the fill
-    /// moved by the luminance's share alone stood over the bounce in a channel whose chroma the box
-    /// held: what the composite then added of the bounce went under nought there. A slow mean of no
-    /// bounce has no share of its own, and takes the fast mean's.
+    /// **A share of the bounce, and not the fill moved on its own**, because the fill is a part of the bounce
+    /// (`CHANNEL_FILL`) and the composite gives the rest of the bounce the diffuse albedo and the fill the
+    /// ambient one. The clamp holds each axis of the bounce to its box, and the fill moved by the luminance's
+    /// share alone stood over the bounce in a channel whose chroma the box held, so what the composite added
+    /// of the bounce went under nought there. A slow mean of no bounce has no share of its own, and takes the
+    /// fast mean's.
     RTX_SHADER float clampedFill(float slow, float slowFill, float fast, float fastFill, float held, float share)
     {
         const float fastShare = fast > 0.0f ? clamp(fastFill / fast, 0.0f, 1.0f) : 0.0f;
@@ -210,10 +209,9 @@ namespace Rtx::Shaders
     /// the ring, `sum` over `count` pixels, plus `ACCUMULATE_RING_SPREAD` of its deviations, out of
     /// the sum of their squares `squares`. All of it where the ring holds no surface.
     ///
-    /// **A ceiling and not ReBLUR's clamp both ways.** A firefly is bright; a floor would lift a
-    /// pixel darker than the ring, a twig in front of a lit wall, toward the wall's light. On the
-    /// M[FR] guild's tree the floor moved no figure of `noise --strafe=150` or `--walk=150`, so it
-    /// was left out rather than kept for nothing.
+    /// **A ceiling and not ReBLUR's clamp both ways.** A firefly is bright; a floor would lift a pixel darker
+    /// than the ring (a twig in front of a lit wall) toward the wall's light. On the M[FR] guild's tree the
+    /// floor moved no figure of `noise --strafe=150` or `--walk=150`, so it was left out.
     RTX_SHADER float ringHeldLuminance(float lit, float sum, float squares, float count)
     {
         if (!(count > 0.0f))
@@ -239,16 +237,15 @@ namespace Rtx::Shaders
     /// (`ACCUMULATE_SETTLED`): that of the moments `first` and `second` averaged over the clamp's
     /// square, raised for a mean of very few frames (`ACCUMULATE_VARIANCE_BOOST`).
     ///
-    /// **Measured where the pixel stands, and not a number**, which is ReLAX's spatial variance
-    /// estimate (`spatialVarianceEstimationHistoryThreshold`) and SVGF's before it. A constant is a
-    /// radiance, and the trace hands the denoiser radiance with no exposure in it: a variance of one
-    /// let every tap of a fresh pixel through where the light stands at a hundredth of one, and
-    /// refused nearly every one where it stands at a hundred.
+    /// **Measured where the pixel stands, and not a number**, as ReLAX's spatial variance estimate
+    /// (`spatialVarianceEstimationHistoryThreshold`) and SVGF's before it. A constant is a radiance, and the
+    /// trace hands the denoiser radiance with no exposure in it: a variance of one let every tap of a fresh
+    /// pixel through where the light stands at a hundredth of one, and refused nearly every one where it
+    /// stands at a hundred.
     ///
-    /// **Of the slow means' moments, as ReLAX's is, and not of the fast means' spread**, so it is a
-    /// sample's variance as a settled pixel's own is (`momentVariance`): a fast mean of two frames
-    /// spreads half as far, and a pixel's variance halved at its third frame and doubled at its
-    /// fifth.
+    /// **Of the slow means' moments, as ReLAX's is, and not of the fast means' spread**, so it is a sample's
+    /// variance as a settled pixel's own is (`momentVariance`): a fast mean of two frames spreads half as far,
+    /// which halved a pixel's variance at its third frame and doubled it at its fifth.
     RTX_SHADER float shortHistoryVariance(float first, float second, float frames)
     {
         return momentVariance(first, second) * max(1.0f, ACCUMULATE_VARIANCE_BOOST / (frames + 1.0f));

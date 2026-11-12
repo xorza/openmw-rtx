@@ -22,19 +22,16 @@ namespace Rtx
     /// One cloud sheet the sky holds, found by the name a weather gives it.
     struct CloudSheet
     {
-        /// What `WeatherResult` names it by: the fallback's or a script's bare file name, as the
-        /// rasterizer is handed it, so a frame finds the sheet by comparing names and resolves no
-        /// path. A name that did not open is kept too, with no texture, so it is asked once.
+        /// What `WeatherResult` names it by: the fallback's or a script's bare file name, so a frame
+        /// finds the sheet by comparing names and resolves no path. A name that did not open is kept
+        /// too, with no texture, so it is asked once.
         std::string mName;
 
         /// What the shader takes, or `sNoIndex` where the name did not open.
         Index mTexture = sNoIndex;
 
-        /// The mean luminance of what the sheet paints, linear: what a texel is read as a ratio to,
-        /// so the painting gives shape and not a level. Each sheet is a photograph of a 2002 sky with
-        /// that day's light in it, and for half the decks it is the only shape there is —
-        /// `tx_sky_overcast`, `_rainy` and `_thunder` carry an alpha of 255 in every texel; their
-        /// means are 0.268, 0.283 and 0.357, against clear 0.435, cloudy 0.552, foggy 0.639.
+        /// The mean luminance of what the sheet paints, linear: what a texel is read as a ratio to, so the
+        /// painting gives shape and not a level (each sheet is a photograph with that day's light in it).
         /// Measured over the alpha, because clear weather's cirrus covers a quarter of its sheet.
         float mMean = 0.0f;
     };
@@ -48,9 +45,8 @@ namespace Rtx
     /// nothing holds is freed.
     struct SkyContent
     {
-        /// Every sheet held, by name: the ten weathers' the host named at attach, under a
-        /// megabyte, so a storm arriving costs no upload, and whatever a script named since —
-        /// `SkyReader::follow`.
+        /// Every sheet held, by name: the ten weathers' named at attach, under a megabyte, so a storm
+        /// arriving costs no upload, and whatever a script named since (`SkyReader::follow`).
         std::vector<CloudSheet> mSheets;
 
         /// The night sky, read off the mesh the rasterizer draws it with: the star field, the scale
@@ -85,9 +81,9 @@ namespace Rtx
         osg::Vec3f mShadowed;
     };
 
-    /// The deck and the star field a world with no sky has: nothing to draw, which the shader reads
-    /// off the texture slot before it samples anything. Built whole and then named rather than by
-    /// designated initializer, which GCC cannot tell from an aggregate left short.
+    /// The deck and the star field a world with no sky has: nothing to draw, which the shader reads off
+    /// the texture slot before it samples anything. Built whole and then named, since GCC cannot tell a
+    /// designated initializer from an aggregate left short.
     Shaders::CloudDeck noDeck();
     Shaders::StarField noStars();
 
@@ -112,9 +108,8 @@ namespace Rtx
         /// How far the deck has crossed from this weather's sheet to the next one's.
         float mBlend = 0.0f;
 
-        /// Where each weather drives what it carries, which is what its sheet is turned by. The
-        /// engine turns each of its two cloud meshes by its own weather's storm; a direction nobody
-        /// stated reads as due north rather than as a sheet with no size.
+        /// Where each weather drives what it carries, which turns its sheet (the engine turns each of its
+        /// two cloud meshes by its own weather's storm); a direction nobody stated reads as due north.
         osg::Vec3f mDirection = osg::Vec3f(0.0f, 1.0f, 0.0f);
         osg::Vec3f mNextDirection = osg::Vec3f(0.0f, 1.0f, 0.0f);
 

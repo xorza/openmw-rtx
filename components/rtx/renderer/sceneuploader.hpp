@@ -48,8 +48,7 @@ namespace Rtx
     /// Takes, once a frame, the cheapest of the three ways to hand a mirrored scene over, written
     /// once for the game and the harness: a place is under a millisecond, an extend a few, a
     /// rebuild a fifth of a second, and choosing wrongly is fatal rather than slow. Stateless
-    /// against the backend, which says what it holds and which description it holds it from
-    /// through `SceneHolder::describeHeld`.
+    /// against the backend, which says what it holds through `SceneHolder::describeHeld`.
     class SceneUploader
     {
     public:
@@ -84,10 +83,9 @@ namespace Rtx
         };
 
         /// Hands the scene to `scenes`, building only what has to be built, and ends the
-        /// placement it handed over — `PlacementTable::advance`, so what moved becomes where
-        /// things were. Here and nowhere else, because the hand-over is the one thing that reads
-        /// the change lists through a backend, and a slot that left the lists unread would stand
-        /// on the device as it stood before.
+        /// placement it handed over — `PlacementTable::advance`. Here and nowhere else, because the
+        /// hand-over is the one thing that reads the change lists through a backend, and a slot that
+        /// left the lists unread would stand on the device as it stood before.
         SceneUpload hand(SceneHolder& scenes, const Handing& handing);
 
         /// How many slots stand their files as they are while their images are made: what a run that
@@ -100,7 +98,7 @@ namespace Rtx
         SceneTextures mTextures;
 
         /// The slots described as their files stand, whose images are being made: asked after at
-        /// every hand-over, and stood again once made (`TextureTable::arriveAgain`).
+        /// every hand-over, and stood again once made (`TextureTable::prepare`).
         std::vector<SceneTextures::Pending> mPending;
     };
 }

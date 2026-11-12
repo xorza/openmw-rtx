@@ -69,17 +69,15 @@ namespace Rtx
 
     inline constexpr std::size_t sShadowFields = static_cast<std::size_t>(ShadowField::Lamps) + 1;
 
-    /// Everything one camera's denoisers keep, at one extent: the five temporal filters' histories,
-    /// what each writes of a frame's own, and the wavelet's scratch. A chain's and not the passes',
-    /// because the passes are pipelines every chain shares and a history is as big as the camera it
-    /// follows.
+    /// Everything one camera's denoisers keep, at one extent: the five temporal filters' histories, what
+    /// each writes of a frame's own, and the wavelet's scratch. A chain's and not the passes', because
+    /// the passes are pipelines every chain shares and a history is as big as the camera it follows.
     ///
-    /// **One owner, one turn and one discard.** Each filter's images are handed to its pass as one
-    /// struct, built from the frame's turn, and what the frame writes whole — and, where a history
-    /// is fresh, what it would have read — is discarded in one barrier ahead of every pass. **One
-    /// table**, which makes every image, discards it by its role and checks its format against that
-    /// role where it is written: a history read back into its own blend is never stored in a format
-    /// whose store may round toward nought (`Shaders::mayRoundTowardNought`).
+    /// **One owner, one turn and one discard, from one table**: each filter's images are handed to its
+    /// pass as one struct built from the frame's turn, what the frame writes whole (and, where a history
+    /// is fresh, what it would have read) is discarded in one barrier ahead of every pass, and the table
+    /// checks each image's format against its role: a history read back into its own blend is never
+    /// stored in a format whose store may round toward nought (`Shaders::mayRoundTowardNought`).
     class DenoiseHistory
     {
     public:

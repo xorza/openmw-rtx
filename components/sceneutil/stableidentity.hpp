@@ -12,14 +12,13 @@
 
 namespace SceneUtil
 {
-    /// A number the engine stamps on a node it stands something at, so that whatever mirrors the
-    /// graph can tell one thing from the next by what it is and not by where its node happens to
-    /// sit in memory. The game hands one out per reference root, per cell root and for the player;
-    /// everything under such a node is told apart by its place in the subtree.
+    /// A number the engine stamps on a node it stands something at, so that whatever mirrors the graph
+    /// tells one thing from the next by what it is and not by where its node sits in memory. One per
+    /// reference root, per cell root and for the player; everything under such a node is told apart by its
+    /// place in the subtree.
     ///
-    /// Kept in the node's user data slot (`osg::Object::setUserData`) rather than among its user
-    /// objects, so a reader finds it in one load rather than a scan. The game writes nothing else
-    /// there on the nodes it stamps.
+    /// Kept in the node's user data slot rather than among its user objects, so a reader finds it in one
+    /// load rather than a scan; the game writes nothing else there on the nodes it stamps.
     class StableIdentity final : public osg::Object
     {
     public:
@@ -40,10 +39,8 @@ namespace SceneUtil
 
         std::uint64_t getId() const { return mId; }
 
-        /// Stamps `node`, once for its life. A node stamped again is one a mirror meets as
-        /// something new: it is stood again under the new identity, with no history for a
-        /// reprojection to read, for nothing that changed — so a second stamp is refused rather
-        /// than taken.
+        /// Stamps `node`, once for its life: a node stamped again is met by a mirror as something new,
+        /// stood again with no history for a reprojection, so a second stamp is refused.
         static void stamp(osg::Node& node, const std::uint64_t id)
         {
             assert(node.getUserData() == nullptr
@@ -58,10 +55,9 @@ namespace SceneUtil
             if (held == nullptr)
                 return nullptr;
 
-            // An exact type test and not a `dynamic_cast`, which the class being final makes the
-            // same answer: the cast is a call into the runtime's search of the class hierarchy,
-            // made for every stamped node the mirror meets on every frame, and profiled at a
-            // fortieth of the frame thread's time.
+            // An exact type test and not a `dynamic_cast`, which the class being final makes the same
+            // answer: the cast searches the class hierarchy for every stamped node on every frame, and
+            // was profiled at a fortieth of the frame thread's time.
             const osg::Referenced* data = held->getUserData();
             if (data == nullptr || typeid(*data) != typeid(StableIdentity))
                 return nullptr;

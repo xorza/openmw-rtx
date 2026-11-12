@@ -10,22 +10,18 @@
 
 namespace Rtx
 {
-    /// What FSR 3.1.4's host keeps from one frame to the next and hands its passes: a port of the
-    /// constant half of `ffx_fsr3upscaler.cpp`'s dispatch, with no device in it, so a test reads every
-    /// number off it.
+    /// What FSR 3.1.4's host keeps from one frame to the next and hands its passes: a port of the constant half of
+    /// `ffx_fsr3upscaler.cpp`'s dispatch, with no device in it, so a test reads every number off it. The renderer's
+    /// frame, in FSR's terms:
     ///
-    /// **The renderer's frame, in FSR's terms**:
-    ///
-    /// - **The jitter is negated.** The trace aims its ray through `pixel + 0.5 + jitter`, and FSR
-    ///   reads a low-resolution sample as standing at `pixel + 0.5 - Jitter()`
-    ///   (`ffx_fsr3upscaler_common.h`, `GetUpsampleSample`'s source position; `Accumulate`'s
-    ///   `fLrUvJittered` is the same with the sign the other way round). Both axes, because the trace's
-    ///   `y` runs down the image as FSR's UV does.
-    /// - **The depth is reversed and infinite**, with its near plane at `sUpscaleNear`: what
-    ///   `fsrcallbacks.glsl` writes, and `setupDeviceDepthToViewSpaceDepthParams`'s branch for it.
-    /// - **The field of view is the camera's own**: the eye's `mRight` and `mUp` are the half extents
-    ///   of the image plane at unit distance, the tangents of the half angles FSR works out from a
-    ///   vertical angle and an aspect.
+    /// - **The jitter is negated.** The trace aims its ray through `pixel + 0.5 + jitter`, and FSR reads a
+    ///   low-resolution sample as standing at `pixel + 0.5 - Jitter()` (`ffx_fsr3upscaler_common.h`), on both axes,
+    ///   because the trace's `y` runs down the image as FSR's UV does.
+    /// - **The depth is reversed and infinite**, with its near plane at `sUpscaleNear`: what `fsrcallbacks.glsl`
+    ///   writes, and `setupDeviceDepthToViewSpaceDepthParams`'s branch for it.
+    /// - **The field of view is the camera's own**: the eye's `mRight` and `mUp` are the half extents of the image
+    ///   plane at unit distance, the tangents of the half angles FSR works out from a vertical angle and an
+    ///   aspect.
     class FsrFrame
     {
     public:

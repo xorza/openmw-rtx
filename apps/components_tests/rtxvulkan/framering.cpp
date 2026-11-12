@@ -53,13 +53,9 @@ namespace Rtx
 
         /// The slot the ring hands out for recording is never one a frame in flight still owns.
         ///
-        /// **Two slots and two frames in flight makes them the same slot**, which is the whole of
-        /// this: the slot of the frame being recorded and that of the oldest in flight agree once
-        /// the ring is full, so the slot a caller is about to record into is the oldest frame's,
-        /// and the next drain waits that frame alone while the newer one is still tracing.
-        ///
-        /// The ring is filled first, and `FrameState::Submitted` is what says a frame is still on
-        /// the queue.
+        /// **Two slots and two frames in flight makes them the same slot**: once the ring is full the slot a caller is
+        /// about to record into is the oldest frame's, and the next drain waits that frame alone while the newer one
+        /// is still tracing. The ring is filled first, and `FrameState::Submitted` says a frame is still on the queue.
         TEST_F(RtxFrameRingTest, theSlotHandedOutForRecordingIsNotOneAFrameInFlightHolds)
         {
             FrameRing ring(getDevice(), Reporting::Measured);
@@ -87,20 +83,17 @@ namespace Rtx
             ring.finishAll();
         }
 
-        /// What is buried while a frame is in flight is held until a submit made after the burial
-        /// has run, whoever buried it and whatever the ring was doing, and a wait ends a prefix of
-        /// the burials in the order they were made.
+        /// What is buried while a frame is in flight is held until a submit made after the burial has run, whoever
+        /// buried it, and a wait ends a prefix of the burials in the order they were made.
         ///
-        /// **The property the two graveyards keyed by slot did not have.** A burial went into the
-        /// recording frame's, and that frame's wait was what freed it — so a burial made into the
-        /// wrong slot, or a table replaced by a caller that never saw a graveyard, was an object
-        /// gone from under a trace. One graveyard stamps every burial with the next submit's value,
-        /// so nothing is freed before every submit that could name it has finished.
+        /// **The property the two graveyards keyed by slot did not have.** A burial into the wrong slot, or a table
+        /// replaced by a caller that never saw a graveyard, was an object gone from under a trace. One graveyard
+        /// stamps every burial with the next submit's value, so nothing is freed before every submit that could name
+        /// it has finished.
         ///
-        /// **In burial order**, because an owner's destructor buries what must end first first: a
-        /// view before its image, a structure before the storage it stands in. Handles 1 and 2 are
-        /// buried under the frame that carries them and 3 under the frame after, and an end that
-        /// notes each handle says which went when.
+        /// **In burial order**, because an owner's destructor buries what must end first first: a view before its
+        /// image, a structure before its storage. Handles 1 and 2 are buried under the frame that carries them and 3
+        /// under the frame after, and an end that notes each handle says which went when.
         TEST_F(RtxFrameRingTest, aBurialOutlivesEverySubmitMadeBeforeItAndEndsInOrder)
         {
             // The device's graveyard is shared with every test before this one and with what the
@@ -228,12 +221,10 @@ namespace Rtx
                 << "the frame that took the slot wrote over the picture";
         }
 
-        /// **An exception inside a frame's recordings reaches the caller, and leaves the pool no
-        /// recording open.** Begun and closed by hand, the recordings stayed open, and the next
-        /// submit — a one-off, or the drain of the renderer the exception was taking down —
-        /// stopped at the assert that no recording is open, which a crash report then named in
-        /// place of the exception. The frame stays begun, and its trace begins again on the buffer
-        /// the exception gave back; a ring that ends with a frame begun ends cleanly.
+        /// **An exception inside a frame's recordings reaches the caller, and leaves the pool no recording open.**
+        /// Begun and closed by hand, the recordings stayed open, and the next submit stopped at the assert that no
+        /// recording is open, which a crash report then named in place of the exception. The frame stays begun, and
+        /// its trace begins again on the buffer the exception gave back.
         TEST_F(RtxFrameRingTest, anExceptionInsideARecordedFrameReachesTheCallerAndLeavesNothingOpen)
         {
             struct Thrown
@@ -264,11 +255,10 @@ namespace Rtx
             }
         }
 
-        /// **A frame the host refused to trace closes, and the next placement takes the next
-        /// slot.** Placed and skipped frame after frame, each slot holds the one placement buffer
-        /// its own frame took, where a frame left open took one more at every placement. A skipped
-        /// frame is numbered and waited for and comes back with no report, so the traced frame
-        /// after three of them is the one report, under the number it was submitted with.
+        /// **A frame the host refused to trace closes, and the next placement takes the next slot.** Each slot holds
+        /// the one placement buffer its own frame took, where a frame left open took one more at every placement. A
+        /// skipped frame is numbered and waited for and comes back with no report, so the traced frame after three of
+        /// them is the one report, under the number it was submitted with.
         TEST_F(RtxFrameRingTest, aSkippedFrameClosesAndComesBackWithNoReport)
         {
             FrameRing ring(getDevice(), Reporting::Measured);

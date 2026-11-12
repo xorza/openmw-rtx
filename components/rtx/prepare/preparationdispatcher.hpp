@@ -49,16 +49,11 @@ namespace Rtx
         double mSeconds = 0.0;
     };
 
-    /// Which job a free thread of the preparation takes next, within a budget of memory where the system
-    /// states one (`docs/rtx/architecture.md`, "The preparation's memory is dispatched"): the queued
-    /// chains the largest first, each on the free thread whose kept scratch it grows least; a chain that
-    /// fits nowhere reserved the time the running jobs free its room, and a smaller one started before it
-    /// only where it ends by then or fits beside it (EASY backfill); idle threads' scratch let go where a
-    /// waiting chain fits through it; a chain past the whole budget run alone; and a walk handed out where
-    /// the queue runs short and the budget holds the largest walk's images met so far. Counts what each
-    /// thread keeps, what each running job adds past it, and every queued chain's images.
-    ///
-    /// Pure: no thread, no clock, no lock. Its owner asks it under its own lock, with the time.
+    /// Which job a free thread takes next, within a budget of memory where the system states one
+    /// (`docs/rtx/architecture.md`, "The preparation's memory is dispatched"): queued chains largest
+    /// first, each on the thread whose kept scratch it grows least; a chain that fits nowhere reserves
+    /// the time the running jobs free its room, and smaller ones start before it only where they end by
+    /// then or fit beside it (EASY backfill); a chain past the whole budget runs alone.
     class PreparationDispatcher
     {
     public:

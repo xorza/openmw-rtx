@@ -4,8 +4,8 @@
 // The one test every dispatch in this renderer opens with, and where a shown pixel lands on the traced
 // grid.
 //
-// **Nothing is bound here on purpose.** A standalone pass reaches this file without reaching the descriptor
-// set, which is what lets `ripplecompose.comp` and `histogram.comp` read it beside `fogintegrate.comp`.
+// **Nothing is bound here on purpose**: a standalone pass (`ripplecompose.comp`, `histogram.comp`) reaches
+// this file without reaching the descriptor set.
 
 #include "camera.h"
 #include "gbuffer.h"
@@ -13,10 +13,8 @@
 
 /// Whether this invocation fell off the edge of what the dispatch covers.
 ///
-/// **One spelling, because twelve passes had four.** A workgroup covers the picture in whole groups, so the
-/// last group along each axis runs threads the picture has no pixel for. Each pass said so its own way — an
-/// `ivec2` against two casts, a `uvec2` against two fields, an `any` over a `greaterThanEqual` — and a
-/// reader had to check that the fourth form meant the first.
+/// **One spelling**: the last workgroup along each axis runs threads the picture has no pixel for, and
+/// passes that each tested it their own way made a reader check that the forms meant the same.
 bool outsideOf(uvec2 pixel, uvec2 extent)
 {
     return any(greaterThanEqual(pixel, extent));

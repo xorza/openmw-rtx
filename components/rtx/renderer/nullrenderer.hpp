@@ -31,10 +31,9 @@ namespace Rtx
 {
     /// **A renderer that keeps every promise and draws nothing**, with no graphics API under it: the
     /// game's ray tracer, its mirror, its ring, its interface and its pictures run whole above it,
-    /// on a machine with no device — CI's runners, where upstream's integration tests drive the
-    /// game. The null RHI of Unreal (`-nullrhi`) and Godot's headless display server, at the one
-    /// seam this tree has for it. What a picture comes to is black: `readPixels` and `readDeepPixels`
-    /// answer a frame of noughts, and `takeGuiCopy` a copy of noughts once a trace left one.
+    /// on a machine with no device — CI's runners. What a picture comes to is black: `readPixels`
+    /// and `readDeepPixels` answer a frame of noughts, and `takeGuiCopy` a copy of noughts once a
+    /// trace left one.
     class NullRenderer final : public Renderer
     {
     public:

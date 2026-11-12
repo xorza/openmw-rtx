@@ -243,8 +243,8 @@ namespace Rtx
     std::span<const OptionalExtensions> getOptionalExtensions();
 
     /// Takes out of `taken` every option a need of which is neither `given` nor an extension of an
-    /// option still taken, until nothing more falls: an option rests on what it needs and falls
-    /// with it, whatever order the table lists them in. `taken` is indexed as `options` is.
+    /// option still taken, until nothing more falls, whatever order the table lists them in.
+    /// `taken` is indexed as `options` is.
     ///
     /// @param given whether an extension is enabled whatever the options are: the instance's, and
     ///        the device's required ones.

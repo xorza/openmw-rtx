@@ -28,11 +28,9 @@ namespace RtxTool
 {
     namespace
     {
-        /// How far ahead the `look` a run reports points.
-        ///
-        /// **A landmark's distance rather than a nose's.** The renderer wants a direction; a person
-        /// reading `pos` and `look` in `views.cfg` wants to be able to tell where they point, and a
-        /// cell is eight thousand units across.
+        /// How far ahead the `look` a run reports points: a landmark's distance rather than a nose's, since a person
+        /// reading `pos` and `look` in `views.cfg` wants to tell where they point, and a cell is eight thousand
+        /// units across.
         constexpr double sLookAhead = 1000.0;
     }
 
@@ -59,10 +57,9 @@ namespace RtxTool
         Stop& stood = *mStood;
         stood.mStand.mEye = osg::Vec3f(at);
 
-        // **The cell the player stands in now, and not the one the stop began in**: a window walked
-        // through a door stands in the interior, whose coordinates are its own, and a note naming
-        // the exterior it left puts them somewhere else. Spelt again only where the cell changed,
-        // so a frame that stays in one builds no string.
+        // The cell the player stands in now, and not the one the stop began in: a window walked through a door
+        // stands in the interior, whose coordinates are its own, and a note naming the exterior it left puts them
+        // somewhere else. Spelt again only where the cell changed, so a frame that stays in one builds no string.
         const MWWorld::CellStore* const standing = world.getPlayerPtr().getCell();
         if (standing != nullptr && standing->getCell()->getId() != mNotedCell)
         {

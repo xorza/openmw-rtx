@@ -82,10 +82,10 @@ namespace Rtx::Testing
         /// quarter of an output pixel at most, in every mode.
         ///
         /// Measured: 0.01 to 0.08 of a pixel over the last 32 of 64 frames, and on a low-end AMD integrated GPU 0.01
-        /// to 0.05 over the last 16 of 32, where `FFX_HALF` moved it 0.15 to 0.55, as over 64. With
-        /// the jitter taken off the motion vector a second time (`fsrcallbacks.glsl`), the history
-        /// followed the jitter and the swing was 0.5 of a pixel at native and 2.6 at ultra
-        /// performance, growing with the ratio. At 96 pixels ultra performance traces 32, and its luma
+        /// to 0.05 over the last 16 of 32, where `FFX_HALF` moved it 0.15 to 0.55, as over 64. A
+        /// jitter taken off the motion vector a second time (`fsrcallbacks.glsl`) makes the history
+        /// follow the jitter: a swing of 0.5 of a pixel at native and 2.6 at ultra performance,
+        /// growing with the ratio. At 96 pixels ultra performance traces 32, and its luma
         /// pyramid has five levels where the pass declares six: what `Upscaler::record` binds in place
         /// of the sixth.
         TEST_F(RtxVisibilityTest, aStillPictureHoldsStillThroughEveryUpscale)
@@ -187,8 +187,8 @@ namespace Rtx::Testing
         /// there is the bloom of the puff beside it: a tenth of the open pixel, measured, where a
         /// puff drawn there would be all of it, so a quarter tells the two apart. Every one of the
         /// last 32 of 64 jittered frames holds, where a depth that moved with the sample — the
-        /// traced pixel's jittered one, which the composite once read — would hide the puff on the
-        /// frames whose sample landed left of the edge.
+        /// traced pixel's jittered one — would hide the puff on the frames whose sample landed left
+        /// of the edge.
         TEST_F(RtxVisibilityTest, anUpscaledPuffBehindAPostIsHiddenWhereTheTracedCentreMeetsIt)
         {
             constexpr std::uint32_t size = 48;

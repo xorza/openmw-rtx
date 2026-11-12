@@ -162,13 +162,12 @@ namespace Rtx
 
         /// A pocket loses the wall the file wrote second, and nothing else that faces itself does.
         ///
-        /// **A pocket is two walls facing into a gap that is inside out**: the winding number at its
-        /// middle is minus one, because each wall covers nearly a hemisphere of it and faces it. A
-        /// slot is the same two walls with the solid behind each — the winding there is nought — and
-        /// a plank's two faces turn away from each other, so no ray leaving either finds the other.
-        /// Two quads a hundred across, two apart, are a pocket; the same pair ten across is a small
-        /// thing's form, since its reach is five hundredths of its 14.3-unit diagonal, 0.72 units;
-        /// and twelve apart is wider than the eight units any pocket stands.
+        /// **A pocket is two walls facing into a gap that is inside out**: the winding number at its middle is minus
+        /// one, each wall covering nearly a hemisphere of it and facing it. A slot is the same two walls with the
+        /// solid behind each (winding nought), and a plank's two faces turn away from each other, so no ray leaving
+        /// either finds the other. Two quads a hundred across, two apart, are a pocket; the same pair ten across is a
+        /// small thing's form, its reach being five hundredths of its 14.3-unit diagonal, 0.72 units; twelve apart is
+        /// wider than the eight units any pocket stands.
         TEST(RtxShapeFoldTest, aPocketLosesItsLaterWallAndASlotOrAPlankKeepsBoth)
         {
             struct Case
@@ -341,13 +340,11 @@ namespace Rtx
 
         /// Every shape the content can hand it, against the rule written the slow way.
         ///
-        /// **What the three cases above cannot reach.** A doubled card is two triangles and the
-        /// answer is obvious; a merged paging chunk is tens of thousands, with the same corner
-        /// spelled by triangles far apart in the list, triangles doubled three and four times over,
-        /// and degenerate ones whose reverse is their own spelling. Which copy survives depends on
-        /// the order the pairing walks, and getting that wrong deletes geometry the player can see.
-        ///
-        /// A fixed seed, so a failure is a failure that can be run again.
+        /// **What the three cases above cannot reach.** A doubled card is two triangles and the answer obvious; a
+        /// merged paging chunk is tens of thousands, with a corner spelled by triangles far apart in the list,
+        /// triangles doubled three and four times over, and degenerate ones whose reverse is their own spelling.
+        /// Which copy survives depends on the order the pairing walks, and getting that wrong deletes visible
+        /// geometry. A fixed seed, so a failure can be run again.
         TEST(RtxShapeFoldTest, everyShapeFoldsTheWayTheRuleSaysItShould)
         {
             std::mt19937 random(20260830);

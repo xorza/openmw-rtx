@@ -32,12 +32,11 @@ namespace Rtx
         }
     };
 
-    /// The numbers mirror walks run at, and the rule that they only ever go up: a state-set
-    /// controller, an `osg::Sequence` and both deforming drawables refuse to run for a traversal
-    /// number they already saw. The world's walk and a traced view's must not be two sequences,
-    /// because a subtree reached by both would be frozen for whichever got there second. Not the
-    /// frame number, which says which of a `SceneUtil::LightSource`'s two buffers update wrote: a
-    /// doll redrawn twice in one frame needs two traversal numbers and one light buffer.
+    /// The numbers mirror walks run at, and the rule that they only ever go up: a state-set controller, an
+    /// `osg::Sequence` and both deforming drawables refuse to run for a traversal number they already saw. The world's
+    /// walk and a traced view's must not be two sequences, because a subtree reached by both would be frozen for
+    /// whichever got there second. Not the frame number, which says which of a `SceneUtil::LightSource`'s two buffers
+    /// update wrote: a doll redrawn twice in one frame needs two traversal numbers and one light buffer.
     class Traversals
     {
     public:

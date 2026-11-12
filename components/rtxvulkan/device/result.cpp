@@ -165,11 +165,8 @@ namespace Rtx
 
     void reportTornDown(const std::string_view failure, const char* const raised)
     {
-        // The report is the last thing here that can raise, and it is where the promise would
-        // break. The throw `tearDown` is catching is either a lost device or a failed allocation,
-        // and under the second one building this line is a second allocation — which would leave a
-        // destructor by way of the very handler written to stop that. There is nothing to say when
-        // saying it is what failed.
+        // The throw caught here may be a failed allocation, under which building this line is a
+        // second one that would leave the destructor through the handler written to stop that.
         try
         {
             Log(Debug::Error) << "Rtx: " << failure << ": " << raised;

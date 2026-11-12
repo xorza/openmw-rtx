@@ -196,16 +196,13 @@ namespace Rtx
             std::optional<std::uint32_t> mList;
         };
 
-        /// **The trace's stages in the order a frame runs them**, a row at each stage's `Kernel`
-        /// (`docs/rtx/architecture.md`, "A stage a kernel, in one fixed order"), every one a dispatch
-        /// and not a launch, since every ray it casts is a ray query (`visibility.comp`). The trace
-        /// over every pixel, which lists the tiles the shafts and the layers stand in, and those where
-        /// the eye met the sea; the water's walk over those, where there is a sea, which lists them
-        /// for the shafts and the layers in turn; the solid's direct light; the sun's shafts through
-        /// the water, over their tiles, where `hasMedia`; the layers laid over that light, over
-        /// theirs; the bounce, which lists the pixels whose bounce landed; and its landing, over that
-        /// list — the pair once for each of the frame's bounce rays, each landing over its ray's list
-        /// (`landingDispatch`); and in the pair's place, where no bounce is traced, the ambient's stage.
+        /// The trace's stages in the order a frame runs them, a row at each stage's `Kernel`
+        /// (`docs/rtx/architecture.md`, "A stage a kernel, in one fixed order"), every one a dispatch and not a launch,
+        /// since every ray it casts is a ray query (`visibility.comp`). The trace over every pixel, which lists the
+        /// tiles the shafts and layers stand in and those where the eye met the sea; the water's walk over those; the
+        /// solid's direct light; the sun's shafts through the water, where `hasMedia`; the layers laid over that light;
+        /// the bounce and its landing, once for each of the frame's bounce rays (`landingDispatch`); and in their
+        /// place, where no bounce is traced, the ambient's stage.
         constexpr std::array<Stage, 8> sTraceStages{ {
             { "visibility.comp.spv", "visibility", FrameZone::Trace, std::nullopt },
             { "visibility.comp.spv", "water", FrameZone::Water, Shaders::STAGE_LIST_WATER },
@@ -344,13 +341,10 @@ namespace Rtx
                     if (stop.stop_requested())
                         throw std::runtime_error("the tuple compile was stopped");
 
-                // The sky's tuples after the dark ones: the order matters less than the tuple a
-                // frame waits on, which the queue takes first. **The tuples that read a dark map's
-                // alpha last**, which nearly no scene asks for and the whole tuple stands in for
-                // meanwhile.
-                //
-                // **A relief only beside the maps**, which `resolve` never asks without them: the march
-                // reads a normal map.
+                // The sky's tuples after the dark ones: the order matters less than the tuple a frame waits on, which
+                // the queue takes first. The tuples that read a dark map's alpha come last, which nearly no scene asks
+                // for. A relief only beside the maps, which `resolve` never asks without them: the march reads a normal
+                // map.
                 std::vector<Wanted> kernels;
                 std::vector<TupleRun> runs;
                 for (const bool darkAlpha : { false, true })
@@ -424,12 +418,11 @@ namespace Rtx
             case Kernel::Landing:
             case Kernel::Unbounced:
             {
-                // **One pipeline for the tuples a stage reads alike**: a constant its module does not read
-                // compiles to the same kernel either way: the bounce's and the unbounced stage's read neither
-                // the sun nor the moons, and the media's no maps, 80 of the 324 stage pipelines a first start
-                // made.
-                // The first hand to want the canonical tuple's makes it; one that wants it meanwhile waits,
-                // and a hand never waits on one nobody is making.
+                // One pipeline for the tuples a stage reads alike: a constant its module does not read compiles to the
+                // same kernel either way (the bounce's and the unbounced stage's read neither the sun nor the moons,
+                // the media's no maps: 80 of the 324 stage pipelines a first start made). The first hand to want the
+                // canonical tuple's makes it; one that wants it meanwhile waits, and a hand never waits on one nobody
+                // is making.
                 const auto at = static_cast<std::size_t>(wanted.mKernel);
                 const Stage& stage = sTraceStages[at];
                 const VisibilityVariant canonical = canonicalOf(wanted.mKernel, variant);
@@ -489,13 +482,11 @@ namespace Rtx
                     = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
                         *mCode, "fogscatter.rgen.spv", variant.describe("fog scatter"), specialization);
                 return;
-            // From here on no tuple of the sky: each is made at the whole sky and counting nothing,
-            // once. **The whole sky computes what each tuple would**, since a constant a
-            // tuple sets false stands in front of a runtime test that already answers no
-            // (`variants.glsl`), and what a tuple would take out is a few hundredths of a millisecond
-            // of puffs and emitters, against a pipeline more each to compile cold. Handed those words
-            // and not left to the GLSL's defaults, which say the same, so that no constant a module
-            // reads takes a default in silence (`specializationDisagreement`).
+            // From here on no tuple of the sky: each is made at the whole sky and counting nothing, once. The whole sky
+            // computes what each tuple would, since a constant a tuple sets false stands in front of a runtime test
+            // that already answers no (`variants.glsl`), and what a tuple would take out is a few hundredths of a
+            // millisecond, against a pipeline more each to compile cold. Handed those words and not left to the GLSL's
+            // defaults, so that no constant a module reads takes a default in silence (`specializationDisagreement`).
             case Kernel::Depth:
                 mKernels.mDepth = std::make_unique<TracePipeline<NoConstants>>(
                     mDevice, sBindings, sharedSets(textureLayout), *mCode, "fogdepth.rgen.spv", "fog depth", sWholeSky);

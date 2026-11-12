@@ -17,12 +17,10 @@ namespace Rtx
 {
     namespace
     {
-        /// **An open surface is exactly as it was, and a closed one sends nothing back.** The fit's value at
-        /// a visibility of 0.5 and an albedo of 0.5: `a = 0.6878`, `b = -1.75585`, `c = 2.0679`, so
-        /// `((0.5a + b) 0.5 + c) 0.5 = 0.6809625`. At an albedo of 0.068, `((0.5 * -0.19365 + 0.31563) 0.5 +
-        /// 0.87765) 0.5 = 0.49353`, under the visibility, which it stays at. At an albedo of 0.8,
-        /// `a = 1.29992`, `b = -3.19438`, `c = 2.89446`, so `0.811125`. An albedo of one reads 1.0001 at a
-        /// visibility of one, unheld.
+        /// **An open surface is exactly as it was, and a closed one sends nothing back.** The fit at a
+        /// visibility and albedo of 0.5: `((0.5a + b) 0.5 + c) 0.5` with `a = 0.6878`, `b = -1.75585`,
+        /// `c = 2.0679` is `0.6809625`. At an albedo of 0.068 it is `0.49353`, under the visibility, which it
+        /// stays at; at 0.8, `0.811125`. An albedo of one reads 1.0001 at a visibility of one, unheld.
         TEST(RtxBrdfTest, anOcclusionMapsVisibilityRisesWithTheAlbedoAndHoldsAtOne)
         {
             for (const float albedo : { 0.0f, 0.068f, 0.5f, 0.8f, 1.0f })
@@ -37,9 +35,8 @@ namespace Rtx
         }
 
         /// **A vanilla surface is the Lambert surface it was.** A reflectance of nought has an edge of
-        /// nought, reflects exactly nothing at every angle, has a directional albedo of exactly
-        /// nothing wherever the table is read, and is scaled by exactly one. A dielectric's 4% reaches
-        /// an edge of one: `50 * 0.04` is two, saturated.
+        /// nought, reflects nothing at every angle, has a directional albedo of nothing, and is scaled by
+        /// exactly one. A dielectric's 4% reaches an edge of one: `50 * 0.04` is two, saturated.
         TEST(RtxBrdfTest, aReflectanceOfNoughtReflectsExactlyNothing)
         {
             const float edge = Shaders::specularEdge(0.0f);
@@ -67,10 +64,9 @@ namespace Rtx
             return 2.0 / (1.0 + std::sqrt(1.0 + alpha * alpha * tangent));
         }
 
-        /// **The lobe is reciprocal**: its visibility term is the same with the eye and the light
-        /// swapped, to the rounding of a sum taken in the other order. **And what a visible-normal
-        /// draw leaves of it is the quotient it stands for**: `G2 / G1` with `G2` the visibility
-        /// times `4 (n.v) (n.l)` and `G1` through `Λ`, so nothing is shared with the closed form but
+        /// **The lobe is reciprocal**: its visibility is the same with the eye and the light swapped, to
+        /// the rounding of a sum taken in the other order. **A visible-normal draw leaves the quotient**
+        /// `G2 / G1`, `G2` the visibility times `4 (n.v) (n.l)`, sharing nothing with the closed form but
         /// the visibility.
         TEST(RtxBrdfTest, theSmithTermsAreReciprocalAndAgree)
         {
@@ -110,12 +106,9 @@ namespace Rtx
         }
 
         /// **A bounded draw spends fewer samples under the horizon and keeps the lobe's mean.** The
-        /// reflection of the eye about each drawn facet, over 2^16 Hammersley points, at an eye 84
-        /// degrees off the normal and three alphas: under the whole cap a share of the
-        /// reflections leave under the horizon and weigh nought; under the bounded cap
-        /// (`boundedCap`) fewer do, and each weighs `boundedWeight` of what it did. Both estimate one
-        /// integral, the lobe's directional albedo with no Fresnel, `E[G2 / G1]`, so their means
-        /// agree to the points' own error, 2e-3.
+        /// reflection of the eye about each facet of 2^16 Hammersley points, at an eye 84 degrees off the
+        /// normal and three alphas: the bounded cap (`boundedCap`) sends fewer under the horizon, each
+        /// weighing `boundedWeight` of what it did. Both estimate `E[G2 / G1]`, so the means agree to 2e-3.
         TEST(RtxBrdfTest, aBoundedDrawWastesFewerReflectionsAndKeepsTheLobesMean)
         {
             constexpr std::uint32_t samples = 1u << 16;
@@ -151,26 +144,19 @@ namespace Rtx
             }
         }
 
-        /// **The visible normals are drawn by their density**, `G1 max(v.h, 0) D(h) / (n.v)`: a
-        /// histogram of `visibleNormal`'s draws, bin by bin, against that density integrated over
-        /// the bin.
+        /// **The visible normals are drawn by their density**, `G1 max(v.h, 0) D(h) / (n.v)`: a histogram
+        /// of `visibleNormal`'s draws against that density integrated over each bin.
         ///
-        /// The bins are even in `s = tan²θ / (α² + tan²θ)` — the projected distribution's own
-        /// cumulative share, so each holds some of the lobe at every alpha — and in the facet's
-        /// azimuth from the eye's, folded about the eye's plane, which the density is symmetric
-        /// about. `D cosθ dω` is `ds dφ / 2π` in them, so the density folded is
-        /// `G1 max(v_z + v_x α τ cos φ, 0) / (π v_z)` per `ds dφ` with `τ = sqrt(s / (1 - s))`.
-        /// Taking `s = sin²β` makes `τ = tan β` and `ds = 2 sin β cos β dβ`, which leaves
+        /// The bins are even in `s = tan²θ / (α² + tan²θ)`, the projected distribution's cumulative share,
+        /// and in the facet's azimuth folded about the eye's plane. With `s = sin²β`, `τ = tan β` and the
+        /// folded density per `ds dφ` is `G1 max(v_z + v_x α τ cos φ, 0) / (π v_z)`, which leaves
         /// `v_z sin 2β + 2 v_x α sin²β cos φ` and no singularity at the lobe's edge; the azimuth is
-        /// integrated exactly by `positiveCosineIntegral` and `β` by a midpoint rule. `G1` is
-        /// `smithMasking`'s, so the expectation shares nothing with the draw — and it integrates to
-        /// one within 6e-7 in every case, which this also holds it to.
+        /// integrated by `positiveCosineIntegral`, `β` by a midpoint rule, and `G1` is `smithMasking`'s.
+        /// The density also integrates to one within 6e-7, which this holds it to.
         ///
-        /// **2e-4 a bin is twice the worst the draw is off, and a twenty-fifth of a wrong draw.**
-        /// 2^18 Hammersley points a case — the table's own set — come within 1e-4 of every bin, where
-        /// independent draws would scatter a bin of the mean mass by 1.2e-4 a standard deviation. A
-        /// draw that ignores the eye, the distribution projected onto the normal, is 5e-3 to 5e-2 off
-        /// wherever the eye is not square on.
+        /// **2e-4 a bin is twice the worst the draw is off, and a twenty-fifth of a wrong draw**: 2^18
+        /// Hammersley points come within 1e-4 of every bin, where independent draws would scatter by
+        /// 1.2e-4; a draw that ignores the eye is 5e-3 to 5e-2 off wherever the eye is not square on.
         TEST(RtxBrdfTest, theVisibleNormalsAreDrawnByTheirDensity)
         {
             constexpr std::uint32_t samples = 1u << 18;
@@ -257,12 +243,10 @@ namespace Rtx
             EXPECT_EQ(Shaders::ggxConeWidth(1.0f, 1.0f), 1.0f);
         }
 
-        /// **A refracted cone is the reflected one times half the bend**, checked against Snell's law
-        /// itself in double: a ray square on to a surface whose normal is tilted by a thousandth of a
-        /// radian. The reflection turns by twice the tilt; the refraction into water by
-        /// `1 - 1 / 1.333 = 0.2498125` of it, and out of water by `0.333` of it, so the two cones are
-        /// `0.1249062` and `0.1665` of the reflected one. By hand at a reflected cone of 0.4:
-        /// `0.0499625` entering and `0.0666` leaving.
+        /// **A refracted cone is the reflected one times half the bend**, checked against Snell's law in
+        /// double: a ray square on to a normal tilted by a thousandth of a radian. The reflection turns by
+        /// twice the tilt; refraction into water by `1 - 1 / 1.333 = 0.2498125` of it, out of water by
+        /// `0.333`, so the cones are `0.1249062` and `0.1665` of the reflected one (0.4: `0.0499625`, `0.0666`).
         TEST(RtxBrdfTest, aRefractedConeIsTheReflectedOneTimesHalfTheBend)
         {
             const double tilt = 1e-3;
@@ -296,13 +280,10 @@ namespace Rtx
                 Shaders::refractedConeWidth(0.4f, 1.333f, false), Shaders::refractedConeWidth(0.4f, 1.333f, true));
         }
 
-        /// **A field of slopes is the roughness a painted map would state for it**, so water's guide
-        /// holds the quantity a solid's does and the shore blends two of one thing. By hand: slopes
-        /// of `sigma = 0.1` along each axis are a variance of `0.02` over both, which is GGX's
-        /// `alpha = sqrt(2) * 0.1 = 0.1414214` and a roughness of its root, `0.3760603`; a variance
-        /// of `0.09` is `alpha = 0.3`, the cone test's; none is a mirror; and a sea rougher than GGX
-        /// states is held at a roughness of one. A painted roughness widened by slopes a footprint
-        /// averages is the same sum, and a classic map's exponent is a roughness by Walter's match.
+        /// **A field of slopes is the roughness a painted map would state for it**, so water's guide holds
+        /// the quantity a solid's does. By hand: slopes of `sigma = 0.1` along each axis are a variance of
+        /// `0.02`, GGX's `alpha = sqrt(2) * 0.1 = 0.1414214` and a roughness of its root, `0.3760603`; a
+        /// variance of `0.09` is `alpha = 0.3`; none is a mirror; a sea rougher than GGX states is held at one.
         TEST(RtxBrdfTest, aFieldOfSlopesIsTheRoughnessAMapWouldStateForIt)
         {
             EXPECT_NEAR(Shaders::slopeRoughness(0.02f), 0.3760603f, 1e-6f);
@@ -337,12 +318,9 @@ namespace Rtx
             EXPECT_NEAR(Shaders::ggxAlpha(Shaders::roughnessOfExponent(254.0f)), std::sqrt(2.0f / 256.0f), 1e-6f);
         }
 
-        /// **The distribution is normalised**: `∫ D (n.h) dω` is one for every alpha, which in
-        /// `s = cos²` is `∫ D(√s) π ds` over nought to one — worked out by hand, the antiderivative
-        /// of `α² / (s (α² - 1) + 1)²` is `-α² / ((α² - 1) (s (α² - 1) + 1))`, which rises by
-        /// exactly one across the interval. A million midpoint steps put two and a half thousand
-        /// across the narrowest peak, `α² = 0.0025` wide, and the rule is then good to a part in
-        /// ten million.
+        /// **The distribution is normalised**: `∫ D (n.h) dω` is one for every alpha, which in `s = cos²`
+        /// is `∫ D(√s) π ds` over nought to one; the antiderivative of `α² / (s (α² - 1) + 1)²` is
+        /// `-α² / ((α² - 1) (s (α² - 1) + 1))`. A million midpoint steps are good to a part in ten million.
         TEST(RtxBrdfTest, theDistributionProjectsToOne)
         {
             constexpr std::uint32_t steps = 1000000;

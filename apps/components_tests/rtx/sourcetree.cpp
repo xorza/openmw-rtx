@@ -164,13 +164,10 @@ namespace Rtx
         /// Every Vulkan handle the backend owns is held by `Rtx::Owned`.
         ///
         /// **The rule is mechanical, so a test keeps it.** `owned.hpp` is "the one place
-        /// `vkDestroyX(device, handle, allocator)` is spelled", and a class that spells it itself pays
-        /// a destructor, a null check and a `const Device&` member that is there for the destructor to
-        /// reach the device. A loaded destroyer (`mDestroyX`) is matched as well as a declared one.
-        ///
-        /// The exemptions, each for a reason a match cannot see: `vkDestroyInstance` and
-        /// `vkDestroyDevice` take no parent handle, and `Root` holds them; the surface (`Surface`'s
-        /// `mDestroySurface`) and the messenger take the instance rather than the device, and the
+        /// `vkDestroyX(device, handle, allocator)` is spelled"; a class that spells it itself pays a
+        /// destructor, a null check and a `const Device&` member. A loaded destroyer (`mDestroyX`) is matched
+        /// too. Exempt, for reasons a match cannot see: `vkDestroyInstance` and `vkDestroyDevice` take no
+        /// parent handle and `Root` holds them; the surface and the messenger take the instance, and the
         /// messenger is a `Handled` that ends through the instance's own entry point.
         TEST(RtxSourceTreeTest, everyDeviceParentedVulkanHandleIsHeldByOwned)
         {
@@ -194,10 +191,9 @@ namespace Rtx
         /// A handle ended at once is held by `Rtx::Immediate` only where the graveyard cannot
         /// outlive it.
         ///
-        /// **Everything else is `Owned`, which buries**, so a handle a submit may still read is never
-        /// ended under it. The three outside it say why where they are declared: the clock's
-        /// semaphore and the pipeline cache, which the device takes apart after its graveyard, and
-        /// the swapchain, whose surface goes first.
+        /// **Everything else is `Owned`, which buries**, so a handle a submit may still read is never ended
+        /// under it. The three outside it say why where they are declared: the clock's semaphore and the
+        /// pipeline cache, which the device takes apart after its graveyard, and the swapchain.
         TEST(RtxSourceTreeTest, onlyWhatOutlivesTheGraveyardIsEndedAtOnce)
         {
             const std::set<std::string> allowed{ "owned.hpp", "timeline.hpp", "timeline.cpp", "pipelinecache.hpp",
@@ -355,17 +351,12 @@ namespace Rtx
 
         /// No compute shader traces a ray but the trace's stages.
         ///
-        /// **A ray query inside a compute dispatch answered differently from run to run** — a
-        /// candidate counted twice or not at all — while another process shared the card, and never
-        /// inside a ray-tracing launch. So what is asked here, of every `.comp` and everything it
-        /// includes, is whether it reaches `rayQueryEXT`.
-        ///
-        /// **The trace's stages are dispatches all the same** — `visibility.comp`, `direct.comp`,
-        /// `media.comp`, `panes.comp`, `bounce.comp`, `landing.comp` and `unbounced.comp` — because AMD's Windows
-        /// driver draws the trace wrong as a launch (`docs/rtx/architecture.md`, "The shaders"), and
-        /// the finding above was made beside the fix of duplicate candidates
-        /// (`docs/rtx/architecture.md`, "Every stage is a compute dispatch"): what a dispatch costs
-        /// in repeatability is measured with `./omw repeat` and not ruled out here.
+        /// **A ray query inside a compute dispatch answered differently from run to run** — a candidate
+        /// counted twice or not at all — while another process shared the card, and never inside a
+        /// ray-tracing launch. So this asks of every `.comp` and what it includes whether it reaches
+        /// `rayQueryEXT`. **The trace's stages are dispatches all the same** (`docs/rtx/architecture.md`,
+        /// "The shaders" and "Every stage is a compute dispatch"): what that costs in repeatability is
+        /// measured with `./omw repeat` and not ruled out here.
         TEST(RtxSourceTreeTest, noComputeShaderTracesARay)
         {
             const std::filesystem::path shaders = sBackend / "shaders";

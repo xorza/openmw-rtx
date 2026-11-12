@@ -16,9 +16,8 @@ namespace Rtx
     /// The one thing that says a present is over: a queue-idle proves the queue is empty rather
     /// than that the compositor let go, and the timeline cannot say it either.
     ///
-    /// **Waited only where a present owes it.** A present the presentation engine never took
-    /// signals nothing, and the wait on its fence was ten seconds and a crash report that blamed
-    /// the presentation engine for a clean error.
+    /// Waited only where a present owes it: a present the presentation engine never took signals
+    /// nothing, and waiting on its fence timed out after ten seconds.
     class PresentFence
     {
     public:

@@ -18,20 +18,16 @@ namespace Resource
 
 namespace MyGUIRtx
 {
-    /// A picture of the interface's own, made by `createManual` or loaded from a file, and written
-    /// through MyGUI's `lock` and `unlock`.
+    /// A picture of the interface's own, made by `createManual` or loaded from a file, and written through
+    /// MyGUI's `lock` and `unlock`.
     ///
-    /// **The pixels are written once.** MyGUI's interface hands out a buffer to fill and takes it
-    /// back filled, and the buffer handed out here is the renderer's own — the memory its copy to
-    /// the device reads. A buffer of this class's own instead would put a second copy of every pixel
-    /// in front of the renderer's, and a font's atlas or a traced view's first picture is megabytes
-    /// written whole. A picture that changes every frame, a video's, is shared instead
-    /// (`RenderManager::shareTexture`) and never comes through here.
+    /// **The pixels are written once.** The buffer `lock` hands out is the renderer's own, the memory its
+    /// copy to the device reads; a buffer of this class's own would put a second copy of every pixel in
+    /// front of it. A picture that changes every frame is shared instead (`RenderManager::shareTexture`).
     ///
-    /// **The exception is a format the table does not hold.** MyGUI asks for one, two or three
-    /// channels as well as four, and those are widened on the way out — so they land in `mPixels`
-    /// first, because the widening has to read them and the memory the renderer lends is written
-    /// far faster than it is read.
+    /// **The exception is a format the table does not hold.** One, two or three channels are widened on the
+    /// way out, so they land in `mPixels` first: the widening has to read them, and the memory the renderer
+    /// lends is written far faster than it is read.
     class Texture final : public SlotTexture
     {
     public:

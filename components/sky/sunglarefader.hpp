@@ -9,10 +9,9 @@ namespace Sky
     /// for the ray tracer's sky.
     struct SunGlareFader
     {
-        /// `_Color` doubled and clamped to one. Replicating a design flaw in Morrowind, which set the
-        /// colour on both the ambient and the emissive terms, multiplied by two, and let the fixed
-        /// function pipeline clamp it: at the shipped values only the red clamps, so the wash is
-        /// orange.
+        /// `_Color` doubled and clamped to one, replicating Morrowind setting the colour on both the
+        /// ambient and the emissive terms and letting the fixed function pipeline clamp it: at the shipped
+        /// values only the red clamps, so the wash is orange.
         osg::Vec3f mColour;
 
         /// `_Max`: the most of the wash there is, looking straight at the sun.

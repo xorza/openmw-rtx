@@ -21,12 +21,10 @@ namespace Rtx
     public:
         explicit Bc7EncodePass(const Device& device);
 
-        /// Encodes every level of `source` into `blocks`, laid out as `BlockChain::of` its shape lays
-        /// them, and copies them into `target`, a BC7 image of the same shape.
-        ///
-        /// `source` is met readable as storage at every level, through views with no curve; `blocks`
-        /// is met with nothing on the queue still using it, and holds the chain's bytes at least;
-        /// `target` is met undefined and left as a texture the trace samples.
+        /// Encodes every level of `source` into `blocks`, laid out as `BlockChain::of` its shape lays them, and copies
+        /// them into `target`, a BC7 image of the same shape. `source` is met readable as storage at every level,
+        /// through views with no curve; `blocks` is met with nothing on the queue still using it and holds the chain's
+        /// bytes at least; `target` is met undefined and left as a texture the trace samples.
         ///
         /// @param weighsAlpha whether a reader reads the alpha (`Bc7Constants::mWeighsAlpha`).
         void record(VkCommandBuffer commands, const Image& source, const Buffer& blocks, const Image& target,

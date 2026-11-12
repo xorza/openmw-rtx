@@ -147,20 +147,16 @@ namespace Rtx
                     .mLeftAs = Use::sCopyRead,
                 });
 
-            // Borrowed rather than transitioned. Where a GUI texture rests between writes is
-            // `GuiTextures`' to say, and a caller that said it here had to keep a barrier's scope in
-            // step with the commands below — which it did not. Premultiplied, which is what the
-            // curve writes a picture as: `ToneConstants::mBackdrop` says why.
+            // Borrowed rather than transitioned: where a GUI texture rests between writes is
+            // `GuiTextures`' to say. Premultiplied, which is what the curve writes a picture as:
+            // `ToneConstants::mBackdrop` says why.
             parts.mTextures.writeWith(
                 texture, AlphaForm::Premultiplied, commands, [&](const Image& into, VkImageLayout layout) {
                     assert(extent.width <= into.getWidth() && extent.height <= into.getHeight());
 
-                    // Cleared whole and then covered in part, and only where the picture does not
-                    // cover it all: what the trace fills is as much of the texture as the widget is
-                    // currently wide, and the rest has to be the clear colour rather than what a wider
-                    // picture left there the last time this was drawn. Both are transfer writes to the
-                    // same image and nothing orders two of those, so the clear is left as what the copy
-                    // meets.
+                    // Cleared only where the picture does not cover the texture, so the rest is the
+                    // clear colour and not what a wider picture left there. Clear and copy are both
+                    // transfer writes, which nothing orders, so the clear is left as what the copy meets.
                     if (extent.width < into.getWidth() || extent.height < into.getHeight())
                         into.clear(commands, Use::sTransferWrite,
                             VkClearColorValue{ .float32
@@ -177,8 +173,8 @@ namespace Rtx
         }
         trace.defer();
 
-        // The value the batch rides: the next submit this pool makes, whichever that is. The
-        // tables it reads were named the same value as they were handed out above.
+        // The value the batch rides: the next submit this pool makes, whichever that is, which is
+        // what the tables it reads were named when they were handed out above.
         traced.notePictureRide(traced.getSlot(), mDevice.getTimeline().getNext());
     }
 }

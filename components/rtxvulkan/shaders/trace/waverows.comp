@@ -5,17 +5,11 @@
 // The sea's spectrum at a moment, and the five derivatives of it a surface needs, transformed along the
 // rows — the first half of the inverse transform, with the forming in front of it.
 //
-// **This is the whole of what a frame does to the wave table.** The amplitudes were drawn once for the sea
-// state; turning them to a time is a rotation, and every field the shading wants is that same rotated
-// spectrum times a power of `i k`. So a frame costs one pass over the grid and three transforms, where the
-// spectrum itself costs a Gaussian draw per wavevector and is never redone.
-//
-// **Six real fields in three complex transforms.** The spectrum of a real field is conjugate-symmetric, so
-// `A + iB` inverse-transforms to `a + ib` with `a` and `b` both real — one in the real part of the answer
-// and the other in the imaginary part.
-//
-// **Formed where it is transformed**, a row a workgroup: the spectrum is made straight into shared memory
-// and the transform reads it there.
+// This is the whole of what a frame does to the wave table: the amplitudes were drawn once for the sea
+// state, turning them to a time is a rotation, and every field is that rotated spectrum times a power of
+// `i k`. Six real fields go in three complex transforms (a real field's spectrum is conjugate-symmetric, so
+// `A + iB` transforms to `a + ib`). Formed where it is transformed, a row a workgroup, straight into shared
+// memory.
 
 #include "scene.h"
 #include "shared/sets.h"

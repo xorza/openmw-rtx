@@ -26,14 +26,11 @@ namespace Rtx
         /// hold what is asked of it.
         ///
         /// **What a buffer apiece cost.** A cell that arrives with two hundred textures uploads four
-        /// hundred times — the levels and the shading map of each — and each of those was a
-        /// `vkCreateBuffer`, a `vkAllocateMemory` and a `vkMapMemory` on the frame the cell landed.
-        /// The bytes are alive just as long either way: the batch has held every one of them until
-        /// the submit since it was written.
+        /// hundred times, and a `vkCreateBuffer`, `vkAllocateMemory` and `vkMapMemory` each would land on
+        /// the frame the cell arrived; the bytes live as long either way, held by the batch until submit.
         ///
-        /// **Appended and never rewound**, because nothing has run when a batch is being recorded:
-        /// a block reused inside one would have the copy of an earlier upload reading what a later
-        /// one wrote over it.
+        /// **Appended and never rewound**, because nothing has run while a batch is recorded: a block
+        /// reused inside one would have an earlier copy reading what a later upload wrote over it.
         TEST_F(RtxBatchTest, oneBlockTakesUploadAfterUploadAndAnotherOnlyWhereOneWillNotFit)
         {
             Batch batch(getPool());
@@ -50,12 +47,11 @@ namespace Rtx
             // A hundred rounded up to the sixteen a copy offset has to start on.
             EXPECT_EQ(second.mOffset, 112u);
 
-            // **An upload larger than a block stays in the block only where what is left of it holds
-            // the upload**, and otherwise starts a block of its own at nought. Held against the size
-            // of the block the batch was lent, because the ring is the device's and keeps every block
-            // it made: a test before this one in a shuffled order can leave a block of 36 MiB spare,
-            // and the smallest spare that holds a hundred bytes is then larger than a block. The
-            // upload after it is held to the same rule.
+            // **An upload larger than a block stays in the block only where what is left of it holds the
+            // upload**, and otherwise starts a block of its own at nought. Held against the size of the
+            // block the batch was lent, because the ring is the device's and keeps every block it made: a
+            // test before this one can leave a block of 36 MiB spare, larger than a block, and the upload
+            // after it is held to the same rule.
             const std::vector<std::byte> past(sStagingBlock + 1, std::byte{ 3 });
             const StagingRun alone = batch.stage(past);
             const StagingRun after = batch.stage(fifty);
@@ -79,10 +75,10 @@ namespace Rtx
 
         /// A batch that leaves during unwinding submits nothing.
         ///
-        /// **What a constructor that fails half way leaves behind.** `Texture` records the upload of
-        /// its primary image and then makes a second one; where that allocation throws, the image is
-        /// destroyed by the unwinding and a destructor that submitted would carry a copy naming a
-        /// handle that has gone. The recording goes back to the pool instead.
+        /// **What a constructor that fails half way leaves behind.** `Texture` records the upload of its
+        /// primary image and then makes a second; where that allocation throws, the unwinding destroys the
+        /// image and a destructor that submitted would carry a copy naming a handle that has gone. The
+        /// recording goes back to the pool instead.
         TEST_F(RtxBatchTest, aBatchAbandonedByAnExceptionSubmitsNothing)
         {
             const std::uint32_t value = 0x5eaf00d;
@@ -128,9 +124,8 @@ namespace Rtx
 
             EXPECT_EQ(*static_cast<const std::uint32_t*>(target.map()), 0u) << "a batch given up on still ran";
 
-            // **And a one-off whose recording throws**, which went back to nobody: the buffer stayed
-            // recording, and the pool never handed it out again. It goes back as the batch's does,
-            // takes no staging, and is the next buffer a one-off records into.
+            // **And a one-off whose recording throws** goes back to the pool as the batch's does, takes no
+            // staging, and is the next buffer a one-off records into.
             const std::size_t blocks = getPool().getStagingBlockCount();
             VkCommandBuffer thrown = VK_NULL_HANDLE;
             EXPECT_THROW(getPool().submitAndWait([&](VkCommandBuffer commands) {
@@ -150,9 +145,8 @@ namespace Rtx
             EXPECT_EQ(*static_cast<const std::uint32_t*>(target.map()), 0u) << "a thrown one-off's copy ran";
         }
 
-        /// **A lent buffer is taken again only once a submit made after its owner ended has run.**
-        /// Given back at once, a ring's buffer went to the next caller while a frame the ring had
-        /// submitted could still be running it; kept by each owner, the pool had no word on it.
+        /// **A lent buffer is taken again only once a submit made after its owner ended has run**: given
+        /// back at once, a ring's buffer could reach the next caller while a frame still ran it.
         TEST_F(RtxBatchTest, aLentBufferIsTakenAgainOnlyOnceASubmitAfterItsEndHasRun)
         {
             CommandPool& pool = getPool();
@@ -187,9 +181,9 @@ namespace Rtx
 
         /// A staged write names its destination for the submit the batch rides.
         ///
-        /// **The other way a table is written on the queue**, and the one an arrival's rows take
-        /// into the first copy of the skin tables: a placement then writes that copy from the host,
-        /// and unnamed, the staged copy and the host write were two writers nobody had ordered.
+        /// **The other way a table is written on the queue**, the one an arrival's rows take into the
+        /// first copy of the skin tables: a placement then writes that copy from the host, and unnamed,
+        /// the staged copy and the host write would be two writers nobody had ordered.
         TEST_F(RtxBatchTest, aStagedWriteNamesItsDestination)
         {
             const Buffer target = Buffer::readBack(getDevice(), sizeof(std::uint32_t),
@@ -211,10 +205,9 @@ namespace Rtx
         /// A block a batch gave back is the next batch's, once the submit that read it has run —
         /// and not before: a batch handed over and not yet carried is still going to be read.
         ///
-        /// **What a block per batch cost.** An arrival made its staging and the graveyard destroyed
-        /// it a frame later, a `vkCreateBuffer` and a bind per cell crossing for bytes that were
-        /// alive as long either way. The ring settles at the busiest stretch — here, two batches
-        /// in flight at once — and a batch after that allocates nothing.
+        /// **What a block per batch cost**: an arrival's staging and its graveyard destruction a frame later
+        /// would be a `vkCreateBuffer` and a bind per cell crossing for bytes alive as long either way. The
+        /// ring settles at the busiest stretch, here two batches in flight at once, and allocates nothing after.
         TEST_F(RtxBatchTest, aBlockGivenBackIsTakenAgainOnceTheSubmitThatReadItHasRun)
         {
             CommandPool& pool = getPool();
@@ -257,12 +250,11 @@ namespace Rtx
             EXPECT_EQ(blocks(), full + 1) << "a batch after the busiest stretch allocated";
         }
 
-        /// **A trim lets go of the free blocks past what it keeps, smallest kept**, and a block made
-        /// after takes a place one let go of. Three blocks of the standard size and one of twenty
-        /// megabytes, staged by one batch and free once it ran, against a keep of two standard blocks:
-        /// the two smallest stay and the other two go. A batch of the two standard sizes after takes
-        /// the two kept and makes none; one that needs a third block makes one, into a place let go
-        /// of, so the count is one more and not two.
+        /// **A trim lets go of the free blocks past what it keeps, smallest kept**, and a block made after
+        /// takes a place one let go of. Three standard blocks and one of twenty megabytes, free once the
+        /// batch ran, against a keep of two standard blocks: the two smallest stay. A batch of the two
+        /// standard sizes after takes the two kept and makes none; one needing a third makes one into a
+        /// place let go of, so the count is one more and not two.
         TEST_F(RtxBatchTest, aTrimLetsGoOfTheFreeBlocksPastWhatItKeeps)
         {
             CommandPool& pool = getPool();

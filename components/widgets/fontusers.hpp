@@ -15,12 +15,11 @@ namespace Gui
     /// reaches every one. A font's texture is replaced by its rasterization, and a user a refit
     /// missed keeps the destroyed one (`docs/rtx/research/2026-10-31-mygui-font-lifetimes.md`).
     ///
-    /// The texts are known through their factory: the fork's texts stand in MyGUI's sub-widget
-    /// factories under MyGUI's names, `EditText` and `SimpleText` (`Users::Texts`), so
-    /// every text any widget, skin, popup or script makes is one. A walk of the widget tree would miss
-    /// a skin's own children and the widgets on no layer, and nothing at the draw can catch a missed
-    /// text: one whose glyphs are laid out is drawn from its render item's vertices without being
-    /// asked, and a replaced atlas's address may be the new one's.
+    /// The texts are known through their factory: the fork's texts stand in MyGUI's sub-widget factories
+    /// under MyGUI's names, `EditText` and `SimpleText` (`Users::Texts`), so every text any widget, skin,
+    /// popup or script makes is one. A walk of the widget tree would miss a skin's own children and the
+    /// widgets on no layer, and nothing at the draw can catch a missed text, which is drawn from its
+    /// render item's vertices without being asked.
     ///
     /// Pinned: what it holds and the factories MyGUI keeps call back into it. It outlives every
     /// user, the last ones leaving at MyGUI's shutdown.

@@ -81,11 +81,8 @@ namespace Rtx::Testing
         return scene;
     }
 
-    /// How bright the sun is in the tests that measure through water.
-    ///
-    /// Named because their arithmetic uses it as well: the number the shader is handed and the
-    /// number an expectation is computed from have to be one number, or the test quietly stops
-    /// describing the shader.
+    /// How bright the sun is in the tests that measure through water. Named because their arithmetic uses it
+    /// too: the shader's number and an expectation's must be one number.
     inline constexpr float sSunOverWater = 2.0f;
 
     /// Where the sun stands, from how far it is off the vertical. Its light travels back along
@@ -95,22 +92,16 @@ namespace Rtx::Testing
         return osg::Vec3f(0.0f, -std::sin(zenith), std::cos(zenith));
     }
 
-    /// Where the sun stands over the tests that measure through water — and it must not be
-    /// straight up.
-    ///
-    /// Overhead, the sun's own mirror image lands exactly where a camera looking straight down
-    /// sends its reflection ray, and a saturated disc of sun in the middle of the frame is not
-    /// what these are measuring. Two degrees puts it twelve disc-widths clear of the reflection
-    /// and costs the arithmetic a part in a thousand, which `throughFlatWater` accounts for
-    /// anyway.
+    /// Where the sun stands over the tests that measure through water, and not straight up: overhead, its mirror
+    /// image lands where a camera looking straight down sends its reflection ray, and a saturated disc in the
+    /// middle of the frame is not what these measure. Two degrees puts it twelve disc-widths clear and costs
+    /// the arithmetic a part in a thousand, which `throughFlatWater` accounts for.
     inline const float sNearlyOverhead = osg::DegreesToRadians(2.0f);
 
     /// Puts `camera` over a flooded scene with nothing in its sky but the sun.
     ///
-    /// The water level is the one `makeFlooded` builds to, and the sky is black — so apart from
-    /// the sun's own disc, the two per cent that reflects off the surface reflects nothing.
-    /// Every byte in the frame has then come up through the depth, which is what lets these
-    /// tests name an exact value.
+    /// The water level is the one `makeFlooded` builds to and the sky is black, so apart from the sun's disc
+    /// every byte in the frame has come up through the depth, which lets these tests name an exact value.
     inline void litThroughWater(Shaders::VisibilityConstants& camera, float zenith = sNearlyOverhead)
     {
         camera.mSun
@@ -120,12 +111,11 @@ namespace Rtx::Testing
         camera.mWaterLevel = 0.0f;
     }
 
-    /// An orthographic eye ten degrees over the water, which it sees from 500 to 100 units short of
-    /// y = 0: every pixel's reflection and refraction are parallel to every other pixel's, so a flat
-    /// sea sends each pixel's rays to the same angles, and Schlick's term is one number,
-    /// `0.02 + 0.98 (1 - sin 10°)^5` = 0.40. The reflection rises at ten degrees and meets y = 0
-    /// `0.176 |y|` up, 17.6 to 88 units: the height of `sGrazedWall`. The refraction bends to 47.6
-    /// degrees off the vertical and travels 1.09 of whatever depth it crosses toward it.
+    /// An orthographic eye ten degrees over the water, which it sees from 500 to 100 units short of y = 0:
+    /// every pixel's rays are parallel to every other's, so Schlick's term is one number,
+    /// `0.02 + 0.98 (1 - sin 10°)^5` = 0.40. The reflection meets y = 0 `0.176 |y|` up, 17.6 to 88 units (the
+    /// height of `sGrazedWall`); the refraction bends to 47.6 degrees off the vertical and travels 1.09 of
+    /// whatever depth it crosses toward it.
     inline Shaders::VisibilityConstants grazingTheWater(std::uint32_t size)
     {
         const float grazing = osg::DegreesToRadians(10.0f);
@@ -159,9 +149,9 @@ namespace Rtx::Testing
     /// One see-through quad in `scene`, of `colour` and its own alpha, faded as the game fades a
     /// placement. Returns its slot, which a test moves it by.
     ///
-    /// **The two numbers an opacity is made of, added the one way.** The shader multiplies a
-    /// material's alpha by a placement's fade, and a helper that built either of them its own way
-    /// would be holding up a surface this renderer does not have.
+    /// **The two numbers an opacity is made of, added the one way.** The shader multiplies a material's alpha
+    /// by a placement's fade, and a helper that built either its own way would hold up a surface this renderer
+    /// does not have.
     inline Index addPane(SceneDesc& scene, std::span<const osg::Vec3f, 4> quad, const osg::Vec4f& colour,
         float fade = 1.0f, bool twoSided = false, InstanceClass kind = InstanceClass::Static)
     {
@@ -210,16 +200,15 @@ namespace Rtx::Testing
         };
     }
 
-    /// The eye and the sun every test over that wall stands it under: the sun along +Y, square to
-    /// the wall, and the eye off that axis at x = 100 looking at the middle of it.
+    /// The eye and the sun every test over that wall stands it under: the sun along +Y, square to the wall,
+    /// and the eye off that axis at x = 100 looking at the middle of it.
     ///
-    /// **One camera, because each of these tests is read as a ratio against the wall's own byte.**
-    /// The figures they are pinned to hold only while the wall, the eye and the sun are the same in
-    /// every one of them — and off the sun's axis is what lets a pane on the eye's ray leave the
-    /// patch of wall the centre pixel looks at fully lit.
+    /// One camera, because each test is read as a ratio against the wall's own byte and the figures hold only
+    /// while the wall, eye and sun are the same in all of them; off the sun's axis lets a pane on the eye's
+    /// ray leave the patch of wall the centre pixel sees fully lit.
     ///
-    /// @param origin,target where to aim it instead, for the one test that has to see the pane
-    ///        rather than what it shadows.
+    /// @param origin,target where to aim it instead, for the one test that has to see the pane rather than
+    ///        what it shadows.
     inline Shaders::VisibilityConstants wallCamera(std::uint32_t size, const osg::Vec3f& irradiance,
         const osg::Vec3f& origin = osg::Vec3f(100.0f, -100.0f, 0.0f), const osg::Vec3f& target = osg::Vec3f())
     {
@@ -243,25 +232,19 @@ namespace Rtx::Testing
         return centreOf(size) * 4;
     }
 
-    /// How brightly the sky is lit, in the tests that measure a wall through fog or against the
-    /// world's edge.
+    /// How brightly the sky is lit, in the tests that measure a wall through fog or against the world's edge.
+    /// Named like `sSunOverWater`: the arithmetic and the shader must use one number.
     ///
-    /// Named for the reason `sSunOverWater` is: each test's arithmetic uses it as well as handing
-    /// it to the shader, and the two have to be one number.
-    ///
-    /// **The sky rather than the cell's ambient, because a wall is lit by what it can see.** The
-    /// ambient is what terminates a path now, one bounce further along; what fills a surface the
-    /// eye is looking at is the hemisphere it gathers. A sky of one radiance makes that gather
-    /// exact rather than noisy — every direction returns the same number, so one sample is the
+    /// The sky and not the cell's ambient, because a wall is lit by what it can see: a sky of one radiance
+    /// makes the hemisphere gather exact, every direction returning the same number, so one sample is the
     /// whole answer.
     inline constexpr float sFoggySky = 0.6f;
 
     /// A texture that is white and wholly opaque, at one level.
     ///
-    /// **What `paintMipLadder` cannot be.** Its levels encode which one was sampled, so its alpha
-    /// is the level's own byte and its first is 40 of 255 — a sprite cut from it covers a sixth
-    /// of what is behind it, which is a fine thing to be seen through and no use at all for
-    /// asking what happens when a sprite owns a pixel.
+    /// `paintMipLadder` cannot be: its levels encode which one was sampled, so its first alpha is 40 of 255
+    /// and a sprite cut from it covers a sixth of what is behind it, no use for asking what happens when a
+    /// sprite owns a pixel.
     inline void paintOpaqueSheet(TestTexture& texture)
     {
         constexpr std::uint32_t extent = 4;
@@ -272,14 +255,12 @@ namespace Rtx::Testing
         texture.describe(extent, extent, "opaque sheet");
     }
 
-    /// What one render over this fixture came to: the composite before the display curve, how many
-    /// primary rays hit, and what was not finite.
+    /// What one render over this fixture came to: the composite before the display curve, how many primary
+    /// rays hit, and what was not finite.
     ///
-    /// **The radiance and not the picture.** `tone.comp` puts `toneMap` between the two, and that
-    /// curve is a display transform: it takes 0.04 off a shadow and rolls a highlight away from one,
-    /// neither of which a test about what the trace computed has an opinion on. A byte is the
-    /// display curve over the same radiance, computed when asked for, so a figure derived against
-    /// the display curve and one derived in radiance read the one frame.
+    /// The radiance and not the picture: `tone.comp`'s curve is a display transform that takes 0.04 off a
+    /// shadow and rolls a highlight away, which a test about what the trace computed has no opinion on. A
+    /// byte is the display curve over the same radiance, computed when asked for.
     struct Frame
     {
         /// Four values a pixel, row major.
@@ -293,10 +274,9 @@ namespace Rtx::Testing
 
         /// The mean of one channel over the frame.
         ///
-        /// **The frame and not a pixel, where every pixel of it is the same measurement.** The
-        /// estimator is one sample per pixel, so a frame lit evenly is as many samples as it has
-        /// pixels and its mean is the figure with that error divided down — which is what lets a
-        /// test hold a derived number to three decimal places over a stochastic renderer.
+        /// The frame and not a pixel, where every pixel is the same measurement: the estimator is one sample a
+        /// pixel, so an evenly lit frame's mean has that error divided down by the pixel count, which lets a
+        /// test hold a derived number to three decimals over a stochastic renderer.
         float mean(std::size_t channel = 0) const
         {
             float sum = 0.0f;
@@ -351,15 +331,15 @@ namespace Rtx::Testing
         }
     };
 
-    /// The root mean square by which a running mean of `frames` frames, kept in halves rounded at
-    /// random `roundings` times a frame, stands from the mean of its frames in float: the root of
-    /// its expected square, at most, which a frame of thousands of pixels drawn apart stands close to.
+    /// The root mean square by which a running mean of `frames` frames, kept in halves rounded at random
+    /// `roundings` times a frame, stands from the mean of its frames in float: the root of its expected
+    /// square, at most, which a frame of thousands of pixels drawn apart stands close to.
     ///
-    /// A rounding moves a value `x` by a variance `f (1 - f) step²` for the fraction `f` it rounds,
-    /// so by `(x 2^-11)²` at most. Frame `k` blends by `1 / k`, which carries the error it made to
-    /// frame `n` times `(1 - 1/(k+1)) ... (1 - 1/n)` = `k / n`, and frame `k`'s history is a mean of
-    /// `k` frames, whose square stands at `level² + noise² / k` over the frame: `level` the converged
-    /// frame's root mean square and `noise` one raw frame's error from it. The variances add:
+    /// A rounding moves a value `x` by a variance `f (1 - f) step²` for the fraction `f` it rounds, so by
+    /// `(x 2^-11)²` at most. Frame `k` blends by `1 / k`, which carries the error it made to frame `n` times
+    /// `k / n`, and frame `k`'s history is a mean of `k` frames, whose square stands at `level² + noise² / k`:
+    /// `level` the converged frame's root mean square, `noise` one raw frame's error from it. The variances
+    /// add:
     ///
     ///     error² <= roundings 2^-22 sum over k of (k / n)² (level² + noise² / k)
     inline float halfRoundedMeanError(float level, float noise, std::uint32_t frames, std::uint32_t roundings)
@@ -376,29 +356,24 @@ namespace Rtx::Testing
 
     /// Everything a render over this fixture decides beyond the scene, the camera and the extent.
     ///
-    /// **Named rather than positional, because a tail of defaulted arguments says nothing.** Five
-    /// of these read at a call site as `SeaState{}, 16, false, true`, which no reader can tell from
-    /// `SeaState{}, 16, true, false` — and the two are a jittered run and a filtered one.
+    /// Named and not positional: `SeaState{}, 16, false, true` reads like `SeaState{}, 16, true, false` at a
+    /// call site, and the two are a jittered run and a filtered one.
     struct Shot
     {
         /// What the water is doing. A state with no height in it is a flat sea, which is what a
         /// test asserting an exact transmittance through one needs.
         SeaState mSea{};
 
-        /// How many frames the run draws, each at its own sampler index counting from
-        /// `mFirstFrame`, so the frames are different draws rather than one draw repeated.
-        ///
-        /// Zero draws one frame at the camera's own index and leaves it there, which is what a test
-        /// that sets `mFrame` for itself needs.
+        /// How many frames the run draws, each at its own sampler index counting from `mFirstFrame`, so the
+        /// frames are different draws. Zero draws one frame at the camera's own index and leaves it there, for
+        /// a test that sets `mFrame` itself.
         std::uint32_t mFrames = 0;
 
-        /// Whether the composite averages the run into one picture, rather than leaving each frame
-        /// to stand on its own.
+        /// Whether the composite averages the run into one picture, rather than leaving each frame to stand on
+        /// its own.
         ///
-        /// **Off is what a test of the accumulator wants.** Averaged, a run arrives as its mean and
-        /// nothing is left of how far the frames stood from each other; unaveraged, the only thing
-        /// combining them is the accumulator under test. Nothing either way where `mFrames` is
-        /// zero, since one frame is not a run.
+        /// Off is what a test of the accumulator wants: averaged, nothing is left of how far the frames stood
+        /// from each other. Nothing either way where `mFrames` is zero, since one frame is not a run.
         bool mAverage = true;
 
         /// The sampler's frame the run starts at, so a run can be handed a stream of its own rather
@@ -447,11 +422,9 @@ namespace Rtx::Testing
         /// unless a test names the other.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
-        /// What the past of the run's frame `mLossAt` is worth (`FrameOptions::mLoss`). A shot that
-        /// sets its scene has lost every history at its first frame already, as a new world does.
-        ///
-        /// **A one-frame baseline taken after a longer run is a baseline that already has a history
-        /// in it**, which reads as the accumulator doing nothing at all.
+        /// What the past of the run's frame `mLossAt` is worth (`FrameOptions::mLoss`). A shot that sets its
+        /// scene has lost every history at its first frame already, as a new world does, so a one-frame
+        /// baseline taken after a longer run already has a history in it.
         HistoryLoss mLoss = HistoryLoss::None;
         std::uint32_t mLossAt = 0;
 
@@ -463,12 +436,10 @@ namespace Rtx::Testing
         /// `RenderProfile::mGamma` for the shot. One, which leaves the picture as the curve wrote it.
         float mGamma = 1.0f;
 
-        /// How far the water's clock moves a frame, which is what the ripple field steps by and the
-        /// waves run on. A step of nought stands the field still, which is what every test that is
-        /// not about it wants. The clock stands `mFirstFrame` steps in on the run's first frame, so
-        /// a run that carries on from another carries its clock on too. What disturbs the water is
-        /// the scene's own list, `SceneDesc::addRipple`, kept when the scene is placed and pressed
-        /// once, on the run's first frame: a frame the clock did not move on presses nothing.
+        /// How far the water's clock moves a frame, which the ripple field steps by and the waves run on; nought
+        /// stands the field still. The clock stands `mFirstFrame` steps in on the run's first frame. The
+        /// scene's `SceneDesc::addRipple` list is pressed once, on the run's first frame: a frame the clock did
+        /// not move on presses nothing.
         float mWaterStep = 0.0f;
 
         /// What the debug modes drew, over the picture. Nothing, for every test not about it.
@@ -512,11 +483,10 @@ namespace Rtx::Testing
         std::function<void(const Frame&)> mEachFrame{};
     };
 
-    /// A run of `frames` filtered frames with the history let build from nothing, each frame
-    /// standing on its own.
+    /// A run of `frames` filtered frames with the history let build from nothing, each frame standing on its
+    /// own.
     ///
-    /// @param first the sampler's frame the run starts at, so a run can be handed a stream of its
-    ///        own rather than the one every other run in the test consumed.
+    /// @param first the sampler's frame the run starts at, so a run gets a stream of its own.
     /// @param antilag off for a test of a filter's own law, which the clamp moves off it
     ///        (`Shot::mAntilag`).
     inline Shot filteredRun(std::uint32_t frames, std::uint32_t first = 0, bool antilag = true)
@@ -620,16 +590,13 @@ namespace Rtx::Testing
             return frame;
         }
 
-        /// The luminance of every pixel of a frame that holds nothing but air, from a camera
-        /// standing in white fog of one thickness.
+        /// The luminance of every pixel of a frame that holds nothing but air, from a camera standing in white
+        /// fog of one thickness.
         ///
-        /// **A wall behind the camera, because a scene has to hold something.** Every ray runs
-        /// to `FOG_REACH` and comes back with air and the sky, which is what makes the frame a
-        /// measurement of the air alone — and what lets two tests ask about the field's amount
-        /// and the field's motion off one fixture.
+        /// A wall behind the camera, because a scene has to hold something: every ray runs to `FOG_REACH` and
+        /// comes back with air and the sky, so the frame measures the air alone.
         ///
-        /// @param camera has its fog colour and thickness set here; whatever else a test set on
-        ///        it — the coverage, the wind, the moment — stays.
+        /// @param camera has its fog colour and thickness set here; whatever else a test set on it stays.
         std::vector<float> airThrough(Shaders::VisibilityConstants camera, std::uint32_t size)
         {
             camera.mFogColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
@@ -643,13 +610,12 @@ namespace Rtx::Testing
             return luminance;
         }
 
-        /// The picture a display would show: this pass's own tone curve and display curve over
-        /// the exposure the frame measured for itself.
+        /// The picture a display would show: this pass's own tone curve and display curve over the exposure the
+        /// frame measured for itself.
         ///
-        /// **The one thing here that wants the picture rather than the radiance**, because what
-        /// it measures is the exposure pass. **Settled**: the scene's first frame has no past and
-        /// holds a day's exposure (`EXPOSURE_DAY`), so the same frame is drawn again over a time the
-        /// eye closes the whole gap in, and that is the picture read.
+        /// The one thing here that wants the picture, because it measures the exposure pass. Settled: the
+        /// scene's first frame has no past and holds a day's exposure (`EXPOSURE_DAY`), so the same frame is
+        /// drawn again over a time the eye closes the whole gap in, and that is the picture read.
         void renderPicture(const SceneDesc& scene, std::span<const TextureData> textures,
             const Shaders::VisibilityConstants& camera, std::uint32_t size, std::vector<std::uint8_t>& pixels,
             Shot shot = {})
@@ -673,24 +639,19 @@ namespace Rtx::Testing
             return frame;
         }
 
-        /// A wall square to the sun with one pane held in front of it, as the byte its centre
-        /// pixel comes back as.
+        /// A wall square to the sun with one pane held in front of it, as the byte its centre pixel comes back
+        /// as.
         ///
-        /// **Shared by the three tests that hold a pane up to different rays.** One asks what
-        /// the pane let past to a shadow ray, one asks what the eye saw through it, and one
-        /// fades the placement rather than the material. The evidence in all three is that the
-        /// answer lands where a sun of half the irradiance lands. That is evidence only while
-        /// none of them can drift from the others' scene.
+        /// Shared by the three tests that hold a pane up to different rays (a shadow ray, the eye, a faded
+        /// placement); their evidence is that the answer lands where a sun of half the irradiance lands, which
+        /// holds only while none can drift from the others' scene.
         ///
-        /// @param pane where to put the quad — on the sun's path to the wall for a shadow, on
-        ///        the eye's path for a peel.
-        /// @param colour what the pane is made of, its own alpha included, or nothing at all for
-        ///        the wall on its own.
-        /// @param fade how much of the pane the game is showing, which is the other of the two
-        ///        numbers a surface's opacity is made of.
-        /// @param where the caller's own line, never passed. **One test holds five panes up, and
-        ///        every failure would otherwise report at this helper's own line**, which says which
-        ///        helper broke and not which pane.
+        /// @param pane where to put the quad: on the sun's path to the wall for a shadow, on the eye's path
+        ///        for a peel.
+        /// @param colour what the pane is made of, its own alpha included, or nothing for the wall alone.
+        /// @param fade how much of the pane the game is showing, the other number a surface's opacity is made of.
+        /// @param where the caller's own line, never passed: one test holds five panes up, and a failure would
+        ///        otherwise report at this helper's line.
         std::uint8_t litThroughPane(std::span<const osg::Vec3f, 4> pane, std::optional<osg::Vec4f> colour,
             const osg::Vec3f& irradiance, float fade = 1.0f,
             std::source_location where = std::source_location::current())
@@ -711,17 +672,13 @@ namespace Rtx::Testing
             return frame.byte(centreValueOf(size));
         }
 
-        /// A wall square to the sun with a stack of panes strung along the eye's own ray, as the
-        /// byte its centre pixel comes back as.
+        /// A wall square to the sun with a stack of panes strung along the eye's own ray, as the byte its
+        /// centre pixel comes back as. A stack of one is `litThroughPane`'s own answer, so its figures carry
+        /// over.
         ///
-        /// **The wall, the camera and the sun `litThroughPane` holds one pane up to**, so a stack of
-        /// one is that helper's own answer and the figures the tests around it are pinned to carry
-        /// over to this.
-        ///
-        /// The eye stands at x = 100 and looks at the origin, so its ray runs at x = -y the whole
-        /// way: each pane is centred there, ten units to a side, and so is clear of the sun's own
-        /// path to the middle of the wall — which travels along +Y at x = 0. The panes stand ten
-        /// units apart, nearest to the eye first.
+        /// The eye stands at x = 100 and looks at the origin, so its ray runs at x = -y: each pane is centred
+        /// there, ten units to a side, clear of the sun's path to the middle of the wall (along +Y at x = 0),
+        /// and ten units apart, nearest the eye first.
         ///
         /// @param layers what each pane is made of, its own alpha included, from the eye inwards.
         /// @param where the caller's own line, never passed, for the reason `litThroughPane` gives.
@@ -752,16 +709,14 @@ namespace Rtx::Testing
             return frame.byte(centreValueOf(size));
         }
 
-        /// A wall square to the sun with a pane held twenty units across at y = -50, as the three
-        /// bytes its centre pixel comes back as.
+        /// A wall square to the sun with a pane held twenty units across at y = -50, as the three bytes its
+        /// centre pixel comes back as.
         ///
-        /// **What the water test and the first-person test share**, each placing the pane its
-        /// own way through `place`. The camera stands off the sun's axis, so the centre pixel
-        /// lands on the patch of wall the pane shadows without the camera's own ray having to
-        /// cross the pane — it passes y = -50 at x = 50, and the pane reaches 20 — or at the pane,
-        /// to see it at all: from ten units above its middle, because water is a horizontal plane
-        /// to the renderer, which names its sides by which way a ray climbs, and a level ray
-        /// climbs neither way.
+        /// What the water test and the first-person test share, each placing the pane its own way through
+        /// `place`. The camera stands off the sun's axis, so the centre pixel lands on the patch of wall the
+        /// pane shadows without the camera's own ray crossing the pane (it passes y = -50 at x = 50, the pane
+        /// reaches 20), or at the pane, from ten units above its middle: water is a horizontal plane to the
+        /// renderer, which names its sides by which way a ray climbs, and a level ray climbs neither way.
         /// @param where the caller's own line, never passed, for the reason `litThroughPane` gives.
         std::array<std::uint8_t, 3> paneOverWall(
             const std::function<void(SceneDesc&, std::span<const osg::Vec3f, 4>)>& place, bool lookAtIt,
@@ -789,12 +744,9 @@ namespace Rtx::Testing
 
         /// What a probe read back, against the frame it asked for.
         ///
-        /// **A throw and not an assertion of either kind.** Every caller indexes the buffer by a
-        /// number it worked out from `size`, so a short read-back has to stop the test rather than
-        /// mark it: `<cassert>` is compiled out of the build a figure is taken in, and an
-        /// `ASSERT_EQ` here would return from this function and leave the caller indexing past the
-        /// end of what it was handed. The message names both sizes, which is what a located failure
-        /// would have had to say anyway.
+        /// A throw and not an assertion: every caller indexes the buffer by a number worked out from `size`,
+        /// and `<cassert>` is compiled out of the build a figure is taken in, while an `ASSERT_EQ` would
+        /// return and leave the caller indexing past the end. The message names both sizes.
         template <class T>
         static void requireFrame(const std::vector<T>& read, std::uint32_t size)
         {
@@ -819,16 +771,12 @@ namespace Rtx::Testing
 
         /// The fixture's textures, numbered the way its scene added them.
         ///
-        /// **A convention of these tests and not of the renderer.** Every test here builds its
-        /// descriptions in the order its scene calls `addTexture`, so position is slot. The slot is
-        /// written here rather than assumed of every caller, because a scene that has given a slot
-        /// back has a hole in its table and none in its descriptions.
-        ///
-        /// **The span reaches into `mNumbered` and the next render overwrites it**, which is safe
-        /// because `setWorld` is the one caller and hands it straight to `setScene`.
-        /// `textures` at the slots `scene` numbers them by, each under the encoding the slot was
-        /// taken as: what `SceneTextures` makes of a scene's table, so a normal map is described as
-        /// one and stood with its spread whatever the test's own description says.
+        /// A convention of these tests and not of the renderer: descriptions are built in the order the scene
+        /// calls `addTexture`, so position is slot. The slot is written here because a scene that has given a
+        /// slot back has a hole in its table and none in its descriptions. The span reaches into `mNumbered`,
+        /// which the next render overwrites; safe because `setWorld` is the one caller and hands it straight to
+        /// `setScene`. `textures` at the slots `scene` numbers them by, each under the encoding the slot was
+        /// taken as, as `SceneTextures` makes of the table.
         std::span<const TextureData> inSceneOrder(const SceneDesc& scene, std::span<const TextureData> textures)
         {
             const std::span<const TextureRow> rows = scene.textures().getRows();

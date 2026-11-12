@@ -29,11 +29,10 @@ namespace Rtx
 {
     namespace
     {
-        /// Waits for what `poll` answers for — `VK_SUCCESS` once it is done, `VK_NOT_READY` while it
-        /// runs, an error where the asking failed — and says in the log how long `what` ran to its
-        /// end or its failure, and how long it had run at every doubling past a quarter of a second
-        /// while it runs, with what `where` says of the queue. **No longer than any wait on the
-        /// device**, `sPatience`, past which it ends as one that never answered does.
+        /// Waits for what `poll` answers for — `VK_SUCCESS` once done, `VK_NOT_READY` while it runs, an
+        /// error where the asking failed — and logs how long `what` ran to its end or failure, and at every
+        /// doubling past a quarter of a second while it runs, with what `where` says of the queue. **No
+        /// longer than any wait on the device**, `sPatience`, past which it ends as one that never answered.
         template <class Poll, class Where>
         void watchToItsEnd(const std::string& what, Poll poll, Where where)
         {
@@ -510,15 +509,13 @@ namespace Rtx
         };
         checkVk(mDevice, vkBeginCommandBuffer(commands, &begin), "vkBeginCommandBuffer");
 
-        // **Everything earlier on the queue, before anything in this buffer.** A buffer is recorded
-        // over a frame still running, and the barriers inside it are between its own passes; what
-        // they do not say is that its first pass comes after that frame's last — a refit reading a
-        // pose row an arrival's skin pass writes over, a copy into a table a trace reads through.
-        // One full barrier at the head says it for every pass at once, whatever the pass, which is
-        // what a dependency derived from each resource's state would say pass by pass and at far
-        // greater length. A full barrier between passes already costs this renderer nothing it
-        // could measure; a handful a frame at the seams cost the same — and every discard and
-        // every first read of a copy in the buffer leans on it, sourcing itself at nothing.
+        // **Everything earlier on the queue, before anything in this buffer.** A buffer is recorded over a
+        // frame still running and its barriers are between its own passes; they do not say its first
+        // pass comes after that frame's last (a refit reading a pose row an arrival's skin pass writes
+        // over, a copy into a table a trace reads through). One full barrier at the head says it for
+        // every pass at once, where a dependency derived per resource would be far longer. A full barrier
+        // costs this renderer nothing measurable, and every discard and first read of a copy in the
+        // buffer leans on it, sourcing itself at nothing.
         handOver(commands, Use::sBufferAnyReadWrite, Use::sBufferAnyReadWrite);
     }
 

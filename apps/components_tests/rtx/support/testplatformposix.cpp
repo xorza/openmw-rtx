@@ -28,11 +28,9 @@ namespace Rtx::Testing::TestPlatform
 
     void disableCoreDump()
     {
-        // **Non-dumpable on Linux, where a zero core limit is not enough.** With `core_pattern` a
-        // pipe to `systemd-coredump`, the kernel starts the collector for every abort whatever the
-        // limit says, and the collector's start was what a death test cost: five took 964 ms, 252 ms
-        // under a zero limit and 9 ms non-dumpable, which starts nothing and puts nothing in the
-        // journal.
+        // **Non-dumpable on Linux, where a zero core limit is not enough.** With `core_pattern` a pipe to
+        // `systemd-coredump`, the kernel starts the collector for every abort whatever the limit says,
+        // which was most of what a death test cost; non-dumpable starts nothing.
 #if defined(__linux__)
         prctl(PR_SET_DUMPABLE, 0);
 #else

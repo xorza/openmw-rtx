@@ -15,12 +15,11 @@ namespace Rtx
 {
     namespace
     {
-        /// The six axes come back as they went, either way round, because an odd count of steps puts
-        /// nought and one on a step, and the decode's reciprocal of the steps times them is one.
+        /// The six axes come back as they went, either way round, because an odd count of steps puts nought
+        /// and one on a step, and the decode's reciprocal of the steps times them is one.
         ///
-        /// Along x is the square's `(1, 0)`: steps `16383 + 16383 = 32766 = 0x7FFE` and
-        /// `0 + 16383 = 0x3FFF`, the second fifteen bits up, which is `0x1FFF8000`, and the present
-        /// bit over them — the flipped bit as well for the other handedness.
+        /// Along x is the square's `(1, 0)`: steps `0x7FFE` and `0x3FFF`, the second fifteen bits up, which
+        /// is `0x1FFF8000`, and the present bit over them — the flipped bit too for the other handedness.
         TEST(RtxTangentTest, theAxesComeBackExactlyWithTheirHandedness)
         {
             // **The decode multiplies by the steps' reciprocal**, which lands the ends and the middle
@@ -71,12 +70,11 @@ namespace Rtx
         /// equator and on it, comes back within the packing's bound, with its handedness, and the
         /// length it went in with is not stored.
         ///
-        /// **The bound.** A stored coordinate is at most half a step, `1 / 32766`, from the one
-        /// packed, which moves the point on the octahedron by at most
-        /// `sqrt(du² + dv² + (|du| + |dv|)²) = sqrt(1.5) / 16383` on either side of the fold. The
-        /// octahedron is nowhere nearer the centre than `1 / sqrt(3)`, so the projection onto the
-        /// sphere stretches that by at most `sqrt(3)`: `sqrt(4.5) / 16383`, about `1.2948e-4`. The
-        /// `1e-6` over it is the float arithmetic's, on unit values, either side of the steps.
+        /// **The bound.** A stored coordinate is at most half a step, `1 / 32766`, from the one packed,
+        /// which moves the point on the octahedron by at most `sqrt(1.5) / 16383` on either side of the
+        /// fold. The octahedron is nowhere nearer the centre than `1 / sqrt(3)`, so the projection onto the
+        /// sphere stretches that by at most `sqrt(3)`: `sqrt(4.5) / 16383`, about `1.2948e-4`; the `1e-6`
+        /// over it is the float arithmetic's.
         TEST(RtxTangentTest, everyDirectionComesBackWithinTheBoundOfTheSteps)
         {
             const float bound = std::sqrt(4.5f) / 16383.0f + 1e-6f;

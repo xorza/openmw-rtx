@@ -9,10 +9,9 @@ namespace Rtx
 {
     /// Morrowind's ten weathers, in the order `MWWorld::WeatherManager` registers them.
     ///
-    /// That order is not an arrangement of this renderer's: it is what a weather's script id counts
-    /// along, and it is the order the `Weather_<name>_*` keys sit in a content file. Naming them
-    /// here is what lets the game hand over a script id and the harness a name off a command line
-    /// and have the two mean one sky, through `ESM::Weather`'s table.
+    /// The order is what a weather's script id counts along and the order the `Weather_<name>_*` keys sit
+    /// in a content file, so a script id and a name off a command line mean one sky through
+    /// `ESM::Weather`'s table.
     enum class Weather : std::uint8_t
     {
         Clear,

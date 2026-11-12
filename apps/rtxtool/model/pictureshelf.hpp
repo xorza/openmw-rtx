@@ -9,13 +9,13 @@
 
 namespace RtxTool
 {
-    /// Every picture a run's stops write, kept as it was written, for the verb that judges them once
-    /// the run is over: `shot --against` and `noise` read their own pictures here, where they decoded
-    /// each file whole right after the run encoded it. A run hands its stops a shelf only where its
-    /// verb judges what they drew (`SessionRequest::mShelf`).
+    /// Every picture a run's stops write, kept as it was written, for the verb that judges them once the run is
+    /// over: `shot --against` and `noise` read their own pictures here instead of decoding each file right after
+    /// it was encoded. A run hands its stops a shelf only where its verb judges what they drew
+    /// (`SessionRequest::mShelf`).
     ///
-    /// **Held until the shelf goes**, on `PngImage`'s scale: 29 MB a picture at 2560x1440, so a noise
-    /// suite of three places, five pictures each, holds 440 MB.
+    /// Held until the shelf goes, on `PngImage`'s scale: 29 MB a picture at 2560x1440, so a noise suite of three
+    /// places, five pictures each, holds 440 MB.
     class PictureShelf
     {
     public:

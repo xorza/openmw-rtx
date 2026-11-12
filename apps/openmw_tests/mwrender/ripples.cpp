@@ -36,12 +36,9 @@ namespace MWRender
             return read;
         }
 
-        /// **The trace's ripple field is the rasterizer's, number for number.** `ripple.h` is read
-        /// by GLSL and can include neither `RipplesSurface` nor the rasterizer's shader, so each
-        /// figure it restates is held here to its source: the grid and the texel to the surface's
-        /// constants, and the springs to `applySprings` as the shader file spells them. A retune
-        /// upstream fails this, where it would have left the trace's water a different simulation
-        /// with no message.
+        /// The trace's ripple field is the rasterizer's, number for number: `ripple.h` is read by GLSL and
+        /// can include neither `RipplesSurface` nor the rasterizer's shader, so each restated figure is held
+        /// here to its source (the surface's constants, `applySprings` as the shader file spells them).
         TEST(RtxRipplesTest, theTracesFieldIsTheRasterizersOwn)
         {
             EXPECT_EQ(Rtx::Shaders::RIPPLE_GRID, RipplesSurface::sRTTSize);

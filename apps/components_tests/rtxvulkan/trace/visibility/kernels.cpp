@@ -87,18 +87,16 @@ namespace Rtx
             SetLayout mVolume = FogVolume::describeLayout(getDevice());
         };
 
-        /// The kernels are counted as they land, the count never goes back, and it reaches the
-        /// whole only once the compile is over. What a frame draws with is the full tuple's nine —
-        /// the trace, the water's walk, its direct light, its media, its layers, its bounce, the
-        /// bounce's landing, the ambient's stage and the froxels' launch — beside the 5 kernels no tuple changes, the
-        /// air's two and the sprites' three; every other tuple compiles behind them, a tuple a step,
-        /// 47 of them: the 32 of the maps, the sky and a dark map's alpha, and the 16 with the maps that
-        /// march a relief beside them, but the full tuple, which is one of those.
+        /// The kernels are counted as they land, the count never goes back, and it reaches the whole only once
+        /// the compile is over. What a frame draws with is the full tuple's nine (the trace, the water's walk,
+        /// its direct light, media, layers, bounce, the bounce's landing, the ambient's stage and the froxels'
+        /// launch) beside the 5 kernels no tuple changes (the air's two and the sprites' three); every other
+        /// tuple compiles behind them, a tuple a step, 47 of them: the 32 of the maps, the sky and a dark map's
+        /// alpha, and the 16 with the maps that march a relief beside them, but the full tuple, one of those.
         ///
-        /// **The full tuple alone is watched as it compiles, and the table read off the suite's
-        /// renderer**, which made every tuple before any test ran (`Testing::getRenderer` waits for
-        /// `KernelSet::Every`): every kernel made again under the layers was seconds of this binary
-        /// for an answer the 14 already give.
+        /// Only the full tuple is watched as it compiles, the rest read off the suite's renderer, which made
+        /// every tuple before any test ran (`Testing::getRenderer` waits for `KernelSet::Every`): every kernel
+        /// made again under the layers would be seconds of this binary for an answer the 14 already give.
         TEST_F(RtxVisibilityKernelsTest, theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile)
         {
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false, UpscaleMasks::Written);
@@ -137,30 +135,27 @@ namespace Rtx
             EXPECT_EQ(every.mCount, drawing + 47u);
         }
 
-        /// **No kernel spills past its ceiling**, where the driver says (`Device::compiledUseOf`). The
-        /// full tuple, which carries every case, and the same without a dark map's alpha, which is what
-        /// nearly every scene that has everything else runs. A kernel that spills runs at the speed of its
-        /// scratch: the inline trace's, which carried 800 words a lane through 256 registers, drew an
-        /// 80x45 frame of a low-end AMD integrated GPU in 650 ms
+        /// No kernel spills past its ceiling, where the driver says (`Device::compiledUseOf`): the full tuple,
+        /// which carries every case, and the same without a dark map's alpha, which nearly every scene that has
+        /// everything else runs. A kernel that spills runs at the speed of its scratch: the inline trace's, 800
+        /// words a lane through 256 registers, drew an 80x45 frame of a low-end AMD integrated GPU in 650 ms
         /// (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`).
         ///
-        /// - **Each target driver's own ceilings, each one that only falls**: AMD's own driver's, RADV's
-        ///   and NVIDIA's, each read by its own names (`CompiledUse`), since a count of one compiler's is no
-        ///   count of another's. A driver with none is a failure: the targets are those three.
-        /// - **No scratch and 128 registers at most, but where a kernel holds more, at
-        ///   what it holds**: the trace's stages, whose walks keep their records live through one loop ("The
-        ///   spill gate holds what each kernel spills"). A dispatch at 128 registers runs eight waves on an
-        ///   RDNA SIMD, which holds 1024 a lane across them, and one at 256 four, and a ray tracer lives on
-        ///   the waves that hide its memory. A count of a 32-lane wave's, which is what the trace's dispatch
-        ///   is pinned to (`SubgroupSize::ThirtyTwo`) and every driver that reports an executable says it ran.
-        /// - **The shared memory each holds**: what a kernel declares, and what the compiler keeps there of
-        ///   its own — a ray query's traversal, which AMD's driver gives 2048 bytes and NVIDIA's what each
-        ///   kernel's live state asks — so a rise is a cost the gate names, as a spill is.
-        /// - **A launch's stack at what each holds**, every driver answering it: the most any driver
-        ///   reports, one ceiling for every card. RADV's, measured on the integrated GPU under Mesa 26.2.4,
-        ///   where NVIDIA's driver reported none for three of the four launches and 48 bytes for the
-        ///   sprites' composite. AMD's driver reports a launch's registers as a stub of three, whatever it
-        ///   traces; the stack is where its spills show, as the 81 KB of the trace when it was a launch did.
+        /// - Each target driver's own ceilings, each one that only falls: AMD's own driver, RADV and NVIDIA,
+        ///   each read by its own names (`CompiledUse`), since one compiler's count is no count of another's.
+        ///   A driver with none is a failure: the targets are those three.
+        /// - No scratch and 128 registers at most, but where a kernel holds more, at what it holds: the
+        ///   trace's stages, whose walks keep their records live through one loop ("The spill gate holds what
+        ///   each kernel spills"). 128 registers run eight waves on an RDNA SIMD and 256 four, and a ray tracer
+        ///   lives on the waves that hide its memory. Counted for a 32-lane wave, which the trace's dispatch is
+        ///   pinned to (`SubgroupSize::ThirtyTwo`) and every driver that reports an executable says it ran.
+        /// - The shared memory each holds: what a kernel declares plus what the compiler keeps there (a ray
+        ///   query's traversal, 2048 bytes on AMD's driver, on NVIDIA's what each kernel's live state asks), so
+        ///   a rise is a cost the gate names, as a spill is.
+        /// - A launch's stack at what each holds, every driver answering it: the most any driver reports, one
+        ///   ceiling for every card. RADV's, measured on the integrated GPU, where NVIDIA's driver reported
+        ///   none for three of the four launches and 48 bytes for the sprites' composite. AMD's driver reports
+        ///   a launch's registers as a stub of three; its spills show in the stack.
         TEST_F(RtxVisibilityKernelsTest, noKernelSpillsPastItsCeiling)
         {
             struct Ceiling
@@ -181,12 +176,11 @@ namespace Rtx
                 std::span<const Ceiling> mWhole;
             };
 
-            // Measured on a low-end AMD integrated GPU under AMD's Windows driver. `visibility` at 145 since
-            // the water's walk left it for a stage of its own ("The sea's walk, a stage of its own"), and the
-            // water and media at what they hold since each walk resolves its hit once, after it ("A walk
-            // resolves the surface it ends on once"). The whole tuple's `media` at 224 since a read pairs an
-            // image with its sampler (`TEXTURE`), still four waves on an RDNA SIMD
-            // (`docs/rtx/research/2026-11-09-separate-samplers.md`). The landing at 144 since a sheet takes its
+            // Measured on a low-end AMD integrated GPU under AMD's Windows driver. `visibility` at 145 ("The
+            // sea's walk, a stage of its own"); the water and media at what they hold since each walk resolves
+            // its hit once ("A walk resolves the surface it ends on once"); the whole tuple's `media` at 224
+            // since a read pairs an image with its sampler (`TEXTURE`), still four waves on an RDNA SIMD
+            // (`docs/rtx/research/2026-11-09-separate-samplers.md`); the landing at 144 since a sheet takes its
             // span off the corners the hit carried (`docs/rtx/research/2026-11-09-sheet-span.md`).
             constexpr std::array<Ceiling, 6> sAmdWithoutDarkAlpha{ {
                 { "visibility", 0, 145, 2048 },
@@ -205,11 +199,11 @@ namespace Rtx
                 { "landing", 0, 144, 2048 },
                 { "bounce", 0, 144, 2048 },
             } };
-            // Measured on a high-end NVIDIA laptop GPU, whose compiler holds a stage at 128 registers and
-            // keeps what does not fit in shared memory, and the whole tuple's `media` 32 bytes of local
-            // memory a lane, under driver 615.78. The water at 3456 bytes of shared memory, from 2944, since
-            // a mapped ground's tangent selects its axis (`traversal.glsl`): the price of no NaN on a face
-            // along ±x, which at 128 registers' 16 warps an SM's shared memory holds all the same.
+            // Measured on a high-end NVIDIA laptop GPU, whose compiler holds a stage at 128 registers and keeps
+            // what does not fit in shared memory, and the whole tuple's `media` 32 bytes of local memory a lane,
+            // under driver 615.78. The water at 3456 bytes of shared memory since a mapped ground's tangent
+            // selects its axis (`traversal.glsl`), the price of no NaN on a face along ±x, which 16 warps an SM
+            // at 128 registers' shared memory holds all the same.
             constexpr std::array<Ceiling, 5> sNvidiaWithoutDarkAlpha{ {
                 { "water", 0, 128, 3456 },
                 { "direct", 0, 128, 1664 },
@@ -352,11 +346,10 @@ namespace Rtx
             EXPECT_EQ(kernels.size() - distinct.size(), 80u) << "the stage pipelines shared tuples save";
         }
 
-        /// A kernel that cannot be made is thrown to every ask, the bounded one included, and not
-        /// only to the first: a caller that caught it once must not go on to record from a table
-        /// with a hole in it. The constructor returns before any kernel is made, so it is the one
-        /// call that does not throw. **A device of its own, whose shader directory holds nothing**,
-        /// because the modules are the device's to find.
+        /// A kernel that cannot be made is thrown to every ask, the bounded one included, and not only the
+        /// first: a caller that caught it once must not go on to record from a table with a hole in it. The
+        /// constructor returns before any kernel is made, so it is the one call that does not throw. A device
+        /// of its own, whose shader directory holds nothing, because the modules are the device's to find.
         TEST_F(RtxVisibilityKernelsTest, aKernelThatCannotBeMadeIsThrownToEveryAsk)
         {
             const Instance& instance = *mHarness.mInstance;

@@ -4,9 +4,8 @@
 // Directions, with nothing of the frame block in them: a frame built on one axis, for anything that draws
 // about a direction or lays a grid across one; and a normal turned to face the ray that found it.
 //
-// **Its own file because a pass with no frame block wants it.** `random.glsl` builds every sampled
-// direction on it and reaches the frame for its draws; `spriteshade.comp` lays its grid on it and has no
-// frame at all, and wrote its own copy with a different threshold.
+// Its own file because a pass with no frame block wants it: `random.glsl` reaches the frame for its draws
+// and `spriteshade.comp` has no frame at all.
 
 /// A unit vector square to `axis`, to build a basis on.
 vec3 tangentTo(vec3 axis)
@@ -18,8 +17,8 @@ vec3 tangentTo(vec3 axis)
 /// The two unit vectors square to `axis` and to each other, `tangentTo` and the one across both: the frame
 /// every direction drawn about an axis is laid in.
 ///
-/// **This frame and not Duff et al.'s branchless one**, whose seam is the plane of `z = 0` — the plane
-/// every vertical wall's normal lies in, and an interior is walls.
+/// This frame and not Duff et al.'s branchless one, whose seam is the plane of `z = 0` — the plane every
+/// vertical wall's normal lies in, and an interior is walls.
 struct TangentFrame
 {
     vec3 mTangent;

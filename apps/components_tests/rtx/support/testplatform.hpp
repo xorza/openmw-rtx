@@ -20,9 +20,8 @@ namespace Rtx::Testing::TestPlatform
     void disableCoreDump();
 
     /// Whether this process's session shows a desktop, which a swapchain is presented to. **A Windows
-    /// session a service starts shows none**, as OpenSSH's do: its window station is not visible
-    /// (`WSF_VISIBLE`), though a window opens there and the system counts a monitor, and an AMD
-    /// driver refuses a swapchain on that window with `VK_ERROR_FORMAT_NOT_SUPPORTED`. Elsewhere true:
-    /// whether a display server is there is SDL's to find as it starts its video.
+    /// session a service starts shows none**: its window station is not visible (`WSF_VISIBLE`), though
+    /// a window opens there and an AMD driver refuses a swapchain on it with `VK_ERROR_FORMAT_NOT_SUPPORTED`.
+    /// Elsewhere true: whether a display server is there is SDL's to find as it starts its video.
     bool showsADesktop();
 }

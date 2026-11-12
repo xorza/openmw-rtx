@@ -43,11 +43,10 @@ namespace RtxTool
     /// their extents.
     FrameDifference compareFrames(const PngImage& before, const PngImage& after);
 
-    /// How far a picture the wavelet put together may stand from the same picture of another run of
-    /// one build, out of 255: **the card's arithmetic under the wavelet, and not the tree's**
-    /// (`docs/rtx/architecture.md`, the denoiser). What it was measured to leave is one half-float
-    /// step in the filtered light, and one level in the picture. Measured and not derived, so a
-    /// card that ever moves a picture further fails the run, which is the answer.
+    /// How far a picture the wavelet put together may stand from the same picture of another run of one
+    /// build, out of 255: the card's arithmetic under the wavelet and not the tree's
+    /// (`docs/rtx/architecture.md`, the denoiser), measured to leave one half-float step in the filtered
+    /// light and one level in the picture. A card that ever moves a picture further fails the run.
     inline constexpr std::uint32_t sDenoiserNoiseLevels = 1;
 
     /// What a picture of a run is held to against the same picture of its reference.
@@ -113,10 +112,9 @@ namespace RtxTool
 
     /// When `noise` counts a pixel of the frame as a firefly: its light, after the tone curve as the
     /// player sees it, `sNoiseFireflyRatio` times the reference's, and over it by at least the light
-    /// of a grey at `sNoiseFireflyFloor` levels of 255. **The floor keeps a dark speck out**: four
-    /// times the light of a level-2 corner is a corner at level 8, a ratio a ratio test alone
-    /// counts. Sixteen is chosen and not derived, a sixteenth of the display's range in level; moving
-    /// it moves what the count says, as `sNoiseBarFrames` moves what the bar says.
+    /// of a grey at `sNoiseFireflyFloor` levels of 255. The floor keeps a dark speck out: four times the
+    /// light of a level-2 corner is a corner at level 8, which a ratio test alone counts. Sixteen is
+    /// chosen and not derived; moving it moves what the count says.
     inline constexpr double sNoiseFireflyRatio = 4.0;
     inline constexpr std::uint8_t sNoiseFireflyFloor = 16;
 
@@ -135,14 +133,12 @@ namespace RtxTool
     /// since `against`: a directory an earlier run wrote on this machine, never a corpus in the tree,
     /// because the picture is a function of the driver and the card as much as of the code. Each of
     /// `pictures` is looked for under `against` by the name it has under `wrote`, and held to its
-    /// rule. Returns a process exit status,
-    /// non-zero where any picture moved or has no reference, or where there is none to compare, and
-    /// zero where `against` is empty.
+    /// rule. Returns a process exit status, non-zero where any picture moved or has no reference, or where
+    /// there is none to compare, and zero where `against` is empty.
     ///
-    /// **A frame's picture is judged by its hashes where they can judge it.** Where an upscaler
-    /// reconstructed the frame the picture is the upscaler's, and where nothing composed it past
-    /// the trace the hashes already hold the same bytes. Where the wavelet composed it, the hashes
-    /// cannot tell the card's last bit from a change, and the picture is what is held.
+    /// A frame's picture is judged by its hashes where they can judge it: where an upscaler reconstructed
+    /// the frame, or nothing composed it past the trace, the hashes hold the same bytes. Where the wavelet
+    /// composed it they cannot tell the card's last bit from a change, and the picture is what is held.
     int compareRuns(const PictureShelf& drawn, const std::filesystem::path& wrote, const std::filesystem::path& against,
         std::span<const WrittenPicture> pictures);
 }

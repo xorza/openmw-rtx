@@ -10,11 +10,10 @@
 // more tile beside its cascades.
 //
 // **The rasterizer's own simulation, in its own numbers.** `MWRender::RipplesSurface` runs a
-// thousand-and-twenty-four-texel field at two and a half units a texel, centred on the player and
-// stepped sixty times a second, with `lib/water/ripples.glsl`'s springs. The trace takes the same
-// field and reads it as a wave tile: a slope and a curvature with a chain each, so a wake is lit,
-// reflected and refracted the way a swell is, and focuses light on the bed under it the way a
-// swell does.
+// thousand-and-twenty-four-texel field at two and a half units a texel, centred on the player and stepped
+// sixty times a second, with `lib/water/ripples.glsl`'s springs. The trace takes the same field and reads it
+// as a wave tile (a slope and a curvature with a chain each), so a wake is lit, reflected and refracted the
+// way a swell is, and focuses light on the bed under it as a swell does.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders

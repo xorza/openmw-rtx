@@ -42,13 +42,10 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// Nothing here loads the validation layers, because they allocate and this is what counts
-        /// allocations.
-        ///
-        /// **A device and a renderer, and the two tests take one each.** The frame is measured
-        /// through `getUnvalidatedRenderer`, which the fixture does not supply; what the fixture
-        /// supplies is the raw device the texture array below is built on. Both are unvalidated for
-        /// the one reason, which `getUnvalidatedHarness` states with the number.
+        /// Nothing here loads the validation layers, because they allocate and this is what counts allocations.
+        /// The frame is measured through `getUnvalidatedRenderer`, which the fixture does not supply; the
+        /// fixture supplies the raw device the texture array below is built on. Both are unvalidated for the
+        /// reason `getUnvalidatedHarness` states with the number.
         struct RtxFrameCostTest : DeviceTest
         {
             RtxFrameCostTest()
@@ -59,30 +56,20 @@ namespace Rtx::Testing
 
         /// A warm renderer draws a still frame without going to the heap once.
         ///
-        /// The concern is jitter rather than throughput: at sixty frames a second a single allocator
-        /// stall is a dropped frame, and an average hides it. What this forbids on the frame path is
-        /// a `std::string` built, an unreserved vector grown, a `std::function` captured, a
-        /// `make_unique` reached for, or logging that did not compile out.
+        /// The concern is jitter and not throughput: at sixty frames a second one allocator stall is a dropped
+        /// frame and an average hides it. Forbidden on the frame path: a `std::string` built, an unreserved
+        /// vector grown, a `std::function` captured, a `make_unique`, or logging that did not compile out.
         ///
-        /// **Through `Rtx::Renderer` and not through the passes it owns.** What this replaced
-        /// assembled the frame by hand — the skin pass, the structures, the trace and the composite,
-        /// recorded in the order `VulkanRenderer` records them — which is a second copy of the frame
-        /// path that could go on passing while the real one grew a pass that allocated. It also left
-        /// out most of the frame: the fog volume's three passes, the accumulator, the wavelet, the
-        /// bloom, the tone curve, the exposure, the ring the frame is drawn into and `finishFrame`.
-        /// Asked of the renderer, all of it is measured and none of it can drift.
+        /// Through `Rtx::Renderer` and not the passes it owns: a hand-assembled frame is a second copy of the
+        /// frame path that could keep passing while the real one grew an allocating pass, and would leave out
+        /// the fog volume, accumulator, wavelet, bloom, tone curve, exposure, the ring and `finishFrame`.
         ///
-        /// **Five shapes, because they light different code.** A plain frame traces and composites; a
-        /// filtered one adds the wavelet's levels and its history; an accumulating one adds the
-        /// sum image; a body walking is the one thing the frame path *computes* rather than copies —
-        /// a pose the host writes, a dispatch, a refit, and a rebuild of what moved; and a storm
-        /// thickening and thinning is every table a frame writes changing length under it, below the
-        /// high-water mark its warm-up set. The camera stands still through all five, which is what
-        /// pins them: a moving camera would allocate nothing either, and then nothing would be
-        /// pinned.
-        ///
-        /// **Warmed first, because the first of anything legitimately allocates**: descriptor pools
-        /// grow, the driver caches its first call, and a command buffer finds its size.
+        /// Five shapes, because they light different code: a plain frame; a filtered one (the wavelet's levels
+        /// and history); an accumulating one (the sum image); a body walking, the one thing the frame path
+        /// computes rather than copies (a pose, a dispatch, a refit, a rebuild of what moved); and a storm
+        /// thickening and thinning, every table a frame writes changing length below its warm-up high-water
+        /// mark. The camera stands still through all five, which is what pins them. Warmed first, because the
+        /// first of anything legitimately allocates (descriptor pools, driver caches, command buffer size).
         TEST_F(RtxFrameCostTest, aWarmRendererDrawsAStillFrameWithoutTheHeap)
         {
             constexpr std::uint32_t size = 64;
@@ -209,30 +196,21 @@ namespace Rtx::Testing
             EXPECT_EQ(Testing::getAllocationCount() - before, 0u) << "a second read back into the same vector";
         }
 
-        /// A texture arriving costs the device objects it is and nothing besides.
-        ///
-        /// **The arrival frame is the frame with the least room, which is why this is bounded at
-        /// all.** A cell crossing writes a couple of hundred textures into the array on one frame,
-        /// and a vector the write grows for itself is growth on top of the upload. What this leaves
-        /// is what a texture *is*: two images and the staging buffer their bytes travel in, each of
-        /// which is a device allocation the host has to hold a handle for.
-        ///
-        /// Warmed up with one texture first, so the array's own scratch and its descriptor pool have
-        /// reached their size and what is measured is the arrival and not the array.
+        /// A texture arriving costs the device objects it is and nothing besides. The arrival frame has the
+        /// least room: a cell crossing writes a couple of hundred textures into the array on one frame, and a
+        /// vector the write grows would be growth on top of the upload. What is left is what a texture is: two
+        /// images and the staging buffer their bytes travel in, each a device allocation the host holds a handle
+        /// for. Warmed with one texture first, so the array's scratch and descriptor pool have reached size.
         TEST_F(RtxFrameCostTest, aTextureArrivingCostsWhatATextureIs)
         {
             constexpr std::uint32_t extent = 4;
             constexpr std::uint32_t slots = 64;
             constexpr std::uint32_t measured = 32;
 
-            // What one texture is allowed, and what it is spent on. Two images, each a `unique_ptr`
-            // the host holds for a device object; the staging buffer its bytes travel in; and the
-            // names those carry, which a build that names objects makes strings for and a release
-            // build does not — `Rtx::sDebugNames`. Measured at five apiece with names on.
-            //
-            // The sixth is the batch's own list of what it is keeping alive and the graveyard's, both
-            // of which grow as any vector does. Nothing here may grow per texture: that is what the
-            // number is for, and a seventh is a buffer somebody made per arrival.
+            // What one texture is allowed: two images (each a `unique_ptr` for a device object), the staging
+            // buffer, and the names those carry, which a build that names objects makes strings for
+            // (`Rtx::sDebugNames`), measured at five apiece; the sixth is the batch's and the graveyard's lists.
+            // Nothing may grow per texture, and a seventh is a buffer somebody made per arrival.
             constexpr std::size_t budgetPerTexture = 6;
 
             Device& device = getDevice();

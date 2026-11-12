@@ -19,11 +19,10 @@ namespace Rtx
                 .pObjectName = name };
         }
 
-        /// **A hazard is a runtime's own only where every image and buffer it names is the runtime's**:
-        /// NGX's resource alone, or its image beside its buffer, after NGX's prefix was disowned; not
-        /// before, not beside one of the renderer's images, not on a name another prefix starts, not on
-        /// an unnamed one, and not where no image or buffer is named at all, which says nothing of whose
-        /// the hazard is. A command buffer beside the runtime's image changes nothing.
+        /// **A hazard is a runtime's own only where every image and buffer it names is the runtime's**: NGX's resource
+        /// alone, or its image beside its buffer, after NGX's prefix was disowned; not before, not beside one of the
+        /// renderer's images, not on a name another prefix starts, not on an unnamed one, and not where nothing is
+        /// named, which says nothing of whose the hazard is.
         TEST(RtxValidationLogTest, aHazardOnARuntimesOwnResourcesAloneIsDisowned)
         {
             ValidationLog log(false);

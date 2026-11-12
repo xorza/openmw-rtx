@@ -24,16 +24,15 @@ namespace Rtx
             EXPECT_EQ(Shaders::lowBits(32), 0xFFFFFFFFu);
         }
 
-        /// **The penumbra's two marks against the reach they gate.** A drawn bit takes every level of
-        /// the spatial filter, whose widest step is `1 << (SHADOW_FILTER_LEVELS - 1)`, four pixels,
-        /// and passes the one pixel under which a bit counts as hard; a clear ray stands past both,
-        /// and is a half, the channel's width, exactly.
-        /// Each weight is `exp(-3 d² / 81) = exp(-d² / 27)` rounded to the nearest float, which a
-        /// double's exponential decides on every compiler: it is within an ulp of a double, a part in
-        /// 2^29 of a float's, and the nine values lie at least 0.03 of a float's ulp from a midpoint
-        /// between two floats, the nearest at four pixels. e^(-1/3) at three pixels is 0.716531311,
-        /// whose nearest float is 0x3f376e99 where the driver had folded 0x3f376e98. One past the
-        /// reach is outside the kernel.
+        /// **The penumbra's two marks against the reach they gate.** A drawn bit takes every level of the spatial
+        /// filter, whose widest step is `1 << (SHADOW_FILTER_LEVELS - 1)`, four pixels, and passes the one pixel under
+        /// which a bit counts as hard; a clear ray stands past both, and is a half, the channel's width, exactly.
+        ///
+        /// Each weight is `exp(-3 d² / 81) = exp(-d² / 27)` rounded to the nearest float, which a double's exponential
+        /// decides on every compiler: it is within an ulp of a double, a part in 2^29 of a float's, and the nine
+        /// values lie at least 0.03 of a float's ulp from a midpoint between two floats, the nearest at four pixels.
+        /// e^(-1/3) at three pixels is 0.716531311, whose nearest float is 0x3f376e99 where the driver had folded
+        /// 0x3f376e98. One past the reach is outside the kernel.
         TEST(RtxShadowTest, theLocalKernelIsTheGaussianCorrectlyRounded)
         {
             const double width = Shaders::SHADOW_REACH + 1;

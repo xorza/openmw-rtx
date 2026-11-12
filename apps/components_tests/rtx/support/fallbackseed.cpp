@@ -11,11 +11,10 @@ namespace TestingOpenMW
     {
         /// Every fallback key this fork's tests read, planted once before any of them runs.
         ///
-        /// `Fallback::Map::init` keeps whichever value arrives first, so planting the lot here is what
-        /// stops the order the suite runs in from deciding what a test sees. A test that opens the real
-        /// installation merges its whole map in afterwards, so these keys are pinned and every other
-        /// key is the installation's. Not what a test asserts against: an expectation is written
-        /// against what the code says. Morrowind's own numbers throughout, with two exceptions marked.
+        /// `Fallback::Map::init` keeps whichever value arrives first, so planting the lot here stops the
+        /// suite's order from deciding what a test sees. A test that opens the real installation merges
+        /// its map in afterwards: these keys stay pinned, every other is the installation's. Morrowind's
+        /// own numbers throughout, with two exceptions marked.
         std::map<std::string, std::string> fallbackSeed()
         {
             return {
@@ -26,9 +25,9 @@ namespace TestingOpenMW
                 { "Weather_Sunset_Duration", "2" },
 
                 // **The window each quantity crosses dawn and dusk over, which is its own.** A name
-                // `TimeOfDaySettings::getSetting` does not hold answers an hour either side, which is a
-                // usable window and so cannot be told from a recorded one — an hour that fell inside it
-                // would then blend where a seeded schedule reads a phase outright.
+                // `TimeOfDaySettings::getSetting` does not hold answers an hour either side, which cannot
+                // be told from a recorded window, so an hour inside it would blend where a seeded schedule
+                // reads a phase outright.
                 { "Weather_Sky_Pre-Sunrise_Time", ".5" },
                 { "Weather_Sky_Post-Sunrise_Time", "1" },
                 { "Weather_Sky_Pre-Sunset_Time", "1.5" },
@@ -132,9 +131,9 @@ namespace TestingOpenMW
                 // The `[Moons]`, as the ini ships them. `Rtx::moonbuilder` refuses a moon with no size
                 // or no speed, so anything that places one needs these.
                 //
-                // Every value matches the default OpenMW ships **except the two sizes**, where the ini
-                // says 94 and 40 against OpenMW's 55 and 20 — which is why the moon tests assert the law
-                // an arc follows rather than a number a size gives.
+                // Every value matches the default OpenMW ships **except the two sizes** (94 and 40 against
+                // OpenMW's 55 and 20), which is why the moon tests assert the law an arc follows rather
+                // than a number a size gives.
                 { "Moons_Masser_Size", "94" },
                 { "Moons_Masser_Fade_In_Start", "14" },
                 { "Moons_Masser_Fade_In_Finish", "15" },

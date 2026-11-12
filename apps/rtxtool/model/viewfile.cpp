@@ -63,9 +63,8 @@ namespace RtxTool
 
     namespace
     {
-        /// A cell's name as a stop's name, which a hash file's row and a picture's file are keyed on:
-        /// the name as it is, but each character a row or a file name cannot hold — a comma, a
-        /// colon, a slash and what Windows refuses — as `_`. `-2,-9` is `-2_-9`, which `slugOf`'s
+        /// A cell's name as a stop's name, which a hash file's row and a picture's file are keyed on: the name as it
+        /// is, but each character a row or a file name cannot hold as `_`. `-2,-9` is `-2_-9`, which `slugOf`'s
         /// `2-9` would share with `2,9`.
         std::string stopNameOf(std::string_view cell)
         {
@@ -84,17 +83,13 @@ namespace RtxTool
             const BlockField* mField = nullptr;
         };
 
-        /// Fills each borrower in from the view its `like` names.
+        /// Fills each borrower in from the view its `like` names. A place at another hour is the same place, and
+        /// this keeps it so: a dawn row and a noon row of one camera mean something beside each other only where the
+        /// camera is identical by construction, and coordinates copied by hand drift the first time either is moved.
         ///
-        /// **A place at another hour is the same place, and this is what keeps it so.** A dawn row
-        /// and a noon row of one camera mean something beside each other only where the camera is
-        /// identical by construction; coordinates copied by hand drift the first time either is
-        /// moved, and a pair measuring two cameras reads as a difference the hour made.
-        ///
-        /// **One level, and a route is not among what is taken.** The view a `like` names states its
-        /// own place, which leaves no chain to walk and no cycle to detect. A route is left behind
-        /// because flying from a place is a different measurement rather than the same place under
-        /// another light, and a borrower that wants one writes its own.
+        /// One level, and a route is not among what is taken: the view a `like` names states its own place, which
+        /// leaves no chain to walk and no cycle to detect, and flying from a place is a different measurement
+        /// rather than the same place under another light, so a borrower that wants one writes its own.
         void resolveLikes(const BlockFile& file, std::vector<Stop>& views, std::span<const Pending> likes)
         {
             for (const Pending& like : likes)
@@ -130,11 +125,10 @@ namespace RtxTool
 
         /// Pairs each `to` with the view it names and with the `speed` beside it.
         ///
-        /// **Both halves are required and neither has a default.** A route with no speed does not
-        /// move and a speed with no destination has nowhere to go; either alone is a typo, and
-        /// guessing what was meant is how a benchmark measures something other than what was asked
-        /// for. The destination must also name its own `pos` and `look`, because a placement derived
-        /// from a cell's bounds would need that cell staged to know it.
+        /// Both halves are required and neither has a default: a route with no speed does not move and a speed with
+        /// no destination has nowhere to go, and guessing what was meant is how a benchmark measures something other
+        /// than what was asked for. The destination must also name its own `pos` and `look`, because a placement
+        /// derived from a cell's bounds would need that cell staged to know it.
         void resolveRoutes(const BlockFile& file, std::vector<Stop>& views, std::span<const Pending> ends,
             std::span<const Pending> speeds)
         {
@@ -209,9 +203,8 @@ namespace RtxTool
         const BlockFile file = BlockFile::load(path);
         const std::span<const Block> blocks = file.getBlocks();
 
-        // **Collected and resolved afterwards, because a route and a likeness can point forwards.**
-        // `to` and `like` may name a view that has not been read yet, so the pairing waits until
-        // every block is in.
+        // Collected and resolved afterwards, because a route and a likeness can point forwards: `to` and `like` may
+        // name a view that has not been read yet.
         std::vector<Pending> ends;
         std::vector<Pending> speeds;
         std::vector<Pending> likes;
@@ -286,9 +279,9 @@ namespace RtxTool
 
     std::vector<Stop> chooseViews(const std::vector<Stop>& views, const std::vector<std::string>& named)
     {
-        // **"all" is a name nothing may take, and it means every view.** `bench` reaches this
-        // through a suite as well, so the word has to mean the same on either road in. A list
-        // that names nothing — `--views=,` — is refused rather than read as every view.
+        // "all" is a name nothing may take, and it means every view; `bench` reaches this through a suite as well,
+        // so the word has to mean the same on either road in. A list that names nothing, `--views=,`, is refused
+        // rather than read as every view.
         if (named.empty())
             throw std::runtime_error("nothing to visit: no view was named");
 

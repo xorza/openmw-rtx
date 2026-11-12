@@ -41,13 +41,11 @@ namespace MWRender
         /// Hands an intersection visitor to one of `TracedTerrain`'s answers and answers every other
         /// visitor with nothing.
         ///
-        /// **Culling off and no bound**, so an intersection visitor enters it and every node above
-        /// it whatever their bounds say — OpenSceneGraph turns culling off up the chain for a child
-        /// that has it off — and the scene's bound stays what is drawn under it. Bound by the land,
-        /// as upstream's quad tree is, the scene's sphere would take the whole island in, and the
-        /// traced map, which stands its eye at the top of that sphere, would meet its ground from
-        /// 200,000 units up, where a hit's position has a sixty-fourth of a unit to say where a
-        /// road's edge is.
+        /// Culling off and no bound, so an intersection visitor enters it and every node above it whatever
+        /// their bounds say, and the scene's bound stays what is drawn under it. Bound by the land, as
+        /// upstream's quad tree is, the scene's sphere would take the whole island in and the traced map,
+        /// whose eye is at the top of that sphere, would meet its ground from 200,000 units up, where a hit's
+        /// position has a sixty-fourth of a unit to say where a road's edge is.
         class DistantAnswer final : public osg::Node
         {
         public:
@@ -294,11 +292,10 @@ namespace MWRender
         mCells.pop_back();
     }
 
-    /// A part of a static the ring stands, as the intersection visitor meets it: the template's
-    /// drawable, handed the visitor in the frame the carrier above pushed, and bound by the
-    /// drawable's own sphere so the carrier culls the segment first. **Read and never changed**: the
-    /// drawable is every reference's of the model, and the reader's threads read it too, so it is
-    /// put under no node of this.
+    /// A part of a static the ring stands, as the intersection visitor meets it: the template's drawable,
+    /// handed the visitor in the frame the carrier above pushed, and bound by the drawable's own sphere so
+    /// the carrier culls the segment first. Read and never changed: the drawable is every reference's of
+    /// the model and the reader's threads read it too, so it is put under no node of this.
     class TracedTerrain::StandingPart final : public osg::Node
     {
     public:
@@ -329,9 +326,8 @@ namespace MWRender
         {
             Carrier made{ .mPlace = new osg::MatrixTransform, .mPart = new StandingPart };
             made.mPlace->addChild(made.mPart);
-            // The marker is attached once, with the carrier, and the refnum of whatever static the
-            // pool stands next written into the one the node already carries: the container owns it
-            // for the carrier's life, so the pointer the carrier keeps stays good.
+            // Attached once with the carrier, and the refnum of whatever static the pool stands next is
+            // written into it: the container owns it for the carrier's life, so the pointer stays good.
             SceneUtil::addUserData(*made.mPlace, RefnumMarker{});
             made.mMarker = SceneUtil::findUserData<RefnumMarker>(*made.mPlace);
             mCarriers.push_back(std::move(made));
@@ -363,10 +359,9 @@ namespace MWRender
 
     void TracedTerrain::meetStatics(osgUtil::IntersectionVisitor& visitor, osgUtil::LineSegmentIntersector& segment)
     {
-        // **Every crossed cell and the eight beside it, and none cut short**: a static stands in the
-        // cell of its reference and its parts reach into the next, so a part a nearer cell's ground
-        // hides is not nearer than a tower whose reference stands a cell on. Over the land the
-        // storage has and a cell past it, where a reference stands in the sea.
+        // Every crossed cell and the eight beside it, none cut short: a static's parts reach past the cell of
+        // its reference, so a part a nearer cell's ground hides is not nearer than a tower whose reference
+        // stands a cell on. A cell past the land is included, where a reference stands in the sea.
         mCarried = 0;
         mAsked.clear();
         walkLand(mLand, mCellSize, segment, 1.0, [&](const osg::Vec2i& crossed) {

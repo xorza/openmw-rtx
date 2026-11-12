@@ -9,10 +9,8 @@
 
 /// Which sequence a lamp reservoir draws on.
 ///
-/// **Each one is the one before it and one more, and none of them is a number written out.** What a seed
-/// owes the others is only that it differ from them, and a list of literals states that in a way nothing
-/// checks — two of them spelled alike compile, and the two reservoirs then draw one sequence and keep the
-/// same lamps.
+/// **Each one is the one before it and one more, and none is a number written out**: two literals spelled
+/// alike compile, and the two reservoirs would then draw one sequence and keep the same lamps.
 const uint SEED_LAMPS_EYE = 0x51u;
 const uint SEED_LAMPS_BOUNCE = SEED_LAMPS_EYE + 1u;
 
@@ -23,9 +21,8 @@ const uint SEED_LAMPS_PANE = SEED_LAMPS_BOUNCE + 1u;
 
 /// And one more for the direction a path's end asks the sky about, which is not a lamp at all.
 ///
-/// **A sequence of its own, because it is drawn beside a reservoir and not out of one.** Stepping the
-/// lamps' would move which lamp a hit chose every time the hemisphere was asked a question, and the two
-/// have nothing to do with each other.
+/// **A sequence of its own, because it is drawn beside a reservoir and not out of one**: stepping the lamps'
+/// would move which lamp a hit chose every time the hemisphere was asked a question.
 const uint SEED_AMBIENT_REACHING = SEED_LAMPS_PANE + 1u;
 
 /// And one for the lamp a froxel of the air holds out of every lamp reaching it.
@@ -37,26 +34,21 @@ const uint SEED_AMBIENT_FOG = SEED_LAMPS_FOG + 1u;
 
 /// And one for which face of a sheet the eye's bounce leaves by.
 ///
-/// **Beside the bounce's own pair and not out of it.** The direction is drawn from the tile's
-/// `STREAM_BOUNCE`, which has two channels and no third; a side taken from one of them would tie which face
-/// is asked to where in the hemisphere it is asked, and a sheet's two faces would be sampled as two halves
-/// of one hemisphere rather than as two hemispheres.
+/// **Beside the bounce's own pair and not out of it.** The direction is drawn from `STREAM_BOUNCE`, which has
+/// two channels and no third; a side taken from one would tie which face is asked to where in the hemisphere.
 const uint SEED_SHEET_SIDE = SEED_AMBIENT_FOG + 1u;
 
 /// And one for whether an indirect hit is lit at all this frame.
 ///
-/// **An entry of the pixel's own chain rather than a step of the reservoir's sequence.** The draw is made
-/// before the reservoir opens, and taken as a step of it, it would move every lamp the bounce hit weighed —
-/// which is the ordering `GatherRun` states at the top of itself.
+/// **An entry of the pixel's own chain, not a step of the reservoir's sequence**: the draw is made before the
+/// reservoir opens, and as a step of it would move every lamp the bounce hit weighed (see `GatherRun`).
 const uint SEED_INDIRECT_LIGHT = SEED_SHEET_SIDE + 1u;
 
-/// And one for each layer of the peel under the first: a cuirass over a skirt over a leg shade beside each
-/// other as well as beside the body under them, and a stack stepping one sequence would light every layer
-/// of a person from the same lamp.
+/// And one for each layer of the peel under the first, so a cuirass, a skirt and a leg shade beside each
+/// other and not from the same lamp.
 ///
-/// **At the end of the chain rather than beside `SEED_LAMPS_PANE`**, because this block is `PEEL_LAYERS -
-/// 1` wide: written where the pane's own seed is, every seed after it would move each time the peel's
-/// budget did, and a seed that moves is every sequence in the frame redrawn.
+/// **At the end of the chain rather than beside `SEED_LAMPS_PANE`**, because this block is `PEEL_LAYERS - 1`
+/// wide: written there, every later seed would move each time the peel's budget did.
 const uint SEED_LAMPS_PANE_DEEPER = SEED_INDIRECT_LIGHT + 1u;
 
 /// Which of them the `layer`th peeled surface draws its lamps from, counting the nearest as nought.
@@ -76,17 +68,13 @@ uint paneAmbientSeed(uint layer)
 
 /// And one for which half of a glossy surface the eye's bounce samples, its lobe or its diffuse.
 ///
-/// **Beside the bounce's pair and not out of it**, for the reason `SEED_SHEET_SIDE` gives: the pair draws
-/// the direction within whichever half is chosen, and a choice made from one of its channels would tie
-/// which half to where in it.
+/// **Beside the bounce's pair and not out of it**, for the reason `SEED_SHEET_SIDE` gives.
 const uint SEED_BOUNCE_LOBE = SEED_AMBIENT_PANE + PEEL_LAYERS;
 
 /// And one for where in the sun's disc a water shaft's shadow rays aim.
 ///
-/// **Beside the march's own offset and not out of it.** The offset is one number, and a pair carried from
-/// it lies on one line of the square: every step's ray would aim along one spiral of the disc, and a rock's
-/// edge across the disc would shadow the shaft by the share of that spiral it covers and not by the share
-/// of the disc.
+/// **Beside the march's own offset and not out of it**: a pair carried from the one-number offset lies on one
+/// line of the square, so every step's ray would aim along one spiral of the disc.
 const uint SEED_WATER_SHAFT = SEED_BOUNCE_LOBE + 1u;
 
 /// Which texels under the cut of a soft edge the eye meets (`cutAt`): one draw a candidate, keyed on
@@ -123,13 +111,11 @@ const uint SEED_LAMP_SHADOW_HISTORY_ROUNDING = SEED_LAMP_SHADOW_ROUNDING + 1u;
 const uint SEED_FOG_SCATTER_ROUNDING = SEED_LAMP_SHADOW_HISTORY_ROUNDING + 1u;
 const uint SEED_FOG_SUNWARD_ROUNDING = SEED_FOG_SCATTER_ROUNDING + 1u;
 
-/// And a block for each bounce ray of the eye's surface past the first, `MORE_BOUNCE_RAY_SEEDS` wide: which
-/// face of a sheet the ray leaves by, which half of a glossy surface it draws, whether its landing's gather
-/// runs, and its landing's lamps and ambient.
+/// And a block for each bounce ray of the eye's surface past the first, `MORE_BOUNCE_RAY_SEEDS` wide: its
+/// face, glossy half, landing gather, and landing lamps and ambient.
 ///
 /// **A block a ray, because each ray is a sample of its own**, for the reason `SEED_LAMPS_EYE` and
-/// `SEED_LAMPS_BOUNCE` are two: rays stepping one sequence would choose one lamp and one face, and the
-/// frame's samples would be one sample several times.
+/// `SEED_LAMPS_BOUNCE` are two.
 const uint SEED_MORE_BOUNCE_RAYS = SEED_FOG_SUNWARD_ROUNDING + 1u;
 const uint MORE_BOUNCE_RAY_SEEDS = 5u;
 
@@ -160,9 +146,8 @@ uint pixelKey(uvec2 pixel)
 
 /// A key for one froxel of the fog volume, which a caller offsets the same way.
 ///
-/// **A third multiplier and not a shift of the pair above**, for the reason that one gives: a shift would
-/// leave the depth's low bits where a column's are, and two froxels a power of two apart down one ray would
-/// then draw what two columns a power of two apart across the screen draw.
+/// **A third multiplier and not a shift of the pair above**: a shift would leave the depth's low bits where a
+/// column's are.
 uint froxelKey(uvec2 column, uint slice)
 {
     return pixelKey(column) ^ slice * 83492791u;
@@ -186,10 +171,10 @@ float randomNext(inout uint state)
 
 /// A key stepped by the multiplier every sequence here starts from.
 ///
-/// **The whole of what a pattern that must not move needs, and the first half of `randomSeed`.** Rain rings
-/// are keyed on the cell they fell in and have to stay there from one frame to the next, so the frame is
-/// exactly what they may not mix in — and a second spelling of this step is a second idea of what a key is
-/// worth.
+/// **The first half of `randomSeed`.** Rain rings are keyed on the cell they fell in and must stay put from
+/// frame to frame, so the frame is what they may not mix in; a second spelling of this step is a second idea
+/// of what a key is worth.
+
 uint steppedKey(uint key)
 {
     return key * 0x9E3779B9u;

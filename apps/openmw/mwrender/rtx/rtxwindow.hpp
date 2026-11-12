@@ -21,10 +21,8 @@ namespace Rtx
 
 namespace MWRender
 {
-    /// The SDL window the ray tracer draws into: made here, fitted to as it changes size, and
-    /// written to for the one thing this renderer says about itself, its speed. No GL context is
-    /// ever made on it, which is the point of the whole path. Before the backend in whatever owns
-    /// both, because the backend's surface is on it.
+    /// The SDL window the ray tracer draws into. No GL context is ever made on it. Before the backend in
+    /// whatever owns both, because the backend's surface is on it.
     class RtxWindow
     {
     public:
@@ -34,11 +32,9 @@ namespace MWRender
         /// where SDL refuses.
         RtxWindow(std::optional<SDL_WindowFlags> surface, bool hidden, std::optional<osg::Vec2i> pixels);
 
-        /// Whether SDL's video driver has a display a frame can be shown on: every driver but
-        /// `offscreen`, which needs none and is what a run on a box with no monitor, and the gate's
-        /// integration step, make the window on. Where it has none, the window takes no surface and
-        /// the backend is handed none, so it makes no presenter and traces every frame all the same,
-        /// on every driver: NVIDIA's presents nothing to the headless surface that driver offers.
+        /// Whether SDL's video driver has a display a frame can be shown on: every driver but `offscreen`.
+        /// Where it has none the window takes no surface and the backend makes no presenter but traces every
+        /// frame all the same, as NVIDIA's driver presents nothing to the headless surface it offers.
         static bool hasDisplay();
 
         SDL_Window* get() const { return mWindow.get(); }
@@ -67,8 +63,8 @@ namespace MWRender
         std::unique_ptr<SDL_Window, void (*)(SDL_Window*)> mWindow{ nullptr, SDL_DestroyWindow };
         bool mHasSurface = false;
 
-        /// The window size last applied or asked for, and since when it has been asked for. Never
-        /// is further back than any moment: a size applied stands settled.
+        /// The window size last applied or asked for, and since when. Never is further back than any moment,
+        /// so a size applied stands settled.
         osg::Vec2i mAskedDrawable;
         double mAskedSince = -std::numeric_limits<double>::infinity();
     };

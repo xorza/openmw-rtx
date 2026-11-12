@@ -5,16 +5,10 @@
 
 // Derived from the FidelityFX SDK (v1.1.4), `ffx_denoiser_shadows_filter.h`, whose notice follows.
 
-// One level of the shadow denoiser's spatial half: a 3×3 edge-stopping filter with its taps `1 <<
-// SHADOW_LEVEL` apart, over the temporal pass's blend and its variance, run three times.
-//
-// **What the port keeps**: the 16×16 square each workgroup reads into shared memory once, the 3×3 Gaussian
-// over the variance before its square root is the brightness test's scale, the separable kernel of 1 and
-// 2/3, the brightness test `exp(-|a - b| / sigma)`, the variance carried by the squares of the weights, the
-// cleared tiles copied rather than filtered — and not at the middle level, which is how the temporal pass's
-// exact value reaches the last one — and the first level's answer kept as the next frame's history.
-//
-// **What it changes, and why:**
+// One level of the shadow denoiser's spatial half: a 3x3 edge-stopping filter with its taps `1 <<
+// SHADOW_LEVEL` apart, over the temporal pass's blend and its variance, run three times. A port of the SDK's
+// filter; the first level's answer is kept as the next frame's history, and cleared tiles are copied rather
+// than filtered, except at the middle level, which is how the temporal pass's exact value reaches the last.
 
 #include "gbuffer.h"
 #include "shared/sets.h"
@@ -109,10 +103,8 @@ void storeFiltered(uint field, ivec2 pixel, uint word)
 /// Fills the workgroup's square, four texels a lane, clamped to the frame as the SDK clamps them: the
 /// surface, and the input of each field `filtering` names.
 ///
-/// **Each level rebuilds its positions from the surface it reads anyway**, and no pass stores them once a
-/// frame: skipping the rebuild outright took 0.025 to 0.033 ms off the shadow zone of the default suite,
-/// three alternated rounds, and an image of positions in full floats at 1280×720 is 14.7 MB a frame, whose
-/// write alone takes 0.026 ms at the card's 576 GB/s before a level reads it.
+/// Each level rebuilds its positions from the surface it reads: skipping the rebuild took 0.025 to 0.033 ms
+/// off the shadow zone of the default suite, while storing them costs 14.7 MB a frame at 1280x720.
 void readSquare(ivec2 corner, bvec2 filtering)
 {
     const ivec2 last = ivec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight) - 1;

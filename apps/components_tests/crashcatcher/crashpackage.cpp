@@ -279,12 +279,11 @@ namespace
             "```\n");
     }
 
-    /// **A summary too long for GitHub is cut at a line**: the address stays within the 6000 bytes
-    /// GitHub serves, it keeps as many whole lines as leave room for the cut line, and the body says
-    /// where the rest is. A line of 100 "a" and its newline encode to 103 bytes, and the cut line,
-    /// "[the rest is in OpenMW-crash-x.zip]" and a newline, to 29 kept bytes and seven encoded ones,
-    /// 29 + 7 * 3 = 50, so the kept lines end within 103 + 50 of the limit. A summary that
-    /// fits is not cut, and its last line needs no room for the cut line after it.
+    /// **A summary too long for GitHub is cut at a line**: the address stays within the 6000 bytes GitHub
+    /// serves, it keeps as many whole lines as leave room for the cut line, and the body says where the rest is.
+    /// A line of 100 "a" and its newline encode to 103 bytes, and the cut line, "[the rest is in
+    /// OpenMW-crash-x.zip]" and a newline, to 29 kept bytes and seven encoded ones, 29 + 7 * 3 = 50, so the
+    /// kept lines end within 103 + 50 of the limit. A summary that fits is not cut.
     TEST(CrashPackageUrlTest, aLongSummaryIsCutAtALineWithinGithubsLimit)
     {
         const std::string issues = "https://github.com/o/r/issues";

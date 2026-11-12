@@ -17,13 +17,12 @@ namespace Rtx
     class GpuZones;
     class ZoneCounters;
 
-    /// Timestamps written into the command stream, so a frame can say where its device time went,
-    /// where a wall clock around a submit measures one number for eight pieces of work. Both ends
-    /// wait for every stage, so a zone cannot overlap its neighbours — which would distort a
-    /// renderer whose passes overlap, and this one puts a full barrier between every pass already.
-    /// Zones may span several command buffers, because each reserves and resets only the pair of
-    /// queries it writes. Where the device reads its counters (`Device::getZoneCounters`), each zone
-    /// is also one query of them, begun and ended in the command buffer that opens and closes it.
+    /// Timestamps written into the command stream, so a frame can say where its device time went, where a
+    /// wall clock around a submit measures one number for eight pieces of work. Both ends wait for every
+    /// stage, so a zone cannot overlap its neighbours, which would distort a renderer whose passes overlap.
+    /// Zones may span several command buffers, because each reserves and resets only the pair of queries
+    /// it writes. Where the device reads its counters (`Device::getZoneCounters`), each zone is also one
+    /// query of them, begun and ended in the command buffer that opens and closes it.
     class GpuTimer
     {
     public:
@@ -90,12 +89,11 @@ namespace Rtx
         std::size_t mOpen = 0;
     };
 
-    /// Brackets a piece of work where there is a timer to bracket it with: opened where it is made
-    /// and closed where it goes, so no path out of the work, a return or a throw, leaves the zone
-    /// open. Nothing for a null timer: a scene arriving records the same commands and is not a
-    /// frame, so zones opened there with the frame's timer would land in whichever frame report came
-    /// next; a picture inside the interface has an untimed timer of its own. A zone that must end
-    /// before the work after it is made in a block of its own.
+    /// Brackets a piece of work where there is a timer to bracket it with, so no path out of the work, a
+    /// return or a throw, leaves the zone open. Nothing for a null timer: a scene arriving is not a
+    /// frame, so zones opened there with the frame's timer would land in whichever report came next; a
+    /// picture inside the interface has an untimed timer of its own. A zone that must end before the work
+    /// after it is made in a block of its own.
     class [[nodiscard]] GpuZone
     {
     public:

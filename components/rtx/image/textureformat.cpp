@@ -13,12 +13,11 @@ namespace Rtx
 {
     namespace
     {
-        /// A pixel format and a data type a loaded image names, and the format each encoding reads
-        /// it as. **A loose format is the two together**: the pixel format says which channels and
-        /// the data type how many bits they take, so `GL_BGRA` is four bytes a texel under
-        /// `GL_UNSIGNED_BYTE` and two under `GL_UNSIGNED_SHORT_1_5_5_5_REV`, and naming both BGRA8
-        /// created every A1R5G5B5 file at twice its size. A block states its own size, and its data
-        /// type means nothing (`sAnyType`). A pair not listed is `Unnamed`.
+        /// A pixel format and a data type a loaded image names, and the format each encoding reads it as. **A loose
+        /// format is the two together**: the pixel format says which channels and the data type how many bits they
+        /// take, so `GL_BGRA` is four bytes a texel under `GL_UNSIGNED_BYTE` and two under
+        /// `GL_UNSIGNED_SHORT_1_5_5_5_REV`. A block states its own size, and its data type means nothing (`sAnyType`).
+        /// A pair not listed is `Unnamed`.
         struct GlFormat
         {
             GLenum mPixelFormat;

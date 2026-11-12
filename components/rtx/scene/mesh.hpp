@@ -85,10 +85,10 @@ namespace Rtx
     }
 
     /// Who put a placement in its slot, and so who alone may move it or take it out: the frame's
-    /// walk of the graph, or the cell ring standing the distance. Two owners write one table, and
-    /// each keeps the slots it took in a bookkeeping of its own; a slot one of them lost track of
-    /// and the other took over would be a placement drawn where the wrong owner put it, and nothing
-    /// would say so. So every write names its owner, and the table asserts it.
+    /// walk of the graph, or the cell ring standing the distance. Two owners write one table, each
+    /// keeping the slots it took; a slot one lost track of and the other took over would be drawn
+    /// where the wrong owner put it, and nothing would say so. So every write names its owner, and
+    /// the table asserts it.
     enum class Stander : std::uint8_t
     {
         Walk,

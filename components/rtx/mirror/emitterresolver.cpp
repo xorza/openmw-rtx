@@ -263,13 +263,11 @@ namespace Rtx
             if (!(radius > 0.0f))
                 return std::nullopt;
 
-            // `getCurrentColor`'s alpha and `getCurrentAlpha` are two separate ramps and the
-            // rasterizer multiplies them; `ParticleColorAffector` forces the first to one, and
-            // multiplying both keeps that a fact about the data. Both are the vertex's, and the
-            // material's mode says whether the vertex is read at all — `HeldSprite::mVertexColour`.
-            // A blend that adds whole reads no alpha at all, so its sprite is all there whatever
-            // its ramps say — one file in the game — and what it adds is its texture's colour,
-            // with the texture's alpha unread too (`EMITTER_ADD_WHOLE`).
+            // `getCurrentColor`'s alpha and `getCurrentAlpha` are two separate ramps and the rasterizer multiplies
+            // them; `ParticleColorAffector` forces the first to one, and multiplying both keeps that a fact about the
+            // data. Both are the vertex's, and the material's mode says whether the vertex is read at all
+            // (`HeldSprite::mVertexColour`). A blend that adds whole reads no alpha at all, so its sprite is all there
+            // whatever its ramps say, and what it adds is its texture's colour (`EMITTER_ADD_WHOLE`).
             const bool tinted = held.mVertexColour == VertexColour::Tint || held.mVertexColour == VertexColour::Diffuse;
             const osg::Vec4f vertex = particle.getCurrentColor();
             const osg::Vec3f colour = tinted ? decodeColour(vertex) : held.mDiffuseColour;

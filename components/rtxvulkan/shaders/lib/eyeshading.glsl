@@ -1,13 +1,12 @@
 // The shading of what the eye's ray hit (`visibility.comp`, `panes.comp`): a solid's light, a pane's, or
 // the water's rays and the ground under a shore.
 //
-// **The kernel shades and not a closest-hit stage**, because the trace is ray queries alone: AMD's Windows
-// driver answers no ray query in a pipeline that also calls `traceRayEXT`, and the lighting traces every
-// one of its rays as a query (`docs/rtx/architecture.md`, "The shaders").
+// The kernel shades and not a closest-hit stage, because the trace is ray queries alone: AMD's Windows
+// driver answers no ray query in a pipeline that also calls `traceRayEXT`
+// (`docs/rtx/research/2026-10-19-amd-windows-driver-faults.md`).
 //
-// **Water shades as water only where the frame has a sea** (`HAS_SEA`): an instance's kind is its
-// material's, and a scene can hold water the build was told to ignore, which then shades as the solid or
-// the pane it is.
+// Water shades as water only where the frame has a sea (`HAS_SEA`): a scene can hold water the build was
+// told to ignore, which then shades as the solid or the pane it is.
 
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_EYESHADING_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_EYESHADING_GLSL
@@ -39,14 +38,12 @@ const uint PEEL_SHADES_LAYERS = 1u;
 /// Whether the kernel has still to peel what the ray found: a surface whose resolved opacity is under one,
 /// on a layer short of the peel's budget.
 ///
-/// **Decided here, where the number is, and only here.** The opacity is a texture read `resolve` has just
-/// made, at full precision. What the kernel is handed is the answer, `Answer::mPane`, and `mOpacity` to
-/// composite by.
+/// Decided here, where the number is, and only here: the opacity is a texture read `resolve` has just
+/// made, at full precision, and the kernel is handed the answer, `Answer::mPane`.
 ///
-/// **The kernel peels `PEEL_LAYERS` of them and the one after that is a solid.** Without that a shading
-/// would look at its own opacity, find one more pane, and shade it as a pane however deep the stack went —
-/// so a kernel that had run out of layers would draw a hole through the world rather than the surface
-/// standing in it.
+/// The kernel peels `PEEL_LAYERS` of them and the one after that is a solid. Otherwise a shading would
+/// find one more pane and shade it as a pane however deep the stack went, and a kernel out of layers would
+/// draw a hole through the world.
 bool peeled(Surface surface, uint layer)
 {
     return isSeenThrough(surface.mOpacity) && layer < PEEL_LAYERS;
@@ -67,22 +64,21 @@ float apartFrom(WaterImage image, vec2 surfaceMotion, uvec2 pixel, vec3 directio
 
 /// What the eye's ray found, shaded: the answer the kernel stacks and composes.
 ///
-/// **A pane** is lit as the end of a path, `PathEndLight`, with what was drawn for it as the bounce and the
-/// lobe's light, and its own response — `SeenPane`, which the kernel stacks into `CHANNEL_PANE` for the
-/// pane filter.
+/// A pane is lit as the end of a path, `PathEndLight`, with what was drawn for it as the bounce and the
+/// lobe's light, and its own response — `SeenPane`, which the kernel stacks into `CHANNEL_PANE`.
 ///
-/// **A solid** is what it is in the filter's terms (`solidLookOf`), and its light the direct stage's
-/// (`direct.comp`) and its bounce the bounce's (`bounce.comp`), stages of their own that resolve it again
-/// off the hit the trace stores (`storedSolidOf`): the walk names the solid, `mSolid`.
+/// A solid is what it is in the filter's terms (`solidLookOf`); its light is the direct stage's
+/// (`direct.comp`) and its bounce the bounce's (`bounce.comp`), which resolve it again off the hit the
+/// trace stores (`storedSolidOf`): the walk names the solid, `mSolid`.
 ///
-/// **Water**: one path a field (`WaterRun`), whose surface replaces the water's as the pixel's and is a
-/// solid as the eye's is, its light arriving by the path's weight — twice its share of the water's light,
-/// where the pixel splits, times what the leg let through — and the later stages resolving the hit it found
+/// Water: one path a field (`WaterRun`), whose surface replaces the water's as the pixel's and is a solid
+/// as the eye's is, its light arriving by the path's weight — twice its share of the water's light, where
+/// the pixel splits, times what the leg let through — and the later stages resolving the hit it found
 /// (`STAGE_WATER_PATH`).
 ///
-/// **A walk** (`visibility.comp`, `panes.comp`): the start reads the walk's surface, the eye's own, and
-/// hands a layer to the walk that lights it; at water it stops at `EYE_WATER`, for the kernel to run the
-/// water's walk in a loop of its own, and reads the path's surface once that walk is whole.
+/// A walk (`visibility.comp`, `panes.comp`): the start reads the eye's own surface and hands a layer to the
+/// walk that lights it; at water it stops at `EYE_WATER`, for the kernel to run the water's walk in a loop
+/// of its own, and reads the path's surface once that walk is whole.
 struct EyeRun
 {
     /// `RUN_IDLE` once `mAnswer` holds the answer.

@@ -48,12 +48,8 @@ namespace Rtx
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f), 60.0f, sWidth, sHeight, 10000.0f);
         }
 
-        /// The ray through one pixel, derived here rather than shared.
-        ///
-        /// **`rayAt` is shader-only, and a test that called it would be checking the binning against
-        /// the same arithmetic it was built from.** This is the cross-check: the derivation is
-        /// written out from what `camera.h` says a ray is, and the tiles have to hold every sprite it
-        /// can reach.
+        /// The ray through one pixel, derived here from what `camera.h` says a ray is and not shared: `rayAt` is
+        /// shader-only, and calling it would check the binning against the arithmetic it was built from.
         osg::Vec3f rayThrough(const Shaders::Camera& camera, std::uint32_t x, std::uint32_t y)
         {
             const float u
@@ -202,12 +198,10 @@ namespace Rtx
                 return x >= (from & 0xFFFFu) && x <= (to & 0xFFFFu) && y >= (from >> 16) && y <= (to >> 16);
             }
 
-            /// **Every run is exactly the sprites whose rectangle holds its tile, ascending.** The
-            /// pass over sprites counts by the rectangle and the pass over tiles fills by it, so a
-            /// run that dropped, doubled or misplaced an entry is a disagreement between the two —
-            /// and the march would read it as a sprite that stopped being drawn, or one drawn out
-            /// of order. Checked for every bin here, because the fill's lanes agree on their order
-            /// through shared memory and a race there is exactly what this would show.
+            /// Every run is exactly the sprites whose rectangle holds its tile, ascending. The count pass and the
+            /// fill pass both go by the rectangle, so a dropped, doubled or misplaced entry is a disagreement
+            /// between them. Checked for every bin because the fill's lanes agree on their order through shared
+            /// memory, and a race there would show here.
             void expectRunsMatchRects(std::uint32_t sprites) const
             {
                 for (std::size_t tile = 0; tile < getTileCount() && isBinned(tile); ++tile)
@@ -298,12 +292,9 @@ namespace Rtx
             }
         };
 
-        /// **The whole property, checked against the march itself.** A tile's list has to hold every
-        /// sprite any ray through it can meet, because the shader's own test is a refinement and
-        /// never a correction — a sprite the binning drops is a raindrop that stops being drawn.
-        ///
-        /// Every pixel of a small frame, against every sprite, both kinds of quad and a jittered
-        /// camera.
+        /// A tile's list has to hold every sprite any ray through it can meet, because the shader's own test is
+        /// a refinement and never a correction: a sprite the binning drops is a raindrop that stops being drawn.
+        /// Every pixel of a small frame, against every sprite, both kinds of quad and a jittered camera.
         TEST_F(RtxSpriteBinPassTest, aTileHoldsEverySpriteAnyRayThroughItCanMeet)
         {
             Layer layer;
@@ -340,12 +331,11 @@ namespace Rtx
                     for (float z : { -2.0f, 2.0f })
                         layer.addSprite(osg::Vec3f(x, y, z), 3.0f);
 
-            // Streaks running from in front of the eye to behind it, beside it, a fiftieth as wide as
-            // they are long as rain is: the directions that meet one go round past the frame's side,
-            // and for the second past the one straight back too, where the angles either side of it
-            // are a whole turn apart. That one is met from the frame's first two tile columns, and
-            // an arc taken from the lower angle to the higher without turning the short way round
-            // reaches only the last three: tile 0 is where it is lost.
+            // Streaks from in front of the eye to behind it, beside it, a fiftieth as wide as they are long, as
+            // rain is. For the second the directions that meet it go round past the straight-back one, where the
+            // angles either side are a whole turn apart: it is met from the first two tile columns, and an arc
+            // taken from the lower angle to the higher without turning the short way round reaches only the
+            // last three, losing tile 0.
             for (const osg::Vec3f& behind : { osg::Vec3f(-20.0f, 1.0f, 0.0f), osg::Vec3f(-20.0f, -1.0f, 0.0f) })
             {
                 const osg::Vec3f ahead(20.0f, 3.0f, 0.0f);
@@ -440,14 +430,10 @@ namespace Rtx
             EXPECT_EQ(marked(classBit(InstanceClass::Static)), 0u) << "a map tile looked for an effect";
         }
 
-        /// A tile's run ascends, because that is the order the march composites in.
-        ///
-        /// Sprites blend in the order they are walked, and the loop the tiles replaced walked
-        /// emitters in order and indices within one. Sprite indices are contiguous per emitter, so
-        /// ascending index is that same order — which is what lets a byte comparison check the change
-        /// at all. **Every entry and not only within a run**: a run out of order and a run holding
-        /// what its neighbour counted are both a list the march reads wrongly, so what the runs hold
-        /// between them is checked against the sprites too.
+        /// A tile's run ascends, because that is the order the march composites in: sprites blend in the order
+        /// they are walked, emitters in order and indices within one, and indices are contiguous per emitter.
+        /// Every entry is checked and not only within a run, since a run holding what its neighbour counted is
+        /// as wrong as one out of order.
         TEST_F(RtxSpriteBinPassTest, aTilesRunAscendsSoTheCompositeOrderIsTheOneTheMarchKept)
         {
             Layer layer;
@@ -554,11 +540,10 @@ namespace Rtx
 
         /// A rain streak falling past the camera reaches the strip it covers and not the whole frame.
         ///
-        /// **The counterpart to the test above, and the reason a capsule bounds a streak.** A ball
-        /// around the quad's corners is as wide as the streak is long, so a drop this close was a ball
-        /// the eye stood inside and went into every tile on the screen — ninety-four drops out of a
-        /// storm's two thousand six hundred, and 96% of the whole index table. The capsule's radius is
-        /// the streak's width, which is a tenth of that here and a fiftieth in the content.
+        /// A capsule bounds a streak because a ball around the quad's corners is as wide as the streak is long:
+        /// a drop this close was a ball the eye stood inside and went into every tile (94 drops of a storm's
+        /// 2,600 were 96% of the index table). The capsule's radius is the streak's width, a tenth of that here
+        /// and a fiftieth in the content.
         TEST_F(RtxSpriteBinPassTest, aStreakFallingPastTheEyeReachesTheStripItCoversAndNoMore)
         {
             Layer layer;
@@ -604,16 +589,15 @@ namespace Rtx
             EXPECT_LE(tiles.getEntryCount(), 4u);
         }
 
-        /// A sprite level with the eye plane and beside the eye reaches the side of the frame it
-        /// stands on, and one far beside it reaches nothing.
+        /// A sprite level with the eye plane and beside the eye reaches the side of the frame it stands on, and
+        /// one far beside it reaches nothing.
         ///
-        /// **A depth within the radius of the eye's own plane is no reason for every tile**: sent
-        /// there, the snow level with the camera at Nivalis was 141 sprites in every tile of the frame. The frame looks
-        /// along +X with its right along -Y and a half-width of 0.7698. In the horizontal plane the near one is at (-3
-        /// across, 1 deep): an angle of -71.57° with a spread of asin(2.5 / √10) = 52.24°, so -123.8° to -19.33°, which
-        /// the frame sees from its left edge to tan(-19.33°) / 0.7698 = -0.456, the 18th pixel of 64 with a pixel of
-        /// slack: tile columns 0 and 1. The vertical plane holds the eye in its disc, which is every row. The far one
-        /// is at -89.43° with a spread of 4.59°, every direction of it past the frame's 37.6° side.
+        /// A depth within the radius of the eye's own plane is no reason for every tile (snow level with the
+        /// camera at Nivalis was 141 sprites in every tile). The frame looks along +X, right along -Y, half-width
+        /// 0.7698. The near sprite, at (-3 across, 1 deep) with radius 2.5, spans -123.8° to -19.33°
+        /// (-71.57° ± asin(2.5 / √10) = 52.24°), seen from the left edge to tan(-19.33°) / 0.7698 = -0.456, the
+        /// 18th pixel of 64 with a pixel of slack: tile columns 0 and 1. Its vertical plane holds the eye in its
+        /// disc: every row. The far one, at -89.43° ± 4.59°, is past the frame's 37.6° side.
         TEST_F(RtxSpriteBinPassTest, aSpriteLevelWithTheEyeReachesTheSideItStandsOn)
         {
             Layer layer;
@@ -678,19 +662,16 @@ namespace Rtx
             EXPECT_GT(tiles.getEntryCount(), 0u);
         }
 
-        /// Hundreds of sprites over a frame of hundreds of tiles, so the fill walks many strides of
-        /// them and cycles its shared words round and round.
+        /// Hundreds of sprites over a frame of hundreds of tiles, so the fill walks many strides and cycles its
+        /// shared words round and round.
         ///
-        /// **The fixtures above are two strides at most, and the cycle is three words long**, so
-        /// none of them ever reused a word — which is the one thing that can go wrong in a fill that
-        /// clears a word while the lanes are between barriers. A storm's worth of small billboards
-        /// and streaks, a few puffs around the eye that reach every tile, and the property checked
-        /// on top of the runs matching their rectangles.
+        /// The fixtures above are two strides at most and the cycle is three words long, so none reused a word,
+        /// the one thing that can go wrong in a fill that clears a word while the lanes are between barriers.
+        /// A storm of small billboards and streaks plus a few puffs around the eye that reach every tile.
         ///
-        /// **And again with the puffs first and a storm on one side after them**, so a tile only the
-        /// puffs reach is full after the first stride and stops there, beside tiles the storm keeps
-        /// filling to its last: the stop a tile
-        /// makes and the one a workgroup of full tiles makes, held to the same rectangles.
+        /// Again with the puffs first and a storm on one side after them: a tile only the puffs reach is full
+        /// after the first stride and stops there beside tiles the storm keeps filling, so the stop a tile makes
+        /// and the one a workgroup of full tiles makes are held to the same rectangles.
         TEST_F(RtxSpriteBinPassTest, aStormOfSpritesFillsEveryRunAcrossManyStrides)
         {
             constexpr std::uint32_t width = 320;
@@ -780,13 +761,12 @@ namespace Rtx
             EXPECT_GT(fullLater, 0u) << "no tile is filled by the storm after them";
         }
 
-        /// The frame the game traces, over an interior's worth of candle smoke: nineteen columns of
-        /// puffs, three of them rising past the eye, every run matching its rectangles.
+        /// The frame the game traces, over an interior's worth of candle smoke: nineteen columns of puffs, three
+        /// of them rising past the eye, every run matching its rectangles.
         ///
-        /// **The frame's own tile count, because a fill over three hundred tiles and one over eight
-        /// thousand are different dispatches.** A thousand workgroups, the last of them partly past
-        /// the last tile, and runs eight thousand entries long where the puffs about the eye reach
-        /// every tile.
+        /// The frame's own tile count, because a fill over three hundred tiles and one over eight thousand are
+        /// different dispatches: a thousand workgroups, the last partly past the last tile, and runs eight
+        /// thousand entries long where the puffs about the eye reach every tile.
         TEST_F(RtxSpriteBinPassTest, aRoomOfCandleSmokeFillsEveryRunAtTheGamesFrameSize)
         {
             constexpr std::uint32_t width = 1920;
@@ -813,11 +793,10 @@ namespace Rtx
             ASSERT_TRUE(tiles.isWhole());
             EXPECT_EQ(tiles.mReport, tiles.getEntryCount());
 
-            // **The puffs whose balls hold the eye, in every tile**: the first three columns stand 2, 3
-            // and 4 ahead of it with a radius of 25, so a puff holds the eye where x² + z² ≤ 625, which
-            // is |z| ≤ 24.9, 24.8 and 24.7 — the nine at -24 to 24 of each column, 27 in all. The
-            // rest of those columns are level with the eye's plane without holding it, and reach
-            // only the tiles that can see them.
+            // The puffs whose balls hold the eye, in every tile: the first three columns stand 2, 3 and 4 ahead
+            // with a radius of 25, so a puff holds the eye where x² + z² ≤ 625, i.e. |z| ≤ 24.9, 24.8 and 24.7:
+            // the nine at -24 to 24 of each column, 27 in all. The rest of those columns are level with the eye's
+            // plane without holding it, and reach only the tiles that can see them.
             std::vector<std::uint32_t> holding;
             for (std::uint32_t at = 0; at < 60; ++at)
             {
@@ -834,16 +813,14 @@ namespace Rtx
             }
         }
 
-        /// A list without room for every run bins the tiles whose runs fit and marks the rest,
-        /// reports what it needed, and is whole again once given that much.
+        /// A list without room for every run bins the tiles whose runs fit and marks the rest, reports what it
+        /// needed, and is whole again once given that much.
         ///
-        /// **The tiles before the room ran out are binned as a generous list bins them**, run for
-        /// run, since the runs lie in tile order and the ones that fit are a prefix; every tile from
-        /// the first whose end passed the room carries `SPRITE_TILE_UNBINNED` and the sprite count,
-        /// and walks every sprite. Given half the room, the split falls where the generous list's
-        /// ends pass it. **The report is what sizes the next frame's list, so it has to be the same
-        /// number whether or not the runs fit** — and the list given exactly that room has to be the
-        /// list a generous one would have made, entry for entry.
+        /// The runs lie in tile order and the ones that fit are a prefix, so those tiles are binned as a
+        /// generous list bins them; every tile from the first whose end passed the room carries
+        /// `SPRITE_TILE_UNBINNED` and the sprite count, and walks every sprite. The report sizes the next
+        /// frame's list, so it must be the same number whether or not the runs fit, and the list given exactly
+        /// that room must equal a generous one's, entry for entry.
         TEST_F(RtxSpriteBinPassTest, aListTooSmallForItsRunsBinsWhatFitsAndNamesWhatItNeeded)
         {
             Layer layer;
@@ -965,11 +942,9 @@ namespace Rtx
             }
         };
 
-        /// One emitter and its run, built so the grid is one unit a cell.
-        ///
-        /// **A reach of sixteen over thirty-two cells is a cell of one unit**, as long as no sprite is
-        /// wider than eight — which is what makes every figure below a plain number. The centre sits at
-        /// the origin, so a sprite's world position is its offset on the grid.
+        /// One emitter and its run, built so the grid is one unit a cell: a reach of sixteen over thirty-two
+        /// cells, as long as no sprite is wider than eight. The centre sits at the origin, so a sprite's world
+        /// position is its offset on the grid.
         struct Column
         {
             std::vector<Shaders::GpuSprite> mSprites;
@@ -1019,24 +994,20 @@ namespace Rtx
 
         const osg::Vec3f sEast(1.0f, 0.0f, 0.0f);
 
-        /// Everything below drives the one implementation there is, on the device it runs on.
-        ///
-        /// **There is no host reference to check against, and that is deliberate.** A second
-        /// implementation of one computation is two things to keep in step; what stands in its place
-        /// is that every figure below is worked out by hand from what `spriteshade.h` says a layer
-        /// count is.
+        /// Everything below drives the one implementation there is, on the device it runs on. There is no host
+        /// reference to check against, deliberately: a second implementation is two things to keep in step, so
+        /// every figure is worked out by hand from what `spriteshade.h` says a layer count is.
         struct RtxSpriteShadeTest : Testing::DeviceTest
         {
             Shading mShading{ getDevice() };
         };
 
-        /// A sprite behind another along the light reads that one's fade, and the one in front reads
-        /// nothing.
+        /// A sprite behind another along the light reads that one's fade, and the one in front reads nothing.
         ///
-        /// The near disc is eight in radius, and the far sprite's point sits a unit off its axis between
-        /// two cells — both well inside the disc, where the footprint is whole, so the read is exactly
-        /// the fade and not a rim's fraction of it. The near sprite is that unit lower, so from the sky
-        /// it is the far one, and the other's disc of four does not reach it six across.
+        /// The near disc is eight in radius and the far sprite's point sits a unit off its axis between two
+        /// cells, well inside the disc, so the read is exactly the fade and not a rim's fraction. The near
+        /// sprite is that unit lower, so from the sky it is the far one, and the other's disc of four does not
+        /// reach it six across.
         TEST_F(RtxSpriteShadeTest, aSpriteBehindAnotherReadsItsFade)
         {
             Column column;
@@ -1052,13 +1023,11 @@ namespace Rtx
 
         /// Layers add along the light, and the order the sprites arrive in is not the order they shade in.
         ///
-        /// Three on the axis at twelve, six and nought, fading a half, a quarter and one: the last reads
-        /// three quarters, the middle a half, the first nothing — from either end of the array.
-        ///
-        /// **And along a run longer than the workgroup**, whose walk is staged a workgroup at a time:
-        /// 1,100 sprites on the axis, four in radius and fading 1/1024 each, so every disc covers the
-        /// four cells read at the axis whole and the sprite with `k` nearer the sun reads `k / 1024`
-        /// exactly — the 1,024th, the first of the second stretch, a whole layer.
+        /// Three on the axis at twelve, six and nought, fading a half, a quarter and one: the last reads three
+        /// quarters, the middle a half, the first nothing, from either end of the array. Along a run longer than
+        /// the workgroup, whose walk is staged a workgroup at a time: 1,100 sprites on the axis, radius four,
+        /// fading 1/1024 each, so the sprite with `k` nearer the sun reads exactly `k / 1024`, the 1,024th (the
+        /// first of the second stretch) a whole layer.
         TEST_F(RtxSpriteShadeTest, layersAddUpAlongTheLightWhateverTheOrder)
         {
             const auto build = [this](bool reversed) {
@@ -1111,9 +1080,9 @@ namespace Rtx
 
         /// A disc too small to reach a cell's centre counts its own area on the cell it is in.
         ///
-        /// A radius of a quarter cell is an area of `pi / 16 = 0.19635`. Both sprites sit on a cell's
-        /// centre — half a unit off the axis, since the grid's cells are centred on whole numbers from
-        /// the reach's edge — so the point lands where the far sprite reads, whole.
+        /// A radius of a quarter cell is an area of `pi / 16 = 0.19635`. Both sprites sit on a cell's centre
+        /// (half a unit off the axis, the cells being centred on whole numbers from the reach's edge), so the
+        /// point lands where the far sprite reads, whole.
         TEST_F(RtxSpriteShadeTest, aTinyDiscCountsItsArea)
         {
             Column column;
@@ -1127,9 +1096,9 @@ namespace Rtx
 
         /// The sky is straight up, whatever the sun does.
         ///
-        /// One sprite six units over another and one unit further from a low sun: the lower reads the
-        /// upper's fade from the sky and nothing from the sun, and the upper reads nothing from either —
-        /// the lower's disc is four in radius and the upper's path to the sun passes six above it.
+        /// One sprite six units over another and one unit further from a low sun: the lower reads the upper's
+        /// fade from the sky and nothing from the sun, and the upper reads nothing from either, the lower's
+        /// disc being four in radius and the upper's path to the sun passing six above it.
         TEST_F(RtxSpriteShadeTest, theSkyIsStraightUp)
         {
             Column column;
@@ -1170,18 +1139,14 @@ namespace Rtx
             EXPECT_FLOAT_EQ(lone.mSprites[0].mSkyLayers, 0.0f);
         }
 
-        /// Every cell of a disc holds the coverage the analysis gives it.
+        /// Every cell of a disc holds the coverage the analysis gives it. The tests above read a point deep
+        /// inside a disc, where the whole footprint and its rim agree; this reads the rim, where
+        /// `clamp(radius - distance + 0.5, 0, 1)` stops being one and starts being a fraction.
         ///
-        /// **The cross-check the coverage rule needs.** Every test above reads a point deep inside a
-        /// disc, where the whole footprint and its rim give the same answer. This reads the rim, which
-        /// is where `clamp(radius - distance + 0.5, 0, 1)` stops being one and starts being a fraction.
-        ///
-        /// **A probe of no alpha reads and lays nothing**, so one disc's footprint is what the whole
-        /// grid holds however many points are put into it. The disc is further along the light than any
-        /// of them, so it is laid before all of them.
-        ///
-        /// Half a unit off each axis is a cell's centre, where the read is that cell and not a blend of
-        /// four — `aTinyDiscCountsItsArea` says why. A disc of six at a half of alpha is then
+        /// A probe of no alpha reads and lays nothing, so one disc's footprint is what the grid holds however
+        /// many points are put into it; the disc is further along the light than any of them, so it is laid
+        /// before all of them. Half a unit off each axis is a cell's centre, where the read is that cell and not
+        /// a blend of four (`aTinyDiscCountsItsArea`). A disc of six at a half of alpha is then
         /// `0.5 * clamp(6.5 - distance, 0, 1)` at a point `distance` cells away.
         TEST_F(RtxSpriteShadeTest, everyCellOfADiscHoldsTheCoverageTheAnalysisGivesIt)
         {
@@ -1192,11 +1157,9 @@ namespace Rtx
                 float mExpected;
             };
 
-            // Along one axis, so `distance` is the offset itself: whole out to five, the rim at six, and
-            // nothing at seven.
-            //
-            // Then the diagonal, where three across and three up is `sqrt(18) = 4.2426` — still whole —
-            // and four and four is `sqrt(32) = 5.6569`, which is `0.5 * 0.8431` on the rim.
+            // Along one axis `distance` is the offset itself: whole out to five, the rim at six, nothing at seven.
+            // On the diagonal three across and three up is `sqrt(18) = 4.2426`, still whole, and four and four
+            // is `sqrt(32) = 5.6569`, which is `0.5 * 0.8431` on the rim.
             constexpr std::array<Probe, 6> sProbes{ {
                 { 0.0f, 0.0f, 0.5f },
                 { 5.0f, 0.0f, 0.5f },
@@ -1238,14 +1201,11 @@ namespace Rtx
 
         /// Two sprites at one depth shade in index order, and only one order is allowed.
         ///
-        /// **What holds the sort's answer down.** The order is made total by breaking a tie on the
-        /// index, so a sort that left equal depths in whichever order it found them would give either
-        /// answer and a frame could flicker between the two. Nothing above reaches a tie.
-        ///
-        /// Both sprites stand at one point, so both depths are equal along the sun and along the sky.
-        /// The first lays half a layer where the second then reads it, and the second lays a whole one
-        /// where nothing reads. Half a unit off each axis is a cell's centre, which is what makes the
-        /// read the cell itself — `aTinyDiscCountsItsArea` says why.
+        /// The order is made total by breaking a tie on the index, so a sort that left equal depths in whichever
+        /// order it found them would give either answer and a frame could flicker between the two; nothing above
+        /// reaches a tie. Both sprites stand at one point (half a unit off each axis, a cell's centre, as in
+        /// `aTinyDiscCountsItsArea`): the first lays half a layer where the second then reads it, and the second
+        /// lays a whole one where nothing reads.
         TEST_F(RtxSpriteShadeTest, twoSpritesAtOneDepthShadeInIndexOrder)
         {
             Column column;
@@ -1261,15 +1221,11 @@ namespace Rtx
 
         /// The sort is a network over any length, so a run that is not a power of two sorts too.
         ///
-        /// **What replaced the cap.** A bitonic network is defined on a power of two and has to be
-        /// padded to one, which needs room past the run — a cap, and something else to shade what is
-        /// past it. `sortRun` is Batcher's odd-even merge with every comparator touching a wire past
-        /// the run removed, which needs no padding and so has no length it cannot take.
-        ///
-        /// Every run from two to thirty-three, each a ladder along the light at one alpha: sprite `k`
-        /// from the light has `k` whole layers over it, which only comes out right if the whole run
-        /// came out in order. Half a unit off each axis is a cell's centre, and a radius of six
-        /// covers the ladder's own point whole.
+        /// `sortRun` is Batcher's odd-even merge with every comparator touching a wire past the run removed,
+        /// which needs no padding and so has no length it cannot take, where a bitonic network pads to a power
+        /// of two and needs a cap. Every run from two to thirty-three, each a ladder along the light at one
+        /// alpha: sprite `k` from the light has `k` whole layers over it, which comes out right only if the
+        /// whole run came out in order. A radius of six covers the ladder's own point whole.
         TEST_F(RtxSpriteShadeTest, aRunOfAnyLengthComesOutInDepthOrder)
         {
             for (std::uint32_t count = 2; count <= 33; ++count)
@@ -1290,12 +1246,10 @@ namespace Rtx
 
         /// Several emitters in one table are shaded apart, and each reads only its own run.
         ///
-        /// **The two lights of one emitter and the runs of two emitters all write the order buffer at
-        /// once**, so this is what says none of them writes another's word: light `l`'s keys sit at
-        /// `l * count`, and an emitter's own run inside that.
-        ///
-        /// Three emitters, each a pair on its own axis a long way from the others, and each pair the
-        /// same figures as `aSpriteBehindAnotherReadsItsFade`.
+        /// The two lights of one emitter and the runs of two emitters all write the order buffer at once; this
+        /// says none writes another's word: light `l`'s keys sit at `l * count`, and an emitter's own run
+        /// inside that. Three emitters, each a pair on its own axis, with the figures of
+        /// `aSpriteBehindAnotherReadsItsFade`.
         TEST_F(RtxSpriteShadeTest, emittersInOneTableAreShadedApart)
         {
             constexpr std::array<float, 3> sFades{ 0.75f, 0.5f, 0.25f };
@@ -1334,13 +1288,10 @@ namespace Rtx
 
         /// Recording the shading a second time goes to the heap not at all.
         ///
-        /// **This runs on every frame.** What the pass records is a barrier, a bind, a push and a
-        /// dispatch, and none of them may reach the allocator — a `std::string` for a debug label or
-        /// a vector of barriers built per call would be a per-frame allocation on the frame path.
-        ///
-        /// Recorded twice into one command buffer, and the first is what warms whatever legitimately
-        /// allocates once. Both runs are real: the second shades the same world over again, which
-        /// costs the device a dispatch and changes nothing about the answer.
+        /// This runs on every frame, and what the pass records (a barrier, a bind, a push, a dispatch) may not
+        /// reach the allocator: a `std::string` debug label or a per-call vector of barriers would be a
+        /// per-frame allocation. Recorded twice into one command buffer, the first warming whatever
+        /// legitimately allocates once; the second shades the same world again, which changes no answer.
         TEST_F(RtxSpriteShadeAllocationTest, recordingTheShadingAgainDoesNotTouchTheHeap)
         {
             constexpr VkBufferUsageFlags usage

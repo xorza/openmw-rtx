@@ -7,9 +7,8 @@
 
 namespace SceneUtil
 {
-    // How an offscreen picture is framed and lit, in the numbers the game already has. The game fills
-    // one of these in for the character preview and for a tile of the local map, and whichever
-    // renderer draws the picture reads it: two renderers, one description.
+    // How an offscreen picture is framed and lit, filled in by the game for the character preview and
+    // for a tile of the local map and read by whichever renderer draws it: two renderers, one description.
 
     /// A directional light with no position, which is all an offscreen picture is lit by.
     struct FlatLight
@@ -34,9 +33,8 @@ namespace SceneUtil
 
     /// How an offscreen picture is projected, and the near and far it is clipped at.
     ///
-    /// **One pair, which the spec a caller fills in and the trace that reads it share**: a
-    /// projection holds only the numbers its own kind means, so no field means nothing in the
-    /// other case.
+    /// **One pair, shared by the spec a caller fills in and the trace that reads it**: a projection
+    /// holds only the numbers its own kind means, so no field means nothing in the other case.
     struct Framing
     {
         std::variant<Perspective, Orthographic> mProjection;

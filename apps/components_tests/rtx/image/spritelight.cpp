@@ -27,13 +27,12 @@ namespace Rtx
         ///
         /// A row of four with alpha 128 in its middle two texels. Each of those keeps
         /// `(1 - 128/255)^(1/4) = 0.49804^0.25 = 0.84007` of what crosses it, so the texel at the edge
-        /// away from the light sees both — `0.84007^2 = 0.70572`, byte 180 — the next one in sees one,
-        /// byte 214, and the two on the light's own side see nothing in the way. `+u` is light from the
-        /// high-`x` edge and `-u` from the low, so each channel is the other's mirror. The row is one
-        /// texel high, so the two `v` channels have nothing to cross at all.
+        /// away from the light sees both, `0.84007^2 = 0.70572`, byte 180, the next one in sees one, byte 214,
+        /// and the two on the light's side see nothing in the way. `+u` is light from the high-`x` edge and `-u`
+        /// from the low, and the row is one texel high, so the two `v` channels cross nothing.
         ///
-        /// **And the same numbers stand a column up**, which is what pins which channel is which axis:
-        /// a bake that swapped `u` and `v` would put the row's shadows into the column's channels.
+        /// **The same numbers stand a column up**, which pins which channel is which axis: a bake that swapped
+        /// `u` and `v` would put the row's shadows into the column's channels.
         TEST(RtxSpriteLightBakeTest, aTexelIsShadowedByWhatLiesBetweenItAndTheEdgeTheLightIsOn)
         {
             constexpr std::array<std::uint8_t, 4> fromHigh{ 180, 214, 255, 255 };

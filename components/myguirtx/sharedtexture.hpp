@@ -14,16 +14,14 @@ namespace osg
 
 namespace MyGUIRtx
 {
-    /// A mirror of a picture the game holds as an `osg::Image`: a video frame, the world map's
-    /// base, a save's thumbnail and the frozen loading frame. This backend cannot draw an OSG
-    /// texture, so it reads the image again whenever another one is put under the texture or its
-    /// modified count moves — `refresh`, from `doRender` — and sends it whole.
+    /// A mirror of a picture the game holds as an `osg::Image`: a video frame, the world map's base, a
+    /// save's thumbnail and the frozen loading frame. This backend cannot draw an OSG texture, so it reads
+    /// the image again whenever another one is put under the texture or its modified count moves —
+    /// `refresh`, from `doRender` — and sends it whole.
     ///
-    /// **Whole, because none of these is written in part.** A video puts each frame under the
-    /// texture as another image, and the other three are written once. A picture written in part
-    /// names the rectangle it painted, and is `PaintedMirror`: a comparison against a copy of what
-    /// was sent would find that rectangle at the price of the copy, which for the frozen frame is
-    /// the whole output held for the life of the game.
+    /// **Whole, because none of these is written in part.** A picture written in part names the rectangle it
+    /// painted, and is `PaintedMirror`: finding that rectangle by comparison would cost a copy of what was
+    /// sent, which for the frozen frame is the whole output held for the life of the game.
     class SharedTexture final : public MirrorTexture
     {
     public:

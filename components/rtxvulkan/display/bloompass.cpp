@@ -158,12 +158,10 @@ namespace Rtx
             source = &level;
         }
 
-        // Back up the pyramid, each level mixed into the one above it. The coarsest has nothing
-        // coarser to take, which is why this starts one below the end. The finer level is about to
-        // be read as well as written, and what it holds is its own halving from the loop above — a
-        // write after a read after a write, all in one stage. The level the last spread wrote is
-        // handed over in the same command, so the queue drains once between two spreads and not
-        // twice.
+        // The coarsest level has nothing coarser to take, so this starts one below the end. The finer
+        // level is read as well as written after its halving above (write, read, write in one
+        // stage); the level the last spread wrote is handed over in the same barrier, so the queue
+        // drains once between two spreads.
         const Image* written = nullptr;
         for (std::size_t level = mLevels.size() - 1; level > 0; --level)
         {

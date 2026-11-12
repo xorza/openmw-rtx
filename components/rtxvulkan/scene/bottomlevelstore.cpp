@@ -34,7 +34,6 @@ namespace Rtx
         /// next one. A budget and not the lot, because a copy needs its room while the loose room is
         /// still standing, so compacting a cell in one placement would make the high-water mark the
         /// sum.
-        /// At this rate a cell is tight within a few dozen placements of arriving.
         constexpr VkDeviceSize sCompactionPerPlacement = 8 * 1024 * 1024;
 
         /// After one run of builds and before the next works in the same room: the structures for
@@ -136,11 +135,9 @@ namespace Rtx
             // two can be the same run.
             retire(slot);
 
-            // A pose or the scene's own vertices, and which one is what the mesh is. A deforming
-            // mesh is built over what `SkinPass` wrote into the first copy ahead of this, so its
-            // structure carries the pose rather than the bind; a static one over the positions a
-            // hit reads its corners from, so the structure and the hit hold the same numbers. A run
-            // never straddles a block, so the address of its first vertex covers the run.
+            // A deforming mesh is built over the pose `SkinPass` wrote into the first copy, a static one
+            // over the positions a hit reads its corners from, so structure and hit hold the same
+            // numbers. A run never straddles a block, so its first vertex's address covers it.
             const VkDeviceAddress vertices = mesh.mVertices.empty()
                 ? 0
                 : (mesh.deforms() ? poses.addressOf(mesh.mBindOffset) : positions.addressOf(mesh.mVertices.mOffset));
@@ -392,13 +389,12 @@ namespace Rtx
                 }
         }
 
-        // One reset and one write per run of consecutive slots, which is what a cell's
-        // arrivals are: the scene hands out its slots in order. Each query is reset before it is
-        // written because the slot may have been asked about before, for a structure that has
-        // since gone.
+        // One reset and one write per run of consecutive slots, which is what a cell's arrivals are
+        // (the scene hands out slots in order). Each query is reset before it is written because the
+        // slot may have been asked about before, for a structure that has since gone.
         //
-        // The value the batch rides, which is the pool's next submit: a batch is flushed into
-        // it or deferred ahead of it, and nothing else takes a value in between.
+        // The value the batch rides is the pool's next submit: a batch is flushed into it or
+        // deferred ahead of it, and nothing else takes a value in between.
         const std::uint64_t rides = mDevice.getTimeline().getNext();
         std::sort(mLoose.begin(), mLoose.end());
         std::uint32_t first = 0;
@@ -467,8 +463,7 @@ namespace Rtx
                 sizeof(VkDeviceSize), VK_QUERY_RESULT_64_BIT);
 
             // Asked again next placement where the answers are simply not there yet. Anything else
-            // is a fault, and a lost device shows up here first: read as "no saving", it was a
-            // frame of tight structures and a message that came a submit later.
+            // is a fault, and a lost device shows up here first.
             if (read == VK_NOT_READY)
                 break;
 
@@ -548,11 +543,9 @@ namespace Rtx
             }
 
             // Made in a room of its own while the loose one stands, because the copy reads the
-            // loose one; the top level can be built over the tight one in this same command
-            // buffer, because its address is its own from the moment it is made. Taken before the
-            // answer is popped: a device that refuses the room leaves the answer where it was, to
-            // be asked again by a later placement, rather than a structure answered and never
-            // copied.
+            // loose one; the top level can be built over it in this same command buffer, since its
+            // address is its own from the moment it is made. Taken before the answer is popped, so
+            // a device that refuses the room leaves the answer to a later placement.
             const bool tight = shrinks(state);
             const VkDeviceSize size = tight ? state.mTightSize : state.mBuiltSize;
             const Result<StructureRoom, MemoryRefusal> room = mStorage.take(mDevice, size, budget - taken);

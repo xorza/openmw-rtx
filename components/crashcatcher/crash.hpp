@@ -5,11 +5,11 @@
 
 /// **The crash catcher**, the same on Windows and Linux, the systems the fork builds it for.
 ///
-/// A monitor process, this same executable started with `--crash-monitor`, reads a crashed or
-/// hung game from outside: Crashpad writes a minidump of every thread of a crash, the monitor
-/// writes one of a hang itself, and appends a summary of each to the game's log. Once the game is
-/// gone, the monitor zips the log and the session's dumps into one file and a dialog names it. Nothing but Crashpad's
-/// own signal-safe step runs in the crashed process. What starts it is `crashinstall.hpp`'s.
+/// A monitor process, this same executable started with `--crash-monitor`, reads a crashed or hung game from
+/// outside: Crashpad writes a minidump of every thread of a crash, the monitor writes one of a hang itself, and
+/// appends a summary of each to the game's log. Once the game is gone, the monitor zips the log and the session's
+/// dumps into one file and a dialog names it. Nothing but Crashpad's own signal-safe step runs in the crashed
+/// process. What starts it is `crashinstall.hpp`'s.
 namespace Crash
 {
     /// Once for each frame the game draws, a loading screen's included: one relaxed store.
@@ -29,14 +29,12 @@ namespace Crash
     /// the standard error and the process aborts all the same.
     [[noreturn]] void fatal(std::string_view reason);
 
-    /// A contract the code keeps, said once for every build: one compare and a cold call that never
-    /// returns, which ends the process as a crash whose report names `what`. Not a trap, which the
-    /// builds players run would report as `SIGILL` and nothing else, and not
-    /// `__builtin_unreachable`: GCC's `-Wnull-dereference` still names the path an unreachable
-    /// rules out, and a violated contract would then run on into whatever it dereferenced. A path
-    /// no contract compare guards, such as the end of a switch that names every case, calls `fatal`
-    /// itself. Never for what the world might supply: a contract is the code's, and untrusted input
-    /// is a throw.
+    /// A contract the code keeps, said once for every build: one compare and a cold call that never returns, which
+    /// ends the process as a crash whose report names `what`. Not a trap, which the builds players run would report
+    /// as `SIGILL` and nothing else, and not `__builtin_unreachable`: GCC's `-Wnull-dereference` still names the
+    /// path an unreachable rules out, and a violated contract would then run on into whatever it dereferenced. A
+    /// path no contract compare guards, such as the end of a switch that names every case, calls `fatal` itself.
+    /// Never for what the world might supply: a contract is the code's, and untrusted input is a throw.
     inline void contract(const bool held, const char* what)
     {
         if (!held)

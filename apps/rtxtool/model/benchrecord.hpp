@@ -28,25 +28,18 @@
 
 namespace RtxTool
 {
-    /// How many cell boundaries a route crossed, and what the frames that crossed them cost.
-    ///
-    /// **A count and totals rather than a distribution**, because a run of six hundred frames
-    /// crosses a couple of dozen: percentiles over that say nothing, and the number worth reading
-    /// is the worst one — that is the frame a player feels. The whole cost is in the place's
-    /// `Timing::Frame` row too, which is where it belongs: a crossing is not a separate budget, it
-    /// is the frame that dropped. The whole frame and not a split into reading and building,
-    /// because the game gives none: the ring arrives on the loading threads.
+    /// How many cell boundaries a route crossed, and what the frames that crossed them cost: a count and totals,
+    /// since a run of six hundred frames crosses a couple of dozen and percentiles over that say nothing; the worst
+    /// one is the frame a player feels. The whole cost is in the `Timing::Frame` row too, as a crossing is the frame
+    /// that dropped, and goes in whole because the game gives no split: the ring arrives on the loading threads.
     struct Crossings
     {
         std::uint32_t mCount = 0;
 
-        /// How many of those could not be appended to and cost a full build.
-        ///
-        /// **The single most useful number a route produces.** An append builds the structures the
-        /// ring brought; a rebuild builds every structure in the scene and re-describes the whole
-        /// texture table, which is append-only and has been growing since the run started. Which
-        /// one a crossing gets is decided by whether the sweep found anything to drop, so a town
-        /// appends and open country rebuilds — and the two are an order of magnitude apart.
+        /// How many of those could not be appended to and cost a full build: the most useful number a route
+        /// produces. An append builds the structures the ring brought; a rebuild builds every structure in the scene
+        /// and re-describes the append-only texture table. Whether the sweep found anything to drop decides which, so
+        /// a town appends and open country rebuilds, an order of magnitude apart.
         std::uint32_t mRebuilds = 0;
 
         double mWorstMs = 0.0;
@@ -74,11 +67,9 @@ namespace RtxTool
         double getFrameMs() const { return mSpend.at(Rtx::Timing::Frame); }
     };
 
-    /// The frames whose upload extended the scene — a cell handed over, an actor entering with a
-    /// mesh nobody wore — and what they cost beside the rest, with the worst frames of the run
-    /// whatever they carried. What says whether the tail is the arrivals': a structure built on
-    /// the frame's own queue is a cost the frame that needed it pays, and this is the reading that
-    /// says how much, before anything is moved off it.
+    /// The frames whose upload extended the scene — a cell handed over, an actor entering with a mesh nobody wore —
+    /// and what they cost beside the rest, with the worst frames of the run whatever they carried. Says whether the
+    /// tail is the arrivals': a structure built on the frame's own queue is paid by the frame that needed it.
     struct Arrivals
     {
         /// Frames whose upload extended or rebuilt the scene, and the meshes they brought.
@@ -198,11 +189,8 @@ namespace RtxTool
 
         Rtx::SceneStats mScene;
 
-        /// What the device gave up for that scene, per heap.
-        ///
-        /// **A place and not a run**, because a route arrives at cells the last one did not: what
-        /// the allocators reserve is a high-water mark, so the figure belongs to the place the run
-        /// had reached when it was taken.
+        /// What the device gave up for that scene, per heap. A place and not a run: allocators reserve a
+        /// high-water mark, and a route arrives at cells the last one did not.
         Rtx::MemoryReport mMemory;
 
         /// What the content held on the host at the same moment, for the same reason.
@@ -238,9 +226,8 @@ namespace RtxTool
         /// The step every frame stood for, or nothing for the wall — `SessionRequest::mStep`.
         std::optional<float> mStep{};
 
-        /// Everything the renderer was made with, as the command stated it: the profile — the hold,
-        /// the filter, the jitter, the gamma, what is shown, the exposure and the
-        /// variants — the mirror's reach, the step, whether the walks settle, and the budget.
+        /// Everything the renderer was made with, as the command stated it: the profile, the mirror's reach, the
+        /// step, whether the walks settle, and the budget.
         MWRender::RunSetup mSetup{};
 
         Rtx::FrameExtents mExtents{};
@@ -257,11 +244,10 @@ namespace RtxTool
         /// Whether the layers were running, which is what says a figure is not one to quote.
         bool mValidating = false;
 
-        /// How much of the process's anonymous memory stood on huge pages once the first place had
-        /// loaded (`Platform::Process::hugePageShare`), or nothing where the system does not say. On
-        /// small ones the host's rows move as a whole from one run to the next
-        /// (`Platform::Process::restartOnHugePages`), so two records that differ here are not one
-        /// run twice.
+        /// How much of the process's anonymous memory stood on huge pages once the first place had loaded
+        /// (`Platform::Process::hugePageShare`), or nothing where the system does not say. On small pages the host's
+        /// rows move as a whole run to run (`Platform::Process::restartOnHugePages`), so two records that differ
+        /// here are not one run twice.
         std::optional<float> mHugePageShare{};
     };
 

@@ -12,44 +12,41 @@
 
 // How many layers of its own emitter stand between each sprite and a light, counted each frame.
 //
-// **A column of smoke has a sunlit side and a shaded side, and nothing per sprite can give it
-// one.** The bake shadows a puff by its own texture and the wrap gives it a side, but the eye
-// composites twenty of them over a pixel and their coverage-weighted mean washes what each did into
-// one flat colour. What a column needs is shadow *between* sprites: what the ones nearer the sun
-// leave of it for the ones behind. That is a question about the emitter's sprites and the light
-// alone, so it is answered once per frame and the trace reads one number per sprite per light.
+// **A column of smoke has a sunlit side and a shaded side, and nothing per sprite can give it one.** The
+// bake shadows a puff by its own texture and the wrap gives it a side, but the eye composites twenty of them
+// over a pixel and their coverage-weighted mean washes what each did into one flat colour. What a column
+// needs is shadow *between* sprites, a question about the emitter's sprites and the light alone, so it is
+// answered once per frame and the trace reads one number per sprite per light.
 //
-// **Counted in layers and not in transmittance, because this does not hold the texture.** A sprite
-// that stands in the light's path to another counts for its own fade — one layer for a whole puff,
-// a fraction for a wisp — and the trace thins the light by what one layer of that texture hides on
-// average, which is the texture's coarsest level. `(1 - mean) ^ layers` is exact where every layer
-// is whole, and for a faded one it is the approximation the bake already takes.
+// **Counted in layers and not in transmittance, because this does not hold the texture.** A sprite that
+// stands in the light's path to another counts for its own fade (one layer for a whole puff, a fraction for a
+// wisp) and the trace thins the light by what one layer of that texture hides on average, which is the
+// texture's coarsest level. `(1 - mean) ^ layers` is exact where every layer is whole, and for a faded one it
+// is the approximation the bake already takes.
 //
-// **A grid across the light and not every pair**, so that a storm's thousands cost per sprite what
-// a candle's dozen do. Sprites are walked from the light outward; each reads what has been laid
-// down at its own point and then lays its own disc down on top. The grid is the emitter's reach,
-// square, and a disc lands on it as an antialiased footprint: whole inside, a one-cell ramp at the
-// rim — which keeps the disc's area to first order — and its area as a point where it is too small
-// to reach a cell's centre.
+// **A grid across the light and not every pair**, so that a storm's thousands cost per sprite what a
+// candle's dozen do. Sprites are walked from the light outward; each reads what has been laid down at its
+// own point and then lays its own disc down on top. The grid is the emitter's reach, square, and a disc lands
+// on it as an antialiased footprint: whole inside, a one-cell ramp at the rim (which keeps the disc's area to
+// first order), and its area as a point where it is too small to reach a cell's centre.
 //
-// Only what covers and faces the eye is shaded. A flame emits and shadows nothing of its own kind,
-// and a rain streak is a thin thing seen by what passes through it.
+// Only what covers and faces the eye is shaded. A flame emits and shadows nothing of its own kind, and a rain
+// streak is a thin thing seen by what passes through it.
 //
-// **On the device and not the host, and Vivec is why.** The same arithmetic in a loop on the
-// processor is a fifth of a crowded view's CPU frame — the one place in the corpus where the
-// processor, not the card, decides how long a frame takes. There is no host copy kept beside this
-// as a reference: two implementations of one computation are two things to keep in step, and
-// what a layer count is belongs in one place.
+// **On the device and not the host, and Vivec is why.** The same arithmetic in a loop on the processor is a
+// fifth of a crowded view's CPU frame, the one place in the corpus where the processor and not the card
+// decides how long a frame takes. No host copy is kept beside this as a reference: two implementations of one
+// computation are two things to keep in step.
 //
-// **One workgroup per emitter per light, and one lane per cell of the grid.** A sprite reads what
-// the sprites nearer the light have laid down, then every lane adds its own cell's coverage of that
-// sprite's disc — so the sequence over sprites is serial, which is what the answer depends on, and
-// the parallelism is across the grid, which is where it changes nothing. `spriteshade.comp` holds
-// the grid's own size and everything else only it reads.
+// **One workgroup per emitter per light, and one lane per cell of the grid.** A sprite reads what the
+// sprites nearer the light have laid down, then every lane adds its own cell's coverage of that sprite's
+// disc, so the sequence over sprites is serial, which is what the answer depends on, and the parallelism is
+// across the grid, where it changes nothing. `spriteshade.comp` holds the grid's own size and everything else
+// only it reads.
 //
-// **The depth order is sorted into a buffer and not into shared memory**, which is what lets a run
-// be any length. Shared memory caps it, a cap needs something to shade what is past the cap, and
-// that something is the second implementation this has none of.
+// **The depth order is sorted into a buffer and not into shared memory**, which is what lets a run be any
+// length: shared memory caps it, and a cap needs something to shade what is past it, a second implementation
+// this has none of.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders

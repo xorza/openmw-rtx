@@ -74,18 +74,9 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// The same controller as an update callback, which is how `NifOsg` hangs everything the
-        /// content did not mark auto-play.
-        ///
-        /// `StateSetUpdater::applyUpdate` alternates the node's own state set between two copies of
-        /// itself, one per traversal parity, so a mirror keying a material on that address adds one
-        /// and sweeps one every frame for a surface that has not moved — and every placement
-        /// standing on it has to be repointed each time.
-        /// Morrowind scrolls lava, waterfalls and banners by moving a texture matrix rather than
-        /// geometry, and the description records the two numbers that matrix was built from. The
-        /// sampler takes `uv * xy + zw`, so the scale-about-the-middle has to be resolved on the way
-        /// through — a surface scaled by two with no offset samples `uv * 2 - 0.5`, which is the
-        /// middle of the texture staying put while its edges move outward.
+        /// Morrowind scrolls lava, waterfalls and banners by moving a texture matrix rather than geometry. The
+        /// sampler takes `uv * xy + zw`, so the scale-about-the-middle is resolved on the way through: a surface
+        /// scaled by two with no offset samples `uv * 2 - 0.5`, the middle of the texture staying put.
         TEST_F(RtxSceneExtractorTest, aScrollingSurfaceCarriesItsUvTransformResolvedForTheSampler)
         {
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
@@ -127,6 +118,9 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.materials().getRows()[0].mTextureTransform, osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f));
         }
 
+        /// The same controller as an update callback, which is how `NifOsg` hangs everything not marked
+        /// auto-play. `StateSetUpdater::applyUpdate` alternates the node's state set between two copies, one per
+        /// traversal parity, so a mirror keying a material on that address would add one and sweep one every frame.
         TEST_F(RtxSceneExtractorTest, aMaterialKeepsItsSlotWhileTheNodesOwnStateSetAlternates)
         {
             osg::ref_ptr<ColourController> controller = new ColourController;
@@ -159,13 +153,9 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.materials().getRows().size(), 1u);
         }
 
-        /// **A sweep that freed a material costs the alternating node nothing the frame after.** The
-        /// controlled node of the test above, under a state set of its parent's, beside a plain quad
-        /// the game then takes away: the sweep
-        /// of the frame it went frees its material, and the next frame's walk of the node, whose own
-        /// state set turned over again, goes to the heap for nothing. The node's two copies were two
-        /// keys beneath the mirror's own, no material read, and the sweep erased whichever the walk
-        /// had not met, to be made again the next frame.
+        /// **A sweep that freed a material costs the alternating node nothing the frame after.** The node's two
+        /// state-set copies were two keys beneath the mirror's own, and the sweep erased whichever the walk had not
+        /// met, to be made again the next frame; here beside a plain quad the game then takes away.
         TEST_F(RtxSceneExtractorTest, aSweepThatFreedAMaterialCostsTheAlternatingNodeNothing)
         {
             osg::ref_ptr<ColourController> controller = new ColourController;
@@ -278,9 +268,8 @@ namespace Rtx::Testing
 
         /// A drawable that describes nothing inherits what the state sets above it say.
         ///
-        /// **Folded down the chain, which is how OpenGL resolves it.** A NIF property on a node
-        /// applies to every shape below it until another replaces it, and a drawable carrying a
-        /// state set for some unrelated reason — a uniform and nothing else, which is common — does
+        /// **Folded down the chain, which is how OpenGL resolves it.** A NIF property applies to every shape below
+        /// until another replaces it, and a drawable carrying a state set for an unrelated reason (a uniform) does
         /// not lose the surface it inherits by having one.
         TEST_F(RtxSceneExtractorTest, aDrawableWithNoDescriptionInheritsTheNearestOneAbove)
         {
@@ -303,17 +292,13 @@ namespace Rtx::Testing
             EXPECT_FALSE(mScene.materials().getRows()[0].mTwoSided);
         }
 
-        /// A blend is what marks a cutout in this data, and it has to survive into the material.
+        /// A blend is what marks a cutout in this data, and it has to survive into the material: Morrowind's
+        /// foliage, grates and banners use `NiAlphaProperty` over binary-alpha textures, and hardly anything sets
+        /// an alpha test.
         ///
-        /// Morrowind's foliage, grates and banners are drawn with `NiAlphaProperty` over a texture
-        /// whose alpha is binary; hardly anything in the game sets an alpha test. Losing the blend
-        /// here loses every mask with it.
-        ///
-        /// **And the texture's alpha decides between a cut and a pane.** A mask is solid wherever
-        /// its paint is, and stays a cut however soft its fringe. A texture that never reaches
-        /// solid is no mask, so the Imperial lantern's glass, whose alpha peaks at 119, is a pane
-        /// and not a hole. A test cuts at its reference whatever the texture holds. A file nothing
-        /// here reads answers what traces it as before: a cut.
+        /// **The texture's alpha decides between a cut and a pane.** A mask stays a cut however soft its fringe; a
+        /// texture that never reaches solid is no mask (the Imperial lantern's glass peaks at 119). A test cuts at
+        /// its reference whatever the texture holds; a file nothing here reads is a cut.
         TEST_F(RtxSceneExtractorTest, aBlendIsACutWhereItsTextureIsAMaskAndAPaneWhereItNeverCloses)
         {
             const auto imageOf = [](std::array<std::uint8_t, 4> alphas) {
@@ -386,12 +371,10 @@ namespace Rtx::Testing
             EXPECT_FALSE(model.mParts[0].mMaterial.mDiffuseFacts->mMean.has_value()) << "a pane asks no mean";
         }
 
-        /// **A pane's dark map counts where its alpha falls below solid, and only there.** Glass
-        /// whose dark map is opaque wears a dark map the trace's see-through hits read no alpha of;
-        /// one whose dark map holds a texel under solid has its coverage multiplied by it, and the
-        /// scene that places it compiles that read in (`Traversed::mDarkAlpha`), apart from the maps'
-        /// code (`Traversed::mMapped`), which a pane wears none of. An opaque surface's
-        /// dark map is never walked. The ring's reader hands the same fact over with its reading.
+        /// **A pane's dark map counts where its alpha falls below solid, and only there.** An opaque dark map is
+        /// read no alpha of; one holding a texel under solid multiplies the coverage, and the scene compiles that
+        /// read in (`Traversed::mDarkAlpha`), apart from the maps' code (`Traversed::mMapped`). An opaque surface's
+        /// dark map is never walked. The ring's reader hands the same fact over.
         TEST_F(RtxSceneExtractorTest, aPanesDarkMapCountsWhereItsAlphaFallsBelowSolid)
         {
             const auto imageOf = [](std::string_view file, std::array<std::uint8_t, 4> alphas) {
@@ -507,16 +490,11 @@ namespace Rtx::Testing
             EXPECT_TRUE(overRecord.mTranslucent);
         }
 
-        /// The white ambient the game gives a magic effect joins the material's glow, times the
-        /// material's own ambient colour, which is where `objects.frag` puts `ambientColor *
-        /// ambientLight`. An ambient of (0.5, 1, 0.25) under a white override adds its decode to the
-        /// glow; with no override nothing is added.
-        ///
-        /// The numbers: `decodeColour` undoes the sRGB curve, so 0.5 is 0.2140411, 1 is 1 and
-        /// 0.25 is 0.0508761; an emission of 0.25 with a multiplier of two is 0.1017522.
-        ///
-        /// **And the row carries the ambient, decoded, either way**: what the fill is reflected by,
-        /// `Material::mAmbientColour`.
+        /// The white ambient the game gives a magic effect joins the material's glow, times the material's own
+        /// ambient colour (`objects.frag`'s `ambientColor * ambientLight`): (0.5, 1, 0.25) under a white override
+        /// adds its decode, with no override nothing. `decodeColour` gives 0.2140411, 1 and 0.0508761; an emission
+        /// of 0.25 with a multiplier of two is 0.1017522. **The row carries the decoded ambient either way**
+        /// (`Material::mAmbientColour`).
         TEST_F(RtxSceneExtractorTest, theAmbientTheGameOverridesJoinsTheGlowByTheMaterialsAmbient)
         {
             const auto extractOne = [](bool overridden) {
@@ -606,11 +584,9 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.textures().getRows().size(), 4u);
         }
 
-        /// **A model's own image is traced under its stamp, and an image with no name is refused.**
-        /// The NIF loader stamps an image a model carries inside it with the model and the record
-        /// (`SceneUtil::EmbeddedImage`), so two images of one record share one slot, as two of one
-        /// file do. An image with neither a file nor a stamp has nothing a table finds it by: its
-        /// surface is traced untextured, and the log says so once.
+        /// **A model's own image is traced under its stamp, and an image with no name is refused.** The NIF loader
+        /// stamps an embedded image with the model and record (`SceneUtil::EmbeddedImage`), so two images of one
+        /// record share a slot. One with neither a file nor a stamp is traced untextured, and the log says so once.
         TEST_F(RtxSceneExtractorTest, aModelsOwnImageIsTracedUnderItsStampAndANamelessOneRefused)
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;
@@ -639,14 +615,12 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.refusals().count(Refused::Texture), 1u);
         }
 
-        /// **The companion maps reach the material, the specular map as its channels show it.** A normal
-        /// map with height and one without are one map. A `_spec` map of grey texels is classic, and it
-        /// and its diffuse are bound as the converted pair, each slot named for both files; one whose
-        /// channels differ, `(0, 200, 255)`, is metal-roughness, read as data beside an authored base
-        /// colour, a colour read as it stands; with no specular map at all the diffuse is painted.
-        /// **A normal map bound with its height is parallax**, and not on a cutout, whose hole the traversal finds with
-        /// no eye to shift by; its relief spans the lowest and the highest alpha its texels hold, here 30 and 200 of
-        /// the four 30, 90, 200 and 120.
+        /// **The companion maps reach the material, the specular map as its channels show it.** A normal map with
+        /// height and one without are one map. A `_spec` of grey texels is classic, bound with its diffuse as the
+        /// converted pair, each slot named for both files; channels that differ, `(0, 200, 255)`, are
+        /// metal-roughness, read as data beside an authored base colour; with no specular map the diffuse is painted.
+        /// **A normal map bound with its height is parallax**, not on a cutout, whose hole the traversal finds with
+        /// no eye to shift by; its relief spans the lowest and highest alpha its texels hold, here 30 and 200.
         TEST_F(RtxSceneExtractorTest, theCompanionMapsReachTheMaterialAsDataAndTheSpecularMapOnlyInItsLayout)
         {
             const auto extractOne = [](std::optional<std::array<unsigned char, 4>> specularTexel,
@@ -835,14 +809,10 @@ namespace Rtx::Testing
             return state;
         }
 
-        /// An animated material keeps every texture it has worn, so a controller that cycles
-        /// thirty-two caustic sheets at sixteen a second — `SceneUtil::GlowUpdater` — takes no slot
-        /// and gives none back on any frame after the first it showed each on. The material's death
-        /// lets them all go.
-        ///
-        /// **The sheet cycles beside a diffuse that stays**, which is the shape the game's glow has:
-        /// a ring sized for the cycle alone holds the diffuse in it too, and from the second cycle
-        /// on every sheet change drops the sheet due next and takes it up again.
+        /// An animated material keeps every texture it has worn, so a controller cycling thirty-two caustic sheets
+        /// (`SceneUtil::GlowUpdater`) takes no slot and gives none back after the first cycle; the material's death
+        /// lets them all go. **The sheets cycle beside a diffuse that stays**, the game's glow shape: a ring sized
+        /// for the cycle alone would drop and retake the sheet due next from the second cycle on.
         TEST_F(RtxSceneExtractorTest, anAnimatedMaterialKeepsEveryTextureItHasWorn)
         {
             osg::ref_ptr<FlipController> controller = makeFlip();
@@ -909,12 +879,9 @@ namespace Rtx::Testing
             }
         };
 
-        /// A fade that arrives after a glow finds its own defaults, both apply, and nothing the fade
-        /// set stays once it goes.
-        ///
-        /// **What an actor casting and then going invisible does**: the glow rides the root's update
-        /// chain and the fade its cull chain. A state set set up by the glow alone had no
-        /// `actorFade`, and the fade dereferenced it on the next walk.
+        /// A fade that arrives after a glow finds its own defaults, both apply, and nothing the fade set stays
+        /// once it goes. **What an actor casting and then going invisible does**: the glow rides the root's update
+        /// chain and the fade its cull chain, so the fade must not assume the glow's state set has an `actorFade`.
         TEST_F(RtxSceneExtractorTest, aFadeAfterAGlowFindsItsOwnDefaultsAndLeavesNothingWhenItGoes)
         {
             osg::ref_ptr<FlipController> glow = makeFlip();
@@ -950,12 +917,10 @@ namespace Rtx::Testing
             EXPECT_EQ(frame(4), 1.0f) << "a fade that went, still applied";
         }
 
-        /// **A spell's glow ends when the game says, and a glow given a new colour wears it.** Open
-        /// and Lock put `SceneUtil::addEnchantedGlow` on a door for a second; an enchantment's glow
-        /// is recoloured by the next spell. Both change the glow's defaults by
-        /// `StateSetUpdater::reset`, which the node's own update consumes before the walk applies
-        /// the same updater to its own copy, so the copy hears it by the updater's generation. A
-        /// copy that never heard it kept the last sheet for as long as the door stood.
+        /// **A spell's glow ends when the game says, and a glow given a new colour wears it.** Open and Lock put
+        /// `SceneUtil::addEnchantedGlow` on a door for a second; the next spell recolours an enchantment's. Both
+        /// change the defaults by `StateSetUpdater::reset`, which the node's update consumes before the walk applies
+        /// the updater to its own copy, so the copy hears it by the updater's generation.
         TEST_F(RtxSceneExtractorTest, aSpellCastGlowEndsWhenTheGameSaysAndARecolouredGlowWearsItsColour)
         {
             const VFS::Manager vfs;
@@ -1038,13 +1003,11 @@ namespace Rtx::Testing
             }
         }
 
-        /// A glow the game puts on an instance's root is read into the shape under it, and the
-        /// shape's state set is the one every instance of the model shares. So a shape under an
-        /// animated state set is animated too and keyed on its own node: the enchanted sword's
-        /// sheet cycles, and the plain sword of the same model beside it wears none.
+        /// A glow the game puts on an instance's root is read into the shape under it, whose state set every
+        /// instance of the model shares, so a shape under an animated state set is animated and keyed on its own
+        /// node: the enchanted sword's sheet cycles, the plain sword beside it wears none.
         ///
-        /// **Both places a walk meets a state set**, because the chain is what carries the answer
-        /// and a drawable's own link is the last one on it.
+        /// **Both places a walk meets a state set**: the chain carries the answer, and a drawable's link is last.
         TEST_F(RtxSceneExtractorTest, aGlowAboveAShapeAnimatesItAndLeavesTheSameShapeElsewhereAlone)
         {
             for (const bool onDrawable : { false, true })
@@ -1147,12 +1110,10 @@ namespace Rtx::Testing
             }
         }
 
-        /// **Two glows over one shared shape each show their own sheet.** `SceneUtil::CopyOp` shares
-        /// a drawable between the clones of a model, and a template node stands under every
-        /// reference walked from it: here one shape stands under two enchanted roots whose glows
-        /// show sheets sixteen apart. The copy a controller writes is the placement's, so each
-        /// placement wears its own root's sheet on every frame; one copy for the shape showed the
-        /// sheet of whichever root the walk applied last, at both.
+        /// **Two glows over one shared shape each show their own sheet.** `SceneUtil::CopyOp` shares a drawable
+        /// between a model's clones, and a template node stands under every reference walked from it. The copy a
+        /// controller writes is the placement's, so each wears its own root's sheet; one copy per shape would show
+        /// whichever root the walk applied last.
         TEST_F(RtxSceneExtractorTest, twoGlowsOverOneSharedShapeEachShowTheirOwnSheet)
         {
             for (const bool onDrawable : { false, true })
@@ -1205,16 +1166,12 @@ namespace Rtx::Testing
 
         /// An actor's fade rides its placement, and a model's own alpha does not ride it twice.
         ///
-        /// **`alpha` has two writers and they mean different things.** `MWRender::TransparencyUpdater`
-        /// writes it beside `actorFade` on a state set above the whole actor, which is where the
-        /// distance fade, Invisibility and Chameleon all arrive. `NifOsg::AlphaController` writes it
-        /// alone, and that one is the surface's own opacity — read into the material, and not into
-        /// the placement as well, so a walk that took every `alpha` it met would not fade an
-        /// animated surface twice. The pair is what tells the two apart.
+        /// **`alpha` has two writers.** `MWRender::TransparencyUpdater` writes it beside `actorFade` above the whole
+        /// actor (distance fade, Invisibility, Chameleon); `NifOsg::AlphaController` writes it alone, the surface's
+        /// own opacity, read into the material and not the placement. The pair tells them apart.
         ///
-        /// **On the placement and never on the material**, which is the half that cannot be got
-        /// wrong: OpenMW's clone keeps state sets by reference, so every actor built from one body
-        /// part reads one material, and a fade written there would fade all of them.
+        /// **On the placement and never on the material**: OpenMW's clone keeps state sets by reference, so every
+        /// actor built from one body part reads one material, and a fade there would fade all of them.
         TEST_F(RtxSceneExtractorTest, anActorsFadeRidesItsPlacementAndAModelsOwnAlphaDoesNot)
         {
             const auto extractOne = [](float alpha, std::optional<float> actorFade, float opacity) {
@@ -1265,12 +1222,10 @@ namespace Rtx::Testing
                 << "a model animating its own alpha, counted once and in the material";
         }
 
-        /// A placement keeps its slot while its fade changes, which is the only way a fade arrives.
-        ///
-        /// An actor fades over the last tenth of `actors processing range`, which is tens of frames
-        /// of one placement standing in one slot — and a slot is what a hit reads back, so it cannot
-        /// be replaced to carry a new number. A record built from the faded slot is translucent, and
-        /// that is what forces the candidate loop traversal would otherwise skip.
+        /// A placement keeps its slot while its fade changes, which is the only way a fade arrives. An actor fades
+        /// over the last tenth of `actors processing range`, tens of frames in one slot, and a slot is what a hit
+        /// reads back, so it cannot be replaced. A record built from the faded slot is translucent, which forces the
+        /// candidate loop traversal would otherwise skip.
         TEST_F(RtxSceneExtractorTest, aPlacementKeepsItsSlotWhileItsFadeChanges)
         {
             osg::ref_ptr<osg::Group> parent = new osg::Group;
@@ -1307,13 +1262,11 @@ namespace Rtx::Testing
                 << "a fade on the spot carried a motion";
         }
 
-        /// The emissive multiplier is folded into the colour, because their product is all the
-        /// game's own shader ever uses — and it is folded in *past* the decode, because a
-        /// multiplier is a gain on the light and not a colour of its own.
+        /// The emissive multiplier is folded into the colour, because their product is all the game's shader
+        /// uses, and *past* the decode, because a multiplier is a gain on the light and not a colour.
         ///
-        /// The content states `(0.5, 0.25, 0)` in the space it was authored in, and the sRGB curve
-        /// takes that to `(0.2140411, 0.0508761, 0)`. Within a millionth, because the curve is a
-        /// `pow` and the numbers here are decimals.
+        /// The content states `(0.5, 0.25, 0)` as authored; the sRGB curve takes it to `(0.2140411, 0.0508761, 0)`,
+        /// within a millionth because the curve is a `pow`.
         TEST_F(RtxSceneExtractorTest, anEmissiveMultiplierIsFoldedIntoTheColourItScales)
         {
             const auto extractOne = [](float multiplier) {
@@ -1347,13 +1300,10 @@ namespace Rtx::Testing
             expectScaled(1.0f);
         }
 
-        /// A glowing surface earns no lamp, and a `LightSource` beside it is what does the lighting.
-        ///
-        /// **Morrowind lights what it means to light with a `LIGH` record**, and a glow is a texture.
-        /// `EMISSIVE_INTENSITY` says what a glow is worth and why it is worth no lamp.
-        ///
-        /// The record's own lamp is still there and still derives its two sizes from the radius the
-        /// record states: a flame a sixteenth of it, and the fitting around that flame a quarter.
+        /// A glowing surface earns no lamp; a `LightSource` beside it does the lighting. **Morrowind lights what it
+        /// means to light with a `LIGH` record**: a glow is a texture (`EMISSIVE_INTENSITY` says what it is worth
+        /// and why no lamp). The record's lamp still derives its two sizes from the stated radius: a flame a
+        /// sixteenth of it, the fitting around that flame a quarter.
         TEST_F(RtxSceneExtractorTest, aGlowingSurfaceEarnsNoLampAndARecordDoesTheLighting)
         {
             const auto lampsOf = [](bool torch) {
@@ -1383,12 +1333,9 @@ namespace Rtx::Testing
             EXPECT_EQ(lit.front().mClearance, 0.0f) << "and nothing around it kept clear";
         }
 
-        /// Two-sidedness is the `GL_CULL_FACE` mode the content turned off, and one face otherwise.
-        ///
-        /// **Off and never on.** OpenGL culls nothing unless told to and the scene root turns
-        /// culling on globally, so a state set that says nothing shows one face — which is right
-        /// for everything under that root — and only a `NiStencilProperty` drawing both faces, or a
-        /// material file's flag, turns it off again.
+        /// Two-sidedness is the `GL_CULL_FACE` mode the content turned off, and one face otherwise. **Off and never
+        /// on.** The scene root turns culling on globally, so a state set that says nothing shows one face; only a
+        /// `NiStencilProperty` drawing both faces, or a material file's flag, turns it off.
         TEST_F(RtxSceneExtractorTest, aSurfaceIsTwoSidedWhenTheContentSaidSo)
         {
             const auto extractOne = [](bool twoSided) {
@@ -1410,12 +1357,9 @@ namespace Rtx::Testing
             EXPECT_FALSE(extractOne(false));
         }
 
-        /// A card the content doubled for its back reaches the scene as one copy, marked a sheet.
-        ///
-        /// Eight vertices and four triangles, because that is how a leaf is spelled in the files:
-        /// the back has vertices of its own, so the pair is found by position and not by index.
-        /// `ShapeFold` says why the copy goes; this says the extractor asks it and keeps its answer
-        /// on the mesh.
+        /// A card the content doubled for its back reaches the scene as one copy, marked a sheet. Eight vertices
+        /// and four triangles, as a leaf is spelled in the files: the back has vertices of its own, so the pair is
+        /// found by position, not index. `ShapeFold` says why the copy goes; this says the extractor asks it.
         TEST_F(RtxSceneExtractorTest, aCardDoubledForItsBackIsFoldedToOneCopyAndMarkedASheet)
         {
             osg::ref_ptr<osg::Geometry> card = new osg::Geometry;
@@ -1470,11 +1414,9 @@ namespace Rtx::Testing
             root->addChild(quadWith(sWater));
             root->addChild(quadWith(sOther));
 
-            // **A drawable that never set a mask, which is nearly every one in the game.** OSG
-            // defaults a node mask to all ones, so a test that asks whether the water's bit is
-            // *among* a drawable's bits says yes to all of them — and the whole world came out
-            // shaded as sea, refracting like jelly. What names the water is that no other pass may
-            // see it.
+            // **A drawable that never set a mask, which is nearly every one.** OSG defaults a node mask to all ones,
+            // so asking whether the water's bit is *among* a drawable's bits says yes to all of them; what names the
+            // water is that no other pass may see it.
             root->addChild(quadWith(~osg::Node::NodeMask{ 0 }));
 
             // Nothing said, so nothing is water — which is the harness, and every caller that places
@@ -1625,12 +1567,11 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.placements().getRows()[1].mInstance.mMaterial, 1u);
         }
 
-        /// **One shared state set under two parents that name two textures is two materials**
-        /// (`ChainKeys`). NifOsg puts an `NiNode`'s own texturing on that node's state set, and
-        /// `SharedStateManager` makes equal state sets one object across files: here one quad
-        /// whose own state set turns culling off stands under two parents, each painting its own
-        /// texture. Keyed on the quad's state set alone, the first chain met decided both. And the
-        /// same chains walked again resolve to the same two materials, so nothing arrives twice.
+        /// **One shared state set under two parents that name two textures is two materials** (`ChainKeys`).
+        /// NifOsg puts a `NiNode`'s texturing on its own state set and `SharedStateManager` makes equal state sets
+        /// one object across files: one quad whose state set turns culling off under two parents, each painting its
+        /// own texture. Keyed on the quad's state set alone the first chain met would decide both; walked again,
+        /// the same two materials resolve, so nothing arrives twice.
         TEST_F(RtxSceneExtractorTest, aSharedStateSetUnderTwoParentsWearsEachParentsTexture)
         {
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
@@ -1687,14 +1628,10 @@ namespace Rtx::Testing
 
         /// A material a controller rewrites resolves its texture out of the image, not its name.
         ///
-        /// **Every frame it is met, because that is what an animated material costs.** The state set
-        /// is the same object and keeps its slot, and what is inside it is read again — so the
-        /// texture is asked for again as well. Asking by path built a `VFS::Path::Normalized` off
-        /// the heap each time, and Morrowind scrolls 432 surfaces in one Vivec cell.
-        ///
-        /// Three walks, because the entry has to survive a sweep and not only a frame: the second
-        /// walk is where a cache would answer and the third is where a sweep that took the entry
-        /// with it would show.
+        /// **Every frame it is met, because that is what an animated material costs.** Asking by path built a
+        /// `VFS::Path::Normalized` off the heap each time, and Morrowind scrolls 432 surfaces in one Vivec cell.
+        /// Three walks, because the entry has to survive a sweep: the second is where a cache answers, the third
+        /// where a sweep that took the entry would show.
         TEST_F(RtxSceneExtractorTest, anAnimatedMaterialFindsOneTextureSlotEveryFrame)
         {
             osg::ref_ptr<osg::Image> banner = new osg::Image;
@@ -1748,18 +1685,15 @@ namespace Rtx::Testing
             EXPECT_FALSE(mScene.textures().isLive(0)) << "the walk's own hold outlived the surface";
         }
 
-        /// **A texture a full table refused is not asked again until the table frees a slot.** An
-        /// animated material asks for its images every frame, and each refusal built the image's
-        /// path off the heap only to be refused again.
+        /// **A texture a full table refused is not asked again until the table frees a slot.** An animated
+        /// material asks for its images every frame, and each refusal built the image's path off the heap.
         ///
-        /// Three walks against the full table, one beside a clamped surface, then one after a slot is
-        /// freed: the second and third are where a refusal asked again would spend and count, and
-        /// the fifth is where a remembered refusal that outlived the room it lacked would leave the
-        /// surface untextured.
+        /// Three walks against the full table, one beside a clamped surface, then one after a slot is freed: the
+        /// second and third catch a refusal asked again, the fifth a remembered refusal outliving the room it lacked.
         ///
-        /// **The refusal is the wrap's and not the file's.** Slot 5 holds the banner clamped as a painted
-        /// colour, as a diffuse with no specular map is bound, which the full table answers all the same, so a clamped
-        /// surface wearing the banner image the animated one was refused under a repeat still finds it.
+        /// **The refusal is the wrap's and not the file's.** Slot 5 holds the banner clamped, as a painted colour
+        /// (a diffuse with no specular map), so a clamped surface wearing the image the animated one was refused
+        /// under a repeat still finds it.
         TEST_F(RtxSceneExtractorTest, aRefusedTextureIsAskedAgainOnlyOnceASlotIsFreed)
         {
             TextureTable& textures = mScene.textures();
@@ -1847,11 +1781,10 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.materials().getRows()[0].mDiffuse, 9u) << "the freed slot is the refused texture's";
         }
 
-        /// **A material over an image that stands names it without a string.** The image is taken by
-        /// its path, normalised into a scratch the thread keeps, where a `VFS::Path::Normalized`
-        /// apiece was a string at every material — a path past the short string's room, as every
-        /// texture's is. Measured where nothing else of an arrival reaches the heap: a material that
-        /// came and went before it left the room the third takes over.
+        /// **A material over an image that stands names it without a string.** The image is taken by its path,
+        /// normalised into a scratch the thread keeps; a `VFS::Path::Normalized` apiece was a string per material
+        /// (past the short string's room, as every texture's path is). Measured where nothing else of an arrival
+        /// reaches the heap: a material that came and went before leaves the room the third takes over.
         TEST_F(RtxSceneExtractorTest, aMaterialOverAStandingImageAllocatesNoPath)
         {
             osg::ref_ptr<osg::Image> image = new osg::Image;
@@ -1888,16 +1821,11 @@ namespace Rtx::Testing
             EXPECT_EQ(spent, 0u) << spent << " allocations for a material over a standing image";
         }
 
-        /// The surface is read from its controller every frame, and from whichever controller the
-        /// node carries now.
+        /// The surface is read from its controller every frame, and from whichever controller the node carries now.
         ///
-        /// **Which controller a node hangs off is a fact about this frame and not about the entry.**
-        /// The walk holds a state set per animated node so that the address is the same one next
-        /// frame, and it would be easy to hold the controller that wrote into it beside that — but
-        /// content is free to add or remove one, and a surface would then go on being animated by a
-        /// controller the graph no longer has.
-        ///
-        /// Three different reds, so each walk has one answer and no other.
+        /// **Which controller a node hangs off is a fact about this frame and not about the entry.** Content may add
+        /// or remove one, and holding the controller beside the held state set would keep animating a surface by one
+        /// the graph no longer has. Three different reds, so each walk has one answer and no other.
         TEST_F(RtxSceneExtractorTest, aSurfaceIsReadEachFrameAndFollowsAControllerSwappedUnderTheWalk)
         {
             osg::ref_ptr<ColourController> first = new ColourController;

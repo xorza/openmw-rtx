@@ -346,11 +346,10 @@ namespace MWScript
         std::vector<VisibilityInput>& inputs, std::vector<VisibilityNamed>& named)
     {
         named.clear();
-        // **Every way the events the script asked about could answer, and one answer from all of
-        // them or none.** A script that asks whether it was activated only to show a message
-        // stands the same whatever the answer; one that takes itself down when activated stands
-        // by a history only its cell has. A path taken under one answer can ask an event the
-        // others did not, so the ways are tried until no run asks anything new.
+        // Every way the events the script asked about could answer, and one answer from all of them or none:
+        // a script that asks whether it was activated only to show a message stands the same either way, one
+        // that takes itself down when activated stands by a history only its cell has. A path under one
+        // answer can ask an event the others did not, so ways are tried until no run asks anything new.
         constexpr unsigned ways = 1u << static_cast<unsigned>(Event::Count);
         std::uint32_t tried = 0;
         unsigned asked = 0;
@@ -377,10 +376,9 @@ namespace MWScript
                         settled = mWay == mFound;
                     }
                 }
-                // **An instruction nobody installed, or a question only an active cell answers**:
-                // the one kind of answer a run cannot give is a wrong one. Nothing else is caught:
-                // a program whose locals are not the ones it was compiled with is a broken
-                // contract, which ends the run rather than reading as an answer.
+                // An instruction nobody installed, or a question only an active cell answers: the one answer
+                // a run cannot give is a wrong one. Nothing else is caught, as a program whose locals are
+                // not the ones it was compiled with is a broken contract.
                 catch (const std::runtime_error&)
                 {
                     named.clear();

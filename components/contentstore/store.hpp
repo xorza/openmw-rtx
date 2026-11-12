@@ -23,10 +23,10 @@
 namespace ContentStore
 {
     /// What a store holds in memory: its small entries (`Store::sResidentMost`), loaded at the start's sweep, and
-    /// the kinds held at any size, a bit each, once a reader asks for them. A session's first hit stamps an
-    /// entry, so an ask that reaches memory alone finds it. **The start loads none of a kind held at any size**:
-    /// its owner reads the entries its content asks for, which a sweep that ranks files by their time alone
-    /// would take the room of with another content's.
+    /// the kinds held at any size, a bit each, once a reader asks for them. A session's first hit stamps an entry,
+    /// so an ask that reaches memory alone finds it. The start loads none of a kind held at any size: its owner
+    /// reads the entries its content asks for, where a sweep that ranks files by their time alone would take the
+    /// room of with another content's.
     struct Holding
     {
         std::uint64_t mAtAnySize = 0;
@@ -79,25 +79,22 @@ namespace ContentStore
         Disk,
     };
 
-    /// What is derived from the content, kept on disk across sessions: one file per entry under its key, in
-    /// 256 folders named by the key's first byte, as ccache and Bazel's disk cache keep theirs
-    /// (`docs/rtx/architecture.md`, "One file an entry, and every entry untrusted"). **Every file is
-    /// untrusted data**: its own trailer states its kind, its version, its key and its payload's length
-    /// and digest, and a file that does not match is a miss and is deleted. **No cap, by the user's
-    /// decision**: an entry stays until its file is refused or deleted by hand; each file's time, which
-    /// a hit sets once a session where the store holds entries in memory, ranks what the start loads.
-    /// **Nothing here fails loudly**: a directory that cannot be made or written is a store that misses.
+    /// What is derived from the content, kept on disk across sessions: one file per entry under its key, in 256
+    /// folders named by the key's first byte, as ccache and Bazel's disk cache keep theirs (`docs/rtx/architecture.md`,
+    /// "One file an entry, and every entry untrusted"). Every file is untrusted data: its own trailer states its
+    /// kind, its version, its key and its payload's length and digest, and a file that does not match is a miss and
+    /// is deleted. No cap, by the user's decision: an entry stays until its file is refused or deleted by hand; each
+    /// file's time, which a hit sets once a session where the store holds entries in memory, ranks what the start
+    /// loads. Nothing here fails loudly: a directory that cannot be made or written is a store that misses.
     ///
-    /// One for an owner's folder in a process, shared by every thread that asks it. Reads run on the
-    /// asking thread; writes, stamps, the start's sweep and the loading of the small entries into memory
-    /// run on a thread of the store's own, behind a queue bounded in bytes. Pinned: the thread reaches
-    /// every member.
+    /// One for an owner's folder in a process, shared by every thread that asks it. Reads run on the asking thread;
+    /// writes, stamps, the start's sweep and the loading of the small entries into memory run on a thread of the
+    /// store's own, behind a queue bounded in bytes. Pinned: the thread reaches every member.
     class Store
     {
     public:
         /// The most bytes of payload the queue holds, past which a write waits or is dropped (`write`). Tens of
-        /// megabytes against the largest entry an owner makes, so a burst of misses at a cell's arrival queues
-        /// whole.
+        /// megabytes against the largest entry an owner makes, so a burst of misses at a cell's arrival queues whole.
         static constexpr std::size_t sQueuedMost = std::size_t{ 64 } << 20;
 
         /// The longest payload a file may say it holds before it is refused unread: past any owner's
@@ -108,10 +105,9 @@ namespace ContentStore
         /// holds entries, but a kind held at any size (`Holding::mAtAnySize`).
         static constexpr std::size_t sResidentMost = 4096;
 
-        /// The most bytes held in memory, each entry's payload and its node in the table, past which an
-        /// entry is read from its file again: the largest content measured, the Fullrest Repack, reaches 222
-        /// MiB of shapes on the frame, and a store's small entries came to 87 MiB; twice their sum, for the
-        /// larger lists to come.
+        /// The most bytes held in memory, each entry's payload and its node in the table, past which an entry is read
+        /// from its file again: the largest content measured, the Fullrest Repack, reaches 222 MiB of shapes on the
+        /// frame and a store's small entries came to 87 MiB; twice their sum, for the larger lists to come.
         static constexpr std::size_t sResidentBytesMost = std::size_t{ 512 } << 20;
 
         /// The most keys a session remembers stamping, past which a hit stamps nothing: ten times the
@@ -139,11 +135,10 @@ namespace ContentStore
         /// one was there within `reach`. A refused file is deleted.
         bool read(const Key& key, std::uint32_t kind, std::uint32_t version, Reach reach, Misc::ByteBuffer& payload);
 
-        /// Whether an entry stands under `key` within `reach`, held in memory or as a file whose trailer
-        /// holds for its size, with its payload unread, and the session's stamp queued as a hit queues
-        /// it: what a preparation asks, which needs the entry stored and not its bytes. A file cut short
-        /// or of another's trailer is refused and deleted, as a read refuses it; one whose payload a
-        /// fault changed is found by the read's digest.
+        /// Whether an entry stands under `key` within `reach`, held in memory or as a file whose trailer holds for
+        /// its size, with its payload unread, and the session's stamp queued as a hit queues it: what a preparation
+        /// asks, which needs the entry stored and not its bytes. A file cut short or of another's trailer is refused
+        /// and deleted, as a read refuses it; one whose payload a fault changed is found by the read's digest.
         bool holds(const Key& key, Reach reach);
 
         /// Files `payload` under `key` as `kind` at `version`, on the store's thread, once the queue has
@@ -184,9 +179,9 @@ namespace ContentStore
             Misc::ByteBuffer mPayload{};
         };
 
-        /// What an entry is: its kind and version, which an ask holds against its own, and its
-        /// payload. **Shared and never changed**, so a reader takes it under the lock and copies it
-        /// after, and an entry replaced or discarded meanwhile goes when its last reader lets it go.
+        /// What an entry is: its kind and version, which an ask holds against its own, and its payload. Shared and
+        /// never changed, so a reader takes it under the lock and copies it after, and an entry replaced or discarded
+        /// meanwhile goes when its last reader lets it go.
         struct Resident
         {
             std::uint32_t mKind;

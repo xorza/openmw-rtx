@@ -53,10 +53,9 @@ namespace Rtx
                 for (int dy = -sRadius; dy <= sRadius; ++dy)
                     for (int dx = -sRadius; dx <= sRadius; ++dx)
                     {
-                        // In double and rounded once: two libraries' `exp` may part in a double's
-                        // last place, which rounds to one float but where it lies half way, and a
-                        // float `exp` gives no such margin. A kernel an ulp apart is an energy an
-                        // ulp apart, a tie broken the other way, and another tile.
+                        // In double and rounded once: two libraries' `exp` may differ in a double's last
+                        // place, which a float `exp` cannot absorb at a tie, and a kernel an ulp apart
+                        // breaks a tie the other way and yields another tile.
                         const double squared = static_cast<double>(dx * dx + dy * dy);
                         const double sigma = static_cast<double>(sSigma);
                         mKernel[static_cast<std::size_t>((dy + sRadius) * sSide + (dx + sRadius))]
@@ -132,10 +131,9 @@ namespace Rtx
             Field field;
 
             // **Fisher–Yates written out, and not `std::shuffle`**, whose algorithm is each standard
-            // library's own: two toolchains shuffled one seed into two tiles, and traced different
-            // noise. `mt19937`'s words are the standard's to the bit. The bound is a word times the
-            // count, shifted down, which is biased by at most the count in two to the thirty-two —
-            // a part in a million here — and is one answer on every machine.
+            // library's own: two toolchains shuffled one seed into two tiles. `mt19937`'s words are the
+            // standard's to the bit; the bound (a word times the count, shifted down) is biased by a
+            // part in a million and is one answer on every machine.
             std::vector<std::size_t> order(sCount);
             std::iota(order.begin(), order.end(), std::size_t{ 0 });
             std::mt19937 words(seed);
@@ -200,14 +198,12 @@ namespace Rtx
         std::vector<float> values(sCount * Shaders::RANDOM_STREAMS);
         for (std::uint32_t channel = 0; channel < Shaders::RANDOM_STREAMS; ++channel)
         {
-            // A different arrangement to start from is the whole of what makes a channel its own.
-            // The seeds are fixed, so the tile is the same on every machine and on every run — which
-            // is what lets a test name what it should contain.
+            // A different arrangement to start from is the whole of what makes a channel its own. The
+            // seeds are fixed, so the tile is the same on every machine and a test can name its content.
             const std::vector<std::uint32_t> rank = rankMatrix(0x9e3779b9u + channel * 0x85ebca6bu);
 
-            // Cell centres. The ranks are a permutation of `[0, count)`, so the values are the
-            // stratified sequence `(i + 0.5) / count` dealt out over the tile: uniform by
-            // construction, and never exactly zero or one.
+            // Cell centres: the ranks are a permutation of `[0, count)`, so the values are the stratified
+            // sequence `(i + 0.5) / count`, uniform and never exactly zero or one.
             for (std::size_t i = 0; i < sCount; ++i)
                 values[i * Shaders::RANDOM_STREAMS + channel]
                     = (static_cast<float>(rank[i]) + 0.5f) / static_cast<float>(sCount);

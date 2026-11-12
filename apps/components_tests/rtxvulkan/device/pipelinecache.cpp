@@ -36,12 +36,10 @@ namespace Rtx
         {
             /// The blob the driver would save, which every leg below is built from.
             ///
-            /// **From a cache with nothing compiled into it, rather than the suite's device's.**
-            /// Every leg reads the header and the size and nothing between them, while the suite's
-            /// device holds what the renderer compiled — a quarter of a gigabyte here, copied per
-            /// leg and four times over inside one of them. And a size the legs cannot afford to
-            /// depend on: `sMostBytes` is 256 MiB, so a live cache past that would make the leg
-            /// which grows a blob to one byte more write off the end of its own buffer.
+            /// **From a cache with nothing compiled into it, rather than the suite's device's.** Every leg reads the
+            /// header and the size and nothing between them, while the suite's device holds what the renderer
+            /// compiled, copied per leg and four times over inside one. And `sMostBytes` is 256 MiB, so a live cache
+            /// past that would make the leg that grows a blob one byte past it write off the end of its own buffer.
             std::vector<std::uint8_t> deviceBlob()
             {
                 const VkDevice device = getDevice().getHandle();
@@ -99,12 +97,12 @@ namespace Rtx
             EXPECT_FALSE(Testing::getPipelineCacheSpec().mDirectory.empty());
         }
 
-        /// A cache saved while it stands is on the disk before it goes, and a save with nothing
-        /// compiled since writes nothing, then or as it goes.
+        /// A cache saved while it stands is on the disk before it goes, and a save with nothing compiled since writes
+        /// nothing, then or as it goes.
         ///
-        /// **What a crash after the start's compile keeps** (`VulkanRenderer::awaitKernels`): the
-        /// file is there while the cache still stands. A rewrite is seen by the file's time, set
-        /// back an hour after the first save so that one in the same tick would still show.
+        /// **What a crash after the start's compile keeps** (`VulkanRenderer::awaitKernels`): the file is there while
+        /// the cache still stands. A rewrite is seen by the file's time, set back an hour after the first save so that
+        /// one in the same tick would still show.
         TEST_F(RtxPipelineCacheTest, aSavedCacheIsOnTheDiskAndASecondSaveWritesNothing)
         {
             const std::filesystem::path cacheDirectory = TestingOpenMW::outputFilePath("cache-save-test");
@@ -141,14 +139,10 @@ namespace Rtx
 
         /// The device has a cache, and what it writes is what the loader will take back.
         ///
-        /// **The check the loader applies has to accept the driver's own output**, and there is
-        /// nothing about the arithmetic that says so — the header's fields are read at hard-coded
-        /// offsets, and one of them off by four would reject every blob ever written. The symptom
-        /// would be a cache that silently never hit: no error, no warning, only a test suite slowly
-        /// getting slower again and a shader compiled once a process forever.
-        ///
-        /// So this asks the driver for the blob it would save and runs it through the same door it
-        /// would come back in.
+        /// **The check the loader applies has to accept the driver's own output**: the header's fields are read at
+        /// hard-coded offsets, and one off by four would reject every blob ever written, leaving a cache that silently
+        /// never hits. So this asks the driver for the blob it would save and runs it through the same door it would
+        /// come back in.
         TEST_F(RtxPipelineCacheTest, whatTheDriverWritesIsWhatTheLoaderTakesBack)
         {
             ASSERT_NE(getDevice().getPipelineCache(), VK_NULL_HANDLE) << "the device made a pipeline cache";
@@ -162,24 +156,18 @@ namespace Rtx
             EXPECT_TRUE(accepted.isOk()) << "this driver's own blob: " << accepted.error();
         }
 
-        /// And it refuses what another machine wrote, what a dead process left half written, and
-        /// what has grown past keeping.
+        /// And it refuses what another machine wrote, what a dead process left half written, and what has grown past
+        /// keeping.
         ///
-        /// **The negative leg, because a check that accepted everything would pass the one above.**
-        /// The first three are real files that could turn up in a cache directory: a blob from the
-        /// other card in a two-card machine, one from before a driver update, and the tail end of a
-        /// write that never finished.
+        /// **The negative leg, because a check that accepted everything would pass the one above.** The first three
+        /// are real files that could turn up in a cache directory: a blob from another card, one from before a driver
+        /// update, and the tail of a write that never finished. **The offsets are written out again on purpose**:
+        /// sharing the loader's constants would make this a tautology. They are the specification's for
+        /// `VkPipelineCacheHeaderVersionOne`: the vendor at eight, the UUID at sixteen, thirty-two bytes of header in
+        /// all.
         ///
-        /// **The offsets below are written out again on purpose.** Sharing the loader's constants
-        /// would make this a tautology — an offset wrong in both places agrees with itself and the
-        /// test goes green. These are the numbers the specification gives for
-        /// `VkPipelineCacheHeaderVersionOne`: the vendor at eight, the UUID at sixteen, and
-        /// thirty-two bytes of header in all.
-        ///
-        /// **The last one is the leg the driver has no opinion about.** A blob this driver wrote is
-        /// one it will read back however large it has grown, so that header is the device's own and
-        /// the size is the only thing left to refuse it for. What the name does not cover is a file
-        /// that is not a cache at all, and one run's own pipelines outgrowing what is worth keeping.
+        /// **The last one is the leg the driver has no opinion about.** A blob this driver wrote is read back however
+        /// large it has grown, so the size is the only thing left to refuse it for.
         TEST_F(RtxPipelineCacheTest, aBlobThisRunWillNotSeedFromIsRefused)
         {
             const std::vector<std::uint8_t> blob = deviceBlob();
@@ -223,15 +211,14 @@ namespace Rtx
             EXPECT_TRUE(PipelineCache::accepts(grown, properties).isOk()) << "exactly what is kept";
         }
 
-        /// **A file is read back only whole, and only by the device and the driver that wrote it**;
-        /// and a folder that cannot be read starts the cache empty rather than failing.
+        /// **A file is read back only whole, and only by the device and the driver that wrote it**; and a folder that
+        /// cannot be read starts the cache empty rather than failing.
         ///
-        /// A cache with nothing compiled into it is written by its own destructor, and read back.
-        /// Then copies of that file, each wrong in one way the driver's own header cannot show: a
-        /// body cut short, a body byte flipped, another driver version, and a file in the format
-        /// before this one, which opens with the driver's blob. **The offsets are written out
-        /// again**, for the reason the blob test gives: the format's magic at nought, the driver's
-        /// version at twenty, and sixty-four bytes of header in all.
+        /// A cache with nothing compiled into it is written by its own destructor and read back, then copies of that
+        /// file each wrong in one way the driver's header cannot show: a cut body, a flipped body byte, another driver
+        /// version, and a file in the format before this one. **The offsets are written out again**, for the reason
+        /// the blob test gives: the format's magic at nought, the driver's version at twenty, and sixty-four bytes of
+        /// header in all.
         TEST_F(RtxPipelineCacheTest, aFileIsReadBackOnlyWholeAndByItsOwnDriver)
         {
             const std::filesystem::path scratch = TestingOpenMW::outputFilePath("cache-file-test");
@@ -299,18 +286,13 @@ namespace Rtx
 
         /// The name carries the shaders, and every cache that is not this run's is swept.
         ///
-        /// **This is the whole of the eviction, and Vulkan supplies none of it.** A blob cannot be
-        /// pruned entry by entry, and nothing in the API has an opinion about a cache full of
-        /// pipelines for shaders that no longer exist — so what keeps the directory from holding one
-        /// file per driver and per edit for ever is that a run can name exactly one file live and
-        /// remove the rest.
+        /// **This is the whole of the eviction, and Vulkan supplies none of it.** A blob cannot be pruned entry by
+        /// entry, so what keeps the directory from holding one file per driver and per edit for ever is that a run
+        /// names exactly one file live and removes the rest.
         ///
-        /// **Two shader sets differing in one byte**, because a digest that ignored the contents
-        /// would key both the same and the second run would inherit the first's pipelines: no
-        /// symptom at all until a changed shader traced with the old one's code.
-        ///
-        /// **And a file that is not ours survives**, because a cache directory is shared with
-        /// whatever else the game keeps there.
+        /// **Two shader sets differing in one byte**, because a digest that ignored the contents would key both the
+        /// same and a changed shader would trace with the old one's code. **And a file that is not ours survives**,
+        /// because the cache directory is shared.
         TEST_F(RtxPipelineCacheTest, theNameCarriesTheShadersAndOtherCachesAreKeptToABound)
         {
             const std::filesystem::path scratch = TestingOpenMW::outputFilePath("cache-test");

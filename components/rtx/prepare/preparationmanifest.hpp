@@ -28,18 +28,16 @@ namespace Rtx
     /// another format or signature, or one that does not read, is an empty manifest.
     ///
     /// **Every content list's models, each until no run named it for `sUnnamedDaysMost` days**, so a
-    /// switch between two profiles walks neither again. **A model's entries, one for each set of files it was
-    /// walked from**, as ccache's manifest holds one entry for each set of headers a source was compiled with:
-    /// two installs resolve one model to their own archives, whose stamps differ, so one entry a model was each
-    /// install's start filing over the other's. **Each name held once**: a model's files are indices into one
-    /// table of the names, since most files are named by many models.
+    /// switch between two profiles walks neither again. **A model's entries, one for each set of files it
+    /// was walked from**, as ccache's manifest does: two installs resolve one model to archives whose
+    /// stamps differ, and one entry would be filed over by each start. Each name is held once, the files
+    /// being indices into one table.
     ///
     /// **A model stands only where the store holds every entry its walk made or found**, as an action
-    /// cache returns a result only where the blobs it names stand (`docs/rtx/architecture.md`, "The
-    /// preparation is incremental by each file's stamp; the lookup is by content"): an entry the store
-    /// refused, or one deleted by hand, is the model walked again. A walk files the keys it asked the
-    /// store for; what a thread answered from its own facts, or a chain another model claimed that run,
-    /// is filed under the model that asked first. Each key held once, as the names are.
+    /// cache returns a result only where the blobs it names stand: an entry the store refused, or one
+    /// deleted by hand, is the model walked again. A walk files the keys it asked the store for; what a
+    /// thread answered from its own facts, or a chain another model claimed that run, is filed under the
+    /// model that asked first. Each key held once, as the names are.
     class PreparationManifest
     {
     public:

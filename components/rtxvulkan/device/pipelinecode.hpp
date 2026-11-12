@@ -22,10 +22,10 @@ namespace Rtx
     };
 
     /// The file the executable `executable` of the `executables` the `copy`th pipeline named
-    /// `pipeline` has is written to in `folder`, counting from nought: the name with every character
-    /// but a letter, a digit, `.`, `_` and `-` made `-`, so a variant's words (`landing sun moons`)
-    /// are one path segment on every system; `@` and the copy's number from the second; and the
-    /// executable's number where there is more than one.
+    /// `pipeline` is written to in `folder`, counting from nought: the name with every character
+    /// but a letter, a digit, `.`, `_` and `-` made `-`, so it is one path segment on every
+    /// system; `@` and the copy's number from the second; and the executable's number where there
+    /// is more than one.
     std::filesystem::path pipelineCodeFile(const std::filesystem::path& folder, std::string_view pipeline,
         std::uint32_t copy, std::uint32_t executable, std::uint32_t executables);
 

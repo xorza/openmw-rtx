@@ -209,16 +209,13 @@ namespace Rtx
         assert((!inputs.mSubject.mSea || inputs.mSubject.mMedia->getWaves().holds(what.mSampled.mWaterTime))
             && "a trace of a sea its owner did not synthesise first (`TraceMedia::synthesiseSea`)");
 
-        // The sprite tiles are screen space, so they belong to the camera and not to the scene.
-        // Binned on the device into this trace's own bin, ahead of the trace that reads it. **For a
-        // camera that draws no sprites as well**, with none of them in it: the bin is also where the
-        // tiles learn which media and additive surfaces a ray through them can meet, and a camera
-        // told nothing would walk both at every pixel.
+        // The sprite tiles are screen space, so they belong to the camera and not to the scene. Binned on the device
+        // into this trace's own bin, ahead of the trace that reads it, for a camera that draws no sprites as well: the
+        // bin is also where the tiles learn which media and additive surfaces a ray through them can meet.
         //
-        // **Taken, then the block, then the shelter, then the bin.** The block carries the bin's
-        // table by address, which it has once the table is taken; the shelter launch reads the
-        // block and zeroes the drops under a roof in that table; and the shade and the bin read
-        // what is left. Every launch after reads the same block, and the emitters' rows beside it.
+        // Taken, then the block, then the shelter, then the bin: the block carries the bin's table by address, which it
+        // has once the table is taken; the shelter launch reads the block and zeroes the drops under a roof; and the
+        // shade and the bin read what is left.
         assert(what.mBinSlot.get() < mBins.size() && "a trace slot this chain keeps no bin for");
         SpriteBin& bin = mBins[what.mBinSlot.get()];
         const bool drawsSprites = inputs.mSubject.mDrawsSprites;
@@ -266,11 +263,10 @@ namespace Rtx
         if (!denoised && mDenoise.has_value())
             mDenoise->turn(TemporalFlags{}, what.mSampled.mFrame);
 
-        // **A denoised frame nothing sums is composed where the cascade ends**, in its last level,
-        // with no level written for the composite to read back (`atrouscompose.comp`). The composite
-        // stays for what is left: a frame nothing filtered, and a sum.
-        // **Not where water may split a pixel**, whose blend reads its neighbours' light whole,
-        // which the cascade's last level holds of no pixel but its own.
+        // A denoised frame nothing sums is composed where the cascade ends, in its last level, with no level written
+        // for the composite to read back (`atrouscompose.comp`); the composite stays for a frame nothing filtered, and
+        // a sum. Not where water may split a pixel, whose blend reads its neighbours' light whole, which the cascade's
+        // last level holds of no pixel but its own.
         const bool composesInCascade = denoised && what.mAccumulate == 0 && !inputs.mSubject.mSea;
         // Every frame writes it whole, so what the last frame left is discarded; the head barrier
         // `CommandPool::begin` recorded orders this after the last frame's reads.

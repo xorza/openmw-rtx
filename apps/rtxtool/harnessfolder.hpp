@@ -24,10 +24,9 @@ namespace RtxTool
     /// does.
     std::filesystem::path keysDirectory();
 
-    /// The shaders `verb` reads: the game's under `resources`, or one of the harness's three other
-    /// sets — the same modules compiled again with their source in them, where `source` asks, for a
-    /// profiler that shows a shader's lines, and with the census, for every verb but one that
-    /// measures (`VerbPolicy::mMeasures`), whose figures are of the game's kernels. `RTX_SPIRV_DIR`
-    /// says why the source is a set apart.
+    /// The shaders `verb` reads: the game's under `resources`, or one of the harness's other sets, the same
+    /// modules compiled again with their source in them where `source` asks (for a profiler), and with the
+    /// census for every verb but one that measures (`VerbPolicy::mMeasures`), whose figures are of the
+    /// game's kernels. `RTX_SPIRV_DIR` says why the source is a set apart.
     Rtx::ShaderSet shadersFor(const std::filesystem::path& resources, Verbs verb, bool source);
 }

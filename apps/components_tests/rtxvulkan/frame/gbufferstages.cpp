@@ -11,11 +11,10 @@ namespace Rtx
 {
     namespace
     {
-        /// **A frame of one bounce ray holds the memory one bounce did**: the landing's own stage images
-        /// stand a texel wide, since its one ray stores its landing in the solid's place
-        /// (`landingApart`), and at the frame's stored size from two rays on; every other stage image
-        /// stands at that size whatever the count. Sixteen wide is stored sixteen wide, an even width's
-        /// two fields side by side (`storedWidth`).
+        /// **A frame of one bounce ray holds the memory one bounce did**: the landing's own stage images stand a texel
+        /// wide, since its one ray stores its landing in the solid's place (`landingApart`), and at the frame's stored
+        /// size from two rays on; every other stage image stands at that size whatever the count. An even width's two
+        /// fields stand side by side (`storedWidth`).
         TEST(RtxGBufferStagesTest, onlyAFrameOfSeveralBounceRaysHoldsTheLandingsOwnImages)
         {
             std::vector<ArenaImage> one;

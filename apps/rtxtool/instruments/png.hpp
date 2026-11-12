@@ -21,10 +21,9 @@ namespace RtxTool
     Result<void, std::string> writePng(const std::filesystem::path& path, std::uint32_t width, std::uint32_t height,
         std::span<const std::uint8_t> pixels, std::string_view description = {});
 
-    /// Writes tightly packed RGBA at sixteen bits a channel, top row first, as a sixteen-bit PNG,
-    /// and otherwise as the eight-bit `writePng`: what a mean of pictures is written as, since it
-    /// falls between the levels a byte holds, and rounded to a byte it moves a measure of noise by
-    /// up to half a level a pixel.
+    /// Writes tightly packed RGBA at sixteen bits a channel, top row first, as a sixteen-bit PNG, and otherwise as
+    /// the eight-bit `writePng`: what a mean of pictures is written as, since rounding it to a byte moves a measure
+    /// of noise by up to half a level a pixel.
     Result<void, std::string> writePng(const std::filesystem::path& path, std::uint32_t width, std::uint32_t height,
         std::span<const std::uint16_t> samples, std::string_view description = {});
 

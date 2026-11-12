@@ -8,12 +8,10 @@ namespace Rtx
 {
     namespace
     {
-        /// The figure a shading language cannot include its way to.
-        ///
-        /// **`scene.h` is read by GLSL, so it can include no C++ header** — the game's own units are
-        /// spelled again there, and a copy nothing checks is exactly the failure that file's own
-        /// header comment exists to warn about. A `static_assert` cannot reach it: `const` is
-        /// `const` and a `const float` is not a constant expression.
+        /// The figure a shading language cannot include its way to. **`scene.h` is read by GLSL, so it can
+        /// include no C++ header**: the game's own units are spelled again there, and a copy nothing checks is
+        /// what that file's header comment warns about. A `static_assert` cannot reach it, since a `const float`
+        /// is not a constant expression.
         TEST(RtxWaveSpectrumTest, theSharedConstantsAreTheGamesOwn)
         {
             EXPECT_EQ(Shaders::UNITS_PER_METRE, Constants::UnitsPerMeter);
@@ -31,15 +29,14 @@ namespace Rtx
             SeaState shallow;
             shallow.mDepth = 60.0f;
 
-            // The same wavenumber travels slower over a shallower shelf, because `tanh(k h)` falls.
-            // A 1257-unit wave over 60 units of water:
+            // The same wavenumber travels slower over a shallower shelf, because `tanh(k h)` falls. A 1257-unit
+            // wave over 60 units of water:
             //
             //   shallow = sqrt(627.2 * 0.005 * tanh(0.3)) = sqrt(0.9136) = 0.956
             //   deep    = sqrt(627.2 * 0.005 * tanh(20))  = sqrt(3.1360) = 1.771
             //
-            // Fifty-four per cent of its open-sea speed, which is the coastal correction this
-            // spectrum exists for. A shorter wave barely notices — at a wavenumber of 0.02 the same
-            // shelf costs under a tenth.
+            // Fifty-four per cent of its open-sea speed. A shorter wave barely notices: at a wavenumber of 0.02
+            // the same shelf costs under a tenth.
             constexpr float wavenumber = 0.005f;
             EXPECT_NEAR(shallow.getFrequency(wavenumber), 0.956f, 0.002f);
             EXPECT_NEAR(deep.getFrequency(wavenumber), 1.771f, 0.002f);

@@ -7,14 +7,8 @@
 // follows.
 
 // The shadow denoiser's temporal half: which tiles need filtering at all, and for those that do, this
-// frame's bit blended with what the same surface held before, clamped to what its neighbours say now.
-//
-// **What the port keeps is the algorithm**: the 17×17 kernel over the bits that gives each pixel its local
-// mean and spread, the clamp of the history to half a deviation of it, the sample count damped by how far
-// the history stood off, the variance boosted over the first sixteen frames, and the blend of five per cent
-// a frame once the history is eight deep.
-//
-// **What it changes, and why:**
+// frame's bit blended with what the same surface held before, clamped to what its neighbours say now. A port
+// of the SDK's algorithm: the 17x17 kernel over the bits gives each pixel its local mean and spread.
 
 #include "shared/accumulate.h"
 #include "gbuffer.h"
@@ -90,11 +84,9 @@ shared uint gReach;
 shared vec2 gRows[SHADOW_WORKGROUP][SPAN];
 
 /// The horizontal half of the kernel (`shadowLocalWeight`) over row `row` of the square, centred on column
-/// `column + REACH`: the SDK's `HorizontalNeighborhood`, off the shared row rather than off three tile
-/// words — the weight of the open pixels, and beside it the weight of the receivers.
-///
-/// **What the SDK does not carry is the second**: it counts every pixel, a pixel off the frame as shadowed
-/// and one no source lights as whatever its bit says.
+/// `column + REACH`: the SDK's `HorizontalNeighborhood`, off the shared row rather than off three tile words.
+/// Returns the weight of the open pixels and, beside it, of the receivers, which the SDK does not carry: it
+/// counts every pixel, a pixel off the frame as shadowed and one no source lights as its bit says.
 vec2 horizontalNeighbourhood(uint row, uint column)
 {
     const uint open = gOpen[row] >> column;

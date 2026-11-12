@@ -147,10 +147,10 @@ namespace Rtx
         /// count while each of them is ordinary; a handful with enormous reaches overrun the entry
         /// count while the grid is still small, because each lands in every cell it touches.
         ///
-        /// **And every lamp a builder hands over ends it.** Its numbers are finite and nothing
-        /// else: a record can place one near the end of the float range, where the extent in float
-        /// is past the largest float, and a cell can hold more lamps than the entry budget. The
-        /// first cast an infinite count and the second doubled the cell for ever.
+        /// **And every lamp a builder hands over ends it.** Its numbers are finite and nothing else: a record can
+        /// place one near the end of the float range, where the extent in float is past the largest float, and a
+        /// cell can hold more lamps than the entry budget; the first would cast an infinite count, and the second
+        /// double the cell for ever.
         TEST(RtxLightGridTest, theCellDoublesUntilBothBudgetsFitOrTheLampsReachOneCell)
         {
             // Seventy million and two units along x is 273,438 cells of 256, 68,360 of 1024 and 34,180
@@ -272,9 +272,8 @@ namespace Rtx
 
         /// A rebind of the same lamps goes nowhere near the allocator.
         ///
-        /// **What a frame that moves does**, and the claim `rebuild` is written against: assigning a
-        /// freshly built grid over this one threw the run list's vectors away and made them again,
-        /// on every frame that moved.
+        /// **What a frame that moves does**, and the claim `rebuild` is written against: assigning a freshly built
+        /// grid over this one would throw the run list's vectors away and make them again on every frame that moved.
         TEST(RtxLightGridTest, rebindingTheSameLampsDoesNotTouchTheHeap)
         {
             const std::array lights{ lampAt(0.0f, 512.0f), lampAt(4096.0f, 512.0f), lampAt(2048.0f, 2560.0f) };
@@ -293,10 +292,9 @@ namespace Rtx
 
         /// A lamp that only flickered is not binned again, and one that moved is.
         ///
-        /// **This is what the whole gate rests on**: the grid reads a light's position and its reach
-        /// and nothing else, so a colour that changed leaves the same grid — and Morrowind's lamps
-        /// change colour on nearly every frame, which is what made a per-frame rebind the ordinary
-        /// case rather than the exception.
+        /// **This is what the whole gate rests on**: the grid reads a light's position and its reach and nothing
+        /// else, so a colour that changed leaves the same grid, and Morrowind's lamps change colour on nearly every
+        /// frame, which makes a per-frame rebind the ordinary case.
         ///
         /// The two are told apart by what the grid comes to: a lamp moved a whole cell lands in
         /// different cells, and the entry count says so.
@@ -330,10 +328,9 @@ namespace Rtx
             EXPECT_NE(entriesIn(grid), reachedTwo) << "a lamp that reaches further was not rebinned";
         }
 
-        /// **A lamp that moved is binned again into the grid as it stands, and nothing else is.** A
-        /// carried torch moved every lamp's binning from nothing on every frame. The grid is made
-        /// again only where a reach leaves it, because a position outside the grid is lit by nothing,
-        /// and the spare cell on every side is what a lamp carried outward moves into first.
+        /// **A lamp that moved is binned again into the grid as it stands, and nothing else is.** The grid is made
+        /// again only where a reach leaves it, because a position outside the grid is lit by nothing, and the spare
+        /// cell on every side is what a lamp carried outward moves into first.
         ///
         /// The grid of the first test, by hand: corner -356, nineteen cells of 256 along x, the
         /// lamps in the middle row of three. The lamp moved to 50 spans -50 to 150, 306 to 506 from

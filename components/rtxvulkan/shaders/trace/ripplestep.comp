@@ -5,17 +5,11 @@
 // One step of the wave equation over the ripple field: the springs `lib/water/ripples.glsl` states, which
 // are what the rasterizer's `RipplesSurface` steps its own field by.
 //
-// **Read where the window stood and written where it stands.** The field follows the eye by whole texels,
-// and the old field is read at the offset the window moved by, so a ring the eye walks past stays where it
-// was stamped. A texel the old window did not hold reads as still water.
-//
-// **The two heights ride in one texel**: the height in `x` and the height a step before in `y`, which is
-// what a second-order step needs and all it needs.
-//
-// **And the impulses are stamped here, on the way out.** The rasterizer's blobber presses a ring into the
-// field before its simulate reads it; this presses the same ring into what the step just wrote, which the
-// next step then propagates — one step later, and no second pass over a million texels. A texel loops over
-// the frame's impulses, which is nought on nearly every frame and a handful when somebody wades.
+// Read where the window stood and written where it stands: the field follows the eye by whole texels, and
+// the old field is read at the offset the window moved by (a texel it did not hold reads as still water). The
+// two heights ride in one texel, `x` and the height a step before in `y`. The impulses are stamped on the way
+// out, into what the step just wrote, which the next step propagates: one step later than the rasterizer's
+// blobber, and no second pass over a million texels.
 
 #include "shared/ripple.h"
 #include "shared/sets.h"

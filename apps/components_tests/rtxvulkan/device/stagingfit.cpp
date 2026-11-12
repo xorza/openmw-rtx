@@ -12,14 +12,13 @@ namespace Rtx
     {
         constexpr VkDeviceSize sMiB = 1024 * 1024;
 
-        /// **The smallest spare block that holds an upload, by hand.** Blocks 0 to 3 of 8, 36, 9 and
-        /// 8 MiB, spare in the order 1, 0, 2, 3, which is not the order of their sizes or their
-        /// indices:
+        /// **The smallest spare block that holds an upload, by hand.** Blocks 0 to 3 of 8, 36, 9 and 8 MiB, spare in
+        /// the order 1, 0, 2, 3, which is not the order of their sizes or indices:
         ///
-        /// - a hundred bytes takes an 8 MiB block, and of the two the lower, block 0, at position 1,
-        ///   where first fit took the 36 MiB block standing first;
+        /// - a hundred bytes takes an 8 MiB block, and of the two the lower, block 0, at position 1, where first fit
+        ///   took the 36 MiB block standing first;
         /// - 8 MiB and a byte takes the 9 MiB block, block 2, at position 2;
-        /// - 36 MiB exactly takes block 1, which holds it to the byte, at position 0;
+        /// - 36 MiB exactly takes block 1, at position 0;
         /// - 40 MiB takes nothing, and nor does an empty spare list.
         TEST(RtxStagingFitTest, anUploadTakesTheSmallestSpareBlockThatHoldsIt)
         {

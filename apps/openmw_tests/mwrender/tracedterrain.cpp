@@ -145,12 +145,10 @@ namespace MWRender
             }
         };
 
-        /// **The ground answers upstream's callers as a world with no chunks**, and draws
-        /// upstream's cell borders. The preloader asks for a view and resets it on a worker thread.
-        /// `tb` stands a line strip over each loaded cell's south and east edges, ten units over the
-        /// storage's height, under `Mask_Debug` in a group of the terrain's mask straight under the
-        /// world root, where `DebugWalk` reads it: forty segments a side, so eighty lines of two
-        /// vertices.
+        /// The ground answers upstream's callers as a world with no chunks, and draws upstream's cell borders.
+        /// The preloader asks for a view and resets it on a worker thread. `tb` stands a line strip over each
+        /// loaded cell's south and east edges, ten units over the storage's height, under `Mask_Debug` in a
+        /// group of the terrain's mask under the world root: forty segments a side, so eighty lines.
         TEST(RtxTracedTerrainTest, aViewIsHandedOutAndTheBordersStandOverEachLoadedCell)
         {
             Making making;

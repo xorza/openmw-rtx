@@ -56,14 +56,13 @@ namespace Rtx
 
         /// What the two kernels write, read back and compared against arithmetic done by hand.
         ///
-        /// **Five meshes in one scene, because the offsets are half of what is being tested.** A
-        /// mesh posed into a neighbour's run would look right on its own and wrong beside it, so
-        /// every vertex of every posed run is asserted, and the static quad stands between two of
-        /// them: it holds a run among the normals and none at all among the poses. Every expected
-        /// value is exact in float: translations, a quarter-and-three-quarters blend of two of
-        /// them, a rotation of nought-and-one entries, and a half of a unit offset. The tangents
-        /// are exact as well, because a quarter turn moves a packed tangent from one step of the
-        /// octahedron to another, and the host's packing of it is the device's to the bit.
+        /// **Five meshes in one scene, because the offsets are half of what is being tested.** A mesh posed into a
+        /// neighbour's run would look right on its own and wrong beside it, so every vertex of every posed run is
+        /// asserted, and the static quad stands between two of them: it holds a run among the normals and none among
+        /// the poses. Every expected value is exact in float: translations, a quarter-and-three-quarters blend, a
+        /// rotation of nought-and-one entries, and a half of a unit offset. The tangents are exact as well, because a
+        /// quarter turn moves a packed tangent from one octahedron step to another and the host's packing of it is the
+        /// device's to the bit.
         TEST_F(RtxSkinPassTest, theKernelsPoseEachMeshIntoItsOwnRunAndLeaveTheRestAlone)
         {
             Device& device = getDevice();
@@ -163,12 +162,12 @@ namespace Rtx
 
             ASSERT_EQ(scene.meshes().getDeformed().size(), 4u);
 
-            // The pass's destination, owned here so it can be copied back: the renderer's own blocks
-            // are build input and never a transfer source.
+            // The pass's destination, owned here so it can be copied back: the renderer's own blocks are build input
+            // and never a transfer source.
             //
-            // **One length, because the pass writes one space**, the bind offsets: the poses, the
-            // normals and the tangents hold the four deforming quads and not the static one between
-            // them, whose normals are the scene's one copy and never posed.
+            // **One length, because the pass writes one space**, the bind offsets: the poses, normals and tangents
+            // hold the four deforming quads and not the static one between them, whose normals are the scene's one
+            // copy and never posed.
             const auto vertices = static_cast<std::uint32_t>(scene.meshes().getPositions().size());
             const std::uint32_t posedVertices = scene.deformers().getBindVertexCount();
             EXPECT_EQ(vertices, 20u) << "five quads of four vertices";
@@ -309,13 +308,11 @@ namespace Rtx
 
             EXPECT_FALSE(poseAndRead(FrameSlot{ 0 })) << "a copy that owed nothing recorded a dispatch";
 
-            // **A run handed out again reaches the copy through the batch.** `blended` goes and a
-            // mesh on a new two-bone rig takes every run it held — the slot,
-            // the bind run, the rows and the rig's runs and influences, each asserted, because the
-            // reuse is what is being tested. Its bind is the quad shifted along x, its rig blends the
-            // third corner half and half, and its bones stand at one and three: 0.5 · 1 + 0.5 · 3 =
-            // 2 there and 1 elsewhere, so a stale bind, a stale row or a stale influence would each
-            // show as a different number.
+            // **A run handed out again reaches the copy through the batch.** `blended` goes and a mesh on a new
+            // two-bone rig takes every run it held: the slot, the bind run, the rows and the rig's runs and
+            // influences, each asserted because the reuse is what is tested. Its bind is the quad shifted along x, its
+            // rig blends the third corner half and half, and its bones stand at one and three: 0.5 · 1 + 0.5 · 3 = 2
+            // there and 1 elsewhere, so a stale bind, row or influence would each show as a different number.
             const MeshRange went = scene.meshes().getRows()[blended];
             const Deformer wentRig = scene.deformers().getRows()[onTwoBones.mDeformer];
             scene.clearArrivals();
@@ -372,17 +369,15 @@ namespace Rtx
             EXPECT_EQ(positionOf(raised, 2), osg::Vec3f(1.0f, 1.0f, 5.0f)) << "an arrival touched a neighbour";
         }
 
-        /// A placement into the first copy waits for the arrival that posed it there, and for
-        /// nothing longer.
+        /// A placement into the first copy waits for the arrival that posed it there, and for nothing longer.
         ///
-        /// **The skin's transform is applied once, to the blend, as `RigGeometry::cull` applies it**,
-        /// and a vertex no bone moves keeps its bind pose. The transform is ten along x, and the
-        /// bones stand at four up and nowhere, the second the rows of nought a bone the skeleton
-        /// lacks is:
+        /// **The skin's transform is applied once, to the blend, as `RigGeometry::cull` applies it**, and a vertex no
+        /// bone moves keeps its bind pose. The transform is ten along x, and the bones stand at four up and nowhere,
+        /// the second the rows of nought a bone the skeleton lacks is:
         /// - corner 0, all of the first bone: `(0, 0, 0) + (0, 0, 4)`, then ten along, `(10, 0, 4)`;
-        /// - corner 1, half of each: `0.5 · ((1, 0, 0) + (0, 0, 4)) = (0.5, 0, 2)` and ten along,
-        ///   `(10.5, 0, 2)`, its normal halved — where the transform composed into each bone scaled
-        ///   the ten by the half the weights come to, `(5.5, 0, 2)`;
+        /// - corner 1, half of each: `0.5 · ((1, 0, 0) + (0, 0, 4)) = (0.5, 0, 2)` and ten along, `(10.5, 0, 2)`, its
+        ///   normal halved, where the transform composed into each bone scaled the ten by the half the weights come
+        ///   to, `(5.5, 0, 2)`;
         /// - corner 2, in no group: its bind pose `(1, 1, 0)`, untouched by the transform.
         TEST_F(RtxSkinPassTest, theSkinTransformIsAppliedOnceToTheBlendAsCullAppliesIt)
         {
@@ -471,18 +466,15 @@ namespace Rtx
                 Shaders::unpackNormal(readAt<std::uint32_t>(readNormals, bind + 2)), osg::Vec3f(0.0f, 0.0f, 1.0f));
         }
 
-        /// **The reader the frame ring does not count.** An arrival stages its rows into the first
-        /// copy and dispatches over them from a batch that rides whatever submit comes next — the
-        /// placement's, in a game — and no trace stamps that read. The next placement into that
-        /// copy waited for the frame that last traced it, which was submitted ahead of the arrival,
-        /// and then wrote the rows from the host under a dispatch still reading them: the assert
-        /// in `Buffer::writable` is what the game hit. `SkinTables::finishReads` is the wait, and
-        /// it is measured off the tables' own stamp rather than the ring's.
+        /// **The reader the frame ring does not count.** An arrival stages its rows into the first copy and dispatches
+        /// over them from a batch that rides whatever submit comes next, and no trace stamps that read. The next
+        /// placement into that copy waited for the frame that last traced it, submitted ahead of the arrival, and then
+        /// wrote the rows from the host under a dispatch still reading them (the assert in `Buffer::writable`).
+        /// `SkinTables::finishReads` is the wait, measured off the tables' own stamp rather than the ring's.
         ///
-        /// **A held submit, opened while this thread waits.** The wait cannot return before the
-        /// hold opens, so it lasts at least the hold's length — and without it the placement would
-        /// run at once, into rows a submit still reads, which the assert catches in a build that
-        /// asserts and the bound catches in one that does not.
+        /// **A held submit, opened while this thread waits.** The wait cannot return before the hold opens, so it
+        /// lasts at least the hold's length; without it the placement would run at once, into rows a submit still
+        /// reads.
         TEST_F(RtxSkinPassTest, aPlacementWaitsForTheArrivalThatPosedTheFirstCopy)
         {
             Device& device = getDevice();

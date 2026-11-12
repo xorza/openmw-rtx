@@ -10,12 +10,9 @@
 
 namespace RtxTool
 {
-    /// Which of the harness's commands something is about, as a set of them.
-    ///
-    /// **A set and not one name, because that is the question the options ask.** An option is read
-    /// by one command, or by two, or by every one of them, and that fact written only in the prose
-    /// of its own help line is one nothing can check: `shot --views=balmora` rendering the default
-    /// place and reporting it without a word.
+    /// Which of the harness's commands something is about, as a set of them: the question the options ask, since an
+    /// option is read by one command, by two or by every one, and that fact written only in the prose of its own
+    /// help line is one nothing can check (`shot --views=balmora` rendered the default place and said nothing).
     enum class Verbs : std::uint16_t
     {
         None = 0,

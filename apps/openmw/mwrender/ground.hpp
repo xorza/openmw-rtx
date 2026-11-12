@@ -57,11 +57,10 @@ namespace MWRender
         /// @return whether what the distance draws changed for it, which is what upstream's paging
         /// says where it dropped or restored a chunk, and what makes the caller reload the terrain.
         ///
-        /// **The reference and not the four facts one paging reads off it.** Which of them a
-        /// renderer needs is the renderer's: upstream's paging finds the chunk by the position and
-        /// the cell, and a ring that stands references itself reads the number alone. The type is
-        /// a parameter because it comes out of the world's store, which nothing below this can
-        /// reach.
+        /// **The reference and not the facts one paging reads off it**, since which a renderer needs
+        /// is its own: upstream's paging finds the chunk by position and cell, a ring by the number
+        /// alone. The type is a parameter because it comes out of the world's store, which nothing
+        /// below this can reach.
         virtual bool enableReference(int type, const MWWorld::ConstPtr& ptr, bool enabled) = 0;
 
         /// The game moved, turned, scaled, deleted or animates the reference, which upstream's

@@ -59,11 +59,10 @@ namespace Rtx::Testing
         VFS::FileMap mOverrides = {};
     };
 
-    /// MyGUI over the ray tracer's GUI backend and a renderer that records what it is handed, with
-    /// the fork's own fonts, layers and text skins out of `files/data`, stood up in the order the
-    /// window manager stands the game's up: the platform, MyGUI, the fonts, the factories, the
-    /// resources. What a test of the interface's fonts and texts drives, since only a real MyGUI
-    /// says what a widget draws against.
+    /// MyGUI over the ray tracer's GUI backend and a renderer that records what it is handed, with the
+    /// fork's own fonts, layers and text skins out of `files/data`, stood up in the order the window
+    /// manager stands the game's up. What a test of the interface's fonts and texts drives, since only
+    /// a real MyGUI says what a widget draws against.
     ///
     /// **One at a time**: MyGUI's managers are singletons, and a second instance asserts.
     ///

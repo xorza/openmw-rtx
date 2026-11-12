@@ -74,13 +74,11 @@ namespace Rtx
             BuildCompaction compaction, std::vector<Refusal>& refused);
 
         /// Rebuilds what a moved world changed: every deformed mesh's structure, then the top level,
-        /// in one command buffer with a barrier between — two `submitAndWait`s were a round trip
-        /// through the driver in the middle of the frame for a dependency a barrier expresses. A
-        /// deforming mesh's structure is refitted over the vertices `SkinPass` wrote into `slot`'s
-        /// copy, which its `ALLOW_UPDATE` bit costs that mesh alone a larger structure for. Skipped
-        /// whole where nothing moved and nothing deformed. Recorded into `placing.mCommands` and not
-        /// submitted, so the caller decides whether the queue is asked now or with the frame; true
-        /// where anything was recorded.
+        /// in one command buffer with a barrier between. A deforming mesh's structure is refitted
+        /// over the vertices `SkinPass` wrote into `slot`'s copy, which its `ALLOW_UPDATE` bit costs
+        /// that mesh alone a larger structure for. Skipped whole where nothing moved and nothing
+        /// deformed. Recorded into `placing.mCommands` and not submitted, so the caller decides
+        /// whether the queue is asked now or with the frame; true where anything was recorded.
         ///
         /// @param changed the slots `updateInstanceRecords` wrote, which is the one list any of
         ///        this is driven by. `records` is handed in rather than made here because
@@ -94,9 +92,8 @@ namespace Rtx
 
         /// Takes in the geometry of the meshes the scene says arrived and lets go of the ones it says
         /// went. `buildArrived` builds their structures, once the pass has posed them. Every
-        /// structure already built stays where it is, and the top level picks the change up for
-        /// nothing. Safe with frames in flight, because nothing it writes is room one of them
-        /// holds; `check` under synchronization validation is what says so.
+        /// structure already built stays where it is. Safe with frames in flight, because nothing it
+        /// writes is room one of them holds; `check` under synchronization validation says so.
         void extend(Batch& batch, const SceneDesc& scene);
 
         /// Builds the structures of the meshes that arrived: a body's over the first copy of the poses
@@ -185,11 +182,10 @@ namespace Rtx
         void prepareRefit(const SceneDesc& scene, FrameSlot slot);
 
         /// Grows the refit scratch to what any placement's refit can ask of it: every standing
-        /// structure built to be refitted updated at once, and the one the rota builds whole taking
+        /// structure built to be refitted updated at once, with the one the rota builds whole taking
         /// its build's scratch in place of its update's — the largest such step. Where meshes
-        /// arrive, and never on a placement: which mesh the rota picks moves every placement, and a
-        /// scratch sized to each one's exact total would be a buffer made on whichever frame outgrew
-        /// it.
+        /// arrive, never on a placement: the rota's pick moves every placement, and an exact total
+        /// would be a buffer made on whichever frame outgrew it.
         void sizeRefitScratch();
 
         /// What `mesh`'s place in this placement's refit works in: a whole build's scratch for the
@@ -204,9 +200,9 @@ namespace Rtx
 
         /// Everything the top-level build needs before a command buffer exists: `slot`'s copy of the
         /// rows paid and each block's first place written for its packing, both through `uploads`,
-        /// which the caller orders ahead of the build, the structure and its
-        /// scratch made again where the count grew, and the build pointed at `slot`'s packed rows.
-        /// `writeRows` first, which is what leaves the copy owing anything.
+        /// which the caller orders ahead of the build, the structure and its scratch made again
+        /// where the count grew, and the build pointed at `slot`'s packed rows. `writeRows` first,
+        /// which is what leaves the copy owing anything.
         void prepareTopLevel(const SceneDesc& scene, FrameSlot slot, Uploads& uploads);
 
         /// Writes one row from its record, and counts it in its block where it places an instance.
@@ -230,12 +226,10 @@ namespace Rtx
         /// Every deforming mesh's vertices as the frame tracing them sees them: what `SkinPass`
         /// writes into every copy on arrival, and afterwards every frame a body moves. Indexed by
         /// `MeshRange::mBindOffset`, so the table is as long as the bodies rather than the cell — a
-        /// static mesh's vertices are `SceneBuffers`', which its structure is built over and its hits
-        /// read. Blocked, so a scene that grows keeps the poses it was already
-        /// given: a pose is on the device and nowhere else. A hit on a body reads its triangle's
-        /// corners out of the copy this frame traces, which its structure was refitted over
-        /// (`trianglePositions`), and where it stood on the previous frame out of the other —
-        /// `GpuTables::mPreviousPoseBlocks`.
+        /// static mesh's vertices are `SceneBuffers`'. Blocked, so a scene that grows keeps the
+        /// poses it was given: a pose is on the device and nowhere else. A hit on a body reads its
+        /// triangle's corners out of the copy this frame traces (`trianglePositions`), and where it
+        /// stood on the previous frame out of the other (`GpuTables::mPreviousPoseBlocks`).
         SlotBlocks mPoses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
 
         /// How many placements this has prepared that posed something, which is the clock the
@@ -300,7 +294,7 @@ namespace Rtx
 
         /// Kept across frames rather than made per refit, and sized by `sizeRefitScratch`. Grown
         /// through the graveyard and never destroyed outright: a frame places twice at a crossing,
-        /// and a buffer freed under a build in flight was a device lost on every crossing.
+        /// and a buffer freed under a build in flight is a lost device.
         GrowableBuffer mRefitScratch;
 
         /// Grows to the high-water mark and stays, as the storage beside it does: made per frame,

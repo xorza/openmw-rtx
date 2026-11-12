@@ -34,17 +34,14 @@ namespace Rtx
     /// What a recorded fog depth comes to as an extinction coefficient. The original engine fogs
     /// linearly from `view * (1 - depth)` to `view`, and a medium has no clear zone, so the two are
     /// matched where each is half gone: `sigma = ln(2) / (view * (1 - depth / 2))`. Clear weather's
-    /// 0.69 over the game's 7168 comes to 1.476e-4. `over` is the distance the half-life is
-    /// measured across — `CellGrid::reachOf` out of doors, `sInteriorFogReach` in a room — and a
-    /// parameter, never a setting, because air tuned short of the world swallows the ground beyond.
+    /// 0.69 over the game's 7168 comes to 1.476e-4. `over` is the distance the half-life is measured
+    /// across (`CellGrid::reachOf` out of doors, `sInteriorFogReach` in a room), a parameter and never a
+    /// setting, because air tuned short of the world swallows the ground beyond.
     ///
-    /// **Past `deepestHalfPointDepth`, the mean visibility over the view and not the half point.**
-    /// The half point nears the eye as the depth nears two, and the ramp beyond it fades linearly to
-    /// the view where a medium halves again at every half-life: at 1.9 the half-point air was a
-    /// seventh as clear as the ramp a fifth of the view out, and from two, where the half point is
-    /// behind the eye, it was the densest air there is — Blizzard's 2.8 a screen of fog colour,
-    /// where the ramp leaves the land at a third of its contrast. A medium cannot fog the eye
-    /// itself as the ramp does, so the two are matched over the whole view instead:
+    /// **Past `deepestHalfPointDepth`, the mean visibility over the view and not the half point.** The
+    /// half point nears the eye as the depth nears two (from two it is behind the eye and gives the
+    /// densest air there is, a screen of fog colour in Blizzard), and a medium cannot fog the eye as the
+    /// ramp does, so the two are matched over the whole view instead:
     /// `(1 - e^-(sigma view)) / (sigma view) = 1 / (2 depth)`.
     float fogExtinction(float depth, float over);
 
@@ -58,8 +55,8 @@ namespace Rtx
     constexpr float sClearFogDepth = 0.69f;
 
     /// What a wind of one adds to the layer's depth: turbulence stands a storm up out of a bank.
-    /// Morrowind's recorded speeds run to 0.9, so this reaches 4.6 times the still layer; the
-    /// wind cannot be the whole of the lift, because the weather named foggy has a wind of nought.
+    /// Morrowind's recorded speeds run to 0.9, so this reaches 4.6 times the still layer; wind cannot be
+    /// the whole of the lift, because the weather named foggy has a wind of nought.
     constexpr float sFogWindLift = 4.0f;
 
     /// How deep a weather's layer stands, as a multiple of the one `FOG_HEIGHT` names. Positive
@@ -67,25 +64,21 @@ namespace Rtx
     /// not above nought lifts nothing.
     float fogLift(float depth, float wind);
 
-    /// What the air scatters toward the eye: as bright as the sky's own light (`skyMean`, a
-    /// radiance) and in the weather's recorded colour (`hue`) — the record handed over as a radiance
-    /// drew a foggy day the same brightness at noon and at dusk.
+    /// What the air scatters toward the eye: as bright as the sky's own light (`skyMean`, a radiance)
+    /// and in the weather's recorded colour (`hue`).
     ///
-    /// **The sky's luminance and not its colour.** The record is the horizon the dome is drawn
-    /// with, so its colour already holds the sky's: lit by the dome's own colour as well, the blue
-    /// was counted twice, and clear noon's air came out with four times its red in blue where the
-    /// record says one and a half — a haze bluer than the horizon it fades into.
+    /// **The sky's luminance and not its colour.** The record is the horizon the dome is drawn with, so
+    /// its colour already holds the sky's: lit by the dome's own colour as well, the blue was counted
+    /// twice.
     ///
     /// **Normalised by the brightest channel and not by luminance**, because a scattering albedo
     /// cannot exceed one: no channel of the air is brighter than the light that lit it.
     osg::Vec3f fogColour(const osg::Vec3f& skyMean, const osg::Vec3f& hue);
 
-    /// The distance a room's air is measured over: the view range's shipped default, stretched by
-    /// the one factor here set by eye. A constant, because the original engine measures a room
-    /// against `viewing distance`, so raising it thinned every cellar. A ramp is clear until
-    /// `view * (1 - depth)`, further than any wall in a room, so the original draws no fog in one;
-    /// unstretched, a medium lifts the room's black level by a fifth, and stretched, what is left
-    /// is candlelight hanging under the chandelier.
+    /// The distance a room's air is measured over: the view range's shipped default, stretched by one
+    /// factor set by eye. A constant, because measuring against `viewing distance` thinned every cellar
+    /// as it was raised. The original's ramp is clear beyond any wall in a room; unstretched, a medium
+    /// would lift the room's black level by a fifth.
     constexpr float sInteriorFogReach = 25.0f * 7168.0f;
 
     /// The open air, from the colour and the fog depth a weather is at. One place decides what

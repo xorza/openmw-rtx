@@ -6,10 +6,9 @@
 
 namespace Crash
 {
-    /// **The limit the game set, and the pauses that stand, apart**: a pause that saved the limit and
-    /// put it back turned the watch on under another thread's pause that still stood, and off for good
-    /// where that one ended last, and undid a limit set while it stood. One owner's, whose lock it
-    /// stands under.
+    /// **The limit the game set, and the pauses that stand, apart**: a pause that saved the limit and put it back
+    /// would turn the watch on under another thread's pause that still stood, off for good where that one ended
+    /// last, and undo a limit set while it stood. One owner's, whose lock it stands under.
     class HangLimit
     {
     public:

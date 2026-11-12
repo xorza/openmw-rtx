@@ -32,19 +32,17 @@ namespace Rtx
         /// painted into them already. The pi is the Lambertian `1/pi` the shader divides by.
         const float sIntensity = 0.25f * Shaders::PI;
 
-        /// How much further a light reaches than its record says, and how much further again.
-        /// Morrowind's radii run 64 to 256 units in an interior, because a fixed falloff curve and
-        /// an ambient term filled the room; here the lamps have to be what lights the place.
-        /// Scaling alone widens the gap: a candle's 64 doubles to nothing while a lantern gains a
-        /// lantern's worth, so the flat term is what lets the candles leave their table.
+        /// How much further a light reaches than its record says, and how much further again. Morrowind's radii run 64
+        /// to 256 units in an interior, because a fixed falloff curve and an ambient term filled the room; here the
+        /// lamps have to be what lights the place. Scaling alone widens the gap, so the flat term is what lets the
+        /// candles leave their table.
         constexpr float sReachScale = 2.0f;
         constexpr float sReachBonus = 128.0f;
 
-        /// How much of a lamp's recorded radius is actually alight, which is what its shadows are
-        /// soft by. The intensity already scales with the square of the recorded radius, the law
-        /// for an emitter of fixed radiance whose area grows with its size, so reading that radius
-        /// as a size again keeps one statement rather than making a second. A sixteenth across
-        /// 64 to 256 units is four to sixteen units in radius — a candle flame and a brazier's bowl.
+        /// How much of a lamp's recorded radius is actually alight, which is what its shadows are soft by. The
+        /// intensity already scales with the square of the recorded radius, the law for an emitter of fixed radiance
+        /// whose area grows with its size, so reading that radius as a size again keeps one statement rather than
+        /// making a second. A sixteenth of 64 to 256 units is a candle flame to a brazier's bowl.
         constexpr float sSourceFraction = 1.0f / 16.0f;
 
         /// How high over the actor's feet, where the game hangs a Light spell's glow, its lamp
@@ -52,17 +50,15 @@ namespace Rtx
         /// and lights everything round it but the body itself, which faces away from it.
         constexpr float sSpellLightLift = 64.0f;
 
-        /// How much brighter a burst's lamp is than the shell and the discs it is derived from,
-        /// and how far it reaches, in radii of its ball.
+        /// How much brighter a burst's lamp is than the shell and the discs it is derived from, and how far it reaches,
+        /// in radii of its ball.
         ///
-        /// **Derived is the shape and by eye is the level**, like `sIntensity`: the derivation
-        /// says how one burst stands to another and to its own size, and nothing in it says how
-        /// a burst stands to the lamps of a room, because the room's lamps were set by eye too. At
-        /// one and four radii a burst was judged too dim and too short, and at four and eight
-        /// still too short: `falloff` windows a lamp to nought at its reach, so a reach is where
-        /// the pool is cut and not where it fades, and sixteen radii puts the cut where an
-        /// inverse square at four times the intensity has fallen to a quarter of the level the
-        /// four-radius pool was cut at: `4 / 16^2` against `1 / 4^2`.
+        /// **Derived is the shape and by eye is the level**, like `sIntensity`: nothing in the derivation says how a
+        /// burst stands to the lamps of a room, which were set by eye too. At one and four radii a burst was judged too
+        /// dim and too short, and at four and eight still too short: `falloff` windows a lamp to nought at its reach,
+        /// so a reach is where the pool is cut and not where it fades, and sixteen radii puts the cut where an inverse
+        /// square at four times the intensity has fallen to a quarter of the level the four-radius pool was cut at: `4
+        /// / 16^2` against `1 / 4^2`.
         constexpr float sGlowGain = 4.0f;
         constexpr float sGlowReachScale = 16.0f;
 
@@ -204,12 +200,10 @@ namespace Rtx
             // lamp that casts no penumbra at all is the worse answer.
             .mSourceRadius = radius * sSourceFraction,
 
-            // **No clearance: a lamp's shadow ray runs to the flame.** A quarter of the radius was
-            // kept clear once, so a ray would not end among a lantern's own cage, and it cost every
-            // shadow a lamp stands on: `light_com_lantern_01` on a crate in Arkngthand's Hall of
-            // Centrifuge hangs its flame ten units over the crate's top, and the crate threw no
-            // shadow at all, at a quarter or at an eighth. Run to the flame, the room looked right
-            // and no cage speckled it.
+            // **No clearance: a lamp's shadow ray runs to the flame.** A quarter of the radius kept clear, so a ray
+            // would not end among a lantern's own cage, cost every shadow a lamp stands on: `light_com_lantern_01` on a
+            // crate hangs its flame ten units over the crate's top, and the crate threw no shadow at all, at a quarter
+            // or at an eighth.
             .mClearance = 0.0f,
         });
     }

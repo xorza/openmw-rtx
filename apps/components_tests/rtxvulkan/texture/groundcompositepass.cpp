@@ -56,13 +56,11 @@ namespace Rtx
 
         struct RtxGroundCompositePassTest : Testing::DeviceTest
         {
-            /// Bakes a chunk of two layers into the images `outputs` names, each stood as the array
-            /// stands one, in one bake.
-            ///
-            /// The chunk: a solid red under the mip ladder, masked by a two-weight grid that ramps
-            /// from all red at the first texel centre to all ladder at the second, with the ladder
-            /// tiled `tiling` times across the chunk. Where `authored`, the ladder is authored, so
-            /// its alpha — its grey — is a roughness; `standsIn` describes it as the stand-in.
+            /// Bakes a chunk of two layers into the images `outputs` names, each stood as the array stands one, in one
+            /// bake. The chunk: a solid red under the mip ladder, masked by a two-weight grid that ramps from all red
+            /// at the first texel centre to all ladder at the second, with the ladder tiled `tiling` times across the
+            /// chunk. Where `authored`, the ladder's alpha, its grey, is a roughness; `standsIn` describes it as the
+            /// stand-in.
             Baked bakeOf(float tiling, std::uint32_t outputs, bool authored, bool standsIn = false)
             {
                 Device& device = getDevice();
@@ -163,27 +161,19 @@ namespace Rtx
             }
         };
 
-        /// The device's composite is the sum the host works out, texel for texel: the layers at
-        /// the weights their masks name, the ladder at the level the footprint calls for.
+        /// The device's composite is the sum the host works out, texel for texel: the layers at the weights their
+        /// masks name, the ladder at the level the footprint calls for.
         ///
-        /// **The level is what tiling proves.** The ladder is sixty-four texels across, so tiled
-        /// once it crosses the chunk in sixty-four, under the five hundred and twelve the
-        /// composite spends: a footprint of one texel, level nought, grey 40. Tiled sixteen times
-        /// it crosses in a thousand and twenty-four, a footprint of two: level one, grey 70. The
-        /// two differ by a level, so a bake that read every layer at its finest, or at the wrong
-        /// level, is caught in every texel the ladder shows in.
+        /// **The level is what tiling proves.** The ladder is sixty-four texels across, so tiled once it crosses the
+        /// chunk in sixty-four, under the five hundred and twelve the composite spends: level nought, grey 40. Tiled
+        /// sixteen times it crosses in a thousand and twenty-four: level one, grey 70. A bake that read every layer at
+        /// its finest, or the wrong level, is caught in every texel the ladder shows in.
         ///
-        /// **The gloss is the same sum**, of how much of the ground reflects and how rough, with the
-        /// ladder authored: its share is the ramp, and its roughness the grey of the level the
-        /// footprint calls for, so the gloss is held to the same level as the albedo. An authored
-        /// ladder that stands in is a Lambert layer, as the trace reads it: nothing reflects, at a
-        /// roughness of one, in every texel.
-        ///
-        /// Within a byte, because the device sums in its own float order and rounds once at the
-        /// store where the host rounds once at the end.
-        ///
-        /// **And a chunk with both is one sum**: the pair baked together is, byte for byte, what
-        /// each image's own bake writes.
+        /// **The gloss is the same sum**, with the ladder authored: its share is the ramp, and its roughness the grey
+        /// of the level the footprint calls for. An authored ladder that stands in is a Lambert layer, as the trace
+        /// reads it: nothing reflects, at a roughness of one. Within a byte, because the device sums in its own float
+        /// order. **And a chunk with both is one sum**: the pair baked together is, byte for byte, what each image's
+        /// own bake writes.
         TEST_F(RtxGroundCompositePassTest, theCompositeAndItsGlossAreTheStackSummedAtTheLevelTheFootprintCallsFor)
         {
             constexpr std::uint32_t albedoOnly = Shaders::GROUND_COMPOSITE_ALBEDO;
@@ -225,11 +215,10 @@ namespace Rtx
                             << "gloss of a ladder that stands in at " << x << ", " << y << " channel " << channel;
                     }
 
-            // And three texels the doc derives by hand, so the sweep is known to be over a ramp:
-            // texel 0 is u = 0.00098, all red, 255 and 0; texel 511 is all ladder, grey 40 encoded
-            // 1.055 * (40/255)^(1/2.4) - 0.055 = 0.43259, or 110 of 255; texel 255 is u = 0.49902,
-            // 0.49805 of the ladder and 0.50195 of the red, red 0.50195 + 0.49805 * 0.15686 =
-            // 0.58008 encoded 0.78581, or 200, and green 0.07812 encoded 0.30967, or 79.
+            // And three texels the doc derives by hand, so the sweep is known to be over a ramp: texel 0 is u =
+            // 0.00098, all red, 255 and 0; texel 511 is all ladder, grey 40 encoded `1.055 * (40/255)^(1/2.4) - 0.055
+            // = 0.43259`, or 110 of 255; texel 255 is u = 0.49902, 0.49805 of the ladder and 0.50195 of the red, red
+            // 0.50195 + 0.49805 * 0.15686 = 0.58008 encoded 0.78581, or 200, and green 0.07812 encoded 0.30967, or 79.
             EXPECT_EQ(int{ once[0] }, 255);
             EXPECT_EQ(int{ once[1] }, 0);
             EXPECT_NEAR(int{ once[511 * 4] }, 110, 1);

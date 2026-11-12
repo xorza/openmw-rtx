@@ -4,16 +4,11 @@
 // Derived from the FidelityFX SDK (v1.1.4), `ffx_fsr3upscaler_callbacks_glsl.h`, whose notice follows.
 
 // What FSR 3.1 binds and reads, as the renderer hands it over: the SDK's callbacks, which is the file the
-// SDK has an integration write, and what this one changes.
-//
-// **The SDK's configuration, stated here for every pass rather than on a command line**: GLSL, full floats,
-// a frame in HDR radiance, motion vectors at the render extent and from the pixel's centre, a reversed
-// depth, and no sharpening.
-//
-// **Full floats where the SDK's own host takes halves on a device that has them**: with `FFX_HALF`, which
-// reaches the two pyramids' arithmetic and nothing else the upscaler computes, the upscale zone's median
-// fell from 0.364 to 0.320 ms on the default suite, and a still picture moved by 0.30 to 0.58 of a pixel
-// across its frames, against the quarter `aStillPictureHoldsStillThroughEveryUpscale` allows.
+// SDK has an integration write, and what this one changes. The SDK's configuration is stated here for every
+// pass rather than on a command line: GLSL, a frame in HDR radiance, motion vectors at the render extent
+// from the pixel's centre, a reversed depth, and no sharpening. Full floats where the SDK's host takes halves
+// (`FFX_HALF`): the upscale zone's median fell from 0.364 to 0.320 ms, but a still picture moved by 0.30 to
+// 0.58 of a pixel against the quarter `aStillPictureHoldsStillThroughEveryUpscale` allows.
 
 #define FFX_GPU 1
 #define FFX_GLSL 1

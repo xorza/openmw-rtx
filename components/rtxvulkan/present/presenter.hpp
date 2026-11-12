@@ -35,8 +35,8 @@ namespace Rtx
     public:
         /// Throws `Unsupported` where the surface or the swapchain will not come up. The blit is a
         /// submit of the device's pool like any other, so it signals the timeline and carries what
-        /// was deferred ahead of it — a submit of its own that took a timeline value would let the
-        /// graveyard free what a deferred batch names before it ran.
+        /// was deferred ahead of it; one that did not could let the graveyard free what a deferred
+        /// batch names before it ran.
         /// @param surface the window's, which the device was chosen to present to: this one's from
         ///        here on, which a rebuild makes again where it was lost.
         Presenter(
@@ -45,15 +45,13 @@ namespace Rtx
 
         /// Blits `frame` onto the next swapchain image where `Misc::present` places it, black beside
         /// it, and queues it: taken in `frameAt`, the use `first` leaves it in, and left in
-        /// `PresentTarget::sResting`. A surface that no
-        /// longer matches the window is not an error: the swapchain is marked stale, the one record
-        /// of it, and `wantsResize` answers yes.
+        /// `PresentTarget::sResting`. A surface that no longer matches the window is not an
+        /// error: the swapchain is marked stale, the one record of it, and `wantsResize` answers yes.
         ///
-        /// **`first` records into the blit's own command buffer, ahead of the blit**: what draws
-        /// `frame` goes in the one submit with what shows it, and not in a submit and a head barrier
-        /// of its own. It is handed the open buffer, and called only where an image was taken.
-        /// `first` may leave `frame` where the blit reads it, `Use::sBlitRead`, which saves the blit
-        /// a barrier of its own: the swapchain image's is the one batch then.
+        /// `first` records into the blit's own command buffer, ahead of the blit, so what draws
+        /// `frame` goes in the one submit with what shows it. It is handed the open buffer, and
+        /// called only where an image was taken. It may leave `frame` where the blit reads it,
+        /// `Use::sBlitRead`, which saves the blit a barrier of its own.
         template <class First>
         void present(const Image& frame, const ImageUse& frameAt, First&& first)
         {
@@ -75,9 +73,9 @@ namespace Rtx
 
         /// Whether the swapchain has to be remade to show `extent`, or the surface with it where the
         /// window system lost it. Split from `rebuild` because a rebuild frees the command buffers a
-        /// handed-over batch may be sitting beside, so the caller has to drain first, and that drain
-        /// costs more than the rebuild it guards. Not const, because a hidden window takes no
-        /// swapchain and the staleness carries the rebuild to the frame the window comes back on.
+        /// handed-over batch may be sitting beside, so the caller drains first, and that drain costs
+        /// more than the rebuild it guards. Not const, because a hidden window takes no swapchain
+        /// and the staleness carries the rebuild to the frame the window comes back on.
         bool wantsResize(VkExtent2D extent);
 
         /// Remakes the swapchain at `extent`, unconditionally, and the surface first where it was
@@ -171,9 +169,8 @@ namespace Rtx
         };
 
         /// One per swapchain image, taken in turn and never indexed by the image, which an acquire
-        /// cannot be keyed on. A semaphore handed to `vkAcquireNextImageKHR` must carry no operation
-        /// still pending, and the acquire's signal stays pending until the blit that waits it has
-        /// run — behind a whole frame of tracing — so one semaphore for every acquire is
+        /// cannot be keyed on. The acquire's signal stays pending until the blit that waits it has
+        /// run, behind a whole frame of tracing, so one semaphore for every acquire is
         /// `VUID-vkAcquireNextImageKHR-semaphore-01779`. A slot comes free when the timeline has
         /// passed its blit.
         std::vector<Acquisition> mAcquiring;

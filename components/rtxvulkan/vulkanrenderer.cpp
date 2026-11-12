@@ -77,9 +77,8 @@ namespace Rtx
     namespace
     {
         /// What the frame's targets take under `profile` at an output `width` by `height` with the
-        /// pictures' chain at `pictures`: what `createTargets` makes for it, the arena of what
-        /// `FrameTracer::declare` declared among it, and the running sum and the deep picture a frame may ask
-        /// for where the run sums.
+        /// pictures' chain at `pictures`: what `createTargets` makes, including the arena of `declared`
+        /// and, where the run sums, the running sum and the deep picture.
         VkDeviceSize frameAt(const Device& device, const std::uint32_t width, const std::uint32_t height,
             const VkExtent2D pictures, const RenderProfile& profile, const Upscaler& upscaler,
             const std::span<const ArenaImage> declared)
@@ -94,17 +93,16 @@ namespace Rtx
             if (pictures.width > 0)
                 bytes += PictureTracer::bytesAt(device, pictures, profile.mRadianceWidth, upscaler.getMasks());
 
-            // **Only a run at the reference's width sums**, which `RadianceWidth` argues: a player's
-            // run is shown, and room for 8 bytes an output pixel and 16 a traced one would be room
-            // its textures stood smaller for, 251 MB at 7680 by 2160 in the quality mode.
+            // **Only a run at the reference's width sums** (`RadianceWidth`): room for the sum is room a
+            // player's textures would stand smaller for, 251 MB at 7680 by 2160 in the quality mode.
             if (profile.mRadianceWidth == RadianceWidth::Summed)
                 bytes += TraceChain::sumBytesAt(device, render.width, render.height)
                     + PresentTarget::deepBytesAt(device, width, height);
             return bytes;
         }
 
-        /// The instance a window needs, which is the headless one plus whatever SDL asks for — the
-        /// surface among it, which is what tells the device to take a swapchain.
+        /// The headless instance's extensions plus whatever SDL asks for, the surface's among them, which
+        /// is what tells the device to take a swapchain.
         std::vector<const char*> surfaceExtensionsFor(const RendererOptions& options)
         {
             if (options.mWindow == nullptr)
@@ -199,9 +197,8 @@ namespace Rtx
         mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
         mProfile.mUpscaler = mUpscaler.getChoice();
 
-        // **What a runtime the upscaler drives records and synchronizes itself is not the
-        // renderer's to answer for**: NGX's hazards between its own commands on its own resources
-        // (seen in Ray Reconstruction 310.9.16: a clear after its own layout transition).
+        // **NGX's hazards between its own commands on its own resources are not the renderer's to answer
+        // for** (seen in Ray Reconstruction 310.9.16: a clear after its own layout transition).
         if (ValidationLog* const log = mInstance.getValidationLog())
             if (const std::optional<std::string_view> runtime = mUpscaler.getRuntimeResources())
                 log->disown(std::string(*runtime));
@@ -215,11 +212,9 @@ namespace Rtx
 
     VulkanRenderer::~VulkanRenderer()
     {
-        // What the interface handed over, before the pool holding it is taken apart, and every
-        // frame in flight and the presenter's last blit, before the swapchain goes, which is the
-        // one handle here not buried. **A step apiece**, as `drain` takes them: a submit that
-        // refused would otherwise skip the wait, and the swapchain would go under a frame still
-        // on the queue.
+        // The interface's writes go before the pool holding them is taken apart, and every frame in flight
+        // and the presenter's last blit before the swapchain, the one handle here not buried. **A step
+        // apiece**: a refused submit would otherwise skip the wait and the swapchain would go under a frame.
         tearDown("the interface's last writes were not submitted", [&] { mGui.getTextures().finish(); });
         tearDown("the frames in flight were not finished", [&] { mRing.finishAll(); });
         tearDown("the device would not finish before the renderer was taken apart", [&] { mDevice.waitIdle(); });
@@ -267,9 +262,8 @@ namespace Rtx
         if (moves.mRenderExtent || moves.mOutputExtent)
             mDescriber.lose(FramePast::resized());
 
-        // **Each time the targets are made**, which a change of size or of mode is, everything that
-        // decides the picture: the mode alone, Native against Off, moves no extent, and a mode that
-        // keeps its extents keeps the chain and every history.
+        // **Logged each time the targets are made**: the mode alone, Native against Off, moves no extent,
+        // and a mode that keeps its extents keeps the chain and every history.
         const std::string frame
             = std::format("{}x{} shown, traced at {}x{} ({}, {:.1f}% a side), by {}, the light filtered by the {}",
                 output.width, output.height, render.width, render.height, sUpscaleNames.name(mProfile.mUpscale),
@@ -280,10 +274,9 @@ namespace Rtx
         // What a report of a crash after this says the frame was.
         Crash::annotate("frame", frame);
 
-        // **The targets a mode does not keep go before the new are made**, so a change of mode
-        // holds one set of them and never two: content stops where the set it takes still fits
-        // (`MemoryUse::Frame`), which leaves no room for a second beside the first. A change of mode
-        // may wait, as a new world does.
+        // **The targets a mode does not keep go before the new are made**, so a change of mode holds one
+        // set and never two: content stops where one set fits (`MemoryUse::Frame`), leaving no room for a
+        // second.
         const bool shownMoves = mTarget.isOpen() && moves.mOutputExtent;
         const bool picturesMove = mPictures.isBuilt() && !mPictures.isAt(mPictureRoom);
         if (mFrame.releases(moves) || shownMoves || picturesMove)
@@ -303,10 +296,8 @@ namespace Rtx
         }
 
         // **What the upscaler's runtime allocates is made before the reserve that counts it**: DLSS's
-        // feature, hundreds of megabytes the driver's usage shows only once it stands, and which a
-        // reserve set without it would leave a world standing past its room for. Each mode the run
-        // moves to is measured once at this output (`Upscaler::measure`), and the allocator is told
-        // what stands, so the reserve does not owe it twice.
+        // feature is hundreds of megabytes the driver shows only once it stands. Each mode the run moves
+        // to is measured once at this output (`Upscaler::measure`).
         if (upscales(mProfile.mUpscale))
             mUpscaler.prepare(mProfile.mUpscale, render, output);
         for (const Upscale mode : mReservedUpscales)
@@ -318,10 +309,9 @@ namespace Rtx
         MemoryAllocator& memory = mDevice.getMemory();
         memory.holdOutside(mUpscaler.getHeldOutside());
 
-        // **Room for the running mode's targets, and not for the most any mode would take**: the
-        // native mode's are about twice the quality mode's, which traces 2.25 times fewer pixels,
-        // and room kept for them was room an 8 GB card's textures stood smaller for at a 4K output.
-        // **Or for the most the modes the run named would take** (`RunProfile::mReservedUpscales`).
+        // **Room for the running mode's targets, not for the most any mode would take**: native's are about
+        // twice the quality mode's, room an 8 GB card's textures stood smaller for at a 4K output. A run
+        // that names its modes reserves for the most of them (`RunProfile::mReservedUpscales`).
         VkDeviceSize reserve = frameAt(mDevice, width, height, mPictureRoom, mProfile, mUpscaler, declared);
         for (const Upscale mode : mReservedUpscales)
         {
@@ -335,13 +325,9 @@ namespace Rtx
                 = std::max(reserve, frameAt(mDevice, width, height, mPictureRoom, reserved, mUpscaler, itsDeclared));
         }
 
-        // **The world is built again where the reserve moving changes what it would stand as**, by the
-        // hand-over after this, which finds its slot empty (`SceneUploader`) and stands every texture
-        // against the room the new targets leave, as a load does: a reserve that grew past what
-        // content left is room the device does not have, and one that shrank is room content was
-        // held back without. **Only there**, because a rebuild is every structure and every texture
-        // in one flushed batch, seconds of a frame, and a reserve that moves within the room content
-        // left makes the same world again.
+        // **The world is built again only where the reserve moving changes what it would stand as**: the
+        // hand-over after this finds its slot empty (`SceneUploader`) and stands every texture against the
+        // new room. A rebuild is every structure and texture in one flushed batch, seconds of a frame.
         const VkDeviceSize reserved = memory.getFrameReserve();
         memory.refreshBudget(mDevice.getTimeline().getNext());
         memory.reserveFrame(reserve);
@@ -361,8 +347,7 @@ namespace Rtx
 
         mTarget.resize(mDevice, width, height);
 
-        // Over the output extent, which is what the frame is by the time the curve maps it: the
-        // upscaler's output where one runs, and the trace itself, at the same size, where none does.
+        // Over the output extent: the upscaler's output where one runs, the trace itself where none does.
         mDisplay.resize(width, height);
 
         if (mPictureRoom.width > 0)
@@ -393,9 +378,8 @@ namespace Rtx
             ? std::format("  system memory the process may still take: {:.1f} MiB\n", mebibytes(*system))
             : std::string("  system memory the process may still take: not stated\n");
 
-        // Reaching here is the part that proves the rest: the device resolved every entry point the
-        // required extensions promise, and a driver advertising one it cannot dispatch fails before
-        // this line rather than at the first frame that needed it.
+        // Reaching here proves the rest: a driver advertising an entry point it cannot dispatch fails
+        // before this line rather than at the first frame that needed it.
         report += "\nlogical device and every required entry point: ok\n";
 
         return report;
@@ -416,31 +400,24 @@ namespace Rtx
         // not yet carried keeps it until the submit that carries the picture has run.
         mScenes.clear(slot);
 
-        // The world a change of mode released, built again: one world, whose reports, sum, eye and
-        // wake go on describing it, as across the change of mode itself. Its motion does not: what
-        // moved since the last frame stands where the build found it, in both copies of its poses.
+        // The world a change of mode released, built again: its reports, sum, eye and wake go on describing
+        // it. Its motion does not: what moved since stands where the build found it.
         const bool rebuilt = slot.isWorld() && std::exchange(mReleasedWorld, 0) == scene.getIdentity();
         if (rebuilt)
             mDescriber.lose(FramePast::resized());
 
         if (slot.isWorld() && !rebuilt)
         {
-            // **A limit on memory, and not a matter of safety.** A new world is a load, and a load
-            // may wait: the drain frees what the old one just buried, so a second world does not
-            // hold two of everything at once — a cell's structures and textures are most of what
-            // this renderer occupies.
+            // **A limit on memory, not a matter of safety.** The drain frees what the old world just
+            // buried, so a second world does not hold two of everything at once.
             drain();
 
-            // The reports of a world that has gone are dropped, and this is the only place they
-            // are. A caller counts the frames it drew, so an arrival or a resize keeps its
-            // reports and hands them over as it asks; a new world is that count starting again, and
-            // a report from before it would answer the next question with the wrong frame.
+            // The only place reports are dropped: an arrival or a resize keeps them, but a new world
+            // starts the caller's count again and an old report would answer with the wrong frame.
             mRing.dropReports();
 
-            // A sum over one scene means nothing over the next, so it goes back with the scene
-            // rather than being carried empty into one it cannot describe. Neither does any history:
-            // a motion vector would point at where something stood in a world that is no longer
-            // there, and the old world's wake would ring on in the new one's water.
+            // A sum over one scene means nothing over the next, and neither does any history: a motion
+            // vector would point into a world that is gone, and its wake would ring on in the new water.
             mFrame.getChain().dropSum();
             mDescriber.lose(FramePast::everything());
         }
@@ -448,20 +425,16 @@ namespace Rtx
         // What the device has room for is decided below, against what it says now.
         mDevice.getMemory().refreshBudget(mDevice.getTimeline().getNext());
 
-        // **The world's structures settled tight before its textures are made** (`BuildCompaction`):
-        // its build is flushed and waited on below anyway, and textures made beside loose structures
-        // were held to room that compaction gave back a few frames later and nothing took again. A
-        // picture's rides the next submit and may not wait.
+        // **The world's structures settle tight before its textures are made** (`BuildCompaction`): its
+        // build is flushed and waited on anyway, and textures made beside loose structures were held to
+        // room compaction gave back later. A picture's rides the next submit and may not wait.
         Batch setup(mDevice.getPool());
         DeviceScene& held = mScenes.hold(slot,
             std::make_unique<DeviceScene>(mDevice, setup, mScenePasses, mArrival, scene, textures, mProfile.mAnisotropy,
                 scene.getRoom(), slot.isWorld() ? BuildCompaction::Settled : BuildCompaction::Streamed));
 
-        // A picture's scene rides the next submit, as an arrival does: its placement and its trace
-        // are deferred behind it, and the barrier every upload and build ends in orders them. The
-        // world's is one submit for the whole cell, asked of the queue here — by hand rather than
-        // left to the destructor, so a submit that fails throws out of here instead of being logged
-        // on the way past.
+        // A picture's scene rides the next submit, as an arrival does. The world's is one submit for the
+        // whole cell, made by hand rather than by the destructor, so a failed submit throws from here.
         if (!slot.isWorld())
         {
             setup.defer();
@@ -485,9 +458,8 @@ namespace Rtx
 
         DeviceScene& held = mScenes.at(slot);
 
-        // An arrival does not wait for the frames in flight: what arrives is written on the queue,
-        // behind whatever a frame in flight still reads of the room it was given, and the writes
-        // end in the barrier `orderStagedWrites` records. It opens the frame it lands in, because
+        // An arrival does not wait for the frames in flight: its writes queue behind whatever they still
+        // read and end in the barrier `orderStagedWrites` records. It opens the frame it lands in, since
         // `beginFrame` clears the timer and a zone opened before it would be forgotten.
         GpuTimer* timer = nullptr;
         if (slot.isWorld())
@@ -499,14 +471,12 @@ namespace Rtx
         held.extend(setup, mArrival, scene, arrived, timer);
         mHandedOver = true;
 
-        // Deferred to the placement's submit: the `placeScene` the caller owes after this submits
-        // it ahead of the refit and the top level, and the barrier every upload and build ends in
-        // orders them, so a composite landing costs no submit, fence or wait of its own.
+        // Deferred to the placement's submit, which the caller's `placeScene` makes ahead of the refit and
+        // the top level, so a composite landing costs no submit, fence or wait of its own.
         setup.defer();
 
-        // The history is kept. Nothing was renumbered, so what the last frame resolved still
-        // describes the same surfaces — and throwing it away is a visible flash every time an actor
-        // walks into view with a texture nobody has worn yet.
+        // The history is kept: nothing was renumbered, and dropping it flashes every time an actor walks
+        // into view with a texture nobody has worn yet.
         if (slot.isWorld())
             held.readStats(mStats);
     }
@@ -524,8 +494,7 @@ namespace Rtx
 
     void VulkanRenderer::dropTextures(const SceneSlot slot, std::span<const Index> textures)
     {
-        // Before there is a scene at all, which is one that swept before it was ever handed over.
-        // There is nothing holding the images to destroy.
+        // No scene yet is a sweep that came before the first hand-over: nothing holds images to destroy.
         if (DeviceScene* const held = mScenes.find(slot); held != nullptr)
             held->dropTextures(textures);
     }
@@ -534,32 +503,26 @@ namespace Rtx
     {
         DeviceScene& held = mScenes.at(slot);
 
-        // The copy this placement writes is the one the last frame did not trace. The other copy
-        // and not a parity of its own, because a frame need not place.
+        // The copy the last frame did not trace; not a parity of its own, because a frame need not place.
         const FrameSlot into = held.getSlot().next();
 
-        // A picture of this copy recorded and carried by nothing yet is carried first, for what
-        // `DeviceScene::pictureRides` says. Three placements of one scene inside one frame is the
-        // only way here, which a game never takes.
+        // A picture of this copy recorded and carried by nothing yet is carried first
+        // (`DeviceScene::pictureRides`); only three placements of one scene in a frame get here.
         if (held.pictureRides(into, mDevice.getTimeline().getNext()))
             mDevice.getPool().finishDeferred();
 
-        // Whatever last read or wrote this copy on the queue is waited for here, and each table
-        // says what that was: the frame before last's trace, which `collectFrame` has usually
-        // waited out already, so this is a comparison; an arrival's pose over the first copy,
-        // carried by a placement's submit; a picture carried by the interface's own. Where the
+        // Whatever last read or wrote this copy on the queue is waited for here: usually the frame before
+        // last's trace, which `collectFrame` has already waited out, so this is a comparison. Where the
         // device is behind, this is the right place for the CPU to stand still.
         held.finishReads(into);
 
-        // **The host's rows ride a batch of their own, deferred ahead of the placement**, which the
-        // pool submits first: staged, their copies then run before anything the placement records
-        // reads them, and mapped, the batch records nothing and costs nothing.
+        // **The host's rows ride a batch of their own, deferred ahead of the placement**, which the pool
+        // submits first: staged copies run before the placement reads them, and mapped rows cost nothing.
         Batch written(mDevice.getPool());
         Uploads uploads(written);
 
-        // A picture inside the interface is placed into a batch that rides the next submit, neither
-        // timed nor opening the frame's report; the trace that follows is deferred the same way, and
-        // the barrier `place` ends in orders the pair.
+        // A picture inside the interface is placed into a batch that rides the next submit, neither timed
+        // nor opening the frame's report; its trace is deferred the same way and `place`'s barrier orders them.
         if (!slot.isWorld())
         {
             // Nothing recorded is nothing carried, as for the world's below.
@@ -580,14 +543,12 @@ namespace Rtx
             return;
         }
 
-        // A placement opens the frame, and every placement before a trace joins it. The frame's
-        // report starts here and not at the trace: placing the world is the refit and the top level,
-        // and a report that began at `renderFrame` would leave them out.
+        // A placement opens the frame, and every placement before a trace joins it: the report starts here
+        // so that the refit and the top level are counted.
         FrameRecord& frame = mRing.begin();
 
-        // The placement's own submit, without a wait. The frame's trace, later on the queue,
-        // covers this submit too. Nothing recorded is nothing submitted, which is every frame of a
-        // standing camera in an empty place: what the rows wrote then rides the trace's.
+        // Submitted without a wait; the frame's trace, later on the queue, covers it. Nothing recorded is
+        // nothing submitted, as for every frame of a standing camera in an empty place.
         Recording placement = mDevice.getPool().begin(mRing.takePlaceCommands(frame));
 
         const bool placed = held.place(scene,
@@ -622,9 +583,8 @@ namespace Rtx
         if (mPresenter == nullptr)
             return;
 
-        // A handed-over batch is submitted first where a rebuild follows, exactly as a resize does,
-        // and only there: most settings change no present mode, and the drain is a submit and a
-        // wait. A present mode is a property of the swapchain object.
+        // The drain runs only where a rebuild follows: most settings change no present mode, and the
+        // drain is a submit and a wait.
         mPresenter->setVerticalSync(mode, [this] { drain(); });
     }
 
@@ -657,9 +617,8 @@ namespace Rtx
         const std::uint32_t was = mProfile.mReconstruction.mSampling.mBounceRays;
         mProfile.mReconstruction.mSampling.mBounceRays = rays;
 
-        // **The landing's own stage images are made only for more than one ray** (`landingApart`), so
-        // a move across one places the arena again, as a change of mode does; any other leaves every
-        // target where it stands.
+        // **The landing's own stage images are made only for more than one ray** (`landingApart`), so only
+        // a move across one places the arena again.
         if ((was > 1) != (rays > 1) && mTarget.isOpen())
         {
             const VkExtent2D output = mTarget.getExtent();
@@ -701,10 +660,8 @@ namespace Rtx
         if (mPresenter == nullptr)
             return;
 
-        // Asked before anything is drained, because `RtxWindow::fit` calls this every settled
-        // frame. Same reason as the destructor's: remaking a swapchain waits the device idle and
-        // frees the blit's buffers, and a batch handed over is sitting beside them waiting for a
-        // submit. What that costs where no rebuild follows is `Presenter::wantsResize`.
+        // Asked before anything is drained, because `RtxWindow::fit` calls this every settled frame;
+        // remaking a swapchain waits the device idle (`Presenter::wantsResize` says what a no-op costs).
         if (mPresenter->wantsResize(VkExtent2D{ width, height }))
         {
             drain();
@@ -736,13 +693,11 @@ namespace Rtx
     {
         assert(mTarget.isOpen());
 
-        // After the frame's submit, and not waited for. The GUI is collected once the world has
-        // been drawn and there is nothing to gain by holding the frame open for it. Drawn with no
-        // batches as well, because what is shown is the picture under them either way.
+        // After the frame's submit, and not waited for; drawn with no batches too, since what is shown is
+        // the picture under them either way.
         //
-        // **Recorded into the present's own submit where one follows**, ahead of its blit: a submit
-        // of its own was a second head barrier and a second trip through the queue every frame. A
-        // renderer with no window submits it here, so what is shown can be read.
+        // **Recorded into the present's own submit where one follows**, ahead of its blit, to save a second
+        // head barrier and queue trip every frame. A renderer with no window submits it here.
         mGui.prepare(vertices, batches);
         if (mPresenter == nullptr)
             mGui.submit(mTarget.getPicture(), mTarget.getShown());
@@ -784,9 +739,8 @@ namespace Rtx
     {
         const JobProgress progress = mTracePasses.mVisibility.awaitKernels(set, patience);
 
-        // **The cache is written the moment the start's compile is whole**, under the loading screen
-        // that waited for it, and not only as the device goes: a crash or a kill later in the
-        // session threw that whole compile away. Once; what compiles after it is written at exit.
+        // **The cache is written the moment the start's compile is whole**, not only as the device goes, so
+        // a crash later in the session keeps it. Once; what compiles after is written at exit.
         if (!mKernelsSaved
             && mTracePasses.mVisibility.awaitKernels(KernelSet::Drawing, std::chrono::milliseconds::zero()).isDone())
         {
@@ -812,8 +766,8 @@ namespace Rtx
     void VulkanRenderer::traceFrame(
         const Shaders::VisibilityConstants& camera, const FrameOptions& options, const WorldOptions& described)
     {
-        // A frame that handed nothing over gives the ring a block back, where an arrival grew it
-        // past what it keeps: `CommandPool::shedStaging`.
+        // A frame that handed nothing over gives the ring a block back where an arrival grew it past what
+        // it keeps (`CommandPool::shedStaging`).
         if (!std::exchange(mHandedOver, false))
             mDevice.getPool().shedStaging(sStagingKept);
 
@@ -836,16 +790,14 @@ namespace Rtx
 
         const float sinceLastMs = options.mSinceLast * 1000.0f;
 
-        // What reconstructs this frame, decided once and by one rule. Every switch below reads
-        // this rather than working the interaction out again; the same value goes back in the frame
-        // result, so what a run reports and what it did are one answer.
+        // What reconstructs this frame, decided once: every switch below reads it, and the same value goes
+        // back in the frame result, so what a run reports and what it did are one answer.
         const Reconstruction reconstruction
             = mProfile.reconstructionFor(mUpscaler.getInput(), options.mReconstruction, getExtents());
         frame.mReconstruction = reconstruction;
 
-        // Every history is worthless after a jump no motion vector can describe: through a door,
-        // with the previous camera kept, a reprojection would fetch one room onto another. Spent
-        // here, by the frame it describes, whatever made it.
+        // Every history is worthless after a jump no motion vector can describe: through a door, a
+        // reprojection would fetch one room onto another. Spent here, by the frame it describes.
         const FramePast past = mDescriber.takePast(options.mLoss);
         if (past.losesAny())
             Log(Debug::Verbose) << "History reset by " << describe(past);
@@ -869,9 +821,8 @@ namespace Rtx
 
         GpuTimer& timer = frame.mTimer;
 
-        // What the trace's passes write from the host — the ripples' impulses, the upscaler's
-        // constants, the debug lines — through a batch deferred ahead of the trace's submit, as a
-        // placement's rows are (`placeScene`).
+        // What the trace's passes write from the host (ripple impulses, the upscaler's constants, debug
+        // lines) rides a batch deferred ahead of the trace's submit, as a placement's rows do.
         Batch written(mDevice.getPool());
         Uploads uploads(written);
 
@@ -881,9 +832,8 @@ namespace Rtx
         // The glare fader's query starts the frame at nothing, ahead of the trace that counts.
         mDisplay.beginGlare(commands);
 
-        // What walked through the water, stepped before the trace reads it and only where the
-        // world stands in a sea: one field under every picture of this frame, anchored where the
-        // step left it. A frame with no sea leaves the tiles as they were and stands no field.
+        // What walked through the water, stepped before the trace reads it and only where the world
+        // stands in a sea: one field under every picture of this frame.
         if (subject.mSea)
         {
             mMedia.stepRipples(commands, uploads, mRing.getRecordingSlot(),
@@ -908,8 +858,7 @@ namespace Rtx
             });
         const GBuffer& channels = traced.mInputs.mChannels;
 
-        // Before anything past the trace has a say, and the channels' hand-over is the read this
-        // rides on. `FrameDigest` says why the picture is not enough.
+        // Before anything past the trace has a say; `FrameDigest` says why the picture is not enough.
         if (options.mReadBack)
         {
             // **The direct channel's slot digests the composed frame**: the picture, in the frame's own
@@ -940,9 +889,8 @@ namespace Rtx
                 &timer);
         }
 
-        // The rest of the frame, over the reconstruction where something upscales and over the
-        // trace's own composite where nothing does. The whole of the frame is the picture, which
-        // is the output's extent either way.
+        // The rest of the frame runs over the reconstruction where something upscales and over the trace's
+        // own composite where nothing does; the picture is the output's extent either way.
         const HandedImage shown = [&] {
             if (!reconstruction.upscaled())
                 return traced.mColour;
@@ -995,8 +943,7 @@ namespace Rtx
         if (options.mReadBack)
             mRing.readPicture(frame, commands, target);
 
-        // After the picture and inside the frame's trace, so the frame is finished when its value
-        // has passed and the hold is the last thing it did.
+        // After the picture and inside the frame's trace, so the hold is the last thing the frame did.
         if (mStress != nullptr)
             mStress->record(commands, frame.mCounts, &timer);
 
@@ -1015,9 +962,8 @@ namespace Rtx
         if (width <= mPictureRoom.width && height <= mPictureRoom.height)
             return;
 
-        // **Made with the frame's targets and counted with them**, so the room content stands in is
-        // what is left beside it: a view is made as the interface is, at the start, and a map tile
-        // larger than every view before is the one that arrives with a cell.
+        // **Made with the frame's targets and counted with them**, so the room content stands in is what
+        // is left beside them.
         mPictureRoom = VkExtent2D{ std::max(mPictureRoom.width, width), std::max(mPictureRoom.height, height) };
         const VkExtent2D output = mTarget.getExtent();
         createTargets(output.width, output.height);
@@ -1030,8 +976,7 @@ namespace Rtx
 
     void VulkanRenderer::dropViewScene(const SceneSlot scene)
     {
-        // Not drained, because the scene's objects bury themselves: a drain here idled the whole
-        // device every time the inventory closed.
+        // Not drained: the scene's objects bury themselves, and a drain idles the whole device.
         mScenes.drop(scene);
     }
 

@@ -29,9 +29,8 @@ namespace Rtx::Testing
     {
         /// A surface nothing described is a canary rather than a guess.
         ///
-        /// Every state set the content pipeline produces carries a description; one that does not
-        /// was built somewhere else, or was rebuilt by something that copied the pipeline state and
-        /// dropped the description with it. The extractor says so and does not try to recover it.
+        /// Every state set the content pipeline produces carries a description; one that does not was built
+        /// elsewhere, or rebuilt by something that dropped it. The extractor says so and does not try to recover.
         TEST_F(RtxSceneExtractorTest, anUndescribedSurfaceIsCountedRatherThanGuessedAt)
         {
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
@@ -65,13 +64,10 @@ namespace Rtx::Testing
             EXPECT_EQ(mExtractor.getContext().mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 0u);
         }
 
-        /// A texture arrives under the format it was decoded in, which its row keeps, and its mip
-        /// chain is counted beside it — and leaves with its slot.
-        ///
-        /// The count is what says whether the content is what the uploader was written for, so a
-        /// scene that stands a format nobody expected reports it rather than leaving it to a throw.
-        /// **Kept by the table and not by the walk**, so a second walk over the same graph reads
-        /// the same census and a region walked away from is counted out of it.
+        /// A texture arrives under the format it was decoded in, which its row keeps, and its mip chain is counted
+        /// beside it and leaves with its slot. The count says whether the content is what the uploader was written
+        /// for, so a scene standing a format nobody expected reports it rather than throwing. **Kept by the table and
+        /// not by the walk**, so a second walk reads the same census and a region walked away from is counted out.
         TEST_F(RtxSceneExtractorTest, texturesAreCountedByFormatAndByWhetherTheyBroughtMips)
         {
             osg::ref_ptr<osg::Image> chained = new osg::Image;
@@ -148,9 +144,8 @@ namespace Rtx::Testing
 
         /// Two walks add up count by count, and the report adds the settled walk to the staged one.
         ///
-        /// **A count the sum passes over is a number that is quietly short**, which is what a report
-        /// of an incremental mirror is least able to survive: it dropped the sheets and the
-        /// composites once, and both read as zero however much of either a cell held.
+        /// **A count the sum passes over is a number that is quietly short**, which a report of an incremental
+        /// mirror is least able to survive: the sheets and the composites once read as zero however many a cell held.
         TEST_F(RtxSceneExtractorTest, twoWalksAddUpCountByCount)
         {
             ExtractionStats sum = counted(0);

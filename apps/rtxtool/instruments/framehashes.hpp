@@ -44,22 +44,18 @@ namespace RtxTool
     /// hashes say about this one: `shot --against` for a run rather than a still, because a stale
     /// table or a history reprojected onto the wrong surface needs a second frame to show.
     ///
-    /// **Three things a frame, and the verdict is never the picture past an upscaler.** The trace's
-    /// own images and what the frame handed the reconstruction are what the tree computed, and two
-    /// runs of one build compute them the same to the bit. The picture is the same only where
-    /// nothing reconstructed it: an upscaler keeps a history, and the smallest difference in what it
-    /// was handed on one frame stays in its picture for the rest of the run, so its picture is
-    /// written for a look and compared for the record, and a run under it is the same run where
-    /// the trace and the scene are. The scene beside both, because a run that differs has either
-    /// drawn one scene two ways or been handed two scenes, and those are repaired in different
-    /// places; a column per part, because "the layout moved" names no table. A hash and not a
-    /// picture, because six hundred frames is a few hundred megabytes; a frame it names is then
-    /// rendered on its own for a look.
+    /// Three things a frame, and the verdict is never the picture past an upscaler. The trace's own images
+    /// and what the frame handed the reconstruction are what the tree computed, the same to the bit in two
+    /// runs of one build. The picture is the same only where nothing reconstructed it: an upscaler keeps a
+    /// history, and the smallest difference in what it was handed stays in its picture for the rest of the
+    /// run, so its picture is compared for the record and a run under it is the same run where the trace and
+    /// the scene are. The scene is hashed beside both, because a differing run has either drawn one scene
+    /// two ways or been handed two, repaired in different places; a column per part, because "the layout
+    /// moved" names no table. A hash and not a picture, because six hundred frames is a few hundred megabytes.
     ///
-    /// **The composed frame of a denoised run is not to the bit either**, and not because of the
-    /// tree: the card's own arithmetic under the wavelet is not (`docs/rtx/architecture.md`, the
-    /// denoiser). Every other column of such a run is, so a difference there alone is reported
-    /// beside the verdict, and `shot` holds the picture it wrote to within a level.
+    /// The composed frame of a denoised run is not to the bit either, and not because of the tree: the
+    /// card's own arithmetic under the wavelet is not (`docs/rtx/architecture.md`, the denoiser). A
+    /// difference there alone is reported beside the verdict, and `shot` holds the picture to within a level.
     class FrameHashes
     {
     public:
@@ -147,9 +143,8 @@ namespace RtxTool
 
             /// Whether nothing the tree computed moved: not the trace, not a picture it drew
             /// itself, not a part of the scene, not the configuration, not the count of frames.
-            /// The scene as well as the trace, because a run of one binary repeats every column
-            /// exactly and a trace the same over a scene that moved is a world handed over twice,
-            /// which the report names the part of.
+            /// The scene as well as the trace, because a trace the same over a scene that moved is a world
+            /// handed over twice, which the report names the part of.
             bool same() const
             {
                 return mTraceDiffering.empty() && mDiffering.empty() && mSceneDiffering.empty()

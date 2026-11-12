@@ -10,12 +10,10 @@
 
 namespace MWRender
 {
-    /// What the weather manager settled about the sky, in the world's own numbers, undecoded:
-    /// every colour is a content file's three bytes over 255, and what that means is a question
-    /// about a renderer's transport. `MWWorld::WeatherManager` owns one and writes it where it
-    /// decides each part; both renderers reach it through `MWBase::World::getSkyState` and derive
-    /// what they draw from it when they draw. Nothing here is recorded a second time by a setter.
-    /// What the game itself decides — the toggles, the water, the sun light — is `WorldState`'s.
+    /// What the weather manager settled about the sky, in the world's own numbers, undecoded.
+    /// `MWWorld::WeatherManager` owns one and writes it where it decides each part; both renderers reach it
+    /// through `MWBase::World::getSkyState`. What the game itself decides (the toggles, the water, the sun
+    /// light) is `WorldState`'s.
     struct SkyState
     {
         /// The weather the world settled on, whole, as `WeatherManager::calculateWeatherResult`
@@ -23,10 +21,10 @@ namespace MWRender
         WeatherResult mWeather;
 
         /// The two names `mWeather`'s views stand on: copies of the weather records' own, made
-        /// where a name changed. **Owned and not the records'**, because the renderers read this
-        /// while the Lua worker runs, and a global script that sets a record's path frees the string
-        /// a view of it stood on. The record `mWeather.mWeather` names is the weather manager's
-        /// copy for the same reason (`WeatherManager::mShownWeather`).
+        /// where a name changed. Owned and not the records', because the renderers read this while the Lua
+        /// worker runs, and a global script that sets a record's path frees the string a view stood on. The
+        /// record `mWeather.mWeather` names is the weather manager's copy for the same reason
+        /// (`WeatherManager::mShownWeather`).
         struct Names
         {
             VFS::Path::Normalized mCloudTexture;

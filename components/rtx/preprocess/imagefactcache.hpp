@@ -20,10 +20,9 @@ namespace Rtx
 {
     /// What a file's texels say, each fact read the first time it is asked and kept.
     ///
-    /// **Two walks and not one.** Whether the alpha reaches solid stops at the first solid texel,
-    /// which for a mask is its first block, and every blended material asks it. The mean decodes
-    /// every texel's colour, and an additive sheet alone asks it. One walk for both decoded every
-    /// blended texture the frame met: 11 ms of a frame at `seyda-neen-ship-dawn`.
+    /// **Two walks and not one.** Whether the alpha reaches solid stops at the first solid texel, and
+    /// every blended material asks it; the mean decodes every texel, and an additive sheet alone asks
+    /// it. One walk for both cost 11 ms of a frame at `seyda-neen-ship-dawn`.
     struct ImageFacts
     {
         /// `ContentPreprocessor::reachesSolid`.
@@ -42,13 +41,11 @@ namespace Rtx
         std::optional<SpecularLayout> mSpecularLayout;
     };
 
-    /// The facts of every file this has been asked about, kept for the life of its thread's owner
-    /// and keyed by the file, because a file's texels never change and a session meets the same
-    /// maps under many materials. Kept here and not beside the texture's slot, which the scene gives
-    /// back when the last material naming the image goes — and a spell's map goes with every burst,
-    /// so a cache that died with the slot read every texel again on the frame of the next cast. One
-    /// instance a thread, beside its `ContentPreprocessor` — `ThreadContent`, which reads each
-    /// fact: the ring's reader has its own.
+    /// The facts of every file this has been asked about, kept for the life of its thread's owner and
+    /// keyed by the file, because a file's texels never change. Kept here and not beside the texture's
+    /// slot, which the scene gives back when the last material naming the image goes: a spell's map goes
+    /// with every burst, and a cache that died with the slot read every texel again on the next cast.
+    /// One instance a thread, beside its `ContentPreprocessor`.
     class ImageFactCache
     {
     public:

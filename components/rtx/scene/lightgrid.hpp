@@ -18,8 +18,7 @@
 namespace Rtx
 {
     /// Which lamps can reach where: a uniform grid in world space, because a bounce lands where no
-    /// pixel is looking, and a fog march asking every lamp twenty-four times a pixel was several
-    /// times the trace. A lamp is binned into every cell its reach touches, so the shader's own
+    /// pixel is looking. A lamp is binned into every cell its reach touches, so the shader's own
     /// distance test is a refinement and never a correction. The grid covers what the lamps reach
     /// and a cell more on every side, and takes no bounds from the scene, so a fog step in the air
     /// above a cell is not handed an empty list.
@@ -36,9 +35,9 @@ namespace Rtx
 
         /// Bins `lights` into the grid this already has, without going back to the allocator: a lamp
         /// whose box moved leaves the cells it left and enters the cells it entered, and nothing
-        /// else is written — a lamp that only flickered has the same grid, and Morrowind's lamps
-        /// flicker on nearly every frame. The grid is made again where a lamp came, went or reached
-        /// out of it, or where the list has no room left for a run that grew.
+        /// else is written, so a lamp that only flickered has the same grid. The grid is made again
+        /// where a lamp came, went or reached out of it, or where the list has no room left for a
+        /// run that grew.
         void rebuild(std::span<const Light> lights);
 
         /// The cells a sphere touches, as a half-open box of cell coordinates.
@@ -75,12 +74,10 @@ namespace Rtx
         ///
         /// **Each run in a block of its own room**, a power of two over what it held when it was
         /// placed, so a lamp that crosses a cell writes the cells it left and entered and nothing
-        /// else, and the device's copies take only those (`getRewritten`). Runs packed end to end
-        /// moved every run after the first one that changed, and a carried torch crosses a cell
-        /// every few frames. A run that outgrows its block moves to one twice the size at the list's
-        /// end, and a list with no room left there makes the grid again. A room of the densest
-        /// cell's for every cell instead held the list to a budget only by coarsening the grid in a
-        /// crowded exterior, where every lookup then walks more lamps.
+        /// else, and the device's copies take only those (`getRewritten`). A run that outgrows its
+        /// block moves to one twice the size at the list's end, and a list with no room left there
+        /// makes the grid again. A room of the densest cell's for every cell instead held the list
+        /// to a budget only by coarsening the grid in a crowded exterior.
         ///
         /// **The lamps that take light away are a run of their own**, so a walk of the lamps never
         /// meets one, and in the same row as the cell's own, so the two a shaded point reads are one

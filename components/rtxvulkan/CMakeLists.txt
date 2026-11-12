@@ -190,10 +190,9 @@ set(RTX_SHADER_VENDORED "${PROJECT_SOURCE_DIR}/extern/fidelityfx/gpu")
 # validator reads what the driver gets.
 #
 # **Unoptimized by glslc, guarded, then optimized**, the same level for every flavour, so the debug
-# build that runs every test computes the arithmetic of the release build a figure is quoted from.
-# And the optimizer is handed the module guarded
-# (`Rtx::guardFloatArithmetic`), because what `glslc -O` optimized it folded first: arithmetic the
-# source does not state, before anything pinned it.
+# build that runs every test computes the arithmetic of the release build a figure is quoted from. The
+# optimizer is handed the module guarded (`Rtx::guardFloatArithmetic`), because what `glslc -O`
+# optimized it folded first: arithmetic the source does not state, before anything pinned it.
 set(RTX_GLSLC_FLAGS
     -g
     -O0

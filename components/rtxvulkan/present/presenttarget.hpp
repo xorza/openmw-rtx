@@ -15,15 +15,13 @@ namespace Rtx
 
     /// The frame at the output extent, as two images: the picture, which the curve writes and
     /// only the next trace rewrites, and what is shown, which the interface draws over a copy of
-    /// the picture and a present blits from. Two, because a frame that blends the interface into the
-    /// picture leaves no picture without it: a frame with no trace would blend the interface over the
+    /// the picture and a present blits from. Two, because blending the interface into the picture
+    /// would leave no picture without it: a frame with no trace would blend the interface over the
     /// last interface, and a save's thumbnail would hold the menu it was saved from.
     ///
-    /// **A present's blit reads what is shown long after the call returned** — it waits the acquire
-    /// semaphore — and the next draw writes it: every command buffer opens with a full barrier on
-    /// the one queue (`CommandPool::begin`), whose first scope is every command submitted before it,
-    /// the blit included. So the next draw's first write waits for the blit on the device, and the
-    /// host waits for nothing.
+    /// A present's blit reads what is shown long after the call returned, and the next draw writes
+    /// it: every command buffer opens with a full barrier on the one queue (`CommandPool::begin`)
+    /// whose first scope includes the blit, so the host waits for nothing.
     class PresentTarget
     {
     public:
@@ -35,11 +33,9 @@ namespace Rtx
         /// What a summed frame's picture is written in beside it, `TONE_DEEP_FORMAT`.
         static constexpr VkFormat sDeepFormat = toVulkanFormat(TONE_DEEP_FORMAT);
 
-        /// Where both images rest between their users, said once: the curve leaves the picture
-        /// here, the interface takes both from here and leaves them here, a present's blit and a
-        /// read back take the shown image and the picture from here and leave them here. The
-        /// general layout and any access, because a user meets what the last one, whichever it
-        /// was, left behind.
+        /// Where both images rest between their users: the curve leaves the picture here, and the
+        /// interface, a present's blit and a read back take them from here and leave them here. The
+        /// general layout and any access, because a user meets what the last one left behind.
         static constexpr const ImageUse& sResting = Use::sAnyGeneral;
 
         /// Makes both, black and in `VK_IMAGE_LAYOUT_GENERAL`, because the interface is drawn over
@@ -78,9 +74,8 @@ namespace Rtx
         ///
         /// The deep picture is the picture again at sixteen bits a channel, which the curve writes
         /// beside it for a summed frame alone, without the debug lines: made at the output extent
-        /// the first time one asks, in `PresentTarget::sDeepFormat`, and dropped by a new extent. **Made
-        /// on demand, because only a harness sums**: the frame at the window's extent and eight
-        /// bytes a pixel is 133 megabytes at 7680 by 2160, which no player's frame reads.
+        /// the first time one asks, in `PresentTarget::sDeepFormat`, and dropped by a new extent. Made
+        /// on demand, because only a harness sums and it costs 133 megabytes at 7680 by 2160.
         Image* beginPicture(const Device& device, bool deep);
 
         /// The interface was drawn over the picture into what is shown.

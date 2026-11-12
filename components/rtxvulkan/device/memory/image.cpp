@@ -24,15 +24,13 @@ namespace Rtx
 {
     namespace
     {
-        /// The create info of an image of a description, and the list of formats it may point to:
-        /// pinned, since the one points into the other.
-        ///
-        /// **A second format is a second view of the same bits**, which the image has to be created
-        /// able to give: the list is what lets the driver keep the image's own layout for both.
-        /// **Extended usage, because the storage usage is the other format's.** An `SRGB` format
-        /// has no storage feature, so an image of it asking for storage is refused outright — the
-        /// extended-usage flag has the usage checked against every format of the list instead,
-        /// and the view in the image's own format then has to say it carries no storage.
+        /// The create info of an image of a description, and the list of formats it may point to: pinned,
+        /// since the one points into the other. **A second format is a second view of the same bits**, which
+        /// the image has to be created able to give: the list lets the driver keep the image's own layout
+        /// for both. **Extended usage, because the storage usage is the other format's**: an `SRGB` format
+        /// has no storage feature, so an image of it asking for storage is refused outright; the
+        /// extended-usage flag has the usage checked against every format of the list instead, and the view
+        /// in the image's own format then has to say it carries no storage.
         class ImageCreate
         {
         public:
@@ -460,9 +458,8 @@ namespace Rtx
         std::vector<std::uint8_t> bytes;
         read(layout, bytes);
 
-        // Every format read back this way is named in `formatInfoOf`, and one decoded as bytes is
-        // an end rather than a `memcpy`, which is how the motion channels came back as pairs of
-        // halves the day they narrowed.
+        // Every format read back this way is named in `formatInfoOf`, and one decoded as bytes is an end
+        // rather than a `memcpy`, which would return motion channels as pairs of halves.
         switch (formatInfoOf(mFormat).mDecode)
         {
             case TexelDecode::Half:

@@ -30,11 +30,10 @@ namespace RtxTool
         mHeader.mSetup = request.mSetup;
         mHeader.mStep = request.mStep;
 
-        // **Everything an earlier run wrote where this one writes goes before this one draws**, as
-        // `noise` clears its own: a run that dies before `finish` left the last run's hashes beside
-        // its own pictures, a later `--against` compared with what another build drew, and a stop
-        // this run never reached read as the last run's picture, the same. Every output the request
-        // names: the record, each stop's files, and the measured frames' pictures, `view-frame.png`.
+        // Everything an earlier run wrote where this one writes goes before this one draws, as `noise` clears its
+        // own: a run that dies before `finish` would leave the last run's hashes beside its own pictures for a later
+        // `--against` to compare, and a stop this run never reached would read as the last run's picture. Every
+        // output the request names: the record, each stop's files, and the measured frames' pictures.
         std::error_code ignored;
         const auto removeEarlier = [&](const std::filesystem::path& earlier) {
             if (!earlier.empty())
@@ -116,9 +115,9 @@ namespace RtxTool
     {
         mReport += describeTotal(mPlaces);
 
-        // **A run the kernel compacted memory under, said**: a heap on huge pages that the kernel compacts
-        // for one stalls the allocation that asked, 50–60 ms inside a crossing, which is the machine's
-        // and not the renderer's. Kept on huge pages, whose placement steadies every other figure.
+        // A run the kernel compacted memory under, said: on huge pages a compaction stalls the allocation that
+        // asked, 50–60 ms inside a crossing, which is the machine's and not the renderer's. Kept on huge pages,
+        // whose placement steadies every other figure.
         const std::optional<std::uint64_t> stalls = Platform::Process::compactionStalls();
         if (mCompactionStalls.has_value() && stalls.has_value() && *stalls > *mCompactionStalls)
             mReport += std::format(

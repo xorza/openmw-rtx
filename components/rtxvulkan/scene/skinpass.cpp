@@ -126,9 +126,9 @@ namespace Rtx
         // now is still owed here, or this copy would carry a pose two frames old.
         what.mPoses.write(what.mScene.meshes().getDeformed());
 
-        // **Every pose written before one order, and the dispatches after it**: staged into the
-        // batch the dispatches record into, as a scene built from nothing poses, a write and its
-        // dispatch apiece were a barrier a body.
+        // Every pose is written before one order, and the dispatches after it: staged into the batch
+        // the dispatches record into, as a scene built from nothing poses, since a write and a
+        // dispatch apiece would be a barrier a body.
         std::vector<Index>& posing = what.mTables.getPosing();
         posing.clear();
         what.mPoses.sync(what.mSlot, [&](const Index index, BlockedBuffer&) {

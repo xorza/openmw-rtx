@@ -33,12 +33,10 @@ namespace Rtx
     /// texel, slice by slice (`fogFieldOffsetAt`).
     using FogField = std::span<const std::uint8_t, sFogFieldBytes>;
 
-    /// The fog's fractal field, drawn into a wrapping volume with a chain of levels under it: value
-    /// noise off a hashed lattice costs eight hashes an octave at every step of a march at every
-    /// pixel, so a sampler reads it instead. One octave, wrapping on all three axes; the fractal is
-    /// the shader's, which reads this at three scales that never come back into step. Every level is
-    /// normalised to one mean and one spread, so a coarse step loses the detail and never the amount
-    /// of air. Made by the build (`makeFogNoise`) and compiled in, so no start spends the 53 ms it
-    /// takes; every renderer reads it, and a test states another field by value.
+    /// The fog's fractal field, drawn into a wrapping volume with a chain of levels under it, so a
+    /// sampler reads it instead of eight hashes an octave at every march step. One octave, wrapping on
+    /// all three axes; the shader builds the fractal from three scales. Every level is normalised to one
+    /// mean and spread, so a coarse step loses the detail and never the amount of air. Made by the build
+    /// (`makeFogNoise`) and compiled in, so no start spends the 53 ms it takes.
     extern const std::array<std::uint8_t, sFogFieldBytes> sFogNoise;
 }

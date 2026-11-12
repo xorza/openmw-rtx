@@ -28,10 +28,10 @@ const float WATER_MAX_PATH = 2000.0;
 
 /// How long a column of water with no bottom to it is taken to be, in world units.
 ///
-/// **Not a distance to anything.** It is a distance past which nothing behind the water survives: blue
-/// outlasts every other channel and this is thirteen of its e-foldings, so whatever stands behind the
-/// column arrives at about a part in a million however bright it is. The column's own scattering has
-/// settled long before that, so this is the sea's own asymptote and raising the number moves no pixel.
+/// **Not a distance to anything**, but one past which nothing behind the water survives: blue outlasts every
+/// other channel and this is thirteen of its e-foldings, so whatever stands behind the column arrives at
+/// about a part in a million. The column's own scattering has settled long before, so this is the sea's
+/// asymptote and raising it moves no pixel.
 const float WATER_UNBOUNDED_PATH = 40000.0;
 
 /// Where the image a water path shows appears to stand along the eye's own ray: what the surface's motion
@@ -83,9 +83,8 @@ uint waterFieldOf(uvec2 pixel)
 /// `reflect_refract` replaces it (`docs/rtx/architecture.md`, "Every water pixel splits").
 ///
 /// **The shore's ground stands in the bed's path.** Over the last half metre of depth the surface fades out
-/// (`WATER_SHORE_FADE`) and the ground the dry pixel beside it is shows through: the bed's path is then
-/// bent by the water's share alone, and carries the dry share whole and the wet share through the leg, so a
-/// waterline is the ground the dry pixel shows, faded into the water's.
+/// (`WATER_SHORE_FADE`) and the ground the dry pixel beside it shows through: the bed's path is bent by the
+/// water's share alone, carrying the dry share whole and the wet share through the leg.
 ///
 /// **A walk** (`visibility.comp`, `media.comp`): the plane, the waves and the Fresnel term worked out of
 /// where the water stands when it starts, with the shore's ray; the path's ray, of whose answer the walk
@@ -227,10 +226,10 @@ void stepWater(
     if (run.mStep == WATER_START)
     {
         // **Which side of the water a ray is on is a question about the plane, not about a wave.** At a
-        // glancing angle a facet can tilt far enough to face away from the ray, and reading that as "the
-        // camera is underwater" sends the reflection down into the seabed and turns the far water white.
-        // Water is the one surface whose sides have absolute names: it is a horizontal plane, so a ray
-        // travelling upward into it came from underneath, whatever the quad's winding says.
+        // glancing angle a facet can tilt far enough to face away from the ray, and reading that as "the camera
+        // is underwater" sends the reflection into the seabed and turns the far water white. Water's sides have
+        // absolute names (a horizontal plane), so a ray travelling upward into it came from underneath,
+        // whatever the quad's winding says.
         const bool fromBelow = incident.z > 0.0;
         const vec3 plane = fromBelow ? vec3(0.0, 0.0, -1.0) : vec3(0.0, 0.0, 1.0);
 
@@ -248,11 +247,11 @@ void stepWater(
         // it, and tilting it back toward the plane is what keeps a glancing reflection finite.
         normal = facingRay(normal, plane, incident);
 
-        // **Schlick at the angle in the air, which from below is the refracted one.** The curve is written
-        // for light arriving from the rarer medium; taken at the incident angle under the surface it gives
-        // 0.024 at the critical angle and then all of it past it — Snell's window drawn with a hard rim. At
-        // the angle the light leaves by it climbs to one as that angle reaches the horizon, which is where
-        // the critical angle puts it, and past it the cosine is nought.
+        // **Schlick at the angle in the air, which from below is the refracted one.** The curve is written for
+        // light arriving from the rarer medium; at the incident angle under the surface it gives 0.024 at the
+        // critical angle and then all of it past it, Snell's window with a hard rim. At the angle the light
+        // leaves by it climbs to one as that angle reaches the horizon, where the critical angle puts it, and
+        // past it the cosine is nought.
         const float incidence = clamp(dot(-incident, normal), 0.0, 1.0);
         const float cosine
             = fromBelow ? sqrt(max(1.0 - WATER_IOR * WATER_IOR * (1.0 - incidence * incidence), 0.0)) : incidence;
@@ -275,15 +274,14 @@ void stepWater(
         // coordinates.
         run.mBefore = at.mDistance;
 
-        // **How much water is under *this pixel*, which is the whole of what a shore is.** Straight down
-        // rather than along anything, and worth a ray of its own: the path cast below leaves at an angle,
-        // so what it measures is how far *it* travelled — which at a shore is a question about the slope
-        // beyond rather than about the depth here. `WATER_SHORE_FADE` says what that drew.
+        // **How much water is under *this pixel*, which is the whole of what a shore is.** Straight down and
+        // worth a ray of its own: the path cast below leaves at an angle, so it measures how far *it* travelled,
+        // which at a shore is a question about the slope beyond and not about the depth here
+        // (`WATER_SHORE_FADE` says what that drew).
         //
-        // **And the ray is no longer than the band it answers for.** The fade saturates at
-        // `WATER_SHORE_FADE`, so a bed further down and a bed nowhere at all are the same answer — which
-        // makes that length the ray's own limit, and stops every pixel of open water crossing the sea to be
-        // told it is deep.
+        // **The ray is no longer than the band it answers for.** The fade saturates at `WATER_SHORE_FADE`, so a
+        // bed further down and a bed nowhere at all are the same answer, which makes that length the ray's own
+        // limit and stops every pixel of open water crossing the sea to be told it is deep.
         //
         // **Measured from the surface**, though the ray leaves from under it: the depth is what the ray
         // travelled and what its start stands under the surface, straight down.
@@ -314,14 +312,13 @@ void stepWater(
         run.mSplit = !whole;
         run.mMirror = whole || run.mField == WATER_MIRROR;
 
-        // **The reflection stays on the eye's side of the plane, and the refraction crosses it.** Each
-        // leaves off the *plane*, not the facet: what a ray has to clear is the quad, and only the plane's
-        // normal is guaranteed to take it off that.
+        // **The reflection stays on the eye's side of the plane, and the refraction crosses it.** Each leaves
+        // off the *plane*, not the facet: what a ray has to clear is the quad, and only the plane's normal is
+        // guaranteed to take it off that.
         //
-        // **Water that is not there cannot bend light.** The refraction is blended back toward the incident
-        // by the same term that fades the surface, or the last pixel of water still shows a piece of ground
-        // displaced by a fifth of a radian from the dry pixel beside it — a hard line however faint the
-        // surface over it has been made.
+        // **Water that is not there cannot bend light.** The refraction is blended back toward the incident by
+        // the same term that fades the surface, or the last pixel of water would show ground displaced by a
+        // fifth of a radian from the dry pixel beside it, a hard line however faint the surface over it.
         const vec3 along = run.mMirror ? reflect(incident, run.mNormal) : normalize(mix(incident, bent, run.mShore));
         const vec3 plane = fromBelow ? vec3(0.0, 0.0, -1.0) : vec3(0.0, 0.0, 1.0);
         run.mPath = WorldRay(leaveSurface(run.mPosition, plane * run.mRounding, along), along);
@@ -336,11 +333,10 @@ void stepWater(
     const WaterShares shares = waterSharesOf(run);
     if (run.mStep == WATER_PATH)
     {
-        // **Which way the ray went is the whole of what a miss means, and the plane is what makes that
-        // answerable.** Water has absolute sides, so below the surface there is water — whether or not the
-        // bed under it is one this renderer was handed. Read as sky instead, a missed refraction came back
-        // through 2000 units at half of blue and drew the edge of the loaded terrain across the sea, which
-        // is a line the water never had.
+        // **Which way the ray went is the whole of what a miss means, and the plane makes that answerable.**
+        // Water has absolute sides, so below the surface there is water whether or not the bed under it was
+        // handed to this renderer. Read as sky instead, a missed refraction came back through 2000 units at
+        // half of blue and drew the edge of the loaded terrain across the sea, a line the water never had.
         const vec3 direction = run.mPath.mAlong;
         run.mFound = at.mHit;
         run.mDistance = at.mHit ? at.mDistance : (direction.z < 0.0 ? WATER_UNBOUNDED_PATH : WATER_MAX_PATH);

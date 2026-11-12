@@ -69,15 +69,11 @@ namespace Rtx
         /// cells held at once, and kept out of the cells not yet held.
         void blacklistReference(ESM::RefNum refnum);
 
-        /// The game holds the reference at `place` now: moved, turned or scaled, as a script swings a
-        /// street lantern in the wind every frame its cell is loaded and a save keeps where it swung
-        /// to. Its placements and its lamp's light stand there from now on, in the cells held at once
-        /// and in the cells not yet held as they are, and nowhere where `away`, moved into another
-        /// cell than the content's, which is the game's to show once loaded.
-        /// Upstream's paging leaves such a reference out of the distance altogether, and a town
-        /// whose lanterns a visit had swung stood dark from afar.
-        ///
-        /// The size rule keeps reading the content's scale, which the radius was sorted by.
+        /// The game holds the reference at `place` now: moved, turned or scaled, as a script swings a street lantern in
+        /// the wind and a save keeps where it swung to. Its placements and its lamp's light stand there from now on, in
+        /// the cells held at once and in the cells not yet held, and nowhere where `away`, moved into another cell than
+        /// the content's, which is the game's to show once loaded. Upstream's paging leaves such a reference out of the
+        /// distance altogether. The size rule keeps reading the content's scale, which the radius was sorted by.
         void moveReference(ESM::RefNum refnum, const ReferencePlace& place, bool away);
 
         /// What a visibility gate says of the references behind it, for the cells no one has
@@ -141,23 +137,21 @@ namespace Rtx
         /// Takes every held cell's placements and groundcover out of the top level, keeping the cells.
         void dropSlots();
 
-        /// Places and drops every held cell by the reach and the size rule, flattens its ground by
-        /// the grid, and stands the lamps nothing the game says keeps down, where the cell is in
-        /// reach and outside the grid — the game's own graph carries the lamps inside it, and a
-        /// lantern must not be counted twice. Stands a cell's groundcover whole where the cell is
-        /// within `WorldAround::mGroundcoverReach`, the active grid included, whose cells the game
-        /// stands no grass in for this renderer, and drops it whole past it.
+        /// Places and drops every held cell by the reach and the size rule, flattens its ground by the grid, and stands
+        /// the lamps nothing the game says keeps down, where the cell is in reach and outside the grid (the game's own
+        /// graph carries the lamps inside it, and a lantern must not be counted twice). Stands a cell's groundcover
+        /// whole within `WorldAround::mGroundcoverReach`, the active grid included, whose cells the game stands no
+        /// grass in for this renderer, and drops it whole past it.
         /// @return how many lamps were stood.
         std::uint32_t place(const WorldAround& around);
 
         /// Appends the reference number of every static standing in the top level.
         void collectStanding(std::vector<ESM::RefNum>& into) const;
 
-        /// Appends a verdict for every reference behind a gate that decided, once each per cell,
-        /// in every held cell of the active grid. **Where the cell is active the game has run the
-        /// reference's script**, so the verdict is what the script left it as, or the gate's run
-        /// is not the script's first frame — and the distance shows a stage the cell takes down as
-        /// it loads.
+        /// Appends a verdict for every reference behind a gate that decided, once each per cell, in every held cell of
+        /// the active grid. **Where the cell is active the game has run the reference's script**, so the verdict is
+        /// what the script left it as; otherwise the gate's run is not the script's first frame and the distance shows
+        /// a stage the cell takes down as it loads.
         void collectGateVerdicts(const osg::Vec4i& activeGrid, std::vector<GateVerdict>& into) const;
 
         /// How many statics, how many grounds and how many plants' parts stand in the top level.
@@ -168,12 +162,11 @@ namespace Rtx
         std::size_t getHeldCount() const { return mCells.size(); }
         std::size_t getGrassHeldCount() const { return mGrass.size(); }
 
-        /// Whether the top level holds exactly what the held cells say it should, by the rings and
-        /// the size rule as `around` stands now: every placement the rule admits and no script
-        /// disabled has a slot, and that slot holds its mesh and material under the ring's own
-        /// name; every other placement has none; the ground stands in the reach and nowhere else;
-        /// and no slot under the ring's name is one no cell holds. What `place` keeps, asked after
-        /// it, for an assert.
+        /// Whether the top level holds exactly what the held cells say it should, by the rings and the size rule as
+        /// `around` stands now: every placement the rule admits and no script disabled has a slot holding its mesh and
+        /// material under the ring's own name; every other placement has none; the ground stands in the reach and
+        /// nowhere else; no slot under the ring's name is one no cell holds. What `place` keeps, asked after it, for an
+        /// assert.
         bool standsAsHeld(const WorldAround& around) const;
 
     private:

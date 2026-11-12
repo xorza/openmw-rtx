@@ -143,29 +143,23 @@ namespace MWRender
             return static_cast<Rtx::NightDayMode>(*world.mNightDayMode);
         }
 
-        /// What every walk this renderer makes takes: an exclusion of what the ray tracer draws
-        /// itself, never a selection of what a walk is interested in. A node mask is AND-ed at
-        /// every node, so naming `Mask_WeatherParticles` to mean "the weather subtree" extracted
-        /// every storm with its particles missing, because a blizzard's own particles are marked
-        /// `Mask_ParticleSystem`. Which subtree is walked is answered by where the walk starts.
-        /// The ground is the ring's: what `TracedTerrain` stands under `Mask_Terrain` is the
-        /// intersector's, and walked it would place every loaded cell's ground a second time.
+        /// What every walk this renderer makes takes: an exclusion of what the ray tracer draws itself, never a
+        /// selection. A node mask is AND-ed at every node, so naming `Mask_WeatherParticles` for "the weather
+        /// subtree" extracted every storm without its particles, which are marked `Mask_ParticleSystem`; which
+        /// subtree is walked is where the walk starts. The ground is the ring's: what `TracedTerrain` stands
+        /// under `Mask_Terrain` is the intersector's, and walked it would be placed a second time.
         ///
-        /// **`Mask_UpdateVisitor` is what the content hides with, and it is named here rather than
-        /// asked of `NifOsg::Loader`.** The loader is told that bit by `RenderingManager`, and this
-        /// renderer is built before there is a rendering manager to tell it, so a mask that reads
-        /// the loader's answer subtracts nought: every node a `NifOsg::VisController` hides is
-        /// traced anyway, and the Heart of Lorkhan stands wearing the whole of its destruction at
-        /// the frame that sequence opens on. The bit is the engine's own decision and a constant,
-        /// so it is stated as one and no order can reach it — which is what
-        /// `MWRender::ObjectPaging` does with the same bit for the same reason.
-        /// `WorldMirror::mirror` checks the loader against it.
+        /// `Mask_UpdateVisitor` is what the content hides with, named here rather than asked of
+        /// `NifOsg::Loader`, which `RenderingManager` tells only after this renderer is built: asked, the
+        /// mask would subtract nought and every node a `NifOsg::VisController` hides would be traced (the
+        /// Heart of Lorkhan wearing its whole destruction). `MWRender::ObjectPaging` does the same with the
+        /// same bit, and `WorldMirror::mirror` checks the loader against it.
         constexpr osg::Node::NodeMask sWorldTraversal = ~static_cast<osg::Node::NodeMask>(
             Mask_Sky | Mask_Sun | Mask_SimpleWater | Mask_Terrain | Mask_UpdateVisitor);
 
-        /// What each walk this renderer makes over the one extractor is anchored at. Four roots the
-        /// walk cannot tell apart by structure, so each is named; the world's is nought, which is
-        /// what `SceneExtractor::extract` calls a caller that walks one whole graph.
+        /// What each walk over the one extractor is anchored at: four roots the walk cannot tell apart by
+        /// structure. The world's is nought, which `SceneExtractor::extract` calls a caller that walks one
+        /// whole graph.
         enum Anchor : std::size_t
         {
             World = 0,
@@ -174,10 +168,9 @@ namespace MWRender
             Effect = 3,
         };
 
-        /// What the world walk may see: `sWorldTraversal`, without the player or the actors where the
-        /// eye's view mask leaves them out — `WorldMirror::setViewMask`. Those two only, because they
-        /// share one class: the trace's ray mask hides every other class the view leaves out, and
-        /// a walk that went on past an actor would stand it in the class the player keeps on.
+        /// What the world walk may see: `sWorldTraversal`, without the player or the actors where the eye's
+        /// view mask leaves them out. Those two only, because the trace's ray mask hides every other class
+        /// the view leaves out, and a walk past an actor would stand it in the class the player keeps on.
         constexpr osg::Node::NodeMask worldTraversal(const unsigned int view)
         {
             constexpr osg::Node::NodeMask walkedByView = Mask_Player | Mask_Actor;
@@ -199,12 +192,10 @@ namespace MWRender
         , mReach(knobs.mReach)
     {
         mRing.setMinSize(knobs.mMinSize);
-        // The sky is not mirrored: the engine rebuilds it every frame, state sets and all, so
-        // walking it churns the identity maps and makes every frame a full rebuild, and a ray that
-        // reaches the sky gets this renderer's own. The simple water is the local map's copy of the
-        // sea, which a mirror walking both would place twice. What the content hides is the one bit
-        // `sWorldTraversal` names, rather than none, so the update traversal still reaches a hidden
-        // bone.
+        // The sky is not mirrored: the engine rebuilds it every frame, so walking it churns the identity maps
+        // and makes every frame a full rebuild. The simple water is the local map's copy of the sea, which
+        // would be placed twice. Only the one hidden bit is excluded, so the update traversal still reaches a
+        // hidden bone.
         mExtractor.setTraversalMask(mTraversal);
 
         // Where the engine stamps its identities: the cell roots under the scene root and the
@@ -231,12 +222,11 @@ namespace MWRender
 
     namespace
     {
-        /// What the loading screen keeps beside the preparation, out of the memory the system leaves
-        /// the process (`Platform::availableMemory`): the store's queue of writes, 64 MiB at most, and the
-        /// screen's own growth past the preparation's start, 51 MB on the Fullrest Repack with the
-        /// kernels compiled before (`docs/rtx/research/2026-11-09-content-preparation-cost.md`, "The
-        /// reserve"), with the rest of the gigabyte for a compile still running. What comes after the
-        /// preparation is not reserved: the preparation lets go of everything before the world loads.
+        /// What the loading screen keeps beside the preparation, out of `Platform::availableMemory`: the
+        /// store's queue of writes (64 MiB at most), the screen's own growth (51 MB on the Fullrest Repack),
+        /// and the rest for a compile still running (`docs/rtx/research/2026-11-09-content-preparation-cost.md`,
+        /// "The reserve"). Nothing after the preparation is reserved: it lets go of everything before the
+        /// world loads.
         constexpr std::uint64_t sPreparationReserve = std::uint64_t{ 1 } << 30;
 
         /// The bytes the preparation's jobs may hold together, read once at its start, or nothing where
@@ -316,17 +306,16 @@ namespace MWRender
         if (!mPreparing->mRun.finish())
             Log(Debug::Warning) << "The content's preparation could not write its manifest";
 
-        // **The sea as well, which no file holds and so no model's walk reads**: the frame's thread, whose
-        // asks reach the store's memory alone, folded it again every session.
+        // The sea as well: no file holds it so no model's walk reads it, and the frame's thread, whose asks
+        // reach the store's memory alone, folded it again every session.
         Rtx::ContentStats stats = mPreparing->mRun.getStats();
         stats += prepareSea(*mStore, *mSea->getChild(0)->asGeometry());
 
-        // **The store's start swept and loaded before the first frame asks its memory**, which the frame
-        // reaches alone: an entry still on its way from the disk was one the frame computed again.
+        // Swept and loaded before the first frame asks the store's memory, which the frame reaches alone: an
+        // entry still on its way from the disk was computed again.
         mStore->flush();
 
-        // **What it took, said once**, in the game as under every verb: the wall against the threads'
-        // CPU says whether they waited, and the passes say on what the CPU went.
+        // The wall against the threads' CPU says whether they waited, and the passes say on what the CPU went.
         const Rtx::PreparationTimes times = mPreparing->mRun.getTimes();
         using Seconds = std::chrono::duration<double>;
         Log(Debug::Info) << std::format(
@@ -351,8 +340,7 @@ namespace MWRender
         }
         mPreparing.reset();
 
-        // **Its threads' freed memory back to the system, once** (`Platform::trimHeap`): their chain
-        // builds and models are gone with it, and glibc keeps what an arena freed until a trim.
+        // glibc keeps what a thread's arena freed until a trim (`Platform::trimHeap`).
         Platform::trimHeap();
         return stats;
     }
@@ -392,14 +380,11 @@ namespace MWRender
 
     void WorldMirror::detach()
     {
-        // **The ring's thread reads the storages the world owns.** A world with nothing in it is
-        // what stops the thread and drops what it held.
+        // The ring's thread reads the storages the world owns; a world with nothing in it stops the thread.
         mRing.follow(Rtx::WorldAround{});
 
-        // What the ring held on the extractor's rows goes back, and the sweep frees them with
-        // everything the walks stood: nothing of this world stays in the scene. Not on the way
-        // out of an exception a frame threw, where the scene is whatever the throw left and the
-        // assert in the retire would stand between the throw and its message.
+        // Not on the way out of an exception a frame threw, where the scene is whatever the throw left and
+        // the assert in the retire would stand between the throw and its message.
         if (std::uncaught_exceptions() == 0)
         {
             mExtractor.detach(mRing);
@@ -456,11 +441,8 @@ namespace MWRender
     {
         const std::size_t frameNumber = frame.mWhen.getFrameNumber();
 
-        // **Whatever the loader hides with has to be inside what this mask excludes.**
-        // `sWorldTraversal` names that bit rather than asking, because the loader is told it by
-        // `RenderingManager` and this renderer is built first — so the two are checked against each
-        // other here instead, where a walk is about to use the mask. A loader nobody has told yet
-        // hides with nothing and passes: what this catches is the engine moving the bit.
+        // Whatever the loader hides with has to be inside what this mask excludes. A loader nobody has told
+        // yet hides with nothing and passes: this catches the engine moving the bit.
         assert((NifOsg::Loader::getHiddenNodeMask() & ~static_cast<unsigned int>(Mask_UpdateVisitor)) == 0
             && "the loader hides with a bit the walk's mask does not exclude");
 
@@ -508,9 +490,8 @@ namespace MWRender
                 .mGroundcover = worldspace == ESM::Cell::sDefaultWorldspaceId ? mGroundcover.get() : nullptr,
                 .mWorldspace = worldspace,
                 .mGrid = mGrid,
-                // The world's mask and never the walk's own: a mask that moves makes
-                // `Rtx::CellRing::forget` read the ring from nothing, and the player bit moves
-                // while the camera settles.
+                // The world's mask and never the walk's own: a moving mask makes `Rtx::CellRing::forget`
+                // read the ring from nothing, and the player bit moves while the camera settles.
                 .mMask = sWorldTraversal,
                 // What `extractWorld` walks every reference root under, below.
                 .mAbove = frame.mScene.getStateSet(),
@@ -526,28 +507,24 @@ namespace MWRender
             .mNightDay = nightDayOf(frame.mWorld),
         };
 
-        // Told once a frame, because what the graph does not hold is the frame's to say. The
-        // world walk asks it, and the precipitation walk above cannot: it is a subtree. Which
-        // frame the ring is standing for is `extractWorld`'s to say, because that call has the
-        // ring and the number both.
+        // Told once a frame, because what the graph does not hold is the frame's to say: the precipitation
+        // walk cannot, being a subtree. `extractWorld` says which frame the ring stands for.
         mRing.follow(around);
 
-        // One walk over the whole graph, where every path is already distinct, and the one that
-        // stands the references the game said jumped: the other walks stand nothing of theirs.
+        // One walk over the whole graph, where every path is already distinct, and the one that stands the
+        // references the game said jumped.
         mExtractor.setJumped(frame.mJumped);
         Rtx::ExtractionStats found = mExtractor.extractWorld(frame.mScene, Anchor::World, frameNumber, mRing);
         mExtractor.setJumped({});
 
-        // What the walks did not find has gone. The graph is the whole world every frame, which is
-        // what makes mark and sweep sound; the identity maps hold their keys alive until it runs.
-        // After every walk of the frame and never before one, because the sweep bumps the epoch
-        // the next walk is measured against.
+        // What the walks did not find has gone: the graph is the whole world every frame, which makes mark and
+        // sweep sound. After every walk of the frame, because the sweep bumps the epoch the next walk is
+        // measured against.
         mExtractor.retire();
         release(mExtractor.getReleased());
 
-        // **Taken once, after every walk of the frame**, and not by a walk: the precipitation and
-        // the sea are walks whose counts go nowhere, and the sky's sheets are read between walks,
-        // so a count a walk took with it was a count the frame lost.
+        // Taken once after every walk and not by a walk: the precipitation and sea walks' counts go nowhere
+        // and the sky's sheets are read between walks, so a count a walk took with it was lost.
         found.mPreprocessed.mOnFrame += mWalk.mContent.mPreprocessor.takeStats();
 
         return found;

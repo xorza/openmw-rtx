@@ -115,11 +115,9 @@ namespace Rtx
 
     void TemplateWalk::apply(osg::Transform& node)
     {
-        // The visitor goes with it, as the frame's walk hands itself over. A visitor that is
-        // not a cull visitor takes the branch a null one would in every transform this tree has —
-        // an `AutoTransform` included, which the frame's walk turns toward its eye and this one
-        // leaves at its base rotation: no vanilla static carries a billboard, so the ring has no
-        // eye to turn one to.
+        // The visitor goes with it, as the frame's walk hands itself over. A visitor that is not a cull visitor takes
+        // the branch a null one would in every transform, an `AutoTransform` included, which this walk leaves at its
+        // base rotation: no vanilla static carries a billboard, so the ring has no eye to turn one to.
         const osg::Matrix above = mHere;
         node.computeLocalToWorldMatrix(mHere, this);
 
@@ -203,11 +201,9 @@ namespace Rtx
         into.mParts.push_back(std::move(part));
     }
 
-    /// The frame the sequence stands on, and no step. The frame's walk runs a flipbook's clock
-    /// and then walks the frame it settled on; a template's clock is nobody's to run, so what a
-    /// distant fire shows is the frame its file was authored to open on, which is what the
-    /// rasterizer's paging shows of it too. A day-night switch is the other way round: every
-    /// branch, because the ring is told the mode and the template never is.
+    /// The frame the sequence stands on, and no step: a template's clock is nobody's to run, so what a distant fire
+    /// shows is the frame its file was authored to open on, as the rasterizer's paging shows it. A day-night switch is
+    /// the other way round: every branch, because the ring is told the mode and the template never is.
     void TemplateWalk::descend(osg::Node& node)
     {
         osg::Switch* const branches = node.asSwitch();

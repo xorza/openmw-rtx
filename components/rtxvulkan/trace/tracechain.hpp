@@ -38,19 +38,17 @@ namespace Rtx
     class TraceChain
     {
     public:
-        /// Nothing has an extent until `resize` is called. Its images are the frame's targets
-        /// (`MemoryUse::Frame`), made again only once the device drained what read the last.
+        /// Nothing has an extent until `resize` is called. Its images are the frame's targets (`MemoryUse::Frame`),
+        /// made again only once the device drained what read the last.
         ///
         /// @param passes what the chain traces with, which outlives it.
-        /// @param bins how many sprite bins the chain keeps, `TraceRecording::mBinSlot` picking
-        ///        one: one per frame in flight for the world's, and one for the pictures'. One is
-        ///        enough there though nothing waits for a picture, because the pictures' batches
-        ///        stand in queue order and a bin's tables are written on the device alone
-        ///        (`SpriteBin`).
-        /// @param radiance how wide the radiance channels and the frame composed from them are
-        ///        stored — the run's choice, which `Rtx::RadianceWidth` argues.
-        /// @param past whether a trace keeps what it leaves for the next: the world's chain does, and
-        ///        the pictures', each traced with its past lost, does not.
+        /// @param bins how many sprite bins the chain keeps, `TraceRecording::mBinSlot` picking one: one per frame in
+        ///        flight for the world's, and one for the pictures', where one is enough because the pictures' batches
+        ///        stand in queue order and a bin's tables are written on the device alone (`SpriteBin`).
+        /// @param radiance how wide the radiance channels and the frame composed from them are stored — the run's
+        ///        choice, which `Rtx::RadianceWidth` argues.
+        /// @param past whether a trace keeps what it leaves for the next: the world's chain does, and the pictures',
+        ///        each traced with its past lost, does not.
         TraceChain(const Device& device, const TracePasses& passes, std::uint32_t bins, RadianceWidth radiance,
             TracePast past);
 
@@ -74,11 +72,10 @@ namespace Rtx
         /// What the running sum at this extent takes, which only a trace that averages makes.
         static VkDeviceSize sumBytesAt(const Device& device, std::uint32_t width, std::uint32_t height);
 
-        /// Builds the chain at this extent and under `filter`, with the images `declareShared`
-        /// declared as `shared` placed them; where it stands, only takes them again, since an arena is
-        /// made again whenever anything it holds moves. **A chain that stands is asked at its own
-        /// extent and filter**: its owner decides what moved, and lets go of a chain that did
-        /// (`FrameTracer::Moves`).
+        /// Builds the chain at this extent and under `filter`, with the images `declareShared` declared as `shared`
+        /// placed them; where it stands, only takes them again, since an arena is made again whenever anything it holds
+        /// moves. A chain that stands is asked at its own extent and filter: its owner decides what moved, and lets go
+        /// of a chain that did (`FrameTracer::Moves`).
         void resize(std::uint32_t width, std::uint32_t height, RendererFilter filter, const ArenaRun& shared);
 
         /// Lets every image go, until the next `resize`.

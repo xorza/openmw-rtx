@@ -19,9 +19,8 @@ namespace Rtx
     /// as long as this stands. Made by the device where the run asks (`DeviceReport::mCounters`) and
     /// the driver offers `VK_KHR_performance_query`.
     ///
-    /// **One pass, because a frame is not replayed.** A set the driver reads in several passes is
-    /// read by submitting the same commands once a pass, which a frame recorded once and submitted
-    /// once cannot do; so the set is the counters that share one, and those it leaves out are said.
+    /// One pass, because a frame is not replayed: a multi-pass set needs the same commands submitted
+    /// once a pass, so the set is the counters that share one, and those it leaves out are said.
     class ZoneCounters
     {
     public:
@@ -33,14 +32,12 @@ namespace Rtx
 
         /// Of `offered` counters, the ones a query reads in one pass: each in the driver's order
         /// that a zone can read and that, with those taken before it, `passesOf` still answers one
-        /// pass for, up to `sMaxZoneCounters`, into `into`. **Greedy, so the driver's order
-        /// decides** which of two that cannot share a pass is read: RADV lists its instruction
-        /// counts and its units' busy time first, then the memory's.
+        /// pass for, up to `sMaxZoneCounters`, into `into`. Greedy, so the driver's order decides
+        /// which of two that cannot share a pass is read.
         ///
         /// @param readable whether a zone can read the counter it is handed: one scoped to a command
         ///        (`VK_PERFORMANCE_COUNTER_SCOPE_COMMAND_KHR`), since a zone begins and ends its query
-        ///        inside a command buffer, which a counter scoped to a command buffer or a render pass
-        ///        forbids (`VUID-vkCmdBeginQuery-queryPool-03224`) — as ANV and Turnip scope theirs.
+        ///        inside a command buffer (`VUID-vkCmdBeginQuery-queryPool-03224`).
         /// @param passesOf the passes a query of the counters it is handed takes.
         template <class Readable, class PassesOf>
         static void pickOnePass(

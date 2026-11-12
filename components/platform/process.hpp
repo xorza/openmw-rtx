@@ -104,16 +104,13 @@ namespace Platform::Process
     std::size_t usableCpuCount();
 
     /// Starts this process again, from the top, with glibc's `malloc` on transparent huge pages —
-    /// `GLIBC_TUNABLES=glibc.malloc.hugetlb=1` — where the shell named no tunables of its own:
-    /// Linux alone, and before any thread starts, since what replaces the process keeps none.
-    /// Returns where it does not restart: on another system, where the shell's word stands, and
-    /// where the system would not start it again.
+    /// `GLIBC_TUNABLES=glibc.malloc.hugetlb=1` — where the shell named no tunables of its own: Linux alone,
+    /// and before any thread starts, since what replaces the process keeps none. Returns where it does not
+    /// restart: on another system, where the shell's word stands, and where the system would not start it.
     ///
-    /// **For a measured run.** On 4 KiB pages the heap's physical placement, which decides the
-    /// cache sets it shares, is the system's draw on every run, and six runs of one build at
-    /// `one-cell-walk` read walk medians of 0.40 to 0.49 ms, the frame thread's cache misses 4.5
-    /// to 8.8 a thousand instructions. On huge pages the six read 0.41 each. Without address
-    /// randomization they spread as far, and with one `malloc` arena further.
+    /// **For a measured run.** On 4 KiB pages the heap's physical placement, which decides the cache sets it
+    /// shares, is the system's draw on every run: six runs of one build at `one-cell-walk` read walk medians
+    /// of 0.40 to 0.49 ms, and on huge pages 0.41 each.
     void restartOnHugePages(char** argv);
 
     /// `Platform::LinuxText::hugePageShare` of this process, now. Nothing on a system that is not Linux,

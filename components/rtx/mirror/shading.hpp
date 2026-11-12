@@ -43,14 +43,12 @@ namespace Rtx
         /// reads a known state set again instead of handing back the slot it already has.
         bool mAnimated = false;
 
-        /// Whether this state set or any above it is a controller's, resolved as the chain is built
-        /// the way `mFade` is, rather than counted beside it where the two could part.
+        /// Whether this state set or any above it is a controller's, resolved as the chain is built the way `mFade` is.
         ///
-        /// **What stands under a controller is animated by it.** `SceneUtil::addEnchantedGlow` hangs
-        /// its sheet on an instance's root, above the shape the sheet is read into, and that shape's
-        /// own state set is shared by every instance of the model — so a material keyed on it stands
-        /// for the enchanted sword and the plain one beside it at once. `MaterialResolver::animate`
-        /// is what this is asked for.
+        /// **What stands under a controller is animated by it.** `SceneUtil::addEnchantedGlow` hangs its sheet on an
+        /// instance's root, above the shape the sheet is read into, and that shape's own state set is shared by every
+        /// instance of the model, so a material keyed on it would stand for the enchanted sword and the plain one
+        /// beside it at once. `MaterialResolver::animate` is what this is asked for.
         bool mAnimatedThrough = false;
 
         /// Whether the front is the face wound clockwise here, the nearest `osg::FrontFace` on the
@@ -72,14 +70,13 @@ namespace Rtx
         /// chain no walk keys (`under`).
         const osg::StateSet* mMaterialKey = nullptr;
 
-        /// The link `stateSet` makes at the near end of `chain`: its fade resolved through the link
-        /// above it, whether it or anything above it is a controller's, whether it states anything,
-        /// and the chain's material key, which `keys` holds where it takes more than one link. The
-        /// one construction of a link, so a field added here is set by every walk that builds a
-        /// chain.
+        /// The link `stateSet` makes at the near end of `chain`: its fade resolved through the link above it, whether
+        /// it or anything above it is a controller's, whether it states anything, and the chain's material key, which
+        /// `keys` holds where it takes more than one link. The one construction of a link, so a field added here is set
+        /// by every walk that builds a chain.
         ///
-        /// @param keys null for a walk that keys no material itself — the cell ring's reader, whose
-        ///        readings the frame keys as it adopts them.
+        /// @param keys null for a walk that keys no material itself: the cell ring's reader, whose readings the frame
+        ///        keys as it adopts them.
         static Shading under(
             std::span<const Shading> chain, const osg::StateSet& stateSet, bool animated, ChainKeys* keys);
 

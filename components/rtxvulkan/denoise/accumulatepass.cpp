@@ -16,12 +16,8 @@ namespace Rtx
 {
     namespace
     {
-        /// The channel being blended, the two the frame describes it with, the three a history
-        /// arrives in, the two of those this pass writes back, and the blend the cascade reads; the
-        /// fill's channel, history and blend; the fast means, read and written; and the match the
-        /// shadow tiles read. The slow colour
-        /// histories are read and not written, because the first wavelet level writes the history
-        /// this reads next frame — SVGF's feedback.
+        /// Every binding is a storage image. The slow colour histories are read and not written, because
+        /// the first wavelet level writes the history this reads next frame — SVGF's feedback.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> sBindings
             = computeBindings<Shaders::ACCUMULATE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 

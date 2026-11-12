@@ -4,25 +4,22 @@
 // The shells of a cloud the content modelled as geometry, gathered along the eye's ray as one medium rather
 // than met one surface at a time.
 //
-// **What this is for.** `meshes/f/active_blight_large.nif` is eleven alpha shells over one another, and
-// neither of its textures holds a single opaque texel. A ray tracer that peels the nearest of those and
-// paints the next one as though it were opaque draws a cloud as a flat red sheet.
+// **What this is for.** `meshes/f/active_blight_large.nif` is eleven alpha shells over one another and
+// neither of its textures holds an opaque texel, so peeling the nearest and painting the next as opaque draws
+// a flat red sheet.
 //
-// **One traversal for the whole stack.** The eye's own ray walks past every medium it meets —
-// `candidateStops` is where that is decided — so it commits the mountain behind the cloud and this walk
-// gathers what stands in front of it, on a mask no other instance carries. Re-tracing per layer is the
-// alternative, and Anagnostou measures it at an order of magnitude over the same picture alpha-blended by a
-// rasterizer.
+// **One traversal for the whole stack.** The eye's own ray walks past every medium (`candidateStops` decides
+// that) and commits the mountain behind the cloud; this walk gathers what stands in front of it, on a mask no
+// other instance carries. Re-tracing per layer is an order of magnitude dearer (Anagnostou).
 //
 // **Thickness rather than coverage** is Umenhoffer and Szirmay-Kalos's, whose spherical billboards measure
 // how much medium a ray crosses rather than how much of a pixel a card fills:
 // https://www.semanticscholar.org/paper/7a249dbd873f02248eecc3ebf811b71ea5e90277
 //
-// **Order-independent, because there is no order to be had.** A candidate loop meets the shells in whatever
-// order the structure hands them over, so they are composited by what they mean rather than by depth: the
-// exact total coverage `1 - prod(1 - a)`, filled with the coverage-weighted mean colour and taken at the
-// coverage-weighted depth. That is exact for one shell and for any number of shells of one colour, which is
-// what a cloud is.
+// **Order-independent, because there is no order to be had.** Candidates arrive in whatever order the
+// structure hands them over, so they are composited by what they mean: the exact total coverage
+// `1 - prod(1 - a)`, the coverage-weighted mean colour at the coverage-weighted depth, exact for one shell
+// and for any number of one colour, which is what a cloud is.
 
 #include "colour.h"
 #include "look.h"
@@ -154,13 +151,11 @@ struct Gathered
 
 /// Every surface of `rule.mMask` the eye crosses before `limit`, gathered.
 ///
-/// **Nothing is ever confirmed here.** What the walk gathers is not a surface, so it runs to `limit` and
-/// every crossing on the way is kept; the loop ends because the candidates do.
+/// **Nothing is ever confirmed here**: the walk runs to `limit` and keeps every crossing; the loop ends
+/// because the candidates do.
 ///
-/// **Order-independent, because there is no order to be had.** The candidates arrive in whatever order the
-/// structure hands them over, so they are summed by what they mean rather than by depth: the exact total
-/// coverage `1 - prod(1 - a)`, the coverage-weighted colour and the coverage-weighted depth, which is exact
-/// for one crossing and for any number of one colour.
+/// **Order-independent, as the header says**: summed by coverage, colour and depth, exact for one crossing
+/// and for any number of one colour.
 ///
 /// @param limit how far the eye committed. Everything past it is behind a surface and hidden.
 /// @param cone the pixel's own cone, so a distant crossing reads its texture at the level that
@@ -263,19 +258,15 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
 
 /// Where a gathered layer stands, what lights it there, and what the air in front of it leaves.
 ///
-/// **One light answer for the layer and not one per crossing.** The crossings are gathered first and the
-/// one point they came to is lit once, out of the froxel the air's own volume already filled for it —
-/// `puffLight` says what that reads and why it is not three rays of the walk's own.
+/// **One light answer for the layer and not one per crossing**: the one point the crossings came to is lit
+/// once, out of the froxel the air's own volume already filled (`puffLight` says what that reads).
 ///
 /// **The air in front of it is the volume's**, `fogAlong`'s, which the geometry behind the layer is charged
-/// and the composite lays the haze in front of it from: one estimator for one stretch of air, so a cloud
-/// and the mountain behind it fade at one rate, and what the haze adds in front of a cloud is what the
-/// cloud lost to it.
+/// and the composite lays the haze in front of it from: one estimator for one stretch of air, so a cloud and
+/// the mountain behind it fade at one rate.
 ///
-/// **The side the layer shows, off the crossing that hid the most of the pixel.** A cloud has a surface
-/// where a puff of smoke has only a ball's silhouette, so the wrap that gives a sprite a lit side is read
-/// off a real plane here. Turned to face the eye, because a shell is met from either face and which one the
-/// winding names carries no meaning on this content.
+/// **The side the layer shows, off the crossing that hid the most of the pixel**, turned to face the eye:
+/// a shell is met from either face and the winding means nothing on this content.
 struct GatheredLight
 {
     /// How far along the ray the layer stood, coverage-weighted.
@@ -332,13 +323,12 @@ PuffLayer mediumAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Con
 ///
 /// **A magic effect's sheet is a flame with triangles.** The rasterizer draws it `SRC_ALPHA, ONE` over
 /// everything, unsorted and undenoised; here it carries `MASK_ADDITIVE` and nothing else, so no shading ray
-/// meets it and this one walk gathers it — at the picture's own extent, where `spritecomposite.rgen`
-/// marches the flames, and never through the denoiser.
+/// meets it and this one walk gathers it, never through the denoiser.
 ///
 /// **Each crossing is what its material states, times its alpha**: the texture's colour under the tint the
-/// vertex colour or the material gives it, and the material's glow — which is where the white ambient the
-/// game gives an effect landed, `Rtx::SurfaceDescription::mAmbientOverride` — in `EMISSIVE_INTENSITY`, the
-/// one statement of what a material's one is worth here.
+/// vertex colour or the material gives it, and the material's glow (where the game's white ambient for an
+/// effect landed, `Rtx::SurfaceDescription::mAmbientOverride`) in `EMISSIVE_INTENSITY`.
+
 ///
 /// @param pixel the traced pixel, which names the froxel column the light is read from.
 vec3 additiveAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Cone cone)

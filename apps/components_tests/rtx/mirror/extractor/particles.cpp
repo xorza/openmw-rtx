@@ -63,10 +63,8 @@ namespace Rtx::Testing
     {
         /// A particle system is not geometry, and what comes out of it is a run of discs.
         ///
-        /// Every number here is the file's own carried through one transform: the placement moves
-        /// each sprite and its uniform scale widens it, because `NifOsg` asks for particle sizes in
-        /// the emitter's own coordinates and the modelview is what the rasterizer would have scaled
-        /// them by.
+        /// Every number here is the file's own carried through one transform: the placement moves each sprite and
+        /// its uniform scale widens it, because `NifOsg` asks for particle sizes in the emitter's own coordinates.
         TEST_F(RtxSceneExtractorTest, aParticleSystemPlacesSpritesAndNoMesh)
         {
             // Scaled by two and moved a hundred along x, so the radius and the position each prove a
@@ -134,14 +132,12 @@ namespace Rtx::Testing
             EXPECT_FLOAT_EQ(mScene.sprites()[0].mAlpha, 0.0625f);
         }
 
-        /// A material that ignores the vertex is read for the colour and the alpha instead, and
-        /// the particle's own are not.
+        /// A material that ignores the vertex is read for the colour and the alpha instead, and the particle's own
+        /// are not.
         ///
-        /// **The mist in every ancestral tomb.** `furn_mist256.nif` puts a `NiVertexColorProperty`
-        /// at its root that says the vertex is ignored, and a material at half opacity under it,
-        /// over a particle whose colour says one — so the rasterizer's `getDiffuseColor` reads the
-        /// material, and each puff hides half of what its texture says. Read off the particle, the
-        /// puffs hid twice that, and a room of them was a stack of discs rather than a haze.
+        /// **The mist in every ancestral tomb.** `furn_mist256.nif` puts a `NiVertexColorProperty` that ignores the
+        /// vertex at its root, and a half-opaque material under it, over particles whose colour says one: the
+        /// rasterizer's `getDiffuseColor` reads the material, so each puff hides half of what its texture says.
         TEST_F(RtxSceneExtractorTest, aMaterialThatIgnoresTheVertexIsReadInsteadOfTheParticle)
         {
             const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/false);
@@ -168,14 +164,11 @@ namespace Rtx::Testing
         /// A quad that hangs in the world hangs on the axis its own particle carries.
         ///
         /// **`osgParticle` turns both of a quad's axes by the angle the particle holds**, and
-        /// `Weather::RainShooter` is what leans a raindrop into the wind that way — the shooter sets
-        /// an angle off the wind speed as it fires each drop. An axis read from the system alone is
-        /// the same for every drop, so a storm the rasterizer drew leaning fell straight down here,
-        /// and it leant further as the wind rose in one renderer and not in the other.
+        /// `Weather::RainShooter` leans a raindrop into the wind that way, setting the angle off the wind speed as
+        /// it fires each drop. An axis read from the system alone is the same for every drop.
         ///
-        /// **And the placement turns that axis without scaling it**, because the sprite's radius
-        /// already carries the scale: a quad reaches `mAxis * mRadius`, so an emitter that scaled
-        /// both squared the scale.
+        /// **And the placement turns that axis without scaling it**, because the sprite's radius already carries
+        /// the scale: a quad reaches `mAxis * mRadius`, so scaling both would square it.
         TEST_F(RtxSceneExtractorTest, aQuadHangsOnTheAxisItsOwnParticleCarries)
         {
             // Turned a quarter turn about z and doubled, so the axis proves the turn and the radius
@@ -233,17 +226,13 @@ namespace Rtx::Testing
             EXPECT_FLOAT_EQ(leaning.mRadius, straight.mRadius);
         }
 
-        /// `SRC_ALPHA, ONE` is a flame and anything else covers, and the difference is what decides
-        /// whether the sprite is light or an albedo to be lit.
+        /// `SRC_ALPHA, ONE` is a flame and anything else covers, which decides whether the sprite is light or an
+        /// albedo to be lit. The blend sits on the transform above the emitter, where `NifOsg` puts it, while the
+        /// emitter's own state set says nothing about blending, so an answer read off the drawable is "covers".
         ///
-        /// The blend sits on the transform above the emitter, where `NifOsg` puts it, and the
-        /// emitter carries a state set of its own that says nothing about blending — so an answer
-        /// read off the drawable is "covers" both times.
-        ///
-        /// **And `ONE, ONE` is a flame whose texels add whole**, which the emitter says beside its
-        /// being additive, as a surface's material says `MATERIAL_ADD_WHOLE`: the sprite walk then
-        /// reads no alpha of its texture, and the flame's sprites carry an alpha of one whatever
-        /// their ramps say — a particle whose two ramps stand at a quarter is a whole one.
+        /// **And `ONE, ONE` is a flame whose texels add whole**, which the emitter says beside its being additive
+        /// (as `MATERIAL_ADD_WHOLE` does for a surface): the sprite walk reads no alpha of its texture, so the
+        /// sprites carry an alpha of one whatever their ramps say.
         TEST_F(RtxSceneExtractorTest, theBlendTellsAFlameFromSmoke)
         {
             const auto extractOne
@@ -297,10 +286,9 @@ namespace Rtx::Testing
 
         /// A drop's own travel is its fall.
         ///
-        /// **The box of drops carries no translation of its own**, so its particles are placed about
-        /// the origin and the eye is what stands them in the world. Anchoring the walk anywhere else
-        /// makes every sprite's motion between two frames the eye's step as well as its fall, which
-        /// is a reprojection of the wrong thing — and the drops would slide with the camera.
+        /// **The box of drops carries no translation of its own**, so its particles are placed about the origin and
+        /// the eye stands them in the world; anchoring the walk elsewhere would add the eye's step to every sprite's
+        /// motion between two frames, a reprojection of the wrong thing.
         TEST(RtxSceneExtractorPrecipitationTest, dropsAreStoodAtTheEye)
         {
             const osg::ref_ptr<osg::Group> falling = makeFalling();
@@ -344,12 +332,11 @@ namespace Rtx::Testing
             EXPECT_FALSE(scene.emitters().front().falls()) << "a walk after a falling one was left falling";
         }
 
-        /// A dead slot keeps the position its last particle expired at, and an emitter with nothing
-        /// alive places nothing at all — not a sphere with an empty run behind it, which every ray
-        /// crossing that part of the cell would then be rejected by one test later than it needs.
+        /// A dead slot keeps the position its last particle expired at, and an emitter with nothing alive places
+        /// nothing at all, not a sphere with an empty run that every ray crossing it would reject a test later.
         ///
-        /// **And a system with no texture draws untextured**, as the rasterizer draws it: the white
-        /// texel, each particle in its own colour, lit as a flat card, and no texture of its own.
+        /// **And a system with no texture draws untextured**, as the rasterizer draws it: the white texel, each
+        /// particle in its own colour, lit as a flat card.
         TEST_F(RtxSceneExtractorTest, deadParticlesPlaceNothingAndAnUntexturedSystemDrawsWhite)
         {
             const Plume spent = makePlume(osg::Matrix::identity(), true);
@@ -450,10 +437,8 @@ namespace Rtx::Testing
             EXPECT_EQ(went.mMeshes, 1u) << "the stone the second walk did not meet";
             EXPECT_EQ(went.mMaterials, 1u);
 
-            // No slot is reclaimed from the table — nothing is renumbered — so what this asserts is
-            // that the sprite's texture is still *named*, which is the thing the emitter map exists
-            // for: a sprite hangs off no material, so nothing else holds it. The stone's went with
-            // the stone's material, which is the other half of the same statement.
+            // No slot is reclaimed, so what this asserts is that the sprite's texture is still *named*, which is what
+            // the emitter map exists for: a sprite hangs off no material. The stone's went with its material.
             ASSERT_EQ(mScene.textures().getRows().size(), 3u);
             EXPECT_TRUE(mScene.textures().getRows()[0].mPath.value().empty())
                 << "the stone's texture outlived the stone";
@@ -470,10 +455,9 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.emitters().front().mLighting, 2u) << "the bake lost the slot it was given";
             EXPECT_EQ(mScene.textures().getRows().size(), 3u) << "the sprite's path was added a second time";
 
-            // **And the other way round, on the frame the sweep does not look at.** The stone comes
-            // back and then the emitter goes, taking no mesh and no material with it — which is
-            // exactly the frame `SceneDesc::release` answers with two comparisons and returns from.
-            // The sprite's slot has to be given back by whatever was holding it.
+            // **And the other way round, on the frame the sweep does not look at.** The stone comes back and then the
+            // emitter goes, taking no mesh and no material with it, the frame `SceneDesc::release` answers with two
+            // comparisons; the sprite's slot has to be given back by whatever was holding it.
             mScene.clearPlacement();
             walk(*both);
             ASSERT_TRUE(mExtractor.retire().empty());
@@ -487,11 +471,9 @@ namespace Rtx::Testing
             EXPECT_TRUE(mScene.textures().getRows()[2].mPath.value().empty()) << "the bake outlived the emitter";
         }
 
-        /// **A sprite a full table refused draws once the table frees room, and is not asked again
-        /// before.** The rule a material's texture keeps (`RefusedTakes`): an emitter refused a slot
-        /// once stood unlit for as long as it stood. No bake is taken for a sprite with no slot,
-        /// because the bake is of the sprite's alpha; and a bake refused where the sprite found room
-        /// keeps the same rule, where once it was never asked for again.
+        /// **A sprite a full table refused draws once the table frees room, and is not asked again before.** The
+        /// rule a material's texture keeps (`RefusedTakes`). No bake is taken for a sprite with no slot, because the
+        /// bake is of the sprite's alpha; a bake refused where the sprite found room keeps the same rule.
         TEST_F(RtxSceneExtractorTest, aRefusedSpriteDrawsOnceTheTableFreesASlot)
         {
             TextureTable& textures = mScene.textures();
@@ -535,11 +517,9 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.emitters().front().mLighting, 10u) << "a refused bake was never asked for again";
         }
 
-        /// What a system draws with is read off its chain once and kept: a texture swapped on a
-        /// state set behind the walk's back is not seen, because nothing on the chain animates and
-        /// a chain that does not is read exactly once — and under a controller, which is the one
-        /// thing that can change what a system draws with, the swap is followed and the slots
-        /// change hands.
+        /// What a system draws with is read off its chain once and kept: a texture swapped on a state set behind
+        /// the walk's back is not seen, because nothing on the chain animates. Under a controller, the one thing
+        /// that can change it, the swap is followed and the slots change hands.
         TEST_F(RtxSceneExtractorTest, anEmittersSpriteIsReadOnceUnlessItsChainAnimates)
         {
             const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
@@ -622,11 +602,10 @@ namespace Rtx::Testing
             EXPECT_TRUE(mScene.emitters().empty());
         }
 
-        /// **A chain whose key nothing but the keys' table holds keeps it while the walk meets it.**
-        /// An emitter's and a refused mesh's chains are two stating links each, keyed by a pair
-        /// nothing else holds; a painted quad's material goes on frame 2, which is what sweeps the
-        /// keys. Swept by whether anything held them, the two pairs went with it, and frame 3 made
-        /// a new state set for each: frame 3 must reach the heap not at all.
+        /// **A chain whose key nothing but the keys' table holds keeps it while the walk meets it.** An emitter's
+        /// and a refused mesh's chains are two stating links each, keyed by a pair nothing else holds; a painted
+        /// quad's material goes on frame 2, which sweeps the keys. Swept by whether anything held them, the pairs
+        /// would go and frame 3 would make a new state set for each: it must reach the heap not at all.
         TEST_F(RtxSceneExtractorTest, aKeyTheWalkMeetsIsKeptWhenASweepTakesAMaterial)
         {
             const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
@@ -670,16 +649,10 @@ namespace Rtx::Testing
             }
         }
 
-        /// Gives a plume what makes it run: something emitting at a fixed rate, and the updater
-        /// that integrates what it emitted.
+        /// Gives a plume what makes it run: something emitting at a fixed rate, and the updater that integrates it.
         ///
-        /// Both go in above the system they drive, which is where `NifOsg` puts them and where
-        /// `osgParticle` needs them — a walk that meets the updater first reads a system already
-        /// integrated this frame rather than one frame of staleness.
-        ///
-        /// Frozen on cull to start with, because that is how a system arrives from a file and how a
-        /// system that has never been drawn stays: `_last_frame` moves in `drawImplementation` and
-        /// nowhere else, so nothing here would ever advance it.
+        /// Both go in above the system they drive, where `NifOsg` puts them and `osgParticle` needs them. Frozen on
+        /// cull to start with, as a system arrives from a file: `_last_frame` moves in `drawImplementation` alone.
         void drive(Plume& plume, double perSecond, bool updaterAbove = true)
         {
             plume.mParticles->setFreezeOnCull(true);
@@ -730,13 +703,10 @@ namespace Rtx::Testing
 
         /// Where an emitter's particles have got to does not depend on where its updater sits.
         ///
-        /// **`osgParticle` splits emission from integration across two sibling nodes**, so a walk
-        /// that reads the particles as it passes them reads a different frame's worth depending on
-        /// which sibling comes first. `NifOsg` puts the updater above the system deliberately and
-        /// every model in the game obeys that, which makes the dependency invisible right up until
-        /// something hand-built does not — and then it is one frame of staleness in a position,
-        /// which nothing will ever notice. Reading after the walk has settled removes the question,
-        /// and this is the assertion that says so.
+        /// **`osgParticle` splits emission from integration across two sibling nodes**, so a walk reading particles
+        /// as it passes them reads a different frame's worth depending on which sibling comes first. `NifOsg`
+        /// puts the updater above the system and every model obeys that, so the dependency is invisible until
+        /// something hand-built does not; reading after the walk has settled removes the question.
         TEST_F(RtxSceneExtractorTest, spritesAreReadAfterTheWalkRatherThanAsItPassesThem)
         {
             const auto run = [](bool updaterAbove) {
@@ -772,11 +742,9 @@ namespace Rtx::Testing
             EXPECT_GE(above.front(), 10.0f);
         }
 
-        /// **A long step of the world is the emitters' whole step**, as the rasterizer's cull hands
-        /// `osgParticle` the world's step however a script scales it: a second's step emits a
-        /// hundred particles shot straight up at a hundred units a second, and integrates each a
-        /// hundred units up, where a step held to a fifth of a second emitted twenty and moved them
-        /// twenty.
+        /// **A long step of the world is the emitters' whole step**, as the rasterizer's cull hands `osgParticle`
+        /// the world's step however a script scales it: a second's step emits a hundred particles shot up at a
+        /// hundred units a second and moves each a hundred, where a fifth of a second emitted and moved twenty.
         TEST_F(RtxSceneExtractorTest, aLongStepOfTheWorldIsTheEmittersWholeStep)
         {
             resetRandom();
@@ -800,19 +768,16 @@ namespace Rtx::Testing
 
         /// An emitter runs, and it runs once per turn of the emitter clock however often it is walked.
         ///
-        /// **`osgParticle` hangs its whole simulation off the cull traversal**, and a ray tracer has
-        /// none — so without the walk claiming that name at the two nodes that ask, every particle
-        /// system in the world stands still on the seed its file was authored with. That failure is
-        /// silent: the scene still has an emitter in it and still places sprites, they just never
-        /// change, which is why this asserts on a count that moves rather than on one that exists.
+        /// **`osgParticle` hangs its whole simulation off the cull traversal**, which a ray tracer has none of, so
+        /// without the walk claiming that name at the two nodes that ask, every system stands still on its authored
+        /// seed. That failure is silent, hence an assertion on a count that moves rather than one that exists.
         TEST_F(RtxSceneExtractorTest, anEmitterRunsOnTheEmitterClockAndOnlyOncePerTurnOfIt)
         {
             Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
             drive(plume, 100.0);
 
-            // **The first turn only starts the clock.** `ParticleProcessor` keeps the last time it
-            // saw and has none yet, so it records one and steps nothing — which is also why a
-            // renderer that walks a cell once and shows it has to warm its emitters first.
+            // **The first turn only starts the clock.** `ParticleProcessor` keeps the last time it saw and has none
+            // yet, so a renderer that walks a cell once and shows it has to warm its emitters first.
             runWorld(0.1);
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 0u);
 
@@ -823,10 +788,9 @@ namespace Rtx::Testing
             runWorld(0.1);
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 10u);
 
-            // **The same ten, and not another ten.** Every walk that reaches an emitter says it is a
-            // cull traversal, and the game reaches this one twice a frame — the world's walk and the
-            // weather's. What keeps that one step is `ParticleProcessor`'s own once-per-frame guard,
-            // and it only holds while a single clock is writing it.
+            // **The same ten, and not another ten.** Every walk that reaches an emitter says it is a cull
+            // traversal, and the game reaches this one twice a frame (world and weather);
+            // `ParticleProcessor`'s once-per-frame guard keeps that to one step, while a single clock writes it.
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 10u);
 
             // Ten more on the next turn, so the guard is a guard and not a stop.
@@ -834,10 +798,9 @@ namespace Rtx::Testing
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u);
         }
 
-        /// **A jump in the world's clock is no step of the emitters**: they move by the step the
-        /// frame stands for, and a clock set an hour on — a harness standing a world at a moment —
-        /// emits a tenth of a second's ten particles and not an hour's 360,000. A step backward is
-        /// none at all.
+        /// **A jump in the world's clock is no step of the emitters**: a clock set an hour on (a harness standing a
+        /// world at a moment) emits a tenth of a second's ten particles and not an hour's 360,000. A step backward
+        /// is none at all.
         TEST_F(RtxSceneExtractorTest, aJumpInTheWorldsClockIsNoStepOfTheEmitters)
         {
             Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
@@ -880,10 +843,9 @@ namespace Rtx::Testing
             void accept(osg::NodeVisitor&) override { throw std::runtime_error("a node the walk cannot read"); }
         };
 
-        /// **A walk that threw leaves nothing for the next one to place.** The emitters a walk met
-        /// are read when it ends, and a throw is an end with no reading: the next walk placed the
-        /// thrown walk's emitters as its own, at their old places, and read their effects out of a
-        /// list it had refilled.
+        /// **A walk that threw leaves nothing for the next one to place.** The emitters a walk met are read when it
+        /// ends, and a throw is an end with no reading: the next walk would place them as its own, at their old
+        /// places, and read their effects out of a refilled list.
         TEST_F(RtxSceneExtractorTest, aWalkThatThrewLeavesNoEmitterForTheNext)
         {
             const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
@@ -916,12 +878,10 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.placements().getRows()[0].mInstance.mClass, Rtx::InstanceClass::Static);
         }
 
-        /// **An emitter's sprites are read from its entry as the map holds it after the walk**, and
-        /// not from where the entry stood when the walk met the emitter. Sprites are read once the
-        /// walk is over, and the emitters met after this one grow the map, which moves every entry.
-        /// Four times the two thousand and forty-eight the extractor reserves, because the table
-        /// rounds its room up: three thousand stayed inside it. Each plume stands one particle at its
-        /// own x, so a sprite read through an entry that moved would stand elsewhere or not at all.
+        /// **An emitter's sprites are read from its entry as the map holds it after the walk**, not where the entry
+        /// stood when the walk met the emitter: emitters met later grow the map, which moves every entry. Four times
+        /// the 2048 the extractor reserves, because the table rounds its room up (three thousand stayed inside it).
+        /// Each plume stands one particle at its own x, so a sprite read through a moved entry would stand elsewhere.
         TEST_F(RtxSceneExtractorTest, anEmitterMetBeforeItsMapGrewPlacesItsOwnSprite)
         {
             constexpr std::size_t count = 4 * 2048;

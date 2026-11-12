@@ -148,9 +148,8 @@ namespace Rtx
 
     /// A made chain: its bytes as they stand, then its form's byte.
     ///
-    /// **The form last, so a read takes the payload whole** (`take`): the bytes the store read become
-    /// the chain's by a move, the form dropped by a resize, where a byte at the front moved every byte
-    /// after it, and a copy out of the store's buffer was a second chain in memory.
+    /// **The form last, so a read takes the payload whole** (`take`): the bytes become the chain's by a
+    /// move and a resize, where a byte at the front moved every byte after it.
     template <>
     struct ContentCodec<MadeChain>
     {
@@ -180,10 +179,9 @@ namespace Rtx
     /// each, then the kept triangles, the normals as the device's words (`Shaders::packNormal`) and the
     /// added vertices' sources, each a run.
     ///
-    /// **Sixteen-bit indices where every vertex is under 65536**, which nearly every model's are, and a
-    /// normal four bytes and not twelve: on the PBR profile's shapes, 69.3 MiB of payload came to 29.6,
-    /// and the entries held in memory (`ContentStore::Store::sResidentMost`) from 77% to 92%. The normals come
-    /// back as their words read back, so a run's output is handed back so too (`sRounds`).
+    /// **Sixteen-bit indices where every vertex is under 65536**, and a normal four bytes and not twelve:
+    /// on the PBR profile's shapes, 69.3 MiB of payload came to 29.6. The normals come back as their words
+    /// read back, so a run's output is handed back so too (`sRounds`).
     template <>
     struct ContentCodec<ShapePass::Output>
     {

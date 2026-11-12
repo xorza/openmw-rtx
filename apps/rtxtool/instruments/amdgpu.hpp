@@ -17,9 +17,8 @@ namespace RtxTool
     /// temperature, which is what `CardWatch` asks NVML for on an NVIDIA card. Read from the files
     /// `amdgpu` keeps in the card's folder under `/sys/bus/pci/devices/`.
     ///
-    /// **No process samples.** amdgpu counts a client's use per open file of the device, under
-    /// `/proc/<pid>/fdinfo`, and keeps no list per card a reader can take, so who held the card is
-    /// NVML's answer alone.
+    /// No process samples: amdgpu counts a client's use per open file of the device, under
+    /// `/proc/<pid>/fdinfo`, and keeps no list per card, so who held the card is NVML's answer alone.
     class AmdGpu
     {
     public:

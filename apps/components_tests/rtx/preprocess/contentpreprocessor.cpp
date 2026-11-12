@@ -126,14 +126,13 @@ namespace Rtx
             return held;
         }
 
-        /// **A chain's scratch is predicted off its image's header, and its buffers grow to no more**: for
-        /// each file and encoding, run on a preprocessor that held nothing, every buffer it holds after is
-        /// within the prediction, and the buffers that grow with the texels are it exactly. A 32 by 16 loose
-        /// file as a colour, a normal map and a painted colour: chainless, built to a texel, six levels,
-        /// 683 texels, 2732 bytes laid; a 64-square BC1 of seven levels as a painted
-        /// colour, every level of its own read; the same with one level as data, built to a texel; and as a
-        /// colour with its chain, which stands and builds nothing; and a conversion either way within its own.
-        /// Then a 16-square file after a 64-square one grows nothing.
+        /// **A chain's scratch is predicted off its image's header, and its buffers grow to no more**: for each file
+        /// and encoding, run on a preprocessor that held nothing, every buffer it holds after is within the
+        /// prediction, and the buffers that grow with the texels are it exactly. A 32 by 16 loose file as a colour, a
+        /// normal map and a painted colour (chainless, built to a texel, six levels, 683 texels, 2732 bytes laid); a
+        /// 64-square BC1 of seven levels as a painted colour (every level of its own read), the same with one level
+        /// as data (built to a texel), and as a colour with its chain (which stands and builds nothing); and a
+        /// conversion either way within its own. Then a 16-square file after a 64-square one grows nothing.
         TEST(RtxContentPreprocessorTest, aChainsScratchIsPredictedOffItsHeaderAndGrowsToNoMore)
         {
             struct Case
@@ -627,12 +626,11 @@ namespace Rtx
             EXPECT_EQ(filed.size(), 28u) << "the broken file stood";
         }
 
-        /// **A stored shape that reads whole and does not fit its input is run again and replaced**:
-        /// the digest says a file is intact, not that it is this input's, and a misfit written into the
-        /// mesh table would write or read past the mesh's run. The card has eight vertices: a kept
-        /// corner of 8 with no vertex added, a triangle cut short, an added vertex copying vertex 8,
-        /// and normals for seven of eight vertices are each a miss, the card's front kept as a run keeps
-        /// it, and the run's output filed in the misfit's place, so the next ask finds it.
+        /// **A stored shape that reads whole and does not fit its input is run again and replaced**: the digest says
+        /// a file is intact, not that it is this input's, and a misfit in the mesh table would write or read past the
+        /// mesh's run. The card has eight vertices: a kept corner of 8 with no vertex added, a triangle cut short, an
+        /// added vertex copying vertex 8, and normals for seven of eight vertices are each a miss, the card's front
+        /// kept as a run keeps it, and the run's output filed in the misfit's place.
         TEST(RtxContentPreprocessorTest, aStoredShapeThatDoesNotFitItsInputIsRunAgain)
         {
             const ShapePass::Input input{ .mPositions = sCard, .mTriangles = sDoubled, .mSplits = true };

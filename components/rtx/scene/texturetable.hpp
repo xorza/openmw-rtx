@@ -42,10 +42,10 @@ namespace Rtx
         /// how much light from that side reaches it through the texels between; the two
         /// out-of-plane directions are the alpha itself, so the shader derives them. A texel of
         /// alpha `a` seen through one sprite width has transmittance `1 - a`, so every texel a
-        /// sideways ray passes multiplies by `(1 - a) ^ (1 / N)` for a level `N` texels across —
-        /// no constant in it. Baked per level from that level's own alpha, because the shader
-        /// samples both at one level. The channels are light from `+u`, `-u`, `+v`, `-v` in the
-        /// texture's own coordinates, as `sprites.glsl` reads.
+        /// sideways ray passes multiplies by `(1 - a) ^ (1 / N)` for a level `N` texels across.
+        /// Baked per level from that level's own alpha, because the shader samples both at one
+        /// level. The channels are light from `+u`, `-u`, `+v`, `-v` in the texture's own
+        /// coordinates, as `sprites.glsl` reads.
         ///
         /// Made on the device as the sprite arrives, `spritelight.comp`, and held by a test to the
         /// host's statement of it, `Testing::SpriteLightBake`. `TextureRow::mPath` carries the file
@@ -100,13 +100,13 @@ namespace Rtx
 
     /// Every texture the scene names, what still names each one, and which slots changed. A slot
     /// is live from its take, before anything names it, reference counted from the hold that
-    /// follows, and given back the moment nothing names it, because waiting for a
-    /// sweep would keep a region's images alive across the crossing that left it. Two ways in and
-    /// one table: a slot is a file the content named or a key this renderer made for something it
-    /// baked, never both. A slot that is freed keeps its index.
+    /// follows, and given back the moment nothing names it, because waiting for a sweep would keep
+    /// a region's images alive across the crossing that left it. Two ways in and one table: a slot
+    /// is a file the content named or a key this renderer made for something it baked, never both.
+    /// A slot that is freed keeps its index.
     ///
     /// **A slot is a file, its wrap and its encoding.** The same file bound clamped and bound
-    /// repeating is two slots, because a sampler is per slot and the wrap is the sampler's; the
+    /// repeating is two slots, because the wrap is the sampler's and a sampler is per slot; the
     /// same file bound as a colour and as data is two, because the encoding is the image's format.
     /// A file names up to twelve, one per `TextureWrap` and `TextureEncoding`.
     class TextureTable : public HeldRows<TextureRow>
@@ -218,8 +218,8 @@ namespace Rtx
         /// Takes and gives back one name on a slot. A slot this never hands out — `sNoIndex`, and
         /// the neutral texel a layer names where the table had no room — is "none" and costs a
         /// compare. The slot is freed by the `drop` after which nothing names it. A particle
-        /// emitter's sprite names a texture this way: an emitter is rebuilt every frame, so
-        /// whatever recognises it between frames is what has to hold the texture.
+        /// emitter's sprite names a texture this way: an emitter is rebuilt every frame, so whatever
+        /// recognises it between frames is what has to hold the texture.
         void hold(Index texture);
         void drop(Index texture);
 

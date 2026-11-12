@@ -322,9 +322,8 @@ namespace RtxTool
                 .mFixed = fixed };
         }
 
-        /// `total` frames shared out as `shares` ask, each a whole number and the sum exact: each
-        /// share's whole part, then one more to each of the largest remainders, which between them
-        /// are exactly what is left over. A share of anything at all is a frame at least, since a
+        /// `total` frames shared out as `shares` ask, each a whole number and the sum exact: each share's whole part,
+        /// then one more to each of the largest remainders. A share of anything at all is a frame at least, since a
         /// flight in no frames is no flight, taken from the largest; `total` covers one for each.
         std::vector<std::uint32_t> apportion(const std::vector<double>& shares, const std::uint32_t total)
         {
@@ -550,10 +549,9 @@ namespace RtxTool
         for (const TakeRange& range : ranges)
             drafts.push_back(draftTake(plan, range));
 
-        // **The spans the keys' times close.** The segment into a key lies in the span its key
-        // before leaves in, and a key's hold in the one it leaves in, which a key with a time opens.
-        // In `framesOf`'s single precision, so a key's time and a length of as many seconds land
-        // on one frame.
+        // The spans the keys' times close: the segment into a key lies in the span the key before leaves in, and a
+        // key's hold in the one it leaves in, which a key with a time opens. In `framesOf`'s single precision, so a
+        // key's time and a length of as many seconds land on one frame.
         const auto frameAt
             = [&](const float seconds) { return static_cast<std::uint32_t>(std::lround(seconds / pacing.mStep)); };
         const auto secondsOf
@@ -615,9 +613,8 @@ namespace RtxTool
             }
         }
 
-        // **A length closes the last span, at the film's last frame.** One nobody named stands
-        // aside where a key names its time, and where it cannot be filled; a named one that
-        // cannot be filled refuses the film.
+        // A length closes the last span, at the film's last frame. One nobody named stands aside where a key names
+        // its time or where it cannot be filled; a named one that cannot be filled refuses the film.
         const bool timed = spans.size() > 1 || plan.mKeys.front().mAt.has_value();
         if (pacing.mLength.has_value())
         {
@@ -826,9 +823,9 @@ namespace RtxTool
             stop.mSchedule.mTrack.emplace(take.mTrack, take.mPath, plan.mPacing.getCruise(), take.mSky);
             stop.mActions.mFilm = Actions::Film{ .mDirectory = frames, .mFirst = take.mFirstFrame };
 
-            // **A clock that runs through the film is set once, at its first take**, and every take
-            // after takes up where the world stood at the last one's end: set again from a key, it
-            // jumped back at every cut. A day set by hand would also leave the month where it was.
+            // A clock that runs through the film is set once, at its first take, and every take after takes up where
+            // the world stood at the last one's end: set again from a key it would jump back at every cut. A day set
+            // by hand would also leave the month where it was.
             if (number > 0 && plan.mPacing.mClock.has_value())
             {
                 stop.mSky.mHour.reset();

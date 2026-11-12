@@ -84,28 +84,22 @@ namespace Rtx
         const bool mapped = request.mMapped;
         const bool lamps = request.mLamps;
         const Reconstruction& reconstruction = request.mReconstruction;
-        // **Each field of the shadow denoiser only where its source can light anything**: the sky's
-        // where the sun or a moon lights, the lamps' where a lamp does. A room with no lamp has
-        // neither, and every tile of it would be classified, found to receive nothing and copied
-        // through: 0.34 ms of a guild's frame, measured, for a factor of one on a light of nought.
-        // With its lamps, the guild pays 0.28 ms in the pass and 0.38 ms of the median frame,
-        // release, two alternated rounds: 4.24 to 4.62 ms.
+        // **Each field of the shadow denoiser only where its source can light anything**: the sky's where
+        // the sun or a moon lights, the lamps' where a lamp does. A room with no lamp has neither, and
+        // every tile of it would be classified, found to receive nothing and copied through: 0.34 ms of a
+        // guild's frame for a factor of one on a light of nought.
         //
-        // **The glossy filter only where a surface can have a lobe**, which a vanilla scene has
-        // nowhere: its channel is nought, and the composite reads the channel itself for the nought
-        // it adds.
+        // **The glossy filter only where a surface can have a lobe**, which a vanilla scene has nowhere:
+        // its channel is nought, and the composite reads the channel itself for the nought it adds.
         //
         // **The pane filter wherever the denoisers run**, since any frame may hold a layer — a window,
-        // and every actor the game fades at the edge of its range. Where none stands it averages
-        // noughts.
+        // and every actor the game fades at the edge of its range. Where none stands it averages noughts.
         //
-        // A filter that does not run is fresh the next time it does, since the frames it would
-        // have carried were not recorded (`TemporalTurns`).
-        //
-        // **The accumulator runs on every frame the denoisers do**, its mean of the bounce, the clamp
-        // and the wavelet with it, so its history is fresh only after a reset, which makes every
-        // history fresh: the shadow denoiser and the glossy filter, which read the surface it holds,
-        // need no freshness but their own.
+        // A filter that does not run is fresh the next time it does, since the frames it would have
+        // carried were not recorded (`TemporalTurns`). **The accumulator runs on every frame the
+        // denoisers do**, so its history is fresh only after a reset, which makes every history fresh:
+        // the shadow denoiser and the glossy filter, which read the surface it holds, need no freshness
+        // but their own.
         TemporalFlags runs;
         runs[Temporal::Accumulate] = true;
         runs[Temporal::SkyShadow] = Shaders::skySourceLights(sampled);
@@ -128,12 +122,12 @@ namespace Rtx
             .mWrittenBefore = step.mWrittenBefore,
         };
 
-        // **Stage by stage, and every family's dispatch of a stage behind one barrier**: the
-        // accumulator, the two shadow fields, the glossy and the pane filters read nothing another
-        // of them writes, so a family recorded after the last, each with barriers of its own, held
-        // every dispatch back for the tail of every one before it — thirteen drains where six do.
-        // The temporal passes first: the accumulator hands on the variance of its mean, which is what
-        // lets the levels below stop at an edge in the light and not only in the geometry.
+        // **Stage by stage, and every family's dispatch of a stage behind one barrier**: the accumulator,
+        // the two shadow fields, the glossy and the pane filters read nothing another of them writes, so
+        // recording one family after the last held every dispatch back for the tail of every one before
+        // it — thirteen drains where six do. The temporal passes first: the accumulator hands on the
+        // variance of its mean, which lets the levels below stop at an edge in the light and not only in
+        // the geometry.
         std::array<const DenoiseHistory::ShadowImages*, sShadowFields> fields{};
         std::size_t running = 0;
         const DenoiseHistory::ShadowImages sky = history.shadow(ShadowField::Sky, step);
@@ -193,11 +187,10 @@ namespace Rtx
             specular->addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
         pane->addTransition(ready, Use::sComputeWrite, Use::sComputeRead);
 
-        // The cascade reads what the accumulator just wrote, the history fix's frame count in the
-        // fill's alpha among it, and it reads through the texture unit — so the dependency names the
-        // sampled access and not only the storage one. The history the cascade writes for the next
-        // frame is ordered by the discard, which named a compute write as what would come next. In
-        // the same batch as the filters' answers.
+        // The cascade reads what the accumulator just wrote (the history fix's frame count in the fill's
+        // alpha among it) through the texture unit, so the dependency names the sampled access and not
+        // only the storage one. The history the cascade writes for the next frame is ordered by the
+        // discard, which named a compute write as what would come next. In the same batch as the answers.
         for (const Image* image : { &accumulated.mBlended, &accumulated.mFillBlended })
             image->addTransition(ready, Use::sComputeWrite, Use::sComputeReadOrSample);
         // The history fix writes its answer over the clamp's fast means, and the first level writes

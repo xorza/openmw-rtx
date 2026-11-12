@@ -7,13 +7,12 @@
 // What the half-store probe is handed. Included verbatim by both sides, for the reason
 // `visibility.h` is.
 //
-// **The probe is the question every history kept in halves rests on**: whether an image store into
-// a half-float format rounds to nearest or toward nought. Vulkan allows either, and a running mean
-// kept in halves stalls under the one and drifts down under the other (`accumulate.h`,
-// `specular.h`). **And the two conversions beside it the spec leaves as open**: `packHalf2x16` in the
-// arithmetic, and a store into a normalized eight-bit format, which the channels whose steps are a
-// byte's rest on (`gbuffer.h`). **And the shader's own rounding to the nearest half**
-// (`nearestHalf`), which a store then keeps exactly.
+// **The probe is the question every history kept in halves rests on**: whether an image store into a
+// half-float format rounds to nearest or toward nought, which Vulkan leaves to the device and under which a
+// running mean kept in halves stalls or drifts down (`accumulate.h`, `specular.h`). **And the two
+// conversions beside it the spec leaves open**: `packHalf2x16` in the arithmetic, and a store into a
+// normalized eight-bit format, which the channels whose steps are a byte's rest on (`gbuffer.h`). **And the
+// shader's own rounding to the nearest half** (`nearestHalf`), which a store then keeps exactly.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders

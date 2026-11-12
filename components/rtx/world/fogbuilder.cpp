@@ -16,9 +16,8 @@ namespace Rtx
     {
         /// The optical depth `sigma * over` at which a medium's mean transmittance over `over` is
         /// `mean`, below one: the root of `(1 - e^-x) / x = mean`. **Newton's method from `1 / mean`**,
-        /// which is right of the root: `1 - e^-x - mean * x` is concave and falling there, so each
-        /// step lands nearer the root and never past it, and the steps stop when one no longer
-        /// moves the estimate down — the root to the last place a double holds.
+        /// right of the root, where `1 - e^-x - mean * x` is concave and falling, so each step lands nearer
+        /// and never past it; it stops when a step no longer moves the estimate down.
         double opticalDepthForMean(const double mean)
         {
             double x = 1.0 / mean;
@@ -88,10 +87,9 @@ namespace Rtx
 
     float fogLift(float depth, float wind)
     {
-        // **The depth read by `fogExtinction`'s rule**, which takes nought, a negative or not a
-        // number for no fog at all. A layer with no density has no height worth keeping, so it
-        // stands the clear one: the shaders divide by the lift, and nought made the air at the
-        // fog's base, which is the sea outdoors, nought over nought.
+        // **The depth read by `fogExtinction`'s rule**, which takes nought, a negative or not a number for
+        // no fog. Such a layer stands the clear one: the shaders divide by the lift, and nought over nought
+        // is the air at the fog's base, the sea outdoors.
         if (!(depth > 0.0f))
             return 1.0f;
 
@@ -133,16 +131,14 @@ namespace Rtx
         return Fog{
             .mColour = colour,
 
-            // A room is measured against one fixed distance and not against how much world is
-            // built outside it, nor against how much the player asked to see: a cellar does not
-            // clear because the sky got bigger. `sInteriorFogReach` is where that is said.
+            // A room is measured against one fixed distance, not how much world is built outside it or
+            // how much the player asked to see (`sInteriorFogReach`).
             .mExtinction = fogExtinction(depth, sInteriorFogReach),
 
             // A room is smaller than one bank of fog, and its air is still.
             .mUniform = 1.0f,
 
-            // A room has no weather over it to stand its air up or carry it anywhere, and the
-            // layer it holds is the one `FOG_HEIGHT` names.
+            // A room has no weather to stand its air up or carry it; its layer is the one `FOG_HEIGHT` names.
             .mLift = 1.0f,
             .mWind = 0.0f,
 

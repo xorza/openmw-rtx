@@ -75,9 +75,8 @@ namespace RtxTool
 
         /// Every check, the word it is asked for by, and when it may be asked.
         ///
-        /// **The one list**, so a check renamed here is renamed in the command line and in the
-        /// report at once, and a check added here reaches the runner and says what it may be asked
-        /// of without anybody remembering to list it a second time. What a check answers is
+        /// The one list, so a check renamed here is renamed on the command line and in the report at once, and a
+        /// check added here reaches the runner and says what it may be asked of. What a check answers is
         /// `StopWriter::checkHolds`, which needs the game and so stays in the harness.
         constexpr std::array sChecks{
             CheckRow{ Check::WalkTwice, "walk-twice", always },

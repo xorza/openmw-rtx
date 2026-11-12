@@ -60,12 +60,10 @@ namespace Rtx
             EXPECT_EQ(alpha.at(0, 3, 3), 255) << "the last nibble is fifteen and must be fully opaque";
         }
 
-        /// BC3 builds a palette from two endpoints, and which palette depends on their order.
-        ///
-        /// **Both spellings, because a decoder that assumed one reads half the blocks wrong.** With the
-        /// first endpoint the larger, all eight entries are interpolated between them; with it smaller,
-        /// six are and the last two are nought and full outright — which is the spelling a texture with
-        /// hard cutout edges is compressed into.
+        /// BC3 builds a palette from two endpoints, and which palette depends on their order. **Both spellings,
+        /// because a decoder that assumed one reads half the blocks wrong**: with the first endpoint the larger,
+        /// all eight entries are interpolated; with it smaller, six are and the last two are nought and full
+        /// outright, the spelling a texture with hard cutout edges is compressed into.
         TEST(RtxAlphaImageTest, bc3InterpolatesEightWaysDescendingAndSixWithTheEndsAscending)
         {
             // Indices are three bits each, little-endian over six bytes. All zero picks endpoint one,
@@ -171,12 +169,9 @@ namespace Rtx
             }
         }
 
-        /// The whole mip chain is decoded, because the whole mip chain is what the shader can read.
-        ///
-        /// `candidateStops` samples the mask at the level the ray's cone resolves to, so a classifier that
-        /// saw only the largest level would be bounding a fetch that never happens. The two levels below
-        /// disagree outright — a level that was read from the wrong offset, or skipped, comes back with
-        /// the other one's values.
+        /// The whole mip chain is decoded, because the whole mip chain is what the shader can read:
+        /// `candidateStops` samples the mask at the level the ray's cone resolves to. The two levels below
+        /// disagree outright, so a level read from the wrong offset, or skipped, comes back with the other's values.
         TEST(RtxAlphaImageTest, everyLevelTheFileCarriesIsDecodedAndNotOnlyTheLargest)
         {
             // Four by four at 40, then two by two at 200. A real chain averages; these do not, so that
@@ -235,13 +230,10 @@ namespace Rtx
             EXPECT_TRUE(nothing.levelsFit()) << "no level is a level that fits";
         }
 
-        /// An image read again is the texture it was handed and nothing of the one before, and it
-        /// costs the heap nothing to say so.
-        ///
-        /// **What lets `ChainBuild` and `SceneTextures` keep one of these.** Both read a cell's worth
-        /// of textures through a single image; one that carried the last texture's levels through
-        /// would weigh one texture's colours by another's alpha, and one that gave its room back
-        /// would go to the heap once a texture on the frame the cell lands.
+        /// An image read again is the texture it was handed and nothing of the one before, and it costs the heap
+        /// nothing to say so. `ChainBuild` and `SceneTextures` keep one of these through a cell's worth of
+        /// textures: one that carried the last texture's levels through would weigh one texture's colours by
+        /// another's alpha, and one that gave its room back would go to the heap once a texture.
         TEST(RtxAlphaImageTest, anImageReadAgainIsTheNewTextureAndKeepsTheRoomOfTheLast)
         {
             std::vector<std::byte> bytes(2 * 2 * 4, std::byte{ 0 });
@@ -292,12 +284,10 @@ namespace Rtx
 
         /// A wisp is told from a mask by whether the paint ever closes, and 255 is the whole test.
         ///
-        /// **One below solid is a wisp and solid is a mask**, because that is the difference between
-        /// a cloud and a leaf: a leaf card is opaque wherever the artist drew leaf, and `Tx_Dagoth
-        /// _Cloud` peaks at seven fifteenths of the way up — 119 — over the whole of its 128 by 128.
-        /// A test at anything but the top would call some leaf in the game a cloud.
-        ///
-        /// The solid texel is last, so a walk that answered off the first texel it read fails.
+        /// **One below solid is a wisp and solid is a mask**: a leaf card is opaque wherever the artist drew leaf,
+        /// and `Tx_Dagoth_Cloud` peaks at seven fifteenths of the way up, 119, so a test at anything but the top
+        /// would call some leaf a cloud. The solid texel is last, so a walk that answered off the first texel it
+        /// read fails.
         TEST(RtxAlphaImageTest, reachesSolidIsTrueOnlyWhereSomeTexelIsFullyOpaque)
         {
             // One preprocessor for all four, which is how a thread holds it: a cell asks this once
@@ -459,13 +449,10 @@ namespace Rtx
                 << "the 255 is in the padding";
         }
 
-        /// The second image a preprocessor reads costs the heap nothing, and reads as itself.
-        ///
-        /// **What holding one is for.** `MaterialResolver` asks this of every translucent diffuse
-        /// map a cell arrives with, and a reading that took its levels table and its decoded alpha
-        /// from the heap would take them again for each of those, on the frame the cell lands.
-        /// Reading as itself is the other half: a scratch that carried the last image's levels
-        /// through would answer for a texture it was never shown.
+        /// The second image a preprocessor reads costs the heap nothing, and reads as itself. `MaterialResolver`
+        /// asks this of every translucent diffuse map a cell arrives with, so a reading that took its levels
+        /// table and decoded alpha from the heap would take them again for each, on the frame the cell lands; and
+        /// a scratch that carried the last image's levels through would answer for a texture it was never shown.
         TEST(RtxAlphaImageTest, aScratchTheCallerKeepsAnswersForEachImageAndAllocatesForNone)
         {
             const osg::ref_ptr<osg::Image> mask = makeAlphaImage({ 0, 119, 254, 255 });

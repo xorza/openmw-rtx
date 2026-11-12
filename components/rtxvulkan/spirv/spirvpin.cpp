@@ -237,11 +237,10 @@ namespace Rtx
             }
         }
 
-        /// A float instruction outside `GLSL.std.450` that nothing here pins: a derivative — a plain
-        /// one fine or coarse at the compile's choice, and none of them taken by a shader here — and
-        /// an image read whose level of detail is worked out from derivatives, which carries the same
-        /// choice; a float sum or product across a subgroup, a float atomic, and a cooperative matrix
-        /// or vector, whose order is the hardware's.
+        /// A float instruction outside `GLSL.std.450` that nothing here pins: a derivative or an image read whose level
+        /// of detail is worked out from derivatives (the compile's choice, and none is taken by a shader here); a float
+        /// sum or product across a subgroup, a float atomic, and a cooperative matrix or vector, whose order is the
+        /// hardware's.
         bool isUnpinnable(spv::Op op)
         {
             switch (op)
@@ -284,14 +283,9 @@ namespace Rtx
             }
         }
 
-        /// **What may make a float and pass through as it is: an allowlist, so a float result no
-        /// rule here knows stops the build** (`Pinner::rewriteOne`), as a validator that must not
-        /// miss a case is written, and a new opcode is refused until a rule names it. A move of a
-        /// float, a selection among floats, a conversion the specification rounds correctly, a read
-        /// at a stated level of detail, the hardware's ray query answers, and the rounding steps
-        /// `isRounding` names, which the pinning decorates. Not a float atomic or a subgroup's sum,
-        /// minimum or maximum, whose order or whose answer to a signed zero or a NaN is the
-        /// hardware's.
+        /// What may make a float and pass through as it is: an allowlist, so a float result no rule here knows stops
+        /// the build (`Pinner::rewriteOne`) and a new opcode is refused until a rule names it. Not a float atomic or a
+        /// subgroup's sum, minimum or maximum, whose order or whose answer to a signed zero or a NaN is the hardware's.
         bool passesFloat(spv::Op op)
         {
             switch (op)
@@ -1330,11 +1324,9 @@ namespace Rtx
                 if (foldOne(instruction))
                     continue;
 
-                // **A division by a constant is the multiply by its reciprocal, rounded once here**:
-                // exactly the quotient where the constant is a power of two, and within an ulp and a
-                // half of it elsewhere, where the device owes a division two and a half and each
-                // device rounds its own — so the same answer on every device. Only where the
-                // constant and its reciprocal are normal floats.
+                // A division by a constant is the multiply by its reciprocal, rounded once here: exactly the quotient
+                // for a power of two, within an ulp and a half elsewhere, where the device owes a division two and a
+                // half and each rounds its own. Only where the constant and its reciprocal are normal floats.
                 if (instruction.mOp != spv::OpFDiv)
                     continue;
                 const std::uint32_t type = operandAt(instruction, 0);

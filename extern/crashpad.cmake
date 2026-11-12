@@ -1,9 +1,7 @@
-# **Crashpad from Sentry's fork**, the one project that releases it with a CMake build: Crashpad
-# itself is Chromium's and tags nothing. Its newest commit, three past what sentry-native 0.17.6
-# pins, for two fixes of a stalled or external handler. Three archives,
-# because GitHub's leaves the submodules out; each goes where the submodule would have been.
-# Populated without being added, so that the two are in place before Crashpad's own
-# CMakeLists reads them.
+# **Crashpad from Sentry's fork**, the one project that releases it with a CMake build: Crashpad itself is
+# Chromium's and tags nothing. Its newest commit, three past what sentry-native 0.17.6 pins, for two fixes of a
+# stalled or external handler. Three archives, because GitHub's leaves the submodules out; each goes where the
+# submodule would have been, populated without being added so they are in place before Crashpad's CMakeLists.
 # The patch's digest on its command line, so an edit to it extracts Crashpad afresh and patches it again:
 # FetchContent compares the command, not the script it runs.
 file(SHA256 "${CMAKE_CURRENT_LIST_DIR}/crashpadpatch.cmake" crashpad_patch_digest)

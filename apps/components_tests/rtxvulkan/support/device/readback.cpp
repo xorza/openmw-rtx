@@ -19,9 +19,8 @@ namespace Rtx::Testing
     {
         /// One half float, as the number it stands for.
         ///
-        /// **Spelled out rather than shared with the renderer, and by arithmetic rather than by
-        /// bits.** Several passes keep their output in halves, so a test that read them through the
-        /// same helper the shader used would pass however wrong that helper was — and one written in
+        /// **Spelled out rather than shared with the renderer, and by arithmetic rather than by bits.** A test that
+        /// read halves through the helper the shader used would pass however wrong that helper was, and one written in
         /// shifts and masks is a second place for the subnormal case to be wrong.
         float fromHalf(std::uint16_t bits)
         {

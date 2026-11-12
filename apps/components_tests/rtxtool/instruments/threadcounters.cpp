@@ -62,13 +62,12 @@ namespace RtxTool
                 "host thread not counted: it ran nothing the counters saw");
         }
 
-        /// **The counts are scaled to the thread's run, and the run is the time enabled**, so the clock
-        /// is the thread's whatever share the processor counted. One group counted 5e8 ns of a 1e9 ns
-        /// run, with 2e9 cycles: counted half, the cycles are 4e9 over the 1e9 ns run, the 4.00 GHz
-        /// the thread ran at, where the cycles over the counted time alone read 8.00. Two kinds of
-        /// core counted whole, 6e8 ns on the performance group and 4e8 on the efficiency group of a
-        /// 1e9 ns run, are 40% on efficiency cores, and the same counted half — 3e8 and 2e8 — are
-        /// 40% too. A thread nothing counted says why.
+        /// **The counts are scaled to the thread's run, and the run is the time enabled**, so the clock is
+        /// the thread's whatever share the processor counted: 2e9 cycles counted over 5e8 ns of a 1e9 ns
+        /// run are 4e9, the 4.00 GHz the thread ran at, where the cycles over the counted time alone read
+        /// 8.00. 6e8 ns on the performance group and 4e8 on the efficiency group of a 1e9 ns run are 40% on
+        /// efficiency cores, and the same counted half (3e8 and 2e8) are 40% too. A thread nothing counted
+        /// says why.
         TEST(RtxThreadCountersTest, theCountsAreScaledToTheThreadsRun)
         {
             const std::array<GroupCounts, 1> shared{ GroupCounts{ .mCycles = 2'000'000'000,
@@ -139,10 +138,9 @@ namespace RtxTool
             ASSERT_TRUE(once.mRead);
             ASSERT_TRUE(twice.mRead);
 
-            // **To a tenth, and to a hundredth of the time counted**: beside the other suites the
-            // kernel's interrupts land in the thread's count, and each move between the two kinds of
-            // core loses a sliver of it — measured at a ratio of 2.021 and 99.7% counted, and once at
-            // 1.868 with a burst in the shorter window, against 2.000 and all of it on a quiet machine.
+            // **To a tenth, and to a hundredth of the time counted**: beside the other suites the kernel's
+            // interrupts land in the thread's count and each move between the two kinds of core loses a
+            // sliver of it (a ratio of 2.021 and 99.7% counted, once 1.868, against 2.000 on a quiet machine).
             EXPECT_GT(once.mInstructions, 10'000'000u) << "a turn is more than one instruction";
             EXPECT_NEAR(static_cast<double>(twice.mInstructions) / static_cast<double>(once.mInstructions), 2.0, 0.2);
             EXPECT_GT(once.mCycles, 0u);

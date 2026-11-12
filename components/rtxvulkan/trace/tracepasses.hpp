@@ -12,11 +12,9 @@ namespace Rtx
 {
     class Device;
 
-    /// What every chain shares, whichever camera it is for: the layouts every `GBuffer` and every
-    /// `FogVolume` is shaped by, and the passes every trace runs. The renderer keeps one, built
-    /// once — a pipeline is a compile, and two chains that each made their own made it twice — and
-    /// what differs between two chains is the extent and what becomes of the picture. Owned here,
-    /// so a chain that holds this is correct whatever order its holder declares its members in.
+    /// What every chain shares, whichever camera it is for: the layouts every `GBuffer` and every `FogVolume` is shaped
+    /// by, and the passes every trace runs. The renderer keeps one, built once, since a pipeline is a compile. Owned
+    /// here, so a chain that holds this is correct whatever order its holder declares its members in.
     struct TracePasses
     {
         /// @param textureLayout what every scene's texture array is shaped by, which the trace reads.

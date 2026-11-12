@@ -179,10 +179,9 @@ namespace Rtx
         {
             Candidate found;
 
-            // **The version before anything else is asked**: the structures the questions below
-            // chain are Vulkan 1.2's and later, and their image flags 1.1's, which a device below
-            // the renderer's version does not define. It is rejected on its version alone, by the
-            // rule every candidate is (`profileOf`).
+            // **The version before anything else is asked**: the structures the questions below chain are
+            // Vulkan 1.2's and later, and their image flags 1.1's, which a device below the renderer's
+            // version does not define. It is rejected on its version alone, as every candidate is (`profileOf`).
             VkPhysicalDeviceProperties plain{};
             vkGetPhysicalDeviceProperties(handle, &plain);
             if (plain.apiVersion < sApiVersion)

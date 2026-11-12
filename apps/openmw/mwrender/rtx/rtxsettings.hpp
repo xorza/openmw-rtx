@@ -9,13 +9,9 @@
 
 namespace MWRender
 {
-    /// The ray tracer's settings as values, before anything reads their meaning. Two sources fill
-    /// one: the player's registry for a played session, and a harness's own for a run — its
-    /// command line, the player's registry for a watched window, the shipped defaults for a
-    /// measured one. The sources stay apart and the meaning is `RtxSettings::derive`'s alone.
-    ///
-    /// The upscaler and the map layout arrive read: each source parses its own text where it
-    /// enters, the registry at load.
+    /// The ray tracer's settings as values, before anything reads their meaning. The player's registry fills
+    /// one for a played session, and a harness's own sources for a run; the meaning is `RtxSettings::derive`'s
+    /// alone. The upscaler and the map layout arrive parsed, each source parsing its own text where it enters.
     struct RtxSettingValues
     {
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;

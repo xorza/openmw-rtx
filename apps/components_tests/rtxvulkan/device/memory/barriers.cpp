@@ -23,14 +23,11 @@ namespace Rtx
         {
         };
 
-        /// **An image barrier is kept for a layout that moves, and for nothing else.** Two images
-        /// ordered from one use in `GENERAL` to another are one memory barrier holding both
-        /// dependencies: the compute write before a compute load, and the trace's write before a
-        /// sample by either stage, merge to both writes' stages and access before both reads'.
-        /// The same two images leaving `UNDEFINED`, and leaving `GENERAL` for the layout a sampler
-        /// wants, are two image barriers and no memory barrier; leaving another alias's memory, an
-        /// image barrier and a memory barrier. Recorded and submitted, so the fixture's layers read
-        /// what was emitted.
+        /// **An image barrier is kept for a layout that moves, and for nothing else.** Two images ordered from one use
+        /// in `GENERAL` to another are one memory barrier holding both dependencies, merged to both writes' stages and
+        /// access before both reads'. The same two leaving `UNDEFINED`, or `GENERAL` for a sampled layout, are two
+        /// image barriers and no memory barrier; leaving another alias's memory, an image barrier and a memory
+        /// barrier.
         TEST_F(RtxBarriersTest, aBarrierThatMovesNoLayoutIsMergedIntoOneMemoryBarrier)
         {
             const Device& device = *mHarness.mDevice;
@@ -138,12 +135,10 @@ namespace Rtx
             });
         }
 
-        /// **A clear in the general layout writes every texel and records no barrier of its own.**
-        /// An image a clear of another colour left in `GENERAL` for compute, ordered ahead of the
-        /// clear by the caller as the function asks, cleared in place to
-        /// `(64, 128, 191, 255) / 255` — bytes the format rounds back exactly — and ordered by one
-        /// hand-over before it is read back: every texel is the second colour, and the layers, which
-        /// the fixture reads, saw nothing a clear in that layout breaks.
+        /// **A clear in the general layout writes every texel and records no barrier of its own.** An image left in
+        /// `GENERAL`, cleared in place to `(64, 128, 191, 255) / 255` — bytes the format rounds back exactly — and
+        /// read back after one hand-over: every texel is the second colour, and the layers saw nothing a clear in that
+        /// layout breaks.
         TEST_F(RtxBarriersTest, aClearInTheGeneralLayoutWritesEveryTexel)
         {
             const Device& device = *mHarness.mDevice;

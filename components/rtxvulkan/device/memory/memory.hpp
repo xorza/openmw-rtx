@@ -47,17 +47,15 @@ namespace Rtx
         return (value + alignment - 1) / alignment * alignment;
     }
 
-    /// The memory types a request for `required` is placed in, as a mask of type indices: those
-    /// whose placement — device-local, host-visible, coherent, cached — is exactly the request's,
-    /// where the device has any, and otherwise every one that has what the request asks. Never
-    /// AMD's device-coherent or uncached types, nor protected or lazily allocated ones, which no
-    /// request here asks for.
+    /// The memory types a request for `required` is placed in, as a mask of type indices: those whose
+    /// placement — device-local, host-visible, coherent, cached — is exactly the request's, where the device
+    /// has any, and otherwise every one that has what the request asks. Never AMD's device-coherent or
+    /// uncached types, nor protected or lazily allocated ones, which no request here asks for.
     ///
-    /// **Stated in the request rather than left to the order the driver lists its types in**: the
-    /// library takes the first type that has what is asked, so staging memory would be
-    /// write-combined system memory only where a driver lists that type before its window, and a
-    /// driver that listed the window first would put every staging block in a window of 246 MiB.
-    /// Nought where no type has what is asked.
+    /// **Stated in the request rather than left to the order the driver lists its types in**: the library
+    /// takes the first type that has what is asked, so staging would be write-combined system memory only
+    /// where a driver lists that type before its window, and one that listed the window first would put
+    /// every staging block in a window of 246 MiB. Nought where no type has what is asked.
     std::uint32_t memoryTypesFor(const VkPhysicalDeviceMemoryProperties& memory, VkMemoryPropertyFlags required);
 
     /// Where content — every structure and every texture — is placed: the types `memoryTypesFor`
@@ -120,15 +118,12 @@ namespace Rtx
         return use == MemoryUse::Frame || use == MemoryUse::Essential;
     }
 
-    /// What `VK_EXT_memory_priority` is told of the memory a use takes: the order a driver that runs
-    /// short evicts it in, lowest first. **The one statement of the priorities**, which every request
-    /// reads.
-    ///
-    /// **Memory nothing stands in for stands at a half**, the priority the library gives every
-    /// block outside a pool, so a target big enough for an allocation of its own stands where a
-    /// table in a shared block stands. **Content stands at a quarter**, one figure for structures
-    /// and textures alike, because the two share the content pools' blocks and a priority belongs
-    /// to a block.
+    /// What `VK_EXT_memory_priority` is told of the memory a use takes: the order a driver that runs short
+    /// evicts it in, lowest first. **The one statement of the priorities.** **Memory nothing stands in for
+    /// stands at a half**, the library's priority for every block outside a pool, so a target big enough
+    /// for an allocation of its own stands where a table in a shared block stands. **Content stands at a
+    /// quarter**, one figure for structures and textures, because the two share the content pools' blocks
+    /// and a priority belongs to a block.
     constexpr float memoryPriorityOf(const MemoryUse use)
     {
         return isNeverRefused(use) ? 0.5f : 0.25f;
@@ -188,12 +183,6 @@ namespace Rtx
         MemoryUse mUse = MemoryUse::Essential;
     };
 
-    /// Every `vkAllocateMemory` the renderer holds, and the ranges of them nothing is using:
-    /// Vulkan Memory Allocator behind a face of this fork's own, so that a buffer and an image ask
-    /// for room the same way and a report reads one set of figures. Every allocation carries the
-    /// device-address flag, because every buffer here may be addressed; a host-visible range is
-    /// mapped as it is made. Thread-safe, because `VisibilityPass::compileEvery` reaches `take`
-    /// from a thread per core.
     /// The extensions of the device's memory that were enabled, which the allocator works with.
     struct MemoryExtensions
     {
@@ -212,6 +201,11 @@ namespace Rtx
         bool mDeviceCoherent = false;
     };
 
+    /// Every `vkAllocateMemory` the renderer holds, and the ranges of them nothing is using: Vulkan Memory
+    /// Allocator behind a face of this fork's own, so that a buffer and an image ask for room the same way
+    /// and a report reads one set of figures. Every allocation carries the device-address flag, because
+    /// every buffer here may be addressed; a host-visible range is mapped as it is made. Thread-safe,
+    /// because `VisibilityPass::compileEvery` reaches `take` from a thread per core.
     class MemoryAllocator
     {
     public:
@@ -245,18 +239,16 @@ namespace Rtx
         /// memory, so never refused here, and throwing as `take` for a buffer does.
         DeviceMemory take(const VkMemoryRequirements& requirements, MemoryUse use, std::string_view name);
 
-        /// Room for `buffer` as `use`, or why there is none. Out of the blocks content already
-        /// holds wherever it fits there, because that costs the heap nothing; otherwise out of new
-        /// memory — a block, or an allocation of its own for a resource larger than half of one —
-        /// only where the heap stays below `use`'s ceiling with it. Memory nothing stands in for is
-        /// `take`, which is never refused and throws instead, and so does every failure but the
-        /// device having no room.
+        /// Room for `buffer` as `use`, or why there is none. Out of the blocks content already holds
+        /// wherever it fits there, because that costs the heap nothing; otherwise out of new memory — a
+        /// block, or an allocation of its own for a resource larger than half of one — only where the heap
+        /// stays below `use`'s ceiling with it. Memory nothing stands in for is `take`, which is never
+        /// refused and throws instead, as does every failure but the device having no room. `name` is what
+        /// `take` names, for a use never refused here.
         ///
-        /// **Content never shares a block with what the frame holds.** A range of content in a
-        /// block the frame's own memory opened would take room the frame had already been given,
-        /// past every ceiling; in blocks of their own, what each use holds and what it may take
-        /// are both exact to the block.
-        /// `name` is what `take` names, for a use never refused here.
+        /// **Content never shares a block with what the frame holds.** A range of content in a block the
+        /// frame's own memory opened would take room the frame had already been given, past every ceiling;
+        /// in blocks of their own, what each use holds and may take are both exact to the block.
         Result<DeviceMemory, MemoryRefusal> tryTake(VkBuffer buffer, VkMemoryPropertyFlags properties,
             VkDeviceSize alignment, MemoryUse use, std::string_view name);
 
@@ -358,15 +350,14 @@ namespace Rtx
         /// Frees what `memory` holds and takes it off what its use holds.
         void give(DeviceMemory& memory);
 
-        /// How far up `heap` a use content takes may go, against the process's whole usage of it:
-        /// the budget, less what every use before `use` would take to be made again, for the reason
-        /// `MemoryUse` gives — on the video heap, what the frame's reserve has beyond what its
-        /// targets hold, and everything else held once more.
+        /// How far up `heap` a use content takes may go, against the process's whole usage of it: the
+        /// budget, less what every use before `use` would take to be made again, for the reason `MemoryUse`
+        /// gives — on the video heap, what the frame's reserve has beyond what its targets hold, and
+        /// everything else held once more.
         ///
-        /// **What the process holds outside the library is counted once, in the usage**: the
-        /// swapchain and the driver's own memory, which nothing here makes a second time beside the
-        /// first. Taken off the budget as well, it stood twice under the ceiling, and a 7680 by 2160
-        /// swapchain of three images held two hundred megabytes of content out for nothing.
+        /// **What the process holds outside the library is counted once, in the usage**: the swapchain and
+        /// the driver's own memory. Taken off the budget as well, it stood twice under the ceiling, and a
+        /// 7680 by 2160 swapchain of three images held two hundred megabytes of content out for nothing.
         VkDeviceSize ceilingOf(std::uint32_t heap, MemoryUse use, VkDeviceSize budget) const;
 
         const Device& mDevice;

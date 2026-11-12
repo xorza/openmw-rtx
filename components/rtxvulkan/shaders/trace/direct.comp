@@ -8,15 +8,9 @@
 // channel by what the media in front and a water path let through, and the shadowed sources and the lobe's
 // light written by what the layers let through as well.
 //
-// **The rays in a fixed order, a turn each, at one traversal site**: the sky's two legs and the lamp's,
-// none of which waits on another's answer.
-//
-// **Before the layers' stage**, which lays the layers over the direct channel (`panes.comp`), so the
-// solid's light stands behind them when it does: what the layers let through is the throughput's fourth,
-// which this stage leaves off the light it adds.
-//
-// **The trace's hit, resolved again with no traversal** (`storedSolidOf`), as the bounce's stage resolves
-// it.
+// Runs before the layers' stage (`panes.comp`), so the solid's light stands behind them; what the layers let
+// through is the throughput's fourth, which this stage leaves off. The trace's hit is resolved again with no
+// traversal (`storedSolidOf`).
 
 #include "shared/traceconstants.h"
 #include "camera.h"

@@ -27,13 +27,11 @@ namespace RtxTool
         std::log(std::pow(1.0 - 1.0 / static_cast<double>(Rtx::Shaders::ACCUMULATE_FRAMES), double(sHistoryFrames)))
         / std::log(static_cast<double>(Rtx::Shaders::FOG_VOLUME_HISTORY))));
 
-    /// How many frames `noise` averages into the reference, and into the bar. **The reference at
-    /// 256**: a second reference drawn from another sequence stood 5 levels from it at the 99th
-    /// percentile at the Seyda Neen pier, so what is left of its own noise does not decide a bias.
-    /// **The bar at 16 is a decision, not a derivation**: the frame a player sees is to be as clean
-    /// as sixteen samples a pixel, a quarter of one sample's noise. Moving it moves what the claim
-    /// says. A frame whose history could not hold that many is held to what it could —
-    /// `NoiseFrame::mBar`.
+    /// How many frames `noise` averages into the reference, and into the bar. The reference at 256: a second
+    /// reference drawn from another sequence stood 5 levels from it at the 99th percentile at the Seyda Neen pier,
+    /// so what is left of its own noise does not decide a bias. The bar at 16 is a decision, not a derivation: the
+    /// frame a player sees is to be as clean as sixteen samples a pixel. A frame whose history could not hold that
+    /// many is held to what it could (`NoiseFrame::mBar`).
     inline constexpr std::uint32_t sNoiseReferenceFrames = 256;
     inline constexpr std::uint32_t sNoiseBarFrames = 16;
 
@@ -66,32 +64,27 @@ namespace RtxTool
         /// one every picture of a place converges over.
         std::optional<std::uint32_t> mWarmup;
 
-        /// How many frames the bar averages: as many samples a shown pixel as the frame's history holds, and
-        /// never more than `sNoiseBarFrames`, settled once the renderer has made the run's extents.
-        ///
-        /// **A trace that covers fewer pixels than it shows has fewer samples to show.** An upscaled mode
-        /// traces the share its extents say of the shown pixels, so after a flight's thirty frames quality
-        /// holds at most 13 samples a shown pixel and ultra performance 3, however well each is used.
-        /// Held to sixteen, every upscaled mode failed strafed by arithmetic, in the order of their
-        /// shares (the pond 2.64 at quality to 3.41 at ultra performance, against 2.54); held to what it
-        /// had, the verdict says whether the chain uses its samples as well as plain averaging does.
+        /// How many frames the bar averages: as many samples a shown pixel as the frame's history holds, never more
+        /// than `sNoiseBarFrames`, settled once the renderer has made the run's extents. A trace that covers fewer
+        /// pixels than it shows has fewer samples to show: an upscaled mode traces the share its extents say, so
+        /// after a flight's thirty frames quality holds at most 13 samples a shown pixel and ultra performance 3.
+        /// Held to sixteen, every upscaled mode failed strafed by arithmetic (the pond 2.64 at quality to 3.41 at
+        /// ultra performance, against 2.54); held to what it had, the verdict says whether the chain uses its
+        /// samples as well as plain averaging does.
         HeldFrames mBar;
     };
 
-    /// The frame `noise` judges: standing after its history converged, flown in over
-    /// `sNoiseFlightFrames` where `flies`, or `cut` frames after the cut its stop begins with.
-    /// **Each held to what its history could hold**, standing as well: its warm-up is
-    /// `sHistoryFrames`, so its history holds `sHistoryFrames + 2` frames, which at ultra
-    /// performance is fewer samples a shown pixel than `sNoiseBarFrames`.
+    /// The frame `noise` judges: standing after its history converged, flown in over `sNoiseFlightFrames` where
+    /// `flies`, or `cut` frames after the cut its stop begins with, each held to what its history could hold.
+    /// Standing too: its warm-up is `sHistoryFrames`, so its history holds `sHistoryFrames + 2` frames, which at
+    /// ultra performance is fewer samples a shown pixel than `sNoiseBarFrames`.
     ///
-    /// **A stop begins with a cut already** (`Stager::forgetHistory`), and its first frame, the one
-    /// the cut resets, draws the world and is not measured. So the frame `cut` frames after it is a
-    /// warm-up of `cut - 1`, and its history holds `cut + 1` frames, which is what its bar holds —
-    /// where the world stands whole on the stop's first frame, as it does at a place earlier stops
-    /// already loaded. A stop that waited for its world says so in the run's notes, and its frame
-    /// then holds the frames it waited as well.
-    /// That is where the fireflies were reported: the first frames after a door, a load or a
-    /// teleport, before a history holds enough to tell a rare bright bounce from the light.
+    /// A stop begins with a cut already (`Stager::forgetHistory`), and its first frame, the one the cut resets, is
+    /// not measured. So the frame `cut` frames after it is a warm-up of `cut - 1` and its history holds `cut + 1`
+    /// frames, which is what its bar holds, where the world stands whole on the stop's first frame; a stop that
+    /// waited for its world says so in the run's notes, and its frame then holds the frames it waited as well. That
+    /// is where the fireflies were reported: the first frames after a door, a load or a teleport, before a history
+    /// can tell a rare bright bounce from the light.
     ///
     /// A cut and a flight are two ways to take the frame, and a line naming both is refused.
     Result<NoiseFrame, std::string> noiseFrameFor(std::uint32_t cut, bool flies);
@@ -140,18 +133,16 @@ namespace RtxTool
     /// What `noise --versus` names the second side's pictures of a place, after the place's name.
     inline constexpr std::string_view sNoiseVersusSuffix = "-versus";
 
-    /// Takes the five pictures `noise` wrote of each of `places` into `wrote`, kept on `drawn` as they
-    /// were written, and says whether each frame is as clean as its bar: **its noise** — how far it stands from its own
-    /// mean — no more than the bar's from the bar's own limit, by the mean and at the 99th percentile. Beside it,
-    /// **each one's bias**: how far its mean stands from the reference, blurred by `sNoiseBiasBlur`. Returns a process
-    /// exit status, non-zero where any frame is noisier than its bar, any picture was not written or is of another
-    /// size, or no place was named.
+    /// Takes the five pictures `noise` wrote of each of `places` into `wrote`, kept on `drawn`, and says whether
+    /// each frame is as clean as its bar: its noise, how far it stands from its own mean, no more than the bar's
+    /// from the bar's own limit, by the mean and at the 99th percentile. Beside it, each one's bias: how far its
+    /// mean stands from the reference, blurred by `sNoiseBiasBlur`. Returns a process exit status, non-zero where
+    /// any frame is noisier than its bar, any picture was not written or is of another size, or no place was named.
     ///
-    /// **Noise against noise, because a frame and its bar are drawn two ways.** Held to the one
-    /// reference, each carried the difference between its own reconstruction and the reference's
-    /// box over the pixel as well: at the Seyda Neen shore, three native frames of independent draws
-    /// stood 0.27 apart and each 1.83 from the reference, and their mean stood 1.83 from it too —
-    /// FSR's kernel against the box, which failed every upscaled mode as noise it was not.
+    /// Noise against noise, because a frame and its bar are drawn two ways: held to the one reference, each also
+    /// carried the difference between its own reconstruction and the reference's box over the pixel (at the Seyda
+    /// Neen shore three native frames of independent draws stood 0.27 apart and each 1.83 from the reference, and
+    /// so did their mean: FSR's kernel against the box, which failed every upscaled mode as noise it was not).
     ///
     /// @param barFrames how many frames the bars averaged, which the report names.
     /// @param measured where each place measured is appended, for `writeNoiseRecord`.

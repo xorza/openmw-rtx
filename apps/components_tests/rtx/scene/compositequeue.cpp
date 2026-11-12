@@ -94,9 +94,9 @@ namespace Rtx
                     << "the slot the chunk was given is not named as its ground";
                 EXPECT_EQ(scene.textures().getRows()[baked].mKind, TextureKind::GroundAlbedo);
 
-                // **The row says what the slot is read as**, and the description reads the row: the
-                // albedo a colour, the gloss data. The gloss's row said colour while its description
-                // said data, and the scene's digest hashed the row.
+                // **The row says what the slot is read as**, and the description reads the row: the albedo a
+                // colour, the gloss data. A row saying colour beside a description saying data would make the
+                // scene's digest hash the row.
                 EXPECT_EQ(scene.textures().getRows()[baked].mEncoding, TextureEncoding::Colour);
 
                 if (reflecting)
@@ -219,10 +219,9 @@ namespace Rtx
             EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, chunk);
         }
 
-        /// **A chunk the texture table refuses keeps its place, and the queue asks again only once
-        /// the table frees a slot.** Dropped, the chunk never asked again — its material is not
-        /// written again — and the ground stayed a stack for good; asked every frame, each frame
-        /// paid a refusal for nothing.
+        /// **A chunk the texture table refuses keeps its place, and the queue asks again only once the table frees a
+        /// slot.** A dropped chunk would never ask again (its material is not written again) and the ground would
+        /// stay a stack for good; asked every frame, each frame would pay a refusal for nothing.
         ///
         /// Counted by the table's refusals: the first frame tries the first chunk and stops, one;
         /// the second tries nothing, still one. A freed slot goes to the first chunk, and the same
@@ -266,10 +265,9 @@ namespace Rtx
             EXPECT_EQ(frame(queue, scene), 0u);
         }
 
-        /// **A chunk that reflects, taken where the table has room for its albedo and not its
-        /// gloss, is flattened with no lobe**, which is what it was before it could have one: its
-        /// albedo stands, its specular names nothing, and it does not ask again. One slot left after
-        /// the chunk's own layers stood.
+        /// **A chunk that reflects, taken where the table has room for its albedo and not its gloss, is flattened
+        /// with no lobe**: its albedo stands, its specular names nothing, and it does not ask again. One slot is
+        /// left after the chunk's own layers stood.
         TEST(RtxCompositeQueueTest, aReflectingChunkWithRoomForItsAlbedoAloneIsFlattenedWithNoLobe)
         {
             SceneDesc scene;

@@ -11,11 +11,10 @@ namespace Rtx
 {
     namespace
     {
-        /// **Each counter in the driver's order that a zone can read and that still shares the one
-        /// pass.** Of six, the fourth cannot share a pass with the third and the fifth takes two
-        /// alone, so 0, 1, 2 and 5 are read; with the second scoped to a command buffer, which a
-        /// zone's query begun inside one cannot read, 0, 2 and 5; of twenty that all share one, the
-        /// first `sMaxZoneCounters`.
+        /// **Each counter in the driver's order that a zone can read and that still shares the one pass.** Of six, the
+        /// fourth cannot share a pass with the third and the fifth takes two alone, so 0, 1, 2 and 5 are read; with
+        /// the second scoped to a command buffer, which a zone's query begun inside one cannot read, 0, 2 and 5; of
+        /// twenty that all share one, the first `sMaxZoneCounters`.
         TEST(RtxZoneCountersTest, theCountersReadAreTheOnesThatShareOnePass)
         {
             const auto passesOf = [](const std::span<const std::uint32_t> counters) -> std::uint32_t {

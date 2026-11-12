@@ -23,11 +23,11 @@ namespace Rtx
     class SceneDesc;
 
     /// Every live texture a scene names, described, and the storage those descriptions point into.
-    /// Each description carries the slot it belongs to and there is not one per slot: a slot the
-    /// scene has given back is passed over. `TextureData` carries spans rather than bytes, so this
-    /// holds the images and owns the level table while a backend reads them, and knows no
-    /// graphics API. Non-copyable because the descriptions point into its own vectors; held for
-    /// the life of its owner and refilled per arrival, so every buffer settles at the busiest cell.
+    /// There is one description for each live slot: a slot the scene has given back is passed over.
+    /// `TextureData` carries spans rather than bytes, so this holds the images and owns the level
+    /// table while a backend reads them. Non-copyable because the descriptions point into its own
+    /// vectors; held for the life of its owner and refilled per arrival, so every buffer settles at
+    /// the busiest cell.
     class SceneTextures
     {
     public:

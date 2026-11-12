@@ -13,11 +13,10 @@
 
 namespace Rtx::Dlss
 {
-    /// What NGX is told of the application at every call that takes it, from the folders the host
-    /// names: the folder it searches for the feature library besides the game's own, the folder it
-    /// keeps its own files in, and where its log goes. **Pinned, and held by the renderer for its
-    /// whole life, ahead of the instance**: NGX keeps the pointers past the call that first hands
-    /// them over. Made only where a run may use DLSS.
+    /// What NGX is told of the application at every call that takes it, from the folders the host names: the folder it
+    /// searches for the feature library besides the game's own, the folder it keeps its own files in, and where its log
+    /// goes. Pinned, and held by the renderer for its whole life, ahead of the instance: NGX keeps the pointers past
+    /// the call that first hands them over. Made only where a run may use DLSS.
     class Application
     {
     public:
@@ -34,20 +33,16 @@ namespace Rtx::Dlss
         /// Never the working directory, which an AppImage or Program Files can make read-only.
         const wchar_t* getDataPath() const { return mDataPath.c_str(); }
 
-        /// The instance extensions NGX needs for DLSS on this driver, which the instance must enable
-        /// before it is made: its discovery call says "before `vkCreateInstance`". Empty where NGX
-        /// cannot answer, in a build without the backend, and **where the system has no NVIDIA
-        /// adapter**, the one fact there is before a device is chosen: a Windows machine keeps the
-        /// NGX core in its DriverStore after its NVIDIA card is gone, and the core is not to be
-        /// loaded beside another vendor's driver for nothing.
+        /// The instance extensions NGX needs for DLSS on this driver, which the instance must enable before it is made.
+        /// Empty where NGX cannot answer, in a build without the backend, and where the system has no NVIDIA adapter,
+        /// the one fact there is before a device is chosen: a Windows machine keeps the NGX core in its DriverStore
+        /// after its NVIDIA card is gone, and it is not to be loaded beside another vendor's driver.
         std::vector<std::string> requiredInstanceExtensions() const;
 
-        /// The device extensions NGX needs for DLSS on `physicalDevice`, which a device must enable
-        /// before it is made, where `driver` runs NGX. **Asked of every such device**: the query NGX
-        /// answers before a device exists can be inconclusive, and a false negative there must not
-        /// silently cost an RTX card its upscaler; feature creation is the real answer
-        /// (`DlssUpscaler`). Empty where NGX cannot answer, which leaves feature creation to report
-        /// why, and in a build without the backend.
+        /// The device extensions NGX needs for DLSS on `physicalDevice`, which a device must enable before it is made,
+        /// where `driver` runs NGX. Asked of every such device: the query NGX answers before a device exists can be
+        /// inconclusive, and a false negative must not silently cost an RTX card its upscaler; feature creation is the
+        /// real answer (`DlssUpscaler`). Empty where NGX cannot answer, and in a build without the backend.
         std::vector<std::string> requiredDeviceExtensions(
             VkInstance instance, VkPhysicalDevice physicalDevice, const DriverProfile& driver) const;
 

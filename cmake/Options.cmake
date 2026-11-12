@@ -5,11 +5,10 @@
 # in every flavour.
 option(BUILD_TESTING "The tests and the benchmarks" ON)
 
-# **A sanitizer over the whole build**, the fetched projects included: ThreadSanitizer sees a lock only in
-# code it instrumented, so a library left out reports races on what it guards, and AddressSanitizer's
-# reports carry the frames of every library compiled with frame pointers. In the compiler's flags
-# rather than on `openmw-checks`, which reaches the tree's own targets alone (`cmake/Flags.cmake`). Clang's, as
-# MSVC's has not been measured on this tree.
+# **A sanitizer over the whole build**, the fetched projects included: ThreadSanitizer sees a lock only in code it
+# instrumented, so a library left out reports races on what it guards, and AddressSanitizer's reports carry the
+# frames of every library compiled with frame pointers. In the compiler's flags rather than on `openmw-checks`, which
+# reaches the tree's own targets alone (`cmake/Flags.cmake`). Clang's, as MSVC's has not been measured on this tree.
 set(OPENMW_SANITIZER "" CACHE STRING "A sanitizer over the whole build: address (with undefined behaviour's) or thread")
 set_property(
     CACHE

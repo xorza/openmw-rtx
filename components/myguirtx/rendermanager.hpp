@@ -43,15 +43,13 @@ namespace MyGUIRtx
 
     /// MyGUI over `Rtx::GuiRenderer`, whichever graphics API is behind that.
     ///
-    /// **Written once for every backend, and that is the whole design.** MyGUI's own interface is
-    /// thirty functions and most of them are bookkeeping no API has an opinion about: a name-to-
-    /// texture map, a view size, a lock and unlock contract, the batching. What is left is a table
-    /// of textures and one call that draws a list of triangles, and those are what `Rtx::GuiRenderer`
-    /// offers. The scene, the frame and the instruments are three interfaces this cannot reach.
+    /// **Written once for every backend.** Most of MyGUI's interface is bookkeeping no API has an opinion
+    /// about; what is left is a table of textures and one call that draws a list of triangles, which
+    /// `Rtx::GuiRenderer` offers.
     ///
-    /// **Nothing here is driven by a scene graph.** The other backend hangs its update on an OSG
-    /// update callback and its draw on a cull callback; this one is called by the renderer's frame
-    /// directly, which is why a renderer that traverses but never culls still draws a GUI.
+    /// **Nothing here is driven by a scene graph.** The other backend hangs its update on an OSG update
+    /// callback and its draw on a cull callback; this one is called by the renderer's frame directly, so a
+    /// renderer that traverses but never culls still draws a GUI.
     class RenderManager final : public MyGUIPlatform::GuiRenderManager, public MyGUI::IRenderTarget
     {
     public:
@@ -122,12 +120,10 @@ namespace MyGUIRtx
 
         /// One frame of widget animation, `step` seconds of it.
         ///
-        /// **The step is the caller's, because the interface ages with everything else.** MyGUI's
-        /// own timer is a wall clock read in whole milliseconds, and every animation hanging off
-        /// this call ages by it — the screen faders included, which are the red overlay a hit puts
-        /// up and the black one a fade uses. A run that steps its world by the frame index and its
-        /// interface by the wall draws that overlay at a different strength on the same frame in
-        /// every run. `Misc::LoopClock` is what a caller answers from.
+        /// **The step is the caller's, because the interface ages with everything else.** MyGUI's own timer
+        /// is a wall clock in whole milliseconds, so a run that steps its world by the frame index and its
+        /// interface by the wall draws the screen faders at a different strength on the same frame in every
+        /// run. `Misc::LoopClock` is what a caller answers from.
         void update(float step);
 
         /// Gathers every layer's triangles and hands them to the renderer in one call.

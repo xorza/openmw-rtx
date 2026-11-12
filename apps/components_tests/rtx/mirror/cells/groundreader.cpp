@@ -238,17 +238,14 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Image> mRgba = new osg::Image;
         };
 
-        /// A blend map is read exactly as `osg::Image::getColor` reads it, on both paths that read
-        /// one.
+        /// A blend map is read exactly as `osg::Image::getColor` reads it, on both paths that read one.
         ///
-        /// **The game's own masks are one byte a texel in `GL_ALPHA`**, and that one format is read
-        /// along the row rather than a texel at a time: `getColor` decides on the pixel format and
-        /// the data type per texel and builds a `Vec4` to hand back one component of it. Every
-        /// other format still takes `getColor`, so a mod's blend map is read as it always was.
+        /// **The game's own masks are one byte a texel in `GL_ALPHA`**, and that one format is read along the row
+        /// rather than a texel at a time, where `getColor` decides on the pixel format and data type per texel.
+        /// Every other format still takes `getColor`.
         ///
-        /// **The two have to agree to the bit.** A weight is what a cell's ground is blended by and
-        /// what its composite is baked from, and `getColor` multiplies by a reciprocal where a
-        /// divide differs in the last place for 126 of the 256 byte values.
+        /// **The two have to agree to the bit.** `getColor` multiplies by a reciprocal where a divide differs in
+        /// the last place for 126 of the 256 byte values, and the weight blends and bakes the cell's ground.
         TEST(RtxGroundReaderTest, aBlendMapReadsTheSameOnTheRowPathAndTheFallback)
         {
             TwoFormats land;

@@ -56,11 +56,9 @@ namespace Rtx
             if (scale > 0)
                 tile /= Shaders::FOG_LACUNARITY;
 
-            // **The air is read from upwind, so the drift goes in with its sign turned.** A bank
-            // sits at a fixed coordinate in the field, so sampling from further upwind as the clock
-            // runs is what carries it past, and adding would walk the whole field into the wind.
-            // Turned as the scale's read is turned, because the shader turns the position the drift
-            // was taken off.
+            // **The air is read from upwind, so the drift goes in with its sign turned**: a bank sits at a
+            // fixed coordinate, so sampling further upwind as the clock runs carries it past. Turned as the
+            // scale's read is, because the shader turns the position the drift was taken off.
             const double c = turns[scale].x();
             const double s = turns[scale].y();
             const osg::Vec2d upwind = -carried;
@@ -83,10 +81,8 @@ namespace Rtx
     {
         const Daylight& day = reading.mDaylight;
 
-        // **The day's gain on the whole sky at once, before anything is derived from it**: the sun,
-        // the ambient, the dome, the air, the moons and the stars, so the sky's budget, the fog's
-        // colour and the deck's light all follow from lifted terms. `DAYLIGHT_GAIN` says why, and
-        // `Skylight::mExposureBias` already adapts to it.
+        // **The day's gain on the whole sky at once, before anything is derived from it**, so the sky's
+        // budget, the fog's colour and the deck's light all follow from lifted terms (`DAYLIGHT_GAIN`).
         const float gain = day.mLight.mDaylightGain;
 
         Skylight light = day.mLight;
@@ -133,10 +129,9 @@ namespace Rtx
 
         constants.mStars = stars;
 
-        // A moon is a light as well as a disc, and both halves stop at the door: the weather
-        // system stops reporting the moment the player steps inside, so what it last said is still
-        // standing in the frame the room is drawn from — a moon left in one lights through every
-        // seam the shell has, and traces a shadow ray at a body over the roof.
+        // A moon is a light as well as a disc, and both stop at the door: the weather system stops
+        // reporting once the player steps inside, so what it last said would still stand in the room's
+        // frame and light through every seam of the shell.
         constants.mClouds = noDeck();
         for (Shaders::SkyPatch& patch : constants.mSkyPatches)
             patch = noPatch();
@@ -158,10 +153,9 @@ namespace Rtx
         constants.mFogUniform = air.mUniform;
         constants.mFogLift = air.mLift;
 
-        // On the deck's own heading, because there is one wind over a landscape and an air that
-        // turned with a transition would read as two. Swapped, because `mBearing` is the cosine
-        // and sine of the rotation from north, which for a unit `(x, y)` is `(y, x)`. Integrated
-        // and not multiplied by the clock — `FogDrift` says what the product cost.
+        // On the deck's own heading, because there is one wind over a landscape. Swapped, because
+        // `mBearing` is the cosine and sine of the rotation from north, which for a unit `(x, y)` is
+        // `(y, x)`. Integrated, not multiplied by the clock (`FogDrift`).
         const osg::Vec2f heading(constants.mClouds.mBearing.y(), constants.mClouds.mBearing.x());
         drift.advance(heading, air.mWind, reading.mSkySeconds);
         const std::array<osg::Vec3f, Shaders::FOG_SCALES> offsets = fogOffsets(drift.get(), reading.mSkySeconds);
@@ -169,8 +163,8 @@ namespace Rtx
 
         constants.mFogEdge = air.mEdge;
 
-        // The same hair the water's own placement is dropped by, so that what the shader calls the
-        // water level and where the surface actually is stay one number.
+        // The same hair the water's own placement is dropped by, so the shader's water level and the
+        // surface stay one number.
         constants.mWaterLevel = reading.mWaterLevel - Shaders::WATER_TIE_BREAK;
         constants.mWaterScatter = reading.mWaterScatter;
         constants.mWaterTime = splitSeconds(reading.mSeconds);

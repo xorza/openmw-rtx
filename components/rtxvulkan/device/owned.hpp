@@ -169,16 +169,14 @@ namespace Rtx
         void end(Handle handle) const { Destroy(handle, nullptr); }
     };
 
-    /// A Vulkan handle and the device it belongs to, ended through the device's graveyard: the one
-    /// place `vkDestroyX(device, handle, allocator)` is spelled, so the classes holding one default
-    /// their moves, and so no owner has to know whether a submit still reads what it lets go of.
-    /// `RtxSourceTreeTest` is what makes the next class adopt it, and names the calls this shape
-    /// cannot take.
+    /// A Vulkan handle and the device it belongs to, ended through the device's graveyard: the one place
+    /// `vkDestroyX(device, handle, allocator)` is spelled, so the classes holding one default their moves
+    /// and no owner has to know whether a submit still reads what it lets go of. `RtxSourceTreeTest` makes
+    /// the next class adopt it, and names the calls this shape cannot take.
     ///
-    /// **Deferred and never immediate**, because a handle a command buffer can name may be let go
-    /// of while the queue still runs that command buffer: a resize replacing its targets, a scene
-    /// replaced, a pipeline a failed compile leaves half made. What the device itself must outlive
-    /// is `Immediate`.
+    /// **Deferred and never immediate**, because a handle a command buffer can name may be let go of while
+    /// the queue still runs it: a resize replacing its targets, a scene replaced, a pipeline a failed
+    /// compile leaves half made. What the device itself must outlive is `Immediate`.
     ///
     /// @tparam Destroy the function that ends it: a reference, because volk's entry points are
     ///         pointers it fills when the loader is loaded, and are read at the call.

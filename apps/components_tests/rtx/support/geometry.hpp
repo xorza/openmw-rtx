@@ -109,10 +109,9 @@ namespace Rtx::Testing
 
     /// Half the width a sixty-degree frame covers a hundred units from the eye.
     ///
-    /// **Derived rather than pinned, because it is a fact about the camera and not a choice.** A
-    /// card built to it exactly fills the frame, which is what the tests that use it are built on:
-    /// each quadrant of the card's texture is then a quadrant of the picture, and the seams fall
-    /// between pixel columns and rows rather than on them.
+    /// **Derived rather than pinned, because it is a fact about the camera and not a choice.** A card
+    /// built to it exactly fills the frame, so each quadrant of its texture is a quadrant of the picture
+    /// and the seams fall between pixel columns and rows rather than on them.
     inline const float sCardHalfExtent = 100.0f * std::tan(osg::DegreesToRadians(30.0f));
 
     /// That card, at y = `away`, so an eye a hundred units in front of it sees nothing else.
@@ -159,9 +158,8 @@ namespace Rtx::Testing
     /// One triangle and one material naming `texture`, placed, so a mesh, a material and a texture
     /// all arrive together the way a model does.
     ///
-    /// The path is made up, and with no `image` the slot keeps none: `SceneTextures` answers it
-    /// with the stand-in and counts it unreadable, which is exactly the description a decision
-    /// needs and costs no content files to produce.
+    /// The path is made up, and with no `image` the slot keeps none: `SceneTextures` answers it with the
+    /// stand-in and counts it unreadable, the description a decision needs, with no content files.
     inline Model addModel(SceneDesc& scene, const VFS::Path::NormalizedView texture, const osg::Image* image = nullptr)
     {
         const osg::Vec3f positions[3] = { { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 } };
@@ -189,12 +187,9 @@ namespace Rtx::Testing
         return toGpuBone(osg::Matrixf::translate(0.0f, 0.0f, z));
     }
 
-    /// A body of `arrays` on a skin of one bone, every weight one, so a pose is the bone's own
-    /// transform and nothing else — what a test expects is what it moved the bone by. The rig
-    /// comes with the mesh, as every deformer does; `mDeformer` is what a second body on the
-    /// same skin names.
-    ///
-    /// Every vertex here names the one influence at nought.
+    /// A body of `arrays` on a skin of one bone, every weight one, so a pose is the bone's own transform
+    /// and nothing else. The rig comes with the mesh, as every deformer does; `mDeformer` is what a
+    /// second body on the same skin names. Every vertex names the one influence at nought.
     inline DeformedMesh addOneBoneBody(SceneDesc& scene, const MeshArrays& arrays)
     {
         const std::vector<std::uint32_t> runs(arrays.mPositions.size(), Shaders::runWord(0, 1));

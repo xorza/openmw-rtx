@@ -18,11 +18,10 @@ namespace Rtx
     class Buffer;
     class Device;
 
-    /// A chunk's layer stack flattened into one texture on the device: `groundcomposite.comp`,
-    /// which says why it is here and not on threads of the host. One dispatch a chunk and the
-    /// chain blitted after it, in the placement that wrote the chunk's material row, because the
-    /// sum reads the scene's tables and textures as that placement bound them. Then encoded into
-    /// the chunk's BC7 slot (`encode`): a composite loose was nine tenths of a vanilla scene's
+    /// A chunk's layer stack flattened into one texture on the device: `groundcomposite.comp`, which says why it is
+    /// here and not on threads of the host. One dispatch a chunk and the chain blitted after it, in the placement that
+    /// wrote the chunk's material row, since the sum reads the scene's tables and textures as that placement bound
+    /// them. Then encoded into the chunk's BC7 slot (`encode`): a composite loose was nine tenths of a vanilla scene's
     /// textures.
     class GroundCompositePass
     {
@@ -40,10 +39,9 @@ namespace Rtx
         /// The blocks `encode` writes a canvas's chain through, or why the device has no room.
         static Result<Buffer, MemoryRefusal> makeBlocks(const Device& device, std::string_view name);
 
-        /// Records `chunk`'s bake into its albedo and its gloss, every level of each: one sum into
-        /// both first levels, the chains blitted below them in step. Each is met undefined and left
-        /// as the chain's blits leave it (`Image::buildMips`), for `encode`, and is what
-        /// `makeCanvas` makes.
+        /// Records `chunk`'s bake into its albedo and its gloss, every level of each: one sum into both first levels,
+        /// the chains blitted below them in step. Each is met undefined and left as the chain's blits leave it
+        /// (`Image::buildMips`), for `encode`.
         ///
         /// @param textures the scene's texture set for the copy `chunk`'s tables are of.
         /// @param albedo,gloss null where `chunk.mOutputs` does not name it, and only there.

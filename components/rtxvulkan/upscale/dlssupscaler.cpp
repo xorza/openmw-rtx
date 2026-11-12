@@ -59,21 +59,20 @@ namespace Rtx
         constexpr ImageUse sInputWrite{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT };
 
-        /// The layout NGX is documented to read its inputs in, and the one it leaves its output in
-        /// (the programming guide's 3.4). **Every stage and every access**: the evaluation records
-        /// dispatches, clears and copies of its own with no barrier ahead of them, so the barriers
-        /// either side of it stand for whatever it does, a `vkCmdClearColorImage` of the output among
-        /// it, as the validation layers' synchronization check found on 310.9.16.
+        /// The layout NGX is documented to read its inputs in, and the one it leaves its output in (the programming
+        /// guide's 3.4). Every stage and every access: the evaluation records dispatches, clears and copies of its own
+        /// with no barrier ahead of them, so the barriers either side stand for whatever it does, a
+        /// `vkCmdClearColorImage` of the output among it (the validation layers' synchronization check found it on
+        /// 310.9.16).
         constexpr ImageUse sDlssRead{ VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             VK_ACCESS_2_MEMORY_READ_BIT };
         constexpr ImageUse sDlssWrite{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT };
 
-        /// Motion projects the surface at both ends without jitter: a stationary surface has zero
-        /// motion even as the trace samples a different subpixel, so the vectors are not marked
-        /// jittered, which would have NGX subtract a jitter delta that is not there. Depth is
-        /// reversed and colour is linear HDR. No exposure flag: Ray Reconstruction supports none
-        /// (DLSS-RR Integration Guide, 3.7).
+        /// Motion projects the surface at both ends without jitter: a stationary surface has zero motion even as the
+        /// trace samples a different subpixel, so the vectors are not marked jittered, which would have NGX subtract a
+        /// jitter delta that is not there. Depth is reversed and colour is linear HDR. No exposure flag: Ray
+        /// Reconstruction supports none (DLSS-RR Integration Guide, 3.7).
         constexpr int sCreateFlags
             = Ngx::sDlssFlagIsHdr | Ngx::sDlssFlagMotionVectorsLowRes | Ngx::sDlssFlagDepthInverted;
 

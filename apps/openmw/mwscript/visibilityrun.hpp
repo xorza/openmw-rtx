@@ -54,10 +54,8 @@ namespace MWScript
     /// Also one global a run wrote, and what it wrote.
     struct VisibilityInput
     {
-        /// What was read: a global by its id, or a journal entry by its quest. The kind beside the
-        /// id, so two reads of one value are one read and a global never names a quest. An id and
-        /// not a name, so a read keeps no string of its own: a gate is run again on the frame the
-        /// story moves.
+        /// What was read: a global by its id, or a journal entry by its quest. The kind beside the id, so a
+        /// global never names a quest; an id and not a name, so a read keeps no string of its own.
         VisibilitySource mSource = VisibilitySource::Global;
         ESM::RefId mId;
 
@@ -123,19 +121,14 @@ namespace MWScript
     /// reference stands after it — for a reference in a cell no one has loaded, whose script has
     /// never run.
     ///
-    /// **An interpreter of its own, with only the instructions it models.** Control flow,
-    /// arithmetic, locals and globals are the interpreter's own; `Enable`, `Disable` and
-    /// `GetDisabled` act on the run's answer, and an `Enable` or `Disable` of a reference by name
-    /// on that name's; `GetJournalIndex` reads the journal; `StopScript` and the sound
-    /// instructions do nothing, because neither says anything about a reference. An activation,
-    /// a cell change and a playing sound are what only a frame of an active cell knows, and the
-    /// script is run under every answer to the ones it asks: the reference's answer is the run's
-    /// where they all agree, and `Undecided` where they do not. **`MenuMode` is nought**: the
-    /// distance is seen with the menus closed, and a script that returns while one is open says
-    /// nothing of where its reference stands. Every other instruction is one the run does not
-    /// model, and makes the answer `Undecided` too, as does a read of a local something outside the
-    /// script writes: the run starts every local at nought, which such a local need not be. Nothing
-    /// the run does reaches the game: a global it sets is its own for the rest of the run.
+    /// An interpreter of its own, with only the instructions it models. `Enable`, `Disable` and
+    /// `GetDisabled` act on the run's answer (or on the named reference's), `GetJournalIndex` reads the
+    /// journal, and `StopScript` and the sound instructions do nothing. An activation, a cell change and a
+    /// playing sound are what only a frame of an active cell knows, so the script is run under every answer
+    /// to the ones it asks: the run's answer is the reference's where they all agree, else `Undecided`.
+    /// `MenuMode` is nought: the distance is seen with the menus closed. Any other instruction the run does
+    /// not model makes the answer `Undecided`, as does a read of a local something outside the script writes,
+    /// since the run starts every local at nought. Nothing the run does reaches the game.
     class VisibilityRun
     {
     public:
@@ -149,12 +142,10 @@ namespace MWScript
         /// global and journal entry it read, and fills `named` with what it left each reference it
         /// names — nothing where the run itself is `Undecided`.
         ///
-        /// **Frames, and not one frame**, because a script that sets a local and returns acts on
-        /// it a frame later: one frame answered `Open` for a reference the second takes down. The
-        /// state a frame leaves is the locals, the globals the run wrote, its answer and each
-        /// name's; a frame that leaves it unchanged leaves every frame after it the same. A script
-        /// that does not settle within `sFramesTried` frames is `Undecided`: one that counts or
-        /// toggles stands by a history only its cell has.
+        /// Frames and not one frame, because a script that sets a local and returns acts on it a frame later.
+        /// A frame that leaves the locals, the written globals, the answer and each name's unchanged leaves
+        /// every frame after it the same. A script that does not settle within `sFramesTried` frames is
+        /// `Undecided`: one that counts or toggles stands by a history only its cell has.
         Terrain::GateState run(const VisibilityScript& script, const VisibilityReads& reads,
             std::vector<VisibilityInput>& inputs, std::vector<VisibilityNamed>& named);
 

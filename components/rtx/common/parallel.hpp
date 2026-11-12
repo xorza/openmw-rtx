@@ -28,20 +28,18 @@ namespace Rtx
     };
 
     /// Runs `body(index)` for every index below `count`, over as many hands as there is work for, the
-    /// calling thread among them, and comes back when the last of them is done. One shot. A hand takes the next index
-    /// whenever it is free, so a turn that costs ten times its neighbour delays nothing but itself. The first exception
-    /// is rethrown and every index is still attempted, because a caller that asked for a batch wants to know about the
-    /// batch. Each hand gets its own copy of both callables, as the standard's parallel algorithms do, so a body with
-    /// state of its own is not a data race.
+    /// calling thread among them, and comes back when the last of them is done. One shot. A hand takes the
+    /// next index whenever it is free. The first exception is rethrown and every index is still attempted,
+    /// because a caller that asked for a batch wants to know about the batch. Each hand gets its own copy of
+    /// both callables, as the standard's parallel algorithms do.
     ///
     /// @param name what the hands' threads are called, numbered from one; the caller keeps its own.
     /// @param hands how many threads the batch may take.
-    /// @param stop where a stop asked of the caller's thread reaches: no hand takes another index
-    ///        once it is asked, and the batch comes back with what was done.
-    /// @param equip what each hand holds for as long as it runs, built on that hand's own thread
-    ///        and destroyed there — how a backend files a validation message under the
-    ///        thread that asked for the work. What it throws is kept as a body's is, and that hand
-    ///        takes no index.
+    /// @param stop where a stop asked of the caller's thread reaches: no hand takes another index once it is
+    ///        asked, and the batch comes back with what was done.
+    /// @param equip what each hand holds for as long as it runs, built and destroyed on that hand's own
+    ///        thread — how a backend files a validation message under the thread that asked for the work.
+    ///        What it throws is kept as a body's is, and that hand takes no index.
     template <class Equip, class Body>
     void runInParallel(std::string_view name, const std::size_t count, const Hands hands, const std::stop_token& stop,
         Equip equip, Body body)

@@ -39,10 +39,9 @@ namespace MWRender
     {
         osg::Vec3f waterScatter()
         {
-            // The content's water colour at its weight, and not the air's share `FogManager` mixes in
-            // beside it: that share tints the rasterizer's picture under water, and read as the water's
-            // own albedo it would turn a clear noon's sea a muddy grey and undo the pairing `look.h`
-            // states with `WATER_EXTINCTION`.
+            // The content's water colour at its weight, and not the air's share `FogManager` mixes in: read
+            // as the water's albedo that share would turn a clear noon's sea a muddy grey and undo the
+            // pairing `look.h` states with `WATER_EXTINCTION`.
             const osg::Vec4f colour = Fallback::Map::getColour("Water_UnderwaterColor");
             return osg::Vec3f(colour.r(), colour.g(), colour.b())
                 * Fallback::Map::getFloat("Water_UnderwaterColorWeight");
@@ -129,15 +128,14 @@ namespace MWRender
         // records. Decoded here, because the world does not know what a transport is.
         const osg::Vec3f haze = room.has_value() ? room->mSkyHorizon : Rtx::decodeColour(world.mAir.mColour);
 
-        // Whether there is a sky to draw, as the game decides it — `WorldState::mSkyShown`. Off, the
-        // rasterizer hides the sky node whole — the dome, the decks, the stars, the sun's disc and
-        // the moons — and clears to the fog colour, while the sun and the weather go on lighting.
+        // Whether there is a sky to draw, as the game decides it (`WorldState::mSkyShown`). Off, the
+        // rasterizer hides the sky node whole and clears to the fog colour, while the sun and weather go
+        // on lighting.
         const bool skyShown = world.mSkyShown;
 
-        // An interior has no sky colour: the weather system stops writing it indoors, so the air's
-        // own colour stands in. A quasi-exterior has weather and so has one. A sky turned off keeps
-        // it: what the sky lights is unchanged, and what an eye sees there is the frame's to say
-        // (`Rtx::WorldReading::mSkyDrawn`).
+        // An interior has no sky colour, as the weather system stops writing it indoors, so the air's own
+        // stands in. A sky turned off keeps it: what the sky lights is unchanged, and what an eye sees there
+        // is the frame's to say (`Rtx::WorldReading::mSkyDrawn`).
         const osg::Vec3f zenith = room.has_value() ? room->mSkyZenith : Rtx::decodeColour(weather.mSkyColor);
 
         // The sun is not assembled here: everything the world says about it goes to the one builder
@@ -156,12 +154,9 @@ namespace MWRender
         };
         const Rtx::Skylight light = room.has_value() ? room->mLight : Rtx::makeSkylight(reading);
 
-        // The recorded depth and not the ramp `FogManager` made of it, which exists to hide a far
-        // clip plane. A quasi-exterior stands in the weather's air, because the weather system is
-        // run for one and the Construction Set greys its `AMBI` out; handed to `roomFog` it closed
-        // over the sky. The two open-air builders differ only in the ring they close over. The
-        // base wind and not the gust: how deep the fog's layer stands and how fast its field is
-        // carried are the weather's settled character, not the number the engine wanders about it.
+        // The recorded depth and not the ramp `FogManager` made of it, which exists to hide a far clip plane.
+        // A quasi-exterior stands in the weather's air, as handed to `roomFog` it closed over the sky. The
+        // base wind and not the gust: the fog's depth and drift are the weather's settled character.
         const auto openAir = world.mLocation == Location::Exterior ? &Rtx::exteriorFog : &Rtx::quasiExteriorFog;
         const Rtx::Fog air
             = room.has_value() ? room->mFog : openAir(haze, weather.mFogDepth, weather.mBaseWindSpeed, reach);
@@ -182,11 +177,10 @@ namespace MWRender
         if (world.mMoonRed)
             moons[static_cast<std::size_t>(Rtx::Moon::Secunda)].mPaint = mMoonPaint;
 
-        // **Nothing recorded is not a rate.** `MWWorld::Weather::transitionDelta` divides by
-        // `Clouds_Maximum_Percent`, which the shipped fallbacks leave at nought for ash and blight,
-        // so a transition into either hands over an infinity or a NaN. The rasterizer survives one —
-        // a NaN opacity draws nothing and the old sky stays — and a tracer mixes its whole sky by
-        // it. Nothing recorded means the deck has crossed at once.
+        // Nothing recorded is not a rate: `MWWorld::Weather::transitionDelta` divides by
+        // `Clouds_Maximum_Percent`, which the fallbacks leave at nought for ash and blight, so a transition
+        // into either hands over an infinity or a NaN, which a tracer would mix its whole sky by. Nothing
+        // recorded means the deck has crossed at once.
         const float cloudBlend
             = std::isfinite(weather.mCloudBlendFactor) ? std::clamp(weather.mCloudBlendFactor, 0.f, 1.f) : 1.f;
 
@@ -242,11 +236,9 @@ namespace MWRender
             .mShelterHeight
             = falling.isOccluded() ? falling.getOcclusionRange().z() + Constants::CellSizeInUnits : 0.0f,
 
-            // The fader's strength as `SunGlareCallback` multiplies it up: `_Max` by the
-            // time-of-day fade by the glare view `SkyManager::setWeather` hands the sun, which is
-            // the weather's `Glare_View` by the disc's own sunrise and sunset alpha. The glare node
-            // hangs under the sun's own transform, so a sun the weather manager has hidden for the
-            // night or a sky `tsky` turned off draws none.
+            // The fader's strength as `SunGlareCallback` multiplies it up: `_Max` by the time-of-day fade by
+            // the weather's `Glare_View` by the disc's sunrise and sunset alpha. The glare hangs under the
+            // sun's transform, so a hidden sun or a sky `tsky` turned off draws none.
             .mSunGlare = Rtx::SunGlare{
                 .mFader = mGlare,
                 .mFade = skyShown && sky.mSunUp ? sky.mGlareFade * weather.mGlareView * weather.mSunDiscColor.a() : 0.0f,

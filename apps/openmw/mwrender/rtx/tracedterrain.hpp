@@ -60,37 +60,25 @@ namespace MWRender
         ~StandingGround() = default;
     };
 
-    /// The ground as the ray tracer stands it: a `Terrain::World` that holds the storage, the
-    /// worldspace and the active grid, and draws no chunks — `Rtx::CellRing` reads the land
-    /// records itself, and a chunk the game built beside it would be one nothing traces.
+    /// The ground as the ray tracer stands it: a `Terrain::World` that holds the storage, the worldspace and
+    /// the active grid and draws no chunks, as `Rtx::CellRing` reads the land records itself. The preloader
+    /// still asks every world for a view to fill, so upstream's callers run unchanged.
     ///
-    /// **A world that says it has no chunks**, rather than one the game finds out about: the
-    /// preloader asks every world for a view to fill, and is answered here, so upstream's callers
-    /// run unchanged.
+    /// Upstream's cell borders need no chunk: `ToggleBorders` stands a line strip over each loaded cell's
+    /// edge under `Mask_Debug`, where `DebugWalk` reads it. They stand under a group of the terrain's mask so
+    /// `tws` takes them with the ground, straight under the world root because the terrain root, which the
+    /// scene root holds, is never entered by the walk.
     ///
-    /// **And upstream's cell borders**, which need no chunk: `ToggleBorders` stands a line strip
-    /// over each loaded cell's edge from the storage's heights, under `Mask_Debug`, where
-    /// `DebugWalk` reads the debug modes' lines. Under a group of the terrain's mask, as upstream
-    /// stands them under its terrain root, so `tws` takes them with the ground; straight under the
-    /// world root and not under the terrain root, which the scene root holds and the walk never
-    /// enters.
+    /// A grid per loaded cell serves the intersector, under `Mask_Terrain` and nothing else:
+    /// `RenderingManager::castRay` walks the scene graph, so focus, dropping an object and Lua's
+    /// `castRenderingRay` answer off the storage's heights under the rasterizer's own triangles, with no
+    /// material, texture or normal. The mirror's walk leaves `Mask_Terrain` out, so the trace never meets one.
     ///
-    /// **And a grid per loaded cell for the intersector**, under `Mask_Terrain` and nothing else.
-    /// `RenderingManager::castRay` walks the scene graph, so `terrain obstructs focus`, dropping
-    /// an object on the ground and Lua's `castRenderingRay` all answer off whatever stands there:
-    /// the storage's heights under the rasterizer's own triangles, with no material, no texture
-    /// and no normal, which a ray asks nothing of. The mirror's walk leaves `Mask_Terrain` out, so
-    /// the trace never meets one.
-    ///
-    /// **And past the loaded cells, the ground the ring stands**, which the rasterizer's quad tree
-    /// answers with its chunks: a cell the segment crosses whose ground `distance` says stands is
-    /// filled into one scratch grid of the same triangles and met by the same intersector, nearest
-    /// cell first, so a cast toward a hill four cells away meets the hill the trace draws.
-    ///
-    /// **And the statics the ring stands there**, which the rasterizer's object paging answers with
-    /// its merged chunks: each part the segment's cells hold is met in the template's own triangles
-    /// at the part's place, with its reference number, as a paged chunk's hit names it. Under a node
-    /// of `Mask_Static`, as the paging stands, so a cast that leaves statics out leaves these out.
+    /// Past the loaded cells, a cell the segment crosses whose ground `distance` says stands is filled into
+    /// one scratch grid and met by the same intersector, nearest cell first, so a cast toward a hill four
+    /// cells away meets the hill the trace draws. The statics the ring stands there are met in the
+    /// template's own triangles at the part's place with its reference number, as a paged chunk's hit names
+    /// it, under a node of `Mask_Static` so a cast that leaves statics out leaves these out.
     class TracedTerrain final : public Terrain::World
     {
     public:
@@ -105,18 +93,16 @@ namespace MWRender
         /// into it.
         std::unique_ptr<Terrain::View> createView() override;
 
-        /// Stands the cell's grid for the intersector, out of a grid a cell that left gave back
-        /// where there is one: the arrays are refilled in place, so a cell arriving while the game
-        /// runs allocates nothing after the first few.
+        /// Stands the cell's grid for the intersector out of one a cell that left gave back, the arrays
+        /// refilled in place, so a cell arriving allocates nothing after the first few.
         void loadCell(int x, int y) override;
 
         /// Takes the cell's grid down and keeps it for the next cell to arrive.
         void unloadCell(int x, int y) override;
 
-        /// Shows or hides the two answers and the borders, as `Terrain::QuadTreeWorld` hangs or
-        /// takes down its root: `RenderingManager::enableTerrain` turns the last worldspace's ground
-        /// off when another's comes on, and the distance and the ring this one answers for are the
-        /// last worldspace's.
+        /// Shows or hides the two answers and the borders, as `Terrain::QuadTreeWorld` hangs or takes down its
+        /// root: `RenderingManager::enableTerrain` turns the last worldspace's ground off when another's comes
+        /// on, and the distance and ring this one answers for are the last worldspace's.
         void enable(bool enabled) override;
 
         /// What `segment`, `visitor`'s in this node's frame, meets of the distance's ground, inserted
@@ -131,9 +117,8 @@ namespace MWRender
     private:
         class StandingPart;
 
-        /// One part handed to the visitor: its place, the part, and the reference number a hit on it
-        /// names. A pool and not one, because every hit keeps the path it was met on until the
-        /// caller reads it.
+        /// One part handed to the visitor: its place, the part, and the reference number a hit on it names.
+        /// A pool, because every hit keeps the path it was met on until the caller reads it.
         struct Carrier
         {
             osg::ref_ptr<osg::MatrixTransform> mPlace;

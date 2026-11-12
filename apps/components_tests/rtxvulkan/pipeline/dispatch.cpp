@@ -8,12 +8,10 @@ namespace Rtx
 {
     namespace
     {
-        /// **A workgroup covers its lanes exactly, and one lane past it costs a whole group.**
-        /// Every compute pass in this backend launches by this, so a rounding that fell short would
-        /// leave a stripe of the frame untouched.
-        ///
-        /// Hand-counted at a workgroup of eight: nothing needs none, one needs one, eight needs
-        /// one, nine needs two, and 1920 needs 240.
+        /// **A workgroup covers its lanes exactly, and one lane past it costs a whole group.** Every compute pass in
+        /// this backend launches by this, so a rounding that fell short would leave a stripe of the frame untouched.
+        /// Hand-counted at a workgroup of eight: nothing needs none, one needs one, eight needs one, nine needs two,
+        /// and 1920 needs 240.
         TEST(RtxDispatchTest, aDispatchCoversItsLanesAndNeverFallsShort)
         {
             EXPECT_EQ(groupsFor(0, 8), 0u);

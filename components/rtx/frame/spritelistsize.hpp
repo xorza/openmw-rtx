@@ -22,15 +22,14 @@ namespace Rtx
         /// grows with the tile count.
         static constexpr std::uint32_t sFloorShare = 64;
 
-        /// Moves the mark for the frame about to be binned: `tiles` is what `Shaders::spriteTilesIn`
-        /// says the camera covers, and `reported` what the last bin into this copy came to, whether
-        /// or not it fit, where its report has been waited for.
+        /// Moves the mark for the frame about to be binned: `tiles` is what `Shaders::spriteTilesIn` says the
+        /// camera covers, and `reported` what the last bin into this copy came to, whether or not it fit,
+        /// where its report has been waited for.
         ///
-        /// **Twice the report, and the share of the tiles only until the first report lands**, the
-        /// one time there is no figure. Applied on every frame, the share gave a storm a thousand
-        /// times the entries it used, and the mark keeps what it gives. What it gave in return is
-        /// room on a storm's first frame, which a report two frames old does not: that frame walks
-        /// its overflowing tiles unbinned, and the next is sized to what it reported.
+        /// **Twice the report, and the share of the tiles only until the first report lands.** Applied on
+        /// every frame, the share gave a storm a thousand times the entries it used, and the mark keeps what
+        /// it gives. A storm's first frame walks its overflowing tiles unbinned, and the next is sized to
+        /// what it reported.
         void sizeFor(std::uint32_t tiles, std::uint32_t sprites, std::optional<std::uint32_t> reported);
 
         /// What the pass is told it has room for after the starts.

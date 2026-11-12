@@ -23,8 +23,8 @@ namespace Rtx
     /// Every mesh the scene holds, and the shared buffers its triangles live in. One type, because
     /// a mesh that deforms has to give its deformer back between the free list and the two
     /// allocators. The deformers are the scene's and handed in per call rather than held: a table
-    /// that held a reference to its sibling was one a defaulted move of the scene left pointing at
-    /// the scene it was moved from.
+    /// that held a reference to its sibling would be left pointing at the scene a defaulted move
+    /// came from.
     class MeshTable : public HeldRows<MeshRange>
     {
     public:

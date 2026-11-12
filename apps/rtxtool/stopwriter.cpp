@@ -80,18 +80,14 @@ namespace RtxTool
 {
     namespace
     {
-        /// How wide the square of cells the simulation holds is, in units.
-        ///
-        /// **What distant ground has to reach past to be distant.** `Constants::CellGridRadius` is
-        /// the ring the game loads around the player, so a scene no wider than this is one the
-        /// residency contributed nothing to.
+        /// How wide the square of cells the simulation holds is, in units: what distant ground has to reach past to
+        /// be distant. `Constants::CellGridRadius` is the ring the game loads around the player, so a scene no wider
+        /// than this is one the residency contributed nothing to.
         constexpr float sActiveGridWidth
             = static_cast<float>(Constants::CellSizeInUnits) * (2 * Constants::CellGridRadius + 1);
 
-        /// Draws every picture asked for since the frame, and waits for it.
-        ///
-        /// A stop stands after the frame, and a picture is drawn inside the next one: drawn now
-        /// instead, which is a drain a stop may pay and a frame may not.
+        /// Draws every picture asked for since the frame, and waits for it: a stop stands after the frame and a
+        /// picture is drawn inside the next, so this is a drain a stop may pay and a frame may not.
         void drawPicturesNow(const MWRender::FrameContext& context)
         {
             context.mRenderer.drawViews();
@@ -268,14 +264,11 @@ namespace RtxTool
                 into.mRecord.note(std::format("    which was pixel format {}\n", formats.mUnnamed));
         }
 
-        // Which materials traversal will have to stop and ask about, which of those asked for it
-        // outright, and which of them a cutoff cannot answer for at all. The second and third being
-        // the small ones is the point: Morrowind keeps its foliage under `NiAlphaProperty` rather
-        // than under an alpha test, and almost nothing it ships is translucent in its own right.
-        //
-        // **Counted off the scene and not off a walk's own account.** What a walk reports it met is
-        // what *that* walk met, and a chunk flattened once is nought in every walk after it. The
-        // scene carries both facts per row.
+        // Which materials traversal will have to stop and ask about, which of those asked for it outright, and which
+        // of them a cutoff cannot answer for at all. The second and third being the small ones is the point:
+        // Morrowind keeps its foliage under `NiAlphaProperty` rather than under an alpha test, and almost nothing it
+        // ships is translucent in its own right. Counted off the scene and not off a walk's own account: a walk
+        // reports what that walk met, and a chunk flattened once is nought in every walk after it.
         std::uint32_t cutouts = 0;
         std::uint32_t tested = 0;
         std::uint32_t translucent = 0;
@@ -481,10 +474,10 @@ namespace RtxTool
 
     void StopWriter::writeMapTile(const Writing& into, const std::filesystem::path& file)
     {
-        // **The game's own tile, and not a picture framed here to look like one.** The local map
-        // drew the cell the player stands in when they entered it, at the resolution and over the
-        // depth range the settings gave it; what a stop writes is that picture, found by the
-        // renderer that drew it as the picture taken straight down over where the player stands.
+        // The game's own tile, and not a picture framed here to look like one: the local map drew the cell the
+        // player stands in when they entered it, at the resolution and over the depth range the settings gave it, and
+        // what a stop writes is that picture, found by the renderer that drew it as the one taken straight down over
+        // where the player stands.
         const MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
         const osg::Vec3f standing = player.getRefData().getPosition().asVec3();
         MWRender::TracedView* tile
@@ -518,12 +511,11 @@ namespace RtxTool
         MWBase::World& world = *MWBase::Environment::get().getWorld();
         const ESM::RefId id = ESM::RefId::stringRefId(who);
 
-        // **Stood in the world and not assembled beside it.** `MWRender::NpcAnimation` is what
-        // dresses a body out of the parts a race calls for, equips what the record carries and
-        // finds the bone a weapon hangs on — and it needs a live reference to do any of it.
-        // **Looked up first**, as a weapon is (`Stager::arm`): `ManualRef` throws for an id with no
-        // record, and an id of a creature or an item throws from the animation, both out of the
-        // frame and past the run's report.
+        // Stood in the world and not assembled beside it: `MWRender::NpcAnimation` dresses a body out of the parts a
+        // race calls for, equips what the record carries and finds the bone a weapon hangs on, and needs a live
+        // reference to do any of it. Looked up first, as a weapon is (`Stager::arm`): `ManualRef` throws for an id
+        // with no record, and an id of a creature or an item throws from the animation, both out of the frame and
+        // past the run's report.
         if (MWBase::Environment::get().getESMStore()->get<ESM::NPC>().search(id) == nullptr)
         {
             into.mRecord.note(std::format("no NPC record is called \"{}\"\n", who));
@@ -540,9 +532,8 @@ namespace RtxTool
             MWRender::InventoryPreview preview(into.mContext.mRenderer, &into.mContext.mResources, subject);
             preview.rebuild();
 
-            // **Through the view and not through the texture the GUI draws from**, which is the one
-            // route that carries the row order: `OffscreenView::getTexture` is Y-up and a PNG is not,
-            // so a writer reading the texture had to remember a convention and this one did not.
+            // Through the view and not through the texture the GUI draws from, which is the one route that carries
+            // the row order: `OffscreenView::getTexture` is Y-up and a PNG is not.
             writeView(into, preview.getView(), file);
         }
 
@@ -642,10 +633,9 @@ namespace RtxTool
                 // ground to reach for.
                 const bool outdoors = MWBase::Environment::get().getWorld()->isCellExterior();
 
-                // **What stands inside the reach, and not the whole scene's extent.** The sea is
-                // one sheet a hundred and fifty cells across, so `getBounds` clears any threshold
-                // at every coastline and the question goes unasked. `getContentBoundsWithin` leaves
-                // a backdrop out and clips what it meets, which is exactly the ground this is about.
+                // What stands inside the reach, and not the whole scene's extent: the sea is one sheet a hundred and
+                // fifty cells across, so `getBounds` clears any threshold at every coastline. `getContentBoundsWithin`
+                // leaves a backdrop out and clips what it meets, which is exactly the ground this is about.
                 const osg::Vec3f eye
                     = MWBase::Environment::get().getWorld()->getPlayerPtr().getRefData().getPosition().asVec3();
                 const float reach = context.mMirror.getReach();
@@ -796,16 +786,13 @@ namespace RtxTool
                     return false;
                 }
 
-                // Every frame held for at least as long as asked, by both clocks: the loop's own,
-                // which leaves at its first tick past the time and so cannot read shorter unless
-                // the loop is wrong, and the timer's zone around it, which says the queue was
-                // occupied for all of it. No bound above, because everything past the tick is
-                // the card's — a clock switch, a compositor's slice of the device — and a hold
-                // that ran long is a queue held longer, which weakens nothing the hold is for. The
-                // longest reading is printed so a stall can be seen for what it is, and the zone
-                // beside the loop so its excess is known to be the launch and the drain. Each in
-                // full: a tick is a hundred thousandth of a millisecond on RDNA's clock, and a
-                // hold a tick short printed as the time asked.
+                // Every frame held for at least as long as asked, by both clocks: the loop's own, which leaves at its
+                // first tick past the time and so cannot read shorter unless the loop is wrong, and the timer's zone
+                // around it, which says the queue was occupied for all of it. No bound above, because everything past
+                // the tick is the card's (a clock switch, a compositor's slice) and a hold that ran long is a queue
+                // held longer, which weakens nothing the hold is for. The longest reading is printed so a stall can be
+                // seen, and the zone beside the loop so its excess is known to be the launch and the drain. Each in
+                // full: a tick is a hundred thousandth of a millisecond on RDNA's clock.
                 const HoldTimes& hold = facts.mHold;
                 const double zoneShortest = zone->mTimes.mBest;
                 found = std::format(

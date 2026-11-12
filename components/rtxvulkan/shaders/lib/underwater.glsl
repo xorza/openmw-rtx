@@ -242,37 +242,32 @@ vec3 beamAlong(SkySource source, vec3 from, vec3 direction, float path)
 /// What a stretch of water sends toward whoever is looking down it.
 ///
 /// **The sky's half is integrated, and the sun's is too everywhere a shaft would not show.** Water is one
-/// density everywhere, so a stretch of it has a closed form where the air — which thins with height and
-/// drifts — has only a march. That is what lets the same arithmetic be afforded on the eye's own ray, on a
-/// reflection and on a refraction alike.
+/// density everywhere, so a stretch of it has a closed form where the air, which thins with height and
+/// drifts, has only a march; the same arithmetic is then affordable on the eye's own ray, a reflection and a
+/// refraction alike.
 ///
-/// **The sky, arriving from every direction at once.** A phase function integrates to one over the sphere,
-/// so an even sky needs none of it and the whole of what reaches a point scatters. Light that scatters
-/// toward the eye had to get down there first: attenuating only the way back — `1 - T` — lets deep water
-/// settle at the scattering colour at full sky brightness, which is the milky sheet a real channel is not.
+/// **The sky, arriving from every direction at once.** A phase function integrates to one over the sphere, so
+/// an even sky needs none of it and the whole of what reaches a point scatters. Light that scatters toward the
+/// eye had to get down there first: attenuating only the way back (`1 - T`) lets deep water settle at the
+/// scattering colour at full sky brightness, the milky sheet a real channel is not.
 ///
-/// **Each light in the sky, arriving along one line, the moons with the sun, and this is the closed form.**
-/// The surface lets in `WaterCrossing::mBeam` of it. At a point `t` along the ray the light has crossed `k
-/// h(t)` of water to arrive and the scattered light crosses `t` to leave, with `h(t) = h - t d.z` the depth
-/// there.
+/// **Each light in the sky arrives along one line, the moons with the sun, and this is the closed form.** The
+/// surface lets in `WaterCrossing::mBeam` of it. At a point `t` along the ray the light has crossed `k h(t)`
+/// of water to arrive and the scattered light crosses `t` to leave, with `h(t) = h - t d.z` the depth there.
 ///
-/// **And the sun's half is marched where a shaft would be seen, because a shaft is a caustic.** A beam of
-/// sunlight in water is the surface's own lens pattern carried along the ray: the closed form gives the
-/// beam's *body* and says nothing about its structure, and the structure is the whole of what makes it read
-/// as light through water rather than as haze. Every step takes the same `caustic` a submerged surface
-/// takes, at its own depth and its own point of entry — which is why the pattern leans down-sun as it
-/// descends instead of standing as a column.
+/// **The sun's half is marched where a shaft would be seen, because a shaft is a caustic**: a sunbeam in water
+/// is the surface's lens pattern carried along the ray, and the closed form gives the beam's *body* and none
+/// of its structure, which is what makes it read as light through water and not as haze. Every step takes the
+/// same `caustic` a submerged surface takes, at its own depth and point of entry, so the pattern leans
+/// down-sun as it descends. It also asks whether the sun reaches that point of entry at all, which the closed
+/// form cannot, and only where the beam is a real share of what the stretch sends (`WATER_SHAFT_FLOOR`).
 ///
-/// **And it asks whether the sun reaches that point of entry at all**, which the closed form has no way to.
+/// **The water over the stretch is no part of the stretch**: the closed forms count what the stretch itself
+/// crosses and say nothing about what stands above where it begins. From above there is nothing there, since
+/// the stretch begins at the surface.
 ///
-/// **Only where the beam is a real share of what the stretch sends**, which is `WATER_SHAFT_FLOOR`.
-///
-/// **And the water over the stretch, which is no part of the stretch.** The closed forms count what the
-/// stretch itself crosses and says nothing about what stands above where it begins. From above there is
-/// nothing there — the stretch begins at the surface.
-///
-/// **Kept apart rather than applied**, for the reason `fogAlong` gives: the two halves separate later,
-/// because the filter demodulates the bounce by the albedo and what a path took is not part of one.
+/// **Kept apart rather than applied**, for the reason `fogAlong` gives: the two halves separate later, because
+/// the filter demodulates the bounce by the albedo and what a path took is not part of one.
 struct WaterColumn
 {
     vec3 mTransmittance;
@@ -408,14 +403,14 @@ void startShaftStep(inout ColumnRun run, inout SkyPassageRun skyPassage)
 
     const vec3 weight = waterTransmittance(bent.mPath + along) * (ahead - run.mBehind);
 
-    // **Outside the fade, because a shadow is not fine detail.** `show` brings the *pattern* in across the
-    // gate, and a rock's edge has to be there whether or not the filaments are. The draw is one pair
-    // carried along the R2 steps, so each step aims its own way inside the disc without a second draw a
-    // step — `SEED_WATER_SHAFT` says why not the offset's.
+    // **Outside the fade, because a shadow is not fine detail**: `show` brings the *pattern* in across the
+    // gate, and a rock's edge has to be there whether or not the filaments are. The draw is one pair carried
+    // along the R2 steps, so each step aims its own way inside the disc without a second draw a step
+    // (`SEED_WATER_SHAFT` says why not the offset's).
     //
-    // **Asked the way a submerged surface asks it**, `SkyPassageRun`: up the bent line to the surface as
-    // well as on from it, so a hull or a rock under the water shadows the water in front of it as it
-    // shadows the bed.
+    // **Asked the way a submerged surface asks it**, `SkyPassageRun`: up the bent line to the surface as well
+    // as on from it, so a hull or a rock under the water shadows the water in front of it as it shadows the
+    // bed.
     const vec2 draw = fract(run.mAimed + float(run.mShaft) * R2_STEPS);
     skyPassage = skyPassageRunOf(skySourceAt(SKY_SOURCE_SUN), at, vec3(0.0), bent, draw, false);
 
@@ -441,12 +436,11 @@ void stepColumn(inout ColumnRun run, inout SkyPassageRun skyPassage, uvec2 pixel
             return;
         }
 
-        // **A ratio and not a radiance, which is what makes the march free of its own arithmetic.** The
-        // same integrand twice — the sun's own way down, the way back to the eye, and the extinction that
-        // is what scattered — once with the surface's lens at every step and once without it.
-        // `WATER_SHAFT_STEPS` jittered steps are a poor quadrature of either, and an excellent one of what
-        // separates them: the step count, the jitter and the exponentials all cancel, and what is left
-        // multiplies the closed form above.
+        // **A ratio and not a radiance, which makes the march free of its own arithmetic.** The same integrand
+        // twice (the sun's own way down, the way back to the eye, and the extinction that scattered), once with
+        // the surface's lens at every step and once without. `WATER_SHAFT_STEPS` jittered steps are a poor
+        // quadrature of either and an excellent one of what separates them: the step count, the jitter and the
+        // exponentials all cancel, and what is left multiplies the closed form above.
         run.mTransmittance = start.mTransmittance;
         run.mSkyMoons = start.mSkyMoons;
         run.mBeam = start.mBeam;

@@ -46,18 +46,15 @@ namespace Rtx
         /// The cell a world position stands in.
         osg::Vec2i cellOf(const osg::Vec3f& position) const;
 
-        /// Whether some point of `cell` lies nearer than `radius` units to `eye` — the disc the rings
-        /// are. Nearer and not as near, so that a cell touching the disc at its rim alone is out,
-        /// which is what the bounding square `cellOf(eye ± radius)` cuts on the near side already.
+        /// Whether some point of `cell` lies nearer than `radius` units to `eye`, the disc the rings are. Nearer and
+        /// not as near, so that a cell touching the disc at its rim alone is out.
         ///
-        /// **A disc and not a square of cells, because the air that hides the rings' edge is a
-        /// disc.** `fogEdgeOver` closes at the reach from the eye's own position, in every direction
-        /// alike, so a cell whose nearest point is further than that is behind air that passes one
-        /// part in 256 of it, and one nearer shows. A square of cells about the eye's cell loaded a
-        /// corner cell that stood at 1.4 times the reach, wholly hidden, and along an axis up to a
-        /// cell beyond the edge: at a reach of four that was twelve of eighty-one cells built,
-        /// traced and never seen. Measured from the eye's position and not its cell, so what stands
-        /// changes one cell at a time as the eye moves, which is the pace the ring adopts at anyway.
+        /// **A disc and not a square of cells, because the air that hides the rings' edge is a disc.** The fog edge
+        /// (`VisibilityConstants::mFogEdge`) closes at the reach from the eye's own position in every direction alike,
+        /// so a cell whose nearest point is further than that is hidden. A square of cells loaded a corner cell at 1.4
+        /// times the reach, wholly hidden: at a reach of four, twelve of eighty-one cells built, traced and never seen.
+        /// Measured from the eye's position and not its cell, so what stands changes one cell at a time as the eye
+        /// moves.
         bool withinReach(const osg::Vec2i& cell, const osg::Vec3f& eye, float radius) const;
 
         /// How far the eye stands from the nearest point of `cell`, squared, by the plane's own

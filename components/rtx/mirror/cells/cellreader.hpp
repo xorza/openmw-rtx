@@ -31,12 +31,11 @@ namespace Rtx
     class ContentSource;
     class GroundcoverSource;
 
-    /// Reads one cell — its ground and its paged references — into a `PreparedCell`, on whichever
-    /// thread owns this: what `Terrain::ObjectPaging::createChunk` reads through
-    /// `Terrain::ObjectStorage`, and none of what it merges. A model is read once and lent to
-    /// every cell that names it, and so is an image; a lend is a cell's and not the frame's,
-    /// because the frame cannot know what this has lent since it last looked, and `CellHolds`
-    /// counts what the frame holds beside it. Not thread-safe, and one instance a thread.
+    /// Reads one cell (its ground and its paged references) into a `PreparedCell`, on whichever thread owns this: what
+    /// `Terrain::ObjectPaging::createChunk` reads through `Terrain::ObjectStorage`, and none of what it merges. A model
+    /// is read once and lent to every cell that names it, and so is an image; a lend is a cell's and not the frame's,
+    /// because the frame cannot know what this has lent since it last looked, and `CellHolds` counts what the frame
+    /// holds beside it. One instance a thread.
     class CellReader
     {
     public:
@@ -45,11 +44,10 @@ namespace Rtx
         /// same drawables, and every reference stands under its `mAbove`.
         explicit CellReader(const CellWorld& world);
 
-        /// Reads the cell at `cell`: its ground, the lights of its `LIGH` references, and — where
-        /// the world reads its statics — every reference that names a model with something to
-        /// trace, a lamp's included, as one `PreparedRef` each. The cell is lent, and `giveBack` is
-        /// where it returns; every model and every ground texture it names is lent to it as well,
-        /// one hold each, and those come back on their own.
+        /// Reads the cell at `cell`: its ground, the lights of its `LIGH` references, and, where the world reads its
+        /// statics, every reference that names a model with something to trace, as one `PreparedRef` each. The cell is
+        /// lent, and `giveBack` is where it returns; every model and ground texture it names is lent to it as well, one
+        /// hold each, and those come back on their own.
         PreparedCell& read(const osg::Vec2i& cell);
 
         /// Takes a cell back, once the frame has copied what it wanted of it.
@@ -105,16 +103,14 @@ namespace Rtx
         /// Where the light of a lamp record stands in its reference's own space — `anchorIn`.
         osg::Vec3f anchorOf(const ESM::RefId& lamp);
 
-        /// The model at `path`, read whole where this holds none under that path. Null where
-        /// nothing stands for the path. Refused, with no part and `PreparedModel::mRefused` saying
-        /// why, where the template describes a mesh this renderer cannot take.
+        /// The model at `path`, read whole where this holds none under that path. Null where nothing stands for the
+        /// path. Refused, with no part and `PreparedModel::mRefused` saying why, where the template describes a mesh
+        /// this renderer cannot take.
         ///
-        /// **Read as groundcover where `groundcover` says**, and filed apart from the same file read
-        /// as a static: upstream's groundcover states an alpha test of 128 / 255 with no blend over
-        /// every model it draws, `OVERRIDE` both, because MGE's content states no alpha it can be
-        /// trusted with (`MWRender::Groundcover`). Each such reading says so
-        /// (`MaterialReading::mGroundcover`), and the frame keys it apart from the material a
-        /// static of the same model wears.
+        /// **Read as groundcover where `groundcover` says**, and filed apart from the same file read as a static:
+        /// upstream's groundcover states an alpha test of 128 / 255 with no blend over every model it draws, because
+        /// MGE's content states no alpha it can be trusted with (`MWRender::Groundcover`). Each such reading says so
+        /// (`MaterialReading::mGroundcover`), and the frame keys it apart from a static's material.
         PreparedModel* readModel(VFS::Path::NormalizedView path, bool groundcover);
 
         /// `readModel` for a reference: null where it stands nothing, no model or one with no part,

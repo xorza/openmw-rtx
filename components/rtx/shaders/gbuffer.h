@@ -9,55 +9,43 @@
 
 // What each channel of the G-buffer is made of, said once for both sides that have to agree.
 //
-// **A shader's layout qualifier and the format its image was created with are one fact**, and
-// written twice they had drifted: the albedo channel moved to half floats and the two shaders that
-// declare it went on saying `rgba32f`. What that costs is not a compile error and not a validation
-// *error* — the layers report it as a warning, and the warning says "undefined values to the whole
-// image, not just the texel being accessed". A whole channel of the frame, silently, on a
-// developer's machine only, because a release build has no layers to say anything at all.
+// **A shader's layout qualifier and the format its image was created with are one fact.** A mismatch
+// is not a compile error and not a validation *error*: the layers warn of "undefined values to the
+// whole image", a whole channel of the frame wrong silently, and a release build has no layers.
 //
-// **What the backdrop is drawn through is four bytes, because every term of it is a fraction.**
-// What is left of the star field or the interface at a pixel is a product of coverages and
-// transmittances, and so is what the arms let through beside it, each of them from nought to one by
-// construction, so `R8G8B8A8_UNORM` holds the whole range at 1/255 steps — the step a picture's
-// alpha is written at anyway. Fog thick enough for that step to show is fog no star is visible
-// through. Four megabytes at 1080p against the sixteen a half-float image would take for the same
-// four numbers.
+// **What the backdrop is drawn through is four bytes, because every term of it is a fraction**: a
+// product of coverages and transmittances, each from nought to one, so `R8G8B8A8_UNORM` holds the
+// range at 1/255 steps, the step a picture's alpha is written at anyway. Four megabytes at 1080p
+// against the sixteen a half-float image would take.
 //
-// **And a motion vector is a half, because a reprojection is now bounded.** It could not be while
-// `previousScreen` divided by a distance that approaches nought, which has no bound at all and
-// reaches a half float as infinity. `PREVIOUS_SCREEN_REACH` holds it to one screen outside the
-// frame either way, so the largest vector a 1920-wide render can carry is 3840 — where a half's
-// step is two pixels, on a vector that left the screen twice over. Inside the frame, where a vector
-// is read, that step is a sixtieth of a pixel at sixteen and a thousandth at one.
+// **A motion vector is a half, because a reprojection is bounded.** `PREVIOUS_SCREEN_REACH` holds it
+// to one screen outside the frame either way, so the largest vector a 1920-wide render can carry is
+// 3840, where a half's step is two pixels on a vector that left the screen twice over. Inside the
+// frame, where a vector is read, that step is a sixtieth of a pixel at sixteen and a thousandth at
+// one.
 //
-// **Its third half is the step in distance**, which a half carries for the same reason: it is never
-// longer than the eye and the surface moved in a frame, whatever the surface's distance. A half
-// rounds it by 2^-11 of itself, and while the step is shorter than the distance that is under a
-// twentieth of the plane a history is matched within: `ACCUMULATE_PLANE`, 1.2% of the distance at a
-// field of sixty degrees.
+// **Its third half is the step in distance**, which is never longer than the eye and the surface
+// moved in a frame. A half rounds it by 2^-11 of itself, under a twentieth of the plane a history
+// is matched within (`ACCUMULATE_PLANE`, 1.2% of the distance at a field of sixty degrees). Eight
+// bytes a pixel: there is no three-half storage format, and the fourth stays nought.
 //
-// Eight bytes a pixel, and 16 MiB of that at 1080p: there is no three-half storage format, and
-// the fourth stays nought.
-//
-// **The surface is one texel of two floats: the normal as a code, and the distance whole.** They are
-// what the filters tell two surfaces apart by, and the cascade reads both at every tap — twenty-five
-// times a pixel at each of the cascade's levels, the largest read in the frame — so one fetch of eight bytes
-// a tap and not two of sixteen. The distance is whole because the plane test measures offsets of a
-// fraction of a pixel's footprint at any distance. The normal is `packSurfaceNormal`'s code, twelve
-// bits an octahedral axis: 0.06 degrees at the worst against the six degrees of tilt the cascade's
-// `pow(dot, 128)` cuts a tap at, so what the rounding moves is a weight's fourth decimal place. A
-// float and not a word, because the digest and every reader load the channels as floats, and a
-// code under 2^24 is a float exactly.
+// **The surface is one texel of two floats: the normal as a code, and the distance whole.** The
+// filters tell two surfaces apart by them and the cascade reads both at every tap, twenty-five times
+// a pixel at each level, so one fetch of eight bytes and not two of sixteen. The distance is whole
+// because the plane test measures offsets of a fraction of a pixel's footprint at any distance. The
+// normal is `packSurfaceNormal`'s code, twelve bits an octahedral axis: 0.06 degrees at the worst
+// against the six degrees of tilt the cascade's `pow(dot, 128)` cuts a tap at. A float and not a
+// word, because the digest and every reader load the channels as floats, and a code under 2^24 is a
+// float exactly.
 //
 // So each format is one line naming a `storageformat.h` layout, which is both the qualifier the
 // shader declares and what the host creates the image as.
 
-// **The radiance channels are the ones with no format here.** How wide they are is a
-// run's choice — `Rtx::RadianceWidth` says which run gets which and why — so the host picks
-// between `GBUFFER_RADIANCE_SHOWN` and `GBUFFER_RADIANCE_SUMMED` at creation, and every shader that
-// reads or writes one declares it with no format at all and lets the load or the store convert.
-// `requirements.cpp` asks the device for both halves of that.
+// **The radiance channels are the ones with no format here.** How wide they are is a run's choice
+// (`Rtx::RadianceWidth`), so the host picks between `GBUFFER_RADIANCE_SHOWN` and
+// `GBUFFER_RADIANCE_SUMMED` at creation, and every shader that reads or writes one declares it with
+// no format at all and lets the load or the store convert. `requirements.cpp` asks the device for
+// both halves of that.
 
 #define GBUFFER_RADIANCE_SHOWN STORAGE_RGBA16F
 #define GBUFFER_RADIANCE_SUMMED STORAGE_RGBA32F
@@ -97,12 +85,8 @@
 // made from, so the landing divides by the number the lamps' half did.
 #define GBUFFER_STAGE_BOUNCE STORAGE_RGBA32UI
 
-// Which binding of `SET_CHANNELS` each channel is.
-//
-// **The trace declares them and `GBuffer` writes them, and neither had a name for a single one.**
-// The shader spelled a number in each layout qualifier and the C++ built its layout and its writes
-// by walking an initializer list, so the two agreed only for as long as nobody reordered the list —
-// which is a change that compiles, runs, and hands every pass the wrong image.
+// Which binding of `SET_CHANNELS` each channel is, named so that the shader's layout qualifiers and
+// the C++ layout and writes cannot agree only for as long as nobody reorders a list.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
@@ -134,10 +118,9 @@ namespace Rtx::Shaders
 
     /// The sprites the trace found in front of the surface, kept apart from it and lit where they
     /// stand: their colour, what they let through, and which eye the pixel's ray left, as
-    /// `visibility.comp` stores them.
-    /// The light is all the composite takes from here. What a puff's shape is, what hides it and
-    /// what the cloud shells add are answered along the shown pixel's own ray by
-    /// `spritecomposite.rgen`, so no puff goes through the denoiser or an upscaler, and
+    /// `visibility.comp` stores them. The light is all the composite takes from here: what a puff's
+    /// shape is, what hides it and what the cloud shells add are answered along the shown pixel's own
+    /// ray by `spritecomposite.rgen`, so no puff goes through the denoiser or an upscaler, and
     /// nothing the composite draws moves with the jitter the traced grid is sampled at.
     const uint CHANNEL_PUFFS = 6;
 
@@ -151,10 +134,9 @@ namespace Rtx::Shaders
     /// `SHADOW_PENUMBRA_CLEAR` wherever nothing split it off, which no filter reads as a shadow.
     ///
     /// **The sky's alone, and the lamps' beside it in `CHANNEL_LAMPED`**, each filtered as a field
-    /// of its own. One bit a pixel, drawn between the two by the light each adds, was the sun's on
-    /// one face and a lamp's on the next where a face turned from the sun lay beside one turned to
-    /// it: the filter carried the lamp's open bit across the edge and lit the face in the sun's
-    /// shadow with the sun, a bright line along every such edge a PBR replacer's lobe made strong.
+    /// of its own: one bit a pixel, drawn between the two by the light each adds, carried the lamp's
+    /// open bit across a face's edge and lit a face in the sun's shadow with the sun, a bright line
+    /// along every such edge a PBR replacer's lobe made strong.
     ///
     /// **The penumbra is the alpha's magnitude** and whether the ray got through its sign, open where
     /// the sign is clear. The penumbra is the radius in the pixel's own footprints: the ray's
@@ -163,8 +145,7 @@ namespace Rtx::Shaders
     /// `SHADOW_PENUMBRA_CLEAR` where the ray got through, or nothing was split off. What the shadow
     /// denoiser sizes its reach by (NVIDIA's SIGMA sizes its blur the same way): a hard shadow is
     /// noiseless, and a reach wider than its penumbra is what blurs it. In the sign, because a
-    /// radius never spends it, and a shadow pass then reads both in one load; a channel of halves
-    /// a field beside it was four bytes a pixel more.
+    /// radius never spends it, so a shadow pass reads both in one load.
     const uint CHANNEL_SHADOWED = 7;
 
     /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, times the
@@ -183,9 +164,9 @@ namespace Rtx::Shaders
     /// diffuse halves — each times what the layers and the media in front of it let through and its
     /// own opacity — divided by `CHANNEL_PANE_ALBEDO`, in `rgb`: the channel the pane filter averages
     /// over time. A pane is shaded at the end of a path, one occlusion ray, one lamp and one sun ray a
-    /// frame, and composited over the frame, so this is as noisy as a bounce and nothing else takes
-    /// it. Nought where no layer stands. What a layer glows with is deterministic, and stays in
-    /// `CHANNEL_DIRECT`, and so does what its lobe reflects, unfiltered (`PaneStack::mDrawn` says why).
+    /// frame, so this is as noisy as a bounce and nothing else takes it. Nought where no layer stands.
+    /// What a layer glows with is deterministic, and stays in `CHANNEL_DIRECT`, and so does what its
+    /// lobe reflects, unfiltered (`PaneStack::mDrawn` says why).
     const uint CHANNEL_PANE = 9;
 
     /// What `CHANNEL_PANE` is multiplied back by: the layers' albedos, each times the same weight,
@@ -203,12 +184,9 @@ namespace Rtx::Shaders
     /// What the upscaler is told its motion vector does not describe: the share of the pixel's light
     /// whose image moves apart from `CHANNEL_MOTION`, each share times how far apart —
     /// `motionsApart`. In `r` the see-through layers', which move by the nearest layer's own motion:
-    /// FSR's reactive mask, which AMD's documentation names for alpha-blended objects. In `g` what
-    /// a water path found, which moves by the parallax of an image the waves bend: its
-    /// transparency and composition mask, named for ray-traced reflections. Nought wherever the eye
-    /// and the world stand still, so no still picture is touched.
-    ///
-    /// **A byte a mask**, the width AMD's own masks are stored at: a fraction the upscaler blends by.
+    /// FSR's reactive mask. In `g` what a water path found, which moves by the parallax of an image
+    /// the waves bend: its transparency and composition mask. Nought wherever the eye and the world
+    /// stand still, so no still picture is touched.
     const uint CHANNEL_UPSCALE_MASKS = 13;
 
     /// The share of `CHANNEL_INDIRECT` that is the fill, demodulated as it is, and the ambient
@@ -220,11 +198,10 @@ namespace Rtx::Shaders
 
     /// What Night-Eye's lift is multiplied by where the pixel shows it, in display values: each lit
     /// surface the eye's paths end on, its ambient albedo encoded (`liftOf`), by the share of the
-    /// pixel that path is — a layer's opacity, a water ray's Fresnel share, and what the media in
-    /// front of it let through. The rasterizer adds `texture × A × lift` to every fragment it
-    /// lights, in display values, and the display pass adds it after the curve where the meter
-    /// never sees it. **A byte a channel**, because it is a fraction of a display value, and the
-    /// display pass reads it at the shown extent through the texture unit.
+    /// pixel that path is. The rasterizer adds `texture × A × lift` to every fragment it lights, in
+    /// display values, and the display pass adds it after the curve where the meter never sees it.
+    /// **A byte a channel**, because it is a fraction of a display value, and the display pass reads
+    /// it at the shown extent through the texture unit.
     const uint CHANNEL_LIFT = 16;
 
     /// The penumbra where no ray was stopped: the largest half, past every penumbra a frame can hold
@@ -250,8 +227,7 @@ namespace Rtx::Shaders
     /// **Nought, so every source draws its own bit.** At the dawn deck, under the moons, a floor of
     /// 1/64 left the noise where it was on every leg and raised the bias by 0.07 to 0.12 of a level,
     /// and 1/256 by 0.03: the moonlight a floor rides on the sun's bit is lost wherever the sun is
-    /// shadowed and the moon is not. A daylight moon then makes a sunlit bit a draw, which no figure
-    /// showed a cost for.
+    /// shadowed and the moon is not.
     const float SHADOW_DRAW_FLOOR = 0.0f;
 
     /// How many lamp candidates a shading point that composes its light draws from its cell, where
@@ -280,8 +256,7 @@ namespace Rtx::Shaders
     /// (`storeBounce`); the landing's hit, laid out as the solid's (`storeLandingHit`); and, past the
     /// tile lists (`STAGE_RELIEF`), how far toward the eye the solid's relief showed its texture. **The
     /// landing's apart from the solid's for every bounce ray but the frame's last**, because a ray
-    /// after it leaves the solid again; the last stores its landing in the solid's place, which
-    /// nothing reads after it, so a frame of one ray makes the landing's own a texel wide
+    /// after it leaves the solid again; the last stores its landing in the solid's place
     /// (`GBuffer::declareStages`). In fields, as the trace writes them; no channel, so nothing reads
     /// them back or digests them.
     const uint STAGE_RECORD = CHANNEL_COUNT;
@@ -305,13 +280,11 @@ namespace Rtx::Shaders
     /// list's indirect dispatch, a `VkDispatchIndirectCommand` and a word beside it that counts what
     /// the list holds, the media stage's, the layers' and the water's (`STAGE_LIST_*`), and a
     /// landing's for each bounce ray last (`STAGE_DISPATCH_LANDING` and the `MAX_BOUNCE_RAYS - 1`
-    /// after it), whose word counts its pixels; after it the tile lists one after the other, a
-    /// workgroup of the stored layout each as `x | y << 16`, and then the pixels whose bounce landed,
-    /// a pixel each as `x | y << 16` (`appendLandings`). **The landings in two runs**: those whose gather runs from
-    /// the array's start, counted in the landing's word, and those whose gather is drawn off
-    /// (`indirectGatherDrawn`) from its end, counted in a pair of their own a ray after the
-    /// dispatches beside the workgroups both runs take — so a warp of the landing's stage holds one
-    /// kind or the other.
+    /// after it); after it the tile lists one after the other, a workgroup of the stored layout each
+    /// as `x | y << 16`, and then the pixels whose bounce landed (`appendLandings`). **The landings
+    /// in two runs**: those whose gather runs from the array's start, and those whose gather is drawn
+    /// off (`indirectGatherDrawn`) from its end, so a warp of the landing's stage holds one kind or
+    /// the other.
     ///
     /// **A head a ray, cleared with the rest as the frame begins, and one array every ray writes
     /// again**: the bounce of ray `r` appends to its own head, so nothing is cleared between the
@@ -319,8 +292,7 @@ namespace Rtx::Shaders
     /// ray `r` read the array before the bounce of ray `r + 1` writes it.
     ///
     /// **A dispatch in rows of `STAGE_DISPATCH_ROW` workgroups**: a list of a native 1440p trace's
-    /// landings is 115,200 workgroups, and a dispatch is only promised 65,535 along each axis, which a
-    /// driver may report and no more — some on Windows do.
+    /// landings is 115,200 workgroups, and a dispatch is only promised 65,535 along each axis.
     const uint STAGE_TILES = CHANNEL_COUNT + 10u;
     const uint STAGE_LIST_MEDIA = 0u;
     const uint STAGE_LIST_PANES = 1u;
@@ -350,8 +322,7 @@ namespace Rtx::Shaders
     /// denoiser reads is. **The ones only the passes after it read stay in the frame's own order** —
     /// the lift, the upscaler's masks, the backdrop and the puffs — since those passes sample the
     /// first two by a coordinate relative to the frame, which a filter over a field would blend from
-    /// pixels that are not neighbours. Said once, for the shaders that write and read the channels
-    /// and the host that makes and reads them back.
+    /// pixels that are not neighbours.
     RTX_CONSTEXPR bool channelInFields(uint channel)
     {
         return channel != CHANNEL_LIFT && channel != CHANNEL_UPSCALE_MASKS && channel != CHANNEL_BACKDROP
@@ -366,8 +337,6 @@ namespace Rtx::Shaders
     /// How far apart, in traced pixels, an image and the motion vector its pixel is handed may move
     /// in one frame before the upscaler is told to trust none of that image's history: half a
     /// pixel, where a bilinear fetch of the history has left the texel it belongs to for another.
-    /// At the pond a quarter, a half and a whole pixel measured alike, so the fetch's own reach is
-    /// what chooses.
     const float MISMOVED_FULL = 0.5f;
 
     /// The least specular albedo `CHANNEL_SPECULAR` is divided by, a channel at a time
@@ -418,8 +387,7 @@ namespace Rtx::Shaders
     /// The surface channel's distance with the arms' flag in its sign — whether the trace drew the
     /// pixel on an arm, whose eye every pass that rebuilds the pixel's ray casts it from again.
     /// **In the sign, because a distance never spends it**, and here because the surface channel is
-    /// what every such pass reads at each tap already: carried on the puffs' channel, the flag was a
-    /// second fetch of eight bytes a tap in the cascade. A float keeps the sign of nought as well.
+    /// what every such pass reads at each tap already. A float keeps the sign of nought as well.
     RTX_SHADER float packSurfaceDistance(float distance, bool arms)
     {
         return arms ? -distance : distance;

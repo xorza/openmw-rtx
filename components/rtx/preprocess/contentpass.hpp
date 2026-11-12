@@ -95,14 +95,13 @@ namespace Rtx
     /// it reads that its key is made of.
     ///
     /// **`digest` states everything `run` reads.** An input `run` reads and `digest` leaves out is
-    /// two inputs filed under one key, and a cache hands the first one's output to the second
-    /// without a word. `sVersion` goes up whenever what `run` computes from the same input changes,
-    /// which files every older output apart from the new ones.
+    /// two inputs filed under one key. `sVersion` goes up whenever what `run` computes from the same
+    /// input changes, which files every older output apart from the new ones.
     ///
     /// **`run` reads its input whether or not `digest` came first**, because no key is made for a
     /// pass the store keeps nothing of (`sStored`), or where there is no store. Where `digest` did
-    /// come first, on the same input, `run` may use what it read — a texture pass describes the
-    /// image once for both. `run` is not called where the cache found the output.
+    /// come first, on the same input, `run` may use what it read. `run` is not called where the cache
+    /// found the output.
     ///
     /// **`sStored` says whether its outputs are kept** (`ContentStore`): false for a pass whose key
     /// costs more than its run, as a walk that stops at the first texel that answers does, since a

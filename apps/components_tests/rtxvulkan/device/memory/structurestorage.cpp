@@ -32,9 +32,8 @@ namespace Rtx
 
         /// Room is handed out in order, given back where it was, and taken up again by what fits.
         ///
-        /// **Hand-computed throughout.** A structure of 1,024 bytes is four units and a structure of
-        /// 2,048 is eight, so the three below fill a sixteen-unit block exactly — and the fourth has
-        /// nowhere to go but a block of its own.
+        /// **Hand-computed throughout.** A structure of 1,024 bytes is four units and one of 2,048 is eight, so the
+        /// three below fill a sixteen-unit block exactly and the fourth has nowhere to go but a block of its own.
         TEST_F(RtxStructureStorageTest, roomGivenBackIsWhereTheNextStructureThatFitsGoes)
         {
             const Device& device = getDevice();
@@ -120,9 +119,8 @@ namespace Rtx
 
         /// A structure larger than the block a caller asked for gets a block that holds it.
         ///
-        /// **A load knows its whole total and asks for it; an arrival does not.** So the size named
-        /// is a floor rather than a ceiling, and a single mesh whose structure is larger than that
-        /// floor cannot be refused for it.
+        /// **A load knows its whole total and asks for it; an arrival does not.** So the size named is a floor, and a
+        /// single mesh larger than it cannot be refused for it.
         TEST_F(RtxStructureStorageTest, aStructureLargerThanTheBlockAskedForGetsOneThatHoldsIt)
         {
             const Device& device = getDevice();
@@ -141,14 +139,13 @@ namespace Rtx
             EXPECT_EQ(storage.getBytes(), 6 * sBlock);
         }
 
-        /// A structure the device has no room for is refused, and a block it has no room for is
-        /// asked for again at the structure's own size.
+        /// A structure the device has no room for is refused, and a block it has no room for is asked for again at the
+        /// structure's own size.
         ///
-        /// **No gap in any block of content's, and then room for one more block.** With the ceiling
-        /// at nought the structure has nowhere at all, and no block joins the list. A load asks for
-        /// its whole total, here two hundred megabytes — an allocation of its own, past the room —
-        /// and is given a block of the structure's four units instead, out of the one block
-        /// content may open.
+        /// **No gap in any block of content's, and then room for one more block.** With the ceiling at nought the
+        /// structure has nowhere at all, and no block joins the list. A load asks for its whole total, here two
+        /// hundred megabytes, an allocation of its own past the room, and is given a block of the structure's four
+        /// units out of the one block content may open.
         TEST_F(RtxStructureStorageTest, aBlockTheDeviceHasNoRoomForIsAskedForAgainAtTheStructuresSize)
         {
             const Device& device = getDevice();

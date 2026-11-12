@@ -3,9 +3,8 @@
 
 // Where everything in the frame stood on the previous frame's screen.
 //
-// **Two answers, because two things move differently.** A surface moves with the eye and with itself, and
-// the sky, being infinitely far, moves only when the eye turns. A puff has no answer here: none is in the
-// frame, so nothing in it moves with one.
+// **Two answers, because two things move differently**: a surface moves with the eye and with itself, the
+// sky only when the eye turns. A puff has no answer here, since none is in the frame.
 
 #include "camera.h"
 
@@ -14,9 +13,8 @@
 
 /// How far a point moved between the last frame and this one, in world units.
 ///
-/// **A delta and not the previous position**, which is what keeps this honest at Morrowind's distances: the
-/// two positions are six figures long and nearly equal, so subtracting them on the device is the mistake
-/// the camera path avoids for the same reason.
+/// **A delta and not the previous position**, which keeps this honest at Morrowind's distances: the two
+/// positions are six figures long and nearly equal, so subtracting them on the device loses the step.
 vec3 movedBy(GpuInstance instance, vec3 position)
 {
     const vec4 rows[3] = instance.mMotion;
@@ -28,21 +26,18 @@ vec3 movedBy(GpuInstance instance, vec3 position)
 
 /// How far outside the previous screen a reprojection may claim, in screens.
 ///
-/// **A bound, because the divide has none.** A point a hair in front of the previous eye's plane is divided
-/// by nearly nothing, so the coordinate it lands on runs away — a huge finite number in FP32, handed to an
-/// upscaler as a motion vector. What a reader needs from a point that left the screen is the direction it
-/// left in and the fact that it left, and one screen of margin on each side carries both: two screen widths
-/// of motion is already past anything an upscaler reuses.
+/// **A bound, because the divide has none.** A point a hair in front of the previous eye's plane lands on a
+/// huge finite coordinate in FP32, handed to an upscaler as a motion vector. One screen of margin on each
+/// side keeps the direction it left in and the fact that it left; two screens of motion is past anything an
+/// upscaler reuses.
 const float PREVIOUS_SCREEN_REACH = 1.0;
 
 /// Where a point standing `was` from the previous eye lands on that eye's screen, and whether it landed
 /// anywhere at all.
 ///
-/// **The two are separate fields because a screen coordinate has no spare value.** A point off the left
-/// edge is negative and so was the sentinel this returned, so a reader testing the sign could not tell them
-/// apart — and `reprojected` answered *this pixel did not move* for a surface that arrived from off-screen,
-/// which is a history reuse where the honest answer is a history miss. It fired along the leading edge of
-/// every horizontal pan.
+/// **The two are separate fields because a screen coordinate has no spare value**: a negative sentinel is
+/// indistinguishable from a point off the left edge, which `reprojected` would read as *this pixel did not
+/// move*, a history reuse where a miss is due.
 struct PreviousScreen
 {
     /// On this frame's grid in the units `rayAt` reads a pixel in (`pixelOfScreen`): nought to the
@@ -54,15 +49,16 @@ struct PreviousScreen
     bool mFound;
 };
 
-/// **`screenOf` over the previous basis, and shared for the reason `rayAt` itself is.** A pixel reprojects
-/// the surface it found and the fog volume reprojects every froxel of its own grid; two derivations of one
-/// projection are two chances to disagree about where the previous frame was.
+/// **`screenOf` over the previous basis, and shared for the reason `rayAt` itself is**: a pixel and every
+/// froxel of the fog volume reproject through it, and two derivations of one projection can disagree about
+/// where the previous frame was.
 ///
 /// **An offset from the eye and never a world position.** `mCameraMotion` is the step between two eyes,
-/// differenced on the host where a float still has digits to spare — where the two positions themselves are
-/// six figures long and nearly equal. @param spread how much wider the image plane the point projects
-/// through is than the eye's own, per axis — one for the eye, and `frame.mArmsSpread` for the arms. The
-/// previous frame carries the eye's basis alone, and the arms' is that basis at the arms' own half extents.
+/// differenced on the host where a float still has digits to spare.
+///
+/// @param spread how much wider the image plane the point projects through is than the eye's own, per axis:
+///        one for the eye, and `frame.mArmsSpread` for the arms, since the previous frame carries the eye's
+///        basis alone.
 PreviousScreen previousScreenThrough(vec3 was, vec2 spread)
 {
     // A basis of nothing is what the frame carries where there is no previous frame at all: the first, a
@@ -86,14 +82,12 @@ PreviousScreen previousScreen(vec3 was)
 
 /// Where a surface stood on the previous frame's screen, less where it stands on this one, in pixels.
 ///
-/// **Reprojected as an offset and never as a world point.** `direction * distance` is where the surface is
-/// relative to *this* eye, and `mCameraMotion` carries it to where it is relative to the last one — so the
-/// only large numbers involved were subtracted on the host, between two camera positions a step apart,
+/// **Reprojected as an offset and never as a world point**: `direction * distance` is relative to *this* eye
+/// and `mCameraMotion` carries it to the last one, so the only large numbers were subtracted on the host,
 /// where a float is exact.
 ///
-/// **Both ends are where the surface itself projects**, and the near end is therefore the pixel centre plus
-/// this frame's jitter — that offset is where the ray that found the surface was aimed, so it is where the
-/// surface genuinely lands on this frame's screen.
+/// **Both ends are where the surface itself projects**: the near end is the pixel centre plus this frame's
+/// jitter, which is where the ray that found the surface was aimed.
 vec2 reprojected(uvec2 pixel, vec3 was, vec2 spread)
 {
     // **No answer under a parallel projection.** The inverse below divides by the distance along
@@ -114,10 +108,9 @@ vec2 reprojected(uvec2 pixel, vec3 was, vec2 spread)
 /// and into the previous frame by its motion's.
 ///
 /// **The rigid half and the posed half added, and neither subtracted from a world point.** The previous
-/// position of the point is `M · toWorld · q_was`, with `M` the instance's motion and `q_was` where the
-/// point stood in the mesh last frame; written out, that is `M · point` plus `M_lin · toWorld_lin · (q_was
-/// − q_now)`. The first term is `movedBy`'s exact delta and the second is a small vector rotated twice, so
-/// the six-figure coordinates never meet a small one.
+/// position is `M · toWorld · q_was`, which is `M · point` plus `M_lin · toWorld_lin · (q_was − q_now)`: the
+/// first term is `movedBy`'s exact delta and the second a small vector rotated twice, so the six-figure
+/// coordinates never meet a small one.
 vec3 deformedBy(GpuInstance instance, GpuMesh mesh, uint primitive, vec2 bary)
 {
     // Asked before the corners are looked up: most of the frame is a mesh that stands, and the
@@ -165,11 +158,9 @@ vec3 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
 
     const vec3 was = direction * distance + moved;
 
-    // **`|a + m| - |a|` as `m · (2a + m) / (|a + m| + |a|)`**, with `a` the offset from this eye and `m`
-    // the step: the same number without the cancellation. **Nought where the sum under it is**: a hit
-    // at the eye that did not move, which a ray from an eye standing on a surface commits at a
-    // distance of nought, has `a` and `m` both nought, and so the difference too, where the quotient
-    // is `0 / 0`.
+    // **`|a + m| - |a|` as `m · (2a + m) / (|a + m| + |a|)`**, with `a` the offset from this eye and `m` the
+    // step: the same number without the cancellation. **Nought where the sum under it is**: a hit at the eye
+    // that did not move has `a` and `m` both nought, where the quotient is `0 / 0`.
     const float across = length(was) + distance;
     const float farther = across > 0.0 ? dot(moved, direction * (2.0 * distance) + moved) / across : 0.0;
 
@@ -178,14 +169,12 @@ vec3 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
 
 /// Where the sky a ray found stood on the previous frame's screen, in pixels.
 ///
-/// **Infinitely far, so the eye's own walk does not carry it and its turn is the whole of it.** A miss that
-/// stores nothing here, on the reasoning that the sky does not move, is true of walking and false of
-/// looking around, and looking around is most of what a player does: a temporal filter then fetches the
-/// sky's history from the pixel it already occupies, so every turn of the head smears it — a gradient hides
-/// that and a field of stars does not.
+/// **Infinitely far, so the eye's own walk does not carry it and its turn is the whole of it.** Storing
+/// nothing here is true of walking and false of looking around: a temporal filter would fetch the sky's
+/// history from the pixel it already occupies and smear it on every turn, which a field of stars shows and a
+/// gradient hides.
 ///
-/// **Through the world's image plane**, because the sky is never seen through the arms' eye: that eye
-/// traces the arms alone.
+/// **Through the world's image plane**, because the arms' eye traces the arms alone.
 vec2 skyMotionOf(uvec2 pixel, vec3 direction)
 {
     return reprojected(pixel, direction, vec2(1.0));

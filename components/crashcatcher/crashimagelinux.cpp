@@ -25,13 +25,12 @@
 
 #include "crashinstall.hpp"
 
-// **An AppImage's mount outlives every process the image starts.** The type2 runtime serves the
-// image from a FUSE daemon that unmounts once no process holds the read end of its keepalive pipe,
-// which reaches a process by inheritance alone; Crashpad starts a monitor with every descriptor but
-// its socket closed, in a session of its own, to outlive its client. A monitor whose client was the
-// last holder then paged its code in from a mount that was gone, and ended with SIGBUS. So the
-// process the runtime started stays, holding the pipe, as the subreaper every orphan of the image is
-// handed to, and ends once none of them runs a program from the image.
+// **An AppImage's mount outlives every process the image starts.** The type2 runtime serves the image from a FUSE
+// daemon that unmounts once no process holds the read end of its keepalive pipe, which reaches a process by
+// inheritance alone, and Crashpad starts a monitor with every descriptor but its socket closed, in a session of its
+// own. A monitor whose client was the last holder would page its code in from a gone mount and end with SIGBUS. So
+// the process the runtime started stays, holding the pipe, as the subreaper every orphan of the image is handed to,
+// and ends once none of them runs a program from the image.
 namespace Crash
 {
     namespace

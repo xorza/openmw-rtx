@@ -26,11 +26,9 @@
 
 namespace RtxTool
 {
-    /// How fast a measured run steps the world unless it states otherwise, in frames a second: world
-    /// time and not wall time, so ten seconds is the same six hundred frames on a build that draws
-    /// them in four seconds and on one that takes twenty. Sixty because that is what the frame
-    /// budget is written against. A default a run states (`SessionRequest::mStep`), and never read in
-    /// place of the step a run stated.
+    /// How fast a measured run steps the world unless it states otherwise, in frames a second: world time and not
+    /// wall time, so ten seconds is the same six hundred frames however fast the build draws them. Sixty because the
+    /// frame budget is written against it. Never read in place of the step a run stated (`SessionRequest::mStep`).
     inline constexpr float sStepRate = 60.0f;
 
     /// How long one of those frames stands for, which is what a measured frame tells the renderer.
@@ -80,17 +78,14 @@ namespace RtxTool
         /// content files, and a cell that then loads brings its own copy of each.
         LightsNotDoubled,
 
-        /// No static stands twice: nothing the cell ring stands off the content files is a
-        /// reference the game has stood in its graph. The ring drops a cell's statics the frame
-        /// the cell enters the active grid, and the walk finds the game's own copies there; one
-        /// the ring kept would stand beside the game's, at the record's place — a building where
-        /// the game put none, until the ring let go of it.
+        /// No static stands twice: nothing the cell ring stands off the content files is a reference the game has
+        /// stood in its graph. The ring drops a cell's statics the frame the cell enters the active grid; one it
+        /// kept would stand beside the game's, a building where the game put none.
         StaticsNotDoubled,
 
-        /// Every gate that decided agrees with the game in the cells it has loaded: a reference
-        /// behind an open gate is up there and one behind a closed gate is down, as the reference's
-        /// own script left it. A disagreement is a gate whose run is not the script's first frame,
-        /// and a stage seen from afar that the cell changes as it loads.
+        /// Every gate that decided agrees with the game in the cells it has loaded: a reference behind an open gate
+        /// is up and one behind a closed gate is down, as the reference's own script left it. A disagreement is a
+        /// stage seen from afar that the cell changes as it loads.
         GatesAgree,
 
         /// Every texture the scene named could be read; an unreadable one is drawn grey.
@@ -106,29 +101,23 @@ namespace RtxTool
         /// by a free-camera stop, and by a routed one.
         CameraStands,
 
-        /// The world stood under the weather the stop named, crossing into none, at its last
-        /// measured frame. Asked of a stop that names a weather and turns none: a world left to
-        /// settle the ask dropped it at a session's first stop and drew a clear sky under
-        /// `balmora-storm-night`, saying so nowhere but in the report's `in Clear`.
+        /// The world stood under the weather the stop named, crossing into none, at its last measured frame. Asked
+        /// of a stop that names a weather and turns none: a world left to settle can drop the ask and draw a clear
+        /// sky under `balmora-storm-night`, saying so nowhere but in the report's `in Clear`.
         SkyNamed,
 
-        /// `Rtx::sFramesInFlight` frames were in flight at every submit. The ring is sized for them
-        /// and the game keeps them, so a submit that found fewer is a wait somebody put back — the 0.9 ms a frame
-        /// the device idled for the whole of this fork's life before `Renderer::collectFrame`.
-        /// Asked of a place that stands still, because an arrival drains the ring by design.
+        /// `Rtx::sFramesInFlight` frames were in flight at every submit. The ring is sized for them and the game
+        /// keeps them, so a submit that found fewer is a wait somebody put back. Asked of a place that stands still,
+        /// because an arrival drains the ring by design.
         FramesOverlap,
 
-        /// The queue was held as far behind the host as the run asked, by the hold's own zone
-        /// over the measured frames. Asked of a run that asked for a hold: the hold is a premise
-        /// of what such a run measures, and one that came out short is a run of something else —
-        /// a count taken once at the card's idle clock held a fifth of what was asked, under the
-        /// barrier gate, and said so nowhere but in a figure among twenty.
+        /// The queue was held as far behind the host as the run asked, by the hold's own zone over the measured
+        /// frames. Asked of a run that asked for a hold: it is a premise of what such a run measures, and one that
+        /// came out short is a run of something else.
         QueueHeld,
 
-        /// No shader stored a NaN or an infinity, summed over the measured frames by the module
-        /// that wrote it (`Rtx::NotFinite`). A history keeps one and spreads it, so the picture
-        /// goes black in blocks; a froxel that took `0 / 0` once did that to a whole night, and
-        /// nothing on the way refused it.
+        /// No shader stored a NaN or an infinity, summed over the measured frames by the module that wrote it
+        /// (`Rtx::NotFinite`). A history keeps one and spreads it, so the picture goes black in blocks.
         Finite,
     };
 
@@ -147,13 +136,11 @@ namespace RtxTool
     struct Approach;
     class PictureShelf;
 
-    /// A cell as Morrowind addresses one, read once from its spelling: a pair of integers is an
-    /// exterior, anything else is an interior's name. The spelling and not an id, because the world's
-    /// `findExteriorPosition` and `findInteriorPosition` turn one into the other, and a stop then
-    /// stands where a player typing `coc` would. **One rule for whoever asks**: `coc` would find an
-    /// exterior by its name as well, which nothing outside a loaded world can tell from an interior's,
-    /// so a film that plans its cuts before the world loads and the stager that stands it there read
-    /// the same cell.
+    /// A cell as Morrowind addresses one, read once from its spelling: a pair of integers is an exterior, anything
+    /// else is an interior's name. The spelling and not an id, because the world's `findExteriorPosition` and
+    /// `findInteriorPosition` turn one into the other, as for a player typing `coc`. One rule for whoever asks:
+    /// `coc` would find an exterior by its name too, which nothing outside a loaded world can tell from an
+    /// interior's, so a film planning its cuts before the world loads and the stager read the same cell.
     class CellAddress
     {
     public:
@@ -215,11 +202,10 @@ namespace RtxTool
         /// would be dropped without a word.
         bool lookAt(const osg::Vec3f& look);
 
-        /// The same facing as the game's own rotation of a body, in radians: `(pitch, 0, yaw)` in
-        /// the order `ESM::Position::rot` keeps them, yaw clockwise from north and pitch negative
-        /// looking up, which is what `MWRender::Camera` negates into its own angles. The one
-        /// derivation of a facing, so a body stood by a stand and the bearing a stand prints cannot
-        /// disagree.
+        /// The same facing as the game's own rotation of a body, in radians: `(pitch, 0, yaw)` in the order
+        /// `ESM::Position::rot` keeps them, yaw clockwise from north and pitch negative looking up, which
+        /// `MWRender::Camera` negates into its own angles. The one derivation of a facing, so a body stood by a
+        /// stand and the bearing a stand prints cannot disagree.
         osg::Vec3f getRotation() const;
 
         /// The unit vector a body with `rotation` faces, which is `getRotation`'s inverse: a stand
@@ -229,13 +215,11 @@ namespace RtxTool
         /// The unit vector along the level of the yaw: the way a player facing like this stand walks.
         osg::Vec3f getLevelAhead() const;
 
-        /// A flight into this stand from `left` units to its left and `behind` units behind it,
-        /// facing its look all the way, arriving at the last of `frames` frames of `step` seconds,
-        /// through a world held still: what `noise --strafe` and `--walk` take a frame at the end
-        /// of, with the history the eye moved through. Both along the level of the yaw, as a player
-        /// walks, so a stand looking straight down flies along its bearing. A negative `behind`
-        /// starts in front of the stand and walks back. Only for a stand that names an eye, and for
-        /// two frames or more.
+        /// A flight into this stand from `left` units to its left and `behind` units behind it, facing its look all
+        /// the way, arriving at the last of `frames` frames of `step` seconds through a world held still: what
+        /// `noise --strafe` and `--walk` take a frame at the end of. Both along the level of the yaw, as a player
+        /// walks; a negative `behind` starts in front of the stand and walks back. Only for a stand that names an
+        /// eye, and for two frames or more.
         Approach approachFrom(float left, float behind, float step, std::uint32_t frames) const;
     };
 
@@ -253,12 +237,10 @@ namespace RtxTool
         /// printed. Set immediately, so a stop stands under it from its first frame.
         std::optional<Rtx::Weather> mWeather{};
 
-        /// Where the air's clocks stand at the stop's first counted frame, or nothing to leave them
-        /// wherever the session's frames carried them. The fog drifts and churns on these and the
-        /// deck scrolls on them, so without it a place is drawn under the air of however many
-        /// frames the run happened to have drawn: a window flown for an hour stands in one fog and
-        /// a run started fresh stands in another. Held until that frame and free after it, as
-        /// `MWRender::RtxRun::getHeldAir` says.
+        /// Where the air's clocks stand at the stop's first counted frame, or nothing to leave them wherever the
+        /// session's frames carried them: the fog drifts and churns on these, so without it a place is drawn under
+        /// the air of however many frames the run had drawn. Held until that frame and free after it
+        /// (`MWRender::RtxRun::getHeldAir`).
         std::optional<Rtx::AirClock> mAir{};
 
         /// Weathers to turn the sky through while the stop runs, in order and round again, as
@@ -278,10 +260,9 @@ namespace RtxTool
         /// World units a second, more than nought. A Morrowind exterior cell is 8,192 across.
         float mSpeed = 0.0f;
 
-        /// Whether the world stays as the stop holds it while the eye flies: a flight a command
-        /// stages into a place a still reference stands at (`Stand::approachFrom`). False for a
-        /// view's route, which walks through a living world — the route `VerbPolicy::mFliesRoutes`
-        /// speaks of.
+        /// Whether the world stays as the stop holds it while the eye flies: a flight a command stages into a place
+        /// a still reference stands at (`Stand::approachFrom`). False for a view's route, which walks through a
+        /// living world (`VerbPolicy::mFliesRoutes`).
         bool mWorldHeld = false;
     };
 
@@ -293,11 +274,10 @@ namespace RtxTool
     };
 
     /// **A length in samples a shown pixel**: as many frames, summed, as a frame of the run's own mode holds
-    /// samples a shown pixel after `mAfter` frames of history, rounded down, at most `mMost` and never under
-    /// one. A mode that upscales traces the share of the shown pixels its extents say, and **those are the
-    /// renderer's to give**: DLSS's are NGX's, and an upscaler the run asks for as `auto` is chosen only as the
-    /// renderer is made. So a stop states its length this way, and the session settles it into frames once the
-    /// renderer has made its extents (`SessionRequest::settleUnder`).
+    /// samples a shown pixel after `mAfter` frames of history, rounded down, at most `mMost` and never under one.
+    /// The extents are the renderer's to give (DLSS's are NGX's, and an upscaler asked for as `auto` is chosen only
+    /// as the renderer is made), so a stop states its length this way and the session settles it into frames
+    /// (`SessionRequest::settleUnder`).
     struct HeldFrames
     {
         std::uint32_t mAfter = 0;
@@ -332,10 +312,9 @@ namespace RtxTool
         /// from it and clears it before the first frame.
         std::optional<HeldFrames> mHeld{};
 
-        /// Where the stop's frames start in the sampler's sequence: added to the count of its
-        /// frames the renderer samples by (`MWRender::RtxRun::getSampleFrame`). Two stops at one
-        /// place, the world held, draw the same samples frame for frame unless this sets them
-        /// apart, and then what was to be a mean of independent draws is one draw again.
+        /// Where the stop's frames start in the sampler's sequence, added to the count the renderer samples by
+        /// (`MWRender::RtxRun::getSampleFrame`). Two stops at one place, the world held, draw the same samples frame
+        /// for frame unless this sets them apart, and a mean of independent draws is then one draw again.
         std::uint32_t mSampleOffset = 0;
 
         /// What every frame of the stop asks of the reconstruction and of the exposure in place of
@@ -352,9 +331,8 @@ namespace RtxTool
         /// lands, so nothing in the world moves.
         bool mFrozen = false;
 
-        /// Whether the player keeps their own camera and collision: a session somebody flies,
-        /// `VerbPolicy::mPlayed`. A view's coordinates are where a camera stands and not where a
-        /// body fits, so the walls come off with it.
+        /// Whether the player keeps their own camera: a session somebody flies, `VerbPolicy::mPlayed`. A view's
+        /// coordinates are where a camera stands and not where a body fits, so collision comes off with it.
         bool mFreeCamera = false;
     };
 
@@ -463,17 +441,15 @@ namespace RtxTool
     {
         std::vector<Stop> mStops;
 
-        /// What the renderer is made with: the command's (`Framed::mSetup`), hidden and stepped unless
-        /// it says otherwise.
+        /// What the renderer is made with: the command's (`Framed::mSetup`), hidden and stepped unless it says
+        /// otherwise.
         MWRender::RunSetup mSetup;
 
-        /// How long every frame stands for, in seconds, or nothing to time each one off the wall:
-        /// what the run hands the engine's frame clock (`OMW::EngineHost::getFrameStep`), which is the one
-        /// source the renderer reads it from. Everything the world animates steps by it, so ten
-        /// seconds of world is six hundred frames on every machine, and two runs of one build are
-        /// the same run. A window somebody watches wants the wall, as the played game has it. A
-        /// run's and never a setting's: a file that could state a step once would turn a played
-        /// game into a fixed-step run for good.
+        /// How long every frame stands for, in seconds, or nothing to time each one off the wall: what the run hands
+        /// the engine's frame clock (`OMW::EngineHost::getFrameStep`), the one source the renderer reads it from.
+        /// Everything the world animates steps by it, so two runs of one build are the same run. A window somebody
+        /// watches wants the wall. A run's and never a setting's: a file that could state a step once would turn a
+        /// played game into a fixed-step run for good.
         std::optional<float> mStep;
 
         /// Whether the command measures (`VerbPolicy::mMeasures`), which the report's header says.
@@ -498,9 +474,8 @@ namespace RtxTool
         /// that names no weapon, in place of the hands put away.
         bool mSpellHands = false;
 
-        /// Whether the played game's vanity camera may take over — the orbit round the player
-        /// after `fVanityDelay` seconds with nobody at the keys. Off by default: a run is idle by
-        /// nature, and a window somebody is reading must not start turning on its own.
+        /// Whether the played game's vanity camera may take over, the orbit round the player after `fVanityDelay`
+        /// seconds with nobody at the keys. Off by default: a window somebody is reading must not start turning.
         bool mVanity = false;
 
         /// The magnitude of Night-Eye the player wears at every stop, as a constant effect would put
@@ -512,11 +487,10 @@ namespace RtxTool
         /// keeps flying after the schedule has run out.
         bool mQuitAtEnd = true;
 
-        /// What the world's random draws are seeded with at every stop's first frame, so a stop's
-        /// world is a function of the seed and the frames. The engine is seeded with it once at
-        /// start, and what the start consumes before a stop begins is not a count of frames: it
-        /// moved with the cache the run found and the environment it ran in, and every wandering
-        /// body then stood elsewhere from the first measured frame.
+        /// What the world's random draws are seeded with at every stop's first frame, so a stop's world is a
+        /// function of the seed and the frames. The engine is seeded once at start, and what the start consumes
+        /// before a stop begins is not a count of frames: it moved with the cache and the environment, and every
+        /// wandering body then stood elsewhere from the first measured frame.
         unsigned int mRandomSeed = 0;
 
         /// Where the run is written as a record, and the hashes it writes and compares. Empty
@@ -555,10 +529,9 @@ namespace RtxTool
         std::string mSuite;
 
         /// Why the run stops at the frame `finished` answers for, or nothing where it goes on.
-        /// **Where somebody plays the run, at the first frame that stored a value that was not
-        /// finite**: a window that flies until it is closed measures nothing, so nothing after
-        /// would say so, and what a NaN reaches it spreads to — the picture the player went on
-        /// looking at. Elsewhere the stop's end says it, where `Check::Finite` is asked.
+        /// **Where somebody plays the run, at the first frame that stored a value that was not finite**: a window
+        /// that flies until it is closed measures nothing, so nothing after would say so, and what a NaN reaches it
+        /// spreads to. Elsewhere the stop's end says it, where `Check::Finite` is asked.
         std::optional<std::string> stopAt(const Rtx::FrameResult& finished) const;
 
         /// What the renderer is made with: `mSetup`, with the run's upscaling mode and every one a
@@ -581,9 +554,8 @@ namespace RtxTool
 
     /// The exit status of a run whose one fault is a hashed frame that differed from its reference.
     ///
-    /// **Apart from a run that failed**, which is 1: `omw repeat` tells "not repeatable" from "the
-    /// run itself broke" by this number and not by the report's wording, which a reworded sentence
-    /// would swap.
+    /// Apart from a run that failed, which is 1: `omw repeat` tells "not repeatable" from "the run itself broke" by
+    /// this number and not by the report's wording, which a reworded sentence would swap.
     inline constexpr int sDifferedStatus = 3;
 
     /// The hour and the weather a place stands under where neither the view nor the command line
@@ -592,12 +564,11 @@ namespace RtxTool
     inline constexpr float sDefaultHour = 12.0f;
     inline constexpr Rtx::Weather sDefaultWeather = Rtx::Weather::Clear;
 
-    /// How many frames a picture warms up over once the world stands whole, so it shows what a
-    /// player standing there sees and every draw of it is a frame of its own: every command but
-    /// `bench`, and a film's take after its cut. **Four times the accumulator's length** `N`
-    /// (`ACCUMULATE_FRAMES`), where its weight on the frame the cut left is `(1 - 1/N)^4N`, under
-    /// `e^-4` whatever `N` is — 1.7% at 32 — and the air's `0.9^4N`, 1.4 in a million at 32. Derived
-    /// rather than stated, so a longer accumulator lengthens it.
+    /// How many frames a picture warms up over once the world stands whole, so it shows what a player standing
+    /// there sees and every draw of it is a frame of its own: every command but `bench`, and a film's take after
+    /// its cut. Four times the accumulator's length `N` (`ACCUMULATE_FRAMES`): its weight on the frame the cut left
+    /// is `(1 - 1/N)^4N`, under `e^-4` whatever `N` is (1.7% at 32), and the air's `0.9^4N` is 1.4 in a million at
+    /// 32. Derived rather than stated, so a longer accumulator lengthens it.
     inline const std::uint32_t sHistoryFrames = 4 * static_cast<std::uint32_t>(Rtx::Shaders::ACCUMULATE_FRAMES);
 
     /// Runs `stop` for `frames` once the world stood whole and its histories converged over

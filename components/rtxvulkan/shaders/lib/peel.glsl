@@ -54,9 +54,8 @@ struct PaneStack
     /// What was drawn for the layers, `SeenPane`'s drawn light, and their albedos, each by what reaches the
     /// eye of that layer: `CHANNEL_PANE` before it is divided, and `CHANNEL_PANE_ALBEDO` before the floor.
     ///
-    /// **Their lobes' light is not here but in `mRadiance`, composed unfiltered**: the pane filter keeps a
-    /// layer's history whole over every turn of the view, which a reflection does not survive, and divided
-    /// by the diffuse albedo it was taken apart by an albedo it is not of.
+    /// **Their lobes' light is in `mRadiance`, composed unfiltered**: the pane filter keeps a layer's history
+    /// whole over every turn of the view, which a reflection does not survive.
     vec3 mDrawn;
     vec3 mAlbedo;
 
@@ -118,8 +117,7 @@ NearestPane nearestPaneOf(Answer layer, bool arms)
 /// behind the arms' as their pictures meet, per unit of the albedo that puts it back, that albedo, and the
 /// nearest layer's surface and motion.
 ///
-/// **Divided by what puts it back**, so the pane filter averages light and not the texture it lands on —
-/// the bounce's demodulation, for the bounce's reason.
+/// **Divided by what puts it back**, so the pane filter averages light and not the texture it lands on.
 vec3 storePanes(ivec2 at, uint width, uint swap, PaneStack armsStack, PaneStack panes, NearestPane nearest)
 {
     const vec3 paneDrawn = armsStack.mDrawn + armsStack.mThrough * panes.mDrawn;
@@ -149,17 +147,14 @@ vec3 stackOver(PaneStack stack, vec3 behind)
 
 /// What a ray that met nothing answers: the sky, for the world's eye.
 ///
-/// **Nothing, for the arms' eye. The sky is seen through the world's eye alone**: the arms' eye traces the
-/// arms and nothing else, and a ray of it that finds no arm is not shaded — the world's own ray is traced
-/// there instead, so whatever reaches the sky reached it through `Eyes::mWorld`, and a pixel beside the
-/// arms shades the sky once and not twice.
+/// **Nothing, for the arms' eye. The sky is seen through the world's eye alone**: the arms' eye traces only
+/// the arms, and a ray of it that finds none is not shaded; the world's own ray is traced there instead, so a
+/// pixel beside the arms shades the sky once and not twice.
 ///
 /// **What the backdrop shows through is the sky's to say.** `mBackdropShown` is how much of the star field
-/// the sky's own layers left, and the display pass cannot work it out for itself — `backdrop` in
-/// `bindings.glsl` says why.
+/// the sky's layers left, which the display pass cannot work out (`backdrop` in `bindings.glsl` says why).
 ///
-/// **Packed and unpacked as every answer is**, so a miss keeps the rounding the channels' halves give a
-/// hit.
+/// **Packed and unpacked as every answer is**, so a miss keeps the rounding the channels' halves give a hit.
 Answer missedAlong(uvec2 pixel, vec3 origin, vec3 direction, bool shaded)
 {
     Answer answer = noAnswer();
@@ -199,11 +194,10 @@ struct Peel
 {
     /// The eye the next ray is cast through, its ray, and where along it the next one starts.
     ///
-    /// **The arms first, through their own eye, and the world only where they are not.** The rasterizer
-    /// draws the player's arms under a projection of their own field of view and clears the depth under
-    /// them, so they stand in front of everything — a decision about what the picture is, which `worldMask`
-    /// says the world's ray keeps out of. A miss of the arms' ray is not shaded, so a pixel beside the arms
-    /// pays one traversal on a mask a handful of instances carry and no second shading of the sky.
+    /// **The arms first, through their own eye, and the world only where they are not.** The rasterizer draws
+    /// the player's arms under a projection of their own and clears the depth under them, so they stand in
+    /// front of everything; `worldMask` keeps them out of the world's ray. A miss of the arms' ray is not
+    /// shaded, so a pixel beside the arms pays one traversal and no second shading of the sky.
     bool mArms;
     vec3 mOrigin;
     vec3 mDirection;

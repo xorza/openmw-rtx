@@ -70,9 +70,8 @@ namespace MWRender
         mTexture->createManual(
             width, height, MyGUI::TextureUsage::Static | MyGUI::TextureUsage::Write, MyGUI::PixelFormat::R8G8B8A8);
 
-        // **The clear colour, before anything has been traced.** A view is shown from the frame it
-        // is made on and drawn on some later one — a map tile is asked for as its cell arrives —
-        // and the alternative is a widget holding whatever the slot was cleared to.
+        // The clear colour before anything has been traced: a view is shown from the frame it is made on and
+        // drawn on a later one, and the alternative is a widget holding whatever the slot was cleared to.
         const std::uint8_t colour[4] = { channel(spec.mClearColour.r()), channel(spec.mClearColour.g()),
             channel(spec.mClearColour.b()), channel(spec.mClearColour.a()) };
 
@@ -128,9 +127,8 @@ namespace MWRender
 
     void TracedView::sceneChanged()
     {
-        // **Nothing either way, and for two different reasons.** A picture of the world is a picture
-        // of the scene the mirror rebuilds every frame regardless; a picture of its own subject
-        // walks that subject again on every `redraw`, which is the only time it is looked at.
+        // Nothing either way: a picture of the world is of the scene the mirror rebuilds every frame
+        // regardless, and a subject is walked again on every `redraw`, the only time it is looked at.
     }
 
     void TracedView::redraw()
@@ -179,9 +177,8 @@ namespace MWRender
             return;
         }
 
-        // **One image a view, made once**: a map tile asks a copy of every picture it paints, and an
-        // image of its own each time was a quarter of a megabyte allocated a tile. Its reader paints
-        // out of it where it is handed (`PendingPaints::finish`) and keeps nothing of it.
+        // One image a view, made once: a map tile asks a copy of every picture it paints, and an image each
+        // time was a quarter of a megabyte allocated a tile. Its reader keeps nothing of it (`PendingPaints::finish`).
         mCopyState = CopyState::Queued;
         const auto width = static_cast<int>(mTrace.getWidth());
         const auto height = static_cast<int>(mTrace.getHeight());
@@ -202,9 +199,8 @@ namespace MWRender
         // Nothing while the redraw is queued and not yet recorded: the backend would hand over the
         // copy the last trace left, which landed, as if it were this one's.
         //
-        // **The whole texture and not the extent**, because the copy is what the global map paints
-        // a cell from and a cell is the whole tile. Taken straight into the image the caller is
-        // handed, the first time it is asked for after the trace that made it has landed.
+        // The whole texture and not the extent, because the global map paints a whole cell from the copy.
+        // Taken straight into the image the caller is handed, once the trace that made it has landed.
         if (mCopyState == CopyState::Recorded
             && mTrace.takeCopy(
                 mTexture->getSlot(), std::span<std::uint8_t>(mCopy->data(), mCopy->getTotalSizeInBytes())))

@@ -4,9 +4,8 @@
 // The specular half of a surface: the lobe `brdf.h` states, taken at each light a surface is lit by and
 // drawn for its bounce, and how much it reflects beside the diffuse half.
 //
-// **A surface with no reflectance has no specular half, and is not asked for one.** Every vanilla surface
-// is that, so `glossOf` answers it with one test and every step after reads a flag that is false; in a
-// scene with no map at all the test is `HAS_MAPS`, a constant, and the half is compiled out.
+// **A surface with no reflectance has no specular half, and is not asked for one**: `glossOf` answers with
+// one test, and in a scene with no map at all that test is the constant `HAS_MAPS` and the half compiles out.
 
 #include "brdf.h"
 #include "scene.h"
@@ -35,11 +34,9 @@ struct Gloss
 
     /// The shading normal tilted until it faces the eye, which the lobe is evaluated about.
     ///
-    /// **Toward the plane, and not dropped where it leans away.** An interpolated normal on this content
-    /// leans past the eye across whole faces — a door's, bent toward its bevels — and a lobe dropped there
-    /// switches off along the curve where the lean crosses the ray: a hard edge between a surface
-    /// reflecting at grazing and one reflecting nothing. The diffuse half keeps the normal as it was, since
-    /// Lambert has no eye to face.
+    /// **Toward the plane, and not dropped where it leans away**: dropping the lobe there switches it off along
+    /// the curve where the lean crosses the ray, a hard edge in the reflection. The diffuse half keeps the
+    /// normal as it was.
     vec3 mNormal;
     vec3 mToEye;
     float mToEyeCosine;
@@ -117,14 +114,11 @@ struct Reflection
 /// The lobe at a light whose centre stands along `towards` and whose disc is `sine` across, as the sine of
 /// its half angle.
 ///
-/// **The highlight is the source's size** (Karis, *Real Shading in Unreal Engine 4*, 2013): the lobe is
-/// taken toward the representative point, the direction inside the disc nearest the mirror direction, and
-/// scaled by `(α / α′)²`, the normalisation of a lobe widened by the disc, `α′ = saturate(α + sine / 3)`
-/// (his equations 10 and 14).
+/// **The highlight is the source's size** (Karis 2013): the lobe is taken toward the representative point and
+/// scaled by `(α / α′)²`, `α′ = saturate(α + sine / 3)` (his equations 10 and 14).
 ///
-/// @param side what decides which side of the surface a light has to stand on — `litCosine`'s
-///        argument, and for the same reason: a normal map does not move a light through the surface,
-///        and nothing on the far side of a sheet is reflected. Asked of the centre.
+/// @param side which side of the surface a light has to stand on, as `litCosine`'s argument: a normal map
+///        does not move a light through the surface. Asked of the centre.
 Reflection reflectionAt(Gloss gloss, vec3 side, vec3 towards, float sine)
 {
     if (!(dot(side, towards) > 0.0))

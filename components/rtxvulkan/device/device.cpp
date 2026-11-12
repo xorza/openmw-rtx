@@ -108,11 +108,10 @@ namespace Rtx
         if (!mReport.mCodeFolder.empty())
             mCode = std::make_unique<PipelineCodeFolder>(mReport.mCodeFolder);
 
-        // **What else needs the device is asked before it exists**, since an extension cannot be
-        // enabled after `vkCreateDevice`. **Only what the device offers is enabled**: an extension the
-        // driver lists but the card does not have makes `vkCreateDevice` fail, which would take the
-        // renderer down with it. Asked of the device itself: `hasOptionalExtension` knows the
-        // renderer's own optional list, not the names another asks for.
+        // **What else needs the device is asked before it exists**, since an extension cannot be enabled
+        // after `vkCreateDevice`. **Only what the device offers is enabled**: an extension the driver
+        // lists but the card lacks makes `vkCreateDevice` fail. Asked of the device itself, as
+        // `hasOptionalExtension` knows only the renderer's own optional list.
         std::vector<std::string> askedExtensions;
         if (mReport.mAskedExtensions != nullptr)
         {
@@ -142,13 +141,12 @@ namespace Rtx
         if (instance.hasExtension(VK_KHR_SURFACE_EXTENSION_NAME))
             extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-        // **An option is taken whole or not at all**: where the device offers every extension of
-        // it, has the feature it is no use without, and every extension it needs is the instance's,
-        // a required one or a taken option's. Its feature is asked before anything is enabled and
-        // its needs are met after, so an option the driver offers without its feature enables
-        // nothing, and takes down what rests on it. What a driver offers is not what a device may
-        // enable: a present fence is offered to a device with no window, and rests on a swapchain it
-        // has none of.
+        // **An option is taken whole or not at all**: where the device offers every extension of it, has
+        // the feature it is no use without, and every extension it needs is the instance's. Its feature
+        // is asked before anything is enabled and its needs are met after, so an option offered without
+        // its feature enables nothing and takes down what rests on it. What a driver offers is not what a
+        // device may enable: a present fence is offered to a device with no window, and rests on a
+        // swapchain it has none of.
         std::array<bool, sDeviceOptions> taken{};
         for (const OptionalExtensions& option : getOptionalExtensions())
             taken[static_cast<std::size_t>(option.mOption)]
@@ -455,10 +453,9 @@ namespace Rtx
         const std::uint32_t executables = executablesOf(pipeline);
         const std::uint32_t copy = mCode != nullptr ? mCode->claim(name) : 0;
 
-        // Said once per pipeline rather than left as a missing line: NVIDIA's compiler reports no
-        // executable at all for a ray tracing pipeline, and no internal representation for any, so
-        // a reader could not otherwise tell it from a call nobody made. Nsight Graphics is where
-        // that is read.
+        // Said once per pipeline rather than left as a missing line: NVIDIA's compiler reports no executable
+        // for a ray tracing pipeline and no internal representation for any, so a reader could not otherwise
+        // tell it from a call nobody made. Nsight Graphics is where that is read.
         if (executables == 0)
         {
             Log(Debug::Verbose) << "pipeline " << name << ": the driver reports no executable";
@@ -474,10 +471,9 @@ namespace Rtx
 
             const std::vector<VkPipelineExecutableStatisticKHR> statistics = statisticsOf(pipeline, executable);
 
-            // Whatever the driver chose to say, and not a list this side picked. The names are
-            // the compiler's own — NVIDIA reports registers and spills, another vendor reports
-            // something else — so a fixed set of fields here would be a set that goes empty on the
-            // next driver. `openmw-rtxtool` prints them verbatim.
+            // Whatever the driver chose to say, and not a list this side picked: the names are the
+            // compiler's own, so a fixed set of fields would go empty on the next driver.
+            // `openmw-rtxtool` prints them verbatim.
             std::string line;
             for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
             {
@@ -508,10 +504,9 @@ namespace Rtx
 
             Log(Debug::Verbose) << "pipeline " << name << ": " << line;
 
-            // **A spill said where a player's log keeps it**: a kernel that spills runs at the
-            // speed of its scratch memory, which on an integrated card took a frame from
-            // milliseconds to the better part of a second
-            // (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`).
+            // **A spill said where a player's log keeps it**: a kernel that spills runs at the speed of its
+            // scratch memory, which took a frame on an integrated card from milliseconds to the better part
+            // of a second (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`).
             const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
             for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
             {
@@ -583,10 +578,9 @@ namespace Rtx
 
     void Device::waitIdle() const
     {
-        // **The queue's last submit waited for on the clock first**, under its patience, so a device
-        // that stopped answering ends naming the wait (`Timeline::waitFor`), where
-        // `vkDeviceWaitIdle`, which has no timeout, hung the process silently. The idle after it is
-        // what the presentation engine's own work is waited out by, and finds the queue's done.
+        // **The queue's last submit waited for on the clock first**, under its patience, so a device that
+        // stopped answering ends naming the wait (`Timeline::waitFor`), where `vkDeviceWaitIdle`, which has
+        // no timeout, hung silently. The idle after it waits out the presentation engine's own work.
         if (const std::uint64_t submitted = mTimeline->getNext() - 1; submitted > 0)
             mTimeline->waitFor(submitted, "the queue going idle");
 
@@ -745,10 +739,8 @@ namespace Rtx
             .pObjectName = name,
         };
 
-        // Deliberately unchecked. This is a label on a debugging aid, called from every resource
-        // that gets created; a failure here must not be what stops a renderer that is otherwise
-        // working, and the only documented failure is host memory exhaustion, which will announce
-        // itself elsewhere within microseconds.
+        // Deliberately unchecked: a label on a debugging aid, called from every resource created; the only
+        // documented failure is host memory exhaustion, which will announce itself elsewhere.
         mSetObjectName(mHandle.get(), &info);
     }
 

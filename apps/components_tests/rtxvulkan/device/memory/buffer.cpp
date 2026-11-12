@@ -41,9 +41,9 @@ namespace Rtx
 
         /// A buffer the host can reach is mapped once and keeps the address for its life.
         ///
-        /// **What a frame pays for asking twice.** `vkMapMemory` takes a lock inside the driver and
-        /// hands back an address that never moves, so a buffer the host rewrites every frame — the
-        /// hit count is one — was paying a pair of driver calls a frame for a pointer it held.
+        /// **What a frame pays for asking twice.** `vkMapMemory` takes a lock inside the driver and returns an address
+        /// that never moves, so a buffer the host rewrites every frame would otherwise pay a pair of driver calls a
+        /// frame.
         TEST_F(RtxBufferTest, aHostVisibleBufferIsMappedOnceAndKeepsTheAddress)
         {
             const Device& device = *mHarness.mDevice;
@@ -64,11 +64,8 @@ namespace Rtx
             EXPECT_EQ(read[1], 9u);
         }
 
-        /// **Every write `Uploads` makes lands where it says**: a span at an offset, bytes lent and
-        /// filled in place, and runs out of a source at offsets of their own — and nothing anywhere
-        /// else, which the words left at nought say. Read back on the queue, since the host never
-        /// reads a host-written buffer. A copy left unordered is the contract `Uploads` holds its
-        /// caller to.
+        /// **Every write `Uploads` makes lands where it says**, and nothing anywhere else, which the words left at
+        /// nought say. Read back on the queue, since the host never reads a host-written buffer.
         TEST_F(RtxBufferTest, uploadsLandWhereTheySay)
         {
             const Device& device = *mHarness.mDevice;
@@ -126,11 +123,11 @@ namespace Rtx
                 "staged writes nobody ordered ahead of what reads them");
         }
 
-        /// A buffer moved out of takes its mapping, its size, its address and its stamp with it, and
-        /// the husk is a default-made buffer: by construction and by assignment alike.
+        /// A buffer moved out of takes its mapping, size, address and stamp with it, and the husk is a default-made
+        /// buffer, by construction and by assignment alike.
         ///
-        /// **Which is what a table growing does**: `GrowableBuffer::growTo` hands the displaced
-        /// buffer to a graveyard, and the new one is moved into the member the old one was in.
+        /// **Which is what a table growing does**: `GrowableBuffer::growTo` hands the displaced buffer to a graveyard,
+        /// and the new one is moved into the member the old one was in.
         TEST_F(RtxBufferTest, aMovedBufferTakesItsMappingWithIt)
         {
             const Device& device = *mHarness.mDevice;
@@ -166,12 +163,12 @@ namespace Rtx
             EXPECT_EQ(second.getNamedUntil(), 0u);
         }
 
-        /// A growable buffer is made in the memory its owner named, is never left holding nothing,
-        /// keeps what fits, and past what it holds grows to the need or to twice what it held.
+        /// A growable buffer is made in the memory its owner named, is never left holding nothing, keeps what fits,
+        /// and past what it holds grows to the need or to twice what it held.
         ///
-        /// Each step by hand: nought asked of nothing makes the one byte Vulkan allows; 16 past 1
-        /// is 16 to `growTo`; 8 fits in 16; 20 to `outgrow` is max(20, 2 × 16) = 32; 32 fits; 33
-        /// is max(33, 64) = 64; and 200 is past twice 64, so it is 200.
+        /// By hand: nought asked of nothing makes the one byte Vulkan allows; 16 past 1 is 16 to `growTo`; 8 fits in
+        /// 16; 20 to `outgrow` is max(20, 2 × 16) = 32; 32 fits; 33 is max(33, 64) = 64; 200 is past twice 64, so it
+        /// is 200.
         TEST_F(RtxBufferTest, aGrowableBufferKeepsWhatFitsAndDoublesPastIt)
         {
             const Device& device = *mHarness.mDevice;
@@ -231,14 +228,12 @@ namespace Rtx
                 EXPECT_EQ(read[at], at + 1) << "word " << at;
         }
 
-        /// A copy names both of its ends for the submit it rides, and a host write of either waits
-        /// for that submit and no longer.
+        /// A copy names both of its ends for the submit it rides, and a host write of either waits for that submit and
+        /// no longer.
         ///
-        /// **What `isIdle` was not told.** A hand-out by address or by descriptor named its buffer,
-        /// and a copy — which takes handles — named nothing, so a table written on the queue and
-        /// then from the host was two writers in an order nobody had fixed, and the assert that
-        /// guards a host write had nothing to fire on. The hold is what makes the queue's side of
-        /// this a state rather than a race: the copy is on the queue for as long as the test says.
+        /// **What `isIdle` was not told.** A copy takes handles and named nothing, so a table written on the queue and
+        /// then from the host was two writers in an order nobody had fixed. The hold keeps the copy on the queue for
+        /// as long as the test says.
         TEST_F(RtxBufferTest, aCopyNamesBothEndsAndAHostWriteWaitsForIt)
         {
             const Device& device = *mHarness.mDevice;

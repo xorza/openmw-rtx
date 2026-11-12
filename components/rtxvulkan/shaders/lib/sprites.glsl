@@ -16,9 +16,8 @@
 /// What a puff's own shape and its own texture leave of each of the two terms `puffLight` reads.
 ///
 /// **Two and not one per light, because only the sun keeps a direction.** The volume stores its transport
-/// without the irradiance or the phase, so a puff can take a side toward it. Everything else a puff is lit
-/// by — the frame's ambient and the lamps — arrives with no direction a shape could take a side toward, and
-/// one mean meets all of it.
+/// without the irradiance or the phase, so a puff can take a side toward the sun; the ambient and the lamps
+/// arrive with no direction a shape could take a side toward, and one mean meets all of it.
 struct PuffShape
 {
     /// What the puff leaves of the sun: its own side toward it, its texture's own thickness across
@@ -38,20 +37,17 @@ const float CYLINDER_SHARE = 4.0 * INV_PI;
 /// The shape of a streak of rain, which is a cylinder's own share of what lights it.
 ///
 /// **The march draws the streak as a cylinder, so it is lit as one.** Its width is swung about its axis to
-/// meet the ray, which is exactly a cylinder's silhouette — and what such a body presents to a source
-/// standing at an angle off that axis is `sin` of the angle, broadside. So rain under a low sun takes a
-/// quarter more than the even share, rain under a high one takes two thirds of it, and a streak looked at
-/// end-on takes none.
+/// meet the ray, a cylinder's silhouette, and a cylinder presents `sin` of the angle off its axis to a source,
+/// broadside: rain under a low sun takes a quarter more than the even share, under a high one two thirds of
+/// it, and a streak looked at end-on takes none.
 ///
 /// **The rasterizer's answer is not this, and is not copied.** `osgParticle` commits a `FIXED` quad to the
-/// plane its two authored axes span, so every raindrop in the game wears one normal — world north — and the
-/// storm is lit by how far the sun happens to stand from it. That is a fact about drawing quads, and it is
-/// the same one this walk already refuses when it swings the width rather than keeping the plane the
-/// content picked.
+/// plane its two authored axes span, so every raindrop wears one normal (world north) and the storm is lit by
+/// how far the sun stands from it; this walk refuses that already when it swings the width.
 ///
-/// **The ambient keeps the even share.** A sky is a hemisphere and a standing streak sees it from every
-/// side; only a source with a direction can be met broadside, and `ballPuff` treats the sky as one because
-/// a ball has a side to turn toward it. A cylinder about the vertical has none.
+/// **The ambient keeps the even share**: a standing streak sees the sky from every side, and only a source
+/// with a direction can be met broadside (`ballPuff` treats the sky as one because a ball has a side to turn
+/// toward it).
 ///
 /// @param along unit, the axis the streak hangs on.
 PuffShape streakPuff(vec3 along)
@@ -62,29 +58,24 @@ PuffShape streakPuff(vec3 along)
 /// What a puff of smoke is lit by, per unit of albedo, out of the froxel it stands in.
 ///
 /// **A puff is the same kind of thing the air is, in the same place, so it is lit by the same answers.**
-/// `Rtx::FogVolume` holds, per point and averaged over frames, what a shadow ray from that point found
-/// toward the sun, what the one lamp worth a ray delivered and whether it was seen, and what the ambient's
-/// own ray found over the whole sphere. Reading them is two fetches where three rays of the puff's own
-/// would be.
+/// `Rtx::FogVolume` holds, per point and averaged over frames, what a shadow ray found toward the sun, what
+/// the one lamp worth a ray delivered and whether it was seen, and what the ambient's ray found over the whole
+/// sphere: two fetches where three rays of the puff's own would be.
 ///
 /// **What a field buys is not the cost.** Rays cast at one puff of a layer and shared with the rest flip
-/// between neighbouring pixels wherever the layer straddles a shadow edge, and draw that one puff's
-/// silhouette into the picture — a black disc through a drain's splash at Vivec and through the blight
-/// cloud at Dagoth Ur. A field the sampler interpolates cannot draw a silhouette, and one averaged over
-/// frames and across its neighbours cannot speckle — over frames alone it could: M[FR]'s ground mist, lit
-/// by the sun at a card's worth, showed each froxel's draw as a warm blotch a column wide, which is why
-/// this reads `fogSeeing` and not what the scatter pass wrote.
+/// between neighbouring pixels wherever the layer straddles a shadow edge, and draw that puff's silhouette (a
+/// black disc through a drain's splash at Vivec). A field the sampler interpolates cannot, and one averaged
+/// over frames alone could still speckle: M[FR]'s ground mist showed each froxel's draw as a warm blotch a
+/// column wide, so this reads `fogSeeing` and not what the scatter pass wrote.
 ///
-/// **The three terms are the ones a puff always had**, and the arithmetic is `pathEnd`'s with the
-/// visibilities read rather than traced: the frame's ambient by what the point sees of it, the sun by its
-/// transport — the shadow and the beam through the fog — and the lamps by what they deliver times whether
-/// they are seen.
+/// **The three terms are `pathEnd`'s arithmetic with the visibilities read rather than traced**: the ambient
+/// by what the point sees of it, the sun by its transport (the shadow and the beam through the fog), and the
+/// lamps by what they deliver times whether they are seen.
 ///
-/// **As bright as a card of the same albedo held beside it, and that is not a fudge.** An opaque diffuse
-/// *sphere* would catch `pi r^2` of the beam and radiate over `4 pi r^2` — a quarter of the facing value —
-/// but a puff is neither opaque nor diffuse: it is a cloud of droplets that scatters strongly forward and
-/// again inside itself, so the sun reaches all of it rather than one hemisphere. The quarter, tried first
-/// in the reference implementation, put a plume back at the sky's own ambient, where it was invisible.
+/// **As bright as a card of the same albedo, and that is not a fudge.** An opaque diffuse *sphere* would catch
+/// `pi r^2` of the beam and radiate over `4 pi r^2`, a quarter of the facing value, but a puff is a cloud of
+/// droplets that scatters strongly forward and again inside itself, so the sun reaches all of it. The quarter
+/// put a plume back at the sky's own ambient, where it was invisible.
 ///
 /// @param seen how far along the ray the puff stands, which with the pixel names the froxel.
 /// @param wrapped what the puff's own shape and its own texture leave of each of the two terms —
@@ -98,10 +89,9 @@ vec3 puffLight(uvec2 pixel, vec3 direction, float seen, PuffShape wrapped)
     const FogSeeing seeing = unpackFogSeeing(textureLod(fogSeeing, at, 0.0));
 
     // **The field holds the air's share and a puff takes the card's.** `lampsInAir` stores the lamps' mean
-    // irradiance under the air's isotropic phase, `E / 4 pi`, which the integration reads as it stands; a
-    // card is lit at `E / pi`, as the sun and the fill are below, so a puff takes four of what the air
-    // does. Stored in the air's own quantity and not as irradiance, because the field is half floats and a
-    // lamp's irradiance beside it runs twelve times closer to their top.
+    // irradiance under the air's isotropic phase, `E / 4 pi`; a card is lit at `E / pi`, as the sun and the
+    // fill are below, so a puff takes four of what the air does. Stored in the air's own quantity because the
+    // field is half floats and a lamp's irradiance beside it runs twelve times closer to their top.
     const vec3 lamps = textureLod(fogLamps, at, 0.0).xyz * (INV_PI / INV_FOUR_PI);
 
     const vec3 daylight = daylightReaching(frame.mOrigin + direction * seen);
@@ -115,14 +105,13 @@ vec3 puffLight(uvec2 pixel, vec3 direction, float seen, PuffShape wrapped)
 
 /// What a painted alpha hides over `crossings` of the thickness it was painted for.
 ///
-/// **A painted alpha is an optical depth and not a coverage.** A ray through part of one crossing hides
-/// less and a ray through more than one hides more, and both are `1 - (1 - a) ^ n`. A sprite's `n` is the
-/// share of its own chord the eye sees — one in the open, a sliver where the ball runs into a wall.
+/// **A painted alpha is an optical depth and not a coverage**: a ray through part of one crossing hides less
+/// and through more than one hides more, both `1 - (1 - a) ^ n`. A sprite's `n` is the share of its own chord
+/// the eye sees: one in the open, a sliver where the ball runs into a wall.
 ///
-/// **No test for a whole crossing here.** A ball's share of its own chord is one only up to rounding, so a
-/// test on it was a float equality a warp's balls took both ways; a streak sees its quad edge on and is
-/// whole by construction, and `paintedWhole` is what it takes, on a test that is the emitter's and so
-/// uniform across its run.
+/// **No test for a whole crossing here**: a ball's share of its own chord is one only up to rounding, so a
+/// test on it was a float equality a warp's balls took both ways; a streak is whole by construction, and
+/// `paintedWhole` is what it takes, on a test that is the emitter's and so uniform across its run.
 float paintedOver(float painted, float crossings)
 {
     return 1.0 - pow(1.0 - min(painted, SPRITE_ALPHA_LIMIT), crossings);
@@ -161,12 +150,12 @@ float smokeThrow(vec3 direction)
 /// is on, and the sky's side.
 ///
 /// **The sky's side, and only as much of it as the frame's ambient is the sky's.** Nothing a puff is lit by
-/// besides the sun has a direction to take a side toward — except that out of doors the frame's ambient is
-/// very nearly the sky, which is above. A room's fill arrives from every side and a ball meets it evenly,
-/// which is what the mix says at nought.
+/// besides the sun has a direction to take a side toward, except that out of doors the ambient is nearly the
+/// sky, which is above; a room's fill arrives from every side and a ball meets it evenly, which is what the
+/// mix says at nought.
 ///
-/// **Two callers, and this is what keeps them one shape**: a sprite's ball, and a cloud the content
-/// modelled as shells — `mediumAlong` — which is smoke with a real plane to read the side off.
+/// **Two callers, which keeps them one shape**: a sprite's ball, and a cloud modelled as shells
+/// (`mediumAlong`), which is smoke with a real plane to read the side off.
 ///
 /// @param thrownForward `smokeThrow` for the ray, which a walk evaluates once for every ball on it.
 PuffShape ballPuff(vec3 normal, float thrownForward)
@@ -208,16 +197,14 @@ struct PuffLayer
     /// What the covering puffs look like where they cover a pixel whole — a straight colour and not one
     /// premultiplied by `1 - mTransmittance`.
     ///
-    /// **Straight, because that is what a colour is**, and because the composite multiplies it by the
-    /// coverage where it composites.
+    /// **Straight**, because the composite multiplies it by the coverage where it composites.
     vec3 mColour;
 
     /// What the additive sprites put in, which no coverage carries.
     ///
-    /// **Apart from `mColour`, because an alpha blend cannot express a flame.** A layer the composite
-    /// blends is a colour and an opacity, and a flame's opacity is nought by definition — so what it adds
-    /// rides with the frame behind it instead. What that costs is that a plume across a flame now dims it,
-    /// which is the one case this walk's own note says it did not model.
+    /// **Apart from `mColour`, because an alpha blend cannot express a flame**: a blended layer is a colour and
+    /// an opacity, and a flame's opacity is nought, so what it adds rides with the frame behind it. The cost
+    /// is that a plume across a flame dims it.
     vec3 mAdded;
 
     /// What survives the covering puffs. One for a frame with only flames in it: additive
@@ -253,9 +240,9 @@ PuffLayer noPuffs()
 
 /// How much of the sprite's rim the mip chain has already eaten, as a factor to taper it by.
 ///
-/// **A sprite a few pixels across is sampled several levels down its own chain**, by which point the blob
-/// the artist painted has been averaged into a nearly flat wash and the only shape left is the square the
-/// texture was cut to — so a spark at any distance reads as a little rectangle.
+/// **A sprite a few pixels across is sampled several levels down its own chain**, where the painted blob is
+/// averaged into a flat wash and only the square the texture was cut to is left, so a spark at any distance
+/// reads as a little rectangle.
 float spriteTaper(float radial, float lod)
 {
     // Written the way round GLSL defines: `smoothstep` with its first edge above its second is
@@ -299,11 +286,9 @@ SpriteCrossing noCrossing()
 /// **A quad that hangs in the world**, so the ray meets a plane rather than a ball.
 ///
 /// **The axis it hangs on is the sprite's; which way its width faces is not.** `osgParticle` commits a
-/// `FIXED` system's quad to the plane its two axes span, because a rasterizer has to commit it to some
-/// plane, and Morrowind's rain commits it to the world's X–Z one — so a drop looked at from along X is a
-/// polygon seen edge-on and thins away to nothing, and the same storm reads three times heavier facing
-/// north than facing east. That is a fact about drawing quads rather than about rain, and it is the sort of
-/// thing rays are here to stop answering with.
+/// `FIXED` system's quad to the plane its two axes span and Morrowind's rain commits it to the world's X–Z
+/// one, so a drop looked at from along X is a polygon seen edge-on and the same storm reads three times
+/// heavier facing north than facing east. That is a fact about drawing quads and not about rain.
 ///
 /// @param width how wide the emitter's quads are against their own axis, `GpuEmitter::mWidth`.
 /// @param texels the texture's extent along each of the quad's axes.
@@ -338,29 +323,28 @@ SpriteCrossing quadCrossing(GpuSprite sprite, vec3 toSprite, vec3 direction, flo
     if (max(abs(at.x), abs(at.y)) >= 1.0)
         return noCrossing();
 
-    // **Both of the quad's own axes, and the denser one decides.** A rain streak carries eight texels
-    // across a fifth of its own height and thirty-two down the whole of it, so its width resolves two and a
-    // half times finer than its length — and a level chosen from the length alone reads the width sharper
-    // than the ray can carry, which is a drop that aliases into a hard mark instead of fading. A disc is
-    // the same extent both ways, which is why one number served until a quad hung in the world.
+    // **Both of the quad's own axes, and the denser one decides.** A rain streak carries eight texels across a
+    // fifth of its own height and thirty-two down the whole of it, so its width resolves two and a half times
+    // finer than its length, and a level chosen from the length alone reads the width sharper than the ray can
+    // carry: a drop that aliases into a hard mark instead of fading. A disc is the same extent both ways.
     //
-    // **The length as the ray sees it**: a cone across the ray covers `1 / sin θ` of an axis θ off it,
-    // which is rain seen from above, and `sin θ` is `swing` over the axis's length — so the axis's own
-    // `inverseAxis` cancels.
+    // **The length as the ray sees it**: a cone across the ray covers `1 / sin θ` of an axis θ off it, which is
+    // rain seen from above, and `sin θ` is `swing` over the axis's length, so the axis's own `inverseAxis`
+    // cancels.
     const float rate = 0.5 * max(texels.x / width, texels.y / swing) / sprite.mRadius;
 
     return SpriteCrossing(true, depth, 1.0, at, length(at), 0.0, rate, axis * inverseAxis);
 }
 
 /// **A ball and not a disc, and what the eye sees of it is a chord.** The disc the rasterizer drew is the
-/// ball's silhouette, and everything it painted is kept: in the open the chord is whole and the sprite
-/// composites exactly as the quad did. What the ball adds is an inside, so where it runs into a wall — or
-/// the wall into it, or the eye into either — the chord is cut at the surface and the sprite fades along
-/// the ray instead of being clipped at its centre.
+/// ball's silhouette and everything it painted is kept: in the open the chord is whole and the sprite
+/// composites exactly as the quad did. What the ball adds is an inside, so where it runs into a wall (or the
+/// wall into it, or the eye into either) the chord is cut at the surface and the sprite fades along the ray
+/// instead of being clipped at its centre.
 ///
 /// **A first-person effect is the billboard and has no inside**: a ball's near half lets a particle centred
-/// behind the palm shine through the palm's front, so it stands at its centre, whole or not at all.
-/// Selected, so an emitter on the arms takes the path every other takes.
+/// behind the palm shine through its front, so it stands at its centre, whole or not at all. Selected, so an
+/// emitter on the arms takes the path every other takes.
 ///
 /// @param across,upward the disc's own axes, unit and square to the ray, which the disc's texture
 ///        is read along: `spritesAlong` says why they are not the screen's.
@@ -392,10 +376,10 @@ SpriteCrossing ballCrossing(
 /// The pixel whose tile a ray looks its sprites up in: its own for the world's eye, and for the arms' the
 /// world pixel the ray passes through, held to the frame.
 ///
-/// **The bin is the world camera's.** An arms' ray leaves the same eye across a plane of the arms' own
-/// field of view, so the pixel it was cast for names a tile the world's ray through that pixel meets, and
-/// not the tile of what the arms' ray meets — a sprite in front of the hand was looked for a few tiles off.
-/// Mapped for every ray and selected, so a warp over the hand's edge takes one path.
+/// **The bin is the world camera's.** An arms' ray leaves the same eye across a plane of the arms' own field
+/// of view, so the pixel it was cast for names a tile the world's ray through that pixel meets, and not the
+/// tile of what the arms' ray meets. Mapped for every ray and selected, so a warp over the hand's edge takes
+/// one path.
 ///
 /// @param direction the ray's, ahead of the eye.
 uvec2 binnedPixel(uvec2 pixel, vec3 direction, bool arms)
@@ -428,14 +412,12 @@ KeptPuff noPuff()
 /// The covering puffs a walk has met, the nearest four of them apart and in order of depth, and every one
 /// past them merged into the farthest: Salvi and Vaidyanathan's multi-layer alpha blending (2014).
 ///
-/// **Four and not two, because the two cost the same.** Measured on the skies suite, three alternated
-/// rounds each: the order took 0.02 to 0.04 ms from the trace's median against the weighted mean before it
-/// — the storm's 1.25 to 1.28 ms became 1.29 to 1.31 — and two layers took no less than four, within a
-/// hundredth.
+/// **Four and not two, because the two cost the same.** Measured on the skies suite, three alternated rounds
+/// each: the order took 0.02 to 0.04 ms from the trace's median against the weighted mean before it (the
+/// storm's 1.25 to 1.28 ms became 1.29 to 1.31), and two layers took no less than four, within a hundredth.
 ///
-/// **In order and not weighed by alpha alone**, because a coverage-weighted mean lets a farther, denser
-/// layer win: a thin wisp in front of a thick plume came out the plume's colour, where what the eye sees is
-/// the wisp over it.
+/// **In order and not weighed by alpha alone**, because a coverage-weighted mean lets a farther, denser layer
+/// win: a thin wisp in front of a thick plume came out the plume's colour.
 struct PuffLayers
 {
     KeptPuff mNearest;
@@ -506,14 +488,14 @@ void layPuffBehind(inout PuffsInOrder inOrder, KeptPuff kept)
 
 /// Every emitter's sprites the ray crosses, composited.
 ///
-/// **No acceleration structure and one sphere per emitter.** A lamp is asked for by a shading *point*,
-/// which the uniform grid answers in a lookup; an emitter is asked for by a whole *ray*, which would have
-/// to walk that grid cell by cell. There are tens of emitters in a cell and each is small, so one rejection
-/// throws an emitter away for almost every pixel of the frame.
+/// **No acceleration structure and one sphere per emitter.** A lamp is asked for by a shading *point*, which
+/// the uniform grid answers in a lookup; an emitter is asked for by a whole *ray*, which would walk that grid
+/// cell by cell. There are tens of emitters in a cell and each is small, so one rejection throws an emitter
+/// away for almost every pixel of the frame.
 ///
-/// **The covering ones in order, the nearest few of them**: `osgParticle` keeps its array in birth order
-/// and sorting tens of sprites per pixel is not affordable, so a walk keeps the nearest four apart and
-/// merges the rest behind them (`PuffLayers`), and the coverage it reports, `1 - prod(1 - a)`, is exact.
+/// **The covering ones in order, the nearest few of them**: `osgParticle` keeps its array in birth order and
+/// sorting tens of sprites per pixel is not affordable, so a walk keeps the nearest four apart and merges the
+/// rest behind them (`PuffLayers`), and the coverage it reports, `1 - prod(1 - a)`, is exact.
 PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Cone cone, bool lit)
 {
     PuffLayer layer = noPuffs();
@@ -543,13 +525,12 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
     // The disc's own axes, square to the ray and turned by the screen's up, for reading a sprite's texture
     // across the disc the ray sees. Hoisted because they are the ray's and not the sprite's.
     //
-    // **Square to the ray and not the screen's own axes, because the disc is.** `ballCrossing` cuts the
-    // disc square to the ray, and the offset it reads the texture by is measured along these — so read
-    // along the screen's axes, the offset lost its share along the ray's slant: at the edge of a frame
-    // ninety degrees wide a ray stands forty-five degrees off the axis, the silhouette reached only seven
-    // tenths of the way across the texture, and the blob's own alpha there was drawn as a hard rim on every
-    // puff away from the centre. The cross is unit as long as the ray is not the screen's up, which no
-    // pinhole's ray inside its own field of view is.
+    // **Square to the ray and not the screen's own axes, because the disc is.** `ballCrossing` cuts the disc
+    // square to the ray and the texture offset is measured along these: along the screen's axes the offset
+    // lost its share along the ray's slant, so at the edge of a frame ninety degrees wide the silhouette
+    // reached only seven tenths of the way across the texture and the blob's alpha drew a hard rim on every
+    // puff off-centre. The cross is unit as long as the ray is not the screen's up, which no pinhole's ray
+    // inside its own field of view is.
     const vec3 across = normalize(cross(direction, frame.mEyes.mWorld.mBasis.mUp));
     const vec3 upward = cross(across, direction);
 
@@ -661,16 +642,15 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
             // path — so a puff seen down a slope kept a third more of itself than the air left it.
             const float reaching = exp(-fogColumnOver(air, crossing.mSeen) * measured.mBand);
 
-            // **No gain, deliberately.** The blend the file asks for says exactly how much light the sprite
-            // adds; `SUNLIT_WHITE` is only what carries the original's scale, where a fully lit surface
-            // reached one, onto this renderer's. A flame then comes out tens of times the mean of the room
-            // it stands in, because that is what a flame is, and the exposure downstream decides where it
-            // lands.
+            // **No gain, deliberately.** The blend the file asks for says how much light the sprite adds;
+            // `SUNLIT_WHITE` only carries the original's scale, where a fully lit surface reached one, onto this
+            // renderer's. A flame comes out tens of times the mean of its room because that is what a flame is,
+            // and the exposure downstream decides where it lands.
             //
-            // **And it absorbs as much as it emits, per channel**, which is what makes the screen in the
-            // accumulator exact for a stack of them: what one sprite adds is what it always added, and what
-            // twenty add saturates at the white the original's framebuffer clamped to, rather than at
-            // twenty times it.
+            // **And it absorbs as much as it emits, per channel**, which makes the screen in the accumulator
+            // exact for a stack: what one sprite adds is what it always added, and twenty saturate at the white
+            // the original's framebuffer clamped to, not at twenty times it.
+
             const vec3 glow
                 = (oriented ? paintedWhole(colour * painted) : paintedOver(colour * painted, crossing.mFraction))
                 * reaching;

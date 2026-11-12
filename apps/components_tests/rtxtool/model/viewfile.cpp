@@ -87,12 +87,10 @@ namespace RtxTool
 
         /// Every place the shipped suites name is a place the shipped views file has.
         ///
-        /// **The one way this pair can be wrong that nothing else catches.** A view renamed in
-        /// `views.cfg` leaves `benches.cfg` naming something that no longer exists, and the run that
-        /// finds out is the one somebody started and walked away from.
-        ///
-        /// **Read where the build put them**: the harness's folder, which holds its scripts and the
-        /// shaders with their source too, and stands apart from the resources an install carries.
+        /// **The one way this pair can be wrong that nothing else catches**: a view renamed in `views.cfg`
+        /// leaves `benches.cfg` naming something that no longer exists, found by the run somebody started
+        /// and walked away from. **Read where the build put them**: the harness's folder, which holds its
+        /// scripts and the shaders with their source too, apart from the resources an install carries.
         TEST(RtxBenchSuiteTest, everySuiteNamesViewsThatExist)
         {
             const std::filesystem::path harness = harnessDirectory();

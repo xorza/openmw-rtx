@@ -15,12 +15,11 @@ namespace SceneUtil
     /// What `addLight` leaves on the group it attaches a light inside: that every drawable under the
     /// group is the model of that light — a lantern's paper, a candle's flame mesh.
     ///
-    /// **Why a renderer that bounces light needs to know.** The light already delivers what the
-    /// model glows with, so a renderer that also gathered the model's glow by a bounce would light
-    /// the room twice. The rasterizer bounces nothing and never asks.
+    /// **Why a renderer that bounces light needs to know.** The light already delivers what the model
+    /// glows with, so also gathering the model's glow by a bounce would light the room twice.
     ///
-    /// Kept among the node's user objects and not in its user data slot, which `StableIdentity`
-    /// holds on the game's roots and the editor's tags hold on every node it hands `addLight`.
+    /// Kept among the node's user objects and not in its user data slot, which `StableIdentity` holds on
+    /// the game's roots and the editor's tags hold on every node it hands `addLight`.
     class LampBody final : public osg::Object
     {
     public:

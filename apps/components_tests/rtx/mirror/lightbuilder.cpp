@@ -162,10 +162,9 @@ namespace Rtx
 
         /// The clock and the light's id are the whole of the state, so one instant is one answer.
         ///
-        /// **What this buys is that anyone may ask.** This renderer's walk, the harness and a test
-        /// all reach the same answer for a frame, at any frame rate, in any order, and however many
-        /// times — which is what lets the light be computed where it is read rather than written
-        /// once by whichever traversal got there first, of which the harness runs none.
+        /// **What this buys is that anyone may ask.** This renderer's walk, the harness and a test all reach the same
+        /// answer for a frame, at any frame rate, in any order and however many times, so the light is computed
+        /// where it is read rather than written once by whichever traversal got there first (the harness runs none).
         TEST(RtxLightBuilderTest, theSameInstantAlwaysGivesTheSameBrightness)
         {
             const Lamp lamp{ SceneUtil::LightController::LT_FlickerSlow };
@@ -184,9 +183,8 @@ namespace Rtx
 
         /// Two candles standing together do not flicker together.
         ///
-        /// Their ids are the only thing separating them, and ids are handed out in sequence — so
-        /// neighbours are exactly the case this has to answer for. Measured across sixty-four of
-        /// them rather than between two.
+        /// Their ids are the only thing separating them, and ids are handed out in sequence, so neighbours are
+        /// exactly the case this answers for. Measured across sixty-four of them rather than between two.
         TEST(RtxLightBuilderTest, lampsBuiltTogetherStillFlickerApart)
         {
             std::vector<float> lit;
@@ -335,12 +333,11 @@ namespace Rtx
             EXPECT_NEAR(both.x(), 2.75302f, 1e-4f);
             EXPECT_NEAR(both.y(), 2.53716f, 1e-4f);
 
-            // **The property the whole function exists for.** The cell ring reads a cell's `LIGH`
-            // records and the walk reads the `SceneUtil::LightSource` nodes the game hangs on the
-            // same records; for one record those two have to be one light, down to the last bit of
-            // the intensity, at every hour and under every animation — or a lamp changes as its cell
-            // loads. The graph's source is built the way the game builds one, `createLightSource`,
-            // and both are phased by the id the graph's own node was given.
+            // **The property the whole function exists for.** The cell ring reads a cell's `LIGH` records and
+            // the walk reads the `SceneUtil::LightSource` nodes the game hangs on the same records; for one
+            // record the two have to be one light, down to the last bit of the intensity, at every hour and
+            // under every animation, or a lamp changes as its cell loads. The graph's source is built as the
+            // game builds one (`createLightSource`), and both are phased by the id the graph's own node was given.
             for (const std::uint32_t packed : { 0x00000000u, 0x00808080u, 0x000080FFu, 0x00FFFFFFu })
                 for (const std::int32_t flags : std::initializer_list<std::int32_t>{
                          0, ESM::Light::Flicker, ESM::Light::FlickerSlow, ESM::Light::Pulse, ESM::Light::PulseSlow })
@@ -375,15 +372,13 @@ namespace Rtx
                 SceneUtil::LightController::LT_PulseSlow);
         }
 
-        /// Brightness, reach and the size of the flame all come off the one number the record
-        /// carries, and part company.
+        /// Brightness, reach and the size of the flame all come off the one number the record carries, and part
+        /// company.
         ///
-        /// Intensity stays on the recorded radius, because that is what the lamp *is*. Only the
-        /// falloff's run is stretched, because Morrowind's radii were tuned for a renderer where an
-        /// ambient term lit the room and a lamp only had to light its own post. And the glowing part
-        /// is a fraction of it, which is the same reading of the record as the intensity's: an
-        /// emitter of fixed radiance is brighter by its area, so a lamp that is four times as bright
-        /// is twice as wide and its shadows are twice as soft.
+        /// Intensity stays on the recorded radius, because that is what the lamp *is*. Only the falloff's run is
+        /// stretched, because Morrowind's radii were tuned for a renderer where an ambient term lit the room. The
+        /// glowing part is a fraction of it, the same reading as the intensity's: an emitter of fixed radiance is
+        /// brighter by its area, so a lamp four times as bright is twice as wide and its shadows twice as soft.
         TEST(RtxLightBuilderTest, intensityScalesWithTheRecordedRadiusAndReachIsStretchedPastIt)
         {
             const std::optional<Rtx::Light> light
@@ -426,11 +421,9 @@ namespace Rtx
         /// An unlit record places a mesh and no light, a negative one takes light away, and a
         /// carryable one burns where it lies.
         ///
-        /// **Carryable is not carried.** A hundred and fifty-one of `Morrowind.esm`'s light records
-        /// can be picked up — every candle and torch among them — and the game lights a cell with
-        /// the ones lying in it: `MWClass::Light::insertObjectRendering` withholds a light source
-        /// for `OffDefault` and for nothing else. Refusing `Carry` here was every candle on every
-        /// table gone dark by the record route, while the graph route lit them.
+        /// **Carryable is not carried.** A hundred and fifty-one of `Morrowind.esm`'s light records can be picked up
+        /// (every candle and torch), and the game lights a cell with the ones lying in it:
+        /// `MWClass::Light::insertObjectRendering` withholds a light source for `OffDefault` and nothing else.
         TEST(RtxLightBuilderTest, anUnlitRecordCastsNothingAndACarryableOneBurnsWhereItLies)
         {
             EXPECT_FALSE(castsWherePlaced(describe(100, 0x00FFFFFF, ESM::Light::OffDefault)));
@@ -489,14 +482,13 @@ namespace Rtx
             EXPECT_TRUE(isRefused(makeLight(osg::Vec3f(-1.0f, 1.0f, 0.0f), 100.0f, osg::Vec3f())));
         }
 
-        /// **A lamp gives light by its record, and not by this frame's flicker** (`givesLight`):
-        /// what makes its model a lamp body, whose glow the bounce leaves to the lamp.
+        /// **A lamp gives light by its record, and not by this frame's flicker** (`givesLight`): what makes its model
+        /// a lamp body, whose glow the bounce leaves to the lamp.
         ///
-        /// A white lamp gives, by the graph and by the record; a negative one takes, and a black one,
-        /// one of no size, one of mixed sign and one off by default give nothing. A Light spell's
-        /// glow, all ambient, gives. **A pulse the game wrote to nought for a frame still gives**:
-        /// the game's controller writes the flicker into the light's own diffuse, and the record's
-        /// colour is the controller's.
+        /// A white lamp gives, by the graph and by the record; a negative one takes, and a black one, one of no size,
+        /// one of mixed sign and one off by default give nothing. A Light spell's glow, all ambient, gives. **A pulse
+        /// the game wrote to nought for a frame still gives**: the controller writes the flicker into the light's own
+        /// diffuse, and the record's colour is the controller's.
         TEST(RtxLightBuilderTest, aLampGivesLightByItsRecordAndNotByItsFlicker)
         {
             const osg::Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
@@ -541,12 +533,11 @@ namespace Rtx
 
         /// A lamp any number of which is not finite is refused by every route to one.
         ///
-        /// **Each number came off a file or off a graph something else built**: a record's radius,
-        /// a node's place, a particle's colour. A lamp built of one that is not finite reaches the
-        /// light grid, which sizes itself around every lamp's reach and doubled its cell for ever,
-        /// and the shader, which would light everything near it to NaN. The same lamp with the
-        /// number finite is placed, so what is refused is the number. A radius of 1e20 is finite and
-        /// its square is not, which is why the lamp is asked and not only what it was made of.
+        /// **Each number came off a file or off a graph something else built**: a record's radius, a node's place, a
+        /// particle's colour. A lamp built of a non-finite one would reach the light grid, which sizes itself around
+        /// every lamp's reach, and the shader, which would light everything near it to NaN. The same lamp with the
+        /// number finite is placed, so what is refused is the number. A radius of 1e20 is finite and its square is
+        /// not, which is why the lamp is asked and not only what it was made of.
         TEST(RtxLightBuilderTest, aLampOfANumberThatIsNotFiniteIsRefusedByEveryRouteToOne)
         {
             constexpr float sNaN = std::numeric_limits<float>::quiet_NaN();

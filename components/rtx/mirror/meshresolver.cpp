@@ -96,11 +96,10 @@ namespace Rtx
                 return mesh;
             }
 
-            // What says the slot still fits, and it has to be asked: a deforming drawable is a
-            // shell over a source geometry the engine may replace, and a rig re-pointed at a longer
-            // mesh posed into the old slot would write past it over the meshes that follow. Where
-            // the source, the kind or the skin differs the entry goes and the geometry is mirrored
-            // afresh.
+            // What says the slot still fits has to be asked: a deforming drawable is a shell over a source geometry the
+            // engine may replace, and a rig re-pointed at a longer mesh posed into the old slot would write past it
+            // over the meshes that follow. Where the source, the kind or the skin differs the entry goes and the
+            // geometry is mirrored afresh.
             const std::size_t vertices
                 = read.mDeform == Deform::Morph ? morphBase(*read.mMorph).size() : vertexCountOf(geometry);
 
@@ -126,12 +125,11 @@ namespace Rtx
             mMeshes.abandon(known);
         }
 
-        // **What a content file says is refused here, per drawable, and the frame goes on.** Every
-        // check runs before a row is made, so a refusal leaves the scene as it was. The refusal is
-        // kept under the drawable, stamped as the walk meets it, so a file the renderer cannot
-        // take is read once for as long as it stands rather than once a frame.
-        // Where a read first meets a drawable, which the frame then holds: a mesh a fold or a crease
-        // split fails on names itself, its drawable and the model's root.
+        // **What a content file says is refused here, per drawable, and the frame goes on.** Every check runs before a
+        // row is made, so a refusal leaves the scene as it was. The refusal is kept under the drawable, stamped as the
+        // walk meets it, so a file the renderer cannot take is read once for as long as it stands rather than once a
+        // frame. Where a read first meets a drawable, a mesh a fold or a crease split fails on names itself, its
+        // drawable and the model's root.
         const osg::Node* const model = modelOf(path);
         const Crash::NoteScope noted("reading the mesh \"{}\" of the model \"{}\"", drawable.getName(),
             model != nullptr ? std::string_view(model->getName()) : std::string_view());
@@ -270,12 +268,10 @@ namespace Rtx
             return mScene.addMesh(reading.mArrays, reading.mShape, held.mIndex);
         }
 
-        // Otherwise this drawable gets a deformer of its own, made with its mesh. A skin rewritten
-        // in place under the same key is a new skin: `setInfluences` on a rig the mirror has met
-        // writes into the `InfluenceData` every copy shares, so what the map held described a mesh
-        // of another length; the deformer it named stays for the meshes still on it and goes
-        // with the last of them. A set of targets grown or shrunk under the same base is a new set
-        // for the same reason.
+        // Otherwise this drawable gets a deformer of its own, made with its mesh. A skin rewritten in place under the
+        // same key is a new skin: `setInfluences` on a rig the mirror has met writes into the `InfluenceData` every
+        // copy shares, so what the map held described a mesh of another length; the deformer it named stays for the
+        // meshes still on it. A set of targets grown or shrunk under the same base is a new set for the same reason.
         DeformedMesh added;
         if (read.mDeform == Deform::Rig)
         {
@@ -365,11 +361,10 @@ namespace Rtx
             }
             assert(bones.size() == skin.mBones.size());
 
-            // `RigGeometry::cull`'s arithmetic, row for row: each bone's rows, and the skin's
-            // transform beside them for the kernel to apply once to their blend (`packRig` says
-            // why not into each). From the matrices the update traversal left: a skeleton it
-            // skipped is one whose bones did not move. A bone the skeleton lacks is rows of
-            // nought, which the blend adds nothing for, as `cull` skips it.
+            // `RigGeometry::cull`'s arithmetic, row for row: each bone's rows, and the skin's transform beside them for
+            // the kernel to apply once to their blend (`packRig` says why not into each). From the matrices the update
+            // traversal left: a skeleton it skipped is one whose bones did not move. A bone the skeleton lacks is rows
+            // of nought, as `cull` skips it.
             osg::Matrixf transform = skin.mTransform;
             if (const osg::RefMatrix* skinToSkel = rig.getSkinToSkelMatrix())
                 transform = (*skinToSkel) * skin.mTransform;
@@ -426,11 +421,10 @@ namespace Rtx
 
     void MeshResolver::holdPose(const Index mesh, const osg::Drawable& drawable, const osg::BoundingBoxf& first)
     {
-        // **A pose that is not a finite number keeps the last one**, because the engine animated
-        // it from content: a key, a skin or a weight a file wrote. Carried, it is a store that is
-        // not finite in the deforming kernel and a refit that changes which triangles are active,
-        // which an update may not. The rasterizer draws nothing of the vertices it reaches; a body
-        // held a frame is the nearest the trace can come without building its structure again.
+        // **A pose that is not a finite number keeps the last one**, because the engine animated it from content.
+        // Carried, it is a store that is not finite in the deforming kernel and a refit that changes which triangles
+        // are active, which an update may not. A body held a frame is the nearest the trace can come without building
+        // its structure again.
         mScene.refusals().refuse(Refused::Mesh, drawable.getName(), "its pose is not a finite number");
         if (mScene.meshes().getRows()[mesh].mPosed)
             return;
@@ -446,11 +440,10 @@ namespace Rtx
 
         const std::size_t vertices = vertexCountOf(*rig.getSourceGeometry());
 
-        // The groups flattened into a run per vertex. `RigGeometry::setInfluences` gathers the
-        // vertices that share one weight list so the rasterizer blends each list once; a kernel
-        // blends per lane and wants to find its list from its vertex, which is what the run word
-        // is. A vertex in no group is a run of nothing, which the kernel leaves at its bind pose, as
-        // the rasterizer does.
+        // The groups flattened into a run per vertex: `RigGeometry::setInfluences` gathers the vertices that share one
+        // weight list, but a kernel blends per lane and wants to find its list from its vertex, which is what the run
+        // word is. A vertex in no group is a run of nothing, which the kernel leaves at its bind pose, as the
+        // rasterizer does.
 
         mRunScratch.assign(vertices, 0);
         mInfluenceScratch.clear();

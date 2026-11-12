@@ -31,12 +31,10 @@ namespace Rtx
         std::size_t bytes() const;
     };
 
-    /// A file's chain made again by the host (`ChainPass`), in one of two shapes. **Coarser**: the
-    /// levels after the file's finest, in the layout the file is described at, which a slot describes
-    /// under the file's own finest level (`TextureData::mCoarser`), so the finest is neither copied nor
-    /// held: the slot that holds this holds the file, as the resource cache and the scene graph do.
-    /// **Whole**: every level from the finest down in a format of its own (BC7), which a slot describes
-    /// as it stands.
+    /// A file's chain made again by the host (`ChainPass`), in one of two shapes. **Coarser**: the levels after the
+    /// file's finest, which a slot describes under the file's own finest level (`TextureData::mCoarser`), so the finest
+    /// is neither copied nor held. **Whole**: every level from the finest down in a format of its own (BC7), which a
+    /// slot describes as it stands.
     class MadeImage final : public osg::Referenced
     {
     public:

@@ -51,13 +51,10 @@ namespace Rtx
         mPresence.outgrow(
             VkDeviceSize{ Shaders::spriteTilesIn(camera.mWidth, camera.mHeight) } * sizeof(std::uint32_t));
 
-        // Sized from what the last bin here said it needed, with room over it, because the need is
-        // only known once the tiles are counted and that happens on the device. Read where the
-        // host has waited past the submit the report rode — the frame ring's wait, a frame or two
-        // on, and never a question to the device, so which frame first reads a report is a
-        // function of the frames and not of the clock; a bin whose report is not yet waited for
-        // keeps the capacity it has, which `SpriteListSize` never shrinks anyway. Here with the
-        // rest, because the frame block carries this table's address too.
+        // Sized from what the last bin here said it needed, with room over it, because the need is only known once the
+        // tiles are counted on the device. Read where the host has waited past the submit the report rode, so which
+        // frame first reads a report is a function of the frames and not of the clock; a bin whose report is not yet
+        // waited for keeps its capacity. Here with the rest, because the frame block carries this table's address too.
         const std::optional<std::uint32_t> reported = mRecorded && timeline.hasFinished(mReport.getNamedUntil())
             ? std::optional(*static_cast<const std::uint32_t*>(mReport.map()))
             : std::nullopt;
@@ -69,12 +66,10 @@ namespace Rtx
 
         mPuffs = count > 0 || source.mPresenceCount > 0;
 
-        // The placement's table, whole, because the shade writes over what it reads: the copy is
-        // what lets a second trace against the same placement — a picture, or the frame after a
-        // picture — start from sprites nothing has shaded. On the queue and not from the host,
-        // so nothing a submit in flight reads is written under it. Whoever read this bin's tables
-        // last is behind on the queue, and the barrier `CommandPool::begin` records at the head
-        // of these commands is what orders the copy after it. Handed to the launch and the
+        // The placement's table, whole, because the shade writes over what it reads: the copy lets a second trace
+        // against the same placement start from sprites nothing has shaded. On the queue and not from the host, so
+        // nothing a submit in flight reads is written under it; the barrier `CommandPool::begin` records at the head of
+        // these commands orders the copy after whoever read this bin's tables last. Handed to the launch and the
         // dispatch both, because the shelter launch writes it before the shade does.
         if (bytes > 0)
             source.mSprites->copyTo(commands, mSprites.get(), bytes);

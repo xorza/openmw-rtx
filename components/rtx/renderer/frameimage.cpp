@@ -74,8 +74,7 @@ namespace Rtx
         // **The middle of the frame at the asked aspect, averaged over the area each pixel covers**:
         // cut by the rule `MWRender::ScreenshotManager` cuts the rasterizer's thumbnail by
         // (`Misc::cropToAspect`, in whole numbers where it works in double), and scaled. A pixel nearest
-        // its centre was a sample of one texel in sixty of a 4K frame, and the whole frame squashed
-        // into a thumbnail of another aspect was a picture of no place.
+        // its centre sampled one texel in sixty of a 4K frame.
         const Misc::Crop crop = Misc::cropToAspect(osg::Vec2i(wide, tall), osg::Vec2i(width, height));
 
         // Across first, into a row of sums a crop row tall, then down.

@@ -23,15 +23,13 @@ namespace Rtx
     /// two thousand texels a side.
     inline constexpr VkDeviceSize sSpreadMeansRoom = 64 * 1024 * 1024;
 
-    /// What a run of arriving textures leaves the device to do, recorded once for the whole run a
-    /// phase at a time: every copy, then each level of every spread and every bake, with one barrier between two phases
-    /// rather than several around each texture. A barrier drains the queue, and a texture's dispatches are a few groups
-    /// each: recorded texture by texture, a cell of three hundred textures was thousands of barriers around work that
-    /// left the device idle between them.
+    /// What a run of arriving textures leaves the device to do, recorded once for the whole run a phase at a time:
+    /// every copy, then each level of every spread and every bake, with one barrier between two phases rather than
+    /// several around each texture. A barrier drains the queue, and a texture's dispatches are a few groups each:
+    /// recorded texture by texture, a cell of three hundred textures was thousands of barriers around idle work.
     ///
-    /// Work names its images by address, so an image stays where it is from the call that names it
-    /// to `record`: a `Texture` stands where its owner keeps it. Kept and refilled per run, so what
-    /// it holds settles at the busiest run so far.
+    /// Work names its images by address, so an image stays where it is from the call that names it to `record`. Kept
+    /// and refilled per run, so what it holds settles at the busiest run so far.
     class TextureArrival
     {
     public:
@@ -110,11 +108,10 @@ namespace Rtx
         /// The room every barrier of a run is recorded in, sized to its widest.
         std::vector<VkImageMemoryBarrier2> mImageBarriers;
 
-        /// The means the spreads are carried through, one group at a time: grown to the largest
-        /// group so far, and worked in again by every group after. **A room and not a chain apiece**,
-        /// because a map's float means are four times what the map keeps, a chain of them stood for
-        /// every normal map of an arrival at once, and the arrival's room then held every texture of
-        /// it to a smaller side for good, for memory let go of a frame later.
+        /// The means the spreads are carried through, one group at a time: grown to the largest group so far and worked
+        /// in again by every group after. A room and not a chain apiece, because a map's float means are four times
+        /// what the map keeps, and a chain of them for every normal map of an arrival at once held every texture to a
+        /// smaller side for good, for memory let go of a frame later.
         const VkDeviceSize mMeansRoom;
         GrowableBuffer mMeans;
 

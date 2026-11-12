@@ -64,15 +64,10 @@ namespace Rtx
 
         /// Every tile holds the whole spectrum, and holds it in tens of thousands of components.
         ///
-        /// **The component count is what the transform is for.** A table of sixty-four sinusoids
-        /// gives the shortest four forty per cent of the curvature — four plane waves crossing,
-        /// which is a lattice. A tile of this size holds five orders more
-        /// than that inside the same band.
-        ///
-        /// **And the band is the spectrum's, not the tile's.** A tile cannot hold a wave longer than
-        /// itself or shorter than two of its texels, and both of these are wide enough and fine
-        /// enough that neither limit bites: what bounds the band is `sShortestWave`, which the
-        /// spectrum stops at for reasons of its own.
+        /// **The component count is what the transform is for.** A table of sixty-four sinusoids gives the shortest
+        /// four forty per cent of the curvature, which is a lattice of crossing plane waves. A tile holds five
+        /// orders more than that inside the same band, and the band is the spectrum's (`sShortestWave`), because
+        /// neither the tile's size nor its texel limits it here.
         TEST(RtxWaveCascadeTest, everyTileHoldsTheWholeSpectrumInTensOfThousandsOfComponents)
         {
             const auto cascades = makeWaveCascades(SeaState{});
@@ -221,12 +216,9 @@ namespace Rtx
         /// Each twiddle is its angle's cosine and sine rounded once, and the axes and the mirror
         /// about the eighth are exact.
         ///
-        /// **Hand-computed where it is exact**: nought steps is `(1, 0)`, a quarter turn — 128 of
-        /// 512 — is `(0, 1)`, and an eighth is `sqrt(1/2)` in both, 0.70710678 rounded to a float.
-        /// Elsewhere against the double, within half the gap from the entry to the next float out
-        /// from nought, which is how far a rounding to nearest can move it; the double itself is
-        /// off by under `1e-16`, and by `6e-17` at the axis, where its `cos` of a rounded
-        /// `PI / 2` is not nought.
+        /// **Hand-computed where it is exact**: nought steps is `(1, 0)`, a quarter turn (128 of 512) is `(0, 1)`,
+        /// and an eighth is `sqrt(1/2)` in both. Elsewhere against the double, within half the gap from the entry
+        /// to the next float out from nought, which is how far a rounding to nearest can move it.
         TEST(RtxWaveCascadeTest, eachTwiddleIsItsAngleRoundedOnce)
         {
             const auto twiddles = waveTwiddles();
@@ -263,18 +255,14 @@ namespace Rtx
 
         /// `causticGain` is the mean it says it is, against the field it was fitted to.
         ///
-        /// **The fit is the one number in the caustic nobody can read off the shader.** Everything
-        /// else there is arithmetic or a dial; this is three coefficients standing for four million
-        /// draws, and a fit nobody can check is a magic number. So the draws are made again here.
+        /// **The fit is the one number in the caustic nobody can read off the shader**, three coefficients standing
+        /// for four million draws, so the draws are made again here.
         ///
-        /// The Hessian of an isotropic Gaussian field has one free parameter. Its fourth spectral
-        /// moments give `Var[Hxx] = Var[Hyy] = 3c`, `Var[Hxy] = Cov[Hxx, Hyy] = c`, so
-        /// `E[(tr H)^2] = 8c` — and the fold is `b` times the root of that, which is the whole of
-        /// what the curve is a function of. Drawn as two independent parts plus one shared: the
-        /// shared draw is what makes `Hxx` and `Hyy` agree by `c`.
-        ///
-        /// Two hundred thousand draws a fold, which puts the standard error of each mean under
-        /// 0.002 — a tenth of what is allowed, so a failure here is the fit and not the draw.
+        /// The Hessian of an isotropic Gaussian field has one free parameter. Its fourth spectral moments give
+        /// `Var[Hxx] = Var[Hyy] = 3c`, `Var[Hxy] = Cov[Hxx, Hyy] = c`, so `E[(tr H)^2] = 8c`, and the fold is `b`
+        /// times the root of that. Drawn as two independent parts plus one shared, which makes `Hxx` and `Hyy`
+        /// agree by `c`. Two hundred thousand draws a fold put each mean's standard error under 0.002, a tenth of
+        /// what is allowed.
         TEST(RtxCausticGainTest, theFittedGainIsTheMeanOfWhatTheCausticComputes)
         {
             constexpr std::size_t draws = 200000;

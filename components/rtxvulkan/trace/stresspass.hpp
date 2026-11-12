@@ -14,26 +14,17 @@ namespace Rtx
     class GpuTimer;
 
     /// A dispatch that holds the queue for a stated time and touches nothing a frame reads —
-    /// `RenderProfile::mStressOverlapMs`. Appended to every frame's trace, it keeps the device
-    /// that far behind the host, so every frame is recorded over a frame still running: a hazard
-    /// that needs the overlap to show shows on the first frame of every run rather than on one run
-    /// in four. The zone it is timed as is `FrameZone::Stress`, so the report shows what it
-    /// actually held.
+    /// `RenderProfile::mStressOverlapMs`. Appended to every frame's trace, it keeps the device that far behind the
+    /// host, so every frame is recorded over a frame still running: a hazard that needs the overlap shows on the first
+    /// frame of every run rather than one run in four. It is timed as `FrameZone::Stress`.
     ///
-    /// **The time is measured where it passes, in the loop, off the device's real-time clock.**
-    /// `stress.comp` says why a count is not a time on a card whose clock moves, and it moves the
-    /// most on the frames a run measures first. What the loop's clock came to is left in the
-    /// frame's counts, `Shaders::FrameCounts::mHeldTicks`, which the ring reads back once the frame
-    /// is waited for — `FrameResult::mHeldMs`.
-    ///
-    /// **The clock's tick is the queue's timestamp period**, read as `PhysicalDevice::timestampMs`
-    /// reads the timer's zones. `GL_EXT_shader_realtime_clock` names no unit, and a hold asked in
-    /// nanoseconds would run ten times as long on RDNA and report a tenth of it. Both target
-    /// vendors read one counter for the two: NVIDIA's `%globaltimer` counts nanoseconds and its
-    /// period is one; RDNA's `s_memrealtime` is the 100 MHz reference clock, which RADV states as a
-    /// period of `1e6 / clock_crystal_freq` nanoseconds. Timing the loop against the queue's
-    /// timestamps instead read stalls of up to 2.6 ms around a loop on a card stepping its clock,
-    /// and moved the rate by four fifths.
+    /// The time is measured in the loop off the device's real-time clock (`stress.comp` says why a count is not a
+    /// time); what the loop's clock came to is left in `Shaders::FrameCounts::mHeldTicks`, which the ring reads back as
+    /// `FrameResult::mHeldMs`. The clock's tick is the queue's timestamp period, read as `PhysicalDevice::timestampMs`
+    /// reads the timer's zones, because `GL_EXT_shader_realtime_clock` names no unit: a hold asked in nanoseconds would
+    /// run ten times as long on RDNA. NVIDIA's `%globaltimer` counts nanoseconds; RDNA's `s_memrealtime` is the 100 MHz
+    /// reference clock, which RADV states as a period of `1e6 / clock_crystal_freq` nanoseconds. Timing against the
+    /// queue's timestamps instead read stalls of up to 2.6 ms around a loop on a card stepping its clock.
     class StressPass
     {
     public:

@@ -92,13 +92,10 @@ namespace RtxTool
             return;
         }
 
-        // **The route runs over the measured frames and not the frames ahead of them**, which are
-        // the world standing whole and the warm-up after it; flying during them would start the
-        // measurement partway along and leave the first crossing outside the numbers. **Between
-        // them, and not into the first**: the first measured frame stands where the route starts,
-        // and each after it one step on, so a route sized for `frames - 1` steps
-        // (`Stand::approachFrom`) arrives on the last frame, which is the one `noise --strafe`
-        // judges, and not one frame early.
+        // The route runs over the measured frames and not the warm-up ahead of them, which would start the
+        // measurement partway along. The first measured frame stands where the route starts and each after it
+        // one step on, so a route sized for `frames - 1` steps (`Stand::approachFrom`) arrives on the last
+        // frame, the one `noise --strafe` judges.
         if (measured.has_value())
         {
             if (stop.mSchedule.mRoute.has_value() && *measured > 0)
@@ -168,12 +165,10 @@ namespace RtxTool
         if (!named.has_value() && through.empty())
             return;
 
-        // **Held from the stop's first frame where it names a weather, and not left to the world**,
-        // which the stager asked to settle under it. The world drops the ask at a session's first
-        // stop: its first update runs out every region's weather before it knows which region the
-        // player stands in, and its next rolls the region's own, so `balmora-storm-night` and
-        // `--weather=Rain` were drawn under a clear sky. And past the first, the world rolls the
-        // region's again once its hours between changes run out, in the middle of a stop.
+        // Held from the stop's first frame where it names a weather, and not left to the world: the world
+        // drops the ask at a session's first stop (its first update runs out every region's weather before it
+        // knows the player's region, and its next rolls the region's own), and rolls the region's again once
+        // its hours between changes run out, in the middle of a stop.
         mSky = named.has_value() ? SkyCrossing(*named, *named, 0.0f) : skyOfTheWorld();
 
         if (!through.empty())
@@ -248,14 +243,10 @@ namespace RtxTool
 
         along.normalize();
 
-        // **Off the frame index and not the clock**, for the reason the world is stepped that way:
-        // a camera advanced by how long the last frame took crosses its boundaries somewhere else
-        // on every machine, and where they fall is the whole measurement. The height is the line's
-        // between the two ends, which is what a view states when it names both.
-        //
-        // **The step that lands on the end arrives**, there exactly: a test of the distance left
-        // made before the move found the end a step late, and the frame after the landing stood
-        // still at it and was measured.
+        // Off the frame index and not the clock, as the world is stepped: a camera advanced by how long the
+        // last frame took crosses its boundaries somewhere else on every machine. The height is the line's
+        // between the two ends. The step that lands on the end arrives there exactly: a test of the distance
+        // left made before the move found the end a step late, and the frame after was measured standing still.
         if (route.mSpeed * step >= left)
         {
             mFlown = route.mTo;
@@ -288,11 +279,10 @@ namespace RtxTool
     {
         showInView(MWRender::Mask_Lighting, stop.mStand.mLamps);
 
-        // **The body is hidden from a camera this stands inside it**, through the seam's view mask
-        // that both renderers read: a stop flies the player to its route's point so that cells load
-        // around it and stands the camera on the same coordinates, and would trace a boot thirteen
-        // units from the eye. A free camera is the player's own again, and an armed stop sees
-        // through the body's own eye, which shows the arms alone.
+        // The body is hidden from a camera this stands inside it, through the seam's view mask both renderers
+        // read: a stop flies the player to its route's point so cells load around it and stands the camera
+        // on the same coordinates, and would trace a boot thirteen units from the eye. A free camera is the
+        // player's own again, and an armed stop sees through the body's own eye, which shows the arms alone.
         if (stop.mSchedule.mFreeCamera)
             showInView(MWRender::Mask_Player, true);
         if (stop.mSchedule.mFreeCamera || !stop.mStand.mEye.has_value())
@@ -351,12 +341,11 @@ namespace RtxTool
 
     void CameraDriver::settleBody()
     {
-        // **Measured off the camera and moved by the difference, because the camera is the body's
-        // own and follows it an update behind.** Where the first-person eye stands over the feet is
-        // the head's, and it turns with the body's facing: at the pier, the first correction lifts
-        // the eye 162 units and leaves it five units aside, and the second puts it on the stop's
-        // eye to the bit. **Ended where it is exact, or where a correction brought it no closer** —
-        // then something else is moving the body, which in a window is the player, whose it is.
+        // Measured off the camera and moved by the difference, because the camera is the body's own and
+        // follows it an update behind. The first-person eye over the feet is the head's and turns with the
+        // body's facing: at the pier the first correction lifts the eye 162 units and leaves it five aside,
+        // and the second puts it on the stop's eye to the bit. Ended where it is exact or a correction brought
+        // it no closer, as then something else (in a window, the player) is moving the body.
         MWBase::World& world = *MWBase::Environment::get().getWorld();
         const osg::Vec3f off = *mSettling - osg::Vec3f(world.getRenderingManager()->getCamera()->getPosition());
         const float left = off.length2();

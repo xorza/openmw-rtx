@@ -9,13 +9,11 @@
 
 namespace Misc
 {
-    /// The lock between a frame and the workers it keeps, and the two waits across it — the dance
-    /// and not the data, which stays with its owner. Every operation is a template on what it
-    /// runs, so nothing here allocates on the frame's path. A worker that throws ends the process:
-    /// nothing catches it, so `std::terminate` is called where it was thrown, before anything
-    /// unwinds, and the crash catcher's report names the exception beside that thread's stack. A
-    /// worker's failure is a bug or an allocation that failed; what the world supplies a worker
-    /// refuses in its own results.
+    /// The lock between a frame and the workers it keeps, and the two waits across it — the dance and not
+    /// the data, which stays with its owner. Every operation is a template on what it runs, so nothing here
+    /// allocates on the frame's path. A worker that throws ends the process: `std::terminate` is called where
+    /// it was thrown, and the crash catcher's report names the exception beside that thread's stack. A
+    /// worker's failure is a bug; what the world supplies a worker refuses in its own results.
     class Monitor
     {
     public:
@@ -63,16 +61,15 @@ namespace Misc
             return ready();
         }
 
-        /// A worker's whole loop: wait for work, pick it up, do it, and again until stopped. `ready`
-        /// and `take` share one lock hold, or a second worker would empty the queue between them;
-        /// `turn` runs with the lock released, or a bake would put the workers in single file. A
-        /// stop is answered before anything is picked up, or one more turn would start that nobody
-        /// is left to collect.
+        /// A worker's whole loop: wait for work, pick it up, do it, and again until stopped. `ready` and
+        /// `take` share one lock hold, or a second worker would empty the queue between them; `turn` runs
+        /// with the lock released, or a bake would put the workers in single file. A stop is answered before
+        /// anything is picked up.
         ///
         /// @param ready whether there is anything to do. Under the lock.
         /// @param take what to pick up. Under the same lock hold, so nothing can take it first.
-        /// @param turn what to do about it, handed the stop token so a long turn can give up part
-        ///        way. Outside the lock, and it reaches this monitor again for what it hands back.
+        /// @param turn what to do about it, handed the stop token so a long turn can give up part way.
+        ///        Outside the lock, and it reaches this monitor again for what it hands back.
         template <class Ready, class Take, class Turn>
         void serve(const std::stop_token& stop, Ready ready, Take take, Turn turn)
         {

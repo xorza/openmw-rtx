@@ -56,10 +56,10 @@ namespace Rtx
     /// slot and never the last one freed, because the slot settles a tie between coincident sheets
     /// and the order a sweep drops slots in is a hash of node addresses.
     ///
-    /// **The counts are kept here, by the row that changed.** What a placement counts as is
-    /// decided by its material's traversal facts, its class and its opacity, all of which this
-    /// table is the last to see; a backend that recounted from the rows it was handed kept a
-    /// second flag per row to take a departed row's share back, and this table still has the row.
+    /// **The counts are kept here, by the row that changed.** What a placement counts as is decided
+    /// by its material's traversal facts, its class and its opacity, all of which this table is the
+    /// last to see; a backend that recounted from the rows it was handed needed a second flag per
+    /// row to take a departed row's share back.
     class PlacementTable
     {
     public:
@@ -93,10 +93,9 @@ namespace Rtx
         bool jump(Index slot, const osg::Matrixf& transform);
 
         /// Says every row wearing `material` now wears `worn` and has to be written again — the
-        /// material changed what traversal is told about the surfaces standing on it. The
-        /// placements that wear it and no other: a list per material is threaded through the
-        /// slots, so a fade crossing opaque costs its own placements rather than a walk of the
-        /// world's.
+        /// material changed what traversal is told about the surfaces standing on it. A list per
+        /// material is threaded through the slots, so a fade crossing opaque costs its own
+        /// placements rather than a walk of the world's.
         void rewriteWearing(Index material, const Material::Traversed& worn);
 
         /// Calls `visit` with every slot placing `mesh`, newest first. The placements of that mesh
@@ -158,9 +157,8 @@ namespace Rtx
 
         /// Where each of `getPresent`'s placements can be met, as a sphere about the box of its
         /// mesh carried through its transform, into `into`: cleared, then one row a slot whose mesh
-        /// has a box. A mesh with none has no vertices yet, and nothing of it can be met; the
-        /// spheres are described again at every placement, so the box is read once it arrives.
-        ///
+        /// has a box. A mesh with none has no vertices yet; the spheres are described again at every
+        /// placement, so the box is read once it arrives.
         /// @param meshes the scene's, whose boxes a placement names.
         void describePresences(std::span<const MeshRange> meshes, std::vector<Shaders::GpuPresence>& into) const;
 

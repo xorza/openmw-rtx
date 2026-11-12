@@ -12,12 +12,10 @@ namespace Crash
     /// How many bytes a note holds, its terminating nought included. A longer one is cut short.
     inline constexpr std::size_t sNoteCapacity = 256;
 
-    /// **How many threads can hold a note at once**: the prepare pool's hands, one a hardware thread
-    /// but one, and the main, ring, chain and compile threads beside them, on a desk processor of 32
-    /// hardware threads and of nearly twice that. A thread past them notes nothing until one of them
-    /// ends, which gives its slot back, and the report counts the threads that met the table full.
-    /// The table travels as one annotation, whose value Crashpad holds to 20 KiB, which 64 slots fill
-    /// to 17 KiB.
+    /// **How many threads can hold a note at once**: the prepare pool's hands, and the main, ring, chain and
+    /// compile threads beside them, on a desk processor of 32 hardware threads or nearly twice that. A thread
+    /// past them notes nothing until one ends, and the report counts the threads that met the table full.
+    /// The table travels as one annotation, whose value Crashpad holds to 20 KiB, which 64 slots fill to 17.
     inline constexpr std::size_t sNoteThreads = 64;
 
     /// One thread's last note, as a report reads it.
@@ -56,18 +54,14 @@ namespace Crash
     /// One thread's slot in the table, the note's file's own.
     struct NoteSlot;
 
-    /// **What the calling thread is doing, for as long as a scope lasts**, for a report to name, on
-    /// the end of what the thread's note already says: `outer > text`. The scope's end puts the note
-    /// back as it found it, so a note never outlives the work it names, and a crash inside nested
-    /// work reads as the path to it. Where the thread holds no slot, it notes nothing.
+    /// **What the calling thread is doing, for as long as a scope lasts**, for a report to name, appended to
+    /// the thread's note as `outer > text`. The scope's end restores the note, so a note never outlives the
+    /// work it names and a crash inside nested work reads as the path to it. Where the thread holds no slot,
+    /// it notes nothing.
     ///
-    /// **A fixed table, read from outside.** The monitor reads it out of the crashed process, as
-    /// it reads the stacks, so it never depends on the crashed process to hand it over. A scope
-    /// allocates nothing — what it found is kept in the scope, a note's bytes at most — so a loop
-    /// may state each thing it works on. A thread has its own slot, because workers read models
-    /// while the render thread uploads textures.
-    ///
-    /// **Ends on the thread it began on**, whose slot it holds and puts back: one kept as a member and
+    /// **A fixed table, read from outside**: the monitor reads it out of the crashed process, so a report
+    /// never depends on that process to hand it over. A scope allocates nothing, so a loop may state each
+    /// thing it works on. **Ends on the thread it began on**, whose slot it holds and puts back: one
     /// destroyed on another thread is a broken contract, which a debug build stops at.
     class NoteScope
     {

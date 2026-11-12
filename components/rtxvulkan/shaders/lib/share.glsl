@@ -7,10 +7,9 @@
 /// One, in the units an order-free sum over candidates is taken in: twenty fractional bits.
 ///
 /// **A sum over candidates is an integer sum, because the order candidates arrive in is the card's.** The
-/// specification's "Ray Intersection Candidate Determination" says *there is no ordering guarantee between
-/// operations performed on different intersection candidates*, and a float sum or product rounds
-/// differently for every order it is taken in — so a shadow made of three panes came out one bit different
-/// from run to run, and the frame hash with it. An integer sum is the same sum in every order.
+/// specification gives no ordering guarantee between intersection candidates ("Ray Intersection Candidate
+/// Determination"), and a float sum rounds differently for every order, so a shadow made of three panes came
+/// out one bit different from run to run. An integer sum is the same sum in every order.
 ///
 /// **Saturating, so an overflow is a clamp and not a wrap**: `addShare` is the one way a share is summed,
 /// and `sharePart` the one way a term is made.
@@ -19,9 +18,8 @@ const float SHARE_UNIT = 1048576.0;
 /// The largest term a share holds: the largest float under 2^32, which is 2^32 - 256.
 ///
 /// **A term past it is clamped and not converted**, because a float out of a `uint`'s range converts to an
-/// undefined value, and what a term carries is not all bounded: a medium's unlit sheet is light and a
-/// material's colours are the content's, and nothing holds either under the four thousand and ninety-six a
-/// share can name.
+/// undefined value and what a term carries is not all bounded (a medium's unlit sheet is light, a material's
+/// colours are the content's); nothing holds either under the 4096 a share can name.
 const float SHARE_MOST = 4294967040.0;
 
 /// A term of an order-free sum, off a float: nought for one not above nought, a NaN among them,

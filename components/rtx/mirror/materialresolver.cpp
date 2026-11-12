@@ -59,11 +59,10 @@ namespace Rtx
             return count;
         }
 
-        /// The one fact of its diffuse texels a blended material keeps, read through `thread` into
-        /// `facts`, which keeps it for the next asker: the mean an additive sheet glows by, or
-        /// whether a blend over what is behind ever reaches solid. One function for the reader,
-        /// whose walk over the texels is the reading's whole cost, and for `describe`, which reads
-        /// the reader's answer back out of `facts` without a walk.
+        /// The one fact of its diffuse texels a blended material keeps, read through `thread` into `facts`, which keeps
+        /// it for the next asker: the mean an additive sheet glows by, or whether a blend over what is behind ever
+        /// reaches solid. One function for the reader, whose walk over the texels is the reading's whole cost, and for
+        /// `describe`, which reads the answer back out of `facts` without a walk.
         void takeBlendFact(ThreadContent& thread, ImageFacts& facts, const osg::Image& image, Material& into)
         {
             if (into.isAdditive())
@@ -120,11 +119,10 @@ namespace Rtx
     const osg::StateSet* MaterialResolver::animate(
         osg::Node& node, const std::size_t placement, osg::NodeVisitor* visitor)
     {
-        // Asked of every node in the graph every frame. **An entry only where a chain holds a
-        // controller of state sets**: upstream hangs a light list callback on every object root
-        // (`Animation`), so a test for any callback at all made an entry for every reference, past
-        // the reserve on a dense load. A chain is read by the classes of its callbacks, each class
-        // asked once.
+        // Asked of every node in the graph every frame. **An entry only where a chain holds a controller of state
+        // sets**: upstream hangs a light list callback on every object root (`Animation`), so a test for any callback
+        // at all made an entry for every reference. A chain is read by the classes of its callbacks, each class asked
+        // once.
         if (!carriesUpdater(node))
             return nullptr;
 
@@ -163,12 +161,10 @@ namespace Rtx
         for (std::size_t at = 0; at < updaters.size(); ++at)
             held.mSetUp = held.mSetUp && updaters[at]->getGeneration() == held.mGenerations[at];
 
-        // **Set up again whenever the controllers that apply to it change, or one asks to be**, so
-        // none applies to a state set it did not set up: a fade that came after a glow read the
-        // uniforms the glow's defaults never made, a fade that went left its blend and its alpha
-        // behind, and a glow that ended kept its last sheet. Reset in place rather than made anew,
-        // because the address is what the material table keys the surface by, and a new one would
-        // be a second material for the same surface.
+        // **Set up again whenever the controllers that apply to it change, or one asks to be**, so none applies to a
+        // state set it did not set up: a fade after a glow would read the uniforms the glow's defaults never made, a
+        // fade that went would leave its blend and alpha behind, and a glow that ended its last sheet. Reset in place
+        // rather than made anew, because the address is what the material table keys the surface by.
         if (!held.mSetUp)
         {
             held.mSetUp = true;
@@ -177,11 +173,10 @@ namespace Rtx
                 held.mStateSet = new osg::StateSet;
             held.mStateSet->clear();
 
-            // A shallow copy of what the node already wears: `applyCull` starts from an empty state
-            // set and lets the rasterizer's state stack supply the rest, so a fire would lose its
-            // material along with its animation. Read rather than created, because
-            // `getOrCreateStateSet` would leave an empty one on a node that had none, pushed over
-            // the material a parent was contributing.
+            // A shallow copy of what the node already wears: `applyCull` starts from an empty state set and lets the
+            // rasterizer's state stack supply the rest, so a fire would lose its material along with its animation.
+            // Read rather than created, because `getOrCreateStateSet` would leave an empty one on a node that had none,
+            // pushed over the material a parent was contributing.
             if (const osg::StateSet* base = node.getStateSet(); base != nullptr)
             {
                 held.mStateSet->merge(*base);
@@ -620,11 +615,10 @@ namespace Rtx
         material.mTextureTransform = osg::Vec4f(
             scale.x(), scale.y(), 0.5f * (1.0f - scale.x()) + offset.x(), 0.5f * (1.0f - scale.y()) + offset.y());
 
-        // Last, and only for the surfaces the answer separates. Every field the tests read is
-        // filled above, and the walk over a texture's texels is worth nothing to a material that is
-        // opaque, tested, or has no diffuse map to read: whether a blend is a pane or a cut, and a
-        // pane a medium, is the texture's alpha, and a glow is asked of an additive sheet alone. The
-        // reading's answer where one was made, and the walk over the texels only where none was.
+        // Last, and only for the surfaces the answer separates: the walk over a texture's texels is worth nothing to a
+        // material that is opaque, tested, or has no diffuse map to read. Whether a blend is a pane or a cut, and a
+        // pane a medium, is the texture's alpha, and a glow is asked of an additive sheet alone. The reading's answer
+        // where one was made, the walk only where none was.
         if (material.isBlended() && material.mDiffuse != sNoIndex)
         {
             std::optional<ImageFacts> read = reading.mDiffuseFacts;

@@ -27,15 +27,12 @@ namespace ContentStore
 {
     namespace
     {
-        /// What an entry's file ends with, after its payload. **The payload's own length and digest**,
-        /// as `PipelineCache` writes its own, because a file a power loss zeroed after its rename, or
-        /// one cut short, passes every check of the fields before them. Written `Durability::Whole`
-        /// and not synced, as `PipelineCache` syncs its one file a session: the digest finds what a
-        /// sync would have kept, and thousands of entries a load would each wait on the disk.
-        ///
-        /// **At the end and not the front**, as Parquet puts its footer: a read takes the whole file
-        /// into the buffer the payload is handed in, and drops the trailer by a resize, where a header
-        /// taken off the front moved every byte after it.
+        /// What an entry's file ends with, after its payload: the payload's own length and digest, as `PipelineCache`
+        /// writes its own, because a file a power loss zeroed after its rename, or one cut short, passes every check
+        /// of the fields before them. Written `Durability::Whole` and not synced: the digest finds what a sync would
+        /// have kept, and thousands of entries a load would each wait on the disk. At the end and not the front, as
+        /// Parquet puts its footer: a read takes the whole file into the buffer the payload is handed in and drops
+        /// the trailer by a resize, where a header taken off the front moved every byte after it.
         struct EntryTrailer
         {
             std::uint32_t mMagic;
@@ -339,8 +336,8 @@ namespace ContentStore
         const auto fits
             = [&] { return mQueuedBytes == 0 || payload.size() <= sQueuedMost - std::min(mQueuedBytes, sQueuedMost); };
 
-        // **Moved into the queue under the lock, and copied before it**: the frame's thread asks the
-        // store's memory under the same lock, and a copy of a chain made there held it for milliseconds.
+        // Copied before the lock and moved into the queue under it: the frame's thread asks the store's memory under
+        // the same lock, and a copy of a chain made there held it for milliseconds.
         std::shared_ptr<const Misc::ByteBuffer> kept = residentCopy(kind, payload);
         while (true)
         {
@@ -506,21 +503,19 @@ namespace ContentStore
             return;
         }
 
-        // **The tables sized once, here, at their bounds**, off the frame: a table that grows rehashes
-        // under the lock, on the frame's thread or while it waits on the lock, and a session adds keys
-        // that no file held at its start. Each bound is exact: `stampsOnce` notes no more keys, and every
-        // resident entry costs at least its node. The cost is the buckets, a million in the stamps' table
-        // and eight in the resident one's, about 72 MiB together.
+        // The tables sized once, here, at their bounds, off the frame: a table that grows rehashes under the lock,
+        // on the frame's thread or while it waits on the lock, and a session adds keys that no file held at its
+        // start. Each bound is exact: `stampsOnce` notes no more keys, and every resident entry costs at least its
+        // node. The cost is the buckets of both tables, some 80 MiB.
         mMonitor.under([&] {
             mStats.mStale += swept.mStale;
             mStamped.reserve(sStampedMost);
             mResident.reserve(sResidentBytesMost / residentBytesOf(0));
         });
 
-        // **The small entries into memory, newest first**, so an ask on the frame's thread finds a
-        // fact without waiting on the disk (`Reach::Memory`), and the bound keeps the newest. None of a kind held
-        // at any size (`Holding`), whose owner reads its content's own; its kind is the file's, so it is read
-        // to be told apart.
+        // The small entries into memory, newest first, so an ask on the frame's thread finds a fact without waiting
+        // on the disk (`Reach::Memory`), and the bound keeps the newest. None of a kind held at any size
+        // (`Holding`), whose owner reads its content's own; its kind is the file's, so it is read to be told apart.
         Misc::ByteBuffer payload;
         for (auto entry = swept.mKept.rbegin(); entry != swept.mKept.rend(); ++entry)
         {
@@ -553,8 +548,8 @@ namespace ContentStore
         {
             if (read.error().mFailure == Platform::IoFailure::TooLarge)
                 refuse(path, "its size");
-            // **The first failure of a read that is no missing file is said**, and the rest counted:
-            // a miss that is a folder the store cannot read is no miss a player should not hear of.
+            // The first failure of a read that is no missing file is said, and the rest counted: a folder the store
+            // cannot read is a miss a player should hear of.
             else if (read.error().mFailure != Platform::IoFailure::NotFound
                 && !mReadFailureLogged.exchange(true, std::memory_order_relaxed))
                 Log(Debug::Warning) << "The content store could not read " << Files::pathToUnicodeString(path)
@@ -601,10 +596,10 @@ namespace ContentStore
         const std::filesystem::path path = pathOf(task.mKey);
         std::error_code failed;
 
-        // **A key whose file stands is stamped and not written again**: a key is its entry's whole
-        // input, so the file holds these bytes, and the frame's thread, whose asks reach memory
-        // alone, misses an entry too large to hold there in every session and offers it again. A
-        // file a fault left is refused by the next read that reaches it, and the next write makes it.
+        // A key whose file stands is stamped and not written again: a key is its entry's whole input, so the file
+        // holds these bytes, and the frame's thread, whose asks reach memory alone, offers an entry too large to hold
+        // there in every session. A file a fault left is refused by the next read that reaches it, and the next
+        // write makes it.
         if (std::filesystem::exists(path, failed))
         {
             if (mPolicy.mHolding.has_value())

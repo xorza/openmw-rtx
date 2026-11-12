@@ -64,15 +64,14 @@ namespace Rtx
         /// The painted face in the scene's texture table, or `sNoIndex` for none.
         Index mFace = sNoIndex;
 
-        /// What this moon delivers to a surface facing it, linear, before `mPaint`: what lights
-        /// anything is `getPaintedIrradiance`. Zero exactly where the fade is, which is the one
-        /// test a shader makes before it spends a shadow ray; a new moon is three parts in ten
-        /// thousand, which is what the photometry says.
+        /// What this moon delivers to a surface facing it, linear, before `mPaint`: what lights anything
+        /// is `getPaintedIrradiance`. Zero exactly where the fade is, the one test a shader makes before
+        /// it spends a shadow ray.
         osg::Vec3f mIrradiance{};
 
-        /// What the air leaves of it, per channel — `Rtx::airTransmittance` at its own elevation,
-        /// which is what lets a moon rise where the engine draws none under
-        /// `Moons_<name>_Fade_End_Angle`. The light is dimmed by it too, on the host.
+        /// What the air leaves of it, per channel: `Rtx::airTransmittance` at its own elevation, which
+        /// lets a moon rise where the engine draws none under `Moons_<name>_Fade_End_Angle`. The light is
+        /// dimmed by it too, on the host.
         osg::Vec3f mThroughAir{ 1.0f, 1.0f, 1.0f };
 
         /// The mean opaque texel of this moon's portrait, linear and unscaled — what the disc falls
@@ -80,10 +79,9 @@ namespace Rtx
         /// radiance, so the two keep their relationship.
         osg::Vec3f mColour{};
 
-        /// What a script painted the face, linear: `Moons_Script_Color` while the game says
-        /// Secunda is red, and white otherwise. Over the face and over what the moon delivers
-        /// alike, because a moon that is drawn red lights red — the rasterizer's `moonBlend` paints
-        /// the disc alone, and the disc is the only light it has.
+        /// What a script painted the face, linear: `Moons_Script_Color` while the game says Secunda is
+        /// red, and white otherwise. Over the face and over what the moon delivers alike, because a moon
+        /// drawn red lights red (the rasterizer's `moonBlend` paints the disc alone).
         osg::Vec3f mPaint{ 1.0f, 1.0f, 1.0f };
 
         /// What the moon lights anything with: `mIrradiance` under `mPaint`. The one spelling, so
@@ -91,18 +89,16 @@ namespace Rtx
         osg::Vec3f getPaintedIrradiance() const { return osg::componentMultiply(mIrradiance, mPaint); }
     };
 
-    /// The mean opaque texel of `tx_masser_full.dds` and `tx_secunda_full.dds`, linear —
-    /// `MeanTexel::opaque` of the shipped portraits, which is what a face that opens is measured
-    /// by: one red, one grey. What a moon whose face does not open is lit as; a face that opens is
-    /// measured instead, so a replaced portrait lights as it is painted. Masser's luminance is the
-    /// level both moons' light is measured on, whichever portraits opened.
+    /// The mean opaque texel of `tx_masser_full.dds` and `tx_secunda_full.dds`, linear
+    /// (`MeanTexel::opaque`): what a moon whose face does not open is lit as; a face that opens is
+    /// measured instead, so a replaced portrait lights as it is painted. Masser's luminance is the level
+    /// both moons' light is measured on, whichever portraits opened.
     inline const osg::Vec3f sShippedMasserFace(0.03282f, 0.00981f, 0.01213f);
     inline const osg::Vec3f sShippedSecundaFace(0.04356f, 0.03686f, 0.02912f);
 
-    /// One painted face, in a scene's texture table, held through the list `addMoonFaces` fills
-    /// rather than named by a material: the disc is drawn by a ray that reached nothing, and a slot
-    /// nothing holds is freed. And how wide it is drawn and what it averages, which are fixed for the
-    /// run and read with it.
+    /// One painted face, in a scene's texture table, held through the list `addMoonFaces` fills rather
+    /// than named by a material (the disc is drawn by a ray that reached nothing, and a slot nothing
+    /// holds is freed), with how wide it is drawn and what it averages, fixed for the run.
     struct MoonFace
     {
         Index mSlot = sNoIndex;
@@ -152,10 +148,9 @@ namespace Rtx
     ///        the horizon as well, where a moon still shows which side the sun is on.
     Shaders::MoonDisc describeMoon(const MoonPlacement& placement, const osg::Vec3f& towardSun);
 
-    /// The angular radius of a moon of `Moons_<name>_Size` `size`, in radians, out of the renderer
-    /// the game already has: the size is scaled by 450/115 onto a quad of half-extent 0.5 a
-    /// thousand units off (`apps/openmw/mwrender/sky.cpp` and `skyutil.cpp`), so the disc is
-    /// `atan(45 * size / 23000)`. Masser's 94 comes to 10.4 degrees and Secunda's 40 to 4.5 —
-    /// thirty-nine times the sun. Nought for a size that is not a finite number above nought.
+    /// The angular radius of a moon of `Moons_<name>_Size` `size`, in radians, as the renderer the game
+    /// already has draws it: the size is scaled by 450/115 onto a quad of half-extent 0.5 a thousand
+    /// units off (`apps/openmw/mwrender/sky.cpp`, `skyutil.cpp`), so the disc is `atan(45 * size / 23000)`.
+    /// Nought for a size that is not a finite number above nought.
     float moonAngularRadius(float size);
 }

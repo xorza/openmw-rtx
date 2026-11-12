@@ -80,13 +80,11 @@ namespace Rtx
         float mDaylightGain = 1.0f;
     };
 
-    /// The sky's light out of what a weather says: the one place a sun is built. Morrowind never
-    /// switches its sunlight off — `Sun_Night_Color` is `59, 97, 176` — and traced, a night sun
-    /// casts hard shadows swinging across the ground. So the sun keeps only what is over the
-    /// horizon, and dusk alone lends the ambient a share of it, `2 s (1 - s)` of the sun's share
-    /// `s`: nothing at noon and nothing at night, whose sun is the original engine's stand-in for
-    /// the moons this renderer traces. The ambient's share is `E / 4pi`: a directional source
-    /// delivers a quarter of its irradiance averaged over every orientation.
+    /// The sky's light out of what a weather says: the one place a sun is built. Morrowind never switches
+    /// its sunlight off (`Sun_Night_Color` is `59, 97, 176`), and traced, a night sun casts hard shadows
+    /// swinging across the ground. So the sun keeps only what is over the horizon, and dusk alone lends the
+    /// ambient a share of it, `2 s (1 - s)` of the sun's share `s`. The ambient's share is `E / 4pi`: a
+    /// directional source delivers a quarter of its irradiance averaged over every orientation.
     Skylight makeSkylight(const SkyReading& sky);
 
     /// What to hold a measured exposure back by for a sky delivering this much light: one where
@@ -106,10 +104,10 @@ namespace Rtx
     /// together.
     float sunShareAt(float hour, const Sky::TimeOfDaySettings& times);
 
-    /// How fast the disc's elevation changes near either end of the day, in radians per hour: what
-    /// a layer standing above the ground converts its own horizon into, because Morrowind's sunset
-    /// is a clock and not an elevation. Constant, because the disc's height is `400 - |east|` and
-    /// the swing is linear in the hour: eight degrees an hour over the shipped fourteen-hour day.
+    /// How fast the disc's elevation changes near either end of the day, in radians per hour: what a
+    /// layer above the ground converts its own horizon into, because Morrowind's sunset is a clock and
+    /// not an elevation. Constant, since the disc's height is `400 - |east|` and the swing is linear in
+    /// the hour: eight degrees an hour over the shipped fourteen-hour day.
     float sunDescentPerHour(const Sky::TimeOfDaySettings& times);
 
     /// How much of the sun a layer standing over the ground still has at `hour`: `sunShareAt` at
@@ -124,11 +122,10 @@ namespace Rtx
         /// The whole of it, as a radiance: the gradient, the night's sheets and `mFill` together.
         osg::Vec3f mMean;
 
-        /// What the sky delivers as light over and above the colour it is drawn with. The engine
-        /// puts `Ambient_<weather>_Night_Color` on every surface, while a bounce ray at the dome
-        /// reads `Sky_<weather>_Night_Color`, a tenth of it; the gradient delivers its two colours
-        /// weighed by the atmosphere's `Atmosphere::mZenithShare`, the sheets add their mean, and
-        /// whatever the ambient asks for beyond the two is this. Nought by day.
+        /// What the sky delivers as light over and above the colour it is drawn with: the engine puts
+        /// `Ambient_<weather>_Night_Color` on every surface, while a bounce ray at the dome reads
+        /// `Sky_<weather>_Night_Color`, a tenth of it. Whatever the ambient asks for beyond the gradient
+        /// and the sheets is this. Nought by day.
         osg::Vec3f mFill;
     };
 
@@ -160,19 +157,17 @@ namespace Rtx
         Fog mFog;
     };
 
-    /// A room's light out of its own `AMBI` record, and not the rasterizer's reading of it, which
-    /// lifts the ambient to `minimum interior brightness` for a falloff curve this renderer has not
-    /// got and aims the sunlight along `(-1, 45°, 45°)` — traced, hard shadows off nothing through
-    /// every crack a room's shell is built from. So the sunlight's direction is taken away, over
-    /// `INV_FOUR_PI`, and a traced bounce's landing, a surface with no bounce and the water each take a
-    /// share of it and of the ambient. The sky is the fog colour at both ends and never a light.
+    /// A room's light out of its own `AMBI` record, not the rasterizer's reading of it, which lifts the
+    /// ambient to `minimum interior brightness` for a falloff curve this renderer lacks and aims the
+    /// sunlight along `(-1, 45°, 45°)`, traced a hard shadow off nothing through every crack of the shell.
+    /// So the sunlight's direction is taken away, over `INV_FOUR_PI`, and a traced bounce's landing, a
+    /// surface with no bounce and the water each take a share of it and of the ambient. The sky is the fog
+    /// colour at both ends and never a light.
     Daylight makeRoomLight(const ESM::Cell::AMBIstruct& room);
 
-    /// What the air leaves of a body in the sky, per channel: Rayleigh optical depth at the three
-    /// sRGB primaries — `0.008569 λ^-4` with its usual correction, 0.068, 0.097 and 0.221 at the
-    /// zenith — times Kasten and Young's air mass along the slant path, 37.92 at the horizon. A
-    /// moon comes up a deep red ember and is itself by thirty degrees; the sun's sunset is the
-    /// content's own. `upward` is the `z` of a unit direction, and at or below nothing gives the
-    /// horizon's figure.
+    /// What the air leaves of a body in the sky, per channel: Rayleigh optical depth at the three sRGB
+    /// primaries times Kasten and Young's air mass along the slant path, 37.92 at the horizon. A moon
+    /// comes up a deep red ember and is itself by thirty degrees; the sun's sunset is the content's own.
+    /// `upward` is the `z` of a unit direction; at or below nothing gives the horizon's figure.
     osg::Vec3f airTransmittance(float upward);
 }

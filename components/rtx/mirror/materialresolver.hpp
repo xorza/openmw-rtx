@@ -86,11 +86,10 @@ namespace Rtx
             const osg::StateSet* mKey = nullptr;
         };
 
-        /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
-        ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
-        ///        two answers.
-        /// @param thread the thread's content, whose image facts are shared with the emitters for
-        ///        the reason `EmitterResolver` gives.
+        /// @param pass the walk in progress: its sweep stamp and its counts, read at every call. Borrowed, so that the
+        ///        mirror and everything resolving into it cannot come to hold two answers.
+        /// @param thread the thread's content, whose image facts are shared with the emitters for the reason
+        ///        `EmitterResolver` gives.
         MaterialResolver(SceneDesc& scene, const MirrorPass& pass, ThreadContent& thread)
             : mScene(scene)
             , mPass(pass)
@@ -137,23 +136,20 @@ namespace Rtx
         /// identifies it.
         Resolved resolveWater();
 
-        /// The state set a controller wrote over `node` this frame, or null where none writes one —
-        /// which is nearly every node in a cell. One per placement of the node, rewritten in place,
-        /// so a material keyed on its address is the same material next frame.
+        /// The state set a controller wrote over `node` this frame, or null where none writes one, which is nearly
+        /// every node in a cell. One per placement of the node, rewritten in place, so a material keyed on its address
+        /// is the same material next frame.
         ///
-        /// **A node standing under one needs none of its own**: `ChainKeys` keys a material by
-        /// every state set on its chain that states anything, so the shape under
-        /// `SceneUtil::addEnchantedGlow`'s sheet, whose own state set every instance of the model
-        /// shares, is one material under the glow and another beside it, and `resolve` reads it
-        /// again each frame its chain stands under a controller (`Shading::mAnimatedThrough`).
+        /// **A node standing under one needs none of its own**: `ChainKeys` keys a material by every state set on its
+        /// chain that states anything, so the shape under `SceneUtil::addEnchantedGlow`'s sheet, whose own state set
+        /// every instance of the model shares, is one material under the glow and another beside it, and `resolve`
+        /// reads it again each frame its chain stands under a controller (`Shading::mAnimatedThrough`).
         ///
-        /// **Per placement and not per node**, because `SceneUtil::CopyOp` shares a drawable
-        /// between the clones of a model, and a template node stands under every reference walked
-        /// from it: one state set for two enchantments on one base model showed whichever was
-        /// applied last, and was written twice a frame.
+        /// **Per placement and not per node**, because `SceneUtil::CopyOp` shares a drawable between the clones of a
+        /// model, and a template node stands under every reference walked from it: one state set for two enchantments
+        /// on one base model showed whichever was applied last.
         ///
-        /// @param placement the identity of the path the walk reached `node` by, which tells its
-        ///        placements apart.
+        /// @param placement the identity of the path the walk reached `node` by, which tells its placements apart.
         const osg::StateSet* animate(osg::Node& node, std::size_t placement, osg::NodeVisitor* visitor);
 
         /// Drops every entry neither this epoch nor a hold keeps, and with it the entry's hold on
@@ -215,17 +211,14 @@ namespace Rtx
             std::vector<OtherPair> mOtherPairs{};
         };
 
-        /// Every image an animated material has worn, each held in `mTextureOf` for as long as the
-        /// material stands.
+        /// Every image an animated material has worn, each held in `mTextureOf` for as long as the material stands.
         ///
-        /// **`SceneUtil::GlowUpdater` cycles thirty-two caustic sheets at sixteen a second**, one
-        /// `setTextureAttribute` a frame, and a resolver that kept only the sheet of the frame gave
-        /// one back and took one up on every frame: an `extendScene` a frame with a decode and an
-        /// upload in it. Thirty-two for the cycle, because that is the largest the game ships, and
-        /// a place for each of the material's other maps beside it: the ring holds every image the
-        /// material wears, and a ring of the cycle alone holds the diffuse map too, so every sheet
-        /// change drops the sheet due next and takes it up again a sixteenth of a second later.
-        /// One past what fits drops the oldest and counts it.
+        /// **`SceneUtil::GlowUpdater` cycles thirty-two caustic sheets at sixteen a second**, one `setTextureAttribute`
+        /// a frame, and a resolver that kept only the sheet of the frame gave one back and took one up on every frame:
+        /// an `extendScene` a frame with a decode and an upload in it. Thirty-two for the cycle, the largest the game
+        /// ships, and a place for each of the material's other maps beside it: a ring of the cycle alone holds the
+        /// diffuse map too, so every sheet change would drop the sheet due next and take it up again. One past what
+        /// fits drops the oldest and counts it.
         struct Worn
         {
             static constexpr std::size_t sCycle = 32;
@@ -376,12 +369,10 @@ namespace Rtx
         /// Reads a whole material off the chain, which is what an arrival and a rewrite both want.
         Material readMaterial(std::span<const Shading> shading, Worn* worn);
 
-        /// The material a reading comes to, with its images taken into the scene. What the reader
-        /// answered about the diffuse map is taken as read, and what it left unset is asked of the
-        /// image here, only where it matters.
+        /// The material a reading comes to, with its images taken into the scene. What the reader answered about the
+        /// diffuse map is taken as read, and what it left unset is asked of the image here, only where it matters.
         ///
-        /// @param worn what an animated material keeps of every image it has worn, or null for
-        ///        one nothing rewrites.
+        /// @param worn what an animated material keeps of every image it has worn, or null for one nothing rewrites.
         Material describe(const MaterialReading& reading, bool animated, Worn* worn);
 
         using Entry = Identity<const osg::StateSet, HeldMaterial>::Entry;
@@ -404,13 +395,12 @@ namespace Rtx
         /// A row of `mWorns` wearing nothing, a freed one where there is one.
         Index takeWorn();
 
-        /// The scene's slot for one image under one wrap and one encoding, held for as long as this
-        /// names it.
+        /// The scene's slot for one image under one wrap and one encoding, held for as long as this names it.
         ///
-        /// @param worn the material wearing it, where that material is rewritten by a controller,
-        ///        which keeps the texture through the frames the controller shows another one.
-        /// @param partner a converted slot's other file (`isConverted`), which the slot is named for beside
-        ///        `use`'s; null for every other slot.
+        /// @param worn the material wearing it, where that material is rewritten by a controller, which keeps the
+        ///        texture through the frames the controller shows another one.
+        /// @param partner a converted slot's other file (`isConverted`), which the slot is named for beside `use`'s;
+        ///        null for every other slot.
         Index takeTexture(const TextureUse& use, Worn* worn, TextureEncoding encoding = TextureEncoding::Colour,
             const osg::Image* partner = nullptr);
 

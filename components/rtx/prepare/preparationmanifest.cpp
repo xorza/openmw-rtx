@@ -105,11 +105,8 @@ namespace Rtx
         if (!Platform::readWhole(path, bytes, sMostBytes).isOk())
             return {};
 
-        // The layout `write` lays: the header, the names a 16-bit length and its characters each, the
-        // keys, then the entries, each its model's name's index, its digest, its day, its files' indices
-        // and its keys' indices.
-        // **Every count no larger than the bytes left could hold**, and every index inside the names:
-        // the file is untrusted, and a count read whole would be a gigantic allocation.
+        // The layout `write` lays. **Every count is no larger than the bytes left could hold**, and every
+        // index inside the names: the file is untrusted, and a count read whole would be a gigantic allocation.
         Reader reader(bytes);
         std::uint32_t magic = 0;
         std::uint32_t format = 0;

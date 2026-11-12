@@ -51,11 +51,11 @@ namespace Rtx::Shaders
     /// counting device makes: numbered past every pass's own constants, which count up from nought.
     const uint SPEC_CENSUS_KERNEL = 1000u;
 
-    /// **Stores whose value was a NaN or an infinity, by the shader module that made them**,
-    /// summed by `countNotFinite` in the census's modules: one census for the device, which a frame
-    /// copies out and clears as it ends (`NotFiniteCensus`). Every one is a logic error, which nothing refuses: a
-    /// history that takes one keeps it and spreads it, as a froxel that took `0 / 0` once spread across the whole frame
-    /// in eight-pixel blocks. `Check::Finite` asserts nought over a stop.
+    /// **Stores whose value was a NaN or an infinity, by the shader module that made them**, summed by
+    /// `countNotFinite` in the census's modules: one census for the device, which a frame copies out and
+    /// clears as it ends (`NotFiniteCensus`). Every one is a logic error, which nothing refuses: a history
+    /// that takes one keeps it and spreads it, as a froxel that took `0 / 0` once spread across the whole
+    /// frame in eight-pixel blocks. `Check::Finite` asserts nought over a stop.
     struct Census
     {
         uint mNotFinite[CENSUS_KERNELS];

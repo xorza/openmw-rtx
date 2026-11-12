@@ -8,15 +8,14 @@
 //
 // **Conservative by construction, and the trace's own test is what refines it.** A tile's list has to hold
 // every sprite any ray through the tile could meet, because `spritesAlong` tests a sprite it is handed and
-// never looks for one it was not — a sprite the binning drops is a raindrop that stops being drawn. So what
-// is bounded here is exactly what the march tests against: a ball for a sprite that faces the eye, and for
-// a quad hanging on an axis of its own the capsule that swinging its width about that axis sweeps.
+// never looks for one it was not: a dropped sprite is a raindrop that stops being drawn. So what is bounded
+// here is what the march tests against: a ball for a sprite that faces the eye, and for a quad hanging on an
+// axis of its own the capsule that swinging its width about that axis sweeps.
 //
 // **A capsule and not a sphere around a quad's corners, and rain is why.** A drop is a long thin streak, so
-// that sphere is as wide as the streak is long — tens of times the width — and a bound that wide holds the
-// eye for every drop falling anywhere near the camera. A sphere that holds the eye is met from every
-// direction, so each of those goes into every tile on the screen, and a few dozen drops are nearly the
-// whole list.
+// that sphere is tens of times the streak's width and holds the eye for every drop falling near the camera;
+// a sphere that holds the eye is met from every direction, so each such drop goes into every tile on the
+// screen, and a few dozen drops are nearly the whole list.
 
 #include "shared/spritebin.h"
 
@@ -33,10 +32,9 @@ layout(push_constant, scalar) uniform Push
 /// Where a coordinate on the image plane lands, in whole pixels and generously: moved by `axis`, where the
 /// eye's axis crosses the picture along the same axis (`Camera::mCentre`), as `rayAt` moves it back.
 ///
-/// **A pixel of slack at each end, which is what covers the jitter.** `rayAt` adds half a pixel and the
-/// frame's jitter to the index before scaling, and the jitter is a Halton offset inside the pixel — so a
-/// coordinate is worth a pixel either way and the binning has to hold every ray the tile can produce, not
-/// the one through its centre.
+/// **A pixel of slack at each end, which covers the jitter.** `rayAt` adds half a pixel and the frame's
+/// jitter (a Halton offset inside the pixel) to the index before scaling, so a coordinate is worth a pixel
+/// either way and the binning has to hold every ray the tile can produce, not the one through its centre.
 int toPixel(float coordinate, float axis, uint extent, float slack)
 {
     return int(floor((coordinate + axis + 1.0) * 0.5 * float(extent) + slack));
@@ -160,10 +158,9 @@ float coordinateOf(float angle, float halfExtent)
 /// in front of the eye.
 ///
 /// **Only where the eye stands inside the stadium is every coordinate reached**, and not wherever a cap
-/// reaches the plane through the eye: that plane runs out sideways for ever, and the snow falling level
-/// with the camera, however far to the side and whether or not the frame can see it, sent everywhere is 141
-/// sprites in every tile of a 2560x1440 frame at Nivalis, each walked by the trace and the composite at
-/// every pixel.
+/// reaches the plane through the eye: that plane runs out sideways for ever, and the snow falling level with
+/// the camera, however far to the side, sent 141 sprites into every tile of a 2560x1440 frame at Nivalis,
+/// each walked by the trace and the composite at every pixel.
 vec2 capsuleSpan(vec2 from, vec2 to, float radius, float halfExtent)
 {
     const float quarter = 0.5 * PI;

@@ -16,32 +16,28 @@ const vec2 R2_STEPS = vec2(STREAM_TURN[STREAM_BOUNCE], STREAM_TURN[STREAM_BOUNCE
 
 /// A stream of draws for one pixel, where the tile above gives one.
 ///
-/// **The tile answers a different question and cannot be stretched to this one.** Blue noise is an
-/// arrangement *across the screen*: it says how a pixel's draw should differ from its neighbours', which is
-/// what makes a single sample per pixel filter well. Resampling needs a *sequence* — a fresh number for
-/// each candidate it weighs — and there is no screen-space arrangement of a sequence to arrange.
+/// **The tile answers a different question and cannot be stretched to this one.** Blue noise arranges draws
+/// *across the screen*, which is what lets one sample per pixel filter well; resampling needs a *sequence*, a
+/// fresh number per candidate, and a sequence has no screen-space arrangement.
 uint randomSeed(uint key)
 {
-    // The frame is mixed in here rather than by the caller, so a sequence advances between frames
-    // without anyone having to remember to make it — which is what lets the accumulator in front of
-    // the filter see an independent draw each time rather than the same one over and over.
+    // The frame is mixed in here so a sequence advances between frames without the caller remembering to, and
+    // the accumulator in front of the filter sees an independent draw each time.
     return seededKey(key, frame.mFrame);
 }
 
 /// One number in `[0, 1)` for `pixel`, from this frame's `stream`th draw.
 ///
-/// **Two sources, and the frame says which** — `frame.mNoise`, resolved once per frame with the denoiser,
-/// so the branch is uniform and every lane takes the same side.
+/// **Two sources, and the frame says which**: `frame.mNoise`, resolved once per frame with the denoiser, so
+/// the branch is uniform.
 ///
-/// **The tile: blue noise across the screen, a low-discrepancy sequence along time.** The tile decides how
-/// a pixel's draw differs from its neighbours' — deliberately, so that the error between them alternates
-/// rather than clumping into blotches a filter would read as shading. The turn decides how it differs from
-/// its own last frame, so the samples a pixel accumulates sweep the interval instead of stumbling about in
-/// it.
+/// **The tile: blue noise across the screen, a low-discrepancy sequence along time.** The tile decides how a
+/// pixel's draw differs from its neighbours', so their error alternates and does not clump into blotches a
+/// filter would read as shading; the turn decides how it differs from its own last frame, so the accumulated
+/// samples sweep the interval.
 ///
-/// **The hash: independent draws with no arrangement.** Every pixel, every frame and every stream seeds a
-/// counter of its own, and nothing about one draw says anything about its neighbour's or its own last
-/// frame's, which the tile — one sequence, rotated, repeated every sixty-four pixels — is not.
+/// **The hash: independent draws with no arrangement**: every pixel, frame and stream seeds a counter of its
+/// own, which the tile (one sequence, rotated, repeated every sixty-four pixels) is not.
 float randomAt(uvec2 pixel, uint stream)
 {
     if (frame.mNoise == NOISE_WHITE_HASH)
@@ -62,9 +58,8 @@ vec2 unitPair(uvec2 pixel, uint stream)
 /// `unitPair` for bounce ray `ray` of the frame's `VisibilityConstants::mBounceRays`, counting the first as
 /// nought.
 ///
-/// **The tile turned a step a ray**, each frame's rays the next `mBounceRays` steps of the turn: the rays
-/// of one frame then sweep the interval as the frames of one ray do, which is what makes several a frame a
-/// stratified sample and not several draws that may fall together.
+/// **The tile turned a step a ray**, each frame's rays the next `mBounceRays` steps of the turn: the rays of
+/// one frame sweep the interval as the frames of one ray do, so several a frame are a stratified sample.
 vec2 unitPairOfRay(uvec2 pixel, uint stream, uint ray)
 {
     if (frame.mNoise == NOISE_WHITE_HASH)
@@ -81,11 +76,9 @@ vec2 unitPairOfRay(uvec2 pixel, uint stream, uint ray)
 
 /// A direction inside the cone about `axis` that a source subtends, drawn evenly over its solid angle.
 ///
-/// **This is the whole of what a soft shadow is.** A source with a size is not one direction but a cone of
-/// them, and a shadow ray drawn from somewhere in that cone rather than down its axis puts a penumbra under
-/// every occluder whose width is the source's own size seen from it. Evenly over the solid angle is evenly
-/// in the cosine, which is the right draw for a disc of uniform radiance and leaves nothing to weigh the
-/// sample by.
+/// **This is the whole of what a soft shadow is**: a shadow ray drawn from the source's cone rather than down
+/// its axis puts a penumbra under every occluder. Even over the solid angle is even in the cosine, the right
+/// draw for a disc of uniform radiance, and leaves nothing to weigh the sample by.
 ///
 /// @param sine the sine of the cone's half-angle: the source's radius over its distance, and for
 ///        the sun a constant. Zero is a point source and returns `axis` exactly, so a light with
@@ -121,9 +114,8 @@ vec3 sphereDirection(vec2 u)
 
 /// A direction about `normal`, drawn with probability proportional to its cosine.
 ///
-/// **The one distribution that cancels the cosine term.** A diffuse surface weights what arrives by `cos /
-/// pi` and this draws in exactly that proportion, so the estimator is the incoming radiance itself with no
-/// weight left to carry — which is why a single sample is worth anything at all.
+/// **The one distribution that cancels the cosine term**: a diffuse surface weights by `cos / pi` and this
+/// draws in that proportion, so the estimator is the incoming radiance with no weight left to carry.
 vec3 cosineDirection(vec3 normal, vec2 u)
 {
     const float radius = sqrt(u.x);

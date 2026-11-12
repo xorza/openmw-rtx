@@ -37,12 +37,11 @@ namespace Rtx
             return ModuleBinding{ .mSet = set, .mBinding = binding, .mKind = kind, .mCount = count };
         }
 
-        /// **A module's bindings are held to its layout's, set by set**: the same type and count
-        /// agree, a binding the layout does not declare, another type and another count each
-        /// disagree and say which binding of which set, and what the layout declares past what the
-        /// module reads is no disagreement. A set the layout does not name disagrees whatever the
-        /// module reads in it. The census, which the layout adds itself, is not the pass's to state;
-        /// an array of no length takes the layout's count.
+        /// **A module's bindings are held to its layout's, set by set**: the same type and count agree; a binding the
+        /// layout does not declare, another type and another count each disagree and say which binding of which set;
+        /// what the layout declares past what the module reads is no disagreement. A set the layout does not name
+        /// disagrees whatever the module reads in it. The census, which the layout adds itself, is not the pass's to
+        /// state; an array of no length takes the layout's count.
         TEST(RtxPassBindingsTest, aModulesBindingsAreHeldToTheLayoutsTypeAndCountInEverySet)
         {
             const std::array pass{ declared(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
@@ -99,11 +98,11 @@ namespace Rtx
                 "binding 0 of set 0 is declared for stages 0x20, which leave out the module's 0x10");
         }
 
-        /// **A module's constants are held to the words its stage is handed, and its push block to
-        /// the layout's range**: a constant past the words would take its GLSL default in silence,
-        /// a `bool` takes nought or one, and the census's constant is the stage's own. A block may
-        /// end short of the range only where the host rounds a block that ends in an address to a
-        /// multiple of eight: 76 into 80 is that rounding, 72 into 80 and 12 into 20 are not.
+        /// **A module's constants are held to the words its stage is handed, and its push block to the layout's
+        /// range**: a constant past the words would take its GLSL default in silence, a `bool` takes nought or one,
+        /// and the census's constant is the stage's own. A block may end short of the range only where the host rounds
+        /// a block that ends in an address to a multiple of eight: 76 into 80 is that rounding, 72 into 80 and 12 into
+        /// 20 are not.
         TEST(RtxPassBindingsTest, aModulesConstantsAndPushBlockAreHeldToItsWordsAndItsRange)
         {
             const std::array constants{ ModuleSpecConstant{ .mId = 0, .mKind = SpecKind::Bool },

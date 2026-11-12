@@ -35,8 +35,7 @@ namespace Rtx
         using RtxDeviceTest = Testing::DeviceTest;
 
         /// **A wait for a value past every submit is a call out of its turn**, and not a device that
-        /// stopped answering: nothing will signal it, and waited, it sat out its patience and then
-        /// blamed the device.
+        /// stopped answering: nothing will signal it.
         TEST_F(RtxDeviceTest, aWaitForAValueNoSubmitSignalsIsAContractBroken)
         {
             const Device& device = *mHarness.mDevice;
@@ -48,17 +47,13 @@ namespace Rtx
         /// was.
         ///
         /// **The alternative cannot be told from success.** `vkWaitForFences` with no timeout makes a
-        /// device that will never signal and one still working the same call, and a stalled submit
-        /// took the whole suite with it — a wedged process, a GPU at full tilt, and no message. Every
-        /// wait in this renderer now has a deadline; this is the one that proves the deadline fires
-        /// rather than being a number nobody has ever reached.
-        ///
-        /// A fence nothing submits against, and a patience short enough that the test does not sit
-        /// out the real one. **The report says where the queue stands**, from what a device still
-        /// answering can be asked: the buffer markers, which both stages pass at a checkpoint once the
-        /// queue is done with it, where the build marks and the driver offers them
-        /// (`Device::checkpoint`), and nothing anywhere else — NVIDIA's checkpoints are asked only of
-        /// a lost device.
+        /// device that will never signal and one still working the same call, so every wait in this
+        /// renderer has a deadline; this proves the deadline fires rather than being a number nobody has
+        /// reached. A fence nothing submits against, and a patience short enough not to sit out the real
+        /// one. **The report says where the queue stands**, from what a device still answering can be
+        /// asked: the buffer markers both stages pass at a checkpoint once the queue is done with it,
+        /// where the build marks and the driver offers them (`Device::checkpoint`), and nothing anywhere
+        /// else, NVIDIA's checkpoints being asked only of a lost device.
         TEST_F(RtxDeviceTest, aWaitOnADeviceThatNeverAnswersEndsAndNamesItself)
         {
             const Device& device = *mHarness.mDevice;
@@ -192,11 +187,9 @@ namespace Rtx
         }
 
         /// **A module's census word is its place among the census set's modules, sorted by name**,
-        /// whichever compile hand asked first, so a pipeline is the same to the driver's cache from
-        /// run to run: words handed out in the order pipelines were made moved with the trace's
-        /// compile threads, and the cache missed the trace's every pipeline. `accumulate` sorts
-        /// before `accumulateclamp`, `.` before `c`, and the `.spv` is no part of the name. A module
-        /// the directory does not hold is refused by name.
+        /// whichever compile thread asked first, so a pipeline is the same to the driver's cache from run
+        /// to run. `accumulate` sorts before `accumulateclamp`, `.` before `c`, and the `.spv` is no part
+        /// of the name. A module the directory does not hold is refused by name.
         TEST_F(RtxDeviceTest, aModulesCensusWordIsItsPlaceInTheSortedDirectory)
         {
             const NotFiniteCensus* const census = getDevice().getCensus();

@@ -11,10 +11,9 @@ namespace Rtx
     /// since an upscaler samples all of them.
     struct UpscaleInputs
     {
-        /// The frame at render resolution, as the trace chain composed it: denoised where the
-        /// denoisers ran, and the trace's own composite where nothing filtered it. With the use the
-        /// chain left it in, which an upscaler that reads it in another layout transitions from, and
-        /// back to once it has read it.
+        /// The frame at render resolution, as the trace chain composed it: denoised where the denoisers
+        /// ran, the trace's own composite elsewhere. An upscaler reading it in another layout transitions
+        /// from the use the chain left it in, and back.
         const HandedImage& mColour;
 
         /// `CHANNEL_SURFACE`: the distance from the eye along each pixel's ray in `g`, which the
@@ -25,9 +24,8 @@ namespace Rtx
         /// one, in render pixels.
         const Image& mMotion;
 
-        /// `CHANNEL_ALBEDO`, `CHANNEL_SPECULAR_ALBEDO` and `CHANNEL_SPECULAR`: what an upscaler that
-        /// filters the light itself is guided by, the surface's albedos and its lobe's roughness. FSR
-        /// reads none of them.
+        /// `CHANNEL_ALBEDO`, `CHANNEL_SPECULAR_ALBEDO` and `CHANNEL_SPECULAR`: the guides of an upscaler
+        /// that filters the light itself. FSR reads none of them.
         const Image& mAlbedo;
         const Image& mSpecularAlbedo;
         const Image& mSpecular;

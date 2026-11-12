@@ -24,10 +24,9 @@ namespace Rtx::Shaders
     /// The texels of the level above, along one axis `above` long, that texel `i` of the level under
     /// it covers: **the box of `above / here` texels laid over the axis.** Two halves where `above`
     /// is even; where it is odd, `2n + 1` over `n`, three taps worth `(n - i, n, i + 1) / (2n + 1)`
-    /// (NVIDIA, *Non-Power-of-Two Mipmapping*). Halved as two, an odd axis's last texel was never
-    /// read, and each level stood up to a texel of the one above off toward the far edge. An axis
-    /// one texel long stays one. The weights past an axis's taps are nought, and the tap they name
-    /// is the caller's to hold inside the level.
+    /// (NVIDIA, *Non-Power-of-Two Mipmapping*), so no texel is left unread. An axis one texel long
+    /// stays one. The weights past an axis's taps are nought, and the tap they name is the caller's
+    /// to hold inside the level.
     RTX_SHADER AxisTaps axisTaps(uint i, uint above)
     {
         const float n = float(above / 2u);

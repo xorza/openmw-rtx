@@ -230,11 +230,9 @@ namespace RtxTool
 
             ZoneRow& row = mRows[at];
 
-            // **One sample a frame, whatever a frame opened the zone.** A pass recorded in
-            // batches — the structure builds are — opens its zone several times over one frame, and
-            // a row longer than the run then reported a zone as running on more frames than there
-            // were: `tlas 0.24 on 620 of 601`. What a frame's budget is spent on is what the frame
-            // spent there, so the spans of one frame are that frame's sample.
+            // One sample a frame whatever a frame opened the zone: a pass recorded in batches opens its zone
+            // several times over one frame, and a row longer than the run reported a zone on more frames than
+            // there were (`tlas 0.24 on 620 of 601`).
             if (row.mSeen == mFrames)
                 row.mTimes.back() += span.mMs;
             else

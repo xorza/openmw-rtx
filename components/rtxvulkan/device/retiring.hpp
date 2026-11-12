@@ -10,15 +10,11 @@
 namespace Rtx
 {
     /// What a submit may still be reading, each entry with the value of the submit that last
-    /// does, in the order held — which is stamp order, because the stamp is the next submit's
-    /// value and the queue takes submits in order — so what a wait lets go of is a prefix. The
-    /// graveyard keeps one for everything it holds, the pool one for its command buffers and one for
-    /// its staging blocks, and `StructureStorage` one for the room its structures cool in.
+    /// does, in stamp order (the queue takes submits in order), so what a wait lets go of is a
+    /// prefix.
     ///
-    /// **A ring**, so letting go of the oldest moves nothing that stays, where a vector erased from
-    /// its front moved every entry held behind them at every wait. It grows, a doubling that moves
-    /// every entry once, only when a frame holds more than the busiest before it, and never shrinks:
-    /// a frame path does not allocate.
+    /// A ring, so letting go of the oldest moves nothing that stays. It grows by doubling only when
+    /// a frame holds more than the busiest before it, and never shrinks: a frame path does not allocate.
     template <class T>
     class Retiring
     {

@@ -94,15 +94,11 @@ namespace Rtx::Testing
         /// A scene with nothing in it still has a table at every address the frame carries.
         ///
         /// **A null handle at a descriptor is undefined at the dispatch**, and undefined here means a
-        /// lost device seconds in, intermittently, with no message — the loop waits forever on a
-        /// fence that will never signal. A scene with no textures asks for no shading maps and a
-        /// frame with no sprites for no tiles, and a table grown by "grow if what is wanted does not
-        /// fit" is never made at all when nothing is wanted. An address of nought in the frame block is the same
-        /// mistake one step later, and the device says even less about it.
-        ///
-        /// The fix is that the owner opens every table when it is built rather than when something
-        /// writes to one, because the write is exactly what does not happen. This is the assertion
-        /// that says so, and it is the one that would have caught it.
+        /// lost device seconds in, intermittently, with no message. A scene with no textures asks for
+        /// no shading maps and a frame with no sprites for no tiles, and a table grown only when what
+        /// is wanted does not fit is never made when nothing is wanted. An address of nought in the
+        /// frame block is the same mistake one step later. So the owner opens every table when it is
+        /// built rather than when something writes to one.
         TEST_F(RtxSceneTableTest, aSceneWithNothingInItStillAddressesATableForEverythingDeclared)
         {
             Device& device = getDevice();
@@ -115,10 +111,9 @@ namespace Rtx::Testing
             const SceneBuffers buffers(device, setup, empty, {}, {}, 1, SceneRoom{ .mPlacements = 1 });
             setup.flush();
 
-            // **Every table this hands out**, because the rule is the same for all of them; which
-            // ones happen to be empty is not what decides whether they are covered. An address of nought is a table
-            // bound as nothing, and an address off what its reference claims is a load the device may split or fault
-            // on, with no message either.
+            // **Every table this hands out**, empty or not. An address of nought is a table bound as
+            // nothing, and an address off what its reference claims is a load the device may split or
+            // fault on, with no message either.
             Shaders::GpuTables addressed{};
             buffers.describeTables(FrameSlot{}, addressed);
 
@@ -467,7 +462,7 @@ namespace Rtx::Testing
             scene.placements().advance();
 
             // A red material arrives and nothing wears it: the row it lands in is the one the
-            // untextured placement named before, where the old layout kept its sentinel.
+            // untextured placement named.
             constexpr std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
             const Index red
                 = scene.addMaterial(Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("red.dds")) });
@@ -1643,9 +1638,8 @@ namespace Rtx::Testing
                 = scene.addMaterial(Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("mip.dds")) });
             scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
 
-            // The bias goes in as the request's epsilon and comes out through `resolve` and
-            // `sampleCamera`, the way a frame's does, so the test reads the whole path and not a
-            // field a test set by hand.
+            // The bias goes in as the request's epsilon, the way a frame's does, so the test reads
+            // the whole path and not a field a test set by hand.
             const auto renderAt = [&](float distance, float levelBias) {
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
@@ -2385,7 +2379,7 @@ namespace Rtx::Testing
         /// the tangent is x less its part along N, `(0.64, 0.48, 0) / 0.8 = (0.8, 0.6, 0)`, and the
         /// bitangent `cross(N, T) = (0, 0, 1)`. A map of `(128, 191, 221)` leans across the slope,
         /// the tangent-space `(0.003922, 0.498039, 0.733333)`. With `terrain.vert`'s bitangent
-        /// `cross(N, x) = (0, 0, 0.8)` the lean came out four fifths as far.
+        /// `cross(N, x) = (0, 0, 0.8)` the lean would come out four fifths as far.
         TEST_F(RtxVisibilityTest, onASlopeTheLayersFrameStaysUnit)
         {
             constexpr std::uint32_t size = 32;

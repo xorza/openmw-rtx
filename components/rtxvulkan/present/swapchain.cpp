@@ -28,7 +28,7 @@ namespace Rtx
         /// How long a wait on the presentation engine stands before the frame goes on without it:
         /// an image to acquire, or a present to land. A tenth of a second, six refreshes at sixty,
         /// and not the lost device's `sPatience`: an engine that withholds images from a window it
-        /// shows is normal (`Acquired::NotYet`), and ten seconds a frame was a frozen game.
+        /// shows is normal (`Acquired::NotYet`), and ten seconds a frame would be a frozen game.
         constexpr std::uint64_t sPresentPatienceNs = 100'000'000;
 
         bool hasNoExtent(const VkExtent2D extent)
@@ -88,12 +88,9 @@ namespace Rtx
         if (formats.empty())
             throw Unsupported("the surface offers no formats");
 
-        // A plain unsigned-normalised format, because the blit that fills it converts between formats
-        // and an sRGB target would encode an image that `TonePass` has already encoded: the curve and
-        // the transfer function have both run by the time anything reaches here. **In the sRGB
-        // colour space**, the one the curve encodes for: the same format is offered again in HDR10's
-        // or a linear one, which would show the encoded image as something else, and a format is
-        // matched with its space, as vk-bootstrap matches the pair.
+        // A plain unsigned-normalised format, because an sRGB target would encode an image `TonePass`
+        // has already encoded. In the sRGB colour space, the one the curve encodes for: the same
+        // format is offered again in HDR10's or a linear one, which would show it as something else.
         for (const VkSurfaceFormatKHR& format : formats)
             if ((format.format == VK_FORMAT_B8G8R8A8_UNORM || format.format == VK_FORMAT_R8G8B8A8_UNORM)
                 && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)

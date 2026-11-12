@@ -18,12 +18,11 @@ namespace RtxTool
         /// **A press during a crossing turns it at once, and the weather that shows most keeps its
         /// share.** The sky shows `1 - c` of the one it leaves and `c` of the one it goes to.
         ///
-        /// By hand: Clear into Rain at 0.3 is 0.7 of Clear, which keeps it when Snow is asked for —
-        /// Clear into Snow at 0.3. At 0.7 it is 0.7 of Rain, which keeps it: Rain into Snow at
-        /// `1 - 0.7 = 0.3`. At exactly half the crossing starts again from the one it went to. Asked
-        /// for the weather it leaves, it turns round where it stands: Clear into Rain at 0.3 is Rain
-        /// into Clear at 0.7, the same 0.7 of Clear; and turned round from where nothing had crossed,
-        /// it stands where it was.
+        /// By hand: Clear into Rain at 0.3 is 0.7 of Clear, which keeps it when Snow is asked for: Clear
+        /// into Snow at 0.3. At 0.7 it is 0.7 of Rain, which keeps it: Rain into Snow at 0.3. At exactly
+        /// half the crossing starts again from the one it went to. Asked for the weather it leaves, it
+        /// turns round where it stands: Clear into Rain at 0.3 is Rain into Clear at 0.7; turned round
+        /// from where nothing had crossed, it stands where it was.
         TEST(RtxSkyCrossingTest, anAskTurnsTheCrossingAndKeepsTheWeatherThatShowsMost)
         {
             SkyCrossing below(sClear, sRain, 0.3f);
@@ -91,10 +90,9 @@ namespace RtxTool
         }
 
         /// **The crossing runs at the game clock's speed and lands where it went.** By hand: Clear's
-        /// `Transition_Delta` of 0.015 at the session's own `timescale` of 30 crosses 0.015 a second,
-        /// a minute and seven seconds for a whole one; at ×8, 240, it crosses 0.12 a second; and a
-        /// stopped clock crosses nothing. A session that started at 10 counts 30 as ×3, 0.045 a
-        /// second. Four quarters land a crossing on its weather.
+        /// `Transition_Delta` of 0.015 at the session's own `timescale` of 30 crosses 0.015 a second; at
+        /// ×8, 240, 0.12 a second; a stopped clock crosses nothing. A session that started at 10 counts 30
+        /// as ×3, 0.045 a second. Four quarters land a crossing on its weather.
         TEST(RtxSkyCrossingTest, aCrossingRunsAtTheClocksSpeedAndLandsWhereItWent)
         {
             EXPECT_FLOAT_EQ(SkyCrossing::shareOf(1.0f, 0.015f, 30.0f, 30.0f), 0.015f);

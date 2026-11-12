@@ -17,13 +17,11 @@ namespace osg
 
 namespace Rtx
 {
-    /// Every format OpenSceneGraph decodes a texture into: the ones this renderer uploads first,
-    /// then the ones it widens to one of those on the way in, then the ones it only counts, because
-    /// a file the uploader refuses is still a file the report has to name. A colour's formats are
-    /// sRGB, because the files hold display-encoded bytes and the hardware converts inside the
-    /// filter; data's are the same blocks read linearly (`TextureEncoding`). `readFormat` names one
-    /// by the image's pixel format and its data type together, because the pixel format alone says
-    /// which channels and not how many bytes they take. What each one is, is its row of
+    /// Every format OpenSceneGraph decodes a texture into: the ones this renderer uploads first, then the ones it
+    /// widens to one of those on the way in, then the ones it only counts, because a file the uploader refuses is still
+    /// a file the report has to name. A colour's formats are sRGB, because the files hold display-encoded bytes and the
+    /// hardware converts inside the filter; data's are the same blocks read linearly (`TextureEncoding`). `readFormat`
+    /// names one by the image's pixel format and its data type together. What each one is, is its row of
     /// `sFormatTraits`.
     enum class TextureFormat : std::uint8_t
     {
@@ -72,13 +70,10 @@ namespace Rtx
         Argb4444,
         Xrgb4444,
 
-        /// Loose channels that are not four bytes a texel, as an old mod's 24-bit `.tga` or `.bmp`,
-        /// a grey or alpha-only `.dds` and a DX10 file of one, two, sixteen-bit or float channels hold
-        /// them: `describeImage` widens each to RGBA8 too, every channel the file lacks filled as GL
-        /// samples it — nought for a colour, one for alpha, and a luminance read in all three
-        /// colours (`LooseTexel`). A float or sixteen-bit channel is rounded to a byte and held to
-        /// nought and one: a colour slot is display-encoded and a data map a fraction, so a value
-        /// past either end has nothing to mean here.
+        /// Loose channels that are not four bytes a texel (a 24-bit `.tga` or `.bmp`, a grey or alpha-only `.dds`, a
+        /// DX10 file of one, two, sixteen-bit or float channels): `describeImage` widens each to RGBA8, every channel
+        /// the file lacks filled as GL samples it (`LooseTexel`). A float or sixteen-bit channel is rounded to a byte
+        /// and held to nought and one.
         Rgb8,
         Bgr8,
 

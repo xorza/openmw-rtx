@@ -3,21 +3,18 @@
 
 // The two kernels the pyramid is built and taken apart with.
 //
-// **One copy, because three passes ask for them**: `bloomdown.comp` halving the frame and then each level,
-// `bloomup.comp` spreading each level into the one above it, and `tone.comp` spreading the finest one over
-// the picture.
+// One copy, because three passes ask for them: `bloomdown.comp`, `bloomup.comp` and `tone.comp`.
 
 #include "colour.h"
 
 /// The frame or a level, halved.
 ///
-/// **Thirteen taps in five overlapping squares rather than one box.** A plain 2x2 box halved twice is a
-/// wider box, and a wider box has a flat top and a sharp edge — which is what makes a cheap bloom shimmer
-/// as a highlight crosses a texel boundary of a level nobody is looking at. The overlap is what smooths the
-/// transfer between levels, and the corner weights are what taper it: the inner square half of the whole,
-/// and each of the four outer squares an eighth.
+/// Thirteen taps in five overlapping squares rather than one box: a plain 2x2 box halved twice is a wider
+/// box with a flat top and sharp edge, which makes a cheap bloom shimmer as a highlight crosses a texel
+/// boundary. The overlap smooths the transfer between levels and the corner weights taper it: the inner
+/// square half of the whole, each of the four outer squares an eighth.
 ///
-/// **Each square weighed by `1 / (1 + luminance × exposure)` where `exposure` is not nought**, the Karis
+/// Each square is weighed by `1 / (1 + luminance × exposure)` where `exposure` is not nought, the Karis
 /// average, on the frame's own halving and on no level after it (Jimenez 2014, after Karis 2013).
 ///
 /// @param uv the corner the destination texel stands on in the source, `BloomConstants::mTexel`.

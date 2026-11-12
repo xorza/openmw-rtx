@@ -19,21 +19,16 @@ namespace Rtx
     /// Every chunk whose ground is to be flattened (`GroundFlattening`), in the order the walks
     /// asked. A chunk that asks is given a slot and its material's `mDiffuse`, and the slot arrives
     /// at the device empty: the backend sums the chunk's own stack into it in the placement after,
-    /// reading the layers' textures and masks the device already holds. Nothing is wrong
-    /// while a chunk waits: it keeps `mDiffuse` unset and the shader sums its layer stack at the
-    /// hit, so the bake buys the cost of that hit and not the sight of the ground.
+    /// reading the layers' textures and masks the device already holds. Nothing is wrong while a
+    /// chunk waits: it keeps `mDiffuse` unset and the shader sums its layer stack at the hit.
     ///
     /// **A chunk with a layer that reflects is given a second slot, its gloss**, as its material's
-    /// `mSpecular`: how much of the ground there reflects and how rough it is, baked beside the
-    /// albedo from the same stack. Distant ground is seen at grazing, where a dielectric's lobe is
-    /// strongest, so a flattened chunk that dropped either would part from its stack at the edge
-    /// of the active grid — ice turned matte, or a layer with no map given a sheen it never had.
+    /// `mSpecular`, baked beside the albedo from the same stack. Distant ground is seen at grazing,
+    /// where a dielectric's lobe is strongest, so a flattened chunk that dropped either would part
+    /// from its stack at the edge of the active grid.
     ///
-    /// **No threads and no bytes.** This flattened stacks on threads of its own once, tens of
-    /// milliseconds a chunk and a megabyte and a half staged for each, and a frame had to wait
-    /// for the thread to keep the frame a composite landed on the schedule's answer. The frame a
-    /// chunk is taken on is now a count, `sCompositesPerFrame` a frame in the order asked, which
-    /// is the same count on every run.
+    /// **No threads and no bytes**: the frame a chunk is taken on is a count, `sCompositesPerFrame`
+    /// a frame in the order asked, which is the same on every run.
     class CompositeQueue
     {
     public:
@@ -81,9 +76,9 @@ namespace Rtx
         std::size_t mCount = 0;
 
         /// Where in `mWaiting` each material's ask stands, `sNoIndex` where it has none: what
-        /// `gather` finds a chunk asking again by, where a search of the ring was a pass over every
-        /// waiting chunk for each written one. An ask stays in the ring after a newer one replaced
-        /// it, naming no material, so a material has at most one position.
+        /// `gather` finds a chunk asking again by, without a pass over every waiting chunk for each
+        /// written one. An ask stays in the ring after a newer one replaced it, naming no material,
+        /// so a material has at most one position.
         std::vector<Index> mPositions;
 
         /// The texture table's refusal of a composite, which holds the schedule until the table

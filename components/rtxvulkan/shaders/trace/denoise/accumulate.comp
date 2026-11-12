@@ -6,16 +6,15 @@
 // The wavelet's temporal half: this pixel's bounce, averaged with what the same surface gave on the frames
 // before it.
 //
-// **The cascade behind this exists to fill in where this was rejected.** That is the shape every denoiser
-// the field settled on has — SVGF, A-SVGF, ReLAX, ReBLUR — and the renderer had the second half without the
-// first: five spatial levels blurring a single sample, with no way to tell a bright pixel from a wrong one.
-// An average over frames is where the estimator's error actually falls, and the variance it produces on the
-// way is what finally lets the cascade stop at an edge in the *light* rather than only at an edge in the
-// geometry.
+// **The cascade behind this exists to fill in where this was rejected.** That is the shape every denoiser the
+// field settled on has (SVGF, A-SVGF, ReLAX, ReBLUR): five spatial levels blurring a single sample cannot
+// tell a bright pixel from a wrong one. An average over frames is where the estimator's error actually
+// falls, and the variance it produces on the way is what lets the cascade stop at an edge in the *light* and
+// not only in the geometry.
 //
 // **The surface a history belongs to is the one the trace held for it**, the previous frame's
-// `CHANNEL_SURFACE`: what it has to answer is "does the history at that pixel belong to this surface", and
-// the normal and the distance the frame before traced there are that answer.
+// `CHANNEL_SURFACE`: whether the history at that pixel belongs to this surface is answered by the normal and
+// the distance the frame before traced there.
 //
 // **What an occluder uncovered takes the history beside it** (`occluderMotion`, Zeng et al. 2021's dual
 // motion vector, which ReSTIR PT Enhanced applies to its temporal reuse): a surface the previous frame did
@@ -274,13 +273,12 @@ void main()
     vec3 blendedFast = sampled;
     vec3 blendedFastFill = sampledFill;
     vec2 blendedMoments = vec2(lit, 0.0);
-    // **Not `length`, which is GLSL's own**: a local of that name hides the builtin from everything below
-    // it, and the next edit that reaches for one gets a compile error with no explanation in it.
+    // **Not `length`, which is GLSL's own**: a local of that name hides the builtin from everything below it.
     //
-    // **One with no history, because the mean it stores is this frame's sample.** Nought would read back as
-    // a history of nothing, and the next frame would blend at a weight of one and throw the sample away:
-    // every pixel a surface uncovers, and every pixel of a reset, would keep one sample for two frames and
-    // count one frame short ever after.
+    // **One with no history, because the mean it stores is this frame's sample.** Nought would read back as a
+    // history of nothing, so the next frame would blend at a weight of one and throw the sample away: every
+    // pixel a surface uncovers, and every pixel of a reset, would keep one sample for two frames and count one
+    // frame short ever after.
     float count = 1.0;
 
     if (weight > 0.0)

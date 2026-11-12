@@ -255,18 +255,17 @@ namespace Rtx
             }
         };
 
-        /// **A shadow word's mean is rounded exactly, and read back exactly**, on every device: the
-        /// shader rounds in integers on the float's bits, and reads a step back by one pinned multiply.
+        /// **A shadow word's mean is rounded exactly, and read back exactly**, on every device: the shader rounds in
+        /// integers on the float's bits, and reads a step back by one pinned multiply.
         ///
-        /// - **Rounded by its word**, each float stands as `unorm16Of` computes it exactly: up from the
-        ///   step under it where the share of a step it stands above it, in 2^-24ths, passes the word.
-        ///   Each at the words either side of its own share, nought, the nearest's and the largest:
-        ///   nought and one, a half, the least step, 2^-40 and the float under it, where the share
-        ///   leaves the word's reach, values past either end, every float whose product with 65535
-        ///   rounds up onto 1, 2, 255, 32768 or 60001, and 4096 drawn in `[0, 1]`.
-        /// - **Read back**, each of the 65536 steps is the float of its index times
-        ///   `2^-16 + 2^-32`, within an ulp of the step's exact value, and the ends are nought and
-        ///   one: `65535 × (2^-16 + 2^-32) = 1 - 2^-32`, which rounds to one.
+        /// - **Rounded by its word**, each float stands as `unorm16Of` computes it exactly: up from the step under it
+        ///   where the share of a step it stands above it, in 2^-24ths, passes the word. Checked at the words either
+        ///   side of each share and at the edges: nought, one, a half, the least step, 2^-40, values past either end,
+        ///   every float whose product with 65535 rounds up onto 1, 2, 255, 32768 or 60001, and 4096 drawn in `[0,
+        ///   1]`.
+        /// - **Read back**, each of the 65536 steps is the float of its index times `2^-16 + 2^-32`, within an ulp of
+        ///   the step's exact value, and the ends are nought and one: `65535 × (2^-16 + 2^-32) = 1 - 2^-32`, which
+        ///   rounds to one.
         /// - **Its variance is the nearest half**, `SHADOW_NO_RECEIVER` among them, exactly.
         TEST_F(RtxShadowWordTest, aShadowWordRoundsItsMeanExactlyAndReadsItBackExactly)
         {
@@ -334,20 +333,17 @@ namespace Rtx
             EXPECT_EQ(rounded.mMeans[65535], 1.0f);
         }
 
-        /// **A running mean kept in a shadow word keeps its target where the shader rounds it at
-        /// random, and stalls under it where it rounds to the nearest step.** 4096 means, each
-        /// blended toward 0.4 of a step past step 32767 at the temporal pass's weight, keeping 0.95,
-        /// 512 times from nought: 0.95^512 is 4 × 10^-12, so the start is long gone.
+        /// **A running mean kept in a shadow word keeps its target where the shader rounds it at random, and stalls
+        /// under it where it rounds to the nearest step.** 4096 means, each blended toward 0.4 of a step past step
+        /// 32767 at the temporal pass's weight (keeping 0.95), 512 times from nought: 0.95^512 is 4 × 10^-12, so the
+        /// start is long gone.
         ///
-        /// - **To the nearest**, a blend moves the mean by a twentieth of what it lacks, and the
-        ///   rounding drops that once it is under half a step: every mean stops where it lacks under
-        ///   ten steps. Exactly where is the host's to say, through the same pinned blend
-        ///   (`target × (1 - kept) + mean × kept`) and the same rounding: at step 32758, 9.4 steps
-        ///   and 1.4 × 10^-4 under.
-        /// - **At random**, the stored value's mean is the value, so the mean of the means is the
-        ///   target. Each store adds noise of half a step at most, 2^-17, so a mean's deviation stands
-        ///   under `2^-17 / sqrt(1 - 0.95²)`, 2.4 × 10^-5, and the mean of 4096 under 3.8 × 10^-7:
-        ///   within 2 × 10^-6 by more than five deviations.
+        /// - **To the nearest**, a blend moves the mean by a twentieth of what it lacks, and the rounding drops that
+        ///   once it is under half a step: every mean stops where it lacks under ten steps. Exactly where is the
+        ///   host's to say, through the same pinned blend and rounding: step 32758, 9.4 steps under.
+        /// - **At random**, the stored value's mean is the value, so the mean of the means is the target. Each store
+        ///   adds noise of half a step at most, 2^-17, so a mean's deviation stands under `2^-17 / sqrt(1 - 0.95²)`,
+        ///   2.4 × 10^-5, and the mean of 4096 under 3.8 × 10^-7: within 2 × 10^-6 by more than five deviations.
         TEST_F(RtxShadowWordTest, aRunningMeanInAShadowWordKeepsItsTargetWhereRoundedAtRandom)
         {
             constexpr std::uint32_t count = 4096;
@@ -369,23 +365,19 @@ namespace Rtx
             EXPECT_NEAR(sum / count, static_cast<double>(target), 2e-6) << "a mean rounded at random settled elsewhere";
         }
 
-        /// **A field's moments are Welford's under the cap and running means past it, and their
-        /// packed store moves neither.** 4096 lanes, each drawing bits at a chance of its own from
-        /// 0.05 to 0.95, 400 frames, the count damped to 0.3 of itself at frame 200 as a history that
-        /// stood off is (`shadowtiles.comp`).
+        /// **A field's moments are Welford's under the cap and running means past it, and their packed store moves
+        /// neither.** 4096 lanes, each drawing bits at a chance of its own from 0.05 to 0.95, 400 frames, the count
+        /// damped to 0.3 of itself at frame 200 as a history that stood off is (`shadowtiles.comp`).
         ///
-        /// - **Kept as they are**, each lane's moments are the rule worked in doubles
-        ///   (`momentsAfter`), to the float's rounding, and its count stands at the cap, 128: the
-        ///   damping took it to 38.4, and the 199 frames after count it back past the cap. **Without
-        ///   the cap the sum holds every frame's**: about 400 × 0.1825 a lane, the mean of `p(1 - p)`
-        ///   over the chances, where the capped one settles toward 128 × 0.1825 and stands near 30
-        ///   after the damping, so the lanes' sums stand 2.4 times apart.
-        /// - **Packed and read back each frame**, every store rounded at random, the lanes' means of
-        ///   the mean, the sum and the variance stand where the unpacked ones do: a mean's store adds
-        ///   noise of half a unorm step, 7.6 × 10^-6, and the sum's half of a half's step, 2^-12 of
-        ///   it, each held over about 128 frames of the running mean; averaged over 4096 lanes, the
-        ///   bounds below are more than five deviations wide. Each count is 128 either way, which a
-        ///   half holds exactly.
+        /// - **Kept as they are**, each lane's moments are the rule worked in doubles (`momentsAfter`), to the float's
+        ///   rounding, and its count stands at the cap, 128: the damping took it to 38.4, and the 199 frames after
+        ///   count it back past the cap. **Without the cap the sum holds every frame's**: about 400 × 0.1825 a lane,
+        ///   where the capped one settles near 30 after the damping, so the lanes' sums stand 2.4 times apart.
+        /// - **Packed and read back each frame**, every store rounded at random, the lanes' means of the mean, the sum
+        ///   and the variance stand where the unpacked ones do: a mean's store adds noise of half a unorm step, 7.6 ×
+        ///   10^-6, and the sum's half of a half's step, each held over about 128 frames of the running mean; averaged
+        ///   over 4096 lanes, the bounds below are more than five deviations wide. Each count is 128 either way, which
+        ///   a half holds exactly.
         TEST_F(RtxShadowWordTest, aFieldsMomentsAreWelfordsUnderTheCapAndRunningMeansPastIt)
         {
             constexpr std::uint32_t lanes = 4096;

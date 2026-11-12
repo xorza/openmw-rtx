@@ -77,12 +77,11 @@ namespace Rtx::Testing
             return PaneUnderLamps{ .mScene = std::move(scene), .mPane = pane };
         }
 
-        /// How far one rounding of a pane's light to a half moves the frame composed from it, at most.
-        /// The pane filter keeps the light over the albedo, `x`, and rounds it at random by under one
-        /// step: ten bits of fraction put a step at `2^-10 x` or under, and a subnormal's at `2^-24`.
-        /// The composite multiplies by an albedo of one at most, which scales the step with the light,
-        /// so the room is `2^-10` of the composed value or `2^-24`. Its two float roundings are
-        /// `2^-24` of the value each, `2^-14` of the room, so `2^-12` more leaves them twice theirs.
+        /// How far one rounding of a pane's light to a half moves the frame composed from it, at most. The pane
+        /// filter keeps the light over the albedo, `x`, rounded at random by under one step: ten bits of
+        /// fraction put a step at `2^-10 x` or under, a subnormal's at `2^-24`. The composite multiplies by an
+        /// albedo of one at most, so the room is `2^-10` of the composed value or `2^-24`; its two float
+        /// roundings are `2^-24` of the value each, `2^-14` of the room, so `2^-12` more leaves twice theirs.
         float roundingRoomOf(float composed)
         {
             return std::max(std::abs(composed) * 0x1p-10f, 0x1p-24f) * (1.0f + 0x1p-12f);
@@ -97,14 +96,12 @@ namespace Rtx::Testing
             return camera;
         }
 
-        /// **Over a still eye the pane filter is the mean of its frames.** Sixteen frames filtered from
-        /// an empty history, against the same sixteen averaged unfiltered. Under sixteen frames the
-        /// blend's weight is one over the count, so the history is the running mean exactly, to the
-        /// rounding of its halves (`halfRoundedMeanError`); and since a half is rounded at random with
-        /// no bias, the frame's light stands within four deviations of that error's mean over the
-        /// frame's 4096 pixels, which are drawn apart. Measured, 0.53 to 0.57 of the first bound and
-        /// 0.02 to 0.14 of the second. Nothing behind the pane has any light, so the whole of the difference from
-        /// the last raw frame is the pane filter's.
+        /// Over a still eye the pane filter is the mean of its frames. Sixteen frames filtered from an empty
+        /// history against the same sixteen averaged unfiltered. Under sixteen frames the blend's weight is one
+        /// over the count, so the history is the running mean exactly, to the rounding of its halves
+        /// (`halfRoundedMeanError`); a half is rounded at random with no bias, so the frame's light stands
+        /// within four deviations of that error's mean over the 4096 pixels, which are drawn apart. Nothing
+        /// behind the pane has light, so the whole difference from the last raw frame is the pane filter's.
         TEST_F(RtxVisibilityTest, overAStillEyeThePaneFilterIsTheMeanOfItsFrames)
         {
             const SceneDesc scene = paneUnderLamps().mScene;
@@ -130,12 +127,11 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A pane's first filtered frame is the frame the trace composes, to one rounding of a
-        /// half** (`roundingRoomOf`): the pane filter starts its mean at the frame's own light,
-        /// rounded at random to the half it keeps, and the composite multiplies it back by the albedo
-        /// the trace divided it by. A pane whose albedo no half holds —
-        /// `(0.3, 0.37, 0.41)` at 0.43, a red of 0.129 that a half holds as 0.12890625 at the least —
-        /// under the four lamps, against the black sky, so the pane is the whole of every pixel.
+        /// A pane's first filtered frame is the frame the trace composes, to one rounding of a half
+        /// (`roundingRoomOf`): the pane filter starts its mean at the frame's own light, rounded at random to
+        /// the half it keeps, and the composite multiplies it back by the albedo the trace divided it by. A
+        /// pane whose albedo no half holds (`(0.3, 0.37, 0.41)` at 0.43, a red of 0.129 that a half holds as
+        /// 0.12890625 at the least) under the four lamps against the black sky, so the pane is every pixel.
         TEST_F(RtxVisibilityTest, aPanesFirstFilteredFrameIsTheComposedFrame)
         {
             SceneDesc scene;
@@ -152,12 +148,10 @@ namespace Rtx::Testing
                     << "value " << value << ": composed " << composed.at(value) << ", filtered " << filtered.at(value);
         }
 
-        /// **A pane follows an ambient whose light halves** (`historyclamp.comp`). The grey pane at
-        /// half its opacity before the black sky, lit by a grey ambient and no lamp — what a layer is
-        /// lit by at the end of its path (`pathEnd`) — filtered for 64 still frames, then 30 more under
-        /// half the ambient: the pane is the whole of every pixel and linear in the ambient, so the
-        /// new level is half the old one exactly. Measured, the clamp's 30th frame stood at 1.000
-        /// of it, and without the clamp at 1.386.
+        /// A pane follows an ambient whose light halves (`historyclamp.comp`). The grey pane at half its opacity
+        /// before the black sky, lit by a grey ambient and no lamp (what a layer is lit by at the end of its
+        /// path, `pathEnd`), filtered for 64 still frames, then 30 more under half the ambient: the pane is the
+        /// whole of every pixel and linear in the ambient, so the new level is exactly half the old one.
         TEST_F(RtxVisibilityTest, aPaneFollowsAnAmbientWhoseLightHalves)
         {
             for (const bool antilag : { true, false })
@@ -186,22 +180,20 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A jittered still's history is registered at the pixel's centre**: a
-        /// mean of many jittered samples stands for the pixel, and is fetched at `at + 0.5 + motion`,
-        /// never at this frame's jitter against the last. Over a still eye that jitters, sixteen
-        /// filtered frames are then the mean of the same sixteen frames, as an unjittered still's
-        /// are, to the rounding of their halves: twice a frame, the filter's and the clamp's
-        /// (`halfRoundedMeanError`). Fetched at the jitter's offset, every frame would resample the
-        /// history between neighbours, and an edge would blur by a share of the raw frame's error,
-        /// which stands over ten times what the halves allow. Measured, the raw frame at 59 times
-        /// that room, the filtered frame at 0.40 of it, and its light at 0.03 of four deviations.
+        /// A jittered still's history is registered at the pixel's centre: a mean of many jittered samples
+        /// stands for the pixel and is fetched at `at + 0.5 + motion`, never at this frame's jitter against the
+        /// last. Over a still eye that jitters, sixteen filtered frames are the mean of the same sixteen, as an
+        /// unjittered still's are, to the rounding of their halves: twice a frame, the filter's and the clamp's
+        /// (`halfRoundedMeanError`). Fetched at the jitter's offset, every frame would resample the history
+        /// between neighbours and an edge would blur by a share of the raw frame's error, over ten times what
+        /// the halves allow.
         ///
-        /// The edge is in the light and not in the pane, which fills the frame, so every pixel's
-        /// history is its own surface's whatever the jitter: one lamp a hundred units behind the eye,
-        /// and a two-sided blocker fifty behind it whose edge stands 0.3 units right of the axis,
-        /// casting the shadow's edge `0.3 · 300 / 50` = 1.8 units right of it on the pane 200 ahead.
-        /// A column is `2 · 200 tan 30° / 64` = 3.608 units there, so the edge runs half a pixel into
-        /// column 32, which the jitter lights on some frames and shadows on others.
+        /// The edge is in the light and not in the pane, which fills the frame, so every pixel's history is its
+        /// own surface's whatever the jitter: one lamp 100 units behind the eye and a two-sided blocker fifty
+        /// behind it whose edge stands 0.3 units right of the axis, casting the shadow's edge
+        /// `0.3 · 300 / 50` = 1.8 units right of it on the pane 200 ahead. A column is `2 · 200 tan 30° / 64` =
+        /// 3.608 units there, so the edge runs half a pixel into column 32, which the jitter lights on some
+        /// frames and shadows on others.
         TEST_F(RtxVisibilityTest, aJitteredStillsPaneHistoryIsRegisteredAtThePixelsCentre)
         {
             constexpr float away = 200.0f;
@@ -238,14 +230,13 @@ namespace Rtx::Testing
                 << "the history keeps its light";
         }
 
-        /// **A pane's history is its own, and goes where the pane goes.** Sixteen filtered frames of
-        /// the pane, and then the next frame with the pane moved behind the eye and the history kept:
+        /// A pane's history is its own, and goes where the pane goes. Sixteen filtered frames of the pane, then
+        /// the next frame with the pane moved behind the eye and the history kept:
         ///
-        /// - with a second pane a hundred units behind it, which stood still, so `heldSurfaceMatches`
-        ///   says the history is another surface's, and the frame is that frame's raw one to one
-        ///   rounding of a half (`roundingRoomOf`): none of the first pane's light carries over, and
-        ///   none is lost;
-        /// - alone, and the frame is black: nothing of the pane is left standing.
+        /// - with a second pane a hundred units behind it, which stood still, `heldSurfaceMatches` says the
+        ///   history is another surface's, and the frame is that frame's raw one to one rounding of a half
+        ///   (`roundingRoomOf`): none of the first pane's light carries over, and none is lost;
+        /// - alone, the frame is black: nothing of the pane is left standing.
         TEST_F(RtxVisibilityTest, aPanesHistoryIsItsOwnAndGoesWhereThePaneGoes)
         {
             Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
@@ -273,14 +264,12 @@ namespace Rtx::Testing
                 EXPECT_EQ(gone.mean(channel), 0.0f) << "channel " << channel << " kept the pane's light";
         }
 
-        /// **A pane the eye walks toward keeps its history.** Ten units nearer the pane 200 units
-        /// ahead: the pane's own channel carries the step in distance, `frame.cpp`'s arithmetic at
-        /// 190 units — `sqrt(200² + 2 (190a)²) - 190 sqrt(1 + 2a²)` = 9.9992 for `a = tan 30° / 64`
-        /// — and the history, matched at the distance it was measured from, carries sixteen frames
-        /// across the step: the filtered frame stands under half the raw frame's error from the
-        /// average at the new eye. Matched at this frame's distance, the step is past the plane
-        /// tolerance, `ACCUMULATE_PLANE` of the frustum's side 190 units out — 2.2 units — and the
-        /// history is another surface's.
+        /// A pane the eye walks toward keeps its history. Ten units nearer the pane 200 ahead: the pane's own
+        /// channel carries the step in distance, `frame.cpp`'s arithmetic at 190 units,
+        /// `sqrt(200² + 2 (190a)²) - 190 sqrt(1 + 2a²)` = 9.9992 for `a = tan 30° / 64`, and the history,
+        /// matched at the distance it was measured from, carries sixteen frames across it. Matched at this
+        /// frame's distance the step is past the plane tolerance, `ACCUMULATE_PLANE` of the frustum's side 190
+        /// units out (2.2 units), and the history is another surface's.
         TEST_F(RtxVisibilityTest, aPaneTheEyeWalksTowardKeepsItsHistory)
         {
             const SceneDesc scene = paneUnderLamps().mScene;
@@ -347,12 +336,11 @@ namespace Rtx::Testing
             EXPECT_EQ(closed.mAlbedo, open.mAlbedo);
         }
 
-        /// **A pane's lobe is composed and not filtered**: the pane filter keeps a layer's history
-        /// whole over every turn of the view, which a reflection does not survive. A metal pane at half
-        /// its opacity under the four lamps: a metal has no diffuse half, and the black sky lights
-        /// nothing, so what the pane sends is its lobe alone. `CHANNEL_PANE` holds nought at every
-        /// pixel, and sixteen frames through the filters end on the frame the trace composed itself,
-        /// to the rounding of the shown width a filtered frame is read back at.
+        /// A pane's lobe is composed and not filtered: the pane filter keeps a layer's history whole over every
+        /// turn of the view, which a reflection does not survive. A metal pane at half its opacity under the
+        /// four lamps: a metal has no diffuse half and the black sky lights nothing, so what the pane sends is
+        /// its lobe alone. `CHANNEL_PANE` holds nought at every pixel, and sixteen frames through the filters
+        /// end on the frame the trace composed itself, to the rounding of the shown width.
         TEST_F(RtxVisibilityTest, aPanesLobeIsComposedAndNotFiltered)
         {
             constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
@@ -402,12 +390,11 @@ namespace Rtx::Testing
             }
         }
 
-        /// **The pane channel says which eye drew its layer**, as the surface channel does: the
-        /// distance with the arms' flag in its sign (`packSurfaceDistance`), which the pane filter
-        /// rebuilds the layer's ray through. A pane a hundred units ahead fills the frame; the ray
-        /// through the centre pixel, half a pixel off the axis each way, meets it at
-        /// `100 sqrt(1 + 2a²)` = 100.0081 for `a = tan 30° / 64`. Drawn on the arms, the channel reads
-        /// that distance negated; in the world, as it is.
+        /// The pane channel says which eye drew its layer, as the surface channel does: the distance with the
+        /// arms' flag in its sign (`packSurfaceDistance`), which the pane filter rebuilds the layer's ray
+        /// through. A pane 100 units ahead fills the frame; the ray through the centre pixel, half a pixel off
+        /// the axis each way, meets it at `100 sqrt(1 + 2a²)` = 100.0081 for `a = tan 30° / 64`. Drawn on the
+        /// arms the channel reads that distance negated; in the world, as it is.
         TEST_F(RtxVisibilityTest, thePaneChannelSaysWhichEyeDrewTheLayer)
         {
             const Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
@@ -425,16 +412,14 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A pane seen at a grazing angle keeps its history while the eye walks over it.** A glass
-        /// floor twenty units under the eye fills the lower half of the frame, from forty units out
-        /// to two thousand at the row under the horizon, under four lamps along it; the eye walks ten
-        /// units along it. A history texel stands a row from where the pixel's surface stood, and a
-        /// row is from 3% farther along the ray at the bottom of the frame to twice as far under the
-        /// horizon: a test on the distance along the ray refused the far floor's history, and the
-        /// plane test (`heldSurfaceMatches`) takes it, since the texel's point lies in the floor.
-        /// The filtered frame stands under 0.45 of the raw frame's error from the average at the new
-        /// eye, over the whole floor and over its far half alone: measured, 0.31 to 0.39 of it, where
-        /// the test on the distance kept 0.50 to 0.83.
+        /// A pane seen at a grazing angle keeps its history while the eye walks over it. A glass floor twenty
+        /// units under the eye fills the lower half of the frame, from forty units out to two thousand at the
+        /// row under the horizon, under four lamps along it; the eye walks ten units along it. A history texel
+        /// stands a row from where the pixel's surface stood, and a row is from 3% farther along the ray at the
+        /// bottom of the frame to twice as far under the horizon: a test on the distance along the ray refuses
+        /// the far floor's history, and the plane test (`heldSurfaceMatches`) takes it, the texel's point lying
+        /// in the floor. The filtered frame stands under 0.45 of the raw frame's error from the average at the
+        /// new eye, over the whole floor and its far half alone.
         TEST_F(RtxVisibilityTest, aGrazingPaneKeepsItsHistoryWhileTheEyeWalksOverIt)
         {
             SceneDesc scene;
@@ -491,16 +476,14 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A pane is reprojected by its own motion and not by the surface's behind it.** The eye
-        /// steps four units along +X past the pane 200 units ahead, the sky behind it. By
-        /// `frame.cpp`'s arithmetic a point 200 units off moves `4 · 32 / tan 30° / 200` = 1.1085
-        /// pixels at this size and field; the sky, at no distance a step can cross, moves nought.
-        /// The pane's own channel says the first, the pixel's motion the second — and the history,
-        /// fetched from where the pane stood, carries sixteen frames across the step: the filtered
-        /// frame stands under half the raw frame's error from the average at the new eye. The pane is
-        /// the whole of the frame's light, so the upscaler's reactive mask is how far apart the two
-        /// motions stand, past `MISMOVED_FULL` and so at `UPSCALE_MASK_CEILING`, 0.9, which eight bits
-        /// store as 229/255; and nought for the eye standing still.
+        /// A pane is reprojected by its own motion and not by the surface's behind it. The eye steps four units
+        /// along +X past the pane 200 ahead, the sky behind it. By `frame.cpp`'s arithmetic a point 200 units
+        /// off moves `4 · 32 / tan 30° / 200` = 1.1085 pixels here; the sky moves nought. The pane's own channel
+        /// says the first, the pixel's motion the second, and the history, fetched from where the pane stood,
+        /// carries sixteen frames across the step: the filtered frame stands under half the raw frame's error
+        /// from the average at the new eye. The pane is the whole of the frame's light, so the upscaler's
+        /// reactive mask is how far apart the two motions stand, past `MISMOVED_FULL` and so at
+        /// `UPSCALE_MASK_CEILING`, 0.9, which eight bits store as 229/255; and nought for the eye standing still.
         TEST_F(RtxVisibilityTest, aPaneIsReprojectedByItsOwnMotionAndNotTheSurfacesBehindIt)
         {
             const SceneDesc scene = paneUnderLamps().mScene;

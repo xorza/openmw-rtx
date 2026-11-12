@@ -26,13 +26,12 @@ namespace Rtx
     /// runs them in. What differs between chains is the history each keeps — `DenoiseHistory` —
     /// which a frame hands in.
     ///
-    /// **Five passes and one statement of how they meet.** The accumulator averages the bounce over
-    /// time and hands the cascade its variance; the shadow denoiser filters the sky's bit where the
-    /// sky has a source that lights, and the lamps' where the scene has a lamp; the glossy filter
-    /// averages the lobe's light where a surface wears a map; the pane filter averages the layers'
-    /// drawn light; and the wavelet spreads the bounce across the screen. The shadow denoiser and the
-    /// glossy filter read the surface the accumulator's history belongs to
-    /// (`AccumulateImages::mSurfaceBefore`).
+    /// **Five passes and one statement of how they meet.** The accumulator averages the bounce over time
+    /// and hands the cascade its variance; the shadow denoiser filters the sky's bit where the sky has a
+    /// source that lights, and the lamps' where the scene has a lamp; the glossy filter averages the lobe's
+    /// light where a surface wears a map; the pane filter averages the layers' drawn light; and the wavelet
+    /// spreads the bounce across the screen. The shadow denoiser and the glossy filter read the held
+    /// surface the accumulator's history belongs to (`GBuffer::getHeld`).
     class DenoisePasses
     {
     public:

@@ -76,14 +76,10 @@ namespace RtxTool
         float mCrossed = 0.0f;
     };
 
-    /// A sky that runs on its own through a film, whatever the keys name: the clock at a rate, and
-    /// the weather turned through a list, round and round. What a time-lapse is flown under, where
-    /// the camera keeps its own pace through the keys and the sky keeps the film's. Either half
-    /// left out is the keys' own.
-    ///
-    /// **Counted in frames of the film and not of the take**, so a cut keeps the sky where it was:
-    /// the clock takes up where the take before left the world, and the turn where it left the
-    /// list.
+    /// A sky that runs on its own through a film, whatever the keys name: the clock at a rate, and the weather
+    /// turned through a list, round and round; what a time-lapse is flown under. Either half left out is the keys'
+    /// own. Counted in frames of the film and not of the take, so a cut keeps the sky where it was: the clock takes
+    /// up where the take before left the world, and the turn where it left the list.
     struct SkyRun
     {
         /// Seconds of the game's own clock one frame of film stands for, or nothing for the hours
@@ -118,26 +114,19 @@ namespace RtxTool
     /// How far a clock runs from `from` to `to`, in hours, always forward: in [0, 24).
     float hoursForward(float from, float to);
 
-    /// A camera's flight through its keys, as a film's take flies it.
+    /// A camera's flight through its keys, as a film's take flies it: the eye along `CameraPath` at `Cruise`'s
+    /// pace, each segment at one speed eased from and to a rest, taking the frames its two keys stand apart.
     ///
-    /// **The eye along `CameraPath`, at `Cruise`'s pace**: each segment at one speed along the
-    /// line, eased from and to a rest, and taking the frames its two keys stand apart. Where the
-    /// planner gave every segment of a flight one speed, the eye crosses the take at it.
+    /// A key between a slow leg and a fast one is passed at the slow one's speed, so speed is continuous through it
+    /// and the fast leg changes within an ease; at the fast leg's the slow leg would dip below its own speed to make
+    /// up the distance and stop short.
     ///
-    /// **A key between a slow leg and a fast one is passed at the slow one's speed**, and the fast
-    /// leg changes speed within an ease of it, as it would from a rest: the slow leg is flown at
-    /// its own speed to the key, and the speed is continuous through it. Passed at the fast leg's,
-    /// the slow leg would have to dip below its own speed to make up the distance, and stop where
-    /// it is short.
-    ///
-    /// **The facing and the hour a cubic Hermite spline in time, per channel.** The tangents are
-    /// Catmull-Rom's, `(v₊ − v₋) / (f₊ − f₋)`, which is what a value that must pass through every
-    /// key at a given time takes, and its rate is continuous through each key. **Limited by the
-    /// Fritsch–Carlson conditions**, because a Catmull-Rom tangent carries a fast segment's rate
-    /// into a slow neighbour and overshoots: a tangent is zero where the neighbouring secants
-    /// change sign or one is flat, and a segment's pair is scaled into the circle of radius three.
-    /// The hour so never runs backwards, and a yaw never turns past a key. The ends of a take and
-    /// the sides of a hold rest, so two keys alone turn by exactly smoothstep, `3u² − 2u³`.
+    /// The facing and the hour are a cubic Hermite spline in time per channel, with Catmull-Rom tangents
+    /// `(v₊ − v₋) / (f₊ − f₋)` limited by the Fritsch–Carlson conditions, because a Catmull-Rom tangent carries a
+    /// fast segment's rate into a slow neighbour and overshoots: a tangent is zero where the neighbouring secants
+    /// change sign or one is flat, and a segment's pair is scaled into the circle of radius three. So the hour never
+    /// runs backwards and a yaw never turns past a key. The ends of a take and the sides of a hold rest, so two keys
+    /// alone turn by exactly smoothstep, `3u² − 2u³`.
     class CameraTrack
     {
     public:

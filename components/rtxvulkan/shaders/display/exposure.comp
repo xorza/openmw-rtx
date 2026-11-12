@@ -114,9 +114,8 @@ void main()
         return;
     }
 
-    // **Adaptation happens over time, and this was the only term in the frame that did not.** The
-    // rate is asymmetric because the eye is: opening in the dark is slow and closing in the light is
-    // quick.
+    // Adaptation happens over time. The rate is asymmetric because the eye is: opening in the dark
+    // is slow and closing in the light is quick.
     const float tau = target > held ? EXPOSURE_RISE_SECONDS : EXPOSURE_FALL_SECONDS;
 
     // `1 - exp(-dt / tau)` and not a fixed fraction per frame: the same share of the gap closes per second

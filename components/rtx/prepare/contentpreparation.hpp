@@ -117,16 +117,12 @@ namespace Rtx
 
     /// The game's import step, run on its loading screen (`docs/rtx/architecture.md`, "The store is
     /// filled on the loading screen, in the game's own process"): every model the content names walked
-    /// as the cell reader walks it, on threads of its own, so every pass that walk asks — the shapes
-    /// and the texture facts — and every chain its maps need is in the store before play, and play
-    /// reads it there; and every ground layer's maps, as the ground reader reads them. A model or a
-    /// layer whose files stand as the last preparation found them is not read again
-    /// (`PreparationManifest`). **A walk queues a chain job for each map it claims**, and the threads take
-    /// walks and chains as a dispatcher hands them out within a budget of memory (`PreparationDispatcher`,
-    /// `docs/rtx/architecture.md`, "The preparation's memory is dispatched"); the loader's caches let go of
-    /// each file as the last job reading it ends.
-    ///
-    /// Starts when made. Pinned: the threads reach every member.
+    /// as the cell reader walks it, and every ground layer's maps read as the ground reader reads them,
+    /// on threads of their own, so the store holds every pass and chain before play. A model or layer
+    /// whose files stand as the last preparation found them is not read again (`PreparationManifest`).
+    /// **A walk queues a chain job for each map it claims**; a dispatcher hands out walks and chains
+    /// within a memory budget (`docs/rtx/architecture.md`, "The preparation's memory is dispatched"),
+    /// and the loader's caches let go of each file as the last job reading it ends.
     class ContentPreparation
     {
     public:

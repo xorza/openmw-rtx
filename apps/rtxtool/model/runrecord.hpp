@@ -16,16 +16,10 @@
 
 namespace RtxTool
 {
-    /// What a run comes to as it happens: the places measured, the header they stood under, the
-    /// report as it is built, and whether anything failed.
-    ///
-    /// **One type, because a run has one verdict and one account of itself.** The report text, the
-    /// exit status, the check tally and the hashes were seven members of whatever drove the run, and
-    /// every writer that had something to say reached into all of them — so a writer that wrote a
-    /// line and forgot the status reported a failure as a success.
-    ///
-    /// **Here rather than beside the driver**, because none of it needs a world: a place is
-    /// `BenchPlace`, a header is `BenchHeader`, and closing the run is those two written to a file.
+    /// What a run comes to as it happens: the places measured, the header they stood under, the report as it is
+    /// built, and whether anything failed. One type, because a run has one verdict and one account of itself: a
+    /// writer that wrote a line and forgot a separately held status reported a failure as a success. Here rather
+    /// than beside the driver, because none of it needs a world.
     class RunRecord
     {
     public:
@@ -52,9 +46,8 @@ namespace RtxTool
 
         /// Says the run failed, whatever else it wrote.
         ///
-        /// **Apart from `note`, because a line and a verdict are two statements.** A picture that
-        /// could not be written says so in the report and fails the run; a picture that was written
-        /// says so and does not.
+        /// Apart from `note`, because a line and a verdict are two statements: a picture that could not be written
+        /// says so and fails the run; one that was written says so and does not.
         void fail() { mExitStatus = 1; }
 
         /// Says a hashed frame differed from its reference: the run's status unless it failed.
@@ -65,9 +58,8 @@ namespace RtxTool
 
         /// The hashes this run took, and the ones it is being compared against.
         ///
-        /// **The run's own record of what it drew.** A hash is one line of the report at the end and
-        /// one number per measured frame until then, so it settles here rather than beside the
-        /// frames it was taken from.
+        /// The run's own record of what it drew: a hash is one line of the report at the end and one number per
+        /// measured frame until then, so it settles here rather than beside the frames.
         FrameHashes& getHashes() { return mHashes; }
         void readReference(const std::filesystem::path& path) { mReference = FrameHashes::read(path); }
 
@@ -75,12 +67,9 @@ namespace RtxTool
 
         /// Closes the run: the total under the places, the check tally, the hashes and the record.
         ///
-        /// **A file it cannot write is a line of the report and a failed run, never a throw.** It
-        /// runs inside the engine's frame, and a throw from there would lose every measured place's
-        /// figures with the report they were in.
-        ///
-        /// **Takes the request rather than four paths**, because what it writes and what it compares
-        /// against is what the run was asked for — and the request is this component's own.
+        /// A file it cannot write is a line of the report and a failed run, never a throw: it runs inside the
+        /// engine's frame, and a throw from there would lose every measured place's figures. Takes the request
+        /// rather than four paths, because what it writes and compares against is what the run was asked for.
         void finish(const SessionRequest& request);
 
         /// Closes a run that failed before its last stop, for the stops it reached: the frames
@@ -93,10 +82,9 @@ namespace RtxTool
         /// Everything a launcher reads back, with `left` where the eye was, or null where the run
         /// reached no place.
         ///
-        /// **The whole result and never a field at a time.** A launcher reads four of these and a
-        /// run fills all four, so a hand-over written out member by member loses whichever ones
-        /// nobody remembered — silently, since an unfilled `SessionResult` is a valid one describing
-        /// a camera at the origin.
+        /// The whole result and never a field at a time: a launcher reads four of these, and an unfilled
+        /// `SessionResult` is a valid one describing a camera at the origin, so a member-by-member hand-over loses
+        /// whichever nobody remembered, silently.
         SessionResult describe(const Stop* left) const;
 
     private:

@@ -1,9 +1,8 @@
-# The third-party code the tree builds against, in one place. What it fetches and builds itself: each
-# project at a pinned archive, never a system's, built with the tree's own flags and sanitizer, which
-# ThreadSanitizer needs of every library whose locks it is to see. Every fetched project is a system's to
-# the tree (`SYSTEM`), whose warnings are its own, and builds only what the tree links
-# (`EXCLUDE_FROM_ALL`). Then what it finds in the vcpkg set, OpenSceneGraph, Bullet, MyGUI and the rest;
-# `extern/` holds what is vendored.
+# The third-party code the tree builds against, in one place: what it fetches and builds itself, each project at a
+# pinned archive and never a system's, with the tree's own flags and sanitizer (ThreadSanitizer needs that of every
+# library whose locks it is to see); then what it finds in the vcpkg set, OpenSceneGraph, Bullet, MyGUI and the rest.
+# Every fetched project is a system's to the tree (`SYSTEM`), whose warnings are its own, and builds only what the
+# tree links (`EXCLUDE_FROM_ALL`). `extern/` holds what is vendored.
 
 include(FetchContent)
 
@@ -137,12 +136,11 @@ block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
     include("${CMAKE_CURRENT_LIST_DIR}/../extern/crashpad.cmake")
 endblock()
 
-# What the tree finds and never fetches: the vcpkg set (`vcpkg.json`), static, through the toolchain file
-# the presets name, and the system's OpenGL, X11 and Threads. Each package by its own CMake files where it
-# installs them; a package whose files define no target gets one here, an imported interface target
-# carrying its headers, its libraries and the definitions its headers need, so what links it compiles
-# against it and nothing else does; imported, so its headers are a system's. No version floors: the set
-# is the one version the tree is built against.
+# What the tree finds and never fetches: the vcpkg set (`vcpkg.json`), static, through the toolchain file the presets
+# name, and the system's OpenGL, X11 and Threads. Each package by its own CMake files where it installs them; a
+# package whose files define no target gets an imported interface target here, carrying its headers, its libraries
+# and the definitions its headers need, so that only what links it compiles against it; imported, so its headers are
+# a system's. No version floors: the set is the one version the tree is built against.
 
 # A library the set installs no CMake files for, or files that define no target: an imported target of its archive,
 # found by `NAMES` (in the folder `IN` alone where it is given), with the folder of its `HEADER` (under one of

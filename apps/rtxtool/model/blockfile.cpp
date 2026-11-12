@@ -136,9 +136,8 @@ namespace RtxTool
             if (mBlocks.empty())
                 refuse(number, "a field comes before the first [section]");
 
-            // **One value a field, in every schema**: else a second `pos` would win and a second
-            // `speed` lose, each by the reader that happened to read it, and a typo would be a quiet
-            // choice.
+            // One value a field, in every schema: else a second `pos` would win and a second `speed` lose, by
+            // whichever reader read it, and a typo would be a quiet choice.
             Block& block = mBlocks.back();
             const std::string_view name = trimmed(text.substr(0, equals));
             const auto set = std::find_if(block.mFields.begin(), block.mFields.end(),
@@ -230,9 +229,8 @@ namespace RtxTool
 
     Result<void, std::string_view> checkWeather(const std::string_view weather)
     {
-        // **Checked where it is read rather than at the frame**, for the reason a mistyped view id
-        // is: a place that quietly stood under another sky reports a number against a frame nobody
-        // asked for.
+        // Checked where it is read rather than at the frame, as a mistyped view id is: a place that quietly stood
+        // under another sky reports a number against a frame nobody asked for.
         if (!Rtx::weatherNamed(weather).has_value())
             return Err{ "is none of the weathers the content files name" };
 

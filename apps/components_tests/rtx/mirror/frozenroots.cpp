@@ -14,13 +14,12 @@ namespace Rtx
 {
     namespace
     {
-        /// **A held face keeps what it names, so a new object never reads as an old one.** A root
-        /// frozen with one child shows the face it was frozen at, and none that moved it, changed
-        /// its identity, its count of children, its state set or its first child. Once the game
-        /// takes the child away and lets go of it, the face still holds it: no new child can be
-        /// made at its address, and the one the game puts in its place is another face. A face that
-        /// becomes one moved lets go of nothing, and one with a new child lets go of the old child
-        /// alone. Released, the face hands what it held to the sink, which then holds it alone.
+        /// **A held face keeps what it names, so a new object never reads as an old one.** A root frozen with one
+        /// child shows the face it was frozen at, and none that moved it, changed its identity, its count of children,
+        /// its state set or its first child. Once the game takes the child away the face still holds it, so no new
+        /// child can be made at its address and the one put in its place is another face. A face that becomes one
+        /// moved lets go of nothing, one with a new child lets go of the old child alone, and a released face hands
+        /// what it held to the sink, which then holds it alone.
         TEST(RtxFrozenRootsTest, aHeldFaceKeepsWhatItNamesSoANewObjectNeverReadsAsAnOldOne)
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;

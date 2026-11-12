@@ -14,16 +14,14 @@ namespace Rtx
 {
     struct TextureData;
 
-    /// An estimate of the light a texture already has painted into it. Morrowind's textures were
-    /// lit before they were saved, so a ray tracer lights their corners dark twice over. This is
-    /// the low-frequency part of a texture's brightness as a factor to divide out: normalised to
-    /// average one, so it moves light around and never changes how much there is, and clamped to
-    /// a factor of two, so paint that is black stays near black. Coarse on purpose, because
-    /// painted lighting varies slowly and painted detail does not, and following the detail is the
+    /// An estimate of the light a texture already has painted into it: Morrowind's textures were lit before they were
+    /// saved, so a ray tracer lights their corners dark twice over. The low-frequency part of a texture's brightness as
+    /// a factor to divide out, normalised to average one so it never changes how much light there is, and clamped to a
+    /// factor of two so that black paint stays near black. Coarse on purpose: following the detail is the
     /// over-correction that flattens a texture into a colour.
     ///
-    /// **Made on the host, as a painted colour's chain is made** (`ChainBuild::build`), which
-    /// divides each level by it where it stands; the texture sheet draws the same.
+    /// **Made on the host, as a painted colour's chain is made** (`ChainBuild::build`), which divides each level by it
+    /// where it stands; the texture sheet draws the same.
     class ShadingMap
     {
     public:
@@ -37,13 +35,11 @@ namespace Rtx
         static constexpr float sFloor = 0.5f;
         static constexpr float sCeiling = 2.0f;
 
-        /// How many times the grid is box blurred, three by three, before it is normalised: three passes
-        /// are a close enough Gaussian for anything this coarse, and a correction with an edge in it
-        /// would put that edge into the picture. **Wrapping along an axis the texture repeats**, because
-        /// Morrowind's textures tile and a blur that clamped there would invent a gradient across every
-        /// wall; **and clamped along one it clamps** (`TextureData::mWrap`), because that is an unwrapped
-        /// picture — a banner, a flame — whose border cells took the opposite edge's light and divided
-        /// real albedo by it.
+        /// How many times the grid is box blurred, three by three, before it is normalised: three passes are a close
+        /// enough Gaussian, and a correction with an edge in it would put that edge into the picture. **Wrapping along
+        /// an axis the texture repeats**, because a blur that clamped there would invent a gradient across every wall;
+        /// **and clamped along one it clamps** (`TextureData::mWrap`), because a banner's or a flame's border cells
+        /// would otherwise take the opposite edge's light.
         static constexpr std::uint32_t sBlurPasses = 3;
 
         /// Estimates the map from the texture's largest level, weighed by `alpha`, the texture's own

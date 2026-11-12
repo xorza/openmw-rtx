@@ -6,11 +6,10 @@ namespace Sky
     /// it and both renderers read it, which is why it is here rather than beside either.
     struct MoonState
     {
-        /// **The order is the game's own and two things depend on it agreeing.** It is the order the
-        /// eight `tx_masser_*` faces are listed in, and — because the steps are even — it is an
-        /// angle: a phase is `index * 45 degrees` round the cycle, zero at full and 180 at new, so
-        /// the lit share of the disc is `(1 + cos) / 2`. Waxing and waning mirror each other, and
-        /// the limb that keeps the light is the one toward the sun.
+        /// **The order is the game's own and two things depend on it.** It is the order the eight
+        /// `tx_masser_*` faces are listed in and, the steps being even, an angle: a phase is
+        /// `index * 45 degrees` round the cycle, zero at full and 180 at new, so the lit share of the disc
+        /// is `(1 + cos) / 2`. The limb that keeps the light is the one toward the sun.
         enum class Phase
         {
             Full,
@@ -57,17 +56,14 @@ namespace Sky
 
         /// What the hour alone fades the moon by, with no account of where it stands.
         ///
-        /// **The half of `mMoonAlpha` that is about daylight.** `Moons_<name>_Fade_Out_*` takes the
-        /// moons out between seven and ten in the morning and `Fade_In_*` brings them back between
-        /// two and three in the afternoon; the other half hides a moon under
-        /// `Moons_<name>_Fade_End_Angle`, which is the engine keeping a lit quad off its own fogged
-        /// horizon. A renderer with air in it wants the first without the second.
+        /// **The half of `mMoonAlpha` that is about daylight** (`Moons_<name>_Fade_Out_*` and `Fade_In_*`);
+        /// the other half hides a moon under `Moons_<name>_Fade_End_Angle`, the engine keeping a lit quad
+        /// off its own fogged horizon. A renderer with air in it wants the first without the second.
         float mDaylightFade;
 
-        /// The phase as a continuous count of eighths from full, nought to eight: `mPhase` and how
-        /// far the moon has run toward its next change, which reaches the next phase exactly when
-        /// `mPhase` does. What a terminator drawn at any angle follows, where `mPhase` is the
-        /// eight painted faces and a script's answer.
+        /// The phase as a continuous count of eighths from full, nought to eight: `mPhase` plus how far the
+        /// moon has run toward its next change. What a terminator drawn at any angle follows, where
+        /// `mPhase` is the eight painted faces and a script's answer.
         float mPhaseEighths = 0.0f;
     };
 

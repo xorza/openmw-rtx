@@ -49,9 +49,8 @@ namespace RtxTool
             return;
         }
 
-        // The versioned names, which are what the header maps the plain ones to, and the event
-        // reasons under the name that replaced `ThrottleReasons` or under that one where the
-        // driver is older.
+        // The versioned names the header maps the plain ones to; event reasons under the newer name, or the older
+        // one on an older driver.
         if (!load(mLibrary, mInit, "nvmlInit_v2") || !load(mLibrary, mShutdown, "nvmlShutdown")
             || !load(mLibrary, mHandleByBusId, "nvmlDeviceGetHandleByPciBusId_v2")
             || !load(mLibrary, mClockInfo, "nvmlDeviceGetClockInfo")
@@ -107,10 +106,8 @@ namespace RtxTool
         if (!isOpen())
             return GpuClock{};
 
-        // **The core clock is the reading, and each other field is what its own call answered**:
-        // `GpuClock` keeps the memory clock, the temperature and the reasons apart because one
-        // instrument reads what another cannot, and a call the driver refused is no reason to lose
-        // the clock the frame times are read against.
+        // Each field but the core clock is what its own call answered: a refused call must not lose the core clock
+        // the frame times are read against.
         unsigned core = 0;
         if (mClockInfo(mDevice, sGraphicsClock, &core) != sSuccess)
             return GpuClock{};
@@ -166,9 +163,8 @@ namespace RtxTool
         {
             const RawSample& raw = mScratch[at];
 
-            // Asked for what is newer than the cursor and told what is; the driver has handed
-            // back the sample at the cursor itself, so the read the cursor came from is not
-            // counted twice.
+            // The driver hands back the sample at the cursor itself; skipping it keeps the read the cursor came
+            // from from being counted twice.
             if (raw.mStamp <= mCursor)
                 continue;
 

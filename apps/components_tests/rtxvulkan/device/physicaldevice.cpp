@@ -37,13 +37,12 @@ namespace Rtx
             return names;
         }
 
-        /// An RTX 2060 as the Vulkan Hardware Database reports it: report 46422, driver 590.48.01 on
-        /// Linux, Vulkan 1.4.325.
+        /// An RTX 2060 as the Vulkan Hardware Database reports it: report 46422, driver 590.48.01 on Linux, Vulkan
+        /// 1.4.325.
         ///
-        /// **A card nobody here owns, described from what it says of itself.** Three heaps — six
-        /// gigabytes of video memory, twenty-five of system memory, and a 246 MiB window the host
-        /// writes into. A `Card` lists every required extension, and
-        /// `aCardShortOfOneThingIsNamedForThatThing` takes one out again.
+        /// **A card nobody here owns, described from what it says of itself.** Three heaps: six gigabytes of video
+        /// memory, twenty-five of system memory, and a 246 MiB window the host writes into. A `Card` lists every
+        /// required extension, and `aCardShortOfOneThingIsNamedForThatThing` takes one out again.
         void describeTuring(DeviceProperties& properties)
         {
             properties.mProperties2.properties.apiVersion = VK_MAKE_API_VERSION(0, 1, 4, 325);
@@ -135,11 +134,8 @@ namespace Rtx
             std::vector<VkBool32> mPresents;
         };
 
-        /// Two cards this fork targets are both taken, whatever window the host maps of their video
-        /// memory: an RTX 2060's 246 MiB beside it, and an Ada card's whole heap.
-        ///
-        /// **The whole reason the type exists.** Neither card is asked, only described: what the
-        /// renderer would do on a card nobody here owns.
+        /// Two cards this fork targets are both taken, whatever window the host maps of their video memory: an RTX
+        /// 2060's 246 MiB beside it, and an Ada card's whole heap. Neither card is asked, only described.
         TEST(RtxPhysicalDeviceTest, twoCardsThisForkTargetsAreBothTaken)
         {
             Card turing(&describeTuring);
@@ -180,11 +176,10 @@ namespace Rtx
             EXPECT_TRUE(other.mStatistics.mRegisters.empty());
         }
 
-        /// **A queue is chosen for what this renderer submits and, where there is a window, for
-        /// presenting to it**: graphics and compute, whether or not the family says it transfers,
-        /// which Vulkan leaves it free not to; the first family that presents where the first that
-        /// can do the rest does not; and a device with no family that presents, or no swapchain, is
-        /// refused by name at selection rather than when the swapchain is made.
+        /// **A queue is chosen for what this renderer submits and, where there is a window, for presenting to it**:
+        /// graphics and compute, whether or not the family says it transfers, which Vulkan leaves it free not to; the
+        /// first family that presents where the first that can do the rest does not; and a device with no presenting
+        /// family, or no swapchain, is refused by name at selection rather than when the swapchain is made.
         TEST(RtxPhysicalDeviceTest, aQueueIsChosenForWhatIsSubmittedAndForTheWindow)
         {
             Card card(&describeTuring);
@@ -225,9 +220,8 @@ namespace Rtx
 
         /// An optional extension is taken where the device lists it and left where it does not.
         ///
-        /// **Neither answer refuses the device**, which is the whole difference between this list
-        /// and the required one: a card without `VK_EXT_device_fault` traces the same frames and
-        /// says less about a device loss.
+        /// **Neither answer refuses the device**, which is the difference between this list and the required one: a
+        /// card without `VK_EXT_device_fault` traces the same frames and says less about a device loss.
         TEST(RtxPhysicalDeviceTest, anOptionalExtensionIsTakenOnlyWhereTheDeviceListsIt)
         {
             Card bare(&describeTuring);
@@ -386,11 +380,10 @@ namespace Rtx
             }
         }
 
-        /// **The first discrete device nothing stops is chosen, else the first nothing stops**, and the
-        /// survey says of every device what became of it: a laptop's integrated card listed before its
-        /// discrete one is passed over for it, a second discrete one for the first, and a software
-        /// rasterizer is refused with its obstacle. With no discrete card, the first device standing is
-        /// chosen and the one after it passed over for it; with none standing, none is.
+        /// **The first discrete device nothing stops is chosen, else the first nothing stops**, and the survey says
+        /// what became of every device: an integrated card listed before a discrete one is passed over, a second
+        /// discrete one for the first, and a software rasterizer is refused with its obstacle. With no discrete card
+        /// the first standing device is chosen; with none standing, none is.
         TEST(RtxPhysicalDeviceTest, theFirstDiscreteDeviceIsChosenAndTheSurveySaysWhatBecameOfEachDevice)
         {
             const SurveyedDevice integrated{ .mName = "Intel UHD", .mDetails = "integrated", .mObstacle = "" };

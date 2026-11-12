@@ -61,12 +61,10 @@ namespace Rtx
         const std::uint32_t meanAt = meansAt + levelAt(spread, level);
         const std::uint32_t aboveAt = first ? meanAt : meansAt + levelAt(spread, level - 1);
 
-        // **Bound from the level before to the end of the level written, and no further**: the two
-        // are next to each other in the map's run, and a dispatch of each map of a group writes the
-        // one buffer in the same level, which a binding of all of it said was a write over another
-        // map's. From where a binding may start, before the level before: a texel is sixteen bytes
-        // and the alignment a power of two, so what lies between is whole texels, which the indices
-        // count from.
+        // Bound from the level before to the end of the level written, and no further: a dispatch of each map of a
+        // group writes the one buffer in the same level, which a binding of all of it said was a write over another
+        // map's. It starts before the level before because a binding may only start at the buffer's alignment, and a
+        // texel is sixteen bytes, so what lies between is whole texels, which the indices count from.
         const VkDeviceSize start = VkDeviceSize{ aboveAt } * Shaders::NORMAL_SPREAD_MEAN_BYTES;
         const VkDeviceSize bound = start / mAlignment * mAlignment;
         assert(bound % Shaders::NORMAL_SPREAD_MEAN_BYTES == 0 && "a binding of the means part way into a texel");

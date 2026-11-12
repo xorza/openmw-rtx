@@ -173,10 +173,9 @@ namespace Rtx
 
     void makeInstanceRecords(const SceneDesc& scene, std::vector<InstanceRecord>& records)
     {
-        // Resized and not cleared. `clear` plus `resize` writes the whole array twice — once
-        // with zeroes and once with the records — and at a hundred bytes a slot over fifty thousand
-        // slots that is five megabytes of pointless stores. The buffer is the caller's and keeps
-        // its size between scenes; only a scene that grew or shrank pays anything here.
+        // Resized and not cleared: `clear` plus `resize` writes the whole array twice, which at a
+        // hundred bytes a slot over fifty thousand slots is five megabytes of pointless stores. The
+        // buffer is the caller's and keeps its size between scenes.
         const std::size_t slots = scene.placements().getRows().size();
         records.resize(slots);
 

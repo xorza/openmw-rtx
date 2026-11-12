@@ -3,15 +3,10 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// The trace's checkerboard channels made the images DLSS Ray Reconstruction reads beside the noisy
-// frame, in the frame's own order: a reversed device depth worked out from the surface's distance along
-// its ray, the motion vector, the diffuse and the specular albedo, and the world normal with the
-// perceptual roughness in its fourth. The fields are a permutation of the frame, not half of it, so every
-// pixel has its own sample and no dilation is needed; RR dilates the inputs internally.
-//
-// **The sky stands at RR's defaults** (NVIDIA's DLSS-RR Integration Guide, 3.4.1–3.4.4): a diffuse albedo
-// of a half, no specular albedo, no normal and no roughness, where a pixel left at whatever the channels
-// hold there reads to RR as a surface.
+// The trace's checkerboard channels made the images DLSS Ray Reconstruction reads beside the noisy frame, in
+// the frame's own order: a reversed device depth from the surface's distance along its ray, the motion
+// vector, the diffuse and the specular albedo, and the world normal with the perceptual roughness in its
+// fourth. The fields are a permutation of the frame, not half of it, so no dilation is needed.
 
 #include "camera.h"
 #include "gbuffer.h"

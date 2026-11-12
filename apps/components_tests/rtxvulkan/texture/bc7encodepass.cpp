@@ -29,11 +29,10 @@ namespace Rtx
 
         using Texel = std::array<std::uint8_t, 4>;
 
-        /// One block as the format defines mode 6, decoded on the host from its sixteen bytes: the
-        /// mode's seven bits, two end points of seven bits a channel, a lowest bit each, and an
-        /// index a texel — three bits for the first, whose top bit is nought — read from the lowest
-        /// bit up. The weights are the format's own table, written here and not taken from the
-        /// encoder, so a table the encoder got wrong is caught.
+        /// One block as the format defines mode 6, decoded on the host from its sixteen bytes: the mode's seven bits,
+        /// two end points of seven bits a channel, a lowest bit each, and an index a texel (three bits for the first,
+        /// whose top bit is nought) read from the lowest bit up. The weights are the format's own table, written here
+        /// and not taken from the encoder, so a table the encoder got wrong is caught.
         std::array<Texel, 16> decodeMode6(std::span<const std::byte, Shaders::BC7_BLOCK_BYTES> block)
         {
             constexpr std::array<std::uint32_t, 16> weights{ 0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60,
@@ -203,22 +202,17 @@ namespace Rtx
             return texels;
         }
 
-        /// **The blocks the encoder writes are mode 6 as the format defines it, and the sampler
-        /// decodes them to what the host's decoder does**, texel for texel, which says the bits are
-        /// laid where the format puts them.
+        /// **The blocks the encoder writes are mode 6 as the format defines it, and the sampler decodes them to what
+        /// the host's decoder does**, texel for texel, which says the bits are laid where the format puts them.
         ///
-        /// **One colour comes back exactly.** (137, 225, 0) mixes odd and even channels, which two
-        /// equal end points sharing a lowest bit cannot hold; the end points either side of each
-        /// channel reach it at the index whose weight is 30: `(34·136 + 30·138 + 32) >> 6 = 137`,
-        /// `(34·224 + 30·226 + 32) >> 6 = 225`, and nought from two noughts. The alpha, which this
-        /// image's reader does not read, gives way.
+        /// **One colour comes back exactly.** (137, 225, 0) mixes odd and even channels, which two equal end points
+        /// sharing a lowest bit cannot hold; the end points either side of each channel reach it at the index whose
+        /// weight is 30: `(34·136 + 30·138 + 32) >> 6 = 137`, `(34·224 + 30·226 + 32) >> 6 = 225`. The alpha, which
+        /// this image's reader does not read, gives way.
         ///
-        /// **A ramp of 0, 85, 170 and 255 across each row comes back as 0, 84, 171 and 255**: end
-        /// points at nought and 255, and the levels nearest the middle two at weights 21 and 43,
-        /// `(43·0 + 21·255 + 32) >> 6 = 84` and `(21·0 + 43·255 + 32) >> 6 = 171`, a byte off each.
-        ///
-        /// **And where the alpha is read, it counts**: an opaque even colour, (136, 224, 0, 254),
-        /// one lowest bit of nought under all four channels, comes back exactly, alpha and all.
+        /// **A ramp of 0, 85, 170 and 255 comes back as 0, 84, 171 and 255**: end points at nought and 255, the middle
+        /// two levels at weights 21 and 43, `(43·0 + 21·255 + 32) >> 6 = 84` and `(21·0 + 43·255 + 32) >> 6 = 171`.
+        /// **Where the alpha is read, it counts**: an opaque even colour, (136, 224, 0, 254), comes back exactly.
         TEST_F(RtxBc7EncodePassTest, aBlockIsModeSixAndOneColourComesBackExactly)
         {
             const Encoded opaque = encode(twoBlocks(Texel{ 137, 225, 0, 255 }), 1, false);
@@ -254,14 +248,13 @@ namespace Rtx
 {
     namespace
     {
-        /// **Every level of a chain is encoded in its own place, in the one dispatch**: a chain from 8
-        /// by 4 to one texel, each level one colour of its own, comes back each level exactly, the
-        /// last three each a block that only part of stands inside its level. Each colour is reached
-        /// by the single colour (`BC7_SINGLE_INDEX`): under lowest bits of nought, an even byte by
-        /// two equal end points and an odd one by the two either side, `(34·30 + 30·32 + 32) >> 6 =
-        /// 31`; and 255 beside 128 and 1 under a lowest bit of one below and nought above, `(34·255
-        /// + 30·254 + 32) >> 6 = 255`, `(34·127 + 30·130 + 32) >> 6 = 128`, `(34·1 + 30·2 + 32) >> 6
-        /// = 1`. The alpha is not read.
+        /// **Every level of a chain is encoded in its own place, in the one dispatch**: a chain from 8 by 4 to one
+        /// texel, each level one colour of its own, comes back each level exactly, the last three each a block that
+        /// only part of stands inside its level. Each colour is reached by the single colour (`BC7_SINGLE_INDEX`):
+        /// under lowest bits of nought, an even byte by two equal end points and an odd one by the two either side,
+        /// `(34·30 + 30·32 + 32) >> 6 = 31`; and 255 beside 128 and 1 under a lowest bit of one below and nought
+        /// above, `(34·255 + 30·254 + 32) >> 6 = 255`, `(34·127 + 30·130 + 32) >> 6 = 128`, `(34·1 + 30·2 + 32) >> 6 =
+        /// 1`. The alpha is not read.
         TEST_F(RtxBc7EncodePassTest, everyLevelOfAChainIsEncodedInItsOwnPlace)
         {
             constexpr std::array<Texel, 4> colours{ Texel{ 137, 225, 0, 255 }, Texel{ 10, 20, 31, 255 },

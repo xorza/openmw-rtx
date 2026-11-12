@@ -9,9 +9,8 @@ namespace Rtx
     /// Whether a chain keeps what a trace leaves for the next one to read: the denoisers' histories
     /// and the air's.
     ///
-    /// **A picture keeps none**: every picture is traced with its past lost, so no trace reads a
-    /// history and one image of each pair holds everything a trace writes. The world's chain keeps
-    /// both halves, the last trace's and this one's.
+    /// A picture keeps none: every picture is traced with its past lost, so one image of each
+    /// pair holds everything a trace writes. The world's chain keeps both halves.
     enum class TracePast : std::uint8_t
     {
         Kept,
@@ -23,9 +22,9 @@ namespace Rtx
     /// (`DenoiseHistory`) and the frame before's surfaces the filters hold them to
     /// (`GBuffer::getHeld`).
     ///
-    /// **Absent under an upscaler that filters the light itself**, where no frame runs the filter:
-    /// 128 bytes a traced pixel of history and held surfaces, and 65 of scratch, that nothing reads.
-    /// A picture's filter always runs.
+    /// Absent under an upscaler that filters the light itself, where no frame runs the filter: its
+    /// history, held surfaces and scratch would be bytes a traced pixel that nothing reads. A
+    /// picture's filter always runs.
     enum class RendererFilter : std::uint8_t
     {
         Runs,

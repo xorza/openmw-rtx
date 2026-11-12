@@ -6,20 +6,14 @@
 
 // Which of the falling sprites stand under a roof, and the roof keeps them off.
 //
-// **A ray where the rasterizer had a depth map.** `PrecipitationOccluder` draws the statics and the objects
-// from above the eye's rain box into a depth map and discards every drop with a depth behind it. One ray
-// straight up from each falling sprite to the top of that same box asks the same question of the geometry
-// itself: whatever the map would have held above the drop, the ray meets.
+// A ray where the rasterizer had a depth map: `PrecipitationOccluder` draws statics and objects from above
+// the rain box and discards drops behind it, and one ray straight up from each sprite asks the same question
+// of the geometry itself. The mask is the map's (`Mask_Object | Mask_Static`, `shelterMask`), so an actor
+// keeps no rain off; a candidate is asked the question the eye asks, the content's own alpha threshold
+// rather than the map's half.
 //
-// **The map's mask and the trace's cutout.** The rasterizer's map is drawn with `Mask_Object |
-// Mask_Static`, which `shelterMask` states, so an actor keeps no rain off here either. Its depth pass
-// discards a fragment whose alpha falls under a half; here a candidate is asked the question the eye asks —
-// a hole in a mask is a hole, and a translucent surface is a surface — which is the content's own threshold
-// rather than the map's one number.
-//
-// **One launch over the sprite list, before the shade and the bin.** A launch and not a dispatch, for the
-// reason `RtxSourceTreeTest` gives; and before the shade, so a sheltered drop neither counts as a layer
-// over another nor is listed for a tile. Nothing here reads a pixel.
+// One launch over the sprite list before the shade and the bin, so a sheltered drop neither counts as a layer
+// over another nor is listed for a tile. A launch and not a dispatch, for the reason `RtxSourceTreeTest` gives.
 
 #include "scene.h"
 

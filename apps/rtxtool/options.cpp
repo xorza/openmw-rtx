@@ -56,10 +56,9 @@ namespace RtxTool
 {
     namespace
     {
-        /// How long a bench draws and throws away once the world stands whole, before it measures,
-        /// where nobody says. Two rather than three, because the GPU's clock ramp and the scene's
-        /// residency are over well inside it: measured interleaved on a hot card, three seconds ran
-        /// 20 s and two ran 19.
+        /// How long a bench draws and throws away once the world stands whole, before it measures, where nobody says.
+        /// Two rather than three, because the GPU's clock ramp and the scene's residency are over well inside it:
+        /// measured interleaved on a hot card, three seconds ran 20 s and two ran 19.
         constexpr float sWarmupByDefault = 2.0f;
 
         using StringsVector = std::vector<std::string>;
@@ -220,14 +219,10 @@ namespace RtxTool
         /// by more than the changes being measured.
         constexpr float sSecondsByDefault = 20.0f;
 
-        /// Which commands read an option, said the shorter of the two ways.
-        ///
-        /// **Or the ones that do not, where that is the shorter list.** Naming eight commands to
-        /// exclude one is a line nobody reads to the end, and the one is what the reader is
-        /// actually being told.
-        ///
-        /// **The help line and the complaint say it the same way**, because they are the same fact
-        /// before and after somebody gets it wrong.
+        /// Which commands read an option, said the shorter of the two ways: or the ones that do not, where that is
+        /// the shorter list, since naming eight commands to exclude one is a line nobody reads to the end. The help
+        /// line and the complaint say it the same way, because they are the same fact before and after somebody gets
+        /// it wrong.
         std::string describeReaders(const Verbs verbs)
         {
             const Verbs missing = otherThan(verbs);
@@ -323,23 +318,20 @@ namespace RtxTool
         ToolOptions result{ bpo::options_description("Options"), {} };
         auto declare = result.mDescription.add_options();
 
-        // **Every option says which commands read it, and there is no second door that lets one
-        // skip the question.** The record and the help line come from that one statement, so a run
-        // that names an option under a command that does not read it is stopped rather than
-        // quietly rendering something else. A door that defaulted to "every command" is how
-        // `--size`, `--delight` and thirteen more came to be taken by `info` and thrown away.
+        // Every option says which commands read it, and there is no second door that lets one skip the question:
+        // the record and the help line come from that one statement, so a run that names an option under a command
+        // that does not read it is stopped rather than quietly rendering something else.
         const auto option
             = [&](Verbs verbs, const char* name, const bpo::value_semantic* semantic, std::string_view description) {
                   result.mOwners.push_back(OptionOwner{ .mName = name, .mVerbs = verbs });
                   declare(name, semantic, describeOption(verbs, description).c_str());
               };
 
-        // **What a frame is when nobody says**, read from one statement rather than restated as a
-        // literal beside each option. The two drifted: `--distant-cells` defaulted to five cells
-        // where the request and `settings-default.cfg` both said four, so a harness run built a
-        // world one cell wider than the game does and measured it. The knobs the settings define
-        // — the distant cells and the statics on them — have no default here at all: an option
-        // not given reads `settings-default.cfg` once the settings are loaded (`frameFrom`).
+        // What a frame is when nobody says, read from one statement rather than restated as a literal beside each
+        // option, which drifted (`--distant-cells` defaulted to five cells where the request and
+        // `settings-default.cfg` said four). The knobs the settings define, the distant cells and the statics on
+        // them, have no default here at all: one not given reads `settings-default.cfg` once the settings are loaded
+        // (`frameFrom`).
         const Framed byDefault;
 
         option(Verbs::Every, "help", bpo::bool_switch(), "print this message and quit");
@@ -877,10 +869,9 @@ namespace RtxTool
             bpo::value<Fallback::FallbackMap>()->default_value(Fallback::FallbackMap(), "")->multitoken()->composing(),
             "fallback values");
 
-        // **The engine's own two, because a hosted run starts a real game.** Where to stand is a
-        // savegame's business — it restores the player, the camera, the hour and every cell the
-        // session had loaded, which no pair of coordinates can — and what the world draws at random
-        // is the seed's, which is what makes two runs of one build the same run.
+        // The engine's own two, because a hosted run starts a real game: a savegame restores the player, the
+        // camera, the hour and every cell the session had loaded, which no pair of coordinates can, and the seed is
+        // what makes two runs of one build the same run.
         option(sFramed, "load-savegame",
             bpo::value<Files::MaybeQuotedPath>()->default_value(Files::MaybeQuotedPath(), ""),
             "start from this savegame rather than from a new game");

@@ -66,13 +66,11 @@ namespace Rtx
 
         /// The device's bake is the host's, texel for texel and level for level, to a byte.
         ///
-        /// `RtxSpriteLightBakeTest` says what the host's bake is; this says the device makes the same
-        /// one, over a sprite of two levels whose alphas are stated outright: a four-by-four with a
-        /// dense middle and a two-by-two below it. Every channel of every texel of every level is
-        /// compared, within a byte, because `pow` on the device and `std::pow` on the host differ in
-        /// the last place and a product of a few of them can cross a rounding boundary. **And a
-        /// sprite six by three**, so its rows and its columns, which the device walks in stages of
-        /// their own, are lines of two lengths.
+        /// `RtxSpriteLightBakeTest` says what the host's bake is; this says the device makes the same one, over a
+        /// sprite of two levels whose alphas are stated outright: a four-by-four with a dense middle and a two-by-two
+        /// below it. Compared within a byte, because `pow` on the device and `std::pow` on the host differ in the last
+        /// place and a product of a few of them can cross a rounding boundary. **And a sprite six by three**, so its
+        /// rows and its columns, which the device walks in stages of their own, are lines of two lengths.
         TEST_F(RtxSpriteLightPassTest, theDeviceBakeIsTheHostsToAByte)
         {
             const auto compare = [&](const Testing::TestTexture& sprite, std::size_t levels) {

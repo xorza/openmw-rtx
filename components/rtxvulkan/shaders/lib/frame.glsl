@@ -3,11 +3,9 @@
 
 // What this frame says about the world, asked one way.
 //
-// **Each of these was a test written out in five or six places, and no two of the spellings had to agree.**
-// Whether there is a sun was `HAS_SUN && mSunIrradiance != vec3(0.0)` in the shading, `!HAS_SUN ||
-// mSunIrradiance == vec3(0.0)` in the water and `HAS_SUN && ...` again in the sprites; whether a point
-// stands under the water was a subtraction in four files, two of them guarded by the sea's constant and two
-// of them not. A frame that changed how it said one of these would have had to find every copy.
+// Each of these is one spelling of a test that would otherwise be written out in several places (whether
+// there is a sun, whether a point stands under the water), where a frame that changed how it said one
+// would have to find every copy.
 
 #include "bindings.glsl"
 #include "variants.glsl"
@@ -30,9 +28,8 @@ bool skyLights()
 /// How much water stands over a point, in world units — or nothing at all above the surface, and in a cell
 /// that has none.
 ///
-/// **One subtraction, so a dry cell's sentinel is read in one place.** The level is minus infinity where
-/// there is no water, which makes the difference never positive — and `HAS_SEA` takes the whole test out of
-/// a kernel that was built for a room.
+/// One subtraction, so a dry cell's sentinel is read in one place: the level is minus infinity where there
+/// is no water, and `HAS_SEA` takes the whole test out of a kernel that was built for a room.
 float waterOver(vec3 position)
 {
     return HAS_SEA ? max(frame.mWaterLevel - position.z, 0.0) : 0.0;
@@ -41,9 +38,9 @@ float waterOver(vec3 position)
 /// How far a ray that starts in the water stays in it, over the `distance` it runs: all of it where it runs
 /// level or down, and as far as it rises through the plane where it climbs.
 ///
-/// **The plane and not the surface's mesh**, because the plane is what `waterOver` measures and has
-/// absolute sides: a ray from an eye under the water that rises where no mesh stands crosses no surface,
-/// and is in air from the plane on all the same.
+/// The plane and not the surface's mesh, because the plane is what `waterOver` measures and has absolute
+/// sides: a ray from under the water that rises where no mesh stands crosses no surface, and is in air
+/// from the plane on all the same.
 float waterAlong(vec3 from, vec3 direction, float distance)
 {
     const float rise = waterOver(from) / max(direction.z, 1.0e-20);
@@ -52,12 +49,10 @@ float waterAlong(vec3 from, vec3 direction, float distance)
 
 /// Whether a ray that found nothing was under the surface looking down, which is water and not sky.
 ///
-/// **The plane has absolute sides**, so below it there is water whether or not this renderer was handed a
-/// bed far enough out to stop the ray.
-///
-/// **Asked where the sky is drawn and again where the column is measured**, by `missedAlong`, by
-/// `tracePixel` and by the media stage: a plane test and a sign, which an answer field carrying it between
-/// them would cost more than.
+/// The plane has absolute sides, so below it there is water whether or not this renderer was handed a bed
+/// far enough out to stop the ray. Asked where the sky is drawn and again where the column is measured
+/// (`missedAlong`, `tracePixel`, the media stage): a plane test and a sign, which an answer field carrying
+/// it between them would cost more than.
 bool waterUnbounded(bool found, vec3 origin, vec3 direction)
 {
     return !found && direction.z < 0.0 && waterOver(origin) > 0.0;

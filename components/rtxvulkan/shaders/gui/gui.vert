@@ -5,11 +5,9 @@
 // The GUI's vertices arrive in clip space already: MyGUI multiplies widget pixels by the view size itself,
 // so there is no matrix here and nothing for this shader to do but hand them on.
 //
-// **Except the depth, which is dropped.** The pass has no depth attachment: widgets are drawn in the order
-// MyGUI hands them over, and a vertex's z decides nothing here. It would decide whether the vertex exists
-// at all, though — Vulkan clips z outside `[0, w]` — and what MyGUI's own sub-widgets write is a layer
-// depth inside that range while OpenMW's book page writes minus one for every glyph (`mwgui/bookpage.cpp`,
-// built against a GL projection that keeps it).
+// Except the depth, which is dropped: the pass has no depth attachment and widgets are drawn in the order
+// MyGUI hands them over. Vulkan would clip z outside `[0, w]` though, and OpenMW's book page writes minus
+// one for every glyph (`mwgui/bookpage.cpp`, built against a GL projection that keeps it).
 
 #include "shared/gui.h"
 

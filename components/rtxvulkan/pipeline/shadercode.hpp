@@ -50,11 +50,10 @@ namespace Rtx
 
     /// SPIR-V from the device's shader directory, read once a file however many stages name it,
     /// and handed to each stage inline: `maintenance5` takes a stage's code in its `pNext`, so no
-    /// `VkShaderModule` is made, named or destroyed. Kept by whoever makes the pipelines that share
-    /// a file, and only until they are made: the driver reads the words during the create call.
+    /// `VkShaderModule` is made. Kept by whoever makes the pipelines that share a file, only until
+    /// they are made: the driver reads the words during the create call.
     ///
-    /// **Every file read where this is made, with its interface**, so nothing after reads again:
-    /// the trace's variants made one of these each and read its largest module once apiece.
+    /// Every file is read where this is made, with its interface, so nothing after reads again.
     /// Read-only once made, so the hands of a parallel compile share one.
     class ShaderCode
     {
@@ -71,13 +70,12 @@ namespace Rtx
         /// What the `pNext` of a stage that runs `module`, one this read, points at, valid while
         /// this lives.
         ///
-        /// **And the module's interface held to what the C++ states beside the GLSL**: its bindings
+        /// And the module's interface held to what the C++ states beside the GLSL: its bindings
         /// to the layout's `sets` (`bindingDisagreement`), its specialization constants to `words`
         /// (`specializationDisagreement`), and its push block to the layout's `push` range
-        /// (`pushDisagreement`), each for `stage`, the stage the module runs as. A disagreement ends
-        /// the process as a crash naming the module and what disagrees, where the device would read a
-        /// resource as another, a constant would take its default, or a push would be read past what
-        /// was written.
+        /// (`pushDisagreement`), each for `stage`. A disagreement ends the process as a crash
+        /// naming the module and what disagrees, where the device would read a resource as another,
+        /// a constant would take its default, or a push would be read past what was written.
         const void* stage(std::string_view module, VkShaderStageFlagBits stage, const SetTables& sets,
             const VkPushConstantRange& push, std::span<const std::uint32_t> words) const;
 

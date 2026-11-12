@@ -81,19 +81,17 @@ namespace Rtx
         /// Copies the vertex data into the shared buffers and returns the new mesh's index. Every
         /// attribute but `MeshArrays::mPositions` may be empty; when one is not it must match the
         /// positions in length, `MeshArrays::mIndices` must be a whole number of triangles
-        /// addressing only those vertices, and the mesh must fit a block (`MeshTable::checkFits`)
-        /// — asserted, as a contract on the caller, which reads the counts out of a content file
-        /// and refuses what does not hold. A mesh that deforms names the rig or the morph that
-        /// poses it, whose vertex count must be this mesh's, and hands over its bind pose, which
-        /// stays in the shared buffers for as long as the mesh does.
+        /// addressing only those vertices, and the mesh must fit a block (`MeshTable::checkFits`):
+        /// asserted, as a contract on the caller, which refuses what does not hold. A mesh that
+        /// deforms names the rig or the morph that poses it, whose vertex count must be this mesh's,
+        /// and hands over its bind pose, which stays in the shared buffers as long as the mesh does.
         Index addMesh(const MeshArrays& arrays, FoldedShape shape = {}, Index deformer = sNoIndex);
 
         /// `addMesh` for a mesh that brings the skin or the targets that pose it. The deformer row
-        /// and the mesh row are made in one call with nothing between them, so a deformer no mesh
-        /// stands on cannot exist — a row nothing would free, because a deformer goes with its
-        /// last mesh. The spec poses exactly this mesh's vertices (`checkPoses`) and the mesh fits a
-        /// block, both asserted. A second mesh on the same skin names the deformer answered here
-        /// through the overload above.
+        /// and the mesh row are made in one call, so a deformer no mesh stands on cannot exist — a
+        /// row nothing would free, because a deformer goes with its last mesh. The spec poses exactly
+        /// this mesh's vertices (`checkPoses`) and the mesh fits a block, both asserted. A second
+        /// mesh on the same skin names the deformer answered here through the overload above.
         DeformedMesh addMesh(const MeshArrays& arrays, FoldedShape shape, const RigSpec& rig);
         DeformedMesh addMesh(const MeshArrays& arrays, FoldedShape shape, const MorphSpec& morph);
 
@@ -107,8 +105,7 @@ namespace Rtx
         /// about a body per frame, because its vertices are computed on the device from the bind
         /// pose. The words must be as many as the deformer's pose takes. The mesh joins
         /// `getDeformed` for the frame unless nothing moved: words equal to the ones already held
-        /// write nothing, so an actor standing still costs no dispatch and no refit. Compared rather
-        /// than trusted, because the walk poses every rig it meets.
+        /// write nothing, so an actor standing still costs no dispatch and no refit.
         void pose(Index mesh, std::span<const PoseWord> words, const osg::BoundingBoxf& bounds);
 
         /// Puts `material` in a slot of the material table, holding every texture it names, and
@@ -118,10 +115,10 @@ namespace Rtx
 
         /// Rewrites a material in place, keeping its slot and everything standing on it — for
         /// shading that animates: a `NifOsg` flipbook or alpha controller rewrites its state set
-        /// every frame and the surface wearing it is the same surface. Writing back what is already
-        /// there costs nothing. A material that changes what traversal is told — its kind, cutout,
-        /// translucent — rewrites every placement wearing it, because those go into the
-        /// acceleration structure's row; a flipbook turning costs the placements nothing.
+        /// every frame and the surface wearing it is the same surface. A material that changes what
+        /// traversal is told — its kind, cutout, translucent — rewrites every placement wearing it,
+        /// because those go into the acceleration structure's row; a flipbook turning costs the
+        /// placements nothing.
         void setMaterial(Index material, const Material& what);
 
         void addLight(const Light& light);
@@ -129,13 +126,12 @@ namespace Rtx
         /// Takes one hold on a mesh, a material or a texture, and gives one back. A row arrives
         /// with none, and the drop after which nothing holds it frees it — the only way a scene
         /// loses geometry, and nothing is renumbered by it: every bottom-level acceleration
-        /// structure is named by a mesh index, and compacting is what made a cell boundary cost a
-        /// full rebuild. A material freed gives back the textures it named, and its layer and mask
-        /// runs go with it. What holds a row: the identity a walk met it under, each placement
-        /// standing on it, a ground cell the ring stood, and the sky's own sheets. A texture hold of
-        /// nothing — `sNoIndex`, or the neutral texel a layer names where the table had no room —
-        /// is empty or costs nothing, and a drop of an empty hold changes no count; a mesh and a
-        /// material are held by a row that is one.
+        /// structure is named by a mesh index. A material freed gives back the textures it named,
+        /// and its layer and mask runs go with it. What holds a row: the identity a walk met it
+        /// under, each placement standing on it, a ground cell the ring stood, and the sky's own
+        /// sheets. A texture hold of nothing — `sNoIndex`, or the neutral texel a layer names where
+        /// the table had no room — is empty or costs nothing, and a drop of an empty hold changes no
+        /// count; a mesh and a material are held by a row that is one.
         MeshHold holdMesh(Index mesh);
         MaterialHold holdMaterial(Index material);
         TextureHold holdTexture(Index texture);
@@ -193,10 +189,9 @@ namespace Rtx
         void clearPlacement();
 
         /// The tables, for whoever builds the scene to write straight into and for whoever is
-        /// handed it to read. Only what crosses tables stays on this class; everything that reads
-        /// or writes one table is asked of that table. Every span a table hands out is valid until
-        /// the next `add` into its table and until `clearPlacement`: take it after the add and never
-        /// in the same expression as one.
+        /// handed it to read. Only what crosses tables stays on this class. Every span a table hands
+        /// out is valid until the next `add` into its table and until `clearPlacement`: take it
+        /// after the add and never in the same expression as one.
         MeshTable& meshes() { return mMeshes; }
         MaterialTable& materials() { return mMaterials; }
         TextureTable& textures() { return mTextures; }
@@ -268,11 +263,10 @@ namespace Rtx
         /// Where the frame stands: open to the walks that fill its lists, walked and owing the
         /// sweep after it, or handed to a backend that has read them.
         ///
-        /// **A walk marks the scene until the sweep clears it, and a hand-over refuses the
-        /// mark.** A walk stamps what it met and leaves what it did not standing; only the sweep
-        /// takes that. Handed over between the two, the scene still holds every slot the walk
-        /// stopped finding, where the last frame left it — a crate picked up traced once more, a
-        /// body whose identity moved traced twice. The mark survives `clearPlacement`, because
+        /// **A walk marks the scene until the sweep clears it, and a hand-over refuses the mark.** A
+        /// walk stamps what it met and leaves what it did not standing; only the sweep takes that.
+        /// Handed over between the two, the scene still holds every slot the walk stopped finding,
+        /// so a crate picked up is traced once more. The mark survives `clearPlacement`, because
         /// clearing the frame's lists settles nothing of the sweep.
         ///
         /// A light, an emitter or a ripple added after the hand-over and before the next

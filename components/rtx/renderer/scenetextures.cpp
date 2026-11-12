@@ -136,11 +136,10 @@ namespace Rtx
             mKept.push_back(std::move(kept));
         }
 
-        // Reserved before anything points into it, and that is what makes the spans safe. Every
-        // description spans this one table, so it must not grow while they are being taken — and
-        // every level count is known before the first description is built. A table kept from the
-        // last arrival is usually large enough already, and then this asks for nothing. Only a file
-        // puts levels here: a bake and a composite carry none, and the stand-in's are its own.
+        // Reserved before anything points into it: every description spans this one table, so it must
+        // not grow while they are being taken, and every level count is known before the first is
+        // built. Only a file puts levels here: a bake and a composite carry none, and the stand-in's
+        // are its own.
         std::size_t levels = 0;
         std::size_t texels = 0;
         for (const Kept& kept : mKept)

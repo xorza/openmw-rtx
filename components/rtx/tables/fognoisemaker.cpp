@@ -108,12 +108,10 @@ namespace Rtx
             });
         }
 
-        /// Stretches `field` about its own mean until what a sampler reads from it has the spread
-        /// every level shares. Measured through the sampler and not off the texels, because a
-        /// trilinear tap clusters nearer the mean than the texels do — narrower the fewer texels a
-        /// level has, until a coverage band cut for the full level clears half as much at the top
-        /// of the chain. Clamped, because eight bits hold `[0, 1]`;
-        /// `theTailTheStorageCannotHoldIsNegligible` says what that costs.
+        /// Stretches `field` about its own mean until what a sampler reads from it has the spread every
+        /// level shares. Measured through the sampler and not off the texels, because a trilinear tap
+        /// clusters nearer the mean, more the fewer texels a level has. Clamped, because eight bits hold
+        /// `[0, 1]`; `theTailTheStorageCannotHoldIsNegligible` says what that costs.
         void normalise(std::vector<float>& field, int size)
         {
             constexpr std::array<float, 4> taps{ 0.125f, 0.375f, 0.625f, 0.875f };

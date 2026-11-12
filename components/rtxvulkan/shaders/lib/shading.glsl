@@ -24,11 +24,10 @@
 
 /// Which end of a path a surface is being shaded at.
 ///
-/// **Not a count of bounces.** What separates them is whether the result is looked at: a seabed through
-/// water and a face in a mirror are each a bounce out and each is what the pixel shows, so they are lit
-/// like anything else the eye can see — and so is what a glossy surface's lobe reflects, which is the whole
-/// of what a metal shows. Only the diffuse hemisphere's far hit is a term that nothing resolves on its own,
-/// and only there is a light worth dropping.
+/// **Not a count of bounces.** What separates them is whether the result is looked at: a seabed through water
+/// and a face in a mirror are each what the pixel shows, so they are lit like anything else the eye can see,
+/// and so is what a glossy lobe reflects. Only the diffuse hemisphere's far hit is a term nothing resolves on
+/// its own, and only there is a light worth dropping.
 const uint PATH_SEEN = 0u;
 const uint PATH_INDIRECT = 1u;
 
@@ -115,16 +114,16 @@ SkyTerm joinedTerms(SkyTerm first, SkyTerm second, float scale)
 /// The *direct* light arriving at a point and turning back out of it: per unit albedo for the diffuse half,
 /// and whole for the specular.
 ///
-/// **Sources that can be asked where they are, and nothing else.** The sun and the lamps are each a known
-/// direction and a shadow ray; everything that arrives by having bounced off something is the bounce's
-/// (`BounceRun`), and adding a fill here as well would count that half twice.
+/// **Sources that can be asked where they are, and nothing else**: the sun and the lamps are each a known
+/// direction and a shadow ray; what arrives by having bounced off something is the bounce's (`BounceRun`),
+/// and a fill here would count that half twice.
 ///
 /// **The lobe is taken at the light the diffuse half drew, toward that light's centre**, and its estimate
 /// divides by the same chances the diffuse one does.
 ///
 /// **Everything but the rays' answers**, worked out before either ray (`startGather`): the sky's passage
-/// (`SkyPassageRun`) and the held lamp's ray (`gatherLampAsk`) are the caller's to trace, and the caller's
-/// to finish the light with (`pathEndLightOf`, `solidLightOf`).
+/// (`SkyPassageRun`) and the held lamp's ray (`gatherLampAsk`) are the caller's to trace and to finish the
+/// light with (`pathEndLightOf`, `solidLightOf`).
 struct GatherRun
 {
     /// The pixel's own key, `pixelKey`, which every sequence here is drawn from with a `SEED_`
@@ -212,9 +211,9 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
 
     uint state = randomSeed(run.mKey + run.mLamps);
 
-    // **Where on a source a shadow ray leaves from is drawn before anything is weighed**, so that it does
-    // not depend on how many lamps the cell happened to hold: the two pairs sit at a fixed place in the
-    // sequence and the reservoir's own draws follow them.
+    // **Where on a source a shadow ray leaves from is drawn before anything is weighed**, so it does not
+    // depend on how many lamps the cell held: the two pairs sit at a fixed place in the sequence and the
+    // reservoir's own draws follow them.
     //
     // **The eye's own split hit takes the same three from the tile** (`STREAM_SUN_DISC`), and the sequence
     // steps past the hashed ones all the same, so the reservoir's draws stay where they were.
@@ -225,19 +224,18 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
     const float skyPick = run.mBlue ? randomAt(pixel, STREAM_SKY_PICK) : skyHashed;
     const vec2 lampDraw = run.mBlue ? unitPair(pixel, STREAM_LAMP_DISC) : lampHashed;
 
-    // **The sky's sources are weighed and drawn the way the lamps are.** What each would deliver unshadowed
-    // is its weight — its cosine and its irradiance, which is everything about it that can be known without
-    // tracing — one is drawn in proportion, one ray goes to it, and its share is divided by the draw. In
-    // daylight the moons weigh nothing and the sun is always the draw; at night the sun weighs nothing and
-    // the draw is between the moons; only the hour either side of dusk spends one ray on two sources, and
+    // **The sky's sources are weighed and drawn the way the lamps are.** What each would deliver unshadowed is
+    // its weight (its cosine and irradiance, all that can be known without tracing); one is drawn in
+    // proportion, one ray goes to it, and its share is divided by the draw. By day the moons weigh nothing and
+    // by night the sun weighs nothing, so only the hour either side of dusk spends one ray on two sources, and
     // the accumulator carries the noise that buys.
     //
-    // **The disc is sampled for visibility and not for radiometry**, and that is the sharper of the two
-    // estimators rather than a saving.
+    // **The disc is sampled for visibility and not for radiometry**, the sharper of the two estimators and not
+    // a saving.
     //
-    // **The moons are asked only where the eye can see the surface.** A bounce's far hit is an indirect
-    // term nothing resolves on its own, so a moon reaching it through a shadow ray of its own was the
-    // dimmest half of the dimmest thing in the frame.
+    // **The moons are asked only where the eye can see the surface**: a bounce's far hit is an indirect term
+    // nothing resolves on its own, so a moon's shadow ray there was the dimmest half of the dimmest thing in
+    // the frame.
     //
     // **The pick is `pickByWeight`'s**, which says why it is made against the weights.
     const bool lunar = HAS_MOONS && run.mPath == PATH_SEEN;
@@ -295,12 +293,11 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
         }
     }
 
-    // A lamp loses nothing to the water, where the sun and the sky both lose the column above the point: it
-    // is usually standing in the same water as what it lights, and the depth over the two of them is not
-    // between them.
+    // A lamp loses nothing to the water, where the sun and the sky both lose the column above the point: it is
+    // usually standing in the same water as what it lights, and the depth over the two of them is not between
+    // them.
     //
-    // **With one lamp in the cell it is exactly the arithmetic that was here before**: the sum is that
-    // lamp's weight, the ratio is one, and what is left is the term that was always there.
+    // **With one lamp in the cell the sum is that lamp's weight** and the ratio is one.
     //
     // **The lobe takes the held lamp's own lobe, kept from the weighing**, and the reservoir's share: the
     // estimate of the lobe over every lamp is then the one the diffuse half makes, with the lobe where the
@@ -343,8 +340,7 @@ bool indirectGatherDrawn(uint key, uint seed)
 
 /// What terminates a path: the cell's own ambient, dimmed by whatever stands over the point.
 ///
-/// **A stand-in for every bounce that is not being traced**, which is what it always was — the difference
-/// is that it is now one level down rather than added on top of the one that is.
+/// **A stand-in for every bounce that is not being traced**, one level down from the one that is.
 ///
 /// @param reaching how much of the ambient the point can see, out of `ambientReaching`. It bites on
 ///        the whole of it and on both sides of a door: what a room changes is how far the ray looked
@@ -366,8 +362,8 @@ uint lobeModulationWord(Gloss gloss)
 /// back: `gloss`'s split-sum specular albedo (`Gloss::mAlbedo`).
 ///
 /// **Rounded to what the answer packs before anything is divided by it** (`packRgb9e5`, whose every value a
-/// half holds as well): the light divided by this and the channel the composite multiplies by are one
-/// number, so the two meet to the rounding of a product.
+/// half holds as well), so the light divided by this and the channel the composite multiplies by are one
+/// number.
 vec3 specularModulation(Gloss gloss)
 {
     return mix(vec3(1.0), unpackRgb9e5(lobeModulationWord(gloss)), bvec3(gloss.mGlossy));
@@ -435,14 +431,14 @@ struct SplitLight
 
 /// Which face of a surface a diffuse sample leaves by, and what the sample is then worth.
 ///
-/// **A sheet has two hemispheres and one ray.** Its diffuse response is the near hemisphere whole and the
-/// far one at `transmission`, so the far side is taken with probability `transmission / (1 + transmission)`
-/// and either sample is weighed by `1 + transmission` — which is exactly the two integrals' sum, and one
-/// ray however many faces there are. A solid never draws: its weight is one and its near face is its own.
+/// **A sheet has two hemispheres and one ray.** Its diffuse response is the near hemisphere whole and the far
+/// one at `transmission`, so the far side is taken with probability `transmission / (1 + transmission)` and
+/// either sample is weighed by `1 + transmission`: the two integrals' sum, in one ray. A solid never draws: its
+/// weight is one and its near face is its own.
 ///
-/// **A sign rather than an axis, because a face is two vectors and not one.** The hemisphere is drawn about
-/// the shading normal and bounded by the triangle's plane, and the far face is the far side of both — so
-/// what the caller needs back is the turn to apply to each.
+/// **A sign rather than an axis, because a face is two vectors**: the hemisphere is drawn about the shading
+/// normal and bounded by the triangle's plane, and the far face is the far side of both, so the caller needs
+/// the turn to apply to each.
 ///
 /// @param draw one number in `[0, 1)`, read only where there is a far side to choose.
 float sampledFace(float transmission, float draw, out float weight)
@@ -453,15 +449,13 @@ float sampledFace(float transmission, float draw, out float weight)
 
 /// Whether a direction drawn about the shading normal has gone behind the face it left by.
 ///
-/// **The lobe is the shading normal's, which is what a shading normal is for, and the triangle is what
-/// bounds it.** On this content a normal leans past its own plane often enough to matter — four hits in a
-/// hundred by more than sixty degrees — and a direction drawn past it sets off *into* the surface.
-/// Morrowind builds rooms out of sheets with no thickness, so nothing stops such a ray: it either leaves
-/// the building, where a room hands nothing back and the point goes dark, or it lands on the far face of
-/// the wall and hands back light the point cannot see.
+/// **The lobe is the shading normal's, and the triangle bounds it.** A normal on this content leans past its
+/// own plane often enough to matter (four hits in a hundred by more than sixty degrees), and a direction
+/// drawn past it sets off *into* the surface. Morrowind's rooms are sheets with no thickness, so such a ray
+/// either leaves the building, where a room hands nothing back and the point goes dark, or lands on the far
+/// face of the wall and hands back light the point cannot see.
 ///
-/// **What a caller takes from such a direction is nothing, because nothing is the answer**: what it points
-/// at is the inside of the surface.
+/// **A caller takes nothing from such a direction**: it points at the inside of the surface.
 ///
 /// @param plane the surface's `Surface::mGeometric` — or nothing at all for a point in a medium,
 ///        which has no triangle to be behind.
@@ -474,22 +468,19 @@ bool behindTheFace(vec3 towards, vec3 plane, float face)
 /// How much of the ambient a surface can see, as one cosine-weighted sample of its own hemisphere: the ray,
 /// and what an answer to it is worth.
 ///
-/// **The same integral the bounce already samples, one level further down.** A ray the eye found gathers a
-/// real hemisphere and is occluded by whatever it hits; what *that* ray landed on was handed the whole
-/// ambient whatever stood over it, so a point in a hollow was lit as though nothing stood over it. This is
-/// the missing half, and it is a visibility ray rather than a bounce: nothing is shaded at the far end,
-/// only asked whether there is one.
+/// **The same integral the bounce already samples, one level further down.** What the eye's bounce ray landed
+/// on was handed the whole ambient whatever stood over it, so a point in a hollow was lit as though nothing
+/// did; this is the missing half, a visibility ray and not a bounce, since nothing is shaded at the far end.
 ///
-/// **One sample, and it is binary — `AMBIENT_EXTERIOR_RATE` of a sample out of doors.** That is as noisy as
-/// a single sample can be, and it multiplies a term already carried by one, so it rides the same filter.
-/// The estimator stays unbiased at any rate, which a cheaper guess would not be.
+/// **One sample, and it is binary** (`AMBIENT_EXTERIOR_RATE` of a sample out of doors): as noisy as a sample
+/// can be, but it multiplies a term already carried by one and rides the same filter, and the estimator
+/// stays unbiased at any rate.
 ///
-/// **A sheet asks both faces**, by `sampledFace`: a leaf in the open sees the sky over its back as well, at
-/// `transmission` of what it sees over its front, so what reaches it runs to `1 + transmission` of a
-/// solid's whole.
+/// **A sheet asks both faces**, by `sampledFace`: a leaf in the open sees the sky over its back at
+/// `transmission` of its front, so what reaches it runs to `1 + transmission` of a solid's whole.
 ///
-/// **A direction behind the surface's own triangle reaches nothing**, by `behindTheFace`: there is no
-/// ambient inside a wall.
+/// **A direction behind the surface's own triangle reaches nothing**, by `behindTheFace`: there is no ambient
+/// inside a wall.
 struct AmbientRay
 {
     RayAsk mRay;
@@ -503,10 +494,9 @@ struct AmbientRay
     bool mRated;
 };
 
-/// @param normal the hemisphere's axis — a surface's shading normal, or nothing at all for a froxel
-///        of the air, which is `weighLamps`' contract and means the same thing here: the air has no
-///        side to face away from, so what stands over it is asked over the whole sphere rather than
-///        over a hemisphere.
+/// @param normal the hemisphere's axis: a surface's shading normal, or nothing for a froxel of the air
+///        (`weighLamps`' contract), which has no side to face away from, so what stands over it is asked over
+///        the whole sphere.
 /// @param plane the surface's own triangle, as `behindTheFace` takes it and as the ray leaves it
 ///        (`leaveSurface`): nought for a froxel, which starts where it is.
 /// @param rounding how far `position` can stand off that triangle, `Surface::mRounding`.
@@ -529,11 +519,10 @@ AmbientRay ambientRayOf(vec3 position, vec3 normal, vec3 plane, float rounding, 
     else
         towards = sphereDirection(draw);
 
-    // **How far to look for the occluder is what a room changes first.** In a room the ambient is the
-    // `AMBI` fill, which stands for the bounces the room itself makes — so a wall is not an occluder of it,
-    // it is the thing making it, and a ray run to the walls comes back blocked everywhere and takes the
-    // light out of every interior. What does occlude it is what stands between a point and the room: the
-    // pillow over the sheet, the chest against the wall, the underside of a table.
+    // **How far to look for the occluder is what a room changes first.** In a room the ambient is the `AMBI`
+    // fill, which stands for the room's own bounces, so a wall is not an occluder of it but the thing making
+    // it, and a ray run to the walls comes back blocked everywhere and darkens every interior. What does
+    // occlude it stands between a point and the room: a pillow over a sheet, a chest against a wall.
     if (!skyLights())
     {
         ray.mReaches = true;
@@ -612,22 +601,20 @@ struct PathEndSeen
 /// A surface lit at the end of a path or in a stack the eye peels, before its rays are answered: the lights
 /// a gather finds, and `pathEnd`, dimmed by one occlusion ray of its own, for the rest of the path.
 ///
-/// **One statement of the tail the paths share**: the hit the eye's bounce found (`landing.comp`), and a
-/// layer the eye looks through (`panes.comp`), the same terms with what was drawn kept apart from what was
-/// not, since the pane filter averages the one over time and the glow is exact as it stands.
+/// **One statement of the tail the paths share**: the hit the eye's bounce found (`landing.comp`) and a layer
+/// the eye looks through (`panes.comp`), with what was drawn kept apart from what was not, since the pane
+/// filter averages the one over time and the glow is exact as it stands.
 ///
 /// **The lights by the albedo and the fill by the ambient albedo**, as the rasterizer lights a fragment
-/// `texture × (D × lit + A × ambient)`: `pathEnd` stands in for the rest of the path, which is the
-/// ambient's place in the rasterizer's sum.
+/// `texture × (D × lit + A × ambient)`; `pathEnd` stands in for the ambient's place in that sum.
 ///
-/// **Linear in what each ray lets through**, the gather being unsplit: so every term is worked out before
-/// anything is traced (`pathEndSeenOf`), and only the terms and the rays stay live through the traversals,
-/// where a walk of steps kept the surface, the gather's and the visit's records and the sky's passage
-/// through each of them (`docs/rtx/architecture.md`, "A stage whose rays wait on no other's answer works
-/// out its light before the first one").
+/// **Linear in what each ray lets through**, the gather being unsplit, so every term is worked out before
+/// anything is traced (`pathEndSeenOf`) and only the terms and the rays stay live through the traversals
+/// (`docs/rtx/architecture.md`, "A stage whose rays wait on no other's answer works out its light before the
+/// first one").
 ///
-/// **A pane is drawn at `AMBIENT_EXTERIOR_RATE`**, because the pane filter takes what it draws, as the
-/// glossy filter takes what a lobe's path end draws at the same rate.
+/// **A pane is drawn at `AMBIENT_EXTERIOR_RATE`**, because the pane filter takes what it draws, as the glossy
+/// filter takes what a lobe's path end draws at the same rate.
 struct PathEndLight
 {
     /// The fill per unit of what the occlusion ray let through: `pathEnd` by the ambient albedo.
@@ -817,14 +804,14 @@ struct Arriving
 
 /// What a bounce brings back when it reaches nothing: the fill, whole.
 ///
-/// **A room has nothing outside it, so a ray that got out of one brings back nothing.** The dome a room
-/// draws is its fog colour standing in for the *picture* wherever a ray leaves the shell, and it is far
-/// brighter than the room itself: lighting with it drew a bright band along the foot of every wall.
-/// `mAmbientFromSky` is where a cell answers whether its sky is a light, and `ambientReaching` reads the
-/// same field to decide how far to look for what blocks the fill.
+/// **A room has nothing outside it, so a ray that got out of one brings back nothing.** The dome a room draws
+/// is its fog colour standing in for the *picture* wherever a ray leaves the shell, and it is far brighter
+/// than the room itself: lighting with it would draw a bright band along the foot of every wall.
+/// `mAmbientFromSky` is where a cell answers whether its sky is a light, and `ambientReaching` reads the same
+/// field.
 ///
-/// **The lobe's escape finds the sky a mirror shows**, `reflectedSky`, because a reflection is a picture of
-/// the world: the deck, the sheets and the stars where they are, and no fill.
+/// **The lobe's escape finds the sky a mirror shows**, `reflectedSky`: a reflection is a picture of the world,
+/// the deck, the sheets and the stars where they are, and no fill.
 vec3 bounceEscape(vec3 position, BounceDraw drawn, vec3 weight)
 {
     if (!skyLights())
@@ -844,8 +831,7 @@ Arriving escapedArriving(vec3 escaped)
 
 /// Which way the eye's bounce leaves a surface, and what the light that arrives along it is worth.
 ///
-/// **A Lambert surface draws what it always drew**: the cosine about the face `sampledFace` chose, worth
-/// one.
+/// **A Lambert surface draws the cosine about the face `sampledFace` chose**, worth one.
 ///
 /// **A glossy surface draws which half, in proportion to what each sends toward the eye**: the lobe at the
 /// chance `lum(Es) / (lum(Es) + lum(c_diff))`, its specular albedo against its diffuse one, and each half's
@@ -854,11 +840,11 @@ Arriving escapedArriving(vec3 escaped)
 /// **Both directions are drawn and the chance selects one.** Which half is a coin per lane, so a branch on
 /// it would run both halves in nearly every warp; the select runs each once and jumps nowhere.
 ///
-/// **Off the near face only.** The lobe reflects, and the far face of a sheet transmits: `GatherRun` gives
-/// a light behind a sheet no lobe and its diffuse half the whole of it, and so does this.
+/// **Off the near face only**: the lobe reflects and the far face of a sheet transmits, so `GatherRun` gives a
+/// light behind a sheet no lobe, and so does this.
 ///
-/// **One pair for either half**, `STREAM_BOUNCE`'s: only one half is kept, so the pair's spread across the
-/// screen serves whichever it is.
+/// **One pair for either half**, `STREAM_BOUNCE`'s: only one half is kept, so its spread across the screen
+/// serves whichever it is.
 ///
 /// @param cone the eye's cone at the stage that found the surface — the arms' camera for the
 ///        player's own arms — whose spread a reflection widens by.
@@ -938,17 +924,16 @@ SolidLook solidLookOf(Surface surface, Gloss gloss)
 /// What a solid the eye found sends back before its shadow rays are answered, and the rays: what
 /// `seenSolidOf` makes a `SeenSolid` of once they are (`direct.comp`).
 ///
-/// **What reaches it from everything that is not a light is its bounce, `BounceRun`'s**, which stages of
-/// their own trace and visit (`bounce.comp`, `landing.comp`): the one kernel carried every walk's record at
-/// once, and the bounce's landing was a gather and a visit more.
+/// **What reaches it from everything that is not a light is its bounce, `BounceRun`'s**, a stage of its own
+/// (`bounce.comp`, `landing.comp`).
 ///
-/// **Everything but the rays' answers worked out first**, the gather's start and the solid's look, so only
-/// these and the rays stay live through the traversals: a walk of steps kept the surface and the gather's
-/// record through each of them, and the stage held 128 to 192 registers on RDNA 2.
+/// **Everything but the rays' answers worked out first**, so only these and the rays stay live through the
+/// traversals: a walk of steps kept the surface and the gather's record through each of them, and the stage
+/// held 128 to 192 registers on RDNA 2.
 ///
-/// **The gather is split** (`GatherRun::mSplit`), at the eye's own blue noise: the sky's source and the
-/// lamps go to the shadow denoiser apart, and not to the wavelet with the bounce — direct light and
-/// indirect apart, as NRD has them.
+/// **The gather is split** (`GatherRun::mSplit`), at the eye's own blue noise: the sky's source and the lamps
+/// go to the shadow denoiser apart and not to the wavelet with the bounce, direct and indirect light apart as
+/// NRD has them.
 struct SolidLight
 {
     /// The glow, `SplitLight::mRest`, and each shadowed source's light as though its ray got
@@ -1064,13 +1049,13 @@ SolidLight solidLightOf(Surface surface, uvec2 pixel)
 
 /// What a solid sends back once its sky's passage answered `sky` and its lamp's ray `lamp`.
 ///
-/// **What the translucent surfaces let through is drawn into each bit**, open where its ray got through and
-/// a draw falls under it: the bit's mean is then the open half times the through, and the shadow denoiser
+/// **What the translucent surfaces let through is drawn into each bit**, open where its ray got through and a
+/// draw falls under it: the bit's mean is then the open half times the through, and the shadow denoiser
 /// filters a pane's shadow as it filters a penumbra.
 ///
-/// **Each penumbra in the surface's own footprints**, which is what the denoiser's reach is counted in; and
-/// the whole reach where the bit was drawn — where its own source carries less than all but the floor of
-/// its field's light, since that bit is noise however hard its shadow.
+/// **Each penumbra in the surface's own footprints**, which the denoiser's reach is counted in, and the whole
+/// reach where the bit was drawn (its source carries less than all but the floor of its field's light), since
+/// that bit is noise however hard its shadow.
 SeenSolid seenSolidOf(SolidLight light, Passage sky, Passage lamp)
 {
     const bool skyPassed = light.mPassing.x < sky.mThrough;
@@ -1096,11 +1081,10 @@ SeenSolid seenSolidOf(SolidLight light, Passage sky, Passage lamp)
 /// found.
 ///
 /// **One bounce, traced only from the hit the eye found**: a walk with no recursion cannot bounce a bounce,
-/// and it should not — what the second hit gathers is `pathEnd`, the flat ambient that stands in for the
-/// rest of the path.
+/// and the second hit gathers `pathEnd`, the flat ambient that stands in for the rest of the path.
 ///
-/// **Two stages, the bounce and its landing** (`bounce.comp`, `landing.comp`): the draw and the ray here,
-/// whose landing the landing's stage resolves and visits (`landingLightOf`).
+/// **Two stages, the bounce and its landing** (`bounce.comp`, `landing.comp`): the draw and the ray here, whose
+/// landing the landing's stage resolves and visits (`landingLightOf`).
 struct BounceRun
 {
     /// What the solid's lobe is divided by, as `specularModulation` packs it (`lobeModulationWord`), which
@@ -1178,11 +1162,10 @@ void startBounce(inout BounceRun run, Surface surface, Cone cone, uvec2 pixel, u
 
     run.mWeight = weight;
 
-    // **A ray query, and not a `traceRayEXT` the hardware could sort.** The one ray Shader Execution
-    // Reordering's sources point at is this one, and sorting for it was measured: 20 percent slower out of
-    // doors and 30 in a room, because a bounce indoors is short and lands on the same few surfaces, so
-    // there is no coherence left to recover. A diffuse bounce is not drawn: it carries light, and a surface
-    // it met from behind still carries it.
+    // **A ray query, and not a `traceRayEXT` the hardware could sort.** Sorting this one ray (Shader Execution
+    // Reordering) was measured 20 percent slower out of doors and 30 in a room: a bounce indoors is short and
+    // lands on the same few surfaces, so there is no coherence left to recover. A diffuse bounce is not drawn:
+    // it carries light, and a surface it met from behind still carries it.
     run.mBounceTraced = true;
     run.mBounceRay
         = traceAsk(WorldRay(leaveSurface(surface.mPosition, stepOf(surface), drawn.mTowards), drawn.mTowards), 0.0,
@@ -1200,20 +1183,21 @@ vec3 bounceMissed(BounceRun run)
 /// and the rays.
 ///
 /// **A room's fill whole, with no occlusion ray of its own**: the ray a landing would answer stands a wall
-/// further from the eye than anything it could show, and dropping it saved 0.1 to 0.3 ms a frame, took
-/// black pixels off the rooms the fill lights, and left the noise and the fireflies no worse
+/// further from the eye than anything it could show, and dropping it saved 0.1 to 0.3 ms a frame and took
+/// black pixels off the rooms the fill lights at no cost in noise
 /// (`docs/rtx/research/2026-11-05-room-ambient.md`).
 ///
-/// **Its glow is counted here, because this is the only path it takes.** Nothing gives a glowing surface a
-/// lamp of its own — `EMISSIVE_INTENSITY` says what measuring that showed — so a ray that lands on a
-/// mushroom cap is what carries the cap's glow back to whatever sent it.
+/// **Its glow is counted here, because this is the only path it takes**: nothing gives a glowing surface a
+/// lamp of its own (`EMISSIVE_INTENSITY` says what measuring that showed), so a ray that lands on a mushroom
+/// cap carries the cap's glow back to whatever sent it.
 ///
 /// **A lamp's own model glows to nothing**, every point a bounce leaves having evaluated the lamps
 /// (`INSTANCE_LAMP_BODY`).
 ///
-/// **One visit with the path chosen, and not one per half.** A warp whose lanes drew both halves would run
-/// them one after the other. Chosen at run time, the diffuse half's hit asks the moons and finds they weigh
-/// nought.
+/// **One visit with the path chosen, and not one per half**: a warp whose lanes drew both halves would run
+/// them one after the other, and chosen at run time the diffuse half's hit asks the moons and finds they
+/// weigh nought.
+
 struct LandingLight
 {
     /// What arrives whatever the rays find: the glow.

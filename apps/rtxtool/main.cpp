@@ -71,10 +71,9 @@ namespace RtxTool
 
         constexpr std::string_view applicationName = "RtxTool";
 
-        /// Opens the log, loads the settings and hands the crash catcher what it reads of them: where
-        /// the reports go and how long without a frame is a hang. The game's own sequence,
-        /// `parseOptions` in `apps/openmw/main.cpp`, restated, so a hang in the harness is reported
-        /// as one in the game is.
+        /// Opens the log, loads the settings and hands the crash catcher where reports go and how long without a
+        /// frame is a hang: the game's own sequence (`parseOptions` in `apps/openmw/main.cpp`), so a hang here is
+        /// reported as one in the game is.
         void startLogAndSettings(const Files::ConfigurationManager& config)
         {
             Debug::setupLogging(config.getLogPath(), applicationName);
@@ -85,13 +84,9 @@ namespace RtxTool
             Crash::setHangLimit(std::chrono::seconds(Settings::general().mCrashHangSeconds));
         }
 
-        /// The layers a run that will be measured or compared gets, which is none unless it asked.
-        ///
-        /// **Off unless somebody asked, whatever the build default is.** The layers cost between a
-        /// tenth and half the frame rate, and a profiling run that quietly measured one under
-        /// instrumentation is worse than no run at all: it produces a number, and the number is
-        /// wrong. GPU-assisted validation instruments every shader besides, so a picture drawn under
-        /// one is not the picture the next run will be compared against.
+        /// The layers a run that will be measured or compared gets: none unless it asked, whatever the build default
+        /// is. They cost a tenth to half the frame rate, and GPU-assisted validation instruments every shader, so a
+        /// number or a picture taken under them is wrong rather than missing.
         Rtx::ValidationOptions validationForMeasuring(const Rtx::ValidationOptions& named)
         {
             return named.mDemanded ? named : Rtx::ValidationOptions{};
@@ -134,13 +129,9 @@ namespace RtxTool
         {
             const ToolLine::Frame& line = command.mLine.mFrame;
 
-            // **A window is the played game with the walls off, so what the player set stands
-            // unless an option was typed over it.** Every other command has to state its frame,
-            // so that two runs of it are one run whatever a settings file says — which is what
-            // the shipped defaults are for, and not the player's value of the same setting. A
-            // window that took them stood four cells of ground under a player who had set eight,
-            // and upscaled at a quality they had not. Vertical sync excepted, which no run keeps
-            // (`WindowRequest::writeSettings`).
+            // A window is the played game with the walls off, so what the player set stands unless an option was
+            // typed over it; every other command states its frame, so two runs of it are one run whatever a
+            // settings file says. Vertical sync excepted, which no run keeps (`WindowRequest::writeSettings`).
             const bool watched = command.mVerb == Verbs::View;
 
             Framed framed;
@@ -152,9 +143,9 @@ namespace RtxTool
             framed.mDay = line.mDay.mValue;
             framed.mMaps = line.mMaps;
 
-            // **The settings the ray tracer reads, from one source chosen here and through the
-            // game's one derivation**: the line's where it names them, and the player's for a
-            // window, the shipped defaults' for a measured run, where it does not (`overLine`).
+            // The settings the ray tracer reads, from one source and through the game's one derivation: the line's
+            // where it names them, else the player's for a window or the shipped defaults' for a measured run
+            // (`overLine`).
             const MWRender::RtxSettingValues values = overLine(
                 line, watched ? MWRender::RtxSettingValues::fromRegistry() : measuredSettings(command.mShipped, line));
 
@@ -195,10 +186,9 @@ namespace RtxTool
             profile.mReconstruction = line.mReconstruction;
             derived.applyTo(profile);
 
-            // **What a window's line typed, written where its menu reads it**, so a slider opens at what
-            // the frame traces and moves it from there, into this run's own settings file
-            // (`adoptConfigDirectory`). A window alone: a measured run's renderer holds a count of rays
-            // of its own (`commandNoise`), which the change this writes would take back.
+            // What a window's line typed is written where its menu reads it, so a slider opens at what the frame
+            // traces and moves it into this run's own settings file (`adoptConfigDirectory`). A window alone: a
+            // measured run's renderer holds its own ray count (`commandNoise`), which this would take back.
             if (watched)
             {
                 Settings::rtx().mIndirectLighting.set(derived.mIndirectLighting);
@@ -249,16 +239,11 @@ namespace RtxTool
                 request.mAgainst = against / sRunHashes;
         }
 
-        /// What `policy` does to one place: the route and the track a command does not follow go,
-        /// the clock stops where the row freezes and nothing is flown, and every frame is hashed
-        /// where the row hashes.
-        ///
-        /// **Frozen is what still means.** The world does not step, so what one frame differs from
-        /// the next by is the renderer and nothing else — which is what a picture, a digest and a
-        /// pixel comparison are each about. A view's route is flown with the clock going, because a
-        /// camera crossing a stopped world measures the streaming and nothing that lives in it. A
-        /// route that holds the world is the command's own staging and not a view's, and the row
-        /// leaves it as it is.
+        /// What `policy` does to one place: the route and the track a command does not follow go, the clock stops
+        /// where the row freezes and nothing is flown, and every frame is hashed where the row hashes. A frozen world
+        /// makes what one frame differs from the next by the renderer alone, which is what a picture, a digest and a
+        /// pixel comparison are about; a view's route is flown with the clock going, because a camera crossing a
+        /// stopped world measures streaming. A route that holds the world is the command's own staging and is left.
         void applyPolicy(const VerbPolicy& policy, Stop& stop)
         {
             std::optional<Route>& route = stop.mSchedule.mRoute;
@@ -319,10 +304,8 @@ namespace RtxTool
             const Stop* found = findChosenView(places, views);
             const CellAddress& cell = places.mCell;
 
-            // **A save is the place, unless the line names one over it.** The stop then stands
-            // where the save left the player, at the save's hour, day and weather, and only what
-            // the line names is changed — where `stopFor` would stand it at noon under a clear sky
-            // on the first day, which is a view's rule and not a save's.
+            // A save is the place unless the line names one over it: the stop stands where the save left the player,
+            // at its hour, day and weather, where `stopFor` would use a view's noon, clear sky and first day.
             Stop staged;
             if (found == nullptr && cell.empty() && startsFromSave(places))
             {
@@ -351,14 +334,11 @@ namespace RtxTool
             return staged;
         }
 
-        /// The places a picture or a report is made at, each held still: the views `--views` names,
-        /// or the one place the line names where it names none.
+        /// The places a picture or a report is made at, each held still: the views `--views` names, or the one place
+        /// the line names where it names none. Held still here and not by each command, so a picture the world moved
+        /// under cannot come out of a command that forgot the freeze.
         ///
-        /// **Held still here and not by each command**, so a picture the world moved under cannot
-        /// come out of a command that forgot the freeze, with nothing in the output to say so.
-        ///
-        /// @param frames how many to measure at each place once the world has arrived. Why a
-        ///        command wants more than one is that command's to say.
+        /// @param frames how many to measure at each place once the world has arrived.
         std::vector<Stop> stagePlaces(const Command& command, const Framed& framed, const std::uint32_t frames)
         {
             const std::optional<std::vector<std::string>>& named = command.mLine.mPlaces.mViews;
@@ -389,10 +369,8 @@ namespace RtxTool
             std::optional<bool> mSettled;
         };
 
-        /// **`--views` beats `--suite`, and both name entries in `views.cfg`.** A suite is a list
-        /// written down so a run can be repeated without remembering it; a list on the command line
-        /// is the same thing for one run. Neither carries coordinates: those live with the view, so
-        /// the frame a picture is taken of and the frame a number is measured on stay one frame.
+        /// `--views` beats `--suite`, and both name entries in `views.cfg`. Neither carries coordinates: those live
+        /// with the view, so the frame a picture is taken of and the frame a number is measured on stay one frame.
         ///
         /// @param ownSuite the suite the verb runs when neither `--views` nor `--suite` names one:
         ///        `bench` measures the frame budget's places and `check` walks a route as well.
@@ -459,15 +437,10 @@ namespace RtxTool
 
             const Rtx::ValidationOptions& validation = command.mLine.mValidation;
 
-            // A one-pixel target: this reports on a device rather than drawing with it, and the
-            // default would spend fifty megabytes of images to print a page of text.
-            //
-            // **The shaders are still named, because standing a renderer up compiles one.**
-            // Reporting on a device is not a reason to build half a renderer, and a build whose
-            // shaders are missing should say so here rather than at the first frame asked for.
-            //
-            // **And no pipeline cache, as no verb of this tool keeps one**: `RtxRenderer` says why a
-            // measured run compiles from source, and this verb's few seconds are that compile.
+            // A one-pixel target: this reports on a device rather than drawing with it. The shaders are still named,
+            // because standing a renderer up compiles one and a build whose shaders are missing should say so here.
+            // No pipeline cache, as no verb of this tool keeps one: `RtxRenderer` says why a measured run compiles
+            // from source.
             try
             {
                 const std::unique_ptr<Rtx::Renderer> renderer = Rtx::createVulkanRenderer(Rtx::RendererOptions{
@@ -486,10 +459,8 @@ namespace RtxTool
             }
         }
 
-        /// What the renderer was handed at each place, without looking at what it drew.
-        ///
-        /// **Walked twice, always.** A second whole-graph walk should add nothing, and the report
-        /// says what it added; a run that has read a cell is the cheapest place to ask.
+        /// What the renderer was handed at each place, without looking at what it drew. Walked twice: a second
+        /// whole-graph walk should add nothing, and the report says what it added.
         int commandScene(const Command& command)
         {
             const Framed framed = frameFrom(command);
@@ -505,24 +476,15 @@ namespace RtxTool
             return runHosted(command, framed, sessionFor(command, framed, std::move(stops)));
         }
 
-        /// The pictures of each place, taken headless: the frame, and the doll, the tile and the
-        /// sheet where asked for.
-        ///
-        /// **The world a player stands in and not one staged here**, which is the whole of what
-        /// this path is for: the cells are read by `MWWorld::Scene`, the people are dressed by
-        /// `NpcAnimation` and the sky is reported by `MWWorld::WeatherManager`, so the picture is
-        /// the one the game draws rather than one derived beside it.
-        ///
-        /// **Every picture a stop can make, in one run**, because `Actions` holds them all and
-        /// each verb that made one started an engine of its own for it. And every view, under
+        /// The pictures of each place, taken headless: the frame, and the doll, the tile and the sheet where asked
+        /// for. The world a player stands in and not one staged here: the cells are read by `MWWorld::Scene`, the
+        /// people dressed by `NpcAnimation` and the sky reported by `MWWorld::WeatherManager`. Every view under
         /// `--views`, with `--against` saying which pictures a change moved.
         ///
-        /// **The frame is judged by its hashes and not by its pixels.** Every frame of a stop is
-        /// hashed the way a `bench --out` hashes one — the trace's own images, what the frame
-        /// handed the reconstruction, the scene — into `hashes.csv` beside the pictures, and
-        /// `--against` compares that table first. `FrameHashes` says why the picture past an
-        /// upscaler cannot be the verdict; the tile, the doll and the sheet are traced
-        /// without it and are compared as pictures.
+        /// The frame is judged by its hashes, not its pixels: every frame of a stop is hashed as a `bench --out`
+        /// hashes one into `hashes.csv`, and `--against` compares that table first (`FrameHashes` says why a picture
+        /// past an upscaler cannot be the verdict). The tile, the doll and the sheet are traced without one and
+        /// compared as pictures.
         int commandShot(const Command& command)
         {
             const ToolLine::Shot& line = command.mLine.mShot;
@@ -530,13 +492,9 @@ namespace RtxTool
 
             const std::filesystem::path& against = command.mLine.mAgainst;
 
-            // **Traced more than once, because one submit measures the clock and not the shader.**
-            // A GPU idles at a fraction of its clock and ramps only under load, so the same frame
-            // from a cold start times anywhere within a factor of several.
-            //
-            // **Accumulating replaces repeating rather than joining it.** A run that also honoured
-            // the repeat default would quietly average eight frames more than it was asked for, and
-            // a convergence ladder built on that reads as though the first frames bought nothing.
+            // Traced more than once, because one submit measures the clock and not the shader: a GPU idles at a
+            // fraction of its clock and ramps only under load. Accumulating replaces repeating rather than joining
+            // it, or a run would average eight frames more than it was asked for.
             const std::uint32_t accumulate = line.mAccumulate;
             const std::uint32_t frames = accumulate > 0 ? accumulate : std::max(line.mRepeat, 1u);
 
@@ -645,21 +603,17 @@ namespace RtxTool
 
         /// A window on a place, with the game running behind it.
         ///
-        /// **The game and not a camera of this tool's own.** What a window is for is seeing how
-        /// something moves and whether an artefact is a still or a shimmer, and both are questions
-        /// about the frame a player gets — so the player is who flies it, with their own controls,
-        /// their own collision and their own console — in a body with every stat at 255, a Speed
-        /// of 2000, level 255 and ten million gold, and the frame rate on the window's title.
-        ///
-        /// Collision comes off, because a view file's coordinates are where a camera stands rather
-        /// than where a body fits.
+        /// The game and not a camera of this tool's own: a window is for seeing how something moves and whether an
+        /// artefact is a still or a shimmer, which are questions about the frame a player gets. So the player flies
+        /// it, with their own controls and console, in a body with every stat at 255, a Speed of 2000, level 255 and
+        /// ten million gold, and the frame rate on the title. Collision comes off, because a view file's coordinates
+        /// are where a camera stands rather than where a body fits.
         int commandView(const Command& command)
         {
             Framed framed = frameFrom(command);
 
-            // **On the wall, because somebody is watching.** A stepped world runs as fast as the
-            // card draws it, which at two hundred frames a second is three times over; a window
-            // is the played game with the walls off, and the played game follows the wall.
+            // On the wall, because somebody is watching: a stepped world runs as fast as the card draws it, three
+            // times over at two hundred frames a second, and the played game follows the wall.
             framed.mSetup.mHeadless = false;
             framed.mStep = std::nullopt;
 
@@ -681,13 +635,9 @@ namespace RtxTool
             return runHosted(command, framed, std::move(request));
         }
 
-        /// Every claim the tree makes about what the renderer is handed and what it draws, asked
-        /// of a real game at each place of a suite.
-        ///
-        /// **These were tests against a world of this tool's own.** That world read its cells by
-        /// hand, dressed its people by rules of its own and derived its sky from the content files,
-        /// so a claim proved there was a claim about a world nobody plays. Asked here, each of them
-        /// is about the world a player stands in.
+        /// Every claim the tree makes about what the renderer is handed and what it draws, asked of a real game at
+        /// each place of a suite: a claim proved against a world of this tool's own would be about a world nobody
+        /// plays.
         int commandCheck(const Command& command)
         {
             Framed framed = frameFrom(command);
@@ -699,10 +649,9 @@ namespace RtxTool
 
             const std::span<const Check> every = everyCheck();
 
-            // **Every picture a stop can write, at the first place, because each leaves through a
-            // path the frame's own passes never touch**: the capture adds the read back a picture
-            // is written from, and the tile and the doll are offscreen traces with descriptor sets
-            // and targets of their own. Under the layers, this is what finds a barrier they miss.
+            // Every picture a stop can write, at the first place, because each leaves through a path the frame's own
+            // passes never touch: the capture's read back, and the tile's and the doll's offscreen traces with
+            // targets of their own. Under the layers, this is what finds a barrier they miss.
             const std::filesystem::path out = outOf(command);
             std::filesystem::create_directories(out);
             stops.front().mActions.mCapture = Actions::Capture{ .mFile = out / (stops.front().mName + ".png") };
@@ -728,40 +677,26 @@ namespace RtxTool
             return runHosted(command, framed, std::move(request));
         }
 
-        /// How noisy the frame a player sees is, against sixteen frames averaged, and how far what it
-        /// converges to stands from the truth, at each place of a suite: five pictures of each place,
-        /// in one run, and a verdict on them.
+        /// How noisy the frame a player sees is, against sixteen frames averaged, and how far what it converges to
+        /// stands from the truth, at each place of a suite: five pictures of each place, in one run, and a verdict.
         ///
-        /// **The reference, the bar, the bar's limit, the frame and the frame's mean, in that
-        /// order.** The reference averages
-        /// `sNoiseReferenceFrames` frames traced unfiltered and jittered, from the white hash, which
-        /// is a sequence neither of the others draws from, so it shares no sample with them, and at
-        /// no texture level epsilon; its exposure is measured as a played frame's is, and it is
-        /// written as the renderer summed it, at sixteen bits a channel and undithered
-        /// (`Actions::Capture::Depth::Deep`), so no byte stands under the bias measured against it. The bar averages as
-        /// many frames as the frame's history holds samples a shown pixel, at most `sNoiseBarFrames`, unfiltered and as
-        /// the run otherwise traces (`NoiseFrame::mBar`). The frame is the run's own, after the warm-up its history
-        /// converges over, upscaled as the run is — or, with `--strafe` or `--walk`, after it flew into the place from
-        /// the side or from behind (`Stand::approachFrom`). The reference and the bar are traced with no upscaler,
-        /// at the frame's own output size, so an upscaled frame is held to the picture it stands for and not to another
-        /// upscale of it. The bar's limit is `sNoiseMeanDraws` draws of the bar, and the frame's mean `sNoiseMeanDraws`
-        /// draws of the frame, each its own stop over the same warm-up as the frame: what each converges to, drawn its
-        /// own way. **Both means are of the pictures as shown**, the bytes averaged, so each is the centre of what its
-        /// own pictures scatter around and the two spreads are measured alike; a mean of radiance mapped once is a
-        /// centre the curve moved, and a frame's distance from it holds that move as noise. **Every stop at a place
-        /// draws samples of its own** (`sNoiseSampleStride`), or the draws of a held world are one draw repeated. Every
-        /// picture but the reference holds the exposure the reference ended on, so all are mapped by one curve and the
-        /// scale is derived rather than stated.
+        /// The reference averages `sNoiseReferenceFrames` frames traced unfiltered and jittered, from the white hash
+        /// (a sequence no other picture draws from) and at no texture level epsilon, and is written as the renderer
+        /// summed it, at sixteen bits and undithered (`Actions::Capture::Depth::Deep`), so no byte stands under the
+        /// bias. The bar averages as many frames as the frame's history holds samples a shown pixel, at most
+        /// `sNoiseBarFrames`, unfiltered (`NoiseFrame::mBar`). The frame is the run's own after the warm-up, upscaled
+        /// as the run is, or after flying in with `--strafe` or `--walk` (`Stand::approachFrom`); the reference and
+        /// the bar are traced with no upscaler at its output size, so an upscaled frame is held to the picture it
+        /// stands for. The bar's limit and the frame's mean are `sNoiseMeanDraws` draws each, as pictures shown and
+        /// averaged as bytes, so both spreads are measured alike. Every stop at a place draws samples of its own
+        /// (`sNoiseSampleStride`), and every picture but the reference holds the exposure the reference ended on.
         ///
-        /// **With `--versus`, a second side at each place after the first**: its frame and the frame's
-        /// mean at the first side's draws, and its own reference, bar and limit before them only
-        /// where its unfiltered frames trace otherwise, so an A/B of a switch only the filters read
-        /// traces the half of the run that cannot differ once. Each side is judged on its own lines.
+        /// With `--versus`, a second side follows at each place: its frame and mean at the first side's draws, and
+        /// its own reference, bar and limit only where its unfiltered frames trace otherwise, so an A/B of a switch
+        /// only the filters read traces the shared half once.
         ///
-        /// **Judged against the bar and not against a number**: a frame is as clean as the bar when it
-        /// stands no further from its own mean than the bar from its limit, by the mean and at the 99th
-        /// percentile — `judgeNoise` says why noise against noise. The bar is measured at the same
-        /// place, so it carries the place's own difficulty with it.
+        /// Judged against the bar and not a number: a frame is as clean as the bar when it stands no further from its
+        /// own mean than the bar from its limit, by the mean and the 99th percentile (`judgeNoise`).
         int commandNoise(const Command& command)
         {
             const ToolLine::Noise& line = command.mLine.mNoise;
@@ -833,18 +768,11 @@ namespace RtxTool
             return judged;
         }
 
-        /// A film of the keys a window wrote: every take drawn headless, its frames numbered through
-        /// the film, then encoded.
-        ///
-        /// **The plan first, whatever follows.** A film is an hour of rendering, and the lengths the
-        /// keys came to are where a wrong one shows: a flight of forty seconds where ten were meant
-        /// is a key too far away, and the plan says so before a frame is drawn.
-        ///
-        /// **Stepped at the film's own rate, settled, unvalidated and natively reconstructed.** The world moves a
-        /// frame's worth between frames, so the water and the people move at their own speed in the
-        /// video; every walk waits for the cells it collects, so no cell arrives on screen; the
-        /// layers, which a film does not ask about, stay off unless named, as a bench's do; and every
-        /// pixel is traced (`sFilmUpscale`).
+        /// A film of the keys a window wrote: every take drawn headless, its frames numbered through the film, then
+        /// encoded. The plan comes first, whatever follows: a film is an hour of rendering, and a key too far away
+        /// shows in the lengths before a frame is drawn. Stepped at the film's own rate, settled and natively
+        /// reconstructed (`sFilmUpscale`), with the layers off unless named: the world moves a frame's worth between
+        /// frames, no cell arrives on screen, and every pixel is traced.
         int commandFilm(const Command& command)
         {
             const ToolLine::Film& line = command.mLine.mFilm;
@@ -904,11 +832,9 @@ namespace RtxTool
             return 0;
         }
 
-        /// One verb: which command it is, the line `--help` prints for it, and what it does.
-        ///
-        /// **Which one it is and not what it is called**, because `verbs.hpp` holds the names: an
-        /// option says which commands read it in the same terms this table names them in, so the
-        /// two cannot drift into a command whose options nothing reaches.
+        /// One verb: which command it is, the line `--help` prints for it, and what it does. Identified by enum and
+        /// not by name, because `verbs.hpp` holds the names and an option says which commands read it in the same
+        /// terms, so a command whose options nothing reaches cannot drift in.
         struct Verb
         {
             Verbs mVerb;
@@ -916,13 +842,8 @@ namespace RtxTool
             int (*mRun)(const Command&);
         };
 
-        /// Every command there is.
-        ///
-        /// **One list and not two.** The usage printed a name and a summary for each and the
-        /// dispatch matched each name against a block of its own, so a verb added to one of them and
-        /// forgotten in the other was either a command nobody could find or a line of help nothing
-        /// answered. In the order `--help` prints them, which is the order they were written to be
-        /// read in rather than a sorted one.
+        /// Every command there is, in the order `--help` prints them. One list and not two, so a verb cannot be a
+        /// command nobody can find or a line of help nothing answers.
         constexpr std::array<Verb, 8> sVerbs{
             Verb{ Verbs::Info, "report the device this renderer would run on", commandInfo },
             Verb{ Verbs::Scene, "read a place and report what the renderer would be handed", commandScene },
@@ -960,25 +881,18 @@ namespace RtxTool
         {
             Platform::init();
 
-            // The verb is taken straight off the command line rather than declared as a positional.
-            // `ConfigurationManager::readConfiguration` walks the variables map and looks every key
-            // up in the options description it was handed, so a key that is deliberately not in that
-            // description — which is what a hidden positional is — makes it throw.
-            //
-            // A window is what this is for, so that is what it does when nobody says otherwise —
-            // with no arguments at all, or with only options and no verb.
+            // The verb is taken off the command line rather than declared positional:
+            // `ConfigurationManager::readConfiguration` looks every key of the variables map up in the description,
+            // so a hidden positional makes it throw. With no verb, a window is what this is for.
             const bool hasVerb = argc >= 2 && argv[1][0] != '-';
             const std::string_view command = hasVerb ? argv[1] : "view";
 
             const ToolOptions options
                 = makeOptions(Rtx::sValidationByDefault ? Rtx::ValidationLevel::Sync : Rtx::ValidationLevel::Off);
 
-            // Boost skips the first token as the program name; when there is a verb, that token is
-            // the verb.
-            //
-            // **Held, because the line itself says what was asked for and the map does not.** A
-            // variables map cannot tell an option somebody wrote from one `openmw.cfg` set or one
-            // that came back defaulted, and what a command has to refuse is the first of the three.
+            // Boost skips the first token as the program name; with a verb, that token is the verb. The parsed line
+            // is held because a variables map cannot tell an option somebody wrote from one `openmw.cfg` set or one
+            // that came back defaulted, and a command has to refuse the first.
             const bpo::parsed_options line = hasVerb
                 ? bpo::command_line_parser(argc - 1, argv + 1).options(options.mDescription).run()
                 : bpo::command_line_parser(argc, argv).options(options.mDescription).run();
@@ -995,9 +909,8 @@ namespace RtxTool
 
             Files::ConfigurationManager config;
 
-            // **Before the chain is walked, because this is the directory the engine writes into.**
-            // `ownConfigDirectory` says why a hosted run has one of its own; the log below lands
-            // there too.
+            // Before the chain is walked, because this is the directory the engine writes into
+            // (`ownConfigDirectory`); the log below lands there too.
             const std::filesystem::path own = ownConfigDirectory(config);
             sweepEndedRuns(own.parent_path());
             adoptConfigDirectory(variables, own);
@@ -1028,10 +941,8 @@ namespace RtxTool
                 return 1;
             }
 
-            // **Before the command runs, because the alternative is a picture of somewhere else.**
-            // Every option is declared on one description, so a command took every one of them and
-            // read the ones it knew about: `shot --views=balmora` rendered the default view at
-            // Seyda Neen and reported it without a word.
+            // Before the command runs: every option is declared on one description, so a command took every one and
+            // read those it knew, and `shot --views=balmora` rendered the default view without a word.
             if (const std::string complaint = options.complainAbout(line, chosen); !complaint.empty())
             {
                 Debug::getRawStdout() << complaint;
@@ -1078,12 +989,9 @@ int main(int argc, char* argv[])
     // state of this one: the figures a measured run reports move run to run on small ones.
     Platform::Process::restartOnHugePages(argv);
 
-    // **The catcher, and never a box.** This is a developer harness: it is run from a shell or a
-    // task runner, its output is read, and a dialog waiting for a click is a run that never
-    // finishes — which for something whose whole point is to be run in a loop is the tool not
-    // working. So the catcher's box is off, and the catcher is on: a measured run that crashes or
-    // hangs leaves the report a player's game would. Not overwritten, so that a shell can still
-    // ask for the box, or turn the catcher off.
+    // The catcher's box is off and the catcher is on: a dialog waiting for a click is a run that never finishes,
+    // and a measured run that crashes or hangs should still leave the report a player's game would. Not
+    // overwritten, so a shell can still ask for the box, or turn the catcher off.
     Platform::Process::setEnvironmentDefault("OPENMW_CRASH_DIALOG", "0");
 
     return Debug::wrapApplication(RtxTool::run, argc, argv, RtxTool::applicationName);

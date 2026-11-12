@@ -18,18 +18,17 @@ namespace
     /// lamp with an enormous reach overruns the second, and doubling the cell until both fit
     /// recovers either.
     ///
-    /// **The spare cells around that extent come on top of the first budget.** Counted in it, they
+    /// **The spare cells around that extent come on top of the first budget**: counted in it, they
     /// doubled the cell of one build in six over the shot suite's places, because an exterior is a
-    /// few cells high and two more is half as many again. On top, the largest grid there is 88,168
-    /// cells, a third over the budget, where the coarser cell had every lookup walk more lamps.
+    /// few cells high and two more is half as many again.
     constexpr std::size_t sMaxCells = 65536;
     constexpr std::size_t sMaxEntries = 262144;
 
     /// The side a grid starts at, in world units — a quarter of a terrain tile, about half a
     /// lamp's reach, because a cell of side `c` lists every lamp within `reach + c` of it. At one
     /// tile a point in the Guild of Mages weighed twenty-one lamps for the one or two that reached
-    /// it, and at a quarter tile it weighs twelve; at an eighth the entries grow eightfold for one
-    /// lamp fewer. An exterior overruns the cell budget at this size and doubles back to a tile.
+    /// it, at a quarter tile twelve; at an eighth the entries grow eightfold for one lamp fewer.
+    /// An exterior overruns the cell budget at this size and doubles back to a tile.
     constexpr double sFirstCell = 256.0;
 
     using CellBox = Rtx::LightGrid::CellBox;
@@ -107,10 +106,9 @@ namespace Rtx
         }
 
         // **Only what moved is binned again, into the grid as it stands.** A lamp carried through
-        // a room crosses a cell every few frames and stands in the cells it stood in between, so
-        // most frames it moves write nothing; its colour, which the grid never reads, changes on
-        // nearly every one. The grid is made again where a lamp's reach leaves it, because a
-        // position outside the grid is lit by nothing.
+        // a room crosses a cell every few frames, so most frames it moves write nothing; its colour,
+        // which the grid never reads, changes on nearly every one. The grid is made again where a
+        // lamp's reach leaves it, because a position outside the grid is lit by nothing.
         mMoved.clear();
         for (std::size_t at = 0; at < lights.size(); ++at)
         {
@@ -202,10 +200,9 @@ namespace Rtx
         const double spare = bounds.valid() ? 1.0 : 0.0;
 
         // The cell doubles until the grid fits both budgets, or until what the lamps reach fits in a
-        // single cell: past that, a lamp is in two cells an axis at most, and more lamps than the
-        // entry budget still have to be listed. An axis is capped one past the cell budget before it
-        // is cast, because a far lamp gives it more cells than a `uint32_t` holds, and one past
-        // fails the test whatever the others hold.
+        // single cell: past that, a lamp is in two cells an axis at most. An axis is capped one past
+        // the cell budget before it is cast, because a far lamp gives it more cells than a
+        // `uint32_t` holds, and one past fails the test whatever the others hold.
         mBoxes.reserve(lights.size());
         mMoved.reserve(lights.size());
         for (double cell = sFirstCell;; cell *= 2.0)

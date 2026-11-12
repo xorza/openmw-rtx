@@ -23,11 +23,9 @@ if(CMAKE_C_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     if(OPENMW_SANITIZER)
         message(FATAL_ERROR "OPENMW_SANITIZER is Clang's: MSVC's sanitizers have not been measured on this tree")
     endif()
-    # Under link-time code generation the debug information goes to each target's PDB (`/Zi`) instead: an
-    # object then carries its intermediate code beside its debug information, which took `openmw-lib`'s archive
-    # from 3.6 GB to 4.9 GB, past the 4 GB a COFF archive holds (LNK1248). It is objects now, and the archives
-    # left stand at 2.3 GB (`openmw-cs-lib`) and 2.0 GB (`openmw-components`) with the PDB, where that growth
-    # would take the larger to 3.1 GB. A tagged release, which alone asks for it, builds cold.
+    # Under link-time code generation the debug information goes to each target's PDB (`/Zi`) instead: an object
+    # then carries its intermediate code beside its debug information, which took `openmw-lib`'s archive past the
+    # 4 GB a COFF archive holds (LNK1248). A tagged release, which alone asks for it, builds cold.
     if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
         set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT ProgramDatabase)
     else()
@@ -65,16 +63,14 @@ endforeach()
 # **Linux compiles with the pinned Clang and links with its lld, the set and the tree alike** (`vcpkg/linux.cmake`),
 # whose flags name the libstdc++ every compile and link takes. lld for every link, since a tagged release's ThinLTO
 # needs a linker that reads LLVM's bitcode, which mold does only through `LLVMgold.so`, which the pinned LLVM lacks.
-# Static libraries are thin archives (LLVM's `ar T`), which name their objects rather than copy them: no library is
-# installed, and copying the game's objects cost every relink seconds; LLVM's `ar`, as it indexes bitcode members.
-# GCC's C++ runtime is linked in, as every other library is, so a program runs on a system whose libstdc++ is older
-# than the one it was built against (GCC's runtime library exception permits it); not under a sanitizer, whose
-# runtime takes the allocator's place in a shared libstdc++ alone. A sanitizer's runtime is the shared one, found
-# beside the pinned Clang: linked in, it sits in the program ahead of what wraps its interceptors, and Crashpad's
-# `pthread_create`, which calls on the next definition (`RTLD_NEXT`), went past it to the C library's, whose
-# threads AddressSanitizer did not know when they were joined; and ThreadSanitizer's own `operator new` clashed
-# with the allocation counter's in the tests. Folding is `safe`, which leaves alone what may have its address
-# compared.
+# Static libraries are thin archives (LLVM's `ar T`, as it indexes bitcode members), which name their objects rather
+# than copy them: copying the game's objects cost every relink seconds. GCC's C++ runtime is linked in, as every
+# other library is, so a program runs on a system whose libstdc++ is older than the one it was built against (GCC's
+# runtime library exception permits it); not under a sanitizer, whose runtime takes the allocator's place in a
+# shared libstdc++ alone. A sanitizer's runtime is the shared one, found beside the pinned Clang: linked in, it sits
+# ahead of what wraps its interceptors, and Crashpad's `pthread_create`, which calls on the next definition
+# (`RTLD_NEXT`), went past it to the C library's, whose threads AddressSanitizer did not know when they were joined.
+# Folding is `safe`, which leaves alone what may have its address compared.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(CMAKE_LINKER_TYPE LLD)
     set(openmw_link_flags "-Wl,--gc-sections")

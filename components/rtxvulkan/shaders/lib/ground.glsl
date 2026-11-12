@@ -4,14 +4,11 @@
 // A piece of ground, as one texel of it is read: which of its layers show there, and what each shows — its
 // albedo, with the light painted into the layer's texture divided back out, and how rough it is.
 //
-// **Its own file because two shaders read the ground and neither may read it differently.** The trace sums
-// a chunk's stack at every hit near enough to keep it; `groundcomposite.comp` sums the same stack once into
-// one texture for a chunk far enough to flatten. A flattened chunk and its live stack have to be the same
-// ground, so the sum is written here, over the tables handed in by address rather than reached through the
-// trace's frame block, which the bake has not got.
+// **Its own file because the trace and `groundcomposite.comp` must sum the same stack the same way**: the
+// sum is written over tables handed in by address, since the bake has no trace frame block.
 //
-// **The three tables it reads are declared here** and reached through `bindings.glsl` by the trace, so that
-// a table is declared once whichever side constructs the reference.
+// **The three tables it reads are declared here** and reached through `bindings.glsl` by the trace, so each
+// is declared once whichever side constructs the reference.
 
 #include "shared/tables.h"
 #include "brdf.h"

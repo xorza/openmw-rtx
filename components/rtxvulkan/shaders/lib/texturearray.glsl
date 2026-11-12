@@ -23,17 +23,18 @@
 /// with the sampler its wrap names (`TEXTURE`, `TEXTURE_ALONG`).
 ///
 /// **A slot is qualified where it indexes and never where it is passed.** Neighbouring lanes hit different
-/// materials over most of a frame, so the descriptor read has to be a waterfall — and what tells the driver
-/// to emit one is a `NonUniform` decoration on the access chain itself. `nonuniformEXT` applied to a
-/// function *argument* decorates the argument and stops there: the chain built inside the callee comes out
-/// bare, and the driver may then read one lane's descriptor for the whole wave. The pairs are macros for
-/// that reason, since a function returns no sampler.
+/// materials over most of a frame, so the descriptor read has to be a waterfall, which the driver emits only
+/// for a `NonUniform` decoration on the access chain itself: `nonuniformEXT` on a function *argument*
+/// decorates the argument and stops there, and the chain built in the callee comes out bare, so the driver may
+/// read one lane's descriptor for the whole wave. The pairs are macros for that reason, since a function
+/// returns no sampler.
 ///
 /// **Images and samplers apart, and not a combined image sampler per slot and per filter.** Through the
 /// combined footprint array, AMD's Windows driver hung the trace in the waterfall of a specular map's read
-/// (`docs/rtx/research/2026-10-22-amd-integrated-footprint-read-hang.md`), and the specular maps were read
-/// at their long axis's level to stand clear of it; read as a pair they pass along the footprint. And a
-/// change of anisotropy writes the eight samplers, where it wrote a descriptor for every slot.
+/// (`docs/rtx/research/2026-10-22-amd-integrated-footprint-read-hang.md`), and the specular maps were read at
+/// their long axis's level to stand clear of it; read as a pair they pass along the footprint. A change of
+/// anisotropy also writes the eight samplers and not a descriptor for every slot.
+
 layout(set = SET_TEXTURES, binding = TEXTURE_BIND_IMAGES) uniform texture2D textures[];
 
 /// What was measured on each texture as it arrived (`Rtx::TextureCompanion`), at the slot of the texture it

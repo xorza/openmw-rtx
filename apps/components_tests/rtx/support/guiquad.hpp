@@ -35,9 +35,8 @@ namespace Rtx::Testing
     /// Given MyGUI's orientation rather than Vulkan's: `top` is the coordinate nearer +1, because
     /// MyGUI computes its vertices for a clip space with +Y up.
     ///
-    /// **Shared by the pass's own test and the renderer's**, which asked the same question of two
-    /// levels and wrote this out twice to do it. Named for the interface rather than the shape,
-    /// because `extractor/fixture.hpp` already has a `makeQuad` and it builds an `osg::Geometry`.
+    /// **Shared by the pass's own test and the renderer's.** Named for the interface rather than the
+    /// shape, because `extractor/fixture.hpp` already has a `makeQuad` and it builds an `osg::Geometry`.
     inline std::array<GuiVertex, 6> makeGuiQuad(float left, float top, float right, float bottom, std::uint32_t colour)
     {
         const GuiVertex topLeft{ left, top, 0.0f, colour, 0.0f, 0.0f };

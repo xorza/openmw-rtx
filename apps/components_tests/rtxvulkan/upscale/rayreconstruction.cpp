@@ -81,7 +81,7 @@ namespace Rtx
 
         /// **The renderer every test of a DLSS renderer draws on**: validated, at quality, made once for the
         /// suite (`SetUpTestSuite`), which no test's time holds, and let go after it, before `main` returns, as
-        /// the binary's own are (`DeviceEnvironment`). A renderer of each test's own was a second of it: the
+        /// the binary's own are (`DeviceEnvironment`). A renderer of each test's own costs a second: the
         /// instance, the device, the pipelines and NGX started, where a feature is 40 ms. Reset before each
         /// test as the binary's is (`RendererTest::SetUp`), and every test resizes it to what it needs. The
         /// suite is skipped where DLSS cannot run (`dlssMissing`).

@@ -11,11 +11,9 @@ namespace Gui
 {
     /// A text sub-widget its registry knows, `Text` being MyGUI's `EditText` or `SimpleText`.
     ///
-    /// **Its size never reads a font's raster.** A glyph is drawn at the text's height over the
-    /// font's own, so a text with a height keeps its size in layout units whatever the font was
-    /// rasterized at; a text with none of its own takes the size its registry's fonts are set at
-    /// (`FontUsers::getTextHeight`), where MyGUI's would take the font's height in raster pixels and
-    /// grow with the raster.
+    /// **Its size never reads a font's raster.** A text with a height keeps its size in layout units
+    /// whatever the font was rasterized at; one with none takes the size its registry's fonts are set at
+    /// (`FontUsers::getTextHeight`), where MyGUI's would grow with the raster.
     template <class Text>
     class Tracked : public Text, public FontUsers::Entry
     {

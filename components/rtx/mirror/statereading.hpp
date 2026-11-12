@@ -17,11 +17,10 @@ namespace Rtx
 {
     /// What a parent state set has claimed for the rest of a chain.
     ///
-    /// **OpenGL resolves a chain root first, and a parent that set a value with `OVERRIDE` keeps
-    /// it against every child that did not set its own `PROTECTED`.** A fold that let the child
-    /// win every time lost the one texture the game overrides from above — `MWRender::overrideTexture`
-    /// puts the blood's texture on an effect's root that way. One lock per thing the fold reads,
-    /// carried across one fold and never further.
+    /// **OpenGL resolves a chain root first, and a parent that set a value with `OVERRIDE` keeps it against every child
+    /// that did not set its own `PROTECTED`.** A fold that let the child win every time lost the one texture the game
+    /// overrides from above (`MWRender::overrideTexture` puts the blood's texture on an effect's root that way). One
+    /// lock per thing the fold reads, carried across one fold and never further.
     struct SurfaceLocks
     {
         /// One bit per `TextureRole`.
@@ -50,23 +49,21 @@ namespace Rtx
         bool takesTexture(TextureRole role, osg::StateAttribute::OverrideValue flags);
     };
 
-    /// Folds what one state set says about a surface into `into`, and says whether it said
-    /// anything at all. One state set at a time, nearest last, because that is how OpenGL resolves a
-    /// chain. A texture's role is the `SceneUtil::TextureType` at its unit or the sampler uniform
-    /// naming it, and a unit nothing names is not the surface's; the colours, the opacity, the
-    /// glossiness and the vertex-colour mode come off the `SceneUtil::Material`, the opacity again
-    /// off an `alpha` uniform unless an `actorFade` stands beside it, the alpha test off the
-    /// `osg::AlphaFunc` or the `alphaRef` uniform the visitor moved it into, blending off a
-    /// `BlendFunc` or `GL_BLEND` and how it composites off the `BlendFunc`'s factors, two-sidedness
-    /// off `GL_CULL_FACE`, the texture transform off the `texMat<unit>` uniform on the diffuse
-    /// unit, the environment map's tint off `envMapColor`, and the ambient the game overrides off
+    /// Folds what one state set says about a surface into `into`, and says whether it said anything at all. One state
+    /// set at a time, nearest last, because that is how OpenGL resolves a chain. A texture's role is the
+    /// `SceneUtil::TextureType` at its unit or the sampler uniform naming it, and a unit nothing names is not the
+    /// surface's; the colours, opacity, glossiness and vertex-colour mode come off the `SceneUtil::Material`, the
+    /// opacity again off an `alpha` uniform unless an `actorFade` stands beside it; the alpha test off the
+    /// `osg::AlphaFunc` or the `alphaRef` uniform the visitor moved it into; blending and compositing off `BlendFunc`
+    /// or `GL_BLEND`; two-sidedness off `GL_CULL_FACE`; the texture transform off the `texMat<unit>` uniform on the
+    /// diffuse unit; the environment map's tint off `envMapColor`; and the ambient the game overrides off
     /// `sun.ambient`.
     ///
-    /// A parent's `OVERRIDE` is honoured through `locks`, which a caller folding a chain carries
-    /// from the root down and a caller reading one state set leaves at its default.
+    /// A parent's `OVERRIDE` is honoured through `locks`, which a caller folding a chain carries from the root down and
+    /// a caller reading one state set leaves at its default.
     ///
-    /// @return whether the state set carried a material or a texture: what tells a surface from a
-    ///         node that only sets a mode or a uniform on the way down.
+    /// @return whether the state set carried a material or a texture: what tells a surface from a node that only sets a
+    ///        mode or a uniform on the way down.
     bool describeStateSet(const osg::StateSet& stateSet, SurfaceDescription& into, SurfaceLocks& locks);
 
     /// One state set on its own, under no lock.

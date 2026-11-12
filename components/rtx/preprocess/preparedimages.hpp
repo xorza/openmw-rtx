@@ -41,22 +41,18 @@ namespace Rtx
         bool mPending = false;
     };
 
-    /// Files with their chains made again from their finest levels (`ChainPass`), every one `prepares`
-    /// names — a map's, a painted colour's, a file's that carries none, a loose file's — made off the
-    /// frame and the reader on threads of their own (`docs/rtx/architecture.md`, "A chain is
-    /// built on a worker"): a slot draws its file as it stands until its image is made, and is then
-    /// made again, as a streaming engine draws what is loaded until the rest arrives. A made image is
-    /// held until it is first handed out, and watched after it, so the texture that holds it decides
-    /// how long it stays. One for a process, shared by every thread that asks. Pinned: the threads
-    /// reach every member.
+    /// Files with their chains made again from their finest levels (`ChainPass`), on threads of their own
+    /// (`docs/rtx/architecture.md`, "A chain is built on a worker"): a slot draws its file as it stands
+    /// until its image is made, and is then made again. A made image is held until it is first handed
+    /// out, and watched after it, so the texture that holds it decides how long it stays. One for a
+    /// process, shared by every thread that asks. Pinned: the threads reach every member.
     class PreparedImages
     {
     public:
         /// Whether `file` read as `encoding` has its chain made: none in a format the scene refuses
-        /// (`describeImage`); a normal or a data map's again, whose replacers' chains are made with filters
-        /// wrong for them; a painted colour's, delit; any file's that carries none and is more than a
-        /// texel; and a loose file's, which is encoded to BC7 (`ChainPass`). A block colour's own chain
-        /// stands as the file holds it.
+        /// (`describeImage`); a normal or data map's, whose replacers' chains use wrong filters; a painted
+        /// colour's, delit; any file's that carries none and is more than a texel; and a loose file's,
+        /// encoded to BC7 (`ChainPass`). A block colour's own chain stands as the file holds it.
         static bool prepares(const osg::Image& file, TextureEncoding encoding);
 
         /// Whether a chain whose making holds `scratch` at most is made of `file`: not where it needs more

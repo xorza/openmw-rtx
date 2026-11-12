@@ -89,10 +89,9 @@ namespace RtxTool
         block += std::format("cell = {}\npos = {}, {}, {}\nlook = {}, {}, {}\n", stop.mStand.mCell.getSpelling(),
             eye.x(), eye.y(), eye.z(), look.x(), look.y(), look.z());
 
-        // **Each condition only where the window was not at the file's own**, because one written
-        // down fixes the place under it. A block pasted from a window flown at dawn in a storm has
-        // to bring both with it — the light is most of what the frame is — and one from a window at
-        // clear noon should leave the view free to be measured under whatever a run names.
+        // Each condition only where the window was not at the file's own, because one written down fixes the place
+        // under it: a block from a window flown at dawn in a storm has to bring both, and one from clear noon should
+        // leave the view free to be measured under whatever a run names.
         if (stop.mSky.mHour.has_value() && *stop.mSky.mHour != sDefaultHour)
             block += std::format("hour = {}\n", *stop.mSky.mHour);
 

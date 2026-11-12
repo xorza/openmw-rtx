@@ -55,11 +55,10 @@ namespace Rtx
         /// result ended up in, because the levels alternate and a copy back would be bandwidth spent on
         /// tidiness: a frame that sums, which the composite composes.
         ///
-        /// @param images the accumulator's: its blends of this frame's bounce and fill, with the
-        ///        bounce's variance that turns a difference in brightness into an edge or into noise,
-        ///        are the first level's input; the colour and fill histories are what the first level
-        ///        writes and the accumulator finds as its means next frame, SVGF's feedback; the
-        ///        scratches are the other half of the ping-pong.
+        /// @param images the accumulator's: its blends of this frame's bounce and fill, with the bounce's
+        ///        variance that turns a brightness difference into an edge or into noise, are the first
+        ///        level's input; the colour and fill histories are what the first level writes for the
+        ///        accumulator's next frame (SVGF's feedback); the scratches are the ping-pong's other half.
         /// @param buffer handed over, so the trace's writes are visible. Only the surface is read
         ///        from it.
         /// @param frame whose two eyes the edge tests rebuild the trace's rays through.

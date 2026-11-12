@@ -19,12 +19,10 @@ namespace RtxTool
 {
     /// perf's control fifo, so a recording holds the frames that were measured and nothing else.
     ///
-    /// `perf record --delay=-1 --control=fifo:<path>` starts with its counters off and turns them
-    /// on when the word `enable` arrives on the fifo. Handed that path, this writes the word around
-    /// each place's measured frames, and the profile is then those frames: not the engine starting,
-    /// not a cell being read off the disk, not the renderer being taken down. Trimming a whole-run
-    /// recording to a guessed boundary instead is the alternative, and it reports a quarter of its
-    /// samples against code the benchmark never claimed to measure.
+    /// `perf record --delay=-1 --control=fifo:<path>` starts with its counters off and turns them on when
+    /// the word `enable` arrives on the fifo. Handed that path, this writes the word around each place's
+    /// measured frames, so the profile is those frames alone. Trimming a whole-run recording to a guessed
+    /// boundary instead reports a quarter of its samples against code the benchmark never claimed to measure.
     ///
     /// An empty path does nothing at all, which is every run that is not being profiled.
     class PerfControl
@@ -38,11 +36,9 @@ namespace RtxTool
 
         /// Opens the fifo, where it is not open yet: ahead of a place, so no measured frame pays it.
         ///
-        /// **Not on construction, because the reader has to be there first**, and a wait for it
-        /// and not a guess at when it came. Opening a fifo for writing with nobody reading it fails
-        /// without blocking, and perf attaches to the harness only after the harness started. The
-        /// open retries that failure until the reader is there, and throws once the wait is spent:
-        /// a perf that never came is a profile that cannot be taken.
+        /// Not on construction, because the reader has to be there first: opening a fifo for writing with
+        /// nobody reading fails without blocking, and perf attaches only after the harness started. The open
+        /// retries until the reader is there, and throws once the wait is spent.
         void open();
 
         /// Starts counting, on the first measured frame: one write, the fifo `open` opened.
@@ -61,10 +57,8 @@ namespace RtxTool
 
     /// What a run of frame times came to, in milliseconds.
     ///
-    /// **A distribution and not an average**, because the two questions a renderer gets asked are
-    /// different ones. "Is this build faster than that one" is answered by the middle of the run;
-    /// "does this place play badly" is answered by its tail, and a mean hides exactly the frames
-    /// that make a picture stutter. Both are here so neither has to be inferred from the other.
+    /// A distribution and not an average: "is this build faster" is answered by the middle of the run and
+    /// "does this place play badly" by its tail, and a mean hides exactly the frames that stutter.
     struct FrameTimes
     {
         double mMean = 0.0;
@@ -87,10 +81,9 @@ namespace RtxTool
 
     /// Every figure a measured frame contributes, gathered over one run.
     ///
-    /// **One object because they are cleared, filled and summarised together.** Rows kept apart are
-    /// a chance for a frame to reach all but one of them, and rows out of step with each other are
-    /// rows that cannot be read against each other at all. **One array**, because named members are
-    /// an edit apiece wherever a further figure is wanted.
+    /// One object because they are cleared, filled and summarised together: rows kept apart are a chance for
+    /// a frame to reach all but one of them. One array, because named members are an edit apiece wherever a
+    /// further figure is wanted.
     struct FrameSamples
     {
         std::array<std::vector<double>, Rtx::sTimingCount> mRows;
@@ -133,13 +126,11 @@ namespace RtxTool
 
     /// Sorts `times` and summarises it. At least one time, which every caller has by construction.
     ///
-    /// **Nearest rank, which is a sample and never an interpolation between two.** Every figure
-    /// here is a frame that actually happened, so a percentile can be looked up in the run that
-    /// produced it: the qth is the `ceil(q * n)`th shortest, counting from one.
-    ///
-    /// **By reference, and it sorts in place.** A copy would read better at the call site and
-    /// cannot be had: taking one loses the compiler its proof that the caller's loop pushed at
-    /// least once, and indexing a vector it can no longer see into is a hard warning.
+    /// Nearest rank, a sample and never an interpolation between two: every figure is a frame that actually
+    /// happened, so a percentile can be looked up in the run that produced it (the qth is the `ceil(q * n)`th
+    /// shortest, counting from one). By reference and sorted in place: taking a copy loses the compiler its
+    /// proof that the caller's loop pushed at least once, and indexing a vector it cannot see into is a hard
+    /// warning.
     FrameTimes summarise(std::vector<double>& times);
 
     /// One stretch of the device's frame, over a run of frames.
@@ -157,10 +148,9 @@ namespace RtxTool
 
         /// What it cost the average frame: everything it spent, over every frame of the run.
         ///
-        /// **The figure a report quotes, because it is the only one that can be summed or set
-        /// against the frame beside it.** A pass that runs at a cell crossing and nowhere else is
-        /// a median of the nineteen frames that crossed, and a row of those medians describes no
-        /// frame that ever happened — `blas 7.51` was printed above a frame median of 6.73.
+        /// The figure a report quotes, being the only one that can be summed or set against the frame: a
+        /// pass that runs at a cell crossing alone has a median of the nineteen frames that crossed, and a row
+        /// of those medians describes no frame that happened (`blas 7.51` above a frame median of 6.73).
         double mShareMs = 0.0;
 
         /// The median of each of the device's counters over every run of the zone, in the order
@@ -168,8 +158,8 @@ namespace RtxTool
         /// a number: RADV answers a hit ratio of a zone that touched no cache as NaN, nought over
         /// nought, and such a run is left out of the median rather than sorted.
         ///
-        /// **Over each run and not each frame**, because a pass recorded in batches opens its zone
-        /// once a batch, and a busy percentage summed over two batches is no percentage at all.
+        /// Over each run and not each frame, because a pass recorded in batches opens its zone once a batch
+        /// and a busy percentage summed over two batches is no percentage.
         std::array<double, Rtx::sMaxZoneCounters> mCounters{};
 
         /// Whether every measured frame ran it, which is what says the share above is also what
@@ -179,10 +169,9 @@ namespace RtxTool
 
     /// Per-zone device times, gathered a frame at a time.
     ///
-    /// **Kept in the order the zones first appeared**, which is the order the work was recorded:
-    /// place the world, then trace it, then resolve it. A frame that skipped a pass — nothing moved,
-    /// so nothing was placed — leaves that zone one sample short rather than shifting every zone
-    /// after it into the wrong row.
+    /// Kept in the order the zones first appeared, which is the order the work was recorded. A frame that
+    /// skipped a pass leaves that zone one sample short rather than shifting every zone after it into the
+    /// wrong row.
     class GpuBreakdown
     {
     public:
@@ -190,9 +179,8 @@ namespace RtxTool
         /// sight only, so a long run pushes a double per zone and nothing else, and a zone opened
         /// more than once in the frame is summed into that frame's own sample.
         ///
-        /// **One call per measured frame, whether or not that frame reported a zone.** The count
-        /// it keeps is the denominator every share below is taken over, so a frame handed to the
-        /// report and not to this would make each of them larger than the frame it describes.
+        /// One call per measured frame, whether or not that frame reported a zone: the count it keeps is the
+        /// denominator every share below is taken over.
         ///
         /// @param counterNames what the device calls each counter, copied the first time there are
         ///        any, as the zones' names are.
@@ -222,18 +210,16 @@ namespace RtxTool
     private:
         /// One zone and what it has cost.
         ///
-        /// **One row and not three vectors kept level by hand.** A zone met for the first time has
-        /// to reach all three, and a name pushed without its row is an index that reads another
-        /// zone's samples.
+        /// One row and not three vectors kept level by hand: a name pushed without its row is an index that
+        /// reads another zone's samples.
         struct ZoneRow
         {
             Rtx::FrameZone mZone = Rtx::FrameZone::Count;
 
             /// One sample a frame, never one a span.
             ///
-            /// **Its own vector, because the rows are pushed to independently.** A zone runs on the
-            /// frames it runs on, so a flat buffer shared by all of them would have to be laid out
-            /// again whenever one outgrew its share — inside a frame it is timing.
+            /// Its own vector, because the rows are pushed to independently: a flat buffer shared by all of
+            /// them would be laid out again whenever one outgrew its share, inside a frame it is timing.
             std::vector<double> mTimes{};
 
             /// Which frame this was last given a sample on, so the spans of one frame land in one
@@ -246,11 +232,10 @@ namespace RtxTool
         /// What the counters read, `counterNames().size()` a run, every zone's runs one after
         /// another in the order they ran, and the place in `mRows` of each run's zone.
         ///
-        /// **One store for every zone, made room for at its bound**: a frame opens at most
-        /// `Rtx::sMaxGpuZones` zones, so `reserve`'s frames times that many runs is room no
-        /// measured frame outgrows. A row's own store, made room for a run a frame, outgrew it on
-        /// the first frame that opened its zone twice — `tlas`, built in batches — and grew inside
-        /// a frame it was timing.
+        /// One store for every zone, made room for at its bound: a frame opens at most `Rtx::sMaxGpuZones`
+        /// zones, so `reserve`'s frames times that many runs is room no measured frame outgrows. A row's own
+        /// store, sized for a run a frame, outgrew it on the first frame that opened its zone twice (`tlas`,
+        /// built in batches) and grew inside a frame it was timing.
         std::vector<double> mReadings;
         std::vector<std::uint8_t> mRunRows;
 

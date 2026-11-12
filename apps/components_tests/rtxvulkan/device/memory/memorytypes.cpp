@@ -21,11 +21,10 @@ namespace Rtx
         constexpr VkMemoryPropertyFlags sMarkers
             = sStaging | VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD | VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD;
 
-        /// **Each request is placed in the types its promise names**, on every card in hand: video
-        /// memory in the types that are video memory and nothing else, staging in write-combined
-        /// system memory, a read-back in cached system memory. RADV lists two of each, a second that
-        /// only buffers take, and four of AMD's device-coherent types after them, which only the
-        /// markers' request, naming them, is placed in: the uncached system memory alone.
+        /// **Each request is placed in the types its promise names**, on every card in hand: video memory in the types
+        /// that are video memory and nothing else, staging in write-combined system memory, a read-back in cached
+        /// system memory. RADV lists two of each, a second that only buffers take, and four device-coherent types
+        /// after them, which only the markers' request, naming them, is placed in.
         TEST(RtxMemoryTypesTest, eachRequestIsPlacedInTheTypesItsPromiseNames)
         {
             const struct
@@ -50,11 +49,10 @@ namespace Rtx
             }
         }
 
-        /// **Whatever order the driver lists its types in.** The library takes the first type that
-        /// has what is asked, so a Turing whose window came before its system memory put staging in
-        /// the window; the request names the type where it now stands. And a card with nothing but
-        /// host-visible video memory, as an integrated one is, has no type that is staging alone,
-        /// so staging goes wherever the request's properties are.
+        /// **Whatever order the driver lists its types in.** The library takes the first type that has what is asked,
+        /// so a Turing whose window came before its system memory put staging in the window; the request names the
+        /// type where it now stands. A card with nothing but host-visible video memory has no staging-only type, so
+        /// staging goes wherever the request's properties are.
         TEST(RtxMemoryTypesTest, theOrderTheDriverListsItsTypesInDecidesNothing)
         {
             VkPhysicalDeviceMemoryProperties windowFirst = Testing::turingMemory();

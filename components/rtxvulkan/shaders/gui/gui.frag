@@ -2,8 +2,8 @@
 
 #extension GL_GOOGLE_include_directive : require
 
-// **Display-referred, and after the tone curve.** The GUI's colours and its atlases were authored
-// against a monitor, so they are written out as they are, over a picture already in display values.
+// Display-referred, and after the tone curve: the GUI's colours and atlases were authored against a
+// monitor, so they are written out as they are, over a picture already in display values.
 
 #include "shared/gui.h"
 #include "shared/sets.h"

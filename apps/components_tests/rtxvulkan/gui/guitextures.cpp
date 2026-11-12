@@ -57,9 +57,8 @@ namespace Rtx
 
         /// The GUI as the renderer offers it: a table of textures and one call that draws with them.
         ///
-        /// **No scene, and that is the point.** A main menu and a loading screen are drawn over a
-        /// frame nothing traced, so everything here has to work before `setScene` has been called
-        /// even once.
+        /// **No scene, and that is the point.** A main menu and a loading screen are drawn over a frame nothing
+        /// traced, so everything here has to work before `setScene` has been called.
         class RtxGuiDrawTest : public Testing::RendererTest
         {
         protected:
@@ -161,13 +160,12 @@ namespace Rtx
             EXPECT_EQ(at(4, 4), (std::array<std::uint8_t, 4>{ 200, 100, 50, 255 }));
         }
 
-        /// A later batch draws over what an earlier one left, and a second call draws the whole
-        /// interface again over the picture rather than over the first call's interface.
+        /// A later batch draws over what an earlier one left, and a second call draws the whole interface again over
+        /// the picture rather than over the first call's interface.
         ///
-        /// **This is what makes a GUI out of one call per frame.** MyGUI produces its batches in
-        /// layer order and the renderer draws them in that order. And a frame with no trace, or a
-        /// message box's nested frame, draws the same interface again: drawn over the last one, a
-        /// translucent window darkened with every frame it stood.
+        /// **This is what makes a GUI out of one call per frame.** MyGUI produces its batches in layer order and the
+        /// renderer draws them in that order. A frame with no trace, or a message box's nested frame, draws the same
+        /// interface again: drawn over the last one, a translucent window darkened with every frame it stood.
         TEST_F(RtxGuiDrawTest, aLaterBatchLandsOverAnEarlierOneAndAFrameDrawsItsWholeInterfaceAgain)
         {
             const GuiSlot white = makeTexel({ 255, 255, 255, 255 });
@@ -221,16 +219,16 @@ namespace Rtx
 
         /// A write of part of a texture changes that part and leaves the rest where it was.
         ///
-        /// **What the world map needs and MyGUI's own interface cannot say.** Entering a cell
-        /// repaints eighteen pixels square of an overlay two megabytes wide, and sending the whole
-        /// of it on the frame the cell arrives is the cost this exists to remove.
+        /// **What the world map needs and MyGUI's own interface cannot say.** Entering a cell repaints eighteen pixels
+        /// square of an overlay two megabytes wide, and sending the whole of it on the frame the cell arrives is the
+        /// cost this removes.
         ///
-        /// Read back rather than drawn: what is under test is which texels the copy landed on, and a
-        /// linear sampler over a four-texel texture blends every one of them into its neighbours.
+        /// Read back rather than drawn: a linear sampler over a four-texel texture blends every texel into its
+        /// neighbours, and what is under test is which texels the copy landed on.
         ///
-        /// **Also what says the two writes happen in the order they were asked for.** Nothing reads
-        /// the texture between them, so they share a submit — and copies into one image are
-        /// unordered within a submit unless something orders them.
+        /// **Also what says the two writes happen in the order they were asked for.** Nothing reads the texture
+        /// between them, so they share a submit, and copies into one image are unordered within a submit unless
+        /// something orders them.
         TEST_F(RtxGuiDrawTest, aRegionWriteChangesItsRectangleAndNothingElse)
         {
             constexpr std::uint32_t side = 4;
@@ -301,9 +299,8 @@ namespace Rtx
 
         /// A texture the table has just handed out is blank rather than whatever the memory held.
         ///
-        /// **Which is a statement about when the clear runs, not only that it is asked for.** Making
-        /// a texture records a clear and submits nothing; this is what says it has run by the time a
-        /// draw can name the slot.
+        /// **A statement about when the clear runs, not only that it is asked for.** Making a texture records a clear
+        /// and submits nothing; this says it has run by the time a draw can name the slot.
         TEST_F(RtxGuiDrawTest, aTextureIsBlankBeforeItIsWritten)
         {
             const GuiSlot texture = mRenderer.addGuiTexture(1, 1);
@@ -319,12 +316,10 @@ namespace Rtx
 
         /// Textures made and written before anything reads one each come back holding their own.
         ///
-        /// **What the staging buffer is really being asked.** The writes share a submit, so they
-        /// share the buffer they are copied out of, a run apiece; three sizes rather than three of
-        /// one because a run handed out at the wrong offset only shows where the lengths differ.
-        /// Between them they are more than one buffer's worth, so at least one write has to submit
-        /// what is pending and start the buffer again — and what was already recorded must still
-        /// land.
+        /// **What the staging buffer is really being asked.** The writes share a submit, so they share the buffer they
+        /// are copied out of, a run apiece; three sizes, because a run handed out at the wrong offset only shows where
+        /// the lengths differ. Between them they are more than one buffer's worth, so at least one write must submit
+        /// what is pending and start the buffer again, and what was already recorded must still land.
         TEST_F(RtxGuiDrawTest, texturesWrittenBeforeAnyIsReadEachHoldTheirOwn)
         {
             struct Written
@@ -368,13 +363,10 @@ namespace Rtx
 
         /// A caller that produces its pixels writes them where the copy reads them, and they land.
         ///
-        /// **What MyGUI's `lock` and `unlock` are answered with, and the copy they would cost.** A
-        /// backend that lends a buffer of its own has to copy that buffer here afterwards, and a
-        /// video frame then crosses main memory twice on its way to a device it could have been
-        /// written into once.
-        ///
-        /// Every texel carries its own index, so a run handed out at the wrong offset is wrong at a
-        /// row boundary rather than only in the middle of one.
+        /// **What MyGUI's `lock` and `unlock` are answered with, and the copy they would cost.** A backend that lends
+        /// a buffer of its own has to copy it afterwards, and a video frame then crosses main memory twice on its way
+        /// to a device it could have been written into once. Every texel carries its own index, so a run handed out at
+        /// the wrong offset is wrong at a row boundary and not only in the middle of one.
         TEST_F(RtxGuiDrawTest, pixelsWrittenWhereTheDeviceReadsThemLandInTheTexture)
         {
             constexpr std::uint32_t side = 4;
@@ -407,15 +399,13 @@ namespace Rtx
             }
         }
 
-        /// **Staging lent in one frame is never lent again while a copy out of it may not have
-        /// run**, however many frames go by without the queue being waited on. A write into staging
-        /// is a `memcpy` through a mapped pointer rather than a Vulkan command, so bytes handed out
-        /// twice are invisible to synchronisation validation and show only as a texture holding a
-        /// later frame's colour.
+        /// **Staging lent in one frame is never lent again while a copy out of it may not have run**, however many
+        /// frames go by without the queue being waited on. A write into staging is a `memcpy` through a mapped pointer
+        /// rather than a Vulkan command, so bytes handed out twice are invisible to synchronisation validation and
+        /// show only as a texture holding a later frame's colour.
         ///
-        /// Nine frames, each lending a texel of its own texture a colour of its own and drawing,
-        /// and nothing read until the last: frame `f` writes `(20 f, 255 - 20 f, 7 f, 255)`, and
-        /// each texture holds its own frame's colour at the end.
+        /// Nine frames, each lending a texel of its own texture a colour of its own and drawing, and nothing read
+        /// until the last: frame `f` writes `(20 f, 255 - 20 f, 7 f, 255)`.
         TEST_F(RtxGuiDrawTest, stagingLentInOneFrameIsNotLentAgainBeforeItsCopyHasRun)
         {
             constexpr std::uint32_t frames = 9;
@@ -444,9 +434,9 @@ namespace Rtx
 
         /// A texture given back while a write to it is still pending is let go without complaint.
         ///
-        /// **The assertion is the validation sweep in `TearDown`.** Nothing has been submitted when
-        /// the slot is dropped, so the image being destroyed is one a recorded command still names —
-        /// which is a use after free unless what was recorded is submitted first.
+        /// **The assertion is the validation sweep in `TearDown`.** Nothing has been submitted when the slot is
+        /// dropped, so the image being destroyed is one a recorded command still names: a use after free unless what
+        /// was recorded is submitted first.
         TEST_F(RtxGuiDrawTest, aTextureDroppedWithAWritePendingIsLetGoCleanly)
         {
             const GuiSlot texture = mRenderer.addGuiTexture(2, 2);
@@ -466,14 +456,13 @@ namespace Rtx
             mRenderer.dropGuiTexture(again);
         }
 
-        /// **Two lends of one frame sit end to end in one run of staging**, and both copies land: a
-        /// frame's writes ride one submit, so nothing reads the first region's bytes before the
-        /// second is written, and the second is not the first rewound. Each region is 4 × 4 texels
-        /// of four bytes, 64 bytes, which is a whole number of the staging's 16-byte alignment, so
-        /// the second starts exactly 64 bytes after the first.
+        /// **Two lends of one frame sit end to end in one run of staging**, and both copies land: a frame's writes
+        /// ride one submit, so nothing reads the first region's bytes before the second is written, and the second is
+        /// not the first rewound. Each region is 4 × 4 texels of four bytes, 64 bytes, a whole number of the staging's
+        /// 16-byte alignment, so the second starts exactly 64 bytes after the first.
         ///
-        /// **And a lend larger than a block of staging takes a block of its own**: 1536 × 1536
-        /// texels are 9 437 184 bytes, past the 8 MiB block, and its far corner lands too.
+        /// **And a lend larger than a block of staging takes a block of its own**: 1536 × 1536 texels are 9 437 184
+        /// bytes, past the 8 MiB block, and its far corner lands too.
         TEST_F(RtxGuiDrawTest, lendsOfOneFrameSitEndToEndAndALendPastABlockTakesItsOwn)
         {
             constexpr std::uint32_t side = 4;
@@ -521,12 +510,11 @@ namespace Rtx
             EXPECT_EQ(inTexture(wide, large, 0, 0), (std::array<std::uint8_t, 4>{ 0, 0, 0, 0 }));
         }
 
-        /// The GUI over a frame that was actually traced, which is the first time the two halves of
-        /// this renderer meet.
+        /// The GUI over a frame that was actually traced, which is the first time the two halves of this renderer
+        /// meet.
         ///
-        /// **Nothing here asserts a radiance.** What the trace makes of a bare wall is the trace's
-        /// business and is asserted at length elsewhere; what matters is that the GUI lands on top
-        /// of it and leaves the rest of the picture exactly as the trace left it.
+        /// **Nothing here asserts a radiance.** What the trace makes of a bare wall is asserted elsewhere; what
+        /// matters is that the GUI lands on top of it and leaves the rest of the picture exactly as the trace left it.
         TEST_F(RtxGuiDrawTest, theGuiLandsOverATracedFrameAndLeavesTheRestOfItAlone)
         {
             SceneDesc scene;
@@ -581,22 +569,19 @@ namespace Rtx
             return camera;
         }
 
-        /// The sheet `makeMapCamera` lights, as the display pass writes it.
-        ///
-        /// A default albedo of a half, Lambertian, square to a sun of one: `0.5 * 1.0 / pi = 0.159155`
-        /// linear, at the exposure of one a picture is held at, through the curve `displayedGrey`
-        /// follows — 97 of 255.
+        /// The sheet `makeMapCamera` lights, as the display pass writes it: a default albedo of a half, Lambertian,
+        /// square to a sun of one, `0.5 * 1.0 / pi = 0.159155` linear, at the exposure of one a picture is held at,
+        /// through the curve `displayedGrey` follows: 97 of 255.
         std::array<std::uint8_t, 4> sheetLit()
         {
             const std::uint8_t grey = Testing::displayedGrey(0.5f * Shaders::INV_PI);
             return { grey, grey, grey, 255 };
         }
 
-        /// **A view's room is made as it is asked and counted with the frame's targets**, so the first
-        /// picture traced into it takes no memory on its frame: the reserve grows by what the pictures'
-        /// chain takes at the new room, and so does what the frame holds. A room asked past the last
-        /// on one side alone grows that side alone, one inside it changes nothing, and a picture
-        /// traced at the room makes nothing. From whatever room the tests before left.
+        /// **A view's room is made as it is asked and counted with the frame's targets**, so the first picture traced
+        /// into it takes no memory on its frame: the reserve grows by what the pictures' chain takes at the new room,
+        /// and so does what the frame holds. A room asked past the last on one side alone grows that side alone, one
+        /// inside it changes nothing, and a picture traced at the room makes nothing.
         TEST_F(RtxGuiDrawTest, aViewsRoomIsMadeAsItIsAskedAndCountedWithTheFrame)
         {
             const Device& device = mProbe.getDevice();
@@ -639,11 +624,10 @@ namespace Rtx
             EXPECT_EQ(memory.getHeld(heap, MemoryUse::Frame), before) << "a picture at the room made a frame target";
         }
 
-        /// **A picture from a viewpoint is the picture of the block its options lay over it**: the
-        /// map camera's sheet under the map camera's sun, with a backdrop that stops where nothing
-        /// was hit, traced once from the viewpoint and the options the seam takes and once from the
-        /// block a test writes whole, with the sky source's shadow off as every picture has it. The
-        /// lit sheet at the middle says the comparison has something in it.
+        /// **A picture from a viewpoint is the picture of the block its options lay over it**: the map camera's sheet
+        /// under the map camera's sun, with a backdrop that stops where nothing was hit, traced once from the
+        /// viewpoint and the options the seam takes and once from the block a test writes whole, with the sky source's
+        /// shadow off as every picture has it. The lit sheet at the middle says the comparison has something in it.
         TEST_F(RtxGuiDrawTest, aPictureFromAViewpointIsThePictureOfTheBlockItsOptionsLayOverIt)
         {
             constexpr std::uint32_t extent = sPictureSide;
@@ -680,13 +664,11 @@ namespace Rtx
 
         /// A picture traced into the table the GUI draws from, and where it stops.
         ///
-        /// **The shape is the assertion and it is counted by hand.** The sheet is fifty units across
-        /// inside a box two hundred across, so it covers a quarter of each axis: pixel `p` of sixteen
-        /// samples the world at `100 * ((p + 0.5) / 8 - 1)`, which is inside twenty-five for `p` in
-        /// 6..9. Four columns, four rows, and nothing on the boundary for rounding to argue over.
-        ///
-        /// What the two legs differ in is the one field that says so: with a sky behind it every
-        /// pixel is opaque, and without one the picture says where it stops.
+        /// **The shape is the assertion and it is counted by hand.** The sheet is fifty units across inside a box two
+        /// hundred across, so it covers a quarter of each axis: pixel `p` of sixteen samples the world at `100 * ((p +
+        /// 0.5) / 8 - 1)`, which is inside twenty-five for `p` in 6..9. Four columns, four rows, nothing on the
+        /// boundary for rounding to argue over. The legs differ in one field: with a sky behind it every pixel is
+        /// opaque, and without one the picture says where it stops.
         TEST_F(RtxGuiDrawTest, aTracedPictureFillsAGuiTextureAndSaysWhereItStops)
         {
             constexpr std::uint32_t extent = sPictureSide;
@@ -726,14 +708,13 @@ namespace Rtx
             EXPECT_EQ(inTexture(texture, extent, 8, 8), sheetLit()) << "the sheet, lit, under a gamma";
             mRenderer.setGamma(1.0f);
 
-            // The same picture with a sky behind it, which is what a frame filling a window has:
-            // every pixel opaque, the corner included.
+            // The same picture with a sky behind it, which is what a frame filling a window has: every pixel opaque,
+            // the corner included.
             //
-            // **Twice, with nothing between.** A picture that fills its texture never clears it, so
-            // this is the only path where the copy is the first thing to write it — and the second
-            // of the two starts from a texture the first left where it found it rather than from
-            // one nothing has touched. What it is really asking is whether the two are ordered at
-            // all, which is a question only the synchronization layers answer.
+            // **Twice, with nothing between.** A picture that fills its texture never clears it, so this is the only
+            // path where the copy is the first thing to write it, and the second of the two starts from a texture the
+            // first left where it found it. It asks whether the two are ordered at all, which only the synchronization
+            // layers answer.
             camera.mTransparentBackground = 0;
             for (int again = 0; again < 2; ++again)
                 mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
@@ -741,12 +722,11 @@ namespace Rtx
             EXPECT_EQ(inTexture(texture, extent, 5, 8), (std::array<std::uint8_t, 4>{ 0, 0, 0, 255 }))
                 << "past the sheet, and opaque";
 
-            // **And a see-through sheet over nothing is there as much as it is anywhere,
-            // premultiplied.** Faded to a quarter and lit four times as brightly, its light over
-            // nothing is the whole sheet's at one — `sheetLit`'s grey — and its alpha is the quarter:
-            // the backdrop it leaves is `0.75 * 255` = 191.25, held as 191, so `1 - 191 / 255` is
-            // 64 of 255 exactly. Taken straight, its colour would be four times the sheet's; covered
-            // by the hit alone, it would not be drawn at all.
+            // **And a see-through sheet over nothing is there as much as it is anywhere, premultiplied.** Faded to a
+            // quarter and lit four times as brightly, its light over nothing is the whole sheet's at one (`sheetLit`'s
+            // grey) and its alpha is the quarter: the backdrop it leaves is `0.75 * 255` = 191.25, held as 191, so `1
+            // - 191 / 255` is 64 of 255 exactly. Taken straight, its colour would be four times the sheet's; covered
+            // by the hit alone, it would not be drawn.
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f, 0.25f), {});
             camera.mTransparentBackground = 1;
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
@@ -759,12 +739,11 @@ namespace Rtx
                 << "and nothing past it";
         }
 
-        /// Two pictures of a subject scene, placed and traced twice with nothing waited between,
-        /// each show the placement they were traced after.
+        /// Two pictures of a subject scene, placed and traced twice with nothing waited between, each show the
+        /// placement they were traced after.
         ///
-        /// **The doll's slot discipline.** A race slider drag places and traces the same scene every
-        /// frame; the second placement has to go into the copy the first trace is not reading, or
-        /// the first picture shows the second placement. Read only after both are recorded.
+        /// **The doll's slot discipline.** A race slider drag places and traces the same scene every frame; the second
+        /// placement has to go into the copy the first trace is not reading. Read only after both are recorded.
         TEST_F(RtxGuiDrawTest, twoPicturesOfOneSubjectSceneEachShowTheirOwnPlacement)
         {
             constexpr std::uint32_t extent = sPictureSide;
@@ -825,12 +804,11 @@ namespace Rtx
 
         /// A camera's mask is what its rays meet: a class the mask leaves out is not in the picture.
         ///
-        /// **Coverage and not colour**, because two lit sheets of the default albedo are the same
-        /// grey. A static sheet stands to one side and an actor's to the other, over a transparent
-        /// background: `makeMapCamera` samples pixel `p` at `100 * ((p + 0.5) / 8 - 1)`, so a sheet
-        /// of fifty about x = -50 covers columns 2..5 and one about x = 50 covers 10..13. A camera
-        /// asking for every class covers both; one asking for the statics alone leaves the actor's
-        /// side at the clear colour, which is what a map tile does with the people on it.
+        /// **Coverage and not colour**, because two lit sheets of the default albedo are the same grey. A static sheet
+        /// stands to one side and an actor's to the other, over a transparent background: `makeMapCamera` samples
+        /// pixel `p` at `100 * ((p + 0.5) / 8 - 1)`, so a sheet of fifty about x = -50 covers columns 2..5 and one
+        /// about x = 50 covers 10..13. A camera asking for every class covers both; one asking for the statics alone
+        /// leaves the actor's side at the clear colour.
         TEST_F(RtxGuiDrawTest, aCameraLeavesOutTheClassesItsMaskDoesNotName)
         {
             constexpr std::uint32_t extent = sPictureSide;
@@ -860,14 +838,13 @@ namespace Rtx
             EXPECT_EQ(inTexture(texture, extent, 12, 8)[3], 0) << "the actor, left out";
         }
 
-        /// A camera without `MASK_PARTICLE` bins no sprites and draws none, and reads an empty list
-        /// rather than whatever the slot's last bin left there. A camera with it bins the scene it
-        /// looks at, a subject's as much as the world's.
+        /// A camera without `MASK_PARTICLE` bins no sprites and draws none, and reads an empty list rather than
+        /// whatever the slot's last bin left there. A camera with it bins the scene it looks at, a subject's as much
+        /// as the world's.
         ///
-        /// A white puff hangs over the middle of the sheet, square to the sun. With the bit the
-        /// centre pixel is the puff over the sheet and not the sheet's own grey; without it the
-        /// centre is the lit sheet exactly as `sheetLit` counts it. The frame between the two is what
-        /// leaves a bin of the puff in the slot's list for the second picture to ignore.
+        /// A white puff hangs over the middle of the sheet, square to the sun. With the bit the centre pixel is the
+        /// puff over the sheet; without it the centre is the lit sheet exactly as `sheetLit` counts it. The frame
+        /// between the two leaves a bin of the puff in the slot's list for the second picture to ignore.
         TEST_F(RtxGuiDrawTest, aCameraWithoutTheParticleBitDrawsNoSprites)
         {
             constexpr std::uint32_t extent = sPictureSide;
@@ -910,16 +887,15 @@ namespace Rtx
             mRenderer.dropViewScene(subject);
         }
 
-        /// A puff laid over nothing covers a picture as much as it covers anything, and a flame laid
-        /// over nothing is light that covers nothing at all.
+        /// A puff laid over nothing covers a picture as much as it covers anything, and a flame laid over nothing is
+        /// light that covers nothing at all.
         ///
-        /// **Held against the same picture over black**, because what a puff lets through at a pixel
-        /// is the march's to say and not arithmetic a test can do by hand: premultiplied, a layer's
-        /// colour over nothing is its colour over black to the byte, and what it covers is what the
-        /// backdrop no longer shows. The white puff of `aCameraWithoutTheParticleBitDrawsNoSprites`
-        /// grown to sixty units across a sheet twenty-five across, so column 4 of row 8, whose
-        /// middle stands 44.2 units off the puff's, is the puff over nothing. The flame is the same
-        /// ball, adding.
+        /// **Held against the same picture over black**, because what a puff lets through at a pixel is the march's to
+        /// say and not arithmetic a test can do by hand: premultiplied, a layer's colour over nothing is its colour
+        /// over black to the byte, and what it covers is what the backdrop no longer shows. The white puff of
+        /// `aCameraWithoutTheParticleBitDrawsNoSprites` grown to sixty units across a sheet twenty-five across, so
+        /// column 4 of row 8, whose middle stands 44.2 units off the puff's, is the puff over nothing. The flame is
+        /// the same ball, adding.
         TEST_F(RtxGuiDrawTest, aPuffOverNothingIsThereAsMuchAsItIsAnywhere)
         {
             constexpr std::uint32_t extent = sPictureSide;
@@ -971,11 +947,10 @@ namespace Rtx
                 << "a flame over nothing is its light and no coverage";
         }
 
-        /// A picture smaller than the texture behind it, which is the inventory doll: its window
-        /// resizes and the texture does not.
+        /// A picture smaller than the texture behind it, which is the inventory doll: its window resizes and the
+        /// texture does not.
         ///
-        /// **The clear colour is exact.** It is written into an eight-bit unorm image, so one is
-        /// 255 and not 254 — there is no encoding between the float and the byte.
+        /// **The clear colour is exact.** It is written into an eight-bit unorm image, so one is 255 and not 254.
         TEST_F(RtxGuiDrawTest, aPictureShorterThanItsTextureLeavesTheRestAtTheClearColour)
         {
             constexpr std::uint32_t extent = sPictureSide;
@@ -1004,11 +979,10 @@ namespace Rtx
 
         /// A picture of something that is not in the world at all: the inventory doll.
         ///
-        /// **The two scenes are told apart by their shape and the count is exact.** The world holds
-        /// a sheet that fills the box; the view scene holds one covering a quarter of each axis. Of
-        /// sixteen pixels across, the first gives sixteen covered and the second four — `p` in 6..9,
-        /// as above. Nothing about a doll may reach the world's geometry, and nothing about the
-        /// frame may reach the doll's.
+        /// **The two scenes are told apart by their shape and the count is exact.** The world holds a sheet that fills
+        /// the box; the view scene holds one covering a quarter of each axis. Of sixteen pixels across, the first
+        /// gives sixteen covered and the second four (`p` in 6..9). Nothing about a doll may reach the world's
+        /// geometry, and nothing about the frame may reach the doll's.
         TEST_F(RtxGuiDrawTest, aPictureCanBeOfASceneTheWorldDoesNotHold)
         {
             constexpr std::uint32_t extent = sPictureSide;
@@ -1047,13 +1021,12 @@ namespace Rtx
 
         /// A placement into a view scene reaches the picture traced from it afterwards.
         ///
-        /// **The pair a doll pays, and nothing else here drives it.** `placeScene` submits and waits
-        /// and the trace submits and waits again, so what makes the second read what the first wrote
-        /// is the order of two submits. The world's placement rides a frame instead, and
-        /// `OffscreenTrace`'s own tests hand their calls to a renderer that counts them.
+        /// **The pair a doll pays, and nothing else here drives it.** `placeScene` submits and waits and the trace
+        /// submits and waits again, so what makes the second read what the first wrote is the order of two submits.
+        /// The world's placement rides a frame instead, and `OffscreenTrace`'s own tests hand their calls to a
+        /// renderer that counts them.
         ///
-        /// **And a placement names one scene.** Moving the doll must leave the world's sheet where
-        /// it is, which is the other half of the assertion.
+        /// **And a placement names one scene.** Moving the doll must leave the world's sheet where it is.
         TEST_F(RtxGuiDrawTest, aPlacementIntoAViewSceneReachesThePictureAndLeavesTheWorldAlone)
         {
             constexpr std::uint32_t extent = sPictureSide;
@@ -1136,12 +1109,11 @@ namespace Rtx
             EXPECT_EQ(at(0, 0), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 })) << "where it does not";
 
             // **Laid down premultiplied, and faded as a window fades.** The quarter of a sheet
-            // `aTracedPictureFillsAGuiTextureAndSaysWhereItStops` holds to `sheetLit`'s grey `g` at
-            // an alpha of 64, over grey, through a vertex alpha of `f = 128 / 255`: the colour is taken
-            // as it is and weighed by `f`, and the grey is left `1 - f * 64 / 255` of itself. At the
-            // 97 `g` comes to under the tone curve `look.h` states, that is `97 f + 128 (1 - f * 64 /
-            // 255)` = 48.69 + 111.87 = 160.56, or 161; blended straight it would be `97 * (f * 64 /
-            // 255) + 128 (1 - f * 64 / 255)` = 12.22 + 111.87 = 124.09, or 124.
+            // `aTracedPictureFillsAGuiTextureAndSaysWhereItStops` holds, `sheetLit`'s grey `g` at an alpha of 64 over
+            // grey, through a vertex alpha of `f = 128 / 255`: the colour is weighed by `f`, and the grey is left `1 -
+            // f * 64 / 255` of itself. At `g` = 97 under the tone curve `look.h` states that is `97 f + 128 (1 - f *
+            // 64 / 255)` = 160.56, or 161; blended straight it would be `97 * (f * 64 / 255) + 128 (1 - f * 64 / 255)`
+            // = 124.09, or 124.
             mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f, 0.25f), {});
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
             mProbe.tracePicture(texture, SceneSlot::world(), camera, GuiTraceOptions{});
@@ -1165,15 +1137,14 @@ namespace Rtx
 
         /// A picture inside the interface leaves the frame's own exposure where it found it.
         ///
-        /// **The eye carries between frames and a picture has none.** A picture is mapped at one and
-        /// is traced between two world frames, and one written into the frame's buffer would be read
-        /// back by the next frame as the brightness it had adapted to —
-        /// `ExposurePass::getPictureExposure` says what every arriving local-map tile would cost.
+        /// **The eye carries between frames and a picture has none.** A picture is mapped at one and is traced between
+        /// two world frames, and one written into the frame's buffer would be read back by the next frame as the
+        /// brightness it had adapted to (`ExposurePass::getPictureExposure` says what every arriving local-map tile
+        /// would cost).
         ///
-        /// **The claim is exact.** Both legs draw one camera over one scene from one reset, so the
-        /// frame after the picture is the frame after no picture, byte for byte. The third leg is
-        /// what says the comparison could have failed at all: the same frame at an exposure of one
-        /// is a different picture, and one is what a picture writes.
+        /// **The claim is exact.** Both legs draw one camera over one scene from one reset, so the frame after the
+        /// picture is the frame after no picture, byte for byte. The third leg says the comparison could have failed
+        /// at all: the same frame at an exposure of one is a different picture, and one is what a picture writes.
         TEST_F(RtxGuiDrawTest, aPictureInsideTheInterfaceLeavesTheFramesExposureAlone)
         {
             constexpr std::uint32_t extent = sPictureSide;
@@ -1247,11 +1218,10 @@ namespace Rtx
 
         /// A texture given back outlives the interface that was drawn with it.
         ///
-        /// **A window closes on the frame after the one it was last drawn on**, and that draw is
-        /// still on the queue: the interface is submitted without being waited for, and its fence is
-        /// read two frames later. So this walks the path a closing window takes with two draws
-        /// still in flight, and the layers are what say whether anything was destroyed under one —
-        /// the fixture fails the test on any complaint they make.
+        /// **A window closes on the frame after the one it was last drawn on**, and that draw is still on the queue:
+        /// the interface is submitted without being waited for, and its fence is read two frames later. So this walks
+        /// the path a closing window takes with two draws in flight; the fixture fails the test on any complaint the
+        /// layers make.
         TEST_F(RtxGuiDrawTest, aTextureGivenBackOutlivesTheDrawItWasUsedIn)
         {
             // Given back in the middle of the test rather than at the end of it, so it is not one

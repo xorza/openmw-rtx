@@ -25,10 +25,9 @@ namespace Terrain
         /// hillside look the same under both renderers.
         Paged = 1 << 0,
 
-        /// What lights it and nothing stands: `LIGH`, which the paging never draws. The ray tracer
-        /// lights the world with what it can reach rather than with what a camera can see, and a
-        /// town four cells away that goes dark at dusk is the world stating something the content
-        /// files do not.
+        /// What lights it and nothing stands: `LIGH`, which the paging never draws. The ray tracer lights
+        /// the world with what it can reach rather than what a camera can see, so a distant town does
+        /// not go dark at dusk.
         Lit = 1 << 1,
 
         Both = Paged | Lit,
@@ -39,11 +38,10 @@ namespace Terrain
         return (static_cast<unsigned int>(set) & static_cast<unsigned int>(one)) != 0;
     }
 
-    /// What a walk of the content files says of each reference, in the order the files stack,
-    /// reduced the way they stack: a reference's last word wins, and a last word that deletes it
-    /// leaves it out. Flat and sorted once, where a map makes a node per reference and is made again
-    /// per cell; kept by a collector and emptied per call, so a walk of cell after cell allocates
-    /// nothing once it has held the most any cell said.
+    /// What a walk of the content files says of each reference, in the order the files stack, reduced
+    /// the way they stack: a reference's last word wins, and a last word that deletes it leaves it out.
+    /// Flat and sorted once, where a map makes a node per reference; kept by a collector and emptied per
+    /// call, so a walk allocates nothing once it has held the most any cell said.
     class RefStack
     {
     public:
@@ -90,10 +88,9 @@ namespace Terrain
         std::vector<Said> mSaid;
     };
 
-    /// What one caller of `ObjectStorage::collect` keeps from one call to the next: whatever an
-    /// implementation reads the content files with and reduces the references in. Made by
-    /// `makeCollector` and handed back to every call that caller makes, so a thread walking cell
-    /// after cell reuses its readers and its buffers and two threads never share them.
+    /// What one caller of `ObjectStorage::collect` keeps from one call to the next: the readers and
+    /// buffers an implementation uses. Made by `makeCollector` and handed back to every call that caller
+    /// makes, so a thread reuses them and two threads never share them.
     class RefCollector
     {
     public:
@@ -102,21 +99,19 @@ namespace Terrain
 
     /// What the paging and the ray tracer ask of the content files.
     ///
-    /// **The seam `Terrain::Storage` already is, for the same reason.** The paging is a thousand
-    /// lines of scene-graph work and about forty of reading records, and it was those forty that
-    /// tied it to a running game. Behind this the two are the same code: a harness that stands a
-    /// hillside up and the game that draws it cannot answer differently about what is on it.
+    /// **The seam `Terrain::Storage` already is, for the same reason.** Reading records is what tied the
+    /// paging to a running game; behind this a harness that stands a hillside up and the game that draws
+    /// it cannot answer differently about what is on it.
     class ObjectStorage
     {
     public:
         virtual ~ObjectStorage() = default;
 
-        /// Every reference of the `kinds` asked for in the square of `size` cells whose lowest
-        /// corner is `startCell`, reduced by reference number the way the content files stack: a
-        /// later file moving or deleting what an earlier one placed wins. Sorted by reference
-        /// number. Both kinds come from one walk, because a walk opens the cell's readers and a
-        /// second walk for the other kind opened them again; `getLight` says which kind a
-        /// reference is.
+        /// Every reference of the `kinds` asked for in the square of `size` cells whose lowest corner is
+        /// `startCell`, reduced by reference number the way the content files stack: a later file moving
+        /// or deleting what an earlier one placed wins. Sorted by reference number. Both kinds come from
+        /// one walk, since a second walk would open the cell's readers again; `getLight` says which kind
+        /// a reference is.
         ///
         /// `into` is cleared first. Called from the paging's own working threads, so an
         /// implementation must be safe to call on several at once, each with a collector of its own.
@@ -130,9 +125,9 @@ namespace Terrain
 
         /// What a `LIGH` record says its light is, or nothing where the id names no such record.
         ///
-        /// **`SceneUtil::LightCommon` and not a shape of this fork's own**, because that is what
-        /// `SceneUtil::createLightSource` takes and what every light the game places is built out
-        /// of. A second reading of the same eight fields is a second answer waiting to drift.
+        /// **`SceneUtil::LightCommon` and not a shape of this fork's own**: it is what
+        /// `SceneUtil::createLightSource` takes, and a second reading of the same fields is a second
+        /// answer waiting to drift.
         virtual std::optional<SceneUtil::LightCommon> getLight(const ESM::RefId& id) const = 0;
 
         /// The model a reference's record names, a lamp's included, or empty where it names none —

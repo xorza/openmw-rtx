@@ -485,13 +485,10 @@ namespace Rtx
                         for (std::size_t texel = 0; texel < 16; ++texel)
                             std::swap(block[texel * sTexel], block[texel * sTexel + 2]);
 
-                    // **A normal map's block in one mode**, as DirectXTex narrows its search by mode
-                    // (`TEX_COMPRESS_BC7_QUICK`): mode 5 where it holds a height, whose alpha it keeps
-                    // apart from the normal, and mode 6 where it holds none, which bc7enc tries first for
-                    // an opaque block. Five times the full search's speed, a height's error less and a
-                    // normal's a tenth of a degree more on the mean (`docs/rtx/architecture.md`, "A normal map
-                    // is whole in BC7, in one encoding"). bc7enc tells the kinds apart by the same test,
-                    // and asserts a mode it can take for each.
+                    // **A normal map's block in one mode**, as DirectXTex's `TEX_COMPRESS_BC7_QUICK` narrows by mode: 5
+                    // where it holds a height, 6 where it holds none. Five times the full search's speed
+                    // (`docs/rtx/architecture.md`, "A normal map is whole in BC7, in one encoding"). bc7enc tells the
+                    // kinds apart by the same test and asserts a mode it can take.
                     if (encoding == TextureEncoding::Normal)
                     {
                         bool height = false;

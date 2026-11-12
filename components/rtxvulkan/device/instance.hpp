@@ -56,9 +56,8 @@ namespace Rtx
         /// headless, and what the device's swapchain rests on.
         bool hasExtension(std::string_view name) const;
 
-        /// Whether `VK_EXT_debug_utils` was enabled, which is what object names and command-buffer
-        /// labels need. True whenever this build names objects, not only under validation — a
-        /// capture is worth having without paying for the layers.
+        /// Whether `VK_EXT_debug_utils` was enabled, which object names and command-buffer labels need:
+        /// wherever the loader offers it, in every build and not only under validation.
         bool hasDebugUtils() const { return hasExtension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); }
 
         /// The version the loader reported, which is at least `sApiVersion`.

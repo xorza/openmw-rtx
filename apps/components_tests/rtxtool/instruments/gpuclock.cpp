@@ -11,10 +11,9 @@ namespace RtxTool
     {
         /// The mask the driver answers with, in the words a report prints.
         ///
-        /// **The bits are NVML's and this file is the only place that knows them**, so a wrong one
-        /// is a report that names the wrong reason for a slow run — and the reasons are exactly what
-        /// a number is quoted against. Each case below is a bit that means something different about
-        /// what a measurement is worth.
+        /// **The bits are NVML's and this file is the only place that knows them**, so a wrong one is a
+        /// report that names the wrong reason for a slow run, the reasons being what a number is quoted
+        /// against.
         TEST(RtxGpuClockTest, aThrottleMaskReadsAsWhatIsHoldingTheCardBack)
         {
             EXPECT_EQ(describeThrottle(0x0000000000000000ull), "") << "nothing holds a card at rest";
@@ -30,8 +29,7 @@ namespace RtxTool
             EXPECT_EQ(describeThrottle(0x0000000000000020ull), "sw thermal slowdown");
             EXPECT_EQ(describeThrottle(0x0000000000000080ull), "hw power brake");
 
-            // The two the driver grew after the table was first written, which this card reports
-            // under a hold: a board's limit policy, and its reliability policy.
+            // A board's limit policy and its reliability policy, which this card reports under a hold.
             EXPECT_EQ(describeThrottle(0x0000000000000200ull), "board limit");
             EXPECT_EQ(describeThrottle(0x0000000000000400ull), "reliability");
 

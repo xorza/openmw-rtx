@@ -6,18 +6,11 @@
 
 // Where each column's view of the air ends, which every froxel of the column is measured against.
 //
-// **A froxel does not know where the ground is, and the pixel that reads it does.** The volume is filled
-// before anything is traced, so the slice a surface stands inside was sampled on both sides of it: under
-// water there is no fog at all, and inside the ground there is whatever the field says there, which has
-// nothing to do with the air above. The pixel then reads the accumulation between that slice's two edges,
-// and what it gets is the slice's whole optical depth laid out as though the surface were not there —
-// nothing at the near edge, all of it at the far, and the wrong share in between.
-//
-// **One ray per column and not per froxel**, because every froxel of a column samples the column's own ray,
-// so what that ray stops at is the column's to know once.
-//
-// **And a second along the block's middle**, which the lamps are integrated along: a stretch is cut where
-// the ray it is integrated along stops.
+// A froxel does not know where the ground is, and the pixel that reads it does: the volume is filled before
+// anything is traced, so a slice a surface stands inside was sampled on both sides of it, and the pixel would
+// read the slice's whole optical depth as though the surface were not there. One ray per column, since
+// every froxel of a column samples the column's own ray, and a second along the block's middle, which the
+// lamps are integrated along.
 
 #include "camera.h"
 #include "scene.h"
@@ -42,22 +35,11 @@ void main()
     const Ray ray = fogColumnRay(uvec2(column));
     const vec3 origin = frame.mOrigin + ray.mOffset;
 
-    // **The eye's own cone**, so a leaf's cutout is decided at the mip the eye sees it at and the column
-    // stops where the pixel's ray would.
-    //
-    // **And past everything the eye is seeing through, for the same reason.** The launch peels a pane of
-    // glass and a fading actor and commits what stands behind them, so a column that had ended at the glass
-    // held no air over the room behind it: a wall four thousand units off behind a pane at one thousand
-    // kept two thirds of its light where a quarter is what the air leaves it.
-    //
-    // **`mFar` on a miss and not the fog's reach**, because that is what a ray that hit nothing carries to
-    // the fog: the march clamps it to the reach, and a froxel past it is one no pixel reads.
-    //
-    // **And culled the way the eye culls**, for the third time the same reason: where the picture ends is
-    // where the eye's own ray ends, and a back face the eye sees through does not end it.
-    //
-    // **And the world's mask**, because what the column measures is where the eye's view of the air ends,
-    // and what the eye cannot meet does not end it.
+    // The eye's own cone, so a leaf's cutout is decided at the mip the eye sees it at; the column stops where
+    // the pixel's ray would, and so is culled the way the eye culls and sees past the panes and fading actors
+    // the launch peels (a column that ended at glass held no air over the room behind it). `mFar` on a miss, not
+    // the fog's reach: that is what a ray that hit nothing carries to the fog, and the march clamps it. The
+    // world's mask applies: what the eye cannot meet does not end its view.
     const Cone cone = coneAt(frame.mEyes.mWorld);
     const RayRule rule = RayRule(worldMask(frame.mRayMask), MEET_WALK_PAST, true);
     const float surface = surfaceWithin(WorldRay(origin, ray.mDirection), 0.0, frame.mFar, cone, rule);

@@ -19,27 +19,22 @@ namespace Rtx
     /// Where a pipeline cache is kept.
     struct PipelineCacheSpec
     {
-        /// The directory the file goes in, made if it is not there. Empty keeps no cache at all —
-        /// no file, and no `VkPipelineCache` object either — which is a renderer that compiles
-        /// every stage of every pipeline from source: every measuring process, for the reason
-        /// `RtxRenderer` gives where it leaves this empty.
+        /// The directory the file goes in, made if it is not there. Empty keeps no cache at all, file
+        /// or `VkPipelineCache` object, and compiles every stage from source: every measuring
+        /// process, for the reason `RtxRenderer` gives where it leaves this empty.
         ///
-        /// **No object, not merely no file**, because the object is shared by every pipeline
-        /// created against it, and the pipelines are created in parallel. A stage two of them
-        /// share — the hit and miss shaders the visibility variants had, once — is compiled by
-        /// whichever asked first and handed back from the object to whichever asked later, and
-        /// what is handed back is not the code a compile of the same SPIR-V makes. Which
-        /// pipelines got which was the hands' timing: a third of the runs of one scene drew a
-        /// pixel a part in 255 apart on one frame in two hundred, with every input the same, and
-        /// none of twelve did with the object gone. The compiles are faster without it as well.
+        /// No object, not merely no file: pipelines are created in parallel against a shared
+        /// object, and a stage two of them share is compiled by whichever asked first and handed
+        /// back to the other, which is not the code a fresh compile of the same SPIR-V makes. Which
+        /// pipeline got which was timing, and a third of the runs of one scene drew a pixel a part
+        /// in 255 apart on one frame in two hundred; none of twelve did without the object.
         std::filesystem::path mDirectory;
     };
 
     /// A `VkPipelineCache` that outlives the process, kept in a file in the user's cache directory,
-    /// so an edited shader is compiled once rather than once per process. The driver already keeps
-    /// its own, so a warm run gains a few per cent; where this shows is the first run after an
-    /// edit. Nothing here is allowed to fail loudly: a cache that cannot be read or written means
-    /// compiling from scratch and nothing worse.
+    /// so an edited shader is compiled once rather than once per process. Nothing here is
+    /// allowed to fail loudly: a cache that cannot be read or written means compiling from
+    /// scratch and nothing worse.
     class PipelineCache
     {
     public:
@@ -59,43 +54,31 @@ namespace Rtx
 
         /// Writes the driver's current blob back where it differs from what was loaded or last
         /// written, through a temporary and a rename — or deletes the file where the blob has
-        /// outgrown `sMostBytes`, which is what the next run would do with it anyway. Nothing where
-        /// the spec keeps no cache.
-        ///
-        /// **Once the start's pipelines are made, and again as the cache goes**: written only as it
-        /// went, a crash or a kill later in the session threw away the whole compile, and the next
-        /// start compiled every kernel again.
+        /// outgrown `sMostBytes`. Nothing where the spec keeps no cache. Called once the start's
+        /// pipelines are made as well as at destruction, so a crash does not lose the whole compile.
         void save();
 
-        /// The most a blob may hold before a run throws it away and starts one again — a backstop
-        /// and not the eviction, which the name is. Well clear of the largest live set, because a
-        /// cap that trips on a working cache throws it away every run for ever: one shader
-        /// generation's set is tens of megabytes, about double once `shot` has added its extents.
+        /// The most a blob may hold before a run throws it away — a backstop, not the eviction. Well
+        /// clear of the largest live set, since a cap that trips on a working cache drops it every run.
         static constexpr std::size_t sMostBytes = std::size_t{ 256 } << 20;
 
-        /// Whether a stored blob is one this driver wrote, and one small enough to go on keeping, and
-        /// why not where it is not. Checked here as well as by the driver, because the file is untrusted data and four
-        /// comparisons are cheaper than relying on every driver. Public because an offset off by
-        /// four would reject every blob the driver ever wrote, with no symptom but a cache that
-        /// never hit.
+        /// Whether a stored blob is one this driver wrote and small enough to keep, and why not where
+        /// it is not. Checked here as well as by the driver, because the file is untrusted data.
+        /// Public because an offset off by four would reject every blob with no symptom but a cache
+        /// that never hit.
         static Result<void, std::string_view> accepts(
             std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties);
 
-        /// The blob the file at `path` holds, where its own header says the device, the driver, the
-        /// length and the digest this run has, and `accepts` takes it; nothing where there is no
-        /// file; and why it was set aside where it cannot seed from it. Public for the reason
-        /// `accepts` is: a reader that refused every file would show nothing but a cache that never
-        /// hits.
+        /// The blob the file at `path` holds, where its own header says the device, driver, length
+        /// and digest this run has and `accepts` takes it; nothing where there is no file; and why it
+        /// was set aside otherwise. Public for the reason `accepts` is.
         static Result<std::vector<std::uint8_t>, std::string_view> read(
             const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties);
 
     private:
-        /// Removes the oldest of this renderer's other caches in the same directory, past the few it
-        /// keeps — the eviction. Another cache is for a driver or a shader tree this run does not
-        /// have, which a second card or the tree before an edit may have again; one older than the
-        /// kept few compiles from source once. A partial write ends with the same suffix, so one a
-        /// process left when it was killed between its write and its rename ages out like any other
-        /// cache; one swept in that window costs its writer a compile from source.
+        /// Removes the oldest of this renderer's other caches in the directory, past the few it
+        /// keeps — the eviction. A partial write ends with the same suffix, so one left by a killed
+        /// process ages out like any other cache; one swept in that window costs its writer a compile.
         void sweep() const;
 
         VkDevice mDevice = VK_NULL_HANDLE;
@@ -107,9 +90,8 @@ namespace Rtx
         Immediate<VkPipelineCache, vkDestroyPipelineCache> mHandle;
         std::filesystem::path mPath;
 
-        /// What was loaded or last written, by its length and its digest, so that a run which
-        /// compiled nothing new since rewrites nothing. Not the blob: tens of megabytes held all
-        /// session for one comparison at the end.
+        /// What was loaded or last written, by length and digest so a run that compiled nothing new
+        /// rewrites nothing. Not the blob: tens of megabytes held all session for one comparison.
         std::size_t mKeptBytes = 0;
         Misc::DigestWords mKeptDigest{};
     };

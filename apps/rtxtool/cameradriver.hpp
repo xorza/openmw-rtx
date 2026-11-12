@@ -26,10 +26,10 @@ namespace RtxTool
     /// that holds the camera there. What the world is put in once, at the stop's start, is
     /// `Stager`'s; this starts where that leaves the player.
     ///
-    /// **The sky is the world's until a turn or a key takes it**, and from then until the stop
-    /// ends it is this one's (`SkyCrossing`), handed to the world whole on every frame: the world
-    /// then runs no crossing of its own and rolls no weather of its own, which at a fast clock it
-    /// did every few seconds over what was asked for. A take's track holds its own sky.
+    /// The sky is the world's until a turn or a key takes it, and from then until the stop ends it is this
+    /// one's (`SkyCrossing`), handed to the world whole on every frame: the world then rolls no weather of
+    /// its own, which at a fast clock it did every few seconds over what was asked for. A take's track
+    /// holds its own sky.
     class CameraDriver
     {
     public:
@@ -55,13 +55,12 @@ namespace RtxTool
         /// track, or where the player stands under no region's sky.
         void turnSkyBy(const Stop& stop, int steps, bool atOnce);
 
-        /// Puts the camera where the stop stands this frame, and points it where the stop asked.
-        /// Every frame, because `omw/camera/camera.lua`'s `onActive` forces third person and a
-        /// stop's teleport reactivates the player: aimed once, every view drew its frames from a
-        /// camera 192 units behind the body. `Check::CameraStands` says it still holds. A standing
-        /// stop and a heading route are one case, carrying the heading forward from where the route
-        /// has flown; nothing where the stop named no camera or gave it to the player. An armed stop
-        /// stands the body's own first-person eye there (`aimThroughBody`).
+        /// Puts the camera where the stop stands this frame, and points it where the stop asked. Every frame,
+        /// because `omw/camera/camera.lua`'s `onActive` forces third person and a stop's teleport reactivates
+        /// the player: aimed once, every view drew from a camera 192 units behind the body
+        /// (`Check::CameraStands`). A standing stop and a heading route are one case; nothing where the stop
+        /// named no camera or gave it to the player. An armed stop stands the body's own first-person eye
+        /// there (`aimThroughBody`).
         void aim(const Stop& stop);
 
         /// Whether the route has reached the destination it named. What ends a routed stop: the

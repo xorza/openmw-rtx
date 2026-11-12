@@ -54,10 +54,9 @@ namespace Rtx
         /// `Shaders::VisibilityConstants::mWaterScatter`.
         osg::Vec3f mWaterScatter = Shaders::WATER_SCATTER_SHIPPED;
 
-        /// What the water moves by, and what the sky does: the simulation's seconds and the sky's
-        /// own clock. Two, because a sped-up sky is a time-lapse and sped-up water is noise. Both
-        /// in double, and narrowed by nothing but the consumer that knows the period it reduces
-        /// them over: a float holding ten hours resolves a quarter of a frame.
+        /// What the water moves by, and what the sky does: the simulation's seconds and the sky's own
+        /// clock, two because a sped-up sky is a time-lapse and sped-up water is noise. Both double, since
+        /// a float holding ten hours resolves a quarter of a frame; the consumer narrows them.
         double mSeconds = 0.0;
         double mSkySeconds = 0.0;
 
@@ -72,10 +71,8 @@ namespace Rtx
         /// to the display chain.
         SunGlare mSunGlare;
 
-        /// What Night-Eye adds to the ambient, in the engine's colour values, which the frame's
-        /// options carry to the display chain. **Never a light of the world**: the rasterizer adds
-        /// it to every fragment it lights, where nothing occludes it and no exposure adapts it away,
-        /// and the display chain adds it after the meter for that reason.
+        /// What Night-Eye adds to the ambient, in the engine's colour values. **Never a light of the world**:
+        /// nothing occludes it and no exposure adapts it away, so the display chain adds it after the meter.
         osg::Vec3f mNightEye{};
     };
 
@@ -97,22 +94,17 @@ namespace Rtx
         /// frame no world was described over.
         osg::Vec3f mNightEye{};
 
-        /// The water's clock in seconds, as the host keeps it, which the wake steps by: what the
-        /// frame block carries split in two for a shader (`VisibilityConstants::mWaterTime`), here
-        /// whole, so a step boundary is read off the clock and not off its split rebuilt. Filled
-        /// where the world describes the frame (`describeWorld`).
+        /// The water's clock in seconds, as the host keeps it, which the wake steps by: whole here, where
+        /// the frame block carries it split (`VisibilityConstants::mWaterTime`), so a step boundary is
+        /// read off the clock and not off a rebuilt split.
         double mWaterSeconds = 0.0;
     };
 
-    /// How far the air has been carried downwind since a run began, in world units: the integral
-    /// of the wind over the sky's clock, kept across frames by whoever traces them. What the
-    /// shader takes off a position is a displacement, and a wind times the clock is not one: it
-    /// jumps by the whole clock's worth of the difference whenever the wind changes, which every
-    /// weather transition does over the minute it takes, and turns with the storm the moment one
-    /// arrives. Ten minutes into a session, clear's 0.1 becoming a thunderstorm's 0.5 moved the
-    /// field by six hundred seconds of the difference — 336,000 units over the transition's 67
-    /// seconds, seventy metres a second where the gale itself blows ten. Stepped by what the clock
-    /// moved, so a change of wind changes the speed and nothing else.
+    /// How far the air has been carried downwind since a run began, in world units: the integral of the
+    /// wind over the sky's clock, kept across frames by whoever traces them. A wind times the clock is not
+    /// a displacement: it jumps by the whole clock's worth of the difference whenever the wind changes
+    /// (ten minutes in, clear's 0.1 becoming a storm's 0.5 moved the field 336,000 units in 67 seconds).
+    /// Stepped by what the clock moved, so a change of wind changes the speed and nothing else.
     class FogDrift
     {
     public:
@@ -135,11 +127,10 @@ namespace Rtx
         std::optional<double> mLastSeconds;
     };
 
-    /// Where the clocks the air runs on stand: the sky's own, which the deck scrolls by and the fog
-    /// churns by, and how far `FogDrift` has carried the fog along it. What a frame's air is a
-    /// function of beside the weather and the hour — so a moment somebody saw can be stood in
-    /// again. Neither is derived from the other: the carry is the wind integrated over the clock,
-    /// and every change of weather on the way changed the wind.
+    /// Where the clocks the air runs on stand: the sky's own, which the deck scrolls by and the fog churns
+    /// by, and how far `FogDrift` has carried the fog. What a frame's air is a function of beside the
+    /// weather and the hour, so a moment can be stood in again. Neither is derived from the other: every
+    /// change of weather on the way changed the wind.
     struct AirClock
     {
         Sky::SkyClock mSky;
@@ -157,16 +148,11 @@ namespace Rtx
     /// reduced against the scale's tile in double and handed over as a fraction of it.
     std::array<osg::Vec3f, Shaders::FOG_SCALES> fogOffsets(const osg::Vec2d& carried, double skySeconds);
 
-    /// Writes the frame's world half into the constants it is traced with, and into `options` what
-    /// rides beside them: the exposure's bias (`Skylight::mExposureBias`, carried), the glare
-    /// fader, Night-Eye's lift and the sea's clock. The camera's half is the viewpoint's
-    /// (`constantsFor`) and is left alone. The renderer calls it, over the world a host reads and
-    /// the viewpoint it hands beside it (`Renderer::renderFrame`). The order is the whole of what
-    /// this is for: the stars before the sky's budget, the budget before the air, and both before
-    /// the deck. One call and not twenty assignments at the reader, so the order is stated where
-    /// the fields are and a field added is placed by it. `drift` is stepped here by this reading's
-    /// clock and wind, because the heading it blows along is the deck's, which is settled here and
-    /// nowhere else.
+    /// Writes the frame's world half into the constants it is traced with, and into `options` what rides
+    /// beside them: the exposure's bias, the glare fader, Night-Eye's lift and the sea's clock. The
+    /// camera's half (`constantsFor`) is left alone. The order is the whole of what this is for: the stars
+    /// before the sky's budget, the budget before the air, and both before the deck. `drift` is stepped
+    /// here, because the heading it blows along is the deck's, which is settled here and nowhere else.
     ///
     /// @param sky where the sky's own sheets sit in the scene's texture table: made at load
     ///        (`addSkyContent`) and borrowed by every frame, never copied into one.

@@ -5,18 +5,15 @@
 
 namespace Misc
 {
-    /// How long a frame stands for, and what time it is once it has. The host's clock — the
-    /// engine's loop opens every frame on it and the renderer reads it — and one clock for a run,
-    /// because a run that reads two cannot repeat itself: `SceneManager::checkLoaded` and
-    /// `CellPreloader::isTerrainLoaded` decide by the reference time, so two runs on two clocks
-    /// are handed different worlds. A measured run states a step and what ages is the frame
-    /// index; a played session is handed the wall, so a stall ages a player's caches and not a
-    /// benchmark's. How long since the last *traced* frame is `Rtx::FrameOptions::mSinceLast`, the
-    /// difference of two `getNow`s, because a loading screen drives frames that draw no world.
+    /// How long a frame stands for, and what time it is once it has: the host's clock, which the engine's
+    /// loop opens every frame on and the renderer reads. One clock for a run, because
+    /// `SceneManager::checkLoaded` and `CellPreloader::isTerrainLoaded` decide by the reference time, so two
+    /// clocks hand two runs different worlds. A measured run states a step and what ages is the frame index;
+    /// a played session is handed the wall. How long since the last *traced* frame is
+    /// `Rtx::FrameOptions::mSinceLast`, because a loading screen drives frames that draw no world.
     ///
-    /// Named for the loop and not for the frame, because `Misc::FrameClock` is the clock the frame
-    /// stats are timed on (`components/misc/framestats.hpp`), which is a different thing: a
-    /// `steady_clock` reading the wall whatever this one was told to say.
+    /// Named for the loop and not the frame, because `Misc::FrameClock` is the clock the frame stats are
+    /// timed on (`components/misc/framestats.hpp`): a `steady_clock` reading the wall.
     class LoopClock
     {
     public:

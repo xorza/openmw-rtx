@@ -27,20 +27,18 @@ namespace Rtx
     /// level's extent and its bytes. Not the file's name, so one picture under two names is one
     /// entry; not the coarser levels, which no texture pass reads; and not the size OpenSceneGraph
     /// counts the whole image at, which differs between its builds for a block format with no
-    /// chain. An image that does not describe is keyed as that, because what a pass answers for it
-    /// does not depend on its bytes.
+    /// chain. An image that does not describe is keyed as that.
     ///
     /// **The image is held as long as its description**, because the description spans the image's
-    /// own bytes wherever they need no laying out (`describeImage`), and a key and the run after it
-    /// are two calls apart: a caller that let go of its image between them left the key reading
-    /// freed memory. Held, its address also names it, so a run knows whether the description is of
-    /// the image it was handed. A key the cache answers runs nothing, and leaves its image held
-    /// until the pass is next asked: one image a pass, on a loader's thread.
+    /// own bytes wherever they need no laying out (`describeImage`), and a caller that let go of its
+    /// image between the key and the run left the key reading freed memory. Held, its address also
+    /// names it, so a run knows whether the description is of the image it was handed. A key the
+    /// cache answers leaves its image held until the pass is next asked.
     ///
     /// **The scratch is the preprocessor's, one for both texture passes**: a finest level widened
     /// to four bytes a texel is 16 MiB for a 2048-square picture, and a pass at a time runs on a
-    /// preprocessor's thread, from its key to its run, and lets go of its description as it
-    /// answers. Not copyable: the description spans the scratch's buffers.
+    /// preprocessor's thread, from its key to its run. Not copyable: the description spans the
+    /// scratch's buffers.
     class FinestTexels
     {
     public:

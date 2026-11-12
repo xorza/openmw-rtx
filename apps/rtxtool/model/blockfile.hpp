@@ -73,18 +73,14 @@ namespace RtxTool
     /// help line lists.
     std::string listWeathers();
 
-    /// A file of `[name]` sections and `field = value` lines, read in the order it was written:
-    /// the views, the suites and a film's keys are three schemas over this one reader, and a field
-    /// they share is read by the one parser below.
+    /// A file of `[name]` sections and `field = value` lines, read in the order it was written: the views, the
+    /// suites and a film's keys are three schemas over this one reader, and a field they share is read by the one
+    /// parser below.
     ///
-    /// **In order and whole, and never through the settings parser.** That one keeps a map keyed by
-    /// section and field, so the views came back sorted by name rather than as the file lists them,
-    /// and two sections of one name were one section: a window pressed twice at one place writes
-    /// two keys under one name, and a view file that defined a name twice ran whichever it pleased.
-    /// What a schema does with a repeated name is the schema's to say.
-    ///
-    /// Every refusal names the file and the line, because a field misread is a picture of
-    /// somewhere else.
+    /// In order and whole, never through the settings parser, which keeps a map keyed by section and field: views
+    /// would come back sorted by name, and two sections of one name would be one (a window pressed twice at one
+    /// place writes two keys under one name). What a schema does with a repeated name is the schema's to say. Every
+    /// refusal names the file and the line, because a field misread is a picture of somewhere else.
     class BlockFile
     {
     public:

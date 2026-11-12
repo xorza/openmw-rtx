@@ -478,15 +478,12 @@ namespace Rtx::Testing
                 return stats;
             }
 
-            /// Walks until the ring has adopted every cell the band wants, and answers what those
-            /// walks came to.
+            /// Walks until the ring has adopted every cell the band wants, and answers what those walks came to.
             ///
-            /// **A walk adopts one cell, settled or not**, so a band of `sPreparedCells` is that
-            /// many walks. `CellRing::setSettled` says why the settled rule is the wait and not the
-            /// count.
-            ///
-            /// What a walk added is summed, and what stands is the last walk's: a sum of the
-            /// standing counts would count the whole ring once for every walk it took to build.
+            /// **A walk adopts one cell, settled or not**, so a band of `sPreparedCells` is that many walks
+            /// (`CellRing::setSettled` says why the settled rule is the wait and not the count). What a walk added
+            /// is summed, and what stands is the last walk's: summing the standing counts would count the whole
+            /// ring once for every walk it took to build.
             ExtractionStats fill()
             {
                 ExtractionStats total;
@@ -865,18 +862,15 @@ namespace Rtx::Testing
             walk(mWalked++);
         }
 
-        /// The lamps of the cells the game has not loaded stand with their cells: outside the active
-        /// grid only, because inside it the game's own graph carries them and a lantern must not be
-        /// counted twice; where the record casts at all; and as the light the walk would build from
-        /// the graph's own node at the same hour, so a lamp the game loads later is the lamp that
-        /// was there: at the model's `AttachLight`, where the game attaches it, and with its model
-        /// standing as a static does. The frame's clock reaches them: a flame at one second is not
-        /// the flame at nought.
+        /// The lamps of the cells the game has not loaded stand with their cells: outside the active grid only,
+        /// because inside it the game's own graph carries them and a lantern must not be counted twice; where the
+        /// record casts at all; and as the light the walk would build from the graph's own node at the same hour,
+        /// at the model's `AttachLight`, with its model standing as a static does. The frame's clock reaches
+        /// them: a flame at one second is not the flame at nought.
         ///
-        /// **A fake and not a cell, because the shipped content cannot ask about an unlit lamp.**
-        /// Every one of the 1559 exterior cells of `Morrowind.esm`, `Tribunal.esm` and
-        /// `Bloodmoon.esm` places its lights lit: the off-default flag is an interior's brazier and
-        /// a storeroom's torch.
+        /// **A fake and not a cell, because the shipped content cannot ask about an unlit lamp.** Every one of the
+        /// 1559 exterior cells of `Morrowind.esm`, `Tribunal.esm` and `Bloodmoon.esm` places its lights lit: the
+        /// off-default flag is an interior's brazier and a storeroom's torch.
         TEST_F(RtxCellRingTest, lampsStandWithTheirCellsOutsideTheGridAndBurnAtTheFramesHour)
         {
             const osg::Vec3f far(4.5f * sCellSize, 0.5f * sCellSize, 40.0f);
@@ -1341,15 +1335,12 @@ namespace Rtx::Testing
             }
         }
 
-        /// A model the frame lets go of and a delivered cell names again inside the same settled
-        /// walk stays lent.
+        /// A model the frame lets go of and a delivered cell names again inside the same settled walk stays lent.
         ///
-        /// **The return is stale before it is published.** A settled walk drops the cells that
-        /// left the band, and so lets go of their models, before it waits for the thread to read
-        /// the cells that entered — and one of those names the same model, read while the frame
-        /// still held it. The frame knows the model again from that cell, so the return it wrote
-        /// earlier in the walk names a lend the frame holds; published, it had the reader give
-        /// the model back under the frame's feet and refill it for the next model.
+        /// **The return is stale before it is published.** A settled walk drops the cells that left the band, and
+        /// so lets go of their models, before it waits for the cells that entered, and one of those names the
+        /// same model. The return written earlier in the walk would have the reader give the model back under
+        /// the frame's feet and refill it for the next model.
         TEST_F(RtxCellRingTest, aModelNamedAgainByACellDeliveredInsideTheWaitIsNotGivenBack)
         {
             const Placed near{ .mCell = osg::Vec2i(3, 0),
@@ -1424,10 +1415,9 @@ namespace Rtx::Testing
                 << "every cell of the band is held or still to stand, settled or not";
         }
 
-        /// **A recycled cell whose new land stands nothing stands no ground.** An ESM4 world leaves a
-        /// cell with no land out rather than laying a plane, and the cell that takes a dropped
-        /// cell's place kept that cell's ground: it stood rows it no longer held and dropped a
-        /// mesh of nothing.
+        /// **A recycled cell whose new land stands nothing stands no ground.** An ESM4 world leaves a cell with
+        /// no land out rather than laying a plane, and the cell that takes a dropped cell's place must not keep
+        /// that cell's ground, which stands rows it no longer holds.
         TEST_F(RtxCellRingTest, aRecycledCellWhoseLandStandsNothingStandsNoGround)
         {
             mLand.mWithData.clear();
@@ -1452,13 +1442,10 @@ namespace Rtx::Testing
             EXPECT_EQ(placed(), 0u);
         }
 
-        /// Settled, a walk adopts the one cell an unsettled walk does and waits for it.
-        ///
-        /// **No sleep anywhere here, and that is the whole claim.** The test above has to wait on
-        /// the wall, because an unsettled walk that finds nothing read adopts nothing. A settled
-        /// walk waits for the cell it is about to adopt, so the count after N walks is exactly N.
-        ///
-        /// **And exactly N and never more**: waiting for the whole band and adopting all of it puts a
+        /// Settled, a walk adopts the one cell an unsettled walk does and waits for it. **No sleep anywhere here,
+        /// and that is the whole claim**: the test above waits on the wall because an unsettled walk that finds
+        /// nothing read adopts nothing, while a settled walk waits for the cell it is about to adopt, so the
+        /// count after N walks is exactly N and never more, which waiting for the whole band would put at a
         /// hundred cells on one frame.
         TEST_F(RtxCellRingTest, settledAWalkWaitsForItsOneCellAndTakesNoMore)
         {
@@ -1699,14 +1686,13 @@ namespace Rtx::Testing
             EXPECT_EQ(mRing.getCellsToStand(), 0u);
         }
 
-        /// **Groundcover stands within its reach, the active grid's cells included, and goes whole
-        /// past it.** At a reach of two cells from the eye at (0.5, 0.5) cells, (0, 0) and (2, 0)
-        /// stand theirs, whose nearest points are nought and 1.5 cells out, and (6, 0) does not; the
-        /// game stands no grass for this renderer, so the active grid's cell is the ring's too. The
-        /// grass band is the reach and a cell past it, as the cells' band is.
+        /// **Groundcover stands within its reach, the active grid's cells included, and goes whole past it.** At a
+        /// reach of two cells from the eye at (0.5, 0.5) cells, (0, 0) and (2, 0) stand theirs, whose nearest
+        /// points are nought and 1.5 cells out, and (6, 0) does not; the game stands no grass for this renderer,
+        /// so the active grid's cell is the ring's too. The grass band is the reach and a cell past it.
         ///
-        /// **A plant wears upstream's cut and not the model's own**: the fern read as grass is a
-        /// material apart from the fern read as a static, cut at half its alpha.
+        /// **A plant wears upstream's cut and not the model's own**: the fern read as grass is a material apart
+        /// from the fern read as a static, cut at half its alpha.
         TEST_F(RtxCellRingTest, groundcoverStandsWithinItsReachAndGoesWholePastIt)
         {
             mStorage.mPlaced = { Placed{ .mCell = osg::Vec2i(3, 0),
@@ -1863,13 +1849,10 @@ namespace Rtx::Testing
             }();
         };
 
-        /// A record's model path is built once, however many references name it and however often
-        /// the cell is read.
-        ///
-        /// **Two strings a static reference, on every read of every cell**, is what asking the
-        /// storage and correcting the path came to: a town is a few hundred references to a few
-        /// dozen models, and a ring reads a band of cells at every crossing. Three references to one
-        /// record, read three times: asked once.
+        /// A record's model path is built once, however many references name it and however often the cell is
+        /// read. **Two strings a static reference, on every read of every cell**, is what asking the storage and
+        /// correcting the path came to: a town is a few hundred references to a few dozen models. Three
+        /// references to one record, read three times: asked once.
         TEST(RtxCellReaderTest, aRecordsModelPathIsBuiltOnceWhateverNamesIt)
         {
             FakeLand land;
@@ -1889,13 +1872,12 @@ namespace Rtx::Testing
             EXPECT_EQ(storage.mModelsAsked, 1) << "the storage was asked for a record's model more than once";
         }
 
-        /// **A layer's file is opened once for as long as a cell holds it**, and not once a cell:
-        /// every cell of a band wears the same few ground textures, and an open is a lock and a
-        /// read. Two cells of grass and rock are three files; a third file would be the second
-        /// cell's own. The rock's `_nh` carries a height, which is its format's to say, and the
-        /// grass asks for none. Given back and read again, a file that no longer reads keeps its
-        /// place and its path, for the texture table to stand in and refuse. The grass is an RGB8
-        /// file, which the reader lays beside it for the upload; the rock's RGBA8 uploads as it is.
+        /// **A layer's file is opened once for as long as a cell holds it**, and not once a cell: every cell of a
+        /// band wears the same few ground textures, and an open is a lock and a read. Two cells of grass and rock
+        /// are three files. The rock's `_nh` carries a height, which is its format's to say, and the grass asks
+        /// for none. Given back and read again, a file that no longer reads keeps its place and its path, for the
+        /// texture table to stand in and refuse. The grass is an RGB8 file, which the reader lays beside it for
+        /// the upload; the rock's RGBA8 uploads as it is.
         TEST(RtxCellReaderTest, aLayersFileIsOpenedOnceWhileACellHoldsIt)
         {
             FakeLand land;

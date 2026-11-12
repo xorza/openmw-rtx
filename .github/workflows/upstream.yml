@@ -170,12 +170,9 @@ jobs:
                   fi
 
                   # What the fork deleted stays deleted, so a change to one holds no merge for a human, and a
-                  # file upstream adds under a deleted folder goes with it: upstream's workflows, as `ci.yml`
-                  # does their work; GitLab's pipeline and what only it runs, as the fork's CI is GitHub's;
-                  # macOS's and Android's files, as the fork builds neither; upstream's project files and
-                  # scripts the fork has no use for; and what the one build left behind, the global
-                  # configuration, the per-program manifests, the finders of what the vcpkg set's own CMake
-                  # files find, and the run-time check of OSG plugins the static build links. A workflow
+                  # file upstream adds under a deleted folder goes with it: upstream's workflows and GitLab's
+                  # pipeline (the fork's CI is `ci.yml`), macOS's and Android's files, project files and
+                  # scripts the fork has no use for, and what the one static build left behind. A workflow
                   # upstream adds is held.
                   kept_deleted=(
                     .github/workflows/push.yml .github/workflows/macos.yml .github/workflows/windows.yml
@@ -395,8 +392,8 @@ jobs:
             # The agent's turns can run out mid-resolution, and the runner then goes with its work, so
             # whatever it left is committed here and `publish` decides what becomes of it.
             #
-            # A merge the agent never changed is not pushed: the next run makes it again, and pushed it
-            # stopped the daily merges for three days.
+            # A merge the agent never changed is not pushed: the next run makes it again, and a pushed
+            # one stopped the daily merges.
             #
             # Onto master as it stands: GitHub refuses an app's push where the branch's workflows differ
             # from master's.
@@ -568,10 +565,9 @@ jobs:
                     "${GITHUB_API_URL:-https://api.github.com}/installation/token" || true
                   exit "$status"
 
-            # `enablePullRequestAutoMerge` and not `gh pr merge --auto`, which merges at once a pull
-            # request with nothing left to wait for: a ruleset that lost its required checks fails here
-            # rather than merging unchecked. `expectedHeadOid` makes a push after the check turn nothing
-            # on.
+            # `enablePullRequestAutoMerge` and not `gh pr merge --auto`, which merges at once a pull request
+            # with nothing left to wait for: a ruleset that lost its required checks fails here rather than
+            # merging unchecked. `expectedHeadOid` makes a push after the check turn nothing on.
             - name: Auto-merge once CI passes
               env:
                   GH_TOKEN: ${{ github.token }}

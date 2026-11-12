@@ -9,12 +9,11 @@
 // paths, the recast mesh and the collision shapes, which the game builds as `osg::Geometry` under
 // `Mask_Debug` and a ray cannot meet.
 //
-// **Rasterized, and depth-tested against the trace.** A line has no area for a ray to land on, so
-// the one graphics pipeline beside the interface's draws them, projected through the frame's own
-// camera by the inverse of `rayAt`, and each fragment is kept where it stands nearer than the
-// surface the eye's ray met at that pixel — the traced depth, read at the nearest texel. A tool
-// and not the picture: drawn after the curve and before the interface, in the display's own values
-// the drawers painted them in.
+// **Rasterized, and depth-tested against the trace.** A line has no area for a ray to land on, so the one
+// graphics pipeline beside the interface's draws them, projected through the frame's own camera by the
+// inverse of `rayAt`; each fragment is kept where it stands nearer than the surface the eye's ray met at
+// that pixel (the traced depth, read at the nearest texel). A tool and not the picture: drawn after the
+// curve and before the interface, in the display's own values the drawers painted them in.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders

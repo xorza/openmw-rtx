@@ -46,15 +46,12 @@ namespace Rtx
         , mTextures(device, batch, passes.mTextureLayout, passes.mTextures, arrival,
               static_cast<std::uint32_t>(scene.textures().getRows().size()), anisotropy)
     {
-        // Posed before it is built. The structures are built over the first copy of the
-        // positions, and a skinned body's bind pose is not where the body is; the pass writes the
-        // pose into that copy and the build then reads it. **And into every other copy**, which the
-        // trace reads a body's motion against: a copy left in the bind pose until a placement wrote
-        // it threw every body from its bind pose on the first frame traced off the first copy.
-        //
-        // **Every body owed, and not the walk's deformed ones alone**: the walk names a pose only
-        // where it changed, so a scene built again while its bodies stand still — the world a change
-        // of mode let go — named none, and every body stood in its bind pose in both copies.
+        // Posed before it is built: the structures are built over the first copy of the positions
+        // and a skinned body's bind pose is not where the body is. Into every other copy as well,
+        // which the trace reads a body's motion against, or every body would be thrown from its bind
+        // pose on the first frame traced off the first copy. Every body owed, not the walk's deformed
+        // ones alone: the walk names a pose only where it changed, so a scene built again while its
+        // bodies stand still would name none.
         Uploads uploads(batch);
         mAcceleration.getPoses().write(mEveryMesh);
         for (std::uint32_t copy = 0; copy < mAcceleration.getPoses().count(); ++copy)

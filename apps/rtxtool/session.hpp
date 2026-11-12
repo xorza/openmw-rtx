@@ -33,20 +33,16 @@ namespace MWRender
 
 namespace RtxTool
 {
-    /// Drives a run of the game and measures it — the game, because a staged world never pays for
-    /// the whole-graph walk, the sweep or a cell arriving, which are what cost a frame. It reads
-    /// the world through `MWBase::Environment`, is fed each frame by `MWRender::RtxRenderer`
-    /// through the interface it implements, and ends the run through `StateManager::requestQuit`
-    /// the way the player's quit key does.
+    /// Drives a run of the game and measures it: the game, because a staged world never pays for the whole-graph
+    /// walk, the sweep or a cell arriving, which are what cost a frame. It reads the world through
+    /// `MWBase::Environment`, is fed each frame by `MWRender::RtxRenderer` through the interface it implements, and
+    /// ends the run through `StateManager::requestQuit` the way the player's quit key does.
     ///
-    /// **The sequence and nothing else.** A stop is staged by the `Stager`, flown by the
-    /// `CameraDriver`, noted by the `StandingNote` and measured by the `Measurer`; this is the
-    /// engine's host that says which of them runs when, and the run's record they all write into.
-    ///
-    /// **The harness's, and built before the engine.** It makes the renderer with itself installed
-    /// as `RtxSetup::mRun`, states the run's step and runs the schedule before each frame — and what
-    /// it came to is read with `describe` once `Engine::go` has returned: the run that ends its last
-    /// stop and the window somebody closes both end there, and only the first ever reaches `finish`.
+    /// The sequence and nothing else: a stop is staged by the `Stager`, flown by the `CameraDriver`, noted by the
+    /// `StandingNote` and measured by the `Measurer`; this is the engine's host that says which runs when. It is
+    /// built before the engine and makes the renderer with itself installed as `RtxSetup::mRun`; what it came to is
+    /// read with `describe` once `Engine::go` has returned, where a run that ends its last stop and a window
+    /// somebody closes both end, and only the first ever reaches `finish`.
     class Session final : public MWRender::RtxRun, public OMW::EngineHost
     {
     public:
@@ -79,15 +75,12 @@ namespace RtxTool
         /// game has a world to stand in.
         void beforeFrame() override;
 
-        /// Through every frame of a take, whose track states the hour (`CameraDriver::step`). A clock
-        /// left running would carry it past the track's, half a game second on every frame of sixty
-        /// at a time scale of thirty, and the driver only ever runs the clock forward.
+        /// Through every frame of a take, whose track states the hour (`CameraDriver::step`): a clock left running
+        /// would carry it past the track's, and the driver only ever runs the clock forward.
         bool holdsGameClock() const override;
 
-        /// None, in every verb: a run nobody plays has nobody to answer, and a film flown past Seyda
-        /// Neen's census office stood paused behind Morrowind's own `CharGenJournalMessage` for the
-        /// rest of its take. A played `view` flies a camera through a place, and a box stops that
-        /// world as it stops a film's.
+        /// None, in every verb: a run nobody plays has nobody to answer, and a box would stop the world as it stops
+        /// a film's (a film flown past Seyda Neen's census office stood paused behind `CharGenJournalMessage`).
         bool showsScriptMessageBoxes() const override { return false; }
 
         std::optional<std::filesystem::path> getSavesFolder() const override;
@@ -97,9 +90,9 @@ namespace RtxTool
 
         std::string_view describeTitle() override { return mNote.describeTitle(mUpscaler); }
 
-        /// After `Engine::go` returns: a run meant to end on its own that ended before its last stop
-        /// — a window closed, a script's quit — is abandoned there, so it fails, writes what it
-        /// reached, and is compared, where it exited nought and left the last run's record standing.
+        /// After `Engine::go` returns: a run meant to end on its own that ended before its last stop, a window
+        /// closed or a script's quit, is abandoned there, so it fails, writes what it reached, and is compared,
+        /// where it would otherwise exit nought and leave the last run's record standing.
         void endedEarly();
 
         /// What the run came to: the places, the report, the verdict and where the eye was left.

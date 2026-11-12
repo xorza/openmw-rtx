@@ -163,11 +163,10 @@ namespace Rtx
             image->addTransition(opened, Use::sUndefined, Use::sComputeWrite);
         opened.flush();
 
-        // **Two dispatches a cascade and one barrier between them.** The rows form the spectrum
-        // where they transform it, a row a workgroup and the three fields together; the columns
-        // transform it and write the texels, a column a workgroup. The fields go through memory
-        // once, between the halves: a pass of its own forming them or unpacking them would be
-        // another trip of all three.
+        // Two dispatches a cascade and one barrier between them: the rows form the spectrum where they transform it, a
+        // row a workgroup and the three fields together; the columns transform it and write the texels. The fields go
+        // through memory once, between the halves; a pass of its own forming or unpacking them would be another trip of
+        // all three.
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {
             const Tile& tile = mTiles[index];

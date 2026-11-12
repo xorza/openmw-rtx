@@ -111,16 +111,15 @@ namespace Rtx
         std::uint32_t mBlock = 0;
     };
 
-    /// The host's side of a buffer in blocks, the shape the device's has: whole blocks that never
-    /// move, so a growth allocates one block and copies nothing, and the frame that adopts a cell
-    /// pays for its own geometry and not for every vertex before it. Element `at` is the flat
-    /// buffer's `at` — `at % block` of block `at / block` — so the offsets a `RunAllocator` of the
-    /// same block hands out name the same elements here as on the device, and a run is inside one
-    /// block because the allocator never lets one straddle.
+    /// The host's side of a buffer in blocks, the shape the device's has: whole blocks that never move, so a
+    /// growth allocates one block and copies nothing. Element `at` is the flat buffer's `at` — `at % block`
+    /// of block `at / block` — so the offsets a `RunAllocator` of the same block hands out name the same
+    /// elements here as on the device, and a run is inside one block because the allocator never lets one
+    /// straddle.
     ///
-    /// **A block is storage until it is reached**, and `reach` value-initialises only what it
-    /// reaches: a scene with a handful of meshes holds a few pages of each block and not the whole
-    /// of it, and the holes a block's tail leaves are nought, as a vector's growth left them.
+    /// **A block is storage until it is reached**, and `reach` value-initialises only what it reaches, so a
+    /// scene with a handful of meshes holds a few pages of each block; the holes a block's tail leaves are
+    /// nought, as a vector's growth left them.
     template <class T>
     class BlockedValues
     {

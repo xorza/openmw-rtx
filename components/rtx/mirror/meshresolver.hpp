@@ -120,14 +120,13 @@ namespace Rtx
             DeformerEntry mEntry;
         };
 
-        /// What a drawable's deformer is keyed on: the source geometry every copy of a rig shares,
-        /// or the base target every copy of a morph shares. Both are `osg::Referenced`, so one map
-        /// holds both and holds them alive — `ByAddress`.
+        /// What a drawable's deformer is keyed on: the source geometry every copy of a rig shares, or the base target
+        /// every copy of a morph shares. Both are `osg::Referenced`, so one map holds both and holds them alive
+        /// (`ByAddress`).
         ///
-        /// **A rig by its geometry and not its skin**, because the skin, `InfluenceData`, is held
-        /// in a `std::shared_ptr` the map cannot own, and a raw address is one the allocator hands
-        /// on. The loader gives a rig its geometry and its skin together and a copy takes both, so
-        /// the geometry stands for the skin one for one.
+        /// **A rig by its geometry and not its skin**, because the skin, `InfluenceData`, is held in a
+        /// `std::shared_ptr` the map cannot own, and a raw address is one the allocator hands on. The loader gives a
+        /// rig its geometry and its skin together and a copy takes both.
         static const osg::Referenced* deformerKeyOf(const DrawableRead& read);
 
         /// Whether the deformer in `slot` is what `read` asks for: the same kind, and for a morph
@@ -139,11 +138,10 @@ namespace Rtx
         /// it does not. Stamps nothing, because whether the slot still fits is decided after this.
         Held holdDeformer(const DrawableRead& read);
 
-        /// Adds the mesh a drawable the mirror is meeting afresh was read as: standing, on a
-        /// deformer the mirror holds that fits it, or with a deformer of its own — both rows in one
-        /// call of the scene's, and the identity entry added or moved only once they exist. An
-        /// error, adding nothing, where the mesh is past a block or its skin or targets do not pose
-        /// exactly its vertices, because a vertex count comes out of a content file.
+        /// Adds the mesh a drawable the mirror is meeting afresh was read as: standing, on a deformer the mirror holds
+        /// that fits it, or with a deformer of its own, both rows in one call of the scene's, and the identity entry
+        /// added or moved only once they exist. An error, adding nothing, where the mesh is past a block or its skin or
+        /// targets do not pose exactly its vertices, because a vertex count comes out of a content file.
         Result<Index, std::string> addMesh(const DrawableRead& read, const MeshReading& reading);
 
         /// Refuses `drawable` to the scene for `why`, and keeps the refusal under it so it is read

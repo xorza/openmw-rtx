@@ -107,8 +107,8 @@ namespace Rtx
             EXPECT_FLOAT_EQ(sunShareAt(times.mDayEnd + 0.5f * dusk, times), 0.75f);
             EXPECT_LT(sunShareAt(times.mDayEnd + 0.75f * dusk, times), 0.45f);
 
-            // Never past one, whatever a file says the sunrise is worth. The engine's dawn ramp is
-            // unbounded and it did not matter while it was only an alpha; it scales the sunlight now.
+            // Never past one, whatever a file says the sunrise is worth: the engine's dawn ramp is
+            // unbounded, and here it scales the sunlight.
             Sky::TimeOfDaySettings slow = times;
             slow.mSunriseDuration = 8.0f;
             slow.mDayStart = slow.mNightEnd + slow.mSunriseDuration;

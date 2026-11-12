@@ -153,9 +153,9 @@ namespace RtxTool
             EXPECT_NE(json.find(Rtx::sAssertsOn ? R"("asserts": true)" : R"("asserts": false)"), std::string::npos);
         }
 
-        /// **A record that cannot be written fails the run and keeps its report.** The close runs
-        /// inside the engine's frame, and a throw from there lost every measured place with the
-        /// report it was in; a path nobody can write is one line under them and a status of 1.
+        /// **A record that cannot be written fails the run and keeps its report.** The close runs inside
+        /// the engine's frame, so a throw from there would lose every measured place; a path nobody can
+        /// write is one line under them and a status of 1.
         TEST(RtxRunRecordTest, aFileItCannotWriteFailsTheRunAndKeepsTheReport)
         {
             const std::filesystem::path nowhere = TestingOpenMW::outputFilePath("no-such-folder") / "deeper";
@@ -184,10 +184,9 @@ namespace RtxTool
             EXPECT_EQ(result.mReport.find("wrote"), std::string::npos) << result.mReport;
         }
 
-        /// **A run that failed before its last stop is closed for the stops it reached.** It was
-        /// left open, and the record of the run before it stood at the path to be compared as this
-        /// one's. A frame noted and never pictured is dropped rather than written as a hash of
-        /// nothing, and the run fails.
+        /// **A run that failed before its last stop is closed for the stops it reached**, so the record of
+        /// the run before it does not stand at the path as this one's. A frame noted and never pictured is
+        /// dropped rather than written as a hash of nothing, and the run fails.
         TEST(RtxRunRecordTest, anAbandonedRunWritesWhatItReachedAndFails)
         {
             const std::filesystem::path hashes = TestingOpenMW::outputFilePath("abandoned-hashes.csv");
@@ -219,12 +218,11 @@ namespace RtxTool
             std::filesystem::remove(hashes);
         }
 
-        /// **A run that begins removes everything the last run wrote where it writes**: its hashes,
-        /// its JSON, each stop's capture, frame times, sheet, map tile, doll and mean, and the
-        /// measured frames' pictures of its stops, `view-frame.png`. So a run that dies before it
-        /// writes its own leaves nothing another build wrote beside its pictures. What the run
-        /// does not name stays: another view's pictures, and a file of the stop's name that is no
-        /// frame's.
+        /// **A run that begins removes everything the last run wrote where it writes**: its hashes, JSON,
+        /// each stop's capture, frame times, sheet, map tile, doll and mean, and the measured frames'
+        /// pictures, `view-frame.png`, so a run that dies early leaves nothing another build wrote beside
+        /// its pictures. What the run does not name stays: another view's pictures, and a file of the
+        /// stop's name that is no frame's.
         TEST(RtxRunRecordTest, aRunThatBeginsRemovesTheLastRunsOutputs)
         {
             const std::filesystem::path folder = TestingOpenMW::outputFilePath("begun");

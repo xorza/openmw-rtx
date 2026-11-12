@@ -48,14 +48,12 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// What a white lamp of radius 100 radiates, once `makeLight` has derived it: the square of
-        /// the recorded radius by a quarter of pi, 7853.98, and white decodes to one.
+        /// What a white lamp of radius 100 radiates once `makeLight` has derived it: the square of the
+        /// radius by a quarter of pi, 7853.98, and white decodes to one.
         ///
-        /// **Formed as `makeLight` forms it and not written down**, because the pulse's peak is held
-        /// against it exactly. Six digits of it sat two thousandths under the float the walk
-        /// produces, and a lamp whose phase put a sample on the peak read over the bound by that —
-        /// the phase is the light's id, which is the count of lights the process made before it, so
-        /// which tests ran first decided whether this one passed.
+        /// **Formed as `makeLight` forms it, not written down**, because the pulse's peak is held against it
+        /// exactly: a six-digit literal sat two thousandths under the walk's float, and the phase (the light's
+        /// id, so test order) decided whether a sample on the peak read over the bound.
         const float sWhiteLampAtHundred = 100.0f * 100.0f * (0.25f * Shaders::PI);
 
         /// A light is sized by the radius the content states, and not by the cut-off the rasterizer
@@ -558,11 +556,9 @@ namespace Rtx::Testing
 
         /// A lamp the record says animates is mirrored at the instant the walk was told, not at rest.
         ///
-        /// **Because nothing else here would do it.** The game animates its lights in the update
-        /// traversal, and the harness runs none over the cell it stages — so every lamp in a `shot`,
-        /// a `view` and a `bench` burned at its resting brightness while the same lamp in the game
-        /// flickered. The walk holds the world's clock already, and a light's animation is a
-        /// function of that clock alone, so the walk is where the two can be made to agree.
+        /// **Because nothing else here would do it.** The game animates its lights in the update traversal,
+        /// which the harness does not run over the cell it stages; a light's animation is a function of the
+        /// world's clock alone, which the walk holds, so the walk is where the two can agree.
         TEST_F(RtxSceneExtractorTest, aWalkMirrorsALampAtTheInstantItWasToldRatherThanAtRest)
         {
             ESM::Light record;

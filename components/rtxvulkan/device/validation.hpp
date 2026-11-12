@@ -44,10 +44,9 @@ namespace Rtx
         void recordError(std::string&& text);
 
         /// Says every resource whose debug name starts with `prefix` belongs to a runtime that records
-        /// commands of its own into ours and synchronizes them itself — NGX, inside an evaluation —
-        /// so a synchronization hazard the layers find on such resources alone is that runtime's and
-        /// not a mistake of this renderer's: logged as a warning, and neither recorded nor fatal. Before
-        /// any command of the runtime's is recorded.
+        /// and synchronizes commands of its own into ours (NGX, inside an evaluation), so a hazard
+        /// the layers find on such resources alone is logged as a warning, neither recorded nor
+        /// fatal. Before any command of the runtime's is recorded.
         void disown(std::string prefix);
 
         /// Whether a hazard on these resources alone is a runtime's own (`disown`): every named image

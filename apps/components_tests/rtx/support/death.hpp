@@ -19,17 +19,15 @@
 namespace Rtx::Testing
 {
     /// What a death test's child finds in its environment, which is how it knows it is one.
-    ///
-    /// **gtest runs the whole binary again in the child**, its global set-up included, and says so
-    /// only through a flag of its own that it tells user code not to read. A set-up that builds what
-    /// every test shares — `rtx-gpu-tests`'s renderer, three and a half seconds — would build it
-    /// again for a statement that aborts. `expectDies` sets this before its child starts, and the parent
-    /// keeps it too.
+    /// **gtest runs the whole binary again in the child**, its global set-up included, and says so only
+    /// through a flag it tells user code not to read. A set-up that builds what every test shares
+    /// (`rtx-gpu-tests`'s renderer, three and a half seconds) would build it again for a statement that
+    /// aborts, so `expectDies` sets this before its child starts, and the parent keeps it too.
     inline constexpr const char* sDeathChildVariable = "RTX_TESTS_DEATH_CHILD";
 
     /// **Whether this process started as a death test's child**, `sDeathChildVariable` read once as it
-    /// starts: the parent holds the variable as well from its first death test on, and a question asked
-    /// after that, as what a device made later keeps (`getPipelineCacheSpec`), would take it for one.
+    /// starts: the parent holds the variable from its first death test on, so a later question, as what a
+    /// device made later keeps (`getPipelineCacheSpec`), would take it for one.
     inline const bool sStartedAsDeathChild = [] {
         const char* const value = std::getenv(sDeathChildVariable);
         return value != nullptr && std::string_view(value) == "1";
@@ -42,12 +40,10 @@ namespace Rtx::Testing
 
     /// Expects `statement` to end the process with `message`, the way a failed `assert` does.
     ///
-    /// **The child leaves no core**, by `TestPlatform::disableCoreDump`, and the binary itself
-    /// still leaves one where it really crashes.
-    ///
-    /// **An uncaught exception says what the crash catcher's report would**, `Crash::terminateReason`,
-    /// on the standard error the test reads. There is no catcher here, and MSVC's own terminate
-    /// handler aborts without a word where libstdc++'s names the exception.
+    /// **The child leaves no core**, by `TestPlatform::disableCoreDump`; the binary itself still leaves
+    /// one where it really crashes. **An uncaught exception says what the crash catcher's report would**
+    /// (`Crash::terminateReason`) on the standard error, since there is no catcher here and MSVC's own
+    /// terminate handler aborts without a word.
     ///
     /// @param where the caller's own line, never passed, so a failure reports there.
     inline void expectDies(const std::function<void()>& statement, std::string_view message,

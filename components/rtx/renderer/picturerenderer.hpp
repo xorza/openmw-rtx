@@ -66,10 +66,9 @@ namespace Rtx
 
         /// Traces the scene from `view` into a GUI texture rather than into the frame: a map
         /// tile, the inventory doll. Not the frame's chain — nothing upscales or averages and the
-        /// exposure is one, because a still has no previous frame. Recorded and not run: the picture
-        /// rides the next submit, reads the copy of the scene its last placement wrote, and the next
-        /// placement of that scene waits for the frame it rode. Whether it recorded the picture:
-        /// false for a view of no pixels, which records nothing.
+        /// exposure is one. Recorded and not run: the picture rides the next submit, reads the copy of
+        /// the scene its last placement wrote, and the next placement of that scene waits for the
+        /// frame it rode. Whether it recorded the picture: false for a view of no pixels.
         ///
         /// @param scene what to trace against: a slot `addViewScene` gave out, or the world's for the
         ///        one the frame is drawn from. A map tile is a picture of the world; a doll is not.

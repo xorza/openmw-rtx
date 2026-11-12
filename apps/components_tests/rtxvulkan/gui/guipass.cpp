@@ -145,10 +145,9 @@ namespace Rtx
 
         /// Half-transparent red over opaque blue, on the left half only.
         ///
-        /// **Every expected byte is exact.** An alpha of 128/255 makes the source's contribution
-        /// `255 * 128/255 = 128` and what it leaves of the destination `255 * 127/255 = 127`, so the
-        /// blend has no rounding to argue about — and the right half says the draw stayed inside its
-        /// own triangles.
+        /// **Every expected byte is exact.** An alpha of 128/255 makes the source's contribution `255 * 128/255 = 128`
+        /// and what it leaves of the destination `255 * 127/255 = 127`, so the blend has no rounding to argue about,
+        /// and the right half says the draw stayed inside its own triangles.
         TEST_F(RtxGuiPassTest, aHalfTransparentQuadBlendsOverWhatWasAlreadyThere)
         {
             const Texture texture = makeTexture(Testing::describeTexel(sWhiteTexel), "white");
@@ -169,11 +168,10 @@ namespace Rtx
 
         /// A vertex is drawn whatever depth it carries, because depth decides nothing here.
         ///
-        /// **The pass has no depth attachment**, and widgets are drawn in the order MyGUI hands them
-        /// over. What a vertex's z would decide is whether Vulkan keeps it at all — it clips z
-        /// outside `[0, w]` — and OpenMW's book page writes minus one for every glyph, built against
-        /// a GL projection that keeps it. Every dialogue's text was clipped away whole. So the
-        /// shader drops the z, and a quad at minus one, at plus two and at nought are one quad.
+        /// **The pass has no depth attachment**, and widgets are drawn in the order MyGUI hands them over. Vulkan
+        /// clips z outside `[0, w]`, and OpenMW's book page writes minus one for every glyph, built against a GL
+        /// projection that keeps it, so every dialogue's text was clipped away whole. The shader drops the z, so a
+        /// quad at minus one, at plus two and at nought are one quad.
         TEST_F(RtxGuiPassTest, aQuadIsDrawnAtAnyDepth)
         {
             const Texture texture = makeTexture(Testing::describeTexel(sWhiteTexel), "white");
@@ -198,11 +196,10 @@ namespace Rtx
 
         /// The texture is what the quad shows, and its first row is the one at the top of the frame.
         ///
-        /// **This is the assertion that catches a flipped V.** MyGUI puts texture coordinate zero at
-        /// the top of a widget and clip coordinate +1 there too; Vulkan's clip space points the other
-        /// way, and the pass answers that with a flipped viewport rather than by touching the
-        /// coordinates. Get it wrong and every glyph in the game is upside down — which is obvious on
-        /// a screen and invisible to every other assertion here.
+        /// **This is the assertion that catches a flipped V.** MyGUI puts texture coordinate zero at the top of a
+        /// widget and clip coordinate +1 there too; Vulkan's clip space points the other way, and the pass answers
+        /// with a flipped viewport rather than by touching the coordinates. Wrong, every glyph is upside down, which
+        /// no other assertion here sees.
         TEST_F(RtxGuiPassTest, theTexturesFirstRowLandsAtTheTopOfTheFrame)
         {
             // Two by two, every corner distinguishable: red and green across the first row, blue and
@@ -248,9 +245,8 @@ namespace Rtx
 
         /// Two batches, two textures, one buffer: the second must not be drawn with the first's.
         ///
-        /// **What a per-batch push descriptor is for.** A GUI frame is dozens of these — a skin
-        /// atlas, then a font, then another skin — and binding once for all of them is a mistake
-        /// that looks like a font drawn in wood panelling.
+        /// **What a per-batch push descriptor is for.** A GUI frame is dozens of these, and binding once for all of
+        /// them draws a font in wood panelling.
         TEST_F(RtxGuiPassTest, eachBatchIsDrawnWithItsOwnTexture)
         {
             constexpr std::array<std::uint8_t, 4> sGreenTexel{ 0, 255, 0, 255 };
@@ -282,13 +278,11 @@ namespace Rtx
 
         /// The same quad drawn additively and drawn over, side by side in one recording.
         ///
-        /// **Both halves in one call on purpose**: it is the only assertion that the pass rebinds
-        /// when the mode changes rather than drawing everything with whichever pipeline came first.
-        ///
-        /// Half-transparent red over opaque blue, so the arithmetic is exact either way. The source
-        /// contributes `255 * 128/255 = 128` red in both. What separates them is the blue already
-        /// there: `Over` keeps `255 * 127/255 = 127` of it, `Additive` keeps all 255. That gap is
-        /// the whole difference between a hit flash reading as light and reading as a tint.
+        /// **Both halves in one call on purpose**: it is the only assertion that the pass rebinds when the mode
+        /// changes rather than drawing everything with whichever pipeline came first. Half-transparent red over opaque
+        /// blue, so the arithmetic is exact either way: the source contributes `255 * 128/255 = 128` red in both, and
+        /// the blue already there is what separates them: `Over` keeps `255 * 127/255 = 127` of it, `Additive` all
+        /// 255.
         TEST_F(RtxGuiPassTest, anAdditiveBatchAddsToTheFrameWhereAnOverOneReplacesIt)
         {
             const Texture texture = makeTexture(Testing::describeTexel(sWhiteTexel), "white");

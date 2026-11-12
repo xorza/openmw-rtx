@@ -35,10 +35,8 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// The world's shape as the game builds it — a root, a cell group, and the references
-        /// under it, each a transform over its shapes — walked as the world is: through
-        /// `extractWorld`, the one walk that freezes, with the reference roots at the stamp depth
-        /// production states, two, and a ring told of no world, so the graph is all it stands.
+        /// The world's shape as the game builds it (root, cell group, a transform per reference), walked
+        /// through `extractWorld`, the one walk that freezes, at the stamp depth production states.
         class RtxFrozenSubtreeTest : public RtxSceneExtractorTest
         {
         protected:
@@ -93,9 +91,8 @@ namespace Rtx::Testing
         /// again on the frame it first stands still there, and frozen then; **taken off the graph,
         /// it is swept.**
         ///
-        /// What a walk resolved is what `mMeshesReused` counts: one for the quad on a frame that
-        /// walks the reference, and nought on one that passes it, while `mInstances` counts the
-        /// placement either way, as the report reads it, and `mPassedFrozen` the quad a pass stood.
+        /// `mMeshesReused` counts what a walk resolved, so a passed reference adds none; `mInstances`
+        /// counts the placement either way, and `mPassedFrozen` the quad a pass stood.
         TEST_F(RtxFrozenSubtreeTest, aStillReferenceIsPassedAndKeptAndAMovedOneIsWalkedAgain)
         {
             const osg::ref_ptr<osg::MatrixTransform> reference = addReference(osg::Vec3f(10.0f, 0.0f, 0.0f));
@@ -247,8 +244,7 @@ namespace Rtx::Testing
         /// **A reference the game moves on every frame — a door turning — is walked on every frame
         /// and freezes on none**, placed where each frame put it; the first frame it stands still is
         /// walked once more, and the one after passes it. Freezing it on each frame it moved held
-        /// and gave back every entry it stands on, and allocated and freed its run, on every frame
-        /// of the motion.
+        /// and gave back every entry it stands on, and allocated and freed its run, on every frame.
         TEST_F(RtxFrozenSubtreeTest, aReferenceMovedOnEveryFrameIsWalkedAndFreezesOnceItStandsStill)
         {
             const osg::ref_ptr<osg::MatrixTransform> reference = addReference(osg::Vec3f());

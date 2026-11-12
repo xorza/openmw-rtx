@@ -26,37 +26,29 @@
 
 namespace Rtx
 {
-    /// The world's cells as this renderer stands them: their ground off the land records, and the
-    /// statics of the cells the simulation does not hold as instances of their templates. Not
-    /// `Terrain::QuadTreeWorld`'s chunks nor `Terrain::ObjectPaging`'s merges, which cut and fold
-    /// geometry by the eye's distance on the frame that first meets it — two thirds of the tail a
-    /// cell ring costs, measured. A ray tracer has no draw calls to save: a top level takes a
-    /// thousand instances of one bottom level as one entry apiece, and a cell's own 65 × 65 grid
-    /// meets its neighbours vertex for vertex.
+    /// The world's cells as this renderer stands them: their ground off the land records, and the statics of the cells
+    /// the simulation does not hold as instances of their templates. Not `Terrain::QuadTreeWorld`'s chunks nor
+    /// `Terrain::ObjectPaging`'s merges, which cut and fold geometry by the eye's distance on the frame that first
+    /// meets it: two thirds of the tail a cell ring costs. A ray tracer has no draw calls to save: a top level takes a
+    /// thousand instances of one bottom level as one entry apiece, and a cell's own 65 × 65 grid meets its neighbours
+    /// vertex for vertex.
     ///
-    /// Two rings, and a thread between them. The *prepared* ring is the reach plus one band: each
-    /// cell in it has been read by the thread and adopted by the frame into the scene, so its
-    /// meshes stand on the device before anything can see them, and is kept until it is a cell
-    /// past the band (`keptTo`). The *placed* ring is the reach: a cell in it has its ground in
-    /// the top level, and outside the active grid its statics too. A frame adopts at most one
-    /// prepared cell and moves the placements of the cells that crossed a boundary. This is the
-    /// policy; `CellHolds` is the bookkeeping of what the reader lent and the holds adoption
-    /// took; `CellPlacer` is what stands and by what rule. A model's drawable is the template's,
-    /// so a mesh adopted here is the mesh the frame's walk finds under the clone when the cell
-    /// becomes active, and nothing is uploaded twice. The ground's rows are the ring's own: no
-    /// drawable will ever name them, so the placer holds them on the scene. What this adopts goes
-    /// through the extractor's own resolvers inside the walk (`SceneAdopter`), which is also the
-    /// scene everything here stands in and the walk's counts it adds to, and holds by
-    /// `Reach::mHolds` rather than being named again on every walk. Everything the thread reads
-    /// is lent and given back — `Spares` says why an address and not a shared count, and `letGo`
-    /// why a hold is a cell's.
+    /// Two rings, and a thread between them. The *prepared* ring is the reach plus one band: each cell in it has been
+    /// read by the thread and adopted by the frame into the scene, so its meshes stand on the device before anything
+    /// can see them, and is kept until it is a cell past the band (`keptTo`). The *placed* ring is the reach: a cell in
+    /// it has its ground in the top level, and outside the active grid its statics too. A frame adopts at most one
+    /// prepared cell and moves the placements of the cells that crossed a boundary. This is the policy; `CellHolds` is
+    /// the bookkeeping of what the reader lent and the holds adoption took; `CellPlacer` is what stands and by what
+    /// rule. A model's drawable is the template's, so a mesh adopted here is the mesh the frame's walk finds under the
+    /// clone when the cell becomes active, and nothing is uploaded twice. The ground's rows are the ring's own: no
+    /// drawable will ever name them, so the placer holds them on the scene. What this adopts goes through the
+    /// extractor's own resolvers inside the walk (`SceneAdopter`), and holds by `Reach::mHolds`. Everything the thread
+    /// reads is lent and given back; `Spares` says why an address and not a shared count.
     ///
-    /// **The lamps of the cells the game has not loaded are the ring's too.** `REC_LIGH` is not a
-    /// paged type and must not become one, because both renderers read the paging's type filter;
-    /// what this fork cannot keep is the lamp, because rays go everywhere, and a town four cells
-    /// away that goes dark at dusk is the world stating something the content files do not. Read
-    /// with the cell's other records in one walk of them, off the frame: the light stood by
-    /// `CellPlacer::place`, which says where, and the model as any static's.
+    /// **The lamps of the cells the game has not loaded are the ring's too.** `REC_LIGH` is not a paged type and must
+    /// not become one, because both renderers read the paging's type filter; rays go everywhere, and a town four cells
+    /// away that goes dark at dusk is the world stating something the content files do not. Read with the cell's other
+    /// records in one walk, off the frame: the light stood by `CellPlacer::place`, and the model as any static's.
     class CellRing
     {
     public:
@@ -78,13 +70,11 @@ namespace Rtx
 
         void setMinSize(float minSize) { mPlacer.setMinSize(minSize); }
 
-        /// Whether a walk waits for the cell it is about to adopt, so which frame a cell is adopted
-        /// on is the schedule's answer and not the thread's. **The order is the frame's**: a walk
-        /// adopts the nearest cell it wants by the rule `ask` sorts by, and waits for it where the
-        /// reader has not handed it over yet. Not the reader's order, which a newer ask breaks off
-        /// at a cell the wall decides: two runs adopted two cells of Seyda Neen in two orders, and
-        /// stood the same ground in other slots. One cell and one cell's groundcover a frame either
-        /// way.
+        /// Whether a walk waits for the cell it is about to adopt, so which frame a cell is adopted on is the
+        /// schedule's answer and not the thread's. **The order is the frame's**: a walk adopts the nearest cell it
+        /// wants by the rule `ask` sorts by, and waits for it where the reader has not handed it over yet. Not the
+        /// reader's order, which a newer ask breaks off at a cell the wall decides: two runs adopted two cells in two
+        /// orders, and stood the same ground in other slots. One cell and one cell's groundcover a frame either way.
         void setSettled(bool settled);
         bool isSettled() const { return mSettled; }
 

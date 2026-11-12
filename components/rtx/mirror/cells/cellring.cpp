@@ -335,11 +335,10 @@ namespace Rtx
 
     void CellRing::waitForNext(const osg::Vec3f& eye, const float band, const float grassBand)
     {
-        // **The nearest cell wanted, and not the first handed.** Everything in the band is asked
-        // or handed, so nothing that arrives during the wait comes before it. A cell of a band that
-        // left is not what the wait waited for: the first thing the reader hands over after a move
-        // is usually a cell nothing wants any more. The grass the same: a settled walk adopts its
-        // one cell's grass on the frame two runs agree on, or their pictures part.
+        // **The nearest cell wanted, and not the first handed.** Everything in the band is asked or handed, so nothing
+        // that arrives during the wait comes before it, and a cell of a band that left is not what the wait waited for.
+        // The grass the same: a settled walk adopts its one cell's grass on the frame two runs agree on, or their
+        // pictures part.
         const Nearer nearer{ .mGrid = mAround.mWorld.mGrid, .mEye = eye };
         const std::optional<osg::Vec2i> cell = owedOf(mAsking.mCells, mHanded, nearer);
         const std::optional<osg::Vec2i> grass = owedOf(mAsking.mGrass, mHandedGrass, nearer);

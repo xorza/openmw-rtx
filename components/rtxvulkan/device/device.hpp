@@ -28,11 +28,10 @@ namespace Rtx
     /// driver does not give is nothing.
     struct CompiledUse
     {
-        /// The scratch memory a lane uses, in bytes — what the compiler spilled out of the
-        /// registers, and any array indexed at run time: AMD's `scratchMemUsageInBytes`, RADV's
-        /// `Scratch size`, where its `Spilled VGPRs` land, and NVIDIA's `Local Memory Size`, read in
-        /// its bytes (`StatisticNames::mScratchBits`). RADV's `Spilled SGPRs` are not a spill to
-        /// memory: ACO keeps a scalar register spilled in a vector register's lanes.
+        /// The scratch memory a lane uses, in bytes — what the compiler spilled out of the registers, and
+        /// any array indexed at run time: AMD's `scratchMemUsageInBytes`, RADV's `Scratch size` and
+        /// NVIDIA's `Local Memory Size` (`StatisticNames::mScratchBits`). RADV's `Spilled SGPRs` are not a
+        /// spill to memory: ACO keeps a scalar register spilled in a vector register's lanes.
         std::optional<std::uint64_t> mScratchBytes;
 
         /// The vector registers a lane holds, which is how many waves share a SIMD's register file:
@@ -103,11 +102,10 @@ namespace Rtx
         std::function<std::vector<std::string>(VkInstance, VkPhysicalDevice, const DriverProfile&)> mAskedExtensions{};
     };
 
-    /// Which `VkObjectType` a handle is, so that `Device::setName` takes the handle and never a
-    /// type a caller could get wrong. Every handle this backend names is listed; one that is not is
-    /// a compile error rather than a name filed under the wrong kind. The handles are distinct
-    /// pointer types on the 64-bit targets this backend runs on, which is what lets them be told
-    /// apart at all.
+    /// Which `VkObjectType` a handle is, so `Device::setName` takes the handle and never a type a caller
+    /// could get wrong. Every handle this backend names is listed; one that is not is a compile error.
+    /// The handles are distinct pointer types on the 64-bit targets this backend runs on, which is what
+    /// lets them be told apart at all.
     template <class Handle>
     struct ObjectTypeOf;
 
@@ -225,11 +223,9 @@ namespace Rtx
         /// The queue's clock, which every submit signals and every wait reads.
         Timeline& getTimeline() const { return *mTimeline; }
 
-        /// The queue's one command pool, which every submit is made out of, and what the queue may
-        /// still be reading, which everything on the frame path lets go of through. The queue's
-        /// and not the renderer's, so whatever holds the device can submit and bury without being
-        /// handed either: a pool and a graveyard threaded through every constructor was two
-        /// references beside a third they could have been reached through.
+        /// The queue's one command pool, which every submit is made out of, and what the queue may still be
+        /// reading, which everything on the frame path lets go of through. The queue's and not the
+        /// renderer's, so whatever holds the device can submit and bury without being handed either.
         CommandPool& getPool() const { return *mPool; }
         Graveyard& getGraveyard() const { return *mGraveyard; }
 
@@ -251,10 +247,9 @@ namespace Rtx
 
         const std::filesystem::path& getShaderDirectory() const { return mShaderDirectory; }
 
-        /// The census every pipeline made on the device counts its stores that were not finite
-        /// into, or null where its shaders do not count. The device's and not the renderer's, for
-        /// the reason the pool is: every layout binds it and every push writes it, which reach it
-        /// where a pipeline is made and pushed rather than having it handed to every pass.
+        /// The census every pipeline made on the device counts its stores that were not finite into, or
+        /// null where its shaders do not count. The device's, as the pool is: every layout binds it and
+        /// every push writes it, where a pipeline is made and pushed.
         const NotFiniteCensus* getCensus() const { return mCensus.get(); }
 
         /// The counters every zone of a frame reads (`GpuTimer`), or null where the run did not ask
@@ -273,10 +268,9 @@ namespace Rtx
             return flags;
         }
 
-        /// Logs what the driver's compiler made of `pipeline` — registers a thread, spills, shared
-        /// memory a block — where the device captures it, and its compile time. The register count
-        /// exists only inside the driver, which is what lets an occupancy figure be had here with no
-        /// external profiler. Where the device is asked for its code, writes it (`writeCode`).
+        /// Logs what the driver's compiler made of `pipeline` — registers a thread, spills, shared memory a
+        /// block — where the device captures it, and its compile time: an occupancy figure with no external
+        /// profiler. Where the device is asked for its code, writes it (`writeCode`).
         void reportPipeline(
             VkPipeline pipeline, std::string_view name, std::optional<double> compileMs = std::nullopt) const;
 
@@ -322,10 +316,10 @@ namespace Rtx
                 mEndLabel(commands);
         }
 
-        /// Marks the queue's progress with `checkpoint`, which the queue reports as the last one
-        /// each stage passed if the device is lost: NVIDIA's checkpoints, or AMD's buffer markers,
-        /// whichever the driver offers, where the run asked for them (`DeviceReport::mBreadcrumbs`).
-        /// Nothing where it did not, or where the driver offers neither.
+        /// Marks the queue's progress with `checkpoint`, which the queue reports as the last one each stage
+        /// passed if the device is lost: NVIDIA's checkpoints or AMD's buffer markers, whichever the driver
+        /// offers, where the run asked for them (`DeviceReport::mCheckpoints`, `mMarkers`). Nothing where
+        /// it did not, or where the driver offers neither.
         void checkpoint(VkCommandBuffer commands, const Checkpoint* checkpoint) const
         {
             if (mCmdSetCheckpoint != nullptr)
@@ -427,10 +421,10 @@ namespace Rtx
         /// Where the pipelines' code goes, null where `mReport` asks for none.
         std::unique_ptr<PipelineCodeFolder> mCode;
 
-        // Last, so that they are torn down first, and in this order, because a later one dies
-        // earlier: everything after the graveyard buries into it as it goes, the graveyard ends
-        // what it holds against the clock and gives memory back to the allocator, and saving the
-        // cache and freeing a block both call on the device that `mHandle` closes last of all.
+        // Last, so that they are torn down first, and in this order: everything after the graveyard buries
+        // into it as it goes, the graveyard ends what it holds against the clock and gives memory back to
+        // the allocator, and saving the cache and freeing a block both call on the device `mHandle` closes
+        // last of all.
         std::unique_ptr<PipelineCache> mPipelineCache;
         std::unique_ptr<MemoryAllocator> mMemory;
         std::unique_ptr<Timeline> mTimeline;

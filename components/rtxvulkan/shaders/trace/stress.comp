@@ -4,13 +4,10 @@
 #extension GL_EXT_shader_realtime_clock : require
 
 // A loop that holds the queue for as long as it is told and reads nothing the frame has, so that a frame
-// recorded over it is a frame recorded over a device that is still busy — what `--stress-overlap` is for.
-//
-// **Held against the device's real-time clock, and not by a count.** A count is a time only at one clock,
-// and the card's clock is not the same from one frame to the next: a count set from the frame before read
-// 0.9 ms on one frame and 5.5 on the next off an idle card, and took a dozen frames to settle.
-// `clockRealtimeEXT` runs at a fixed rate whatever the card is clocked at, so the loop leaves when the time
-// it was told has passed, on the first frame as on every other.
+// recorded over it is recorded over a device that is still busy — what `--stress-overlap` is for. Held
+// against the device's real-time clock and not by a count: a count is a time only at one clock, and a count
+// set from the frame before read 0.9 ms on one frame and 5.5 on the next off an idle card. `clockRealtimeEXT`
+// runs at a fixed rate whatever the card is clocked at.
 
 #include "shared/counts.h"
 #include "shared/sets.h"

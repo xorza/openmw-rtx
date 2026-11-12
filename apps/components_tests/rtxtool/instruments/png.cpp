@@ -65,9 +65,8 @@ namespace RtxTool
             EXPECT_EQ(kept->mHeight, 1u);
             EXPECT_EQ(kept->mSamples, read.value().mSamples);
 
-            // **A picture the disk refuses is an error, described or not**: a full disk, which
-            // Linux keeps a device of, refuses the bytes at the write or at the close, and either way
-            // the run is told; the plugin's own file said it wrote it.
+            // **A picture the disk refuses is an error, described or not**: a full disk refuses the bytes
+            // at the write or at the close, and either way the run is told.
             const std::filesystem::path full("/dev/full");
             if (std::filesystem::exists(full))
             {

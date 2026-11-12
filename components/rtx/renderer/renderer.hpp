@@ -141,18 +141,15 @@ namespace Rtx
 
         /// The video memory the renderer takes its budget to be, in bytes, where the device states
         /// more; nothing to take the device's word. For a run that asks what a smaller card does
-        /// with a place: content stops where it would stop there — textures held to a smaller side
-        /// first — and what still does not fit is refused as it would be. What the frame itself
-        /// holds is never refused, whatever this says. The harness's, and never a played session's.
+        /// with a place: textures are held to a smaller side first, and what still does not fit is
+        /// refused. What the frame itself holds is never refused. The harness's, never a played session's.
         std::optional<std::uint64_t> mMemoryBudget{};
 
         /// The upscaling modes whose frame targets the reserve keeps room for beside the running
         /// mode's, for a run that moves between them (`Renderer::setUpscale`): the reserve stands at
-        /// the largest of them from the start, so a move between two leaves it where it was and the
-        /// world stands as it stood. A reserve that followed the mode built the world again against
-        /// another room under a tight budget, and a picture of one mode was held against a world of
-        /// other textures. The harness's, and never a played session's: a player's reserve is the
-        /// running mode's alone, which is room the textures stand larger in.
+        /// the largest of them from the start, so a move between two leaves the world as it stood.
+        /// The harness's, and never a played session's: a player's reserve is the running mode's
+        /// alone, which is room the textures stand larger in.
         std::vector<Upscale> mReservedUpscales{};
 
         /// Where the driver's own code of every pipeline is written as text, a file a pipeline, or
@@ -217,9 +214,9 @@ namespace Rtx
         /// the zones it times on the device (`FrameResult::mGpu`), a picture and a digest a frame
         /// may ask back (`FrameOptions::mReadBack`), and what the driver's compiler made of each
         /// pipeline. Measured by default, so a reader who forgets it gets numbers rather than a
-        /// silent nought; the game plays. Not a knob of the run's picture, which is why it is not
-        /// in the profile. A played frame still opens its zones, which name the work a lost device
-        /// was on (`Device::checkpoint`): what goes is the timestamps and the read of them.
+        /// silent nought. Not a knob of the run's picture, which is why it is not in the profile. A
+        /// played frame still opens its zones, which name the work a lost device was on
+        /// (`Device::checkpoint`): what goes is the timestamps and the read of them.
         Reporting mReporting = Reporting::Measured;
     };
 
@@ -317,11 +314,10 @@ namespace Rtx
         /// What the counters read over each span, `counterNames().size()` a span in the order of
         /// `spans`, or nothing where they read none.
         ///
-        /// **The renderer's memory and not the report's**, unlike the spans, so a played session's
-        /// report, copied a few times a frame, carries no room for what it never reads. The timer
-        /// writes it only when it resolves its slot's next frame, so it stands as
-        /// `FrameResult::mPixels` does: until the `renderFrame` after the one the report was
-        /// collected before.
+        /// **The renderer's memory and not the report's**, so a played session's report, copied a
+        /// few times a frame, carries no room for what it never reads. The timer writes it only when
+        /// it resolves its slot's next frame, so it stands as `FrameResult::mPixels` does: until the
+        /// `renderFrame` after the one the report was collected before.
         std::span<const double> counters() const { return mCounters; }
 
         void setCounters(std::span<const std::string_view> names, std::span<const double> values)
@@ -425,8 +421,7 @@ namespace Rtx
         /// What the hold's own clock said the hold came to, in milliseconds: what
         /// `RenderProfile::mStressOverlapMs` asked and the tick past it, on a run that holds, and
         /// nought on one that does not. The loop's reading and not the timer's zone around it,
-        /// which takes in the launch and the drain: this is the figure that says the loop did as
-        /// it was told, and the zone's excess over it is the card's.
+        /// which takes in the launch and the drain.
         double mHeldMs = 0.0;
 
         /// How long the ring waited for this frame; nought where it was already done.
@@ -494,19 +489,17 @@ namespace Rtx
 
     /// One traced image, whichever API produced it: what holds the scenes and traces the pictures
     /// inside the interface (`PictureRenderer`), what the interface is drawn on (`GuiRenderer`),
-    /// what produces a frame, and what a test or a harness reads back. Nothing below
-    /// this line is abstracted — buffers, memory, command buffers and pipelines belong to a backend
-    /// outright — so a method here is worth a whole scene or a whole frame, and none is reached per
-    /// instance or per pixel. `slot` says which scene throughout: the world's, or one
-    /// `addViewScene` handed out for a picture inside the interface.
+    /// what produces a frame, and what a test or a harness reads back. Nothing below this line is
+    /// abstracted, so a method here is worth a whole scene or a whole frame, and none is reached per
+    /// instance or per pixel. `slot` says which scene throughout: the world's, or one `addViewScene`
+    /// handed out for a picture inside the interface.
     class Renderer : public PictureRenderer, public GuiRenderer
     {
     public:
         /// Resizes the frame; what the trace runs at follows from the upscaler, and `getExtents`
-        /// says. Where the room the new targets take grows past what the world's content left, or
-        /// shrinks where content was held back for want of room, the world goes with the old
-        /// targets (`describeHeld` answers nought), so its content is held against the room it
-        /// has: the next hand-over builds it again (`SceneUploader`), and a frame is traced after it.
+        /// says. Where the new targets take more room than the world's content left, or less where
+        /// content was held back for want of room, the world goes with the old targets
+        /// (`describeHeld` answers nought): the next hand-over builds it again (`SceneUploader`).
         virtual void resize(std::uint32_t width, std::uint32_t height) = 0;
 
         /// The window is `width` by `height` pixels: the surface follows it, and the frame is shown
@@ -546,19 +539,17 @@ namespace Rtx
 
         /// How many of `set`'s kernels are made, waiting `patience` at most for the rest, and
         /// rethrowing what making one threw. The renderer starts making them as it is made, on
-        /// threads of its own, and returns without them — ten seconds on a cold cache — so a host
-        /// shows this on a loading screen rather than a window that stopped answering. Every call
-        /// that traces waits for the kernels it draws with first, so a host that never asks is right
-        /// all the same, and held on its first trace instead.
+        /// threads of its own, and returns without them, so a host shows this on a loading screen.
+        /// Every call that traces waits for the kernels it draws with first, so a host that never
+        /// asks is right all the same, and held on its first trace instead.
         virtual JobProgress awaitKernels(KernelSet set, std::chrono::milliseconds patience) = 0;
 
         /// Traces one frame; `setScene` first, which is an assert. Returns before the device has
         /// drawn it, so the caller can place the next one meanwhile, and `finishFrame` reads back
-        /// what it came to, the reconstruction it resolved among it (`FrameResult::mReconstruction`):
-        /// one road for that, the frame's own result. At most `sFramesInFlight` frames are in flight.
-        /// What comes back at once is what the frame was described as, which the host holds no copy
-        /// of. The air is carried on by the reading's clock, from where the last frame or `holdAir`
-        /// left it.
+        /// what it came to, the reconstruction it resolved among it (`FrameResult::mReconstruction`).
+        /// At most `sFramesInFlight` frames are in flight. What comes back at once is what the frame
+        /// was described as, which the host holds no copy of. The air is carried on by the reading's
+        /// clock, from where the last frame or `holdAir` left it.
         virtual FrameTraced renderFrame(const FrameRequest& request) = 0;
 
         /// Stands the air where `air` says it was carried, as of its sky clock, so the next frame at
@@ -569,8 +560,7 @@ namespace Rtx
         /// Closes the frame this frame's placements of the world opened, with no trace: where a
         /// placement is not followed by `renderFrame`, because the host refused the camera. Without
         /// it the frame stays open into the host's next, and every placement after takes one more
-        /// command buffer. The frame is submitted and numbered and comes back with no report.
-        /// Nothing where no placement opened a frame.
+        /// command buffer. Nothing where no placement opened a frame.
         virtual void skipFrame() = 0;
 
         /// How many frames were closed, by `renderFrame` or by `skipFrame`, which is the number the
@@ -583,11 +573,9 @@ namespace Rtx
         virtual std::optional<FrameResult> finishFrame() = 0;
 
         /// What the oldest unreported frame came to, waiting only where the ring has no room for
-        /// the frame about to be placed, or nothing where none has finished. Before `placeScene`,
-        /// this is what keeps `sFramesInFlight` in flight: the frame behind stays on the device while the
-        /// next is placed, and the report is the frame before it. `finishFrame` there instead waits
-        /// the frame behind out on every frame, so the device idles from its last pass until the
-        /// next placement is submitted — a gap a device-bound frame pays in full.
+        /// the frame about to be placed, or nothing where none has finished. Called before
+        /// `placeScene`, it keeps `sFramesInFlight` in flight: `finishFrame` there instead waits the
+        /// frame behind out on every frame, so the device idles until the next placement is submitted.
         virtual std::optional<FrameResult> collectFrame() = 0;
 
         /// Shows the frame `renderFrame` just produced. A surface that stopped matching the window

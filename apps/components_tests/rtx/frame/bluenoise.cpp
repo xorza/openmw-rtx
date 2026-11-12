@@ -36,15 +36,10 @@ namespace Rtx
             return field;
         }
 
-        /// How much of the field's power sits at each distance from the origin in frequency.
-        ///
-        /// The mean is taken out first, so the enormous zero-frequency term — which says only how
-        /// bright the field is on average and nothing about its arrangement — does not drown
-        /// everything else. Distances wrap, because the tile does.
-        ///
-        /// A plain O(n^2) transform over four thousand cells, which is sixteen million operations
-        /// and runs in well under a second. A fast one would be a second implementation to be right
-        /// about for no gain here.
+        /// How much of the field's power sits at each distance from the origin in frequency. The mean is taken
+        /// out first so the zero-frequency term does not drown the rest, and distances wrap, because the tile does.
+        /// A plain O(n^2) transform over four thousand cells: a fast one would be a second implementation to be
+        /// right about for no gain here.
         std::vector<double> radialPower(const std::vector<float>& field)
         {
             const double mean = std::accumulate(field.begin(), field.end(), 0.0) / static_cast<double>(sCount);
@@ -152,14 +147,11 @@ namespace Rtx
             EXPECT_EQ(differs, sBlueNoise.end()) << "the first value apart is " << (differs - sBlueNoise.begin());
         }
 
-        /// The tile is the same tile on every toolchain: its first two pixels and its last, rank by
-        /// rank.
+        /// The tile is the same tile on every toolchain: its first two pixels and its last, rank by rank.
         ///
-        /// **Pinned, because the seeds alone did not pin it.** The first arrangement was dealt by
-        /// `std::shuffle`, whose algorithm is each standard library's own, so libstdc++ and libc++
-        /// shuffled one seed into two tiles and two builds traced different noise. These are the
-        /// ranks the written-out shuffle deals, and a build with GCC and libstdc++, with Clang and
-        /// libstdc++ and with Clang and libc++ all dealt them.
+        /// **Pinned, because the seeds alone did not pin it.** `std::shuffle`'s algorithm is each standard
+        /// library's own, so one seed shuffled into two tiles. These are the ranks the written-out shuffle deals,
+        /// the same on GCC and Clang, libstdc++ and libc++.
         TEST(RtxBlueNoiseTest, theTileIsTheSameOnEveryToolchain)
         {
             ASSERT_EQ(Shaders::RANDOM_STREAMS, 12u) << "the pinned ranks are twelve channels a pixel";
@@ -205,19 +197,13 @@ namespace Rtx
 
         /// The tile has next to no low-frequency power, and the same values shuffled have plenty.
         ///
-        /// **This is the whole claim, and it is only a claim about arrangement.** Both fields below
-        /// hold the identical four thousand values and are identically uniform; a test of their
-        /// histograms could not tell them apart. What differs is where the power sits: void-and-
-        /// cluster spends it all above the eighth of the spectrum measured here, and a shuffle
-        /// spreads it evenly, which puts a fifth of it underneath.
+        /// **This is a claim about arrangement only.** Both fields below hold the identical values, so a histogram
+        /// could not tell them apart: void-and-cluster spends its power above the eighth of the spectrum measured
+        /// here and a shuffle puts a fifth of it underneath. That fifth survives a denoiser, which cannot tell a
+        /// low-frequency blotch from smooth lighting.
         ///
-        /// It matters because that fifth is what survives a denoiser. Fine grain averages away
-        /// against its neighbours; a low-frequency blotch is indistinguishable from lighting that is
-        /// genuinely smooth, so a filter either keeps it or destroys the real thing beside it.
-        ///
-        /// The bar is a hundredth of the shuffle's share. Measured, the two are 0.01% against 20%,
-        /// so this passes by more than two orders and would fail the moment the search stopped
-        /// working — a mask left at its initial random arrangement lands on the shuffle's figure.
+        /// The bar is a hundredth of the shuffle's share. Measured, the two are 0.01% against 20%, and a mask left
+        /// at its initial random arrangement lands on the shuffle's figure.
         TEST(RtxBlueNoiseTest, theTileSpendsItsPowerHighWhereTheSameValuesShuffledSpreadItEvenly)
         {
             const double shuffled = lowFrequencyShare(shuffledSameValues());

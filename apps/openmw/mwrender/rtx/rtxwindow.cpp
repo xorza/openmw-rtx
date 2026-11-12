@@ -19,19 +19,10 @@ namespace MWRender
 {
     namespace
     {
-        /// How long the window must report one size before the renderer is rebuilt for it.
-        ///
-        /// **Because rebuilding costs about as long as this waits.** A new extent releases every
-        /// target and allocates them again — about a tenth of a second. A window dragged across a
-        /// screen passes through hundreds of extents, and following each of them would draw the
-        /// drag at ten frames a second.
-        ///
-        /// So a gesture is followed once it stops. Until then the surface keeps the extent it has,
-        /// and what the compositor shows is that picture scaled — which is what a window being
-        /// dragged shows anyway.
-        ///
-        /// **Six frames at sixty.** Long enough that a drag settles into one rebuild, short enough
-        /// that letting go of a window edge and seeing the picture follow reads as immediate.
+        /// How long the window must report one size before the renderer is rebuilt for it: a new extent
+        /// releases and allocates every target again, about a tenth of a second, and a window dragged across
+        /// a screen passes through hundreds of extents. A gesture is followed once it stops, and until then
+        /// the compositor shows the picture scaled. Six frames at sixty.
         constexpr double sSettleSeconds = 0.1;
     }
 
@@ -39,18 +30,15 @@ namespace MWRender
         const std::optional<SDL_WindowFlags> surface, const bool hidden, const std::optional<osg::Vec2i> pixels)
         : mHasSurface(surface.has_value())
     {
-        // **The backend's own flags, and no `SDL_GL_SetAttribute` anywhere near them.** No GL context
-        // is ever made, which is the point of the whole path.
+        // The backend's own flags, and no `SDL_GL_SetAttribute`: no GL context is ever made.
         mWindow.reset(openWindow(surface.value_or(SDL_WindowFlags{ 0 }), pixels));
         if (mWindow == nullptr)
             throw std::runtime_error(std::string("failed to create SDL window: ") + SDL_GetError());
         if (const char* const driver = SDL_GetCurrentVideoDriver())
             Crash::annotate("video driver", driver);
 
-        // **Hidden and not absent.** A surface still needs a window, and a swapchain built on one
-        // nobody is looking at costs a present per frame and nothing else — so a headless run is
-        // the same renderer rather than a second path through it. Never shown, it also keeps the
-        // compositor from raising a window over whatever the person running it is doing.
+        // Hidden and not absent: a surface still needs a window, and a swapchain on one nobody is looking at
+        // costs a present per frame, so a headless run is the same renderer rather than a second path.
         if (hidden)
             return;
         SDL_ShowWindow(mWindow.get());
@@ -105,7 +93,7 @@ namespace MWRender
         renderer.resize(
             static_cast<std::uint32_t>(presentation.mFrame.x()), static_cast<std::uint32_t>(presentation.mFrame.y()));
 
-        // **The renderer's own extent**, which everything above reads through the viewport.
+        // The renderer's own extent, which everything above reads through the viewport.
         const Rtx::FrameExtents extents = renderer.getExtents();
         camera.setViewport(0, 0, static_cast<int>(extents.mOutputWidth), static_cast<int>(extents.mOutputHeight));
     }

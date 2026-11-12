@@ -25,18 +25,16 @@ namespace Rtx::Testing
         MemoryAllocator& mMemory;
     };
 
-    /// The budget at which `use`'s ceiling stands `above` over what the video heap holds now:
-    /// what the heap holds, the process's memory outside the allocator among it, what the frame's
-    /// reserve has beyond what its targets hold, and once more what every other use before `use`
-    /// holds.
-    /// Throws on a device with no budget extension, which cannot say what the heap holds.
+    /// The budget at which `use`'s ceiling stands `above` over what the video heap holds now: what the heap holds, the
+    /// process's memory outside the allocator among it, what the frame's reserve has beyond what its targets hold, and
+    /// once more what every other use before `use` holds. Throws on a device with no budget extension, which cannot
+    /// say what the heap holds.
     VkDeviceSize budgetAbove(const MemoryAllocator& memory, MemoryUse use, VkDeviceSize above);
 
-    /// Video memory with no room left for content, for as long as one stands: every ceiling at
-    /// nought, and every gap in content's own blocks filled, so the next structure or texture is
-    /// refused however small it is — a card that has run out, as an arrival meets one. The
-    /// frame's own memory is still made, in blocks content never shares. Lifted on the way out,
-    /// the fillers before the limit.
+    /// Video memory with no room left for content, for as long as one stands: every ceiling at nought and every gap in
+    /// content's own blocks filled, so the next structure or texture is refused however small, as a card that has run
+    /// out would. The frame's own memory is still made, in blocks content never shares. Lifted on the way out, the
+    /// fillers before the limit.
     class NoRoomForContent
     {
     public:

@@ -29,13 +29,12 @@ namespace Rtx
         Lod,
     };
 
-    /// Answers what kind a node is by its class, learning each class once. **Keyed on the class's
-    /// `std::type_info`**, so a node met again costs a pointer compare rather than the casts `learn`
-    /// took, and each class is its own key, where the literals `META_Object` answers are shared by a
-    /// subclass that declares none with what it derives from. A class is learned as the kind it
-    /// derives from, which is what makes the `static_cast` in `as` sound. The pointer is a cache key
-    /// and not a claim: a second `type_info` of one class misses and is classified twice, never
-    /// wrongly. One per walking thread, because the table is written on a miss.
+    /// Answers what kind a node is by its class, learning each class once. **Keyed on the class's `std::type_info`**,
+    /// so a node met again costs a pointer compare rather than the casts `learn` took, and each class is its own key,
+    /// where the literals `META_Object` answers are shared by a subclass that declares none. A class is learned as the
+    /// kind it derives from, which is what makes the `static_cast` in `as` sound. The pointer is a cache key and not a
+    /// claim: a second `type_info` of one class misses and is classified twice, never wrongly. One per walking thread,
+    /// because the table is written on a miss.
     class NodeKinds
     {
     public:

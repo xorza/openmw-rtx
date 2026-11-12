@@ -99,15 +99,13 @@ namespace Rtx
             EXPECT_FLOAT_EQ(RipplePass::getExtent(), 2560.0f);
         }
 
-        /// One footfall at the eye presses a ring that spreads: after sixty steps its front stands
-        /// where the springs' wave speed carried it and nothing stands far beyond, and the field is
-        /// as symmetric as the stamp was.
+        /// One footfall at the eye presses a ring that spreads: after sixty steps its front stands where the springs'
+        /// wave speed carried it and nothing stands far beyond, and the field is as symmetric as the stamp was.
         ///
-        /// **The reach is the springs' own number.** `applySprings` couples a texel to its four
-        /// neighbours at `RIPPLE_STIFFNESS`, 0.28, which is a wave speed of `sqrt(0.28)` texels a
-        /// step — 0.53 — so sixty steps carry the front some thirty-two texels past the ring. Two
-        /// hundred texels out nothing has arrived, and at the axis the slope along it is nought by
-        /// symmetry.
+        /// **The reach is the springs' own number.** `applySprings` couples a texel to its four neighbours at
+        /// `RIPPLE_STIFFNESS`, 0.28, a wave speed of `sqrt(0.28)` = 0.53 texels a step, so sixty steps carry the front
+        /// some thirty-two texels past the ring. Two hundred texels out nothing has arrived, and at the axis the slope
+        /// along it is nought by symmetry.
         TEST_F(RtxRipplePassTest, aFootfallPressesARingThatSpreadsAndStaysSymmetric)
         {
             RipplePass ripples(getDevice());
@@ -136,12 +134,11 @@ namespace Rtx
             EXPECT_GT(largestSlope, 1.0e-3f) << "no ring within forty texels";
             EXPECT_GT(largestCurvature, 1.0e-5f) << "no curvature within forty texels";
 
-            // **The front stands where the wave speed carried the ring.** The ring is 12 units
-            // across a radius, 4.8 texels of 2.5, and the stamp presses out to twice that. Its
-            // outermost crest is carried `sqrt(RIPPLE_STIFFNESS) * 60 = 31.75` texels, to 36.55: the
-            // last lobe of the slope above a tenth of the largest stands within two texels of it,
-            // the lattice's dispersion leaving the rest of the train behind. Past the rim carried
-            // as far, 41.35 texels, the slope is under a hundredth of the largest.
+            // **The front stands where the wave speed carried the ring.** The ring is 12 units across a radius, 4.8
+            // texels of 2.5, and the stamp presses out to twice that. Its outermost crest is carried
+            // `sqrt(RIPPLE_STIFFNESS) * 60 = 31.75` texels, to 36.55: the last lobe of the slope above a tenth of the
+            // largest stands within two texels of it, the lattice's dispersion leaving the rest of the train behind.
+            // Past the rim carried as far, 41.35 texels, the slope is under a hundredth of the largest.
             const float radius = footfall[0].mSize / Shaders::RIPPLE_TEXEL;
             const float carried = std::sqrt(Shaders::RIPPLE_STIFFNESS) * 60.0f;
             EXPECT_NEAR(static_cast<float>(frontOf(surface)), carried + radius, 2.0f) << "the front's crest";
@@ -171,16 +168,15 @@ namespace Rtx
             EXPECT_NEAR(surface[at + 2], slopeSquared, 1.0e-3f * std::max(slopeSquared, 1.0e-3f));
         }
 
-        /// **The wake keeps its pace at any frame rate**: a second of the water's clock spreads the
-        /// ring as far in 120 frames of half a sixtieth, in 240 of a quarter, and in 20 frames of
-        /// three that each take three steps, as in 60 of one.
+        /// **The wake keeps its pace at any frame rate**: a second of the water's clock spreads the ring as far in 120
+        /// frames of half a sixtieth, in 240 of a quarter, and in 20 frames of three that each take three steps, as in
+        /// 60 of one.
         ///
-        /// **Measured by where the slope's energy stands**, `Σ r s² / Σ s²` out along +x, which
-        /// moves with the ring smoothly where its outermost crest jumps a lobe at a time. At 60
-        /// steps of one it is 21.59 texels; shorter steps bring it in by the lattice's dispersion
-        /// alone, which a step of one partly cancels — 21.32 at half and 21.18 at a quarter — so
-        /// every pace stands within half a texel of it. Stepped once a sixtieth as upstream steps,
-        /// the 20 frames took 20 steps, and the ring stood where a third of a second leaves it.
+        /// **Measured by where the slope's energy stands**, `Σ r s² / Σ s²` out along +x, which moves with the ring
+        /// smoothly where its outermost crest jumps a lobe at a time. At 60 steps of one it is 21.59 texels; shorter
+        /// steps bring it in by the lattice's dispersion alone, which a step of one partly cancels (21.32 at half and
+        /// 21.18 at a quarter), so every pace stands within half a texel of it. Stepped once a sixtieth as upstream
+        /// steps, the 20 frames took 20 steps, and the ring stood where a third of a second leaves it.
         TEST_F(RtxRipplePassTest, theWakeKeepsItsPaceAtAnyFrameRate)
         {
             const float middle = 0.5f * Shaders::RIPPLE_TEXEL;
@@ -211,13 +207,13 @@ namespace Rtx
             EXPECT_NEAR(spreadAt(20, 3.0), sixty, 0.5) << "20 frames of three sixtieths";
         }
 
-        /// **A frame longer than the steps it may take drops the rest of its time**: one frame of a
-        /// whole second steps `RIPPLE_SUBSTEPS_MOST` of the longest steps and no more, which is the
-        /// field one frame of exactly that long leaves, to the bit.
+        /// **A frame longer than the steps it may take drops the rest of its time**: one frame of a whole second steps
+        /// `RIPPLE_SUBSTEPS_MOST` of the longest steps and no more, which is the field one frame of exactly that long
+        /// leaves, to the bit.
         ///
-        /// **And the longest step is the springs' bound**: `√(2 (1 + 0.96²) / (8 × 0.28 + 0.04))`,
-        /// 1.2983 sixtieths, under which the checkerboard's pull over the step stays within what the
-        /// carry of the step holds back, `s² × 2.28 ≤ 2 (1 + 0.96^s)`.
+        /// **And the longest step is the springs' bound**: `√(2 (1 + 0.96²) / (8 × 0.28 + 0.04))`, 1.2983 sixtieths,
+        /// under which the checkerboard's pull over the step stays within what the carry of the step holds back, `s² ×
+        /// 2.28 ≤ 2 (1 + 0.96^s)`.
         TEST_F(RtxRipplePassTest, aFrameLongerThanItsStepsDropsTheRestOfItsTime)
         {
             const float longest = RipplePass::getLongestStep();
@@ -239,12 +235,11 @@ namespace Rtx
             EXPECT_EQ(field(60.0), capped) << "a second's frame stepped past the cap";
         }
 
-        /// **What a step presses is what reaches the window, and past what the buffer holds the
-        /// nearest the eye.** Ten impulses five thousand units off, whose rings press no texel of
-        /// the window, come first and take no room; then `RIPPLE_IMPULSES_MOST` a hundred texels
-        /// east, and last one at the eye, which makes one too many. The one at the eye is pressed,
-        /// being the nearest, and the east ones are too, a hundred and twenty-seven of them; pressed
-        /// oldest first, the ten off the window would have taken ten of the room and the last none.
+        /// **What a step presses is what reaches the window, and past what the buffer holds the nearest the eye.** Ten
+        /// impulses five thousand units off, whose rings press no texel of the window, come first and take no room;
+        /// then `RIPPLE_IMPULSES_MOST` a hundred texels east, and last one at the eye, which makes one too many. The
+        /// one at the eye is pressed, being the nearest, and the east ones are too, a hundred and twenty-seven of
+        /// them; pressed oldest first, the ten off the window would have taken ten of the room and the last none.
         TEST_F(RtxRipplePassTest, thePressesThatReachTheWindowAndTheNearestOfThemAreKept)
         {
             RipplePass ripples(getDevice());
@@ -268,12 +263,11 @@ namespace Rtx
             EXPECT_GT(near, 0.0f) << "the nearest was dropped";
         }
 
-        /// **A press stands for the time its frame covers**: what a single step leaves on the ring,
-        /// where a texel stands its radius from the impulse and keeps 0.8 a sixtieth, is the height
-        /// pulled from still water toward -1 by `1 - 0.8^n` over `n` sixtieths — a fifth at one,
-        /// 0.1056 at a half, 0.2434 at a sixtieth and a quarter, each a single step. The surface
-        /// tile holds the square of the height, so `(1 - 0.8^n)^2`; a press a frame of a fixed fifth
-        /// pressed 41% a sixtieth at 144 frames a second and half that at 30.
+        /// **A press stands for the time its frame covers**: what a single step leaves on the ring, where a texel
+        /// stands its radius from the impulse and keeps 0.8 a sixtieth, is the height pulled from still water toward
+        /// -1 by `1 - 0.8^n` over `n` sixtieths: a fifth at one, 0.1056 at a half, 0.2434 at a sixtieth and a quarter,
+        /// each a single step. The surface tile holds the square of the height, so `(1 - 0.8^n)^2`; a press a frame of
+        /// a fixed fifth pressed 41% a sixtieth at 144 frames a second and half that at 30.
         TEST_F(RtxRipplePassTest, aPressIsAsDeepAsTheTimeItStandsFor)
         {
             // The impulse on a texel's centre and four texels wide, so the texel four east stands on
@@ -360,19 +354,17 @@ namespace Rtx
             EXPECT_TRUE(std::ranges::any_of(once, [](float value) { return value != 0.0f; })) << "nothing was pressed";
             EXPECT_EQ(once, twice) << "a second trace of one placement pressed its footfall again";
         }
-        /// **A field that has decayed is nought, the pass stops stepping it, and a press after is a
-        /// press on still water.** A footfall and a thousand sixtieths, enough for every texel to
-        /// fall under `RIPPLE_STILL`, which the field does after 842. The report of the last step is
-        /// read on the next frame, which finds the field still and steps nothing. A footfall then
-        /// leaves, thirty steps on, the tiles one footfall on a field just made leaves, to the bit:
-        /// nothing of the first survived to be pressed on, and nothing the skipped frames did not do
-        /// mattered.
+        /// **A field that has decayed is nought, the pass stops stepping it, and a press after is a press on still
+        /// water.** A footfall and a thousand sixtieths, enough for every texel to fall under `RIPPLE_STILL`, which
+        /// the field does after 842. The report of the last step is read on the next frame, which finds the field
+        /// still and steps nothing. A footfall then leaves, thirty steps on, the tiles one footfall on a field just
+        /// made leaves, to the bit: nothing of the first survived to be pressed on, and nothing the skipped frames did
+        /// not do mattered.
         ///
-        /// **The decay at `RIPPLE_SUBSTEPS_MOST` sixtieths a frame**, each a step of one sixtieth as a
-        /// frame of one takes, under one compose where four frames take four: every step reads and
-        /// writes the whole field, and two thousand frames of one were three seconds of a low-end AMD integrated
-        /// GPU. The footfall has a frame of one sixtieth to itself, as a press is as deep as the time
-        /// its frame stands for.
+        /// **The decay at `RIPPLE_SUBSTEPS_MOST` sixtieths a frame**, each a step of one sixtieth as a frame of one
+        /// takes, under one compose where four frames take four: every step reads and writes the whole field, and two
+        /// thousand frames of one were three seconds on a low-end AMD integrated GPU. The footfall has a frame of one
+        /// sixtieth to itself, as a press is as deep as the time its frame stands for.
         TEST_F(RtxRipplePassTest, aDecayedFieldIsStillAndIsPressedAsStillWater)
         {
             const double sixtieth = 1.0 / static_cast<double>(Shaders::RIPPLE_STEP_RATE);

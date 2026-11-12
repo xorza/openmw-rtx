@@ -77,9 +77,9 @@ namespace Rtx
             EXPECT_EQ(renderer.mTextures, 3u);
             EXPECT_FALSE(renderer.mAppendedToWrongEnd) << "the arrivals began somewhere other than the array's end";
 
-            // The first model goes: its placement, and with it the last holds on its mesh and its
-            // material. **Nothing is renumbered by that any more**, so it is not a rebuild — the
-            // frame after a cell leaves costs the top level and nothing else.
+            // The first model goes: its placement, and with it the last holds on its mesh and its material.
+            // **Nothing is renumbered by that**, so it is not a rebuild: the frame after a cell leaves costs the top
+            // level and nothing else.
             scene.dropInstance(first.mPlacement, Stander::Walk);
             ASSERT_FALSE(scene.meshes().isLive(first.mMesh));
 
@@ -342,11 +342,10 @@ namespace Rtx
 
         /// A renderer carrying somebody else's textures is built from nothing, not appended to.
         ///
-        /// **This is `bench`, and it is what a crash looked like.** It runs several places through
-        /// one renderer with a scene of its own for each, so the second place meets an array holding
-        /// the first place's images. An uploader that read that count as its own would start
-        /// describing at 375 in a table 231 long, which is not a wrong picture but an overrun — and
-        /// it surfaced as an allocation failure from somewhere with nothing to do with textures.
+        /// **This is `bench`.** It runs several places through one renderer with a scene of its own for each, so
+        /// the second place meets an array holding the first place's images. An uploader reading that count as its
+        /// own would describe at 375 in a table 231 long: an overrun, not a wrong picture, which surfaces as an
+        /// allocation failure from somewhere unrelated to textures.
         TEST(RtxSceneUploaderTest, aSecondSceneOnOneRendererIsBuiltRatherThanAppendedTo)
         {
             Testing::CountingRenderer renderer;
@@ -400,11 +399,10 @@ namespace Rtx
         /// A picture inside the interface is handed over the same way a cell is, and neither
         /// disturbs the other.
         ///
-        /// **This is what a race-creation slider drag costs.** The doll is walked again on every
-        /// frame of the drag — the placements thrown away and refilled — and nothing about it
-        /// arrives or goes, so the second hand and every one after it is a placement. Rebuilding it
-        /// each time is an acceleration structure and a texture array made from nothing sixty times
-        /// a second.
+        /// **This is what a race-creation slider drag costs.** The doll is walked again on every frame of the drag,
+        /// the placements thrown away and refilled, and nothing arrives or goes, so the second hand and every one
+        /// after it is a placement. Rebuilding each time would make an acceleration structure and a texture array
+        /// from nothing sixty times a second.
         TEST(RtxSceneUploaderTest, aPictureIsHandedOverTheSameWayACellIsAndNeitherDisturbsTheOther)
         {
             Testing::CountingRenderer renderer;

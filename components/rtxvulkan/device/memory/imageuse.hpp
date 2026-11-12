@@ -29,24 +29,22 @@ namespace Rtx
 
     namespace Use
     {
-        /// Nothing before this that the image keeps: the first write into a fresh image, or a
-        /// discard at the start of a frame, which throws its contents away.
+        /// Nothing before this that the image keeps: the first write into a fresh image, or a discard at
+        /// the start of a frame, which throws its contents away.
         ///
-        /// **Every stage as the first scope, and no access**, so the transition is ordered after all
-        /// that came before it on the queue and in its own buffer, and waits on no memory. A discard
-        /// is a write to the image, and an earlier frame or pass may still be reading it. Ordered
-        /// after the head barrier every command buffer opens with (`CommandPool::begin`), whose
-        /// second scope is every stage, it is ordered after the frame before as well: two
-        /// dependencies chain only where the first's second scope meets the second's first, and a
-        /// first scope of `NONE` meets nothing (`Presenter` says the same of the acquire).
+        /// **Every stage as the first scope, and no access**, so the transition is ordered after all that
+        /// came before it on the queue and in its own buffer, and waits on no memory: a discard is a write
+        /// and an earlier frame or pass may still be reading. Ordered after the head barrier every command
+        /// buffer opens with (`CommandPool::begin`), whose second scope is every stage, it is ordered after
+        /// the frame before as well: two dependencies chain only where the first's second scope meets the
+        /// second's first, and a first scope of `NONE` meets nothing (`Presenter` says the same).
         inline constexpr ImageUse sUndefined{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0 };
 
-        /// Nothing the image keeps, in memory another image wrote earlier in the same buffer: the
-        /// first use of an image an arena placed where another's use ended (`ImageArena`). **Every
-        /// write before it as well**, which an image barrier cannot carry — its access scope is its
-        /// own image, and the writes were another's — so `Image::addTransition` adds a memory
-        /// barrier over everything beside the layout's transition. Vulkan's "Memory Aliasing"
-        /// asks both: the dependency between the two aliases, and the new one's contents discarded.
+        /// Nothing the image keeps, in memory another image wrote earlier in the same buffer: the first
+        /// use of an image an arena placed where another's use ended (`ImageArena`). **Every write before
+        /// it as well**, which an image barrier cannot carry (its access scope is its own image), so
+        /// `Image::addTransition` adds a memory barrier over everything beside the layout's transition.
+        /// Vulkan's "Memory Aliasing" asks both.
         inline constexpr ImageUse sAliased{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             VK_ACCESS_2_MEMORY_WRITE_BIT };
 

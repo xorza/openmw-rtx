@@ -264,12 +264,10 @@ namespace Rtx
             return extentOf(ids, type, member, structure);
         }
 
-        /// Refuses the one layout scalar GLSL and C++ part on: a value C++ takes further than the
-        /// module does — a structure whose size is no multiple of its alignment, which `sizeof`
-        /// rounds up — with the next member, or the next element of an array, where the module packs
-        /// it, inside that rounding. **Every structure the module lays out, and not only the ones a
-        /// binding names**, since a table a device address reaches is laid out the same way and held
-        /// to its C++ by nothing else.
+        /// Refuses the one layout scalar GLSL and C++ part on: a structure whose size is no multiple of its alignment,
+        /// which `sizeof` rounds up, so C++ puts the next member inside that rounding where the module packs it. Every
+        /// structure the module lays out, not only the ones a binding names, since a table a device address reaches is
+        /// laid out the same way and held to its C++ by nothing else.
         void requireMirrorable(const IdFacts& ids, const std::uint32_t type)
         {
             const Facts& facts = factsOf(ids, type, type);

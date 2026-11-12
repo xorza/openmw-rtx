@@ -26,12 +26,10 @@ namespace Crash::Client
     {
         /// A crash reported the way the system's own would not be, which ends the process.
         ///
-        /// **Through Crashpad's unhandled-exception path and not its simulated crash**, which waits
-        /// for the dump with no limit: where the monitor had died before, the game hung for good
-        /// rather than crashing. This one waits sixty seconds and ends the process either way, and
-        /// is not taken at all where the monitor is known to have ended. Under
-        /// `sSimulatedException`, so the monitor reads the dump as one the game asked for, and the
-        /// notes say why.
+        /// **Through Crashpad's unhandled-exception path and not its simulated crash**, which waits for the
+        /// dump with no limit and hung the game for good where the monitor had died. This one waits sixty
+        /// seconds and ends the process either way, and is skipped where the monitor is known to have ended.
+        /// Under `sSimulatedException`, so the monitor reads the dump as one the game asked for.
         [[noreturn]] void reportAndEnd(std::string_view reason)
         {
             endingReason(reason);
@@ -86,13 +84,10 @@ namespace Crash::Client
                 reinterpret_cast<std::uintptr_t>(_get_invalid_parameter_handler()) };
         }
 
-        /// **Stack a thread keeps for its own stack overflow**, Windows's counterpart of the alternate
-        /// signal stack. The overflow is dispatched on the thread whose stack is spent, and where the
-        /// dispatch and Crashpad's filter need more than the guard page left, the thread faults again
-        /// and the process ends with no dump: the matrix's stack overflow on the main thread did, one
-        /// run in three. What `SetThreadStackGuarantee` reserves is there for exactly that: 64 KiB,
-        /// far more than the dispatch and a filter that signals its handler and waits take, and a
-        /// sixteenth of the megabyte a thread's stack reserves by default.
+        /// **Stack a thread keeps for its own stack overflow**, Windows's counterpart of the alternate signal
+        /// stack. Without it the dispatch and Crashpad's filter can fault again on the spent stack and the
+        /// process ends with no dump, as the main thread's overflow did one run in three. 64 KiB is far more
+        /// than they take.
         void guaranteeStack()
         {
             ULONG guarantee = 64 * 1024;

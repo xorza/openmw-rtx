@@ -35,11 +35,9 @@ namespace Rtx
     /// answers yes for, and `x` and `y` lie inside `level`.
     osg::Vec3f texelAt(const TextureData& texture, const MipLevel& level, std::uint32_t x, std::uint32_t y);
 
-    /// Rows `4 × band` to `4 × band + 3` of `level` — fewer at its bottom edge — as they are
-    /// stored, row after row, with every block of them decoded once where `texelAt` decodes one
-    /// for each texel it hands out: sixteen times over for a reader of every texel. A band is a
-    /// row of blocks, and every texel a band holds is `texelAt`'s to the bit. `texture` is one
-    /// `readsColour` answers yes for.
+    /// Rows `4 × band` to `4 × band + 3` of `level` (fewer at its bottom edge) as they are stored, with every block of
+    /// them decoded once where `texelAt` decodes one for each texel it hands out. Every texel a band holds is
+    /// `texelAt`'s to the bit. `texture` is one `readsColour` answers yes for.
     ///
     /// @param into refilled with `level.mWidth` texels a row.
     void readTexelBand(

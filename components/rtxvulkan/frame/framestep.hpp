@@ -8,9 +8,8 @@ namespace Rtx
 {
     /// The stretches of a frame's fixed order an image in a frame's arena is in use over
     /// (`ImageArena`): the trace's stages, the denoiser with the composite that reads its answers,
-    /// the digest a read-back takes of them, the upscaler, and the display chain. The order
-    /// `VulkanRenderer::renderFrame` records them in, which a picture keeps without the digest and
-    /// the upscaler.
+    /// the digest a read-back takes of them, the upscaler, and the display chain, in the order
+    /// `VulkanRenderer::renderFrame` records them; a picture keeps it without the digest and the upscaler.
     enum class FrameStep : std::uint32_t
     {
         Trace,

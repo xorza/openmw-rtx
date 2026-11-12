@@ -24,11 +24,10 @@ namespace Rtx
             return sum * step / 3.0;
         }
 
-        /// **What a stretch keeps of an even source, to its digits however thin the air.** Against
-        /// `-expm1(-x) / x` in double, which loses nothing: within two parts in a million at every
-        /// optical depth from nought to ten, on both sides of the switch at a sixteenth, where
-        /// `(1 - e^-x) / x` in floats was a fifth off at a ten-millionth — and at negative depths, which
-        /// the water's beam looking up toward the sun reaches. One at nought, the limit where there is
+        /// **What a stretch keeps of an even source, to its digits however thin the air.** Against `-expm1(-x) / x` in
+        /// double: within two parts in a million at every optical depth from nought to ten, on both sides of the
+        /// switch at a sixteenth, where `(1 - e^-x) / x` in floats was a fifth off at a ten-millionth, and at negative
+        /// depths, which the water's beam looking up toward the sun reaches. One at nought, the limit where there is
         /// no medium, and `(1 - e^-1)` at one.
         TEST(RtxMediumTest, aStretchKeepsItsSourceToTheDigitsAtEveryDepth)
         {
@@ -49,18 +48,17 @@ namespace Rtx
                 << "the closed form in floats holds a ten-millionth, so this proves nothing";
         }
 
-        /// **A froxel holds the mean of what the air integrates, and a stretch integrates it.** Two
-        /// froxels at a bank's edge, the dense one shadowed and the thin one lit: densities 2 and 0.5,
-        /// lights 0.25 and 1, products 0.5 and 0.5. Half way between, the products' blend is 0.5, the
-        /// mean of what was drawn; the factors' blends make `1.25 · 0.625 = 0.78125`, a half again.
+        /// **A froxel holds the mean of what the air integrates, and a stretch integrates it.** Two froxels at a
+        /// bank's edge, the dense one shadowed and the thin one lit: densities 2 and 0.5, lights 0.25 and 1, products
+        /// 0.5 and 0.5. Half way between, the products' blend is 0.5, the mean of what was drawn; the factors' blends
+        /// make `1.25 · 0.625 = 0.78125`, a half again.
         ///
-        /// **And through a stretch whose density and product run linear** from those two to 200 units
-        /// on, under an extinction of a hundredth a unit, `fogThrough` cut at each piece's middle as its
-        /// callers cut a slice: the transmittance is exact at any cut, `exp(-0.01 · 1.25 · 200) =
-        /// exp(-2.5)`, and the scattered light is the midpoint rule's, so its error quarters at every
-        /// halving of the pieces, 0.2466, 0.0617, 0.0156, 0.0039 of the integral in double for one to
-        /// eight pieces, and 6.1e-5 at sixty-four. The factors blended apart, at sixty-four pieces, scatter
-        /// 0.3889 where the air scatters 0.2945.
+        /// **And through a stretch whose density and product run linear** from those two to 200 units on, under an
+        /// extinction of a hundredth a unit, `fogThrough` cut at each piece's middle as its callers cut a slice: the
+        /// transmittance is exact at any cut, `exp(-0.01 · 1.25 · 200) = exp(-2.5)`, and the scattered light is the
+        /// midpoint rule's, whose error quarters at every halving of the pieces: 0.2466, 0.0617, 0.0156, 0.0039 of the
+        /// integral in double for one to eight pieces, and 6.1e-5 at sixty-four. The factors blended apart, at
+        /// sixty-four pieces, scatter 0.3889 where the air scatters 0.2945.
         TEST(RtxMediumTest, aStretchIntegratesTheProductItsFroxelsHold)
         {
             constexpr float extinction = 0.01f;
@@ -136,15 +134,13 @@ namespace Rtx
                 << "the factors blended apart scatter the same";
         }
 
-        /// **The water's column gathers what its closed form says it does.** A light arriving `k` units
-        /// of water per unit of depth reaches a point `t` along a ray of direction `d` through
-        /// `k (h - t d.z)` of water and leaves toward the eye through `t`, so the stretch scatters
-        /// `σ exp(-σ k h) exp(-σ (1 - k d.z) t)` per unit of it. Over a stretch, against Simpson's rule in
-        /// double: looking down, level, up with `g` at nought (a light overhead, `k` one, looking straight
-        /// at it), and up past it (`k` 1.3, `g` -0.3, a step further along nearer the light), over 500
-        /// units, where the red's optical depth is 1.87, and over a thousandth of a unit, where every
-        /// channel takes `mediumKept`'s series. Within the series' two parts in a million and a float's
-        /// rounding.
+        /// **The water's column gathers what its closed form says it does.** A light arriving `k` units of water per
+        /// unit of depth reaches a point `t` along a ray of direction `d` through `k (h - t d.z)` of water and leaves
+        /// toward the eye through `t`, so the stretch scatters `σ exp(-σ k h) exp(-σ (1 - k d.z) t)` per unit of it.
+        /// Checked against Simpson's rule in double: looking down, level, up with `g` at nought (a light overhead, `k`
+        /// one), and up past it (`k` 1.3, `g` -0.3), over 500 units, where the red's optical depth is 1.87, and over a
+        /// thousandth of a unit, where every channel takes `mediumKept`'s series. Within the series' two parts in a
+        /// million and a float's rounding.
         TEST(RtxMediumTest, theWatersColumnGathersItsClosedForm)
         {
             const float level = std::sqrt(0.5f);
@@ -169,14 +165,12 @@ namespace Rtx
                     }
         }
 
-        /// **What the surface lets in of a light, and what the beam it lets in carries across its own
-        /// line.** Overhead, Schlick's weight is nought, so the surface reflects `F0` and lets in
-        /// `1 - F0`, and the beam goes on straight, its irradiance unchanged: both `0.97963`. At 45°,
-        /// the weight is `(1 - 0.70711)^5 = 0.0021555`, so the surface reflects
-        /// `0.020373 + 0.97963 * 0.0021555 = 0.022485` and lets in `0.97752`. Snell's law bends the
-        /// beam to a sine of `0.70711 / 1.333 = 0.53046`, a cosine of `0.84771`, and the beam's
-        /// irradiance is the light's in times `0.70711 / 0.84771`: `0.81539`. On the horizon and under
-        /// it, the light arrives at grazing and nothing gets in.
+        /// **What the surface lets in of a light, and what the beam it lets in carries across its own line.**
+        /// Overhead, Schlick's weight is nought, so the surface reflects `F0` and lets in `1 - F0`, and the beam goes
+        /// on straight, its irradiance unchanged: both `0.97963`. At 45°, the weight is `(1 - 0.70711)^5 = 0.0021555`,
+        /// so the surface reflects `0.020373 + 0.97963 * 0.0021555 = 0.022485` and lets in `0.97752`. Snell's law
+        /// bends the beam to a sine of `0.70711 / 1.333 = 0.53046`, a cosine of `0.84771`, and the beam's irradiance
+        /// is the light's in times `0.70711 / 0.84771 = 0.81539`. On the horizon and under it, nothing gets in.
         TEST(RtxMediumTest, theWaterLetsInWhatItsFresnelDoesNotReflect)
         {
             const Shaders::WaterCrossing overhead = Shaders::waterCrossingOf(Shaders::vec3(0.0f, 0.0f, 1.0f));

@@ -31,13 +31,11 @@ namespace Rtx
     namespace
     {
         /// The display pass's own description of the frame, on the picture's grid. The alpha
-        /// carries the puffs' transmittance, and where the puffs' composite drew nothing the pass
-        /// finds out for itself from what it is handed here.
+        /// carries the puffs' transmittance.
         ///
-        /// **The traced extent is the trace's camera's, and not the channels' own size.** A picture
-        /// is traced into a chain grown to the largest one asked for, so a smaller picture fills a
-        /// corner of its channels: read at the channels' size, the pass looked for a pixel's backdrop
-        /// and its sprite tile under another pixel altogether.
+        /// The traced extent is the trace's camera's, not the channels' own size: a picture is
+        /// traced into a chain grown to the largest one asked for, so a smaller picture fills a
+        /// corner of its channels.
         ///
         /// @param look the frame's, or null for a picture inside the interface, which takes no glare,
         ///        no gamma, no Night-Eye and no dither: the interface draws it as it draws its own.
@@ -108,12 +106,10 @@ namespace Rtx
         const GBuffer& channels = inputs.mChannels;
 
         //
-        // **None in a frame no puff can be met in**, where the composite would write every pixel back
-        // as it found it and the curve reads none of its alpha (`ToneConstants::mPuffs`). **Never
-        // over the trace's own frame**, which a read back and the digest hold to as the trace's
-        // answer (`readComposite`) whether or not something upscales: over a copy of it in the
-        // chain's canvas, since the composite writes only the pixels a puff covers. The upscaler's
-        // image, which nothing reads back, takes them in place.
+        // None in a frame no puff can be met in (`ToneConstants::mPuffs`). Never over the trace's own
+        // frame, which a read back and the digest hold to as the trace's answer (`readComposite`):
+        // over a copy of it in the chain's canvas, since the composite writes only the pixels a puff
+        // covers. The upscaler's image, which nothing reads back, takes them in place.
         const Image* shownImage = &what.mShown.mImage;
         const bool puffs = what.mTrace.mSprites.mPuffs;
         const bool ontoCanvas = puffs && shownImage == &what.mTrace.mColour.mImage;

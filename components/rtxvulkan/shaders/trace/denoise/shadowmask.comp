@@ -5,19 +5,13 @@
 
 // Derived from the FidelityFX SDK (v1.1.4), `ffx_denoiser_shadows_prepare.h`, whose notice follows.
 
-// The rays' bits, packed two words to an 8×4 tile — the SDK's `PrepareShadowMask`, with which pixels
+// The rays' bits, packed two words to an 8x4 tile — the SDK's `PrepareShadowMask`, with which pixels
 // receive beside them (`shadow.h` says why).
 //
-// **Once a pixel, so the classification reads words and not texels.** Its kernel and its three filter
-// levels reach a 24×24 square around each tile; read off `CHANNEL_SHADOWED` directly, that was every texel
-// nine times over, and the classification cost 0.24 ms at 1080p whether it filtered anything or not.
-//
-// **Shared words and an atomic OR, not the SDK's wave-wide OR**, which assumes a wave of 32 lanes laid out
-// as the tile: AMD's are 32 or 64 and Intel's 8 to 32.
-//
-// **And the widest penumbra of the workgroup's bits, a half a workgroup**: the workgroup's two words are
-// one tile of the classification, which reads the nine around its own rather than the 576 penumbrae they
-// stand for.
+// Once a pixel, so the classification reads words and not texels: its kernel and three filter levels reach a
+// 24x24 square around each tile, which off `CHANNEL_SHADOWED` was every texel nine times over (0.24 ms at
+// 1080p). Shared words and an atomic OR replace the SDK's wave-wide OR, which assumes a wave of 32 lanes laid
+// out as the tile; AMD's are 32 or 64 and Intel's 8 to 32.
 
 #include "colour.h"
 #include "gbuffer.h"

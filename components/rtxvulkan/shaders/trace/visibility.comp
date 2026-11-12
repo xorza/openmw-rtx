@@ -7,16 +7,11 @@
 
 // The frame, composed.
 //
-// **A compute dispatch of ray queries, and no ray tracing pipeline**: AMD's Windows driver answers no ray
-// query in a pipeline that also calls `traceRayEXT`, and draws this kernel wrong as a ray generation stage
-// alone (`docs/rtx/architecture.md`, "The shaders").
-//
-// **What is here is what belongs to the path rather than to the surface**: the layers the eye looks
-// through, the column of water in front of them, the air, the cloud shells, and the channels.
-//
-// **Two stages of one module** (`WATER_STAGE`): the trace over every pixel, which leaves a pixel whose eye
-// met the sea pending and lists its tile (`STAGE_LIST_WATER`), and the water's stage over those tiles,
-// which takes each pending pixel's peel up where the trace stored it and walks its water.
+// A compute dispatch of ray queries, and no ray tracing pipeline: AMD's Windows driver answers no ray query
+// in a pipeline that also calls `traceRayEXT` (`docs/rtx/architecture.md`, "The shaders"). What is here
+// belongs to the path rather than the surface: the layers, the water column, the air, the cloud shells and the
+// channels. Two stages of one module (`WATER_STAGE`): the trace over every pixel, which leaves a pixel whose
+// eye met the sea pending and lists its tile (`STAGE_LIST_WATER`), and the water's stage over those tiles.
 
 #include "shared/traceconstants.h"
 #include "camera.h"
@@ -69,15 +64,11 @@ TracedLists tracePixel(uvec2 pixel)
     const uint width = frame.mEyes.mWorld.mWidth;
     const uint swap = fieldSwapOf(frame.mFrame);
 
-    // **The eye's rays peeled down to the surface the pixel shows, in a loop that carries no answer.** Each
-    // turn asks one ray and keeps what a layer let through, and the turn that meets the surface, or
-    // nothing, leaves the loop with it: the surface is shaded after the loop, once. Carried around one loop
-    // with the shading, as one walk of steps, every record of it stood live across each traversal, which
-    // this kernel spilled (`docs/rtx/architecture.md`, "A stage's phases are loops of their own").
-    //
-    // **Bounded**, so a walk that never ends — a logic error — is cut short and counted rather than holding
-    // the card until the system resets it (`FrameCounts::mWalksCut`); a peel cut short is shaded as a ray
-    // that met nothing.
+    // The eye's rays peeled down to the surface the pixel shows, in a loop that carries no answer: each turn
+    // asks one ray and keeps what a layer let through, and the surface is shaded after the loop, once. Carried
+    // around one loop with the shading, every record stood live across each traversal, which this kernel spilled
+    // (`docs/rtx/architecture.md`, "A stage's phases are loops of their own"). Bounded, so a walk that never
+    // ends is cut short and counted (`FrameCounts::mWalksCut`) and shaded as a ray that met nothing.
     Peel peel = peelOf(pixel);
     float panesThrough = 1.0;
     float armsThrough = 1.0;
@@ -317,19 +308,12 @@ TracedLists tracePixel(uvec2 pixel)
     // arrives by it as the light of a surface behind the air arrives by what the air let through.
     transmittance *= pathWeight;
 
-    // **The sprites in front of all of it, lit where they stand and left in a layer of their own.** Nothing
-    // of them is in `shaded`: the frame goes to the denoiser with no puff in it, and `spritecomposite.rgen`
-    // puts the puffs over the reconstructed frame at the answer extent — their shape marched again there,
-    // along the answer pixel's own ray, and their colour taken from here. What this walk is for is the
-    // light: three fetches a covering sprite, which is worth paying once at the traced extent and not three
-    // times over at the answer one.
-    //
-    // **The sprites alone, and no cloud shell.** A shell is gathered along the ray that shows it, which is
-    // the composite's; gathered here as well, it was hidden and let through by this jittered sample and not
-    // by the pixel the picture shows, and a cloud's edge shook the way a puff's did at a silhouette.
-    //
-    // **Only in a frame a puff can be met in**, a uniform branch: in any other the layer is no puff at
-    // every pixel, which the channel holds already (`GBuffer::begin`).
+    // The sprites in front of all of it, lit where they stand and left in a layer of their own: the frame goes
+    // to the denoiser with no puff in it, and `spritecomposite.rgen` marches their shape again at the answer extent
+    // and takes their colour from here (three fetches a covering sprite, worth paying once at the traced extent).
+    // The sprites alone, no cloud shell: a shell is gathered along the ray that shows it, which is the
+    // composite's, or a cloud's edge shakes with this jittered sample. Only in a frame a puff can be met in, a
+    // uniform branch; otherwise the channel holds no puff already (`GBuffer::begin`).
     if (frame.mPuffsInFrame != 0u)
     {
         const PuffLayer sprites
@@ -338,18 +322,11 @@ TracedLists tracePixel(uvec2 pixel)
             vec4(sprites.mColour, sprites.mTransmittance))
     }
 
-    // **The sun glare fader's query, one ray at a time.** The rasterizer draws the sun's quad against the
-    // world's depth and counts the pixels that survived; here every primary ray inside the quad's disc
-    // counts itself, and again where nothing that writes depth stood in front of the sky — the water writes
-    // none, and a pane peeled off the ray does, the arms' as well as the world's. `glare.h` says whose disc
-    // this is and `tone.comp` reads the pair back.
-    //
-    // **Whether a pixel is inside the disc is asked through the world's eye**, because the disc is the
-    // sun's quad on the screen: a pixel on the arms looks along the arms' own eye, and a disc counted that
-    // way held as many of their pixels as a first-person field of view left in it.
-    //
-    // **Counted a subgroup at a time**, by ballot: one atomic a counter a subgroup where every pixel in the
-    // disc took one, which the whole disc's pixels contended for.
+    // The sun glare fader's query, one ray at a time: the rasterizer draws the sun's quad against the world's
+    // depth and counts the surviving pixels; here every primary ray inside the disc counts itself, and again where
+    // nothing that writes depth stood in front of the sky (the water writes none, a peeled pane does). `glare.h`
+    // says whose disc this is and `tone.comp` reads the pair back. Inside the disc is asked through the world's
+    // eye, since a pixel on the arms looks along the arms' own. Counted by ballot, one atomic a subgroup.
     const bool inDisc = sunUp()
         && insideCap(arms ? rayAt(frame.mEyes.mWorld, vec2(pixel)).mDirection : direction, frame.mSun.mDirection,
             capChord(SUN_GLARE_QUERY_RADIUS));

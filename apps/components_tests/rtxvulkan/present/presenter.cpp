@@ -58,14 +58,12 @@ namespace Rtx
             std::string mWhyNot;
         };
 
-        /// A device of its own, on an instance with the window system's extensions, which the shared
-        /// harness's headless instance has none of.
+        /// A device of its own, on an instance with the window system's extensions, which the shared harness's
+        /// headless instance has none of.
         ///
-        /// **On the session's display, and skipped without one**, as a box with no monitor and a session a
-        /// service started have none (`TestPlatform::showsADesktop`): NVIDIA's driver presents nothing to a
-        /// `VK_EXT_headless_surface` surface, so SDL's offscreen video gives no swapchain to test on every
-        /// card. The desk and every box with a session test it. A window SDL refuses on a display it did
-        /// start is a failure.
+        /// **On the session's display, and skipped without one** (`TestPlatform::showsADesktop`): NVIDIA's driver
+        /// presents nothing to a `VK_EXT_headless_surface` surface, so SDL's offscreen video gives no swapchain to
+        /// test on every card. A window SDL refuses on a display it did start is a failure.
         class RtxPresenterTest : public ::testing::Test
         {
         protected:
@@ -109,12 +107,10 @@ namespace Rtx
             std::unique_ptr<Device> mDevice;
         };
 
-        /// **A lost surface is made again from the window, and the frames go on**: a present after
-        /// the rebuild leaves nothing to remake, and a loss after it is a loss like the first, which
-        /// a present that did not show on the new surface would make the second. One lost again
-        /// before any present showed on the new surface ends the process, where a rebuild each frame
-        /// would hold the game in a stall. The handle is not compared: a surface made after the old
-        /// one went can take its address.
+        /// **A lost surface is made again from the window, and the frames go on**: a present after the rebuild leaves
+        /// nothing to remake, and a loss after it is a loss like the first. One lost again before any present showed
+        /// on the new surface ends the process, where a rebuild each frame would hold the game in a stall. The handle
+        /// is not compared: a surface made after the old one went can take its address.
         TEST_F(RtxPresenterTest, aLostSurfaceIsMadeAgainAndTheFramesGoOn)
         {
             const VkExtent2D extent{ 64, 32 };
@@ -182,13 +178,11 @@ namespace Rtx
             EXPECT_TRUE(presenter.wantsResize(wider)) << "a new extent owes its own rebuild";
         }
 
-        /// **Under FIFO a frame waits for the present two before it** (`Swapchain::awaitLatency`):
-        /// each present carries the next id, the wait names one the swapchain was given, and a wait
-        /// the hidden window never answers runs out once, a tenth of a second, and is not asked
-        /// again. Validation is what holds the ids to the swapchain; the clock holds the waits to
-        /// one patience each, and the frame's uses as the blit is handed them. A card that cannot wait
-        /// for a present, as a low-end AMD integrated GPU under AMD's Windows driver 26.8.1 cannot, waits for none,
-        /// and its frames go on.
+        /// **Under FIFO a frame waits for the present two before it** (`Swapchain::awaitLatency`): each present
+        /// carries the next id, the wait names one the swapchain was given, and a wait the hidden window never answers
+        /// runs out once, a tenth of a second, and is not asked again. Validation holds the ids to the swapchain; the
+        /// clock holds the waits to one patience each. A card that cannot wait for a present, as a low-end AMD
+        /// integrated GPU under AMD's Windows driver cannot, waits for none, and its frames go on.
         TEST_F(RtxPresenterTest, aFrameUnderFifoWaitsForThePresentTwoBeforeIt)
         {
             const VkExtent2D extent{ 64, 32 };

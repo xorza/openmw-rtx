@@ -285,13 +285,10 @@ namespace Rtx
     {
         const std::size_t written = mNow;
 
-        // Discarded, because every texel of it is written before any is read; the other half of
-        // the pair is this frame's history and survives. The point pair, the lamps and the column
-        // images are written by the two launches, the integrated ones and the averaged seeing by the
-        // dispatch after them. The last frame's readers are behind the head barrier
-        // `CommandPool::begin` recorded — and so is the launch that wrote the history, which is why
-        // the history takes no barrier of its own: it rests in `GENERAL`, and the head barrier made
-        // the write visible to every read after it.
+        // Discarded, because every texel of it is written before any is read; the other half of the pair is this
+        // frame's history and survives. The last frame's readers, and the launch that wrote the history, are behind the
+        // head barrier `CommandPool::begin` recorded, which is why the history takes no barrier of its own: it rests in
+        // `GENERAL`, and the head barrier made the write visible to every read after it.
         Barriers barriers(commands);
         const ImageUse point = mPast == TracePast::Kept ? Use::sTraceWrite : sTraceWriteAndSample;
         for (const Image* image : { &pointOf(mScatter, written), &pointOf(mSunward, written) })

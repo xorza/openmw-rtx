@@ -40,22 +40,19 @@ namespace Rtx
         Sampler mSampler;
     };
 
-    /// The air in front of the eye, integrated once for a column of `FOG_VOLUME_SCALE` squared
-    /// pixels rather than once per pixel, over a field that has no detail at a pixel's size. Two
-    /// volumes, because a froxel's scattering and extinction are properties of the point and
-    /// reproject into the previous frame exactly, while the integral along a ray from this eye
-    /// reprojects into nothing: the point pair is filtered and the integral taken afterwards from
-    /// the filtered volume, every frame. The sun keeps a channel of its own with its phase divided
-    /// out, because Mie scattering peaks within a degree of the sun's line and a column is a
-    /// quarter of a degree across; the trace puts the phase back per pixel.
+    /// The air in front of the eye, integrated once for a column of `FOG_VOLUME_SCALE` squared pixels rather than once
+    /// per pixel, over a field that has no detail at a pixel's size. Two volumes, because a froxel's scattering and
+    /// extinction are properties of the point and reproject exactly, while the integral along a ray from this eye
+    /// reprojects into nothing: the point pair is filtered and the integral taken afterwards, every frame. The sun
+    /// keeps a channel of its own with its phase divided out, because Mie scattering peaks within a degree of the sun's
+    /// line and a column is a quarter of a degree across; the trace puts the phase back.
     class FogVolume
     {
     public:
-        /// Lays every image out and empties it in one submit it waits for, because nothing times a
-        /// not-a-number is still one. `width` and `height` are the camera's, in pixels; the images
-        /// are the frame's targets, as the chain's are. Where `past` drops what a trace leaves, the point pair is one
-        /// image, which every trace both writes and names as its history, and which none reads as one: the basis of
-        /// nothing every such trace carries reprojects nowhere.
+        /// Lays every image out and empties it in one submit it waits for: `begin` does not discard the point pair, so
+        /// the first frame reads a history nothing has written. `width` and `height` are the camera's, in pixels; the
+        /// images are the frame's targets, as the chain's are. Where `past` drops what a trace leaves, the point pair
+        /// is one image, which every trace both writes and names as its history and none reads as one.
         FogVolume(
             const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height, TracePast past);
 
@@ -70,12 +67,10 @@ namespace Rtx
         std::uint32_t getColumns() const { return mColumns; }
         std::uint32_t getRows() const { return mRows; }
 
-        /// The columns and rows a trace of `pixels` fills and integrates: those its pixels cover,
-        /// the one past them that the pixel at the far edge interpolates against, and the one past
-        /// that which the integrate pass's tent reads around it, and never more than the grid. So a
-        /// picture traces what it reads and draws what it would in a grid of its own size, though
-        /// a larger picture grew the grid: the doll's preview left every map tile after it
-        /// tracing three to seven times its own air.
+        /// The columns and rows a trace of `pixels` fills and integrates: those its pixels cover, the one past them
+        /// that the pixel at the far edge interpolates against, and the one past that which the integrate pass's tent
+        /// reads, and never more than the grid. So a picture traces what it reads even though a larger picture grew the
+        /// grid (the doll's preview left every map tile after it tracing three to seven times its own air).
         VkExtent2D tracedFor(VkExtent2D pixels) const;
 
         /// Turns to the other half of the point pair, for the trace about to be recorded: the half

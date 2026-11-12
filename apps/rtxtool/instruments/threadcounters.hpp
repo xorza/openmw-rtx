@@ -8,12 +8,9 @@
 
 namespace RtxTool
 {
-    /// What the processor counted of one thread through a place's measured frames.
-    ///
-    /// **What says which state a leg's host rows ran in.** Six legs of one build at `one-cell-walk`
-    /// read a walk median of 1.02 to 1.53 ms at a steady clock, and the misses per thousand
-    /// instructions moved with it, 3.14 to 4.75: a heap laid out worse in one process than another.
-    /// Without these the report showed the rows move and nothing beside them that moved too.
+    /// What the processor counted of one thread through a place's measured frames: it says which state a leg's host
+    /// rows ran in. Six legs of one build read walk medians of 1.02 to 1.53 ms at a steady clock, and the misses per
+    /// thousand instructions moved with them (3.14 to 4.75): a heap laid out worse in one process than another.
     struct ThreadCounts
     {
         std::uint64_t mCycles = 0;
@@ -59,19 +56,15 @@ namespace RtxTool
         bool mEfficiency = false;
     };
 
-    /// The thread's counts out of what each of its groups read.
-    ///
-    /// **Everything scaled to the thread's run.** Where another process counted on the same core the
-    /// kernel shares the counters out in turns, and a group counts only part of the time it was
-    /// enabled; the counts and the efficiency cores' time are then scaled up by the share counted, as
-    /// perf scales its own, and the run is the time enabled. So the cycles over the run are the clock
-    /// the thread ran at whatever the share, and the efficiency time over it the share it spent there.
+    /// The thread's counts out of what each of its groups read, all scaled to the thread's run: where another
+    /// process counted on the same core the kernel shares the counters in turns, so a group counts only part of the
+    /// time it was enabled; the counts and the efficiency cores' time are scaled up by the share counted, as perf
+    /// does, and the run is the time enabled.
     ThreadCounts countsOf(std::span<const GroupCounts> groups, bool kernelCounted, bool twoKinds);
 
-    /// Counters on the thread that makes them, started and stopped around a place's measured frames.
-    ///
-    /// **The frame thread alone**: its rows are what the report reads as the host's, and a counter
-    /// per thread of the run would add each loader's to the walk's.
+    /// Counters on the thread that makes them, started and stopped around a place's measured frames. The frame
+    /// thread alone: its rows are what the report reads as the host's, and a counter per thread would add each
+    /// loader's to the walk's.
     class ThreadCounters
     {
     public:

@@ -28,11 +28,10 @@ namespace Rtx
             return nightStart - times.mNightEnd;
         }
 
-        /// How much of the hour's own darkness the exposure keeps, as a power of the light it
-        /// gives: two stops and four fifths between a clear noon and a clear midnight, which are
-        /// 8.90 stops apart by luminance. Under three rather than the literature's four and a half,
-        /// because noon to midnight is five hundred to one in this renderer where the world's is a
-        /// hundred million to one; the rest of a night is a Purkinje shift's to buy.
+        /// How much of the hour's own darkness the exposure keeps, as a power of the light it gives: two
+        /// stops and four fifths between a clear noon and a clear midnight, which are 8.90 stops apart by
+        /// luminance. Under the literature's four and a half, because noon to midnight is five hundred to
+        /// one here against the world's hundred million; a Purkinje shift buys the rest.
         constexpr float sHourStops = 0.314f;
 
         /// How much of a room's recorded ambient a traced bounce's landing stands in for the bounces
@@ -68,10 +67,9 @@ namespace Rtx
                 .mPosition = sky.mSunPosition,
                 .mIrradiance = sky.mSunColour * (Shaders::DAYLIGHT * std::clamp(share, 0.0f, 1.0f)),
 
-                // The glare arrives here rather than being folded into the colour earlier, and that
-                // is not tidiness: it is a blend factor the rasterizer applies to a sprite in the file's
-                // own space, and dimming radiance is a linear multiply. Applied before the decode it
-                // would come out a different colour, not merely a darker one.
+                // The glare is a blend factor the rasterizer applies to a sprite in the file's own space,
+                // and dimming radiance is a linear multiply: applied before the decode it would come out
+                // a different colour, not merely a darker one.
                 .mDiscColour = sky.mDiscColour * sky.mGlare,
             };
         }
@@ -91,17 +89,15 @@ namespace Rtx
     {
         const float level = (sunIrradiance + ambient) * Shaders::LUMINANCE_WEIGHTS;
 
-        // Against a full sun rather than against a noon worked out here. A clear noon
-        // delivers 8.03 where `DAYLIGHT` is 8, so the hour that needs no holding back is the one
-        // that comes out at one — and no second number has to be kept in step with the first.
+        // Against a full sun rather than a noon worked out here, so no second number must be kept in step
+        // with `DAYLIGHT`: a clear noon delivers 8.03 against its 8.
         return std::pow(std::min(level / Shaders::DAYLIGHT, 1.0f), sHourStops);
     }
 
     osg::Vec3f airTransmittance(float upward)
     {
-        // Already the sine of the elevation, which is what makes the whole of a unit direction's `z`
-        // worth carrying: the fit below wants that and the angle, and only the angle costs a trig
-        // call.
+        // Already the sine of the elevation; the fit below wants that and the angle, and only the angle
+        // costs a trig call.
         const float sine = std::clamp(upward, 0.0f, 1.0f);
         const float elevation = osg::RadiansToDegrees(std::asin(sine));
 
@@ -132,12 +128,10 @@ namespace Rtx
         const osg::Vec3f irradiance = sky.mSunColour * Shaders::DAYLIGHT;
         const float share = std::clamp(sky.mSunShare, 0.0f, 1.0f);
 
-        // The share taken this way is a dusk's — nothing at noon, where the direct term carries all
-        // of it, and nothing at night, where there is no sun to take a direction from — and
-        // `2 * s * (1 - s)` puts a dusk at a half at the half-set point. Not `1 - share`, which is
-        // largest where there is no sun: `Sun_Night_Color` is the original engine's stand-in for
-        // moonlight, spread as an ambient it came to six times the night ambient the weather
-        // records, and this renderer traces the moons.
+        // A dusk's share: nothing at noon, where the direct term carries all, and nothing at night, where
+        // there is no sun; a half at the half-set point. Not `1 - share`, which is largest where there is
+        // no sun: `Sun_Night_Color` is the engine's stand-in for moonlight, spread as an ambient it came to
+        // six times the recorded night ambient, and this renderer traces the moons.
         const float dusk = 2.0f * share * (1.0f - share);
 
         Skylight light{
@@ -148,11 +142,9 @@ namespace Rtx
         light.mSurfaceAmbient = light.mAmbient;
         light.mWaterAmbient = light.mAmbient;
 
-        // **The day's gain is adapted to in full.** A frame the gain lifts meters `gain` brighter
-        // and the exposure answers with `gain^-EXPOSURE_ADAPTATION`, so the rest of the gain is
-        // taken off here: a sunlit frame is then shown where it was, and what the gain did not lift
-        // falls under it. The hour's own bias is measured on the unlifted terms, after both,
-        // because it measures what they come to between them.
+        // **The day's gain is adapted to in full.** A lifted frame meters `gain` brighter and the exposure
+        // answers with `gain^-EXPOSURE_ADAPTATION`, so the rest of the gain is taken off here. The hour's
+        // own bias is measured on the unlifted terms, because it measures what they come to between them.
         light.mDaylightGain = std::pow(Shaders::DAYLIGHT_GAIN, share);
         light.mExposureBias = exposureBias(light.mSun.mIrradiance, light.mAmbient)
             * std::pow(light.mDaylightGain, Shaders::EXPOSURE_ADAPTATION - 1.0f)
@@ -163,12 +155,10 @@ namespace Rtx
 
     float sunShareAt(float hour, const Sky::TimeOfDaySettings& times)
     {
-        // **The weather manager's own two rules, read from where it draws by them.** Its ramp runs
-        // on through the night and comes back at one, because a rasterizer that has already hidden
-        // the disc has no use for the answer; a tracer asks this to decide whether to cast a
-        // shadow, so the gate that hides the disc is folded in — and the ramp is bounded, because
-        // the hour past dawn passes one where a sunrise window is longer than an hour, which
-        // mattered nothing while it was only an alpha.
+        // **The weather manager's own two rules, read from where it draws by them.** Its ramp runs on
+        // through the night, since a rasterizer that has hidden the disc has no use for it; a tracer asks
+        // this to decide whether to cast a shadow, so the gate that hides the disc is folded in, and the
+        // ramp is bounded because it passes one where a sunrise window is longer than an hour.
         if (!Sky::sunUp(hour, times))
             return 0.0f;
 
@@ -196,10 +186,8 @@ namespace Rtx
         if (!(descent > 0.0f))
             return sunShareAt(hour, times);
 
-        // The larger of the ramp read either side, because the layer's day is the ground's widened
-        // at both ends. A layer that sees the sun lower sees it earlier in the morning and later
-        // in the evening, and those are opposite shifts of one clock — reading an earlier hour is
-        // right at dusk and hands the morning less sun than the ground itself gets.
+        // The larger of the ramp read either side, because the layer's day is the ground's widened at both
+        // ends: earlier in the morning and later in the evening are opposite shifts of one clock.
         const float offset = dip / descent;
 
         return std::max(sunShareAt(hour - offset, times), sunShareAt(hour + offset, times));

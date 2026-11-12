@@ -17,12 +17,12 @@ namespace Rtx
     class Device;
     class ShaderCode;
 
-    /// How many lanes a compute pipeline's subgroup holds: the driver's choice, or 32 asked for. **32
-    /// for a kernel that traces**, AMD's advice for ray queries on RDNA, where a driver may choose 64
-    /// for compute; NVIDIA's warp is 32 whatever is asked. The spill gate's register ceiling is a
-    /// 32-lane figure (`RtxVisibilityKernelsTest`). **Asked in full subgroups**, so a workgroup of 32
-    /// is one subgroup, which a ballot over it relies on; its first side must then be a multiple of
-    /// 32 (`TRACE_WORKGROUP_LANES`).
+    /// How many lanes a compute pipeline's subgroup holds: the driver's choice, or 32 asked for. 32
+    /// for a kernel that traces, AMD's advice for ray queries on RDNA, where a driver may choose 64
+    /// for compute. The spill gate's register ceiling is a 32-lane figure
+    /// (`RtxVisibilityKernelsTest`). Asked in full subgroups, so a workgroup of 32 is one
+    /// subgroup, which a ballot relies on; its first side must then be a multiple of 32
+    /// (`TRACE_WORKGROUP_LANES`).
     enum class SubgroupSize
     {
         Driver,

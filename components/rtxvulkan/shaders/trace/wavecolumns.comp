@@ -3,13 +3,9 @@
 #extension GL_GOOGLE_include_directive : require
 
 // The three fields transformed along the columns — the second half of the inverse transform — and unpacked
-// into the textures a surface is read out of, a column a workgroup.
-//
-// **Six real fields arrive in three complex ones**, one in each real part and one in each imaginary part,
-// which is what `waverows.comp` packed them as.
-//
-// **Unpacked where it is transformed**: a column of the three fields is the column of texels they make, so
-// the answer goes from shared memory to the textures, and never to memory and back.
+// into the textures a surface is read out of, a column a workgroup. Six real fields arrive in three complex
+// ones (`waverows.comp` packed them), and are unpacked where they are transformed, from shared memory
+// straight to the textures.
 
 #include "shared/sets.h"
 #include "shared/wavetransform.h"
@@ -27,15 +23,10 @@ layout(set = SET_PASS, binding = WAVE_COLUMNS_BIND_FIELD, scalar) readonly buffe
     vec2 field[];
 };
 
-/// The two slopes, their own second moment, and the elevation squared.
-///
-/// **Both of the slope's moments in one image, so that reading them is one fetch.** What LEAN mapping wants
-/// is `E[|s|^2] - |E[s]|^2` off a level of a chain, and a mean beside a mean square is a subtraction rather
-/// than a second opinion about the same field — so the two belong together.
-///
-/// **The elevation squared rides in the last channel**, where the coarsest level makes it the sea's own
-/// variance — the amplitude the whole spectrum is normalised to, and the one thing a test can hold the
-/// transform's scale to.
+/// The two slopes, their own second moment, and the elevation squared. Both slope moments share one image so
+/// reading them is one fetch (LEAN mapping wants `E[|s|^2] - |E[s]|^2` off a level of a chain). The elevation
+/// squared rides in the last channel, where the coarsest level makes it the sea's own variance — the amplitude
+/// the whole spectrum is normalised to, which a test holds the transform's scale to.
 layout(set = SET_PASS, binding = WAVE_COLUMNS_BIND_SURFACE, WAVE_TILE_FORMAT) uniform writeonly image2D surface;
 
 /// The three curvatures, which is what the caustic differentiates the height field twice for.
@@ -69,13 +60,10 @@ void main()
 
     for (uint row = thread; row < count; row += WAVE_WORKGROUP)
     {
-        // **The centre of the grid is the wave of no length**, which is where a spectrum belongs and is not
-        // where a transform expects it: shifting the input by half a grid multiplies the output by `exp(i
-        // pi (x + y))`, so undoing it is a sign.
-        //
-        // **And nothing else scales.** The transform is unscaled and `makeWaveCascades` states the
-        // surface's variance as twice the sum of its own amplitudes, which is what the transform of a
-        // conjugate pair delivers — so the two conventions meet with no constant between them.
+        // The centre of the grid is the wave of no length, where a spectrum belongs and a transform does not expect
+        // it: shifting the input by half a grid multiplies the output by `exp(i pi (x + y))`, so undoing it is a sign.
+        // Nothing else scales: the transform is unscaled and `makeWaveCascades` states the surface's variance as
+        // twice the sum of its own amplitudes, which is what a conjugate pair's transform delivers.
         const float shift = ((column + row) & 1u) == 0u ? 1.0 : -1.0;
 
         const vec2 first = gLines[0][row];

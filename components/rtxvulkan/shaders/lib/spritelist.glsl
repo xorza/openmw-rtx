@@ -1,13 +1,12 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SPRITELIST_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SPRITELIST_GLSL
 
-// The sprite tables and the tiles' list over them, as the three bin passes write them and the trace reads
-// them.
+// The sprite tables and the tiles' list over them, as the three bin passes write them and the trace reads them.
 //
-// **One statement of the list's shape, because four shaders indexed it by hand.** The count pass and the
-// scan wrote at `1 + tile`, the fill and the trace read at `tile` and `tile + 1`, and the rule that makes
-// those one table — entry nought is the head — was prose in `scene.h`. The rect a sprite covers was packed
-// in one pass and unpacked in another, sixteen bits a coordinate, with the split spelled in both.
+// **One statement of the list's shape, because four shaders indexed it by hand**: the count pass and the scan
+// write at `1 + tile`, the fill and the trace read at `tile` and `tile + 1`, and the rule that makes those
+// one table (entry nought is the head) was prose in `scene.h`. The rect a sprite covers is packed in one pass
+// and unpacked in another, sixteen bits a coordinate.
 
 #include "shared/tables.h"
 #include "camera.h"
@@ -116,13 +115,12 @@ uint presenceAt(SpriteTileList list, SpritePresence presence, uint tracedWidth, 
 /// and no additive mesh a ray through its tile can meet, and not the arms' — so the composite there would
 /// leave the frame as it found it, with a transmittance of one in its alpha.
 ///
-/// **Asked by the composite and by the curve, which have to agree pixel for pixel.** The composite skips
-/// such a pixel, and the curve reads a transmittance of one there in place of an alpha the composite never
-/// wrote. That is most of every frame at the shown extent: on a clear day every pixel paid three loads and
-/// a store to write a one, which was 0.46 ms of a 4K frame and 0.27 with the writes gone.
+/// **Asked by the composite and by the curve, which have to agree pixel for pixel**: the composite skips such
+/// a pixel, and the curve reads a transmittance of one there in place of an alpha the composite never wrote.
+/// That is most of every frame at the shown extent: on a clear day every pixel paid three loads and a store to
+/// write a one, 0.46 ms of a 4K frame and 0.27 with the writes gone.
 ///
-/// **Of the tile alone, and of nothing a ray through the pixel found**, so the answer is the same whichever
-/// point of the pixel the trace sampled.
+/// **Of the tile alone**, so the answer is the same whichever point of the pixel the trace sampled.
 ///
 /// @param arms whether the trace drew the pixel on an arm, `surfaceOnArms`.
 bool puffsCoverNothing(SpriteTileList list, SpritePresence presence, uint tracedWidth, uvec2 traced, bool arms)

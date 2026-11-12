@@ -24,11 +24,10 @@ namespace Rtx
 {
     namespace
     {
-        /// What one block or one texel contributes: the sum of its colours in linear light, each
-        /// weighed by its alpha, and the alpha summed. **Weighed by alpha in every format**: a texel
-        /// nothing was painted on is usually black, and counted whole it darkened every cell round a
-        /// leaf's holes, which the delighting then brightened the leaves against. A format with no alpha
-        /// weighs every texel one, and BC1's holes are an alpha of nought like any other.
+        /// What one block or one texel contributes: the sum of its colours in linear light, each weighed by its alpha,
+        /// and the alpha summed. **Weighed by alpha in every format**: a texel nothing was painted on is usually black,
+        /// and counted whole it darkened every cell round a leaf's holes. A format with no alpha weighs every texel
+        /// one, and BC1's holes are an alpha of nought like any other.
         struct TexelSum
         {
             osg::Vec3f mSum;

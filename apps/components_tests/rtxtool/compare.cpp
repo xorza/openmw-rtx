@@ -45,12 +45,10 @@ namespace RtxTool
             sampleAt(image, x, y, channel) = static_cast<std::uint16_t>(level * sSamplesPerLevel);
         }
 
-        /// **A shot is refused against the directory it writes**, however the two are spelled: the
-        /// pictures land over their references before either is read, so every one would judge the
-        /// same. Another directory, one that does not exist yet, and no `--against` at all are not.
-        ///
-        /// **In a directory of this run's own**, because one shared by name was removed under this
-        /// test by another copy of the binary running beside it.
+        /// **A shot is refused against the directory it writes**, however the two are spelled: the pictures
+        /// land over their references before either is read. Another directory, one that does not exist
+        /// yet, and no `--against` at all are not. **In a directory of this run's own**, because one
+        /// shared by name was removed under this test by another copy of the binary running beside it.
         TEST(RtxCompareTest, aRunIsNotComparedAgainstWhatItWrites)
         {
             const std::filesystem::path root = TestingOpenMW::currentTestDirPath();
@@ -112,12 +110,11 @@ namespace RtxTool
             EXPECT_TRUE(compareFrames(before, after).same());
         }
 
-        /// **The error a noise measure reads**, on a hundred pixels whose errors are set by hand: 90
-        /// at nought, 8 at 4 (in green), one at 20 (in blue) and one at 155 (red at 255 over 100).
-        /// The mean is (8 × 4 + 20 + 155) / 100 = 2.07. Ninety-nine of the hundred are within 20 and
-        /// ninety-eight within 4, so the 99th percentile is 20: the one pixel at 155 is the
-        /// percentile's to leave out and the mean's to carry. A pixel that differs in alpha alone
-        /// counts nothing.
+        /// **The error a noise measure reads**, on a hundred pixels whose errors are set by hand: 90 at
+        /// nought, 8 at 4 (in green), one at 20 (in blue) and one at 155 (red at 255 over 100). The mean is
+        /// (8 × 4 + 20 + 155) / 100 = 2.07; ninety-eight are within 4 and ninety-nine within 20, so the
+        /// 99th percentile is 20: the one pixel at 155 is the percentile's to leave out and the mean's to
+        /// carry. A pixel that differs in alpha alone counts nothing.
         TEST(RtxCompareTest, anErrorIsItsMeanAndTheLevelNinetyNinePixelsInAHundredAreWithin)
         {
             const PngImage reference = flat(10, 10, 100);
@@ -150,16 +147,12 @@ namespace RtxTool
             EXPECT_TRUE(measureError(PngImage{}, reference).mMismatched);
         }
 
-        /// **A firefly is four times the truth's light and a spark's worth over it.** A grey's light
-        /// is its decoded level, the weights summing to one. On a hundred pixels of the truth at level
-        /// 100, whose light is 0.12744:
-        /// - level 255, light 1, stands 7.8 times over: a firefly;
-        /// - level 180, light 0.45641, stands 3.58 times over, under four: not one;
-        /// - over a truth at level 2 (light `2 / 255 / 12.92` = 0.000607), level 9 (0.002732) stands
-        ///   4.5 times over but only 0.0021 above, under the floor of a level-16 grey's 0.00518: not
-        ///   one, a dark speck;
-        /// - over the same truth, level 60 (0.04519) stands far over and far above: a firefly.
-        /// Two in a hundred is 20 in a thousand. Pictures of two sizes have nothing to count.
+        /// **A firefly is four times the truth's light and a spark's worth over it.** A grey's light is its
+        /// decoded level. On a hundred pixels of the truth at level 100 (light 0.12744): level 255 (light
+        /// 1) stands 7.8 times over, a firefly; level 180 (0.45641) 3.58 times, under four, not one. Over a
+        /// truth at level 2 (0.000607), level 9 (0.002732) stands 4.5 times over but only 0.0021 above,
+        /// under the floor of a level-16 grey's 0.00518, a dark speck; level 60 (0.04519) is far over and
+        /// far above, a firefly. Two in a hundred is 20 in a thousand. Two sizes have nothing to count.
         TEST(RtxCompareTest, aFireflyIsFourTimesTheTruthsLightAndASparkOverIt)
         {
             PngImage reference = flat(10, 10, 100);

@@ -16,13 +16,11 @@
 
 namespace Rtx
 {
-    /// A texture's chain made again from its finest level, the one way the host makes one: **a box of
-    /// the level above** (`Shaders::axisTaps`, three taps along an odd axis), in light where the format
-    /// is display-encoded, with a colour weighed by its alpha where the alpha is coverage
-    /// (`TextureEncoding::Colour`) and divided back, and the alpha averaged on its own. **A normal map
-    /// in one encoding** (`docs/rtx/architecture.md`, "A normal map is whole in BC7, in one encoding"): every
-    /// texel its unit normal in three channels, a map of two given its blue, and each level the
-    /// direction of the mean of the finest normals it covers, its height beside it.
+    /// A texture's chain made again from its finest level, the one way the host makes one: **a box of the level above**
+    /// (`Shaders::axisTaps`), in light where the format is display-encoded, with a colour weighed by its alpha where
+    /// the alpha is coverage (`TextureEncoding::Colour`) and divided back. **A normal map in one encoding**
+    /// (`docs/rtx/architecture.md`, "A normal map is whole in BC7, in one encoding"): each level the direction of the
+    /// mean of the finest unit normals it covers, its height beside it.
     ///
     /// One a thread: it keeps the decoded levels and its scratch between builds.
     class ChainBuild
@@ -63,12 +61,11 @@ namespace Rtx
         /// from its first level within the side.
         static bool buildsAt(const MipLevel& finest);
 
-        /// Decodes the first level of `file`, a description `rebuilds` holds, and boxes `levels` levels in
-        /// all from it, each half the one above and at least a texel, as a file lays its own: four bytes a
-        /// texel, display-encoded where `file`'s format is. **A painted colour** reads every level it
-        /// carries instead, up to `levels`, and has the light painted into it divided out of each, the
-        /// levels past its own boxed from the last of them (`docs/rtx/architecture.md`, "A painted colour is
-        /// stored delit, keyed by use"). Refills this one.
+        /// Decodes the first level of `file`, a description `rebuilds` holds, and boxes `levels` levels in all from it,
+        /// each half the one above and at least a texel, four bytes a texel, display-encoded where `file`'s format is.
+        /// **A painted colour** reads every level it carries instead, up to `levels`, delit
+        /// (`docs/rtx/architecture.md`, "A painted colour is stored delit, keyed by use"), the levels past its own
+        /// boxed from the last of them. Refills this one.
         void build(const TextureData& file, std::uint32_t levels);
 
         /// Whether the finest level built holds a texel of no alpha in a BC1 format: a cut in its one

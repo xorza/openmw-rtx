@@ -359,11 +359,10 @@ namespace RtxTool
 
     std::vector<FrameHashes::ViewDifference> FrameHashes::against(const FrameHashes& reference) const
     {
-        // **Each view of the reference as the stretch of rows it drew**, in frame order: `note`
-        // writes a stop's rows as it draws them and `read` refuses a file laid out otherwise, so a
-        // frame is found by its view's stretches and a search inside each, and not by a walk over
-        // every row of the reference for every row of the run. A view drawn twice has two, and
-        // the first that holds the frame's number answers.
+        // Each view of the reference as the stretch of rows it drew, in frame order (`note` writes a stop's
+        // rows as it draws them and `read` refuses a file laid out otherwise), so a frame is found by its
+        // view's stretches and not by a walk over every row. A view drawn twice has two, and the first that
+        // holds the frame's number answers.
         struct Stretch
         {
             std::string_view mView;

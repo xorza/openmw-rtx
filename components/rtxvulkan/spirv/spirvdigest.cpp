@@ -222,11 +222,9 @@ namespace Rtx
             {
                 refine();
 
-                // **From the entry points down, and in the order each names its callees**, because
-                // the order a program first names the globals the refinement left alike is part of
-                // what it is named by (`nameOutside`), and that order is the program's own only when
-                // it is walked from where the program starts. What no entry point reaches follows in
-                // the module's order.
+                // From the entry points down, each in the order it names its callees: the order a program first names
+                // the globals the refinement left alike is part of its name (`nameOutside`), and is the program's own
+                // only when walked from where it starts. What no entry point reaches follows in the module's order.
                 std::vector<const Line*> entries;
                 for (const Line* line : mFixed)
                     if (line->mOp == "OpEntryPoint")
@@ -393,13 +391,9 @@ namespace Rtx
                 return found->second;
             }
 
-            /// A global's colour or a function's digest, marked apart.
-            ///
-            /// **Globals the refinement left alike are told apart by the order the program first
-            /// names them.** Two variables of one type and one storage class with no decoration are
-            /// one colour, and a colour alone would name a program that read the one where it read the
-            /// other as the same program. The order of first naming is what swapping them everywhere —
-            /// which changes nothing — leaves alone.
+            /// A global's colour or a function's digest, marked apart. Globals the refinement left alike (two variables
+            /// of one type and storage class with no decoration) are told apart by the order the program first names
+            /// them, which swapping them everywhere leaves alone; a colour alone would name two such programs the same.
             void nameOutside(Canon& canon, std::string_view id)
             {
                 if (const auto found = mGlobalAt.find(id); found != mGlobalAt.end())
@@ -475,18 +469,12 @@ namespace Rtx
                 return pairs;
             }
 
-            /// The order a function's lines are digested in: the module's, except that **each run of
-            /// phis at a block's head is ordered by what its phis are**, since they take their values
-            /// at once and their order is not the program.
-            ///
-            /// What a phi is: colour refinement over the function's phis, as `refine` does over the
-            /// globals, from its type, its pairs and its decorations, each value named by where it is
-            /// defined or, for a phi, by that phi's colour of the round before. None of it reads an id
-            /// or a phi's place, and every other line keeps its place, since every run keeps its
-            /// length. **Phis the refinement left alike are ordered by where the program first reads
-            /// them**, at which line and which operand, and in the module's order where only phis
-            /// read them: an order that follows the module can name one program two digests, and
-            /// never two programs one, since every instruction is written whatever the order.
+            /// The order a function's lines are digested in: the module's, except that each run of phis at a block's
+            /// head is ordered by what its phis are, since they take their values at once and their order is not the
+            /// program. A phi is named by colour refinement over the function's phis (as `refine` does over the
+            /// globals), from its type, pairs and decorations, never an id or a place. Phis left alike are ordered by
+            /// where the program first reads them, and in the module's order where only phis read them: that can name
+            /// one program two digests, never two programs one.
             std::vector<std::size_t> digestOrder(
                 const Function& range, const std::unordered_map<std::string_view, std::size_t>& placed) const
             {

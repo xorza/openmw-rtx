@@ -1,16 +1,16 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SHADOWWORD_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SHADOWWORD_GLSL
 
-// A shadow field's mean and variance in one word, `SHADOW_REPROJECTED`: the mean, which is in `[0, 1]`, as
-// a sixteen-bit unorm in the low half, and the variance as a half in the high half.
+// A shadow field's mean and variance in one word, `SHADOW_REPROJECTED`: the mean, which is in `[0, 1]`, as a
+// sixteen-bit unorm in the low half, and the variance as a half in the high half.
 //
 // **The mean rounded by the shader, and at random where a blend reads it back**, for the reason
-// `halfround.glsl` gives: a running mean rounded to the nearest step stops anywhere within half a step over
-// its blend's weight of its target, ten steps at the temporal pass's five per cent, and a penumbra under a
-// still light never leaves that.
+// `halfround.glsl` gives: a running mean rounded to the nearest step stops within half a step over its
+// blend's weight of its target, ten steps at the temporal pass's five per cent, so a penumbra under a still
+// light never leaves that.
 //
-// **Exact on every device**, so the chance a value rounds up is the share of the step it stands above the
-// unorm below it, to the twenty-four bits the random word has (`roundedToUnorm16`).
+// **Exact on every device**: the chance a value rounds up is the share of the step it stands above the unorm
+// below it, to the twenty-four bits the random word has (`roundedToUnorm16`).
 //
 // **The variance to the nearest half**: no frame reads it back, since the temporal pass makes its own from
 // the moments, so a rounding of it never builds.
@@ -74,9 +74,9 @@ struct ShadowMoments
 /// `SHADOW_MOMENT_FRAMES`, and past it the same mean and sum over that many frames, the earlier ones' sum
 /// scaled to the share the mean's weight leaves them.
 ///
-/// **The variance never past one, which is the SDK's own answer for a history of one sample**, and more
-/// than a bit's variance can be: the count is damped for a history that stood off, so `samples - 1` falls
-/// toward nought while the sum stays, and a variance of a million passed what the filter's halves hold.
+/// **The variance never past one, which is the SDK's own answer for a history of one sample** and more than
+/// a bit's variance can be: the count is damped for a history that stood off, so `samples - 1` falls toward
+/// nought while the sum stays, and a variance of a million passed what the filter's halves hold.
 ShadowMoments updatedShadowMoments(vec3 previous, float current)
 {
     const float samples = min(previous.z + 1.0, SHADOW_MOMENT_FRAMES);

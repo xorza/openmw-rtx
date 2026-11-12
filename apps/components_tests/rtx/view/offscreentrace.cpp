@@ -60,10 +60,9 @@ namespace Rtx
             return stamp;
         }
 
-        /// **Two kinds, and the constructor is which.** A picture of the world owns no scene, which
-        /// is also the answer to what its traversal mask does: nothing, because there is no walk of
-        /// its own to mask. The rasterizer's camera cull mask is the only reader of that number,
-        /// which is why `MWRender::LocalMap`'s inclusion mask is not the weather bug again. Either
+        /// **Two kinds, and the constructor is which.** A picture of the world owns no scene, so its
+        /// traversal mask does nothing: the rasterizer's camera cull mask is the only reader of that
+        /// number, which is why `MWRender::LocalMap`'s inclusion mask is not the weather bug again. Either
         /// kind reserves room for its picture as it is made (`PictureRenderer::reservePicture`).
         TEST(RtxOffscreenTraceTest, aPictureOfTheWorldOwnsNoSceneAndOneOfASubjectDoes)
         {
@@ -145,9 +144,8 @@ namespace Rtx
             EXPECT_FALSE(renderer.mTraced.has_value());
         }
 
-        /// **The slot is the handle's, and one handle gives it back.** Moved, the slot goes with the
-        /// move and the emptied handle drops nothing; the one that holds it at the end drops it
-        /// once. What `OffscreenTrace` paired by hand across a constructor and a destructor.
+        /// **The slot is the handle's, and one handle gives it back.** Moved, the slot goes with the move
+        /// and the emptied handle drops nothing; the one that holds it at the end drops it once.
         TEST(RtxOffscreenTraceTest, aViewSceneGivesItsSlotBackOnceHoweverItIsMoved)
         {
             Testing::CountingRenderer renderer;
@@ -178,11 +176,10 @@ namespace Rtx
 
         /// A subject taken apart and put back together places what is there now and lets the rest go.
         ///
-        /// **The property `NpcAnimation::updateParts` needs and nothing covered.** Between one
-        /// redraw and the next the game frees the body parts that changed and builds their
-        /// replacements, so a mirror that kept what it met last time draws the clothes the character
-        /// took off — and one that swept by renumbering would rebuild every acceleration structure
-        /// in the doll on every frame of a slider drag.
+        /// **The property `NpcAnimation::updateParts` needs.** Between redraws the game frees the body
+        /// parts that changed and builds their replacements, so a mirror that kept what it met last time
+        /// draws clothes the character took off, and one that swept by renumbering would rebuild every
+        /// acceleration structure in the doll on every frame of a slider drag.
         TEST(RtxOffscreenTraceTest, aRebuiltSubjectPlacesWhatArrivedAndHandsTheRoomToWhatComesNext)
         {
             WalkContext context{};
@@ -257,15 +254,13 @@ namespace Rtx
             EXPECT_EQ(scene.meshes().getTriangleCount(), 4u);
             EXPECT_EQ(2 * scene.meshes().getGeometryBytes(), 3 * twoQuads);
 
-            // **Built from nothing exactly once**, across three redraws that each replaced a part.
-            // This is what the sweep freeing rather than compacting buys: a race-creation slider
-            // drag redraws the same subject sixty times a second, and every one of those after the
-            // first appends to what is already on the device.
+            // **Built from nothing exactly once**, across three redraws that each replaced a part: the
+            // sweep frees rather than compacts, so a slider drag redrawing the same subject sixty times a
+            // second appends to what is already on the device.
             EXPECT_EQ(renderer.mRebuilt, 1u);
 
-            // **And every redraw ends its placement**, so the change lists hold nothing after a
-            // hand-over however often the subject changes. A picture's scene that never advanced
-            // kept every add and drop it ever had, and rewrote each one on every redraw.
+            // **And every redraw ends its placement**, so the change lists hold nothing after a hand-over
+            // however often the subject changes.
             for (unsigned int redraw = 4; redraw < 104; ++redraw)
             {
                 subject->removeChild(boots);
@@ -291,11 +286,10 @@ namespace Rtx
             double mAt = -1.0;
         };
 
-        /// **A subject's walk is the frame thread's walk.** What it computes from the content goes
-        /// into the thread's content, so the doll's first frame counts into the frame's figures and
-        /// its shapes are the world's cache's; and what hangs on it runs at the world's clock, the
-        /// one the posing stamp carries. A walk with a content and a clock of its own left the
-        /// doll's preprocessing out of every figure and ran its glow at nought.
+        /// **A subject's walk is the frame thread's walk.** What it computes from the content goes into
+        /// the thread's content, so the doll's first frame counts into the frame's figures and its shapes
+        /// are the world's cache's; what hangs on it runs at the world's clock, the one the posing stamp
+        /// carries.
         TEST(RtxOffscreenTraceTest, aSubjectsWalkSharesTheThreadsContentAndRunsAtTheWorldsClock)
         {
             WalkContext context{};
@@ -457,11 +451,10 @@ namespace Rtx
             return rig;
         }
 
-        /// **A pick meets a part the doll put on since its last redraw, and logs nothing.** The
-        /// inventory's preview attaches the new parts in `NpcAnimation::updateParts` and redraws on
-        /// the next frame, and a click before then culled a part no update had bound to its
-        /// skeleton: it found none and logged so. Updated first, at the picture's clock, the part is
-        /// posed as every other. Before the first redraw there is no picture to pick from.
+        /// **A pick meets a part the doll put on since its last redraw, and logs nothing.** The inventory's
+        /// preview attaches new parts in `NpcAnimation::updateParts` and redraws on the next frame; a click
+        /// before then would cull a part no update had bound to its skeleton. Updated first, at the
+        /// picture's clock, the part is posed as every other. Before the first redraw there is no picture.
         TEST(RtxOffscreenTraceTest, aPickMeetsAPartPutOnSinceTheLastRedrawAndLogsNothing)
         {
             WalkContext context{};

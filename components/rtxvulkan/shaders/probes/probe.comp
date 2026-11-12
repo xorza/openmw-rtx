@@ -5,10 +5,9 @@
 // One pattern of `vec3`s, read four ways, with every reading written out so the host can say which of them
 // is wrong rather than only that they disagree:
 //
-// **This is the question that stopped the geometry blocking.** Swapping the normal fetch from a descriptor
-// to a `buffer_reference` changed the picture and nothing else did, and with no way to ask the device
-// directly it had to be put to a whole traced frame and answered by elimination — which cost a day and
-// reached the wrong answer twice.
+// **This is the question that stopped the geometry blocking**: swapping the normal fetch from a descriptor to
+// a `buffer_reference` changed the picture, and without a way to ask the device directly it could only be
+// answered by elimination over a whole traced frame.
 
 #include "shared/probe.h"
 #include "scene.h"

@@ -28,10 +28,9 @@ namespace Rtx::Shaders
     /// `specularTableCosine` and `specularTableRoughness` where a node stands.
     ///
     /// **Nodes on the edges, and not cells about centres**, because the lobe's albedo moves fastest
-    /// there: from roughness 0.984 to one it falls by a sixteenth, which a table holding its outer
-    /// centres handed to every roughest surface. **The cosine by its square root**, because a smooth
-    /// lobe's albedo falls from 1 to 0.89 and climbs back within a cosine of 0.03 of grazing, where
-    /// the root puts eleven nodes and an even axis two.
+    /// there: from roughness 0.984 to one it falls by a sixteenth. **The cosine by its square root**,
+    /// because a smooth lobe's albedo falls from 1 to 0.89 and climbs back within a cosine of 0.03
+    /// of grazing, where the root puts eleven nodes and an even axis two.
     ///
     /// **Sixty-four**: against the integrals drawn with 2^15 samples a point, a white metal's
     /// compensation is then within 1e-2 under a cosine of 0.05 and 9e-4 elsewhere, three times
@@ -187,7 +186,6 @@ namespace Rtx::Shaders
     /// eye plus a point drawn evenly on the unit sphere's cap above minus the eye's height,
     /// normalised. Stretched back, that sum is the facet. Heitz 2018 draws the same normals off a
     /// disc it has to warp; the caps were measured up to 39% faster.
-    ///
     /// @param eye unit, with a positive z.
     /// @param raised in `[0, 1)`: how far down the cap the point stands, by height, from its top.
     /// @param turn the point's azimuth about the normal, as its cosine and its sine.
@@ -329,27 +327,23 @@ namespace Rtx::Shaders
     ///
     /// **Why a ray tracer needs it.** A mapped normal tilts toward a light the surface under it has
     /// all but turned from, and the facets of a coarse solid stop that light with a hard edge where
-    /// one of them turns past it: their shadow rays leave into the solid. The round stone wall at
-    /// Seyda Neen's (-2, -9), under the PBR replacers, drew that edge as a razor line, lit stones on
-    /// one facet and dark ones on the next.
+    /// one of them turns past it: their shadow rays leave into the solid.
     ///
     /// **A factor on the mapped cosine, and not a share of it.** Chiang, Li and Burley's term ("Taming
-    /// the Shadow Terminator", 2019) divides the base's cosine by the mapped one, so under a sun that
-    /// grazes a wall the light stood at the base's cosine whatever the map said, and fell to nought
-    /// within a sliver of the mapped terminator, past a rim a quarter over: relief went flat, in
+    /// the Shadow Terminator", 2019) divides the base's cosine by the mapped one, so under a grazing
+    /// sun the light fell to nought within a sliver of the mapped terminator and relief went flat, in
     /// hard-edged patches (`docs/rtx/research/2026-11-07-bump-terminator.md`).
     ///
     /// One to the bit where the two normals are one, so a surface with no map keeps every light whole:
     /// `a` is then nought and the root is `c`.
     ///
-    /// **Normals square or more apart keep what normals just short of square keep.** A replacer's map paints
-    /// texels whose own `z` is under nought, so it leans past the base. `a` is one from `cos^2 d = 1/9` on,
-    /// where `tan^2(d) / 8` reaches it, which also leaves nothing to divide by nought; and an answer of nought
-    /// there, which Cycles returns, stood a hard black patch beside `2c / (c + 1)` wherever a map crossed the
-    /// square. And the lobe takes it as the diffuse half does, where Cycles softens the diffuse half alone.
+    /// **Normals square or more apart keep what normals just short of square keep.** A replacer's map
+    /// paints texels whose own `z` is under nought, so it leans past the base. `a` is one from
+    /// `cos^2 d = 1/9` on, where `tan^2(d) / 8` reaches it, which also leaves nothing to divide by
+    /// nought; Cycles' answer of nought there stood a hard black patch beside `2c / (c + 1)`. And the
+    /// lobe takes it as the diffuse half does, where Cycles softens the diffuse half alone.
     ///
     /// **Held to one**: a cosine so small that its square underflows has a root of nought, and would read two.
-    ///
     /// @param baseToLight the cosine between the light and the normal under the map.
     /// @param baseToMapped the cosine between the two normals.
     RTX_SHADER float bumpShadowing(float baseToLight, float baseToMapped)

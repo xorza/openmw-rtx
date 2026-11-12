@@ -14,11 +14,10 @@
 #include "compose.glsl"
 #include "stagerecord.glsl"
 
-/// The picture at the pixel stored at `stored`: `directLight`, `CHANNEL_DIRECT`'s, with the bounce and its
-/// fill as the filter left them multiplied back by their albedos, each shadowed source by what got through
-/// — the shadow denoiser's answer where its field ran (`COMPOSITE_SHADOWED_*` in `shadowedFields`), the
-/// ray's own bit where it did not — the lobe's light where a surface can have one (`lobed`), and the
-/// layers'.
+/// The picture at the pixel stored at `stored`: `directLight` with the bounce and its fill multiplied back by
+/// their albedos, each shadowed source by what got through (the shadow denoiser's answer where its field ran,
+/// `COMPOSITE_SHADOWED_*` in `shadowedFields`, else the ray's own bit), the lobe's light where a surface can
+/// have one (`lobed`), and the layers'.
 vec3 resolvedLight(ivec2 stored, vec3 directLight, vec3 bounce, vec3 fillShare, uint shadowedFields, uint lobed)
 {
     const vec4 sky = imageLoad(shadowed, stored);

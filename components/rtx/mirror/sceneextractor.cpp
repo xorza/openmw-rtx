@@ -60,14 +60,13 @@ namespace Rtx
                 system.setFreezeOnCull(false);
         }
 
-        /// What identifies one placement from one frame to the next: the anchor a walk starts from
-        /// and the node's place under it, folded on the way down so the prefix every sibling shares
-        /// is worked out once. The place is structural — which child of which child — from the
-        /// nearest node the engine stamped a `SceneUtil::StableIdentity` on, and that stamp
-        /// restarts the fold: a reference root is known by what it stands and not by what is
-        /// stood before it in the cell. A hundred crates share one geometry and, walked from a
-        /// shared template node, one structure as well, which the anchor and the stamps tell apart.
-        /// Nothing here reads an address, so nothing here has to be kept alive to keep it true.
+        /// What identifies one placement from one frame to the next: the anchor a walk starts from and the node's place
+        /// under it, folded on the way down so the prefix every sibling shares is worked out once. The place is
+        /// structural (which child of which child) from the nearest node the engine stamped a
+        /// `SceneUtil::StableIdentity` on, and that stamp restarts the fold: a reference root is known by what it
+        /// stands and not by what is stood before it in the cell. A hundred crates share one geometry and, walked from
+        /// a shared template node, one structure as well, which the anchor and the stamps tell apart. Nothing here
+        /// reads an address.
         std::size_t identityWith(std::size_t key, const std::size_t part)
         {
             return (key ^ part) * 0x100000001b3ull;
@@ -107,12 +106,11 @@ namespace Rtx
     public:
         Traversal(SceneExtractor& extractor, const NodeKinds& kinds);
 
-        /// Points the walk at a root, at where it stands, and at the frame it is mirroring, and
-        /// reads what the extractor was told for the walks that follow — the eye, the stamp depth
-        /// and the traversal mask — once, here.
+        /// Points the walk at a root, at where it stands, and at the frame it is mirroring, and reads what the
+        /// extractor was told for the walks that follow (the eye, the stamp depth and the traversal mask) once, here.
         ///
-        /// @param freezes whether the reference roots this walk meets may be frozen and passed —
-        ///        the world walk's, which is the one walked again every frame over the same graph.
+        /// @param freezes whether the reference roots this walk meets may be frozen and passed: the world walk's, which
+        ///        is the one walked again every frame over the same graph.
         void begin(
             const osg::Matrixf& root, std::size_t frame, unsigned int traversal, std::size_t identity, bool freezes);
 
@@ -185,11 +183,10 @@ namespace Rtx
         /// A member for the reason the walk is: made once, and a frame allocates none of it.
         SequenceClock mSequenceClock;
 
-        /// The emitters' own stamp, stepped by the world's step: `osgParticle` integrates the
-        /// difference between one frame stamp and the last. Its own and not the world's for that
-        /// reason, and for its frame number, the sequence `ParticleProcessor` keeps its
-        /// once-per-frame guard against, which is why nothing else in this renderer may drive a
-        /// particle system.
+        /// The emitters' own stamp, stepped by the world's step: `osgParticle` integrates the difference between one
+        /// frame stamp and the last. Its own and not the world's for that reason, and for its frame number, the
+        /// sequence `ParticleProcessor` keeps its once-per-frame guard against, which is why nothing else in this
+        /// renderer may drive a particle system.
         osg::ref_ptr<osg::FrameStamp> mEmitterStamp = new osg::FrameStamp;
         double mEmitterSeconds = 0.0;
         unsigned int mEmitterFrame = 0;
@@ -464,12 +461,11 @@ namespace Rtx
         mShading.resize(held);
     }
 
-    /// Descends into the children of `node` that are in the world, and runs a flipbook's clock on
-    /// the way past, because that clock lives in a traversal this renderer does not run:
-    /// `SequenceClock` makes the claim it wants, and the frame it settled on is walked by the
-    /// mirror. Unlike a particle step, a sequence step may be taken twice, because `Sequence`
-    /// reads the simulation time outright. A branch that is off is off for its emitters too, and a
-    /// system that comes back on after an hour is handed the hour in one step, as under a cull.
+    /// Descends into the children of `node` that are in the world, and runs a flipbook's clock on the way past, because
+    /// that clock lives in a traversal this renderer does not run: `SequenceClock` makes the claim it wants, and the
+    /// frame it settled on is walked by the mirror. Unlike a particle step, a sequence step may be taken twice, because
+    /// `Sequence` reads the simulation time outright. A branch that is off is off for its emitters too, and a system
+    /// that comes back on after an hour is handed the hour in one step, as under a cull.
     void SceneExtractor::Traversal::descend(osg::Node& node, const NodeKind kind)
     {
         descendInWorld(
@@ -477,15 +473,13 @@ namespace Rtx
             [this](const unsigned int child) { mChildIndex = child; });
     }
 
-    /// Runs one node of an `osgParticle` simulation, and says whether that is what this node was.
-    /// The whole of `osgParticle` hangs off the cull traversal — `ParticleProcessor::traverse` and
-    /// `ParticleSystemUpdater::traverse` both open by asking whether the visitor is a cull visitor
-    /// — and a ray tracer culls nothing, so this walk says it is one, to these two nodes and for
-    /// the length of one call. Safe because neither casts: both only compare the type, and both
-    /// derive from a plain `osg::Node` whose `traverse` is empty, so the claim cannot reach the
-    /// three that would take it badly (`SceneUtil::RigGeometry`, `MorphGeometry`,
-    /// `MWRender::CameraRelativeTransform`). This walk and not a cull of its own, because a
-    /// processor reads its world transform off the visitor's node path.
+    /// Runs one node of an `osgParticle` simulation, and says whether that is what this node was. The whole of
+    /// `osgParticle` hangs off the cull traversal (`ParticleProcessor::traverse` and `ParticleSystemUpdater::traverse`
+    /// both open by asking whether the visitor is a cull visitor) and a ray tracer culls nothing, so this walk says it
+    /// is one, to these two nodes and for the length of one call. Safe because neither casts: both only compare the
+    /// type, and both derive from a plain `osg::Node` whose `traverse` is empty, so the claim cannot reach
+    /// `SceneUtil::RigGeometry`, `MorphGeometry` or `MWRender::CameraRelativeTransform`, which would take it badly.
+    /// This walk and not a cull of its own, because a processor reads its world transform off the visitor's node path.
     bool SceneExtractor::Traversal::stepParticles(osg::Node& node, const NodeKind kind)
     {
         if (auto* processor = as<osgParticle::ParticleProcessor>(kind, NodeKind::ParticleProcessor, node))
@@ -530,23 +524,20 @@ namespace Rtx
         mEmitterStamp->setFrameNumber(++mEmitterFrame);
     }
 
-    /// Accumulated on the way down rather than recomputed on the way up: `osg::computeLocalToWorld`
-    /// walks a drawable's whole path back to the root, O(depth) per drawable, and
-    /// `computeLocalToWorldMatrix` is what it calls on each transform, so the answer is the same.
-    /// The visitor goes with it and not the null pointer `computeLocalToWorld` passes, because the
-    /// sky's `MWRender::CameraRelativeTransform` dereferences it without checking; a visitor that is
-    /// not a cull visitor takes the branch a null one would have.
+    /// Accumulated on the way down rather than recomputed on the way up: `osg::computeLocalToWorld` walks a drawable's
+    /// whole path back to the root, O(depth) per drawable. The visitor goes with it and not the null pointer
+    /// `computeLocalToWorld` passes, because the sky's `MWRender::CameraRelativeTransform` dereferences it without
+    /// checking; a visitor that is not a cull visitor takes the branch a null one would have.
     void SceneExtractor::Traversal::enterTransform(
         osg::Transform& node, const std::size_t identity, const NodeKind kind)
     {
         const osg::Matrix above = mHere;
 
-        // **A billboard is turned here, toward the eye this walk was told**, because the node
-        // turns only under a cull visitor and this walk is none: handed itself, `computeMatrix`
-        // keeps whatever rotation a cull last left, which in this renderer is the one the file was
-        // authored with. The three vectors go in the node's own frame, which is what a cull stack
-        // hands it too. A walk told no eye leaves the billboard where it stands, and so does a frame
-        // with no inverse — a scale of nought above it — which has no way into the node's own.
+        // **A billboard is turned here, toward the eye this walk was told**, because the node turns only under a cull
+        // visitor and this walk is none: `computeMatrix` would keep whatever rotation a cull last left, which here is
+        // the one the file was authored with. The three vectors go in the node's own frame, as a cull stack hands them.
+        // A walk told no eye leaves the billboard where it stands, and so does a frame with no inverse (a scale of
+        // nought above it).
         osg::Matrixd toLocal;
         if (auto* billboard = as<NifOsg::AutoTransform>(kind, NodeKind::Billboard, node); billboard != nullptr
             && mEye.has_value() && toLocal.invert(osg::Matrixd(above) * osg::Matrixd(mRoot)) && toLocal.valid())
@@ -771,12 +762,11 @@ namespace Rtx
     {
         mPhase.expect(Phase::Between);
 
-        // What each map stops holding is dropped on the scene, and a row goes with its last hold,
-        // wherever that is: freed and not compacted, because a slot index is the custom index a
-        // hit reads back and closing the gaps would renumber every bottom-level acceleration
-        // structure in the world on every crossing. The order does not matter, because a
-        // placement holds what it stands on. Each map skips its walk where every entry was
-        // reached (`Kept::whole`), which is a world that stands still.
+        // What each map stops holding is dropped on the scene, and a row goes with its last hold, wherever that is:
+        // freed and not compacted, because a slot index is the custom index a hit reads back and closing the gaps would
+        // renumber every bottom-level acceleration structure in the world on every crossing. The order does not matter,
+        // because a placement holds what it stands on. Each map skips its walk where every entry was reached
+        // (`Kept::whole`).
         mPlacements.retire(mReleased, [this](const Known& gone) { mScene.dropInstance(gone.mIndex, Stander::Walk); });
         mMeshes.retire(mReleased);
         mMaterials.retire(mReleased);
@@ -975,11 +965,10 @@ namespace Rtx
 
         mPlacements.stamp(held);
 
-        // A slot stands what the walk resolved this frame, or it is stood again: a deforming
-        // drawable whose source geometry was replaced, a state set a controller rewrote into
-        // another material, or a sibling that shifted into this place when the one before it went,
-        // is mirrored afresh under the identity it kept. Moved, the slot would carry the old
-        // surface at the new place, and hold the old row, for as long as it stood.
+        // A slot stands what the walk resolved this frame, or it is stood again: a deforming drawable whose source
+        // geometry was replaced, a state set a controller rewrote into another material, or a sibling that shifted into
+        // this place is mirrored afresh under the identity it kept. Moved, the slot would carry the old surface at the
+        // new place, and hold the old row, for as long as it stood.
         Index& slot = held->second.mIndex;
         const MeshInstance& standing = mScene.placements().getRows()[slot].mInstance;
         if (standing.mMesh != resolved.mMesh || standing.mMaterial != resolved.mMaterial

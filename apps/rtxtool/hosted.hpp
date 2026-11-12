@@ -26,11 +26,10 @@ namespace RtxTool
         const ShippedDefaults& mShipped;
     };
 
-    /// Runs `request` against a real game, presented as `window` asks, and gives back a process exit
-    /// status. The game and not a world of this tool's own, because a staged world never pays for
-    /// the whole-graph walk, the sweep or a cell arriving, and stands in a world nobody plays. The
-    /// engine is built exactly as `apps/openmw/main.cpp` builds one, out of the line's game, after
-    /// the window is written into the settings it reads. A played run prints where the eye was left
-    /// as a `views.cfg` block.
+    /// Runs `request` against a real game, presented as `window` asks, and gives back a process exit status.
+    /// A real game and not a world of this tool's own, which would never pay for the whole-graph walk, the
+    /// sweep or a cell arriving. The engine is built as `apps/openmw/main.cpp` builds one, after the window
+    /// is written into the settings it reads. A played run prints where the eye was left as a `views.cfg`
+    /// block.
     int runHosted(const Command& command, const Framed& framed, SessionRequest request);
 }

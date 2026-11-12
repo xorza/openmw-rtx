@@ -39,20 +39,17 @@ namespace RtxTool
 
     /// Draws every texture a cell uses, vanilla beside de-lit, as one image.
     ///
-    /// **De-lighting is the one thing in this renderer a number cannot judge.** An estimate that
-    /// removes the light painted into a texture and one that removes the *detail* painted into it
-    /// move every metric the same way — the frame changes by about as much either way, and both
-    /// look like progress. The only way to tell them apart is to put the two side by side and look.
-    ///
-    /// The thumbnails are nearest-neighbour on purpose: a smoothed one would hide exactly the loss
-    /// of detail this exists to find. A painted colour is delit as its chain is (`ChainBuild`); every
-    /// other texture stands beside itself.
+    /// De-lighting is the one thing in this renderer a number cannot judge: an estimate that removes the
+    /// light painted into a texture and one that removes its detail move every metric the same way, and
+    /// only a side by side look tells them apart. The thumbnails are nearest-neighbour on purpose, as a
+    /// smoothed one would hide the loss of detail this exists to find. A painted colour is delit as its
+    /// chain is (`ChainBuild`); every other texture stands beside itself.
     ContactSheet drawContactSheet(std::span<const Rtx::TextureData> textures);
 
-    /// Appends what each pair of the sheet shows, in the order `drawContactSheet` draws them — the
-    /// sheet's legend, which it carries no lettering for: each slot's `TextureRow::getName`. By the
-    /// slot each description names, because a slot the table freed is described as nothing, and a
-    /// legend counted along the table named every thumbnail after it one slot too far on.
+    /// Appends what each pair of the sheet shows, in the order `drawContactSheet` draws them: the sheet's
+    /// legend, which it carries no lettering for (each slot's `TextureRow::getName`). By the slot each
+    /// description names, because a slot the table freed is described as nothing and a legend counted along
+    /// the table named every later thumbnail one slot too far on.
     ///
     /// @param rows the table the descriptions were made from, which the views point into.
     void listSheetNames(

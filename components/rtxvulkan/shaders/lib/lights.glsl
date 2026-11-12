@@ -3,9 +3,8 @@
 
 // Which lamps could reach a point, and what one delivers at a distance.
 //
-// **The two halves every consumer of a lamp must agree on.** Two places accumulate lamps — a surface and
-// the air — and they differ in the cosine, the shadow ray and the phase function. What they may not differ
-// in is the reach and the falloff.
+// **The two halves every consumer of a lamp must agree on**: a surface and the air differ in the cosine, the
+// shadow ray and the phase function, but not in the reach and the falloff.
 
 #include "colour.h"
 #include "gbuffer.h"
@@ -20,9 +19,8 @@
 
 /// The `source`th light in the sky, read off the frame: `SKY_SOURCE_SUN`, then the two moons.
 ///
-/// **Read and not assembled.** The frame carries the sun as the record this returns, and a moon's disc
-/// carries the same record as `MoonDisc::mSource` — so nothing here derives a fact the frame already
-/// states. `SkySource` says what the three are one of.
+/// **Read and not assembled**: the frame carries the sun as this record and a moon's disc as
+/// `MoonDisc::mSource`, so nothing here derives a fact the frame already states.
 SkySource skySourceAt(uint source)
 {
     if (source == SKY_SOURCE_SUN)
@@ -33,15 +31,15 @@ SkySource skySourceAt(uint source)
 
 /// What the world leaves of a light in the sky at a point, from none of it to all.
 ///
-/// **One question, asked by every reader.** A surface, a froxel of the air and a step of a water shaft each
-/// asked it their own way, and their answers parted. The ray is drawn across the disc's own penumbra: the
-/// sun's for the reason `SUN_SHADOW_RADIUS` gives, a moon's at its own limb.
+/// **One question, asked by every reader**, so a surface, a froxel of the air and a step of a water shaft
+/// cannot part in their answers. The ray is drawn across the disc's own penumbra: the sun's for the reason
+/// `SUN_SHADOW_RADIUS` gives, a moon's at its own limb.
 ///
-/// **The cloud deck stands in no ray's way.** The content dims the sun for each weather (`Sun_*_Color`),
-/// and that is the whole of what a deck does to the light under it.
+/// **The cloud deck stands in no ray's way**: the content dims the sun per weather (`Sun_*_Color`), which is
+/// all a deck does to the light under it.
 ///
-/// **Two halves, `Passage`'s**: whether the ray was stopped, and the rest — what the translucent surfaces
-/// it crossed let through.
+/// **Two halves, `Passage`'s**: whether the ray was stopped, and what the translucent surfaces it crossed
+/// let through.
 ///
 /// @param step the step off the triangle `position` stands on (`stepOf`), or nought for a point in
 ///        the air.
@@ -66,13 +64,10 @@ float skyVisible(SkySource sky, vec3 position, vec3 step, vec2 draw)
 
 /// Which lamps one cell of the grid holds, as a range into the light list.
 ///
-/// **A shading point should not have to ask every lamp in the cell whether it is near.** Walking them all
-/// costs the same whether one contributes or none do — and the fog made that unaffordable rather than
-/// merely wasteful, since a march asks twenty-four times per pixel where a surface asks once per hit.
-///
-/// **By cell rather than by point, because a walk along a ray has the cell already.** The stretch a ray
-/// spends inside one cell is one list asked once, which is what `weighLamps` is built on.
-///
+/// **By cell rather than by point, because a walk along a ray has the cell already**: the stretch a ray
+/// spends in one cell is one list asked once, which `weighLamps` is built on. Walking every lamp of a cell
+/// costs the same whether one contributes or none, which the fog's twenty-four asks per pixel made
+/// unaffordable.
 /// @param key nought for the lamps that light, one for those that take light away: each cell keeps
 ///        the two runs side by side — `Rtx::LightGrid::getCells`.
 uvec2 lightRunInCell(vec3 cell, uint key)
@@ -109,15 +104,10 @@ uvec2 darkeningReaching(vec3 position)
 
 /// How many lamps one point may weigh before it stops.
 ///
-/// **A budget, and not a limit a healthy grid reaches.** `Rtx::LightGrid` trades its cell size against two
-/// budgets — the cells it may hold and the entries those cells may name — so a lamp whose reach is
-/// unusually long makes the cell *coarser* rather than the table larger. Carried far enough that is one
-/// cell holding every lamp in the scene, and every point inside it walking all of them.
-///
-/// **So the length of this walk is a property of the shader and never of the content.** Nothing the world
-/// can hold makes a kernel here run for an unbounded time. What a scene past the budget loses is the lamps
-/// a point weighs last, which are the ones its cell listed last — a bias, and one that only appears where
-/// the alternative is no picture at all.
+/// **A budget, and not a limit a healthy grid reaches.** `Rtx::LightGrid` makes a cell coarser rather than
+/// the table larger when a lamp's reach is long, so in the limit one cell holds every lamp; the bound keeps a
+/// kernel's run time a property of the shader and never of the content. A scene past it loses the lamps its
+/// cell listed last: a bias, and only where the alternative is no picture.
 const uint LAMPS_AT_A_POINT = 256u;
 
 /// The same range, cut to that budget.
@@ -134,10 +124,9 @@ uvec2 lampsReaching(vec3 position)
 
 /// The size a lamp's singularity is softened by: its own extent, and one unit where it carries less.
 ///
-/// **The lamp's own extent, because that is what a lamp is.** An inverse square is the field of a point,
-/// and a point has no field at itself: within a flame's own radius the arithmetic runs away, and what it
-/// draws is a hard bright bead hanging in the air wherever the fog samples beside a lamp — a firefly, and
-/// not the glow of the thing it belongs to. A sphere's irradiance flattens inside its own surface instead.
+/// **The lamp's own extent, because that is what a lamp is.** An inverse square is a point's field and runs
+/// away within a flame's own radius, drawing a hard bright bead in the fog beside a lamp; a sphere's
+/// irradiance flattens inside its own surface instead.
 float lampSoftening(float source)
 {
     return max(source, 1.0);
@@ -155,9 +144,8 @@ float falloff(float distance, float reach, float source)
 
 /// The integral of `falloff` along a ray, over the stretch of it between `from` and `to`.
 ///
-/// **The same window and the same inverse square, integrated instead of sampled.** A froxel's whole share
-/// of a lamp is this over its own stretch, and it is the sum a march of that stretch converges to rather
-/// than an estimate of one. `lampsInAir` is the caller.
+/// **The same window and the same inverse square, integrated instead of sampled**: a froxel's whole share of
+/// a lamp, which a march of that stretch converges to. `lampsInAir` is the caller.
 ///
 /// @param perpendicular how far the lamp stands off the ray's line.
 /// @param from where the stretch starts, measured from the closest approach and signed: inside the
@@ -202,10 +190,8 @@ float falloffAlong(float perpendicular, float from, float to, float reach, float
 
 /// One lamp as it arrives at a point.
 ///
-/// **The reach test and the falloff, which is the whole of what a lamp is at a distance.** Two places
-/// accumulate lamps — a surface and the air — and they differ in the cosine, the shadow ray and the phase
-/// function. This is the part they may not differ in, so it is written once and each of them weighs it its
-/// own way.
+/// **The reach test and the falloff**, the part a surface and the air may not differ in: written once, and
+/// each weighs it its own way.
 struct Lamp
 {
     /// Unit, from the point toward the lamp. Zero where the lamp does not reach.
@@ -224,11 +210,8 @@ Lamp lampAt(GpuLight lamp, vec3 position)
     const float squared = dot(offset, offset);
 
     // **An early-out and not a rule**: the window in `falloff` is already exactly zero at and beyond the
-    // reach, so this changes no pixel.
-    //
-    // **On the square, before the root and the divide**, because most of a cell's list fails here: a cell
-    // lists every lamp whose reach touches it, and at a point that is several lamps for each one that
-    // reaches.
+    // reach, so this changes no pixel. On the square, before the root and the divide, because most of a
+    // cell's list fails here.
     if (squared >= lamp.mReach * lamp.mReach || squared <= 0.0)
         return Lamp(vec3(0.0), 0.0, 0.0);
 
@@ -239,14 +222,11 @@ Lamp lampAt(GpuLight lamp, vec3 position)
 
 /// One lamp held out of all the ones that could reach a point, and what it stands for.
 ///
-/// **A reservoir is one candidate and the weight of everything it beat.** That second number is what makes
-/// the estimator unbiased rather than merely cheap: the one held is divided by the chance it was held,
-/// which is its own weight over the total, so a dim lamp that happens to win still speaks for the whole
-/// cell.
+/// **A reservoir is one candidate and the weight of everything it beat**: the one held is divided by the
+/// chance it was held, so a dim lamp that happens to win still speaks for the whole cell.
 ///
-/// **The lamp is named and not copied.** What the one ray needs of it — where it stands, how wide it is,
-/// how far short of it to stop — is read off its row when the ray is aimed, so nine words of live state
-/// become one and a reservoir whose origin moved aims from where it now is for nothing.
+/// **The lamp is named and not copied**: where it stands, how wide it is and how far short to stop are read
+/// off its row when the ray is aimed, so a reservoir whose origin moved aims from where it now is.
 struct Reservoir
 {
     /// Where the ray this buys leaves from — a shading point lifted off its facet (`Surface::mLift`),
@@ -311,8 +291,7 @@ Facing facingOf(Surface surface)
 /// `bumpShadowing` for one light's direction, which a lit cosine and a lobe both take.
 ///
 /// **One exactly where nothing is mapped**, selected and not worked out: a unit normal's square is one to a
-/// rounding, and the angle `bumpShadowing` reads off it a rounding off nought, so a vanilla surface would
-/// move by an ulp it has no reason to.
+/// rounding, so a vanilla surface would move by an ulp it has no reason to.
 float terminatorShare(Facing facing, vec3 towards)
 {
     const float share = bumpShadowing(dot(facing.mBase, towards), dot(facing.mBase, facing.mNormal));
@@ -322,9 +301,8 @@ float terminatorShare(Facing facing, vec3 towards)
 /// The cosine a diffuse surface takes a light at, with what a sheet takes from its far side.
 ///
 /// **One statement of what "facing" means, used by the sun, the moons and every lamp.** A solid takes the
-/// near side and nothing from behind; a sheet with a mask — a leaf — takes the far side at
-/// `SHEET_TRANSMISSION` of the near, `MESH_SHEET` having said so. Never both at once: a direction is on one
-/// side of a surface or the other.
+/// near side and nothing from behind; a masked sheet (a leaf) takes the far side at `SHEET_TRANSMISSION` of
+/// the near (`MESH_SHEET`), never both at once.
 float litCosine(Facing facing, vec3 towards)
 {
     const float cosine = dot(facing.mNormal, towards);
@@ -358,12 +336,11 @@ struct WeightedPick
 
 /// Picks among three weights in proportion to them, with one draw in `[0, 1)`.
 ///
-/// **Against the weights and never against a quotient.** `draw < first / total` says the same on paper and
-/// not on the card: a divide is allowed 2.5 ULP here, `first / first` came back one ulp under one, and the
-/// one draw in sixteen million that equals it picked a moon while she was down — a chance of nought, a `0 /
-/// 0` in the froxel, and a NaN the fog's history then spread across the frame in eight-pixel blocks. A
-/// product is correctly rounded and never exceeds `total`, and a weight of nought is never the pick, so the
-/// fallback past every comparison is the last weight that is anything.
+/// **Against the weights and never against a quotient.** A divide is allowed 2.5 ULP here: `first / first`
+/// came back one ulp under one, and the one draw in sixteen million equal to it picked a moon while she was
+/// down, a `0 / 0` and a NaN the fog's history spread over the frame. A product is correctly rounded and
+/// never exceeds `total`, and a weight of nought is never the pick, so the fallback past every comparison
+/// is the last weight that is anything.
 WeightedPick pickByWeight(float first, float second, float third, float draw)
 {
     const float total = first + second + third;
@@ -400,15 +377,14 @@ struct LightCandidate
 /// A light as a surface weighs it.
 ///
 /// **One target for every light a surface draws between**: a glossy surface weighs a light by all it sends
-/// back — the diffuse half net of what the lobe took, and the lobe — so a metal holds the lights its
+/// back, the diffuse half net of what the lobe took plus the lobe, so a metal holds the lights its
 /// highlights come from.
 ///
 /// @param unshadowed what the diffuse half would receive per unit albedo.
-/// @param plain the weight of a surface with no lobe, which is the luminance of `unshadowed` up to a
-///        scale the whole draw shares. **Handed in, because each kind rounds it its own way and the
-///        vanilla pictures were drawn with those roundings**: a lamp's is the luminance of the
-///        product, and a sky source's the cosine times the luminance of the irradiance. Worked out
-///        here the one way, the moons' pick flipped at a boundary and moved a night's pixels.
+/// @param plain the weight of a surface with no lobe, the luminance of `unshadowed` up to a scale the whole
+///        draw shares. **Handed in, because each kind rounds it its own way and the vanilla pictures were
+///        drawn with those roundings**: a lamp's is the luminance of the product, a sky source's the cosine
+///        times the luminance of the irradiance.
 /// @param arriving the light's irradiance square to its direction, which the lobe reflects.
 /// @param sine the sine of the light's half angle, which sizes its highlight (`reflectionAt`).
 /// @param facing which side a light has to stand on, as `reflectionAt` takes it, and what fades the
@@ -437,15 +413,8 @@ LightCandidate airCandidate(vec3 share)
 
 /// One sky source, weighed for a point that is about to draw between them.
 ///
-/// **Named rather than kept in an array, because a computed index is a spill.** The three were held in two
-/// `float[3]` locals and read back at the one the draw picked, and that index is not one the compiler can
-/// fold: the trace's closest-hit module of the time carried six `float[3]` variables in the function
-/// storage class, which is what a local array with a computed index becomes on this hardware. Three named
-/// values cost registers instead.
-///
-/// **The spills are gone and the trace did not move.** That stage held six of those arrays and holds none
-/// now, over three interleaved pairs that read the same to within the card's own drift. Kept because a
-/// spill is what the compiler cannot undo for the next reader who adds a fourth source.
+/// **Named rather than kept in an array, because a computed index is a spill**: an array with a computed
+/// index becomes function-storage locals on this hardware, and three named values cost registers instead.
 struct SkyChoice
 {
     SkySource mSky;
@@ -598,14 +567,11 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
 
 /// What the world leaves of the lamp a reservoir held, in `Passage`'s two halves.
 ///
-/// **The one ray**, aimed somewhere on the lamp.
-///
-/// **It stops at its own closest approach to the lamp, less the clearance, and not at the centre.** Those
-/// are the same length only for the ray down the middle; aimed off-axis and stopped at the centre's
-/// distance, a ray runs *past* the source. A record's lamp keeps no clearance (`Rtx::makeLight` says why),
-/// so its ray runs to the flame, and what keeps a lantern's frame, a sconce's bracket or a candle's holder
-/// from shadowing it is the facing: the ray culls the faces turned toward where it left (`lampLightAsk`),
-/// and a fitting is met from outside.
+/// **The one ray**, aimed somewhere on the lamp, stopping at its closest approach to it less the clearance
+/// and not at the centre: aimed off-axis, a ray stopped at the centre's distance runs *past* the source. A
+/// record's lamp keeps no clearance (`Rtx::makeLight` says why), so its ray runs to the flame, and the facing
+/// keeps a lantern's frame or a candle's holder from shadowing it: the ray culls the faces turned toward
+/// where it left (`lampLightAsk`).
 ///
 /// **The clearance and the size are two numbers because they answer two questions**: how far short of the
 /// lamp nothing shadows it, and how wide the source a penumbra opens to.

@@ -85,16 +85,13 @@ namespace Rtx::Testing
             return camera;
         }
 
-        /// **Over a still eye the glossy filter is the mean of its frames.** The floor at half
-        /// roughness: sixteen frames filtered from an empty history, against the same sixteen
-        /// averaged unfiltered. Under sixteen frames the blend's weight is one over the count, so the
-        /// history is the running mean exactly, to the rounding of its halves (`halfRoundedMeanError`);
-        /// and since a half is rounded at random with no bias, the frame's light stands within four
-        /// deviations of that error's mean over the frame's 4096 pixels, which are drawn apart.
-        /// Measured, 0.28 to 0.45 of the first bound and 0.08 to 0.11 of the second, where the raw
-        /// frame stands at 53 to 460 times the first. The metal has no diffuse half, so the
-        /// wavelet filters nought and the whole of the difference from the last raw frame is the
-        /// glossy filter's.
+        /// Over a still eye the glossy filter is the mean of its frames. The floor at half roughness: sixteen
+        /// frames filtered from an empty history against the same sixteen averaged unfiltered. Under sixteen
+        /// frames the blend's weight is one over the count, so the history is the running mean exactly, to the
+        /// rounding of its halves (`halfRoundedMeanError`); a half is rounded at random with no bias, so the
+        /// frame's light stands within four deviations of that error's mean over the 4096 pixels, which are
+        /// drawn apart. The metal has no diffuse half, so the wavelet filters nought and the whole of the
+        /// difference from the last raw frame is the glossy filter's.
         TEST_F(RtxVisibilityTest, overAStillEyeTheGlossyFilterIsTheMeanOfItsFrames)
         {
             const GlossyFloor floor(128);
@@ -121,12 +118,11 @@ namespace Rtx::Testing
             }
         }
 
-        /// **The lamps' split light on a glossy floor is the same in every frame.** A dielectric at
-        /// half roughness, under the four lamps, where nothing stands between a lamp and the floor:
-        /// the lamps' channel, `CHANNEL_LAMPED`, holds every lamp's light, each less the share its own lobe
-        /// took, and the held lamp's bit, which is one. A lobe's share taken off the whole sum by the
-        /// held lamp's Fresnel term, or the sum scaled by the held lamp's own estimate, would change
-        /// with the lamp each pixel holds, in a light nothing filters.
+        /// The lamps' split light on a glossy floor is the same in every frame. A dielectric at half roughness
+        /// under the four lamps, nothing between lamp and floor: `CHANNEL_LAMPED` holds every lamp's light less
+        /// the share its own lobe took, and the held lamp's bit, which is one. A lobe's share taken off the
+        /// whole sum by the held lamp's Fresnel term, or the sum scaled by the held lamp's own estimate, would
+        /// change with the lamp each pixel holds, in a light nothing filters.
         TEST_F(RtxVisibilityTest, theLampsSplitLightOnAGlossyFloorIsTheSameInEveryFrame)
         {
             const GlossyFloor floor(128, 0);
@@ -158,17 +154,15 @@ namespace Rtx::Testing
             ASSERT_GT(brightest, 0.0f) << "a floor the lamps leave dark proves nothing";
         }
 
-        /// **A lobe keeps its history over a turn of the view as wide as the lobe, and no wider.**
-        /// Sixteen filtered frames from one eye, then one from an eye 150 units to the side, which
-        /// turns the direction the middle of the floor is seen from by
-        /// `acos(130000 / (360.56 · 390.51)) = 0.395` radians, at a cosine to the new eye of
-        /// `300 / 390.51 = 0.768`. What the lobe allows is `atan(3 r²)` times that cosine:
+        /// A lobe keeps its history over a turn of the view as wide as the lobe, and no wider. Sixteen
+        /// filtered frames from one eye, then one from an eye 150 units aside, which turns the direction the
+        /// middle of the floor is seen from by `acos(130000 / (360.56 · 390.51)) = 0.395` radians, at a cosine
+        /// to the new eye of `300 / 390.51 = 0.768`. The lobe allows `atan(3 r²)` times that cosine:
         ///
-        /// - at a roughness of 77/255 = 0.302, `atan(0.273) · 0.768 = 0.205` — the turn is past it,
-        ///   the history is dropped and the frame is the raw frame, but for the half its channels are
-        ///   read back in;
-        /// - at one, `atan(3) · 0.768 = 0.959` — the history is kept at `1 - 0.395 / 0.959`, before
-        ///   the two smoothsteps, and the frame stands apart from the raw one.
+        /// - at a roughness of 77/255 = 0.302, `atan(0.273) · 0.768 = 0.205`: the turn is past it, the history
+        ///   is dropped and the frame is the raw frame, but for the half its channels are read back in;
+        /// - at one, `atan(3) · 0.768 = 0.959`: the history is kept at `1 - 0.395 / 0.959`, before the two
+        ///   smoothsteps, and the frame stands apart from the raw one.
         TEST_F(RtxVisibilityTest, aLobeKeepsItsHistoryOverATurnOfTheViewAsWideAsTheLobe)
         {
             const GlossyFloor smooth(77);
@@ -215,14 +209,12 @@ namespace Rtx::Testing
                     << "channel " << channel << ": what the rough lobe kept is no worse than a raw frame";
         }
 
-        /// **A sharp lobe's reflection follows a light that goes, before a still eye** (ReBLUR's
-        /// responsive accumulation, `SPECULAR_RESPONSIVE_ROUGHNESS`). The metal floor under its four
-        /// lamps for forty filtered frames, then the lamps go and nothing is left to light it: each
-        /// frame keeps `1 - 1 / n` of the last, `n` the frames the history holds, and four frames on
-        /// the floor holds `(1 - 1 / n)⁴` of its light. At a roughness of 5/255 = 0.0196 the cap is
-        /// `32 · lerp(0.0194, 1, smoothstep(0.0784)) = 1.17`, held at three, so `(2/3)⁴ = 0.1975`
-        /// is left; at one, thirty-two frames, `(31/32)⁴ = 0.8807`. Without the cap the sharp floor
-        /// kept the rough one's.
+        /// A sharp lobe's reflection follows a light that goes, before a still eye (ReBLUR's responsive
+        /// accumulation, `SPECULAR_RESPONSIVE_ROUGHNESS`). The metal floor under its four lamps for forty
+        /// filtered frames, then the lamps go: each frame keeps `1 - 1 / n` of the last, `n` the frames the
+        /// history holds, so four frames on the floor holds `(1 - 1 / n)⁴` of its light. At a roughness of
+        /// 5/255 the cap is `32 · lerp(0.0194, 1, smoothstep(0.0784)) = 1.17`, held at three, leaving
+        /// `(2/3)⁴ = 0.1975`; at one, thirty-two frames, `(31/32)⁴ = 0.8807`.
         TEST_F(RtxVisibilityTest, aSharpLobesReflectionFollowsALightThatGoesBeforeAStillEye)
         {
             const auto left = [&](std::uint8_t roughness) {
@@ -246,11 +238,9 @@ namespace Rtx::Testing
             EXPECT_NEAR(left(255), std::pow(31.0f / 32.0f, 4.0f), 1e-3f) << "the rough floor lost its history";
         }
 
-        /// **A glossy floor follows a sky whose light halves** (`historyclamp.comp`). The metal floor
-        /// at half roughness under a grey sky and no lamp, filtered for 64 still frames, then 30 more
-        /// under the sky at half its light: the lobe reflects the sky alone, so the new level is half
-        /// the old one exactly. Measured, the clamp's 30th frame stood at 1.046 of it, and without
-        /// the clamp at 1.386, where the history fades by `1 / 32` a frame.
+        /// A glossy floor follows a sky whose light halves (`historyclamp.comp`). The metal floor at half
+        /// roughness under a grey sky and no lamp, filtered for 64 still frames, then 30 more under the sky at
+        /// half its light: the lobe reflects the sky alone, so the new level is exactly half the old one.
         TEST_F(RtxVisibilityTest, aGlossyFloorFollowsASkyWhoseLightHalves)
         {
             for (const bool antilag : { true, false })
@@ -282,15 +272,13 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A replacer's speckled reflectance stays sharp under the glossy filter's history**, which
-        /// holds the lobe's light per unit of its specular albedo. A metal floor whose base
-        /// colour, and so its F0, is a checker of single texels — 230 and 30, three pixels a square —
-        /// at one roughness under a grey sky: the light its lobe reflects is the sky's, alike on both
-        /// squares, and the checker is the albedo alone. Sixteen still frames filtered, then eight
-        /// steps of 2.5 units sideways, three eighths of a pixel each, each one more filtered frame:
-        /// every step resamples the history bilinearly. Against 64 unfiltered frames at the last
-        /// place, the filtered frame's error was 0.0052, a tenth of the raw frame's 0.053; with the
-        /// history kept whole, the checker blurred into it and the error was 0.025, nearly half.
+        /// A replacer's speckled reflectance stays sharp under the glossy filter's history, which holds the
+        /// lobe's light per unit of its specular albedo. A metal floor whose base colour, and so its F0, is a
+        /// checker of single texels (230 and 30, three pixels a square) at one roughness under a grey sky: the
+        /// light its lobe reflects is the sky's, alike on both squares, so the checker is the albedo alone.
+        /// Sixteen still frames filtered, then eight steps of 2.5 units sideways (three eighths of a pixel), each
+        /// one more filtered frame, every step resampling the history bilinearly, against 64 unfiltered frames
+        /// at the last place. With the history kept whole the checker blurs into it.
         TEST_F(RtxVisibilityTest, aSpeckledReflectanceStaysSharpUnderTheGlossyHistory)
         {
             constexpr std::uint32_t extent = 256;

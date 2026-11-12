@@ -12,9 +12,9 @@ namespace Crash
 {
     class SharedPage;
 
-    /// **What the monitor adds to the game's log, on a thread of its own**, stamped as the log stamps
-    /// its own lines. A dump is written on Crashpad's thread, with the game stopped, and a log on a slow
-    /// disk must not hold it. The game holds the file open, and shares its writing.
+    /// **What the monitor adds to the game's log, on a thread of its own**, stamped as the log stamps its own lines:
+    /// a dump is written on Crashpad's thread, with the game stopped, and a log on a slow disk must not hold it. The
+    /// game holds the file open, and shares its writing.
     ///
     /// **Nothing written before the game names its log is lost**: it waits until the game does, and
     /// where the game never does, as one that crashed while reading its configuration, `finish` puts
@@ -49,10 +49,9 @@ namespace Crash
         /// (`pathOf`).
         std::filesystem::path path() const;
 
-        /// `text`, bytes the game wrote into the page, as a path, or empty where the system reads it
-        /// as none: **a page a crash wrote over is the game's memory like any other**, and Windows
-        /// refuses bytes that are no UTF-8 with a throw, which on Crashpad's thread ended the monitor
-        /// with the dump unwritten.
+        /// `text`, bytes the game wrote into the page, as a path, or empty where the system reads it as none: **a
+        /// page a crash wrote over is the game's memory like any other**, and Windows refuses bytes that are no UTF-8
+        /// with a throw, which on Crashpad's thread would end the monitor with the dump unwritten.
         static std::filesystem::path pathOf(const std::string& text);
 
     private:

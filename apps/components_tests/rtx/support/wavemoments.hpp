@@ -49,18 +49,12 @@ namespace Rtx::Testing
 
     /// How much of the slope a mip chain read at `footprint` has averaged away.
     ///
-    /// **What `WaterSurface::mLostSlope` is, written out on this side.** A level of the chain is the
-    /// mean of a square of texels, and a mean of `n` *samples* a texel apart is Dirichlet's kernel
-    /// rather than a `sinc`: the field was point-sampled onto the grid before any of it was
-    /// averaged, so what a level passes is `sin(n p) / (n sin p)` with `p` half a wavevector's phase
-    /// across one texel. Reading it as the box of a continuous field over-states the loss by a fifth.
-    /// What survives is the field through that, what is lost is the rest, and the shader takes the
-    /// difference of a mean square and a squared mean to get it.
-    ///
-    /// **The blend of two levels, because `textureLod` reads at a fraction.** `waveLevel` asks for
-    /// `log2(footprint / texel)`, and the sampler mixes the levels either side of it — so the field
-    /// the shader sees is the mix of two boxes and its transfer is the mix of their two, not the box
-    /// of any single width.
+    /// **What `WaterSurface::mLostSlope` is, written out on this side.** A level is the mean of a square
+    /// of texels, and a mean of `n` *samples* a texel apart is Dirichlet's kernel rather than a `sinc`:
+    /// the field was point-sampled onto the grid first, so a level passes `sin(n p) / (n sin p)` with
+    /// `p` half a wavevector's phase across one texel (the box of a continuous field over-states the loss
+    /// by a fifth). **Two levels blend, because `textureLod` reads at a fraction** of
+    /// `log2(footprint / texel)`: the transfer is the mix of their two, not the box of any one width.
     ///
     /// **Never below the finest level**, which is where `waveLevel` clamps: a cone narrower than a
     /// texel has nothing further to be shown, and the chain has nothing finer to show it.

@@ -34,15 +34,11 @@ uvec3 triangleCorners(GpuMesh mesh, uint primitive)
 }
 
 /// What the three corners of a triangle hold, carried to where a hit landed on it from the two barycentrics
-/// a query reports: the first corner's value, and each other corner's difference from it scaled by that
-/// corner's barycentric.
+/// a query reports.
 ///
-/// **Relative to one corner, and not weighted by all three.** The first corner's weight would be `1 - b.x -
-/// b.y`, which rounds twice, so three weights need not sum to one: weighted, a value the same at every
-/// corner comes back one or two ulp off in between one hit in twenty-four and one in four, and a vertex
-/// tint of 1.0 as 0.99999994. Here a corner that agrees adds a difference of nought, so such a value comes
-/// back exactly, and one that changes little across a triangle keeps the precision of its change rather
-/// than of its size.
+/// **Relative to the first corner, and not weighted by all three.** The first weight `1 - b.x - b.y` rounds
+/// twice, so three weights need not sum to one and a value equal at every corner comes back an ulp or two
+/// off (a tint of 1.0 as 0.99999994); a corner that agrees adds a difference of nought and returns exactly.
 vec2 acrossTriangle(vec2 first, vec2 second, vec2 third, vec2 bary)
 {
     return first + (second - first) * bary.x + (third - first) * bary.y;
@@ -70,9 +66,7 @@ vec3 cornerLift(vec3 normal, vec3 fromCorner, float weight)
 /// the Shadow Terminator*, Ray Tracing Gems II, ch. 4), which RTX Remix and Cycles build on.
 ///
 /// **Three corners named rather than walked in arrays**, because a local array with a computed index is a
-/// spill on this hardware (`SkyChoice` says so): as arrays, the corners and their weights stood in the
-/// trace's closest-hit module of the time as six `vec3[3]` and six `float[3]` of the function storage
-/// class, and named they stand in none.
+/// spill on this hardware (`SkyChoice` says so).
 ///
 /// @param edges the triangle's, in the world.
 /// @param normals the three corner normals, in the world, not unit, and turned to the side the ray
@@ -159,13 +153,10 @@ vec4 triangleTangent(GpuMesh mesh, uvec3 corner, vec2 bary)
         unpackTangent(block.at[at.x]), unpackTangent(block.at[at.y]), unpackTangent(block.at[at.z]), bary);
 }
 
-/// How far the point a hit landed on moved since the previous frame, in the mesh's own space: this frame's
-/// pose less the previous frame's at the same barycentric point of the same triangle.
+/// How far the point a hit landed on moved since the previous frame, in the mesh's own space.
 ///
-/// **In object space, because a difference of two positions is exact there.** Both poses are a body's own
-/// coordinates, a few hundred units at most, and a limb's step between frames is a few of them; the world's
-/// six-figure coordinates would spend the step in rounding, which is the argument `movedBy` makes for the
-/// rigid half.
+/// **In object space, because a difference of two positions is exact there**: a body's coordinates are a few
+/// hundred units, and the world's six-figure ones would spend a limb's step in rounding (`movedBy`'s argument).
 ///
 /// @param corner the global vertex ids `triangleCorners` hands back, which are the mesh's
 ///        vertex offset plus the index within the mesh; the pose blocks are addressed by the
@@ -196,25 +187,20 @@ vec3 colourOf(GpuVertexColour packed)
 /// A vertex colour with its brightness taken out: each component divided by the largest, and white where
 /// the colour is black, which has no hue to keep.
 ///
-/// **A model's vertex colours are mostly light baked into its vertices**: `in_dwrv_corr2_03.nif` darkens
-/// its corners to two fifths, an occlusion of its own, and the trace casts the occlusion itself, so what
-/// tints a model's surface is the hue alone.
+/// **A model's vertex colours are mostly light baked in** (`in_dwrv_corr2_03.nif` darkens its corners to two
+/// fifths); the trace casts that occlusion itself, so only the hue tints a surface.
 vec3 hueOf(vec3 colour)
 {
     const float peak = max(max(colour.r, colour.g), colour.b);
     return peak > 0.0 ? colour / peak : vec3(1.0);
 }
 
-/// The vertex colour interpolated across the triangle a hit landed on, in linear light, whole and as its
-/// hue.
+/// The vertex colour interpolated across the triangle a hit landed on, in linear light, whole and as its hue.
 ///
-/// **White where the mesh brought none, because that is what the table holds.** A colour is a factor and
-/// not a reading: `MeshTable::writeVertices` fills an absent one with ones, so this answers neutrally and
-/// nothing past it has a case to test.
+/// **White where the mesh brought none**: `MeshTable::writeVertices` fills an absent colour with ones.
 ///
-/// **Interpolated in light, and not between two stored bytes.** The host decodes each vertex once —
-/// `Rtx::MeshArrays::mColours` — so what a hit reads across a triangle is a blend of reflectances rather
-/// than a blend of the numbers they were written down as.
+/// **Interpolated in light, and not between two stored bytes**: the host decodes each vertex once
+/// (`Rtx::MeshArrays::mColours`).
 TriangleColour triangleColour(uvec3 corner, vec2 bary)
 {
     ColourBlock block = colourBlockOf(corner.x);

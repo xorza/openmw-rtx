@@ -46,43 +46,37 @@ namespace MWScript
         Terrain::GateState mState = Terrain::GateState::Unknown;
     };
 
-    /// Whether the distance stands the references a script decides on, for the cells no one has
-    /// loaded — where the script has never run, and what the content files say is not what the
-    /// game shows.
+    /// Whether the distance stands the references a script decides on, for the cells no one has loaded,
+    /// where the script has never run and what the content files say is not what the game shows.
     ///
-    /// **A gate for every reference a local script enables or disables as its cell loads.** The
-    /// player's strongholds, Raven Rock and Fort Frostmoth place every stage of their building at
-    /// once and let each piece's own script take down the stages the story has not reached; the
-    /// Ghostfence's script takes the fence down once the heart is struck; Thirsk's door puts up
-    /// the hall's planks by name, and each of Solstheim's standing stones its parts. Such a script
-    /// runs only while its cell is active, so a paging that reads the content files stands every
-    /// stage at once from afar, and each goes the moment its cell loads. A gate runs the script as
-    /// a frame of that cell would (`VisibilityRun`), off the globals and the journal the game
-    /// holds for every cell, and runs it again when one of them moves.
+    /// A gate exists for every reference a local script enables or disables as its cell loads: the
+    /// strongholds, Raven Rock and Fort Frostmoth place every stage of their building at once and let each
+    /// piece's script take down the stages the story has not reached, and the Ghostfence's script takes the
+    /// fence down once the heart is struck. Such a script runs only while its cell is active, so a paging
+    /// that reads the content files stands every stage from afar until the cell loads. A gate runs the
+    /// script as a frame of that cell would (`VisibilityRun`), off the globals and the journal the game
+    /// holds for every cell, and again when one of them moves.
     ///
-    /// **Per script and not per reference**, because a run starts from what the content files say
-    /// of a reference and reads nothing of its own but the locals it starts at nought: a script
-    /// has a gate for the references that wear it, and one for each name it enables or disables.
+    /// Per script and not per reference, because a run starts from what the content files say of a
+    /// reference and reads nothing of its own but the locals it starts at nought: a script has a gate for
+    /// the references that wear it, and one for each name it enables or disables.
     class VisibilityGates
     {
     public:
-        /// Finds every activator, door, container and lamp whose script enables or disables a
-        /// reference — its own or one it names — and makes the gates. At load, before anything asks
-        /// `mark`: the tables are not written again, so the renderers' reader threads read them as
-        /// they stand.
+        /// Finds every activator, door, container and lamp whose script enables or disables a reference, its
+        /// own or one it names, and makes the gates. At load, before anything asks `mark`: the tables are not
+        /// written again, so the renderers' reader threads read them as they stand.
         void build(const MWWorld::ESMStore& store, GateScripts& scripts);
 
         /// Marks each reference of one cell with the gate it stands behind, or `Terrain::sNoGate`.
         ///
-        /// **A named reference only where the script that names it stands in the same cell, and
-        /// only where it is the one reference of its record there.** The game finds a name among
-        /// the active cells first, so a script and a name in one cell load together and the name
-        /// changes on the frame both arrive; a name elsewhere is found, changed and told of by the
-        /// game when the script runs, or not found and left as the files have it, and the
-        /// distance agrees either way. Neighbouring cells load together on some approaches and not
-        /// others, and a second reference of the record makes which one the script means the
-        /// game's to say: both stand by the game's word. What the script is worn by counts only
-        /// where the cell holds it still — an actor starts where the files put it and walks off.
+        /// A named reference is marked only where the script that names it stands in the same cell and it is
+        /// the one reference of its record there. The game finds a name among the active cells first, so both
+        /// load together and the name changes on the frame both arrive; elsewhere the game finds and changes
+        /// it when the script runs, or leaves it as the files have it, and the distance agrees either way.
+        /// Neighbouring cells load together on some approaches and not others, and a second reference of the
+        /// record makes which one the script means the game's to say. What wears the script counts only where
+        /// the cell holds it still: an actor walks off.
         void mark(std::span<Terrain::PagedCellRef> cell) const;
 
         std::size_t getGateCount() const { return mGates.size(); }
@@ -170,14 +164,11 @@ namespace MWScript
 
         /// Whether `script`, whose last run read the hour as `read`, runs again at the hour `now`.
         ///
-        /// **`GameHour` where the script's answer can change, and every other value exactly.** The
-        /// hour moves on every frame, and a script that reads it — content that puts a lamp or a
-        /// window out by the hour — ran again on every frame, up to eight ways of sixteen frames
-        /// each, on a path that is otherwise a load or a step of the story. Run again where the
-        /// hour turns or reaches one of the script's limits (`Script::mHourLimits`), a test against
-        /// a literal answers on the frame it changes, and one against a variable within the hour.
-        /// The same idea as a next-event time in a discrete-event simulation: wake only where the
-        /// result can change.
+        /// `GameHour` is compared only where the script's answer can change, every other value exactly: the
+        /// hour moves every frame, and a script reading it would otherwise run again on every frame of a path
+        /// that is otherwise a load or a step of the story. It runs again where the hour turns or reaches one
+        /// of the script's limits (`Script::mHourLimits`), like a next-event time in a discrete-event
+        /// simulation.
         static bool hourMoved(const Script& script, double read, double now);
 
         /// Records a gate's answer, and appends it to `changes` where the renderers have not heard

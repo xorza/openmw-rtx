@@ -19,9 +19,8 @@ namespace Rtx
 
 namespace RtxTool
 {
-    /// One thing a scene holds, and one column of a hashes file: a digest each rather than one for
-    /// the lot, because a run whose layout differs has to say which table moved. In the order the
-    /// tables are laid out.
+    /// One thing a scene holds, and one column of a hashes file, in the order the tables are laid out: a digest each,
+    /// so a run whose layout differs can say which table moved.
     enum class ScenePart : std::size_t
     {
         Positions,
@@ -39,8 +38,7 @@ namespace RtxTool
         /// One row per placement slot: where it stands, what it is and what it wears.
         Instances,
 
-        /// Where each placement stood last frame, which is what a motion vector is the difference
-        /// of.
+        /// Where each placement stood last frame, which a motion vector is the difference of.
         Previous,
 
         Materials,
@@ -61,21 +59,16 @@ namespace RtxTool
         /// The poses themselves, in the words both kinds are laid in.
         Poses,
 
-        /// What the frame was traced with beside the scene: the camera, the sky, the air, the sea
-        /// and the sample, as `Shaders::VisibilityConstants` — the one input to a trace the scene
-        /// does not hold. A picture that moved while every column before this stood is a frame
-        /// column that moved, a history's, or the code the launches compiled to —
-        /// `PipelineCacheSpec::mDirectory` says how one build compiles to two. Nought where no
-        /// frame was traced, which is what `scene` reports.
+        /// What the frame was traced with beside the scene, as `Shaders::VisibilityConstants`: the one input to a
+        /// trace the scene does not hold. A picture that moved while every other column stood is a frame column, a
+        /// history's, or the compiled code (`PipelineCacheSpec::mDirectory`). Nought where no frame was traced.
         Frame,
 
         Count,
     };
 
-    /// What a hashes file's header spells for each part, in the order the tables are laid out,
-    /// which is the order of the columns: the header is written from this table and a column is
-    /// indexed by the enumerator, so the two must agree, which `Rtx::NamedEnum` checks of an enum with
-    /// a `Count`.
+    /// What a hashes file's header spells for each part, in column order: the header is written from this table and
+    /// a column is indexed by the enumerator, so the two must agree, which `Rtx::NamedEnum` checks.
     inline constexpr Rtx::NamedEnum sSceneParts{ std::array{
         std::pair{ ScenePart::Positions, std::string_view("positions") },
         std::pair{ ScenePart::Normals, std::string_view("normals") },
@@ -107,18 +100,14 @@ namespace RtxTool
     /// A digest of every part, indexed by `ScenePart`.
     using ScenePartDigests = std::array<Misc::DigestWords, static_cast<std::size_t>(ScenePart::Count)>;
 
-    /// Digests each part of a scene on its own: the scene as the renderer will read it, every
-    /// table in order and the shared geometry buffers included. Answers "is this the same
-    /// buffer", which is what a repeat wants because the acceleration structures are built over
-    /// it, where `digestScene` answers "is this the same cell". Fields and not records wherever a
-    /// record has padding, because the bytes between are whatever the allocator left.
+    /// Digests each part of a scene on its own, as the renderer reads it: every table in order and the shared
+    /// geometry buffers included. Answers "is this the same buffer", which a repeat wants because the acceleration
+    /// structures are built over it, where `digestScene` answers "is this the same cell". Fields, not records,
+    /// wherever a record has padding.
     ///
-    /// **Kept across frames, so a frame pays for what moved.** The four vertex tables are tens
-    /// of megabytes and change only where a mesh appears: a release leaves a hole and the bytes
-    /// in it, and the next mesh to land there is an appearance. They are hashed again where
-    /// `MeshTable::getRevision` or their lengths say so and read from the cache otherwise. A
-    /// column of rows is laid end to end and hashed once, not once per field: twenty-five
-    /// thousand placements six fields each was a hundred and fifty thousand hashes a frame.
+    /// Kept across frames so a frame pays for what moved: the four vertex tables are tens of megabytes and change
+    /// only where a mesh appears (a release leaves its bytes in the hole), so they are rehashed only where
+    /// `MeshTable::getRevision` or their lengths say so. A column of rows is hashed once, not once per field.
     class SceneDigester
     {
     public:
@@ -132,9 +121,8 @@ namespace RtxTool
         std::uint32_t getVertexHashes() const { return mVertexHashes; }
 
     private:
-        /// What the four vertex columns were last hashed from. A mesh appears through the
-        /// revision, and the lengths are what a table grown past its blocks says; nothing else
-        /// writes them.
+        /// What the four vertex columns were last hashed from: a mesh appears through the revision, and a table grown
+        /// past its blocks through the lengths; nothing else writes them.
         struct Vertices
         {
             std::uint64_t mRevision = 0;
@@ -159,11 +147,10 @@ namespace RtxTool
     /// The one-off form `scene` and `shot` report with: a digester made and used once.
     ScenePartDigests digestParts(const Rtx::SceneDesc& scene);
 
-    /// One number for what a scene is made of, the same for two stagings of one cell. Per
-    /// placement and summed, because `SceneUtil::Optimizer` merges sibling shapes in heap order and
-    /// the vertex runs and slot numbers follow: each placement is digested from where it stands,
-    /// what it wears and the multiset of its triangles, and no order can tell the sum. Blind to
-    /// the layout, which is what `digestLayout` stands beside it for. Textures by their paths.
+    /// One number for what a scene is made of, the same for two stagings of one cell. Per placement and summed,
+    /// because `SceneUtil::Optimizer` merges sibling shapes in heap order and the vertex runs and slot numbers
+    /// follow: each placement is digested from where it stands, what it wears and the multiset of its triangles.
+    /// Blind to the layout, which `digestLayout` stands beside it for. Textures by their paths.
     Misc::DigestWords digestScene(const Rtx::SceneDesc& scene);
 
     /// One number for the whole layout, for a caller with one line to print; a report with room

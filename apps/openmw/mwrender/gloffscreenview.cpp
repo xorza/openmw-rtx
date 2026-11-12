@@ -319,8 +319,8 @@ namespace MWRender
             return lightManager;
         }
 
-        // Upstream's `CharacterPreview::mTextureStateSet`: the picture is premultiplied — see
-        // SetUpBlendVisitor — so the source factor is one rather than the widget's usual source alpha.
+        // The picture is premultiplied (see SetUpBlendVisitor), so the source factor is one rather than
+        // the widget's usual source alpha.
         osg::ref_ptr<osg::StateSet> premultipliedBlend()
         {
             osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet;

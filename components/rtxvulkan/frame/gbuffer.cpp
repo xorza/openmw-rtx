@@ -246,11 +246,9 @@ namespace Rtx
             VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT
                 | VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT };
 
-        /// Every channel is a storage image the trace writes, and channel `c` binds at binding
-        /// `indexOf(c)`, which is what `gbuffer.h`'s `CHANNEL_*` are; the stage images after them,
+        /// Channel `c` binds at `indexOf(c)` (`gbuffer.h`'s `CHANNEL_*`), the stage images after them
         /// at `STAGE_*`, and the tile lists, a storage buffer, last. Both stages, because the fog's
-        /// and the sprites' launches share the stages' layout. One table serves the layout and the
-        /// pool that holds a set of it.
+        /// and the sprites' launches share the layout. One table serves the layout and its pool.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::CHANNEL_SET_BINDINGS> sBindings = [] {
             std::array<VkDescriptorSetLayoutBinding, Shaders::CHANNEL_SET_BINDINGS> bindings{};
             for (std::uint32_t channel = 0; channel < bindings.size(); ++channel)
@@ -460,10 +458,8 @@ namespace Rtx
     void GBuffer::handOver(VkCommandBuffer commands) const
     {
         // A read after a write, and nothing more: every channel is read-only from here to the end
-        // of the frame but the upscaler's masks, which the pass that composes writes, ordered for
-        // itself after; the frame is composed into the chain's own image, not over a channel.
-        // Sampled as well as loaded, because an upscaler samples what it is handed. The stage
-        // record as well, for that pass.
+        // of the frame but the upscaler's masks, which the composing pass writes and orders for
+        // itself. Sampled as well as loaded, because an upscaler samples what it is handed.
         Barriers barriers(commands);
         for (const Channel channel : sEveryChannel)
             get(channel).addTransition(barriers, Use::sComputeWrite, Use::sAnyShaderRead);

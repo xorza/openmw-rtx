@@ -169,13 +169,12 @@ namespace Rtx
             return results;
         }
 
-        /// Cases whose every component is a whole number of 2^-18 below 4 in magnitude: exact as a
-        /// float, so both sides start from the same bits, and with 21 significant bits, so a
-        /// product has 42 and every order rounds differently somewhere, and so does a fusion. Never
-        /// a denormal, which the device may flush and the host keeps. Drawn off a fixed linear
-        /// congruential sequence rather than a distribution, whose algorithm is the standard
-        /// library's own. A case whose `smoothstep` edges or `mod` divisor come out equal to each
-        /// other or to nought is drawn again, because it divides by nothing.
+        /// Cases whose every component is a whole number of 2^-18 below 4 in magnitude: exact as a float, so both
+        /// sides start from the same bits, and with 21 significant bits, so a product has 42 and every order rounds
+        /// differently somewhere, and so does a fusion. Never a denormal, which the device may flush and the host
+        /// keeps. Drawn off a fixed linear congruential sequence, since a distribution's algorithm is the standard
+        /// library's own. A case whose `smoothstep` edges or `mod` divisor come out equal to each other or to nought
+        /// is drawn again, because it divides by nothing.
         std::vector<Shaders::PinningCase> makeCases()
         {
             std::uint64_t state = 0x9E3779B97F4A7C15ull;
@@ -201,15 +200,14 @@ namespace Rtx
         {
         };
 
-        /// **What the build pins, the device computes to the bit**: every result of every case the
-        /// same as the host's, which keeps the stated order with one rounding a step — around the
-        /// device's own inverse square root, quotient, root and floor where an operation has one
-        /// (`pinning.h`). A compile that reordered a sum or fused a step would differ somewhere in
-        /// the 106,496 results.
+        /// **What the build pins, the device computes to the bit**: every result of every case the same as the host's,
+        /// which keeps the stated order with one rounding a step, around the device's own inverse square root,
+        /// quotient, root and floor where an operation has one (`pinning.h`). A compile that reordered a sum or fused
+        /// a step would differ somewhere in the 106,496 results.
         ///
-        /// **And the cases can tell those apart.** Summed from the far end, or with each product
-        /// fused into the sum that reads it, the dot product comes out otherwise on some cases — so
-        /// an agreement is the order and the rounding, and not cases too easy to disagree on.
+        /// **And the cases can tell those apart.** Summed from the far end, or with each product fused into the sum
+        /// that reads it, the dot product comes out otherwise on some cases, so an agreement is the order and the
+        /// rounding and not cases too easy to disagree on.
         TEST_F(RtxPinningTest, theDeviceComputesThePinnedOrderToTheBit)
         {
             const Device& device = getDevice();

@@ -56,11 +56,9 @@ namespace Rtx
             return values[(std::size_t{ y } * width + x) * 4];
         }
 
-        /// The pass, a frame the size it was built for, and the pool that drives both.
-        ///
-        /// Bundled because the three have to agree about the extent: a pyramid built for one frame
-        /// and run over another is what `BloomPass::record` asserts against, and a test that got it
-        /// wrong would abort rather than fail.
+        /// The pass, a frame the size it was built for, and the pool that drives both, bundled because the three have
+        /// to agree about the extent: a pyramid built for one frame and run over another is what `BloomPass::record`
+        /// asserts against.
         struct Bloomed
         {
             BloomPass mBloom;
@@ -99,10 +97,9 @@ namespace Rtx
 
         /// A frame with nothing to spread comes out of the pyramid as it went in.
         ///
-        /// **Both kernels are partitions of one**, so a flat frame halved is the same flat frame at
-        /// every level, and mixing a value with itself at any weight is that value. A weight table
-        /// that summed to anything else, a mix taken the wrong way round, or a level read before the
-        /// dispatch that filled it had finished, all move this.
+        /// **Both kernels are partitions of one**, so a flat frame halved is the same flat frame at every level, and
+        /// mixing a value with itself at any weight is that value. A weight table summing to anything else, a mix
+        /// taken the wrong way round, or a level read before its dispatch finished, all move this.
         TEST_F(RtxBloomPassTest, aFlatFrameComesBackFlat)
         {
             const Device& device = getDevice();
@@ -136,10 +133,9 @@ namespace Rtx
 
         /// A frame with one bright square in it comes out spread, and falls away with distance.
         ///
-        /// **The pyramid is an average of the frame**, so nothing in it may be brighter than the
-        /// brightest thing that went in, the square's own texels have to come out dimmer than the
-        /// square was, and a texel that was black has to come out lit. Between those the glow must
-        /// fall away, which is the whole of what six halvings and five tents are for.
+        /// **The pyramid is an average of the frame**, so nothing in it may be brighter than the brightest thing that
+        /// went in, the square's own texels have to come out dimmer than the square was, and a texel that was black
+        /// has to come out lit. Between those the glow must fall away.
         TEST_F(RtxBloomPassTest, oneBrightSquareSpreadsAndFallsAwayWithDistance)
         {
             const Device& device = getDevice();
@@ -187,20 +183,15 @@ namespace Rtx
             }
         }
 
-        /// Every level stands on its source's corners, an odd source and an odd spread included, so
-        /// a ramp comes back the ramp.
+        /// Every level stands on its source's corners, an odd source and an odd spread included, so a ramp comes back
+        /// the ramp.
         ///
-        /// **The arithmetic.** The frame is 83 by 16 and holds its column's index in red, so texel
-        /// `i` is `i`. Both kernels are symmetric partitions of one and every tap lands on a texel
-        /// corner or a quarter of the way between centres, so over a ramp each is the ramp at the
-        /// point it stands on. Level 0, 41 across, puts texel `p` on the corner between frame texels
-        /// `2p` and `2p + 1`: `2p + ½`. Level 1, 20 across from 41, puts texel `r` on the corner
-        /// between level-0 texels `2r` and `2r + 1`: `4r + 1½`, which is the frame's ramp at that
-        /// texel's centre again. The tent back up reads level 1 at `(q + ½) / 2` of its texels:
-        /// `4 (q + ½) / 2 - ½ = 2q + ½`, level 0's own value, so the mix leaves it. Exact in half
-        /// floats, being halves under 64. Only where no tap reaches a clamped edge — level-0 texels
-        /// 8 to 30 — since a clamp is no ramp. Stretched over a level of odd width as it was, a
-        /// texel stood up to half a source texel off its corner and read the ramp that far off.
+        /// **The arithmetic.** The frame is 83 by 16 and holds its column's index in red, so texel `i` is `i`. Both
+        /// kernels are symmetric partitions of one and every tap lands on a texel corner or a quarter of the way
+        /// between centres, so over a ramp each is the ramp at the point it stands on. Level 0, 41 across, puts texel
+        /// `p` on the corner between frame texels `2p` and `2p + 1`: `2p + ½`; level 1, 20 across, puts texel `r` at
+        /// `4r + 1½`; the tent back up reads level 1 at `(q + ½) / 2`: `2q + ½`, level 0's own value. Exact in half
+        /// floats, and only where no tap reaches a clamped edge (level-0 texels 8 to 30), since a clamp is no ramp.
         TEST_F(RtxBloomPassTest, everyLevelStandsOnItsSourcesCorners)
         {
             const Device& device = getDevice();
@@ -229,18 +220,16 @@ namespace Rtx
 
         /// The frame's halving is the Karis average, the device's to the host's.
         ///
-        /// **The host's reference** stands each tap on its corner, so a tap is the mean of the two
-        /// texels either side of it on each axis, held to the frame at its edges as the sampler
-        /// holds it: thirteen of them, five squares of four, each weighed by `0.5` or `0.125` and by
-        /// `1 / (1 + luminance × exposure)`, over their sum. An 8 by 8 frame halves once, to 4 by
-        /// 4, and to nothing more, so what the pass hands back is the halving itself. The frame
-        /// is a pattern under one in each channel and a firefly of fifty in red. Half floats keep
-        /// eleven bits, so the two agree to a thousandth of the value.
+        /// **The host's reference** stands each tap on its corner, so a tap is the mean of the two texels either side
+        /// of it on each axis, held to the frame at its edges as the sampler holds it: thirteen taps, five squares of
+        /// four, each weighed by `0.5` or `0.125` and by `1 / (1 + luminance × exposure)`, over their sum. An 8 by 8
+        /// frame halves once, so what the pass hands back is the halving itself. The frame is a pattern under one and
+        /// a firefly of fifty in red. Half floats keep eleven bits, so the two agree to a thousandth.
         ///
-        /// **And the exposure matters**: at nought the weights are alike and the halving is the
-        /// plain average, and at one the squares that hold the firefly weigh less than those
-        /// beside them, so less of it spreads into the texels around its own. Its own texel keeps
-        /// its value: all five of its squares hold the firefly, and alike weights divide out.
+        /// **And the exposure matters**: at nought the weights are alike and the halving is the plain average, and at
+        /// one the squares holding the firefly weigh less than those beside them, so less of it spreads into the
+        /// texels around its own. Its own texel keeps its value: all five of its squares hold the firefly, and alike
+        /// weights divide out.
         TEST_F(RtxBloomPassTest, theFramesHalvingIsTheKarisAverage)
         {
             const Device& device = getDevice();
@@ -329,9 +318,9 @@ namespace Rtx
 
         /// A frame too small to halve is one the pass builds no pyramid for.
         ///
-        /// The levels are counted down from `BLOOM_LEVELS` and stop at `BLOOM_NARROWEST`, so a
-        /// thumbnail gets a narrower pyramid and something smaller than one texel of it gets none —
-        /// which the display pass reads as no lens rather than as a sampled stand-in.
+        /// The levels are counted down from `BLOOM_LEVELS` and stop at `BLOOM_NARROWEST`, so a thumbnail gets a
+        /// narrower pyramid and something smaller than one texel of it gets none, which the display pass reads as no
+        /// lens.
         TEST_F(RtxBloomPassTest, aFrameTooSmallToHalveGetsNoPyramid)
         {
             const Device& device = getDevice();

@@ -92,12 +92,10 @@ namespace MWRender
     /// itself, the scene-graph half of what `osgViewer::Viewer` does, with no cull because rays go
     /// everywhere; the mirror runs after the update traversal and the present after the mirror.
     ///
-    /// **Every seam call is `noexcept` but three**: the constructor, `awaitShaders` and
-    /// `renderFrame`, whose failures a player is told in words — a machine that cannot run this, a
-    /// shader missing from the installation, a device out of room. The engine calls the rest inside
-    /// `Engine::frame`'s update, which logs what it catches and goes on, and a loading screen draws
-    /// its frames there: a cell change stopped halfway, over a renderer stopped mid-frame, is no
-    /// game to go on with. So whatever they throw ends the process as a crash where it was thrown.
+    /// The seam calls are `noexcept` but the constructor, `awaitShaders`, `renderFrame` and `functionKey`,
+    /// whose failures a player is told in words. The engine calls the rest inside `Engine::frame`'s update,
+    /// which logs what it catches and goes on: a cell change stopped halfway, over a renderer stopped
+    /// mid-frame, is no game to go on with, so a throw there ends the process where it was thrown.
     class RtxRenderer final : public Renderer
     {
     public:
@@ -214,22 +212,16 @@ namespace MWRender
         /// camera carrying no callback is left alone.
         static void updateEye(osg::Camera& camera, osgUtil::UpdateVisitor& visitor);
 
-        /// Keeps everything a stepped run loads for as long as the run lasts, and leaves a run on
-        /// the wall to `[Cells] cache expiry delay`.
-        ///
-        /// **Which models a run kept was a thread's answer.** An expiry is decided on a loading
-        /// thread (`CellPreloader::updateCache` queues it) and keeps what is referenced at the moment
-        /// it runs, which the other loading threads change as they go: behind the PBR mods'
-        /// textures, two runs of one build dropped different models, read them again as new
-        /// objects and laid the scene out two ways from `island-crossing` on. Never expiring is the
-        /// schedule's answer, and takes a PBR shot of every view to 7.7 GiB resident at its peak
-        /// against 6.8.
+        /// Keeps everything a stepped run loads for as long as the run lasts, and leaves a run on the wall to
+        /// `[Cells] cache expiry delay`. An expiry is decided on a loading thread and keeps what is
+        /// referenced at that moment, which the other loading threads change: behind the PBR mods' textures
+        /// two runs of one build dropped different models and laid the scene out two ways from
+        /// `island-crossing` on. Never expiring costs 7.7 GiB resident at a PBR shot's peak against 6.8.
         static void setResourceExpiry(Resource::ResourceSystem& resources, const std::optional<float>& step);
 
-        /// Has `scene` look for every model's `_n` and `_spec` maps, whatever `[Shaders] auto use
-        /// object normal maps` and `specular maps` say: those are the rasterizer's, and a replacer's
-        /// companion maps are what the trace is made to read. Content with none, vanilla's, finds
-        /// nothing and draws as it did. The file names stay the settings'.
+        /// Has `scene` look for every model's `_n` and `_spec` maps whatever `[Shaders] auto use object normal
+        /// maps` and `specular maps` say: those are the rasterizer's, and a replacer's companion maps are what
+        /// the trace reads. The file names stay the settings'.
         static void setAutoMaps(Resource::SceneManager& scene);
 
         /// The pictures inside the interface this renderer holds, for the harness to find the
@@ -276,10 +268,9 @@ namespace MWRender
         /// to `mPlayed` where the host installed none and the setup can be a temporary either way.
         RtxRenderer(const RendererSpec& spec, const RtxSetup* run, const RunSetup& setup);
 
-        /// Where a frame stands, asserted at every entry point: the order `renderFrame` takes is
-        /// the one order the mirror, the pictures, the backend and the run's hook agree on, and a
-        /// call out of its turn — a hook that traced a frame from inside the frame, a picture
-        /// drawn under the walk — is a nested frame the backend cannot tell from a frame.
+        /// Where a frame stands, asserted at every entry point: `renderFrame`'s order is the one the mirror,
+        /// the pictures, the backend and the run's hook agree on, and a call out of turn is a nested frame the
+        /// backend cannot tell from a frame.
         enum class Phase
         {
             /// Between two frames, which is where the engine's own calls land.
@@ -297,25 +288,21 @@ namespace MWRender
             /// The world's own trace is being recorded.
             Tracing,
 
-            /// The run's hook has the frame: it may draw pictures, read the backend and act on the
-            /// game as its update would — a stop's doll placed in the world, which adds its ripple
-            /// emitter — but not present or open another frame.
+            /// The run's hook has the frame: it may draw pictures, read the backend and act on the game as
+            /// its update would, but not present or open another frame.
             Run,
 
             /// The interface is being drawn and the frame presented.
             Gui,
         };
 
-        /// **The one rule for what the world tells the renderer** — a cell, an emitter, a cut, a
-        /// worldspace: between two frames, or from the run's hook, which acts on the game as its
-        /// update would. Whatever it changes, the next frame's walk reads.
+        /// What the world tells the renderer (a cell, an emitter, a cut, a worldspace) arrives between two
+        /// frames or from the run's hook; the next frame's walk reads what it changes.
         void expectWorldEvent() const { mPhase.expect(Phase::Between, Phase::Run); }
 
-        /// Traces the world the walk has just mirrored: the frame behind finished, the scene handed
-        /// over, the deferred views drawn, the camera aimed, the frame traced and the report closed.
-        /// Its refusals — an empty world, a camera with no roll — are not reasons not to present, so
-        /// they end here rather than in `renderFrame`. `since` is how long the frame before this one
-        /// stood for, or nothing on the first.
+        /// Traces the world the walk has just mirrored and closes the report. Its refusals (an empty world, a
+        /// camera with no roll) are no reason not to present, so they end here and not in `renderFrame`.
+        /// `since` is how long the frame before this one stood for, or nothing on the first.
         void traceWorld(
             const SceneFrame& frame, const osg::Matrixd& view, FrameReport& report, std::optional<double> since);
 
@@ -326,10 +313,8 @@ namespace MWRender
         /// report, and says whether it was rebuilt from nothing.
         void handOver(const SceneFrame& frame, FrameReport& report);
 
-        /// The eye's half of the frame, which is the host's to say: the eye the frame arrived with,
-        /// built for the render extent, the arms' own, the classes the eye sees and the sample to
-        /// take. The world's half is `trace`'s. Nothing for a camera the builder refused, which is
-        /// reported once.
+        /// The eye's half of the frame, which is the host's to say; the world's half is `trace`'s. Nothing for
+        /// a camera the builder refused, which is reported once.
         std::optional<Rtx::FrameRequest> describeTrace(const SceneFrame& frame, const osg::Matrixd& view);
 
         /// Says in the log why the camera builder refused this frame's eye, the first time it does.
@@ -346,9 +331,8 @@ namespace MWRender
         /// Hands MyGUI's triangles to the renderer, where there is a GUI up at all.
         void drawGui();
 
-        /// Draws the interface over the frame as it stands and presents it: the one end of a
-        /// frame, from `Phase::Gui` back to `Phase::Between`. `renderFrame`'s every exit and the
-        /// public `renderGui` step into `Gui` first, each from the phases it may leave.
+        /// Draws the interface over the frame as it stands and presents it: the one end of a frame, from
+        /// `Phase::Gui` back to `Phase::Between`.
         void present();
 
         /// The frame as it stands, as an image `width` by `height` — the frame's own size at nought
@@ -364,9 +348,8 @@ namespace MWRender
         /// after it. Kept and refilled: `Released::take` keeps its room.
         Rtx::Released mPictureReleases;
 
-        /// How many pictures of the world one frame draws; the rest wait for the next. Three,
-        /// because a cell crossing asks for a row of three map tiles and a fresh load for nine: the
-        /// row lands in one frame and the load in three.
+        /// How many pictures of the world one frame draws; the rest wait. Three, because a cell crossing asks
+        /// for a row of three map tiles and a fresh load for nine.
         static constexpr std::uint32_t sWorldViewsPerFrame = 3;
 
         /// MyGUI's backend, which `createGuiPlatform` makes and the window manager owns. Never null
@@ -384,9 +367,7 @@ namespace MWRender
         /// to it then.
         PlayedRun mPlayed;
 
-        /// The run this renderer answers to per frame: the harness's, which outlives this, or
-        /// `mPlayed`. Bound once and never rebound, so the two hosts cannot come to draw one
-        /// picture through two differently answered renderers.
+        /// The run this renderer answers to per frame: the harness's, which outlives this, or `mPlayed`.
         RtxRun& mRun;
 
         /// `RunSetup::mInterface`: read by every frame's `drawGui`.
@@ -408,15 +389,14 @@ namespace MWRender
 
         std::unique_ptr<Rtx::Renderer> mRenderer;
 
-        /// What the settings or the command line upscale by, which a stop may set aside for its own
-        /// frames (`RtxRun::getUpscale`) and a menu moves. Taken at the next frame's start, where a
-        /// stop's own mode is: one place changes the targets, ahead of the camera built for them.
+        /// What the settings or the command line upscale by, which a stop may set aside (`RtxRun::getUpscale`)
+        /// and a menu moves. Taken at the next frame's start, so one place changes the targets, ahead of the
+        /// camera built for them.
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
 
-        /// **What the menu changed of the renderer since the last frame, set at the next frame's
-        /// start** as `mUpscale` is: each can rebuild the targets or the swapchain, which can fail,
-        /// and a failure inside a frame is reported where one inside a call the game made `noexcept`
-        /// ends the process unexplained.
+        /// What the menu changed since the last frame, set at the next frame's start as `mUpscale` is: each can
+        /// rebuild the targets or the swapchain and fail, and a failure inside a `noexcept` call ends the
+        /// process unexplained.
         struct PendingSettings
         {
             std::optional<std::uint32_t> mAnisotropy;
@@ -431,14 +411,12 @@ namespace MWRender
         /// table does.
         std::unique_ptr<MyGUI::ITexture> mFrozenFrameTexture;
 
-        /// The content's derived data kept across sessions (`RunSetup::mContentStore`), or null for
-        /// none. Before the mirror, whose walks and cell reader find their passes' outputs in it, and
-        /// so gone after them: its going finishes what they handed it to write.
+        /// The content's derived data kept across sessions (`RunSetup::mContentStore`), or null. Before the
+        /// mirror, so its going finishes what the mirror's passes handed it to write.
         std::unique_ptr<ContentStore::Store> mContentStore;
 
-        /// The world's normal and data maps with their chains made again, on half the processors,
-        /// as the content's preprocessing is (`Rtx::Hands::Half`). After the store, which its threads
-        /// write to, and before the mirror, whose hand-over reads it.
+        /// The world's normal and data maps with their chains made again, on half the processors
+        /// (`Rtx::Hands::Half`). After the store its threads write to, before the mirror whose hand-over reads it.
         std::unique_ptr<Rtx::PreparedImages> mPrepared;
 
         /// The engine's scene graph mirrored into what a ray can meet, and the hand-over that
@@ -473,9 +451,8 @@ namespace MWRender
         /// at the end of a stop and the walks are over by then.
         WalkReport mWalked;
 
-        /// Where this frame began and ended inside this renderer, what it presented, and the frame
-        /// rate the window's title says: the only instrument on this path, and the number that says
-        /// whether this is playable.
+        /// Where this frame began and ended inside this renderer, what it presented, and the frame rate the
+        /// window's title says.
         FrameTimer mTimer;
 
         /// The frames the game drew unpaused, whole as `mTimer` measures them, since the last cut and

@@ -13,13 +13,12 @@
 
 namespace Rtx::Testing
 {
-    /// A submit the queue cannot start until the host says so: it waits on a timeline semaphore
-    /// of its own that only `release` signals.
+    /// A submit the queue cannot start until the host says so: it waits on a timeline semaphore of its own that only
+    /// `release` signals.
     ///
-    /// **What makes "a submit still on the queue" a state a test can stand in.** A copy or a
-    /// dispatch is finished before the host has asked whether it is, so a test of what a host write
-    /// must wait for would otherwise be racing a device that always wins. Held, the submit is on
-    /// the queue for exactly as long as the test wants it there.
+    /// **What makes "a submit still on the queue" a state a test can stand in.** A copy or a dispatch is finished
+    /// before the host has asked whether it is, so a test of what a host write must wait for would otherwise race a
+    /// device that always wins.
     class HeldSubmit
     {
     public:

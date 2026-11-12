@@ -452,9 +452,8 @@ namespace Rtx
             EXPECT_EQ(fogExtinction(std::numeric_limits<float>::infinity(), view), std::log(2.0f));
             EXPECT_EQ(fogExtinction(std::numeric_limits<float>::quiet_NaN(), view), 0.0f) << "no depth is no fog";
 
-            // **And the reach is what scales it**, which is the whole of §3.4: the same weather over
-            // four cells is thinner in exactly that proportion, so ground built that far out is
-            // still there to be seen.
+            // **And the reach is what scales it**: the same weather over four cells is thinner in
+            // exactly that proportion, so ground built that far out is still there to be seen.
             EXPECT_NEAR(fogExtinction(0.69f, 4.0f * 8192.0f) / fogExtinction(0.69f, view), view / 32768.0f, 1e-5f)
                 << "the air did not stretch with the world";
         }
@@ -535,8 +534,8 @@ namespace Rtx
         /// `0.2126 * 2 + 0.7152 * 3 + 0.0722 * 4 = 2.8586`, which is the air's brightest channel.
         ///
         /// **Normalised by the brightest channel and not by the luminance.** Blight's `Fog Day Color`
-        /// is (128, 19, 19): its luminance is a twentieth of its red, so dividing by that made the
-        /// red four times the light that lit it. Against the maximum the red is exactly the sky's
+        /// is (128, 19, 19): its luminance is a twentieth of its red, so dividing by that would make
+        /// the red four times the light that lit it. Against the maximum the red is exactly the sky's
         /// luminance and the other two are a seventh of it, which is a deep red darker than a clear
         /// day.
         TEST(RtxFogTest, theAirIsAsBrightAsTheSkyInTheWeathersColour)
@@ -617,8 +616,8 @@ namespace Rtx
         /// **Two elements out of one number, which is why one function builds both.** How thick the
         /// air is and where it becomes opaque are the same question about how much world there is,
         /// and the game and the harness reach a weather by different routes. Each assembling these
-        /// fields itself is how the game's air came to carry no edge: the ring where its ground
-        /// stops stayed visible while a screenshot of the same hour hid it.
+        /// fields itself would let the game's air carry no edge, so the ring where its ground stops
+        /// stays visible while a screenshot of the same hour hides it.
         ///
         /// **Asked twice rather than once**, because two numbers that happen to agree at four cells
         /// look exactly like one number until the reach moves. Doubling it halves the extinction and

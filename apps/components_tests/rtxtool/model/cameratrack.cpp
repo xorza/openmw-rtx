@@ -87,15 +87,12 @@ namespace RtxTool
             EXPECT_NEAR(held.pose(11).mEye.x(), 100.0f + 0.911458f, 1e-4f);
         }
 
-        /// **A key between a slow leg and a fast one is passed at the slow one's speed.** With an
-        /// ease of four, a hundred units from rest in 22 frames are five a frame,
-        /// `100 / (22 − 2)`, and a thousand more to a rest in 22 are fifty. The slow leg reaches
-        /// the key at its own five, 95 a frame before it; the fast one leaves it at five and
-        /// cruises at `(1000 − 5 · 4 / 2) / (22 − 2 − 2) = 55`, so a frame on the eye has covered
-        /// `5 + 50 · 4 · (0.25³ − 0.25⁴ / 2) = 7.734375`, at the end of the ease
-        /// `5 · 4 + 50 · 4 / 2 = 120`, and at frame 33 `10 + 55 · 9 = 505`. Two frames from the
-        /// end it is short of the last key by `55 · 4 · 0.09375 = 20.625`. With no speeds the fast
-        /// leg flies at its own fifty from the key, 150 a frame on. Flown back, every frame mirrors.
+        /// **A key between a slow leg and a fast one is passed at the slow one's speed.** With an ease of
+        /// four, 100 units from rest in 22 frames are five a frame, `100 / (22 − 2)`, and a thousand more
+        /// to a rest in 22 are fifty. The slow leg reaches the key at its own five; the fast one leaves it
+        /// at five and cruises at `(1000 − 5 · 4 / 2) / (22 − 2 − 2) = 55`: a frame on the eye has covered
+        /// `5 + 50 · 4 · (0.25³ − 0.25⁴ / 2) = 7.734375`, at the end of the ease 120, at frame 33 505.
+        /// With no speeds the fast leg flies at its own fifty from the key. Flown back, every frame mirrors.
         TEST(RtxCameraTrackTest, aKeyBetweenASlowLegAndAFastOneIsPassedAtTheSlowSpeed)
         {
             const Cruise cruise{ .mEase = 4.0 };
@@ -230,16 +227,12 @@ namespace RtxTool
             EXPECT_EQ(end.mNextWeather, storm);
         }
 
-        /// **A sky run writes the clock and the weather over the keys', counted in frames of the film,
-        /// and leaves the camera alone.** Half an hour a frame; Cloudy, Rain and Snow, each standing
-        /// two frames and crossing in four, so a period is six.
-        ///
-        /// By hand: frame 4 is 2 hours on, and four into the first period, two into the crossing of
-        /// Cloudy into Rain: `smoothstep(2 / 4) = 0.5`. Frame 6 stands at Rain. Frame 17 is five
-        /// into the third period, Snow crossing back round into Cloudy at `smoothstep(3 / 4)`,
-        /// `0.5625 × 1.5 = 0.84375`. The eye halfway between two keys is still halfway. A take whose
-        /// first frame is the film's tenth leads its clock by a frame, half an hour, and stands where
-        /// the film's tenth does in the turn: four into the second period, Rain into Snow at a half.
+        /// **A sky run writes the clock and the weather over the keys', counted in frames of the film, and
+        /// leaves the camera alone.** Half an hour a frame; Cloudy, Rain and Snow, each standing two frames
+        /// and crossing in four, so a period is six. By hand: frame 4 is 2 hours on and two into the
+        /// crossing of Cloudy into Rain, `smoothstep(2 / 4) = 0.5`; frame 6 stands at Rain; frame 17 is
+        /// Snow crossing into Cloudy at `smoothstep(3 / 4)`, `0.5625 × 1.5 = 0.84375`. A take whose first
+        /// frame is the film's tenth leads its clock by half an hour and stands where the tenth does.
         TEST(RtxCameraTrackTest, aSkyRunWritesTheClockAndTheWeatherOverTheKeys)
         {
             constexpr Rtx::Weather cloudy = Rtx::Weather::Cloudy;

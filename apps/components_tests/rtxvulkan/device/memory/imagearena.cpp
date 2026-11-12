@@ -36,13 +36,12 @@ namespace Rtx
             EXPECT_EQ(covered, 482u);
         }
 
-        /// **Images whose spans do not meet share memory**, and an arena covers the largest set in use
-        /// at once: two stage images of 400 side by side (800), three denoiser images of 300 laid over
-        /// them (900), and an upscaler image of 500 over both. 900 bytes, where images of their own
-        /// took 2 700.
+        /// **Images whose spans do not meet share memory**, and an arena covers the largest set in use at once: two
+        /// stage images of 400 side by side (800), three denoiser images of 300 laid over them (900), and an upscaler
+        /// image of 500 over both. 900 bytes, where images of their own took 2 700.
         ///
-        /// **Each image's alignment moves it**: the second denoiser image at 256 goes from 300 to 512,
-        /// and the third, which fitted at 600, past it to 812, so the arena grows to 1 112.
+        /// **Each image's alignment moves it**: the second denoiser image at 256 goes from 300 to 512, and the third,
+        /// which fitted at 600, past it to 812, so the arena grows to 1 112.
         TEST(RtxImageArenaTest, imagesWhoseSpansDoNotMeetShareMemory)
         {
             const ArenaSpan trace{ .mFirst = 0, .mLast = 0 };

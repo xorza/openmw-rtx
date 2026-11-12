@@ -35,16 +35,12 @@ namespace MWRender
     struct SkyState;
     struct WorldState;
 
-    /// Turns what the game says about a frame's world into what the renderer builds a sky, an air
-    /// and a sea out of: the colours decoded, whether the cell has a sky decided, and every reading
-    /// handed to the one builder that decides what a sun, a room light, an air and a moon may be —
-    /// which is what keeps the game and the harness under the same sky. Nothing here touches a
-    /// device, and nothing here is a decision this host makes on its own.
-    ///
-    /// Apart from `WorldMirror`, which is the walk and the hand-over: what this holds is read off
-    /// the content once and never off the graph, and `read` is a function of the frame's records
-    /// and the one clock this keeps. The air's moment is this clock and the fog's drift beside it,
-    /// so both are kept here and a run that holds one holds the other (`holdAir`).
+    /// Turns what the game says about a frame's world into what the renderer builds a sky, an air and a sea
+    /// out of, handing every reading to the one builder that decides what a sun, room light, air and moon may
+    /// be, which keeps the game and the harness under the same sky. Nothing here touches a device. What this
+    /// holds is read off the content once and never off the graph, and `read` is a function of the frame's
+    /// records and the one clock this keeps. The air's moment is this clock and the fog's drift beside it,
+    /// so a run that holds one holds the other (`holdAir`).
     class SkyReader
     {
     public:
@@ -52,17 +48,15 @@ namespace MWRender
         /// sun glare fader's three numbers.
         SkyReader();
 
-        /// Every file `attach` reads that the game may load ahead of the first cell: the cloud
-        /// shell, the star sphere and the two moons' faces. Listed here, beside what reads them,
-        /// so the two cannot name different files. The second star sphere is an expansion's and is
-        /// listed only where `vfs` holds it, because a missing model aborts the whole preload.
+        /// Every file `attach` reads that the game may load ahead of the first cell, listed beside what reads
+        /// them so the two cannot name different files. The second star sphere is an expansion's and is listed
+        /// only where `vfs` holds it, because a missing model aborts the whole preload.
         static void listAssets(const VFS::Manager& vfs, std::vector<VFS::Path::Normalized>& models,
             std::vector<VFS::Path::Normalized>& textures);
 
-        /// Adds the moons' portraits and the sky's sheets to `scene` and holds them there for the
-        /// life of the scene: a moon and a deck are drawn by a ray that reached nothing, so no
-        /// material speaks for the slots and the sweep would take them on the first frame a cell
-        /// died. Once, where the world is attached.
+        /// Adds the moons' portraits and the sky's sheets to `scene` and holds them for its life: a ray that
+        /// reached nothing draws them, so no material speaks for the slots and the sweep would take them on
+        /// the first frame a cell died. Once, where the world is attached.
         ///
         /// @param thread what the sheets' means are read through: the frame thread's.
         void attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ThreadContent& thread);
@@ -71,24 +65,21 @@ namespace MWRender
         /// nothing of the sky: `attach`'s pair, where the world is detached.
         void detach(Rtx::SceneDesc& scene);
 
-        /// Moves the sky's clocks on by one frame: the deck's scroll and the seconds the fog drifts
-        /// by. Every unpaused frame the sky is on, as the rasterizer's dome
-        /// steps its own.
+        /// Moves the sky's clocks on by one frame: the deck's scroll and the seconds the fog drifts by.
         void step(float seconds, float timeScale, float cloudSpeed)
         {
             mClock.step(seconds, timeScale, cloudSpeed, mTimescaleClouds);
         }
 
-        /// Stands the sky's clock where `air` says, in place of wherever this session's frames
-        /// stepped it. The fog's carry is the renderer's (`Rtx::Renderer::holdAir`), and a host
-        /// holds both together, because they are one moment.
+        /// Stands the sky's clock where `air` says. The fog's carry is the renderer's
+        /// (`Rtx::Renderer::holdAir`), and a host holds both together as they are one moment.
         void holdAir(const Rtx::AirClock& air) { mClock = air.mSky; }
 
         /// Where the sky's clock stands, which a frame's air is recorded with.
         const Sky::SkyClock& getClock() const { return mClock; }
 
-        /// Where the sky's sheets stand in the world's texture table, which a frame is described
-        /// with (`Rtx::FrameRequest::mSky`): from `attach` to `detach`.
+        /// Where the sky's sheets stand in the world's texture table (`Rtx::FrameRequest::mSky`), from
+        /// `attach` to `detach`.
         const Rtx::SkyContent& getContent() const { return mSkyContent; }
 
         /// Opens a sheet the weather names that the sky does not hold yet, once — a script's
@@ -116,8 +107,7 @@ namespace MWRender
         /// What names them: a hold on every sheet the two took, given back together at `detach`.
         std::vector<Rtx::TextureHold> mHolds;
 
-        /// The deck and the fog's seconds, this renderer's own: the dome keeps its own deck and
-        /// neither reads the other's.
+        /// The deck and the fog's seconds, this renderer's own: the dome keeps its own.
         Sky::SkyClock mClock;
 
         /// `Weather_Timescale_Clouds`, read where a world is attached: the content's word on how

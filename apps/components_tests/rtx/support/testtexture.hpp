@@ -16,8 +16,7 @@ namespace Rtx::Testing
     /// One level over one texel, which is what most of the textures these tests build are.
     ///
     /// **A constant of static storage, because a description spans its levels rather than holding
-    /// them.** A level written beside the call outlives nothing, so every test that wrote one had
-    /// to keep it alive by hand and in the right scope.
+    /// them**: a level written beside the call outlives nothing.
     inline constexpr MipLevel sOneTexel{ 0, 1, 1 };
 
     /// A one-texel description over `texel`, whose four bytes the caller keeps.
@@ -35,10 +34,8 @@ namespace Rtx::Testing
 
     /// A texture a test paints by hand, and the storage its description spans.
     ///
-    /// **Moved and never copied**, which the deleted copy holds it to: `mData` carries spans into
-    /// the two vectors beside it, and a copy would hand back a description reading the original's
-    /// buffers. A move keeps the vectors' buffers where they are, so the spans stay right and a
-    /// painter can hand one back by value.
+    /// **Moved and never copied**: `mData` carries spans into the two vectors beside it, and a copy would
+    /// read the original's buffers. A move keeps the vectors' buffers where they are.
     struct TestTexture
     {
         std::vector<std::uint8_t> mBytes;
@@ -72,11 +69,10 @@ namespace Rtx::Testing
     /// A texture whose every mip is one flat colour — level `i` is `40 + 30i`, evenly spaced
     /// and none of them black.
     ///
-    /// **The byte a ray comes back with reads out the level it sampled**, and because the levels
-    /// are evenly spaced in value, `textureLod` blending two of them lands exactly on
-    /// `40 + 30 * lod`. A *fractional* level is readable that way, which is what makes a cone's
-    /// width measurable rather than merely orderable. Flat colours also mean the answer does not
-    /// depend on where in the texture the cone landed.
+    /// **The byte a ray comes back with reads out the level it sampled**, and because the levels are
+    /// evenly spaced, `textureLod` blending two lands exactly on `40 + 30 * lod`: a *fractional* level
+    /// is readable, so a cone's width is measurable. Flat colours make the answer independent of where
+    /// the cone landed.
     inline void paintMipLadder(TestTexture& texture)
     {
         constexpr std::uint32_t extent = 64;
@@ -151,14 +147,12 @@ namespace Rtx::Testing
     /// How many texels across `paintTwoTones` paints.
     inline constexpr std::uint32_t sTwoTonesExtent = 128;
 
-    /// A texture whose shading estimate is known: two tones along `u`, bytes of 255 across the
-    /// columns `[from, to)` of a hundred and twenty-eight and 156 outside them — 1.0 and 0.3325 in
-    /// light, a factor of three. Display-encoded unless `format` says otherwise, so a device
-    /// decodes it as it decodes the game's. The estimate normalises to a mean of one, so with the
-    /// bright half a half the bright cells come to 1.501 and the dark ones to the floor, 0.5, with
-    /// the blur reaching three cells either side of a boundary. A hundred and twenty-eight across,
-    /// so a cell is four texels, a block's width: the one size at which the host's per-block
-    /// estimate and the device's per-texel one name the same cell for every texel.
+    /// A texture whose shading estimate is known: two tones along `u`, bytes of 255 across the columns
+    /// `[from, to)` of a hundred and twenty-eight and 156 outside them (1.0 and 0.3325 in light).
+    /// Display-encoded unless `format` says otherwise. The estimate normalises to a mean of one, so with
+    /// the bright half a half the bright cells come to 1.501 and the dark ones to the floor, 0.5, the
+    /// blur reaching three cells either side. A cell is four texels, a block's width: the one size at
+    /// which the host's per-block estimate and the device's per-texel one name the same cell.
     inline TestTexture paintTwoTones(
         std::uint32_t from, std::uint32_t to, TextureFormat format = TextureFormat::Rgba8Srgb)
     {

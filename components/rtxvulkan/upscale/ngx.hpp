@@ -8,18 +8,15 @@
 
 #include <components/platform/library.hpp>
 
-/// **The NGX Vulkan interface, declared here and not taken from NVIDIA's SDK.** The SDK is
-/// proprietary and may not be linked into or shipped with a GPL program, so the build has no
-/// NVIDIA code and no configure-time download. These are independent declarations of the public
-/// binary interface, pinned to NGX API 1.5.0 as the SDK's 310.9.16 headers state it: the driver's
-/// NGX core (`_nvngx.dll` on Windows, `libnvidia-ngx.so.1` on Linux) is opened at run time, and the
-/// feature library the player supplies (`nvngx_dlssd.dll` or `libnvidia-ngx-dlssd.so.*`, Ray
-/// Reconstruction's) sits where NGX looks for it. The layouts matter; the source of truth is the NGX
-/// API, not this file.
+/// **The NGX Vulkan interface, declared here and not taken from NVIDIA's SDK**, which is proprietary and
+/// may not be linked into or shipped with a GPL program. These are independent declarations of the public
+/// binary interface, pinned to NGX API 1.5.0 as the SDK's 310.9.16 headers state it: the driver's NGX core
+/// is opened at run time, and the feature library the player supplies sits where NGX looks for it. The
+/// source of truth is the NGX API, not this file.
 namespace Rtx::Dlss::Ngx
 {
-    /// The version of the interface these declarations describe. It is what the discovery record
-    /// and the initialisation call state, and NGX refuses a record from a later interface.
+    /// The interface version the discovery record and the initialisation call state; NGX refuses a
+    /// record from a later one.
     inline constexpr int sApiVersion = 0x0000015;
 
     /// The SDK's success is one and every failure shares the top twelve bits, which is all a
@@ -116,9 +113,8 @@ namespace Rtx::Dlss::Ngx
         bool DisableOtherLoggingSinks;
     };
 
-    /// The extra folders NGX searches for a feature library, besides the application's own. The
-    /// launcher downloads into the user data folder, which an AppImage's read-only mount makes the
-    /// only writable place the game can name.
+    /// The extra folders NGX searches for a feature library, besides the application's own: the
+    /// launcher downloads into the user data folder, the only writable place an AppImage can name.
     struct FeatureCommonInfo
     {
         PathListInfo PathList;
@@ -179,9 +175,8 @@ namespace Rtx::Dlss::Ngx
         bool ReadWrite;
     };
 
-    /// The `ID3D11Resource` and `ID3D12Resource` slots of the parameter map's vtable. They are
-    /// never called here, but the two slots before the `void*` setter and getter have to keep
-    /// their places, and two distinct pointer types are what does that.
+    /// The `ID3D11Resource` and `ID3D12Resource` slots of the parameter map's vtable: never called, but
+    /// the two slots before the `void*` setter and getter must keep their places.
     struct D3D11Resource;
     struct D3D12Resource;
 
@@ -212,9 +207,8 @@ namespace Rtx::Dlss::Ngx
         virtual void Reset() = 0;
 
     protected:
-        /// The driver owns the map and destroys it through `DestroyParameters`, never through this
-        /// interface. A protected destructor says so and keeps `-Wnon-virtual-dtor` quiet without
-        /// adding a virtual slot the driver's vtable does not have.
+        /// The driver owns the map and destroys it through `DestroyParameters`; a protected destructor
+        /// adds no virtual slot the driver's vtable lacks.
         ~Parameter() = default;
     };
 
@@ -318,9 +312,8 @@ namespace Rtx::Dlss::Ngx
     inline constexpr const char* sRenderSubrectWidth = "DLSS.Render.Subrect.Dimensions.Width";
     inline constexpr const char* sRenderSubrectHeight = "DLSS.Render.Subrect.Dimensions.Height";
 
-    /// How NGX names the images and buffers it makes for a feature (`nv.ngx.dlssd.resource` among them),
-    /// over which it records barriers, clears and dispatches of its own inside an evaluation: NGX's to
-    /// synchronize, and none of the renderer's.
+    /// How NGX names the images and buffers it makes for a feature (`nv.ngx.dlssd.resource` among them):
+    /// NGX records its own barriers and dispatches over them, so none are the renderer's to synchronize.
     inline constexpr std::string_view sOwnResourcePrefix = "nv.ngx.";
 
     /// What a Ray Reconstruction feature is made for: the fork's own record, which the parameter map is
@@ -367,12 +360,10 @@ namespace Rtx::Dlss::Ngx
     Result createRayReconstruction(const Api& api, VkCommandBuffer commands, Parameter& parameters,
         const RayReconstructionFeature& create, Handle** feature);
 
-    /// Sets once, on the map every evaluation is handed, each key the SDK's Ray Reconstruction evaluate
-    /// helper sets (`NGX_VULKAN_EVALUATE_DLSSD_EXT`) to a value this backend never varies: every resource
-    /// it hands none of as null, every corner as nought, motion in render pixels, linear radiance at a
-    /// pre-exposure of one, and the roughness in the normals' fourth. **Once, and not each frame as the
-    /// helper sets them**: the map is the backend's own and nothing else writes these keys, so what was
-    /// set stands, and a frame's evaluation sets the dozen keys that move and nothing else.
+    /// Sets once, on the map every evaluation is handed, each key the SDK's evaluate helper
+    /// (`NGX_VULKAN_EVALUATE_DLSSD_EXT`) sets to a value this backend never varies. **Once, not each frame
+    /// as the helper does**: the map is the backend's own and nothing else writes these keys, so a frame
+    /// sets only the dozen keys that move.
     void setRayReconstructionConstants(Parameter& parameters);
 
     /// Sets the keys of one evaluation that move from frame to frame — the images, the jitter, the reset,

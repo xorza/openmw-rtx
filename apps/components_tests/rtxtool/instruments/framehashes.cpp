@@ -144,10 +144,9 @@ namespace RtxTool
             EXPECT_EQ(report.find("meshes"), std::string::npos) << report;
         }
 
-        /// **A view the reference drew and this run did not is named**, with every frame of it
-        /// unmatched: a comparison states its own coverage, and a run of a smaller suite, or one
-        /// with a view taken out of `views.cfg`, otherwise passed on the views it had left. The
-        /// reference draws `b` twice, two frames and then one, and its entry counts all three.
+        /// **A view the reference drew and this run did not is named**, with every frame of it unmatched:
+        /// otherwise a smaller suite, or a view taken out of `views.cfg`, passes on the views it has left.
+        /// The reference draws `b` twice, two frames and then one, and its entry counts all three.
         TEST(RtxFrameHashesTest, aViewOnlyTheReferenceDrewIsNamedAsNotDrawn)
         {
             std::uint64_t submitted = 0;

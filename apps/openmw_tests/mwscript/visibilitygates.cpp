@@ -380,17 +380,13 @@ End
             << "another reference's state is one only its loaded cell has";
     }
 
-    /// **A gate for the references a script toggles: its own, however many records wear it, and
-    /// each it names beside it.** Two activators and a door wear the stage's script and share its
-    /// gate; a container wears the Ghostfence's; the next stage's hall reads the same global as the
-    /// first stage; Thirsk's door names two planks, a gate each, and the player, an actor the
-    /// distance never shows and so no gate; an activator whose script only plays a sound, and one
-    /// with no script, stand behind none. A plank stands behind its gate in
-    /// the door's cell, and nowhere else: not alone, and not as one of two planks of a record. A
-    /// run reports every gate once, and after that only a gate whose input moved and whose answer
-    /// changed — both stages run when the global moves, and each reports only where it changed;
-    /// the planks follow the hall's journal, one decided on each path and the other left alone on
-    /// one; a reset reports them all again, for the renderers a new game clears.
+    /// A gate exists for the references a script toggles: its own, however many records wear it, and each it
+    /// names beside it. Two activators and a door wear the stage's script and share its gate; Thirsk's door
+    /// names two planks, a gate each, and the player, an actor the distance never shows, so no gate; an
+    /// activator whose script only plays a sound, and one with no script, stand behind none. A plank stands
+    /// behind its gate in the door's cell and nowhere else, alone or as one of two planks of a record. A run
+    /// reports every gate once, then only a gate whose input moved and whose answer changed; a reset reports
+    /// them all again, for the renderers a new game clears.
     TEST_F(VisibilityGatesTest, aScriptGatesWhatItTogglesBesideItAndMovesWithItsInputs)
     {
         MWWorld::ESMStore store;

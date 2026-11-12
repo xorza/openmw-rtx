@@ -131,15 +131,13 @@ namespace Rtx
             }
         };
 
-        /// A structure's answer is read once the submit that carried its question has run, and
-        /// not before, whatever was built after it.
+        /// A structure's answer is read once the submit that carried its question has run, and not before, whatever
+        /// was built after it.
         ///
-        /// **The store counted placements and called the count a fence**: an answer was read once
-        /// no build had followed for two placements, which a route that builds on every frame never
-        /// reached, and a crossing that placed twice in one frame ran the count ahead of the queue.
-        /// It asks the timeline now. A build that waited is readable on the next placement however
-        /// many builds followed; one deferred into a submit nothing has made is not readable until
-        /// that submit has run.
+        /// **The store counted placements and called the count a fence**: a route that builds on every frame never
+        /// reached the quiet it waited for, and a crossing that placed twice in one frame ran the count ahead of the
+        /// queue. A build that waited is readable on the next placement however many builds followed; one deferred
+        /// into a submit nothing has made is not readable until that submit has run.
         TEST_F(RtxBottomLevelStoreTest, anAnswerIsReadOnceItsOwnSubmitHasRunAndNotBefore)
         {
             const std::array<Index, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
@@ -208,13 +206,12 @@ namespace Rtx
             getDevice().collectIdle();
         }
 
-        /// **A question the query pool is replaced under is asked again through the new one.** The
-        /// pool holds one query a mesh slot and is made again where the scene outgrows it, and a
-        /// question still in a batch the queue has not reached is lost with the old pool. So the
-        /// first grid is asked through the pool of two, the scene grows to five, and the build
-        /// that outgrows it asks the first grid again beside the three it builds — handed over
-        /// out of slot order, and asked in the two runs their slots make, around the second grid
-        /// that was never built. Every answer then reads from the new pool.
+        /// **A question the query pool is replaced under is asked again through the new one.** The pool holds one
+        /// query a mesh slot and is made again where the scene outgrows it, and a question still in a batch the queue
+        /// has not reached is lost with the old pool. So the first grid is asked through the pool of two, the scene
+        /// grows to five, and the build that outgrows it asks the first grid again beside the three it builds, handed
+        /// over out of slot order, around the second grid that was never built. Every answer then reads from the new
+        /// pool.
         TEST_F(RtxBottomLevelStoreTest, aQuestionThePoolIsReplacedUnderIsAskedAgain)
         {
             const Index first = addGrid(mScene, 64, 0.0f);
@@ -244,13 +241,12 @@ namespace Rtx
             getDevice().collectIdle();
         }
 
-        /// A mesh the device has no room for is left out: its slot holds no structure, so a row
-        /// placing it names none and the top level skips it, and the meshes built before it stand.
+        /// A mesh the device has no room for is left out: its slot holds no structure, so a row placing it names none
+        /// and the top level skips it, and the meshes built before it stand.
         ///
-        /// **Room for the frame's memory and none for content's**, which is what the build asks
-        /// both of: its scratch and the staged positions are the frame's and are made, and the
-        /// structure's room is content's and is refused. The first grid's block was made to its
-        /// size, so the second has nowhere to go but a block of its own.
+        /// **Room for the frame's memory and none for content's**: the build's scratch and staged positions are the
+        /// frame's and are made, and the structure's room is content's and is refused. The first grid's block was made
+        /// to its size, so the second has nowhere to go but a block of its own.
         TEST_F(RtxBottomLevelStoreTest, aMeshTheDeviceHasNoRoomForIsLeftOutAndPlacesNothing)
         {
             const std::array<Index, 2> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f) };
@@ -288,12 +284,11 @@ namespace Rtx
             getDevice().collectIdle();
         }
 
-        /// **A build runs in runs that fit its room, each over the room the one before used.** Four
-        /// grids of sixty-four built under a room of a byte are four runs, so the scratch is one
-        /// grid's, `s`; the same four under the whole room are one run, and the scratch is `4s`,
-        /// which says the room is what splits them. Every structure stands either way, and the suite
-        /// runs under synchronization validation, so a run that wrote the scratch or the positions
-        /// under the build before it would be a hazard reported.
+        /// **A build runs in runs that fit its room, each over the room the one before used.** Four grids of
+        /// sixty-four built under a room of a byte are four runs, so the scratch is one grid's, `s`; the same four
+        /// under the whole room are one run and the scratch is `4s`, which says the room is what splits them. Every
+        /// structure stands either way, and a run that wrote the scratch or the positions under the build before it
+        /// would be a reported hazard.
         TEST_F(RtxBottomLevelStoreTest, aBuildRunsInRunsThatFitItsRoom)
         {
             const std::array<Index, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
@@ -317,11 +312,10 @@ namespace Rtx
             EXPECT_EQ(together, 4 * alone) << "four grids in one run do not share one scratch";
         }
 
-        /// **Every structure leaves the loose storage, which then holds nothing**: a body built to
-        /// be refitted is built where it stays, so building it takes no loose room, and two grids
-        /// of sixty-four and one of a single quad, whose tight copy the driver may answer no smaller
-        /// for, are each copied out — tight, or as they stand — and the loose block they were built
-        /// in goes back to the device once the copies have run.
+        /// **Every structure leaves the loose storage, which then holds nothing**: a body built to be refitted is
+        /// built where it stays, so building it takes no loose room, and two grids of sixty-four and one of a single
+        /// quad, whose tight copy the driver may answer no smaller for, are each copied out, tight or as they stand,
+        /// and the loose block they were built in goes back to the device once the copies have run.
         TEST_F(RtxBottomLevelStoreTest, everyStructureLeavesTheLooseStorageWhichThenHoldsNothing)
         {
             const std::vector<osg::Vec3f> corners{ { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 } };
@@ -360,11 +354,10 @@ namespace Rtx
             getDevice().collectIdle();
         }
 
-        /// **A settled build returns with every structure copied out of the loose storage**, run by
-        /// run: four grids of sixty-four under a room of a byte are four runs, each built, copied
-        /// and given back before the next. Nothing is left loose and nothing is left to copy, so the
-        /// first placement after copies nothing, and every grid stands at the address it was copied
-        /// to. Streamed, the same grids stand loose until a placement copies them.
+        /// **A settled build returns with every structure copied out of the loose storage**, run by run: four grids of
+        /// sixty-four under a room of a byte are four runs, each built, copied and given back before the next. Nothing
+        /// is left loose, so the first placement after copies nothing. Streamed, the same grids stand loose until a
+        /// placement copies them.
         TEST_F(RtxBottomLevelStoreTest, aSettledBuildReturnsWithEveryStructureCopiedOut)
         {
             const std::array<Index, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
@@ -394,12 +387,11 @@ namespace Rtx
             getDevice().collectIdle();
         }
 
-        /// **A block made part way through an arrival covers what is still to place.** Two grids of
-        /// sixty-four make one block of `2s`, `s` a grid's aligned room; one goes, leaving a hole of
-        /// `s`. An arrival of a small grid and another of sixty-four puts the small one into the
-        /// hole, and the large one then fits nowhere: its block is `s`, the rest of the arrival, and
-        /// the storage `3s`. A block of the whole arrival was `s` and the small grid's room again,
-        /// stranded in a block no structure fills.
+        /// **A block made part way through an arrival covers what is still to place.** Two grids of sixty-four make
+        /// one block of `2s`, `s` a grid's aligned room; one goes, leaving a hole of `s`. An arrival of a small grid
+        /// and another of sixty-four puts the small one into the hole, and the large one then fits nowhere: its block
+        /// is `s`, the rest of the arrival, and the storage `3s`. A block of the whole arrival would be `s` plus the
+        /// small grid's room again, stranded in a block no structure fills.
         TEST_F(RtxBottomLevelStoreTest, aBlockMadeMidArrivalCoversWhatIsStillToPlace)
         {
             const std::array<Index, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),

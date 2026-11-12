@@ -10,9 +10,8 @@ namespace Rtx
 {
     namespace
     {
-        /// A name NGX asks for is not one of the renderer's optional extensions. The filter must keep
-        /// it from the device's own list, which is the regression this test was written for; the
-        /// old filter asked the optional list and removed every NGX extension.
+        /// A name NGX asks for is not one of the renderer's optional extensions: the filter must keep it
+        /// out of the device's own list rather than asking the optional list and removing every NGX one.
         TEST(RtxExtensionFilterTest, anExtensionTheDeviceOffersSurvivesEvenWhenItIsNotAnOptionalOption)
         {
             const std::vector<std::string> requested{ "VK_NVX_binary_import", "VK_KHR_swapchain", "VK_EXT_missing" };

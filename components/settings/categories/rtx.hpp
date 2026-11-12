@@ -24,11 +24,10 @@ namespace Settings
         /// The most bounce rays the eye's surface may trace, which the trace keeps a landing's list for.
         static constexpr int sMaxBounceRays = static_cast<int>(Rtx::Shaders::MAX_BOUNCE_RAYS);
 
-        /// How far out from the eye the world is built, in cells: handed to the world mirror where
-        /// the renderer is made and again when the menu moves it, so the rings, the air and the map
-        /// follow one number. How much world exists is a property of the structure rays are cast
-        /// against and not of the camera, which is what `viewing distance` is about; the air is
-        /// tuned to it as well as the ground (`Rtx::CellGrid::reachOf`).
+        /// How far out from the eye the world is built, in cells: handed to the world mirror where the
+        /// renderer is made and again when the menu moves it, so the rings, the air and the map follow one
+        /// number. It is a property of the structure rays are cast against, not of the camera, which is
+        /// what `viewing distance` is about (`Rtx::CellGrid::reachOf`).
         SettingValue<float> mDistantLandCells{ mIndex, "RTX", "distant land cells",
             makeClampSanitizerFloat(0.0f, sMaxDistantLandCells) };
 

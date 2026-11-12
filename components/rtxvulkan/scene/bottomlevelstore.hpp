@@ -60,9 +60,8 @@ namespace Rtx
 
         /// Run by run before it returns, each run built, waited on, copied and waited on again, as
         /// NVIDIA's load builds them (`nvvk::RaytracingBuilderKHR::buildBlas`): for a load, which
-        /// waits anyway. What is made after it — the textures — then stands against the structures'
-        /// tight size and not their loose one, and the loose structures never stand more than a run
-        /// at once.
+        /// waits anyway. What is made after it then stands against the structures' tight size, and
+        /// the loose structures never stand more than a run at once.
         Settled,
     };
 
@@ -74,13 +73,11 @@ namespace Rtx
     /// compaction that keeps them tight: a structure is built loose, the driver is asked what a tight
     /// copy would come to, and the copy is made in the storage that keeps it.
     ///
-    /// **The loose structures stand in storage of their own**, which every one of them leaves, so
-    /// each block of it empties whole once its structures are copied out, as RTXMU gives a build's
-    /// memory back once its compaction is done. A copy that took room in the block its loose
-    /// structure left filled the holes of every block the loose ones stood in: a world built again
-    /// in one arrival kept 206 MiB of blocks for 66 MiB of tight structures, since a structure that
-    /// is never copied — one built to be refitted — held each block. A structure built to be
-    /// refitted keeps its slack, so it is built where it stays.
+    /// The loose structures stand in storage of their own, which every one of them leaves, so each
+    /// block empties whole once its structures are copied out, as RTXMU gives a build's memory
+    /// back. A copy taking room in the block its loose structure left filled the holes of every
+    /// block (206 MiB kept for 66 MiB of tight structures once), since a structure never copied
+    /// held each block. A structure built to be refitted keeps its slack, so it is built where it stays.
     class BottomLevelStore
     {
     public:
@@ -90,15 +87,14 @@ namespace Rtx
 
         /// Creates and records the build of a structure for each of `meshes`, taking storage for it.
         /// A slot that already holds one has it destroyed first: a slot the scene handed out again
-        /// arrives carrying different geometry. A mesh the device has no room for is left out and
-        /// appended to `refused`: its slot holds no structure, so every placement of it names none,
-        /// which is an instance the top level skips — `stands` says which.
+        /// carries different geometry. A mesh the device has no room for is left out and appended to
+        /// `refused`: its slot holds no structure, so every placement of it names none, which the
+        /// top level skips (`stands` says which).
         ///
         /// @param poses the first copy of the deforming vertices, which is what a deforming mesh's
         ///        structure is built over — `SkinPass` has written the pose into it.
         /// @param positions the static vertices `SceneBuffers` keeps for every hit, which a static
-        ///        mesh's structure is built over: the very numbers a hit reads its corners from, and
-        ///        no copy of them staged for the build alone.
+        ///        mesh's structure is built over, with no copy staged for the build alone.
         /// @param indices the shared index blocks, which every structure is built through.
         /// @param placement which posed placement brings these, on the clock the rebuild rota reads:
         ///        what `getRebuiltAt` answers for each of `meshes` until the rota comes round.

@@ -12,21 +12,20 @@
 
 // What a level reads and writes, said once for both sides that have to agree.
 //
-// **The cascade's own, and not the trace's.** The levels run from the image the accumulator
-// blended into through a pair of this pass's own, so `CHANNEL_INDIRECT` is written once
-// by the trace and read once by whatever consumes it. That is what lets the two formats part: a
-// reference is built through that channel and never through this one.
+// **The cascade's own, and not the trace's.** The levels run from the image the accumulator blended into
+// through a pair of this pass's own, so `CHANNEL_INDIRECT` is written once by the trace and read once by
+// whatever consumes it; that lets the two formats part, since a reference is built through that channel and
+// never through this one.
 //
-// **Halves at every level, each rounded by the shader before its store** (`lib/halfround.glsl`). A
-// half store rounds toward nought on this card (`RtxHalfStoreTest`), and the first level writes the
-// bounce's running mean, which the accumulator blends into the next frame (`ACCUMULATE_COLOUR` is
-// this format by definition): stored as it is, it fell a step a frame, which a blend of
-// `ACCUMULATE_FRAMES` keeps at up to thirty-two, 1.6 per cent under the mean of the same frames. So
-// the first level rounds at random, as the accumulator and its clamp do, and the levels after it,
-// whose answers are shown and never blended back, round to the nearest. **The bounce's texel holds
-// the deviation in `a`, the fill's the frame count** where a history holds one, as the levels read
-// them; one format at every level, so the second narrow level writes over the blend the first
-// level read (`AtrousPass::record`).
+// **Halves at every level, each rounded by the shader before its store** (`lib/halfround.glsl`). A half
+// store rounds toward nought on this card (`RtxHalfStoreTest`), and the first level writes the bounce's
+// running mean, which the accumulator blends into the next frame (`ACCUMULATE_COLOUR` is this format by
+// definition): stored as it is, it fell a step a frame, which a blend of `ACCUMULATE_FRAMES` keeps at up to
+// thirty-two, 1.6 per cent under the mean of the same frames. So the first level rounds at random, as the
+// accumulator and its clamp do, and the levels after it, whose answers are shown and never blended back,
+// round to the nearest. **The bounce's texel holds the deviation in `a`, the fill's the frame count** where a
+// history holds one, as the levels read them; one format at every level, so the second narrow level writes
+// over the blend the first level read (`AtrousPass::record`).
 
 #define ATROUS_CHANNEL STORAGE_RGBA16F
 
@@ -81,11 +80,10 @@ namespace Rtx::Shaders
 
     /// Everything one level reads that is not an image.
     ///
-    /// **The camera is here because the edge tests need world positions and the surface channel
-    /// stores a distance.** A position is `origin + direction * distance`, and the difference between two of
-    /// them drops the origin — so the basis is enough and the eye's place in the world is not
-    /// needed. The rays are rebuilt by the same `rayAt` the trace built them with, which is what
-    /// makes the reconstructed positions the ones that were actually shaded.
+    /// **The camera is here because the edge tests need world positions and the surface channel stores a
+    /// distance.** A position is `origin + direction * distance` and the difference between two of them drops
+    /// the origin, so the basis is enough; the rays are rebuilt by the same `rayAt` the trace built them with,
+    /// which makes the reconstructed positions the ones that were actually shaded.
     struct AtrousConstants
     {
         /// The eyes the frame was traced through, `VisibilityConstants::mEyes`. The two stand at one

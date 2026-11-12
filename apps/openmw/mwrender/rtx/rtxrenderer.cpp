@@ -149,12 +149,10 @@ namespace MWRender
         options.mShaders
             = setup.mShaders.value_or(Rtx::ShaderSet{ .mDirectory = Rtx::shaderDirectory(spec.mResourceDir) });
 
-        // **A measured run keeps no pipeline cache of its own.** A pipeline out of the blob
-        // starts on the compile's first code and is swapped for the driver's second all the same
-        // (`RtxTool::DriverCache`), and the object shared between parallel compiles handed one pipeline
-        // another's code (`PipelineCacheSpec::mDirectory`). The driver's own disk cache stays on,
-        // one per set of shaders. The player keeps the fork's cache: a game is not compared with
-        // itself, and the seconds it saves at start are the player's.
+        // A measured run keeps no pipeline cache of its own: a pipeline out of the blob starts on the compile's
+        // first code and is swapped for the driver's second (`RtxTool::DriverCache`), and the object shared
+        // between parallel compiles handed one pipeline another's code (`PipelineCacheSpec::mDirectory`).
+        // The player keeps the fork's cache: a game is not compared with itself.
         if (run == nullptr)
             options.mCacheDirectory = spec.mCachePath;
         options.mDlss = spec.mDlss;
@@ -169,30 +167,22 @@ namespace MWRender
         options.mHeight = static_cast<std::uint32_t>(getPresentation().mFrame.y());
         options.mWindow = mWindow.hasSurface() ? mWindow.get() : nullptr;
         options.mVerticalSync = verticalSyncOf(Settings::video().mVsyncMode);
-        // **The run's answer, handed over whole**: the profile a measurement turns, so a picture
-        // taken by the harness and a frame drawn by the game come from one configuration, the
-        // layers — a launcher making a measurement says on its command line whether they load,
-        // because a figure taken under them is not one to compare against anything — and the
-        // budget. `playedRunSetup` says what a session with no command line answers.
+        // Handed over whole, so a picture taken by the harness and a frame drawn by the game come from one
+        // configuration. `playedRunSetup` says what a session with no command line answers.
         options.mRun = setup.mRun;
         options.mRun.mValidation = askedValidation(setup.mRun.mValidation);
 
-        // **Measured exactly where a run is installed.** The hit counts are a report's figures —
-        // what tells "the cell rendered" from "the camera faced away from it", and what `check`
-        // asserts finite — and so are the zones' timestamps, a frame's picture and digest read back,
-        // and what the driver made of each pipeline. Nothing a player does reads any of them, so a
-        // played session is specialized without the atomics and makes neither the digest's pass
-        // nor its buffers. The census is the shaders' (`RunSetup::mShaders`).
+        // Measured exactly where a run is installed: the hit counts, zone timestamps, digest and pipeline
+        // reports are read by nothing a player does, so a played session is specialized without the atomics
+        // and makes neither the digest's pass nor its buffers.
         options.mReporting = run != nullptr ? Rtx::Reporting::Measured : Rtx::Reporting::Played;
 
-        // **Said once, where it is decided**, as none of it changes while the session runs but the
-        // upscale, which the line where the targets are made says at what pair of sizes.
+        // Said once: none of it changes while the session runs but the upscale, which the line where the
+        // targets are made says.
         Log(Debug::Info) << "Ray tracing run: " << describe(setup);
 
-        // **A switch the player turned on for what this renderer declines is said once, with the
-        // declaration's reason**: a second eye, a shader chain. Said and not refused, because
-        // the game plays the same without them; the content still loads, which is the world's to
-        // decide.
+        // A switch the player turned on for what this renderer declines is said, with the declaration's
+        // reason, and not refused: the game plays the same without it.
         const std::pair<Settings::CategorySetting, bool> switches[] = {
             { { "Stereo", "stereo enabled" }, Settings::stereo().mStereoEnabled },
             { { "Post Processing", "enabled" }, Settings::postProcessing().mEnabled },
@@ -208,17 +198,16 @@ namespace MWRender
         // What `auto` came to is the device's description's `upscaler` line.
         Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
 
-        // **A driver that takes a crash signal for itself as it starts** leaves the crash catcher
-        // blind to every crash after it: said once, here, where the device has just been made.
+        // A driver that takes a crash signal for itself as it starts leaves the crash catcher blind to every
+        // crash after it.
         for (const std::string_view lost : Crash::lostHooks())
             Log(Debug::Warning) << "The crash catcher no longer handles " << lost
                                 << ": something the renderer started replaced its handler";
 
         mWindow.apply(*mRenderer, getCamera(), getPresentation());
 
-        // **The negative test, and it is the whole claim of this path in one line.** Nothing above
-        // here may have made a GL context: not the window, not a realize operation, not an
-        // `osgViewer` that slipped back in. A context that exists is one something is paying for.
+        // Nothing above may have made a GL context (the window, a realize operation, a stray `osgViewer`):
+        // one that exists is one something is paying for.
         if (SDL_GL_GetCurrentContext() != nullptr)
             throw std::runtime_error("something initialised OpenGL under the ray tracing renderer");
     }
@@ -245,8 +234,8 @@ namespace MWRender
         // an image of a frame this owns the memory for. The members go in the order they are
         // declared for: the frozen texture, the backend, the window.
 
-        // **What the content store did, said once a session**, where its failures are counted and
-        // not each logged: a session's drops are a store that missed what it would have kept.
+        // Failures are counted and said once here, not each logged: a drop is a store that missed what it
+        // would have kept.
         Log(Debug::Info) << "Frame times of the session: " << Rtx::describe(mSessionTimes.summarise());
 
         if (mContentStore != nullptr)
@@ -292,20 +281,11 @@ namespace MWRender
         const std::optional<float> stated = getLoopClock().getStatedStep();
         setResourceExpiry(resources, stated);
 
-        // **The run's stated step decides whether the ground waits, unless the run says otherwise.**
-        // A composite comes back whenever the baker finishes it, so which frame it lands on is a
-        // thread's answer rather than the schedule's, and a run whose pictures are compared with
-        // another's cannot have that. The step is the frame clock's, which is the one route a
-        // stated step reaches this renderer by.
-        //
-        // **The step and not what a run does with its frames.** `shot` is what the reference
-        // pictures are made with and it hashes no frame, so a condition asking about hashes would
-        // leave out the run that most needs this: measured on `balmora`, four processes drew four
-        // different frames after half a second of warming and one frame after a tenth of one.
-        //
-        // **And a run that means to time the streaming path overrides it**, because waiting is
-        // most of what that path then measures. `RunSetup::mSettled` says what the override costs
-        // and what it buys.
+        // A stated step makes the ground wait: a composite lands on whichever frame the baker finishes it
+        // on, a thread's answer a run compared with another's cannot have. The step and not a hashed frame
+        // decides, because `shot` makes the reference pictures and hashes none (measured on `balmora`, four
+        // processes drew four different frames after half a second of warming). A run timing the streaming
+        // path overrides it, since waiting is most of what that path measures (`RunSetup::mSettled`).
         mMirror.getRing().setSettled(mSettled.value_or(stated.has_value()));
 
         Resource::SceneManager& scene = *resources.getSceneManager();
@@ -435,8 +415,7 @@ namespace MWRender
         mPhase.expect(Phase::Between);
         getFrameStamp().setFrameNumber(getFrameStamp().getFrameNumber() + 1);
 
-        // **What OpenMW ages its caches by**, which is why it comes from the host's clock and not
-        // from the wall. `Misc::LoopClock` says what reading the wall here cost.
+        // What OpenMW ages its caches by, so it comes from the host's clock and not the wall.
         getFrameStamp().setReferenceTime(getLoopClock().getNow());
         getFrameStamp().setSimulationTime(simulationTime);
     }
@@ -444,14 +423,9 @@ namespace MWRender
     void RtxRenderer::updateTraversal() noexcept
     {
         mPhase.expect(Phase::Between);
-        // **Before the early return, because a main menu has no scene root.** MyGUI's widget
-        // animation, its key repeat, its tooltip timers and its screen faders all hang off this one
-        // call, and the other backend gets it from an update callback on a node that is always in
-        // the graph.
-        //
-        // **The frame's own step, and not MyGUI's timer.** That timer is a wall clock read in whole
-        // milliseconds, and a hit's red overlay faded by it — so two runs of one build drew the
-        // overlay at different strengths on the same frame.
+        // Before the early return, because a main menu has no scene root: MyGUI's animation, key repeat,
+        // tooltip timers and faders all hang off this call. The frame's own step and not MyGUI's timer, a
+        // wall clock in whole milliseconds that made two runs draw a hit's red overlay at different strengths.
         assert(mGui != nullptr && "a frame before the interface was made");
         mGui->update(static_cast<float>(getLoopClock().getStep()));
 
@@ -459,25 +433,21 @@ namespace MWRender
         mUpdateVisitor->setFrameStamp(&getFrameStamp());
         mUpdateVisitor->setTraversalNumber(getFrameStamp().getFrameNumber());
 
-        // **Not behind a loading screen.** What the rasterizer says with a blanked traversal mask
-        // this says by not walking. The eye below still updates, as it does under that blanked mask:
-        // the master camera's own bits are not among the ones it clears. `tws` is not asked here:
-        // under the rasterizer it masks the cull alone and the world keeps animating behind it.
+        // What the rasterizer says with a blanked traversal mask this says by not walking; the eye below
+        // still updates, as it does under that mask. `tws` is not asked: under the rasterizer it masks the
+        // cull alone and the world keeps animating behind it.
         if (isWorldShown())
             getTraversalRoot().accept(*mUpdateVisitor);
 
-        // **And the eye, which is not in the graph.** `MWRender::Camera` puts where the player is
-        // looking onto the master camera from an update callback, exactly as the viewer's own update
-        // traversal reaches it. Without this the view matrix is whatever it was made with, and every
-        // frame is traced from the origin looking down.
+        // The eye is not in the graph: `MWRender::Camera` sets the master camera from an update callback,
+        // and without this every frame is traced from the origin looking down.
         updateEye(getCamera(), *mUpdateVisitor);
     }
 
     void RtxRenderer::drawGui()
     {
-        // **Between the frame and the present**, because the GUI goes over the finished picture and
-        // its colours are display-referred — they were picked looking at a monitor, and a tone curve
-        // meant for radiance is how a menu comes out grey.
+        // Over the finished picture, not in the trace: its colours are display-referred, and a tone curve
+        // meant for radiance turns a menu grey.
         assert(mGui != nullptr && "a GUI drawn before the interface was made");
         if (mInterface)
             mGui->collectDrawCalls();
@@ -498,12 +468,8 @@ namespace MWRender
         mPhase.expect(Phase::Views, Phase::Run);
         assert(!mViews.isDrawing() && "drawViews inside drawViews");
 
-        // **Asked for before there is a world, every time a game starts.** A cell asks for its map
-        // tile as it loads, which is the frame before the one that first mirrors it; the tile waits
-        // here for something to draw it against rather than being left blank until the local map
-        // happens to ask again. Nothing asks whether there is one, because nothing reaches here
-        // without: `traceWorld` returns before this where nothing is placed, and the run's hook
-        // has only traced frames.
+        // A cell asks for its map tile as it loads, the frame before the one that first mirrors it; the
+        // tile waits as a deferred view rather than staying blank until the local map asks again.
         if (!mViews.hasDeferred())
             return 0.0;
 
@@ -521,16 +487,10 @@ namespace MWRender
         present();
     }
 
-    /// **The frame the trace made, on the screen, before the call that made it returns.** No
-    /// composite, no interop and no rasterized frame underneath, which is what takes an interop
-    /// path's frame of latency out.
-    ///
-    /// **Traced or not, the frame is presented**, which is why the world's path ends here as well as
-    /// the interface's. A walk that placed nothing, an eye with no roll and a world nobody is being
-    /// shown are all reasons to leave the target as it is; none is a reason to stop feeding the
-    /// surface, and a window that stops answering is one the compositor eventually says so about.
-    /// What the GUI goes over is then the last frame traced, or black where nothing has been — a
-    /// main menu, or the moment before the first cell finishes loading.
+    /// The frame the trace made, on the screen before the call that made it returns: no composite or
+    /// interop, which is what takes an interop path's frame of latency out. Traced or not, the frame is
+    /// presented: leaving the target as it is is fine, but a surface that stops being fed gets the window
+    /// reported as unresponsive. The GUI then goes over the last frame traced, or black where none was.
     void RtxRenderer::present()
     {
         mPhase.expect(Phase::Gui);
@@ -540,13 +500,9 @@ namespace MWRender
 
         drawGui();
 
-        // **A present that failed is a swapchain to rebuild, and `renderFrame` is where that
-        // happens.** It asks the window its size before every frame and hands over whatever has
-        // settled, so a surface that went stale where the window is standing still is rebuilt on the
-        // next frame. One that went stale mid-gesture waits for the gesture, which is the frozen
-        // picture a window being dragged shows anyway. **None where the window has no surface**
-        // (`RtxWindow::hasDisplay`): the interface is drawn into the frame all the same, which a
-        // screenshot, a frozen frame and a loading screen read.
+        // A failed present is a swapchain `renderFrame` rebuilds on the next frame, once the window's size
+        // has settled. None where the window has no surface (`RtxWindow::hasDisplay`): the interface is
+        // drawn into the frame all the same, which a screenshot, a frozen frame and a loading screen read.
         if (mWindow.hasSurface())
             mRenderer->presentFrame();
 
@@ -563,11 +519,9 @@ namespace MWRender
     {
         mPhase.expect(Phase::Between, Phase::Run);
 
-        // **The content prepared beside the kernels' compile**, from the content list the screen
-        // before this one loaded: every model it names walked into the store, so play reads what
-        // it would otherwise compute (`Rtx::ContentPreparation`). **On every CPU the process may run
-        // on but one**, the main thread's, which draws the screen and sleeps: the PBR replacers' cold
-        // preparation took 64 s on 31 threads where it took 80 on 16
+        // Content is prepared beside the kernels' compile, so play reads from the store what it would
+        // otherwise compute (`Rtx::ContentPreparation`). Every CPU but the main thread's, which draws the
+        // screen and sleeps: 64 s on 31 threads against 80 on 16
         // (`docs/rtx/research/2026-11-09-content-preparation-cost.md`, "Threads").
         const MWWorld::ESMStore* const store = MWBase::Environment::get().getESMStore();
         if (store != nullptr)
@@ -581,10 +535,9 @@ namespace MWRender
             listener.setLabel("#{OMWEngine:CompilingShaders}");
             listener.setProgressRange(progress.mCount);
 
-            // **Under a frame of the loading screen's**, which draws at 120 a second at most, so
-            // what paces the screen is the screen and not this wait. Every report draws, the count
-            // moved or not, and the draw is what pumps the window's events and beats the crash
-            // catcher's heart: one kernel alone takes seconds cold.
+            // Under a frame of the loading screen's, so the screen paces it and not this wait. Every report
+            // draws, the count moved or not: the draw pumps the window's events and beats the crash catcher's
+            // heart, and one kernel alone takes seconds cold.
             constexpr std::chrono::milliseconds patience{ 8 };
             while (!progress.isDone())
             {
@@ -602,12 +555,9 @@ namespace MWRender
             listener.setNote("#{OMWEngine:PreparingContentNote}");
             listener.setProgressRange(progress.mCount);
 
-            // **Each file let go of by the loader's caches as the last job reading it ends**
-            // (`Rtx::ContentPreparation`, `Resource::SceneManager::letGo`), so the walk's memory stays
-            // within the jobs' own: cleared once a second instead, the caches held what a second of walks
-            // loaded, 7.3 GiB at the peak of a PBR start whose manifest walked every model again, and aged
-            // by their expiry, 14.7 GB. Each wait sleeps until a job is done or the screen's frame is
-            // due, as the kernels' does.
+            // Each file is let go of by the loader's caches as the last job reading it ends
+            // (`Rtx::ContentPreparation`, `Resource::SceneManager::letGo`): cleared once a second the caches
+            // held 7.3 GiB at the peak of a PBR start, and aged by their expiry, 14.7 GB.
             constexpr std::chrono::milliseconds patience{ 8 };
             while (!progress.isDone())
             {
@@ -619,9 +569,7 @@ namespace MWRender
         }
         mWalked.mSession.mLoading += mMirror.finishPreparing();
 
-        // **The clear at the end drops what a job's files did not name**, once the jobs are done and
-        // whichever of the kernels and the preparation ended first, so the models a run keeps do not
-        // hang on the threads' timing.
+        // Drops what a job's files did not name, so the models a run keeps do not hang on the threads' timing.
         if (store != nullptr)
             getResources().clearCache();
     }
@@ -750,9 +698,8 @@ namespace MWRender
         if (upscale)
             mUpscale = settings->mUpscale;
 
-        // The menu moves the reach while the game runs, and the ring, the air and the map all
-        // follow it: a slider that took effect at the next start was a slider that did nothing.
-        // Handed over here and never read by a frame, so every part of a frame stands in one world.
+        // The ring, the air and the map follow the reach while the game runs. Handed over here and never
+        // read by a frame, so every part of a frame stands in one world.
         if (reach)
             mMirror.setReach(settings->mMirror.mReach);
 
@@ -780,8 +727,8 @@ namespace MWRender
 
         if (mFrozenFrame->getImage() == nullptr)
         {
-            // Nothing has been presented yet, which is the very first load. Black is what a fade
-            // from nothing looks like, and it is the honest picture of a world that is not there.
+            // Nothing has been presented yet, which is the very first load: black is what a fade from nothing
+            // looks like.
             osg::ref_ptr<osg::Image> black = new osg::Image;
             black->allocateImage(1, 1, 1, GL_RGB, GL_UNSIGNED_BYTE);
             std::memset(black->data(), 0, black->getTotalSizeInBytes());
@@ -798,9 +745,8 @@ namespace MWRender
     std::unique_ptr<MyGUIPlatform::Platform> RtxRenderer::createGuiPlatform(
         float scalingFactor, VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath) noexcept
     {
-        // **MyGUI over the ray tracer, and nothing of OpenSceneGraph in it.** Nothing is hung in the
-        // graph; the backend is called by this renderer's own frame instead — `updateTraversal` for
-        // the widget animation and `renderFrame` for the triangles.
+        // Nothing is hung in the graph: this renderer's own frame calls the backend, `updateTraversal` for the
+        // widget animation and `renderFrame` for the triangles.
         auto manager
             = std::make_unique<MyGUIRtx::RenderManager>(*mRenderer, getResources().getImageManager(), scalingFactor);
         mGui = manager.get();
@@ -815,10 +761,8 @@ namespace MWRender
         // How the stretch the cut ends ran, which a player's report reads beside where it went.
         Log(Debug::Info) << "Frame times since the last cut: " << Rtx::describe(mStretchTimes.summarise());
         mStretchTimes.clear();
-        // **Told rather than worked out.** The mirror grows and recycles its slots and is never
-        // cleared, so a cell load leaves it looking exactly as a step across a room does; the
-        // renderer has nothing to notice. Kept for the next frame the world is traced in, which a
-        // load screen's frames are not.
+        // Told rather than worked out: the mirror recycles its slots and is never cleared, so a cell load
+        // looks like a step across a room. Kept for the next frame the world is traced in.
         mLoss = std::max(mLoss, Rtx::HistoryLoss::Cut);
     }
 
@@ -834,23 +778,16 @@ namespace MWRender
     {
         mPhase.step(Phase::Walking, Phase::Between);
 
-        // **The frame's work under one note, and each step's under its own**, which ends with the
-        // frame: a crash in the game's update after it names no step of a frame already drawn.
+        // Ends with the frame: a crash in the game's update after it names no step of a frame already drawn.
         const Crash::NoteScope noted("drawing frame {}", frame.mWhen.getFrameNumber());
 
         FrameReport report{ .mPaused = frame.mPaused };
 
-        // **What the game spent since this renderer last let go of the frame** — its update, its
-        // cells arriving and whatever it waits on to get them. It is the one stretch of the loop
-        // nothing else measures, and it is timed rather than profiled because most of it is a
-        // thread asleep.
-        //
-        // **And the whole frame, measured from one arrival here to the next.** Everything the game
-        // does in between is in it — update, cull, this — which is what a player feels and what the
-        // wait on the device on its own cannot say. Entered here and not where the trace is
-        // submitted, so a frame the world was hidden on, a frame with nothing placed and a frame
-        // `describeTrace` refused each close a span of their own: entered at the trace, the first
-        // traced frame after any of those reported the whole gap as one frame.
+        // The game's update since this renderer last let go of the frame, which nothing else measures and is
+        // timed rather than profiled because most of it is a thread asleep. The whole frame is measured from
+        // one arrival here to the next, as a player feels it. Entered here and not at the trace, so a frame
+        // hidden, with nothing placed, or refused by `describeTrace` closes a span of its own instead of
+        // the first traced frame after it reporting the whole gap.
         const std::chrono::steady_clock::time_point arrived = std::chrono::steady_clock::now();
         report.mSpend.at(Rtx::Timing::Update) = mTimer.sinceLeft(arrived);
         report.mSpend.at(Rtx::Timing::Sleep) = std::chrono::duration<double, std::milli>(getLastHold()).count();
@@ -873,12 +810,11 @@ namespace MWRender
             mRenderer->holdAir(*held);
         }
 
-        // **Ahead of the trace and not after the present**, so the frame this draws is the one the
-        // window's own extent asked for rather than the one behind it.
+        // Ahead of the trace, so the frame drawn is the one the window's extent asked for and not the one behind.
         mWindow.fit(*mRenderer, getCamera(), getPresentation(), getLoopClock().getNow());
 
-        // **The stop's upscaling, where it asks for one, and the run's otherwise** — beside the fit,
-        // because both rebuild the targets, and the camera below is built for the extent they leave.
+        // The stop's upscaling, else the run's: beside the fit because both rebuild the targets, and the
+        // camera below is built for the extent they leave.
         if (const Rtx::Upscale wanted = mRun.getUpscale().value_or(mUpscale);
             wanted != mRenderer->getProfile().mUpscale)
             mRenderer->setUpscale(wanted);
@@ -894,19 +830,11 @@ namespace MWRender
         if (pending.mBounceRays.has_value())
             mRenderer->setBounceRays(*pending.mBounceRays);
 
-        // **A frame under a cover is the interface and nothing else.** No walk, because the
-        // update traversal did not run either, and no trace, because the interface covers every
-        // pixel of it. The sweep goes with the walk: a walk that did not happen has marked nothing
-        // and a sweep would take the world. `tws` is not a cover: it is the world's view mask,
-        // which the walk and the trace read.
-        //
-        // **The emitter clock stops with it**, which is what a clock of its own is for: it counts
-        // the seconds this renderer has shown, so a plume resumes where it left off rather than
-        // being handed the loading screen in one step.
-        //
-        // **A picture of a subject is drawn all the same**: it stands on a scene of its own, which
-        // no walk of the world feeds. A picture of the world waits for the world, and none of its
-        // budget is spent.
+        // A frame under a cover is the interface alone: no walk, as the update traversal did not run, and no
+        // trace, as the interface covers every pixel. The sweep goes with the walk, which marked nothing and
+        // would otherwise take the world. `tws` is no cover: it is the world's view mask, read by the walk and
+        // the trace. The emitter clock stops too, so a plume resumes where it left off. A picture of a subject
+        // is drawn all the same, on a scene no walk of the world feeds.
         if (!isWorldShown())
         {
             mRipples.dropStrikes();
@@ -926,8 +854,7 @@ namespace MWRender
         // beside the sprites, which is where the trace and the digest both read it.
         mRipples.update(frame.mWorld.mWater, !frame.mPaused);
 
-        // **Where the benchmark's `walk ms` starts**, because that row means the whole mirror: the
-        // walk and the sweep behind it.
+        // The benchmark's `walk ms` row means the whole mirror: the walk and the sweep behind it.
         {
             const Crash::NoteScope walking("walking the scene");
 
@@ -936,8 +863,8 @@ namespace MWRender
             report.mSpend.at(Rtx::Timing::Walk) = Rtx::since(walked, std::chrono::steady_clock::now());
             report.mSpend.at(Rtx::Timing::Preprocess) = mWalked.mFound.mPreprocessed.mOnFrame.getMs();
 
-            // **The same graph again, and it should add nothing.** Only a run that asked pays for
-            // it, because a second whole-graph walk is the largest cost a frame has.
+            // The same graph again, which should add nothing; only a run that asked pays for the largest cost
+            // a frame has.
             mWalked.mAgain.reset();
             if (mRun.wantsSecondWalk())
                 mWalked.mAgain = mMirror.mirror(frame, view);
@@ -955,9 +882,8 @@ namespace MWRender
 
         traceWorld(frame, view, report, since);
 
-        // Where the frame is stamped as left, which is why no path out of here stamps it again:
-        // the world-hidden return above ends in this same call. From the walk of a frame with
-        // nothing placed, from a trace the eye refused, or from the run's hook after the trace.
+        // The one exit that stamps the frame as left, reached from a walk that placed nothing, a refused eye
+        // or the run's hook after the trace.
         mPhase.step(Phase::Gui, Phase::Walking, Phase::Tracing, Phase::Run);
         present();
     }
@@ -968,9 +894,9 @@ namespace MWRender
         if (mMirror.getScene().placements().getCounts().mPlaced == 0)
             return;
 
-        // **Described first, since a refused eye collects no frame.** `RtxRun::frame` takes traced
-        // frames alone, so the answer for the frame behind, collected ahead of a frame that is then
-        // skipped, would reach no run: left in the ring, the next traced frame collects it.
+        // Described first, since a refused eye collects no frame: `RtxRun::frame` takes traced frames alone,
+        // so the answer for the frame behind would reach no run. Left in the ring, the next traced frame
+        // collects it.
         std::optional<Rtx::FrameRequest> request = describeTrace(frame, view);
 
         mPhase.step(Phase::Placing, Phase::Walking);
@@ -986,12 +912,9 @@ namespace MWRender
             handOver(frame, report);
         }
 
-        // **Before the frame and after the scene**, which is the only moment both are true: a
-        // picture inside the interface traces against the copy of the tables this walk has just
-        // handed over, and the frame's own trace is what stamps that copy as read.
-        //
-        // Above the eye, because a picture inside the interface brought its own: an eye the trace
-        // cannot look along is no reason to leave a map tile blank.
+        // After the scene and before the frame: a picture inside the interface traces against the copy of the
+        // tables just handed over, and the frame's own trace stamps that copy as read. Above the eye check,
+        // because such a picture brings its own eye.
         mPhase.step(Phase::Views, Phase::Placing);
         {
             const Crash::NoteScope pictures("drawing the pictures inside the interface");
@@ -1011,26 +934,13 @@ namespace MWRender
 
     void RtxRenderer::finishBehind(FrameReport& report)
     {
-        // **Waited for here, ahead of the placement that would otherwise absorb it.** `placeScene`
-        // writes the copy of the tables the frame before last traced, so it waits that frame out
-        // before it writes — and left to it the stall lands inside `place ms`, which then reads
-        // as placement work rather than as a device the CPU is ahead of. One figure, in `wait ms`,
-        // which the harness's report carries (`RtxTool::FrameSamples`).
-        //
-        // **`collectFrame` and not `finishFrame`**: the frame behind stays on the device while this
-        // one is placed, which is what keeps the device busy from one trace to the next — 0.9 ms
-        // of a 6 ms frame on the ship, measured with `bench`. What comes back is the frame before
-        // it, so the bench row carries a report two frames behind this frame's wall time.
-        // `Check::FramesOverlap` is what says the ring still holds two.
-        //
-        // **Timed as well as waited for**, because the wait is not the whole of it: the ring then
-        // reads the device's counters and its timestamps and destroys what that frame was the last
-        // to read, and none of that is in the figure the device reports.
-        //
-        // **The wait is this frame's, whichever frame it waited for.** The result it comes with
-        // describes the frame behind, and a run counts that one under the number it answers for;
-        // the standing still happened here, so its row is this frame's, and nought where nothing
-        // was in flight to wait for.
+        // Waited for ahead of the placement, which writes the copy of the tables the frame before last traced
+        // and would otherwise absorb the stall into `place ms` as if it were placement work
+        // (`RtxTool::FrameSamples`). `collectFrame` and not `finishFrame`: the frame behind stays on the
+        // device while this one is placed, keeping it busy between traces (0.9 ms of a 6 ms frame on the ship);
+        // the result describes the frame before it, so the bench row is two frames behind this one's wall time
+        // (`Check::FramesOverlap` says the ring holds two). Timed as well, since the ring then reads counters
+        // and destroys what that frame last read. The wait is this frame's whichever frame it waited for.
         const std::chrono::steady_clock::time_point finishing = std::chrono::steady_clock::now();
         report.mResult = mRenderer->collectFrame();
         report.mSpend.at(Rtx::Timing::Finish) = Rtx::since(finishing, std::chrono::steady_clock::now());
@@ -1039,8 +949,7 @@ namespace MWRender
 
     void RtxRenderer::handOver(const SceneFrame& frame, FrameReport& report)
     {
-        // Placed, appended or rebuilt — the decision, and the describing a rebuild needs, are the
-        // harness's too and are written once (`Rtx::SceneUploader`).
+        // Placed, appended or rebuilt: the decision is the harness's too, written once (`Rtx::SceneUploader`).
         const std::chrono::steady_clock::time_point handing = std::chrono::steady_clock::now();
         const Rtx::SceneUpload handed = mMirror.hand(*mRenderer, report.mSpend);
         report.mSpend.at(Rtx::Timing::Place) = Rtx::since(handing, std::chrono::steady_clock::now());
@@ -1070,24 +979,16 @@ namespace MWRender
     {
         const Rtx::FrameExtents extents = mRenderer->getExtents();
 
-        // **The matrix and not a look-at, which is what lets the player look at their own feet.**
-        // `getViewMatrixAsLookAt` hands back a point one unit ahead of the eye, and Morrowind's
-        // cells are far enough out that a float ulp there is a hundredth of a unit: differencing two
-        // such points names a direction a fifth of a degree wide that lands somewhere else every
-        // time the eye moves. And a direction on its own carries no roll, so it has to borrow the
-        // world's up — which has no answer at all for an eye looking straight up or down. The game
-        // does both, every time somebody looks at the sky or the floor, and every one of those
-        // frames was skipped: the picture stopped and the last one stayed on the screen. A view
-        // matrix carries its own basis and neither problem survives it.
-        //
-        // **The frame's field of view and not the setting's.** `WorldState` carries the one the
-        // world settled on, which is the override wherever something asked for one — a zoom, a
-        // cutscene, a script — and the setting only where nothing did.
+        // The matrix and not a look-at: `getViewMatrixAsLookAt` hands back a point one unit ahead of the eye,
+        // where a float ulp is a hundredth of a unit far out in Morrowind's cells, so differencing two such
+        // points names a direction a fifth of a degree wide. A direction also carries no roll and borrows the
+        // world's up, which has no answer for an eye looking straight up or down. A view matrix carries its own
+        // basis. The frame's field of view and not the setting's: `WorldState` holds any override (zoom,
+        // cutscene, script).
         std::optional<Rtx::Viewpoint> camera = Rtx::makeCameraFromView(view, frame.mEye.mFieldOfView,
             extents.mRenderWidth, extents.mRenderHeight, Rtx::sNearPlane, Rtx::sFarPlane);
 
-        // **Asked of the builder rather than tested for here**: a test here would be a copy of
-        // the builder's contract with two places to be right.
+        // Asked of the builder rather than tested for here, which would copy the builder's contract.
         if (!camera.has_value())
         {
             refuseEye(Rtx::isFieldOfView(frame.mEye.mFieldOfView) ? "the view matrix has no basis to look along"
@@ -1113,15 +1014,9 @@ namespace MWRender
         // What the game decided the eye sees, read where the rasterizer reads it.
         const ViewDescription described = describeView(worldViewMask());
 
-        // **What the sampler and the jitter are walked by, and leaving it at zero is a bug with two
-        // faces.** The bounce samples the same point every frame, so nothing ever converges; and the
-        // upscaler, which jitters whatever it is told, is handed the same sub-pixel offset every
-        // frame and reconstructs from one sample taken repeatedly. The harness had exactly this, and
-        // it cost a picture that looked plausible and carried none of the detail it was paying for.
-        //
-        // **The stop's own count where a run is being made, and the game's frame number
-        // otherwise.** `RtxRun::getSampleFrame` says why: a measured run has to walk the same
-        // sequence twice, and a game's frame number carries the loading screen's frames with it.
+        // Walks the sampler and the jitter: left at zero the bounce samples the same point every frame and
+        // the upscaler reconstructs from one sample taken repeatedly. The stop's own count where a run is
+        // made, else the game's frame number (`RtxRun::getSampleFrame` says why).
         return Rtx::FrameRequest{
             .mView = *camera,
             .mRayMask = described.mRayMask,
@@ -1146,9 +1041,8 @@ namespace MWRender
         const float sinceLast = mTracedAt.has_value() ? static_cast<float>(now - *mTracedAt) : 0.0f;
         mTracedAt = now;
 
-        // **The schedule's and not the profile's**, because a warm-up is not averaged in — a picture
-        // of a half-built cell in the sum is what `RtxRun::getAccumulated` exists to keep out.
-        // Nothing of the profile is handed back: the backend reads its own.
+        // The schedule's and not the profile's: a warm-up is not averaged in, which a half-built cell would
+        // spoil (`RtxRun::getAccumulated`). The backend reads its own profile.
         request.mOptions = Rtx::FrameOptions{
             .mAccumulate = mRun.getAccumulated(),
             .mSinceLast = sinceLast,
@@ -1158,9 +1052,8 @@ namespace MWRender
             .mReadBack = mRun.wantsFrameCopy(),
         };
 
-        // **Timed, because a profiler cannot read it.** The record and the submit are almost
-        // entirely inside the driver, which carries no frame pointer, so perf attributes what they
-        // cost to an address with no caller. `Rtx::Timing::Trace` says what the row is for.
+        // Timed because a profiler cannot read it: the record and submit are inside the driver, which carries
+        // no frame pointer, so perf attributes them to an address with no caller.
         const std::chrono::steady_clock::time_point tracing = std::chrono::steady_clock::now();
 
         // What the debug modes drew, read off the world root here, after the game's own update

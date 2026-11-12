@@ -6,10 +6,9 @@
 //
 // **`SceneUtil::RigGeometry::cull`'s arithmetic and nothing else.** Each vertex's run names the bones that
 // move it and by how much; the rows of those bones are blended at their weights, and the blend is of the
-// matrices and not of the results — the same thing for a position and not for a normal, and one matrix at
-// the end is three dot products against a normal instead of many. The skin's own transform is applied once,
-// to the blend, as `cull` applies it: composed into each bone it would be scaled by the sum of the weights
-// (`Rtx::packRig`).
+// matrices and not of the results (one matrix at the end is three dot products against a normal instead of
+// many). The skin's own transform is applied once, to the blend, as `cull` applies it: composed into each
+// bone it would be scaled by the sum of the weights (`Rtx::packRig`).
 
 #include "skinning.h"
 #include "shared/skin.h"

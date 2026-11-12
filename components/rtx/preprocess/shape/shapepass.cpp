@@ -32,10 +32,9 @@ namespace Rtx
         output.mShape = mFold.fold(input.mPositions, output.mKept);
 
         // **A sheet keeps the normals it was written with.** Nothing a split is for reaches one: it
-        // takes a light's side from its plane and its shadow ray is not lifted (`Surface::mSheet`).
-        // And foliage averages its cards' normals on purpose, so a clump lights as one volume — cut
-        // at the angles its cards cross at, a canopy would light card by card. No normals is nothing
-        // to split either, which the split answers by writing nothing.
+        // takes a light's side from its plane and its shadow ray is not lifted. And foliage averages
+        // its cards' normals on purpose, so a clump lights as one volume. No normals is nothing to
+        // split either, which the split answers by writing nothing.
         const bool splits = input.mSplits && !output.mShape.mSheet;
         CreaseSplit::Split split{ .mNormals = output.mNormals, .mSources = output.mSources };
         mSplit.split(input.mPositions, splits ? input.mNormals : std::span<const osg::Vec3f>(), output.mKept,

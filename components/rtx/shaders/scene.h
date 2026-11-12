@@ -5,52 +5,29 @@
 #include "portable.h"
 #include "storageformat.h"
 
-// The scene's tables, and the scale its brightnesses are measured on, as both sides see them.
-// Scalar block layout throughout, so a `uint` is four bytes and a `vec2` is eight on both sides and
-// there is nothing to translate.
-//
-// The constants left here are the ones a picture does not turn on: the world's units and the maths
-// over them, the sizes a buffer and a grid are built to, the masks traversal reads and the
-// sentinels a table spells nothing with. Every number somebody reaches for when the frame looks
-// wrong is in `look.h`, which includes this — so a dial and the size it is measured against are
-// still one statement, in the direction a light pass can take without taking the tables too.
+// The scene's tables and the scale its brightnesses are measured on, as both sides see them, in scalar
+// block layout. Every number somebody reaches for when the frame looks wrong is in `look.h`, which
+// includes this, so a dial and the size it is measured against stay one statement.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
 {
 #endif
 
-    /// A slot of the bindless texture array that is not one.
-    ///
-    /// **Every optional map, and never a material's diffuse.** A cloud deck, a star sheet, a moon's
-    /// face, a dark, an emissive and an environment map index the same array a diffuse does, so
-    /// what stands for *nothing loaded* is one value with one meaning — and a reader of any of
-    /// them tests for it before the read, and for `TEXTURE_STANDS_IN` with it (`holdsTexture`).
-    /// The diffuse is not optional: a material with none names `TEXTURE_NEUTRAL`, so the albedo,
-    /// the opacity, the cutout and the crossing read one path.
+    /// A slot of the bindless texture array that is not one: every optional map (cloud deck, star
+    /// sheet, dark, emissive, environment) tests for it before the read. The diffuse is never
+    /// optional: a material with none names `TEXTURE_NEUTRAL`, so every material reads one path.
     const uint NO_TEXTURE = 0xFFFFFFFFu;
 
     /// The bit over a slot's texel count (`GpuTables::mTextureTexels`) that says the slot draws the
-    /// backend's stand-in and not what was named for it: its file did not read, it is past the side
-    /// the device takes, or the device had no room for it.
-    ///
-    /// **A reader of an optional map reads such a slot as `NO_TEXTURE`.** The stand-in is a grey
-    /// picture, and what a missing map means is the reader's to say: a normal map is no relief, a
-    /// specular map no lobe and no base colour, a dark map no darkening, a cloud deck no deck — and
-    /// each already has its exact path for none. Grey read as any of those is a wrong value and not
-    /// a placeholder. Only a base colour draws the grey, where it is one, and the refusal names the
-    /// file; a chunk's composite that stands in is summed from its stack instead.
-    ///
-    /// On the device and not in the rows, because it is the backend that decides, as each texture
-    /// arrives and as its room comes and goes, and one word per slot follows that where every row
-    /// naming the slot would not.
+    /// backend's stand-in: its file did not read, it is past the side the device takes, or the device
+    /// had no room. **A reader of an optional map reads it as `NO_TEXTURE`**, as the stand-in is grey
+    /// and grey is a wrong normal, specular, dark or cloud map; only a base colour draws it.
+    /// On the device and not in the rows, because the backend decides as textures come and go.
     const uint TEXTURE_STANDS_IN = 0x80000000u;
 
     /// Where a slot's texel word holds the wrap its file states (`Rtx::TextureWrap`): the two bits
-    /// under `TEXTURE_STANDS_IN`, which pick the sampler every read of the slot goes through.
-    ///
-    /// **In the word a level's read loads already for `coneLod`**, and not in a table of its own,
-    /// which every read would load beside it.
+    /// under `TEXTURE_STANDS_IN`, in the word a level's read already loads for `coneLod`.
     const uint TEXTURE_WRAP_SHIFT = 29u;
 
     /// The texel count under the wrap and `TEXTURE_STANDS_IN`.
@@ -60,25 +37,15 @@ namespace Rtx::Shaders
     /// count `TEXTURE_TEXELS` holds whole. A texture past it stands from its first level within it.
     const uint TEXTURE_SIDE_MOST = 16384u;
 
-    /// How many slots the bindless array holds, which is what the backend's descriptor count and
-    /// the scene's table are both bounded by. A PBR pack gives a diffuse texture a normal and a
-    /// specular slot beside it, about 3700 at the largest bench place against its 1233 on vanilla,
-    /// so the room is twice that and not the 4096 that would sit at its edge. **Not 16384**: there
-    /// the layers' kernel spilled 480 bytes a lane on a low-end AMD integrated GPU, against 192 at 8192 and at
-    /// 4096 (`docs/rtx/research/2026-10-22-amd-integrated-spill-ceilings.md`).
+    /// How many slots the bindless array holds. A PBR pack gives a diffuse a normal and a specular
+    /// slot beside it (about 3700 at the largest bench place), so twice that. **Not 16384**: the
+    /// layers' kernel spilled 480 bytes a lane on a low-end AMD integrated GPU, against 192 at 8192
+    /// (`docs/rtx/research/2026-10-22-amd-integrated-spill-ceilings.md`).
     const uint TEXTURE_SLOTS = 8192u;
 
-    /// The one slot the scene never hands out: one texel of `UNTEXTURED_ALBEDO` with an alpha of
-    /// one, stood by the backend when the array is made, with no normal spread beside it.
-    ///
-    /// **A texture and not a sentinel, so no reader tests for it.** A material with no diffuse
-    /// read `NO_TEXTURE` before every sample it made, and the test was per material, which is per
-    /// lane. Naming a real slot instead makes the untextured surface the same path as the textured
-    /// one: a one-texel image reads level nought at any cone, and its map is the neutral one every
-    /// texture without an estimate already has.
-    ///
-    /// **The last slot and not the first**, so the scene's own slots stay what they were: its
-    /// table hands out from nought, and every test that names a slot by number still does.
+    /// The one slot the scene never hands out: one texel of `UNTEXTURED_ALBEDO` with an alpha of one.
+    /// **A texture and not a sentinel**, so an untextured surface takes the textured path with no
+    /// per-lane test. **The last slot**, so the scene's own table still hands out from nought.
     const uint TEXTURE_NEUTRAL = TEXTURE_SLOTS - 1u;
 
 /// What every texture this renderer writes is stored as: a chain a file did not carry, a sprite's
@@ -87,42 +54,28 @@ namespace Rtx::Shaders
 
     /// Elements in one block of the shared vertex buffers, and of the index buffer.
     ///
-    /// **What lets a device buffer be appended to instead of made again.** A buffer that is one
-    /// allocation moves when it grows, and every bottom-level acceleration structure in the world
-    /// holds a device address into it — so a cell arriving would rebuild all of them. Blocked, the
-    /// buffer is a list of allocations made once at full size and never moved: growing costs one
-    /// more block and nothing already placed shifts. A shader resolves a global id with `id / BLOCK`
-    /// and `id % BLOCK`, which is a shift and a mask because both are powers of two.
-    ///
-    /// **Bounded below by the largest run one mesh can ask for**, because a run may not straddle a
-    /// block. A terrain chunk at full detail is a 65×65 grid and Morrowind's models are far smaller,
-    /// so this leaves four orders of magnitude of headroom; what it costs is the tail of a block too
-    /// short for the next run, which `Rtx::RunAllocator` hands out again like any other hole. Three
-    /// megabytes of positions a block.
+    /// **Blocked so a buffer grows by appending**: one allocation moves when it grows, and every BLAS
+    /// holds a device address into it. A shader resolves an id with `id / BLOCK` and `id % BLOCK`.
+    /// **Bounded below by the largest run one mesh can ask for**, as a run may not straddle a block;
+    /// a 65×65 terrain chunk leaves four orders of headroom. The tail of a block too short for the
+    /// next run is handed out again by `Rtx::RunAllocator`. Three megabytes of positions a block.
     const uint VERTEX_BLOCK = 256u * 1024u;
 
-    /// The block a deforming mesh's normals and tangents start at, among the ids a frame slot's
-    /// normal and tangent tables resolve: past every block a standing mesh's can reach, since this
-    /// many blocks of normals are twelve gigabytes. A skin poses a body's into the slot's own
-    /// blocks there, and every other vertex's are one copy every slot shares.
+    /// The block a deforming mesh's normals and tangents start at among the ids a frame slot's tables
+    /// resolve: past any block a standing mesh can reach (this many blocks of normals are twelve
+    /// gigabytes). A skin poses into the slot's own blocks there; every other vertex's are shared.
     const uint POSED_FIRST_BLOCK = 4096u;
 
     /// The index buffer wants its own number: a triangle soup has three indices a vertex and a
     /// terrain chunk closer to six.
     const uint INDEX_BLOCK = 1024u * 1024u;
 
-    /// How many world units the game puts in a metre, which is `Constants::UnitsPerMeter`.
-    ///
-    /// **Here so that a coefficient measured in a laboratory can stay in the units it was measured
-    /// in.** Water's absorption is published per metre and every other number in this file is per
-    /// world unit, and a conversion done in a comment is a conversion nothing checks.
+    /// How many world units the game puts in a metre, which is `Constants::UnitsPerMeter`. Here so a
+    /// coefficient published per metre (water's absorption) stays in the units it was measured in.
     const float UNITS_PER_METRE = 69.99125f;
 
-    /// The circle constant, and the Lambertian BRDF's reciprocal of it.
-    ///
-    /// Shared because the shader divides every light by `INV_PI` and a lamp's intensity is built
-    /// with the matching factor so that the two cancel — a relationship that only holds while both
-    /// sides read the same number.
+    /// The circle constant, and the Lambertian BRDF's reciprocal of it. Shared because a lamp's
+    /// intensity is built with the factor that cancels the shader's division by `INV_PI`.
     const float PI = 3.14159265f;
     const float INV_PI = 1.0f / PI;
 
@@ -130,62 +83,38 @@ namespace Rtx::Shaders
     /// doubling a float is exact.
     const float TAU = 2.0f * PI;
 
-    /// What an isotropic phase function is worth: one over the solid angle of the whole sphere.
-    ///
-    /// **A light owes this to the air even with no phase function of its own.** A lamp reaches a
-    /// point in the fog as *irradiance*, the same as it reaches a surface, and what comes back
-    /// toward the eye is that irradiance spread over every direction — so the air scatters `1/4pi`
-    /// of it this way. Left out, lamps light the air twelve and a half times too strongly, which is
-    /// a lantern with a white sphere around it rather than a halo.
+    /// What an isotropic phase function is worth: one over the solid angle of the sphere.
+    /// **A light owes this to the air even with no phase function**: a lamp reaches the fog as
+    /// irradiance and what returns to the eye is that spread over every direction. Left out, lamps
+    /// light the air twelve and a half times too strongly.
     const float INV_FOUR_PI = 0.25f * INV_PI;
 
-    /// How many independent numbers one pixel draws in one frame.
-    ///
-    /// **A channel of the blue-noise tile apiece**, so that two draws a pixel makes are uncorrelated
-    /// with each other as well as with its neighbours'. Shared with C++ because the tile is
-    /// generated there and has to carry exactly this many masks.
-    ///
-    /// Exactly the number drawn and not a round one: the fog's column takes a pair and its march a
-    /// number, the bounce takes a pair, the water's own march takes a number, the eye's own split
-    /// hit takes two pairs and a number for its shadow rays, and the tone pass's dither takes one.
-    /// A spare channel would have to be given a step to advance by, and the honest step for a
-    /// stream nobody reads is nothing — which is a value frozen for the life of the process,
-    /// waiting for whoever reaches for it next.
+    /// How many independent numbers one pixel draws in one frame: a channel of the blue-noise tile
+    /// apiece, so two draws are uncorrelated with each other as well as with the neighbours'. Shared
+    /// because the tile is generated on the host with exactly this many masks. **Exactly the number
+    /// drawn, not a round one**: a spare channel would have no honest step to advance by.
     const uint RANDOM_STREAMS = 12;
 
-    /// Which channel of the tile each draw takes. A pair costs two, which is why the column and the
-    /// bounce each leave a gap.
-    ///
-    /// **A channel apiece, not a salt on a shared one.** Every draw a pixel makes has to be
-    /// uncorrelated with every other: a fog offset and a bounce elevation drawn from one number is a
-    /// pixel whose fog starts late bouncing near its normal.
-    ///
-    /// **Here rather than beside the sampler**, because the count above is a promise these ids have
-    /// to keep.
-    ///
-    /// **The column's two offsets are a pair and not two draws of one channel.** Salted apart by the
-    /// pixel alone, both turned by the same step each frame, so their difference never changed and
-    /// every column walked one diagonal of its block.
+    /// Which channel of the tile each draw takes; a pair costs two, hence the gaps after the column
+    /// and the bounce. **A channel apiece, not a salt on a shared one**: a fog offset and a bounce
+    /// elevation drawn from one number correlate. **The column's two offsets are a pair**: salted
+    /// apart by the pixel alone, both turned by the same step and every column walked one diagonal.
     const uint STREAM_FOG_COLUMN = 0u;
     const uint STREAM_BOUNCE = 2u;
 
-    /// Where the water's shaft march starts inside its first step.
-    ///
-    /// **Its own channel and not the fog's**, though both are march offsets down one ray: a pixel
-    /// whose air started late would have its water start late too, and the two marches lie end to
-    /// end along the same line.
+    /// Where the water's shaft march starts inside its first step. **Its own channel and not the
+    /// fog's**: a pixel whose air started late would have its water start late, and the two marches
+    /// lie end to end along one line.
     const uint STREAM_WATER = 4u;
 
     /// Where a froxel's sample sits inside its own slice, down the column's ray: a march offset like
     /// the water's, and its own channel for the same reason.
     const uint STREAM_FOG_ALONG = 5u;
 
-    /// Where on the sky's disc and on the held lamp's sphere the eye's own split hit aims its two
-    /// shadow rays, and which sky source it draws (`GatherRun`).
-    ///
-    /// **Blue, because the shadow denoiser filters these rays' bits**, and an error spread blue
-    /// across the screen filters away where a white one shimmers (Heitz and Belcour 2019; NRD). The
-    /// paths deeper than the eye's hit keep the hash, which a replay of their far end needs.
+    /// Where on the sky's disc and on the held lamp's sphere the eye's split hit aims its two shadow
+    /// rays, and which sky source it draws (`GatherRun`). **Blue, because the shadow denoiser filters
+    /// these rays' bits** (Heitz and Belcour 2019; NRD); deeper paths keep the hash, which a replay
+    /// of their far end needs.
     const uint STREAM_SUN_DISC = 6u;
     const uint STREAM_LAMP_DISC = 8u;
     const uint STREAM_SKY_PICK = 10u;
@@ -201,158 +130,81 @@ namespace Rtx::Shaders
     const uint NOISE_BLUE_TILE = 0u;
     const uint NOISE_WHITE_HASH = 1u;
 
-    /// Edge of the blue-noise tile, in pixels.
-    ///
-    /// **Small enough that generating it costs a fraction of a second, large enough that the repeat
-    /// does not read as one.** The tile is turned by an irrational step every frame, which moves
-    /// each pixel's values and not where the tile repeats: the grid of sixty-four stands in every
-    /// frame. What keeps it from reading is that the pattern inside it has no low frequencies to
-    /// begin with, which is the whole point of it.
+    /// Edge of the blue-noise tile, in pixels: small enough that generating it is quick, large enough
+    /// that the repeat does not read. The per-frame turn moves values and not where the tile repeats;
+    /// what hides the repeat is the pattern having no low frequencies.
     const uint BLUE_NOISE_EXTENT = 64;
 
     /// How many texels along each side of the fog's baked volume, how many cells of noise it holds
     /// across, and how many levels sit under it.
     ///
-    /// **A volume and not a ground plan, because a flat field makes columns.** A field with no third
-    /// axis has the same value at every height, so a bank runs from the ground straight up and the
-    /// air reads as a stand of pillars rather than as weather.
-    ///
-    /// **One octave of eight cells, and not a stack of them.** Three octaves over two cells is eight
-    /// gradients defining the whole coarse structure — a ridge that repeats as a lattice, with its
-    /// planes drawn as three families of straight lines across the valley. What makes the fog
-    /// fractal is the three scales `fogShape` reads it at, so the volume only has to be one octave of
-    /// noise that does not repeat within a view. Eight cells at four texels each is the smallest
-    /// volume that is, and the beat of three scales at `FOG_LACUNARITY` is what hides the tile past
-    /// that.
-    ///
-    /// Two channels and a chain come to 73 kilobytes, which a march reads out of cache.
+    /// **A volume, because a flat field makes columns**: with no third axis a bank runs from the
+    /// ground straight up. **One octave of eight cells**: stacked octaves over few cells are a
+    /// lattice of straight planes; the fractal look comes from the three scales `fogShape` reads it
+    /// at, whose beat at `FOG_LACUNARITY` hides the tile. Two channels and a chain are 73 kilobytes.
     const uint FOG_FIELD_SIZE = 32u;
     const uint FOG_FIELD_CELLS = 8u;
     const uint FOG_FIELD_LEVELS = 6u;
 
-    /// The standard deviation every level of that field is normalised to.
-    ///
-    /// **A property of the field and not of the level a step reached**, which is what lets the
-    /// coverage band be one pair of numbers. A level is the mean of the eight texels over it, so its
-    /// own spread narrows as the chain goes up, and a band cut against the full level's spread would
-    /// clear almost nothing at the top of it.
-    ///
-    /// The figure is what the band and `FOG_COVERAGE` were set against.
+    /// The standard deviation every level of that field is normalised to. **A property of the field
+    /// and not of the level**, so the coverage band is one pair of numbers: a level is a mean of
+    /// eight texels and its own spread narrows going up. `FOG_COVERAGE` was set against this figure.
     const float FOG_FIELD_SPREAD = 0.1204f;
 
-    /// How many scales that one tile is read at.
-    ///
-    /// **Because one tile repeats and three do not.** A field laid down every twelve thousand units
-    /// shows its period across a ray that runs thirty; read again at scales that are not whole fractions
-    /// of the first, the three never come back into step, and what is visible is the beat rather than
-    /// any one lattice. Three reaches thirty-six units at the fine end, which is finer than any step
-    /// a march near the camera takes.
+    /// How many scales that one tile is read at. **One tile repeats and three do not**: read at
+    /// scales that are not whole fractions of each other they never come back into step, and what
+    /// shows is the beat. Three reaches thirty-six units at the fine end, finer than any near step.
     const uint FOG_SCALES = 3u;
 
-    /// How many pixels of the frame one column of the fog volume stands for, on each axis.
+    /// How many pixels of the frame one column of the fog volume stands for, on each axis. The
+    /// field's finest scale (`FOG_GRAIN`) covers far more than a column, so a smaller number buys a
+    /// sharper copy of detail that is not there, at a cost in all three axes.
     ///
-    /// **What the volume carries is coarser than a pixel, and both halves of it are.** The field's
-    /// finest scale is `FOG_GRAIN` units across, which at any distance worth marching covers far
-    /// more than a column; a shaft's edge is a penumbra and not a line. What a smaller number would
-    /// buy is a sharper copy of an answer that has no detail at that size, and the volume costs
-    /// memory and bandwidth on all three axes at once.
-    ///
-    /// **Twelve and not eight**, as RTX Remix runs sixteen: measured on the default suite, the
-    /// `air` zone fell by 40 to 44% and `column` by 27 to 36%, the frame by 0.13 to 0.35 ms at the
-    /// median and 0.57 to 0.95 at the p99, and the volume by 91 MB at 1707×960. What moved is a
-    /// lamp's halo in fog and a hill's edge against the sky, by up to 30 levels on 0.15% of a
-    /// frame's pixels; the noise at the fog places stood as it was, and the bias of a moving night
-    /// rose by 0.03.
+    /// **Twelve and not eight** (RTX Remix runs sixteen): on the default suite `air` fell 40 to 44%,
+    /// `column` 27 to 36%, the frame 0.13 to 0.35 ms at the median, the volume by 91 MB at 1707×960,
+    /// for a halo and a hill's edge moving up to 30 levels on 0.15% of pixels.
     const uint FOG_VOLUME_SCALE = 12u;
 
-    /// How many slices a column is integrated in.
-    ///
-    /// **More than the march it replaces takes over one ray**, because a column stands for
-    /// `FOG_VOLUME_SCALE` squared pixels and pays once for all of them. The march spends 24 steps
-    /// per pixel; this spends 64 per sixty-four pixels.
+    /// How many slices a column is integrated in: more than the march it replaces spends over one
+    /// ray, since a column stands for `FOG_VOLUME_SCALE` squared pixels and pays once for all of them.
     const uint FOG_VOLUME_SLICES = 64u;
 
     /// How far under its nominal level the sea's own surface is placed, in world units.
     ///
-    /// **Coplanar surfaces have no intersection order, so one has to be imposed.** Morrowind's
-    /// terrain heights are whole multiples of eight units and its sea sits at zero, so ground
-    /// authored at sea level is not nearly in the water plane, it is *exactly* in it. A ray then
-    /// finds whichever of the two the arithmetic happened to round toward, and that differs from
-    /// pixel to pixel: a coastal flat comes back as salt and pepper rather than as either surface.
-    /// A rasterizer settles this with draw order and a depth test; a ray tracer has neither.
-    ///
-    /// **The rasterizer settles this in the depth buffer and never in the geometry.** Upstream draws
-    /// the sea as a blended layer with no depth write, over terrain already in the buffer, under a
-    /// strict `LESS` test (`components/sceneutil/waterutil.cpp`) it takes so that a sea clamped to
-    /// the far plane does not draw over the sky. Strict does drop a water fragment landing at the
-    /// ground's depth exactly, which is this tie broken the same way round; but two coplanar
-    /// surfaces interpolate equal at some pixels and either side of equal at the rest, so "which of
-    /// the two is at this pixel" is still answered pixel by pixel, and what keeps that from showing
-    /// is the blend and the layer's own fade with depth, which make it contribute nothing where the
-    /// column is nothing. A ray's first hit is one surface with nothing to blend it into, so the tie
-    /// has to be broken rather than blended away.
-    ///
-    /// It is broken in the ground's favour, which is the reading the content means — a flat the map
-    /// puts *at* sea level is a shore and not a lagoon — and it is broken once, in the geometry, so
-    /// that it holds for every ray rather than for the one path somebody remembered.
-    ///
-    /// **The size is bounded at both ends rather than picked.** It has to beat the intersection's
-    /// own rounding, which is a few units in the last place of the coordinates: out at the far
-    /// corner of the exterior grid those run to some 330,000 units, where a float's last place is
-    /// about 0.04, so a handful of them is under a fifth of a unit. And it has to stay far under
-    /// anything the eye reads, which the sea itself sets — the waves are metres of amplitude and
-    /// this is seven millimetres.
+    /// **Coplanar surfaces have no intersection order, so one is imposed.** Terrain heights are
+    /// multiples of eight and the sea sits at zero, so ground at sea level is exactly in the water
+    /// plane and each ray rounds toward either one: a coastal flat comes back as salt and pepper.
+    /// The rasterizer's blend hides the tie; a ray's first hit has nothing to blend into, so it is
+    /// broken once, in the geometry, in the ground's favour (a flat at sea level is a shore).
+    /// **Bounded at both ends**: above the intersection's rounding (a float's last place is 0.04 some
+    /// 330,000 units out) and far under what the eye reads (this is seven millimetres).
     const float WATER_TIE_BREAK = 0.5f;
 
-    /// A ceiling on how bright a focus is allowed to get.
-    ///
-    /// Where the refracted bundle collapses to a line the Jacobian goes to zero and the intensity to
-    /// infinity — a real caustic *cusp*, and the reason a pool's bright lines are as sharp as they
-    /// are. Letting one through would put a pixel in the frame that no exposure could hold.
-    ///
-    /// **It sets how bright the lines are and not whether there are any**, which is what makes it
-    /// the dial to turn. The filaments come from `WATER_CAUSTIC_FOLD` letting the determinant reach
-    /// zero; this only says where their tops are cut.
-    ///
-    /// **Here rather than in `look.h` with the rest of the caustic's dials, because `causticGain` is
-    /// fitted against it.** The clip decides how much of the tail ever arrives, so the two are one
-    /// statement and a test that checks the fit has to be able to read both.
+    /// A ceiling on how bright a focus is allowed to get. Where the refracted bundle collapses to a
+    /// line the Jacobian goes to zero and the intensity to infinity (a caustic cusp), which no
+    /// exposure could hold. **It sets how bright the lines are, not whether there are any**
+    /// (`WATER_CAUSTIC_FOLD` does). **Here, not in `look.h`, because `causticGain` is fitted against
+    /// it** and the test of the fit has to read both.
     const float WATER_CAUSTIC_MAX = 2.0f;
 
-    /// What the fit below is made of, and the one relation among them that is not fitted: the
-    /// numerator's coefficient is the denominator's plus one, which is what makes the curve's second
-    /// order exactly `1 + f^2`. Three loose numbers written into the expression would hide it.
+    /// What the fit below is made of. The numerator's coefficient is the denominator's plus one,
+    /// which makes the curve's second order exactly `1 + f^2`; loose numbers would hide that.
     const float WATER_CAUSTIC_GAIN_SQUARE = 1.1017f;
     const float WATER_CAUSTIC_GAIN_CUBE = 0.1872f;
     const float WATER_CAUSTIC_GAIN_QUARTIC = 0.10896f;
 
-    /// The mean of `1 / max(|det(I - b H)|, 1 / WATER_CAUSTIC_MAX)` over a sea of this fold, which
-    /// is what the caustic has to be divided by to move light rather than make it.
+    /// The mean of `1 / max(|det(I - b H)|, 1 / WATER_CAUSTIC_MAX)` over a sea of this fold: what the
+    /// caustic is divided by to move light rather than make it.
     ///
-    /// **One patch of surface is read for each patch of bed, and that is not how the light is laid
-    /// out.** The map from where light met the surface to where it landed is `q = p - b grad(h)`,
-    /// and the density at `q` is the reciprocal of its Jacobian. Reading that reciprocal at points
-    /// spread evenly over the *surface* rather than weighted by the area each one covers on the
-    /// *bed* is a mean of a reciprocal where the reciprocal of a mean was wanted, and it comes out
-    /// high. Dividing by that mean is what makes the pattern redistribute the sun exactly.
-    ///
-    /// **A curve and not a series, which is the whole of why this exists.** The second order of it
-    /// is `1 + f^2`, but `WATER_CAUSTIC_FOLD` of three means `f` has an rms of three, and a
-    /// second-order expansion in a quantity of order three describes nothing: it leaves the bed two
-    /// metres down dark and twenty metres down bright, and no coefficient fixes both.
-    ///
-    /// **It is a hump, and the shape is the ceiling meeting the fold.** Up to about one the Jensen
-    /// excess wins and the mean climbs to 1.286; past that the ceiling is cutting cusps faster than
-    /// the excess accumulates, so the mean falls back through one at `f = 2.28` and keeps going. A
-    /// series can follow the rise and never the fall.
-    ///
-    /// The fit is to a Monte Carlo over the Hessian of an isotropic Gaussian field — whose entries
-    /// have one free parameter, `Var[Hxx] = Var[Hyy] = 3c`, `Var[Hxy] = c`, `Cov[Hxx, Hyy] = c`, so
-    /// that `E[(tr H)^2] = 8c` and `f` is the whole of what decides the answer. It agrees with four
-    /// million draws to 0.015 at its worst and 0.006 in the mean over folds up to four and a half,
-    /// and `RtxCausticGainTest` is what says so. Written so the second order is exact rather than
-    /// fitted: the numerator's coefficient is the denominator's plus one.
-    ///
+    /// **Light density at `q = p - b grad(h)` is the reciprocal of the Jacobian, weighted by bed
+    /// area.** Reading it evenly over the surface is a mean of a reciprocal where the reciprocal of a
+    /// mean was wanted, and comes out high. **A curve and not a series**: the second order is
+    /// `1 + f^2`, but `WATER_CAUSTIC_FOLD` of three puts `f` at an rms of three, where an expansion
+    /// describes nothing. **It is a hump**: the mean climbs to 1.286 near one, then the ceiling cuts
+    /// cusps faster than the excess accumulates and it falls through one at `f = 2.28`.
+    /// Fitted to a Monte Carlo over an isotropic Gaussian field's Hessian (`Var[Hxx] = Var[Hyy] = 3c`,
+    /// `Var[Hxy] = Cov[Hxx, Hyy] = c`, so `f` decides all): within 0.015 of four million draws up to
+    /// fold 4.5, as `RtxCausticGainTest` says.
     /// @param fold `b` times the root of the curvature variance the cone can still resolve, which is
     ///        how far toward its own first fold the map has been run.
     RTX_SHADER float causticGain(float fold)
@@ -366,33 +218,21 @@ namespace Rtx::Shaders
 
     /// Which instances a ray is interested in: the instance mask, one class bit per instance or
     /// `MASK_MEDIUM` instead of it, tested against the camera's `VisibilityConstants::mRayMask`.
-    ///
-    /// **The camera's cull mask, as a ray tracer can read it.** The rasterizer draws what every
-    /// node mask on a path intersects the camera's cull mask; the local map's has no actors, no
-    /// effects and no particles in it, and the eye's has everything. Here a placement carries the
-    /// class the innermost node on its path stated — `Rtx::InstanceClass` — and a trace carries
-    /// which classes its camera draws. `MWRender::describeView` is where the one becomes the other.
-    ///
-    /// **Water must not cast a shadow, and the mask is how traversal is told so at no cost.** The
-    /// alternative — building water non-opaque so the candidate loop can wave shadow rays past —
-    /// costs half the frame rate, because every shadow ray crossing the sea then invokes a shader
-    /// where traversal alone was enough.
+    /// This is the camera's cull mask as a ray tracer reads it: a placement carries the class of the
+    /// innermost node on its path (`Rtx::InstanceClass`); `MWRender::describeView` maps one to the other.
+    /// **Water must not cast a shadow, and the mask tells traversal so at no cost**: building water
+    /// non-opaque costs half the frame rate, as every shadow ray over the sea then invokes a shader.
     const uint MASK_STATIC = 0x01u;
     const uint MASK_WATER = 0x02u;
 
-    /// The player's own arms in first person: seen by the eye and by no other ray.
-    ///
-    /// **A pair of hands with no body behind them casts a shadow of a pair of hands**, which the
-    /// game never showed — its first-person model wears `Mask_FirstPerson`, and neither of the
-    /// shadow-casting masks the rasterizer builds nor the reflection camera's include it. So the
-    /// eye's own trace asks for this bit and the shadow rays, the bounces and the water's rays do
-    /// not, and the arms are lit and drawn like anything else while shadowing and reflecting as
-    /// nothing at all.
+    /// The player's own arms in first person: seen by the eye and by no other ray. **A pair of hands
+    /// with no body behind them would cast a shadow of a pair of hands**, which the game never showed
+    /// (`Mask_FirstPerson` is in no shadow-casting mask nor the reflection camera's).
     const uint MASK_FIRST_PERSON = 0x04u;
 
-    /// An actor or the player — `Mask_Actor | Mask_Player` — and an effect the game hung on
-    /// something, `Mask_Effect`. **One bit for the actors and the player**, because no camera in the
-    /// engine draws one without the other and the eighth bit is the last one.
+    /// An actor or the player (`Mask_Actor | Mask_Player`) and an effect hung on something
+    /// (`Mask_Effect`). **One bit for actor and player**: no camera draws one without the other and
+    /// bits are nearly spent.
     const uint MASK_ACTOR = 0x10u;
     const uint MASK_EFFECT = 0x20u;
 
@@ -400,11 +240,9 @@ namespace Rtx::Shaders
     /// rasterizer's `Mask_ParticleSystem`, which a map tile's camera leaves out.
     const uint MASK_PARTICLE = 0x40u;
 
-    /// A surface that adds to the frame and covers nothing — `Rtx::Material::isAdditive`: a
-    /// magic effect's sheet, the Heart of Lorkhan's, the ice wall's. **The last bit, and alone on
-    /// its instance.** The eye's trace, the shadow rays, the bounces, the water's rays and the
-    /// medium walk never meet one, because none of them casts with this bit; `additiveAlong`
-    /// casts with it and nothing else, at the picture's own extent, where the flames are drawn.
+    /// A surface that adds to the frame and covers nothing (`Rtx::Material::isAdditive`): a magic
+    /// effect's sheet, the Heart of Lorkhan's. **The last bit, and alone on its instance**: no cast
+    /// but `additiveAlong` carries it, so the eye, shadows, bounces and the medium walk never meet one.
     const uint MASK_ADDITIVE = 0x80u;
 
     /// Every class the eye can ask for. A trace with no camera of its own — the harness's, the
@@ -420,19 +258,15 @@ namespace Rtx::Shaders
         return rayMask & ~(MASK_FIRST_PERSON | MASK_WATER | MASK_PARTICLE);
     }
 
-    /// What the world's own eye ray casts with: what the camera draws, less the arms, which are
-    /// the arms' eye's alone — `Eyes::mArms`. The rasterizer draws them under a
-    /// projection of their own and clears the depth under them, so they stand in front of
-    /// everything; here they are traced first, and the world's ray never meets them.
+    /// What the world's own eye ray casts with: the camera's mask less the arms, which are the arms'
+    /// eye's alone (`Eyes::mArms`), traced first under a projection of their own.
     RTX_SHADER uint worldMask(uint rayMask)
     {
         return rayMask & ~MASK_FIRST_PERSON;
     }
 
-    /// What shelters a falling sprite: the statics and the objects, and nothing that moves. The
-    /// rasterizer's `PrecipitationOccluder` draws its depth map with a cull mask of
-    /// `Mask_Object | Mask_Static`, so an actor's hat keeps no rain off and a rain-soaked NPC is
-    /// the game's own decision rather than this renderer's.
+    /// What shelters a falling sprite: statics and objects, nothing that moves. The rasterizer's
+    /// `PrecipitationOccluder` culls with `Mask_Object | Mask_Static`, so an actor's hat keeps no rain off.
     RTX_SHADER uint shelterMask(uint rayMask)
     {
         return rayMask & MASK_STATIC;
@@ -440,53 +274,34 @@ namespace Rtx::Shaders
 
     /// How many see-through surfaces the eye peels off before it draws what is under them.
     ///
-    /// **A person is a stack and a window is not.** A pane of glass is one surface; a cuirass over
-    /// a skirt over a leg is three, so an actor the game fades — Invisibility, Chameleon, the
-    /// distance fade at the edge of `actors processing range` — peeled one layer deep shows its
-    /// nearest layer faded and every layer under it at full strength.
-    ///
-    /// **Four, because that is a dressed person and what is behind them.** The layers are peeled
-    /// nearest first and the surface after the last is drawn as the solid it stands in for, so a
-    /// deeper stack ends in a surface rather than in a hole. Red Mountain's deepest ray crosses
-    /// eight translucent surfaces — counted when the budget was set — and those are the medium's,
-    /// which a ray never stops at: `MASK_MEDIUM` says why a shell is gathered rather than met.
-    ///
-    /// Each layer costs a traversal on the pixels that reach it, and none on a pixel with nothing
-    /// see-through in it.
+    /// **A person is a stack and a window is not**: a cuirass over a skirt over a leg is three
+    /// surfaces, so a faded actor peeled one layer deep shows its nearest layer faded and every layer
+    /// under it at full strength. **Four, a dressed person and what is behind them**; the surface
+    /// after the last is drawn as the solid it stands in for. Media are not peeled (`MASK_MEDIUM`).
+    /// Each layer costs a traversal only on the pixels that reach it.
     const uint PEEL_LAYERS = 4u;
 
     /// A surface that is nowhere opaque, gathered as a depth along the ray rather than met.
-    ///
-    /// **Carried instead of the class bit and not beside it.** Only two rays want a medium: the shadow
-    /// and ambient rays, which it dims (`passageAsk`), and `mediumAlong`, which gathers it. The
-    /// eye, a bounce and a water ray walked past every shell they crossed after a cutout test and a
-    /// row load apiece; under this bit alone traversal hands a shell to its two rays and to no other,
-    /// and `GpuInstance::mClass` answers the class test the mask no longer makes.
+    /// **Carried instead of the class bit**: only the shadow and ambient rays (`passageAsk`) and
+    /// `mediumAlong` want a medium, and the eye, a bounce and a water ray otherwise walked past every
+    /// shell after a cutout test and a row load apiece. `GpuInstance::mClass` answers the class test.
     const uint MASK_MEDIUM = 0x08u;
 
-    /// The placement is the model of a light that gives light — `Rtx::MeshInstance::mLampBody` — so
-    /// a diffuse bounce takes no glow from it (`landingLightOf`): its lamp delivers that light.
-    ///
-    /// **In `GpuInstance::mClass` above the class bits**, as `GpuLight::mTraits` packs its fill bit
-    /// beside its classes. Every reader of the word masks it with a ray mask of eight bits, and the
-    /// structure's own mask is `Rtx::InstanceRecord::mMask`, which never carries it, so no traversal
-    /// sees it.
+    /// The placement is the model of a light that gives light (`Rtx::MeshInstance::mLampBody`), so a
+    /// diffuse bounce takes no glow from it (`landingLightOf`): its lamp delivers that light.
+    /// **In `GpuInstance::mClass` above the class bits**; the structure's own mask
+    /// (`Rtx::InstanceRecord::mMask`) never carries it, so no traversal sees it.
     const uint INSTANCE_LAMP_BODY = 0x100u;
 
-    /// The material is a medium — `Rtx::Material::isMedium`.
-    ///
-    /// **A bit and not a second float**, because the row is read at every candidate the eye walks
-    /// past. What a medium's density is is not stored: the texture's own alpha is what a crossing
-    /// square to the surface hides, and the obliquity is the whole of what a thickness adds to it.
+    /// The material is a medium — `Rtx::Material::isMedium`. **A bit and not a second float**, as the
+    /// row is read at every candidate the eye walks past; density is not stored (the texture's alpha
+    /// is what a crossing square to the surface hides, and obliquity is all a thickness adds).
     const uint MATERIAL_MEDIUM = 0x01u;
 
-    /// The mesh's per-vertex colour replaces this material's diffuse tint —
-    /// `Rtx::VertexColour::Tint` and `Diffuse`, which are every piece of ground and over half of the
-    /// models the game ships.
-    ///
-    /// **A bit and not a second colour on the row.** The two are exclusive, a mesh that brought no
-    /// colour holds white, and what the shader does with either is one `mix` against a weight of
-    /// nought or one — so a surface that carries neither pays no branch and no extra load.
+    /// The mesh's per-vertex colour replaces this material's diffuse tint (`Rtx::VertexColour::Tint`
+    /// and `Diffuse`: every piece of ground and over half the models). **A bit and not a second
+    /// colour on the row**: a mesh with no colour holds white, so the shader's `mix` against nought or
+    /// one costs no branch and no extra load.
     const uint MATERIAL_VERTEX_TINT = 0x02u;
 
     /// The same colour replaces this material's ambient colour — `Rtx::VertexColour::Tint` and
@@ -518,16 +333,14 @@ namespace Rtx::Shaders
     /// `additiveAlong` and to nothing that shades a hit — so no bit here says so twice.
     const uint MATERIAL_ADD_WHOLE = 0x08u;
 
-    /// Ground with no composite: the albedo is the sum over `mLayerOffset`'s run and the diffuse
-    /// is the neutral slot. A chunk of more than one layer names its composite as the diffuse once
-    /// one is baked and carries this bit no longer — `CellPlacer::flatteningOf` asks for one, and
-    /// this is the host's one rule for which a row is, written where the row is.
+    /// Ground with no composite: the albedo is the sum over `mLayerOffset`'s run and the diffuse is
+    /// the neutral slot. A multi-layer chunk names its composite as the diffuse once baked and drops
+    /// this bit (`CellPlacer::flatteningOf` asks for one).
     const uint MATERIAL_STACKED = 0x10u;
 
-    /// Ground whose composite stands in only where no picture is drawn from the hit — a bounce's
-    /// far end — and whose eye, reflections and bed sum the stack: a chunk inside the active grid,
-    /// `Rtx::GroundFlattening::Undetailed`. Every chunk with a composite carries it but one
-    /// flattened for every hit, so a composite no rule asked the eye to read is never read by it.
+    /// Ground whose composite stands in only where no picture is drawn from the hit (a bounce's far
+    /// end) and whose eye, reflections and bed sum the stack: a chunk inside the active grid,
+    /// `Rtx::GroundFlattening::Undetailed`.
     const uint MATERIAL_STACKED_SEEN = 0x400000u;
 
     /// A blended material whose dark map's alpha falls below solid (`Rtx::Material::mDarkBelowSolid`):
@@ -539,11 +352,9 @@ namespace Rtx::Shaders
     /// `Rtx::Material::mParallax`, and `parallaxShift` says by how much.
     const uint MATERIAL_PARALLAX = 0x20u;
 
-    /// The surface is a pane — `Rtx::Material::isTranslucent`: what is behind it shows through by
-    /// its texture's alpha times `mOpacity`, and it has no mask.
-    ///
-    /// **A bit and not `mOpacity` below one**, because a blend whose texture is soft is a pane at an
-    /// opacity of one: a lantern's glass is all there, and its texture says how much glass.
+    /// The surface is a pane — `Rtx::Material::isTranslucent`: what is behind it shows through by its
+    /// texture's alpha times `mOpacity`, and it has no mask. **A bit and not `mOpacity` below one**:
+    /// a lantern's glass has an opacity of one and its texture says how much glass.
     const uint MATERIAL_TRANSLUCENT = 0x40u;
 
     /// Which texture unit the dark map and the glow map are bound at, each in these bits of
@@ -552,10 +363,9 @@ namespace Rtx::Shaders
     const uint MATERIAL_EMISSIVE_UNIT_SHIFT = 12u;
     const uint MATERIAL_UNIT_MASK = 0x0Fu;
 
-    /// Which sides of the alpha test's reference a texel passes on, one bit each: OpenGL's own
-    /// comparison functions, which are `GL_NEVER` plus exactly this set — `GL_LESS` is below,
-    /// `GL_GREATER` above, `GL_GEQUAL` at and above, `GL_ALWAYS` all three. In these bits of
-    /// `mFlags`, all three where the surface has no mask, so a texel tested against it passes.
+    /// Which sides of the alpha test's reference a texel passes on, one bit each: OpenGL's comparison
+    /// functions are `GL_NEVER` plus a set of these (`GL_LESS` below, `GL_GEQUAL` at and above). In
+    /// these bits of `mFlags`, all three where the surface has no mask.
     const uint ALPHA_PASSES_BELOW = 0x1u;
     const uint ALPHA_PASSES_AT = 0x2u;
     const uint ALPHA_PASSES_ABOVE = 0x4u;
@@ -587,9 +397,8 @@ namespace Rtx::Shaders
     const uint EMITTER_ADDITIVE = 0x01u;
     const uint EMITTER_FALLS = 0x02u;
 
-    /// An emitter that adds whole, `ONE, ONE`, beside `EMITTER_ADDITIVE`: its texels add their
-    /// colour with their alpha unread, as `MATERIAL_ADD_WHOLE` says of a surface. The resolver
-    /// settles its sprites' own alpha at one.
+    /// An emitter that adds whole, `ONE, ONE`: its texels add their colour with alpha unread, as
+    /// `MATERIAL_ADD_WHOLE` says of a surface. The resolver settles its sprites' own alpha at one.
     const uint EMITTER_ADD_WHOLE = 0x04u;
 
     /// An emitter on the arms, whose sprites are billboards and not balls: `ballCrossing` says why.
@@ -613,27 +422,22 @@ namespace Rtx::Shaders
         uint mVertexOffset;
         uint mIndexOffset;
 
-        /// What the shape pass found this mesh to be — `MESH_SHEET` and `MESH_TANGENTS`.
-        ///
-        /// **Bits and not two words, because this row is read on every hit.** A mesh table entry is
-        /// seven words and every ray that lands fetches one.
+        /// What the shape pass found this mesh to be — `MESH_SHEET` and `MESH_TANGENTS`. **Bits, not
+        /// two words**: every ray that lands fetches this row.
         uint mShape;
 
-        /// Where this mesh's second set of texture coordinates begins in the blocks of their own,
-        /// or `NO_RUN` for a mesh that brought none, which is nearly every mesh. Mesh-local, as
-        /// `mVertexOffset` is: the vertex's index within the mesh is added to it.
+        /// Where this mesh's second set of texture coordinates begins in the blocks of their own, or
+        /// `NO_RUN` for a mesh that brought none (nearly every mesh). Mesh-local, as `mVertexOffset` is.
         uint mSecondTexCoordOffset;
 
-        /// One bit per texture unit, set where that unit reads the second set —
-        /// `Rtx::MeshArrays::mUnitStreams`. A material names the unit its dark map is bound at and
-        /// this says which stream that unit reads, because the material is shared across geometries
-        /// and the binding is each geometry's own.
+        /// One bit per texture unit, set where that unit reads the second set
+        /// (`Rtx::MeshArrays::mUnitStreams`): a material is shared across geometries and the binding
+        /// is each geometry's own.
         uint mUnitStreams;
 
-        /// Where this mesh's posed vertices sit among the deforming meshes' — `Rtx::MeshRange::
-        /// mBindOffset`, the index the pose blocks are addressed by — or `NO_RUN` for a mesh
-        /// that stands. What lets a hit on a body read where its triangle stood last frame: the
-        /// one field a moving surface's motion cannot do without.
+        /// Where this mesh's posed vertices sit among the deforming meshes' (`Rtx::MeshRange::
+        /// mBindOffset`), or `NO_RUN` for a mesh that stands: what lets a hit on a body read where its
+        /// triangle stood last frame.
         uint mBindOffset;
 
         /// What a vertex id is moved by to name its normal and its tangent: nought for a mesh that
@@ -647,14 +451,11 @@ namespace Rtx::Shaders
     /// second set of texture coordinates, and `GpuMesh::mBindOffset` for one that does not deform.
     const uint NO_RUN = 0xFFFFFFFFu;
 
-    /// A vertex's tangent as one word: the direction folded onto the octahedron, each of its two
-    /// coordinates stepped to `2 * TANGENT_STEPS + 1` values in fifteen bits, the handedness of the
-    /// bitangent, and whether the vertex has a tangent at all. Nought is none, which is every vertex
-    /// of a mesh no normal map is read through. `Rtx::packTangent` writes it and `unpackTangent`
-    /// reads it on either side.
-    ///
-    /// **An odd count of steps**, so that nought, one and minus one are exact: an axis-aligned
-    /// tangent, which a quad mapped square to its texture has, comes back as the axis it was.
+    /// A vertex's tangent as one word: the direction folded onto the octahedron, each coordinate
+    /// stepped to `2 * TANGENT_STEPS + 1` values in fifteen bits, the bitangent's handedness, and
+    /// whether there is a tangent at all (nought is none). `Rtx::packTangent` writes it and
+    /// `unpackTangent` reads it. **An odd count of steps**, so nought, one and minus one are exact
+    /// and an axis-aligned tangent comes back as the axis it was.
     const uint TANGENT_PRESENT = 0x80000000u;
     const uint TANGENT_FLIPPED = 0x40000000u;
     const uint TANGENT_COORDINATE_BITS = 15u;
@@ -662,23 +463,20 @@ namespace Rtx::Shaders
     const uint TANGENT_STEPS = TANGENT_COORDINATE_MASK / 2u;
     const float TANGENT_STEP = 1.0f / float(TANGENT_STEPS);
 
-    /// A vertex's colour in linear light as the device reads it: red and green as two half floats in
-    /// one word, low half first as `packHalf2x16` lays them, and blue in the low half of the other.
-    /// Halves and not floats, a third of the bytes every hit reads, and not normalized words, because
-    /// a content file's float colour may stand past one and a half float holds every finite colour
-    /// to eleven bits. `Rtx::MeshTable` packs it on the host (`Rtx::toHalf`), and `unpackHalf2x16`
-    /// reads it back exactly.
+    /// A vertex's colour in linear light: red and green as two half floats in one word, low half
+    /// first as `packHalf2x16` lays them, and blue in the low half of the other. **Halves**: a third
+    /// of the bytes every hit reads, and unlike normalized words they hold a content file's colour
+    /// past one, to eleven bits. `Rtx::MeshTable` packs it (`Rtx::toHalf`).
     struct GpuVertexColour
     {
         uint mRedGreen;
         uint mBlue;
     };
 
-    /// The device's material table puts the untextured material a placement with none wears at
-    /// row nought, for the table's life, and the scene's material `i` at row `i + 1`. First and not
-    /// past the end, so a table that grows appends and moves no row an instance already names: a
-    /// sentinel that followed the end handed its old row to the next material, under every
-    /// placement still naming it.
+    /// The device's material table puts the untextured material at row nought for the table's life
+    /// and the scene's material `i` at row `i + 1`. **First and not past the end**, so a growing
+    /// table appends and moves no row an instance names: a sentinel at the end handed its old row to
+    /// the next material.
     const uint MATERIAL_ROW_UNTEXTURED = 0u;
     const uint MATERIAL_ROW_FIRST = 1u;
 
@@ -689,25 +487,19 @@ namespace Rtx::Shaders
         /// A row of the material table — `MATERIAL_ROW_FIRST` says how a material's index maps to it.
         uint mMaterial;
 
-        /// How much of this placement is there, before its material and its texture are asked.
-        ///
-        /// One for everything the game is not hiding, which is nearly everything. See
-        /// `Rtx::MeshInstance::mOpacity` for why a fade belongs to a placement and not to a
-        /// material.
+        /// How much of this placement is there, before its material and texture are asked: one for
+        /// everything the game is not hiding. See `Rtx::MeshInstance::mOpacity` for why a fade belongs
+        /// to a placement and not to a material.
         float mOpacity;
 
-        /// The class bits this placement answers to — `MASK_STATIC`, `MASK_ACTOR` and the rest,
-        /// `Rtx::InstanceRecord::mClass`. The structure's own mask says the same for every placement
-        /// but a medium's, which carries `MASK_MEDIUM` alone so that no ray ignoring it meets it; the
-        /// one ray that sums a medium asks this word instead — `candidateStops`. And
-        /// `INSTANCE_LAMP_BODY` above them.
+        /// The class bits this placement answers to (`Rtx::InstanceRecord::mClass`), and
+        /// `INSTANCE_LAMP_BODY` above them. A medium's structure mask is `MASK_MEDIUM` alone, so the one
+        /// ray that sums a medium asks this word instead (`candidateStops`).
         uint mClass;
 
-        /// World space to where this instance was on the previous frame, as three rows of four.
-        ///
-        /// **The identity for anything that did not move**, which is nearly everything — and it is
-        /// what makes a static surface produce a motion vector of exactly zero rather than one of
-        /// rounding. See `Rtx::InstanceRecord::mMotion`.
+        /// World space to where this instance was on the previous frame, as three rows of four: the
+        /// identity for anything that did not move, so a static surface has a motion vector of exactly
+        /// zero rather than rounding. See `Rtx::InstanceRecord::mMotion`.
         vec4 mMotion[3];
 
         /// The mesh's own space to the world, the top level's row, and back, as three rows of four
@@ -723,38 +515,29 @@ namespace Rtx::Shaders
     const uint LIGHT_CLASS_SHIFT = 8u;
 
     /// One light placed in the world — a lamp, or the fill a magic effect glows with — with
-    /// everything a shader needs already derived: a `LIGH` record carries a colour and a radius and
-    /// no intensity at all, and `Rtx::makeLight` settles both on the way in, so the shader has one
-    /// falloff to evaluate and no rules to remember.
-    ///
-    /// **The scene's own row, and the device's.** `Rtx::Light` is this struct: the walk builds
-    /// one, the scene keeps and sorts them, the digest hashes the table whole, and a placement
-    /// uploads the table as it lies. There is no host spelling to translate from.
+    /// everything a shader needs already derived: a `LIGH` record has a colour and a radius and no
+    /// intensity, and `Rtx::makeLight` settles both on the way in. **The scene's own row, and the
+    /// device's**: `Rtx::Light` is this struct, hashed whole by the digest and uploaded as it lies.
     struct GpuLight
     {
         vec3 mPosition;
 
-        /// Radiant intensity, linear, with the colour folded in, scaled by the square of the
-        /// recorded radius: what makes a lantern and a candle differ by their size.
-        ///
-        /// **Negative for a lamp that takes light away**, a `Negative` record. The grid lists it
-        /// under a key of its own (`Rtx::LightGrid`), so no walk of the lamps meets it, and it
-        /// darkens a surface's direct lamp term by its unshadowed share, floored at nought, which
-        /// is the rasterizer's own rule: no shadow, no bounce and nothing in the air.
+        /// Radiant intensity, linear, colour folded in, scaled by the square of the recorded radius
+        /// (so a lantern and a candle differ by size). **Negative for a lamp that takes light away**,
+        /// a `Negative` record: the grid lists it under a key of its own (`Rtx::LightGrid`) and it
+        /// darkens a surface's direct lamp term by its unshadowed share, floored at nought, as the
+        /// rasterizer does: no shadow, no bounce, nothing in the air.
         vec3 mIntensity RTX_ZERO;
 
-        /// How far the light reaches, beyond which it contributes exactly nothing. Stretched from
-        /// the recorded radius, because Morrowind's ran 64 to 256 units with an ambient filling the
-        /// room, and here the lamps have to be what lights the place.
+        /// How far the light reaches, beyond which it contributes exactly nothing. Stretched from the
+        /// recorded radius (64 to 256 units under an ambient filling the room), as here the lamps have
+        /// to light the place.
         float mReach RTX_ZERO;
 
-        /// How big the glowing part is, in world units: the flame, which a shadow ray opens to for
-        /// a penumbra as wide as it is, and what stops the falloff running away at the lamp. Zero,
-        /// which a light built by hand carries, is a point.
-        ///
-        /// **And it is what makes the falloff above a sphere's rather than a point's.** An inverse
-        /// square runs away at zero distance, which is where the air beside a lamp is sampled; a
-        /// source with an extent flattens inside its own surface instead.
+        /// How big the glowing part is, in world units: the flame, which a shadow ray opens to for a
+        /// penumbra as wide as it is. Zero, which a hand-built light carries, is a point. **It makes
+        /// the falloff a sphere's rather than a point's**: an inverse square runs away where the air
+        /// beside a lamp is sampled, and a source with an extent flattens inside its own surface.
         float mSourceRadius RTX_ZERO;
 
         /// How far short of the centre a shadow ray stops: nought for a record's lamp, whose ray
@@ -762,16 +545,11 @@ namespace Rtx::Shaders
         /// nothing casts a shadow (`Rtx::Glow::makeLight`).
         float mClearance RTX_ZERO;
 
-        /// Whether this light is a fill, and the classes it answers to, as `lightTraits` packs
-        /// them: one word, so the row stays its size, and not a bool, because the record is hashed
-        /// whole and a bool leaves three bytes nothing wrote.
-        ///
-        /// **A fill** is a lamp whose flame is a ball `mSourceRadius` wide, lit from every side
-        /// inside it: a magic effect's glow, which `Rtx::Glow::makeLight` builds.
-        ///
-        /// **A lamp lights only a view that shows its class**, `lightShown`: the rasterizer's light
-        /// manager collects no light from a node its cull does not reach, so under `tws` the lamps
-        /// of the statics go dark with them. A light made by hand answers to every class.
+        /// Whether this light is a fill, and the classes it answers to, as `lightTraits` packs them:
+        /// one word, not a bool, because the record is hashed whole and a bool leaves bytes nothing
+        /// wrote. **A fill** is a lamp whose flame is a ball `mSourceRadius` wide, lit from every side
+        /// inside it (`Rtx::Glow::makeLight`). **A lamp lights only a view that shows its class**
+        /// (`lightShown`): the rasterizer collects no light from a node its cull does not reach.
         uint mTraits RTX_INIT(MASK_EVERY_CLASS << LIGHT_CLASS_SHIFT);
     };
 
@@ -795,15 +573,10 @@ namespace Rtx::Shaders
         return ((traits >> LIGHT_CLASS_SHIFT) & rayMask) != 0u ? 1.0f : 0.0f;
     }
 
-    /// Where the lamps were binned, so a shader can find the few that reach a point.
-    ///
-    /// **Carried in the frame's block, as `VisibilityConstants::mLightGrid`**, which is a uniform
-    /// buffer written once a frame that already folds in the sea's tables from the passes that built
-    /// them. A twenty-eight byte record in a set of its own would cost a descriptor, a buffer per
-    /// frame in flight, and a storage read at every lamp lookup where the constant bank serves.
-    ///
-    /// A position outside the grid is one no lamp reaches, so its cell is empty by construction
-    /// rather than by clamping.
+    /// Where the lamps were binned, so a shader can find the few that reach a point. **Carried in the
+    /// frame's block** (`VisibilityConstants::mLightGrid`): a set of its own would cost a descriptor,
+    /// a buffer per frame in flight and a storage read at every lamp lookup. A position outside the
+    /// grid reaches no lamp, so its cell is empty by construction rather than by clamping.
     struct GpuLightGrid
     {
         vec3 mOrigin;
@@ -812,10 +585,9 @@ namespace Rtx::Shaders
     };
 
     /// One cell of the light grid: its two runs in the light list, the lamps that light it and then
-    /// those that take light away — `Rtx::LightGrid::getCells` says why apart from the list. One
-    /// 16-byte row on a sixteen-aligned table, so both runs a shaded point reads lie in one
-    /// 32-byte sector. The table claims four (`TABLE_ALIGN_ROWS`): a claim of sixteen, which lets
-    /// one load take the row, traced no faster (`./omw bench`).
+    /// those that take light away (`Rtx::LightGrid::getCells`). One 16-byte row, so both runs lie in
+    /// one 32-byte sector. The table claims four-row alignment (`TABLE_ALIGN_ROWS`): sixteen, which
+    /// lets one load take the row, traced no faster (`./omw bench`).
     struct GpuLightCell
     {
         uvec2 mCount;
@@ -829,31 +601,20 @@ namespace Rtx::Shaders
     {
         return (z * height + y) * width + x;
     }
-
-    /// Where every table a hit reads is, as one address apiece.
-    ///
-    /// **In the frame block rather than in a descriptor each**, for the reason the light grid's
-    /// geometry already is: a descriptor per table is seventeen storage-buffer bindings pushed twice
-    /// a frame, and a binding the layout declares and the pass forgets is a shader reading whatever
-    /// the slot holds. An address is a 64-bit integer, so the struct belongs to the scene and not to
-    /// a backend: the Vulkan shader constructs a `buffer_reference` from each.
-    ///
-    /// **Filled by the pass and not by `describeWorld`**, the way `mWaveExtent` and `mLightGrid`
-    /// are: where a table is lives with whatever placed it there, and the tables that alternate by
-    /// frame slot change address every frame.
-    ///
-    /// **No size beside an address.** A descriptor carries one and robust access bounds a read by
-    /// it; a pointer carries none. What stops a shader reading past a table is its count, and what
-    /// reports one that does is GPU-assisted validation's address table.
-    ///
-    /// **What it costs is a load path and not an instruction count** — a few per cent of an
-    /// interior's trace and nothing on the exteriors — accepted as the price of six bindings and of
-    /// a class of mistake gone.
+    /// Where every table a hit reads is, as one address apiece. **In the frame block rather than a
+    /// descriptor each**: that is a storage-buffer binding per table pushed twice a frame, and a binding
+    /// the pass forgets reads whatever the slot holds. An address is a 64-bit integer, so the struct
+    /// belongs to the scene; the Vulkan shader makes a `buffer_reference` from each.
+    /// **Filled by the pass and not by `describeWorld`**, as `mWaveExtent` and `mLightGrid` are: where a
+    /// table lives is known to what placed it, and slot-alternating tables move every frame.
+    /// **No size beside an address**: robust access bounds a descriptor read, a pointer has none, so what
+    /// stops a read past a table is its count. It costs a load path, a few per cent of an interior's trace
+    /// and nothing on exteriors, for the bindings and a class of mistake gone.
     struct GpuTables
     {
-        /// The six tables of block addresses, which a global vertex or index id is resolved
-        /// through. The normals and the tangents are this slot's table, which a deforming mesh's
-        /// ids reach past `POSED_FIRST_BLOCK` (`GpuMesh::mNormalShift`).
+        /// The tables of block addresses a global vertex or index id is resolved through. The normals
+        /// and tangents are this slot's table, which a deforming mesh's ids reach past
+        /// `POSED_FIRST_BLOCK` (`GpuMesh::mNormalShift`).
         uint64 mNormalBlocks;
         uint64 mTangentBlocks;
         uint64 mTexCoordBlocks;
@@ -864,8 +625,8 @@ namespace Rtx::Shaders
         /// (`committedHit`); a deforming mesh's are its pose's, `mPoseBlocks`.
         uint64 mPositionBlocks;
 
-        /// The second texture coordinates, in blocks of their own that only the meshes carrying a
-        /// second set take from — `GpuMesh::mSecondTexCoordOffset` is where a mesh's run begins.
+        /// The second texture coordinates, in blocks of their own that only meshes carrying a second
+        /// set take from (`GpuMesh::mSecondTexCoordOffset`).
         uint64 mSecondTexCoordBlocks;
 
         uint64 mMeshes;
@@ -881,9 +642,8 @@ namespace Rtx::Shaders
 
         uint64 mBlueNoise;
 
-        /// The GGX lobe's two integrals over the cosine to the eye and the roughness,
-        /// `Rtx::SpecularAlbedo`: made once and read for every glossy surface's compensation and
-        /// its specular albedo.
+        /// The GGX lobe's two integrals over the cosine to the eye and the roughness
+        /// (`Rtx::SpecularAlbedo`), made once and read for every glossy surface.
         uint64 mSpecularAlbedo;
 
         uint64 mSprites;
@@ -899,68 +659,54 @@ namespace Rtx::Shaders
         /// the tile can meet, which `SpriteBin` ORs in from `GpuPresence`'s spheres.
         uint64 mSpritePresence;
 
-        /// The pose blocks, this copy's and the other's: every deforming mesh's vertices as this
-        /// frame traces them and as the previous frame did, by `GpuMesh::mBindOffset` plus the
-        /// vertex's index within the mesh. The copies are owed every write and paid at every
-        /// sync, so the copy this frame does not trace holds the pose as of the frame before —
-        /// and for a mesh that did not move, the same numbers as this one's, so its delta is
-        /// exactly nought. `reproject.glsl` reads the pair, in object space, where a difference
-        /// of two positions is exact.
+        /// The pose blocks, this copy's and the other's: every deforming mesh's vertices as this frame
+        /// traces them and as the previous frame did (`GpuMesh::mBindOffset` plus the vertex's index).
+        /// The copy this frame does not trace holds the pose as of the frame before, and for a mesh
+        /// that did not move the same numbers, so its delta is exactly nought. `reproject.glsl` reads
+        /// the pair in object space, where a difference of two positions is exact.
         uint64 mPoseBlocks;
         uint64 mPreviousPoseBlocks;
 
-        /// One `uint` per slot of the bindless array: how many texels its texture holds, which is
-        /// the one term of a mip level that is the texture's own — `coneLod`. A load where a
-        /// `textureSize` was a texture-header read on every sample, and stated over the same
-        /// integer so the level the shader takes its logarithm of is the number it always was.
-        /// The backend's texture array owns and writes it, a slot at a time as textures arrive, with
-        /// the wrap over it (`TEXTURE_WRAP_SHIFT`), and `TEXTURE_STANDS_IN` over both where the slot
-        /// draws the stand-in.
+        /// One `uint` per slot of the bindless array: how many texels its texture holds, the one term
+        /// of a mip level that is the texture's own (`coneLod`), as a load where `textureSize` was a
+        /// header read on every sample. The backend's texture array writes it a slot at a time, with
+        /// the wrap over it (`TEXTURE_WRAP_SHIFT`) and `TEXTURE_STANDS_IN` over both.
         uint64 mTextureTexels;
     };
 
-    /// A ground layer whose diffuse is an authored albedo with the perceptual roughness in its
-    /// alpha — a `_diffusespec`, as Wareya's shaders read it (`Rtx::layerEncodingOf`). **Not delit,
-    /// and a dielectric**: the texture was painted as a surface and not as a picture of one lit, and
-    /// ground is no metal, so its reflectance at normal incidence is `DIELECTRIC_F0`.
+    /// A ground layer whose diffuse is an authored albedo with the perceptual roughness in its alpha
+    /// — a `_diffusespec`, as Wareya's shaders read it (`Rtx::layerEncodingOf`). **Not delit, and a
+    /// dielectric**: painted as a surface and not as a picture of one lit, so its F0 is `DIELECTRIC_F0`.
     const uint LAYER_AUTHORED = 0x01u;
 
-    /// A ground layer whose normal map's alpha is a height, as `MATERIAL_PARALLAX` is for a
-    /// surface: an `_nh` file the storage found, which `carriesHeight`. The rasterizer's terrain
-    /// shifts the layer by it, and so does the stack here; a flattened chunk has no eye to shift
-    /// toward.
+    /// A ground layer whose normal map's alpha is a height, as `MATERIAL_PARALLAX` is for a surface:
+    /// an `_nh` file the storage found, which `carriesHeight`. The stack shifts by it as the
+    /// rasterizer's terrain does; a flattened chunk has no eye to shift toward.
     const uint LAYER_PARALLAX = 0x02u;
 
     /// One layer of a terrain material: a tiling ground texture and the weights that place it.
     ///
-    /// A chunk is four or five of these summed at one hit, where OpenMW draws the stack as one
-    /// alpha-blended pass per layer. The mask is a grid of weights in the shared mask buffer
-    /// rather than a texture, because it is ten texels across — a whole cell's worth fits in tens
-    /// of kilobytes, and sampling it by hand is what lets the edges clamp instead of inheriting the
-    /// repeat every other texture in the game needs.
-    ///
-    /// **The scene's own row, and the device's.** `Rtx::MaterialLayer` is this struct, carried
-    /// whole from the land record through `Rtx::PreparedLayer` to the scene's layer run and the
-    /// bake, so the three cannot disagree about where a texel lands. The grid and the two
-    /// transforms come from the land record; the texture slot and the mask offset are the
-    /// scene's, written where the layer is adopted.
+    /// A chunk is four or five of these summed at one hit, where OpenMW draws one alpha-blended pass
+    /// per layer. The mask is a grid of weights in the shared mask buffer, not a texture: it is ten
+    /// texels across, and sampling it by hand lets the edges clamp instead of repeating.
+    /// **The scene's own row, and the device's**: `Rtx::MaterialLayer` is this struct, carried whole
+    /// from the land record through `Rtx::PreparedLayer` to the layer run and the bake, so they cannot
+    /// disagree about where a texel lands. The texture slot and mask offset are written at adoption.
     struct GpuLayer
     {
         /// The ground texture, which tiles many times across a chunk.
         uint mDiffuse;
 
-        /// Where this layer's weights start in the scene's mask table. The run's count is not
-        /// stored: it is the grid's own area, and nought for a layer that covers everything —
-        /// `Rtx::maskOf` reads the run back.
+        /// Where this layer's weights start in the scene's mask table. The run's count is the grid's
+        /// own area, or nought for a layer that covers everything (`Rtx::maskOf`).
         uint mMaskOffset RTX_ZERO;
 
         /// The grid the weights form. Nought by nought where the layer covers everything.
         uint mMaskWidth RTX_ZERO;
         uint mMaskHeight RTX_ZERO;
 
-        /// Cell texture coordinates to this layer's, as `uv * xy + zw`: the diffuse texture's, and
-        /// the mask's. `Rtx::GroundReader` derives both from the tile count as
-        /// `Terrain::createPasses` does, and a test holds the numbers.
+        /// Cell texture coordinates to this layer's, as `uv * xy + zw`: the diffuse texture's, and the
+        /// mask's. `Rtx::GroundReader` derives both from the tile count as `Terrain::createPasses` does.
         vec4 mDiffuseTransform RTX_ZERO;
         vec4 mMaskTransform RTX_ZERO;
 
@@ -985,19 +731,15 @@ namespace Rtx::Shaders
     };
 
     /// One live particle, drawn as a disc facing the eye. Nothing here reaches an acceleration
-    /// structure: the layer is marched against the primary ray and composited, which blends in
-    /// depth order without the candidate loop an alpha-blended hit would cost traversal.
+    /// structure: the layer is marched against the primary ray and composited in depth order,
+    /// without the candidate loop an alpha-blended hit would cost traversal.
     ///
-    /// **The layer is composited rather than denoised**, for the reason a rain streak is: a
-    /// particle is not noise in an estimate, coverage arrives as a fraction so a sprite finer than a
-    /// pixel dims instead of flickering in and out, and none of it costs a bottom-level structure.
-    /// `spritecomposite.rgen` composites it at the picture's own resolution, after whatever
-    /// denoises.
+    /// **Composited rather than denoised**, as a rain streak is: coverage arrives as a fraction, so
+    /// a sprite finer than a pixel dims instead of flickering. `spritecomposite.rgen` composites it
+    /// at the picture's own resolution, after whatever denoises.
     ///
-    /// **The scene's own row, and the device's.** `Rtx::Sprite` is this struct: the resolver
-    /// reads one off each live particle, `Rtx::SceneDesc::addEmitter` names its emitter as it
-    /// appends it, the digest hashes the table whole, and a placement uploads it as it lies. The
-    /// two layer counts at the end are the device's alone, and the host leaves them at nought.
+    /// **The scene's own row, and the device's**: `Rtx::Sprite` is this struct, uploaded as it lies.
+    /// The two layer counts at the end are the device's alone, and the host leaves them at nought.
     struct GpuSprite
     {
         vec3 mPosition;
@@ -1005,9 +747,9 @@ namespace Rtx::Shaders
         /// Half the sprite's width in world units, which is what `osgParticle` means by a size.
         float mRadius;
 
-        /// The streak's own axis in the world, per unit of `mRadius`, or zero for a sprite that
-        /// faces the eye. Per particle, because `MWRender::RainShooter` leans each drop into the wind
-        /// it was fired under. Not normalised, because its length is the shape.
+        /// The streak's own axis in the world, per unit of `mRadius`, or zero for a sprite that faces
+        /// the eye. Per particle, as `MWRender::RainShooter` leans each drop into its wind. Not
+        /// normalised, because its length is the shape.
         vec3 mAxis RTX_ZERO;
 
         /// Linear, and already carrying wherever the particle's own colour ramp has reached.
@@ -1016,13 +758,9 @@ namespace Rtx::Shaders
         /// What the particle's own fade left of it, multiplied into the texture's alpha at the hit.
         float mAlpha;
 
-        /// Which emitter placed it, which is what a tile's list has to carry. Written by
-        /// `Rtx::SceneDesc::addEmitter`, the one place that knows.
-        ///
-        /// **Walking sprites rather than emitters is what made this necessary.** The walk reads what
-        /// is the emitter's and not the sprite's — its `GpuEmitterFrame` — once where it meets the
-        /// emitter's run, and a list of sprites can only keep that if a sprite can say when the run
-        /// it belongs to has changed.
+        /// Which emitter placed it, written by `Rtx::SceneDesc::addEmitter`. **The walk is over sprites**
+        /// and reads the emitter's `GpuEmitterFrame` once where it meets the emitter's run, which a
+        /// list of sprites can only keep if a sprite says when its run has changed.
         uint mEmitter RTX_ZERO;
 
         /// How many sprites of its own emitter stand between this one and the sun, and the sky, each
@@ -1034,58 +772,45 @@ namespace Rtx::Shaders
 
     /// How many pixels a side one tile of the sprite list covers.
     ///
-    /// **Sixteen, and the trade is the usual one.** Finer tiles reject more sprites per pixel and
-    /// cost more of them to bin: a raindrop is a few pixels across, so at sixteen it lands in one
-    /// tile or four, and a tile's list is short. The screen's tile count is derived from this and the
-    /// frame's extent on both sides — `spriteTilesOver` — so there is one number here and no second
-    /// one to disagree with it.
-    ///
-    /// **Eight is a loss.** A drop's own test is cheap once the lamps are walked per emitter, so
-    /// the trace gains nothing from four times the tiles, while the fill, which walks every sprite
-    /// for every tile, pays for all of them.
+    /// **Sixteen**: finer tiles reject more sprites per pixel and cost more to bin; a raindrop is a
+    /// few pixels across, so at sixteen it lands in one tile or four. **Eight is a loss**: a drop's
+    /// own test is cheap once lamps are walked per emitter, while the fill, which walks every sprite
+    /// for every tile, pays for four times the tiles. The tile count is derived from this and the
+    /// frame's extent on both sides (`spriteTilesOver`).
     const uint SPRITE_TILE = 16u;
 
     /// How many tiles cover `pixels` along one axis of the frame. The last one may be part of a tile.
-    ///
-    /// **Derived on every side from `SPRITE_TILE` and the frame's own extent**, so the trace, the
-    /// bin and the host reference cannot disagree about how many tiles there are across.
+    /// **Derived on every side from `SPRITE_TILE`**, so the trace, the bin and the host reference
+    /// cannot disagree about how many tiles there are.
     RTX_SHADER uint spriteTilesOver(uint pixels)
     {
         return (pixels + SPRITE_TILE - 1u) / SPRITE_TILE;
     }
 
-    /// How many tiles a frame of `width` by `height` covers, which is the list's head less one.
-    ///
-    /// **The product, in one place, because four sides take it.** The scan, the fill, the pass's own
-    /// zeroing fill and the host's sizing each need how many tiles a frame has, and each multiplied
-    /// the two axes for itself — four chances for the head to be one length here and another there,
-    /// over a list every one of them then indexes.
+    /// How many tiles a frame of `width` by `height` covers, which is the list's head less one. **The
+    /// product in one place**: the scan, the fill, the zeroing fill and the host's sizing each took it,
+    /// four chances for the head to be one length here and another there.
     RTX_SHADER uint spriteTilesIn(uint width, uint height)
     {
         return spriteTilesOver(width) * spriteTilesOver(height);
     }
 
-    /// The bit a tile's end entry carries where its run did not fit, beside the frame's sprite
-    /// count in the bits under it.
+    /// The bit a tile's end entry carries where its run did not fit, beside the frame's sprite count
+    /// in the bits under it.
     ///
-    /// **Only the tiles past the room are unbinned, and every one before them is whole.** The runs
-    /// lie in tile order, so the tiles whose ends fit the capacity are a prefix and are binned as
-    /// any frame's are; `spritestarts.comp` writes this into the end of every tile after them, and
-    /// those alone walk every sprite: slow and right. A storm that more than doubled in the two
-    /// frames the report lags, or a first step into rain, made every pixel of its frame walk every
-    /// sprite, the worst frame of a run. The host reads what the frame needed, grows the buffer,
-    /// and the next frame is binned whole; `SpriteBin::record` says how the list is sized so that
-    /// this is a rare frame. A valid end is under `SpriteListSize::sMostEntries` and never carries
-    /// the bit.
+    /// **Only the tiles past the room are unbinned, and every one before them is whole.** Runs lie in
+    /// tile order, so the tiles whose ends fit the capacity are a prefix and are binned as usual;
+    /// `spritestarts.comp` writes this into every tile after them, and those alone walk every sprite:
+    /// slow and right. A storm that more than doubled within the report's two-frame lag would
+    /// otherwise make every pixel walk every sprite. The host grows the buffer and the next frame is
+    /// binned whole; `SpriteBin::record` sizes the list so this is rare. A valid end is under
+    /// `SpriteListSize::sMostEntries` and never carries the bit.
     const uint SPRITE_TILE_UNBINNED = 0x80000000u;
 
-    /// One particle system: what its sprites are drawn with, and a sphere that holds all of them,
-    /// which is the whole spatial structure because one rejection throws a small emitter away for
-    /// almost every pixel.
-    ///
-    /// **The scene's own row, and the device's.** `Rtx::SpriteEmitter` is this struct, built by
-    /// `Rtx::SceneDesc::addEmitter` and uploaded as it lies. The flags are read through the two
-    /// members below, and the run through `Rtx::spritesOf`, which needs the host's `Run`.
+    /// One particle system: what its sprites are drawn with, and a sphere holding all of them, which
+    /// is the whole spatial structure because one rejection throws a small emitter away for almost
+    /// every pixel. **The scene's own row, and the device's**: `Rtx::SpriteEmitter` is this struct,
+    /// built by `Rtx::SceneDesc::addEmitter`; the run is read through `Rtx::spritesOf`.
     struct GpuEmitter
     {
         vec3 mCentre;
@@ -1102,18 +827,16 @@ namespace Rtx::Shaders
         /// since a particle's whole silhouette is that texture's alpha.
         uint mTexture;
 
-        /// `EMITTER_ADDITIVE` for a blend that adds — `SRC_ALPHA, ONE`: a flame, which adds light
-        /// and hides nothing behind it, where the rest blend over and are smoke that needs its
-        /// colour ramp to fade it — and `EMITTER_FALLS` for what the weather drops, the rain box
-        /// or a driven storm, which `spriteshelter.rgen` keeps out from under a roof.
-        /// `Rtx::SceneExtractor::extractPrecipitation` is the walk that says so.
+        /// `EMITTER_ADDITIVE` for a blend that adds (`SRC_ALPHA, ONE`: a flame, which hides nothing
+        /// behind it, where the rest blend over and need their colour ramp to fade) and `EMITTER_FALLS`
+        /// for what the weather drops, which `spriteshelter.rgen` keeps out from under a roof
+        /// (`Rtx::SceneExtractor::extractPrecipitation`).
         uint mFlags;
 
-        /// How wide this emitter's quads are against their own axis, per unit of
-        /// `GpuSprite::mRadius` — **or nought, which is a sprite that faces the eye and is nearly
-        /// everything.** Morrowind's rain is an X axis squashed to a tenth against a Y axis
-        /// pointing straight down. The length and not the direction, because the march swings the
-        /// width about the sprite's own axis to meet the ray.
+        /// How wide this emitter's quads are against their own axis, per unit of `GpuSprite::mRadius`
+        /// — **or nought, a sprite that faces the eye, nearly everything.** Morrowind's rain is an X
+        /// axis squashed to a tenth against a Y axis pointing down. The length and not the direction,
+        /// because the march swings the width about the sprite's own axis to meet the ray.
         float mWidth;
 
         /// The bake of the sprite texture's alpha, or `NO_TEXTURE` for one lit as a flat card.
@@ -1126,10 +849,9 @@ namespace Rtx::Shaders
 #endif
     };
 
-    /// What one trace makes of an emitter, once for every sprite of it: `spriteemitters.rgen` writes
-    /// a row an emitter ahead of the trace, and both walks of `spritesAlong` read it where they
-    /// meet the emitter's run. Each is the emitter's and the camera's alone, where a walk worked it
-    /// out again at every pixel the emitter covers — and at the shown extent a second time.
+    /// What one trace makes of an emitter, once for every sprite of it: `spriteemitters.rgen` writes a
+    /// row an emitter ahead of the trace, and both walks of `spritesAlong` read it where they meet
+    /// the emitter's run, instead of working it out at every pixel the emitter covers.
     struct GpuEmitterFrame
     {
         /// The fog's coverage band over the path from the eye to the emitter, taken at the path's
@@ -1147,11 +869,10 @@ namespace Rtx::Shaders
     };
 
     /// The kinds of instance the walks along a primary ray look for, and what a tile of
-    /// `GpuTables::mSpritePresence` holds: a surface that adds to the frame — a magic effect's
-    /// sheet, `additiveAlong` — and one the eye passes through, a cloud's shells, `mediumAlong`.
-    /// **What keeps each walk off the pixels it cannot find anything at.** Both traverse the top
-    /// level on a mask a handful of instances carry, once a pixel, and asked of a whole frame one
-    /// such mesh anywhere in the loaded cells had every pixel descend it to find nothing.
+    /// `GpuTables::mSpritePresence` holds: a surface that adds to the frame (`additiveAlong`) and one
+    /// the eye passes through, a cloud's shells (`mediumAlong`). **Keeps each walk off pixels it can
+    /// find nothing at**: both traverse the top level once a pixel, and one such mesh anywhere in the
+    /// loaded cells otherwise had every pixel descend it.
     const uint PRESENCE_ADDITIVE = 1u;
     const uint PRESENCE_MEDIUM = 2u;
 
@@ -1177,46 +898,31 @@ namespace Rtx::Shaders
     {
         uint mDiffuse;
 
-        /// The alpha test's reference, which the sides in `mFlags` (`MATERIAL_ALPHA_PASSES_SHIFT`)
-        /// pass on.
-        ///
-        /// The mode it came from does not survive the trip: what a cutout costs traversal is one
-        /// comparison, and a material that wants none passes on every side. Which instances stop
-        /// to make that comparison at all is settled by the build, from the same test.
+        /// The alpha test's reference, which the sides in `mFlags` (`MATERIAL_ALPHA_PASSES_SHIFT`) pass
+        /// on. The mode does not survive the trip: a cutout costs traversal one comparison and a
+        /// material that wants none passes on every side; the build settles which instances stop.
         float mAlphaReference;
 
-        /// How much of the surface is there, or one for a surface that is all there.
-        ///
-        /// **The mode does not survive the trip here either.** `Material::isBlended` settles it on
-        /// the host, for the same reason the cutoff is settled there: a surface the content asked a
-        /// blend of stores the alpha that blend weighs by, and every other surface stores a one
-        /// that nothing has to branch on. What the number means is the blend's — coverage where the
-        /// surface covers, strength where it adds.
-        ///
-        /// Multiplied by the texture's alpha at the candidate, which is what a blend does: a stained
-        /// pane's texture says where the lead is and this says how much glass there is. Whether the
-        /// surface is a pane at all is `MATERIAL_TRANSLUCENT`.
+        /// How much of the surface is there, or one for a surface that is all there. **The mode does
+        /// not survive the trip here either**: `Material::isBlended` settles it on the host, so a
+        /// blended surface stores the alpha its blend weighs by and every other stores a one nothing
+        /// branches on. Multiplied by the texture's alpha at the candidate, as a blend does: a stained
+        /// pane's texture says where the lead is and this how much glass. A pane is `MATERIAL_TRANSLUCENT`.
         float mOpacity;
 
-        /// What this material is that no number above says — the `MATERIAL_*` bits.
-        ///
-        /// **Here, beside the reference and the opacity, with the texture transform after it**:
-        /// these and the diffuse are what `candidateStops` reads of a row, and in its first 32
-        /// bytes they cost one sector a candidate where across the row they cost up to four. On the
-        /// ship that took the trace from 2.424–2.432 ms to 2.407–2.414 (`./omw bench`).
+        /// What this material is that no number above says — the `MATERIAL_*` bits. **Beside the
+        /// reference and the opacity**: with the diffuse these are what `candidateStops` reads, and in
+        /// the row's first 32 bytes they cost one sector a candidate where across the row they cost up
+        /// to four (2.424–2.432 ms to 2.407–2.414 on the ship, `./omw bench`).
         uint mFlags RTX_ZERO;
 
         /// Mesh texture coordinates to this material's, as `uv * xy + zw`. The identity for
         /// everything that does not scroll, which is nearly everything.
         vec4 mTextureTransform;
 
-        /// Where this material's terrain layers are, or a count of zero for a single-textured
-        /// surface — which is everything but the ground.
-        ///
-        /// **The count is also what says a hit is ground.** Only terrain is given layers, and
-        /// terrain without one is never made, so nothing else in the row has to state the kind —
-        /// what sorts a material otherwise is the instance's shader-table offset, which a ray query
-        /// hands back with the hit.
+        /// Where this material's terrain layers are, or a count of zero for a single-textured surface,
+        /// which is everything but the ground. **The count is also what says a hit is ground**: only
+        /// terrain is given layers, so nothing else in the row has to state the kind.
         uint mLayerOffset;
         uint mLayerCount;
 
@@ -1234,12 +940,9 @@ namespace Rtx::Shaders
         vec3 mAmbientColour;
 
         /// How much the surface glows regardless of what falls on it, with the material's own
-        /// multiplier already folded in.
-        ///
-        /// **A lighting term, not a colour beside one.** The original engine sums it with the
-        /// diffuse and ambient light and multiplies the whole by the texture, so a mushroom cap
-        /// carrying half against its stalk's nothing glows *with its texture in it*. Added past the
-        /// albedo instead, the cap comes out flat white.
+        /// multiplier folded in. **A lighting term, not a colour beside one**: the original engine sums
+        /// it with the diffuse and ambient light and multiplies the whole by the texture, so a mushroom
+        /// cap carrying half glows *with its texture in it*; added past the albedo it comes out flat white.
         vec3 mEmissiveColour;
 
         /// A sphere-mapped sheet added past the albedo, indexed by where the eye is, or
@@ -1250,28 +953,25 @@ namespace Rtx::Shaders
         /// A map the albedo is multiplied by, or `NO_TEXTURE`, read at the unit `mFlags` names.
         uint mDark;
 
-        /// A tangent-space normal map, or `NO_TEXTURE`. Read at the diffuse's own place on the sheet
-        /// — a companion map is attached at a unit with no coordinates of its own, and reads unit
-        /// nought's — through the tangents the mesh carries.
+        /// A tangent-space normal map, or `NO_TEXTURE`. Read at the diffuse's own place on the sheet (a
+        /// companion map has no coordinates of its own and reads unit nought's) through the mesh's tangents.
         uint mNormal;
 
-        /// A `_spec` map in the metal and roughness layout, or `NO_TEXTURE`: metalness in red,
-        /// perceptual roughness in green, occlusion in blue. **What names it also says the diffuse was authored as an
-        /// albedo**, so a material that has one is not delit — `Rtx::SpecularLayout` is what lets a
-        /// row carry one at all.
+        /// A `_spec` map in the metal and roughness layout, or `NO_TEXTURE`: metalness in red, perceptual
+        /// roughness in green, occlusion in blue. **What names it also says the diffuse was authored as
+        /// an albedo**, so such a material is not delit (`Rtx::SpecularLayout`).
         uint mSpecular;
 
-        /// The heights the normal map's relief spans, where `MATERIAL_PARALLAX` says its alpha is
-        /// one (`Rtx::Material::mRelief`): the lowest alpha in the low byte and the highest in the
-        /// byte over it, which bound the march through it (`reliefOf`). The row's last word, where it
-        /// stands on sixteen at 112 bytes and the candidate's fields above share one 32-byte sector.
+        /// The heights the normal map's relief spans, where `MATERIAL_PARALLAX` says its alpha is one
+        /// (`Rtx::Material::mRelief`): the lowest alpha in the low byte and the highest in the byte over
+        /// it, which bound the march (`reliefOf`). The row's last word: it stands on sixteen at 112 bytes
+        /// and the candidate's fields above share one 32-byte sector.
         uint mRelief RTX_ZERO;
     };
 
-    // **The host's layout has to be the one the device reads**, because this side writes these
-    // buffers and the shader reads them — and a padding byte nobody asked for is a mistake that
-    // produces a plausible wrong image rather than an error. GLSL is pinned separately, by the
-    // `--scalar-block-layout` the build hands the validator.
+    // **The host's layout has to be the one the device reads**: this side writes these buffers, and a
+    // padding byte nobody asked for gives a plausible wrong image rather than an error. GLSL is
+    // pinned separately, by the `--scalar-block-layout` the build hands the validator.
 #ifdef RTX_HOST
     static_assert(sizeof(GpuVertexColour) == 8, "GpuVertexColour must be scalar-packed on every side");
     static_assert(sizeof(GpuMesh) == 28, "GpuMesh must be scalar-packed on every side");
@@ -1295,18 +995,13 @@ namespace Rtx::Shaders
 }
 #endif
 
-// What both shading languages read and nothing on this side calls. The split is about who calls a
-// function, not about what a shading language can express: a scalar curve a test has to reach goes
-// inside the namespace above, where `RTX_SHADER` makes it `inline` here as well.
+// What both shading languages read and nothing on this side calls: a scalar curve a test has to reach
+// goes inside the namespace above, where `RTX_SHADER` makes it `inline` here as well.
 #ifndef RTX_HOST
 
 /// Henyey-Greenstein, per steradian: the share of what a medium scatters that leaves `cosine` off
-/// the line the light was already travelling.
-///
-/// **Shared, because the air and the water both want one.** They are the same integral over a
-/// different asymmetry — `fogPhase` blends two of these to reach Mie's shape and `WATER_ASYMMETRY`
-/// is the water's outright — and two copies of a formula this short are two places for a sign to
-/// be wrong.
+/// the line the light was already travelling. **Shared, because the air and the water both want
+/// one**: `fogPhase` blends two to reach Mie's shape and `WATER_ASYMMETRY` is the water's outright.
 RTX_SHADER float henyeyGreenstein(float g, float cosine)
 {
     const float squared = g * g;

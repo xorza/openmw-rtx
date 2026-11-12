@@ -16,31 +16,26 @@ namespace Rtx
 {
     /// Folds the reversed twin every sheet in the game is doubled with back into one triangle, and
     /// says what the shape was. Morrowind has no two-sided flag, so the content draws a card's
-    /// back by modelling it: a second triangle over the same three positions, wound the other way,
-    /// with vertices of its own — 3670 shapes in the game are nothing but such pairs. Every ray
-    /// that carries light meets both faces of everything, so it meets both copies at the same depth
-    /// and light passing through the card would be taken off twice. A shape that was nothing but
-    /// pairs is a sheet, which is what lets a leaf carry the light that falls on its far side.
+    /// back by modelling it: a second triangle over the same three positions, wound the other way.
+    /// Every ray that carries light meets both copies at the same depth, so light passing through
+    /// the card would be taken off twice. A shape that was nothing but pairs is a sheet, which is
+    /// what lets a leaf carry the light that falls on its far side.
     ///
-    /// **And a pocket's second wall goes too**, which is the same card modelled less exactly. The
-    /// content also builds cloth and plaster as a thin shell whose two sheets cross, so that in
-    /// places the back sheet stands a few units in front of the front one and faces it: a gap that
-    /// is inside out, whose two walls each face into it. The rasterizer culls each wall from the
-    /// side the other is seen from, so it only ever shows one; a ray that leaves either wall meets
-    /// the other face on — the ship's sail went black wherever a bounce left it. Such a pair is
-    /// the card's two faces, and the fold keeps the wall the file wrote first, as it does for a
-    /// twin. What tells a pocket from a slot, whose walls face each other the same way, is the
-    /// generalized winding number at the gap's middle (Jacobson, Kavan and Sorkine-Hornung,
-    /// "Robust Inside-Outside Segmentation using Generalized Winding Numbers", 2013): minus one
-    /// inside out, nought in a slot, which is outside the solid.
+    /// **And a pocket's second wall goes too**, the same card modelled less exactly: cloth and
+    /// plaster built as a thin shell whose two sheets cross, so the back sheet stands a few units in
+    /// front of the front one and faces it. The rasterizer culls each wall from the side the other
+    /// is seen from, so it only ever shows one; a ray that leaves either wall meets the other face
+    /// on. The fold keeps the wall the file wrote first, as it does for a twin. What tells a pocket
+    /// from a slot, whose walls face each other the same way, is the generalized winding number at
+    /// the gap's middle (Jacobson, Kavan and Sorkine-Hornung, "Robust Inside-Outside Segmentation
+    /// using Generalized Winding Numbers", 2013): minus one inside out, nought in a slot.
     class ShapeFold
     {
     public:
         /// Drops the second of every reversed pair and then the later wall of every pocket,
         /// compacting `indices` in place, and says what the shape came to. A twin is matched by
-        /// exact equality of positions, because it is a copy and not a remodel; a copy wound the
-        /// same way is not a twin and is left. No allocation per triangle, because a cell crossing
-        /// folds tens of thousands of triangles a second.
+        /// exact equality of positions, because it is a copy and not a remodel. No allocation per
+        /// triangle, because a cell crossing folds tens of thousands of triangles a second.
         FoldedShape fold(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices);
 
     private:

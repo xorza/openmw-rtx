@@ -4,21 +4,12 @@
 #include "portable.h"
 
 // The texel layouts a shader declares on an image it loads or stores, one name for both sides.
-//
-// **A resource's format is then one line.** `#define GBUFFER_ALBEDO STORAGE_RGBA16F` is both the
-// qualifier the shader declares and the enumerator the host creates the image from, so the two
-// cannot come apart — and they must not: a view whose format is not the declared one is undefined
-// behaviour, and the layers call it a warning, which fails nothing.
-//
-// **What stays paired by hand is the language's fact and not a pass's.** A qualifier names one
-// layout, and nothing a pass decides changes which, so each pair below is written once and never
-// revisited when a channel changes width.
-//
-// **The host's half names no API.** The backend is where an enumerator becomes a format a device
-// creates.
-//
-// A macro because a layout qualifier is a token GLSL reads before it parses anything, and the
-// preprocessor is the one thing both languages share.
+// **A resource's format is then one line**: `#define GBUFFER_ALBEDO STORAGE_RGBA16F` is both the
+// qualifier the shader declares and the enumerator the host creates the image from, so they cannot
+// come apart (a view whose format is not the declared one is undefined behaviour, which the layers
+// only warn about). Each pair below is written once, as a qualifier names one layout whatever a pass
+// decides. **The host's half names no API**; the backend turns an enumerator into a device format.
+// A macro because a layout qualifier is read before GLSL parses anything.
 
 #ifdef RTX_HOST
 
@@ -47,13 +38,10 @@ namespace Rtx::Shaders
     };
 
     /// Whether a store into `format` may round a value toward nought: a half's. The specification
-    /// leaves the rounding of a conversion to a narrower float to the implementation, and this
-    /// card's rounds toward nought (`RtxHalfStoreTest`).
-    ///
-    /// **What a history read back into its own blend is never stored in**, since the blend compounds
-    /// the store's error every frame where a frame's own image takes it once: a running mean of a
-    /// value no half holds exactly falls by one step a store, toward a bias of the history's length
-    /// in steps (`DenoiseHistory`).
+    /// leaves the rounding of a narrowing conversion to the implementation, and this card's rounds
+    /// toward nought (`RtxHalfStoreTest`). **A history read back into its own blend is never stored
+    /// in one**: the blend compounds the error every frame, so a running mean falls by one step a
+    /// store (`DenoiseHistory`).
     constexpr bool mayRoundTowardNought(const StorageFormat format)
     {
         return format == StorageFormat::R16f || format == StorageFormat::Rg16f || format == StorageFormat::Rgba16f;

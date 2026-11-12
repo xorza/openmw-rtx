@@ -222,16 +222,13 @@ namespace Rtx
 
         const VkDeviceSize scratchAlignment = mDevice.getPhysicalDevice().getStructureScratchAlignment();
 
-        // **One of them is built whole again, on a rota.** A refit keeps the tree the first pose
-        // was built over and moves its boxes, and the boxes of a body met crouched fit it badly
-        // once it stands: every ray through it pays for the mismatch, for as long as the body
-        // lives. So the posed mesh that was built whole longest ago is rebuilt on every placement
-        // that poses anything — one a placement, so a crowd comes round in as many placements as it
-        // has bodies, no frame carries two, and every frame carries the same. A threshold of
-        // placements before a rebuild made the frames alternate between one and none. Not one built
-        // whole on this placement's own arrival. Into the same room and handle, which every
-        // top-level row already names, with the flags the first build used, so the refits after it
-        // are updates of a structure built to allow them.
+        // One of them is built whole again, on a rota. A refit keeps the tree the first pose was
+        // built over and moves its boxes, which fit a body met crouched badly once it stands, so
+        // every ray through it pays for as long as the body lives. The posed mesh built whole
+        // longest ago is rebuilt on every placement that poses anything, one a placement, so no
+        // frame carries two and every frame carries the same (a threshold made frames alternate
+        // between one and none). Not one built whole on this placement's own arrival. Into the same
+        // room and handle, with the flags the first build used, so later refits stay allowed.
         ++mPlacements;
         mRebuilt = sNoIndex;
         for (const Index mesh : deformed)
@@ -280,11 +277,9 @@ namespace Rtx
         {
             const Index index = deformed[i];
 
-            // Into the structure that is already there, rather than into a new one beside it:
-            // its handle is what every top-level row already points at. An update, with the same
-            // flags as the build that allowed one, which the update requires — or, for the one
-            // the rota picked, a build from nothing into the same handle, with the same flags so
-            // the updates after it are allowed again.
+            // Into the structure that is already there, since its handle is what every top-level row
+            // points at. An update, with the same flags as the build that allowed one, or for the
+            // rota's pick a build from nothing into the same handle, with the same flags.
             const bool whole = index == mRebuilt;
             mRefit.mBuilds[i] = VkAccelerationStructureBuildGeometryInfoKHR{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
@@ -332,9 +327,8 @@ namespace Rtx
         const bool compacting = placeCompacted(scene, records);
 
         // Whether the rows moved since the top level was last built, and not what this copy owes:
-        // there is one top level, so a row the copy before was synced with is in it already, and
-        // building it again on the frame after every change was a pack and a build for nothing. A
-        // refit alone still updates it, because a top level caches the bounds of what it names.
+        // there is one top level, so a row the copy before was synced with is in it already. A refit
+        // alone still updates it, because a top level caches the bounds of what it names.
         if (!compacting && mRowTable.getWrites() == mBuiltOverWrites && mRefit.mBuilds.empty())
             return false;
 
@@ -448,13 +442,10 @@ namespace Rtx
             return;
         }
 
-        // **Which faces this row shows, which only a ray that asks to cull reads** — `facingFor`,
-        // where the rule is. Nothing here changes a picture until a ray that draws casts, which is
-        // what lets this go in ahead of them.
-        //
-        // **And flipped where the rasterizer's front is the other face**, `InstanceRecord::mFlipFacing`:
+        // Which faces this row shows, which only a ray that asks to cull reads (`facingFor` has the
+        // rule). Flipped where the rasterizer's front is the other face (`InstanceRecord::mFlipFacing`):
         // traversal reads the winding in the mesh's own space, so a placement of a negative
-        // determinant leaves its facing alone — measured, and pinned by
+        // determinant leaves its facing alone, pinned by
         // `aPlacementShowsTheFaceTheRasterizerShowsMirroredOrClockwise`.
         VkGeometryInstanceFlagsKHR flags = 0;
         if (record.mTwoSided)
@@ -464,11 +455,10 @@ namespace Rtx
 
         assert(record.mMesh < mBottomLevel.size() && "a row placing a mesh nothing built");
 
-        // The geometry is built opaque, so forcing is the whole of how either candidate reaches
-        // the shader at all — a cutout to be asked whether there is anything at the hit, a
-        // translucent surface to be asked how much of it there is.
-        // An additive surface is never confirmed by anything, so its every crossing has to reach
-        // the query that gathers it as a candidate, which is what non-opaque means.
+        // The geometry is built opaque, so forcing is the whole of how a cutout (asked whether
+        // anything is at the hit) or a translucent surface (asked how much) reaches the shader. An
+        // additive surface is never confirmed, so its every crossing must reach the query that
+        // gathers it as a candidate, which is what non-opaque means.
         if (record.mCutout || record.mTranslucent || record.mAdditive)
             flags |= VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR;
 

@@ -25,15 +25,14 @@ namespace Rtx
     {
         using RtxShareTest = Testing::DeviceTest;
 
-        /// A share's term is its value in twenty fractional bits, and a value past what a term can
-        /// name is clamped to the largest and not converted out of range.
+        /// A share's term is its value in twenty fractional bits, and a value past what a term can name is clamped to
+        /// the largest and not converted out of range.
         ///
-        /// **Hand-computed.** One is 2^20, 1048576; a half 524288; 3.25 is 3407872; 4095 is 4095 ·
-        /// 2^20 = 4293918720, a float exactly. 4096 is 2^32, one past a `uint`, and 10^9 far past
-        /// it: both are `SHARE_MOST`, the largest float under 2^32, 2^32 − 256 = 4294967040. A
-        /// negative value is nought, and so is a NaN; an infinity is `SHARE_MOST`. **And a sum
-        /// saturates**: a term added to itself is twice it below the top — 2097152 for one — and
-        /// the largest `uint`, 4294967295, past it.
+        /// **Hand-computed.** One is 2^20, 1048576; a half 524288; 3.25 is 3407872; 4095 is 4095 · 2^20 = 4293918720,
+        /// a float exactly. 4096 is 2^32, one past a `uint`, and 10^9 far past it: both are `SHARE_MOST`, the largest
+        /// float under 2^32, 2^32 − 256 = 4294967040. A negative value and a NaN are nought; an infinity is
+        /// `SHARE_MOST`. **And a sum saturates**: a term added to itself is twice it below the top, 2097152 for one,
+        /// and 4294967295 past it.
         TEST_F(RtxShareTest, aTermIsItsValueInTwentyBitsAndAPastTermIsClamped)
         {
             const Device& device = getDevice();

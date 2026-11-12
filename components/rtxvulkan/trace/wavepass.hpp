@@ -21,12 +21,11 @@ namespace Rtx
     class Device;
     class GpuTimer;
 
-    /// The sea, synthesised into textures a trace reads: one tile a cascade, three textures a tile.
-    /// A frame turns the phases and inverse-transforms them, and that is all it does. What comes
-    /// out is a height field and its first two derivatives, because the normal is the gradient and
-    /// the caustics are the curvature, with the second moments beside them: a mip level carries the
-    /// mean of what it covers and the mean of its square, and the difference is the variance that
-    /// was averaged away — LEAN mapping, for one fetch that was happening anyway.
+    /// The sea, synthesised into textures a trace reads: one tile a cascade, three textures a tile. A frame turns the
+    /// phases and inverse-transforms them, and that is all it does. What comes out is a height field and its first two
+    /// derivatives, because the normal is the gradient and the caustics are the curvature, with the second moments
+    /// beside them: a mip level carries the mean of what it covers and of its square, and the difference is the
+    /// variance averaged away — LEAN mapping, for one fetch that was happening anyway.
     class WavePass
     {
     public:
@@ -48,11 +47,10 @@ namespace Rtx
         /// samples them, so it need not synthesise them.
         void record(VkCommandBuffer commands, const osg::Vec2f& seconds, GpuTimer* timer);
 
-        /// Whether the tiles already hold the sea at `seconds`, which a trace then reads as they
-        /// are: **every picture of the world shares its frame's water time**, and a cell crossing
-        /// traces a row of map tiles beside the frame, each of which synthesised the same sea again
-        /// — a fifth of a millisecond apiece, on the frame that already carries the arrival.
-        /// Whatever reads them after is behind the write on the one queue.
+        /// Whether the tiles already hold the sea at `seconds`, which a trace then reads as they are: every picture of
+        /// the world shares its frame's water time, and a cell crossing traces a row of map tiles beside the frame,
+        /// each of which synthesised the same sea again — a fifth of a millisecond apiece. Whatever reads them after is
+        /// behind the write on the one queue.
         bool holds(const osg::Vec2f& seconds) const { return mSynthesised == seconds; }
 
         /// Linear, mipmapped and wrapping — a tile lays the same water down every `getExtent` units,

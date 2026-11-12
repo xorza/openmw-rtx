@@ -18,14 +18,12 @@ namespace Rtx
     {
         using RtxFogVolumeTest = Testing::DeviceTest;
 
-        /// **A trace fills the columns its pixels read and no more**: those its pixels cover, one
-        /// past them that the far edge interpolates against, and one past that for the integrate
-        /// pass's tent, held to the grid. Counted by hand at twelve pixels a column, in a grid
-        /// grown to the doll's preview, 516 by 1032: 43 columns by 86 rows. A map tile of 256 covers
-        /// 22 a side (21 and a third, rounded up) and fills 24, where the whole grid was 43 by 86. A
-        /// picture of a whole number of columns, 240, covers 20 and fills 22; a pixel fills 3. The
-        /// preview itself and one a column narrower, 504 by 1020 (42 by 85 and two more each way),
-        /// fill the grid and no more.
+        /// **A trace fills the columns its pixels read and no more**: those its pixels cover, one past them that the
+        /// far edge interpolates against, and one past that for the integrate pass's tent, held to the grid. Counted
+        /// by hand at twelve pixels a column, in a grid grown to the doll's preview, 516 by 1032: 43 columns by 86
+        /// rows. A map tile of 256 covers 22 a side (21 and a third, rounded up) and fills 24, where the whole grid
+        /// was 43 by 86. A picture of a whole number of columns, 240, covers 20 and fills 22; a pixel fills 3. The
+        /// preview itself and one a column narrower, 504 by 1020, fill the grid and no more.
         TEST_F(RtxFogVolumeTest, aTraceFillsTheColumnsItsPixelsReadHeldToTheGrid)
         {
             static_assert(Shaders::FOG_VOLUME_SCALE == 12u, "the columns below are counted at twelve pixels");

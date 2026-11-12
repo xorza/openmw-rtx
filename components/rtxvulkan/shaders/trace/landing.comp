@@ -7,10 +7,8 @@
 // (`StageConstants`; `bounce.comp` traced it and listed the pixel): the landing resolved off the hit the
 // bounce stored, its light worked out whole before any ray (`landingLightOf`), its rays traced
 // (`pathEndSeenOf`), and what the bounce brought back written, or added to what the rays before it brought
-// (`storeBounced`).
-//
-// **A stage apart from the bounce** (`BounceRun`), so no record of the bounce's is live through the
-// landing's traversals.
+// (`storeBounced`). A stage apart from the bounce (`BounceRun`), so no record of the bounce's is live through
+// the landing's traversals.
 
 #include "shared/traceconstants.h"
 #include "camera.h"

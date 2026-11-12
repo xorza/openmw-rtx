@@ -27,19 +27,15 @@ namespace Rtx
     class GpuTimer;
     class Uploads;
 
-    /// What walked through the water, as a height field around the eye the sea reads beside its
-    /// cascades: stepped by the wave equation, pressed where the game says something disturbed
-    /// it, and unpacked into a slope tile and a curvature tile with a chain each, in the wave
-    /// tiles' own layout. `shaders/ripple.h` says whose field this is.
+    /// What walked through the water, as a height field around the eye the sea reads beside its cascades: stepped by
+    /// the wave equation, pressed where the game says something disturbed it, and unpacked into a slope tile and a
+    /// curvature tile with a chain each, in the wave tiles' own layout. `shaders/ripple.h` says whose field this is.
+    /// State across frames, and deterministic: the steps are by the water's clock and the impulses by the simulation,
+    /// so two runs of one build stand the same field on every frame.
     ///
-    /// **State across frames, and deterministic.** The field is what the steps and the impulses
-    /// made of it, and both are the run's own — the step by the water's clock, the impulses by the
-    /// simulation — so two runs of one build stand the same field on every frame.
-    ///
-    /// **The water's clock, `Shaders::VisibilityConstants::mWaterTime`, and not the sky's**: the
-    /// simulation's seconds, which upstream's `RipplesSurface::updateState` steps by and the waves
-    /// run on. The sky's clock stands still wherever no sky is shown, which is every interior with
-    /// water in it, and races under a sped-up `timescale`.
+    /// The clock is `Shaders::VisibilityConstants::mWaterTime`, the simulation's seconds, which upstream's
+    /// `RipplesSurface::updateState` steps by. Not the sky's, which stands still in every interior with water in it and
+    /// races under a sped-up `timescale`.
     class RipplePass
     {
     public:
@@ -47,25 +43,18 @@ namespace Rtx
         /// Submits and waits.
         explicit RipplePass(const Device& device);
 
-        /// Steps the field by the time `waterSeconds` moved since the last step, in as few steps as
-        /// keep each within `getLongestStep` and no more than `RIPPLE_SUBSTEPS_MOST`, presses
-        /// `impulses` with the first, for the time the steps cover, and unpacks the tiles. The
-        /// window follows `eye` by whole texels. Nothing at all where the clock did not move, which
-        /// leaves the tiles as they were and presses nothing: a press stands for time, and that
-        /// frame's water had none.
+        /// Steps the field by the time `waterSeconds` moved since the last step, in as few steps as keep each within
+        /// `getLongestStep` and no more than `RIPPLE_SUBSTEPS_MOST`, presses `impulses` with the first, for the time
+        /// the steps cover, and unpacks the tiles. The window follows `eye` by whole texels. Nothing at all where the
+        /// clock did not move: a press stands for time, and that frame's water had none.
         ///
-        /// **The impulses that reach the window, the nearest first**: one whose ring presses no
-        /// texel of it is no impulse to the field, and past `RIPPLE_IMPULSES_MOST` the ones nearest
-        /// the eye are the ones it shows. Pressed in the order the game gave them.
+        /// The impulses that reach the window are pressed nearest first, in the order the game gave them: one whose
+        /// ring presses no texel of it is no impulse, and past `RIPPLE_IMPULSES_MOST` the nearest the eye are shown.
+        /// Nothing is done while the field is still and nothing presses it: once a frame's last step reports every
+        /// texel nought (`RIPPLE_STILL`) each step would step nought to nought, so the frame skips both, exactly.
         ///
-        /// **And nothing at all while the field is still and nothing presses it**, which is most of
-        /// the time by the water: once a frame's last step reports every texel nought
-        /// (`RIPPLE_STILL`) and nothing has pressed since, each step would step nought to nought and
-        /// each compose write the tiles they hold, so the frame skips both — exactly.
-        ///
-        /// **Every frame and not once a sixtieth**, as upstream steps, which is a look of its own:
-        /// the same springs over the same time, and a wake that keeps its pace under sixty frames a
-        /// second, where upstream's slows. AGENTS.md names it among the fixes declined.
+        /// Every frame and not once a sixtieth, as upstream steps: the same springs over the same time, and a wake that
+        /// keeps its pace under sixty frames a second. AGENTS.md names it among the fixes declined.
         ///
         /// @param uploads what writes the impulses, ordered ahead of the steps that read them.
         /// @param slot the frame's, which names the copy of the impulse buffer this frame writes.
@@ -74,13 +63,10 @@ namespace Rtx
         void record(VkCommandBuffer commands, Uploads& uploads, FrameSlot slot, std::span<const RippleImpulse> impulses,
             const osg::Vec2f& eye, double waterSeconds, GpuTimer* timer);
 
-        /// The longest step the springs stand, in sixtieths.
-        ///
-        /// **The five-point Laplacian's highest mode**, the checkerboard, is pulled by `8 a + udamp`
-        /// a sixtieth squared; a step of `s` keeps it bounded while `s² (8 a + udamp) ≤ 2 (1 + c)`,
-        /// `c` the carry `(1 − vdamp)^s`. Under two sixtieths the carry is at least `(1 − vdamp)²`,
-        /// which this takes, so the bound holds over the step it names: 1.298 sixtieths, a frame
-        /// of 46 a second.
+        /// The longest step the springs stand, in sixtieths: the five-point Laplacian's highest mode, the checkerboard,
+        /// is pulled by `8 a + udamp` a sixtieth squared, and a step of `s` keeps it bounded while `s² (8 a + udamp) ≤
+        /// 2 (1 + c)`, `c` the carry `(1 − vdamp)^s`. Under two sixtieths the carry is at least `(1 − vdamp)²`, which
+        /// this takes: 1.298 sixtieths, a frame of 46 a second.
         static float getLongestStep()
         {
             const float carried = (1.0f - Shaders::RIPPLE_VELOCITY_DAMPING) * (1.0f - Shaders::RIPPLE_VELOCITY_DAMPING);

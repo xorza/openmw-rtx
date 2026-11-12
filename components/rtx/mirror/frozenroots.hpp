@@ -21,36 +21,30 @@
 
 namespace Rtx
 {
-    /// The reference roots whose walk met nothing that changes between frames on its own —
-    /// `SceneExtractor::Traversal::enter` says what does — and under which nothing asks the update
-    /// traversal for a visit, and which the world walk passes rather than descends while their face
-    /// stands. A frozen root's entries are held, so every sweep it is not walked in keeps them, and
-    /// nothing in it is read again until it thaws.
+    /// The reference roots whose walk met nothing that changes between frames on its own
+    /// (`SceneExtractor::Traversal::enter` says what does), under which nothing asks the update traversal for a visit,
+    /// and which the world walk passes rather than descends while their face stands. A frozen root's entries are held,
+    /// so every sweep it is not walked in keeps them, and nothing in it is read again until it thaws.
     ///
-    /// **A root whose face changed stays thawed until a walk after that finds it standing still**,
-    /// its run kept with no keys and the face it was last met at. A door the game turns a step a
-    /// frame, or a reference a script moves, would otherwise thaw, freeze again where it stood and
-    /// thaw on the next frame: a hold taken and given back on every entry, and a run allocated and
+    /// **A root whose face changed stays thawed until a walk after that finds it standing still**, its run kept with no
+    /// keys and the face it was last met at. A door the game turns a step a frame would otherwise thaw, freeze again
+    /// where it stood and thaw on the next frame: a hold taken and given back on every entry, and a run allocated and
     /// freed, on every frame of the motion.
     class FrozenRoots
     {
     public:
-        /// What can change a frozen subtree from outside it, as its root stands: where the root is
-        /// in the world, the identity the walk gave it, its state set, its children, by their count
-        /// and the first of them, and the update callbacks on it and under it.
+        /// What can change a frozen subtree from outside it, as its root stands: where the root is in the world, the
+        /// identity the walk gave it, its state set, its children, by their count and the first of them, and the update
+        /// callbacks on it and under it.
         ///
-        /// **The identity because an unstamped root's is its place among its siblings**: one taken
-        /// away before it moves it, and the root after it into the place, whose drawables would
-        /// key as the frozen root's held ones.
+        /// **The identity because an unstamped root's is its place among its siblings**: one taken away before it moves
+        /// it, and the root after it into the place, whose drawables would key as the frozen root's held ones.
         ///
-        /// **The callbacks because the game hangs a controller deep inside a still root**, a
-        /// `PlayGroup` on an activator with no idle group among others, and OpenSceneGraph counts
-        /// it up the parent chain to the root. A root freezes only where that count is nought, as a
-        /// controller under a node the walk's mask rejects is one the walk never met: a
-        /// `VisController` hides its node from the walk and shows it again. So any controller
-        /// hung after the freeze moves the count. A cull callback has no count, and is met only by
-        /// a walk: the one the game hangs, `Animation::setAlpha`'s, goes on an actor, whose
-        /// skeleton keeps it walked.
+        /// **The callbacks because the game hangs a controller deep inside a still root**, and OpenSceneGraph counts it
+        /// up the parent chain to the root. A root freezes only where that count is nought, as a controller under a
+        /// node the walk's mask rejects is one the walk never met (a `VisController` hides its node from the walk and
+        /// shows it again). A cull callback has no count, and is met only by a walk: the one the game hangs,
+        /// `Animation::setAlpha`'s, goes on an actor, whose skeleton keeps it walked.
         struct Face
         {
             osg::Matrix mWorld;
@@ -64,14 +58,12 @@ namespace Rtx
             static Face of(const osg::Node& root, const osg::Matrix& world, std::size_t identity);
         };
 
-        /// A root's face as it was frozen, **its objects held**, so none of them is freed while
-        /// the face names it and no new one takes its address: two raw addresses compared equal
-        /// across a free and kept the root frozen over a subtree the game had replaced. Held as the
-        /// identity keys hold what they key on (`mirroridentity.hpp`), and let go of through
-        /// `Released` as they are. Compared by address, which every frame a root passes asks.
-        /// **Only an object it stops naming is let go of** (`become`): a root the game moves every
-        /// frame, as it moves an actor, changes no object, and handing its three to the sink each
-        /// frame counted references and handed a buffer over every frame.
+        /// A root's face as it was frozen, **its objects held**, so none of them is freed while the face names it and
+        /// no new one takes its address: two raw addresses compared equal across a free and kept the root frozen over a
+        /// subtree the game had replaced. Held as the identity keys hold what they key on (`mirroridentity.hpp`), and
+        /// let go of through `Released`. Compared by address, which every frame a root passes asks. **Only an object it
+        /// stops naming is let go of** (`become`): a root the game moves every frame changes no object, and handing its
+        /// three to the sink each frame would count references and hand a buffer over every frame.
         struct HeldFace
         {
             osg::Matrix mWorld;

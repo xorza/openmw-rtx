@@ -31,8 +31,8 @@ namespace Rtx
 {
     namespace
     {
-        /// The block a memory type is grown by. Sixty-four megabytes: what this fork's own allocator
-        /// settled on before the library took over, against the library's quarter of a gigabyte.
+        /// The block a memory type is grown by: sixty-four megabytes, against the library's quarter of a
+        /// gigabyte.
         constexpr VkDeviceSize sBlockBytes = 64 * 1024 * 1024;
 
         /// A request for memory of `properties` in the types `memoryTypesFor` names on `memory`,

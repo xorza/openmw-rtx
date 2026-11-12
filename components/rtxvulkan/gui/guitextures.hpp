@@ -22,13 +22,11 @@ namespace Rtx
 
     /// Every texture the GUI draws with, addressed by slot — a font atlas, a skin sheet, a map, a
     /// video frame — nothing like the scene's bindless array. A slot a texture gave back is taken
-    /// over before the table grows (`Rtx::SlotPool`). Nothing here waits on the frame path: making
-    /// a texture and writing one are recorded into a batch and handed to the pool, to go ahead of
-    /// whatever submits next, because every reader needs these copies *ordered* before it, and
-    /// waiting for them *finished* would be waiting for the whole traced frame on every frame that
-    /// wrote a texture; `finish` is the exception. A texture rests in
-    /// `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL` between the calls here, which is why the one path
-    /// that writes one with device commands goes through `writeWith`.
+    /// over before the table grows (`Rtx::SlotPool`). Nothing here waits on the frame path: writes
+    /// are recorded into a batch to go ahead of whatever submits next, because readers need the
+    /// copies ordered, and waiting for them finished would wait for the whole traced frame;
+    /// `finish` is the exception. A texture rests in `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`
+    /// between the calls here, which is why device-command writes go through `writeWith`.
     class GuiTextures
     {
     public:
@@ -41,11 +39,10 @@ namespace Rtx
         GuiSlot add(std::uint32_t width, std::uint32_t height);
 
         /// Bytes for a rectangle of a texture, to be filled and then handed back with `send` — the
-        /// memory the copy will read, so that a video frame does not cross main memory twice. The
-        /// rectangle must lie inside the texture, and only one may be lent at a time; both are
-        /// asserts. The span is `height` rows of `width` pixels, four bytes each, tightly packed,
-        /// row zero first, and stops being writable at `send`. Write it and do not read it back: it
-        /// is write-combined memory.
+        /// memory the copy will read, so a video frame does not cross main memory twice. The
+        /// rectangle must lie inside the texture and only one may be lent at a time (asserts). The
+        /// span is `height` rows of `width` four-byte pixels, tightly packed, row zero first, and
+        /// stops being writable at `send`. Write-combined: do not read it back.
         std::span<std::uint8_t> lend(GuiSlot slot, const GuiRegion& region);
 
         /// Records the copy of what `lend` handed out. Nothing has run when this returns.
@@ -100,11 +97,10 @@ namespace Rtx
         void read(GuiSlot slot, std::vector<std::uint8_t>& pixels);
 
         /// Records a copy of the whole texture into a host-readable buffer kept for the slot, after
-        /// whatever `commands` already holds, and stamps it with the timeline value the next
-        /// submit signals — the copy rides that submit, in the same batch as the trace that wrote
-        /// the texture, so it costs no submit and no wait of its own. `takeCopy` hands the bytes
-        /// over once the queue has passed that value. A buffer this replaces is buried, because a
-        /// batch recorded against the old one may not have run.
+        /// whatever `commands` already holds, stamped with the timeline value the next submit
+        /// signals: the copy rides that submit, so it costs no submit or wait of its own. `takeCopy`
+        /// hands the bytes over once the queue has passed that value. A buffer this replaces is
+        /// buried, because a batch recorded against the old one may not have run.
         void readBackWith(GuiSlot slot, VkCommandBuffer commands);
 
         /// Copies what `readBackWith` left for `slot` into `into`, and answers whether it did:
@@ -128,10 +124,9 @@ namespace Rtx
         std::vector<AlphaForm> mForms;
 
         /// What a trace left for the host, per slot: the buffer, and the timeline value of the
-        /// submit that carried the copy into it — the same clock every other resource is stamped
-        /// with, and not a count of frames, because the batch rides whatever submits next. Nought
-        /// where nothing was asked, which is a value the timeline has always passed and no submit
-        /// ever signals.
+        /// submit that carried the copy into it (not a count of frames, because the batch rides
+        /// whatever submits next). Nought where nothing was asked: a value the timeline has always
+        /// passed and no submit ever signals.
         struct Copy
         {
             static constexpr std::uint64_t sNever = 0;
@@ -152,10 +147,9 @@ namespace Rtx
         StagingRun mLentRun;
 
         /// Last, so that it is destroyed first: what it has recorded names images that must still
-        /// exist when it goes, and its destructor asserts that nothing is recorded — which is what
-        /// `VulkanRenderer::~VulkanRenderer` calls `finish` for. A texture given back is kept
-        /// on it, because the copy recorded against it may not have run. Its staging is where
-        /// `lend` lends from.
+        /// exist when it goes, and its destructor asserts that nothing is recorded, which is what
+        /// `VulkanRenderer::~VulkanRenderer` calls `finish` for. A texture given back is kept on
+        /// it, because the copy recorded against it may not have run. `lend` lends from its staging.
         Batch mBatch;
     };
 }

@@ -25,10 +25,9 @@ namespace Rtx
         }
 
         /// Whether `material` still wants the ground it asked for as `asked`: the same kind, still
-        /// asking, not yet given, and its layers where they were. The run and not the layers in
-        /// it: the bake reads the row as it stands when the slot is given, so a run handed out
-        /// again to another chunk flattens that chunk's ground and costs it only its place in
-        /// line.
+        /// asking, not yet given, and its layers where they were. The run and not the layers in it:
+        /// the bake reads the row as it stands when the slot is given, so a run handed out again to
+        /// another chunk flattens that chunk's ground.
         bool stillWants(const SceneDesc& scene, const Index material, const Run& layers)
         {
             const std::span<const Material> materials = scene.materials().getRows();

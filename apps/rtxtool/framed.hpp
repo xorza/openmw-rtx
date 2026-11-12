@@ -25,11 +25,10 @@ namespace RtxTool
     /// How long `check` holds the queue after every frame's trace, in milliseconds, where the line
     /// names no `--hold` of its own.
     ///
-    /// **Always, so a hazard that needs two frames in flight shows on the first frame of every run
-    /// rather than on one run in four.** A held queue keeps the device that far behind the host, so
-    /// every frame is recorded over a frame still running; `Rtx::StressPass` says what the hold is
-    /// timed as. Eight is the hold the barrier gate ran under before it moved here, and half a
-    /// frame at the target, so a place is not much slower for it.
+    /// Always, so a hazard that needs two frames in flight shows on the first frame of every run rather than
+    /// one run in four: a held queue keeps the device that far behind the host, so every frame is recorded
+    /// over a frame still running (`Rtx::StressPass`). Eight is half a frame at the target, so a place is not
+    /// much slower for it.
     inline constexpr double sCheckHoldMs = 8.0;
 
     /// What a frame is upscaled by when nobody names a mode. The one knob whose default is the
@@ -92,12 +91,11 @@ namespace RtxTool
         std::optional<MapRules> mMaps = MapRules::Shipped;
     };
 
-    /// What a setting is where nobody has set it: the shipped defaults, out of the `defaults.bin`
-    /// beside the first configuration file the run's configuration found, read once for the run
-    /// and never the player's own values. A measured run reads these so that two runs of it are
-    /// one run whatever a settings file says. Not `Settings::Manager::mDefaultSettings`, which
-    /// layers every configuration directory but the last over the shipped file — and the harness's
-    /// own directory is the last.
+    /// What a setting is where nobody has set it: the shipped defaults, out of the `defaults.bin` beside the
+    /// first configuration file the run found, read once and never the player's own values, so two measured
+    /// runs are one run whatever a settings file says. Not `Settings::Manager::mDefaultSettings`, which
+    /// layers every configuration directory but the last over the shipped file, and the harness's own
+    /// directory is the last.
     class ShippedDefaults
     {
     public:
@@ -117,11 +115,10 @@ namespace RtxTool
         Settings::CategorySettingValueMap mShipped;
     };
 
-    /// **A measured run's settings where its line names none**: the shipped defaults, so two
-    /// machines that differ only in their `settings.cfg` measure one scene under one line — but for
-    /// the upscale mode, the upscaler and the bounces, whose defaults for a run are the harness's
-    /// own, the line's (`sUpscaleByDefault`, FSR, the request's), so a measured picture does not
-    /// change with the card it was measured on.
+    /// A measured run's settings where its line names none: the shipped defaults, so two machines differing
+    /// only in `settings.cfg` measure one scene under one line. The upscale mode, upscaler and bounces take
+    /// the harness's own defaults (`sUpscaleByDefault`, FSR, the request's), so a picture does not change
+    /// with the card it was measured on.
     MWRender::RtxSettingValues measuredSettings(const ShippedDefaults& shipped, const ToolLine::Frame& line);
 
     /// **The one rule for what a run's line names**: each setting the line names is the line's,

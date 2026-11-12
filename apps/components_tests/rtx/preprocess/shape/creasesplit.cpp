@@ -124,13 +124,12 @@ namespace Rtx
             }
         }
 
-        /// **A curve the content cut coarsely stays round, and the threshold is what says how
-        /// coarse.** A prism of `sides` sides smoothed round meets itself at `360 / sides` degrees
-        /// between sides: an octagon's forty-five is under `CreaseSplit::sHardCosine`'s fifty-five,
-        /// so nothing is cut, no vertex is added and every normal is the radial one it was written
-        /// with — each corner sees two equal sides at a quarter turn each, whose weighted mean is
-        /// their bisector; a hexagon's sixty is over it, so every side is cut into its own face and
-        /// every one of the twelve vertices gains a copy, twelve added.
+        /// **A curve the content cut coarsely stays round, and the threshold is what says how coarse.** A prism of
+        /// `sides` sides smoothed round meets itself at `360 / sides` degrees: an octagon's forty-five is under
+        /// `CreaseSplit::sHardCosine`'s fifty-five, so nothing is cut and every normal stays the radial one it was
+        /// written with (each corner sees two equal sides at a quarter turn each, the weighted mean their bisector);
+        /// a hexagon's sixty is over it, so every side is cut into its own face and each of the twelve vertices gains
+        /// a copy.
         TEST(RtxCreaseSplitTest, anOctagonalPrismStaysRoundAndAHexagonalOneIsCutIntoItsFaces)
         {
             const auto prism = [](int sides, bool cut) {
@@ -282,13 +281,11 @@ namespace Rtx
             EXPECT_EQ(shaped.mNormals[6], wallNormal);
         }
 
-        /// **A crease between two shapes is cut, and only the mesh's own corners are written.** The
-        /// same floor and wall as above as two shapes, as a Morrowind model is one shape a texture:
-        /// the floor alone holds no hard edge, so its corners along the wall keep leaning
-        /// forty-five degrees off it. With the wall beside it, the right angle is found and the
-        /// floor's two corners there take the floor's normal, on the four vertices it had; the wall
-        /// is read and never written. A floor beside it that carries on flat is no crease, and
-        /// leaves the lean as the content wrote it.
+        /// **A crease between two shapes is cut, and only the mesh's own corners are written.** The same floor and
+        /// wall as above as two shapes, as a Morrowind model is one shape a texture: the floor alone holds no hard
+        /// edge, so its corners along the wall keep leaning forty-five degrees. With the wall beside it the right
+        /// angle is found and the floor's two corners there take the floor's normal, on the four vertices it had; the
+        /// wall is read and never written. A floor beside it that carries on flat is no crease.
         TEST(RtxCreaseSplitTest, aCreaseBetweenTwoShapesIsCutOnTheMeshAlone)
         {
             const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f);

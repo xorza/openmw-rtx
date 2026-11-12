@@ -10,13 +10,10 @@
 
 namespace RtxTool
 {
-    /// Where the run stands and under what sky, as a stop a person could paste: noted every frame,
-    /// kept whole with its picture where Home goes down (`HomeKey`), written into the window's
-    /// title, and handed back as where the run was left.
-    ///
-    /// **Taken on a frame that still has a world**, because `OMW::Engine::~Engine` clears the world
-    /// before the renderer that holds the run, so what a run ends at cannot be asked of the world
-    /// once it has ended.
+    /// Where the run stands and under what sky, as a stop a person could paste: noted every frame, kept whole with
+    /// its picture where Home goes down (`HomeKey`), written into the window's title, and handed back as where the
+    /// run was left. Taken on a frame that still has a world, because `OMW::Engine::~Engine` clears the world
+    /// before the renderer that holds the run, so what a run ends at cannot be asked of the world once it ended.
     class StandingNote
     {
     public:
@@ -27,9 +24,9 @@ namespace RtxTool
         /// Notes the frame just drawn: where the eye stood, the sky over it, and `air`, where the
         /// renderer's clocks stood for it.
         ///
-        /// **The game's camera and not the traced one**, whose origin is a float inverted out of a
-        /// float matrix: a few thousandths of a unit off where the camera stood, where the camera's
-        /// own is the double a `view` puts back exactly. Both look along `Camera::getOrient`.
+        /// The game's camera and not the traced one, whose origin is a float inverted out of a float matrix: a few
+        /// thousandths of a unit off where the camera stood, where the camera's own is the double a `view` puts back
+        /// exactly. Both look along `Camera::getOrient`.
         void take(const Rtx::AirClock& air);
 
         /// The upscaler the frames pass through (`describeUpscaler`), then the weather and the hour

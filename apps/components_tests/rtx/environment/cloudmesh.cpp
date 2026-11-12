@@ -38,18 +38,12 @@ namespace Rtx
         constexpr float sCurvature = 0.0002f;
         constexpr float sTile = 400.0f;
 
-        /// Morrowind's own cap, in Morrowind's own vertex order: four rings of sixteen out to `r = 800`,
-        /// with the apex second.
+        /// Morrowind's own cap, in its vertex order: four rings of sixteen out to `r = 800`, apex second.
         ///
-        /// **The order is the test.** `ModVertexAlphaVisitor::Clouds` paints by index — 49 to 64 at
-        /// nothing and 33 to 48 at a quarter — so a mesh laid out any other way is a mesh the engine
-        /// fades somewhere else, and a reader that copies the rule has to be fed the layout the rule was
-        /// written for. `sky_clouds_01.nif` puts one ring vertex at index 0, the apex at 1, and the rest
-        /// of that ring from 2.
-        ///
-        /// **The sheet is laid the way Morrowind lays its own**: `u` running with the world's `x` and
-        /// `v` against its `y`, which is the mirror that decides whether a deck drifts with its storm or
-        /// into it.
+        /// **The order is the test.** `ModVertexAlphaVisitor::Clouds` paints by index (49 to 64 at nothing, 33 to 48
+        /// at a quarter), so a reader that copies the rule has to be fed the layout it was written for. The sheet
+        /// runs `u` with the world's `x` and `v` against its `y`, which decides whether a deck drifts with its storm
+        /// or into it.
         osg::ref_ptr<osg::Geometry> makeLayer(float height = sHeight, float curvature = sCurvature, float tile = sTile,
             float handedness = -1.0f, const osg::Vec2f& origin = osg::Vec2f(), int perRing = 16)
         {

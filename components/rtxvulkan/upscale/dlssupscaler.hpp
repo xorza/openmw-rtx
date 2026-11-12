@@ -46,20 +46,16 @@ namespace Rtx
         Ready,
     };
 
-    /// NVIDIA DLSS Ray Reconstruction, through the NGX runtime the driver installs: one learned pass
-    /// that denoises the noisy frame and upscales it, in place of the renderer's own filter and an
-    /// upscaler after it (`UpscalerInput::Noisy`). The driver's core is opened at run time and the
-    /// feature library is the player's; no NVIDIA code is linked or shipped. A card and driver NGX
-    /// accepts at start, and a feature library where NGX looks for it, are what this class needs.
-    /// Evaluation is recorded into the frame's own command buffer, as FSR's dispatches are.
+    /// NVIDIA DLSS Ray Reconstruction, through the NGX runtime the driver installs: one learned pass that denoises the
+    /// noisy frame and upscales it, in place of the renderer's own filter and an upscaler after it
+    /// (`UpscalerInput::Noisy`). The driver's core is opened at run time and the feature library is the player's; no
+    /// NVIDIA code is linked or shipped. Evaluation is recorded into the frame's own command buffer, as FSR's
+    /// dispatches are.
     ///
-    /// **The library's own default preset applies**, as NVIDIA's guide recommends (DLSS-RR
-    /// Integration Guide, 3.13): no preset hints are set here, so a newer library the player installs
-    /// brings its own defaults.
-    ///
-    /// **The constructor is the answer to whether DLSS runs**: it opens NGX for the device and
-    /// creates a small feature, which loads the player's library, so every refusal is an
-    /// `UpscalerRefused` there, where `Upscaler` can fall back from `auto`, and not at the first resize.
+    /// The library's own default preset applies, as NVIDIA's guide recommends (DLSS-RR Integration Guide, 3.13), so a
+    /// newer library the player installs brings its own defaults. The constructor is the answer to whether DLSS runs:
+    /// it opens NGX for the device and creates a small feature, so every refusal is an `UpscalerRefused` there, where
+    /// `Upscaler` can fall back from `auto`, and not at the first resize.
     class DlssUpscaler
     {
     public:

@@ -8,19 +8,17 @@
 
 // What bins the sprite layer into the screen's tiles on the device, as both sides see it.
 //
-// **On the device and not the host, and a rainstorm is why.** Binned on the processor, every
-// sprite is projected twice, its tiles counted and then filled, and the whole list written across
-// the bus — a stretch of the frame's critical path, and a cost that grows with the tile count
-// whatever the sprites do. Here the sprites and the emitters are already on the device for the
-// trace to read, so three
-// dispatches make the list where it is read: one per sprite for its tiles and their counts, one
-// over the tiles for where each run starts, and one per tile that fills its run in order.
+// **On the device and not the host, and a rainstorm is why.** Binned on the processor, every sprite is
+// projected twice, its tiles counted and then filled, and the whole list written across the bus: a stretch
+// of the frame's critical path whose cost grows with the tile count whatever the sprites do. The sprites and
+// the emitters are already on the device for the trace to read, so three dispatches make the list where it
+// is read: one per sprite for its tiles and their counts, one over the tiles for where each run starts, and
+// one per tile that fills its run in order.
 //
-// **The list comes out in the shape the host's bin made**: the first `tiles + 1` entries say where
-// each tile's run starts, counted from the front, and the runs follow them. What the host promised
-// of it is kept — ascending sprite index within a run, which is the composite order — and it is
-// kept by construction rather than by a sort: a tile fills its own run by walking the sprites in
-// order, so no atomic ever decides where an entry lands.
+// **The list comes out in the shape the host's bin made**: the first `tiles + 1` entries say where each
+// tile's run starts, counted from the front, and the runs follow them. What the host promised of it is kept
+// (ascending sprite index within a run, the composite order) by construction rather than by a sort: a tile
+// fills its own run by walking the sprites in order, so no atomic ever decides where an entry lands.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
@@ -29,11 +27,10 @@ namespace Rtx::Shaders
 
     /// Lanes that share one sprite in the pass that counts its tiles.
     ///
-    /// **A sprite the eye is inside is in every tile**, and one lane counting thousands of tiles
-    /// on its own is a spike in a pass that is otherwise a few microseconds. Thirty-two lanes
-    /// stride over the rectangle instead, so the worst sprite costs a hundred iterations of a
-    /// warp rather than thousands of one thread. A raindrop's one tile leaves the other lanes
-    /// idle, and that idleness is cheaper than the spike it prevents.
+    /// **A sprite the eye is inside is in every tile**, and one lane counting thousands of tiles on its own
+    /// is a spike in a pass that is otherwise a few microseconds. Thirty-two lanes stride over the rectangle
+    /// instead, so the worst sprite costs a hundred iterations of a warp rather than thousands of one thread;
+    /// a raindrop's one tile leaves the other lanes idle, which is cheaper than the spike.
     const uint SPRITE_BIN_LANES = 32u;
 
     /// Lanes in one workgroup of the pass over sprites: eight sprites at `SPRITE_BIN_LANES` each.
@@ -48,12 +45,11 @@ namespace Rtx::Shaders
 
     /// Lanes that share one tile in the pass that fills its run.
     ///
-    /// **Thirty-two and not one lane per tile.** A lane walking every sprite alone is a chain of a
-    /// load, a compare and a branch per sprite with
-    /// nothing to hide the load's latency behind, and a frame's tiles are only a few thousand
-    /// lanes — fifteen workgroups on a card with seventy-six multiprocessors. Thirty-two lanes
-    /// take thirty-two sprites at a stride instead, in one coalesced load, and agree on the order
-    /// of what matched through a word in shared memory: `spriteruns.comp` says how.
+    /// **Thirty-two and not one lane per tile.** A lane walking every sprite alone is a chain of a load, a
+    /// compare and a branch per sprite with nothing to hide the load's latency behind, and a frame's tiles are
+    /// only a few thousand lanes: fifteen workgroups on a card with seventy-six multiprocessors. Thirty-two
+    /// lanes take thirty-two sprites at a stride instead, in one coalesced load, and agree on the order of
+    /// what matched through a word in shared memory (`spriteruns.comp` says how).
     const uint SPRITE_RUNS_LANES = 32u;
 
     /// Lanes in one workgroup of the pass over tiles: eight tiles at `SPRITE_RUNS_LANES` each.

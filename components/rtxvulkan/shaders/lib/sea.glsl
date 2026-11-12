@@ -4,9 +4,9 @@
 // The sea's tiles and everything read out of them: the surface's normal, what a cone could not resolve of
 // its slope, and the caustics its curvature focuses.
 //
-// **One height field, differentiated twice.** The normal is its gradient and the caustics are its
-// curvature; the moment either sampled a field of its own the light would land where the surface is not.
-// `WavePass` transforms all three out of one spectrum for that reason, and this reads them.
+// **One height field, differentiated twice**: the normal is its gradient and the caustics its curvature, and
+// if either sampled a field of its own the light would land where the surface is not. `WavePass` transforms
+// all three out of one spectrum for that reason.
 
 #extension GL_EXT_control_flow_attributes : require
 
@@ -24,15 +24,13 @@ const float WATER_REFRACTION_BEND = 1.0 - 1.0 / WATER_IOR;
 
 /// What the rain adds to the water it lands on, as a slope beside the wave field's.
 ///
-/// **Rings from a lattice of impacts, the same trick the drops themselves use.** Each cell of the water
-/// plane holds one impact at a hashed place, repeating on its own phase, and what it leaves is a ring
-/// expanding at `RAIN_RING_SPEED` and dying at `RAIN_RING_LIFE`. The slope points away from the impact,
-/// because that is what a ring is.
+/// **Rings from a lattice of impacts, the same trick the drops themselves use**: each cell of the water plane
+/// holds one impact at a hashed place on its own phase, leaving a ring expanding at `RAIN_RING_SPEED` and
+/// dying at `RAIN_RING_LIFE`; the slope points away from the impact.
 ///
-/// **Beside the spectrum and not in it.** The caustic differentiates the swell a second time, and a ring
-/// eleven centimetres across carries none of that. What the cone could not resolve of a ring is lost slope
-/// like any other, though, and joins `WaterSurface::mLostSlope`: rain on far water is a duller sheet, not a
-/// mirror.
+/// **Beside the spectrum and not in it**: the caustic differentiates the swell a second time and an
+/// eleven-centimetre ring carries none of that. What the cone could not resolve of a ring is lost slope like
+/// any other and joins `WaterSurface::mLostSlope`, so rain on far water is a duller sheet, not a mirror.
 ///
 /// @param lost receives the mean square slope the cone averaged away.
 vec2 rainSlope(vec2 at, float footprint, out float lost)
@@ -128,15 +126,15 @@ vec2 waveCoordinate(uint cascade, vec2 at)
 
 /// What share of the sea's whole curvature a tile still carries at this level of its chain.
 ///
-/// **Read from a table rather than differenced out of the chain.** The fold `causticGain` is a mean against
-/// has to be an ensemble quantity: a footprint's own mean square is largest exactly where the curvature
-/// under it is largest, so an estimate made that way is smallest on the pixels that need the largest
-/// divisor. `Rtx::waveCurvature` states it over the amplitudes instead.
+/// **Read from a table rather than differenced out of the chain**: the fold `causticGain` is a mean against
+/// must be an ensemble quantity, and a footprint's own mean square is largest where the curvature under it
+/// is, making that estimate smallest on the pixels that need the largest divisor. `Rtx::waveCurvature`
+/// states it over the amplitudes instead.
 ///
-/// **The two levels' shares are blended where the sampler blends their values.** That stands in for the
-/// variance of the blend, which is not the blend of the variances — but adjacent levels are two boxes a
-/// factor of two apart and their transfers stay strongly correlated, so the two agree to a few per cent at
-/// the worst blend and exactly at either end of it.
+/// **The two levels' shares are blended where the sampler blends their values**: a stand-in for the variance
+/// of the blend, which is not the blend of the variances, but adjacent levels are two boxes a factor of two
+/// apart with strongly correlated transfers, so the two agree to a few per cent at worst and exactly at
+/// either end.
 float resolvedShare(uint cascade, float level)
 {
     const float last = float(WAVE_LEVELS - 1u);
@@ -150,10 +148,9 @@ float resolvedShare(uint cascade, float level)
 
 /// Which level of a tile's chain a cone this wide can still tell apart.
 ///
-/// **A mip level is the logarithm of a footprint, and that is the whole of the cone's arithmetic.** A level
-/// of the chain is the mean of the four texels above it, so the level whose texels are as wide as the cone
-/// carries the mean of exactly what the cone covers. Never above the finest level: a cone narrower than a
-/// texel has nothing further to be shown.
+/// **A mip level is the logarithm of a footprint**: a level is the mean of the four texels above it, so the
+/// level whose texels are as wide as the cone carries the mean of what the cone covers. Never above the
+/// finest level: a cone narrower than a texel has nothing further to be shown.
 float waveLevel(uint cascade, float footprint)
 {
     return max(log2(footprint / frame.mWaveTexel[cascade]) + frame.mLevelBias, 0.0);
@@ -162,9 +159,9 @@ float waveLevel(uint cascade, float footprint)
 /// Where `at` lands on the ripple field, in its texture's coordinates, or nothing where the field is nought
 /// wide: no sea stood one, or the picture is of a subject in no sea.
 ///
-/// **World-anchored where the wave tiles repeat.** A wake stays where it was stamped as the eye walks past
-/// it, so the field's origin moves by whole texels and the coordinate is taken from it. Past its edge the
-/// sampler would answer still water too; saying so here spares the fetch, which is most of the sea.
+/// **World-anchored where the wave tiles repeat**: a wake stays where it was stamped as the eye walks past,
+/// so the field's origin moves by whole texels. Past its edge the sampler would answer still water too;
+/// saying so here spares the fetch, which is most of the sea.
 bool rippleCoordinate(vec2 at, out vec2 uv)
 {
     if (!(frame.mRippleExtent > 0.0))
@@ -208,9 +205,8 @@ vec3 rippleHessian(vec2 at, float footprint)
 
 /// The water's surface where a ray met it: one read of each tile, and everything taken from it.
 ///
-/// **The normal and what the cone could not resolve of it, out of one fetch a tile.** They are a derivative
-/// and a moment of a single height field, and the moment the two are computed apart the light lands where
-/// the surface is not.
+/// **The normal and what the cone could not resolve of it, out of one fetch a tile**: a derivative and a
+/// moment of one height field, which must not be computed apart.
 struct WaterSurface
 {
     /// Unit, from the gradient of the height field.
@@ -277,19 +273,15 @@ WaterSurface waterSurfaceAt(vec2 at, float footprint)
 /// **Caustics are ray density**, and a change in density is the determinant of the Jacobian of the map from
 /// where light met the surface to where it landed.
 ///
-/// **One index of refraction and not three.** Water's runs 1.3326 to 1.3392 across the visible band by
-/// Cauchy's fit, so blue turns harder than red and a real caustic has coloured edges; the cost of drawing
-/// them would be three determinants over a Hessian that does not depend on the channel, for a handful of
-/// pixels in a hundred thousand that differ by more than one level. It is what would put prism edges on
-/// cusps if the surface ever got steep enough for the determinant to approach zero, and it goes in when it
-/// does.
+/// **One index of refraction and not three.** Water's runs 1.3326 to 1.3392 across the visible band (Cauchy),
+/// so a real caustic has coloured edges; drawing them costs three determinants for a handful of pixels in a
+/// hundred thousand that differ by more than one level. It would put prism edges on cusps if the surface got
+/// steep enough for the determinant to approach zero, and goes in then.
 ///
-/// @param at **where the light met the surface, and not where it landed.** The map above runs from
-///        one to the other, so the Jacobian belongs at `p` — and the caller has `p` for nothing,
-///        having already worked out the refracted path to charge it for absorption. Read at the
-///        landing point instead, the pattern cannot slide as the depth grows and the sun's own
-///        direction never enters it at all: a moon drew the sun's caustics, and a bed at two metres
-///        and one at thirty drew the same ones.
+/// @param at **where the light met the surface, and not where it landed.** The Jacobian belongs there, and
+///        the caller has it already from the refracted path it charged for absorption. Read at the landing
+///        point, the pattern cannot slide as the depth grows and the sun's direction never enters it: a
+///        moon drew the sun's caustics, and a bed at two metres and one at thirty drew the same ones.
 /// @param depth how far below the surface the light then travelled, in world units.
 float caustic(vec2 at, float depth, float footprint)
 {
@@ -298,11 +290,10 @@ float caustic(vec2 at, float depth, float footprint)
     vec3 hessian = vec3(0.0);
     float resolved = 0.0;
 
-    // **Three limits, and the largest of them wins.** The pixel's own cone; the blur two angles put on the
-    // pattern, which grows with the depth because both are angles; and the scale of the pattern itself,
-    // which grows as the *square root* of the depth once the map has folded — that is Snyder and Dera's
-    // other half, and it is a property of branching rather than of any blur. The root is what makes the
-    // change start in the shallows, where a linear term is still under one texel and shows nothing at all.
+    // **Three limits, and the largest wins.** The pixel's own cone; the blur two angles put on the pattern,
+    // which grows with the depth; and the scale of the pattern itself, which grows as the *square root* of the
+    // depth once the map has folded (Snyder and Dera's other half, a property of branching and not of blur),
+    // which starts the change in the shallows where a linear term is still under one texel.
     const float blurred = depth * (WATER_CAUSTIC_SPREAD + WATER_REFRACTION_BEND * frame.mWaveSlope);
     const float branched = WATER_CAUSTIC_GRAIN * sqrt(depth / WATER_CAUSTIC_FOCUS);
     const float widened = max(footprint, max(blurred, branched));
@@ -336,17 +327,17 @@ float caustic(vec2 at, float depth, float footprint)
     // alone that is a bed lit brighter than the water over it lets through.
     //
     // **How far the map has folded at the level this pixel reads, which is not `toward`.** `bend` is sized
-    // against the sea's whole curvature and the Hessian above is only what the cone could resolve, so the
-    // fold the estimator stands at is `toward` scaled by the share still resolved. It goes to nought as the
-    // cone reaches the coarse levels, which is where a surface averaged flat has no gain to remove.
+    // against the sea's whole curvature and the Hessian above is only what the cone resolved, so the fold is
+    // `toward` scaled by the share still resolved; it goes to nought as the cone reaches the coarse levels,
+    // where a surface averaged flat has no gain to remove.
     const float fold = toward * sqrt(resolved);
     const float gathered = 1.0 / (max(abs(determinant), 1.0 / WATER_CAUSTIC_MAX) * causticGain(fold));
 
-    // **Snyder and Dera's law, and the whole of why deep water has none of this.** Past the focus a point
-    // on the bed is reached by several patches of surface at once and this draws one of them, the rest
-    // averaging to the mean — so the pattern fades as a power of the depth, which the sea measures at a
-    // half and `WATER_CAUSTIC_FADE` sets to one, for the reason it gives, while `WATER_CAUSTIC_SPREAD`
-    // broadens it.
+    // **Snyder and Dera's law, and the whole of why deep water has none of this.** Past the focus a point on
+    // the bed is reached by several patches of surface at once and this draws one, the rest averaging to the
+    // mean, so the pattern fades as a power of the depth, which the sea measures at a half and
+    // `WATER_CAUSTIC_FADE` sets to one for the reason it gives.
+
     const float shown = WATER_CAUSTIC_STRENGTH * pow(max(depth / WATER_CAUSTIC_FOCUS, 1.0), -WATER_CAUSTIC_FADE);
 
     return 1.0 + (gathered - 1.0) * shown;

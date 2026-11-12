@@ -25,13 +25,11 @@ namespace Rtx
 {
     namespace
     {
-        /// The channel coming in with its variance, which says where the edges in the light are,
-        /// the channel going out, the one that says where the edges in the surface are and which
-        /// eye each pixel's ray left, the fill in and out — whose count the history fix reads —
-        /// and the accumulator's fast means, which the fix writes its answer into. All pushed.
-        /// Sampled on the three this pass only reads,
-        /// because a twenty-five tap gather wants the texture unit's cache — a few per cent of the
-        /// cascade — and legal from `VK_IMAGE_LAYOUT_GENERAL`.
+        /// The channel coming in with its variance, the channel going out, the surface (the edges in the
+        /// surface, and which eye each pixel's ray left), the fill in and out — whose count the history
+        /// fix reads — and the accumulator's fast means, which the fix writes into. **Sampled on the three
+        /// this pass only reads**, because a twenty-five tap gather wants the texture unit's cache (a few
+        /// per cent of the cascade) and it is legal from `VK_IMAGE_LAYOUT_GENERAL`.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ATROUS_BINDINGS> sBindings{
             computeBinding(Shaders::ATROUS_BIND_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
@@ -83,21 +81,12 @@ namespace Rtx
                 device, sComposingBindings, {}, "atrouscompose.comp.spv", name, specialization);
         }
 
-        /// **One fetch of eight bytes a tap for the surface**, the normal's code and the distance,
-        /// where a half-float guide and a two-float depth were two of sixteen. Measured on the
-        /// default suite against the two channels: 3.19 ms of the cascade to 2.78 in the guild,
-        /// twice, and within the run-to-run spread on the deck, 2.47 to 2.37 and 2.58 at noon and
-        /// 2.17 to 2.14 and 1.78 at dawn — so the octahedral `normalize` at 125 taps costs less
-        /// than the bytes it saves. An earlier try at eight bytes was recorded here as worse, with
-        /// no record of how it read the normal; this measurement replaces it.
-        ///
-        /// **The first level reads a tile in shared memory** (`atrous.comp`), where each texel is
-        /// reached by twenty-five pixels' taps: measured on the default suite, the level went from
-        /// 0.359 to 0.295 ms in the guild and from 0.283 to 0.244 at dawn, to the bit the same. A
-        /// tile with Dolp's permutation for the narrow levels was measured and did not pay, though
-        /// an 8×8 group's 3×3 taps still reach each texel four times at a step of two and 2.25
-        /// times at four (once at eight): what the cache answers for them, it answers without the
-        /// tile's fill and barrier.
+        /// **One fetch of eight bytes a tap for the surface** (the normal's code and the distance) where a
+        /// half-float guide and a two-float depth were two of sixteen: 3.19 ms of the cascade to 2.78 in
+        /// the guild, so the octahedral `normalize` at 125 taps costs less than the bytes it saves.
+        /// **The first level reads a tile in shared memory** (`atrous.comp`), each texel being reached by
+        /// twenty-five pixels' taps: 0.359 to 0.295 ms in the guild. A tile for the narrow levels did not
+        /// pay: what the cache answers for their repeated reads it answers without the fill and barrier.
     }
 
     AtrousPass::AtrousPass(const Device& device, const UpscaleMasks masks)
@@ -134,11 +123,10 @@ namespace Rtx
         assert(buffer.getWidth() >= camera.mWidth);
         assert(buffer.getHeight() >= camera.mHeight);
 
-        // One assignment and not eight, so the filter's rays and the trace's cannot come to
-        // differ: this pass is handed the one struct, and the shader rebuilds the rays with the
-        // trace's own `rayAt`. The scratch was discarded with the rest of the frame's images
-        // (`DenoiseHistory::discard`); every level after the first reads what the one before
-        // wrote, which is what the barriers below order.
+        // One assignment and not eight, so the filter's rays and the trace's cannot come to differ: the
+        // shader rebuilds the rays with the trace's own `rayAt` from the one struct. The scratch was
+        // discarded with the rest of the frame's images (`DenoiseHistory::discard`); every level after
+        // the first reads what the one before wrote, which the barriers below order.
         Shaders::AtrousConstants level{
             .mEyes = frame.mSampled.mEyes,
             .mStep = 1,

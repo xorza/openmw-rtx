@@ -8,22 +8,19 @@
 
 namespace RtxTool
 {
-    /// How long a sky asked to turn takes to cross into each weather, in seconds of world, which is
-    /// also how often the next is asked for.
-    ///
-    /// **One number, so every ask is a crossing and every crossing swaps.** An ask before a crossing
-    /// lands turns it away before its precipitation swaps (`SkyCrossing::ask`); and at a weather's
-    /// own `Transition_Delta` — a minute for most — the swap halfway, which is what a turn exists
-    /// for, lands past the twenty seconds a place runs.
+    /// How long a sky asked to turn takes to cross into each weather, in seconds of world, which is also how often
+    /// the next is asked for. One number, so every ask is a crossing and every crossing swaps: an ask before a
+    /// crossing lands turns it away before its precipitation swaps (`SkyCrossing::ask`), and at a weather's own
+    /// `Transition_Delta`, a minute for most, the halfway swap a turn exists for lands past the twenty seconds a
+    /// place runs.
     inline constexpr float sTurnSeconds = 4.0f;
 
     /// The sky as the harness crosses it, one weather into another, handed to the world whole on
     /// every frame (`MWBase::World::holdWeather`) where the harness has taken the sky.
     ///
-    /// **Here and not the game's queue, because the queue answers a person too late.** The game
-    /// runs one crossing and keeps one weather asked behind it, so a second ask during a crossing
-    /// only replaced the one behind, and the sky showed nothing new for the minute the first took
-    /// to land. Here an ask turns the crossing it lands on toward itself at once.
+    /// Here and not the game's queue, because the queue answers a person too late: the game runs one crossing and
+    /// keeps one weather asked behind it, so a second ask during a crossing only replaced the one behind. Here an
+    /// ask turns the crossing it lands on toward itself at once.
     class SkyCrossing
     {
     public:
@@ -34,14 +31,12 @@ namespace RtxTool
 
         /// Turns the sky toward `weather` from what it shows now.
         ///
-        /// **The weather that shows most keeps its share, and the other gives its share up.** The
-        /// sky is `(1 - c)` of the one it leaves and `c` of the one it goes to, and the world mixes
-        /// two and no more, so a third can only take one of the two places. Below halfway the
-        /// crossing keeps its start and goes to `weather` from where it is; from halfway it starts
-        /// again from the one it was going to, at `1 - c`. Either way at most half of the sky
-        /// changes its weather on the press, and none of the precipitation, which the world swaps
-        /// at halfway. An ask for the weather it leaves turns it round where it stands, which moves
-        /// nothing at all.
+        /// The weather that shows most keeps its share, and the other gives its share up: the sky is `(1 - c)` of
+        /// the one it leaves and `c` of the one it goes to, and the world mixes two and no more. Below halfway the
+        /// crossing keeps its start and goes to `weather` from where it is; from halfway it starts again from the
+        /// one it was going to, at `1 - c`. So at most half of the sky changes its weather on the press, and none of
+        /// the precipitation, which the world swaps at halfway. An ask for the weather it leaves turns it round
+        /// where it stands.
         void ask(Rtx::Weather weather);
 
         /// Stands at `weather` at once, crossing nothing: what an ask is under a stopped clock,

@@ -38,9 +38,8 @@ namespace Rtx
 
         /// The hits no picture is drawn from, a diffuse bounce's far end: a chunk inside the active
         /// grid, whose eye, reflections and bed read the stack for its sharpness. At a bounce's far
-        /// hit the stack's detail is averaged over a hemisphere and filtered away, and the
-        /// composite read there in its place took 0.05 to 0.08 ms off the trace at 1080p and 0.2
-        /// to 0.6 ms at 7680 by 2160, in the exteriors (`./omw bench`).
+        /// hit the stack's detail is averaged away, and the composite read there took 0.05 to 0.08 ms
+        /// off the trace at 1080p and 0.2 to 0.6 ms at 7680 by 2160 (`./omw bench`).
         Undetailed,
 
         /// Every hit: a chunk outside the active grid, where the quad tree flattens too.
@@ -69,11 +68,10 @@ namespace Rtx
     /// How a surface is shaded, as the file says it. Vanilla textures are pre-lit, so `mDiffuse` is
     /// not an albedo yet.
     ///
-    /// **The normal and specular maps are the content's companions, found by name.** A Morrowind
-    /// NIF has no slot for either, so every one arrives as an `_n`, `_nh` or `_spec` file beside the
-    /// diffuse, which `Shader::MapVisitor` attaches at load under the same `[Shaders]` switches
-    /// the rasterizer reads. A surface that has none is vanilla, and vanilla pictures do not change:
-    /// that is the rule these maps enter under.
+    /// **The normal and specular maps are the content's companions, found by name**: every one
+    /// arrives as an `_n`, `_nh` or `_spec` file beside the diffuse, which `Shader::MapVisitor`
+    /// attaches at load under the same `[Shaders]` switches the rasterizer reads. A surface that has
+    /// none is vanilla, and vanilla pictures do not change: that is the rule these maps enter under.
     struct Material
     {
         MaterialKind mKind = MaterialKind::Surface;
@@ -122,8 +120,7 @@ namespace Rtx
         /// colour, which the rasterizer lights by the cell's ambient as it lights `mDiffuseColour` by
         /// the lamps and the sun — `texture × (D × lit + A × ambient + E)`. Under it the trace's fill
         /// and the ambient at a path's end; a bounce of a lamp's light stays the diffuse's. Nothing
-        /// where nothing stated one, as a material made by hand states none: its diffuse stands for
-        /// it, `getAmbientColour`.
+        /// where nothing stated one: its diffuse stands for it, `getAmbientColour`.
         std::optional<osg::Vec3f> mAmbientColour{};
 
         /// What the fill is reflected by: the stated ambient colour, or the diffuse where none is.
@@ -250,11 +247,10 @@ namespace Rtx
         /// is set.
         ///
         /// **Beside the fields, because the list and the fields fall out of step nowhere else.**
-        /// What keeps a slot alive is the material row that names it — the walk's own hold on an
-        /// image goes on the frame after the material arrived — so a map missing from this list is
-        /// a slot freed under a live material and handed to the next texture that arrives, and the
-        /// surface then wears whatever took it. A map added to the struct is added here, and
-        /// `MaterialTable` adds the layers' own to what this walks.
+        /// What keeps a slot alive is the material row that names it, so a map missing from this
+        /// list is a slot freed under a live material and handed to the next texture that arrives.
+        /// A map added to the struct is added here, and `MaterialTable` adds the layers' own to what
+        /// this walks.
         template <class Visit>
         void forEachTexture(Visit visit) const
         {
@@ -289,11 +285,10 @@ namespace Rtx
         bool isBlended() const { return mAlphaMode == AlphaMode::Blend; }
 
         /// Whether what is behind this surface is meant to show through it, by the rasterizer's own
-        /// rule: a blend over what is behind draws every texel at its alpha (`objects.frag`), and
-        /// discards only where the content asked for a test. The two answers want opposite things
-        /// from traversal — a mask averaged and tested is right for the leaf, light attenuated as
-        /// it passes is right for the pane and turns the leaf to gauze. Not the opposite of
-        /// `isCutout`, and a pane is both.
+        /// rule: a blend draws every texel at its alpha (`objects.frag`) and discards only where the
+        /// content asked for a test. The two answers want opposite things from traversal — a mask
+        /// averaged and tested is right for the leaf, light attenuated as it passes for the pane.
+        /// Not the opposite of `isCutout`, and a pane is both.
         ///
         /// **A blend is traced as a cut where its texture is a mask.** Morrowind keeps its foliage
         /// under `NiAlphaProperty` with no test, so a leaf card and a pane of glass carry the same
@@ -301,13 +296,11 @@ namespace Rtx
         /// along its fringe alone, and a cut is what traversal resolves cheaply. A texture that
         /// never reaches solid is no mask: the lantern's glass peaks at 119, and a cut drops all of
         /// it. So a material alpha below one, or such a texture with no test, is a pane. A test cuts
-        /// at its reference, as the rasterizer's discard does. An additive surface is neither: it
-        /// covers nothing.
+        /// at its reference. An additive surface is neither: it covers nothing.
         ///
-        /// **A mask's soft fringe stays a cut for every ray but the eye's** (`isSoftEdged`). Every
-        /// DXT3 leaf, banner and rope the game ships is soft at its edge, and traced as panes they
-        /// turned the trace's sun and sky rays through them to grain: at Seyda Neen's pier the panes
-        /// went from 3 to 91.
+        /// **A mask's soft fringe stays a cut for every ray but the eye's** (`isSoftEdged`): traced
+        /// as panes, the soft edges of every DXT3 leaf, banner and rope turned the trace's sun and
+        /// sky rays through them to grain.
         bool isTranslucent() const
         {
             return mAlphaMode == AlphaMode::Blend && mBlend == BlendKind::Over
@@ -319,10 +312,8 @@ namespace Rtx
         /// sail the game ships, and a cobweb or a crystal that is solid anywhere at all. Cut at
         /// `sBlendCutoff` for every ray but the eye's: **the eye meets a texel the cut drops with a
         /// chance of its alpha** (`Shaders::MATERIAL_SOFT_EDGE`), so the frames average to the blend
-        /// the rasterizer draws, an edge fades out rather than stopping and a faint texture keeps
-        /// its coverage; what it meets is the solid it is. A light ray keeps the cut, which is
-        /// noiseless and cheap — panes for every ray turned the pier's sun and sky rays to grain,
-        /// from 3 panes to 91.
+        /// the rasterizer draws; what it meets is the solid it is. A light ray keeps the cut, which is
+        /// noiseless and cheap.
         bool isSoftEdged() const
         {
             return mAlphaMode == AlphaMode::Blend && mBlend == BlendKind::Over && !mAlphaTest.cuts() && mOpacity >= 1.0f

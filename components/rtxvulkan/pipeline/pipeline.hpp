@@ -40,14 +40,11 @@ namespace Rtx
     }
 
     /// The map entries a stage's specialization words need, and the `VkSpecializationInfo` over
-    /// them. Built here rather than by the caller, because it is the same table every time: a table
-    /// is indexed by `constant_id`, which the shared headers name (`SPEC_*`), so `constant_id` `i`
-    /// takes word `i`, at word `i`'s offset. Words because that is what every constant this
-    /// renderer specializes on is — a `bool` reaches SPIR-V as a 32-bit value like a `uint` does.
-    /// The words are copied, so nothing outlives the object but what `getInfo` points at, which is
-    /// the object's own.
+    /// them: `constant_id` `i` (named by the shared headers' `SPEC_*`) takes word `i`, at word
+    /// `i`'s offset. Words because a `bool` reaches SPIR-V as a 32-bit value like a `uint`. The
+    /// words are copied, so nothing outlives the object but what `getInfo` points at.
     ///
-    /// **And the census's word after them, where the device counts** (`counts.h`): the module's own,
+    /// And the census's word after them, where the device counts (`counts.h`): the module's own,
     /// which every stage is handed, so no module can be made that counts into another's.
     class Specialization
     {
@@ -97,9 +94,8 @@ namespace Rtx
 
     /// What the three kinds of pipeline share: the handle, the layout descriptors are pushed
     /// against and push constants written through, and the bind point the two are addressed at.
-    /// One object with its layout because they fail as one: the handle is made against the layout
-    /// once it is this object's member, so a handle that cannot be made leaves the layout to the
-    /// unwind rather than behind for `vkDestroyDevice` to find.
+    /// One object with its layout because they fail as one: a handle that cannot be made leaves the
+    /// layout to the unwind rather than behind for `vkDestroyDevice` to find.
     class Pipeline
     {
     public:

@@ -51,13 +51,10 @@ namespace Rtx::Testing
         /// the wrong colour cannot pass by matching a total.
         const osg::Vec3f sHaze(0.1f, 0.2f, 0.4f);
 
-        /// A coverage band faint enough that the air is still even enough to compute with.
-        ///
-        /// **One path serves every kind of air**, so this chooses nothing but how much of the band
-        /// the arithmetic carries. At a thousandth it moves the density by at most two parts in a
-        /// thousand, which is below anything asserted here, so a test that wants the band exercised
-        /// sets this and one that does not sets one. The banks have their own tests, and those run
-        /// at nought.
+        /// A coverage band faint enough that the air is still even enough to compute with. One path serves every
+        /// kind of air, so this chooses only how much of the band the arithmetic carries: at a thousandth the
+        /// density moves by at most two parts in a thousand, below anything asserted here. A test that wants
+        /// the band exercised sets this and one that does not sets one; the banks have their own tests, at nought.
         constexpr float sVolumeOverEvenAir = 0.999f;
 
         /// A frame `columns` columns of the air volume across, and a pixel more, so a centre pixel
@@ -79,11 +76,9 @@ namespace Rtx::Testing
             return window * window / (span * span + 1.0f);
         }
 
-        /// A level rectangle standing between a ray along the y axis and a lamp above it.
-        ///
-        /// **Not `sheetAt`, because half a lid is the point.** A square about the origin is
-        /// either over the whole march or over none of it, and what these tests need is a shadow
-        /// boundary that falls where they put it rather than where the grid does.
+        /// A level rectangle standing between a ray along the y axis and a lamp above it. Not `sheetAt`, because
+        /// half a lid is the point: a square about the origin is over the whole march or none of it, and these
+        /// tests need a shadow boundary where they put it rather than where the grid does.
         std::array<osg::Vec3f, 4> makeLid(float height, float from, float to, float halfWidth)
         {
             return {
@@ -114,11 +109,10 @@ namespace Rtx::Testing
 
         /// Fog takes what Beer-Lambert says over the path and gives its own colour back in place.
         ///
-        /// **A horizontal ray is what makes the march exact.** The layer's density varies only with
-        /// height, so along a ray that holds its own the medium is uniform — and then the march
-        /// telescopes: the per-step transmittances multiply to `exp(-sigma * span)` whatever the
-        /// step distribution is, and the scattered terms sum to `colour * (1 - T)`. So this asserts
-        /// the analytic answer rather than the march's approximation of it.
+        /// A horizontal ray makes the march exact: the layer's density varies only with height, so along such a
+        /// ray the medium is uniform and the march telescopes, the per-step transmittances multiplying to
+        /// `exp(-sigma * span)` whatever the step distribution and the scattered terms summing to
+        /// `colour * (1 - T)`. So this asserts the analytic answer and not the march's approximation of it.
         TEST_F(RtxVisibilityTest, fogTakesWhatBeerLambertSaysOverThePathAndGivesItsOwnColourBack)
         {
             constexpr std::uint32_t size = 33;
@@ -162,25 +156,21 @@ namespace Rtx::Testing
                 EXPECT_EQ(level, int{ encodeSrgb(wall) }) << "with no fog in the cell";
         }
 
-        /// What the water shows fades through the air its ray crosses to get there, as that thing
-        /// would fade seen across the same air directly.
+        /// What the water shows fades through the air its ray crosses to get there, as that thing would fade
+        /// seen across the same air directly.
         ///
-        /// **The froxel volume holds the eye's rays and no other**, so a leg a surface sends on
-        /// was charged no air at all: across a fogged bay the far shore showed in the water under a
-        /// wall of fog that hid the shore itself — Seyda Neen's harbour at noon.
+        /// The froxel volume holds the eye's rays and no other, so a leg a surface sends on is charged no air:
+        /// across a fogged bay the far shore showed in the water under a wall of fog that hid the shore itself.
         ///
-        /// **An emissive ceiling two hundred units over flat water, at two brightnesses**, so that
-        /// what the ceiling puts into the pixel is the difference of the two, and the water's own
-        /// column and its Fresnel share cancel out of it. Through even air of `sigma` that
-        /// difference is the airless one times the air's transmittance over the whole path the
-        /// ceiling's light takes. The haze is the sky's own grey, so what the air scatters in is the
-        /// same above either ceiling and cancels too; and the layer is lifted so high that its
-        /// falloff over two hundred units is under a hundred-thousandth.
+        /// An emissive ceiling two hundred units over flat water, at two brightnesses, so that what it puts into
+        /// the pixel is the difference of the two and the water's own column and Fresnel share cancel. Through
+        /// even air of `sigma` that difference is the airless one times the transmittance over the whole path.
+        /// The haze is the sky's own grey, so what the air scatters in cancels too, and the layer is lifted so
+        /// high that its falloff over two hundred units is under a hundred-thousandth.
         ///
-        /// Twice: a unit above the water looking down, the reflection, where the light crosses the
-        /// two hundred to the water and the eye's unit of air after it, `exp(-sigma * 201)`; and a
-        /// unit below looking up through Snell's window, the refraction, where it crosses the two
-        /// hundred and then water, `exp(-sigma * 200)`.
+        /// Twice: a unit above the water looking down, the reflection, `exp(-sigma * 201)`; and a unit below
+        /// looking up through Snell's window, the refraction, which crosses the two hundred and then water,
+        /// `exp(-sigma * 200)`.
         TEST_F(RtxVisibilityTest, whatTheWaterShowsFadesThroughTheAirItsRayCrosses)
         {
             constexpr std::uint32_t size = 33;
@@ -222,10 +212,9 @@ namespace Rtx::Testing
 
         /// The fog layer sits on the water, thins with height above it, and stops at the surface.
         ///
-        /// Fog gathers over water and drains off high ground, so the level a cell records is where
-        /// its layer sits — and *at* it rather than in it, because a point under the surface already
-        /// has the water's own absorption over it. Fog there would be a second medium laid on the
-        /// first, putting grey between the eye and the seabed twice over.
+        /// Fog gathers over water and drains off high ground, so the level a cell records is where its layer
+        /// sits, at it and not in it: a point under the surface already has the water's own absorption, and fog
+        /// there would put grey between the eye and the seabed twice over.
         TEST_F(RtxVisibilityTest, theFogLayerSitsOnTheWaterThinsAboveItAndStopsAtIt)
         {
             constexpr std::uint32_t size = framedInColumns(4);
@@ -245,19 +234,15 @@ namespace Rtx::Testing
                 return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
             };
 
-            // A dry cell is handed minus infinity and falls back to sea level, which is where a
-            // water level of zero puts the layer anyway — so the two hold the same air above the
-            // base and have to draw the same frame through it.
+            // A dry cell is handed minus infinity and falls back to sea level, which is where a water level of
+            // zero puts the layer anyway, so the two hold the same air above the base and must draw the same
+            // frame through it.
             //
-            // **Above the base and not on it.** The two are different worlds *below* it: a dry
-            // cell's layer is capped at its full strength down there and a flooded one holds no air
-            // at all, since the water's own absorption is what stands over a point under the
-            // surface. A ray along the base samples both sides of that step — a column of the
-            // volume has width, and the tent reaches a column either side of it, which at this
-            // frame and this distance is some five hundred units of height at the far end — so the
-            // two read up to thirteen levels apart there and agree exactly six hundred units over
-            // it. The closed form this replaced integrated the profile along the ray alone and so
-            // could not see the step at all.
+            // Above the base and not on it: below it a dry cell's layer is capped at its full strength and a
+            // flooded one holds no air at all. A ray along the base samples both sides of that step (a column
+            // has width and the tent reaches a column either side, some five hundred units of height at the far
+            // end here), so the two read up to thirteen levels apart there and agree exactly six hundred units
+            // over it.
             constexpr float clearOfTheBase = 600.0f;
             const auto lookAbove = [&](float level) {
                 Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, -distance, clearOfTheBase),
@@ -343,18 +328,14 @@ namespace Rtx::Testing
 
         /// An eye under the surface has no air in front of it, and the volume must say so too.
         ///
-        /// **The one path that could not tell on its own.** `fogDensityAt` gives nothing under the
-        /// surface and `fogColumn` integrates nothing there, so the field and the closed form need
-        /// nothing more. The volume is an accumulation along a *column's* ray rather than a field
-        /// read along the pixel's, and a froxel the surface stands inside draws its sample from the
-        /// air the column found — which for a column aimed up out of the water is the air above it.
-        /// A pixel under the water then paid for that air, in a band along the waterline where the
-        /// columns first begin to leave the water: 135 pixels of this frame, the worst of them 61 of
-        /// 255 out.
+        /// `fogDensityAt` gives nothing under the surface and `fogColumn` integrates nothing there, but the
+        /// volume accumulates along a column's ray and a froxel the surface stands inside draws its sample from
+        /// the air the column found, which for a column aimed up out of the water is the air above it. A pixel
+        /// under the water then paid for that air in a band along the waterline (135 pixels here, the worst 61
+        /// of 255 out).
         ///
-        /// **Asserted as the whole frame against the same frame with no weather in the cell**, which
-        /// is the only exact form the claim has: nothing else differs between the two, so a submerged
-        /// eye owes the fog literally nothing and every byte has to match.
+        /// Asserted as the whole frame against the same frame with no weather in the cell, the only exact form
+        /// the claim has: a submerged eye owes the fog nothing and every byte must match.
         TEST_F(RtxVisibilityTest, theVolumesAirIsNotOverAnEyeUnderTheSurface)
         {
             constexpr std::uint32_t size = 65;
@@ -386,15 +367,13 @@ namespace Rtx::Testing
 
         /// A lamp lights the air it stands in, and by the isotropic share of what it delivers.
         ///
-        /// **`INV_FOUR_PI` is what this is really about.** A lamp reaches a point in the fog as
-        /// irradiance, exactly as it reaches a surface, and what comes back toward the eye is that
-        /// irradiance spread over the whole sphere. Dropping the factor is not subtle — it lights
-        /// the air 4pi times over, and the centre pixel here goes from 121 of 255 to 211.
+        /// `INV_FOUR_PI` is what this is about: a lamp reaches a point in the fog as irradiance, as it reaches a
+        /// surface, and what comes back toward the eye is that spread over the whole sphere. Dropping the factor
+        /// lights the air 4pi times over (the centre pixel goes from 121 of 255 to 211).
         ///
-        /// **The lamp is put far enough away that its falloff is flat along the ray**, which is what
-        /// makes the march's answer analytic: with the light it delivers constant, the scattered
-        /// terms telescope to `E / 4pi * (1 - T)` exactly as a constant fog colour does. Twenty
-        /// thousand units off a two-hundred-unit ray varies the irradiance by 0.02%.
+        /// The lamp is far enough away that its falloff is flat along the ray, so the march's answer is
+        /// analytic: the scattered terms telescope to `E / 4pi * (1 - T)`. Twenty thousand units off a
+        /// two-hundred-unit ray varies the irradiance by 0.02%.
         TEST_F(RtxVisibilityTest, aLampLightsTheAirItStandsInByTheIsotropicShareOfWhatItDelivers)
         {
             constexpr std::uint32_t size = 33;
@@ -455,14 +434,11 @@ namespace Rtx::Testing
             const float scattered = 0.25f * Shaders::INV_PI * 0.5f;
             EXPECT_NEAR(look(true), int{ encodeSrgb(0.5f * wall + scattered) }, 1) << "the lamp in the air";
 
-            // **And nothing at all through a lid**, which is the whole of what the march's one ray
-            // buys: every lamp at every step is weighed into one reservoir and the one held is
-            // traced to, so a lantern behind something stops lighting the air in front of it.
-            //
-            // **Against the same lid with no lamp**, because the lid stands over the wall as well:
-            // the wall's light is one bounce, and a bounce the lid stops brings back the lid and not
-            // the sky. The lamp lights only the lid's upper face, which nothing under it sees, so
-            // the two frames differ only where the lid failed to stop the lamp.
+            // And nothing at all through a lid, the whole of what the march's one ray buys: every lamp at every
+            // step is weighed into one reservoir and the one held is traced to, so a lantern behind something
+            // stops lighting the air in front of it. Against the same lid with no lamp, because the lid also
+            // stands over the wall: the wall's light is one bounce, which the lid stops, and the lamp lights
+            // only the lid's upper face, so the frames differ only where the lid failed to stop the lamp.
             EXPECT_EQ(look(true, true), look(false, true)) << "a lamp behind a lid still lit the air";
 
             // **And nothing from a lamp whose class the view hides**, as the surfaces' walk drops it:
@@ -474,16 +450,15 @@ namespace Rtx::Testing
 
         /// Where the volume's own air stands, how thick it is, and what lights it.
         ///
-        /// **One fixture for the two tests below, because they differ in the lid and in nothing
-        /// else.** Both stand a lamp beside a two thousand unit ray with a reach that covers eight
-        /// hundred units of it, which is less than the stretch a single probe of the ray would answer
-        /// for — and that is the whole of what they are about. A lamp reaching the whole ray asks the volume
-        /// no question the closed form has not already answered.
+        /// One fixture for the two tests below, which differ in the lid and nothing else. Both stand a lamp
+        /// beside a two thousand unit ray with a reach that covers eight hundred units of it, less than the
+        /// stretch a single probe of the ray would answer for; a lamp reaching the whole ray asks the volume no
+        /// question the closed form has not answered.
         ///
-        /// **A narrow field of view, because a column is `FOG_VOLUME_SCALE` pixels wide.** At sixty
-        /// degrees a column of a thirty-three pixel frame spans twenty-two of them, so the ray the
-        /// middle pixel reads its air along leaves the ray it was traced along by hundreds of units.
-        /// Ten degrees puts that under forty, which is small against a reach of five hundred.
+        /// A narrow field of view, because a column is `FOG_VOLUME_SCALE` pixels wide: at sixty degrees a
+        /// column of a thirty-three pixel frame spans twenty-two, so the ray the middle pixel reads its air
+        /// along leaves the ray it was traced along by hundreds of units. Ten degrees puts that under forty,
+        /// small against a reach of five hundred.
         struct LampInTheAir
         {
             /// How far the wall stands, and so how long the ray the middle pixel reads is.
@@ -510,20 +485,14 @@ namespace Rtx::Testing
 
         /// A lamp behind a lid lights none of the volume's air either.
         ///
-        /// **The same assertion as the one above and not the same test.** The closed form weighs
-        /// every lamp of the whole ray into one reservoir and buys one ray with it, so a lid over
-        /// the march takes the whole lamp with it. The volume answers a froxel at a time, and the
-        /// question here is whether the *seeing* it charges a froxel is the seeing at that froxel.
+        /// The closed form weighs every lamp of the whole ray into one reservoir, so a lid over the march takes
+        /// the whole lamp with it. The volume answers a froxel at a time, and the question is whether the
+        /// seeing it charges a froxel is the seeing at that froxel.
         ///
-        /// **A short reach is what makes the question sharp.** A probe drawn anywhere along a
-        /// stretch and outside the lamp's reach finds no lamp, so it holds nothing, buys no ray,
-        /// and `lampVisible` answers one for want of anything to trace — while every slice of the
-        /// stretch still sums the lamp where it actually stands. A lantern behind a lid then lights
-        /// the air in front of it, which is what this refuses.
-        ///
-        /// **The lid stands in both frames**, so the two scenes differ in the lamp and in nothing
-        /// else: a lid also covers part of the sky the wall gathers, and a test that added one
-        /// would be measuring that as well.
+        /// A short reach makes it sharp: a probe drawn outside the lamp's reach finds no lamp, buys no ray, and
+        /// `lampVisible` answers one for want of anything to trace, while every slice of the stretch still sums
+        /// the lamp where it stands, so a lantern behind a lid would light the air in front of it. The lid
+        /// stands in both frames, since it also covers part of the sky the wall gathers.
         TEST_F(RtxVisibilityTest, aLampBehindALidLightsNoneOfTheVolumesAirEither)
         {
             using Fixture = LampInTheAir;
@@ -570,28 +539,20 @@ namespace Rtx::Testing
 
         /// The air under a lamp settles instead of flickering block by block.
         ///
-        /// **What a boiling image is, measured as what it is.** A froxel stands for a column's pixels
-        /// squared, so an estimator that decides one thing for a whole stretch of a column paints
-        /// that decision across a block of the frame — and redecides it next frame. The complaint
-        /// is not that the mean is wrong, it is that the frames do not stand still, so what this
-        /// measures is how far a settled pixel moves from one frame to the next.
+        /// A froxel stands for a column's pixels squared, so an estimator that decides one thing for a stretch
+        /// of a column paints that decision across a block and redecides it next frame. The complaint is not a
+        /// wrong mean but frames that do not stand still, so this measures how far a settled pixel moves from
+        /// one frame to the next: the step and not the spread, because the volume averages nine tenths of its
+        /// history in, so consecutive frames are strongly correlated and a standard deviation over a short run
+        /// mostly estimates that correlation.
         ///
-        /// **The step and not the spread.** The volume averages nine tenths of its history in, so
-        /// consecutive frames of a run are strongly correlated and a standard deviation over a
-        /// short run is mostly an estimate of that correlation. The mean step between neighbours is
-        /// what a viewer sees, and its own estimator settles in a run this length.
+        /// Half the lit stretch is under a lid so the seeing genuinely changes along the ray: with none
+        /// shadowed a probe has nothing to be wrong about, and with all shadowed the test above asks.
         ///
-        /// **Half the lit stretch under a lid**, so the seeing genuinely changes along the ray:
-        /// with none of it shadowed there is nothing for a probe to be wrong about, and with all of
-        /// it shadowed the test above already asks the question.
-        ///
-        /// **And the bound is a bound and not the figure.** This settles at 0.4% of the pixel's own
-        /// value, where the estimator it replaced — one probe answering for a stretch of eight
-        /// slices — swings by about half the lamp's whole term every frame, which the history takes
-        /// to a tenth of the pixel. Three per cent stands between the two with room either side.
-        ///
-        /// The same estimator with the history switched off measures 5.9%, which is what the
-        /// temporal half of the filter is worth here and why a froxel reprojects its own middle.
+        /// The bound is a bound and not the figure: this settles at 0.4% of the pixel's value, where one probe
+        /// answering for a stretch of eight slices swings by about half the lamp's whole term every frame, which
+        /// the history takes to a tenth of the pixel. Three per cent stands between with room either side. The
+        /// same estimator with the history off measures 5.9%, which is what the temporal half is worth here.
         TEST_F(RtxVisibilityTest, theVolumeSettlesTheAirUnderALampRatherThanFlickeringBlockByBlock)
         {
             using Fixture = LampInTheAir;
@@ -622,11 +583,9 @@ namespace Rtx::Testing
             litThroughFog(camera, Fixture::sExtinction);
             camera.mFogUniform = sVolumeOverEvenAir;
 
-            // **Nothing in the frame but the lit air**, which is what makes the figure below a
-            // figure about the air. Black fog, a black sky and no ambient leave the wall unlit and
-            // every ray that misses it black — where a lit wall would put its own bounce in the
-            // pixel, and a single sample of a bounce with no denoiser over it moves further between
-            // frames than anything this is measuring.
+            // Nothing in the frame but the lit air, so the figure below is about the air: black fog, black sky
+            // and no ambient leave the wall unlit and every missing ray black, where a lit wall's single
+            // undenoised bounce would move further between frames than anything measured here.
             camera.mFogColour = osg::Vec3f();
             camera.mSkyHorizon = osg::Vec3f();
             camera.mSkyZenith = osg::Vec3f();
@@ -657,27 +616,22 @@ namespace Rtx::Testing
             EXPECT_LT(step / mean, 0.03) << "how far a settled pixel of lit air moves between frames";
         }
 
-        /// **The air beside an edge holds its lamp light still, and as bright as open air.** A
-        /// froxel's lamps are integrated along its column's middle ray, and their image keeps no
-        /// history, so the stretch they are integrated over has to end where that ray ends, on every
-        /// frame.
+        /// The air beside an edge holds its lamp light still, and as bright as open air. A froxel's lamps are
+        /// integrated along its column's middle ray and their image keeps no history, so the stretch they are
+        /// integrated over has to end where that ray ends, on every frame.
         ///
-        /// Two posts 760 units out with a slit between them 44 units wide, and the centre pixel
-        /// looking through the slit at a black wall. The two columns the pixel reads both have their
-        /// middle ray in the slit, and their outer two or three pixels behind a post, so the
-        /// jittered ray each draws meets a post on a quarter to three eighths of the frames. A lamp
-        /// twenty units over the ray at 800, with a reach of a hundred, puts nearly all of its light
-        /// into the slice from 732 to 886 — which a stretch cut at the post holds none of.
+        /// Two posts 760 units out with a slit 44 units wide between them, and the centre pixel looking through
+        /// it at a black wall. Both columns the pixel reads have their middle ray in the slit and their outer
+        /// two or three pixels behind a post, so the jittered ray each draws meets a post on a quarter to
+        /// three eighths of the frames. A lamp twenty units over the ray at 800, with a reach of a hundred,
+        /// puts nearly all its light into the slice from 732 to 886, which a stretch cut at the post holds none of.
         ///
-        /// **Measured against the same air with no posts**, which holds still to the halves it is read
-        /// through: the froxels' draws move every frame, and a value stored into a half may round
-        /// either way — Vulkan leaves the rounding to the implementation, and AMD's rounds toward
-        /// nought — so a settled froxel may step by one ulp of a half, `2^-10` of itself at most.
-        /// Measured 2.6e-5 on a low-end AMD integrated GPU, on two frames of the settled forty-eight. Cut where the
-        /// jittered ray stopped, the pixel beside the posts stepped by 20% of itself from one frame
-        /// to the next and settled 12% darker than the open air. Cut where the middle ray stops, it
-        /// is the open air's to 1.5 per cent, and steps by 2.9%: the draws of the shadow rays the
-        /// posts' edges stop, which the froxel's history averages and nothing here can take away.
+        /// Measured against the same air with no posts, which holds still to the halves it is read through: a
+        /// value stored into a half may round either way (Vulkan leaves it to the implementation, AMD's rounds
+        /// toward nought), so a settled froxel may step by `2^-10` of itself at most (2.6e-5 measured on a
+        /// low-end AMD integrated GPU). Cut where the jittered ray stopped, the pixel beside the posts stepped
+        /// by 20% of itself and settled 12% darker than open air; cut where the middle ray stops, it is the open
+        /// air's to 1.5 per cent and steps by 2.9%, the draws of the shadow rays the posts' edges stop.
         TEST_F(RtxVisibilityTest, theLampLightBesideAnEdgeHoldsStillAndAsBrightAsOpenAir)
         {
             constexpr std::uint32_t size = framedInColumns(4);
@@ -749,13 +703,11 @@ namespace Rtx::Testing
             EXPECT_LT(edged.mStep, 0.1) << "how far the pixel beside the posts moves between frames";
         }
 
-        /// **The air's history turns once a trace, and a frame closed untraced turns nothing.** A
-        /// trace writes one half of the air and reads the other as its history, so the trace after
-        /// a frame the ring closed with no trace reads what the trace before it wrote: forty frames
-        /// with one such frame in the middle end on the air forty frames end on without it, to the
-        /// bit. The pair followed the ring's frame slot before, which the untraced frame advances,
-        /// and the trace after it read the air of the trace two before. And the history matters: the
-        /// same forty with the past lost at that frame end elsewhere.
+        /// The air's history turns once a trace, and a frame closed untraced turns nothing. A trace writes one
+        /// half of the air and reads the other as its history, so the trace after a frame the ring closed with
+        /// no trace reads what the trace before it wrote: forty frames with one such frame in the middle end on
+        /// the air forty frames end on without it, to the bit, and the same forty with the past lost at that
+        /// frame end elsewhere.
         TEST_F(RtxVisibilityTest, aFrameClosedUntracedLeavesTheAirsHistoryWhereTheLastTraceLeftIt)
         {
             using Fixture = LampInTheAir;
@@ -803,38 +755,25 @@ namespace Rtx::Testing
 
         /// The volume lights the air up to a surface, wherever inside a slice the surface stands.
         ///
-        /// **Two ways a froxel grid gets the last slice wrong, and one measurement for both.** The
-        /// slice a surface stands inside is sampled on both sides of it unless the sampling knows
-        /// where the surface is — `fogdepth.rgen` says what that drew — and what a pixel reads
-        /// between two slices' edges is a shape the integrate pass has to have agreed to, which
-        /// `FogSlice` says. Either error is a function of where inside its slice the surface
-        /// stands, so the wall is put at four depths across three slices and the volume is held
-        /// against the closed form at each: half and nine tenths of the way through the slice from
-        /// 732 to 886 units, a tenth of the way through the next, and a quarter of the way through
-        /// the one from 1055.
+        /// A froxel grid gets the last slice wrong two ways: sampled on both sides of the surface unless the
+        /// sampling knows where it is (`fogdepth.rgen`), and what a pixel reads between two slices' edges must
+        /// be a shape the integrate pass agreed to (`FogSlice`). Either error depends on where inside its slice
+        /// the surface stands, so the wall is put at four depths across three slices and held against the
+        /// closed form: half and nine tenths of the way through the slice from 732 to 886 units, a tenth of the
+        /// way through the next, and a quarter of the way through the one from 1055.
         ///
-        /// **The lamp stands in front of the wall at every one of them**, so a draw that lands
-        /// behind the wall finds the lamp hidden by it — which is the contamination a froxel
-        /// sampled on both sides of its surface carries, at its strongest where the lamp is
-        /// brightest. And not behind it: the closed form judges a whole ray by one shadow ray from
-        /// the lamp's closest approach, and a wall standing between that point and the lamp is a
-        /// question that one ray answers for none of the rest.
+        /// The lamp stands in front of the wall at every one, so a draw landing behind the wall finds the lamp
+        /// hidden (the contamination a froxel sampled on both sides carries, strongest where the lamp is
+        /// brightest); and not behind it, since the closed form judges a whole ray by one shadow ray from the
+        /// lamp's closest approach. The wall's own light, which the lamp lights identically on both paths, is
+        /// taken off: a frame with no air measures the wall alone, and the air in front takes the transmittance
+        /// the closed form states.
         ///
-        /// **And the wall's own light is taken off both paths**, because a lamp in front of the
-        /// wall lights it, identically on either. A frame with no air in it measures what the wall
-        /// alone is worth, and what the air in front of it takes of that is the transmittance the
-        /// closed form states.
-        ///
-        /// **Five per cent, where the estimator sampled on both sides of the wall lost between
-        /// seven and eleven per cent of the lit air at the first three depths**, and the line the
-        /// sampler draws through an inverse square is a few per cent from it over a slice at the
-        /// lamp's closest approach.
-        ///
-        /// **Eight frames averaged after twenty-four.** The air keeps the froxels' history, the same
-        /// on both paths, so the ratio cancels what is left of it: measured within 0.09% of one at
-        /// every depth, and within 0.0002 of what 48 frames with 16 averaged read. The wall alone
-        /// keeps no history, a frame of it the same to the bit whatever came before, so it draws
-        /// the frames it averages and no more.
+        /// Five per cent, where sampling on both sides of the wall lost seven to eleven per cent of the lit air
+        /// at the first three depths, and the line the sampler draws through an inverse square is a few per cent
+        /// from the closed form over a slice at the lamp's closest approach. Eight frames averaged after
+        /// twenty-four: the froxels' history is the same on both paths so the ratio cancels it (within 0.09% of
+        /// one at every depth), and the wall alone keeps no history so it draws only the frames it averages.
         TEST_F(RtxVisibilityTest, theVolumeLightsTheAirUpToASurfaceWhereverInASliceItStands)
         {
             using Fixture = LampInTheAir;
@@ -898,43 +837,23 @@ namespace Rtx::Testing
             }
         }
 
-        /// The air a step uncovers behind a surface is this frame's air.
+        /// The air a step uncovers behind a surface is this frame's air. A column's ray is one of its block's, so
+        /// a pixel beside the surface that ray met sees on past it into the column's further slices; a froxel
+        /// there that kept what it had held the light of the last frame the column's ray reached it (under a
+        /// clock run fast, an hour's light round every silhouette).
         ///
-        /// **What a silhouette reads past itself.** A column's ray is one of its block's, and a
-        /// pixel beside the surface that ray met sees on past it into the column's further slices;
-        /// an eye that moves brings the air behind a surface into view the same way. A froxel there
-        /// that kept what it had held the light of the last frame the column's ray reached it: under
-        /// a clock run fast, an hour's light round every silhouette.
+        /// A pillar two hundred units in front of the eye. The air settles in one colour seen from 200 units up
+        /// (the air has to have been seen, or a froxel holds nothing, a darker rim and not an earlier hour's
+        /// light); the eye comes down behind the pillar and the air turns to another colour; the eye then
+        /// steps 150 units aside and looks past the pillar's edge at 60. That frame is held against the same
+        /// frame of a run with the second colour all along, to the closed form's five per cent. Black sky, no
+        /// ambient, no lamp: the pixel is the air alone, its colour times `1 - exp(-ln 2)`. One scene through
+        /// the run, since a scene handed over has no previous frame to reproject from.
         ///
-        /// **A pillar two hundred units in front of the eye, and the air's colour changed behind
-        /// it.** The air settles in one colour seen from 200 units up, where the eye looks over the
-        /// pillar at the air behind it; the eye comes down behind the pillar, and the air turns to
-        /// another colour while it stands there; and the eye then steps 150 units aside, so the
-        /// middle pixel looks past the pillar's edge at 60. The frame after the step is held against
-        /// the same frame of a run that had the second colour all along. Black sky, no ambient and
-        /// no lamp, so the pixel is the air alone: its colour times the half of the ray the air
-        /// takes, `1 - exp(-ln 2)`.
-        ///
-        /// **From 200 units up, because the air has to have been seen.** A froxel that no ray ever
-        /// reached holds nothing at all, which is a darker rim and not the light of an earlier hour.
-        /// Over the pillar's top at 60, the middle ray after the step is in sight from 500 units on:
-        /// the line from that eye crosses the pillar's plane at `200 - 200 * 200 / 500 = 120`.
-        ///
-        /// **One scene through the run**, because a scene handed over is a frame with no previous
-        /// one to reproject from, and every history would start again from nothing.
-        ///
-        /// **The run held against is the closed form to five per cent**, what
-        /// `theVolumeLightsTheAirUpToASurfaceWhereverInASliceItStands` allows the volume's
-        /// quadrature at a wall.
-        ///
-        /// **What the tolerance holds.** From the eye behind the pillar, the middle ray after the
-        /// step is hidden from `150 * 200 / 60 = 500` units on, and the air from there to the wall
-        /// holds `exp(-ln 2 / 4) - 0.5 = 0.341` of the colour. Drawn every frame, those froxels
-        /// carry the first colour at `0.9^65` after the sixty-four frames of the turn and this one,
-        /// which is `0.341 * 0.3 * 0.00106 = 1.1e-4` in red and in blue, under half-float storage
-        /// whose step at these values is `2.4e-4`. Kept, they carry it at nine tenths, up to
-        /// `0.341 * 0.3 * 0.9 = 0.092`, and the volume that kept them missed by 0.044 in red and in
-        /// blue: the first colour's red in, its blue out.
+        /// The tolerance: after the step the middle ray is hidden from `150 * 200 / 60 = 500` units on, and
+        /// the air from there to the wall holds `exp(-ln 2 / 4) - 0.5 = 0.341` of the colour. Drawn every frame
+        /// those froxels carry the first colour at `0.9^65`, `0.341 * 0.3 * 0.00106 = 1.1e-4`, under the
+        /// half-float step of `2.4e-4`; kept, they carry it up to `0.341 * 0.3 * 0.9 = 0.092`.
         TEST_F(RtxVisibilityTest, theAirAStepUncoversBehindASurfaceIsThisFramesAir)
         {
             constexpr std::uint32_t size = 33;
@@ -986,28 +905,18 @@ namespace Rtx::Testing
             }
         }
 
-        /// The banked field holds as much air as an even one, which is what `FOG_COVERAGE` is for.
+        /// The banked field holds as much air as an even one, which is what `FOG_COVERAGE` is for. The noise
+        /// redistributes the fog and does not remove it: the extinction is Morrowind's own view distance turned
+        /// into a coefficient, and a band leaving 40% of the volume clear would make the world twice as clear as
+        /// the game says. Dividing the coverage by its own mean holds the average, and this makes that constant
+        /// a measurement, since moving the band without re-measuring moves this ratio by the constant's error.
         ///
-        /// **The noise redistributes the fog, it does not remove it.** The extinction the host
-        /// derived is Morrowind's own view distance turned into a coefficient, and a band that
-        /// leaves 40% of the volume clear would silently make the world twice as clear as the game
-        /// says. Dividing the coverage by its own mean is what holds the average where it was — and
-        /// this is what makes that constant a measurement rather than a note, since moving the band
-        /// without re-measuring moves this ratio by the constant's own error.
-        ///
-        /// **It settles just under one, and two things put it there rather than a mistake.** A
-        /// banked field's optical depth varies far more than an even one's, and `exp` is convex, so
-        /// more light survives the same *average* density. And a far step still reads a coarser
-        /// level of the field than a near one, which `FOG_FIELD_COARSEST` holds to a twentieth
-        /// rather than removing — `everyLevelAMarchMayReadClearsTheShareTheDensityIsDividedBy` is
-        /// what measures that half and says where the cap goes.
-        ///
-        /// Measured at 0.969 against a thickness of 0.09, and the convex half of the deficit scales
-        /// with that thickness, so a thinner fog would sit closer to one.
-        ///
-        /// Nine viewpoints, because one is not a sample: the steps bunch near the camera, so a
-        /// single frame weighs one small volume of the field heavily and lands anywhere within six
-        /// per cent. Nine brings that to about two.
+        /// It settles just under one (0.969 against a thickness of 0.09), for two reasons and not a mistake:
+        /// `exp` is convex and a banked field's optical depth varies more, so more light survives the same
+        /// average density (this half scales with thickness); and a far step reads a coarser level, which
+        /// `FOG_FIELD_COARSEST` holds to a twentieth, measured by
+        /// `everyLevelAMarchMayReadClearsTheShareTheDensityIsDividedBy`. Nine viewpoints, since the steps bunch
+        /// near the camera and one frame lands anywhere within six per cent, nine within about two.
         TEST_F(RtxVisibilityTest, theBankedFieldHoldsAsMuchAirAsAnEvenOne)
         {
             constexpr std::uint32_t size = 64;
@@ -1038,17 +947,13 @@ namespace Rtx::Testing
             EXPECT_NEAR(ratio, 0.969, 0.05) << "banked air against even air, over nine viewpoints";
         }
 
-        /// **A store that is not finite is counted against the module that made it, and a sound
-        /// frame counts nought.** A fog colour of NaN puts one into every froxel that holds air —
-        /// the columns of the frame by every slice, one scatter store each, with the sunward store
-        /// and the lamps' still finite. It goes no further: the scatter store is a history rounded
-        /// into a half (`roundedToHalf`), which counts the value and clamps it into the half's range,
-        /// as every rounded history does, so the integration and the trace are handed a finite
-        /// number. Which is why every module counts what it is about to store rather than trusting
-        /// a NaN to show downstream: the fault this was found by read as black blocks, and now reads
-        /// as nothing at all. **And a report the renderer drops uncollected hands its count to the
-        /// next report it makes**, and every frame's count reaches the test's total once, whatever
-        /// became of its report, so no frame's store goes unread.
+        /// A store that is not finite is counted against the module that made it, and a sound frame counts
+        /// nought. A fog colour of NaN puts one into every froxel that holds air (one scatter store each), and
+        /// goes no further: the scatter store is a history rounded into a half (`roundedToHalf`), which counts
+        /// the value and clamps it into range, so the integration and the trace are handed a finite number.
+        /// That is why every module counts what it is about to store rather than trusting a NaN to show
+        /// downstream. A report the renderer drops uncollected hands its count to the next report, and every
+        /// frame's count reaches the test's total once, so no frame's store goes unread.
         TEST_F(RtxVisibilityTest, aStoreThatIsNotFiniteIsCountedAgainstItsModule)
         {
             constexpr std::uint32_t size = 8 * Shaders::FOG_VOLUME_SCALE;
@@ -1127,19 +1032,13 @@ namespace Rtx::Testing
             EXPECT_EQ(afterDoor.mNotFinite.total(), 0u);
         }
 
-        /// The wind carries the banks downwind, and a camera that walks with the wind sees the air
-        /// stand still.
+        /// The wind carries the banks downwind, and a camera that walks with the wind sees the air stand still.
         ///
-        /// **Exact rather than a threshold, because advection is a translation.** The field is read
-        /// at `position - drift`, where the drift is the distance the wind has blown so far — the
-        /// host integrates it, `FogDrift` — so an eye moved by exactly that much at the same moment
-        /// reads the field the unmoved eye reads with no wind at all — churn and all, since the
-        /// churn is a function of the moment and not of the wind. Nothing else in this frame knows
-        /// where the eye is: the wall is behind it, the rays reach the sky, and the layer is a
-        /// function of height alone.
-        ///
-        /// **And the sign is the half that matters.** Sampling from further *upwind* as the drift
-        /// grows is what carries a bank past; adding would walk the whole field into the wind. A
+        /// Exact and not a threshold, because advection is a translation: the field is read at
+        /// `position - drift`, the host integrating the drift (`FogDrift`), so an eye moved by that much at the
+        /// same moment reads what the unmoved eye reads with no wind, churn and all (the churn is a function of
+        /// the moment and not of the wind). Nothing else in the frame knows where the eye is. The sign is the
+        /// half that matters: sampling from further upwind as the drift grows carries a bank past, and a
         /// camera moved the wrong way sees a different field, which the last assertion checks.
         TEST_F(RtxVisibilityTest, theWindCarriesTheFieldAndAnEyeThatWalksWithItSeesItStandStill)
         {
@@ -1179,36 +1078,27 @@ namespace Rtx::Testing
             // fourteen hundred units against a ray that runs thirty thousand.
             EXPECT_LT(apart(still, downwind), 1e-3) << "an eye walking with the wind sees the air stand still";
 
-            // The wrong sign is two different fields, and the gap between them is the banks
-            // themselves. Measured at 0.03 of the frame's own mean of about 0.5 by the march, and at
-            // 0.0087 by the volume, whose tent over a frame eight columns wide and whose line from
-            // one slice to the next both smooth a single frame's draws — which is what they are for
-            // — against a gap of exactly nought for the right sign.
+            // The wrong sign is two different fields, the gap between them being the banks themselves: 0.03 of
+            // the frame's mean of about 0.5 by the march, 0.0087 by the volume, whose tent and slice-to-slice
+            // line smooth a single frame's draws, against exactly nought for the right sign.
             EXPECT_GT(apart(still, upwind), 0.005) << "an eye walking against the wind sees another air";
         }
 
-        /// The fog scatters the sun forward far harder than back, which is what a Mie phase is for.
+        /// The fog scatters the sun forward far harder than back, which is what a Mie phase is for. A single
+        /// Henyey-Greenstein lobe cannot do this shape: real droplets throw a peak within a degree of the light
+        /// far above anything one `g` reaches, and still send a sixth of isotropic backwards (the blaze around
+        /// a low sun, and fog not going black when you turn away from it).
         ///
-        /// **A single Henyey-Greenstein lobe cannot do this shape.** Real droplets throw a peak
-        /// within a degree of the light that is orders of magnitude above anything one `g` reaches,
-        /// and still send a sixth of isotropic *backwards* — the blaze around a low sun, and fog not
-        /// going black when you turn away from it. Before this the fog was lit by the sky and the
-        /// lamps and not at all by the sun, so facing it rendered identically to facing away.
-        ///
-        /// **A ratio, because it is the only thing the fixture computes exactly.** Two frames differ
-        /// in nothing but which side of the camera the sun is on, at the same elevation — so the
-        /// column of fog it crosses, the extinction, the transmittance and the march all cancel, and
-        /// what is left is `p(26.6 degrees) / p(153.4)`. An isotropic fog would give exactly one.
+        /// A ratio, the only thing the fixture computes exactly: two frames differ only in which side of the
+        /// camera the sun is on, at the same elevation, so the column, extinction, transmittance and march
+        /// cancel, leaving `p(26.6 degrees) / p(153.4)`. An isotropic fog would give exactly one.
         TEST_F(RtxVisibilityTest, theFogScattersTheSunForwardFarHarderThanBack)
         {
-            // **Wider than the four columns most tests here use, because the volume answers per
-            // column.** A column holds the air along *its own* ray, so at four columns the column
-            // the centre pixel reads points six degrees off that pixel's, climbs out of the layer,
-            // and carries air a fifth thinner than the level ray the closed form below is written
-            // for. The bias falls with the columns across the frame — 0.63 at four, 0.53 at sixteen,
-            // 0.515 at thirty-two and 0.509 at sixty-four, against the 0.4999 it is going to — and
-            // at 1920 by 1080 a column is well under a degree wide. The ratio does not care, since
-            // the transport it divides out is the column's either way.
+            // Wider than the four columns most tests here use, because the volume answers per column: at four
+            // the column the centre pixel reads points six degrees off that pixel's, climbs out of the layer and
+            // carries air a fifth thinner than the level ray the closed form is written for. The bias falls with
+            // the columns (0.63 at four, 0.53 at sixteen, 0.515 at thirty-two, 0.509 at sixty-four, towards
+            // 0.4999) and the ratio does not care, since the transport it divides out is the column's either way.
             constexpr std::uint32_t size = framedInColumns(32);
             constexpr std::size_t centre = centreValueOf(size);
 
@@ -1230,15 +1120,11 @@ namespace Rtx::Testing
                 camera.mFogExtinction = 3.0e-4f;
                 camera.mFogUniform = 1.0f;
 
-                // Nothing to hit and nothing else to scatter: every ray runs out to `FOG_REACH`
-                // through even air whose own colour is black, so the pixel is the sun and no more.
-                //
-                // **Out of reach of the shadow rays and not merely out of the frame.** The march
-                // sends one at the sun from every stretch of the ray, and a wall standing at y = 0
-                // is squarely in the path of the ones the *backward* case sends — so it shadowed the
-                // near steps, at a march offset that decides which, and the ratio below moved by a
-                // sixth with the dither. A sheet below the world is past `mFar` in every direction
-                // any ray here travels.
+                // Nothing to hit and nothing else to scatter: every ray runs to `FOG_REACH` through even air
+                // whose own colour is black, so the pixel is the sun and no more. Out of reach of the shadow
+                // rays and not merely out of the frame: a wall at y = 0 is in the path of the *backward* case's
+                // shadow rays and would shadow the near steps at a dither-dependent offset. A sheet below the
+                // world is past `mFar` in every direction any ray here travels.
                 SceneDesc scene;
                 addQuad(scene, sheetAt(4000.0f, -200000.0f));
 
@@ -1258,19 +1144,15 @@ namespace Rtx::Testing
 
             EXPECT_NEAR(ahead / behind, forward / backward, 1.0f) << "forward against backward scattering";
 
-            // **And the absolute value, because a ratio cannot see a factor of `4 pi`.** That is the
-            // mistake this shape of function invites: normalise the phase so isotropic reads one —
-            // the convention a lamp is written in — and both frames grow together while their ratio
-            // stays put. What the eye gets is the sun's irradiance times the phase *per steradian*,
-            // less the fog's own column on the way down, over a ray that runs to `FOG_REACH`:
+            // And the absolute value, because a ratio cannot see a factor of `4 pi`: normalise the phase so
+            // isotropic reads one (a lamp's convention) and both frames grow together. What the eye gets is the
+            // sun's irradiance times the phase per steradian, less the fog's own column on the way down, over a
+            // ray that runs to `FOG_REACH`:
             //
             //   12.7 * 0.225158 * exp(-2600 * 3e-4 / 0.44721) * (1 - exp(-3e-4 * 30000)) = 0.4998
             //
-            // which the sRGB curve puts at 188 of 255. Four pi times that is white.
-            //
-            // **The tolerance is what a frame thirty-two columns across has left over**, which the
-            // frame size above is about: 0.515 measured against 0.4999 here, and falling as the frame
-            // grows rather than sitting where it is.
+            // which the sRGB curve puts at 188 of 255; four pi times that is white. The tolerance is what a
+            // frame thirty-two columns across has left over: 0.515 measured against 0.4999, falling as it grows.
             const float climb = 0.5f / std::sqrt(1.25f);
             const float column = std::exp(-Shaders::FOG_HEIGHT * 3.0e-4f / climb);
             const float crossed = 1.0f - std::exp(-3.0e-4f * Shaders::FOG_REACH);
@@ -1283,13 +1165,10 @@ namespace Rtx::Testing
             EXPECT_GT(behind, 0.01f) << "a sixth of isotropic still comes back";
         }
 
-        /// A lid over the march takes the sun out of the air beneath it, and takes all of it.
-        ///
-        /// **Exactly what sunless air scatters, not merely less than open air.** A shaft that leaked
-        /// a tenth of the sun would still be darker than the open sky beside it, and an assertion
-        /// that only asked for darker would pass while it leaked. The lid spans the whole march and
-        /// the camera's own ray never reaches it — it runs level while the lid is five hundred units
-        /// overhead — so what changes between the two frames is the shadow ray and nothing else.
+        /// A lid over the march takes the sun out of the air beneath it, and takes all of it. Exactly what
+        /// sunless air scatters, since a shaft that leaked a tenth of the sun would still be darker than open
+        /// sky and pass an assertion that only asked for darker. The lid spans the whole march and the camera's
+        /// level ray never reaches it (five hundred units overhead), so only the shadow ray differs.
         TEST_F(RtxVisibilityTest, aLidOverTheMarchTakesTheSunOutOfTheAirBeneathIt)
         {
             constexpr std::uint32_t size = 33;
@@ -1297,11 +1176,9 @@ namespace Rtx::Testing
             constexpr float irradiance = 4.0f;
 
             const auto look = [&](bool lidded, bool lit) {
-                // The same sheet either way, over the march or under it, so the two frames differ
-                // in what the shadow ray finds and in nothing else — not in what is in the scene,
-                // nor in how large it is. Drawn from both faces for that same reason: a sheet the
-                // eye met from over and one it met from under would not be the same sheet, and a
-                // roof in the game has an underside the content modelled.
+                // The same sheet either way, over the march or under it, so the frames differ in what the shadow
+                // ray finds and nothing else, not in what is in the scene nor its size. Two-sided, since a roof
+                // in the game has an underside the content modelled and the eye meets the sheet from either side.
                 SceneDesc scene;
                 addQuad(scene, sheetAt(40000.0f, lidded ? 500.0f : -500.0f),
                     scene.addMaterial(Material{ .mTwoSided = true }));
@@ -1334,22 +1211,20 @@ namespace Rtx::Testing
             EXPECT_GT(open, shaded + 20) << "and there was a sun to take";
         }
 
-        /// **A point under a bank's top is lit as the clear air its slant to the sun crosses**
-        /// (`slantCoverage`). The test states the field (`VulkanRenderer::setFogField`): full in the
-        /// lower half of the tile's height and empty in the upper, at every level, and each scale's
-        /// offset puts the change at z = 600. The turns and the warp are horizontal, so every scale
-        /// has its top there. The eye stands at z = 250 inside the bank and looks level at a black
-        /// wall, in air that scatters nothing of its own, under a sun at a cosine of 0.8.
+        /// A point under a bank's top is lit as the clear air its slant to the sun crosses (`slantCoverage`).
+        /// The field (`VulkanRenderer::setFogField`) is full in the lower half of the tile's height and empty in
+        /// the upper at every level, each scale's offset putting the change at z = 600 (the turns and warp are
+        /// horizontal). The eye stands at z = 250 inside the bank looking level at a black wall, in air that
+        /// scatters nothing of its own, under a sun at a cosine of 0.8.
         ///
-        /// With a lift of 0.2 the layer's height is 520, so the beam's slant is 520 / 0.8 = 650 and
-        /// its middle is at z = 250 + 520 = 770, over the top: the slant's coverage is nought and the
-        /// sun reaches the eye's air whole. Against a field full everywhere, whose slant is charged
-        /// the bank's coverage `1 / FOG_COVERAGE` = 2.8066, the centre pixel is brighter by
+        /// With a lift of 0.2 the layer's height is 520, the beam's slant 520 / 0.8 = 650 and its middle at
+        /// z = 250 + 520 = 770, over the top: the slant's coverage is nought and the sun reaches the eye's air
+        /// whole. Against a field full everywhere, whose slant is charged `1 / FOG_COVERAGE` = 2.8066, the
+        /// centre pixel is brighter by
         ///
         ///   exp(8.9e-4 * exp(-250 / 520) * 2.8066 * 650) = exp(1.00383) = 2.7287
         ///
-        /// since the air along the eye's ray is the same in both. Measured at 2.7322. Charged with the
-        /// point's own coverage instead, the two frames are one.
+        /// (measured 2.7322), the air along the eye's ray being the same in both.
         TEST_F(RtxVisibilityTest, aPointUnderABanksTopIsLitThroughTheClearAirItsSlantCrosses)
         {
             constexpr std::uint32_t size = 33;
@@ -1423,31 +1298,22 @@ namespace Rtx::Testing
                 << "the slant was charged with coverage it does not cross";
         }
 
-        /// A sprite fades through the layer's own integral, not through one sample of it.
+        /// A sprite fades through the layer's own integral, not through one sample of it. A descending ray
+        /// tells the two apart: along a level ray one sample is the whole answer, but a ray dropping three scale
+        /// heights crosses a layer that thickens under it, and the mean of an exponential over that stretch is
+        /// not the exponential at its middle, so a puff of smoke and the wall behind it faded at two rates.
         ///
-        /// **A descending ray is what tells the two apart.** Along a level ray the air holds one
-        /// density and a sample anywhere in it is the whole answer, so the midpoint the sprite walk
-        /// took was exact. A ray that drops three scale heights crosses a layer that thickens under
-        /// it, and the mean of an exponential over that stretch is not the exponential at its middle
-        /// — so a puff of smoke and the wall behind it, one distance from the eye, faded at two
-        /// rates.
-        ///
-        /// **An adding sprite, because what it puts into the pixel is the transmittance times a
-        /// constant.** `spritesAlong` writes `mAdded` as `(1 - addedThrough) * SUNLIT_WHITE`, and
-        /// for one sprite that is its own `glow` — the texel, the paint and the chord, all of them
-        /// the same in both legs, times `reaching`. A covering sprite is lit by the froxel it stands
-        /// in, and the froxel moves when the fog does.
-        ///
-        /// The camera stands three scale heights up and looks down at forty-five degrees to a sprite
-        /// on the base, so the ray runs `7800 * sqrt(2)` = 11030.87 units from `z = 7800` to
-        /// `z = 0`. Over that stretch the layer's mean falloff is
+        /// An adding sprite, since what it puts into the pixel is the transmittance times a constant
+        /// (`spritesAlong` writes `mAdded` as `(1 - addedThrough) * SUNLIT_WHITE`, for one sprite its own
+        /// `glow` times `reaching`); a covering sprite is lit by the froxel it stands in, which moves with the
+        /// fog. The camera stands three scale heights up looking down at 45 degrees to a sprite on the base,
+        /// so the ray runs `7800 * sqrt(2)` = 11030.87 units. The layer's mean falloff over it is
         ///
         ///   (exp(-3) - exp(0)) / (0 - 3) = 0.3167376
         ///
-        /// so the optical depth is `3e-4 * 11030.87 * 0.3167376` = 1.048177 and what is left of the
-        /// sprite is `exp(-1.048177)` = 0.35058. One sample at the middle reads `exp(-1.5)` =
-        /// 0.2231302 instead, for a depth of 0.738438 and a transmittance of 0.47784 — a third more
-        /// of the sprite than the air leaves.
+        /// so the optical depth is `3e-4 * 11030.87 * 0.3167376` = 1.048177 and the sprite keeps
+        /// `exp(-1.048177)` = 0.35058. One sample at the middle reads `exp(-1.5)` = 0.2231302, a depth of
+        /// 0.738438 and a transmittance of 0.47784: a third more than the air leaves.
         TEST_F(RtxVisibilityTest, aSpriteFadesThroughTheWholeLayerAndNotOneSampleOfIt)
         {
             constexpr std::uint32_t size = 33;
@@ -1500,17 +1366,11 @@ namespace Rtx::Testing
             EXPECT_NEAR(hazed / clear, 0.35058f, 0.02f) << "the layer's integral over the whole descent";
         }
 
-        /// The air behind a pane is the air that is there.
-        ///
-        /// **A column of the volume ends where the eye's own ray ends, and the eye sees through
-        /// glass.** A column stopped at the first surface its ray meets would leave every slice past a
-        /// pane as it stood, and the room behind a window with no air at all: a wall four thousand
-        /// units off behind a pane at one thousand would keep 0.66 of its light where 0.25 is what
-        /// the air leaves it.
-        ///
-        /// **A ratio against the same scene in clear air**, so the pane's own half and the wall's
-        /// own radiance divide out and what is left is the transmittance. The wall glows, for the
-        /// reason the test below gives: a figure no shadow, no ambient and no bounce can move.
+        /// The air behind a pane is the air that is there. A column of the volume ends where the eye's own ray
+        /// ends, and the eye sees through glass: a column stopped at the first surface would leave every slice
+        /// past a pane as it stood (a wall 4000 units off behind a pane at 1000 would keep 0.66 of its light
+        /// where 0.25 is what the air leaves). A ratio against the same scene in clear air, so the pane's half
+        /// and the wall's radiance divide out; the wall glows, for the reason the test below gives.
         TEST_F(RtxVisibilityTest, theAirBehindAPaneIsTheAirThatIsThere)
         {
             constexpr std::uint32_t size = 33;
@@ -1558,35 +1418,24 @@ namespace Rtx::Testing
             EXPECT_NEAR(look(true, extinction) / look(true, 0.0f), open, 1.0e-3f) << "and the same behind a pane";
         }
 
-        /// A pane is hazed over its own distance and not over the path behind it.
+        /// A pane is hazed over its own distance and not over the path behind it. A composite run before the
+        /// water and the air rather than after multiplies the pane by the transmittance measured to the surface
+        /// behind it, so a lit window a few units out arrives as dim as the wall four thousand units further on.
         ///
-        /// **Two stretches of one path, split at the glass.** A composite run before the water and
-        /// the air rather than after them multiplies the pane by the transmittance measured to the
-        /// surface *behind* it — and a lit window a few units out arrives as dim as the wall four
-        /// thousand units further on, wherever along the path the glass stands.
+        /// A surface that glows on its own, so the radiance under the asserted transmittance is a figure no
+        /// shadow, ambient term or bounce can move: the glow joins the light and not the albedo, so the wall
+        /// behind carries an albedo of nought, and the pane's own figure divides out of the ratio against clear
+        /// air. The eye stands 4000 units from the wall and the pane is held at 1000 and at 3000, so over air of
+        /// extinction 3.5e-4 the answers are `exp(-0.35)` = 0.70469 and `exp(-1.05)` = 0.34994, where
+        /// compositing from the wall's own column would read one number for both.
         ///
-        /// **A surface that glows on its own, because a lit one brings its own questions.** What is
-        /// asserted is a transmittance, so the radiance under it has to be a figure no shadow, no
-        /// ambient term and no bounce can move. The glow joins the light rather than the albedo, so
-        /// the wall behind carries an albedo of nought and stays dark whatever the scene puts on it,
-        /// and the pane's own figure divides back out of the ratio against the same scene in clear
-        /// air.
+        /// The same two figures with a second pane in front, the same fault a layer deeper: a stack charged the
+        /// medium in front of its nearest layer reads a glowing pane behind a plain one at five hundred units as
+        /// if it stood there. The plain pane halves both frames and divides out.
         ///
-        /// The eye stands 4000 units from the wall, and the pane is held at 1000 units and again at
-        /// 3000, so over air of even density and an extinction of 3.5e-4 the two answers are
-        /// `exp(-0.35)` = 0.70469 and `exp(-1.05)` = 0.34994. Composited from the wall's own column
-        /// instead, both would read that column, and the same number as each other.
-        ///
-        /// **And the same two figures with a second pane in front of it**, which is the same fault
-        /// one layer deeper: a stack charged the medium in front of its *nearest* layer reads a glowing
-        /// pane behind a plain one at five hundred units as though it stood at five hundred,
-        /// wherever along the path it stands. The plain pane halves both
-        /// frames and divides out of the ratio.
-        ///
-        /// **The tolerances are the volume's own quadrature and nothing else.** Its slices are
-        /// quadratic in depth, so a longer stretch is read across coarser ones: the near answer
-        /// stands 0.003 over the closed form and the far one 0.014, and each tolerance is the next
-        /// round figure above its own.
+        /// The tolerances are the volume's own quadrature: its slices are quadratic in depth, so a longer
+        /// stretch is read across coarser ones (0.003 over the closed form near, 0.014 far), each tolerance the
+        /// next round figure above.
         TEST_F(RtxVisibilityTest, aPaneIsHazedOverItsOwnDistanceAndNotOverThePathBehindIt)
         {
             constexpr std::uint32_t size = framedInColumns(4);
@@ -1651,13 +1500,12 @@ namespace Rtx::Testing
                 << "three thousand units of it, behind a second pane";
         }
 
-        /// **A moon's light in the air is one level across its disc, with no spot at its centre**
-        /// (`fogMoonTerm`): the phase's diffraction peak is for a source half a degree across, and on a
-        /// disc of twelve it drew a bright spot on a crescent's dark side. The eye looks along the moon's
-        /// line, and half a radius off it; both stand inside the disc, so both read the phase at the
-        /// limb, within the 2% that 32 frames of the fog's draws leave, where the peak put them 13% apart.
-        /// Two radii off stands outside and reads less.
-        /// The moon turns about the vertical, so its slant through the air is one at all three.
+        /// A moon's light in the air is one level across its disc, with no spot at its centre (`fogMoonTerm`):
+        /// the phase's diffraction peak is for a source half a degree across, and on a disc of twelve it drew a
+        /// bright spot on a crescent's dark side. The eye looks along the moon's line and half a radius off it,
+        /// both inside the disc and reading the phase at the limb within the 2% that 32 frames of the fog's
+        /// draws leave, where the peak put them 13% apart; two radii off stands outside and reads less. The moon
+        /// turns about the vertical, so its slant through the air is one at all three.
         TEST_F(RtxVisibilityTest, aMoonsLightInTheAirIsOneLevelAcrossItsDisc)
         {
             constexpr std::uint32_t size = 33;
@@ -1696,39 +1544,26 @@ namespace Rtx::Testing
             EXPECT_LT(lit(2.0f * radius), atCentre) << "and the glow falls away outside the disc";
         }
 
-        /// A moon too faint for a shadow ray still lights the air.
+        /// A moon too faint for a shadow ray still lights the air. `FOG_SHAFT_FLOOR` is a threshold on the ray
+        /// and not on the light: it asks whether a shaft cut out of what the pair delivers would be visible, and
+        /// ninety degrees off a moon it is not. The scatter pass read the same flag to decide whether the moons
+        /// lit the air, so both left the frame together, and one column at a time (`fogVolumeAlong` takes the
+        /// phase from the column's own direction), so the tent the integrate pass reads averaged a lit column
+        /// with a black one: a seam across the air.
         ///
-        /// **`FOG_SHAFT_FLOOR` is a threshold on the ray and not on the light.** It asks whether a
-        /// shaft cut out of what the pair delivers would be visible at all, and ninety degrees off a
-        /// moon it is not. The scatter pass read the same flag to decide whether the moons lit the
-        /// air, so both of them left the frame together the moment their share of the sky's term
-        /// crossed the threshold, rather than losing only their shadow.
+        /// Measured in a channel the air's own colour barely holds, and in radiance: the threshold is
+        /// `FOG_SHAFT_FLOOR` of the brightest channel of the fog colour, so an air bright in red and green and
+        /// near black in blue puts the crossing far above what the air puts into blue. The faintest leg adds
+        /// eight parts in a hundred thousand there, a quarter of the display curve's smallest step, so through
+        /// the curve the figure would fall on whichever side of a byte the air sits.
         ///
-        /// **And they left it one column at a time.** `fogVolumeAlong` takes the phase from the
-        /// column's own direction, so neighbouring columns sit either side of the threshold and the
-        /// tent the integrate pass reads averages a lit column with a black one. What that draws is
-        /// a seam across the air rather than a step in time.
-        ///
-        /// **Measured in a channel the air's own colour barely holds, and in radiance.** The
-        /// threshold is `FOG_SHAFT_FLOOR` of the *brightest* channel of the fog colour, so an air
-        /// bright in red and green and near black in blue puts the crossing far above what the air
-        /// itself puts into blue. The faintest leg adds eight parts in a hundred thousand to that
-        /// channel, a quarter of the display curve's smallest step, so read through the curve the
-        /// figure would be whichever side of a byte the air happens to sit on.
-        ///
-        /// **What is asserted is the light per unit of irradiance**, which is bounded above and
-        /// below rather than fixed: a leg under the threshold casts no ray and arrives unshadowed,
-        /// so it delivers *more* per unit than one that pays for its own shadow, and the fog's own
-        /// beam is what stands between the two. Nothing may deliver less than the shadowed leg, and
-        /// nothing may deliver more than twice it. The step this is about reads nought.
-        ///
-        /// **Less than the shadowed leg by what the volume can hold, and no more.** The integrated
-        /// air a pixel reads keeps the air's colour and the moons' light summed in one half float a
-        /// channel (`FOG_VOLUME_FORMAT`), so every reading here is off by up to half a step at its own
-        /// magnitude and a difference of two by a whole one, which a leg's figure then divides by
-        /// its irradiance. The faintest leg puts two hundred steps into the channel, so its figure
-        /// is good to half a per cent — and held to the shadowed leg's exactly, it came back a
-        /// third of a per cent under it.
+        /// Asserted is the light per unit of irradiance, bounded and not fixed: a leg under the threshold casts
+        /// no ray and arrives unshadowed, delivering more per unit than one that pays for its shadow. Nothing
+        /// may deliver less than the shadowed leg, by what the volume can hold and no more (the integrated air
+        /// keeps the air's colour and the moons' light in one half float a channel, `FOG_VOLUME_FORMAT`, so a
+        /// reading is off by up to half a step and a difference by a whole one; the faintest leg puts two
+        /// hundred steps in the channel, good to half a per cent), nor more than twice it. The step this is
+        /// about reads nought.
         TEST_F(RtxVisibilityTest, aMoonTooFaintForItsOwnShadowStillLightsTheAir)
         {
             constexpr std::uint32_t size = 33;
@@ -1750,11 +1585,9 @@ namespace Rtx::Testing
                 camera.mFogExtinction = 3.0e-4f;
                 camera.mFogUniform = 1.0f;
 
-                // **No disc, because what is measured is the air and not the moon.** A disc drawn
-                // where the ray runs would put the moon's own radiance into the same pixel, and the
-                // irradiance alone still carries `HAS_MOONS` — so the basis, the colour and the face
-                // a disc would be cut from are all left at nothing. `mLimb` is not one of those: it
-                // is how wide the shadow ray's cone opens.
+                // No disc, because what is measured is the air and not the moon: a disc where the ray runs would
+                // put the moon's own radiance in the pixel, and the irradiance alone carries `HAS_MOONS`, so the
+                // basis, colour and face a disc is cut from stay nothing. `mLimb` is how wide the shadow cone is.
                 Shaders::MoonDisc moon{};
                 osg::Vec3f towards(0.0f, 1.0f, 0.5f);
                 towards.normalize();
@@ -1780,11 +1613,10 @@ namespace Rtx::Testing
 
             const float dark = lit(0.0f);
 
-            // What a figure taken as the difference of two readings and divided by an irradiance can
-            // be wrong by. The composite reads the froxel's half through the ray's own weights, which
-            // sum to under one and, thirty depths deep in fog, to not much under — so the froxel's
-            // value is the reading's or a little over, and where the two straddle a power of two its
-            // half step is the reading's whole one. A whole step at each reading covers both.
+            // What a figure taken as the difference of two readings and divided by an irradiance can be wrong by.
+            // The composite reads the froxel's half through the ray's weights, which sum to a little under one,
+            // so the froxel's value is the reading's or a little over, and where the two straddle a power of two
+            // its half step is the reading's whole one: a whole step at each reading covers both.
             const auto rounding = [](float reading, float baseline, float irradiance) {
                 return (halfStepAt(reading) + halfStepAt(baseline)) / irradiance;
             };

@@ -225,8 +225,8 @@ namespace MWRender
 
         // **A clock that states its step counts the loop's frames and no others.** How many
         // loading frames a run draws is the wall's answer, and a clock stepped by them would age
-        // the resource caches differently in two runs of one build — the reference time `repeat`
-        // once found doing exactly that. Such a frame stands for nothing of the world's.
+        // the resource caches differently in two runs of one build. Such a frame stands for nothing
+        // of the world's.
         if (mClock->getStatedStep().has_value())
         {
             mClock->hold();

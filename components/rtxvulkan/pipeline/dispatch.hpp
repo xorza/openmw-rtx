@@ -59,9 +59,8 @@ namespace Rtx
 
         /// `groups` in rows of at most `mostAcross`, the device's `maxComputeWorkGroupCount[0]`, which
         /// a shader reads back as one index (`linearWorkGroup` in `lib/blocklevel.glsl`) and stops
-        /// the groups past the count of. **For a count that grows with content**: Vulkan guarantees
-        /// 65535 groups an axis, and a texture of 8192 on a side with no levels needs 87381 groups of
-        /// 64 blocks to encode.
+        /// the groups past the count of. For a count that grows with content: Vulkan guarantees
+        /// 65535 groups an axis, and an 8192-sided texture needs 87381 groups of 64 blocks to encode.
         static constexpr Groups linear(std::uint32_t groups, std::uint32_t mostAcross)
         {
             return Groups{ .mX = std::min(groups, mostAcross), .mY = groupsFor(groups, mostAcross) };
@@ -87,15 +86,12 @@ namespace Rtx
     }
 
     /// The writes one push or one set update is made of, and the infos they point at, in one
-    /// object: a write names its info by address, so the two live together and neither moves —
-    /// which is why this is neither copied nor moved, and why it is a local of the pass that
-    /// fills it.
+    /// object: a write names its info by address, so neither moves, which is why this is neither
+    /// copied nor moved, and is a local of the pass that fills it.
     ///
-    /// **Made against the table of the set it writes**, which is the one statement of each
-    /// binding's type and count: a write names a binding and hands a descriptor, and the type is
-    /// the table's. Appended in binding order, every binding of the table once, which a debug
-    /// build asserts — so a binding a shader grew and a pass did not write, and two writes the pass
-    /// swapped, are failures and not a dispatch reading whatever the slot held.
+    /// Made against the table of the set it writes, the one statement of each binding's type and
+    /// count. Appended in binding order, every binding once, which a debug build asserts, so a
+    /// binding a pass did not write or two it swapped fail instead of reading whatever the slot held.
     class DescriptorWrites
     {
     public:

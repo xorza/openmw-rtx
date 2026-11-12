@@ -39,17 +39,16 @@ namespace Rtx::Shaders
     /// **The origin is deliberately absent, and that absence is what makes this shared.** The trace
     /// needs the eye's place in the world and the wavelet does not: every use it makes of a
     /// reconstructed position is a *difference* between two of them, and the origin cancels in a
-    /// subtraction. Carrying it here would put twelve bytes of a world coordinate into a push
-    /// constant that has no use for one, and would invite a filter to reconstruct absolute positions
-    /// at Morrowind's six-figure distances, where a float has nothing left to say. `mNear` and
-    /// `mFar` are out for the same reason: they are what a depth is written against, which is the
-    /// trace's business alone.
+    /// subtraction. Carrying it here would invite a filter to reconstruct absolute positions at
+    /// Morrowind's six-figure distances, where a float has nothing left to say. `mNear` and `mFar`
+    /// are out for the same reason: they are what a depth is written against, which is the trace's
+    /// business alone.
     ///
     /// **Shared because two shaders build the same rays and one of them must build them exactly.**
-    /// The wavelet's edge tests compare world positions reconstructed from the surface channel's distance, and
-    /// a position reconstructed from a ray that differs from the one that was shaded — by the
-    /// jitter, by the projection, by half a pixel — is not the position of the surface it is
-    /// filtering. Two copies of one derivation, a frame at a time, is how the two come to differ.
+    /// The wavelet's edge tests compare world positions reconstructed from the surface channel's
+    /// distance, and a position reconstructed from a ray that differs from the one that was shaded
+    /// — by the jitter, by the projection, by half a pixel — is not the position of the surface it
+    /// is filtering.
     struct Camera
     {
         /// Which way the eye looks, how wide its image plane is and where its axis crosses it.
@@ -57,12 +56,10 @@ namespace Rtx::Shaders
 
         /// Where inside its pixel the ray is sent, in pixels, `(0, 0)` being the centre.
         ///
-        /// **The same axes the pixel index uses**: x to the right and y *down* the image. That is
-        /// not the world's up, and writing it the other way round is the mistake to make here — the
-        /// reference implementation shipped this with the sign wrong on both axes and the frame
-        /// looked entirely plausible, because a wrong jitter still antialiases. It rides along with
-        /// the pixel index in the shader for exactly that reason: added to the same number, it
-        /// cannot disagree with it.
+        /// **The same axes the pixel index uses**: x to the right and y *down* the image, which is
+        /// not the world's up. It rides along with the pixel index in the shader for exactly that
+        /// reason: added to the same number, it cannot disagree with it. A wrong sign on either axis
+        /// still antialiases, so the frame looks plausible.
         ///
         /// Zero is a ray through the pixel's centre, which is every frame that is not being
         /// upscaled or averaged.
@@ -168,8 +165,8 @@ namespace Rtx::Shaders
     /// about. The centre is at `(p + 1/2) * T / E`, which is `((2p + 1) * T) / (2E)` floored, and a
     /// product of two extents fits a word with room to spare. As a float product it sat exactly on a
     /// boundary for every third column at `quality`'s two to three, and which side it fell on was
-    /// the compiler's rounding — different in a launch and in a dispatch. Never past the traced
-    /// extent: `2p + 1 < 2E`, so the quotient is under `T`.
+    /// the compiler's rounding. Never past the traced extent: `2p + 1 < 2E`, so the quotient is
+    /// under `T`.
     RTX_SHADER uint tracedPixelUnder(uint pixel, uint extent, uint tracedExtent)
     {
         return ((2u * pixel + 1u) * tracedExtent) / (2u * extent);
@@ -213,9 +210,8 @@ namespace Rtx::Shaders
         // **The sum is written out rather than hoisted into a shared term, and that is not an
         // oversight.** Floating-point addition does not associate: `f + (a - b)` and `(f + a) - b`
         // differ in the last place, and a direction that differs in the last place is a hit a texel
-        // over once it has been carried thirty thousand units — a trace that sums left to right and a
-        // wavelet that hoists never reconstruct quite the positions that were shaded. This is the
-        // trace's association, because the trace is what everything else is judged against.
+        // over once it has been carried thirty thousand units. This is the trace's association,
+        // because the trace is what everything else is judged against.
         const float across = (uv[0] - basis.mCentre[0]) * spread[0];
         const float down = (uv[1] - basis.mCentre[1]) * spread[1];
         const vec3 summed = basis.mForward + basis.mRight * across - basis.mUp * down;
@@ -290,7 +286,7 @@ struct Screen
 /// dot product undoes the direction and the scale together; a plane `spread` times wider puts the
 /// same point that much nearer its middle, and the centre moves it with the picture, scaled by the
 /// distance ahead because the caller divides by that. **The association is the reprojection's**,
-/// because a motion vector is what the answer is judged by: every caller lands on the same bits.
+/// so every caller lands on the same bits.
 RTX_SHADER Screen screenOf(ScreenBasis basis, vec3 offset, vec2 spread)
 {
     Screen screen;
@@ -320,10 +316,8 @@ struct Cone
 ///
 /// **A pinhole's starts at a point and widens; a parallel projection's does neither.** Under one, a
 /// ray's cone is one pixel of the box wide for the whole of its length, and `mSpreadAngle` is
-/// nought — so a caller that reached for the angle instead would read every texture at level zero
-/// and reject every filter tap but its own, which is a map tile drawn wrong. Said once here
-/// because the trace and the wavelet both ask, and a rule two shaders each state is a rule they can
-/// each get wrong.
+/// nought, so a caller that reached for the angle instead would read every texture at level zero.
+/// Said once here because the trace and the wavelet both ask.
 RTX_SHADER Cone coneAt(Camera camera)
 {
     Cone cone;
@@ -335,10 +329,9 @@ RTX_SHADER Cone coneAt(Camera camera)
 
 /// How far a ray's cone has spread from its axis where it starts, in radians.
 ///
-/// **Half of `mSpreadAngle`, and the half matters.** Everywhere else that number grows a cone's
-/// *width* — `resolved` compares it against a wavelength and `coneLod` against a texel area — so a
-/// place that wants an angle from the axis has to take half of it, and a disc whose brightness goes
-/// as one over the radius squared would be four times wrong otherwise.
+/// **Half of `mSpreadAngle`**: everywhere else that number grows a cone's *width* — `resolved`
+/// compares it against a wavelength and `coneLod` against a texel area — so a place that wants an
+/// angle from the axis has to take half of it.
 RTX_SHADER float pixelBlur(Camera camera)
 {
     return 0.5 * camera.mSpreadAngle;

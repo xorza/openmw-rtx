@@ -38,8 +38,8 @@ namespace Rtx
     /// Everything one scene is traced against, on the device — the world's, or a picture's in
     /// the interface — the same objects for both, which is what lets `Rtx::SceneUploader` hand a
     /// doll over exactly as a cell. Made whole from one description in one submit, and torn down
-    /// whole: a scene that is replaced is destroyed before its successor is built, so the two are
-    /// never held at once — a cell's structures and textures are most of what a renderer occupies.
+    /// whole: a scene that is replaced is destroyed before its successor is built, since a cell's
+    /// structures and textures are most of what a renderer occupies.
     ///
     /// The passes are shared and stay with the renderer: every texture array declares the same
     /// bindless layout, and identically defined layouts are compatible.
@@ -47,15 +47,14 @@ namespace Rtx
     {
     public:
         /// Builds every structure, table and texture of `scene` into `batch`, which the caller
-        /// flushes: one submit for the whole cell, where a round trip apiece would be hundreds for
-        /// a town. Every scene is traced by two frames at once, the doll's included — a picture
-        /// inside the interface rides the frame it was asked on, and the next frame may place it
-        /// again while that one is still tracing — so every table has `sFrameSlots` copies. The
+        /// flushes: one submit for the whole cell, not a round trip apiece. Every scene is traced by
+        /// two frames at once, the doll's included (a picture rides the frame it was asked on and
+        /// the next frame may place it again), so every table has `sFrameSlots` copies. The
         /// structures before the textures, because a mesh left out is worse than a texture held to
-        /// a smaller side, and the textures are held to what the structures left — what the device
-        /// had no room for is `getRefusals`. **Left tight, where `compaction` settles them**: a
-        /// load that waits copies them tight before the textures are made, which are then held to
-        /// what the tight structures leave and not to what the loose ones held for a few frames.
+        /// a smaller side, and the textures are held to what the structures left; what the device
+        /// had no room for is `getRefusals`. Left tight where `compaction` settles them: a load
+        /// that waits copies them tight first, so the textures are held to what the tight
+        /// structures leave.
         ///
         /// @param passes what poses this scene's bodies, at the build and at every placement, what
         ///        every texture is made with as it arrives, and what flattens every chunk's stack
@@ -105,11 +104,11 @@ namespace Rtx
         void placed(FrameSlot into) { mSlot = into; }
 
         /// Whether a picture of `slot`'s copy is recorded and carried by nothing yet — it rides
-        /// `next`, the submit that is next when this is asked. Until it is carried its trace has to
-        /// find the copy as it was placed for it: the top level a deferred placement built and the
-        /// rows a later placement wrote from the host would otherwise disagree about which instance
-        /// is which. So a placement into such a copy carries the picture first. Not a memory hazard,
-        /// which the tables' own stamps answer.
+        /// `next`, the submit that is next when this is asked. Until then its trace has to find the
+        /// copy as it was placed for it: the top level a deferred placement built and the rows a
+        /// later host placement wrote would otherwise disagree about which instance is which. So a
+        /// placement into such a copy carries the picture first. Not a memory hazard, which the
+        /// tables' own stamps answer.
         bool pictureRides(FrameSlot slot, std::uint64_t next) const { return mPictureRides[slot.get()] == next; }
         void notePictureRide(FrameSlot slot, std::uint64_t value) { mPictureRides[slot.get()] = value; }
 
@@ -168,8 +167,7 @@ namespace Rtx
         /// per hand-over whichever of `extend` and `place` meets them first. Departures before
         /// arrivals, and their rooms cool rather than going straight back, so an arrival cannot be
         /// built into room a frame in flight is still tracing. The two lists are disjoint, so a
-        /// slot handed out again appears only among the arrivals, and `buildArrived` buries what
-        /// the slot held.
+        /// slot handed out again appears only among the arrivals, where `buildArrived` buries it.
         void releaseFreed(const SceneDesc& scene);
 
         const ScenePasses& mPasses;
@@ -178,7 +176,7 @@ namespace Rtx
         /// with the rows the scene says changed rewritten by each placement. Here rather than in
         /// either half, because the acceleration structure and the instance table need the same
         /// rows, and each building its own was fifty thousand matrix inverses on a nine-by-nine
-        /// exterior. Before the halves, which are built from it.
+        /// exterior.
         std::vector<InstanceRecord> mRecords;
 
         /// Which of those `updateInstanceRecords` wrote this placement, cleared and refilled. One

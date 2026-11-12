@@ -115,12 +115,11 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A drawable is split across the other shapes of its model that stand where it stands.**
-        /// A floor quad whose corners along y = 1 lean toward a wall, as Morrowind's exporter
-        /// averaged them across the right angle, beside the wall as a shape of its own: read in a
-        /// model the loader marked, the floor's corners there take its own normal; read alone, or
-        /// beside a wall that a transform stands elsewhere — whose positions are the same numbers
-        /// in another space — or that a callback moves, they keep the lean.
+        /// **A drawable is split across the other shapes of its model that stand where it stands.** A floor quad
+        /// whose corners along y = 1 lean toward a wall, as Morrowind's exporter averaged them across the right
+        /// angle, beside the wall as a shape of its own: read in a model the loader marked, the floor's corners take
+        /// its own normal; read alone, or beside a wall a transform stands elsewhere (the same positions in another
+        /// space) or a callback moves, they keep the lean.
         TEST(RtxMeshReaderTest, aDrawableIsSplitAcrossTheShapesItsModelStandsBesideIt)
         {
             const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f);

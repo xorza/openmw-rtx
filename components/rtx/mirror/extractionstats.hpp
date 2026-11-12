@@ -14,12 +14,10 @@ namespace Rtx
         std::uint32_t mMeshesAdded = 0;
         std::uint32_t mMaterialsAdded = 0;
 
-        /// What computing from the content cost: the ring reader's for the cells this walk adopted,
-        /// and on the frame's thread — the shapes of the meshes added above, a translucent map's
-        /// alpha, an additive map's mean — what the frame's owner took once after its last walk
-        /// (`SceneExtractor::getContext`). Timed rather than counted, because what it costs
-        /// is triangles and texels and not drawables: one entry of `mMeshesAdded` can be a building
-        /// and its neighbour a crate.
+        /// What computing from the content cost: the ring reader's for the cells this walk adopted, and on the frame's
+        /// thread (mesh shapes, a translucent map's alpha, an additive map's mean) what the frame's owner took once
+        /// after its last walk. Timed rather than counted, because what it costs is triangles and texels and not
+        /// drawables.
         Preprocessed mPreprocessed;
 
         /// Drawables that resolved to something already known. A count of lookups, not of meshes:
@@ -33,11 +31,10 @@ namespace Rtx
         /// made: a world standing still passes most of itself and looks nothing up.
         std::uint32_t mPassedFrozen = 0;
 
-        /// Of the instances, the placements found under their identity and standing another mesh,
-        /// material or class than the walk resolved, so dropped and stood again: a deforming
-        /// drawable whose source was replaced, a state set a controller rewrote into another
-        /// material, or a sibling that shifted into the place of one that went — an identity is a
-        /// structural place and not an address. A walk over a world standing still owes nought.
+        /// Of the instances, the placements found under their identity and standing another mesh, material or class
+        /// than the walk resolved, so dropped and stood again: a deforming drawable whose source was replaced, a state
+        /// set a controller rewrote into another material, or a sibling that shifted into the place of one that went. A
+        /// walk over a world standing still owes nought.
         std::uint32_t mRestood = 0;
 
         /// Drawables whose vertices are recomputed every frame and so were posed rather than read

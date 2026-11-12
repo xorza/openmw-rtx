@@ -72,11 +72,9 @@ namespace Rtx
         ///
         /// **Water's own bit** is what lets a shadow ray pass straight through it, or every shallow in
         /// the game goes black. **An additive surface's** is met by no shading ray. **A medium's** is
-        /// met only by the rays that sum it, `passageAsk` and `mediumAlong`: every other ray
-        /// walked past it after a cutout test and a row load apiece, and the sum's own rays ask
-        /// `GpuInstance::mClass` for the class the structure's mask no longer carries. Said in the
-        /// mask, because a candidate loop waving rays past costs traversal what the mask costs
-        /// nothing.
+        /// met only by the rays that sum it, `passageAsk` and `mediumAlong`: every other ray would
+        /// walk past it after a cutout test and a row load apiece, and the sum's own rays ask
+        /// `GpuInstance::mClass` for the class the structure's mask no longer carries.
         std::uint32_t mMask = 0;
 
         /// Whether traversal must stop and ask the shader whether a hit is a hole. Without it the
@@ -107,10 +105,8 @@ namespace Rtx
         ///
         /// **The rasterizer reads the winding on the screen and traversal in the mesh's own space**,
         /// so a placement of a negative determinant turns the rasterizer's front round and leaves
-        /// traversal's alone. One rule covers both: flipped = clockwise XOR mirrored. A rigid left
-        /// body part, built mirrored and stated clockwise by `SceneUtil::attach`, shows its mesh's
-        /// face unflipped; a skinned one, whose mirror is in the skin and not in the placement, and
-        /// a content file's own clockwise front are both flipped.
+        /// traversal's alone. One rule covers both: flipped = clockwise XOR mirrored. A skinned
+        /// mesh, whose mirror is in the skin and not in the placement, is flipped too.
         bool mFlipFacing = false;
 
         /// Whether the placement is the model of a light that gives light

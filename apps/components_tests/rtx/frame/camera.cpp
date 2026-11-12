@@ -44,12 +44,10 @@ namespace Rtx
             EXPECT_NEAR(wide.mEyes.mWorld.mBasis.mUp.z(), 1.0f, 1e-5f);
         }
 
-        /// **A turn of the head moves no camera**, however far out the eye stands. A view matrix's
-        /// translation is `-R t`, and at `|t|` near 10^5 a float ulp is about 0.008: an inverse
-        /// taken in float puts the eye back with an error that changes with `R` alone, which the
-        /// motion between two frames reads as a step. Taken in double, every turn of one eye
-        /// stands the camera at the float nearest that eye — and the float inverse of the same
-        /// views does not, which is what makes this a test of the precision and not of the turns.
+        /// **A turn of the head moves no camera**, however far out the eye stands. A view matrix's translation is
+        /// `-R t`, and at `|t|` near 10^5 a float ulp is about 0.008: an inverse taken in float puts the eye back
+        /// with an error that changes with `R` alone, which the motion between two frames reads as a step. Taken
+        /// in double, every turn of one eye stands the camera at the float nearest that eye.
         TEST(RtxCameraTest, aTurnOfTheHeadMovesNoCamera)
         {
             const osg::Vec3d eye(98765.4321, -87654.321, 1234.5);
@@ -206,15 +204,13 @@ namespace Rtx
             EXPECT_EQ(none.mDown, osg::Vec3f());
         }
 
-        /// **A viewpoint's block describes no world, whichever builder made the viewpoint.** What
-        /// `constantsFor` lays the viewpoint over, before anything has described the world, has to
-        /// be one answer for `describeWorld` to overwrite — a sea level of never, a heading the
-        /// tiles were drawn on, and a fog layer of the height `FOG_HEIGHT` names — and the viewpoint
-        /// itself has to arrive whole.
+        /// **A viewpoint's block describes no world, whichever builder made the viewpoint.** What `constantsFor`
+        /// lays the viewpoint over, before anything has described the world, has to be one answer for
+        /// `describeWorld` to overwrite (a sea level of never, a heading the tiles were drawn on, and a fog layer
+        /// of the height `FOG_HEIGHT` names), and the viewpoint itself has to arrive whole.
         ///
-        /// **The clip is the caller's and the reach is the world's.** A picture that clips at four
-        /// hundred units still sends its shadow and ambient rays to `sFarPlane`, because what
-        /// lights a point is the world around it and not how near a picture of it stops.
+        /// **The clip is the caller's and the reach is the world's**: a picture clipped at four hundred units still
+        /// sends its shadow and ambient rays to `sFarPlane`.
         TEST(RtxCameraTest, aViewpointsBlockDescribesNoWorldWhicheverBuilderMadeIt)
         {
             const osg::Vec3f eye(0.0f, 0.0f, 100.0f);
@@ -303,13 +299,10 @@ namespace Rtx
             }
         }
 
-        /// Halton, against its own definition worked out by hand.
-        ///
-        /// The radical inverse writes an index in a base and reflects its digits about the point, so
-        /// term one in base two is 0.1 binary and term two is 0.01 — a half and a quarter. Base
-        /// three's first three are a third, two thirds and a ninth. Centring subtracts a half from
-        /// each, and the sequence is counted from one because term zero is the origin: a frame that
-        /// sampled the pixel's corner would tell an upscaler nothing an unjittered one did not.
+        /// Halton, against its own definition worked out by hand: term one in base two is 0.1 binary and term two
+        /// is 0.01, a half and a quarter; base three's first three are a third, two thirds and a ninth. Centring
+        /// subtracts a half, and the sequence is counted from one because term zero is the origin, which would tell
+        /// an upscaler nothing an unjittered frame did not.
         TEST(RtxJitterTest, theSequenceIsHaltonInTwoAndThreeAndStraddlesTheCentre)
         {
             EXPECT_NEAR(haltonJitter(0).x(), 0.0f, 1e-6f) << "1/2 - 1/2";

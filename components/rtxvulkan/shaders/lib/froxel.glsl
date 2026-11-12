@@ -3,10 +3,8 @@
 
 // Where the fog volume's slices stand, which four shaders have to agree about exactly.
 //
-// **Its own file because three of the four want nothing else from the air.** `fogscatter.rgen` fills a
-// froxel, `fogintegrate.comp` carries the transmittance down a column and `fogVolumeAlong` resolves a
-// distance to a slice — and a shader that only asks where a slice starts should not have to pull in a phase
-// function, a light grid and a ray query to find out.
+// Its own file because three of the four want nothing else from the air: a shader that only asks where a
+// slice starts should not pull in a phase function, a light grid and a ray query to find out.
 
 #include "look.h"
 #include "shared/medium.h"
@@ -14,10 +12,9 @@
 
 /// Where along the ray the slice ending at `fraction` of the way through reaches.
 ///
-/// **Squared, so the slices bunch where the fog has any shape to it.** Even steps over a ray that can run
-/// thirty thousand units give the first hundred a twentieth of one sample and lay the rest across ground
-/// too far off to resolve — the same reasoning that makes every froxel grid slice its frustum exponentially
-/// rather than evenly.
+/// Squared, so the slices bunch where the fog has any shape to it: even steps over a ray that can run
+/// thirty thousand units give the first hundred a twentieth of one sample, the reasoning that makes every
+/// froxel grid slice its frustum exponentially rather than evenly.
 float fogDepth(float fraction)
 {
     return fraction * fraction;
@@ -32,9 +29,9 @@ float fogDepthInverse(float distance)
 
 /// Where a pixel stands across the volume, from nought to one over the image's columns.
 ///
-/// **Normalised by the image and never by the frame.** A traced view is drawn into a volume grown to the
-/// largest one asked for, so the two are not the same number — and the scatter pass fills the column past
-/// the frame's for exactly that reason: the pixel at the edge interpolates against it (`mFogTraced`).
+/// Normalised by the image and never by the frame: a traced view is drawn into a volume grown to the
+/// largest one asked for, so the scatter pass fills the column past the frame's for the edge pixel to
+/// interpolate against (`mFogTraced`).
 ///
 /// @param pixel a position on the frame in pixels, with its half already added where a texel's
 ///        centre is meant.
@@ -61,11 +58,10 @@ float froxelFar(uint slice)
 /// How thick the grid is where a point `along` the ray stands, in world units: the stride of the slice that
 /// holds it, as a smooth function of where the point is rather than of which slice that is.
 ///
-/// **Continuous, because a step in it is a shell around the eye.** The field is read at the level its
-/// sampler can resolve over this distance, and read at each slice's own stride that level steps at every
-/// boundary between two slices — a bank's edge blurred by one amount on the near side of the shell and by
-/// another beyond it. The shell is the eye's, so it sweeps the ground as the eye moves: rings around the
-/// camera, faint while it stood still and plain as soon as it walked.
+/// Continuous, because a step in it is a shell around the eye: read at each slice's own stride, the
+/// field's level steps at every slice boundary and blurs a bank's edge by one amount on the near side and
+/// another beyond. The shell is the eye's, so it sweeps the ground as the eye moves, as rings around the
+/// camera.
 float froxelStrideAt(float along)
 {
     return 2.0 * sqrt(along * FOG_REACH) / float(FOG_VOLUME_SLICES);
@@ -73,12 +69,10 @@ float froxelStrideAt(float along)
 
 /// Where the slice stands, as the one point that answers for the whole of it.
 ///
-/// **Half way *through* the slice and not half way *between* its edges.** The curve is quadratic, so those
-/// are two different distances — and the first is the one the grid's own depth coordinate carries, because
-/// that coordinate is this curve inverted. What reads a volume at a distance is a sampler, and a sampler
-/// puts texel `k` at `(k + 0.5)` of its axis; hand it the mean of the edges instead and a slice near the
-/// eye asks for a fifth of a texel past its own centre, so a reprojection that should have found the froxel
-/// it left finds a fifth of the froxel behind it.
+/// Half way *through* the slice and not half way *between* its edges. The curve is quadratic, so those
+/// are two different distances, and the first is the one the grid's depth coordinate carries, since that
+/// coordinate is this curve inverted. A sampler puts texel `k` at `(k + 0.5)` of its axis; the mean of the
+/// edges would have a slice near the eye ask for a fifth of a texel past its own centre.
 float froxelMiddle(uint slice)
 {
     return fogDepth((float(slice) + 0.5) / float(FOG_VOLUME_SLICES)) * FOG_REACH;
@@ -87,10 +81,8 @@ float froxelMiddle(uint slice)
 /// What the scatter pass measures at one froxel, as `fogscatter.rgen` packs it into two images and
 /// `fogintegrate.comp` and `puffLight` read it back.
 ///
-/// **One record and one packing, because four sites spelled the channels for themselves.** The writer put
-/// the transport, the lamps' seeing and the ambient's in `xyz` of one image and the two readers swizzled
-/// the same letters back out, with nothing naming which was which. A field added or moved on one side
-/// compiled on the other and read a neighbour's number.
+/// One record and one packing, because spelling the channels at each site let a field added or moved on
+/// one side compile on the other and read a neighbour's number.
 struct FogSeeing
 {
     /// The sun's transport with the irradiance and the phase left off, and what a ray found of

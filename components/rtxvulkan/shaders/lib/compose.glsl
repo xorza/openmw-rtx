@@ -9,11 +9,11 @@
 /// albedos multiplied back in, the sky's source and the lamps each by how much of it got through, the
 /// lobe's light, and what was drawn for the see-through layers with theirs.
 ///
-/// **The fill by the albedos' difference, over the whole bounce by the diffuse one**, which is `albedo ×
-/// (indirect - fill) + ambientAlbedo × fill` written so a surface whose two albedos are one adds nought to
-/// the bounce it had: the same bits, and not the same sum rounded another way.
+/// The fill by the albedos' difference, over the whole bounce by the diffuse one: `albedo × (indirect -
+/// fill) + ambientAlbedo × fill` written so a surface whose two albedos are one adds nought to the bounce it
+/// had, the same bits and not the same sum rounded another way.
 ///
-/// **One function for the two places, which must meet to the bit**: a frame the trace composed and the same
+/// One function for the two places, which must meet to the bit: a frame the trace composed and the same
 /// frame the composite composed from a filter's first frame are one picture.
 ///
 /// @param indirect,fill `CHANNEL_INDIRECT` and `CHANNEL_FILL`, or the cascade's means of both.

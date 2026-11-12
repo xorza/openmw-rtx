@@ -51,11 +51,10 @@ namespace Rtx
         const SceneUtil::MorphGeometry* mMorph = nullptr;
     };
 
-    /// Reads what a drawable is, in one virtual call for nearly everything in a cell. A skinned
-    /// body and a morphed face are an `osg::Drawable` over a source geometry, and the source is
-    /// what this reads. A rig no update traversal resolved is read as it stands, because its bones
-    /// are what `RigGeometry::updateBounds` finds, and the rasterizer draws it in its bind pose
-    /// too. A morph with no target past its base is a static mesh whose positions are the base.
+    /// Reads what a drawable is, in one virtual call for nearly everything in a cell. A skinned body and a morphed face
+    /// are an `osg::Drawable` over a source geometry, and the source is what this reads. A rig no update traversal
+    /// resolved is read as it stands, as the rasterizer draws it in its bind pose. A morph with no target past its base
+    /// is a static mesh whose positions are the base.
     DrawableRead readDrawable(const osg::Drawable& drawable, NodeKind kind);
 
     /// A morph's base target, which `MorphGeometry::cull` reads its positions from.
@@ -89,15 +88,13 @@ namespace Rtx
         MeshReader(const MeshReader&) = delete;
         MeshReader& operator=(const MeshReader&) = delete;
 
-        /// Reads `read` into `into`, shaped by `content`, this thread's, answering whether the
-        /// drawable held a triangle to read, and an error for a face this cannot build, saying why:
-        /// lines and points, which a ray has no width of to meet,
-        /// a morph's base that is not the length of its source, a triangle naming a vertex the
-        /// drawable does not have, an array of normals, coordinates or colours of another length
-        /// than the vertices, or an array of a type this does not read.
+        /// Reads `read` into `into`, shaped by `content`, this thread's, answering whether the drawable held a triangle
+        /// to read, and an error for a face this cannot build, saying why: lines and points, a morph's base that is not
+        /// the length of its source, a triangle naming a vertex the drawable does not have, an array of normals,
+        /// coordinates or colours of another length than the vertices, or an array of a type this does not read.
         ///
-        /// @param model the model the drawable stands in (`modelOf`), whose other shapes the split
-        ///        cuts its normals across — `CreaseSplit::Beside` — or null for none.
+        /// @param model the model the drawable stands in (`modelOf`), whose other shapes the split cuts its normals
+        ///        across — `CreaseSplit::Beside` — or null for none.
         Result<bool, std::string> read(
             ContentPreprocessor& content, const DrawableRead& read, const osg::Node* model, MeshReading& into);
 
@@ -178,13 +175,11 @@ namespace Rtx
         std::vector<osg::Vec3f> mBesideReadScratch;
         std::vector<std::uint32_t> mBesideCollectScratch;
 
-        /// **Each shape of a model read once as faces, however many of its drawables read beside
-        /// it** (`facesOf`): a model of S shapes was S reads of up to S shapes each. The model's
-        /// shapes are walked again for every drawable, which costs a visit a node and sees a shape
-        /// the model gained. A shape's arrays are read once because nothing writes them after the
-        /// loader: what deforms is a rig or a morph, which is no `osg::Geometry` and which the walk
-        /// never collects. Kept for the model of the last read and dropped for the next one, held
-        /// so that no address in them is another's while they stand.
+        /// **Each shape of a model read once as faces, however many of its drawables read beside it** (`facesOf`): a
+        /// model of S shapes was S reads of up to S shapes each. A shape's arrays are read once because nothing writes
+        /// them after the loader: what deforms is a rig or a morph, which is no `osg::Geometry` and which the walk
+        /// never collects. Kept for the model of the last read and dropped for the next one, held so that no address in
+        /// them is another's while they stand.
         osg::ref_ptr<const osg::Node> mFacesOf;
         std::vector<ShapeFaces> mFaces;
         boost::unordered_flat_map<const osg::Geometry*, std::size_t> mFaceIndex;

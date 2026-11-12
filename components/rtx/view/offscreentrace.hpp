@@ -51,20 +51,18 @@ namespace Rtx
         /// How the picture is projected and where it is clipped.
         SceneUtil::Framing mFraming{};
 
-        /// The only light there is, in the numbers a rasterizer's object shaders were written for.
-        /// A Lambertian surface returns `albedo / pi * E * cos`, so the `E` that makes that equal
-        /// `albedo * diffuse` at `cos = 1` is `diffuse * pi`. `mDirection` is normalised on the way
-        /// in.
+        /// The only light there is, in the numbers a rasterizer's object shaders were written for. A
+        /// Lambertian surface returns `albedo / pi * E * cos`, so the `E` equal to `albedo * diffuse` at
+        /// `cos = 1` is `diffuse * pi`. `mDirection` is normalised on the way in.
         SceneUtil::FlatLight mLight{};
 
         /// What the picture is left as where nothing was hit. An alpha below one is the whole of
         /// "the picture stops here".
         osg::Vec4f mClear{};
 
-        /// Which end of the picture the trace writes first — a delivery convention:
-        /// `MWRender::OffscreenView::getTexture` promises rows bottom-first because that is what an
-        /// OpenGL render-to-texture produces, and a file wants them the other way. Flipping the
-        /// camera's up vector costs nothing.
+        /// Which end of the picture the trace writes first — a delivery convention: `MWRender::
+        /// OffscreenView::getTexture` promises rows bottom-first, as an OpenGL render-to-texture
+        /// produces, and a file wants them the other way. Flipping the camera's up vector costs nothing.
         RowOrder mRowOrder = RowOrder::TopFirst;
 
         /// A subtree assembled for this picture alone, or null for a picture of the world the
@@ -76,22 +74,20 @@ namespace Rtx
         osg::Node::NodeMask mSubjectMask = ~0u;
     };
 
-    /// One picture traced from somewhere other than the eye: an inventory doll, a map tile. The
-    /// trace writes straight into a slot of the renderer's GUI texture table, so the picture is
-    /// never a framebuffer and never in main memory unless somebody asks for a copy (`takeCopy`). Two
-    /// kinds, and `ViewRequest::mSubject` says which: a picture of the world traces against the
-    /// scene the renderer already holds, and a picture of a subject is of a group assembled for it,
-    /// mirrored into a scene of its own and walked again whenever the picture is asked for. The
-    /// slot is handed to `traceInto` rather than owned here, so the harness can draw a doll with no
-    /// GUI under it.
+    /// One picture traced from somewhere other than the eye: an inventory doll, a map tile. The trace
+    /// writes straight into a slot of the renderer's GUI texture table, so the picture is never a
+    /// framebuffer and never in main memory unless somebody asks for a copy (`takeCopy`). A picture of
+    /// the world traces against the scene the renderer holds; a picture of a subject
+    /// (`ViewRequest::mSubject`) is of a group mirrored into a scene of its own and walked again
+    /// whenever it is asked for. The slot is handed to `traceInto` rather than owned here, so the
+    /// harness can draw a doll with no GUI under it.
     class OffscreenTrace
     {
     public:
         /// @param context what the subject's walk shares with every other walk on the thread
-        ///        (`WalkContext`): the traversal numbers, because a subtree two walks reach would
-        ///        otherwise be run by whichever got there first and frozen for the other; the
-        ///        content's caches, so a doll counts into the world's figures; and the layout of the
-        ///        `_spec` maps, so a doll wears what the world does.
+        ///        (`WalkContext`): the traversal numbers (a subtree two walks reach would otherwise be
+        ///        run by whichever got there first and frozen for the other), the content's caches, so
+        ///        a doll counts into the world's figures, and the layout of the `_spec` maps.
         OffscreenTrace(PictureRenderer& renderer, const ViewRequest& request, WalkContext& context);
 
         /// Out of line because `SceneDesc`, `SceneExtractor` and the update visitor are only forward
@@ -124,9 +120,9 @@ namespace Rtx
         /// Poses the subject, mirrors it and hands it to the renderer, and answers whether the
         /// result has anything in it. Nothing at all, and true, for a picture of the world.
         ///
-        /// @param posing what the update traversal runs on — the caller's own drawing clock, because
-        ///        a skeleton keeps the last number it saw and a clock that stood still would move the
-        ///        doll's bones the first time and never again.
+        /// @param posing what the update traversal runs on — the caller's own drawing clock, because a
+        ///        skeleton keeps the last number it saw and a stood-still clock would move the doll's
+        ///        bones once and never again.
         /// @param releasing what the sweep lets go of goes into, for the caller to hand to the queue
         ///        the world's goes to, so a doll's retired parts are not destroyed on the frame thread.
         /// @param settled whether the hand-over waits for the images its files' chains are made in
@@ -148,13 +144,12 @@ namespace Rtx
         /// this traces with, so a view reaches no further than its own trace for its picture.
         bool takeCopy(GuiSlot texture, std::span<std::uint8_t> into) const;
 
-        /// What is at this point of the picture, in normalised device coordinates, as the path
-        /// through the subject to whatever was hit. Nothing for a picture of the world, or before
-        /// the first `rebuildSubject`. On the processor and against the graph, because the caller
-        /// wants a node path to ask the animation which equipment slot that was; the ray is the one
-        /// the trace would have sent through that point. The one place a skinned body is still posed
-        /// on the processor: the drawable's own copy holds the bind pose, so the subject is put
-        /// through an update and a cull of its own once per pick, at the last redraw's clock.
+        /// What is at this point of the picture, in normalised device coordinates, as the path through
+        /// the subject to whatever was hit. Nothing for a picture of the world, or before the first
+        /// `rebuildSubject`. On the processor and against the graph, because the caller wants a node
+        /// path to ask the animation which equipment slot that was; the ray is the one the trace would
+        /// have sent. The one place a skinned body is still posed on the processor: the drawable's own
+        /// copy holds the bind pose, so the subject is updated and culled once per pick.
         bool pick(float x, float y, osg::NodePath& hit);
 
     private:
@@ -182,10 +177,9 @@ namespace Rtx
             std::unique_ptr<SceneDesc> mScene;
             std::unique_ptr<SceneExtractor> mExtractor;
 
-            /// Its own, because the only state one carries between calls is the clock it is
-            /// given. The camera callback the game hangs on a doll's subtree is what finds the
-            /// head to look at, and it runs in an update traversal — so a picture drawn between
-            /// frames has to run one.
+            /// Its own, because the only state one carries between calls is the clock it is given. The
+            /// camera callback the game hangs on a doll's subtree finds the head to look at in an update
+            /// traversal, so a picture drawn between frames has to run one.
             std::unique_ptr<PoseUpdate> mUpdate;
 
             /// The cull traversal `pick` poses the subject with, and the clock it and the update

@@ -43,13 +43,10 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// The denoiser, measured against the estimator it is smoothing.
-        ///
-        /// One flat floor under an open sky, so every pixel is one bounce off the same normal with
-        /// the same answer in expectation: the mean is fixed and the scatter around it is pure
-        /// sampling noise. A filter has one job on a surface like this — take the scatter away and
-        /// leave the mean where it was — and both halves are asserted, because a filter that dimmed
-        /// the picture would pass a test that only looked at the noise.
+        /// The denoiser, measured against the estimator it is smoothing. One flat floor under an open sky, so
+        /// every pixel has the same expected answer: the mean is fixed and the scatter is pure sampling noise.
+        /// Both halves are asserted (noise gone, mean where it was), since a filter that dimmed the picture
+        /// would pass a test that only looked at the noise.
         TEST_F(RtxVisibilityTest, theFilterTakesTheNoiseOffAFlatSurfaceAndLeavesTheLightWhereItWas)
         {
             constexpr std::uint32_t size = 64;
@@ -120,13 +117,11 @@ namespace Rtx::Testing
                 << "the cascade composed another picture than the composite";
         }
 
-        /// **A lamp that goes out leaves the picture on the frame it goes.** One lamp over a floor for
-        /// 32 frames, then the same floor without it, placed and not handed over, so every history
-        /// carries on. The lamp's light is the shadow denoiser's unshadowed sum times a filtered bit,
-        /// and only the bit has a history: the sum is nought on the first frame without the lamp, and
-        /// so is the light. Under a black sky the floor's bounce finds nothing, so the pixel under
-        /// the lamp is the unlit floor's exactly. Through the accumulator, as the lamps' light went
-        /// before, 24% of it was left eight frames on.
+        /// A lamp that goes out leaves the picture on the frame it goes. One lamp over a floor for 32 frames,
+        /// then the same floor without it, placed and not handed over, so every history carries on. The lamp's
+        /// light is the shadow denoiser's unshadowed sum times a filtered bit and only the bit has a history:
+        /// the sum is nought on the first frame without the lamp, and so is the light. Under a black sky the
+        /// pixel under the lamp is the unlit floor's exactly.
         TEST_F(RtxVisibilityTest, aLampThatGoesOutLeavesThePictureOnTheFrameItGoes)
         {
             constexpr std::uint32_t size = 32;
@@ -165,12 +160,10 @@ namespace Rtx::Testing
             EXPECT_EQ(after, dark) << "lit " << lit;
         }
 
-        /// **The filter rebuilds an arm's pixels through the arms' own eye**, as the trace cast them,
-        /// and so smooths an arm as it smooths the floor. The player's arms are traced through a
-        /// ninety-degree eye beside the world's thirty here, and rebuilt through the world's, a flat
-        /// arm stood on planes it is not: a tap sixteen pixels off the centre stood ten units off the
-        /// centre's plane where a pixel is under one wide, and the coarse levels of the cascade
-        /// turned their neighbours away and left the noise.
+        /// The filter rebuilds an arm's pixels through the arms' own eye, as the trace cast them, and so smooths
+        /// an arm as it smooths the floor. The arms are traced through a ninety-degree eye beside the world's
+        /// thirty here; rebuilt through the world's, a flat arm stood on planes it is not, a tap sixteen pixels
+        /// off the centre ten units off the centre's plane, and the coarse levels turned their neighbours away.
         TEST_F(RtxVisibilityTest, theFilterRebuildsAnArmThroughTheArmsOwnEye)
         {
             constexpr std::uint32_t size = 64;
@@ -216,24 +209,16 @@ namespace Rtx::Testing
 
         /// The same floor at a grazing angle, against the answer it is trying to reach.
         ///
-        /// **Terrain is nearly always seen this way, and it is the case a depth test gets wrong.**
-        /// Pixels down a grazing surface stand a long way apart in distance while remaining one
-        /// flat plane, so a filter that refused taps by how far away they are keeps only the taps
-        /// across the slope and throws away the ones along it — it still smooths, just half as
-        /// well, which is why this measures the error rather than the smoothness. Weighing by how
-        /// far a tap sits off the centre pixel's tangent plane costs one dot product and asks the
-        /// question that was meant.
+        /// Terrain is nearly always seen this way, and a depth test gets it wrong: pixels down a grazing surface
+        /// stand a long way apart in distance on one flat plane, so refusing taps by distance keeps only the
+        /// taps across the slope. Weighing by how far a tap sits off the centre pixel's tangent plane costs one
+        /// dot product and asks the question that was meant. The reference is what `--accumulate` builds: 64
+        /// differently seeded samples averaged.
         ///
-        /// The reference is what `--accumulate` builds: sixty-four differently seeded samples of
-        /// the same unbiased estimator, averaged. One sample against that is the error a denoiser
-        /// exists to reduce, and the ratio of the two is the only honest way to say it worked.
-        ///
-        /// **The bound sits between the two weightings on purpose.** Measured here on the composite
-        /// (`readRadiance`): one sample is 0.0335 off the reference and the plane weight brings
-        /// that to 0.0020, seventeen times better; a plain depth weight, measured when one sample
-        /// stood 0.0420 off, brought it to 0.0061, seven times. Every number is repeatable, because
-        /// frame zero and a sixty-four frame average are both deterministic, so a tenth is a bound
-        /// this passes with room and a depth test cannot reach.
+        /// The bound sits between the two weightings on purpose. On the composite (`readRadiance`) one sample is
+        /// 0.0335 off the reference and the plane weight brings that to 0.0020 (17 times better); a plain depth
+        /// weight, from a sample 0.0420 off, brought it to 0.0061 (7 times). Frame zero and a 64-frame average
+        /// are deterministic, so a tenth is a bound this passes with room and a depth test cannot reach.
         TEST_F(RtxVisibilityTest, theFilterAndItsHistoryConvergeOnAGrazingSurface)
         {
             constexpr std::uint32_t size = 64;
@@ -287,21 +272,14 @@ namespace Rtx::Testing
             EXPECT_LT(after, before * 0.10f)
                 << "and the filter takes most of that error away: " << before << " becomes " << after;
 
-            // **And the temporal half, which is where the error actually falls.** The spatial cascade
-            // borrows samples sideways from neighbours looking at the same surface, which has a
-            // floor: there are only so many of those and they are correlated. Averaging over frames
-            // borrows from samples that are genuinely independent, so its error keeps falling for as
-            // long as the history is allowed to grow.
+            // The temporal half is where the error actually falls: the spatial cascade borrows from correlated
+            // neighbours and has a floor, while averaging over frames borrows independent samples, so its error
+            // keeps falling as long as the history grows. Sequenced frames with no averaging in the composite,
+            // so the accumulator alone combines them, on a still camera so no history is rejected.
             //
-            // Sequenced frames with no averaging in the composite: the sampler advances, so each
-            // frame is a different draw, and the only thing combining them is the accumulator under
-            // test. A still camera, so every pixel reprojects onto itself and no history is
-            // rejected — which is the case this has to get right before any other.
-            //
-            // **A cut before each run, and leaving it out is what made this test lie.** The
-            // fixture renders many frames, the accumulator keeps what it built across all of them,
-            // and a "one frame" baseline taken without a reset is a baseline that already has a
-            // history in it — which reads as the accumulator doing nothing at all.
+            // A cut before each run: the fixture's accumulator keeps what it built across all frames, so a
+            // "one frame" baseline taken without a reset already has a history in it and reads as the
+            // accumulator doing nothing.
             const auto renderSequence = [&](std::uint32_t frames) {
                 std::vector<float> values;
                 values = shoot(scene, {}, camera, size, filteredRun(frames)).mRadiance;
@@ -311,25 +289,15 @@ namespace Rtx::Testing
             const std::vector<float> settledPixels = renderSequence(Shaders::ACCUMULATE_FRAMES);
             const float settled = errorAgainstReference(settledPixels);
 
-            // **The accumulator may not make this worse, and on this surface that is the whole of
-            // what it can be asked.** Measured here, the cascade alone already lands at 0.0019 of
-            // the converged reference — a flat sheet under a smooth sky is precisely
-            // where à-trous has every advantage, since the signal is uniform and
-            // every neighbour is a valid sample of it. What the history is for is the case this
-            // scene does not have: contact regions, small geometry, and pixels with few neighbours
-            // looking at the same thing, which is what
-            // `theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow` is for.
+            // The accumulator may not make this worse, which on this surface is the whole of what it can be
+            // asked: the cascade alone already lands at 0.0019 of the converged reference, a flat sheet under a
+            // smooth sky being where à-trous has every advantage. What the history is for is the case this scene
+            // lacks, `theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow` (0.0050 settled against 0.0165
+            // alone).
             //
-            // **Eight per cent of room, because the history is the filtered light** (SVGF's
-            // feedback), and averaging the cascade's answers over frames on a surface this easy
-            // correlates them more than it adds. Measured: the cascade 0.00196 and the settled
-            // history 0.00177, against an unfiltered 0.0335.
-            //
-            // **A flat sheet is where feeding the filtered light back has least to give**, since the
-            // cascade has every neighbour it could want and averaging its answers over frames only
-            // correlates them. What the feedback is for is the other scene, and
-            // `theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow` records what it does there:
-            // 0.0050 settled against 0.0165 alone.
+            // Eight per cent of room, because the history is the filtered light (SVGF's feedback) and averaging
+            // the cascade's answers over frames on a surface this easy only correlates them. Measured: cascade
+            // 0.00196, settled history 0.00177, unfiltered 0.0335.
             EXPECT_LE(settled, after * 1.08f)
                 << "the history does not cost what the cascade gained: " << after << " becomes " << settled;
 
@@ -358,23 +326,16 @@ namespace Rtx::Testing
                 << "the accumulated mean is " << settledMean << " against a converged " << referenceMean;
         }
 
-        /// A floor meeting a wall, and the filter keeping them apart.
+        /// A floor meeting a wall, and the filter keeping them apart. Everything else here would pass with a
+        /// plain blur; what makes this a denoiser is that it refuses to mix two surfaces that happen to be
+        /// neighbours on screen.
         ///
-        /// **Everything else here would pass with a plain blur.** Smoothing noise and preserving a
-        /// mean are what any average does; what makes this a denoiser rather than a soft-focus
-        /// filter is that it refuses to mix two surfaces that happen to be neighbours on screen.
-        ///
-        /// So this measures the one place where that shows: the step from one row to the next
-        /// across the crease. Away from it a blur is nearly harmless, because every level of a
-        /// B3 kernel puts most of its weight near the centre however far the taps reach — which is
-        /// exactly why a test comparing the two ends of the frame passes with the guide switched
-        /// off, and this one does not.
-        ///
-        /// The crease is found rather than assumed: it is the row boundary where the unfiltered
-        /// picture jumps hardest, which is where the geometry says it should be. The two surfaces
-        /// are told apart by their normals alone, and lit differently for the same reason — a
-        /// floor's cosine-weighted hemisphere is centred on the zenith and a wall's lies along the
-        /// horizon, and this sky runs a long way between the two.
+        /// It measures the step from one row to the next across the crease, since away from it a blur is nearly
+        /// harmless (every level of a B3 kernel puts most of its weight near the centre), which is why a test
+        /// comparing the two ends of the frame passes with the guide off and this one does not. The crease is
+        /// the row boundary where the unfiltered picture jumps hardest. The surfaces are told apart by their
+        /// normals alone, and lit differently for the same reason: a floor's cosine-weighted hemisphere is
+        /// centred on the zenith, a wall's lies along the horizon, and this sky runs a long way between them.
         TEST_F(RtxVisibilityTest, theFilterWillNotMixAFloorIntoTheWallStandingOnIt)
         {
             constexpr std::uint32_t size = 64;
@@ -434,20 +395,15 @@ namespace Rtx::Testing
 
         /// The exposure moves toward what it measured rather than snapping to it.
         ///
-        /// **Adaptation is a time-domain thing.** A histogram measured on the frame the curve is
-        /// about to map and applied to that same frame turns any one-frame excursion in it into a
-        /// one-frame excursion in the whole image — and the degenerate branch could take a night
-        /// exterior from an exposure of order tens to exactly one between two frames.
+        /// Adaptation is a time-domain thing: a histogram measured on the frame the curve is about to map and
+        /// applied to that same frame turns a one-frame excursion into one in the whole image. Two skies a
+        /// factor of thirty-two apart and nothing else, so the histogram is the only thing that changed. Told
+        /// it has no past, the eye holds a bright day's exposure (`EXPOSURE_DAY`); given a long frame, it
+        /// arrives; told it has a past, it has barely moved a frame later; told no time passed, or held, it has
+        /// not moved.
         ///
-        /// Two skies a factor of thirty-two apart and nothing else in the picture, so the histogram
-        /// is the only thing that changed. Every case is claimed: told it has no past, the eye holds
-        /// a bright day's exposure (`EXPOSURE_DAY`); given a long frame, it arrives; told it has a
-        /// past, it has barely moved a frame later; told no time passed, it has not moved at all;
-        /// held, it has not moved whatever it was told.
-        ///
-        /// **Driven frame by frame rather than through `shoot`**, because that helper calls
-        /// `setScene` every time and a new scene costs every history — the eye's too, and a lost eye
-        /// is exactly what the middle frame here must not have.
+        /// Driven frame by frame rather than through `shoot`, which calls `setScene` every time and a new scene
+        /// costs every history, the eye's too, which the middle frame must not lose.
         TEST_F(RtxVisibilityTest, theExposureMovesTowardWhatItMeasuresRatherThanSnappingToIt)
         {
             constexpr std::uint32_t size = 32;
@@ -538,12 +494,10 @@ namespace Rtx::Testing
             EXPECT_EQ(held(dim, HistoryLoss::Cut), adapted) << "a held eye measured the frame";
             EXPECT_GT(held(bright), lit) << "a held eye adapted to the bright sky";
 
-            // **A new extent keeps the eye**: an eye adapted to the bright sky meets the dim one past
-            // two upscale modes as it met it before them, barely moved, where an eye that lost its
-            // past would start again at a day — the world the modes' reserves released built again
-            // in between, as the uploader builds it, which is the same world and no new one. Under a
-            // budget a byte short of the textures' ceiling at the heap, so whichever of the two
-            // modes grows the reserve finds content past what it leaves.
+            // A new extent keeps the eye: an eye adapted to the bright sky meets the dim one past two upscale
+            // modes barely moved, where an eye that lost its past would start again at a day. The modes' reserves
+            // are released and built again in between, as the uploader does, under a budget a byte short of the
+            // textures' ceiling at the heap, so whichever mode grows the reserve finds content past what it leaves.
             EXPECT_EQ(settle(bright), lit);
             {
                 MemoryAllocator& memory = mProbe.getDevice().getMemory();
@@ -566,20 +520,17 @@ namespace Rtx::Testing
 
         /// A reset survives a frame that has no history to reset, and such a frame leaves none.
         ///
-        /// **A cut is spent by the frame that answers it, and a frame with neither denoiser
-        /// answers nothing.** A frame the renderer does not filter (`LightFilter`) runs no accumulator
-        /// and `Upscale::Off` runs no upscaler, so nothing reads the signal — and a renderer that cleared it at the end
-        /// of every frame regardless dropped the reset rather than deferring it. What the game does with that is walk
-        /// through a door on an unfiltered frame and reproject one room onto another on the next filtered one.
+        /// A cut is spent by the frame that answers it, and a frame with neither denoiser answers nothing: a
+        /// frame the renderer does not filter (`LightFilter`) runs no accumulator and `Upscale::Off` runs no
+        /// upscaler, so a renderer that cleared the signal at the end of every frame would drop the reset
+        /// rather than defer it, and a door walked through on an unfiltered frame would reproject one room
+        /// onto another on the next filtered one.
         ///
-        /// **The claim is exact rather than statistical.** An accumulator that was reset writes the
-        /// frame's own sample and reads no past at all, so the picture is the one the same trace
-        /// makes from a fresh reset — value for value, since the frame index is what seeds the
-        /// sampler and the camera never moves. The accumulated frame between them is what proves the
-        /// comparison can tell a history from none.
-        ///
-        /// **And the reset's own sample is a history of one**, so a filtered frame after it is not a
-        /// fresh reset's picture: the same exact claim, the other way round.
+        /// The claim is exact: a reset accumulator writes the frame's own sample and reads no past, so the
+        /// picture equals the same trace from a fresh reset, value for value (the frame index seeds the
+        /// sampler and the camera never moves). The accumulated frame between them proves the comparison can
+        /// tell a history from none. And the reset's own sample is a history of one, so a filtered frame after
+        /// it is not a fresh reset's picture: the same claim the other way round.
         TEST_F(RtxVisibilityTest, aResetSurvivesAFrameThatHasNoHistoryToReset)
         {
             constexpr std::uint32_t size = 64;
@@ -866,32 +817,25 @@ namespace Rtx::Testing
             std::vector<double> mSquares = std::vector<double>(std::size_t{ sSize } * sSize);
         };
 
-        /// **The history fix takes the noise off what the eye turns to.** A floor and a
-        /// wall standing on it under a black sky, and a lamp twenty units off the wall whose reach
-        /// lights a spot of it: the floor's bounce is that spot, which a ray finds now and then, so
-        /// one frame of it is noisy after the wavelet, as a lamp's bounce in a room is. The eye stands
-        /// still for 32 frames, then turns 24 degrees in one: the edge it turns toward brings in
-        /// `(tan 30° - tan 6°) / (tan 30° / 32)` = 26 columns that hold one frame, and the rest of
-        /// the frame holds thirty-two. The strip is twelve of them fourteen columns in from that edge,
-        /// as far as a new pixel's fix reaches, so its taps stand on both sides of it: at the edge they
-        /// all stand on the side the light rises toward, and the fix held the strip there at 1.27 of
-        /// its light under the centre's variance alone and 1.52 under both.
+        /// The history fix takes the noise off what the eye turns to. A floor and a wall under a black sky and
+        /// a lamp twenty units off the wall whose reach lights a spot of it: the floor's bounce is that spot,
+        /// which a ray finds now and then, so one frame is noisy after the wavelet. The eye stands still for 32
+        /// frames, then turns 24 degrees in one: the edge it turns toward brings in
+        /// `(tan 30° - tan 6°) / (tan 30° / 32)` = 26 columns holding one frame. The strip is twelve of them
+        /// fourteen columns in from that edge, as far as a new pixel's fix reaches, so its taps stand on both
+        /// sides of it.
         ///
-        /// Over four draws, the strip's spread from one draw to the next, over its mean. **The noise
-        /// in the light's own units**: without the fix the brightness test passes over a fresh pixel's
-        /// rare bright draws, and a strip darker for it is quieter by as much and no better for it.
-        /// **The clamp is off in every run**: its box of fifty samples mostly holds none of a light
-        /// this rare and holds the strip near nought, which is `ACCUMULATE_FAST_FRAMES`'s trade and
-        /// not this test's question. So is the ring, which holds the fresh strip down before the fix
-        /// borrows, `ACCUMULATE_RING_FRAMES`'s trade.
+        /// Over four draws, the strip's spread from one draw to the next over its mean: the noise in the
+        /// light's own units, since without the fix the brightness test passes over a fresh pixel's rare bright
+        /// draws and a strip darker for it is quieter by as much and no better. The clamp is off in every run
+        /// (its box of fifty samples mostly holds none of a light this rare, `ACCUMULATE_FAST_FRAMES`'s trade),
+        /// and so is the ring (`ACCUMULATE_RING_FRAMES`'s).
         ///
-        /// Measured: the strip's noise 1.33 of its mean without the fix and 0.57 with it, and 0.21
-        /// held still. **The strip's light is not held to its truth here**: over 32 draws against 1024
-        /// frames it reads 1.00 held still, 0.84 without the fix and 1.22 with it, where it read 0.68,
-        /// 0.54 and 1.01 under the centre's variance alone, and four draws and 128 frames place it
-        /// anywhere within a fifth of that. The fix's excess is its flat kernel's, ReLAX's
-        /// (`RELAX_HistoryFix`), which takes the mean of fourteen pixels either side of light that
-        /// rises toward the spot faster than in a line.
+        /// Measured: noise 1.33 of the mean without the fix, 0.57 with it, 0.21 held still. The strip's light
+        /// is not held to its truth here: over 32 draws against 1024 frames it reads 1.00 held still, 0.84
+        /// without the fix and 1.22 with it, and four draws and 128 frames place it anywhere within a fifth of
+        /// that. The fix's excess is its flat kernel's, ReLAX's (`RELAX_HistoryFix`), which takes the mean of
+        /// fourteen pixels either side of light that rises toward the spot faster than in a line.
         TEST_F(RtxHistoryFixTest, theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo)
         {
             stage(false);
@@ -906,11 +850,10 @@ namespace Rtx::Testing
                                            << ", where the strip held still holds " << held;
         }
 
-        /// **A settled history keeps its light under the brightness test** (`ATROUS_LUMINANCE_SIGMA`).
-        /// The scene of `theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo`, the whole frame held still,
-        /// against 128 unfiltered frames where the eye ends, which hold the frame's light to two
-        /// thousandths where they hold a strip's to a fifth. Measured: the frame keeps 0.993 of its
-        /// light, and kept 0.974 under the centre's variance alone.
+        /// A settled history keeps its light under the brightness test (`ATROUS_LUMINANCE_SIGMA`). The scene of
+        /// `theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo`, the whole frame held still, against 128 unfiltered
+        /// frames where the eye ends, which hold the frame's light to two thousandths where they hold a strip's
+        /// to a fifth. Measured: the frame keeps 0.993 of its light.
         TEST_F(RtxHistoryFixTest, aSettledHistoryKeepsItsLightUnderTheBrightnessTest)
         {
             stage(false);
@@ -929,12 +872,11 @@ namespace Rtx::Testing
             EXPECT_GT(kept, 0.985) << "the brightness test took light from a settled history: " << kept;
         }
 
-        /// **The history fix finds its neighbours on a bumpy surface** (`FacingWeights::mFix`).
-        /// The floor and the wall above wear stripes of shading normals two pixels wide, ten degrees
-        /// one way and the other: most of a fixed pixel's taps stand on a stripe twenty degrees off
-        /// it. NRD's power of eight weighs such a tap at 0.6, and the wavelet's 128 at 0.0003. Measured:
-        /// the strip's noise 2.25 of its mean without the fix and 1.21 with it; at 128, when the fix
-        /// read 1.18, it left 1.67.
+        /// The history fix finds its neighbours on a bumpy surface (`FacingWeights::mFix`). The floor and the
+        /// wall above wear stripes of shading normals two pixels wide, ten degrees one way and the other: most
+        /// of a fixed pixel's taps stand on a stripe twenty degrees off it. NRD's power of eight weighs such a
+        /// tap at 0.6, and the wavelet's 128 at 0.0003. Measured: noise 2.25 of the mean without the fix, 1.21
+        /// with it.
         TEST_F(RtxHistoryFixTest, theHistoryFixFindsItsNeighboursOnABumpySurface)
         {
             stage(true);
@@ -945,13 +887,12 @@ namespace Rtx::Testing
             EXPECT_LT(with, 0.6 * without) << "the history fix left " << with << " of the strip's " << without;
         }
 
-        /// **The pixels the history fix rebuilt keep the rebuilt light under the clamp.** The turn of
-        /// `theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo` with the clamp on, the strip read two
-        /// frames after it. A fixed pixel's fast mean was its one raw sample, and the next frame's clamp
-        /// held the rebuilt slow mean to a box grown by that sample, which pulled the noise back in;
-        /// the fix's answer goes into the fast mean too, as ReLAX's clamp leaves its two histories one
-        /// light. Measured: the strip's noise 0.921 of its mean without the fix, and with it 0.653; with
-        /// the fast mean left raw, when the fix read 0.619, it was 0.737.
+        /// The pixels the history fix rebuilt keep the rebuilt light under the clamp. The turn of
+        /// `theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo` with the clamp on, the strip read two frames after
+        /// it. A fixed pixel's fast mean is its one raw sample, and the next frame's clamp would hold the
+        /// rebuilt slow mean to a box grown by that sample and pull the noise back in, so the fix's answer goes
+        /// into the fast mean too, as ReLAX's clamp leaves its two histories one light. Measured: noise 0.921 of
+        /// the mean without the fix, 0.653 with it; 0.737 with the fast mean left raw.
         TEST_F(RtxHistoryFixTest, aFixedPixelsFastMeanStartsFromTheFixedLight)
         {
             stage(false);
@@ -961,27 +902,22 @@ namespace Rtx::Testing
             EXPECT_LT(with, 0.74 * without) << "the history fix left " << with << " of the strip's " << without;
         }
 
-        /// **The floor a moving bar uncovers starts with the history beside it** (`occluderMotion`,
-        /// Zeng et al. 2021's dual motion vector).
+        /// The floor a moving bar uncovers starts with the history beside it (`occluderMotion`, Zeng et al.
+        /// 2021's dual motion vector).
         ///
-        /// The eye 300 units over a floor under a sky dark at the horizon and bright overhead, and a
-        /// bar 40 units wide spanning every row at 200, which moves 10 units a frame across the
-        /// columns after 32 still frames: on the screen the bar is a third as far as the floor, so it
-        /// steps about five and a half columns a frame over a floor that stands still, and every frame
-        /// uncovers a strip that the frame before did not see. The bar starts mid-frame, so the floor
-        /// beside it on the first step is floor the eye has watched for 32 frames. Over four draws,
-        /// the strip the last frame uncovered, its noise from one draw to the next over its mean:
-        /// without the dual vector the strip holds one frame, which the history fix rebuilds from the
-        /// floor around it; with it, the history of the floor the bar uncovered before it, each
-        /// strip's taken from the last, back to the floor the bar first stood beside.
+        /// The eye 300 units over a floor under a sky dark at the horizon and bright overhead, and a bar 40
+        /// units wide spanning every row at 200, moving 10 units a frame across the columns after 32 still
+        /// frames: on the screen the bar is a third as far as the floor, so it steps about five and a half
+        /// columns a frame and every frame uncovers a strip the frame before did not see. Over four draws, the
+        /// last strip's noise from one draw to the next over its mean: without the dual vector the strip holds
+        /// one frame, which the history fix rebuilds from the floor around it; with it, the history of the
+        /// floor the bar uncovered before.
         ///
-        /// **Each of those taps is another point of the floor**, five pixels on, and 3% further from
-        /// the eye here: a depth test refused every one, and the plane test takes them
-        /// (`heldSurfaceMatches`). **The table is advanced after each hand-over**, as `SceneUploader` does, or
-        /// the bar's motion is its whole travel since it stood still.
-        ///
-        /// Measured: 0.0097 without the dual vector and 0.0022 with it, where the floor beside a bar
-        /// that stood still holds 0.0019.
+        /// Each of those taps is another point of the floor, five pixels on and 3% further from the eye: a
+        /// depth test refused every one, and the plane test takes them (`heldSurfaceMatches`). The table is
+        /// advanced after each hand-over, as `SceneUploader` does, or the bar's motion is its whole travel
+        /// since it stood still. Measured: 0.0097 without the dual vector, 0.0022 with it, 0.0019 beside a bar
+        /// that stood still.
         TEST_F(RtxVisibilityTest, theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt)
         {
             constexpr std::uint32_t size = 64;
@@ -1125,15 +1061,13 @@ namespace Rtx::Testing
             probe.readComposite(read);
         }
 
-        /// **A rare bright bounce on a history of a few frames is held to the light around it**
+        /// A rare bright bounce on a history of a few frames is held to the light around it
         /// (`ACCUMULATE_RING_FRAMES`), over the lantern of `lanternOverAFloor`.
         ///
-        /// After a cut every history is fresh, and three frames on a pixel whose bounce found the sheet
-        /// stands far over the truth: counted where the green stands four times over 64 unfiltered
-        /// frames', pooled over four draws. With the ring, a tenth of them at most.
-        ///
-        /// Measured: 9319 fireflies without the ring, the history fix having spread each over its
-        /// taps, and 173 with it; 9537 and 40 on a low-end AMD integrated GPU.
+        /// After a cut every history is fresh, and three frames on a pixel whose bounce found the sheet stands
+        /// far over the truth: counted where the green stands four times over 64 unfiltered frames', pooled over
+        /// four draws, the ring leaves a tenth of them at most. Measured: 9319 fireflies without the ring and
+        /// 173 with it; 9537 and 40 on a low-end AMD integrated GPU.
         TEST_F(RtxVisibilityTest, theRingHoldsAFreshFireflyToTheLightAroundIt)
         {
             constexpr std::uint32_t size = 64;
@@ -1162,18 +1096,15 @@ namespace Rtx::Testing
             EXPECT_LT(10 * with, without) << "the ring left " << with << " of " << without << " fireflies";
         }
 
-        /// **A settled history keeps the light the ring held from its first frames**, over the lantern
-        /// of `lanternOverAFloor`: 160 still frames from a cut, whose means with and without the ring
-        /// stand within a hundredth. A mean of more than eight frames keeps what it took in, and the
-        /// first eight frames, a quarter of a mean of 32, are `(31/32)^128` of that quarter 128 frames
-        /// later, under half a hundredth of the mean however much of their light the ring took.
+        /// A settled history keeps the light the ring held from its first frames, over the lantern of
+        /// `lanternOverAFloor`: 160 still frames from a cut, whose means with and without the ring stand within
+        /// a hundredth. The first eight frames, a quarter of a mean of 32, are `(31/32)^128` of that quarter 128
+        /// frames later, under half a hundredth of the mean however much of their light the ring took.
         ///
-        /// **On the unvalidated renderer** (`getUnvalidatedRenderer`), because the claim needs every
-        /// one of its 320 frames — at 112 the means stood 2.6% apart on a low-end AMD integrated GPU — and the layers
-        /// held each at three times its cost there, past what a test may take; the ring's passes are
-        /// validated by `theRingHoldsAFreshFireflyToTheLightAroundIt`.
-        ///
-        /// Measured: the settled means 0.7973 and 0.7928, and 0.7956 and 0.7909 on a low-end AMD integrated GPU.
+        /// On the unvalidated renderer (`getUnvalidatedRenderer`), because the claim needs all of its 320
+        /// frames (at 112 the means stood 2.6% apart on a low-end AMD integrated GPU) and the layers hold each
+        /// at three times its cost, past what a test may take; the ring's passes are validated by
+        /// `theRingHoldsAFreshFireflyToTheLightAroundIt`. Measured: settled means 0.7973 and 0.7928.
         TEST_F(RtxVisibilityTest, theRingLeavesASettledMeanItsLight)
         {
             constexpr std::uint32_t size = 64;
@@ -1196,23 +1127,19 @@ namespace Rtx::Testing
             EXPECT_NEAR(meanOf(true) / unheld, 1.0, 0.01) << "the ring kept a settled mean's light from it";
         }
 
-        /// **A fresh pixel is filtered the same under any light** (`shortHistoryVariance`).
+        /// A fresh pixel is filtered the same under any light (`shortHistoryVariance`).
         ///
-        /// A floor under a sky dark at the horizon and bright overhead, from a cut, at the sky's light and at 1024
-        /// times it: a power of two, so every sum, mean and packed colour of the brighter run is the dimmer one's
-        /// scaled exactly, the same draws in both. A filter whose weights hang on the light's ratios alone leaves the
-        /// brighter picture 1024 times the dimmer one, pixel for pixel; one that reads a fixed variance does not. Taken
-        /// two frames on, where the history fix rebuilds the first level and the later ones read the variance, and
-        /// four, where every level reads it.
+        /// A floor under a sky dark at the horizon and bright overhead, from a cut, at the sky's light and at
+        /// 1024 times it: a power of two, so every sum, mean and packed colour of the brighter run is the
+        /// dimmer one's scaled exactly. A filter whose weights hang on the light's ratios alone leaves the
+        /// brighter picture 1024 times the dimmer one, pixel for pixel; one that reads a fixed variance does
+        /// not. Taken two frames on, where the history fix rebuilds the first level and the later ones read the
+        /// variance, and four, where every level reads it. Measured: 0.39 and 0.053 hundred-thousandths apart,
+        /// which the brightness test's divide guard accounts for.
         ///
-        /// Measured: the brighter picture stands 0.39 hundred-thousandths from the dimmer one scaled two
-        /// frames on, and 0.053 four frames on, which the brightness test's divide guard accounts for.
-        /// With the constant variance this replaced, 3.2% and 6.9%.
-        ///
-        /// **And at a sixteenth and a sixty-fourth of the light**, where the variance the narrow levels
-        /// carry falls under what a half holds: the deviation they carry instead (`atrous.comp`) keeps
-        /// the dimmer picture within 0.79 and 2.0 ten-thousandths of the brighter one scaled; the
-        /// variance kept them 11 and 22 ten-thousandths apart. Dimmer still, the divide guard decides
+        /// At a sixteenth and a sixty-fourth of the light the variance the narrow levels carry falls under what
+        /// a half holds, and the deviation they carry instead (`atrous.comp`) keeps the dimmer picture within
+        /// 0.79 and 2.0 ten-thousandths of the brighter one scaled. Dimmer still, the divide guard decides
         /// either way.
         TEST_F(RtxVisibilityTest, aFreshPixelIsFilteredTheSameUnderAnyLight)
         {
@@ -1283,24 +1210,18 @@ namespace Rtx::Testing
 
         /// What the history is worth where the cascade has nothing to borrow from.
         ///
-        /// **The grazing sheet above is the wavelet's best case and cannot answer this.** Every pixel
-        /// of it looks at one flat surface under one smooth sky, so every pixel has the *same*
-        /// expected bounce — a hundred and twenty-five taps average a hundred and twenty-five draws
-        /// from one distribution, and the error falls by the square root of that. It converges to
-        /// within a third of a byte on a single frame, and a history cannot improve on nothing left
-        /// to remove.
-        ///
-        /// So this is the other case, and it is the one Morrowind's geometry actually is: a surface
-        /// whose neighbours disagree. The sheet is cut into a grid of coplanar cells whose
-        /// *shading* normals alternate by forty degrees, which is far outside what
-        /// `FacingWeights::mFilter` lets a tap carry — so the plane test passes everywhere, the normal
-        /// test rejects nearly every neighbour, and the cascade is left with little more than the
-        /// centre pixel. Nothing about the accumulator changes: a still camera reprojects every
+        /// The grazing sheet above is the wavelet's best case and cannot answer this: every pixel has the same
+        /// expected bounce, so 125 taps average 125 draws of one distribution, and a history cannot improve on
+        /// nothing left to remove. This is the other case, which is Morrowind's geometry: a surface whose
+        /// neighbours disagree. The sheet is cut into a grid of coplanar cells whose shading normals alternate
+        /// by forty degrees, far outside what `FacingWeights::mFilter` lets a tap carry, so the plane test
+        /// passes everywhere, the normal test rejects nearly every neighbour, and the cascade is left with
+        /// little more than the centre pixel. The accumulator is unchanged: a still camera reprojects every
         /// pixel onto itself.
         ///
-        /// The alternating tilt is not a trick to defeat the filter. It is what a bumpy surface is,
-        /// and the reason the two neighbours may not be averaged is that they are genuinely lit
-        /// differently — a cosine lobe tilted forty degrees samples a different part of this sky.
+        /// The alternating tilt is what a bumpy surface is, not a trick: the neighbours may not be averaged
+        /// because they are genuinely lit differently, a cosine lobe tilted forty degrees sampling a different
+        /// part of this sky.
         TEST_F(RtxVisibilityTest, theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow)
         {
             constexpr std::uint32_t size = 64;
@@ -1381,12 +1302,9 @@ namespace Rtx::Testing
             const std::vector<float> settledPixels = renderSequence(Shaders::ACCUMULATE_FRAMES);
             const double settled = errorAgainstReference(settledPixels);
 
-            // **The cascade alone over the same sixteen draws the history averaged, pooled as a root
-            // mean square.** One frame's error swings by four per cent with the draw it got, so a
-            // single frame under this ratio put it at the mercy of the sampler's stream: anything that
-            // reshuffled the stream moved the figure by a fiftieth, and a bound a fiftieth above it
-            // failed on a change that touched neither the cascade nor the history. Sixteen pooled
-            // swing by one per cent.
+            // The cascade alone over the same sixteen draws the history averaged, pooled as a root mean square:
+            // one frame's error swings by four per cent with its draw, which put a single-frame ratio at the
+            // mercy of the sampler's stream, where sixteen pooled swing by one per cent.
             double pooled = 0.0;
             for (std::uint32_t frame = 0; frame < Shaders::ACCUMULATE_FRAMES; ++frame)
             {
@@ -1397,12 +1315,10 @@ namespace Rtx::Testing
             }
             const double alone = std::sqrt(pooled);
 
-            // Measured on this box through the composite (`readRadiance`): the cascade alone leaves
-            // 0.0165 pooled over sixteen frames, and the same sixteen accumulated leave 0.0050 — the
-            // history removes seven tenths of the error the filter cannot reach. Deterministic to the
-            // last digit for one stream, and a different stream is what any change to the sampler or
-            // the scene hands this test: over ten streams, with an earlier cascade, the ratio spread
-            // by 0.011 about its mean, so the bound below stands far over the 0.30 measured.
+            // Measured through the composite (`readRadiance`): the cascade alone leaves 0.0165 pooled over
+            // sixteen frames and the same sixteen accumulated 0.0050, the history removing seven tenths of the
+            // error the filter cannot reach. Deterministic for one stream; over ten streams the ratio spread by
+            // 0.011 about its mean, so the bound below stands far over the 0.30 measured.
             EXPECT_GT(alone, 0.003) << "the cascade alone leaves enough error here for the question to mean something: "
                                     << alone;
             EXPECT_LT(settled, alone * 0.65) << "and a history of " << Shaders::ACCUMULATE_FRAMES
@@ -1434,12 +1350,10 @@ namespace Rtx::Testing
                 << "the accumulated mean is " << settledMean << " against a converged " << referenceMean;
         }
 
-        /// **The widest level's taps stand off their lattice** (`ATROUS_JITTER_STEP`). The history
-        /// fix's scene, a floor and a wall under a lamp's spot, at 128 square: sixteen frames, each
-        /// filtered from a cut, and the noise each leaves about their mean. On a fixed lattice two
-        /// pixels eight apart share six of the last level's nine taps, and their noise moves
-        /// together: the noise eight pixels apart correlated at 0.645. Moved by ReLAX's offset, it
-        /// correlates at 0.424.
+        /// The widest level's taps stand off their lattice (`ATROUS_JITTER_STEP`). The history fix's scene at
+        /// 128 square: sixteen frames, each filtered from a cut, and the noise each leaves about their mean. On
+        /// a fixed lattice two pixels eight apart share six of the last level's nine taps and their noise moves
+        /// together, correlated at 0.645 eight pixels apart; moved by ReLAX's offset, 0.424.
         TEST_F(RtxVisibilityTest, theWidestLevelsTapsStandOffTheirLattice)
         {
             constexpr std::uint32_t size = 128;
@@ -1486,15 +1400,13 @@ namespace Rtx::Testing
             EXPECT_LT(together / alone, 0.55) << "the noise eight pixels apart moves together";
         }
 
-        /// **The composite puts back what the trace divided out**: every channel a filter
-        /// averages holds light per unit of the albedo the composite multiplies back, and one frame
-        /// through the filters is the frame the trace composed itself, to the rounding of the
-        /// channels it is stored in. A floor under a two-sided sheet that glows with a radiance of
-        /// one and covers every direction it gathers from: each bounce off the grey floor meets the
-        /// sheet, so the bounce is one at every pixel and the wavelet keeps it; each lobe ray off the
-        /// white metal one meets it too, and the glossy filter's first frame is its sample. A
-        /// channel put back by another albedo than its own — the diffuse one, nought on the metal,
-        /// for the lobe's — misses by the whole of it.
+        /// The composite puts back what the trace divided out: every channel a filter averages holds light per
+        /// unit of the albedo the composite multiplies back, so one frame through the filters is the frame the
+        /// trace composed itself, to the rounding of the channels' storage. A floor under a two-sided sheet that
+        /// glows with a radiance of one and covers every direction it gathers from: each diffuse bounce meets
+        /// the sheet, so the bounce is one at every pixel, and each lobe ray off the white metal meets it too.
+        /// A channel put back by another albedo than its own (the diffuse one, nought on the metal, for the
+        /// lobe's) misses by the whole of it.
         TEST_F(RtxVisibilityTest, theCompositePutsBackWhatTheTraceDividedOut)
         {
             constexpr std::uint32_t size = 32;

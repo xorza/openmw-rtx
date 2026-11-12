@@ -57,10 +57,9 @@ namespace Rtx
 
         /// Two frames in flight, and what each of them read.
         ///
-        /// **What is under test is that a frame keeps the world it was given.** The CPU places the
-        /// next frame while the device draws this one, so the tables a frame traces have to be the
-        /// ones it was placed with and not the ones the placement after overwrote — which is why
-        /// every test here places and draws several frames before it asks about any of them.
+        /// **What is under test is that a frame keeps the world it was given.** The CPU places the next frame while
+        /// the device draws this one, so every test here places and draws several frames before it asks about any of
+        /// them.
         class RtxFramesTest : public Testing::RendererTest
         {
         protected:
@@ -126,18 +125,15 @@ namespace Rtx
 
         /// A cell arriving while a frame is in flight leaves that frame the world it was placed in.
         ///
-        /// **What `extendScene` not waiting rests on, driven rather than assumed.** An arrival appends
-        /// geometry and grows every table a frame in flight may be reading, and the renderer does
-        /// not drain the ring before it extends: what arrives is written behind the frame's reads.
-        /// This is the case that says whether that holds: the suite runs under the layers'
-        /// synchronization validation, so a hazard between what the arrival writes and what the
-        /// frame in flight traces is reported rather than left to chance.
+        /// **What `extendScene` not waiting rests on, driven rather than assumed.** An arrival grows every table a
+        /// frame in flight may be reading, and the renderer does not drain the ring first, so what arrives is written
+        /// behind the frame's reads. The suite runs under the layers' synchronization validation, so a hazard between
+        /// that and the frame's trace is reported.
         ///
-        /// **A hundred rigged meshes and not one, because the count is what makes a table move.**
-        /// A block is only ever appended to, so one arrival proves nothing about it; a bind table,
-        /// a rig's runs and the instance rows are remade by `growTo`, which doubles — so a hundred
-        /// crosses several of those and each is made again while a frame still reads the one it
-        /// displaced. That is the shape a cell crossing has.
+        /// **A hundred rigged meshes and not one, because the count is what makes a table move.** A block is only
+        /// appended to, but a bind table, a rig's runs and the instance rows are remade by `growTo`, which doubles: a
+        /// hundred crosses several, each made again while a frame still reads the one it displaced, as a cell crossing
+        /// does.
         TEST_F(RtxFramesTest, aCellArrivingWhileAFrameIsInFlightLeavesThatFrameItsOwnWorld)
         {
             mProbe.traceFrame(ahead(), FrameOptions{});
@@ -165,9 +161,8 @@ namespace Rtx
 
         /// A third frame waits for the first, whose slot it takes, and the first still reports.
         ///
-        /// **Whichever call did the waiting, the report belongs to the frame.** The ring drains
-        /// itself to make room, and a caller asking once a frame is answered once a frame however
-        /// many of them that drain accounted for.
+        /// **Whichever call did the waiting, the report belongs to the frame.** The ring drains itself to make room,
+        /// and a caller asking once a frame is answered once a frame however many that drain accounted for.
         TEST_F(RtxFramesTest, aFrameTheRingDrainedToMakeRoomStillReports)
         {
             // Placed before every frame, the first included, so the three record the same zones.
@@ -273,11 +268,10 @@ namespace Rtx
 
         /// A caller that stops collecting loses the reports that have stopped being true.
         ///
-        /// **A report is a span into its frame's own timer**, good until that slot comes round and
-        /// resolves again — `sFrameSlots` finishes away. Holding one past that would hand back the
-        /// zones of a later frame, so the oldest goes instead. Five frames drawn and nothing asked
-        /// for in between is one more finish than the ring can answer for, and the first frame is
-        /// the one it cannot.
+        /// **A report is a span into its frame's own timer**, good until that slot comes round and resolves again
+        /// (`sFrameSlots` finishes away). Holding one past that would hand back a later frame's zones, so the oldest
+        /// goes instead: five frames drawn and nothing asked for between is one more finish than the ring can answer
+        /// for, and the first frame is the one it cannot.
         TEST_F(RtxFramesTest, aReportIsDroppedRatherThanHeldPastTheFrameItDescribes)
         {
             for (int at = 0; at < 5; ++at)
@@ -298,11 +292,10 @@ namespace Rtx
 
         /// Several placements before a trace are one frame, and the trace reads the last of them.
         ///
-        /// **A frame the ring counts is a frame the caller asked for.** A cell crossing hands the
-        /// scene over twice — once for what arrived and once for the walk behind it — and the game
-        /// walks its precipitation beside its world. A placement past the first that closed the frame
-        /// would submit an empty one in its place, spending a slot on a frame that drew nothing and
-        /// handing its nought hits back as though they were the picture's.
+        /// **A frame the ring counts is a frame the caller asked for.** A cell crossing hands the scene over twice,
+        /// and the game walks its precipitation beside its world. A placement past the first that closed the frame
+        /// would submit an empty one, spending a slot on a frame that drew nothing and handing its nought hits back as
+        /// the picture's.
         TEST_F(RtxFramesTest, severalPlacementsBeforeATraceAreOneFrame)
         {
             moveTo(-1000.0f);
@@ -333,12 +326,10 @@ namespace Rtx
             mRenderer.dropGuiTexture(texture);
         }
 
-        /// A picture's copy arrives with the frame that carried it and never sooner, and a drain
-        /// lands it at once.
+        /// A picture's copy arrives with the frame that carried it and never sooner, and a drain lands it at once.
         ///
-        /// The trace rides the next submit, which is the frame after it; the copy is readable once
-        /// that frame has been finished — two frames on, on the game's own cadence — and
-        /// `finishGuiTraces` is the harness's way of not waiting for that.
+        /// The trace rides the next submit, which is the frame after it; the copy is readable once that frame has been
+        /// finished, and `finishGuiTraces` is the harness's way of not waiting for that.
         TEST_F(RtxFramesTest, aPicturesCopyArrivesWithTheFrameThatCarriedIt)
         {
             const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
@@ -366,10 +357,10 @@ namespace Rtx
 
         /// A row appended while one copy of the rows was in flight reaches the other copy whole.
         ///
-        /// **The copy that was not placed when the scene grew is smaller than the mirror**, and its
-        /// next placement owes it the appended row — at an offset past its end. The wall that
-        /// arrives is behind the eye and the first wall is moved behind it, so a copy still holding
-        /// the first wall's old row, or built from past its end, hits something.
+        /// **The copy that was not placed when the scene grew is smaller than the mirror**, and its next placement
+        /// owes it the appended row at an offset past its end. The wall that arrives is behind the eye and the first
+        /// wall is moved behind it, so a copy still holding the first wall's old row, or built from past its end, hits
+        /// something.
         TEST_F(RtxFramesTest, aRowAppendedWhileTheOtherCopyWasInFlightReachesIt)
         {
             const Index arrived = mScene.addInstance(
@@ -414,23 +405,20 @@ namespace Rtx
             EXPECT_FALSE(mRenderer.finishFrame().has_value());
         }
 
-        /// A surface moved by its pose reprojects exactly as the same surface moved by its instance:
-        /// the motion vector knows where the triangle stood, and not only where the body did.
+        /// A surface moved by its pose reprojects exactly as the same surface moved by its instance: the motion vector
+        /// knows where the triangle stood, and not only where the body did.
         ///
-        /// **The other copy of the poses is last frame's, and this is what reads it.** A frame
-        /// traces the copy its placement synced; the copy it did not trace was synced the frame
-        /// before, so it holds every pose as of then — `GpuTables::mPreviousPoseBlocks` — and a
-        /// hit on a body takes its own step off the pair. Four units along +x at two hundred units
-        /// off is the 1.1085 pixels `aMotionVectorSaysWhereItsSurfaceWasAndNotWhereTheWorldIs`
-        /// derives for a stepping camera, with the sign the surface's own: it went right, so the
-        /// point now under the centre pixel was to its left. Read twice, so the sign is not a
-        /// guess about the instance path, and once more on a frame nothing moved, which is the
+        /// **The other copy of the poses is last frame's, and this is what reads it.** A frame traces the copy its
+        /// placement synced; the other was synced the frame before, so it holds every pose as of then
+        /// (`GpuTables::mPreviousPoseBlocks`) and a hit on a body takes its own step off the pair. Four units along +x
+        /// at two hundred off is the 1.1085 pixels `aMotionVectorSaysWhereItsSurfaceWasAndNotWhereTheWorldIs` derives,
+        /// with the surface's own sign: it went right, so the point now under the centre pixel was to its left. Read
+        /// twice, so the sign is no guess about the instance path, and once on a frame nothing moved, which is the
         /// copies agreeing.
         ///
-        /// **Ten units toward the eye moves the distance and not the screen.** The centre ray leans
-        /// `a = tan 30° / 64` off the axis on two sides, so the point it finds at 190 units ahead
-        /// is `190 sqrt(1 + 2a²)` = 190.0155 off and stood `sqrt(200² + 2 (190a)²)` = 200.0147 off
-        /// the eye a frame ago: 9.9992 farther.
+        /// **Ten units toward the eye moves the distance and not the screen.** The centre ray leans `a = tan 30° / 64`
+        /// off the axis on two sides, so the point it finds at 190 units ahead is `190 sqrt(1 + 2a²)` = 190.0155 off
+        /// and stood `sqrt(200² + 2 (190a)²)` = 200.0147 off the eye a frame ago: 9.9992 farther.
         TEST_F(RtxFramesTest, aPoseMovesAMotionVectorAsAnInstanceDoes)
         {
             constexpr std::size_t centre = std::size_t{ sSize / 2 } * sSize + sSize / 2;
@@ -501,13 +489,11 @@ namespace Rtx
             }
         }
 
-        /// **A body that arrives has not moved on its first frame**, whichever copy of the poses that
-        /// frame traces: its pose in the copy the frame did not trace is the one it arrived in, and
-        /// not its bind pose. Each arrival is bound at two hundred units and posed ten units nearer
-        /// than the one before, the first wall walked behind the eye so the arrival is what the centre
-        /// meets. Two arrivals on two placements, one on each copy: a copy the arrival left in the
-        /// bind pose reads as a body that came ten or twenty units nearer, a step of about that much
-        /// in the vector's distance.
+        /// **A body that arrives has not moved on its first frame**, whichever copy of the poses that frame traces:
+        /// its pose in the copy the frame did not trace is the one it arrived in, and not its bind pose. Each arrival
+        /// is bound at two hundred units and posed ten nearer than the one before, the first wall walked behind the
+        /// eye so the arrival is what the centre meets. A copy the arrival left in the bind pose reads as a body that
+        /// came ten or twenty units nearer.
         TEST_F(RtxFramesTest, aBodyThatArrivesHasNotMovedOnItsFirstFrame)
         {
             constexpr std::size_t centre = std::size_t{ sSize / 2 } * sSize + sSize / 2;
@@ -540,16 +526,13 @@ namespace Rtx
             }
         }
 
-        /// **A pose turns a body's shading normal, read off the copy its frame posed, and a standing
-        /// mesh beside it keeps its own.** A wall on one bone whose vertex normals lean off its
-        /// plane, `(1, -1, 0)`, turned a quarter about the view axis by its bone: in
-        /// OpenSceneGraph's row-vector convention a quarter turn about +y takes x to -z, so the
-        /// normal reads `(0, -1, -1) / √2`. Its id unmoved would read the shared blocks' run nothing
-        /// wrote, and the plane, `(0, -1, 0)`; unposed, `(1, -1, 0) / √2`. Two frames, one on each
-        /// copy. Then the bone carries it a thousand units back, behind the eye, and the standing
-        /// wall behind it shows its own lean, `(-1, -1, 0) / √2`, out of the shared blocks. Within
-        /// 1e-3 a component: the channel's code (`packSurfaceNormal`) holds a diagonal to its own
-        /// precision and not exactly.
+        /// **A pose turns a body's shading normal, read off the copy its frame posed, and a standing mesh beside it
+        /// keeps its own.** A wall on one bone whose vertex normals lean off its plane, `(1, -1, 0)`, turned a quarter
+        /// about the view axis by its bone: in OpenSceneGraph's row-vector convention a quarter turn about +y takes x
+        /// to -z, so the normal reads `(0, -1, -1) / √2`. Its id unmoved would read the shared blocks' run nothing
+        /// wrote, `(0, -1, 0)`; unposed, `(1, -1, 0) / √2`. Then the bone carries it a thousand units back, behind the
+        /// eye, and the standing wall shows its own lean, `(-1, -1, 0) / √2`. Within 1e-3 a component:
+        /// `packSurfaceNormal` holds a diagonal to its own precision and not exactly.
         TEST_F(RtxFramesTest, aPoseTurnsABodysShadingNormalOnEveryCopy)
         {
             const osg::Vec3f leaning(1.0f, -1.0f, 0.0f);
@@ -603,21 +586,16 @@ namespace Rtx
             }
         }
 
-        /// **The frame's reserve is the running mode's, and the world is built again only where its
-        /// move changes what the world would stand as.** Native upscaling keeps the upscaler's
-        /// images beside a trace of the same extent, so its reserve stands over the mode with none;
-        /// under each, what the targets hold stays within what is kept for them. A reserve that
-        /// moves within the room content left keeps the world, either way. One that grows past it —
-        /// a budget at the textures' ceiling over the heap, which the native mode's larger reserve
-        /// lowers — releases the world, so the next hand-over stands every texture against the new
-        /// room (`SceneUploader` builds a slot that holds nothing); and so does one that shrinks
-        /// over a world built where the device had no room for its structures. A change that leaves
-        /// the reserve where it was keeps it. A world let go gives back every byte of every use it
-        /// took, so a second release leaves what the first did. And a run that sums, as this one may
-        /// (`RadianceWidth::Summed`), fills its reserve to the byte once a frame sums, upscaled or not:
-        /// the running sum and the deep picture are the last of what it keeps room for, and nothing
-        /// is kept that no frame makes. **A run that names the modes it moves between**
-        /// (`RunProfile::mReservedUpscales`) reserves the largest of theirs under each, so the move
+        /// **The frame's reserve is the running mode's, and the world is built again only where its move changes what
+        /// the world would stand as.** Native upscaling keeps the upscaler's images beside a trace of the same extent,
+        /// so its reserve stands over the mode with none. A reserve that moves within the room content left keeps the
+        /// world; one that grows past it (a budget at the textures' ceiling over the heap, which native mode's larger
+        /// reserve lowers) releases it, so the next hand-over stands every texture against the new room
+        /// (`SceneUploader` builds a slot that holds nothing); so does one that shrinks over a world built where the
+        /// device had no room for its structures. A world let go gives back every byte of every use it took, so a
+        /// second release leaves what the first did. A run that sums (`RadianceWidth::Summed`) fills its reserve to
+        /// the byte once a frame sums, since nothing is kept that no frame makes. **A run that names the modes it
+        /// moves between** (`RunProfile::mReservedUpscales`) reserves the largest of theirs under each, so the move
         /// that built the world again under the budget at the heap keeps it.
         TEST_F(RtxFramesTest, theReserveIsTheRunningModesAndOnlyAMoveThatChangesTheRoomBuildsTheWorldAgain)
         {
@@ -768,14 +746,11 @@ namespace Rtx
             mRenderer.dropGuiTexture(texture);
         }
 
-        /// **A world built again stands every body in the pose it held**, though nothing moved since:
-        /// the walk names a pose only where it changed (`MeshTable::getDeformed`), and a hand-over
-        /// clears what arrived, so a still body is on no list when a change of mode lets the world go
-        /// and the uploader builds it again. The wall posed a thousand units behind the eye, then the
-        /// lists cleared as the uploader clears them and the reserve grown past what content left: a
-        /// body built in its bind pose stands two hundred units ahead and fills the frame. Two
-        /// frames, one on each copy of the poses, since each copy is posed by the placement that
-        /// writes it.
+        /// **A world built again stands every body in the pose it held**, though nothing moved since: the walk names a
+        /// pose only where it changed (`MeshTable::getDeformed`), and a hand-over clears what arrived, so a still body
+        /// is on no list when a change of mode lets the world go and the uploader builds it again. A body built in its
+        /// bind pose would stand two hundred units ahead and fill the frame. Two frames, one on each copy of the
+        /// poses, since each is posed by the placement that writes it.
         TEST_F(RtxFramesTest, aWorldBuiltAgainStandsEveryBodyInThePoseItHeld)
         {
             deformTo(-1000.0f);
@@ -806,15 +781,13 @@ namespace Rtx
             mRenderer.setUpscale(held);
         }
 
-        /// A refitted structure is built whole again on a rota: the posed body built longest ago,
-        /// on every placement that poses anything, one a placement, and never one built whole on
-        /// its own arrival.
+        /// A refitted structure is built whole again on a rota: the posed body built longest ago, on every placement
+        /// that poses anything, one a placement, and never one built whole on its own arrival.
         ///
-        /// **Counted through the scene's report and driven through the placements a frame makes**,
-        /// so the rule is read where a run reads it. The wall alone is built whole on every posed
-        /// placement after the one it arrived on. A second body arriving is not built again on the
-        /// placement that brings it; the two then share the rota, each placement building exactly
-        /// one of them. A placement that poses neither is not a tick of the rota at all.
+        /// **Counted through the scene's report and driven through the placements a frame makes.** The wall alone is
+        /// built whole on every posed placement after the one it arrived on. A second body is not built again on the
+        /// placement that brings it; the two then share the rota, each placement building exactly one. A placement
+        /// that poses neither is not a tick of the rota.
         TEST_F(RtxFramesTest, aRefittedStructureIsBuiltWholeAgainOnARota)
         {
             // The fixture's `setScene` left the wall among the arrivals, as the uploader would not
@@ -878,18 +851,16 @@ namespace Rtx
             EXPECT_EQ(finishedHits(), sEveryPixel);
         }
 
-        /// A picture still deferred traces the copy it was placed with, however many placements of
-        /// its scene follow it in the frame.
+        /// A picture still deferred traces the copy it was placed with, however many placements of its scene follow it
+        /// in the frame.
         ///
-        /// **Content, not memory.** A picture inside the interface is a deferred batch: its
-        /// placement built the top level from the rows of the moment and its trace reads that
-        /// copy's instance table, both carried by the next submit. A third placement of the scene
-        /// in the same frame writes that copy again from the host, ahead of the submit — no race,
-        /// because nothing is on the queue yet, and so nothing the tables' stamps would wait for.
-        /// The picture would then trace the first placement's top level against the third's rows,
-        /// and here read the wall's opacity as the fade the third placement wrote and see through
-        /// it. So a placement into a copy whose picture is still deferred carries the picture
-        /// first, and a placement into the other copy does not.
+        /// **Content, not memory.** A picture inside the interface is a deferred batch: its placement built the top
+        /// level from the rows of the moment and its trace reads that copy's instance table, both carried by the next
+        /// submit. A third placement of the scene in the same frame writes that copy again from the host ahead of the
+        /// submit, with nothing on the queue for the tables' stamps to wait for, so the picture would trace the first
+        /// placement's top level against the third's rows and see through the wall's faded opacity. So a placement
+        /// into a copy whose picture is still deferred carries the picture first, and a placement into the other copy
+        /// does not.
         TEST_F(RtxFramesTest, aPlacementIntoTheCopyADeferredPictureReadsCarriesThePictureFirst)
         {
             // A scene of its own, because a picture's placements are deferred like its trace: the
@@ -1015,11 +986,10 @@ namespace Rtx
             mRenderer.dropGuiTexture(texture);
         }
 
-        /// **A frame a host asks for is its viewpoint with its world described over it, and its air
-        /// carried on**: the block the renderer traced and the carry it hands back are what
-        /// `constantsFor` and `describeWorld` make of the request — the one writer of each field —
-        /// and `holdAir` stands the carry where a harness recorded it. Outdoors, so the air drifts
-        /// along the deck's heading, which a sky with no sheet reads as north.
+        /// **A frame a host asks for is its viewpoint with its world described over it, and its air carried on**: the
+        /// block the renderer traced and the carry it hands back are what `constantsFor` and `describeWorld` make of
+        /// the request, the one writer of each field, and `holdAir` stands the carry where a harness recorded it.
+        /// Outdoors, so the air drifts along the deck's heading, which a sky with no sheet reads as north.
         TEST_F(RtxFramesTest, aRequestIsTracedAsItsWorldDescribesItAndCarriesTheAirOn)
         {
             const SkyContent sky;

@@ -44,13 +44,10 @@ namespace Rtx
         constexpr std::string_view sTooShort = "is shorter than a cache header";
         constexpr std::string_view sTooLong = "is larger than a cache is kept";
 
-        /// What the file holds ahead of the driver's blob, which is what lets a run refuse a body
-        /// the driver would be handed whole: Vulkan has the driver check its own header and nothing
-        /// after it, so a short body, or one a power loss zeroed after the rename, passes that check
-        /// and reaches the driver. The established shape for a pipeline cache file, as DXVK and
-        /// Fossilize write theirs: an own header with the body's length and digest, and the device
-        /// it was written on. **The driver's version as well as the UUID**, because some drivers
-        /// keep their UUID across an update.
+        /// Vulkan has the driver check its own header and nothing after it, so a short or zeroed body
+        /// would reach the driver; this header (length, digest, device, as DXVK and Fossilize write
+        /// theirs) lets a run refuse it first. The driver's version is in it as well as the UUID,
+        /// because some drivers keep their UUID across an update.
         struct FileHeader
         {
             std::array<char, 8> mMagic;
@@ -94,8 +91,7 @@ namespace Rtx
         constexpr std::string_view sSuffix = ".pipelinecache";
 
         /// How many caches other than this run's are kept, oldest first to go. A bound and not a
-        /// purge: another cache is what a second card or the shader tree before the last edit
-        /// compiled to, and sweeping them made every switch a cold compile.
+        /// purge: sweeping them all made every switch of card or shader tree a cold compile.
         constexpr std::size_t sKeptCaches = 4;
 
         std::uint32_t readWord(std::span<const std::uint8_t> data, std::size_t at)
@@ -117,8 +113,7 @@ namespace Rtx
             }
         }
 
-        /// What this cache is called: the driver that can read it back, and the shaders it was
-        /// built from. Both halves are the key, so a run reads only the file it can use, and
+        /// The name is the key (driver, shaders), so a run reads only the file it can use and
         /// `sweep` bounds the rest.
         std::filesystem::path cachePath(const PipelineCacheSpec& spec, const VkPhysicalDeviceProperties& properties,
             const std::filesystem::path& shaderDirectory)
@@ -168,9 +163,7 @@ namespace Rtx
     Result<std::vector<std::uint8_t>, std::string_view> PipelineCache::read(
         const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties)
     {
-        // Bounded before the body is read, because the file this refuses for its size is the one it
-        // would be most expensive to read: `sMostBytes` says what has been seen in a directory
-        // nothing swept.
+        // Bounded before the body is read: the file refused for its size is the costliest to read.
         Misc::ByteBuffer file;
         if (const Result<void, Platform::IoError> read
             = Platform::readWhole(path, file, sizeof(FileHeader) + sMostBytes);
@@ -224,10 +217,9 @@ namespace Rtx
         if (mPath.empty())
             return;
 
-        // **Nothing here fails loudly**, which the destructor's `tearDown` holds there and this holds
-        // here: a sweep the filesystem refuses, or a read that cannot allocate, starts the cache
-        // empty. The sweep before the read and not after it, so that a run which then fails to load
-        // its own file has still taken the rest away.
+        // Nothing here fails loudly: a refused sweep or a read that cannot allocate starts the cache
+        // empty. The sweep comes before the read so a run that fails to load its file has still
+        // swept.
         std::vector<std::uint8_t> loaded;
         tearDown("the pipeline cache starts empty", [&] {
             sweep();
@@ -259,9 +251,8 @@ namespace Rtx
 
     PipelineCache::~PipelineCache()
     {
-        // The one destructor here that is not about a handle. A destructor, so nothing in it may
-        // throw: allocating the blob can, and a cache that failed to save is not worth taking the
-        // process down over. `tearDown` is where that rule lives.
+        // Allocating the blob can throw, and a cache that failed to save is not worth taking the
+        // process down over.
         tearDown("the pipeline cache was not saved", [&] { save(); });
     }
 
@@ -330,18 +321,15 @@ namespace Rtx
         if (vkGetPipelineCacheData(mDevice, mHandle.get(), &bytes, data.data()) != VK_SUCCESS)
             return;
 
-        // A run that compiled nothing new has nothing to say, and a great many runs are that: every
-        // `shot` after the first, every test binary after the first. Rewriting a megabyte to record
-        // no change is how a cache comes to cost more than it saves.
+        // A run that compiled nothing new writes nothing: rewriting a megabyte to record no change
+        // costs more than the cache saves.
         data.resize(bytes);
         const Misc::DigestWords digest = digestOf(data);
         if (bytes == mKeptBytes && digest == mKeptDigest)
             return;
 
-        // Removed rather than written, where one run's own pipelines have outgrown the cap. The
-        // next run would refuse a blob this size and start again, so writing it is a hundred
-        // megabytes spent to be thrown away — and leaving the smaller file that is already there
-        // would have the run after that grow past the cap again from where this one did.
+        // Removed rather than written: the next run would refuse a blob this size, and the smaller
+        // file already there would have the run after that grow past the cap again.
         if (bytes > sMostBytes)
         {
             Log(Debug::Warning) << std::format(
@@ -352,11 +340,9 @@ namespace Rtx
             return;
         }
 
-        // **Written whole and synced** (`Platform::writeWhole`): a test binary and a tool can be
-        // closing at the same moment, and two writing one path in place would interleave into a
-        // file with a valid header and a mixed body, which the header check cannot catch; and on the
-        // disk before the rename, or a power loss after it can leave the name on a body never
-        // written. A temporary a process killed before its rename left is swept with the old caches.
+        // Written whole and synced: two processes closing at once would interleave in place into a
+        // valid header over a mixed body, and a power loss after an unsynced rename can leave the
+        // name on a body never written. A killed process's temporary is swept with the old caches.
         const FileHeader header = headerFor(data, mProperties);
         const std::array<std::span<const std::byte>, 2> parts{ std::as_bytes(std::span(&header, 1)),
             std::as_bytes(std::span(data.data(), bytes)) };

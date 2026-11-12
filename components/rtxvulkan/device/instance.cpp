@@ -174,11 +174,11 @@ namespace Rtx
             messengerInfo = makeMessengerCreateInfo(*mValidationLog);
             next = &messengerInfo;
 
-            // **Synchronization validation and GPU-assisted validation are never loaded together**:
-            // the two took the device down in three runs of four. The first catches a missing
-            // barrier and costs enough to be opt-in. The second instruments every shader and catches
-            // what a ray query does with its own arguments, at about half the frame rate, and the
-            // layer itself asks not to be run beside the core checks, so neither is a default.
+            // **Synchronization validation and GPU-assisted validation are never loaded together**: the two
+            // took the device down in three runs of four. The first catches a missing barrier and is opt-in
+            // for its cost; the second instruments every shader and catches what a ray query does with its
+            // own arguments at about half the frame rate, and the layer asks not to be run beside the core
+            // checks, so neither is a default.
             if (options.mLevel == ValidationLevel::Sync)
             {
                 enabled.push_back(VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT);
@@ -193,13 +193,11 @@ namespace Rtx
             {
                 enabled.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
 
-                // Hands reads past the end of a buffer to the hardware's own robust buffer access
-                // rather than GPU-AV's instrumentation, which the layer itself warns is very slow
-                // with this many storage buffers — a window under it loses the device inside half a
-                // minute. What is given up is the report; what is kept is everything else GPU-AV
-                // checks, including a ray query's own arguments. The scene's tables are pointers,
-                // which robustness does not reach, so a shot still takes twice as long under the
-                // layers.
+                // Hands reads past the end of a buffer to the hardware's robust buffer access rather than
+                // GPU-AV's instrumentation, which the layer itself warns is very slow with this many storage
+                // buffers — a window under it loses the device inside half a minute. The report is given up;
+                // everything else GPU-AV checks, a ray query's own arguments included, is kept. The scene's
+                // tables are pointers, which robustness does not reach, so a shot still takes twice as long.
                 turnOn("gpuav_force_on_robustness");
             }
 
@@ -257,12 +255,11 @@ namespace Rtx
         mExtensions.assign(extensions.begin(), extensions.end());
         mLayers->annotate();
 
-        // **One load serves every instance**, so a second one made beside the first, as the tests
-        // make them, rewrites nothing another thread is calling through. For a core function and a
-        // swapchain one, the loader answers with its own exported trampoline whatever the instance
-        // (Vulkan-Loader's `trampoline_get_proc_addr` and `wsi_swapchain_instance_gpa`), which is the
-        // function an import library would have bound. The surface's are not, and `Surface` asks
-        // this instance for its own.
+        // **One load serves every instance**, so a second one made beside the first, as the tests make
+        // them, rewrites nothing another thread is calling through. For a core function and a swapchain
+        // one the loader answers with its own exported trampoline whatever the instance
+        // (`trampoline_get_proc_addr`, `wsi_swapchain_instance_gpa`); the surface's are not, and `Surface`
+        // asks this instance for its own.
         static std::once_flag loaded;
         std::call_once(loaded, [&] { volkLoadInstance(mHandle.get()); });
 

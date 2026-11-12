@@ -10,22 +10,21 @@ namespace Rtx::Shaders
 {
 #endif
 
-    /// How this renderer weighs a colour into a brightness.
+    /// How this renderer weighs a colour into a brightness: Rec. 709, which is what these primaries
+    /// are.
     ///
-    /// Rec. 709, which is what these primaries are.
-    ///
-    /// **Shared because two shaders now decide something by it**, and a pair of weights that
-    /// disagreed would be two different ideas of which of two things is brighter. The exposure
-    /// histogram measures the frame with it; the trace asks whether the sprites over a pixel put
-    /// more light into it than the surface behind them left.
+    /// **Shared because two shaders decide something by it**, and weights that disagreed would be two
+    /// ideas of which of two things is brighter: the exposure histogram measures the frame with it,
+    /// and the trace asks whether the sprites over a pixel put more light into it than the surface
+    /// behind them left.
     const vec3 LUMINANCE_WEIGHTS = vec3(0.2126f, 0.7152f, 0.0722f);
 
     /// One channel of a colour carried toward its luminance: nought gives the luminance, one the
     /// channel, and past one the channel further from it — `TONE_SATURATION`'s grade.
     ///
-    /// **Two products, so that one gives the channel back to the bit** and a saturation of one
-    /// changes no picture. The usual `luminance + saturation * (channel - luminance)` rounds twice
-    /// there. Held at nought past one, where a channel under the luminance is carried below nothing.
+    /// **Two products, so that one gives the channel back to the bit.** The usual
+    /// `luminance + saturation * (channel - luminance)` rounds twice there. Held at nought past one,
+    /// where a channel under the luminance is carried below nothing.
     RTX_SHADER float saturatedChannel(float channel, float luminance, float saturation)
     {
         const float carried = channel * saturation + luminance * (1.0f - saturation);
@@ -48,15 +47,12 @@ namespace Rtx::Shaders
         return exp2((contrast - 1.0f) * log2(luminance / EXPOSURE_KEY));
     }
 
-    /// The sRGB transfer curve, linear radiance to what a display expects of a byte.
-    ///
-    /// The piecewise form and not the 2.2 approximation. The two differ by several per cent in the
-    /// darks, which is where a bounce puts most of what it has to say.
+    /// The sRGB transfer curve, linear radiance to what a display expects of a byte. The piecewise
+    /// form and not the 2.2 approximation, which differs by several per cent in the darks.
     ///
     /// **Per component, and a ternary rather than a vector select.** GLSL picks a side with `mix`
-    /// over a `bvec3`, which the host has no spelling for, so the one form both read is this.
-    /// Nothing changes by it: a select with a boolean weight picks a side rather than blending
-    /// toward one. The host's `Rtx::toEncoded` is this, clamped.
+    /// over a `bvec3`, which the host has no spelling for. A select with a boolean weight picks a
+    /// side rather than blending toward one. The host's `Rtx::toEncoded` is this, clamped.
     RTX_SHADER float encodeSrgb(float linear)
     {
         if (linear <= 0.0031308f)
@@ -143,10 +139,8 @@ namespace Rtx::Shaders
 
 /// The largest of a colour's three channels.
 ///
-/// **Not the luminance above, and the difference is what each is for.** A luminance asks how bright
-/// something looks and weighs the channels by the eye; this asks how much of a colour there is at
-/// all, which is the question a threshold wants — whether the sun puts more into the air than the
-/// sky does, and how bright to draw a disc whose hue comes from somewhere else.
+/// **Not the luminance above**: a luminance asks how bright something looks and weighs the channels
+/// by the eye; this asks how much of a colour there is at all, which is what a threshold wants.
 RTX_SHADER float brightest(vec3 colour)
 {
     return max(colour.x, max(colour.y, colour.z));
@@ -171,24 +165,17 @@ RTX_SHADER vec3 graded(vec3 colour, float contrast, float saturation)
 
 /// Radiance to a display range: Khronos PBR Neutral, with its shadow offset ramped.
 ///
-/// **Chosen for what it does to a flame.** Every operator has to bring a highlight down, and this
-/// one desaturates toward white as it compresses — so a torch goes white the way a photograph of one
-/// does, rather than clipping channel by channel and passing through yellow and orange on its way.
-/// Below `TONE_COMPRESSION_START` it is the identity, so a midtone is left exactly where the
-/// exposure put it.
+/// **Chosen for what it does to a flame.** It desaturates toward white as it compresses, so a torch
+/// goes white the way a photograph of one does, rather than clipping channel by channel through
+/// yellow and orange. Below `TONE_COMPRESSION_START` it is the identity.
 ///
-/// **The shadow offset is ramped rather than taken whole, and that is a departure from the
-/// published curve.** Khronos takes a flat 0.04 off every channel, and for the darkest channel below
-/// 0.08 takes `x - 6.25x^2` instead — which leaves that channel at exactly `6.25x^2`, a log-log
-/// slope of two, doubling the contrast through the whole bottom of the range. A linear 0.01 keeps
-/// six per cent of itself. And because the same amount comes off all three channels while only the
-/// smallest is squared, a night colour arrives with its blue-to-red ratio several times inflated.
-///
-/// What the offset is for does not apply here: it cancels the four per cent Fresnel floor of a
-/// dielectric so that a glTF `baseColor` reproduces exactly under even white light, which is a
-/// colour-management guarantee for an asset viewer. Removing it outright is worse than keeping it,
-/// because it does real shadow-contrast work by day. Ramping the amount away with the colour keeps
-/// that and multiplies nothing by its own smallness: black stays black, and above three times the
+/// **The shadow offset is ramped rather than taken whole, a departure from the published curve.**
+/// Khronos takes a flat 0.04 off every channel, and for the darkest channel below 0.08 takes
+/// `x - 6.25x^2` instead, which doubles the contrast through the whole bottom of the range and
+/// inflates a night colour's blue-to-red ratio several times. The offset exists to cancel a
+/// dielectric's four per cent Fresnel floor so a glTF `baseColor` reproduces under white light, a
+/// guarantee that does not apply here; removing it outright loses real shadow contrast by day.
+/// Ramping the amount away with the colour keeps that: black stays black, and above three times the
 /// offset this is the published curve bit for bit.
 RTX_SHADER vec3 toneMap(vec3 colour)
 {

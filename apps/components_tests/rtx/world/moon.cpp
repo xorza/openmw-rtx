@@ -335,7 +335,7 @@ namespace Rtx
 
             // **Waxing and waning are the same light from the sun's own side.** The first quarter,
             // three quarters of the way round the month, is lit toward the sun like the last one
-            // and shaded by the same law: the waxing half once clamped to Lambert and turned its lit
+            // and shaded by the same law, so the waxing half must not clamp to Lambert or turn its lit
             // limb away from the sun.
             const Shaders::MoonDisc waxing = described(1.5f * osg::PIf, sun);
             expectNear(waxing.mLitFrom, osg::Vec3f(0.6f, 0.8f, 0.0f), "the other quarter");

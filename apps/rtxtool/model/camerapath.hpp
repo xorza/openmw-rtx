@@ -11,25 +11,21 @@ namespace RtxTool
 {
     struct TrackKey;
 
-    /// The line a take's eye flies along: through every key's eye, smooth where it passes one and
-    /// broken where it stands still, and measured by its length.
+    /// The line a take's eye flies along: through every key's eye, smooth where it passes one and broken where it
+    /// stands still, and measured by its length.
     ///
-    /// **A centripetal Catmull-Rom spline** (Yuksel, Schaefer and Keyser, 2011): knots spaced by the
-    /// square root of the distance between two eyes, which of the Catmull-Rom family is the one
-    /// that neither cusps nor loops inside a segment and hugs its eyes where they bunch up. Each
-    /// segment is the cubic Hermite between its two eyes with that spline's tangents, scaled to the
-    /// segment's own knot interval.
+    /// A centripetal Catmull-Rom spline (Yuksel, Schaefer and Keyser, 2011): knots spaced by the square root of the
+    /// distance between two eyes, the member of the family that neither cusps nor loops inside a segment. Each
+    /// segment is the cubic Hermite between its two eyes with that spline's tangents, scaled to its knot interval.
     ///
-    /// **Broken where the eye stands still** — at a take's first and last key, at a key that rests,
-    /// and on either side of a segment that goes nowhere, a hold or a turn on the spot. The curve
-    /// leaves or reaches such a key along the chord to the next, as though an eye stood mirrored
-    /// beyond it: the tangent a flight from rest would take, and one no key it never reaches bends.
+    /// Broken where the eye stands still: a take's first and last key, a key that rests, either side of a segment
+    /// that goes nowhere. The curve leaves or reaches such a key along the chord, as though an eye stood mirrored
+    /// beyond it, which is the tangent a flight from rest would take.
     ///
-    /// **By length, and not by the cubic's own parameter**, because a camera at one speed covers
-    /// equal lengths in equal times and the parameter runs faster on the straights than on the
-    /// bends. A length is the integral of the speed along the cubic, Gauss–Legendre over halves
-    /// until two estimates agree to `sLengthTolerance`, and a point at a length is found by Newton's
-    /// method on that integral, kept inside the bracket its own steps narrow.
+    /// By length and not the cubic's own parameter, which runs faster on the straights while a camera at one speed
+    /// covers equal lengths in equal times. A length is the integral of the speed, Gauss–Legendre over halves until
+    /// two estimates agree to `sLengthTolerance`; a point at a length is found by Newton's method on that integral,
+    /// kept inside the bracket its own steps narrow.
     class CameraPath
     {
     public:

@@ -160,10 +160,9 @@ namespace Rtx
 
     /// One texture as a surface uses it: the image, and how it is addressed past its edges.
     ///
-    /// **The image and not an `osg::Texture2D`**, for the reason `SurfaceDescription::mTextures`
-    /// gives; **and the wrap beside it**, because that is the one piece of sampler state the
-    /// content decides per texture. A `NiSourceTexture` states a clamp, `NifOsg` puts it on the
-    /// texture, and a renderer that read the image alone repeated every banner's edge.
+    /// **The image and not an `osg::Texture2D`**, for the reason `SurfaceDescription::mTextures` gives; **and the wrap
+    /// beside it**, because that is the one piece of sampler state the content decides per texture: a `NiSourceTexture`
+    /// states a clamp, and a renderer that read the image alone repeated every banner's edge.
     struct TextureUse
     {
         osg::ref_ptr<const osg::Image> mImage;
@@ -188,11 +187,10 @@ namespace Rtx
     /// copy: a chain of state sets is folded into one of these in order.
     struct SurfaceDescription
     {
-        /// One texture per map the trace reads, null where the content has none. The image and
-        /// not an `osg::Texture2D`: `osgDB::SharedStateManager` replaces the texture `NifOsg` bound
-        /// by one it never saw, and the image is what `Resource::ImageManager` caches by path and
-        /// what carries the file name a renderer identifies a texture by. The wrap comes across
-        /// with it, and the rest of the sampler state stays on the texture.
+        /// One texture per map the trace reads, null where the content has none. The image and not an `osg::Texture2D`:
+        /// `osgDB::SharedStateManager` replaces the texture `NifOsg` bound by one it never saw, and the image is what
+        /// `Resource::ImageManager` caches by path and what carries the file name a renderer identifies a texture by.
+        /// The wrap comes across with it.
         std::array<TextureUse, sSurfaceMapCount> mTextures;
 
         /// How a blended surface composites, meaningful under `AlphaMode::Blend`.
@@ -242,11 +240,10 @@ namespace Rtx
             mUnread = unread ? mUnread | bit : mUnread & ~bit;
         }
 
-        /// Whether both faces of this surface are drawn and lit. False unless the content says
-        /// otherwise, because the scene root turns `GL_CULL_FACE` on for everything under it, and
-        /// only a `NiStencilProperty` drawing `Both` or a material file's two-sided flag turns it
-        /// off. Vanilla Morrowind has neither: a leaf meant to be seen from behind is a second copy
-        /// wound the other way, which is `Rtx::ShapeFold`'s business.
+        /// Whether both faces of this surface are drawn and lit. False unless the content says otherwise, because the
+        /// scene root turns `GL_CULL_FACE` on for everything under it, and only a `NiStencilProperty` drawing `Both` or
+        /// a material file's two-sided flag turns it off. Vanilla Morrowind has neither: a leaf meant to be seen from
+        /// behind is a second copy wound the other way, which is `Rtx::ShapeFold`'s business.
         bool mTwoSided = false;
 
         /// Whether the lamps light this surface. Every surface the content describes is lit by
@@ -282,12 +279,11 @@ namespace Rtx
 
         const TextureUse& getTextureUse(SurfaceMap map) const { return mTextures[static_cast<std::size_t>(map)]; }
 
-        /// What `map` is bound as, its `_spec` map measured as `specular` (`specularLayoutOf`): a normal map
-        /// a normal map; a classic pair's diffuse and `_spec` its converted base colour and metal-roughness
-        /// map; a metal-roughness `_spec` data, beside an authored base colour, a colour read as it stands;
-        /// a diffuse with no `_spec` a painted colour, delit on the host; and every other map a colour. The
-        /// one rule, which the material resolver binds by and the loading screen's preparation makes the
-        /// chains of.
+        /// What `map` is bound as, its `_spec` map measured as `specular` (`specularLayoutOf`): a normal map as a
+        /// normal map; a classic pair's diffuse and `_spec` as its converted base colour and metal-roughness map; a
+        /// metal-roughness `_spec` as data, beside an authored base colour, a colour read as it stands; a diffuse with
+        /// no `_spec` as a painted colour, delit on the host; and every other map as a colour. The one rule, which the
+        /// material resolver binds by and the loading screen's preparation makes the chains of.
         TextureEncoding encodingOf(SurfaceMap map, SpecularLayout specular) const;
 
         /// The other file `map` is made with where its encoding converts a classic pair

@@ -37,12 +37,12 @@ namespace RtxTool
         /// `30 * 921600 / 2073600` = 13.3 samples a shown pixel, held to 13; ultra performance traces
         /// 640 by 360, 3.3, held to 3. And never nought, however short the history.
         ///
-        /// **And the frame a leg judges holds what the leg says.** Standing, the warm-up is the stop's
-        /// own 128 frames and its history 130, held to sixteen at native and at ultra performance to
-        /// `130 * 230400 / 2073600` = 14.4, so 14; flown in, the flight's thirty frames; `--cut=N`, a warm-up of
-        /// `N - 1` after the frame the cut resets, so `N + 1` frames of history: `--cut=1` at native
-        /// holds 2 and is held to 2, at quality `2 * 921600 / 2073600` = 0.89, held to 1; `--cut=4`
-        /// at native holds 5. A cut and a flight together are refused.
+        /// **And the frame a leg judges holds what the leg says.** Standing, the warm-up is the stop's own
+        /// 128 frames and its history 130, held to sixteen at native and at ultra performance to
+        /// `130 * 230400 / 2073600` = 14.4, so 14; flown in, the flight's thirty frames; `--cut=N`, a
+        /// warm-up of `N - 1` after the frame the cut resets, so `N + 1` frames of history: `--cut=1` at
+        /// native holds 2, at quality `2 * 921600 / 2073600` = 0.89, held to 1. A cut and a flight
+        /// together are refused.
         TEST(RtxNoiseFrameTest, aStrafedBarAveragesAsManyFramesAsTheHistoryCouldHold)
         {
             const auto after = [](std::uint32_t frames, Rtx::Upscale mode) {

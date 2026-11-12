@@ -148,12 +148,10 @@ namespace
         EXPECT_EQ(Crash::title(nothing, player), "Crash: no exception was recorded");
     }
 
-    /// What a terminate handler reports, for each thing that can be current: the message of a
-    /// `std::exception`, a word for anything else thrown, and the bare call where nothing is.
-    ///
-    /// **A message longer than a note is cut to what a note holds**, 255 bytes of the 256: the text
-    /// goes into the caller's buffer, because nothing between `std::terminate` and the abort may
-    /// allocate.
+    /// What a terminate handler reports, for each thing that can be current: the message of a `std::exception`,
+    /// a word for anything else thrown, and the bare call where nothing is. **A message longer than a note is cut
+    /// to what a note holds**, 255 bytes of the 256, because nothing between `std::terminate` and the abort may
+    /// allocate: the text goes into the caller's buffer.
     TEST(CrashSummaryTest, aTerminateNamesWhatWasThrown)
     {
         char reason[Crash::sNoteCapacity];

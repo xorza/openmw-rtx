@@ -115,13 +115,10 @@ namespace Rtx
             }
         }
 
-        /// A texel's worth of an image is its own colour in light, times how much of it is there.
-        ///
-        /// **Both halves are the point.** The colour is display-encoded in every format the game ships,
-        /// so a mean taken before the curve is undone is the mean of the wrong quantity — and the alpha
-        /// is what the sheet is drawn by, so a star sheet that is 99% transparent averages nearly
-        /// nothing rather than nearly the black it is painted on.
-        ///
+        /// A texel's worth of an image is its own colour in light, times how much of it is there. **Both halves
+        /// are the point**: the colour is display-encoded in every format the game ships, so a mean taken before
+        /// the curve is undone is the mean of the wrong quantity, and a star sheet that is 99% transparent
+        /// averages nearly nothing rather than nearly the black it is painted on.
         /// Four texels: red at full, green at half cover, blue at none, and white. Full is 1.0 in light
         /// and nought is nought, so the mean is `(1 + 0 + 0 + 1) / 4` in red, `(0 + 128/255 + 0 + 1) / 4`
         /// in green, and `(0 + 0 + 0 + 1) / 4` in blue. With the alpha unread every channel is
@@ -143,12 +140,9 @@ namespace Rtx
             EXPECT_NEAR(mean.mAlpha, 0.62549f, 1e-5f);
         }
 
-        /// The curve is undone before the mean and not after it.
-        ///
-        /// **Mid grey is where the two answers part company.** Half of white and half of black is 128 in
-        /// bytes and 0.5 in light, and those are not the same colour: 128 decodes to 0.2159. A reader
-        /// that averaged the stored bytes and decoded once would say a sheet of alternating black and
-        /// white is worth 0.216 where it is worth a half.
+        /// The curve is undone before the mean and not after it. **Mid grey is where the two answers part**: half
+        /// of white and half of black is 128 in bytes and 0.5 in light, and 128 decodes to 0.2159, so a reader
+        /// that averaged the stored bytes would say alternating black and white is worth 0.216, not a half.
         TEST(RtxMeanTexelTest, theCurveIsUndoneBeforeTheMeanRatherThanAfterIt)
         {
             const MeanTexel chequer = ContentPreprocessor().meanTexel(
@@ -177,14 +171,10 @@ namespace Rtx
             EXPECT_EQ(ContentPreprocessor().meanTexel(*odd).mAlpha, 0.0f);
         }
 
-        /// A sheet's paint is what its own alpha calls solid, and not what it adds to the sky behind it.
-        ///
-        /// **Which is the difference between a few wisps and a grey lid.** Two white texels at full cover
-        /// beside two transparent ones average a half — the same mean a solid sheet of mid grey gives —
-        /// and the two are not the same picture. Dividing the cover back out says which: the wisps come
-        /// back white, because that is the colour the artist painted them.
-        ///
-        /// Morrowind's own clear sheet is exactly this shape, a quarter covered by cirrus.
+        /// A sheet's paint is what its own alpha calls solid, and not what it adds to the sky behind it, which is
+        /// the difference between a few wisps and a grey lid. Two white texels at full cover beside two
+        /// transparent ones average a half, as a solid sheet of mid grey does; dividing the cover back out says
+        /// which: the wisps come back white. Morrowind's own clear sheet is this shape, a quarter covered by cirrus.
         TEST(RtxMeanTexelTest, aSheetsPaintIsWhatItsOwnAlphaCallsSolid)
         {
             const MeanTexel wisps = ContentPreprocessor().meanTexel(
@@ -277,22 +267,10 @@ namespace Rtx
         /// Every spelling OpenSceneGraph hands over, the format it reads as under each encoding, and
         /// the name a report prints for it.
         ///
-        /// **Both DXT1 spellings are one format**, because the header's alpha flag decides nothing:
-        /// a BC1 block carries its punch-through bit either way.
-        ///
-        /// **Data is the same blocks without the curve, and one or two channels are data alone**: a
-        /// BC4 or BC5 file bound as a colour has lost its blue, and is no format a colour slot takes.
-
-        ///
-        /// **Every loose spelling the DDS loader makes is named**, alpha-only, one and two channels,
-        /// sixteen-bit and float ones among them, and widened on the way in. Signed and integer
-        /// channels stay unnamed: no slot here reads them as a fraction.
-        ///
-        /// **A loose format is its pixel format and its data type together.** OpenSceneGraph's DDS
-        /// loader hands an A1R5G5B5 file over as `GL_BGRA` of `GL_UNSIGNED_SHORT_1_5_5_5_REV`, and
-        /// read by its pixel format alone it was BGRA8 — four bytes a texel for a file of two. The
-        /// sixteen-bit spellings the loader makes are named, the `X` ones by the internal format it
-        /// states them in; every other data type under a loose pixel format is unnamed.
+        /// **Both DXT1 spellings are one format**, since a BC1 block carries its punch-through bit either way, and
+        /// a BC4 or BC5 file bound as a colour is no format a colour slot takes. **Every loose spelling the DDS
+        /// loader makes is named**, signed and integer channels aside, **by its pixel format and data type
+        /// together**: an A1R5G5B5 file is `GL_BGRA` of `GL_UNSIGNED_SHORT_1_5_5_5_REV`, two bytes a texel.
         TEST(RtxTextureFormatTest, everySpellingReadsAsItsFormatAndNamesItself)
         {
             using enum TextureEncoding;

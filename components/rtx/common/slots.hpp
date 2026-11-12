@@ -181,13 +181,11 @@ namespace Rtx
         Freed,
     };
 
-    /// Which slots of one table arrived and which were given back, since a frame last read them.
-    /// Two sets, and a slot stands in at most one of them: the last word wins, so a slot that
-    /// arrived and went inside one frame is reported gone, and one that went and was taken over
-    /// is reported arrived. A backend then releases a slot it never built and builds into one it
-    /// never released — both of which it takes as nothing, and the hand-over relies on it. A
-    /// backend comparing table sizes could not tell, and a slot taken over in place would tell it
-    /// nothing at all.
+    /// Which slots of one table arrived and which were given back, since a frame last read them. A slot
+    /// stands in at most one set and the last word wins: one that arrived and went inside a frame is reported
+    /// gone, and one that went and was taken over is reported arrived. A backend then releases a slot it
+    /// never built and builds into one it never released, both of which it takes as nothing, and the
+    /// hand-over relies on it.
     class SlotChanges
     {
     public:

@@ -19,12 +19,10 @@ namespace Rtx
 {
     namespace
     {
-        /// This moon's colour, on a scale where the shipped Masser's luminance is one: Secunda's
-        /// shipped portrait averages two and a half times Masser's, and a pale moon reflects more of
-        /// the same sunlight than a dark red one. Normalised on Masser, so that `Shaders::MOON_ALBEDO`
-        /// is the albedo of exactly one moon rather than of an average of two — and on the shipped
-        /// portrait rather than the one that opened, because a replacement that hides a moon paints
-        /// it black or clear, and a ratio to its nought is no light.
+        /// This moon's colour, on a scale where the shipped Masser's luminance is one, so that
+        /// `Shaders::MOON_ALBEDO` is the albedo of exactly one moon. Normalised on the shipped portrait
+        /// and not the one that opened, because a replacement that hides a moon paints it black or clear,
+        /// and a ratio to its nought is no light.
         osg::Vec3f tintOf(const MoonFaces& faces, Moon moon)
         {
             static const float masser = sShippedMasserFace * Shaders::LUMINANCE_WEIGHTS;
@@ -41,13 +39,11 @@ namespace Rtx
             return Shaders::DAYLIGHT * Shaders::MOON_ALBEDO * sine * sine;
         }
 
-        /// The angle between the sun and the eye as the moon sees them, from nought at full to pi at
-        /// new, out of the phase's angle round the whole month. A waxing moon and a waning one a
-        /// phase apart are the same angle: which limb keeps the light is the side the sun is on,
-        /// which `litFrom` finds, and not a second law. The fold is a subtraction and not a trip
-        /// through a cosine, which would round the continuous phase (`Sky::MoonState::mPhaseEighths`)
-        /// and leave a full moon a hair off nought; wrapped first, so a phase a whole turn round
-        /// stands where it lands, which is full.
+        /// The angle between the sun and the eye as the moon sees them, from nought at full to pi at new,
+        /// out of the phase's angle round the whole month. Which limb keeps the light is the side the sun
+        /// is on (`litFrom`). The fold is a subtraction and not a trip through a cosine, which would round
+        /// the continuous phase and leave a full moon a hair off nought; wrapped first, so a whole turn
+        /// stands where it lands.
         float foldedPhase(const float phaseAngle)
         {
             const float wrapped = std::fmod(phaseAngle, 2.0f * osg::PIf);
@@ -55,10 +51,9 @@ namespace Rtx
             return wrapped <= osg::PIf ? wrapped : 2.0f * osg::PIf - wrapped;
         }
 
-        /// How much light a moon at `phaseAngle` sends, against a full one — the measured law and
-        /// not the geometry, which differ by a factor of five because the surface shadows itself
-        /// everywhere but at opposition. Allen's fit, `dm = 0.026|a| + 4e-9 a^4` in degrees, puts a
-        /// half moon at 0.09 of full.
+        /// How much light a moon at `phaseAngle` sends, against a full one: the measured law, not the
+        /// geometry, which is off by a factor of five because the surface shadows itself everywhere but at
+        /// opposition. Allen's fit, `dm = 0.026|a| + 4e-9 a^4` in degrees, puts a half moon at 0.09.
         float phaseLaw(float phaseAngle)
         {
             const float degrees = osg::RadiansToDegrees(foldedPhase(phaseAngle));
@@ -133,9 +128,8 @@ namespace Rtx
         const osg::Quat arc(alongArc, osg::Vec3f(1.0f, 0.0f, 0.0f));
         const osg::Quat swing(aboutZenith, osg::Vec3f(0.0f, 0.0f, 1.0f));
 
-        // The face's own attitude, and not a billboard's. The quad the game draws starts facing
-        // down, so its rotation carries the same quarter turn — which is what leaves the portrait
-        // upright against the moon's arc rather than against the horizon.
+        // The face's own attitude, not a billboard's: the game's quad starts facing down, so the quarter
+        // turn leaves the portrait upright against the moon's arc rather than the horizon.
         const osg::Quat attitude = osg::Quat(alongArc - 0.5f * osg::PIf, osg::Vec3f(1.0f, 0.0f, 0.0f)) * swing;
 
         MoonPlacement placement{
@@ -144,20 +138,18 @@ namespace Rtx
             .mUp = attitude * osg::Vec3f(0.0f, 1.0f, 0.0f),
             .mAngularRadius = angularRadius,
 
-            // Eight painted phases are eight steps of a half turn each way, counted from full — so
-            // the count is the angle, and the sign of its sine is the limb the light is on.
+            // Eight painted phases are eight steps of a half turn each way from full, so the count is
+            // the angle, and the sign of its sine is the limb the light is on.
             .mPhaseAngle = phaseEighths * 0.25f * osg::PIf,
 
-            // Nought until it is on its arc, which the engine states by leaving the angle there
-            // until a moon rises and returning it there once it sets. Without this a moon that is
-            // down sits on the horizon all night, because nothing else in the placement says so.
-            // Nought too for a moon of no size, whose disc the sky would measure by a limb of zero.
+            // Nought until it is on its arc, which the engine states by leaving the angle there until a
+            // moon rises and after it sets; nothing else says a moon that is down is not on the horizon.
+            // Nought too for a moon of no size.
             .mAlpha = alongArcDegrees > 0.0f && angularRadius > 0.0f ? alpha : 0.0f,
             .mFace = faces.of(moon).mSlot,
 
-            // The file's own mean, unscaled. `Shaders::MOON_RADIANCE` is what takes a
-            // moon's texels to radiance, and it multiplies this where no portrait is loaded and the
-            // portrait itself where one is — so the level lives in one place either way.
+            // The file's own mean, unscaled: `Shaders::MOON_RADIANCE` multiplies this where no portrait is
+            // loaded and the portrait where one is, so the level lives in one place.
             .mColour = faces.of(moon).mMean,
         };
 
@@ -165,9 +157,9 @@ namespace Rtx
         placement.mRight.normalize();
         placement.mUp.normalize();
 
-        // The air, over what it shows and what it sends alike, and read off the direction rather
-        // than off the arc: the slant path is measured on an elevation, and the two agree only
-        // because this arc runs through the zenith.
+        // The air, over what it shows and what it sends alike, read off the direction and not the arc:
+        // the slant path is measured on an elevation, and the two agree only because this arc runs
+        // through the zenith.
         placement.mThroughAir = airTransmittance(placement.mDirection.z());
 
         const osg::Vec3f lit

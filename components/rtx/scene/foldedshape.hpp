@@ -14,14 +14,12 @@ namespace Rtx
 
         /// Some triangle was one of a reversed pair, so what is left of this shape stands for both
         /// faces of itself wherever a twin went. `mSheet` is the whole shape and this is any part
-        /// of it: an awning with a doubled hem on a single-sided canopy is one mesh, and the hem's
-        /// twin goes while the canopy's triangles stand alone.
+        /// of it: an awning with a doubled hem on a single-sided canopy is one mesh.
         ///
-        /// **What keeps a ray that draws from culling such a mesh.** The fold left one triangle
-        /// where the content drew two, so culling the one by its winding takes the hem out of the
-        /// frame from the side whose copy was dropped. The whole mesh is spared, which costs the
-        /// canopy its culling and is the conservative half of a question only a per-triangle answer
-        /// settles.
+        /// **What keeps a ray that draws from culling such a mesh.** Culling the one triangle the
+        /// fold left by its winding takes the hem out of the frame from the side whose copy was
+        /// dropped. The whole mesh is spared, which costs the canopy its culling and is the
+        /// conservative half of a question only a per-triangle answer settles.
         bool mFolded = false;
 
         /// A wall of a pocket went, so the wall across from it now answers for both faces of the

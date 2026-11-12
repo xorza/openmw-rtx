@@ -12,10 +12,8 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// What a ray keeps for crossing one texel of each alpha a byte can hold, in a level
-        /// `count` texels long. A table, because the walk below asks it once per texel and
-        /// `std::pow` would be most of what the walk costs: 256 entries against a level's texel
-        /// count, and the same ones for every row.
+        /// What a ray keeps for crossing one texel of each alpha a byte can hold, in a level `count` texels
+        /// long. A table, because `std::pow` per texel would be most of what the walk costs.
         std::array<float, 256> stepsAcross(std::uint32_t count)
         {
             std::array<float, 256> steps{};

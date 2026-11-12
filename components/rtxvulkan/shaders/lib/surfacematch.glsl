@@ -24,9 +24,9 @@ struct HistoryFootprint
     vec2 mAcross;
 };
 
-/// **At the pixel's centre and not at where the ray went** (decision 1, the hybrid rule): a history texel
-/// holds a mean over many frames' samples, each through `i + 0.5 + jitter`, whose centre is `i + 0.5` — so
-/// it is fetched at `at + 0.5 + motion`, as NRD fetches its own.
+/// **At the pixel's centre and not at where the ray went**: a history texel holds a mean over many frames'
+/// samples, each through `i + 0.5 + jitter`, whose centre is `i + 0.5`, so it is fetched at
+/// `at + 0.5 + motion`, as NRD fetches its own.
 ///
 /// @param moved the pixel's `CHANNEL_MOTION`.
 HistoryFootprint historyFootprint(ivec2 at, vec3 moved)
@@ -124,10 +124,10 @@ Camera previousEye(HistoryConstants history, bool onArms)
 ///
 /// **Its point from the eye the history was measured from.** `CHANNEL_MOTION` says where it stood on the
 /// previous screen and how much farther from that eye, so it is rebuilt there and not at this frame's
-/// distance: compared from this frame's eye, an eye walking toward a surface found each frame's history a
-/// step off the plane, and the filter showed one frame's noise. **The ray through the previous basis at
-/// this frame's jitter**, since the motion is measured from the jittered point this frame's ray was aimed
-/// at (`reprojected`).
+/// distance: from this frame's eye, an eye walking toward a surface found each frame's history a step off the
+/// plane and the filter showed one frame's noise. **The ray goes through the previous basis at this frame's
+/// jitter**, since the motion is measured from the jittered point this frame's ray was aimed at
+/// (`reprojected`).
 ///
 /// @param moved the pixel's `CHANNEL_MOTION`.
 HistoryPlane historyPlane(HistoryConstants history, ivec2 at, vec2 seen, vec3 moved)
@@ -219,12 +219,11 @@ float cornerOf(vec4 shares, int corner)
 /// history (`holds`, an expression that may name the tap as `historyAt`, where it is stored as
 /// `historyStored`, and its corner as `historyCorner`), and nought where it is refused.
 ///
-/// **A kernel loads the texels it weighs again**, after `holds` loaded them to test them, and the driver
-/// does not merge the two (each binary 1 to 2% smaller with one load, off the pipelines' statistics).
+/// **A kernel loads the texels it weighs again**, after `holds` loaded them to test them, and the driver does
+/// not merge the two (each binary 1 to 2% smaller with one load, off the pipelines' statistics).
 ///
-/// **One gather for every temporal filter**, so the accumulator, the shadow denoiser, the glossy filter and
-/// the pane filter cannot come to refuse a tap by four rules: written four times, the shadow's lost its
-/// test for a texel that held no history.
+/// **One gather for every temporal filter** (the accumulator, the shadow denoiser, the glossy and pane
+/// filters), so they cannot come to refuse a tap by four rules.
 #define RTX_HISTORY_SHARES(shares, footprint, extent, fields, heldImage, holds, plane)             \
     vec4 shares = vec4(0.0);                                                                       \
     for (int historyCorner = 0; historyCorner < 4; ++historyCorner)                                \
@@ -271,12 +270,12 @@ float historyCovered(vec4 shares)
 /// a power — the hundred and twenty-eighth for the wavelet's levels, the shadow's and the clamp's, the
 /// eighth for the history fix.
 ///
-/// **Clamped above as well as below.** A unit vector normalised in floats has a length just off one, so a
-/// dot with a normal that matches — the centre tap's with its own, above all — can pass one, and a hundred
-/// and twenty-eight powers of that is a weight too heavy.
+/// **Clamped above as well as below.** A unit vector normalised in floats has a length just off one, so a dot
+/// with a normal that matches (the centre tap's with its own, above all) can pass one, and a hundred and
+/// twenty-eight powers of that is a weight too heavy.
 ///
-/// **By squaring, and not by `pow`**, which is one of the operations the pin leaves to the device
-/// (`spirvpin.hpp`), where a product is rounded exactly by the specification.
+/// **By squaring, and not by `pow`**, which the pin leaves to the device (`spirvpin.hpp`), where a product is
+/// rounded exactly by the specification.
 struct FacingWeights
 {
     /// The history fix's, the eighth: NRD's `historyFixEdgeStoppingNormalPower`.

@@ -62,16 +62,10 @@ namespace MWRender
     struct SceneFrame;
     class TracedGroundcover;
 
-    /// The engine's scene graph mirrored into what a ray can meet.
-    ///
-    /// **Everything between "the game has a frame" and "trace it".** The walk, what it walks past,
-    /// what this renderer stands for the ground and the distance, the lights the game has already
-    /// placed, and the hand-over that decides whether the device is placed, extended or rebuilt.
-    /// Nothing here touches a window, an event, the interface or a benchmark.
-    ///
-    /// **The maps live across frames**, which is what makes the mirror incremental: the same crate
-    /// met again resolves to the mesh already uploaded rather than to a copy of it, and a cell that
-    /// left gives its slots back on the frame the sweep misses it.
+    /// The engine's scene graph mirrored into what a ray can meet: everything between "the game has a frame"
+    /// and "trace it". Nothing here touches a window, an event, the interface or a benchmark. The maps live
+    /// across frames, which makes the mirror incremental: the same crate met again resolves to the mesh
+    /// already uploaded, and a cell that left gives its slots back on the frame the sweep misses it.
     class WorldMirror
     {
     public:
@@ -81,8 +75,7 @@ namespace MWRender
         ///        null for none (`Rtx::PreparedImages`).
         WorldMirror(const MirrorKnobs& knobs, ContentStore::Store* store, Rtx::PreparedImages* prepared);
 
-        /// Asserts the scene empty: a world detached has given every row back, and the one that
-        /// did not is named here rather than found at the next frame's horizon. Not while an
+        /// Asserts the scene empty, so a row a detached world did not give back is named here. Not while an
         /// exception unwinds, where the frame's own message is the one to read.
         ~WorldMirror();
 
@@ -92,10 +85,9 @@ namespace MWRender
         WorldMirror(WorldMirror&&) = delete;
         WorldMirror& operator=(WorldMirror&&) = delete;
 
-        /// The resource system the cell ring's models and the hand-over's pictures are loaded
-        /// through, and the queue the game releases its own objects through, which what the mirror
-        /// lets go of joins. Told once, where the world is attached; what is kept of the resource
-        /// system is the image manager, which is all a frame reaches for.
+        /// The resource system the cell ring's models and the hand-over's pictures are loaded through, and
+        /// the queue what the mirror lets go of joins. Told once, where the world is attached; only the image
+        /// manager is kept, which is all a frame reaches for.
         void attach(Resource::ResourceSystem& resources, SceneUtil::UnrefQueue& released);
 
         /// The content's import step, on the loading screen: every model in `models`, each a corrected
@@ -112,9 +104,8 @@ namespace MWRender
         /// read into the store's memory, and what they computed, nothing where none ran.
         Rtx::ContentStats finishPreparing();
 
-        /// The world is going: every thread that reads it stops, what was read of it goes, and
-        /// every row the world stood is swept — so a detached world is an empty scene, which the
-        /// destructor asserts. `SkyReader::detach` gives the sky's own back before this.
+        /// The world is going: every thread that reads it stops and every row it stood is swept, so a
+        /// detached world is an empty scene. `SkyReader::detach` gives the sky's own back before this.
         void detach();
 
         /// The world's groundcover, which the default worldspace's ground is made with
@@ -122,15 +113,11 @@ namespace MWRender
         /// distance` of the eye. Nothing where `[Groundcover] enabled` is off. Once a world.
         void growGroundcover(const MWWorld::GroundcoverStore& store);
 
-        /// Walks this frame's world into the scene, drops what the walk did not find, and says
-        /// what the walk found. The sweep is here and not after the frame, so what `hand` hands
-        /// over is what this walk met: a slot the walk stopped finding — a crate picked up, a
-        /// body whose identity moved — would otherwise be traced once more where it last stood.
-        ///
-        /// The precipitation and the sea go in as roots of their own: the precipitation because it
-        /// hangs under a camera-relative transform the world walk is masked out of, the sea because
-        /// this renderer stands it — the plane the rasterizer's `Water` stood was the sea a ray met,
-        /// and that object is the rasterizer's now.
+        /// Walks this frame's world into the scene, drops what the walk did not find, and says what the walk
+        /// found. The sweep is here and not after the frame, so what `hand` hands over is what this walk met:
+        /// a slot the walk stopped finding would otherwise be traced once more where it last stood. The
+        /// precipitation goes in as a root of its own because it hangs under a camera-relative transform the
+        /// world walk is masked out of, and the sea because this renderer stands it.
         ///
         /// @param view the camera's view matrix as the update traversal settled it, which the
         ///        frame does not carry: `EyeState` says why.
@@ -140,28 +127,25 @@ namespace MWRender
         /// trace presses it and the digest sees it. After `mirror`, which clears the frame's lists.
         void addRipples(std::span<const Rtx::RippleImpulse> impulses);
 
-        /// A cell the scene added, which is what the sea is centred on, as `Water::changeCell`
-        /// centres it (`seaCentre`): the middle of the cell outdoors, the origin indoors, the last
-        /// one added winning.
+        /// A cell the scene added, which the sea is centred on as `Water::changeCell` centres it
+        /// (`seaCentre`): the middle of the cell outdoors, the origin indoors, the last one added winning.
         void standSea(const MWWorld::CellStore& cell);
 
-        /// Hands the scene to `renderer`, building only what has to be built, and then ends the
-        /// placement: where everything stands is what the next frame measures its motion against,
-        /// and the change lists the backend just took start again.
+        /// Hands the scene to `scenes`, building only what has to be built, and then ends the placement:
+        /// where everything stands is what the next frame measures its motion against, and the change lists
+        /// start again.
         Rtx::SceneUpload hand(Rtx::SceneHolder& scenes, Rtx::FrameSpend& spend);
 
-        /// How much world this renderer builds, in units: the ground, the air and the distant
-        /// lights are all measured over it. The settings' count of cells, as they stood when the
-        /// mirror was made or when the menu last moved them, in the cells of the worldspace the
-        /// last walk stood in (`Rtx::CellGrid::reachOf`).
+        /// How much world this renderer builds, in units: the ground, the air and the distant lights are all
+        /// measured over it. The settings' count of cells in the cells of the worldspace the last walk stood
+        /// in (`Rtx::CellGrid::reachOf`).
         float getReach() const { return mGrid.reachOf(mReach); }
 
         /// The worldspace's grid, as the last walk read it off the land.
         const Rtx::CellGrid& getGrid() const { return mGrid; }
 
-        /// The distant cells: the one route to them, for the ground that tells them what the game
-        /// says of a reference, the frame that asks how much is left to stand, a picture that asks
-        /// whether its ground stands yet, and the harness's checks.
+        /// The distant cells: the one route to them, for the ground, the frame, a picture asking whether its
+        /// ground stands yet, and the harness's checks.
         Rtx::CellRing& getRing() { return mRing; }
         const Rtx::CellRing& getRing() const { return mRing; }
 
@@ -172,10 +156,8 @@ namespace MWRender
         /// Where the last walk stood the rings: the camera's eye, which is not the player's feet.
         const osg::Vec3f& getEye() const { return mEye; }
 
-        /// What the eye sees of the world, `Renderer::worldViewMask`: the world walk leaves the
-        /// player's own model and the actors out where the mask does, as the rasterizer culls
-        /// them. The game keeps `Mask_Player` in, a static camera a script parks included; a host
-        /// whose camera stands inside the player takes it out, and `tws` takes the actors out.
+        /// What the eye sees of the world, `Renderer::worldViewMask`: the world walk leaves the player's own
+        /// model and the actors out where the mask does, as the rasterizer culls them.
         void setViewMask(unsigned int view);
 
         const Rtx::SceneDesc& getScene() const { return mScene; }
@@ -187,9 +169,8 @@ namespace MWRender
         /// `Rtx::SceneExtractor::countPastRoom`, the ring's models with it.
         std::uint32_t countPastRoom() const { return mExtractor.countPastRoom() + mRing.countPastRoom(); }
 
-        /// What every walk on the frame thread shares — the world's, the sky's and every traced
-        /// view's: the traversal numbers, what the walks compute from the content, and what its
-        /// `_spec` maps mean (`Rtx::WalkContext`).
+        /// What every walk on the frame thread shares: the world's, the sky's and every traced view's
+        /// (`Rtx::WalkContext`).
         Rtx::WalkContext& getWalkContext() { return mWalk; }
 
         /// How many of the world's slots stand their files as they are while their images are made
@@ -199,10 +180,9 @@ namespace MWRender
         /// What the world's walk may see. Read by the tests and by nothing else.
         osg::Node::NodeMask getTraversalMask() const { return mTraversal; }
 
-        /// Moves what `released` holds into the queue the world was attached with, so the last
-        /// reference to what a walk let go of is dropped on the queue's worker and not on the frame
-        /// thread. A mirror no world was attached to, a test's, lets go where it stands. The world's
-        /// own walks hand theirs here, and so do the pictures' (`ViewQueue::draw`).
+        /// Moves what `released` holds into the queue the world was attached with, so the last reference to
+        /// what a walk let go of is dropped on the queue's worker and not on the frame thread. A mirror no
+        /// world was attached to, a test's, lets go where it stands.
         void release(Rtx::Released& released);
 
     private:
@@ -218,9 +198,8 @@ namespace MWRender
 
         Rtx::SceneDesc mScene{ Rtx::sWorldRoom };
 
-        /// Where the ring's models and images come from: the game's own. Made where the world is
-        /// attached, because that is when there is a scene manager. Before the ring, whose reader
-        /// thread reads it: the members below die first, and the thread with them.
+        /// Where the ring's models and images come from: the game's own. Made where the world is attached,
+        /// when there is a scene manager. Before the ring, whose reader thread reads it.
         std::unique_ptr<Rtx::ContentSource> mContent;
 
         /// The loading screen's preparation and what it reads, while it runs.
@@ -254,12 +233,8 @@ namespace MWRender
 
         Rtx::SceneUploader mUploader;
 
-        /// The distant cells waiting for their ground to be flattened, in the order the walks asked.
-        ///
-        /// **Here because only a world has ground.** A chunk waits past the frame that asked for
-        /// it, so the schedule belongs to what outlives frames rather than to the once-a-frame
-        /// call — and every picture inside the interface goes through that same call with no
-        /// ground to flatten.
+        /// The distant cells waiting for their ground to be flattened, in the order the walks asked. Here
+        /// because only a world has ground and a chunk waits past the frame that asked for it.
         Rtx::CompositeQueue mComposites;
 
         Rtx::LandReach mReach;

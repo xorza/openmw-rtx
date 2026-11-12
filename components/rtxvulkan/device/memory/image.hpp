@@ -45,10 +45,9 @@ namespace Rtx
         std::uint32_t mDepth = 1;
 
         /// The format a storage descriptor sees the image in, where that is not `mFormat`: an `SRGB`
-        /// image has no storage view of its own, so a dispatch that writes one stores
-        /// display-encoded bytes through a `UNORM` view of the same bits, and the sampler decodes
-        /// them through the other. `VK_FORMAT_UNDEFINED` is `mFormat` itself, which is every image
-        /// but such a one.
+        /// image has no storage view of its own, so a dispatch that writes one stores display-encoded
+        /// bytes through a `UNORM` view of the same bits, and the sampler decodes them through the
+        /// other. `VK_FORMAT_UNDEFINED` is `mFormat` itself.
         VkFormat mStorageFormat = VK_FORMAT_UNDEFINED;
 
         bool operator==(const ImageDescription& other) const = default;
@@ -85,10 +84,9 @@ namespace Rtx
         static Result<Image, MemoryRefusal> tryMake(
             MemoryUse use, const Device& device, const ImageDescription& description, std::string_view name);
 
-        /// Movable, because the channels of a g-buffer are built by a loop over a table rather
-        /// than by a member list. The husk is a default-made image, by construction and by
-        /// assignment alike, as a buffer's is: its size, format and stamp go with the move. The
-        /// assignment buries what this held in the order the destruction does.
+        /// Movable, because the channels of a g-buffer are built by a loop over a table rather than a
+        /// member list. The husk is a default-made image, as a buffer's is: its size, format and stamp go
+        /// with the move. The assignment buries what this held in the order the destruction does.
         Image(Image&& other) noexcept;
         Image& operator=(Image&& other) noexcept;
 
@@ -142,13 +140,11 @@ namespace Rtx
         /// sampled without `VK_IMAGE_USAGE_SAMPLED_BIT` reads as zero with no validation message.
         VkImageUsageFlags getUsage() const { return mUsage; }
 
-        /// Adds the dependency between two uses of every level to `barriers`, for a caller
-        /// collecting a run of them into one command: an image barrier where the layout moves, and
-        /// where it does not, the two uses merged into the run's one memory barrier. From
-        /// `Use::sAliased`, both: the layout's transition, and the writes another image made in this
-        /// one's memory. An image
-        /// barrier that moves no layout says nothing a memory barrier does not, and a run of them
-        /// over the images of one pass is one memory barrier.
+        /// Adds the dependency between two uses of every level to `barriers`, for a caller collecting a
+        /// run of them into one command: an image barrier where the layout moves, and where it does not,
+        /// the two uses merged into the run's one memory barrier, as an image barrier that moves no layout
+        /// says nothing a memory barrier does not. From `Use::sAliased`, both: the layout's transition,
+        /// and the writes another image made in this one's memory.
         void addTransition(Barriers& barriers, const ImageUse& from, const ImageUse& to) const;
 
         /// Moves every level of the image from one use to the next, recording into `commands`, by
@@ -170,15 +166,14 @@ namespace Rtx
             VkExtent2D extent) const;
 
         /// Fills every level below the first of each of `images` by halving the one above it, in
-        /// `VK_FILTER_LINEAR` — a box filter, which is what a moment wants: a channel carrying a
-        /// square averages to a mean square. Takes and leaves each image in
-        /// `VK_IMAGE_LAYOUT_GENERAL`, ordered against a sampled read. Needs both transfer usage bits.
+        /// `VK_FILTER_LINEAR` — a box filter, which is what a moment wants: a channel carrying a square
+        /// averages to a mean square. Takes and leaves each image in `VK_IMAGE_LAYOUT_GENERAL`, ordered
+        /// against a sampled read. Needs both transfer usage bits.
         ///
-        /// **The chains in step, and one barrier a level for all of them.** A level waits on the
-        /// level above it in its own chain and on nothing else, so the same level of every chain is
-        /// blitted and the queue drained once. Built one image at a time, the sea's four chains
-        /// drained it forty-four times a frame, over levels most of which are a few texels wide and
-        /// cost nothing but the drain.
+        /// **The chains in step, and one barrier a level for all of them.** A level waits on the level
+        /// above it in its own chain and on nothing else, so the same level of every chain is blitted and
+        /// the queue drained once: built one at a time, the sea's four chains drained it forty-four times
+        /// a frame over levels mostly a few texels wide.
         static void buildMips(VkCommandBuffer commands, std::span<const Image* const> images);
 
         /// Copies one level to host memory, one texel's bytes per pixel, tightly packed, row by row,

@@ -31,12 +31,9 @@ namespace RtxTool
     class PictureShelf;
     class RunRecord;
 
-    /// What a stop asked for and what it came to, beside the frame it drew.
-    ///
-    /// **Named for the reason `FrameContext` is.** Each of these is read by one claim and by nothing
-    /// else, so one value carries them past `write` and `runChecks`, which read neither.
-    ///
-    /// Borrowed and valid for one stop.
+    /// What a stop asked for and what it came to, beside the frame it drew. Named for the reason `FrameContext` is:
+    /// each is read by one claim and by nothing else, so one value carries them past `write` and `runChecks`,
+    /// which read neither. Borrowed and valid for one stop.
     struct StopFacts
     {
         /// Every measured frame's figures, which only the frame series reads.
@@ -64,15 +61,12 @@ namespace RtxTool
         const Rtx::NotFinite& mNotFinite;
     };
 
-    /// Writes what `Actions` asks of the place a stop stood at.
+    /// Writes what `Actions` asks of the place a stop stood at: what a stop produces, apart from what drove it
+    /// there. A picture, its frame times, a scene report, a contact sheet, a map tile, a doll, a listing and a set
+    /// of claims each need the renderer and a path, and none needs the schedule, the route, the camera or the sky.
     ///
-    /// **What a stop produces, apart from what drove it there.** A picture, its frame times, a
-    /// scene report, a contact sheet, a map tile, a doll, a listing and a set of claims each need
-    /// the renderer and a path. None of them needs the schedule, the route, the camera or the sky,
-    /// so none of them is a member of the thing that owns those.
-    ///
-    /// **Held for the whole run for its read-back buffer alone.** Three of the writers land a frame
-    /// in host memory, and a stop that allocates one is a stop measuring its own allocator.
+    /// Held for the whole run for its read-back buffer alone: three of the writers land a frame in host memory,
+    /// and a stop that allocates one is a stop measuring its own allocator.
     class StopWriter
     {
     public:
@@ -89,12 +83,10 @@ namespace RtxTool
             const StopFacts& facts, RunRecord& record, PictureShelf* shelf);
 
     private:
-        /// The frame a writer reads, what put it together, and where it says its answer.
-        ///
-        /// **None of the three is a member.** The renderer and the reconstruction both arrive per
-        /// frame — `Session` is built before the engine, so there is no renderer to hold — and
-        /// the record belongs to the run rather than to the writing. Bundling them keeps the three
-        /// off every writer's signature.
+        /// The frame a writer reads, what put it together, and where it says its answer. None of the three is a
+        /// member: the renderer and the reconstruction arrive per frame (`Session` is built before the engine, so
+        /// there is no renderer to hold), and the record belongs to the run. Bundled to keep them off every
+        /// writer's signature.
         struct Writing
         {
             const MWRender::FrameContext& mContext;

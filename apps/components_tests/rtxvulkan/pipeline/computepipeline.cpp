@@ -40,18 +40,15 @@ namespace Rtx
 
         /// A pipeline whose shader cannot be opened gives back everything it had already made.
         ///
-        /// **The failure comes third.** The set layout and the pipeline layout are live by the time
-        /// the module is looked for, and a constructor that throws gets no destructor — so without
-        /// the unwind inside `ComputePipeline` both outlive the device. What proves they did not is
-        /// the device closing with the layers watching and saying nothing: a live child is what
-        /// `vkDestroyDevice` reports.
+        /// **The failure comes third.** The set layout and the pipeline layout are live by the time the module is
+        /// looked for, and a constructor that throws gets no destructor, so without the unwind inside
+        /// `ComputePipeline` both outlive the device. What proves they did not is the device closing with the layers
+        /// watching and saying nothing: a live child is what `vkDestroyDevice` reports.
         ///
-        /// A device of its own, closed inside the test, because the suite's is closed after the last
-        /// test has run and could not be asked.
-        ///
-        /// **On the suite's instance, and with no pipeline cache.** A second instance loads the
-        /// layers again for an answer this already has, and a cache is a quarter of a gigabyte read
-        /// and written for a test whose one pipeline never compiles.
+        /// A device of its own, closed inside the test, because the suite's is closed after the last test has run.
+        /// **On the suite's instance, and with no pipeline cache**: a second instance loads the layers again for an
+        /// answer this already has, and a cache is a quarter of a gigabyte read and written for a test whose one
+        /// pipeline never compiles.
         TEST_F(RtxComputePipelineTest, aMissingShaderLeavesNothingBehindOnTheDevice)
         {
             const Instance& instance = *mHarness.mInstance;

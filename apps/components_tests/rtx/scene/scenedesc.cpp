@@ -66,10 +66,9 @@ namespace Rtx
             return copy;
         }
 
-        /// **A move carries the identity and leaves the source a fresh one**, where the defaulted
-        /// move left the source with the one it handed over, and two descriptions under one
-        /// identity — what the deleted copy exists to prevent. An assignment gives the target the
-        /// source's, and the source another that no description held.
+        /// **A move carries the identity and leaves the source a fresh one**: two descriptions under one
+        /// identity is what the deleted copy exists to prevent. An assignment gives the target the
+        /// source's identity, and the source another that no description held.
         TEST(RtxSceneDescTest, aMoveCarriesTheIdentityAndLeavesTheSourceAFreshOne)
         {
             SceneDesc first;
@@ -92,16 +91,10 @@ namespace Rtx
 
         /// The order the lights come out in is the lights' own, and every field takes its turn.
         ///
-        /// **What a repeated run rests on.** `orderLights` says why: a walk meets lights in graph
-        /// order, a graph gains and loses cells as a player moves, and the grid and the reservoir
-        /// both read the order — so the same place walked twice draws a different picture unless
-        /// this is a total order over what a light *is*.
-        ///
-        /// **Every step below raises exactly one field and leaves every earlier one alone**, which
-        /// is what makes a field dropped from the comparator show: the two rows it separates become
-        /// equal, and they were handed over in the opposite order. A step that raised two at once
-        /// would be ordered by whichever of them survived. The four rows at the front are the same
-        /// statement about `osg::Vec3f`, whose order is lexicographic on x, y and z.
+        /// **What a repeated run rests on** (`orderLights` says why): the order must be total over what a
+        /// light *is*. Every step below raises exactly one field and leaves every earlier one alone, so a
+        /// field dropped from the comparator makes two rows equal and they come back in the opposite
+        /// order. The four rows at the front are the same statement about `osg::Vec3f`'s lexicographic order.
         TEST(RtxSceneDescTest, everyFieldOfALightTakesItsTurnInTheOrder)
         {
             const osg::Vec3f one{ 1.0f, 1.0f, 1.0f };
@@ -207,10 +200,9 @@ namespace Rtx
             EXPECT_EQ(scene.meshes().getNormals()[0], 0u);
         }
 
-        /// **A colour is kept as three halves, past one and at the dark end alike**: 2.5 is
-        /// `0x4100`, 0.0003 the normal half `0x0CEA` and a third `0x3555`, the nearest halves, as
-        /// `unpackHalf2x16` reads them back on the device. Nothing is clamped: a content file's float
-        /// colour may stand past one, up to what a half holds.
+        /// **A colour is kept as three halves, past one and at the dark end alike**: 2.5 is `0x4100`,
+        /// 0.0003 the normal half `0x0CEA` and a third `0x3555`, as `unpackHalf2x16` reads them back.
+        /// Nothing is clamped: a float colour may stand past one, up to what a half holds.
         TEST(RtxSceneDescTest, aColourIsKeptAsThreeHalves)
         {
             SceneDesc scene;
@@ -338,9 +330,8 @@ namespace Rtx
 
         /// The cutoff a material is traced against, and which materials get traced against one.
         ///
-        /// The blended case is the load-bearing one: Morrowind's foliage is drawn with
-        /// `NiAlphaProperty` and no alpha test, so a renderer that only honoured the tested mode
-        /// would find nothing to cut out. A blend that *did* name a threshold keeps its own.
+        /// The blended case is the load-bearing one: Morrowind's foliage is drawn with `NiAlphaProperty`
+        /// and no alpha test, so a renderer that only honoured the tested mode would cut nothing out.
         TEST(RtxSceneDescTest, onlyAMaterialWithAMaskToReadIsTracedAsACutout)
         {
             constexpr Index texture = 3;
@@ -378,19 +369,13 @@ namespace Rtx
             EXPECT_FALSE(untextured.isCutout());
         }
 
-        /// A leaf card and a pane of glass carry the same alpha mode, and the material's own alpha or
-        /// the texture's is what tells them apart.
+        /// A leaf card and a pane of glass carry the same alpha mode; the material's own alpha or the
+        /// texture's tells them apart.
         ///
-        /// **The mode says nothing about it**, because Morrowind keeps its foliage under
-        /// `NiAlphaProperty`: a leaf is fully opaque wherever its painted mask is, and a pane is
-        /// translucent everywhere. The two want opposite answers from traversal — a mask averaged
-        /// over the ray cone and tested is right for the leaf and turns the pane solid; light
-        /// attenuated as it passes is right for the pane and turns the leaf to gauze — so nothing may
-        /// act on the mode alone.
-        ///
-        /// `NiMaterialProperty` records that alpha and `NifOsg::AlphaController` animates it, so a
-        /// surface can cross this line while the game runs. The texture is the other half: one that
-        /// never reaches solid is no mask, and a blend with no test draws it at its alpha.
+        /// **The mode says nothing about it**: a leaf is opaque wherever its painted mask is and wants a
+        /// mask averaged over the ray cone, a pane is translucent everywhere and wants light attenuated as
+        /// it passes, so nothing may act on the mode alone. `NifOsg::AlphaController` animates the
+        /// material's alpha, so a surface can cross this line while the game runs.
         TEST(RtxSceneDescTest, theMaterialsOwnAlphaOrAMaskThatNeverClosesIsWhatTellsAPaneOfGlassFromALeaf)
         {
             constexpr Index texture = 3;
@@ -464,13 +449,9 @@ namespace Rtx
 
         /// A medium is a translucent material whose paint never closes, and it takes both.
         ///
-        /// **The two facts are independent and neither implies the other.** A leaf card carries paint
-        /// that reaches solid and a material that does not blend, so it stays a mask however it is
-        /// marked. A pane of stained glass blends and has lead came in it, so something still stops
-        /// on it. A cloud has neither, and a ray goes through it.
-        ///
-        /// **And a material with no diffuse map at all is a surface**, which is an untextured pane:
-        /// all glass, no paint, and a thing to stop on wherever it stands.
+        /// **The two facts are independent.** A leaf card has paint that reaches solid but does not blend,
+        /// so it stays a mask; stained glass blends and has lead came in it, so something stops on it; a
+        /// cloud has neither. A material with no diffuse map at all is an untextured pane: a surface.
         TEST(RtxSceneDescTest, aMediumIsBlendedEverywhereAndPaintedSolidNowhere)
         {
             constexpr Index texture = 3;
@@ -492,12 +473,9 @@ namespace Rtx
             EXPECT_FALSE(glass.isMedium()) << "no map to have measured";
         }
 
-        /// One rig with a still mesh beside two skinned ones, which is the shape all three tests
-        /// below are about.
-        ///
-        /// **The still mesh is what makes them worth running**: rows written at the wrong offset
-        /// would land in a neighbour's, and the bind run of a deforming mesh is a table of its own
-        /// that a static neighbour must not be in.
+        /// One rig with a still mesh beside two skinned ones, the shape all three tests below are about:
+        /// rows written at the wrong offset would land in a neighbour's, and a static neighbour must not
+        /// be in the deforming mesh's bind run.
         class RtxSkinnedMeshTest : public ::testing::Test
         {
         protected:
@@ -629,10 +607,9 @@ namespace Rtx
             EXPECT_TRUE(mScene.deformers().getArrived().empty());
             EXPECT_TRUE(mScene.meshes().getDeformed().empty()) << "a slot given back still named a structure to refit";
 
-            // The next skin brings its rig, which takes the freed slot and the freed runs; and its
-            // mesh is `mMoving` and not `mOther`, though `mOther` went last: `Rtx::SlotRows`
-            // answers with the lowest free slot, so which of the two arrives next is not the
-            // sweep's to decide.
+            // The next skin brings its rig, which takes the freed slot and runs; its mesh is `mMoving`
+            // and not `mOther` because `Rtx::SlotRows` answers with the lowest free slot, so which of
+            // the two arrives next is not the sweep's to decide.
             const DeformedMesh next = addFirstSkin();
             EXPECT_EQ(next.mDeformer, mRig) << "the freed rig slot is the one handed out";
             EXPECT_EQ(mScene.deformers().getRuns().size(), 4u) << "the freed run is the one handed out";
@@ -650,15 +627,10 @@ namespace Rtx
                 << "a reused slot's first pose names it";
         }
 
-        /// **A rig slot goes back onto a heap and not onto a stack**, which the test above cannot
-        /// tell: it frees one slot, and one slot is the same answer either way.
-        ///
-        /// A rig is freed where the last mesh on it goes, so rigs are given back in their *meshes'*
-        /// order and not in their own. Here the first rig has a second mesh on it after the second
-        /// rig's only one, so the meshes let go of in slot order free the second rig first and the
-        /// free list is handed `1` and then `0` — which a list built by pushing leaves out of order. `Rtx::SlotRows`
-        /// answers with the lowest, so the next rig has to land in slot 0; a stack would answer
-        /// with slot 1.
+        /// **A rig slot goes back onto a heap and not onto a stack**, which one freed slot cannot tell.
+        /// Rigs are given back in their *meshes'* order: the first rig has a second mesh after the
+        /// second rig's only one, so the free list is handed `1` and then `0`. `Rtx::SlotRows` answers
+        /// with the lowest, so the next rig lands in slot 0; a stack would answer with slot 1.
         TEST(RtxSceneDescTest, aFreedRigSlotIsHandedOutLowestFirstHoweverItsMeshesWent)
         {
             SceneDesc scene;
@@ -689,18 +661,11 @@ namespace Rtx
             EXPECT_EQ(Testing::addOneBoneBody(scene, quad).mDeformer, second.mDeformer) << "then the one above it";
         }
 
-        /// **Every table hands out its lowest free slot, however its slots were given back**, which is
-        /// what `Rtx::SlotRows` promises once for all of them. A slot is the custom index a hit reads
-        /// back and the row a material is looked up in, and a top-level structure is built in slot
-        /// order, which settles a tie between two surfaces at one distance: which free slot an
-        /// arrival takes has to be a function of what is standing, and never of the order a sweep
-        /// dropped in, a map walked in bucket order over keys hashed from node addresses. A free list
-        /// that answered with the slot freed last handed one live set two layouts in two processes:
-        /// on `one-cell-walk` the `materials` and `textures` columns of the hashes table differed
-        /// from frame 2 on 89 frames of 90, and the picture followed at frame 39.
-        ///
-        /// **Three orders on each table**, because "the lowest" and "the last freed" agree wherever
-        /// the frees run upwards; and with none free, the slot past the end.
+        /// **Every table hands out its lowest free slot, however its slots were given back**
+        /// (`Rtx::SlotRows`). A slot is the custom index a hit reads and the row a material is looked up
+        /// in, and the top-level structure is built in slot order, so which free slot an arrival takes
+        /// must be a function of what is standing, never of the order a sweep dropped in.
+        /// Three orders on each table, because "lowest" and "last freed" agree wherever the frees run upwards.
         TEST(RtxSceneDescTest, everyTableHandsOutItsLowestFreeSlotHoweverTheSlotsWereFreed)
         {
             constexpr Index sFilled = 5;
@@ -783,12 +748,10 @@ namespace Rtx
             }
         }
 
-        /// **A scene opened at a room fills it without moving a row**, as its backend's tables are
-        /// made at the same room: a host table that outgrows its room copies every row on the frame
-        /// a cell arrives. Four meshes, four materials, four textures and four placements against a
-        /// room of four leave each table's rows where they were reserved; the fifth placement and
-        /// the fifth texture are past the room, and move them. A scene opened at nought moves its
-        /// rows on the second placement already. The world's room holds every texture slot there is.
+        /// **A scene opened at a room fills it without moving a row**, as its backend's tables are made
+        /// at the same room: a host table that outgrows its room copies every row on the frame a cell
+        /// arrives. Four of each against a room of four stay put; the fifth placement and texture move
+        /// them, and a scene opened at nought moves its rows on the second placement already.
         TEST(RtxSceneDescTest, aSceneOpenedAtARoomFillsItWithoutMovingARow)
         {
             constexpr SceneRoom room{ .mPlacements = 4, .mMeshes = 4, .mMaterials = 4, .mTextures = 4 };
@@ -833,11 +796,9 @@ namespace Rtx
             EXPECT_NE(unreserved.placements().getRows().data(), first) << "a scene opened at nought reserved rows";
         }
 
-        /// A morphed mesh holds its base as its bind pose and its weights as its pose, and the
-        /// offsets of every target laid end to end beside it.
-        ///
-        /// Hand-counted: two targets over four vertices is eight offsets, the base's four zeroes
-        /// first; a pose is two weights, of which the base's is carried and never read.
+        /// A morphed mesh holds its base as its bind pose and its weights as its pose, and the offsets of
+        /// every target laid end to end beside it. Hand-counted: two targets over four vertices is eight
+        /// offsets, the base's four zeroes first; a pose is two weights, the base's carried and never read.
         TEST(RtxSceneDescTest, aMorphedMeshHoldsItsTargetsAndNamesItselfOncePerPose)
         {
             SceneDesc scene;
@@ -884,11 +845,9 @@ namespace Rtx
             EXPECT_EQ(scene.deformers().getMorphOffsets().size(), 8u);
         }
 
-        /// **A pose is words, and a morph's last word is zero past its weights.** Five targets are
-        /// two words: (5 + 3) / 4. The three floats past the fifth weight are what the compare
-        /// reads and the digest hashes, so they are written and not left as the run's last tenant
-        /// left them — a run handed out again would otherwise name a structure to refit on a pose
-        /// that did not change.
+        /// **A pose is words, and a morph's last word is zero past its weights.** Five targets are two
+        /// words: (5 + 3) / 4. The three floats past the fifth weight are what the compare reads and the
+        /// digest hashes, so they are written and not left as the run's last tenant left them.
         TEST(RtxSceneDescTest, aMorphOfFiveTargetsTakesTwoWordsZeroPastTheLastWeight)
         {
             SceneDesc scene;
@@ -1031,11 +990,9 @@ namespace Rtx
             EXPECT_EQ(counts().mMapped, 0u);
         }
 
-        /// A reclass reaches the placements wearing the material and no other, and a mesh's list
-        /// the placements placing it and no other, through the lists threaded through the slots:
-        /// one that wears another material or places another mesh, one that was dropped and one
-        /// that took a dropped slot under another material and mesh are each left out, and a slot
-        /// that changed hands is on the lists of what it wears and places now.
+        /// A reclass reaches the placements wearing the material and no other, and a mesh's list the
+        /// placements placing it and no other, through the lists threaded through the slots: a dropped
+        /// slot or one taken over under another material and mesh is left out of the old lists.
         TEST(RtxSceneDescTest, aReclassOrAMeshReachesOnlyItsOwnPlacements)
         {
             SceneDesc scene;
@@ -1103,11 +1060,10 @@ namespace Rtx
 
         /// Every change to a placement's row is reported, and nothing else is.
         ///
-        /// **What lets a backend rewrite hundreds of rows a frame and not tens of thousands.** The
-        /// row carries the transform, the opacity and what traversal is told about the material, so
-        /// each of those changing is a row; a texture scrolling under the same material is not. And
-        /// what settled — the rows whose motion went back to nothing — is reported the frame after,
-        /// or a backend would leave last frame's motion in a row for ever.
+        /// **What lets a backend rewrite hundreds of rows a frame and not tens of thousands.** Transform,
+        /// opacity and what traversal is told about the material each make a row; a texture scrolling
+        /// under the same material does not. What settled is reported the frame after, or a backend would
+        /// leave last frame's motion in a row for ever.
         TEST(RtxSceneDescTest, aRowIsReportedWhenAPlacementIsPlacedMovedFadedDroppedOrReclassed)
         {
             SceneDesc scene;
@@ -1261,14 +1217,10 @@ namespace Rtx
 
         /// A quad that hangs in the world reaches further than its own width, and its sphere knows.
         ///
-        /// **Morrowind's rain is why `osgParticle` has a `FIXED` mode at all.** A billboard's axes
-        /// are the screen's and it is a disc of one radius; a fixed one's are authored, and its
-        /// *lengths* are the shape — rain's X is squashed to a tenth against a Y pointing straight
-        /// down, which is a falling streak rather than a round drop.
-        ///
-        /// The reach has to be measured on that, and it is the one thing about the mode that a
-        /// bounding sphere cannot guess: a streak ten times as tall as it is wide, measured on the
-        /// width, is cut off nine tenths of the way up.
+        /// **Morrowind's rain is why `osgParticle` has a `FIXED` mode at all.** A billboard is a disc of
+        /// one radius; a fixed quad's *lengths* are the shape — rain's X is squashed to a tenth against a
+        /// Y pointing straight down — so the reach is measured on the axis, which a bounding sphere
+        /// cannot guess: a streak ten times as tall as wide, measured on the width, is cut off at a tenth.
         TEST(RtxSceneDescTest, aFixedSpriteReachesByItsOwnAxesAndAnEyeFacingOneByItsRadius)
         {
             SceneDesc scene;
@@ -1341,14 +1293,9 @@ namespace Rtx
 
         /// A freed mesh keeps its index, and the room it held goes back for the next mesh to take.
         ///
-        /// Hand-counted throughout. Three meshes of 4, 3 and 4 vertices sit at vertex offsets 0, 4
-        /// and 7 and index offsets 0, 6 and 9. Freeing the middle one moves nothing: the third is
-        /// still index 2 at vertex 7, and the hole at vertex 4 is three vertices and three indices
-        /// wide — which is exactly a triangle, and exactly what the next triangle takes.
-        ///
-        /// **Not compacting is the whole point.** Closing the gap renames every mesh above it, and a
-        /// mesh index is what every bottom-level acceleration structure in the world is named by, so
-        /// a cell boundary cost a full rebuild.
+        /// Hand-counted: meshes of 4, 3 and 4 vertices sit at vertex offsets 0, 4 and 7 and index offsets
+        /// 0, 6 and 9. Freeing the middle moves nothing, and the hole is exactly a triangle. **Not
+        /// compacting is the point**: a mesh index names every bottom-level structure in the world.
         TEST(RtxSceneDescTest, aFreedMeshKeepsItsSlotAndTheNextThatFitsTakesIt)
         {
             SceneDesc scene;
@@ -1416,11 +1363,10 @@ namespace Rtx
 
         /// A mesh arriving is told from a texture arriving, and a reused slot counts as an arrival.
         ///
-        /// **The guard a backend builds on, and getting it wrong crashes.** `VulkanRenderer` rebuilds
-        /// its acceleration structures when a mesh arrives and not when a texture does, and it used
-        /// to ask the table's *size* — which cannot see a freed slot taken over by something else.
-        /// A skinned body landing in one was then refitted into a bottom-level structure that had
-        /// never been made for it, which is a build into a null handle.
+        /// **The guard a backend builds on, and getting it wrong crashes.** `VulkanRenderer` rebuilds its
+        /// acceleration structures when a mesh arrives, not a texture; the table's *size* cannot see a
+        /// freed slot taken over, and a skinned body landing in one would be refitted into a structure
+        /// never made for it, a build into a null handle.
         TEST(RtxSceneDescTest, aMeshArrivingIsToldFromATextureArrivingAndAReusedSlotIsAnArrival)
         {
             SceneDesc scene;
@@ -1464,18 +1410,12 @@ namespace Rtx
             EXPECT_EQ(sorted(scene.meshes().getFreed()), (std::vector<Index>{ brief }));
         }
 
-        /// Room given back is reused, and a mesh with nowhere to fit appends rather than being
-        /// refused.
+        /// Room given back is reused, and a mesh with nowhere to fit appends rather than being refused.
         ///
-        /// **Two meshes freed side by side are one hole and not two.** A twelve-vertex mesh arrived,
-        /// then a four; both go, and what is left is a single run of twelve vertices at zero rather
-        /// than a pair that between them can hold nothing bigger than the larger. That is what a
-        /// cell boundary is — thousands of runs laid end to end, released together — and it is why
-        /// the geometry buffers stop growing once a player has travelled a while.
-        ///
-        /// Hand-counted: 8, 4 and 4 vertices at offsets 0, 8 and 12, and 12, 6 and 6 indices at 0,
-        /// 12 and 18. Keeping only the last leaves one vertex hole of twelve at zero and one index
-        /// hole of eighteen at zero.
+        /// **Two freed neighbours are one hole and not two**: a twelve-vertex and a four-vertex mesh both
+        /// go and leave a single run of twelve rather than a pair that holds nothing bigger than the
+        /// larger — which is why the geometry buffers stop growing once a player has travelled a while.
+        /// Hand-counted: 8, 4 and 4 vertices at 0, 8 and 12, and 12, 6 and 6 indices at 0, 12 and 18.
         TEST(RtxSceneDescTest, roomGivenBackIsMergedAndReused)
         {
             SceneDesc scene;
@@ -1532,15 +1472,10 @@ namespace Rtx
 
         /// A slot taken over holds its own attributes and none of its predecessor's.
         ///
-        /// **The one way a reused slot can be quietly wrong.** A mesh that brings no normals is
-        /// given zeroes on a fresh slot because the buffer was grown for it; on a reused one the
-        /// room already holds whatever the last tenant put there, and a surface lit by somebody
-        /// else's normals looks lit rather than looking broken.
-        ///
-        /// **What stands for nothing is not the same in every buffer.** A zero normal says "use
-        /// the triangle's plane" and a white colour says "no tint", because a hit reads the first
-        /// and multiplies by the second — so a slot given a black colour would go dark rather than
-        /// untinted. A zero tangent word is no tangent.
+        /// **The one way a reused slot can be quietly wrong.** A reused slot holds the last tenant's
+        /// normals unless cleared, and a surface lit by them looks lit rather than broken. What stands
+        /// for nothing differs per buffer: a zero normal is "the triangle's plane", a white colour "no
+        /// tint" (a hit multiplies by it), a zero tangent word no tangent.
         TEST(RtxSceneDescTest, aReusedSlotDoesNotInheritTheAttributesOfWhatStoodInIt)
         {
             SceneDesc scene;
@@ -1587,19 +1522,10 @@ namespace Rtx
             EXPECT_FALSE(meshes.getRows()[slot].mTangents) << "the slot kept the last tenant's claim to tangents";
         }
 
-        /// A material frees its slot, and the layer run and masks behind it come back too.
+        /// Three materials over four textures, with the first released — the state both tests below are
+        /// each about one part of.
         ///
-        /// Hand-counted: three materials, of which the first and last are terrain with one and two
-        /// layers. The layers sit at 0, 1 and 2 and their masks at 0 and 4, nine weights of the
-        /// second sitting behind four of the first. Freeing the first leaves a one-long hole in the
-        /// layer table and a four-long one in the masks, and the next chunk of the same shape lands
-        /// in both — which is the difference between travelling and accumulating a blend map per
-        /// chunk walked past.
-        /// Three materials over four textures, with the first released — the state both tests below
-        /// are each about one part of.
-        ///
-        /// **A struct rather than a fixture**, because `RtxSceneDescTest` is a suite of plain tests
-        /// and one shared setup does not earn converting the other fifty.
+        /// **A struct rather than a fixture**, because `RtxSceneDescTest` is a suite of plain tests.
         struct ReleasedTerrain
         {
             static constexpr std::array sGroundWeights{ 0.25f, 0.25f, 0.25f, 0.25f };
@@ -1647,6 +1573,11 @@ namespace Rtx
             }
         };
 
+        /// A material frees its slot, and the layer run and masks behind it come back too.
+        ///
+        /// Hand-counted: layers at 0, 1 and 2, masks at 0 and 4 (nine weights behind four). Freeing the
+        /// first leaves a one-long hole in the layers and a four-long one in the masks, and the next
+        /// chunk of the same shape lands in both: travelling rather than accumulating a blend map per chunk.
         TEST(RtxSceneDescTest, releasingAMaterialGivesBackItsLayersAndMasks)
         {
             ReleasedTerrain terrain;
@@ -1726,11 +1657,10 @@ namespace Rtx
 
         /// **The split that keeps an animated state set from rebuilding the world.**
         ///
-        /// A material appearing is one row of a table, and a sweep that takes one away again is not
-        /// even that. A mesh or a texture *appearing* is every acceleration structure in the scene.
-        /// The mirror reports them apart so a reader can answer them apart — OpenMW's water cycles
-        /// thirty-two materials a second, and reading that as a world arriving cost the game every
-        /// frame it had.
+        /// A material appearing is one row of a table, a sweep taking one away is not even that, but a
+        /// mesh or a texture *appearing* is every acceleration structure in the scene. The mirror reports
+        /// them apart: OpenMW's water cycles thirty-two materials a second, and reading that as a world
+        /// arriving cost every frame the game had.
         TEST(RtxSceneDescTest, aMaterialChangingIsNotAStructureChanging)
         {
             SceneDesc scene;
@@ -1775,12 +1705,9 @@ namespace Rtx
             EXPECT_TRUE(scene.materials().getWritten().empty()) << "writing back what was there reported a row";
         }
 
-        /// A chunk's layers and weights arrive as the runs they were placed in, and a chunk that
-        /// leaves gives its runs back without naming them.
-        ///
-        /// **What lets the mask table stay where it is.** The runs are what a backend copies; a
-        /// flag over the table would have it copy the whole of it, which is megabytes for a chunk
-        /// that brought a few hundred floats.
+        /// A chunk's layers and weights arrive as the runs they were placed in, and a chunk that leaves
+        /// gives its runs back without naming them. **What lets the mask table stay where it is**: a
+        /// backend copies the runs, where a flag over the table would have it copy megabytes.
         TEST(RtxSceneDescTest, layersAndMasksArriveAsTheRunsTheyWerePlacedIn)
         {
             SceneDesc scene;
@@ -1831,10 +1758,9 @@ namespace Rtx
                 (std::vector<Rtx::Run>{ Rtx::Run{ .mOffset = 0, .mCount = 4 } }));
         }
 
-        /// **A placement holds what it stands on.** The mesh and the material a walk's identity let
-        /// go of stand while a placement stands on them, and go with it: a placement on a freed row
-        /// would be traced against whatever the slot is given next. Hand-counted holds: the
-        /// identity's one and the placement's one, two, then one, then none.
+        /// **A placement holds what it stands on.** The mesh and the material a walk's identity let go of
+        /// stand while a placement stands on them, and go with it: a placement on a freed row would be
+        /// traced against whatever the slot is given next. Hand-counted holds: one, two, then one, then none.
         TEST(RtxSceneDescTest, aPlacementHoldsItsMeshAndMaterialUntilItGoes)
         {
             SceneDesc scene;
@@ -1864,9 +1790,8 @@ namespace Rtx
         static_assert(sizeof(MeshHold) == sizeof(Index), "a hold is the index it holds and nothing beside it");
 
         /// **A mesh or a pose handed a number that is not finite dies where it is handed over.** The
-        /// mirror refuses a vertex or a morph offset that is not one, reads a normal, a tangent or a
-        /// coordinate as none and a colour as white, and holds a pose; so one here is a producer that
-        /// skipped it, and the device would pose it or trace it into a store that is not finite.
+        /// mirror refuses such a vertex or morph offset and reads a normal, tangent or coordinate as none
+        /// and a colour as white, so one here is a producer that skipped it.
         TEST(RtxSceneDescTest, aMeshOrAPoseWithANumberThatIsNotFiniteDies)
         {
             const float nan = std::numeric_limits<float>::quiet_NaN();
@@ -2007,9 +1932,8 @@ namespace Rtx
             EXPECT_TRUE(scene.textures().getFreed().empty());
         }
 
-        /// A row freed leaves the per-frame lists as the walk left them, because the frame it
-        /// happens on is about to be drawn from them. Emptying them there left every lamp in the
-        /// world dark for exactly one frame, on the frames a retire freed something.
+        /// A row freed leaves the per-frame lists as the walk left them, because the frame it happens on
+        /// is about to be drawn from them: emptying them there left every lamp dark for a frame.
         TEST(RtxSceneDescTest, aFreedRowLeavesTheListsTheWalkFilled)
         {
             SceneDesc scene;
@@ -2083,10 +2007,9 @@ namespace Rtx
             EXPECT_TRUE(scene.textures().getRows()[layerNormal].mPath.value().empty());
         }
 
-        /// **The per-frame lists are open until the hand-over and closed until the next clear.** A
-        /// light added between the two is one the backend was not handed and the next frame's
-        /// clear throws away — or, on a frame that hands over again without clearing, one it
-        /// hands twice.
+        /// **The per-frame lists are open until the hand-over and closed until the next clear.** A light
+        /// added between the two is one the backend was not handed and the next clear throws away, or,
+        /// on a frame that hands over again without clearing, one it hands twice.
         TEST(RtxSceneDescTest, aLightAddedAfterTheHandOverDies)
         {
             SceneDesc scene;
@@ -2105,12 +2028,9 @@ namespace Rtx
         static_assert(std::is_move_constructible_v<SceneDesc> && std::is_move_assignable_v<SceneDesc>,
             "a description is moved whole; a table holding a reference to a sibling forbids the assignment");
 
-        /// **A moved description's tables reach its own tables and not the ones it was moved
-        /// from.** `MeshTable` and `MaterialTable` once held a reference to a sibling, and a
-        /// defaulted move copied it: a material added to the moved scene held its texture on the
-        /// source's texture table — an assert where the source had fewer rows, and a slot never
-        /// freed where it had more. Every cross-table call goes through the scene now, so the same
-        /// sequence as above, run on a moved scene, frees the same slots of the moved scene.
+        /// **A moved description's tables reach its own tables and not the ones it was moved from.** Every
+        /// cross-table call goes through the scene, so the same sequence as above, run on a moved scene,
+        /// frees the same slots of the moved scene.
         TEST(RtxSceneDescTest, aMovedDescriptionsTablesReachItsOwnTables)
         {
             SceneDesc source;
@@ -2141,14 +2061,11 @@ namespace Rtx
             EXPECT_FALSE(moved.meshes().isLive(body));
         }
 
-        /// An image with no file behind it takes a slot like any other and gives it back like any
-        /// other.
+        /// An image with no file behind it takes a slot like any other and gives it back like any other.
         ///
-        /// **What a composite baked for a distant terrain chunk is.** Nothing can open it — the bytes
-        /// belong to whatever made it — but it is still a slot a material points at and a backend
-        /// uploads into, so it has to live in the one table, on the one free list, under the one
-        /// reference count. A second table would be a second lifetime for a thing that dies the same
-        /// way.
+        /// **What a composite baked for a distant terrain chunk is.** Nothing can open it, but it is a slot
+        /// a material points at and a backend uploads into, so it lives in the one table, on the one free
+        /// list, under the one reference count: a second table would be a second lifetime.
         TEST(RtxSceneDescTest, anImageThatIsNotAFileTakesASlotAndGivesItBack)
         {
             SceneDesc scene;
@@ -2204,9 +2121,8 @@ namespace Rtx
 
         /// A material rewritten gives back what it stopped naming and keeps what it still names.
         ///
-        /// **What a flipbook is**: `NifOsg` turns a fire over thirty-two times a second by rewriting
-        /// one state set, and the surface wearing it never moves. The material keeps its slot; the
-        /// image it walked away from does not.
+        /// **What a flipbook is**: `NifOsg` turns a fire over thirty-two times a second by rewriting one
+        /// state set; the material keeps its slot and the image it walked away from does not.
         TEST(RtxSceneDescTest, aMaterialRewrittenGivesBackOnlyWhatItStoppedNaming)
         {
             SceneDesc scene;
@@ -2254,16 +2170,11 @@ namespace Rtx
 
         /// A mesh's vertices never straddle a block, and the tail one skipped is handed out again.
         ///
-        /// **What lets the device hold a list of buffers rather than one.** A buffer that is a single
-        /// allocation moves when it grows, and every bottom-level acceleration structure holds a
-        /// device address into it; blocked, each block is allocated once and never moves. The rule
-        /// that buys that is the one asserted here — a run lies inside one block or it is not placed
-        /// there — and the price is the tail, which must go back into circulation or a scene would
-        /// leak most of a block per boundary crossed.
-        ///
-        /// Hand-computed against a block of 262,144. Two hundred thousand vertices leave 62,144 of
-        /// the first block; a hundred thousand cannot fit in that, so it starts the second and the
-        /// tail stays behind; sixty thousand then fits the tail and takes it at 200,000.
+        /// **What lets the device hold a list of buffers rather than one.** A single buffer moves when it
+        /// grows and every bottom-level structure holds a device address into it; blocked, each block is
+        /// allocated once and never moves. The price is the tail, which must go back into circulation.
+        /// Hand-computed against a block of 262,144: 200,000 vertices leave 62,144; 100,000 starts the
+        /// second block; 60,000 then fits the tail and takes it at 200,000.
         TEST(RtxSceneDescTest, aMeshNeverStraddlesABlockAndTheTailItSkippedIsReused)
         {
             ASSERT_EQ(MeshTable::sVertexBlock, 262144u) << "the arithmetic below is written against this";
@@ -2304,11 +2215,9 @@ namespace Rtx
 
         /// A mesh longer than a block is refused by name rather than written across two of them.
         ///
-        /// **Not an assert on the reader's side, because a vertex count comes out of a content
-        /// file.** A run that straddled a block would be written across two device allocations
-        /// that are not next to each other, which is not a wrong picture but a wild write. So the
-        /// scene says what it takes — `MeshTable::checkFits` and `SceneDesc::checkPoses` — and
-        /// whoever reads a mesh asks before `addMesh`, which asserts the same.
+        /// **Not an assert on the reader's side, because a vertex count comes out of a content file.** A
+        /// straddling run would be a wild write across two device allocations, so the scene says what it
+        /// takes (`MeshTable::checkFits`, `SceneDesc::checkPoses`) and a reader asks before `addMesh`.
         TEST(RtxSceneDescTest, aMeshLongerThanABlockIsRefusedByName)
         {
             const std::vector<osg::Vec3f> tooMany(MeshTable::sVertexBlock + 1);
@@ -2340,11 +2249,9 @@ namespace Rtx
 
         /// A camera is placed from what stands in a region, and the sea is not among it.
         ///
-        /// **Two failures, one call.** The sea is one sheet a hundred and fifty cells across, laid
-        /// down by the world rather than by any cell, so framing everything placed put the eye a
-        /// million and a half units from a village. And the ground now reaches four cells past the
-        /// one being looked at, so framing everything that is not the sea still framed a region. A
-        /// view names a place; this is the extent of that place.
+        /// **Two failures, one call.** The sea is one sheet a hundred and fifty cells across, laid down by
+        /// the world, so framing everything placed put the eye a million and a half units from a village;
+        /// and the ground reaches four cells past the one looked at. A view names a place; this is its extent.
         TEST(RtxSceneDescTest, aRegionsExtentLeavesOutTheSeaAndStopsAtItsOwnEdge)
         {
             SceneDesc scene;
@@ -2386,10 +2293,9 @@ namespace Rtx
 
         /// A mesh's extent follows whatever was written into it, by either writer.
         ///
-        /// **The box is kept where the positions are, and not measured where it is asked for** — so
-        /// both writers owe it an answer. A skinned body reaches somewhere else on every frame it is
-        /// posed, and its vertices are on the device, so the reach comes in with the pose; a slot
-        /// that was given back reaches nowhere at all.
+        /// **The box is kept where the positions are, not measured where asked for**, so both writers owe
+        /// it: a skinned body reaches somewhere else every frame it is posed and its vertices are on the
+        /// device, and a slot given back reaches nowhere.
         TEST(RtxSceneDescTest, aMeshesExtentFollowsWhateverWasWrittenIntoIt)
         {
             SceneDesc scene;

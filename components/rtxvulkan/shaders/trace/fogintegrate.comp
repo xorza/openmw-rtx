@@ -5,17 +5,10 @@
 
 // The air of one column, accumulated front to back, which is what a pixel reads.
 //
-// **A thread to a column, and that is the shape this half wants.** Transmittance can only be carried in one
-// order, so the sixty-four slices are a scan and not a fan-out — and carrying it is what lets a slice hold
-// the *accumulated* answer rather than its own share, so a pixel whose surface stands at any depth reads
-// one fetch and never a sum. What would make a thread to a column the wrong shape is everything else a
-// march does: the field, the walk of the light grid and three shadow rays, all of them per froxel and none
-// of them needing an order.
-//
-// **Each slice is a sample and the air between two is the line between them**, which `FogSlice` says why.
-//
-// **And it hands the averaged seeing on**, because a puff of smoke is lit by the same three answers the air
-// is and wants them filtered the same way.
+// A thread to a column: transmittance can only be carried in one order, so the sixty-four slices are a scan,
+// and carrying it lets a slice hold the accumulated answer, so a pixel reads one fetch and never a sum.
+// Each slice is a sample and the air between two is the line between them (`FogSlice`). The averaged seeing
+// is handed on, since a puff of smoke is lit by the same three answers and wants them filtered alike.
 
 #include "scene.h"
 #include "shared/fogvolume.h"
@@ -44,30 +37,14 @@ ivec2 fogTentAt(ivec2 column, int i, ivec2 grid)
 
 /// What one froxel holds, with its neighbours across the screen averaged in and every filter applied.
 ///
-/// **What a grid this coarse cannot carry on its own, which is every draw.** A shadow's edge in the air is
-/// nought on one side and one on the other with nothing in between, so a froxel a column wide paints a step
-/// a column wide; and the coverage band is the same shape — a bank is there or it is not — so a froxel on a
-/// bank's edge holds one draw of a coin averaged over ten frames, and the ten frames leave a third of the
-/// coin. Painted at a column that is a blotch on every bank's edge, which the tent takes to a third of
-/// itself.
+/// A grid this coarse cannot carry a shadow's edge or the coverage band on its own: a froxel a column wide
+/// paints a step a column wide, and a froxel on a bank's edge holds one draw of a coin averaged over ten
+/// frames. Only the neighbours that hold air at this slice are fetched (nine fetches, not four corner taps),
+/// by each column rather than through a shared tile: that cost the pass 16 to 29% more at scale 12, where the
+/// texture cache already served what the nine columns share. Across the screen and never along the ray.
 ///
-/// **Only the neighbours that hold air at this slice**, which is what makes this nine fetches and not four
-/// corner taps of the sampler.
-///
-/// **Fetched by each column and not shared through a tile in shared memory**: a slice of the workgroup's
-/// ring loaded behind two barriers a slice cost the pass 16 to 29% more at scale 12, where the texture
-/// cache already served what the nine columns share.
-///
-/// **Across the screen and never along the ray.** A froxel is already a hundred units deep where it is six
-/// wide, so what stands in front of it is a different question.
-///
-/// **What the lamps deliver times what a ray found, and the two came from different images.** The first is
-/// an integral over the froxel and carries no draw; the second is one ray filtered over ten frames and nine
-/// neighbours. Multiplying them here rather than in the pass that traced is what lets each be treated as
-/// what it is.
-///
-/// @param surfaces where the nine columns' views of the air end, in `fogTentOffset` order.
-/// @param averaged the three answers of the seeing as the tent left them, packed as they were read.
+/// The lamps' delivery is an integral over the froxel with no draw, and the ray's answer is filtered over ten
+/// frames and nine neighbours; multiplying them here lets each be treated as what it is.
 FogSlice sliceAt(ivec2 column, uint slice, ivec2 grid, float surfaces[9], out vec4 averaged)
 {
     const float near = froxelNear(slice);
@@ -113,13 +90,11 @@ void main()
     if (outsideOf(uvec2(column), uvec2(grid)))
         return;
 
-    // **Where this column's view of the air ends, and its neighbours'** — `fogdepth.rgen` says why it
-    // matters.
+    // Where this column's view of the air ends, and its neighbours' — `fogdepth.rgen` says why it matters.
     //
-    // **The one array here that stays one.** It holds nine measured depths rather than a table two selects
-    // can state, and GLSL copies an array parameter by value — so this and the two copies `sliceAt` takes
-    // are irreducible short of nine named scalars. Removing the other thirteen across this pass and the two
-    // denoiser passes moved the clock by nothing, so nine named scalars would buy nothing either.
+    // The one array here that stays one: GLSL copies an array parameter by value, and the other thirteen across
+    // this pass and the two denoiser passes were removed with no change in the clock, so nine named scalars
+    // would buy nothing either.
     float surfaces[9];
     for (int i = 0; i < 9; ++i)
         surfaces[i] = imageLoad(fogColumnDepth, fogTentAt(column, i, grid)).x;
@@ -143,15 +118,10 @@ void main()
         const FogSlice next
             = slice + 1u < FOG_VOLUME_SLICES ? sliceAt(column, slice + 1u, grid, surfaces, seeingNext) : here;
 
-        // **The line must not bend toward a slice that starts past the surface**, which holds no air of
-        // this column's: the far half of the slice the surface stands in is flat, the way the sampler is
-        // flat past the last texel of an axis.
-        //
-        // **And only that half.** The slices past the surface are integrated as they stand —
-        // `fogscatter.rgen` draws them every frame like any other — because a pixel at the surface's edge
-        // that sees past it reads them. Carrying the last slice in the air over all of them instead drew
-        // that slice around every silhouette: the lit air beside a lantern, laid over the whole of the fog
-        // behind the wall it hangs on, in blocks a column wide.
+        // The line must not bend toward a slice that starts past the surface, which holds no air of this column's:
+        // the far half of the slice the surface stands in is flat, the way the sampler is flat past the last texel.
+        // Only that half: slices past the surface are integrated as they stand (`fogscatter.rgen` draws them every
+        // frame), because a pixel at the surface's edge that sees past it reads them.
         const FogSlice after = froxelNear(slice + 1u) < surface ? next : here;
 
         // **Two straight pieces, cut at the sample.** A quarter of the way through a slice the line

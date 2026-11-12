@@ -17,11 +17,10 @@ namespace Rtx
     {
         /// A teardown lets nothing out, whatever it was handed.
         ///
-        /// **The one promise the idiom rests on.** Every destructor in this backend does work that
-        /// fails when the device is lost, and an exception leaving one is `std::terminate` — which
-        /// is how a lost device came to abort the process on top of the fault description it had
-        /// just built. A promise with a hole in it would put that back, so this asks about the kind
-        /// of throw this tree does not make as well as the kind it does.
+        /// **The one promise the idiom rests on.** Every destructor in this backend does work that fails when the
+        /// device is lost, and an exception leaving one is `std::terminate`, which aborted the process on top of the
+        /// fault description it had just built. So this asks about the kind of throw this tree does not make as well
+        /// as the kind it does.
         TEST(RtxResultTest, aTearDownLetsNothingOutWhateverItWasHanded)
         {
             EXPECT_NO_THROW(tearDown("a teardown raised", [] { throw DeviceError("the device was lost"); }));
@@ -34,9 +33,8 @@ namespace Rtx
 
         /// A driver whose list holds `length` and grows by one on each of the first `growths` fills.
         ///
-        /// **The race `VK_INCOMPLETE` reports, made to happen.** Vulkan takes the count in one call
-        /// and the elements in the next, so a driver is allowed to have more to say by the time the
-        /// second arrives — and no real one does it on demand.
+        /// **The race `VK_INCOMPLETE` reports, made to happen.** Vulkan takes the count in one call and the elements
+        /// in the next, so a driver may have more to say by the second; no real one does it on demand.
         auto aDriverWhoseListGrows(int length, int growths)
         {
             return [length, growths](std::uint32_t* count, int* into) mutable {
@@ -64,9 +62,9 @@ namespace Rtx
 
         /// A list that grew between the count and the fill is asked for again, whole.
         ///
-        /// **The defect this exists for, and it took a run down.** `vkGetPhysicalDeviceSurfaceFormatsKHR`
-        /// offered one more format than it had a moment earlier, `checkVk` called `VK_INCOMPLETE` a
-        /// failure, and the process ended during start-up with a swapchain half built.
+        /// **The defect this exists for.** `vkGetPhysicalDeviceSurfaceFormatsKHR` offered one more format than a
+        /// moment earlier, `checkVk` called `VK_INCOMPLETE` a failure, and the process ended during start-up with a
+        /// swapchain half built.
         TEST(RtxResultTest, anEnumerationAsksAgainWhenTheDriverHadMoreToSay)
         {
             const std::vector<int> once = enumerateVk<int>("a driver that grew once", aDriverWhoseListGrows(3, 1));
@@ -82,9 +80,9 @@ namespace Rtx
 
         /// A list that shrank is trimmed to what the fill actually wrote.
         ///
-        /// **The other half of the same race, and the silent one.** A fill that wrote fewer than it
-        /// was offered answers `VK_SUCCESS`, so a caller that kept the count it asked with would
-        /// hand back elements the driver never touched.
+        /// **The other half of the same race, and the silent one.** A fill that wrote fewer than offered answers
+        /// `VK_SUCCESS`, so a caller keeping the count it asked with would hand back elements the driver never
+        /// touched.
         TEST(RtxResultTest, anEnumerationKeepsOnlyWhatTheFillWrote)
         {
             const auto shrinking = [](std::uint32_t* count, int* into) {
@@ -119,9 +117,8 @@ namespace Rtx
 
         /// Every element carries the prototype before the driver reads it.
         ///
-        /// **What a Vulkan structure needs and a handle does not.** `vkGetPipelineExecutableStatisticsKHR`
-        /// reads each element's `sType` on the way in, so a list handed over value-initialised is
-        /// one the driver refuses.
+        /// **What a Vulkan structure needs and a handle does not.** `vkGetPipelineExecutableStatisticsKHR` reads each
+        /// element's `sType` on the way in, so a value-initialised list is refused.
         TEST(RtxResultTest, anEnumerationStampsEveryElementBeforeTheDriverReadsIt)
         {
             bool stamped = false;

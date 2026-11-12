@@ -295,14 +295,12 @@ namespace RtxTool
             EXPECT_LT((track.pose(1).mEye - track.pose(0).mEye).length(), perFrame / 10.0) << "setting off from rest";
         }
 
-        /// **A key between a flight and a faster one is passed at the slower speed, and the faster
-        /// changes speed within an ease of it.** At a hundred units a second, ten frames a second
-        /// and an ease of a second, ten frames: a thousand units from rest are `100 + 10 / 2 = 105`
-        /// frames at ten a frame. Five thousand more in the key's own ten seconds, to a rest,
-        /// cruise at `5000 / (100 − 5) = 52.6` a frame, 526 a second; and joined at ten, at
-        /// `(5000 − 10 · 10 / 2) / (100 − 5 − 5) = 55`. The eye moves ten units into the key and
-        /// `10 + 45 · 10 · (0.1³ − 0.1⁴ / 2) = 10.4275` out of it, where a leg at its own speed
-        /// would jump to 52.6.
+        /// **A key between a flight and a faster one is passed at the slower speed, and the faster changes
+        /// speed within an ease of it.** At a hundred units a second, ten frames a second and an ease of a
+        /// second: a thousand units from rest are `100 + 10 / 2 = 105` frames at ten a frame. Five thousand
+        /// more in the key's own ten seconds cruise at `5000 / (100 − 5) = 52.6` a frame; joined at ten, at
+        /// `(5000 − 10 · 10 / 2) / (100 − 5 − 5) = 55`. The eye moves ten units into the key and `10 + 45 ·
+        /// 10 · (0.1³ − 0.1⁴ / 2) = 10.4275` out of it, where a leg at its own speed would jump to 52.6.
         TEST(RtxFilmTest, aKeyBetweenAFlightAndAFasterOneIsPassedAtTheSlowerSpeed)
         {
             std::vector<FilmKey> keys{ keyAt("a", "0,0", osg::Vec3f(0, 0, 0)),
@@ -334,15 +332,12 @@ namespace RtxTool
         }
 
         /// **A key's time closes a span, whose flights share the speed that fills it.** Ten frames a
-        /// second: two thousand units to a key at five seconds are fifty frames, forty a frame, the
-        /// middle key at 25 and the timed one at 50 exactly; the thousand after it at the film's
-        /// ten a frame are a hundred more, 151 frames in all.
-        ///
-        /// **Across a cut**, a room at twenty seconds closes the span after the key at five: 150
-        /// frames, of which the frame the first take ends on is one, so its thousand units take 149,
-        /// and the room's take begins at frame 200. A named length of twenty seconds closes the last
-        /// span alike, at the film's last frame, 199; a default one stands aside, and a named one of
-        /// four seconds, which ends before the key at five, is refused.
+        /// second: two thousand units to a key at five seconds are fifty frames, forty a frame, the middle
+        /// key at 25 and the timed one at 50; the thousand after it at the film's ten a frame are a hundred
+        /// more, 151 in all. **Across a cut**, a room at twenty seconds closes the span after the key at
+        /// five: 150 frames, of which the first take's last is one, so its thousand units take 149 and the
+        /// room's take begins at frame 200. A named length of twenty seconds closes the last span alike, at
+        /// 199; a default one stands aside, and a named four seconds, ending before the key at five, is refused.
         TEST(RtxFilmTest, aKeysTimeClosesASpan)
         {
             std::vector<FilmKey> keys{
@@ -431,24 +426,21 @@ namespace RtxTool
                 "than a frame for each of the 1 takes that fly");
         }
 
-        /// **A length sets the speed: the path's length over the frames the rest leaves.** Five
-        /// seconds at ten frames a second is fifty frames. The second take holds its first key a
-        /// second, and each take has its first frame, so twelve are spoken for and 38 are flown:
-        /// 3000 units in the first take and 500 in the second, `3500 / 38 = 92.1` a frame, which
-        /// is `32.57` frames and `5.43`. Rounded to whole frames that still add to 38, the larger
-        /// remainder takes the frame: 33 and 5, so the first take flies `3000 / 33 = 90.9` a frame
-        /// and passes its middle key at frame `1000 / 90.9 = 11`, and the second `500 / 5 = 100`.
+        /// **A length sets the speed: the path's length over the frames the rest leaves.** Five seconds at
+        /// ten frames a second is fifty frames. The second take holds its first key a second and each take
+        /// has its first frame, so twelve are spoken for and 38 are flown: 3000 units in the first take and
+        /// 500 in the second, `3500 / 38 = 92.1` a frame, `32.57` frames and `5.43`. Rounded to whole frames
+        /// that still add to 38, the larger remainder takes the frame: 33 and 5.
         ///
-        /// **A flight too short for a frame at that speed is a frame, taken from the longest.** A
-        /// third take of five units makes 37 flown frames of 3505 units, `94.7` a frame: `31.67`,
-        /// `5.28` and `0.05`. The whole parts are 31, 5 and nought, the frame left over goes to the
-        /// largest remainder, the first's, and the third's frame comes back out of it: 31, 5 and 1.
+        /// **A flight too short for a frame at that speed is a frame, taken from the longest.** A third
+        /// take of five units makes 37 flown frames of 3505 units: `31.67`, `5.28` and `0.05`; the whole
+        /// parts 31, 5 and nought, the left-over frame goes to the first's remainder and the third's frame
+        /// comes back out of it: 31, 5 and 1.
         ///
-        /// **A length nobody named stands aside where a named one is refused.** A flight of its own
-        /// three seconds leaves the default nothing to fill: thirty frames and the first, 31 and not
-        /// 50. A default of one second leaves the five keys no frame to fly, so they fly at the
-        /// hundred units a second: 3000 units are 300 frames and the first, and the hold's ten and
-        /// 500 units' fifty and the first are 61, 362 in all.
+        /// **A length nobody named stands aside where a named one is refused.** A flight of its own three
+        /// seconds leaves the default nothing to fill: thirty frames and the first, 31 and not 50. A
+        /// default of one second leaves the five keys no frame to fly, so they fly at the hundred units a
+        /// second: 300 frames and the first, and the hold's ten and 500 units' fifty and the first, 362.
         TEST(RtxFilmTest, aLengthSetsTheSpeed)
         {
             std::vector<FilmKey> keys{
@@ -617,17 +609,13 @@ namespace RtxTool
                 "  room                         Vivec, Arena 12:00, Clear\n");
         }
 
-        /// **A film under its own sky flies at the camera's pace**: the clock at `×512` and the
-        /// weather turned through Clear and Rain over the whole film, across its cut, whatever the
-        /// keys name after the first.
-        ///
-        /// By hand: a thousand units at a hundred a second is ten seconds, a hundred frames, with or
-        /// without the keys' own clock, which a flight at one speed does not wait for. `×512` is 512
-        /// seconds of the game's own clock a second, 51.2 a frame, so the second key, at frame 100,
-        /// is 5120 of them on from the first key's 12:00, and the room, the film's frame 101, 5171;
-        /// which a session at a `timescale` of 30 makes `5120 × 30 / 3600 = 42.67` hours, 06:40. A
-        /// weather stands a second, ten frames, and crosses in eight, eighty: frame 100 is ten into
-        /// the second period of ninety, where Rain begins to cross back into Clear.
+        /// **A film under its own sky flies at the camera's pace**: the clock at `×512` and the weather
+        /// turned through Clear and Rain over the whole film, across its cut, whatever the keys name after
+        /// the first. By hand: a thousand units at a hundred a second is a hundred frames, with or without
+        /// the keys' own clock. `×512` is 51.2 seconds of the game's clock a frame, so the second key, at
+        /// frame 100, is 5120 on from 12:00, and the room, frame 101, 5171; at a `timescale` of 30 that is
+        /// `5120 × 30 / 3600 = 42.67` hours, 06:40. A weather stands ten frames and crosses in eight: frame
+        /// 100 is ten into the second period of ninety, where Rain begins to cross back into Clear.
         TEST(RtxFilmTest, aFilmUnderItsOwnSkyFliesAtTheCamerasPace)
         {
             std::vector<FilmKey> keys{

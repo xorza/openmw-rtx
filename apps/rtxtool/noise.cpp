@@ -158,18 +158,16 @@ namespace RtxTool
 
     namespace
     {
-        /// **The truth a side is held against traces unfiltered, every frame a draw of its own**
-        /// (`ReconstructionRequest::unfiltered`): a frame that reused the ones before it is not one
-        /// more sample of the truth. Its indirect light stays the run's, since a traced bounce and
-        /// none are two integrands.
+        /// The truth a side is held against traces unfiltered, every frame a draw of its own
+        /// (`ReconstructionRequest::unfiltered`): a frame that reused the ones before it is not another sample of
+        /// the truth. Its indirect light stays the run's, since a traced bounce and none are two integrands.
         Rtx::ReconstructionRequest referenceOf(const Rtx::ReconstructionRequest& side)
         {
             Rtx::ReconstructionRequest truth = side.unfiltered();
             truth.mJitter = true;
             truth.mNoise = Rtx::NoiseSource::WhiteHash;
-            // **The truth reads every texture at the level its footprint asks**, whatever the
-            // run's epsilon: an epsilon is a knob on the frame, and a reference that moved with
-            // it would take the frame's softness for its own and report no bias at all.
+            // The truth reads every texture at the level its footprint asks, whatever the run's epsilon: a reference
+            // that moved with it would take the frame's softness for its own and report no bias at all.
             truth.mLevelEpsilon = 0.0f;
             // **And draws every source for its bit**: a floor rides a minor source's light on
             // another's shadow, which is the bias the A/B of the floor measures.
@@ -186,15 +184,13 @@ namespace RtxTool
         const std::optional<Rtx::ReconstructionRequest>& versus = ask.mVersus;
         const std::filesystem::path& folder = ask.mFolder;
 
-        // **The bar traces unfiltered too**, for the reason `referenceOf` gives: a frame of the bar
-        // is a sample of what the frame converges to. So the other side traces its own only where
-        // its unfiltered frames trace otherwise.
+        // The bar traces unfiltered too, for the reason `referenceOf` gives: a frame of the bar is a sample of what
+        // the frame converges to. So the other side traces its own only where its unfiltered frames trace otherwise.
         const bool ownBar = versus.has_value() && versus->unfiltered() != played.unfiltered();
-        // **And its own reference only where the truth it traces is another**: a switch the truth
-        // sets for itself — the jitter, the noise, the level epsilon, the floor, the lamps it
-        // weighs — leaves the first side's, which is 256 frames a place not traced twice. Every
-        // field the truth keeps is one the unfiltered request keeps, so an own reference comes
-        // with an own bar.
+        // And its own reference only where the truth it traces is another: a switch the truth sets for itself (the
+        // jitter, the noise, the level epsilon, the floor, the lamps it weighs) leaves the first side's, which is
+        // 256 frames a place not traced twice. Every field the truth keeps is one the unfiltered request keeps, so
+        // an own reference comes with an own bar.
         const bool ownReference = versus.has_value() && referenceOf(*versus) != referenceOf(played);
         assert(!ownReference || ownBar);
         const Rtx::ExposureRule held = Rtx::HeldExposure{};

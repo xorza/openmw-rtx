@@ -51,9 +51,8 @@ namespace Sky
 
         /// **`Weather_Timescale_Clouds` paces the deck by the game's scale over sixty**, as the
         /// rasterizer's `SkyManager` reads it: at the shipped thirty that is half the frame's
-        /// seconds, and at sixty the frame's own. The traced deck read the flag nowhere and ran at
-        /// twice the rasterizer's pace under content that set it. The sky's seconds are the time-lapse
-        /// either way, because the fog drifts on them and the flag is the deck's.
+        /// seconds, and at sixty the frame's own. The sky's seconds are the time-lapse either way,
+        /// because the fog drifts on them and the flag is the deck's.
         TEST(SkyClockTest, contentThatTimescalesItsCloudsPacesTheDeckByTheGamesScale)
         {
             constexpr float step = 1.0f / 60.0f;

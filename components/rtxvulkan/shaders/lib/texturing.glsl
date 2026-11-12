@@ -17,12 +17,8 @@
 /// What the hit's own triangle contributes to a mip level, before any texture is named.
 ///
 /// **One statement of the half of `coneBase` that every point on a hit's triangle shares.** A terrain chunk
-/// builds four or five points there, one a layer; each needs the same square root, the same divide by it
-/// and the same dot against the ray. The triangle and the ray are one pair per hit, so this is worked out
-/// once and handed over.
-///
-/// **It measures at no time either way**, because `glslc` inlines these and removes some of the repeat
-/// itself.
+/// builds four or five points there, one a layer, each needing the same square root, divide and dot against
+/// the ray; the triangle and the ray are one pair per hit, so this is worked out once and handed over.
 struct SurfaceCone
 {
     /// Twice the triangle's area in the world. Nought for a degenerate one, which reads level zero.
@@ -41,11 +37,10 @@ struct SurfaceCone
     /// The ellipse a cone one unit wide makes on the surface: its short axis across the ray, one unit long,
     /// and its long axis along the ray's shadow on the plane, `1 / mFacing` long.
     ///
-    /// **What `mFacing` folds into one level, kept apart.** An isotropic read has to take the long axis for
-    /// both, so a surface seen at a grazing angle — most of the ground in most exterior frames — is blurred
-    /// across the ray by the stretch along it. A read along both axes keeps the short one sharp
-    /// (Akenine-Möller et al., *Improved Shader and Texture Level of Detail Using Ray Cones*, JCGT 10(1)
-    /// 2021).
+    /// **What `mFacing` folds into one level, kept apart.** An isotropic read takes the long axis for both, so
+    /// a surface seen at a grazing angle (most of the ground in most exterior frames) is blurred across the ray
+    /// by the stretch along it; a read along both axes keeps the short one sharp (Akenine-Möller et al.,
+    /// *Improved Shader and Texture Level of Detail Using Ray Cones*, JCGT 10(1) 2021).
     vec3 mAcross;
     vec3 mAlong;
 };
@@ -98,18 +93,17 @@ float slopesUnder(SurfaceCone cone, vec3 secondTurn, vec3 thirdTurn, vec3 interp
 
 /// A base at or below which every texture reads its finest level, whatever its own resolution adds.
 ///
-/// **Both a sentinel and a threshold, and nothing has to know which a given point is.** A ray with no cone
-/// is given this so that `coneLod` loads no texel count for it, and a base that reaches it honestly would
-/// clamp to the finest level anyway — the largest `0.5 * log2(w * h)` a `maxImageDimension2D` of 16384
-/// allows is 14.
+/// **Both a sentinel and a threshold, and nothing has to know which a given point is**: a ray with no cone is
+/// given this so `coneLod` loads no texel count for it, and a base that reaches it honestly would clamp to
+/// the finest level anyway (the largest `0.5 * log2(w * h)` a `maxImageDimension2D` of 16384 allows is 14).
 const float TEXTURE_FINEST_BASE = -64.0;
 
 /// Every term of the level but the texture's own resolution: the texture-to-world area ratio of the
 /// triangle, the cone's width where it landed, and the angle the surface presents.
 ///
 /// **The ratio and not the coordinates it was measured from**, because a mesh's own texture coordinates are
-/// not the only parameterisation a surface reads a sheet through: a sphere map is indexed by where the eye
-/// is, and `spherePoint` measures the same ratio for it.
+/// not the only parameterisation a surface reads a sheet through: a sphere map is indexed by where the eye is,
+/// and `spherePoint` measures the same ratio for it.
 ///
 /// @param uvArea twice the triangle's area in the texture's own coordinates, against `cone.mArea`,
 ///        which is twice its area in the world. Doubled on both sides, so the two cancel.
@@ -136,9 +130,9 @@ float coneBase(vec2 uv0, vec2 uv1, vec2 uv2, SurfaceCone cone, float coneWidth)
 
 /// Where on a texture a hit lands, and how coarse a level the ray's cone can still tell apart there.
 ///
-/// **One statement of a hit's place on a sheet, for every read made of that sheet.** A surface reads its
-/// albedo, its opacity and its emissive map off one transform, so the three transformed corners are worked
-/// out once per transform and handed to every read.
+/// **One statement of a hit's place on a sheet, for every read made of that sheet**: a surface reads its
+/// albedo, opacity and emissive map off one transform, so the three transformed corners are worked out once
+/// per transform and handed to every read.
 struct TexturePoint
 {
     /// The hit, in the texture's own coordinates.
@@ -146,10 +140,9 @@ struct TexturePoint
 
     /// The level any texture on this sheet is read at, before its own resolution is added.
     ///
-    /// **The answer and not what it was made from.** The three transformed corners travelled to every
-    /// sampler beside the surface's own cone so that each could take the same determinant again — eight
-    /// floats through the call chain for one scalar that is the same for every map on the triangle, and a
-    /// surface reads three of them.
+    /// **The answer and not what it was made from**: carrying the three transformed corners to every sampler
+    /// to take the same determinant again was eight floats through the call chain for one scalar that every map
+    /// on the triangle shares.
     float mBase;
 
     /// The footprint's two axes in the texture's own coordinates, for `textureGrad`, and whether the
@@ -230,25 +223,25 @@ SheetSpan sheetSpanOf(const vec3 normal[3])
 
 /// Where a sphere-mapped sheet is read, and how coarse a level the ray's cone can tell apart there.
 ///
-/// **The sheet is parameterised by the reflection, so its footprint is the normal's and not the mesh's.**
-/// The two share nothing but the ray, so a `TexturePoint` built for the mesh's own coordinates is wrong in
-/// either direction and by any amount: it blurs a flat blade, whose sheet coordinate does not move at all,
-/// and it aliases the streaks on a curve that sweeps them.
+/// **The sheet is parameterised by the reflection, so its footprint is the normal's and not the mesh's.** The
+/// two share nothing but the ray, so a `TexturePoint` built for the mesh's own coordinates is wrong by any
+/// amount: it blurs a flat blade, whose sheet coordinate does not move at all, and aliases the streaks on a
+/// curve that sweeps them.
 ///
-/// **The ratio is closed form and not an estimate.** The sphere map `r.xy / (2 sqrt(2 + 2 r.z))` is
-/// Lambert's azimuthal equal-area projection over four, so it carries solid angle to sheet area at exactly
-/// one sixteenth, everywhere. Reflecting about a normal carries solid angle by `4 cos`, for the angle
-/// between the ray and that normal — the shading normal the sheet is reflected about, and not the plane's
-/// `SurfaceCone::mFacing`, which is how wide the ray's own footprint lies and a different question.
+/// **The ratio is closed form and not an estimate.** The sphere map `r.xy / (2 sqrt(2 + 2 r.z))` is Lambert's
+/// azimuthal equal-area projection over four, so it carries solid angle to sheet area at exactly one
+/// sixteenth, everywhere. Reflecting about a normal carries solid angle by `4 cos`, for the angle between the
+/// ray and the shading normal the sheet is reflected about, and not the plane's `SurfaceCone::mFacing`, which
+/// is a different question.
 ///
 /// **Solid angle is rotation invariant, so the normals may stand in any basis a placement rotates them
 /// into**: the world's, as `resolve` carries them off the hit (`Hit::mShading` and its turns), or the mesh's
-/// own, as a crossing in the media fetches them, which has no object-to-world matrix to bring them across
-/// with. A placement scaled unevenly would move the span, which is the assumption the whole tree already
-/// makes of a normal — `Hit::mShading` comes through the same matrix rather than its inverse transpose.
+/// own, as a crossing in the media fetches them, which has no object-to-world matrix. A placement scaled
+/// unevenly would move the span, the assumption the tree already makes of a normal (`Hit::mShading` comes
+/// through the same matrix rather than its inverse transpose).
 ///
-/// **What this leaves out is the ray's own turn across the triangle**, which moves the reflection as much
-/// as the normal does.
+/// **What this leaves out is the ray's own turn across the triangle**, which moves the reflection as much as
+/// the normal does.
 ///
 /// @param span what the triangle's three vertex normals spread over (`sheetSpanOf`).
 /// @param shading where the hit's own normal points, in the caller's basis and unit.
@@ -271,14 +264,14 @@ TexturePoint spherePoint(SheetSpan span, vec3 shading, vec3 direction, SurfaceCo
 
 /// Which mip one texture on that sheet should be read from.
 ///
-/// **The texture's own term is a load and not a header read.** `textureSize` asked the driver for the
-/// slot's extent on every sample; the texel count is one word per slot for the life of the slot, and the
-/// array's owner writes it beside the descriptor — `GpuTables::mTextureTexels`. The logarithm stays here,
-/// over the same integer, so no level moves.
+/// **The texture's own term is a load and not a header read**: the texel count is one word per slot for the
+/// life of the slot, written by the array's owner beside the descriptor (`GpuTables::mTextureTexels`), where
+/// `textureSize` asked the driver on every sample. The logarithm stays here, over the same integer, so no
+/// level moves.
 ///
-/// **The early answer is a read and not an arithmetic saving.** `passageAsk` says why a shadow ray takes
-/// level zero, and what it saves is the load this makes; on a shadow ray the width is a literal nought and
-/// the test folds.
+/// **The early answer is a read and not an arithmetic saving**: `passageAsk` says why a shadow ray takes level
+/// zero, and what it saves is the load this makes; on a shadow ray the width is a literal nought and the test
+/// folds.
 float coneLod(uint slot, TexturePoint point)
 {
     if (point.mBase <= TEXTURE_FINEST_BASE)
@@ -356,8 +349,8 @@ const uint RELIEF_LAYERS = 4u;
 
 /// The heights a march goes through (`reliefToward`): a surface's one normal map, or a stack's layers that
 /// show at the hit, each by the share of the stack it shows, beside the share of the layers with no height,
-/// which stand at the middle height, on the triangle. The shares sum to one. **One sheet for all of them**:
-/// every layer of a chunk is laid by one transform (`Rtx::GroundReader`), so one point names a texel of each.
+/// which stand at the middle height. The shares sum to one. **One sheet for all of them**: every layer of a
+/// chunk is laid by one transform (`Rtx::GroundReader`), so one point names a texel of each.
 ///
 /// **Vectors and not arrays, and every index a constant**: an array indexed by a count the hit decides is
 /// local memory on NVIDIA's compiler, which spilled the direct stage and the landing's by 32 bytes a lane.
@@ -404,22 +397,21 @@ float reliefHeightAt(ReliefMaps maps, vec2 at, float level)
 /// march took no step: the shift moves the texture and stands it at no depth.
 ///
 /// **The relief OpenMW states, marched** (Tatarchuk 2006): a height `h` stands `h * PARALLAX_SCALE +
-/// PARALLAX_BIAS` over the triangle in the map's tangent frame, measured in the texture's units, so the
-/// mean height the replacers paint stands on it. The eye's ray enters the relief at its highest height and
-/// is walked down in even steps to its lowest; the first step under the height ends it, and the root is
-/// found in float between that step and the one before, on the line through their two heights, which
-/// joins the filtered bytes without the stairs a step would leave.
+/// PARALLAX_BIAS` over the triangle in the map's tangent frame, in the texture's units, so the mean height the
+/// replacers paint stands on it. The eye's ray enters at the highest height and is walked down in even steps
+/// to the lowest; the first step under the height ends it, and the root is found in float on the line through
+/// the last two heights, which joins the filtered bytes without a step's stairs.
 ///
-/// **The steps follow the ray's cone.** As many as the texels the ray crosses sideways inside the bounds,
-/// at the level the hit's reads resolve, up to `RELIEF_STEPS`; past it a coarser level, so a step stays
-/// one texel of the level it reads. **Under one texel, the shift**, `parallaxShift`'s, which is what the
-/// march comes to where nothing it crosses tells one texel from another: a far surface keeps the picture
-/// and the cost it had. Between one texel and two the two are mixed, so no ring stands where the march
-/// begins (Tatarchuk's threshold blend). A face the eye meets from behind its frame takes the shift.
+/// **The steps follow the ray's cone**: as many as the texels the ray crosses sideways inside the bounds, at
+/// the level the hit's reads resolve, up to `RELIEF_STEPS`; past it a coarser level, so a step stays one texel
+/// of the level it reads. **Under one texel, the shift** (`parallaxShift`), which the march comes to where
+/// nothing it crosses tells one texel from another, so a far surface keeps the picture and the cost it had;
+/// between one texel and two the two are mixed, so no ring stands where the march begins (Tatarchuk's
+/// threshold blend). A face the eye meets from behind its frame takes the shift.
 ///
-/// **Held to one side of the texture**: the eye's rise over the sheet is taken at least as high as a
-/// crossing of the whole relief over one side needs, since past it the texture repeats and the march
-/// would read a tile it does not stand over.
+/// **Held to one side of the texture**: the eye's rise over the sheet is taken at least as high as a crossing
+/// of the whole relief over one side needs, since past it the texture repeats and the march would read a tile
+/// it does not stand over.
 ///
 /// @param maps the normal maps whose alpha is the height, the first of which the march counts its texels
 ///        at.
@@ -506,18 +498,18 @@ ReliefSite noReliefSite()
 /// How much of a light `toLight` lights the texel `site` showed the eye, past the relief between: a march
 /// from the height that texel stands at up along the light, through the map's heights to its highest.
 ///
-/// **Soft, by the light's own size** (Tatarchuk 2006's approximate soft shadow, here with the light's
-/// width): at each step a height that stands over the light's ray is weighed against how wide the light's
-/// cone has opened there, `spread` times the distance from the texel, and takes the light away in a line,
-/// all of it where the height stands the cone's whole width over the ray. **Only what stands over the ray**,
-/// as Remix's `pomSampleVisibility` counts it: a height under the ray takes nothing, so flat ground lights
-/// itself whole. **A texel of the level the march reads is the narrowest width**, since the heights are
-/// filtered over it and a shadow sharper than a texel would be the filter's stairs. The least of the steps
-/// is the answer.
+/// **Soft, by the light's own size** (Tatarchuk 2006's approximate soft shadow, with the light's width): at
+/// each step a height over the light's ray is weighed against how wide the light's cone has opened there
+/// (`spread` times the distance from the texel) and takes the light away in a line, all of it where the height
+/// stands the cone's whole width over the ray. **Only what stands over the ray**, as Remix's
+/// `pomSampleVisibility` counts it, so flat ground lights itself whole. **A texel of the level the march
+/// reads is the narrowest width**, since the heights are filtered over it and a sharper shadow would be the
+/// filter's stairs. The least of the steps is the answer.
 ///
 /// **The march's own rules, the eye's level among them**: as many steps as the texels the light's ray crosses
-/// sideways, up to `RELIEF_STEPS`, and none where it crosses under one, which lights the texel whole. A light
-/// under the map's plane lights it whole as well, where the cosine already takes the light away.
+/// sideways, up to `RELIEF_STEPS`, and none where it crosses under one, which lights the texel whole; so does
+/// a light under the map's plane, where the cosine already takes the light away.
+
 ///
 /// @param toLight unit, toward the light.
 /// @param spread the sine of half the angle the light subtends: the sky source's limb, a lamp's radius over

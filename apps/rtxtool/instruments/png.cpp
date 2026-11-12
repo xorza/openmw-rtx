@@ -60,11 +60,9 @@ namespace RtxTool
             // file a fifth larger — and a run that keeps every frame writes hundreds of them.
             const osg::ref_ptr<osgDB::Options> options = new osgDB::Options("PNG_COMPRESSION 1");
 
-            // **Encoded in memory and written here, every picture**: the plugin's own file is a stream
-            // it never checks, and closed by nobody who asks, so a full disk or a share that reports a
-            // failed write at its close wrote half a picture that a run said it wrote. And the chunk
-            // put in before the end, because OSG's plugin writes no text of its own: before `IEND`,
-            // which is the last twelve bytes of every PNG and after which a decoder reads nothing.
+            // Encoded in memory and written by `writeReport`: the plugin's own file stream is never checked, so a
+            // full disk left half a picture that a run said it wrote. The text chunk goes before `IEND` (the last
+            // twelve bytes), because OSG's plugin writes none and a decoder reads nothing after it.
             osgDB::ReaderWriter* const png = osgDB::Registry::instance()->getReaderWriterForExtension("png");
             if (png == nullptr)
                 return Err{ "cannot write " + Files::pathToUnicodeString(path) + ": no PNG plugin" };

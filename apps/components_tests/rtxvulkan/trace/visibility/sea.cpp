@@ -42,10 +42,8 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// How far a field varies, as a fraction of its own mean.
-        ///
-        /// **The measure every water pattern here is judged by**, because what a caustic or a shaft
-        /// is asked to have is structure rather than brightness — and the brightness is what a
+        /// How far a field varies, as a fraction of its own mean: the measure every water pattern here is judged
+        /// by, because what a caustic or a shaft is asked to have is structure and not brightness, which a
         /// ratio against a flat sea has already divided out.
         float contrastOf(const std::vector<float>& field)
         {
@@ -58,17 +56,11 @@ namespace Rtx::Testing
             return std::sqrt(spread / static_cast<float>(field.size())) / mean;
         }
 
-        /// The lobe the shader arrives at for a sea read through a cone this wide.
-        ///
-        /// **What the chain lost at that footprint, and not the whole spectrum.** The shader reads
-        /// `mLostSlope` off the level `waveLevel` picks, so what it carries is the slope a mip of
-        /// that width averaged away — never all of it unless the cone reaches the coarsest level.
-        /// The reason is that this is the shader's own question, and not the size of the answer: at
-        /// the footprint `waterTooFineToResolveWidensTheConeItRefractsThrough` reads, the mip has
-        /// lost nearly all of the slope anyway.
-        ///
-        /// The lobe is the cone the roughness those slopes stand for fills, `ggxConeWidth`, as a
-        /// solid's lobe is.
+        /// The lobe the shader arrives at for a sea read through a cone this wide: what the chain lost at that
+        /// footprint and not the whole spectrum. The shader reads `mLostSlope` off the level `waveLevel` picks,
+        /// so it carries the slope a mip of that width averaged away, never all of it unless the cone reaches
+        /// the coarsest level; this is the shader's own question and not the size of the answer. The lobe is the
+        /// cone the roughness those slopes stand for fills, `ggxConeWidth`, as a solid's lobe is.
         float lobeOf(const SeaState& sea, float footprint)
         {
             float unresolved = 0.0f;
@@ -79,23 +71,18 @@ namespace Rtx::Testing
             return Shaders::ggxConeWidth(roughness * roughness, Shaders::BOUNCE_SPREAD);
         }
 
-        /// A shaft is the surface's own lens carried along the ray, and nothing else.
+        /// A shaft is the surface's own lens carried along the ray, and nothing else. `ColumnRun` integrates
+        /// the sun's beam exactly and an exact integral of a smooth thing is smooth: the water brightens toward
+        /// the sun and goes dark away from it with no structure between. A beam of sunlight in water has
+        /// structure because the surface over it is a lens, and carrying that down the ray is what this measures.
         ///
-        /// **What the closed form cannot have.** `ColumnRun` integrates the sun's beam exactly, and
-        /// an exact integral of a smooth thing is smooth: the water brightens toward the sun and goes
-        /// dark away from it, with no structure anywhere in between. A beam of sunlight in water has
-        /// structure because the surface over it is a lens, and carrying that down the ray is what
-        /// this measures.
+        /// A black sky and no ambient, so the beam is the whole pixel: looking up from deep water the surface
+        /// reflects an unlit bed and refracts a black sky, sending down nothing, and the column's own sky term
+        /// meets an ambient of nothing, leaving the sun scattered toward the eye over fifteen hundred units.
         ///
-        /// **A black sky and no ambient, so the beam is the whole pixel.** Looking up from deep
-        /// water, the surface reflects an unlit bed and refracts a black sky, so it sends down
-        /// nothing; the column's own sky term meets an ambient of nothing. What is left is the sun
-        /// scattered toward the eye over fifteen hundred units — the shaft, alone.
-        ///
-        /// **Two seas, and the mean is what says it is light rather than decoration.** A flat sea is
-        /// a lens of no power and its caustic is exactly one everywhere, so it renders the closed
-        /// form; a real one redistributes that same light. The pattern is the difference between
-        /// them and the total is not.
+        /// Two seas, and the mean says it is light and not decoration: a flat sea is a lens of no power and its
+        /// caustic is exactly one everywhere, so it renders the closed form, while a real one redistributes
+        /// that same light. The pattern is the difference between them and the total is not.
         TEST_F(RtxVisibilityTest, theSunsBeamUnderWaterCarriesTheSurfacesPattern)
         {
             constexpr std::uint32_t size = 48;
@@ -129,36 +116,27 @@ namespace Rtx::Testing
             for (std::size_t i = 0; i < count; ++i)
                 ratio.push_back(running[i] / flat[i]);
 
-            // **The ratio, because the phase function is eighty times brighter down the sun's line
-            // than at the edge of a sixty-degree frame.** That is real and it is not what is being
-            // measured: dividing the two frames cancels it, along with the extinction and the
-            // geometry, and leaves the lens alone. A flat sea has a lens of no power, so its own
-            // caustic is exactly one everywhere and the ratio would be a field of ones.
+            // The ratio, because the phase function is eighty times brighter down the sun's line than at the
+            // edge of a sixty-degree frame; dividing the two frames cancels that along with the extinction and
+            // geometry and leaves the lens alone. A flat sea's own caustic is exactly one everywhere, so the
+            // ratio would be a field of ones.
             EXPECT_GT(contrastOf(ratio), 0.03f) << "measured 0.057, where a flat sea gives nought";
             EXPECT_NEAR(meanOf(ratio), 1.0f, 0.06f) << "measured 0.963: the shaft moves light and makes none";
         }
 
-        /// A shaft is blocked by what stands over the water, and the gap is where the sun enters.
+        /// A shaft is blocked by what stands over the water, and the gap is where the sun enters. A submerged
+        /// surface is shadowed because `GatherRun` traces its own ray, and water carries a mask bit that keeps
+        /// it out of occlusion, so a rock over the sea would darken the bed under it and leave the water in
+        /// front of the bed as bright as ever; the march is where the volume gets the same question.
         ///
-        /// **The half the closed form has no way to ask.** A submerged surface is shadowed because
-        /// `GatherRun` traces its own ray, and water carries a mask bit that keeps it out of
-        /// occlusion — so a rock over the sea darkened the bed under it and left the water in front
-        /// of the bed as bright as ever. The march is where the volume gets the same question.
-        ///
-        /// **Three lids, and the last is the one that says where the shadow belongs.** A lid over
-        /// everything only proves that something is being asked, and a strip whose shadow falls
-        /// where the light entered only proves that the answer can be partial. The last stands over
-        /// that same water and casts its shadow elsewhere, so a shader that looked straight up would
-        /// find it squarely in the way and darken a shaft nothing is shading.
-        ///
-        /// The sun is 45 degrees off the vertical, which Snell bends to 32 under the water, so from
-        /// 500 units down the light met the surface 312 units up-sun of the eye — and a lid 500
-        /// units over the sea shadows the water 500 units down-sun of itself. The two displacements
-        /// are what the second lid is placed against, and getting either backwards puts its shadow
-        /// somewhere the frame cannot see.
-        ///
-        /// Nothing else is in the frame: no bed, a black sky, no ambient and no disc, so the surface
-        /// reflects unlit water and refracts an unlit sky. What is left is the shaft alone.
+        /// Three lids, the last saying where the shadow belongs. A lid over everything only proves something is
+        /// being asked, and a strip whose shadow falls where the light entered only proves the answer can be
+        /// partial. The last stands over that same water and casts its shadow elsewhere, so a shader that
+        /// looked straight up would find it squarely in the way and darken a shaft nothing is shading. The sun
+        /// is 45 degrees off the vertical, which Snell bends to 32 under the water, so from 500 units down the
+        /// light met the surface 312 units up-sun of the eye, and a lid 500 units over the sea shadows the water
+        /// 500 units down-sun of itself; the second lid is placed against those two displacements. Nothing
+        /// else is in the frame (no bed, a black sky, no ambient, no disc), so the shaft is alone.
         TEST_F(RtxVisibilityTest, aShaftIsBlockedByWhatStandsOverTheWaterWhereTheSunEnters)
         {
             constexpr std::uint32_t size = 48;
@@ -220,17 +198,15 @@ namespace Rtx::Testing
             EXPECT_GT(open, 0.0f) << "there is a shaft to block";
             EXPECT_LT(covered, 1.0e-4f * open) << "and a lid over all of the water puts it out";
 
-            // **A strip takes nearly all of it and not half, because the beam is a narrow lobe.**
-            // Henyey-Greenstein at 0.92 puts the shaft in the pixels looking up-sun, and a ray that
-            // climbs toward the sun gains y as fast as its own entry point does — so its whole march
-            // enters the water through a stretch a couple of tens of units long, and one strip
-            // covers it. The pixels the strip misses are the ones that were dark anyway.
+            // A strip takes nearly all of it and not half, because the beam is a narrow lobe: Henyey-Greenstein
+            // at 0.92 puts the shaft in the pixels looking up-sun, and a ray that climbs toward the sun gains y
+            // as fast as its entry point does, so its whole march enters the water through a stretch a couple of
+            // tens of units long and one strip covers it. The pixels the strip misses were dark anyway.
             //
-            // **Sixteen per cent and not five, because the shadow has the edge every shadow has.**
-            // The entry's ray is drawn across the sun's own penumbra — `SUN_SHADOW_RADIUS`, three
-            // degrees, which at a lid five hundred units up is twenty-six units either side of its
-            // edge — so the entries under the strip's rim take part of the sun where a straight ray
-            // took none. Measured at 0.160 with the four steps the march takes.
+            // Sixteen per cent and not five, because the shadow has the edge every shadow has: the entry's ray
+            // is drawn across the sun's own penumbra (`SUN_SHADOW_RADIUS`, three degrees, twenty-six units either
+            // side of a lid's edge at five hundred up), so entries under the strip's rim take part of the sun.
+            // Measured at 0.160 with the four steps the march takes.
             EXPECT_NEAR(shaded / open, 0.160f, 0.02f) << "a lid whose shadow falls on the entries";
 
             // **The one that says where the gap belongs**, and it is 0.9991 of the open shaft.
@@ -238,33 +214,25 @@ namespace Rtx::Testing
             EXPECT_NEAR(beside / open, 1.0f, 0.01f) << "and one that merely stands over them";
         }
 
-        /// The waves gather the sun into moving lines on the bed, and move light rather than make it.
-        ///
-        /// Caustics are ray density — the determinant of the Jacobian of the map from where light
-        /// met the surface to where it landed — and what isolates that term from everything else in
-        /// the frame is a **ratio**: the same bed, camera and sun, rendered with a sea state and
-        /// without one. Dividing the two cancels the albedo, the absorption, the cosine and the
-        /// geometry, and leaves the term itself, pixel for pixel.
-        ///
-        /// **Looked at from underneath**, so no wavy surface stands between the eye and the bed.
-        /// Seen from above, what the waves do to the *view* would be mixed into what they do to the
-        /// *light*, and the ratio would measure both.
+        /// The waves gather the sun into moving lines on the bed, and move light rather than make it. Caustics
+        /// are ray density, the determinant of the Jacobian of the map from where light met the surface to
+        /// where it landed, and what isolates that term from everything else in the frame is a ratio: the same
+        /// bed, camera and sun rendered with a sea state and without, which cancels the albedo, absorption,
+        /// cosine and geometry. Looked at from underneath, so no wavy surface stands between the eye and the
+        /// bed: from above, what the waves do to the view would be mixed into what they do to the light.
         TEST_F(RtxVisibilityTest, theWavesGatherSunlightOntoTheBedWithoutMakingAnyOfIt)
         {
             constexpr std::uint32_t size = 256;
             constexpr std::size_t count = std::size_t{ size } * size;
             constexpr float span = 1080.0f;
 
-            // **An orthographic look straight down from just under the surface**, so that every depth
-            // sees the same patch of bed through pixels of one width, and their caustics can be
-            // compared pixel for pixel.
-            //
-            // **Wide enough to be an ensemble, and the pixel held where it was.** 1080 units of bed
-            // are thirty correlation lengths across of the waves that carry the curvature, and a
-            // thousand patches in the frame. A quarter of the width saw sixty of them, and every mean
-            // it reported carried about ten per cent of sampling error, which is five times what the
-            // tolerances below allow. The span and the pixel count move together so that the
-            // footprint stays 4.2 units and the level the caustic reads does not move with the fix.
+            // An orthographic look straight down from just under the surface, so every depth sees the same
+            // patch of bed through pixels of one width and the caustics compare pixel for pixel. Wide enough to
+            // be an ensemble: 1080 units of bed are thirty correlation lengths across of the waves that carry
+            // the curvature, and a thousand patches in the frame, where a quarter of the width saw sixty and
+            // every mean carried about ten per cent of sampling error, five times what the tolerances below
+            // allow. The span and pixel count move together so the footprint stays 4.2 units and the level the
+            // caustic reads does not move.
             const auto render = [&](float depth, const SeaState& sea, float seconds) {
                 const SceneDesc scene = makeFlooded(4000.0f, depth);
 
@@ -316,71 +284,59 @@ namespace Rtx::Testing
             EXPECT_GT(*brightest, 1.2f) << "measured 1.32, gathered into lines";
             EXPECT_LT(*dimmest, 0.8f) << "measured 0.72, and thinned between them";
 
-            // **And the mean is one**, which is the claim that makes it light and not decoration.
-            // A reciprocal of something that fluctuates is worth more than the reciprocal of its
-            // mean, and `causticGain` is that excess divided back out. It comes out at 1.001 here.
-            //
-            // **The estimator it corrects reads 0.95 at two metres and 1.26 at twenty**, before the
-            // fade blends either toward one — so what the gain takes out runs to a quarter of the
-            // light where the slack allowed below is a fiftieth of it.
+            // And the mean is one, the claim that makes it light and not decoration. A reciprocal of something
+            // that fluctuates is worth more than the reciprocal of its mean, and `causticGain` is that excess
+            // divided back out (1.001 here). The estimator it corrects reads 0.95 at two metres and 1.26 at
+            // twenty before the fade blends either toward one, a quarter of the light where the slack allowed
+            // below is a fiftieth of it.
             EXPECT_NEAR(mean, 1.0f, 0.02f) << "the waves redistribute the sun, they do not make any";
 
-            // **The pattern peaks in shallow water and fades as the inverse square root of the depth
-            // past it**, which is Snyder and Dera's 1970 measurement of the sea and what every field
-            // campaign since has found. Measured here 0.216, 0.065 and 0.014 at two, six and twenty
-            // metres.
-            //
-            // **It falls faster than the law, by the fade's choice**: `WATER_CAUSTIC_FADE` is one,
-            // twice the law's half, for the look (`look.h` says so). From two metres to six, 140
-            // units to 400, the fade alone keeps (400 / 140)^-1 = 0.35 of the contrast where the
-            // law keeps 0.58, and the blur and the grain growing with the depth take it to the 0.30
-            // measured; from six to twenty, 400 to 1400, the fade keeps 0.286 and the whole 0.215.
-            // Within 0.02, the contrast's own tolerance above.
+            // The pattern peaks in shallow water and fades as the inverse square root of the depth past it,
+            // which is Snyder and Dera's 1970 measurement of the sea. Measured here 0.216, 0.065 and 0.014 at
+            // two, six and twenty metres. It falls faster than the law by the fade's choice:
+            // `WATER_CAUSTIC_FADE` is one, twice the law's half, for the look (`look.h`). From two metres to
+            // six (140 units to 400) the fade alone keeps (400 / 140)^-1 = 0.35 of the contrast where the law
+            // keeps 0.58, and the blur and grain growing with depth take it to the 0.30 measured; from six to
+            // twenty (400 to 1400) the fade keeps 0.286 and the whole 0.215. Within 0.02, the contrast's tolerance.
             const std::vector<float> deeper = causticField(400.0f);
             const std::vector<float> deepest = causticField(1400.0f);
 
             EXPECT_NEAR(contrastOf(deeper) / contrastOf(shallow), 0.30f, 0.02f) << "six metres down, against two";
             EXPECT_NEAR(contrastOf(deepest) / contrastOf(deeper), 0.215f, 0.02f) << "and twenty, against six";
 
-            // **And the mean holds at every one of them**, which is the half a single coefficient
-            // could never do: the fold saturates at a metre of depth and the *read level* keeps
-            // coarsening past it, so the estimator's own excess runs from 13 per cent at one metre
-            // to 32 at twenty. One curve in the resolved fold follows all of it. The fade moves
-            // nothing either way, because it blends toward one rather than scaling.
+            // And the mean holds at every one of them, which a single coefficient could never do: the fold
+            // saturates at a metre of depth and the read level keeps coarsening past it, so the estimator's
+            // excess runs from 13 per cent at one metre to 32 at twenty, and one curve in the resolved fold
+            // follows all of it. The fade moves nothing either way, since it blends toward one.
             EXPECT_NEAR(meanOf(deeper), 1.0f, 0.02f) << "measured 1.002, six metres down";
             EXPECT_NEAR(meanOf(deepest), 1.0f, 0.02f) << "and 0.999 at twenty";
 
-            // **How bold the pattern is, and how fast it moves** — M6 asks for both measured rather
-            // than eyeballed, and they are the two halves of one choice. The spectrum's short cutoff
-            // is a limit in *time*, not in space: the waves that focus hardest are the shortest, and
-            // a wave's period falls with its length, so the same waves that make the boldest
-            // caustics are the ones that make them tear.
-            // **A fifth less bold than a table of sixty-four sinusoids draws, and bought on
-            // purpose.** Curvature weights a component by `A k²`, so such a table has the shortest
-            // few owning the Hessian outright — a handful of plane waves crossing, which focuses
-            // into hard repeating lines and reads as a lattice. Tens of thousands of components at
-            // the same wavelengths interfere into a mottle instead: the same energy, spread over
-            // every direction rather than four, and no line drawn twice. It measures 0.216 against
-            // such a table's 0.277.
+            // How bold the pattern is and how fast it moves are the two halves of one choice. The spectrum's
+            // short cutoff is a limit in time and not in space: the waves that focus hardest are the shortest,
+            // and a wave's period falls with its length, so the waves that make the boldest caustics are the
+            // ones that make them tear.
+            // A fifth less bold than a table of sixty-four sinusoids draws, bought on purpose: curvature weights
+            // a component by `A k²`, so such a table has the shortest few owning the Hessian outright, a handful
+            // of plane waves crossing into hard repeating lines that read as a lattice. Tens of thousands of
+            // components at the same wavelengths interfere into a mottle instead, the same energy spread over
+            // every direction and no line drawn twice. It measures 0.216 against such a table's 0.277.
             EXPECT_NEAR(contrastOf(shallow), 0.213f, 0.02f) << "the pattern's contrast, as a fraction of its own mean";
 
-            // A twelfth of a second, which is how long a frame is worth caring about. For two
-            // samples of one field, `E[(b - a)^2] = 2 sigma^2 (1 - rho)`, so half the ratio of the
-            // two sums is the share of the pattern that is new.
+            // A twelfth of a second, which is how long a frame is worth caring about. For two samples of one
+            // field `E[(b - a)^2] = 2 sigma^2 (1 - rho)`, so half the ratio of the two sums is the share of the
+            // pattern that is new.
             //
-            // **Taken against the best shift, because a pattern that travels is not one that
-            // tears.** The sea carries its caustics shoreward at the waves' own phase speed, and a
-            // field translated by a feature width scores near one on the unshifted sum while looking
-            // perfectly coherent — so the raw figure counts the sea's own motion as decay. The least
-            // over a small sweep of offsets separates them: the pattern travels a pixel here, and
-            // that pixel is worth seventeen points of the 66 per cent the raw sum reports.
+            // Taken against the best shift, because a pattern that travels is not one that tears: the sea
+            // carries its caustics shoreward at the waves' own phase speed, and a field translated by a feature
+            // width scores near one on the unshifted sum while looking coherent, so the raw figure counts the
+            // sea's own motion as decay. The least over a small sweep of offsets separates them: the pattern
+            // travels a pixel here, worth seventeen points of the 66 per cent the raw sum reports.
             //
-            // **Over a table of sixty-four sinusoids the same sweep reads otherwise.** 18 units of
-            // wavelength reshuffle 73% and read as stripes running across the bottom, 32 come out at
-            // 51%, 50 is dull at 33% — the shortest few own the Hessian in four directions and the
-            // pattern is a lattice. A lattice reshuffling is what reads as stripes. Tens of thousands of wavevectors
-            // interfere into a mottle instead, and two shots a twelfth of a second apart show a net
-            // that slides rather than one that boils.
+            // Over a table of sixty-four sinusoids the same sweep reads otherwise: 18 units of wavelength
+            // reshuffle 73% and read as stripes running across the bottom, 32 come out at 51%, 50 at a dull 33%,
+            // the shortest few owning the Hessian in four directions. Tens of thousands of wavevectors
+            // interfere into a mottle, and two shots a twelfth of a second apart show a net that slides rather
+            // than one that boils.
             const std::vector<float> later = causticField(140.0f, 1.0f / 12.0f);
 
             float spread = 0.0f;
@@ -415,17 +371,13 @@ namespace Rtx::Testing
             EXPECT_NEAR(least, 0.495f, 0.03f) << "and how much of that the sea did not simply carry";
         }
 
-        /// The sun's disc carries exactly its irradiance, however wide the pixel that finds it.
-        ///
-        /// **The sun is drawn in the sky, not answered by a highlight on each surface that could
-        /// reflect it** — so the one thing that must hold is that widening the disc never changes
-        /// how much light is in it. A cone twice as wide covers four times the solid angle and has
-        /// to be four times dimmer, and that is what makes a rough sea spread the sun without
-        /// brightening the sea.
-        ///
-        /// Two fields of view over the same sun, so the pixel doing the finding is ten times wider
-        /// in one than the other. The irradiance is small because nothing here has an exposure stage
-        /// and the real thing saturates on sight.
+        /// The sun's disc carries exactly its irradiance, however wide the pixel that finds it. The sun is
+        /// drawn in the sky and not answered by a highlight on each surface that could reflect it, so the one
+        /// thing that must hold is that widening the disc never changes how much light is in it: a cone twice
+        /// as wide covers four times the solid angle and is four times dimmer, which is what makes a rough sea
+        /// spread the sun without brightening the sea. Two fields of view over the same sun, the pixel finding
+        /// it ten times wider in one. The irradiance is small because nothing here has an exposure stage and
+        /// the real thing saturates on sight.
         TEST_F(RtxVisibilityTest, theSunsDiscCarriesItsIrradianceHoweverWideThePixelThatFindsIt)
         {
             constexpr std::uint32_t size = 64;
@@ -496,17 +448,12 @@ namespace Rtx::Testing
             EXPECT_LT(coarse.mPeak, fine.mPeak) << "a wider cone is a dimmer sun, never a brighter one";
         }
 
-        /// A rough sea spreads the sun into a road across the water, and a flat one does not.
-        ///
-        /// **This is what the lost slopes are for.** Water too fine for the ray cone is averaged
-        /// into a flat facet, and a facet that lost its slope is a mirror: it reflects the sun as
-        /// one hard dot, and as the camera moves that dot jumps between pixels — the field of
-        /// crawling white sparks that distant water becomes. Handing the variance of what was
-        /// dropped to the sun's disc instead is what turns it into a road.
-        ///
-        /// Far enough out that the cone cannot resolve the waves, which is where the term decides
-        /// the picture. Water and sky only, so every byte in the frame is the sun off the surface:
-        /// the refraction ray leaves through the bottom, finds nothing, and comes back black.
+        /// A rough sea spreads the sun into a road across the water, and a flat one does not. This is what the
+        /// lost slopes are for: water too fine for the ray cone is averaged into a flat facet, a mirror that
+        /// reflects the sun as one hard dot jumping between pixels as the camera moves, the field of crawling
+        /// white sparks distant water becomes. Handing the variance of what was dropped to the sun's disc turns
+        /// it into a road. Far enough out that the cone cannot resolve the waves; water and sky only, so every
+        /// byte is the sun off the surface, the refraction ray leaving through the bottom and coming back black.
         TEST_F(RtxVisibilityTest, aRoughSeaSpreadsTheSunIntoARoadAndAFlatOneShowsOneDot)
         {
             constexpr std::uint32_t size = 64;
@@ -561,20 +508,17 @@ namespace Rtx::Testing
             EXPECT_LT(running.mPeak, 60) << "measured 23: and no pixel of it near the mirror's";
         }
 
-        /// The sea runs the way the wind blows, and turning the wind turns the whole sea with it.
+        /// The sea runs the way the wind blows, and turning the wind turns the whole sea with it. The tiles are
+        /// spread about their own +X and the frame turns them by `mSeaHeading` where they are read, so a sea
+        /// under a north wind at world `p` is the sea under an east wind at `p` turned back, `(p.y, -p.x)`.
+        /// Looked at straight down through a square orthographic frame centred on the origin, right along +X
+        /// and up along +Y, that is the picture turned a quarter turn: pixel `(i, j)` of the north frame is
+        /// pixel `(N - 1 - j, i)` of the east one. A quarter turn maps the tiles' texels onto themselves, so the
+        /// frames sample the same texels and agree to the float.
         ///
-        /// **A rotation, checked as one.** The tiles are spread about their own +X and the frame
-        /// turns them by `mSeaHeading` where they are read, so a sea under a north wind at world
-        /// `p` is the sea under an east wind at `p` turned back — `(p.y, -p.x)`. Looked at straight
-        /// down through a square orthographic frame centred on the origin, with right along +X and
-        /// up along +Y, that is the picture turned a quarter turn: pixel `(i, j)` of the north frame
-        /// is pixel `(N - 1 - j, i)` of the east one. A quarter turn maps the tiles' texels onto
-        /// themselves, so the two frames sample the same texels and agree to the float.
-        ///
-        /// Lit so that a turn of the surface is a turn of the picture and nothing else: a sun at
-        /// the zenith, an even sky, and open water with no bed for a turned refraction to land
-        /// somewhere different on. The water's own march is jittered, so eight frames are averaged
-        /// and the two are compared within a few bytes.
+        /// Lit so a turn of the surface is a turn of the picture and nothing else: a sun at the zenith, an even
+        /// sky, and open water with no bed for a turned refraction to land elsewhere on. The water's own march
+        /// is jittered, so eight frames are averaged and the two compared within a few bytes.
         TEST_F(RtxVisibilityTest, theSeaRunsTheWayTheWindBlows)
         {
             constexpr std::uint32_t size = 64;
@@ -624,21 +568,19 @@ namespace Rtx::Testing
             EXPECT_LT(turnedAway, std::size_t{ size } * size * 9 / 10) << "and not the east sea as it was";
         }
 
-        /// **A wake's caustic turns with the sea it rides on.** The sea's curvature is read in the
-        /// tiles' frame and a wake's in the world's, and the caustic adds the two: the tiles' turns
-        /// into the world's first, as their slope does. A footfall at the origin spreads a round
-        /// ring, which a quarter turn about the origin maps onto itself. So the bed under a north
-        /// wind and the ring is the bed under an east wind and the ring turned a quarter, pixel
-        /// `(i, j)` against `(N - 1 - j, i)`, as `theSeaRunsTheWayTheWindBlows` has it. Looked at
-        /// from under the surface, under a sun at the zenith, the bed shows the caustic alone.
-        /// Measured at the worst pixel, against the bed's mean, on RADV: 0.003 per cent apart
-        /// turned, 0.002 without the ring, and 35 with the tiles' curvature added unturned.
+        /// A wake's caustic turns with the sea it rides on. The sea's curvature is read in the tiles' frame and
+        /// a wake's in the world's, and the caustic adds the two: the tiles' turns into the world's first, as
+        /// their slope does. A footfall at the origin spreads a round ring, which a quarter turn about the
+        /// origin maps onto itself, so the bed under a north wind and the ring is the bed under an east wind
+        /// and the ring turned a quarter, pixel `(i, j)` against `(N - 1 - j, i)`, as
+        /// `theSeaRunsTheWayTheWindBlows` has it. Looked at from under the surface under a sun at the zenith,
+        /// the bed shows the caustic alone. Measured at the worst pixel against the bed's mean on RADV: 0.003
+        /// per cent apart turned, 0.002 without the ring, 35 with the tiles' curvature added unturned.
         ///
-        /// **The bed is 256 across, just past the 240 the eye sees**, because a hit is placed from
-        /// its triangle's barycentrics (`placeHit`), whose rounding grows with the triangle. On a
-        /// bed 4000 across a pixel and its turned partner were placed 1e-4 apart, which tipped the
-        /// second cascade's 8-bit bilinear weight on the lines where it sat at its rounding point:
-        /// 1.4 per cent on RADV.
+        /// The bed is 256 across, just past the 240 the eye sees, because a hit is placed from its triangle's
+        /// barycentrics (`placeHit`), whose rounding grows with the triangle: on a bed 4000 across a pixel and
+        /// its turned partner were placed 1e-4 apart, which tipped the second cascade's 8-bit bilinear weight
+        /// on the lines where it sat at its rounding point (1.4 per cent on RADV).
         TEST_F(RtxVisibilityTest, aWakesCausticTurnsWithTheSeaItRidesOn)
         {
             constexpr std::uint32_t size = 64;
@@ -688,24 +630,19 @@ namespace Rtx::Testing
             EXPECT_GT(unturned, 0.1f) << "and not the east bed as it was";
         }
 
-        /// Rain rings the still water under the eye, moves the rings on, and far off roughens it.
+        /// Rain rings the still water under the eye, moves the rings on, and far off roughens it. Close, the
+        /// rings are read against a graded sky: a resolved ring is a mirror facet that catches a quarter-degree
+        /// sun only where its slope matches exactly, so a sun shows a handful of glints and says nothing of the
+        /// rest, while a sky that darkens toward the horizon shows every tilt (a facet leaning toward it
+        /// reflects a darker sky than the plane beside it). Forty units over a flat sea with a pixel about half
+        /// a unit wide, a ring eleven centimetres across is sixteen pixels and rain differs from a dry frame
+        /// over a good share of it; a fifth of a second on, a third of a ring's life, it differs from itself.
+        /// The dry frame does not care what time it is.
         ///
-        /// **Close, the rings are read against a graded sky.** A resolved ring is a mirror facet,
-        /// and a facet catches a quarter-degree sun only where its slope matches exactly — so a sun
-        /// shows a handful of glints and says nothing about the rest. A sky that darkens toward the
-        /// horizon shows every tilt: a facet leaning toward the horizon reflects a darker sky than
-        /// the plane beside it. Forty units over a flat sea with a pixel about half a unit wide, a
-        /// ring eleven centimetres across is sixteen pixels, and rain differs from a dry frame over
-        /// a good share of it; a fifth of a second on — a third of a ring's life — it differs from
-        /// itself. The dry frame does not care what time it is.
-        ///
-        /// **Far, the rings are read against the sun**, as the road test reads a running sea: from
-        /// its height a pixel is hundreds of units and no ring is resolved, so what a ring lost is
-        /// roughness, and the one dot a flat sea shows spreads into a road.
-        ///
-        /// A snowy frame is the plumbing's business and not the shader's: `mRainOnWater` is nought
-        /// for snow before the frame is built, and `Precipitation::getRainOnWater` is where that is
-        /// decided.
+        /// Far, the rings are read against the sun, as the road test reads a running sea: from its height a
+        /// pixel is hundreds of units and no ring is resolved, so what a ring lost is roughness and the one dot
+        /// a flat sea shows spreads into a road. A snowy frame is the plumbing's business and not the
+        /// shader's: `mRainOnWater` is nought for snow before the frame is built (`Precipitation::getRainOnWater`).
         TEST_F(RtxVisibilityTest, rainRingsTheWaterUnderTheEyeAndRoughensItFarOff)
         {
             constexpr std::uint32_t size = 64;
@@ -784,19 +721,17 @@ namespace Rtx::Testing
             EXPECT_GT(lit(farRain), 200u) << "what the cone could not resolve widened the sun's lobe";
         }
 
-        /// Water too fine for the cone to resolve widens the cone that refracts through it.
+        /// Water too fine for the cone to resolve widens the cone that refracts through it. What the cone could
+        /// not resolve is rough and not gone, and that roughness has to reach the texture filter and not only
+        /// the specular lobe: a seabed seen through a mile of ruffled water is blurred by the averaged-away
+        /// slopes, and read at its sharpest mip it comes back as crawling detail no filter downstream can take
+        /// out.
         ///
-        /// **What the cone could not resolve is not gone, it is rough** — and that roughness has to
-        /// reach the texture filter, not only the specular lobe. A seabed seen through a mile of
-        /// ruffled water is blurred by the slopes that were averaged away, and read at its sharpest
-        /// mip instead it comes back as crawling detail no filter downstream can take out.
-        ///
-        /// **The sea here is built so that every wave is past the cone's reach.** The spectrum runs
-        /// from 32 units up to its peak, so with a peak of 64 a footprint of 66 resolves none of it:
-        /// every slope is averaged out and the surface is geometrically flat — the normal is exactly
-        /// up, the refraction goes straight down, and nothing wobbles — while the whole spectrum's
-        /// variance is still carried as roughness. That leaves the cone's width as the only thing
-        /// that differs from a still sea, and a ladder of mips on the bed to read it off.
+        /// The sea is built so every wave is past the cone's reach: the spectrum runs from 32 units up to its
+        /// peak, so with a peak of 64 a footprint of 66 resolves none of it. Every slope is averaged out and the
+        /// surface is geometrically flat (the normal exactly up, the refraction straight down) while the whole
+        /// spectrum's variance is still carried as roughness, leaving the cone's width as the only difference
+        /// from a still sea, and a ladder of mips on the bed to read it off.
         TEST_F(RtxVisibilityTest, waterTooFineToResolveWidensTheConeItRefractsThrough)
         {
             constexpr std::uint32_t size = 64;
@@ -817,21 +752,17 @@ namespace Rtx::Testing
                 osg::Vec3f(0.0f, -50.0f, height), osg::Vec3f(0.0f, 0.0f, -depth), 20.0f, size, size, 100000.0f);
             camera.mWaterLevel = 0.0f;
 
-            // Water over a bed that glows its own ladder. Emissive rather than lit, so the pixel is
-            // the texture and nothing else: an unlit albedo would need a light, and a light would
-            // put its own falloff between the mip and the measurement.
+            // Water over a bed that glows its own ladder. Emissive rather than lit, so the pixel is the texture
+            // and nothing else: an unlit albedo needs a light, and a light puts its own falloff between the mip
+            // and the measurement.
             //
-            // **A patch of the bed and not one pixel of it.** `mLostSlope` is a mean over the cone's own footprint — 66
-            // units against a spectrum that stops at 32, so about four correlation cells of the waves that carry the
-            // slope. One reading of that is not an ensemble mean: measured over this patch the level
-            // has a standard deviation of 0.12, and the centre pixel stood 0.8 of one away from the
-            // patch's own mean.
-            //
-            // **The radiance and not the byte.** One byte of the display curve is 0.08 of a mip
-            // level here, which is four times the tolerance below.
-            //
-            // The mean of the cones rather than of their levels, because a level is a logarithm and
-            // what the prediction below names is a width.
+            // A patch of the bed and not one pixel of it: `mLostSlope` is a mean over the cone's own footprint,
+            // 66 units against a spectrum that stops at 32, about four correlation cells of the waves that carry
+            // the slope, so one reading is not an ensemble mean (over this patch the level has a standard
+            // deviation of 0.12 and the centre pixel stood 0.8 of one from the patch's mean). The radiance and
+            // not the byte: one byte of the display curve is 0.08 of a mip level here, four times the tolerance
+            // below. The mean of the cones rather than of their levels, because a level is a logarithm and what
+            // the prediction below names is a width.
             const auto coneOver = [&](const SeaState& sea) {
                 SceneDesc scene = makeOpenWater(4000.0f);
 
@@ -857,14 +788,12 @@ namespace Rtx::Testing
                 return total / static_cast<float>((2 * across + 1) * (2 * across + 1));
             };
 
-            // How wide the refraction's cone is where it lands, in world units: the pixel's own
-            // footprint where it met the water, plus what it gained over the leg down. **The lobe's
-            // width**, `ggxConeWidth` of the roughness the lost slopes stand for — and an eighth of
-            // it, `refractedConeWidth`, because a facet's tilt turns a reflection by twice itself
-            // and a refraction into water by `1 - 1 / n` of itself, so what is seen *through* a
-            // rough surface is blurred that much less.
-            // The pixel's cone where it met the water, which is both what the ladder is read through
-            // and what `waveLevel` picks a mip by — one quantity, so one name.
+            // How wide the refraction's cone is where it lands, in world units: the pixel's own footprint where it
+            // met the water plus what it gained over the leg down. The lobe's width is `ggxConeWidth` of the
+            // roughness the lost slopes stand for, and an eighth of it (`refractedConeWidth`), because a facet's
+            // tilt turns a reflection by twice itself and a refraction into water by `1 - 1 / n` of itself, so
+            // what is seen through a rough surface is blurred that much less. The pixel's cone where it met the
+            // water is both what the ladder is read through and what `waveLevel` picks a mip by: one quantity.
             const float footprint = camera.mEyes.mWorld.mSpreadAngle * height;
 
             const auto coneAtBed = [&](float lobe) {
@@ -880,25 +809,21 @@ namespace Rtx::Testing
             EXPECT_GT(std::log2(still), 1.0f) << "measured 2.25, clear of the sharpest mip";
             EXPECT_LT(std::log2(ruffled), 5.0f) << "measured 3.68, clear of the coarsest";
 
-            // Mip level is the log of the cone's width, so the ratio of the two widths is the ratio
-            // of the cones — and the base term, which is the triangle's texels against its world
-            // area, cancels.
+            // Mip level is the log of the cone's width, so the ratio of the two widths is the ratio of the
+            // cones, and the base term (the triangle's texels against its world area) cancels.
             //
-            // **The lobe is asked of the chain and not of the spectrum.** `waveLevel` reads at
-            // `log2(footprint / texel)`, so the slope the shader carries is what a mip that wide
-            // averaged away and never the whole of it — and `RtxWavePassTest` is what says the chain
-            // and `lostSlopeOf` agree about that to within the half floats it is stored in.
+            // The lobe is asked of the chain and not of the spectrum: `waveLevel` reads at `log2(footprint /
+            // texel)`, so the slope the shader carries is what a mip that wide averaged away and never the
+            // whole of it, and `RtxWavePassTest` says the chain and `lostSlopeOf` agree to within the half
+            // floats it is stored in. What is left is the two Jensen terms: the patch's mean cone is a mean over
+            // pixels of a width in `sqrt(sqrt(lost))`'s cone, where the prediction takes the cone of the mean,
+            // and the log of a mean stands over the mean of the logs (0.635 measured against a prediction of
+            // 0.629).
             //
-            // **What is left is the two Jensen terms.** The patch's mean cone is a mean over pixels of
-            // a width in `sqrt(sqrt(lost))`'s cone, where the prediction takes the cone of the mean,
-            // and the log of a mean stands over the mean of the logs. Measured 0.635 against a
-            // prediction of 0.629.
-            //
-            // What the assertion settles is the optics: the lobe's own width, `ggxConeWidth` of the
-            // roughness the lost slopes stand for, which is how a solid's lobe widens its cone too,
-            // and half of the `1 - 1/n` that says a refraction is bent by an eighth of what a
-            // reflection is. A quarter of the lobe, which this water was once widened by, predicts
-            // 1.066 — twenty tolerances away.
+            // What the assertion settles is the optics: the lobe's own width, `ggxConeWidth` of the roughness the
+            // lost slopes stand for, as a solid's lobe widens its cone too, and half of the `1 - 1/n` that says a
+            // refraction is bent by an eighth of what a reflection is. A quarter of the lobe would predict 1.066,
+            // twenty tolerances away.
             EXPECT_NEAR(
                 std::log2(ruffled / still), std::log2(coneAtBed(lobeOf(fine, footprint)) / coneAtBed(0.0f)), 0.02f)
                 << "the cone widened by the lobe the sea's lost slopes stand for";

@@ -114,17 +114,11 @@ namespace MWRender
             return reader.read(standing.mSky, standing.mWorld, falling.mPrecipitation, 0.0f, sReach);
         }
 
-        /// A quasi-exterior stands under the exterior's sun and in the exterior's air.
-        ///
-        /// **Because that is the cell the game hands it.** `World::updateWeather` runs the weather
-        /// system for `isCellExterior() || isCellQuasiExterior()`, so what reaches a reading of
-        /// Mournhold or of a Vivec canton is a weather's own `Land_Fog_Depth`, fog colour and sun —
-        /// and the Construction Set greys the whole `AMBI` record out for such a cell, so there is
-        /// nothing of a room's to read instead.
-        ///
-        /// **Read as a room's air it lost the sky.** `roomFog` builds an even medium with no layer
-        /// for a ray to climb out of, so a ray to the sun crossed every unit of it: Mournhold at
-        /// noon came back as flat fog colour with no sun anywhere in it.
+        /// A quasi-exterior stands under the exterior's sun and in the exterior's air: `World::updateWeather`
+        /// runs the weather system for it, so a reading of Mournhold or a Vivec canton gets a weather's own
+        /// `Land_Fog_Depth`, fog colour and sun, and the Construction Set greys its `AMBI` out. Read as a
+        /// room's air it lost the sky: `roomFog` builds an even medium with no layer for a ray to climb out
+        /// of, so Mournhold at noon came back as flat fog colour with no sun.
         TEST(RtxReadWorldTest, aQuasiExteriorTakesTheWeathersSunAndAir)
         {
             const Rtx::WorldReading open = readFrom(standingIn(Location::Exterior));
@@ -150,17 +144,15 @@ namespace MWRender
             EXPECT_EQ(air.mLift, open.mDaylight.mFog.mLift) << "and standing as high";
             EXPECT_EQ(air.mWind, open.mDaylight.mFog.mWind);
 
-            // **The one element that parts them**, because it is about this renderer and not about
-            // the weather: the ring where the ground stops is what it hides, and every wall of a
-            // quasi-exterior is built.
+            // The one element that parts them, being about this renderer and not the weather: the ring where
+            // the ground stops is what it hides, and every wall of a quasi-exterior is built.
             EXPECT_EQ(open.mDaylight.mFog.mEdge, sReach);
             EXPECT_EQ(air.mEdge, 0.0f);
         }
 
-        /// **Night-Eye leaves the ambient the world stated**, to the bit: it lifts the picture in the
-        /// tone pass and not the light the trace gathers. The ambient a weather states is `k / 255`,
-        /// and `16 / 255` lifted by 0.7 and the lift taken off again came back an ulp under it, which
-        /// decodes off the curve and not off the byte's table.
+        /// Night-Eye leaves the ambient the world stated, to the bit: it lifts the picture in the tone pass and
+        /// not the light the trace gathers. `16 / 255` lifted by 0.7 and the lift taken off again came back an
+        /// ulp under it, which decodes off the curve and not off the byte's table.
         TEST(RtxReadWorldTest, nightEyeLeavesTheAmbientTheWorldStated)
         {
             const osg::Vec4f before(16.0f / 255.0f, 16.0f / 255.0f, 16.0f / 255.0f, 1.0f);
@@ -225,9 +217,8 @@ namespace MWRender
             EXPECT_FLOAT_EQ(stepped.mClouds.mScroll, step);
             EXPECT_DOUBLE_EQ(stepped.mSkySeconds, static_cast<double>(step));
 
-            // **And the water reads the simulation's own seconds, never the sky's**: the sky's
-            // clock stands where it stood on a frame with no sky, which is every interior, and the
-            // water in one still moves.
+            // The water reads the simulation's own seconds, never the sky's, which stands still on a frame
+            // with no sky, as in every interior, where the water still moves.
             const Rtx::WorldReading indoors
                 = reader.read(standing.mSky, standing.mWorld, falling.mPrecipitation, 12.5, sReach);
             EXPECT_EQ(indoors.mSeconds, 12.5);
@@ -253,10 +244,8 @@ namespace MWRender
                 << "past the world there is no world to see";
         }
 
-        /// A room is lit by its own record, and the record is the only thing that decides it.
-        ///
-        /// **The alternative the two above are not.** A cell that is a room carries an `AMBI`, has
-        /// no sun at any hour, and holds the still even air `sInteriorFogReach` is measured over.
+        /// A room is lit by its own record, and the record is the only thing that decides it: a room carries
+        /// an `AMBI`, has no sun at any hour, and holds the still even air `sInteriorFogReach` is measured over.
         TEST(RtxReadWorldTest, aRoomIsLitByItsOwnRecordAndHasNoSun)
         {
             Standing cellar = standingIn(Location::Interior);
@@ -302,10 +291,9 @@ namespace MWRender
             EXPECT_EQ(hidden.mSunGlare.mFade, 0.0f) << "a glare on a hidden sun";
         }
 
-        /// **The water scatters back the colour the content settles its murk at**:
-        /// `Water_UnderwaterColor` at `Water_UnderwaterColorWeight`, read off the fallbacks, which the
-        /// seed states as Morrowind's own `012,030,037` at 0.85 — and not the air's share the
-        /// rasterizer's underwater fog mixes in beside it, which a grey storm's air does not move.
+        /// The water scatters back the colour the content settles its murk at: `Water_UnderwaterColor` at
+        /// `Water_UnderwaterColorWeight`, read off the fallbacks (Morrowind's own `012,030,037` at 0.85), and
+        /// not the air's share the rasterizer's underwater fog mixes in, which a grey storm's air does not move.
         TEST(RtxReadWorldTest, theWaterScattersTheColourTheContentSettlesItsMurkAt)
         {
             Standing standing = standingIn(Location::Exterior);
@@ -317,8 +305,8 @@ namespace MWRender
                 EXPECT_FLOAT_EQ(scatter[channel], shipped[channel]) << channel;
         }
 
-        /// **And the extinction keeps the pairing `look.h` states**: the shipped colour peaks in
-        /// blue, where the water takes least away, so the two describe one water.
+        /// The extinction keeps the pairing `look.h` states: the shipped colour peaks in blue, where the water
+        /// takes least away, so the two describe one water.
         TEST(RtxReadWorldTest, theShippedWaterColourPeaksWhereTheExtinctionIsLeast)
         {
             const osg::Vec3f scatter = Rtx::Shaders::WATER_SCATTER_SHIPPED;
@@ -330,13 +318,11 @@ namespace MWRender
             EXPECT_FLOAT_EQ(scatter.z(), 37.0f / 255.0f * 0.85f) << "Morrowind's own blue at its weight";
         }
 
-        /// **The glare fades with the disc through sunrise and sunset**, as `SkyManager::setWeather`
-        /// hands the sun `Glare_View` times the disc's alpha: at 06:15 of the shipped day the disc
-        /// stands at a quarter, and so does the glare against a whole disc's.
-        ///
-        /// **And the fader is the content's, as `SunGlareCallback` reads it**: the seed's colour
-        /// `222,095,039` doubled and clamped, 2 * 222 / 255 past one, 190 / 255 and 78 / 255; its most
-        /// of 0.5; and thirty degrees in radians.
+        /// The glare fades with the disc through sunrise and sunset, as `SkyManager::setWeather` hands the sun
+        /// `Glare_View` times the disc's alpha: at 06:15 of the shipped day the disc stands at a quarter, and
+        /// so does the glare against a whole disc's. The fader is the content's, as `SunGlareCallback` reads
+        /// it: the seed's colour `222,095,039` doubled and clamped, its most of 0.5, and thirty degrees in
+        /// radians.
         TEST(RtxReadWorldTest, theGlareFadesWithTheDisc)
         {
             const Rtx::WorldReading whole = readFrom(standingIn(Location::Exterior));
@@ -375,10 +361,10 @@ namespace MWRender
             EXPECT_EQ(plain.mMoons[static_cast<std::size_t>(Rtx::Moon::Secunda)].mPaint, white);
         }
 
-        /// **The cloud blend is cleaned where it enters.** `Weather::transitionDelta` divides by
-        /// `Clouds_Maximum_Percent`, which the shipped fallbacks leave at nought for ash and blight,
-        /// so a crossing into either hands over an infinity or a NaN: nothing recorded is a deck
-        /// crossed at once. A share is clamped to one, and a real one passes through.
+        /// The cloud blend is cleaned where it enters: `Weather::transitionDelta` divides by
+        /// `Clouds_Maximum_Percent`, which the fallbacks leave at nought for ash and blight, so a crossing into
+        /// either hands over an infinity or a NaN, and nothing recorded is a deck crossed at once. A share is
+        /// clamped to one, and a real one passes through.
         TEST(RtxReadWorldTest, aCloudBlendNothingRecordedIsACrossingDone)
         {
             const auto blendOf = [](float factor) {

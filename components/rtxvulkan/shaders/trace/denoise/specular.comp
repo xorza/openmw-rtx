@@ -6,27 +6,12 @@
 // The glossy filter: what the lobe reflects, `CHANNEL_SPECULAR`, averaged with what the same surface
 // reflected on the frames before, for as long as that is still the reflection the eye sees.
 //
-// **Over time and not across the screen.** A highlight is as wide as its lobe and no wider, so a spatial
-// filter that did not know the lobe would blur it; ReLAX's spatial passes know it, at a cost the frame has
-// not found a need for. What this leaves, the upscaler's own accumulation takes, at every mode, native
-// included.
-//
-// **How long the history is kept is ReLAX's rule for surface motion**
-// (`RELAX_TemporalAccumulation.cs.hlsl`, NRD 4.x): the history counts in proportion to how little the
-// direction the surface is seen from turned since, against the lobe's half angle, narrowed by how squarely
-// the eye meets the surface.
-//
-// **What the port leaves out is ReLAX's second history**, the one reprojected along the reflected ray to
-// follow a sharp reflection by its own parallax.
-//
-// **And a sharp lobe keeps few frames whatever the view does** (`SPECULAR_RESPONSIVE_ROUGHNESS`): ReBLUR's
-// responsive accumulation, which is what bounds a mirror's lag behind a light that moves before a still
-// eye.
-//
-// **The accumulator's rules otherwise**: bilinear over the four texels the motion lands between, each only
-// if it is this surface by `heldSurfaceMatches`, against the frame before's surface channel; `blendedMean`
-// into a history of this pass's own; and beside it a fast mean of the same samples over at most
-// `ACCUMULATE_FAST_FRAMES`, which `historyclamp.comp` holds the slow one to.
+// Over time and not across the screen: a highlight is as wide as its lobe, so a spatial filter that did not
+// know the lobe would blur it. How long the history is kept is ReLAX's rule for surface motion
+// (`RELAX_TemporalAccumulation.cs.hlsl`, NRD 4.x), without its second, reflected-ray history. A sharp lobe
+// keeps few frames whatever the view does (`SPECULAR_RESPONSIVE_ROUGHNESS`, ReBLUR's responsive
+// accumulation), which bounds a mirror's lag behind a moving light. Otherwise the accumulator's rules, with
+// a fast mean of at most `ACCUMULATE_FAST_FRAMES` that `historyclamp.comp` holds the slow one to.
 
 #include "shared/accumulate.h"
 #include "colour.h"
@@ -72,10 +57,8 @@ layout(push_constant, scalar) uniform Push
 
 /// How far the direction a surface is seen from may turn, in radians, before the reflection its history
 /// holds is another one: the lobe's half angle times the cosine to the eye, ReLAX's `lobeHalfAngle * NoV`.
-///
-/// **Never under the angle one pixel subtends**, where ReLAX floors the lobe at what its normals' encoding
-/// resolves: a turn the frame cannot show is no turn, and a still eye rounds the two directions an ulp
-/// apart.
+/// Never under the angle one pixel subtends: a turn the frame cannot show is no turn, and a still eye rounds
+/// the two directions an ulp apart.
 float turnAllowed(float roughness, float facing)
 {
     const float lobe = atan(roughness * roughness * SPECULAR_LOBE_VOLUME / (1.0 - SPECULAR_LOBE_VOLUME));
@@ -83,10 +66,9 @@ float turnAllowed(float roughness, float facing)
 }
 
 /// How much of the history is still the reflection the eye sees: ReLAX's `GetEncodingAwareNormalWeight(V,
-/// Vprev, allowed, 0, 0)`, one where the view did not turn and nought once it turned by `allowed`.
-///
-/// **The angle from the chord**, `2 asin(|a - b| / 2)`, which is exactly nought for two equal directions,
-/// where an arc cosine of their dot product is not.
+/// Vprev, allowed, 0, 0)`, one where the view did not turn and nought once it turned by `allowed`. The angle
+/// comes from the chord, `2 asin(|a - b| / 2)`, which is exactly nought for equal directions where an arc
+/// cosine of their dot product is not.
 float reflectionKept(vec3 toEye, vec3 toEyeBefore, float allowed)
 {
     const float turned = 2.0 * asin(min(0.5 * length(toEye - toEyeBefore), 1.0));

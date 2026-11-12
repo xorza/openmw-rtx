@@ -17,20 +17,16 @@ namespace VFS
 
 namespace Gui
 {
-    /// **The interface's fonts and everything drawn with them, changed as one.** The fonts are
-    /// rasterized in place, which replaces their textures, and every text and every book page has to
-    /// take its font's texture again before the next frame draws or it draws one destroyed
-    /// (`docs/rtx/research/2026-10-31-mygui-font-lifetimes.md`); `fit` is the one call that changes
-    /// a font, so no caller can do the first without the second.
+    /// **The interface's fonts and everything drawn with them, changed as one.** Rasterizing a font in place
+    /// replaces its textures, and every text and book page has to take its font's texture again before the
+    /// next frame draws (`docs/rtx/research/2026-10-31-mygui-font-lifetimes.md`); `fit` is the one call that
+    /// changes a font, so no caller can do the first without the second.
     ///
-    /// The texts, the lists and the pages are three registries, refitted in that order: a list's
-    /// refit lays its lines out again, which may make texts, and a page's refit has its owner
-    /// typeset its book again, which may make texts and lists — a journal's — and a registry makes
-    /// no user of itself while it refits.
+    /// The texts, lists and pages are three registries, refitted in that order: a list's refit may make
+    /// texts, a page's may make texts and lists, and a registry makes no user of itself while it refits.
     ///
-    /// Made once MyGUI's factory manager exists and before a skin is loaded, because it stands its
-    /// texts and its lists in MyGUI's factories; destroyed after MyGUI shuts down, because every
-    /// text and every list leaves its registry as it is destroyed.
+    /// Made once MyGUI's factory manager exists and before a skin is loaded; destroyed after MyGUI shuts
+    /// down, because every text and list leaves its registry as it is destroyed.
     class InterfaceFonts
     {
     public:

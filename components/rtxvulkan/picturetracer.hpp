@@ -67,9 +67,9 @@ namespace Rtx
 
         /// Records a picture of `traced` under `camera` into `texture`, which `holds` the camera's
         /// extent, on a batch that rides the next submit and that nobody here waits for: the next
-        /// placement of the scene waits for what its tables say, and what the picture writes
-        /// nothing else reads. Not counted and not timed, because the hit count and the report are
-        /// the frame's; checkpointed (`mZones`).
+        /// placement of the scene waits for what its tables say, and nothing else reads what the
+        /// picture writes. Not counted and not timed, because the hit count and the report are the
+        /// frame's; checkpointed (`mZones`).
         void trace(GuiSlot texture, SceneSlot scene, const Shaders::VisibilityConstants& camera,
             const GuiTraceOptions& options, DeviceScene& traced, const RenderProfile& profile, const Parts& parts);
 

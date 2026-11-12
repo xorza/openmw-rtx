@@ -47,13 +47,11 @@ namespace Rtx
             return Shaders::skyShare(ramp, osg::Vec3f(std::cos(elevation), 0.0f, std::sin(elevation)));
         }
 
-        /// **Morrowind's atmosphere fades the fog colour to the sky colour between 3.6° and 28.6°.**
-        /// The lower ring stands at `atan(100 / 1587)` = 3.606° and the upper at `atan(800 / 1466)` =
-        /// 28.621°, and the share up the wall between them is `(1587 s - 100 c) / (700 c + 121 s)`:
-        /// at 10°, `(275.58 - 98.48) / (689.37 + 21.01)` = 0.2493; at 16.4°, 0.4990; just under the
-        /// upper ring, 0.9991; and all of it above. The sky colour a surface facing the sky receives,
-        /// integrated in closed form, is 0.9076 of the whole, where the gradient this replaced, linear
-        /// in the sine, gave two thirds.
+        /// **Morrowind's atmosphere fades the fog colour to the sky colour between 3.6° and 28.6°.** The lower
+        /// ring stands at `atan(100 / 1587)` = 3.606° and the upper at `atan(800 / 1466)` = 28.621°, and the share
+        /// up the wall between them is `(1587 s - 100 c) / (700 c + 121 s)`: at 10°, `(275.58 - 98.48) / (689.37 +
+        /// 21.01)` = 0.2493; at 16.4°, 0.4990; just under the upper ring, 0.9991; and all of it above. The sky
+        /// colour a surface facing the sky receives, integrated in closed form, is 0.9076 of the whole.
         TEST(RtxAtmosphereTest, theFadeIsTheMeshesAndSoIsWhatItIsWorth)
         {
             const Atmosphere read = readAtmosphere(*makeAtmosphere(800.0f, 100.0f));

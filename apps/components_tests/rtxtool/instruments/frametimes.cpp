@@ -181,9 +181,8 @@ namespace RtxTool
 
         /// A zone is quoted by what it cost the run and not by what it cost a frame that ran it.
         ///
-        /// **The row has to be summable**, which is what a pass that runs at a cell crossing broke:
-        /// it was a median of the frames that crossed, and the row printed `blas 7.51` above a
-        /// frame median of 6.73 ms.
+        /// **The row has to be summable**: a median of the frames a pass ran in printed `blas 7.51` above
+        /// a frame median of 6.73 ms.
         TEST(RtxGpuBreakdownTest, aZoneIsQuotedOverTheWholeRun)
         {
             GpuBreakdown breakdown;
@@ -248,9 +247,8 @@ namespace RtxTool
         /// A pass recorded in batches opens its zone several times over one frame, and the frame is
         /// what it is charged to.
         ///
-        /// **A row longer than the run is what this stops.** The structure builds are recorded per
-        /// batch, so a crossing frame opened `tlas` twice — and the report then said the zone ran on
-        /// 620 frames of a 601-frame run.
+        /// **A row longer than the run is what this stops.** The structure builds are recorded per batch,
+        /// so a crossing frame opened `tlas` twice and the report said the zone ran on 620 frames of 601.
         TEST(RtxGpuBreakdownTest, aZoneOpenedTwiceInAFrameIsOneSampleOfIt)
         {
             GpuBreakdown breakdown;
@@ -333,12 +331,10 @@ namespace RtxTool
             EXPECT_EQ(describeCounters(zones, {}), "") << "a run that read no counter prints no table";
         }
 
-        /// **A zone opened several times a frame grows nothing inside the run**: room for four
-        /// frames is room for every run a frame may open (`Rtx::sMaxGpuZones`), so three frames of
-        /// `tlas` built in three batches, after the first named the counters, take nothing from the
-        /// heap, where a zone's own store made room for one run a frame and outgrew it. The twelve
-        /// runs read 1 to 12 and `trace`'s four read 100: of twelve the sixth shortest,
-        /// ceil(0.5 x 12) = 6.
+        /// **A zone opened several times a frame grows nothing inside the run**: room for four frames is
+        /// room for every run a frame may open (`Rtx::sMaxGpuZones`), so three frames of `tlas` built in
+        /// three batches, after the first named the counters, take nothing from the heap. The twelve runs
+        /// read 1 to 12 and `trace`'s four read 100: of twelve the sixth shortest, ceil(0.5 x 12) = 6.
         TEST(RtxGpuBreakdownTest, aZoneOpenedSeveralTimesAFrameGrowsNothingInsideTheRun)
         {
             GpuBreakdown breakdown;

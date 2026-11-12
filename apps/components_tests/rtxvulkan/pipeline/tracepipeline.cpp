@@ -47,12 +47,10 @@ namespace Rtx
 
         /// A launch runs once at every index of the grid it was given.
         ///
-        /// **The shader binding table and `vkCmdTraceRaysKHR`, asked of the device directly.** The
-        /// trace rests on both and neither says anything when it is wrong: a table whose one handle
-        /// landed at the wrong offset, or a launch of the wrong grid, is a picture that is missing
-        /// or garbled rather than an error anything reports. Every slot is filled with a value that
-        /// cannot occur, so an invocation that never ran and one that ran twice are different
-        /// failures.
+        /// **The shader binding table and `vkCmdTraceRaysKHR`, asked of the device directly.** Neither says anything
+        /// when it is wrong: a handle at the wrong offset, or a launch of the wrong grid, is a missing or garbled
+        /// picture and no error. Every slot is filled with a value that cannot occur, so an invocation that never ran
+        /// and one that ran twice are different failures.
         TEST_F(RtxTracePipelineTest, aLaunchRunsOnceAtEveryIndex)
         {
             const Device& device = getDevice();

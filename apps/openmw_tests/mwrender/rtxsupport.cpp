@@ -110,15 +110,11 @@ namespace MWRender
             return offered;
         }
 
-        /// **Every key the game's renderers read is decided by the ray tracer's declaration**, and
-        /// so is every rendering control of the settings window and the launcher: a key upstream adds
-        /// to the rasterizer, or to either, fails here until the ray tracer's table says whether it
-        /// honours it, and why not where it does not. The rasterizer's own files and the shared
-        /// ones in `mwrender` are read, the ray tracer's own are not; and the controls in the
-        /// categories that are rendering's alone.
-        ///
-        /// **And the table names nothing that is not a setting**, so a key renamed upstream, or
-        /// spelt wrong here, is a failure and not an answer to nothing.
+        /// Every key the game's renderers read, and every rendering control of the settings window and the
+        /// launcher, is decided by the ray tracer's declaration: a key upstream adds fails here until the
+        /// table says whether it is honoured, and why not. The rasterizer's own files and the shared ones in
+        /// `mwrender` are read, the ray tracer's own are not. The table also names nothing that is not a
+        /// setting, so a renamed or misspelt key is a failure and not an answer to nothing.
         TEST(RtxSupportTest, everyKeyTheRenderersAndTheirWindowReadIsDecidedAndEveryNamedKeyExists)
         {
             const SettingNames names;

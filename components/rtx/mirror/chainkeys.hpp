@@ -14,23 +14,20 @@
 
 namespace Rtx
 {
-    /// What a material is held under: the chain of state sets that say anything at a drawable, as
-    /// one object whose address is the identity.
+    /// What a material is held under: the chain of state sets that say anything at a drawable, as one object whose
+    /// address is the identity.
     ///
-    /// **The chain and not its nearest link.** A NIF puts an `NiNode`'s own properties on that
-    /// node's state set, and `SceneUtil::SharedStateManager` makes equal state sets one object
-    /// across files, so one shape's state set stands under parents that name other textures and
-    /// other sidedness. Keyed on the shape's alone, the first chain met decided the material for
-    /// every other.
+    /// **The chain and not its nearest link.** A NIF puts an `NiNode`'s own properties on that node's state set, and
+    /// `Resource::SharedStateManager` makes equal state sets one object across files, so one shape's state set stands
+    /// under parents that name other textures and other sidedness; keyed on the shape's alone, the first chain met
+    /// decided the material for every other.
     ///
-    /// **Folded as the chain is built** (`Shading::under`), a link at a time: a link that states
-    /// nothing keeps the key above it; the first that states something is its own key, which is
-    /// the common chain of one; and each one after it is keyed on the pair of the key above and
-    /// itself, an object this table makes the first time it meets the pair and finds after that.
+    /// **Folded as the chain is built** (`Shading::under`), a link at a time: a link that states nothing keeps the key
+    /// above it; the first that states something is its own key; each one after it is keyed on the pair of the key
+    /// above and itself, an object this table makes the first time it meets the pair.
     ///
-    /// **And folded again where the frame adopts a reading** (`keyOf`), by this same table: the cell
-    /// ring's reader reads a model on its own thread and keeps the links that state anything, so a
-    /// chain the ring read and the walk met is one key, and one material.
+    /// **And folded again where the frame adopts a reading** (`keyOf`), by this same table: the cell ring's reader
+    /// keeps the links that state anything, so a chain the ring read and the walk met is one key, and one material.
     class ChainKeys
     {
     public:
@@ -51,12 +48,11 @@ namespace Rtx
         /// joined in turn: what `MaterialResolver::chainOf` keeps of a reading. Null for none.
         const osg::StateSet* keyOf(std::span<const osg::StateSet* const> stating);
 
-        /// Drops every pair this epoch's walks did not meet and whose key nothing but this table and
-        /// `released` holds, and keeps the state sets it held with it in `released`. A material's
-        /// entry holds its key, and a pair holds the key above it, so a chain goes once nothing is
-        /// keyed on it, the nearest pair first. **Met is kept**: an emitter's chain, the water's and a
-        /// refused mesh's hold their key nowhere else, and erased while their nodes stood, each was
-        /// a state set made again on the walk after.
+        /// Drops every pair this epoch's walks did not meet and whose key nothing but this table and `released` holds,
+        /// and keeps the state sets it held with it in `released`. A material's entry holds its key, and a pair holds
+        /// the key above it, so a chain goes once nothing is keyed on it, the nearest pair first. **Met is kept**: an
+        /// emitter's chain, the water's and a refused mesh's hold their key nowhere else, and each erased while its
+        /// node stood was a state set made again on the walk after.
         void retire(Released& released);
 
         /// Room for `count` pairs before the table rehashes, which no frame of a walk should pay.

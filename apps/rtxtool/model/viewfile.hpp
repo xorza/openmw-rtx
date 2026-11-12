@@ -34,12 +34,11 @@ namespace RtxTool
     /// The suite called `name`, or null.
     const BenchSuite* findSuite(const std::vector<BenchSuite>& suites, std::string_view name);
 
-    /// One stop from a view file entry and the sky the command line named. A view id names one
-    /// frame, so a place measured at dawn says so in `mSky.mHour`; the command line still wins, as
-    /// it does for `pos` and `look` — for the hour, the weather and the air, each where it names
-    /// one. What comes back has the hour and the weather settled, so nothing downstream asks which
-    /// won. The day is the line's, since a view names none, and is only for the moons; what the
-    /// sky is turned through is not a condition of the place and stays the caller's.
+    /// One stop from a view file entry and the sky the command line named. A view id names one frame, so a place
+    /// measured at dawn says so in `mSky.mHour`; the command line still wins, as it does for `pos` and `look`, for
+    /// the hour, the weather and the air, each where it names one. What comes back has the hour and the weather
+    /// settled. The day is the line's, since a view names none, and is only for the moons; what the sky is turned
+    /// through is not a condition of the place and stays the caller's.
     Stop stopFor(const Stop& view, const StopSky& given);
 
     /// Reads the view file. Throws when it is missing or malformed, rather than quietly rendering

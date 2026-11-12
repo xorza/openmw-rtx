@@ -58,10 +58,10 @@ namespace Rtx
         VkDescriptorSetLayoutCreateFlags flags = 0, const void* next = nullptr);
 
     /// The two shapes this renderer reads images through, both linear over the whole chain, because
-    /// written out per class the fields drift where nothing decides. Targets clamp to the edge,
-    /// because a bloom level or a volume slice runs to the edge of what it was given; content
-    /// addresses its edges as the file said — repeating for what tiles, which is nearly everything,
-    /// and clamping along whichever axis a banner's or a flame's sheet stops at.
+    /// written out per class the fields drift. Targets clamp to the edge, since a bloom level or a
+    /// volume slice runs to the edge of what it was given; content addresses its edges as the file said
+    /// — repeating for what tiles, nearly everything, and clamping along whichever axis a banner's or a
+    /// flame's sheet stops at.
     Sampler makeTargetSampler(const Device& device, std::string_view name);
     Sampler makeContentSampler(const Device& device, std::string_view name, TextureWrap wrap = TextureWrap::Repeat);
 
@@ -118,14 +118,10 @@ namespace Rtx
     class PipelineLayout
     {
     public:
-        /// Nothing passed outlives the call. `bindings` is `SET_PASS`; `push` is the one push range,
-        /// whole at offset zero, and a size of nought declares none, because Vulkan takes no empty
-        /// range and a pass whose constants moved into a buffer asks for exactly that; `shared` is
-        /// every other set the layout will ever be handed.
-        ///
-        /// **And the census at `BIND_CENSUS`, where the device counts**, which every census module
-        /// binds in its pass's own set: added here, so no pass declares it, and pushed by
-        /// `pushDescriptors`, so no pass writes it.
+        /// Nothing passed outlives the call. `bindings` is `SET_PASS`; `push` is the one push range, whole
+        /// at offset zero, where a size of nought declares none (Vulkan takes no empty range); `shared` is
+        /// every other set the layout will ever be handed. **The census at `BIND_CENSUS`, where the device
+        /// counts**, is added here so no pass declares it and pushed by `pushDescriptors` so no pass writes it.
         PipelineLayout(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
             const VkPushConstantRange& push, const SharedSetLayouts& shared);
 

@@ -29,14 +29,11 @@ namespace RtxTool
 {
     namespace
     {
-        /// **A watched window keeps the player's frame-rate limit**, and an unwatched one none: a
-        /// window that dropped it drew as fast as the card could under a player who had asked for 60.
-        /// **And never the player's vertical sync**, which held a frame between two refreshes to
-        /// one, two or three of them.
-        /// **The shipped defaults are read once and asked as the game reads them**: a number through
-        /// the finite reader, a switch as `true` in any case, text as it is; a setting the file
-        /// names not, and a number that is not finite, are refused naming the setting. Read from
-        /// the file when made, so a file gone after says the same.
+        /// **A watched window keeps the player's frame-rate limit**, and an unwatched one none. **Never the
+        /// player's vertical sync**, which held a frame between two refreshes. **The shipped defaults are
+        /// read once and asked as the game reads them**: a number through the finite reader, a switch as
+        /// `true` in any case, text as it is; a setting the file does not name, or a number that is not
+        /// finite, is refused naming the setting. Read when made, so a file gone after says the same.
         TEST(RtxShippedDefaultsTest, theShippedFileIsReadOnceAndAskedAsTheGameReadsIt)
         {
             const std::filesystem::path file = TestingOpenMW::outputFilePath("shipped-defaults.bin");
@@ -100,9 +97,8 @@ namespace RtxTool
             EXPECT_TRUE(measured.mLitEnvironmentMaps);
         }
 
-        /// **What the line names is the line's, and the rest the source's**: a window that names
-        /// nothing is the player's own, the upscaler among it, which a window once ran FSR in
-        /// whatever the player chose; one that names every option is the line's in each.
+        /// **What the line names is the line's, and the rest the source's**: a window that names nothing is
+        /// the player's own, the upscaler among it; one that names every option is the line's in each.
         TEST(RtxFramedTest, whatTheLineNamesIsTheLinesAndTheRestTheSources)
         {
             const MWRender::RtxSettingValues player{ .mUpscale = Rtx::Upscale::Performance,

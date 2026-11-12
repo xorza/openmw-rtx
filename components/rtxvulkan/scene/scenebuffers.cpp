@@ -56,11 +56,10 @@ namespace Rtx
 
         Shaders::GpuMaterial toGpu(const Material& material)
         {
-            // Every side passes where the material is no cutout, so that the shader's comparison
-            // agrees with `Material::isCutout`, which is what decided whether traversal would ever
-            // make it. A material with no diffuse names the neutral slot, so the shader reads one path —
-            // `TEXTURE_NEUTRAL` — and ground that kept its stack says so with a bit, which is the
-            // one fact the sentinel was carrying.
+            // Every side passes where the material is no cutout, so the shader's comparison agrees
+            // with `Material::isCutout`, which decided whether traversal would ever make it. A
+            // material with no diffuse names the neutral slot (`TEXTURE_NEUTRAL`) so the shader reads
+            // one path, and ground that kept its stack says so with a bit.
             const bool untextured = material.mDiffuse == sNoIndex;
             const AlphaTest test
                 = material.isCutout() ? material.getAlphaTest() : AlphaTest{ .mPasses = Shaders::ALPHA_PASSES_ALL };
@@ -70,14 +69,11 @@ namespace Rtx
                 .mAlphaReference = test.mReference,
 
                 // One where the surface is all there, so traversal branches on a number rather than
-                // on a mode it was never sent.
-                //
-                // **A blend and not a translucency.** `isTranslucent` asks the narrower question —
-                // whether what stands behind shows through — which an additive sheet answers no to
-                // while still weighing what it adds by that same alpha. Asked that way every
-                // additive surface reaches the device at one, and a sheet an `NifOsg::AlphaController`
-                // holds at nought stands at full strength: that alpha is what draws the rays around
-                // the Heart of Lorkhan, and they would shine before the heart is struck.
+                // on a mode it was never sent. A blend and not a translucency: `isTranslucent` asks
+                // whether what stands behind shows through, which an additive sheet answers no to while
+                // still weighing what it adds by the same alpha. Asked that way, a sheet an
+                // `NifOsg::AlphaController` holds at nought would stand at full strength (the rays
+                // around the Heart of Lorkhan would shine before the heart is struck).
                 .mOpacity = material.isBlended() ? material.mOpacity : 1.0f,
                 .mFlags = (material.isMedium() ? Shaders::MATERIAL_MEDIUM : 0u)
                     | (material.isTranslucent() ? Shaders::MATERIAL_TRANSLUCENT : 0u)
@@ -320,12 +316,11 @@ namespace Rtx
         const std::span<const MaterialLayer> layers = scene.materials().getLayers();
         const std::span<const float> masks = scene.materials().getMasks();
 
-        // On the queue, run by run: a run an arrival was given may be one a frame in flight still
-        // reads of the material that held it last, and the copy recorded here runs behind that frame.
-        // **A growth keeps what the table holds**, copied on the queue, so what is staged is what
-        // arrived and not the table whole, megabytes of masks on a crossing frame. What a flipbook
-        // does every frame never touches these tables. A table a scene is made with is staged
-        // whole, since the arrivals since the last clear are not every run a rebuilt world holds.
+        // On the queue, run by run: a run an arrival was given may still be read by a frame in
+        // flight, and the copy recorded here runs behind that frame. A growth keeps what the table
+        // holds, copied on the queue, so what is staged is what arrived and not megabytes of masks
+        // on a crossing frame. A table a scene is made with is staged whole, since the arrivals
+        // since the last clear are not every run a rebuilt world holds.
         mLayers.outgrowKeeping(batch, layers.size() * sizeof(Shaders::GpuLayer));
         mMasks.outgrowKeeping(batch, masks.size() * sizeof(float));
 
@@ -407,10 +402,8 @@ namespace Rtx
 
         // The tables go over as they lie: the scene's rows are the device's, so a placement is a
         // copy and never a conversion. Empty ones included: something has to stand at every
-        // address the frame carries, and `outgrow` makes a table that is empty rather than leaving
-        // the slot empty — a stand-in per table is one table without one, and that costs a
-        // device. What stops the shader reading an empty table is its count. Grown past each high
-        // by twice, because a crowd walking in raises the high a few rows a frame.
+        // address the frame carries, and what stops the shader reading an empty table is its count.
+        // Grown past each high by twice, because a crowd walking in raises the high a few rows a frame.
         const std::span<const Light> lights = scene.lights();
         const std::span<const Shaders::GpuLightCell> lightCells = mLightGrid.getCells();
         const std::span<const std::uint32_t> lightList = mLightGrid.getList();

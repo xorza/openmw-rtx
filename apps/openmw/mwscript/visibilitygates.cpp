@@ -53,10 +53,10 @@ namespace MWScript
             std::vector<ESM::RefId> mNames;
         };
 
-        /// **Read off the code and not off a run**, because a run takes one path and a name on
-        /// another would be a name no gate decides. The compiler pushes an explicit reference as an
-        /// integer literal holding the name's index among the string literals, and fetches it, just
-        /// before the instruction (`Compiler::Extensions::generateInstructionCode`).
+        /// Read off the code and not off a run, which takes one path and would miss a name on another. The
+        /// compiler pushes an explicit reference as an integer literal holding the name's index among the
+        /// string literals, and fetches it, just before the instruction
+        /// (`Compiler::Extensions::generateInstructionCode`).
         Toggled toggledBy(const Interpreter::Program& program)
         {
             using Compiler::Generator::segment5;
@@ -101,11 +101,10 @@ namespace MWScript
             std::string mLocal;
         };
 
-        /// **The member writes of a script's text, read off the compiler's own tokens** and not off
-        /// the text: the scanner knows a string, a comment and a keyword, and a member write is the
-        /// four tokens `set`, a name, `.` and a name, however the text spaces or quotes them. Not
-        /// off the code, because a dialogue result compiles only against its speaker's locals.
-        /// OpenMW-CS's highlighter reads scripts the same way (`CSVWorld::ScriptHighlighter`).
+        /// The member writes of a script's text, read off the compiler's own tokens: the scanner knows a
+        /// string, a comment and a keyword, and a member write is the four tokens `set`, a name, `.` and a
+        /// name however the text spaces or quotes them. Not off the code, because a dialogue result compiles
+        /// only against its speaker's locals (`CSVWorld::ScriptHighlighter` reads scripts the same way).
         class MemberWrites final : public Compiler::Parser
         {
         public:

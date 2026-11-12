@@ -40,21 +40,16 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// A puff's texture is read across the disc the ray sees, so its cover ends where the
-        /// texture's does and not at the disc's rim.
+        /// A puff's texture is read across the disc the ray sees, so its cover ends where the texture's does
+        /// and not at the disc's rim. The disc is cut square to the ray and the texture is read along the
+        /// screen's axes, which agree only on the frame's axis: a ray forty degrees off it sees the offset
+        /// across the disc shortened to `cos 40° = 0.77` of itself, so a blob's edge at `13 / 16 = 0.81` of the
+        /// texture would lie beyond the silhouette and the silhouette would cut the blob's alpha as a hard rim.
         ///
-        /// **The disc is cut square to the ray and the texture was read along the screen's axes.**
-        /// Those agree only on the frame's axis: a ray standing forty degrees off it saw the offset
-        /// across the disc shortened to `cos 40° = 0.77` of itself, so the blob's edge at `13 / 16 =
-        /// 0.81` of the texture lay beyond the silhouette, and the silhouette cut the blob's own
-        /// alpha as a hard rim. Every puff in an ancestral tomb that stood away from the frame's
-        /// centre wore a circle.
-        ///
-        /// A blob transparent beyond thirteen of its sixteen texels, on a puff thirty degrees off
-        /// the axis of a frame ninety degrees wide, against the same puff wearing an opaque texel:
-        /// walking out from the puff's centre toward the frame's edge, the opaque one covers the
-        /// wall to the rim and the blob to `13 / 16` of the way there. Read along the screen's
-        /// axes, the blob reached the rim too.
+        /// A blob transparent beyond thirteen of its sixteen texels, on a puff thirty degrees off the axis of a
+        /// frame ninety degrees wide, against the same puff wearing an opaque texel: walking out from the
+        /// centre toward the frame's edge, the opaque one covers the wall to the rim and the blob to `13 / 16`
+        /// of the way there.
         TEST_F(RtxVisibilityTest, aPuffOffTheAxisIsReadAcrossTheDiscTheRaySees)
         {
             constexpr std::uint32_t size = 129;
@@ -119,31 +114,21 @@ namespace Rtx::Testing
                 << "the blob covers " << painted << " of a disc of " << disc;
         }
 
-        /// A sprite is shadowed like anything else, by whatever stands over it.
+        /// A sprite is shadowed like anything else, by whatever stands over it. A particle has no normal and
+        /// still has an up: what a point sees of the sky is a question about the point, so rain under a bridge
+        /// carries no open sky and smoke in a canyon not the full sun.
         ///
-        /// **A particle has no normal and it still has an up**: what a point sees of the sky is a
-        /// question about the point. So rain under a bridge carries no open sky, and smoke in a
-        /// canyon does not carry the full sun.
+        /// Two rays for the layer and not two for a puff: `spritesAlong` asks at the first sprite that is lit,
+        /// because a rainstorm puts dozens over a pixel and a ray apiece is too many. The lamps take the same
+        /// treatment, and what a lamp delivers runs as one over the square of a distance that changes from
+        /// sprite to sprite, so the sum stays each puff's own and only the seeing is asked once for the layer.
         ///
-        /// **Two rays for the layer and not two for a puff.** `spritesAlong` asks at the first
-        /// sprite that is lit, because a rainstorm puts dozens over a pixel and a ray apiece is what
-        /// kept this unshadowed at all.
-        ///
-        /// **The lamps take the same treatment for the same reason**, and one more: what a lamp
-        /// delivers runs as one over the square of a distance that changes from sprite to sprite,
-        /// so the sum stays each puff's own and only the seeing is asked once for the layer.
-        ///
-        /// A lid four hundred units over the sprite and nothing else in the scene, and each source
-        /// in turn: what lights the sprite in the open stops lighting it under the lid.
-        ///
-        /// **The two that arrive from a direction, and not the fill.** A puff has no side, so what
-        /// it sees of an ambient is drawn over the whole sphere — and a lid over a sprite with
-        /// nothing under it leaves the lower half of that sphere open, so the honest answer there is
-        /// half and not nought. It is also one draw a froxel a frame, so a single frame of it is a
-        /// coin: this test read whatever the seeds in `random.glsl` happened to make that coin say,
-        /// and moving them by three took it from under a twentieth of the open value to nine tenths
-        /// of it. What the fill owes to what stands near is measured exactly by the test below, in
-        /// the room the reach makes it a question about.
+        /// A lid four hundred units over the sprite and nothing else, each source in turn: what lights the
+        /// sprite in the open stops lighting it under the lid. The two that arrive from a direction, and not
+        /// the fill: a puff has no side, so what it sees of an ambient is drawn over the whole sphere, and a
+        /// lid over a sprite with nothing under it leaves the lower half open, so the honest answer is half and
+        /// not nought. It is one draw a froxel a frame, so a single frame of it is a coin; what the fill owes to
+        /// what stands near is measured exactly by the test below.
         TEST_F(RtxVisibilityTest, aSpriteIsShadowedByWhatStandsOverIt)
         {
             constexpr std::uint32_t size = 33;
@@ -204,26 +189,18 @@ namespace Rtx::Testing
             }
         }
 
-        /// A puff under a shade that takes half the sun holds still from one frame to the next.
+        /// A puff under a shade that takes half the sun holds still from one frame to the next. A puff reads
+        /// one ray a froxel a frame and is lit hard enough to show it: the history averages ten frames of it,
+        /// which leaves a coin a column wide, where the air is lit by a fraction of the sun and takes the tent
+        /// across its neighbours besides. So a puff reads the seeing the tent averaged (`fogSeeing`), measured
+        /// as `theVolumeSettlesTheAirUnderALampRatherThanFlickeringBlockByBlock` measures the air: the mean
+        /// step of a settled pixel between frames, against its mean.
         ///
-        /// **What a puff reads is one ray a froxel a frame, and a puff is lit hard enough to show
-        /// it.** The history averages ten frames of it, which leaves a coin a column wide; the air
-        /// is lit by a fraction of the sun and takes the tent across its neighbours besides, and a
-        /// puff read the froxel alone at a card's worth of the sun. M[FR]'s ground mist wore that
-        /// coin as warm blocks that boiled wherever it hung in the light. So a puff reads the seeing
-        /// the tent averaged (`fogSeeing`), and this measures it the way
-        /// `theVolumeSettlesTheAirUnderALampRatherThanFlickeringBlockByBlock` measures the air: the
-        /// mean step of a settled pixel between frames, against its mean.
-        ///
-        /// **Slats eight units wide and eight apart**, six hundred units over the puff and under the
-        /// sun, so every froxel's jittered shadow ray is a fair coin: thirty-three pixels over sixty
-        /// degrees at four hundred units are `2 * 400 * tan 30° / 33 = 14` units each, so a column of
-        /// eight is 112 units across and holds seven slats and seven gaps.
-        ///
-        /// **And the mean is the half the slats leave**, so what took the noise away took none of
-        /// the light: a filter that dimmed the puff would hold as still.
-        ///
-        /// The froxel's own seeing, read as it was, steps by 3.5% of the pixel here and the averaged
+        /// Slats eight units wide and eight apart, six hundred units over the puff and under the sun, so every
+        /// froxel's jittered shadow ray is a fair coin: thirty-three pixels over sixty degrees at four hundred
+        /// units are `2 * 400 * tan 30° / 33 = 14` units each, so a column of eight is 112 units across and
+        /// holds seven slats and seven gaps. The mean is the half the slats leave, so a filter that dimmed the
+        /// puff would not hold as still. The froxel's own seeing steps by 3.5% of the pixel and the averaged
         /// seeing by 2.1%; the bound stands between them.
         TEST_F(RtxVisibilityTest, aPuffUnderASlattedShadeHoldsStillFromFrameToFrame)
         {
@@ -339,29 +316,23 @@ namespace Rtx::Testing
             }
         }
 
-        /// A puff behind a post's edge, and a cloud's shell, are hidden where the pixel's own ray
-        /// meets the post, and not where that frame's sample happened to land.
-        ///
-        /// **The traced grid is jittered for the upscaler, and the picture the composite lays the
-        /// puffs over is not.** Hidden by the traced pixel's depth, a puff behind a silhouette was
-        /// there on the frames the sample missed the post and gone on the frames it hit it, and
-        /// Seyda Neen's pier shook under M[FR]'s mist wherever a rope or a post stood in front of
-        /// it. A shell gathered by the trace stopped where the sample stopped in the same way. So
-        /// the composite finds the depth along the ray through the traced pixel's centre, which on
-        /// this fixture's unscaled grid is the pixel's own, and gathers the shells there;
+        /// A puff behind a post's edge, and a cloud's shell, are hidden where the pixel's own ray meets the
+        /// post, and not where that frame's sample happened to land. The traced grid is jittered for the
+        /// upscaler and the picture the composite lays the puffs over is not: hidden by the traced pixel's
+        /// depth, a puff behind a silhouette is there on the frames the sample missed the post and gone on the
+        /// frames it hit it, and a shell gathered by the trace stops where the sample stops. So the composite
+        /// finds the depth along the ray through the traced pixel's centre (the pixel's own on this fixture's
+        /// unscaled grid) and gathers the shells there;
         /// `anUpscaledPuffBehindAPostIsHiddenWhereTheTracedCentreMeetsIt` takes the upscaled grid.
         ///
-        /// **The centre pixel's ray passes a quarter of a pixel right of the post's edge, and a
-        /// sample moved four tenths of a pixel left lands on the post.** Thirty-three pixels over
-        /// sixty degrees are `2 * 200 * tan 30° / 33 = 7.0` units across at the post's two hundred,
-        /// so the edge stands at `-0.25 * 7.0 = -1.75` and the moved sample at `-2.8`. The post faces
-        /// the eye and the sun stands overhead, so with no sky and no ambient it is black, and what
-        /// the pixel holds is what stands behind it: the same under both samples.
-        ///
-        /// **And lit as it is beside the post.** With the sample on the post, the traced pixel under
-        /// this one holds no puff to take a colour from, and the composite reads the ring around
-        /// it; the fallback it had before lit the puff by the ambient alone, which is nought here.
-        /// The shell is lit by its own walk, which the traced grid has no part in.
+        /// The centre pixel's ray passes a quarter of a pixel right of the post's edge and a sample moved four
+        /// tenths of a pixel left lands on the post: thirty-three pixels over sixty degrees are
+        /// `2 * 200 * tan 30° / 33 = 7.0` units across at the post's two hundred, so the edge stands at
+        /// `-0.25 * 7.0 = -1.75` and the moved sample at `-2.8`. The post faces the eye and the sun is
+        /// overhead, so with no sky and no ambient it is black and the pixel holds what stands behind it, the
+        /// same under both samples, and lit as it is beside the post: with the sample on the post the traced
+        /// pixel under this one holds no puff to take a colour from, and the composite reads the ring around
+        /// it, where an ambient-only fallback would light it by nothing. The shell is lit by its own walk.
         TEST_F(RtxVisibilityTest, whatStandsBehindAPostIsHiddenWhereThePixelsRayMeetsThePost)
         {
             constexpr std::uint32_t size = 33;
@@ -430,18 +401,16 @@ namespace Rtx::Testing
             }
         }
 
-        /// **Sprites and shells on one pixel are weighed as one walk weighs its own puffs**, by the
-        /// sum of their alphas, so a pixel's colour does not depend on which walk drew which puff.
+        /// Sprites and shells on one pixel are weighed as one walk weighs its own puffs, by the sum of their
+        /// alphas, so a pixel's colour does not depend on which walk drew which puff.
         ///
-        /// Four red sprites on one spot and one green shell behind them, each over a black sky:
-        /// each layer alone gives its straight colour times its coverage, and its transmittance in
-        /// the fourth value. The sprites' alpha is `1 - T^(1/4)` apiece, so they weigh `4α`, and the
-        /// shell weighs `1 - T`. Merged, the red is the sprites' straight red times `4α / (4α + 1 -
-        /// T_shell)`, over the two layers' joint coverage `1 - T_sprites T_shell`. By hand at an alpha
-        /// of a half each: four sprites weigh 2 and the shell 0.5, so the red keeps
-        /// `0.8 * 0.96875 / 0.9375 = 0.8267` of what the sprites gave alone and the green
-        /// `0.2 * 0.96875 / 0.5 = 0.3875` of the shell's; weighing by coverage, 0.9375 to 0.5, kept
-        /// 0.6739 of each.
+        /// Four red sprites on one spot and one green shell behind them, each over a black sky: each layer
+        /// alone gives its straight colour times its coverage and its transmittance in the fourth value. The
+        /// sprites' alpha is `1 - T^(1/4)` apiece, so they weigh `4α`, and the shell `1 - T`. Merged, the red
+        /// is the sprites' straight red times `4α / (4α + 1 - T_shell)` over the layers' joint coverage
+        /// `1 - T_sprites T_shell`. At an alpha of a half each: four sprites weigh 2 and the shell 0.5, so the
+        /// red keeps `0.8 * 0.96875 / 0.9375 = 0.8267` of what the sprites gave alone and the green
+        /// `0.2 * 0.96875 / 0.5 = 0.3875` of the shell's; weighing by coverage, 0.9375 to 0.5, keeps 0.6739 of each.
         TEST_F(RtxVisibilityTest, spritesAndShellsOnOnePixelAreWeighedByTheirAlphas)
         {
             constexpr std::uint32_t size = 33;
@@ -514,13 +483,12 @@ namespace Rtx::Testing
             EXPECT_NEAR(both.mGreen / shell.mGreen, green, 1e-3f) << "the shell was weighed by its coverage";
         }
 
-        /// **An unbinned walk that steps past a missed emitter's run draws the emitter after it whole.**
-        /// One frame, which has no report to size its list by, so every tile walks every sprite. Two
-        /// emitters off to the side of the centre's ray, three sprites each, the first and third in
-        /// the table, and two on it, the second and the fourth, one sprite each: a red puff and a
-        /// green one behind it. The centre is the same to the bit with the side emitters as without
-        /// them; a step one sprite too far would drop each puff on the ray, since each is its run's
-        /// only sprite.
+        /// An unbinned walk that steps past a missed emitter's run draws the emitter after it whole. One
+        /// frame, which has no report to size its list by, so every tile walks every sprite. Two emitters off
+        /// to the side of the centre's ray with three sprites each (the first and third in the table) and two
+        /// on it with one sprite each (the second and fourth): a red puff and a green one behind it. The centre
+        /// is the same to the bit with the side emitters as without; a step one sprite too far would drop each
+        /// puff on the ray, each being its run's only sprite.
         TEST_F(RtxVisibilityTest, anUnbinnedWalkSkipsAMissedEmittersRunAndNothingAfterIt)
         {
             constexpr std::uint32_t size = 33;
@@ -574,11 +542,11 @@ namespace Rtx::Testing
             EXPECT_EQ(shot(true), onRay) << "the emitters aside moved the centre";
         }
 
-        /// **Puffs on one pixel are drawn in order of depth, whatever order their emitter holds
-        /// them in**: a thin red puff in front of a dense green one shows its own red as it does
-        /// alone, and the green behind it as the green alone times what the red lets through. The
-        /// green is first in the emitter's array. Weighed by alpha alone, the dense far puff won:
-        /// at alphas of 0.3 and 0.9 the red kept `(1 - 0.7 * 0.1) / 1.2 = 0.775` of itself.
+        /// Puffs on one pixel are drawn in order of depth, whatever order their emitter holds them in: a thin
+        /// red puff in front of a dense green one shows its own red as it does alone and the green as the green
+        /// alone times what the red lets through. The green is first in the emitter's array; weighed by alpha
+        /// alone the dense far puff would win, at alphas of 0.3 and 0.9 the red keeping
+        /// `(1 - 0.7 * 0.1) / 1.2 = 0.775` of itself.
         TEST_F(RtxVisibilityTest, puffsOnOnePixelAreDrawnInOrderOfDepth)
         {
             constexpr std::uint32_t size = 33;
@@ -660,18 +628,15 @@ namespace Rtx::Testing
             EXPECT_NEAR(stacked.mGreen / alone.mGreen, red.mThrough, 2e-3f) << "the merge lost the order";
         }
 
-        /// **A shell is dimmed by the air the volume says stands in front of it**, the estimator the
-        /// geometry behind it and the haze laid over it both read, and not by a closed form of its
-        /// own.
-        ///
-        /// The world's edge is the air here, which the volume's answer holds and the closed form did
-        /// not: no weather, a black sky, so the edge scatters nothing in and the frame is the shell
-        /// alone, times what the edge leaves of it. Level, so the edge's rise is one; the shell at
-        /// 400 against an edge at 800 has crossed
+        /// A shell is dimmed by the air the volume says stands in front of it, the estimator the geometry
+        /// behind it and the haze laid over it both read, and not by a closed form of its own. The world's edge
+        /// is the air here, which the volume's answer holds: no weather and a black sky, so the edge scatters
+        /// nothing in and the frame is the shell alone times what the edge leaves of it. Level, so the edge's
+        /// rise is one; the shell at 400 against an edge at 800 has crossed
         ///
         ///   (e^(0.5 / 0.125) - 1) / (e^(1 / 0.125) - 1) = 53.598 / 2979.96 = 0.017986
         ///
-        /// of the ramp, which leaves `256^-0.017986 = 0.90506` of it. The closed form left all of it.
+        /// of the ramp, which leaves `256^-0.017986 = 0.90506` of it.
         TEST_F(RtxVisibilityTest, aShellIsDimmedByTheAirTheVolumeSaysIsInFrontOfIt)
         {
             constexpr std::uint32_t size = 33;
@@ -706,22 +671,19 @@ namespace Rtx::Testing
             EXPECT_NEAR(edged / clear, 0.90506f, 2e-3f);
         }
 
-        /// A sprite in front of the player's hand is looked for where the arms' ray crosses the
-        /// world's picture, and not in the tile of the pixel the ray was cast for.
+        /// A sprite in front of the player's hand is looked for where the arms' ray crosses the world's
+        /// picture, and not in the tile of the pixel the ray was cast for. The bin is the world camera's and
+        /// the arms have an eye of their own: sixty-five pixels, the world at sixty degrees and the arms at
+        /// thirty. Column 60's arms ray leaves at `u = 60.5 / 65 * 2 - 1 = 0.8615`, a slope of
+        /// `0.8615 * tan 15° = 0.2309`, which the world's eye sees at `0.2309 / tan 30° = 0.400`: world pixel
+        /// `1.4 / 2 * 65 = 45.5`, in tile 2, where column 60 is in tile 3. A ball of two a hundred ahead on
+        /// that ray spans `2 / (100 tan 30°) * 32.5 = 1.13` pixels either side, 44.4 to 46.6, still inside tile
+        /// 2 with the bin's pixel of slack. In front of a red first-person pane two hundred ahead the ball is
+        /// what the hand's pixel shows (its green is the ball's, the pane having none), and without the ball
+        /// the pixel is the pane.
         ///
-        /// **The bin is the world camera's, and the arms have an eye of their own.** Sixty-five
-        /// pixels, the world at sixty degrees and the arms at thirty. Column 60's arms ray leaves
-        /// at `u = 60.5 / 65 * 2 - 1 = 0.8615`, a slope of `0.8615 * tan 15° = 0.2309`, which the
-        /// world's eye sees at `0.2309 / tan 30° = 0.400`: world pixel `1.4 / 2 * 65 = 45.5`, in
-        /// tile 2, where column 60 is in tile 3. A ball of two a hundred ahead on that ray spans
-        /// `2 / (100 tan 30°) * 32.5 = 1.13` pixels either side, 44.4 to 46.6, and with the bin's
-        /// pixel of slack still inside tile 2. In front of a red first-person pane two hundred
-        /// ahead, the ball is what the hand's pixel shows — its green is the ball's, since the pane
-        /// has none — and without the ball the pixel is the pane.
-        ///
-        /// **And the composite has to know the pixel is the hand's.** A flag riding in a word the
-        /// channel's format drops leaves the composite marching the world's ray there: the ball is
-        /// looked for in the right tile and along the wrong line.
+        /// The composite also has to know the pixel is the hand's: a flag riding in a word the channel's format
+        /// drops leaves it marching the world's ray, looking in the right tile along the wrong line.
         TEST_F(RtxVisibilityTest, aSpriteInFrontOfTheArmsIsLookedUpWhereTheirRayCrossesTheWorldsPicture)
         {
             constexpr std::uint32_t size = 65;
@@ -782,16 +744,13 @@ namespace Rtx::Testing
             EXPECT_GT(seenAt(true)[1], 0.25f) << "the sprite in front of the hand was not found";
         }
 
-        /// A puff behind a see-through arm is laid down by what the arm lets through.
-        ///
-        /// **The rasterizer draws the arms after every particle**, so the smoke behind a faded hand
-        /// is seen through the hand as the room is. A white ball a hundred units ahead over a black
-        /// sky, and a black first-person pane twenty ahead across the whole picture, faded to a
-        /// quarter: the pane lets `0.75` through, held in a byte as `191 / 255`, and over a world
-        /// with no light in it the puff's own light `P` is all there is — so the pixel is
-        /// `191 / 255 * P`, the pane adding nothing of its own. The composite's weighing is exact
-        /// there, since the arm is the colour of what it stands over. Laid over the frame whole, the
-        /// puff would come through at `P` and the hand would hide none of it.
+        /// A puff behind a see-through arm is laid down by what the arm lets through. The rasterizer draws the
+        /// arms after every particle, so the smoke behind a faded hand is seen through the hand as the room is.
+        /// A white ball a hundred units ahead over a black sky and a black first-person pane twenty ahead
+        /// across the picture, faded to a quarter: the pane lets `0.75` through, held in a byte as `191 / 255`,
+        /// and over a world with no light the puff's own light `P` is all there is, so the pixel is
+        /// `191 / 255 * P`, the pane adding nothing. The composite's weighing is exact there, since the arm is
+        /// the colour of what it stands over; laid over the frame whole, the puff would come through at `P`.
         TEST_F(RtxVisibilityTest, aPuffBehindASeeThroughArmIsLaidDownByWhatTheArmLetsThrough)
         {
             constexpr std::uint32_t size = 33;
@@ -842,38 +801,28 @@ namespace Rtx::Testing
                 << "the puff behind the arm was not laid down by what the arm let through";
         }
 
-        /// A room's fill reaches a puff from every side, and what stands near takes it away.
+        /// A room's fill reaches a puff from every side, and what stands near takes it away. A puff is a point
+        /// in a medium with no face to turn away from, so what it sees of an `AMBI` fill is a question about
+        /// the whole sphere and not a hemisphere; answered by a puff's own thickness alone, smoke under a table
+        /// would be as bright as smoke in the middle of the floor.
         ///
-        /// **A puff is a point in a medium and has no face to turn away from**, so what it sees of
-        /// an `AMBI` fill is a question about the whole sphere rather than about a hemisphere.
-        /// Answered by a puff's own thickness alone, smoke under a table would come out as bright
-        /// as smoke in the middle of the floor.
+        /// The law is exactly linear, which makes this an assertion and not a comparison: a sheet `h` above
+        /// and another `h` below block every direction that reaches them inside `ROOM_FILL_REACH`, that is
+        /// `|d.z| >= h / reach`, and a uniform sphere draw puts `d.z` evenly on `[-1, 1]`, so the share left is
+        /// `h / reach` and nothing else. At 70 and 105 units of a 140-unit reach that is a half and three
+        /// quarters of the open fill. Drawing the cosine about the up instead would leave `(h / reach)^2`, a
+        /// quarter and nine sixteenths, 0.25 and 0.19 from the law, over twice the tolerance below.
         ///
-        /// **The law is exactly linear, which is what makes this an assertion rather than a
-        /// comparison.** A sheet `h` above and another `h` below block every direction that reaches
-        /// them inside `ROOM_FILL_REACH` — that is `|d.z| >= h / reach` — and a uniform sphere draw
-        /// puts `d.z` evenly on `[-1, 1]`, so the share left is `h / reach` and nothing else. At 70
-        /// and 105 units of a 140-unit reach that is a half and three quarters of the open fill.
+        /// Not nearer, because the puff is lit out of the fog's columns: a column is eight pixels square, forty
+        /// units at the puff, and a sheet 35 units off cuts through the columns the middle row reads, so the
+        /// field holds the column's mean over its block and not the point's (0.35 measured over 1024 frames
+        /// for a law of 0.25). The tolerance is the field's own noise at 128 frames: four runs from four
+        /// starting frames came within 0.05 of the law at both heights.
         ///
-        /// **And it is the sphere the law comes from.** Drawing the cosine about the up instead
-        /// would leave `(h / reach)^2` — a quarter and nine sixteenths — which is 0.25 and 0.19 from
-        /// the law, more than twice the tolerance below.
-        ///
-        /// **Not nearer, because the puff is lit out of the fog's columns.** A column is eight
-        /// pixels square, forty units at the puff, and a sheet 35 units off cuts through the columns
-        /// the middle row reads: what the field holds there is the column's mean over its block,
-        /// which is not the point's — measured with independent draws over 1024 frames, 0.35 for a
-        /// law of 0.25. **And the tolerance is the field's own noise at 128 frames**: four runs
-        /// from four starting frames came within 0.05 of the law at both heights.
-        ///
-        /// The sprite is opaque and carries no lighting bake, so what a pixel shows is the fill
-        /// alone. Only the middle row is read: those rays are level, so they meet neither sheet and
-        /// the chord they cut is the same one in all three scenes.
-        ///
-        /// **And a cloud's shell in a frame with no sprite in it, by the same law**, because the air
-        /// asks what a point sees of the fill wherever a puff of either kind can read it
-        /// (`mPuffsInFrame`). Asked only where a sprite stood, the shell read the open fill in the
-        /// room too.
+        /// The sprite is opaque with no lighting bake, so a pixel shows the fill alone. Only the middle row is
+        /// read: those rays are level, so they meet neither sheet and cut the same chord in all three scenes.
+        /// A cloud's shell in a frame with no sprite in it follows the same law, since the air asks what a
+        /// point sees of the fill wherever a puff of either kind can read it (`mPuffsInFrame`).
         TEST_F(RtxVisibilityTest, aRoomsFillReachesAPuffFromEverySideAndWhatIsNearTakesItAway)
         {
             constexpr std::uint32_t size = 33;
@@ -944,16 +893,16 @@ namespace Rtx::Testing
                 << "half of the sphere is left for a shell with no sprite in the frame";
         }
 
-        /// **A lamp lights a puff by the card's convention, as the sun and the fill do**: a white puff
-        /// under a lamp that brings irradiance `E` reads as it does under a fill of `E / pi`. The
-        /// lamps' field holds the air's share, `E / 4 pi`, which the air's isotropic phase asks for;
-        /// read unchanged, it lit a puff four times too dimly beside the card a surface is.
+        /// A lamp lights a puff by the card's convention, as the sun and the fill do: a white puff under a
+        /// lamp that brings irradiance `E` reads as it does under a fill of `E / pi`. The lamps' field holds
+        /// the air's share, `E / 4 pi`, which the air's isotropic phase asks for; read unchanged, it would
+        /// light a puff four times too dimly beside the card a surface is.
         ///
-        /// By hand: the lamp stands 200 units over the puff with a reach of 1000, and the eye's
-        /// ray passes under it at its closest approach, so the irradiance at the puff is
-        /// `40000 * (1 - 0.2^4)^2 / (200^2 + 1) = 40000 * 0.996801 / 40001 = 0.996776`, and the fill
-        /// that matches it is `0.996776 / pi = 0.317285`. The froxel averages the falloff over its
-        /// own stretch of the ray, which a puff 40 across holds to within a few per cent.
+        /// By hand: the lamp stands 200 units over the puff with a reach of 1000 and the eye's ray passes
+        /// under it at its closest approach, so the irradiance at the puff is
+        /// `40000 * (1 - 0.2^4)^2 / (200^2 + 1) = 40000 * 0.996801 / 40001 = 0.996776` and the matching fill
+        /// is `0.996776 / pi = 0.317285`. The froxel averages the falloff over its stretch of the ray, which a
+        /// puff 40 across holds to within a few per cent.
         TEST_F(RtxVisibilityTest, aLampLightsAPuffAsItLightsACardAndAsTheFillDoes)
         {
             constexpr std::uint32_t size = 33;
@@ -1003,14 +952,12 @@ namespace Rtx::Testing
         /// what it lets through are the same size and neither can pass by being nought or one.
         constexpr float sHalfAlpha = 128.0f / 255.0f;
 
-        /// A sprite is a ball the ray crosses, so a floor cuts its chord rather than clipping its disc.
-        ///
-        /// The eye looks along a line through the sprite's centre. Hanging in the open, the whole
-        /// chord is seen and the sprite hides exactly what was painted — `128/255`, leaving
-        /// `0.49804` of the floor behind it. Centred on the floor, the ray meets the floor at the
-        /// centre and sees half the chord, which leaves `0.49804^0.5 = 0.70572`. The puff is unlit —
-        /// no ambient, no sun, no lamp — so what the pixel shows is the floor through it and nothing
-        /// else, and the floor alone is measured in the same pose to divide by.
+        /// A sprite is a ball the ray crosses, so a floor cuts its chord rather than clipping its disc. The eye
+        /// looks along a line through the sprite's centre. Hanging in the open the whole chord is seen and the
+        /// sprite hides exactly what was painted, `128/255`, leaving `0.49804` of the floor behind it. Centred
+        /// on the floor, the ray meets the floor at the centre and sees half the chord, leaving
+        /// `0.49804^0.5 = 0.70572`. The puff is unlit (no ambient, sun or lamp), so the pixel shows the floor
+        /// through it and nothing else, and the floor alone is measured in the same pose to divide by.
         TEST_F(RtxVisibilityTest, aSpriteIsAChordAndAFloorCutsItInHalf)
         {
             constexpr std::uint32_t size = 33;
@@ -1063,16 +1010,12 @@ namespace Rtx::Testing
                 << "half a chord lets through the square root";
         }
 
-        /// Two flames in one place add less than twice one, because a flame absorbs what it emits.
-        ///
-        /// A texel of alpha `128/255 = 0.50196` adds that share of `SUNLIT_WHITE` on its own,
-        /// which is what it always added. Two of them screen — `1 - 0.49804^2 = 0.75196` of it —
-        /// where a sum would have reached `1.00392`. The original's framebuffer clamped that sum at
-        /// one, and this is the smooth form of the same limit.
-        ///
-        /// **Under `ONE, ONE` the same texel adds whole**, its alpha unread, as a surface that adds
-        /// whole does: all of `SUNLIT_WHITE` the walk lets one sprite hide, `SPRITE_ALPHA_LIMIT` of
-        /// it, where `SRC_ALPHA, ONE` adds half.
+        /// Two flames in one place add less than twice one, because a flame absorbs what it emits. A texel of
+        /// alpha `128/255 = 0.50196` adds that share of `SUNLIT_WHITE` on its own; two of them screen,
+        /// `1 - 0.49804^2 = 0.75196` of it, where a sum would reach `1.00392`: the smooth form of the limit the
+        /// original's framebuffer clamped at one. Under `ONE, ONE` the same texel adds whole, its alpha unread,
+        /// as a surface that adds whole does: all of `SUNLIT_WHITE` the walk lets one sprite hide,
+        /// `SPRITE_ALPHA_LIMIT` of it, where `SRC_ALPHA, ONE` adds half.
         TEST_F(RtxVisibilityTest, flamesSaturateWhereTheOriginalClamped)
         {
             constexpr std::uint32_t size = 33;
@@ -1110,22 +1053,18 @@ namespace Rtx::Testing
                 << "a flame that adds whole read its texture's alpha";
         }
 
-        /// A streak hangs on the axis its own particle carries, and the trace draws it leaning.
+        /// A streak hangs on the axis its own particle carries, and the trace draws it leaning. The axis is the
+        /// sprite's and not the emitter's: `osgParticle` turns a quad by the angle the particle holds and
+        /// `Weather::RainShooter` leans every drop it fires into the wind that way, so a march that read the
+        /// emitter's authored axis would draw a storm the rasterizer leans as falling straight down.
         ///
-        /// **The axis is the sprite's and not the emitter's**, because `osgParticle` turns a quad by
-        /// the angle the particle holds and `Weather::RainShooter` leans every drop it fires into
-        /// the wind that way. A march that read the emitter's own authored axis would draw a storm
-        /// the rasterizer leans as falling straight down.
-        ///
-        /// A streak 120 long and a quarter of that wide, seen face-on from 400 units off through
-        /// sixty degrees — so half the frame is `400 * tan 30 = 230.94` units at the sprite's own
-        /// plane. Standing upright it covers `|x| < 30` about a fall of `|z| < 120`; leant
-        /// forty-five degrees it covers that rectangle turned, its length running up and to the
-        /// left. A point eighty above the middle is inside the first and `80 * sin 45 = 56.6` from
-        /// the second's axis, which is well outside its thirty — and a point eighty up the leant
-        /// axis is the other way about.
-        ///
-        /// Additive, so what a pixel holds is the coverage alone and nothing has to light it.
+        /// A streak 120 long and a quarter of that wide, seen face-on from 400 units off through sixty degrees,
+        /// so half the frame is `400 * tan 30 = 230.94` units at the sprite's plane. Upright it covers
+        /// `|x| < 30` about a fall of `|z| < 120`; leant forty-five degrees it covers that rectangle turned, its
+        /// length running up and to the left. A point eighty above the middle is inside the first and
+        /// `80 * sin 45 = 56.6` from the second's axis, well outside its thirty, and a point eighty up the
+        /// leant axis is the other way about. Additive, so a pixel holds the coverage alone and nothing has to
+        /// light it.
         TEST_F(RtxVisibilityTest, aStreakLeansWithTheAxisItsOwnParticleCarries)
         {
             constexpr std::uint32_t size = 65;
@@ -1183,12 +1122,10 @@ namespace Rtx::Testing
             EXPECT_EQ(leaning[aboveTheMiddle], 0.0f) << "a leaning streak still covered the upright fall";
             EXPECT_GT(leaning[upTheLean], 0.01f) << "the lean the particle carries never reached the picture";
 
-            // **A turn cannot change the shape it turned**, so the leaning streak is measured along
-            // its new axis and across it: 120 long and 30 wide, exactly as it stood.
-            //
-            // A hundred up the lean is inside its fall and a hundred and forty is past the end of
-            // it. Twenty across, taken sixty up, is inside its width and forty-five is outside —
-            // and every one of those is several pixels clear of the edge it names.
+            // A turn cannot change the shape it turned, so the leaning streak is measured along its new axis and
+            // across it: 120 long and 30 wide, exactly as it stood. A hundred up the lean is inside its fall and
+            // a hundred and forty is past the end; twenty across, sixty up, is inside its width and forty-five is
+            // outside, each several pixels clear of the edge it names.
             const auto alongLean
                 = [&](float along, float across) { return pixelAt(lean * (across - along), lean * (along + across)); };
 
@@ -1198,18 +1135,13 @@ namespace Rtx::Testing
             EXPECT_EQ(leaning[alongLean(60.0f, 45.0f)], 0.0f) << "the streak was wider than its width";
         }
 
-        /// A streak takes the sun broadside and takes nothing along its own axis.
-        ///
-        /// **The march draws an oriented quad as a cylinder, so it is lit as one.** Its width is
-        /// swung about its axis to meet the ray, which is a cylinder's silhouette, and such a body
-        /// presents `sin` of the angle off its axis to whatever lights it. A streak that took a full
-        /// card's worth of the sun whichever way it hung would light rain at noon as brightly as
-        /// rain at dawn.
-        ///
-        /// One sun, straight up, and the streak turned under it — which is what keeps everything
-        /// else about the three frames identical: the same coverage, the same level, the same air.
-        /// Lying across the sun it takes the whole of the broadside; thirty degrees off the vertical
-        /// takes `sin 30`, which is half of it; straight up and down takes none.
+        /// A streak takes the sun broadside and takes nothing along its own axis. The march draws an oriented
+        /// quad as a cylinder, so it is lit as one: its width is swung about its axis to meet the ray, a
+        /// cylinder's silhouette, and such a body presents `sin` of the angle off its axis to whatever lights
+        /// it. A streak that took a full card's worth of the sun whichever way it hung would light rain at noon
+        /// as brightly as rain at dawn. One sun, straight up, and the streak turned under it, which keeps the
+        /// coverage, level and air the same in the three frames: lying across the sun it takes the whole of
+        /// the broadside; thirty degrees off the vertical `sin 30`, half of it; straight up and down none.
         TEST_F(RtxVisibilityTest, aStreakTakesTheSunBroadsideAndNothingAlongItsOwnAxis)
         {
             constexpr std::uint32_t size = 33;
@@ -1253,26 +1185,22 @@ namespace Rtx::Testing
             EXPECT_NEAR(upright, 0.0f, across * 0.02f) << "a streak pointing at the sun has no side to turn to it";
         }
 
-        /// The level a streak is read at comes from the axis its texels are densest along.
+        /// The level a streak is read at comes from the axis its texels are densest along. A rain streak
+        /// carries its texture at two densities, the quad being a fraction as wide as it is long with the
+        /// texture stretched over the whole of it; a level chosen from the length alone reads the width
+        /// sharper than the ray can carry, the drop aliasing into a hard mark rather than fading.
         ///
-        /// **A rain streak carries its texture at two densities**, because the quad is a fraction as
-        /// wide as it is long and the texture is stretched over the whole of it. A level chosen from
-        /// the length alone reads the width sharper than the ray can carry, which is the drop
-        /// aliasing into a hard mark rather than fading — and it is what a drop did at every
-        /// distance in the game.
+        /// Two levels painted different colours, so which one was read is in the picture. The texture is four
+        /// square and the sprite sixty across. A quad as wide as it is long spreads four texels over 120 units
+        /// either way, one every thirty; a quad a quarter as wide spreads the same four over thirty, one every
+        /// seven and a half. The pixel's cone at eight hundred units is `atan(2 tan 30 / 33) * 800 = 27.98`
+        /// units, under one texel of the first and 3.73 of the second: the first reads level nought and the
+        /// second the level below it.
         ///
-        /// **Two levels painted different colours, so which one was read is in the picture.** The
-        /// texture is four square and the sprite is sixty across. A quad as wide as it is long
-        /// spreads four texels over a hundred and twenty units either way, one every thirty; a quad
-        /// a quarter as wide spreads the same four over thirty, one every seven and a half. The
-        /// pixel's cone at eight hundred units is `atan(2 tan 30 / 33) * 800 = 27.98` units, which
-        /// is under one texel of the first and 3.73 of the second — so the first reads level nought
-        /// and the second reads the level below it.
-        ///
-        /// **And the length as the ray sees it, foreshortened.** A cone across the ray covers
-        /// `1 / sin θ` of an axis θ off the ray, which is rain seen from above. The square quad with
-        /// its axis leaned 15° off the ray covers `27.98 / 30 / sin 15° = 3.60` texels along it, and
-        /// reads the level below; taken face-on, 0.93 read level nought and shimmered.
+        /// And the length as the ray sees it, foreshortened: a cone across the ray covers `1 / sin θ` of an
+        /// axis θ off the ray, which is rain seen from above. The square quad with its axis leaned 15° off the
+        /// ray covers `27.98 / 30 / sin 15° = 3.60` texels along it and reads the level below; taken face-on,
+        /// 0.93 would read level nought and shimmer.
         TEST_F(RtxVisibilityTest, theLevelAStreakIsReadAtComesFromTheAxisItsTexelsAreDensestAlong)
         {
             constexpr std::uint32_t size = 33;
@@ -1325,28 +1253,23 @@ namespace Rtx::Testing
                 << "a streak along the ray read its length as though it stood across it";
         }
 
-        /// A puff is lit from the side the light is on, and by what its own texture lets through.
+        /// A puff is lit from the side the light is on, and by what its own texture lets through. A sprite
+        /// facing an eye that looks along +Y, lit by a sun of four and nothing else, so its centre pixel is
+        /// `4 / pi` per unit of albedo, times what the puff lets through, times its half alpha: `0.6391` for a
+        /// puff nothing shadows. At the centre the ball's normal is toward the eye, so a sun to the side is at
+        /// the mean and the bake alone decides: a sun from the screen's right is `+u`, from above `+v`, and a
+        /// channel of nought there puts the sun out while the mirror channel is left alone.
         ///
-        /// A sprite facing an eye that looks along +Y, lit by a sun of four and nothing else, so its
-        /// centre pixel is `4 / pi` per unit of albedo, times what the puff lets through, times its
-        /// half alpha: `0.6391` for a puff nothing shadows. At the centre the ball's normal is
-        /// toward the eye, so a sun to the side is at the mean — and the bake alone decides: a sun
-        /// from the screen's right is `+u`, from above is `+v`, and a channel of nought there puts
-        /// the sun out, while the mirror channel is left alone.
+        /// The ball has a side: a sun behind the eye lights the near side at `1 + SPRITE_WRAP` through a front
+        /// nothing shadows; one behind the sprite lights it at `1 - SPRITE_WRAP` through the whole of the
+        /// texel's thickness, `1 - alpha`.
         ///
-        /// **And the ball has a side.** A sun behind the eye lights the near side at `1 + SPRITE_WRAP`
-        /// through a front nothing shadows; one behind the sprite lights it at `1 - SPRITE_WRAP`
-        /// through the whole of the texel's thickness, which is `1 - alpha`.
-        ///
-        /// **And the sun is thrown forward.** Henyey-Greenstein at `g = 0.6` against the even share
-        /// is `(1 - g^2) / (1 + g^2 - 2 g cos)^1.5 = 0.64 / (1.36 - 1.2 cos)^1.5`: from the side
-        /// `0.64 / 1.36^1.5 = 0.40353`, from behind the eye `0.64 / 2.56^1.5 = 0.15625`, and from
-        /// behind the sprite `0.64 / 0.16^1.5 = 10`. The side cases carry the first, and the two
-        /// sides of the ball the other two — which is what makes them differ by sixty-four and not
-        /// by six.
-        ///
-        /// **A bake that stands in is no bake**: the puff is lit as a card, where the stand-in's grey
-        /// would shut the sun to a quarter.
+        /// The sun is thrown forward: Henyey-Greenstein at `g = 0.6` against the even share is
+        /// `(1 - g^2) / (1 + g^2 - 2 g cos)^1.5 = 0.64 / (1.36 - 1.2 cos)^1.5`: from the side
+        /// `0.64 / 1.36^1.5 = 0.40353`, from behind the eye `0.64 / 2.56^1.5 = 0.15625`, from behind the sprite
+        /// `0.64 / 0.16^1.5 = 10`. The side cases carry the first and the two sides of the ball the other two,
+        /// which is what makes them differ by sixty-four and not by six. A bake that stands in is no bake: the
+        /// puff is lit as a card, where the stand-in's grey would shut the sun to a quarter.
         TEST_F(RtxVisibilityTest, aPuffIsLitByItsSideAndByWhatItsTextureLetsThrough)
         {
             constexpr std::uint32_t size = 33;
@@ -1406,18 +1329,17 @@ namespace Rtx::Testing
                 << "the far side, through the thickness, thrown toward the eye";
         }
 
-        /// A puff in the shade of its own emitter is thinned by what one layer of its texture hides.
+        /// A puff in the shade of its own emitter is thinned by what one layer of its texture hides. Two puffs
+        /// of one emitter, the second a hundred units toward a sun from the side and sixty in radius, so the
+        /// first's path to the sun runs through it and the eye's ray to the first does not. `spriteshade.h`
+        /// counts one whole layer and the shader thins the sun by the texture's mean alpha, its one texel
+        /// `128/255`, to `0.49804` of the card's worth from the side. Nothing stands over either, so the sky is
+        /// untouched, and the ambient is nought.
         ///
-        /// Two puffs of one emitter, the second a hundred units toward a sun from the side and sixty
-        /// in radius, so the first's path to the sun runs through it and the eye's ray to the first
-        /// does not. `spriteshade.h` counts one whole layer, and the shader thins the sun by the
-        /// texture's mean alpha — its one texel, `128/255` — to `0.49804` of the card's worth from
-        /// the side. Nothing stands over either, so the sky is untouched, and the ambient is nought.
-        ///
-        /// **The mean, and not the middle of the coarsest level.** A puff of sixteen texels square
-        /// opaque over its middle four by four, with its file's chain stopping at eight by eight, as
-        /// Morrowind's do: its mean alpha is a sixteenth, so one layer of it leaves `15/16` of the
-        /// sun; read at the coarsest level's middle, it was all alpha and left almost nothing.
+        /// The mean, and not the middle of the coarsest level: a puff of sixteen texels square opaque over its
+        /// middle four by four, with its file's chain stopping at eight by eight as Morrowind's do, has a mean
+        /// alpha of a sixteenth, so one layer leaves `15/16` of the sun; read at the coarsest level's middle it
+        /// is all alpha and leaves almost nothing.
         TEST_F(RtxVisibilityTest, aPuffInTheShadeOfItsOwnEmitterIsThinnedByOneLayer)
         {
             constexpr std::uint32_t size = 33;
@@ -1479,19 +1401,17 @@ namespace Rtx::Testing
                 << "one layer of a puff whose mean alpha is a sixteenth";
         }
 
-        /// A drop under a roof is not drawn, and a hearth's smoke under the same roof is.
+        /// A drop under a roof is not drawn, and a hearth's smoke under the same roof is. The rasterizer's
+        /// occluder, as a ray: `PrecipitationOccluder` discards every drop with a static over it inside its
+        /// box, and `spriteshelter.rgen` traces every falling sprite straight up to the top of that box and
+        /// zeroes the one that meets a surface. Two drops of one falling emitter, a lid over the left one
+        /// alone, and a sun from behind the eye so the lid shadows neither: with shelter in the frame the left
+        /// pixel shows nothing and the right one is what it was, and with none in the frame both are drawn. The
+        /// same two under a lid, from an emitter that does not fall, stay where they are.
         ///
-        /// **The rasterizer's occluder, as a ray.** `PrecipitationOccluder` discards every drop
-        /// with a static over it inside its box; `spriteshelter.rgen` traces every falling sprite
-        /// straight up to the top of that box and zeroes the one that meets a surface. Two drops
-        /// of one falling emitter, a lid over the left one alone, and a sun from behind the eye so
-        /// the lid shadows neither — with shelter in the frame the left pixel shows nothing at all
-        /// and the right one is what it was, and with none in the frame both are drawn. The same
-        /// two under a lid, from an emitter that does not fall, stay where they are.
-        ///
-        /// **A frame with no shelter height in it and not a flag**: the game says nought where
-        /// what falls is ash, and a picture inside the interface says nought because it has no
-        /// world over it. Nought is what keeps the launch off nearly every frame.
+        /// A frame with no shelter height in it and not a flag: the game says nought where what falls is ash,
+        /// and a picture inside the interface says nought because it has no world over it. Nought keeps the
+        /// launch off nearly every frame.
         TEST_F(RtxVisibilityTest, aRoofKeepsTheRainOffAndLeavesTheSmoke)
         {
             constexpr std::uint32_t size = 33;

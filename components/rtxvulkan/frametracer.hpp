@@ -38,12 +38,11 @@ namespace Rtx
         static VkDeviceSize bytesAt(const Device& device, VkExtent2D render, VkExtent2D output, Upscale upscale,
             const Upscaler& upscaler, RadianceWidth radiance, std::span<const ArenaImage> declared);
 
-        /// **The one answer to what a move to `render` and `output` under `upscale` moved**, with the
+        /// The one answer to what a move to `render` and `output` under `upscale` moved, with the
         /// arena `declared`, which every part that keeps something across it is handed: the extents
-        /// against the last `resize`'s, and what is made again — the chain where it stands at another
-        /// extent or filter, the upscaler where it stands at other extents or a mode turned it off,
-        /// and the arena where its declarations moved. A part made again is let go first (`release`),
-        /// so a part asked to stand where it stands only takes its place in the new arena.
+        /// against the last `resize`'s, and what is made again (the chain at another extent or
+        /// filter, the upscaler at other extents or a mode turned it off, the arena where its
+        /// declarations moved). A part made again is let go first (`release`).
         struct Moves
         {
             /// The traced extent, and the shown one, where they differ from the last `resize`'s: no

@@ -222,11 +222,9 @@ namespace RtxTool
         if (mDone)
             return;
 
-        // **A game that has ended cannot be flown any further, and a session that waited for one
-        // would wait for ever.** Every stop after this one is unreachable, so the run says what
-        // happened and stops rather than drawing the same frame until somebody kills it. What ends
-        // a game here is the player dying, which the stager turns god mode on to prevent — this is
-        // for whatever else might.
+        // A game that has ended cannot be flown any further, and a session that waited for one would wait for ever:
+        // every stop after this one is unreachable, so the run says so and stops. The player dying is what ends a
+        // game here, which the stager turns god mode on to prevent; this is for whatever else might.
         if (MWBase::Environment::get().getStateManager()->getState() == MWBase::StateManager::State_Ended)
         {
             abandon(std::format("the game ended during stop {} of {}, so no place after it can be reached", mAt + 1,
@@ -240,9 +238,9 @@ namespace RtxTool
         if (!mRequest.mPlayed)
             Stager::closeMenus();
 
-        // **A stop that throws as it begins is the run's failure, said once**: `Engine::frame`
-        // catches what leaves here and goes on, and the stop began again on every frame after —
-        // with `--perf-control` and nothing reading it, thirty seconds a frame, for ever.
+        // A stop that throws as it begins is the run's failure, said once: `Engine::frame` catches what leaves here
+        // and goes on, so the stop would begin again on every frame after (with `--perf-control` and nothing reading
+        // it, thirty seconds a frame, for ever).
         if (!mStarted)
         {
             try
@@ -257,25 +255,21 @@ namespace RtxTool
             return;
         }
 
-        // **The reset stands until a frame has been counted, and the one the stager issued is not
-        // enough.** A stop opens with frames nobody counts: the first trace after the teleport has
-        // no predecessor to be timed against, so `frame` is never reached for it and the count
-        // stays at nought. The exposure adapts on every one of them all the same, and how many
-        // there are is a question about how long the world took to load rather than one the
-        // schedule answers — so two runs began counting from two exposures and drew the first
-        // thirty frames differently, with the same scene behind them. Reissued here, the last reset
-        // lands on the frame that becomes the first counted one, whatever went before it.
+        // The reset stands until a frame has been counted, and the one the stager issued is not enough: a stop opens
+        // with frames nobody counts (the first trace after the teleport has no predecessor to be timed against, so
+        // `frame` is never reached for it), yet the exposure adapts on every one, and how many there are is how long
+        // the world took to load, so two runs would begin counting from two exposures. Reissued here, the last reset
+        // lands on the frame that becomes the first counted one.
         //
-        // **Both calls, and neither is the other's spare.** The stager resets because a teleport
-        // is a discontinuity and the frames it opens with are drawn on a screen. This resets
-        // because those frames are not measured, and a measured run may not depend on them.
+        // Both calls, and neither is the other's spare: the stager resets because a teleport is a discontinuity and
+        // its frames are drawn on a screen; this because those frames are not measured, and a measured run may not
+        // depend on them.
         if (mMeasurer.getSeen() == 0)
             Stager::forgetHistory();
 
-        // Where somebody plays the run, and nowhere else: a key pressed in a measured window
-        // would move what the measurement records nothing of. **And not while a menu or the console
-        // has the keys**: the three read the keyboard's state and not the game's input, so text
-        // typed in the console turned the sky and printed the memory block.
+        // Where somebody plays the run, and nowhere else: a key pressed in a measured window would move what the
+        // measurement records nothing of. And not while a menu or the console has the keys: the three read the
+        // keyboard's state and not the game's input, so text typed in the console turned the sky.
         if (mRequest.mPlayed && !MWBase::Environment::get().getWindowManager()->isGuiMode())
         {
             mHome.listen();
@@ -301,14 +295,12 @@ namespace RtxTool
         if (mDone || !mStarted)
             return;
 
-        // **The frame just drawn, which is the one on the screen**: the camera the player turned
-        // during the frame's own update, the eye the route flew and the sky the turn crossed, and
-        // the air the renderer stepped. Taken before the frame, the note would be a camera one update
-        // behind the picture. The last one taken is what `RunRecord::describe` publishes.
-        //
-        // **Every frame only where somebody plays the run**, which is where the window's title
-        // shows the note and the Home key reads it. Work here lands in the next frame's time, so a
-        // measured run takes the note once, at each stop's end.
+        // The frame just drawn, which is the one on the screen: the camera the player turned during the frame's own
+        // update, the eye the route flew, the sky the turn crossed and the air the renderer stepped; taken before
+        // the frame, the note would be a camera one update behind the picture. The last one taken is what
+        // `RunRecord::describe` publishes. Every frame only where somebody plays the run, which is where the title
+        // shows the note and the Home key reads it: work here lands in the next frame's time, so a measured run
+        // takes the note once, at each stop's end.
         if (mRequest.mPlayed)
         {
             mNote.take(report.mAir);
@@ -379,9 +371,8 @@ namespace RtxTool
         mDone = true;
         mRecord.finish(mRequest);
 
-        // **The way the quit key ends a session, and not `exit`.** A run that tore the process down
-        // where it stood would leave the save, the log and the device wherever they happened to be,
-        // and the next thing anyone would debug is the session.
+        // The way the quit key ends a session, and not `exit`: tearing the process down where it stood would leave
+        // the save, the log and the device wherever they happened to be.
         if (mRequest.mQuitAtEnd)
             MWBase::Environment::get().getStateManager()->requestQuit();
     }

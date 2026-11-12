@@ -22,16 +22,11 @@ namespace RtxTool
         bool mHeld = false;
     };
 
-    /// NVIDIA's management library, which is what `nvidia-smi` reads, opened by name at run time
-    /// and asked directly. **Opened and never linked**, because only one vendor's driver ships it
-    /// and a build must start on any card; a box without it answers no clock and no card line
-    /// rather than failing. **Asked directly and never through the tool**, because a reading
-    /// through `nvidia-smi` forks a process with a world loaded, tens of milliseconds a time, and
-    /// four a second was as often as that could be afforded — the driver's process samples come
-    /// five times a second and are lost between polls slower than that.
-    ///
-    /// **The card at a PCI address, never by NVML's index**: NVML numbers cards in an order of its
-    /// own, and the renderer's card is the one its driver names.
+    /// NVIDIA's management library (what `nvidia-smi` reads), opened by name at run time and never linked, because
+    /// only one vendor's driver ships it and a build must start on any card; a box without it answers no clock and
+    /// no card line. Asked directly, not through the tool: forking `nvidia-smi` costs tens of milliseconds a time, and
+    /// the driver's process samples come five times a second and are lost between slower polls. The card is found by
+    /// PCI address, never NVML's index, which numbers cards in an order of its own.
     class Nvml
     {
     public:
@@ -58,11 +53,9 @@ namespace RtxTool
         /// one that answered nothing where the library is not open or the driver refused.
         GpuClock readClock() const;
 
-        /// Every process sample the driver took since the last call, into `into`, which is cleared
-        /// first. **The samples the driver held when this was opened are the point counting starts
-        /// from**, so a process that last drew a minute before the run is not read as drawing in
-        /// it. The driver hands back one sample a process, the latest, so a caller polling slower
-        /// than the driver samples loses the ones between.
+        /// Every process sample the driver took since the last call, into `into`, which is cleared first. The
+        /// samples held when this was opened are where counting starts, so a process that last drew a minute before
+        /// the run is not read as drawing in it. The driver keeps one sample a process, so slow polling loses some.
         void readSamples(std::vector<CardSample>& into);
 
         /// What the process the driver numbers `pid` is called — its executable's own name without
@@ -70,12 +63,9 @@ namespace RtxTool
         /// where the process is gone.
         void nameProcess(std::uint32_t pid, std::string& into) const;
 
-        /// The executable's own name in what the driver calls a process: what stands before the
-        /// first option, without its directory. **Before the first option and not the whole**,
-        /// because what the driver hands back is `argv[0]`, and a browser writes its whole command
-        /// line into that to title its processes — `nvidia-smi pmon` prints the tail of a path
-        /// inside an argument for one. **Not the first word either**, because a directory may
-        /// hold a space and an option begins with a dash.
+        /// The executable's name in what the driver calls a process: what stands before the first option, without
+        /// its directory. The driver hands back `argv[0]`, which a browser fills with its whole command line; not
+        /// the first word, because a directory may hold a space.
         static std::string_view executableOf(std::string_view called);
 
         /// `card` as NVML spells a bus id: `00000000:01:00.0`.

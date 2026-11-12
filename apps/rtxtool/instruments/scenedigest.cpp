@@ -63,25 +63,16 @@ namespace RtxTool
             digest.add(std::span<const char>(path.data(), path.size()));
             digest.add(row.mWrap);
 
-            // Only where it is not a colour, so a scene of colours digests as it did before a slot had
-            // an encoding.
+            // Only where it is not a colour, so a scene of colours digests as on record.
             if (row.mEncoding != Rtx::TextureEncoding::Colour)
                 digest.add(row.mEncoding);
         }
 
-        /// Hands every field of `material` to one of three callables.
-        ///
-        /// **One list and three kinds, because the two digests spell two of the kinds
-        /// differently.** A texture reaches `digestParts` as the slot it landed in, which is what a
-        /// material's index means, and reaches `digestScene` as the file it names, which is what
-        /// the same material is wherever the slots fell. A run reaches the first whole, offset
-        /// included, and the second by its length alone — an offset is where a chunk's layers were
-        /// put and not what they are.
-        ///
-        /// **A field added to `Material` and not named here does not compile**, which is the whole
-        /// of why this exists: the two lists it replaces were kept by hand, held different subsets,
-        /// and a field added to neither would have left the gate quietly.
-        /// `sCounters` in `extractionstats.cpp` makes the same argument for the same reason.
+        /// Hands every field of `material` to one of three callables. One list serves both digests, which spell a
+        /// texture and a layer run differently: `digestParts` takes the slot and the run's offset (which table a
+        /// material points into is what a layout is), `digestScene` the file named and the run's length alone. A
+        /// field added to `Material` and not named here does not compile, which the two hand-kept lists it replaced
+        /// did not guarantee; `sCounters` in `extractionstats.cpp` argues the same.
         template <class Texture, class Layers, class Value>
         void forEachMaterialField(const Rtx::Material& material, Texture texture, Layers layers, Value value)
         {
@@ -95,8 +86,8 @@ namespace RtxTool
             texture(environment);
             texture(dark);
 
-            // The companion maps only where there are any, each behind its own tag, so a scene with
-            // none digests as it did before a material could have them.
+            // Companion maps only where there are any, each behind its own tag, so a scene with none digests as on
+            // record.
             if (normal != Rtx::sNoIndex)
             {
                 value(std::uint8_t{ 1 });
@@ -179,14 +170,9 @@ namespace RtxTool
             }
         }
 
-        /// Every field of one row, as one list.
-        ///
-        /// **A field added and not named here does not compile.** `digestParts` reads these whole,
-        /// so a field it did not name would be one the gate stopped watching — silently, and on
-        /// the one report every determinism argument in this fork rests on.
-        ///
-        /// **Whether it brought tangents is the one field left out**, and the meshes column adds it
-        /// where it is set: a scene where no mesh has any digests to the words on record.
+        /// Every field of one row, as one list: `digestParts` reads these whole, so a field not named would escape
+        /// the gate, and one added and not named here does not compile. Whether the mesh brought tangents is left
+        /// out; the meshes column adds it where set, so a scene with none digests to the words on record.
         auto fieldsOf(const Rtx::MeshRange& mesh)
         {
             const auto& [vertices, indices, secondTexCoords, unitStreams, tangents, shape, deformer, bindOffset,
@@ -222,9 +208,8 @@ namespace RtxTool
             return whole.getWords();
         }
 
-        /// A table in blocks hashed where it lies, a block at a time. A table of one block or none
-        /// is hashed as the one span it would be laid out flat, so its words are the flat table's;
-        /// past one block the spans chain through the seed, which no flat hash can say.
+        /// A table in blocks hashed a block at a time. One block or none hashes as the flat span would, so its words
+        /// match a flat table's; past one block the spans chain through the seed.
         template <class T>
         void addBlocks(Misc::HashState& digest, const Rtx::BlockedValues<T>& table)
         {
@@ -394,12 +379,8 @@ namespace RtxTool
         return whole.getWords();
     }
 
-    /// The tables `digestParts` reads whole, held to having nothing between their fields.
-    ///
-    /// **A field added later that opens a gap trips this rather than the digest.** The bytes a
-    /// record pads with are whatever the allocator left, so a table read whole through one of them
-    /// would call two identical runs different — once, unrepeatably, and for a reason nothing in
-    /// the report could name.
+    /// The tables `digestParts` reads whole, held to having nothing between their fields: the bytes a record pads
+    /// with are whatever the allocator left, so two identical runs would differ once, unrepeatably.
     static_assert(sizeof(Rtx::Light) == 40, "Rtx::Light is read whole and must have no padding");
     static_assert(sizeof(Rtx::Sprite) == 56, "Rtx::Sprite is read whole and must have no padding");
     static_assert(sizeof(Rtx::SpriteEmitter) == 40, "Rtx::SpriteEmitter is read whole and must have no padding");
@@ -423,8 +404,8 @@ namespace RtxTool
 
         take(ScenePart::Positions, wordsOf(meshes.getPositions()));
 
-        // **The tangents are the normals' part, and only where a mesh has any**, so a scene where
-        // no vertex has one digests to the words on record, and a report keeps its columns.
+        // The tangents are the normals' part, and only where a mesh has any, so a scene with none digests to the
+        // words on record.
         Misc::HashState normals;
         addBlocks(normals, meshes.getNormals());
         bool tangents = false;
@@ -455,9 +436,8 @@ namespace RtxTool
     {
         digestVertices(scene);
 
-        // **Every slot, standing or free.** A free one keeps the room and the offsets its last
-        // occupant left, so it is part of the state a run has to repeat — and a slot order that
-        // moved is exactly what `digestScene` sums away.
+        // Every slot, standing or free: a free one keeps the room and offsets its last occupant left, which a run
+        // has to repeat.
         Column meshes(mScratch);
         for (const Rtx::MeshRange& mesh : scene.meshes().getRows())
         {
@@ -487,10 +467,8 @@ namespace RtxTool
                 [&](const auto& field) { materials.add(field); });
         take(ScenePart::Materials, materials.take());
 
-        // **Each row as the 48 bytes it was before it could name a normal map, and the two fields
-        // since only where a layer sets them**, so a scene whose ground has no map digests to the
-        // words on record. Bound whole, so a field added and not named here does not compile; the
-        // padding is no field.
+        // Each row as its first 48 bytes, and the normal and flags only where a layer sets them, so a scene with no
+        // map digests to the words on record. Bound whole, so a field not named here does not compile.
         Column layers(mScratch);
         for (const Rtx::MaterialLayer& layer : scene.materials().getLayers())
         {
@@ -505,17 +483,11 @@ namespace RtxTool
         take(ScenePart::Layers, layers.take());
         take(ScenePart::Masks, wordsOf(scene.materials().getMasks()));
 
-        // By their names and by their slots both, which is the difference from `digestScene`: which
-        // slot a texture landed in is what a material's index means. A file and a sprite's bake name
-        // their file, and a ground its material; the kind tells the three apart. Each path ends with
-        // its length, so two laid end to end cannot be read as one.
-        //
-        // **And every other field of the row, bound whole**, as `forEachMaterialField` binds a
-        // material: the wrap reaches the sampler and the encoding and format how the texels decode,
-        // so a slot read another way is a trace that moves over this column. A field added to
-        // `TextureRow` does not compile here until it is named. The image and a converted
-        // slot's partner are files' bytes, which the path already names; of the prepared image, whether
-        // there is one.
+        // By names and slots both, unlike `digestScene`: which slot a texture landed in is what a material's index
+        // means. A file and a sprite's bake name their file, a ground its material; the kind tells them apart, and
+        // each path ends with its length so two laid end to end cannot read as one. Every other field is bound whole,
+        // as `forEachMaterialField` does: the wrap and encoding reach the sampler and the decode. The image and
+        // partner are files' bytes, which the path names; of the prepared image only whether there is one.
         Column textures(mScratch);
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {

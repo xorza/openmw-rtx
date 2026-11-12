@@ -22,11 +22,9 @@ namespace Rtx
         bool operator==(const EncodedColour& other) const = default;
     };
 
-    /// sRGB's transfer function, and its inverse clamped to the unit range. Whatever is averaged is
-    /// averaged between these two: half of one ground type and half of another meet at 188 in light
-    /// and at 128 in bytes. One curve for everything the content hands over — a texel, a weather's
-    /// colour, a lamp's. A value that is one of the 256 is answered from the table below whichever
-    /// overload is called: the float one recovers the byte first, so the two answers agree.
+    /// sRGB's transfer function, and its inverse clamped to the unit range. Whatever is averaged is averaged between
+    /// these two: half of one ground type and half of another meet at 188 in light and at 128 in bytes. A value that is
+    /// one of the 256 is answered from the table below whichever overload is called, so the two answers agree.
     float toLinear(float encoded);
     float toEncoded(float linear);
 

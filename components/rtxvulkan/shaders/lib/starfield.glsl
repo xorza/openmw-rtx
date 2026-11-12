@@ -3,11 +3,10 @@
 
 // The star field, and nothing else of the sky.
 //
-// **Its own file because two passes draw it.** The trace draws the rest of the sky, and this is drawn again
-// by the display pass at the resolution the frame is shown at — because a point source is what an upscaler
-// removes, and the only place a point survives is the resolution it is drawn for. So it takes the field it
-// is asked about rather than reading the frame's, and it is the one piece of the sky that is not
-// `sky.glsl`'s.
+// **Its own file because two passes draw it**: the trace draws the rest of the sky, and the display pass draws
+// this again at the resolution the frame is shown at, since a point source is what an upscaler removes and the
+// only place a point survives is the resolution it is drawn for. So it takes the field it is asked about
+// rather than reading the frame's.
 
 #include "look.h"
 #include "scene.h"
@@ -18,15 +17,14 @@
 /// What the star field sends back along a ray.
 ///
 /// **The mapping is the engine's own mesh's, measured at load rather than chosen.** The night mesh lays its
-/// sheet over a dome at a fixed amount of texture per radian of sky — the same amount across and up, which
-/// is what keeps a star round — so this is that unwrap without the mesh: `mTile` of sky to one tile, in
-/// azimuth and in the angle down from the zenith alike. Morrowind's comes to a texel a tenth of a degree
-/// wide, which is a star; the same sheet spread once over the hemisphere is a third of a degree, which is a
-/// blob.
+/// sheet over a dome at a fixed amount of texture per radian of sky, the same across and up, which keeps a
+/// star round: `mTile` of sky to one tile, in azimuth and in the angle down from the zenith alike.
+/// Morrowind's comes to a texel a tenth of a degree wide, which is a star; spread once over the hemisphere it
+/// is a third of a degree, which is a blob.
 ///
-/// **And the fade at the horizon is the mesh's too**, not a number picked to look right: the engine draws a
-/// vertex of that dome only where its authored colour is white, and the bottom ring alone is not — so the
-/// field goes out between the horizon and the ring above it.
+/// **The fade at the horizon is the mesh's too**: the engine draws a vertex of that dome only where its
+/// authored colour is white, and the bottom ring alone is not, so the field goes out between the horizon and
+/// the ring above it.
 ///
 /// @param stars the field to draw, rather than the frame's — which is what lets the display pass
 ///        draw one it was handed on a grid the frame's camera does not describe.
@@ -49,18 +47,16 @@ vec3 starField(StarField stars, TexelTable texels, vec3 direction, float blur)
     const float azimuth = atan(direction.y, direction.x) - stars.mTurn;
     const vec2 uv = vec2(azimuth, 0.25 * TAU - elevation) / stars.mTile;
 
-    // **A star's edge belongs to the pixel and not to the texel.** The sheet is magnified — a texel is a
-    // tenth of a degree against a pixel's twentieth at the resolution this renders at — so a bilinear tent
-    // spans two texels, which is nearly four pixels, and a star arrives as a soft blob whose brightest
-    // pixel carries about half of it. The engine samples the same sheet the same way and gets away with it
-    // because it clips: `paintAtmosphereNight` puts a white texel on the frame buffer at one, so every
-    // pixel of that blob saturates and reads as a hard dot.
+    // **A star's edge belongs to the pixel and not to the texel.** The sheet is magnified (a texel is a tenth
+    // of a degree against a pixel's twentieth), so a bilinear tent spans nearly four pixels and a star arrives
+    // as a soft blob whose brightest pixel carries about half of it. The engine samples the same way and gets
+    // away with it because it clips: `paintAtmosphereNight` puts a white texel on the frame buffer at one, so
+    // every pixel of that blob saturates and reads as a hard dot.
     //
-    // **And level zero however far the sheet is minified.** A star field is a sparse set of points, and a
-    // mip level of one is those points averaged with the dark around them — one level divides a star by
-    // four and takes the field apart. What a pixel wider than a texel should read is the field's own mean,
-    // which `NightSky::mGlow` already states and a gather already takes; asking for the level the pixel
-    // wanted instead took the pixels over a quarter from 1020 to 108.
+    // **And level zero however far the sheet is minified.** A mip level of one averages the sparse points with
+    // the dark around them and takes the field apart (one level divides a star by four); what a pixel wider
+    // than a texel should read is the field's own mean, which `NightSky::mGlow` already states and a gather
+    // already takes. Asking for the level the pixel wanted took the pixels over a quarter from 1020 to 108.
     const vec2 size = vec2(stars.mExtent);
     const vec2 across = max(2.0 * blur * size / stars.mTile, vec2(1.0e-6));
 

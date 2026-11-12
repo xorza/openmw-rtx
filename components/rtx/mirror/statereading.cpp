@@ -134,11 +134,10 @@ namespace Rtx
                 case osg::StateAttribute::ALPHAFUNC:
                     return StateRole::Carried;
 
-                // **The winding a mirror turns round**: `SceneUtil::attach` states a clockwise front
-                // over a left body part it builds under a scale of minus one, which traversal,
-                // reading the winding in the mesh, already shows the right face of. A content
-                // file's own clockwise front looks the same from here, and the placement carries it
-                // (`Shading::mClockwise`).
+                // **The winding a mirror turns round**: `SceneUtil::attach` states a clockwise front over a left body
+                // part it builds under a scale of minus one, which traversal, reading the winding in the mesh, already
+                // shows the right face of. A content file's own clockwise front looks the same from here, and the
+                // placement carries it (`Shading::mClockwise`).
                 case osg::StateAttribute::FRONTFACE:
                 // Of the raster pipeline: what is written where, in what order, through what
                 // program, at what precision. A ray meets the surface whatever these say.
@@ -413,11 +412,10 @@ namespace Rtx
             if (texture == nullptr)
                 continue;
 
-            // **A unit nothing names is not a surface's**, whatever the shader visitor makes of unit
-            // nought. Every loader names what it binds — `NifOsg` with a `TextureType`, the terrain
-            // with a sampler uniform — and the hand-built state sets that do not are the
-            // rasterizer's own effects: the water's ripple particles, the sky's dome. The one such
-            // picture both renderers draw, the rain, is named where it is built.
+            // **A unit nothing names is not a surface's**, whatever the shader visitor makes of unit nought. Every
+            // loader names what it binds (`NifOsg` with a `TextureType`, the terrain with a sampler uniform), and the
+            // hand-built state sets that do not are the rasterizer's own effects: the water's ripple particles, the
+            // sky's dome. The one such picture both renderers draw, the rain, is named where it is built.
             std::optional<TextureRole> role
                 = sTextureRoleNames.named(SceneUtil::getTextureType(stateSet, *texture, unit));
             if (!role.has_value())
@@ -447,12 +445,10 @@ namespace Rtx
                 material.mEmissiveUnit = static_cast<std::uint8_t>(unit);
         }
 
-        // **The alpha test, its reference from wherever the visitor left it.** `Shader::ShaderVisitor`
-        // replaces the attribute with a `RemovedAlphaFunc` of the same function at a default
-        // threshold and carries the real one in a uniform, so the uniform is asked first and the
-        // attribute answers where no visitor has run. The function is OpenGL's set of sides past
-        // `GL_NEVER`: `ALWAYS` is no test at all, which is what the scene root wears, and Morrowind's
-        // own is `GREATER`.
+        // **The alpha test, its reference from wherever the visitor left it.** `Shader::ShaderVisitor` replaces the
+        // attribute with a `RemovedAlphaFunc` of the same function at a default threshold and carries the real one in a
+        // uniform, so the uniform is asked first and the attribute answers where no visitor has run. The function is
+        // OpenGL's set of sides past `GL_NEVER`: `ALWAYS` is no test at all, which is what the scene root wears.
         if (const osg::StateSet::RefAttributePair* tested = stateSet.getAttributePair(osg::StateAttribute::ALPHAFUNC);
             tested != nullptr && SurfaceLocks::takes(locks.mAlphaFunc, tested->second))
         {

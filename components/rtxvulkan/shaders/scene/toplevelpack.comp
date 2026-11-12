@@ -9,11 +9,12 @@
 // keeps its slots for its return, and a hit reads its slot back as the custom index, so the rows cannot
 // close up around a gap.
 //
-// **In slot order, and that is load-bearing.** Which of two coincident triangles a build's tree puts first
-// is its input's order, and a packing in the order the lanes reached an atomic would move that from run to
-// run. Each block's first place is the host's (`mStarts`), and a row's place inside its block is the rows
-// before it that place: one bit each in shared memory, and the bits below a lane's counted, as
-// `spriteruns.comp` counts its matches, asking nothing of the hardware a subgroup ballot would.
+// **In slot order, and that is load-bearing.** Which of two coincident triangles a build's tree puts first is
+// its input's order, and a packing in the order the lanes reached an atomic would move that from run to run.
+// Each block's first place is the host's (`mStarts`), and a row's place inside its block is the rows before
+// it that place: one bit each in shared memory, and the bits below a lane's counted, as `spriteruns.comp`
+// counts its matches.
+
 
 #include "shared/tables.h"
 #include "shared/toplevelpack.h"

@@ -19,12 +19,10 @@ namespace Rtx
     {
         using Shaders::StorageFormat;
 
-        /// **A layout a shader declares is created as the format the specification pairs it with.**
-        /// A view in any other format is undefined behaviour that the layers only warn about, so
-        /// this mapping is the whole of what keeps an image and its declaration agreeing.
-        ///
-        /// Copied by hand from the Vulkan specification's "Compatibility Between SPIR-V Image
-        /// Formats and Vulkan Formats" table, one row per qualifier `storageformat.h` spells.
+        /// **A layout a shader declares is created as the format the specification pairs it with.** A view in any
+        /// other format is undefined behaviour the layers only warn about. Copied by hand from the specification's
+        /// "Compatibility Between SPIR-V Image Formats and Vulkan Formats" table, one row per qualifier
+        /// `storageformat.h` spells.
         TEST(RtxFormatsTest, aStorageFormatIsTheOneTheSpecificationPairsItsQualifierWith)
         {
             constexpr std::array<std::pair<StorageFormat, VkFormat>, 15> sTable{ {
@@ -89,13 +87,12 @@ namespace Rtx
                 EXPECT_EQ(toVulkanFormat(format), expected) << nameOf(format);
         }
 
-        /// **A read-back knows every format it reads, from one table.** The bytes one texel takes are
-        /// what a read-back buffer is sized by, and the decode is what a read of floats does with
-        /// them; two tables that disagreed once read the motion channels as pairs of halves. A block
-        /// format has no texel of its own and is never read back, so it ends the process.
+        /// **A read-back knows every format it reads, from one table.** The bytes one texel takes size a read-back
+        /// buffer and the decode reads floats from them; two tables that disagreed once read the motion channels as
+        /// pairs of halves. A block format has no texel of its own and is never read back, so it ends the process.
         ///
-        /// Each row by hand: the channels times the bytes of one channel — one byte for 8 bits,
-        /// two for a half or a 16-bit channel, four for a float.
+        /// Each row by hand: the channels times the bytes of one channel — one for 8 bits, two for a half or a 16-bit
+        /// channel, four for a float.
         TEST(RtxFormatsTest, aReadBackFormatIsItsTexelSizeAndItsDecode)
         {
             struct Row

@@ -64,17 +64,14 @@ namespace Rtx
         void take(CellReturns& from);
     };
 
-    /// Cells read ahead of the eye, on a thread of its own: the thread, the reader it drives, and
-    /// the two channels between them — what to read next, and what the frame has finished with. A
-    /// newer ask replaces an older one it has not finished, because the ones the ring lacked a
-    /// moment ago are not an answer to what it lacks now. Everything read is lent and given back;
-    /// `Spares` says why an address and not a shared count.
+    /// Cells read ahead of the eye, on a thread of its own: the thread, the reader it drives, and the two channels
+    /// between them: what to read next, and what the frame has finished with. A newer ask replaces an older one it has
+    /// not finished. Everything read is lent and given back; `Spares` says why an address and not a shared count.
     ///
-    /// **A cell is read once for the asks that name it while it is on its way.** An ask names
-    /// what the ring lacks as of its last `take`, so the cell in hand, and every cell handed over
-    /// since that take, are in the next ask as well: read again, they were 42 of the 143 reads a
-    /// band of 101 cells took, and every copy was turned away. A take counts, so the thread knows which of what it
-    /// handed over an ask could not have known of.
+    /// **A cell is read once for the asks that name it while it is on its way.** An ask names what the ring lacks as of
+    /// its last `take`, so the cell in hand, and every cell handed over since that take, are in the next ask as well:
+    /// read again, they were 42 of the 143 reads a band of 101 cells took, every copy turned away. A take counts, so
+    /// the thread knows which of what it handed over an ask could not have known of.
     class CellSupply
     {
     public:

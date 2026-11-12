@@ -8,13 +8,12 @@
 
 namespace Rtx
 {
-    /// A cull traversal that culls nothing and draws nothing, for the one thing left that answers
-    /// only to an `osgUtil::CullVisitor`: `SceneUtil::RigGeometry` and `SceneUtil::MorphGeometry`
-    /// skin inside `accept` by casting the visitor to one, and a CPU intersection reads that posed
-    /// copy. Not for a whole graph: `Terrain::TerrainDrawable::cull` puts the chunk in a render bin
-    /// and never applies it. A real `CullVisitor`, because those casts are unchecked. Whoever uses
-    /// it owes it a frame stamp — `SceneUtil::FrameTimeSource` reads the simulation time off it
-    /// unchecked — and a traversal number a skeleton has not seen.
+    /// A cull traversal that culls nothing and draws nothing, for the one thing left that answers only to an
+    /// `osgUtil::CullVisitor`: `SceneUtil::RigGeometry` and `SceneUtil::MorphGeometry` skin inside `accept` by casting
+    /// the visitor to one, and a CPU intersection reads that posed copy. Not for a whole graph:
+    /// `Terrain::TerrainDrawable::cull` puts the chunk in a render bin and never applies it. A real `CullVisitor`,
+    /// because those casts are unchecked. Whoever uses it owes it a frame stamp (`SceneUtil::FrameTimeSource` reads the
+    /// simulation time off it unchecked) and a traversal number a skeleton has not seen.
     class PoseCull : public osgUtil::CullVisitor
     {
     public:

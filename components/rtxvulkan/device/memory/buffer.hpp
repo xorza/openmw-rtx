@@ -34,17 +34,15 @@ namespace Rtx
         /// never lands under a submit still reading it.
         HostWritten,
 
-        /// Host memory a copy is staged through: written by the host once, read by the device
-        /// across the bus, and never read back. Write-combined, because a stream of writes fills
-        /// it faster than cached memory, which reads each line in before it is written over and
-        /// keeps what it wrote: sixteen megabytes in 0.39 ms against 0.94, on the frame a cell
-        /// arrives.
+        /// Host memory a copy is staged through: written by the host once, read by the device across the
+        /// bus, never read back. Write-combined, because a stream of writes fills it faster than cached
+        /// memory, which reads each line in before it is written over: sixteen megabytes in 0.39 ms
+        /// against 0.94, on the frame a cell arrives.
         Staging,
 
         /// Host memory the device writes and the host reads back — a count, a report, a picture.
-        /// Cached, which a read of runs at the memory's speed: a frame's picture copied out of the
-        /// write-combined kind ran at 290 MB/s, 28 ms for one picture, against 0.12. The device
-        /// reads and writes either kind across the bus alike.
+        /// Cached, which a read runs at the memory's speed: a frame's picture copied out of the
+        /// write-combined kind ran at 290 MB/s, 28 ms for one picture, against 0.12.
         ReadBack,
 
         /// Host memory the device writes past its own caches and the host reads as the queue left
@@ -53,9 +51,10 @@ namespace Rtx
         Markers,
     };
 
-    /// Whether the host reads what a buffer of `kind` holds (`Buffer::map`): cached memory and AMD's uncached kind,
-    /// and never write-combined memory, which a read crawls through, or memory the host cannot see. **Every kind
-    /// answers**, as it answers what memory it is made in: a kind added without saying was a read asserted away.
+    /// Whether the host reads what a buffer of `kind` holds (`Buffer::map`): cached memory and AMD's
+    /// uncached kind, and never write-combined memory, which a read crawls through, or memory the host
+    /// cannot see. **Every kind answers**, as it answers what memory it is made in: a kind added without
+    /// saying was a read asserted away.
     constexpr bool readsOnHost(const BufferKind kind)
     {
         switch (kind)
@@ -80,10 +79,9 @@ namespace Rtx
         Buffer() = default;
 
         /// @param use the frame's targets or other essential memory, which is never refused.
-        /// @param size may be nought: Vulkan has no zero-sized buffer, so a table with nothing in
-        ///        it is made one byte long — which is what its descriptor needs and what nothing in
-        ///        it has to read. A table asked for nought and never made was an address of nought
-        ///        in the frame block, which is a lost device with no message.
+        /// @param size may be nought: Vulkan has no zero-sized buffer, so a table with nothing in it is made
+        ///        one byte long, which its descriptor needs and nothing in it has to read; a table never
+        ///        made was an address of nought in the frame block, a lost device with no message.
         /// @param usage what the device does with it. `TRANSFER_DST` is not added for any kind.
         /// @param name what a capture and a validation message call it.
         static Buffer make(MemoryUse use, const Device& device, BufferKind kind, VkDeviceSize size,
@@ -144,10 +142,10 @@ namespace Rtx
         /// names the wait in the error a device that stops answering produces.
         void waitIdle(const char* what) const;
 
-        /// The GPU-side address, for a caller that compares or asserts on it and hands it to no
-        /// recording — `addressFor` is for the rest. Only valid when the buffer was created with
-        /// `VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT`, which is asserted. Taken once at creation,
-        /// because the frame block carries fourteen of them a frame.
+        /// The GPU-side address, for a caller that compares or asserts on it and hands it to no recording
+        /// — `addressFor` is for the rest. Only valid when the buffer was created with
+        /// `VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT`, which is asserted. Taken once at creation, because
+        /// the frame block carries many of them a frame.
         VkDeviceAddress getDeviceAddress() const
         {
             assert((mAddressable || mHandle.get() == VK_NULL_HANDLE) && "an address of a buffer not created for one");
@@ -201,12 +199,11 @@ namespace Rtx
             return mMemory.map();
         }
 
-        /// `count` elements of the buffer at `offset` bytes in, to be written in place and never
-        /// read, for a caller that produces the bytes where they land. `writeAt` is this for a
-        /// caller that already holds them. Asserts that no submit still reads the buffer: a write
-        /// into one a submit may still read goes through the queue, by `stageInto` or
-        /// `updateInline`. A staging block's or a read-back buffer's: a host-written buffer is
-        /// written through `Uploads`.
+        /// `count` elements of the buffer at `offset` bytes in, to be written in place and never read, for
+        /// a caller that produces the bytes where they land; `writeAt` is this for a caller that already
+        /// holds them. Asserts that no submit still reads the buffer: a write into one a submit may still
+        /// read goes through the queue, by `stageInto` or `updateInline`. A staging block's or a read-back
+        /// buffer's: a host-written buffer is written through `Uploads`.
         template <class T>
         std::span<T> writable(VkDeviceSize offset, VkDeviceSize count) const
         {

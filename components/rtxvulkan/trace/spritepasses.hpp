@@ -20,14 +20,13 @@ namespace Rtx
     public:
         explicit SpriteBinPass(const Device& device);
 
-        /// Records the bin into `commands`, into a frame's own copy of the list that the frame
-        /// before last finished with. What is recorded after this reads the list through the
-        /// barrier this ends with, and the host reads the report `bin` names after the fence.
+        /// Records the bin into `commands`, into a frame's own copy of the list that the frame before last finished
+        /// with. What is recorded after this reads the list through the barrier this ends with, and the host reads the
+        /// report `bin` names after the fence.
         ///
-        /// @param list the buffer `bin.mList` addresses: the fill that zeroes the head needs its
-        ///        handle, and the assert that the list is as long as `bin` says needs its size.
-        /// @param presence the buffer `bin.mPresence` addresses, zeroed before the pass as the
-        ///        list's head is.
+        /// @param list the buffer `bin.mList` addresses: the fill that zeroes the head needs its handle, and the
+        ///        assert that the list is as long as `bin` says needs its size.
+        /// @param presence the buffer `bin.mPresence` addresses, zeroed before the pass as the list's head is.
         void record(VkCommandBuffer commands, const Shaders::SpriteBinConstants& bin, const Buffer& list,
             const Buffer& presence, GpuTimer* timer) const;
 

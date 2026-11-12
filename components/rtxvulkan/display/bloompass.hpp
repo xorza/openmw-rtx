@@ -20,9 +20,9 @@ namespace Rtx
     /// What a lens does with the light that reached it: the frame's own brightness, spread through
     /// Jorge Jimenez's pyramid (*Next Generation Post Processing in Call of Duty: Advanced
     /// Warfare*) — a thirteen-tap halving per level, the frame's own a Karis average, and a nine-tap
-    /// tent back up, mixed rather than added, for a third of the frame's pixels and none of a Gaussian stack's banding.
-    /// No threshold, because a threshold is a brightness at which the veil switches on. This builds the pyramid and
-    /// `TonePass` spreads it, so `readComposite` stays the trace's own answer that a measurement can hand-compute.
+    /// tent back up, mixed rather than added. No threshold, because a threshold is a brightness at
+    /// which the veil switches on. This builds the pyramid and `TonePass` spreads it, so
+    /// `readComposite` stays the trace's own answer that a measurement can hand-compute.
     class BloomPass
     {
     public:

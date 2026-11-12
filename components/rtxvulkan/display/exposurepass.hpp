@@ -17,17 +17,16 @@ namespace Rtx
 
     /// How bright the frame is, as the one number the display curve scales it by. Two dispatches,
     /// because the reduction has to see every pixel's bin before it can divide by the total. It
-    /// measures the image the curve is about to map, which is the upscaled one wherever something
-    /// upscales. Two buffers, because a picture inside the interface is mapped at one and has no
-    /// past (`getPictureExposure`).
+    /// measures the image the curve is about to map. Two buffers, because a picture inside the
+    /// interface has no past (`getPictureExposure`).
     class ExposurePass
     {
     public:
         explicit ExposurePass(const Device& device);
 
         /// Measures `frame` and moves the answer toward it at a rate in seconds, where `getExposure`
-        /// points, because a brightness that was a pure function of the frame turned every
-        /// one-frame excursion in the histogram into one in the whole image.
+        /// points: a pure function of the frame would turn every one-frame histogram excursion into
+        /// one in the whole image.
         ///
         /// @param frame the finished frame in linear radiance, in `VK_IMAGE_LAYOUT_GENERAL`.
         /// @param elapsedSeconds since the previous frame.

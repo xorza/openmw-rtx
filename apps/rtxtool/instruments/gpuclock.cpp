@@ -128,12 +128,9 @@ namespace RtxTool
         if (!clock.mRead)
             return {};
 
-        // **The mean first, because it is the number a frame time is read against**, with the ends
-        // beside it saying whether the card moved while the frames were drawn. How many readings
-        // made them is what tells a range worth reading from two samples that happened to agree.
-        // **The count is printed whether or not the clock moved.** A card that held still over
-        // twenty-nine readings and one asked once say the same number otherwise, and only the first
-        // of them is a reading to hold a frame time against.
+        // The mean first, being the number a frame time is read against, with the ends saying whether the
+        // card moved. The count is printed whether or not the clock moved: a card that held still over
+        // twenty-nine readings and one asked once say the same number otherwise.
         const std::uint32_t readings = clock.getReadings();
         std::string line = std::format("  clock {} MHz core over {} reading{}{}", clock.mCore.getMeanMhz(), readings,
             plural(readings), spreadOf(clock.mCore));

@@ -68,9 +68,8 @@ namespace RtxTool
     {
         MWBase::World& world = *MWBase::Environment::get().getWorld();
 
-        // **The player goes first, because the ring is read around them and not around the eye.**
-        // A camera placed in a cell nobody stands in is a camera looking at ground the simulation
-        // never asked for.
+        // The player goes first, because the ring is read around them and not around the eye: a camera in a cell
+        // nobody stands in looks at ground the simulation never asked for.
         if (const CellAddress& cell = stop.mStand.mCell; !cell.empty())
         {
             ESM::Position where{};
@@ -80,11 +79,9 @@ namespace RtxTool
                 return Err{ std::format(
                     "no {} is called \"{}\"", cell.isExterior() ? "exterior" : "interior", cell.getSpelling()) };
 
-            // **Where the eye goes and not where the cell centres, where the stop says.** The
-            // position the world found is what stands a player in the cell; a view names the spot
-            // its picture is of, and the ring is the same ring either way. The body faces the look
-            // as well, because a window is the player's own camera and that camera faces what the
-            // body does.
+            // Where the eye goes and not where the cell centres, where the stop says: the ring is the same either
+            // way, and the body faces the look because a window is the player's own camera and that camera faces
+            // what the body does.
             if (stop.mStand.mEye.has_value())
             {
                 where.pos[0] = stop.mStand.mEye->x();
@@ -105,9 +102,9 @@ namespace RtxTool
             world.rotateObject(world.getPlayerPtr(), stop.mStand.getRotation());
         }
 
-        // **Through the globals the console writes and not through the clock's own setters**, which
-        // are `MWWorld::World`'s alone. `set gamehour to` and `set dayspassed to` are the same two
-        // calls, so a stop stands at an hour and a day a player could have typed.
+        // Through the globals the console writes and not the clock's own setters, which are `MWWorld::World`'s
+        // alone: `set gamehour to` and `set dayspassed to` are the same two calls, so a stop stands at an hour and
+        // a day a player could have typed.
         if (stop.mSky.mHour.has_value())
             world.setGlobalFloat(MWWorld::Globals::sGameHour, *stop.mSky.mHour);
 
@@ -126,15 +123,12 @@ namespace RtxTool
         if (stop.mSky.mHour.has_value() || stop.mSky.mDay.has_value() || stop.mSky.mWeather.has_value())
             world.advanceTime(0.0, false);
 
-        // **Seeded again here, where the stop's frames begin**: `SessionRequest::mRandomSeed`
-        // says why the seed the engine started with is not enough. All three generators, because the
-        // world keeps one of its own beside the process's — `AiWander`, `Combat`,
-        // `CharacterController` and `WeatherManager` roll on `World::getPrng` — and the scripts a
-        // third, which the engine seeds from the clock: the fish `cellhandlers.lua` spawns in an
-        // exterior met for the first time are counted and placed by it, and drew another list of
-        // the world's levelled creatures in every run. A stop that seeded fewer would stand its
-        // actors and strike its lightning wherever every stop before it left that stream. After the
-        // move, whose new exteriors the scripts hear on the next update.
+        // Seeded again here, where the stop's frames begin (`SessionRequest::mRandomSeed` says why the engine's
+        // start seed is not enough). All three generators: the process's, the world's own (`AiWander`, `Combat`,
+        // `CharacterController` and `WeatherManager` roll on `World::getPrng`) and the scripts', which the engine
+        // seeds from the clock (`cellhandlers.lua` counts and places the fish of a first-met exterior by it). A stop
+        // that seeded fewer would stand its actors and strike its lightning wherever every stop before it left that
+        // stream. After the move, whose new exteriors the scripts hear on the next update.
         Misc::Rng::init(request.mRandomSeed);
         world.getPrng().seed(request.mRandomSeed);
         MWBase::Environment::get().getLuaManager()->seedRandom(request.mRandomSeed);
@@ -144,10 +138,9 @@ namespace RtxTool
         // accumulated picture converges on the integral rather than on the animation.
         world.getTimeManager()->setSimulationTimeScale(stop.mSchedule.mFrozen ? 0.0f : 1.0f);
 
-        // **Nothing a session does to the player may kill them.** A route flies the body across
-        // the world at whatever speed its view names and leaves it wherever the line ends, and the
-        // player dies of that: measured on `island-crossing`, the game reached `State_Ended` on the
-        // frame the route arrived. A dead player ends the game, which strands every stop after this
+        // Nothing a session does to the player may kill them: a route flies the body across the world at whatever
+        // speed its view names and leaves it wherever the line ends, and a dead player ends the game
+        // (`State_Ended` on the frame the route arrived, on `island-crossing`), which strands every stop after this
         // one. `tgm` is the same call, so a run stands where a player who typed it would.
         if (!world.getGodModeState())
             world.toggleGodMode();
@@ -175,20 +168,17 @@ namespace RtxTool
 
         if (stop.mSchedule.mFreeCamera)
         {
-            // **The walls come off, because a view file names where a camera stands.** Half of them
-            // are inside a rock or over the sea, and a body dropped there either falls or cannot be
-            // put there at all. Before `CameraDriver::begin` reads where the player stands, because
-            // turning collision on calls `World::adjustPosition`, which drops the player onto the
-            // ground.
+            // The walls come off, because a view file names where a camera stands: half of them are inside a rock
+            // or over the sea. Before `CameraDriver::begin` reads where the player stands, because turning
+            // collision on calls `World::adjustPosition`, which drops the player onto the ground.
             turnCollisionOff(world);
             boostPlayer();
         }
         else if (stop.mStand.mEye.has_value() && (stop.mSchedule.mTrack.has_value() || !stop.mStand.mArms.empty()))
         {
-            // **A take's body goes where its camera flies, through whatever is in the way**, so the
-            // cells stream in around the camera and not around a body stopped by a hill it flew
-            // over. **And an armed body is held under its eye** (`CameraDriver::aim`), which
-            // gravity would pull out from under it.
+            // A take's body goes where its camera flies, through whatever is in the way, so the cells stream in
+            // around the camera and not around a body stopped by a hill it flew over; and an armed body is held
+            // under its eye (`CameraDriver::aim`), which gravity would pull out from under it.
             turnCollisionOff(world);
         }
         else if (!world.isActorCollisionEnabled(world.getPlayerPtr()))
@@ -198,25 +188,22 @@ namespace RtxTool
             turnCollisionOn(world);
         }
 
-        // **The navmesh whole before the first frame.** Its tiles are built on a thread of their
-        // own, and an actor told to go somewhere paths over the tiles there are when it asks: a
-        // tile landing a frame earlier or later is a different path, and a different place on
-        // every frame after. Waited for here and not every frame, because a route's cells bring
-        // tiles with them and a frame that waited for those would be measuring the navmesh.
-        // **No hang, as long as it takes**: the wait is the stop's own, and the frame it holds up is
-        // drawn after it.
+        // The navmesh whole before the first frame: its tiles are built on a thread of their own, and an actor told
+        // to go somewhere paths over the tiles there are when it asks, so a tile landing a frame earlier or later is
+        // a different path from then on. Waited for here and not every frame, because a route's cells bring tiles
+        // with them. No hang, as long as it takes: the wait is the stop's own, and the frame it holds up is drawn
+        // after it.
         if (DetourNavigator::Navigator* navigator = world.getNavigator())
         {
             const Crash::HangPause waiting;
             navigator->wait(DetourNavigator::WaitConditionType::allJobsDone, nullptr);
         }
 
-        // **A stop is a discontinuity, and only a worldspace change says so on its own.** A
-        // teleport from Balmora to Vivec stays in one worldspace, so nothing tells the renderer its
-        // history describes somewhere else — and the exposure adapts toward its measurement over
-        // seconds rather than taking it, so a room drawn after a noon exterior opens at the
-        // exterior's brightness. The frame it costs is never measured: a stop measures from the
-        // frame after one that drew the whole world.
+        // A stop is a discontinuity, and only a worldspace change says so on its own: a teleport from Balmora to
+        // Vivec stays in one worldspace, so nothing tells the renderer its history describes somewhere else, and
+        // the exposure adapts toward its measurement over seconds, so a room drawn after a noon exterior opens at
+        // the exterior's brightness. The frame it costs is never measured: a stop measures from the frame after one
+        // that drew the whole world.
         forgetHistory();
 
         return {};
@@ -236,14 +223,11 @@ namespace RtxTool
 
     void Stager::closeMenus()
     {
-        // Popped and not cleared, because a pop is what tells the scripts the mode changed: the
-        // interface script is what paused the world for the menu, and it unpauses on that notice.
-        //
-        // **The menus on the stack and no more, and never until `isGuiMode` says no.** That also
-        // answers yes for the console, the post-processing window and a message box waiting for an
-        // answer, which no pop closes, and a film under M[FR] spun on one for ever at its frame 530.
-        // And only as many pops as there were menus, because a script told of a close may open
-        // another, which the next frame closes: what stays is a pause the measurer reports.
+        // Popped and not cleared, because a pop is what tells the scripts the mode changed: the interface script
+        // paused the world for the menu, and unpauses on that notice. The menus on the stack and no more, and never
+        // until `isGuiMode` says no, which it also does for the console, the post-processing window and a message
+        // box, which no pop closes. Only as many pops as there were menus, because a script told of a close may
+        // open another, which the next frame closes: what stays is a pause the measurer reports.
         MWBase::WindowManager& windows = *MWBase::Environment::get().getWindowManager();
         for (std::size_t open = windows.getGuiModeStack().size(); open > 0 && !windows.getGuiModeStack().empty();
             --open)

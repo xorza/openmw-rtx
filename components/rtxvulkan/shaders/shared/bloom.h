@@ -34,11 +34,10 @@ namespace Rtx::Shaders
 
     /// How many halvings the pyramid is built over.
     ///
-    /// **A count and not a stopping size, so the spread is the same picture at every resolution.**
-    /// A pyramid taken down to a fixed number of texels is a wider blur on a bigger frame, and this
-    /// renderer is looked at through a harness that renders a tenth of the pixels the game does.
-    /// Six halvings put the coarsest level at a sixty-fourth of the frame's width, which is where
-    /// the widest tap of the widest tent sits.
+    /// **A count and not a stopping size, so the spread is the same picture at every resolution**: a pyramid
+    /// taken down to a fixed number of texels is a wider blur on a bigger frame, and the harness renders a
+    /// tenth of the pixels the game does. Six halvings put the coarsest level at a sixty-fourth of the frame's
+    /// width, which is where the widest tap of the widest tent sits.
     const uint BLOOM_LEVELS = 6;
 
     /// How narrow a level may be before it is not worth building.
@@ -57,14 +56,13 @@ namespace Rtx::Shaders
 
         /// One texel of the image being *sampled*, in that image's own texture coordinates.
         ///
-        /// **The source's and not the destination's**, because both kernels are written in taps of
-        /// the image they read: the thirteen-tap downsample reaches two source texels out and the
-        /// nine-tap tent reaches one, and each is a fixed shape in the source's grid whatever the
-        /// destination's is. **And what places a destination texel in the source**: texel `p` of a
-        /// halving is the corner between source texels `2p` and `2p + 1`, which is
-        /// `(2p + 1) × mTexel`, and texel `q` of a spread stands at `(q + ½) / 2` source texels. A
-        /// source of odd width leaves its last column to the wide taps alone, where a destination
-        /// stretched over it put no tap on a corner and drifted half a texel across the level.
+        /// **The source's and not the destination's**, because both kernels are written in taps of the image
+        /// they read: the thirteen-tap downsample reaches two source texels out and the nine-tap tent reaches
+        /// one, each a fixed shape in the source's grid whatever the destination's is. **And what places a
+        /// destination texel in the source**: texel `p` of a halving is the corner between source texels `2p`
+        /// and `2p + 1`, which is `(2p + 1) × mTexel`, and texel `q` of a spread stands at `(q + ½) / 2` source
+        /// texels. A source of odd width leaves its last column to the wide taps alone, where a destination
+        /// stretched over it drifted half a texel across the level.
         vec2 mTexel;
 
         /// How much of what was sampled replaces what the destination already holds.
@@ -86,10 +84,10 @@ namespace Rtx::Shaders
 
 // The pyramid's own format.
 //
-// **Half floats, where the frame is whole ones.** What the pyramid carries is a blurred copy mixed
-// back at a twentieth, so a step of one part in a thousand of it is one part in twenty thousand of
-// the picture — and the levels are read and written far more often than anything else in the frame,
-// which makes their bandwidth the only thing about them that costs.
+// **Half floats, where the frame is whole ones.** The pyramid carries a blurred copy mixed back at a
+// twentieth, so a step of one part in a thousand of it is one in twenty thousand of the picture, and its
+// levels are read and written more than anything else in the frame, so their bandwidth is the only thing
+// about them that costs.
 #define BLOOM_LEVEL STORAGE_RGBA16F
 
 #endif

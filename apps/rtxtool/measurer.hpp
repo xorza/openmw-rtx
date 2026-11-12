@@ -147,11 +147,9 @@ namespace RtxTool
             FilmFrames mFilmFrames{};
             std::size_t mFilmPending = 0;
 
-            /// How many measured frames the world stood paused on, and what paused it: noted on the
-            /// first paused frame ahead of the measurement for its note, and again on the first
-            /// paused measured frame for the failure, so each names its own cause —
-            /// `Stager::describePause`. Twice at most and never per frame, so a stop paused
-            /// throughout allocates two strings.
+            /// How many measured frames the world stood paused on, and what paused it: named on the first paused
+            /// frame ahead of the measurement and again on the first paused measured frame, so each names its own
+            /// cause (`Stager::describePause`). Twice at most and never per frame.
             std::uint32_t mPausedFrames = 0;
             std::string mPausedBy;
 
@@ -164,11 +162,8 @@ namespace RtxTool
             /// how much of the last frame hit something go straight in, and the rest at `finish`.
             BenchPlace mPlace;
 
-            /// Empties it for the next stop, keeping the room the frame series and the zones' rows
-            /// grew — what the longest stop of a run reserves.
-            ///
-            /// **Every field not named is reset by being unnamed**, so a field added to the struct is
-            /// reset here whether or not its author remembered to.
+            /// Empties it for the next stop, keeping the room the frame series and the zones' rows grew. Every field
+            /// not named is reset by being unnamed, so a field added is reset whether or not its author remembered.
             void restart() { Rtx::reuseKeeping(*this, &Progress::mSamples, &Progress::mGpu); }
         };
 

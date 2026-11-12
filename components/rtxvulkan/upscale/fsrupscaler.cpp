@@ -302,26 +302,21 @@ namespace Rtx
             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT
                 | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT };
 
-        /// FSR's frame info at a reset, as the SDK clears it: an exposure it has not measured, `-1`,
-        /// and a log luma of `1e8`, over `resetAutoExposureAverageSmoothing`, which is what tells its
-        /// luma pyramid there is no average to smooth from. Cleared to one, the reset was read as a
-        /// measured log luma of one and the frames after it smoothed from there.
-        ///
-        /// **FSR meters its own exposure, and not the display's.** Handed the display's, last
-        /// frame's, the still frames stood further from the converged reference: the guild 1.20 →
-        /// 1.58 of bias, the pond 1.51 → 1.71, the pier 1.32 → 1.39, the noise the same.
+        /// FSR's frame info at a reset, as the SDK clears it: an exposure it has not measured, `-1`, and a log luma of
+        /// `1e8`, over `resetAutoExposureAverageSmoothing`, which tells its luma pyramid there is no average to smooth
+        /// from. FSR meters its own exposure and not the display's: handed the display's, last frame's, the still
+        /// frames stood further from the converged reference (the guild's bias 1.20 -> 1.58, the pond 1.51 -> 1.71, the
+        /// pier 1.32 -> 1.39).
         constexpr VkClearColorValue sFreshFrameInfo{ .float32 = { -1.0f, 1e8f, 0.0f, 0.0f } };
     }
 
     namespace
     {
-        /// The images a frame writes whole before it reads them and no frame after reads, which the
-        /// frame's arena places (`ImageArena`): those the SDK flags aliasable
-        /// (`FFX_RESOURCE_FLAGS_ALIASABLE`), and the three it has an application make, which the
-        /// first pass writes whole or a frame clears. **Not the new locks**, which the SDK flags
-        /// aliasable too: the accumulation pass clears them for the next frame's reactivity pass,
-        /// which sets only the locks it finds (`ffx_fsr3upscaler_accumulate.h`). In the order
-        /// `declareShared` declares them.
+        /// The images a frame writes whole before it reads them and no frame after reads, which the frame's arena
+        /// places (`ImageArena`): those the SDK flags aliasable (`FFX_RESOURCE_FLAGS_ALIASABLE`), and the three it has
+        /// an application make, which the first pass writes whole or a frame clears. Not the new locks, which the SDK
+        /// flags aliasable too: the accumulation pass clears them for the next frame's reactivity pass, which sets only
+        /// the locks it finds (`ffx_fsr3upscaler_accumulate.h`). In the order `declareShared` declares them.
         enum class Shared : std::uint8_t
         {
             Intermediate,
@@ -691,25 +686,19 @@ namespace Rtx
             dispatch(commands, pipeline, writes, NoConstants{}, groups);
         };
 
-        // The SDK's clears, ahead of the passes: at a reset, the accumulation read this frame, the
-        // SPD mips and an unmeasured exposure; every frame, the reconstructed depth its atomics take
-        // the largest into, the SPD counter, and the SPD mips again, which the SDK clears so a level
-        // is never read where nothing wrote it.
+        // The SDK's clears, ahead of the passes: at a reset, the accumulation read this frame, the SPD mips and an
+        // unmeasured exposure; every frame, the reconstructed depth its atomics take the largest into, the SPD counter,
+        // and the SPD mips again, which the SDK clears so a level is never read where nothing wrote it.
         //
-        // **In the general layout the passes use, and ordered by the one barrier after them**: the
-        // last frame's passes over these images are behind the head barrier the buffer opens with
-        // (`CommandPool::begin`), so a transition into a clear's own layout and back out of it was
-        // two barriers an image ordering nothing `between` does not.
+        // In the general layout the passes use, and ordered by the one barrier after them: the last frame's passes over
+        // these images are behind the head barrier the buffer opens with (`CommandPool::begin`), so a transition into a
+        // clear's own layout and back was two barriers an image ordering nothing between does not need.
         //
-        // **The images the frame's arena holds are laid out first**, from what held their memory
-        // before them in this buffer, if anything did: the SDK clears two of them, and the passes
-        // write the rest whole before reading them.
-        //
-        // **Its own images are laid out by the first frame after they were made**, in its own
-        // buffer and not in a submit a resize waits for, and cleared whole: the SDK clears the four
-        // it reads before writing and leaves the rest to its passes, and a frame that read one
-        // uncleared texel differs from the next run of itself, which `repeat` reads as a hazard. The
-        // first frame is a reset, whose clears follow behind one barrier more.
+        // The images the frame's arena holds are laid out first, from what held their memory before them in this
+        // buffer: the SDK clears two of them, and the passes write the rest whole before reading them. Its own images
+        // are laid out by the first frame after they were made, in its own buffer and not in a submit a resize waits
+        // for, and cleared whole: a frame that read one uncleared texel differs from the next run of itself, which
+        // `repeat` reads as a hazard. The first frame is a reset, whose clears follow behind one barrier more.
         const bool unlaid = !std::exchange(targets.mLaidOut, true);
         Barriers laid(commands);
         if (unlaid)

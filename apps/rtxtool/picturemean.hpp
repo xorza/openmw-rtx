@@ -6,15 +6,11 @@
 
 namespace RtxTool
 {
-    /// A running mean of pictures of one size, four bytes a pixel, byte for byte: what `noise`
-    /// averages a frame's independent draws into, which is the picture that frame converges to.
-    /// **Kept between the bytes**, on `PngImage`'s sixteen-bit scale: a mean rounded to a byte
-    /// moves `noise`'s figures by up to half a level a pixel, the size of the differences an A/B
-    /// decides on.
-    ///
-    /// **In the bytes the picture is shown in**, because what `noise` asks of a frame is how far
-    /// what a player sees stands from what it would settle to, and the display curve stands between
-    /// the radiance and that.
+    /// A running mean of pictures of one size, four bytes a pixel: what `noise` averages a frame's independent
+    /// draws into, which is the picture that frame converges to. Kept between the bytes, on `PngImage`'s
+    /// sixteen-bit scale: a mean rounded to a byte moves `noise`'s figures by up to half a level a pixel, the size
+    /// of the differences an A/B decides on. Of the bytes the picture is shown in, because `noise` asks how far what
+    /// a player sees stands from what it would settle to, and the display curve stands between radiance and that.
     class PictureMean
     {
     public:

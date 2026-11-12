@@ -22,12 +22,10 @@ namespace MyGUIPlatform
 
     /// MyGUI's render manager, plus the calls MyGUI does not declare and every backend needs.
     ///
-    /// **Neutral, despite where it lives**: this is MyGUI's own interface with two lifetime hooks
-    /// on it, the scale its view is laid out at, and one route for a picture, and it has no idea
-    /// what draws. It is here and not beside the ray tracer because upstream's `Platform` owns it
-    /// and calls the two hooks, and that is the whole reason: the log and the data manager beside it
-    /// are the same either way, and it is only the render manager that is anybody's. A MyGUI type that names a backend
-    /// — the layer that draws additively — is the backend's own, registered through `registerFactories`.
+    /// **Neutral, despite where it lives**: MyGUI's own interface with two lifetime hooks, the scale its view
+    /// is laid out at, and one route for a picture, and no idea what draws. It is here because upstream's
+    /// `Platform` owns it and calls the two hooks. A MyGUI type that names a backend — the layer that draws
+    /// additively — is the backend's own, registered through `registerFactories`.
     class GuiRenderManager : public MyGUI::RenderManager
     {
     public:
@@ -62,16 +60,13 @@ namespace MyGUIPlatform
 
         /// A picture the game holds as an `osg::Texture2D` over an `osg::Image`, drawn from there.
         ///
-        /// **The one route from a picture in main memory to the interface.** The fog of war, the
-        /// world map, a save's thumbnail and a video frame are all `osg::Image`s the game writes and
-        /// then marks dirty, which is how upstream hands them to the rasterizer: it draws the texture
-        /// as it stands. A backend that never opens a GL context mirrors the image instead, and reads
-        /// it again whenever `osg::Image::getModifiedCount` says it changed — so a caller writes the
-        /// image the way it always did and never asks which backend it got.
+        /// **The one route from a picture in main memory to the interface.** The fog of war, the world map, a
+        /// save's thumbnail and a video frame are `osg::Image`s the game writes and then marks dirty. A
+        /// backend that never opens a GL context mirrors the image instead and reads it again whenever
+        /// `osg::Image::getModifiedCount` says it changed, so a caller never asks which backend it got.
         ///
-        /// The texture and its image are the caller's to write. What comes back holds a reference to
-        /// the texture, so a picture with no other owner — a save's thumbnail, decoded and handed
-        /// over — stands as long as it is drawn.
+        /// The texture and its image are the caller's to write. What comes back holds a reference to the
+        /// texture, so a picture with no other owner — a save's thumbnail — stands as long as it is drawn.
         virtual std::unique_ptr<MyGUI::ITexture> shareTexture(osg::Texture2D& texture) = 0;
 
         /// The same, for a picture whose painter says where it painted: a backend that mirrors the

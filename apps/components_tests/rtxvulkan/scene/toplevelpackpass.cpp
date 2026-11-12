@@ -26,14 +26,13 @@ namespace Rtx
         {
         };
 
-        /// **The rows that place an instance, packed in slot order, and no others.** 700 rows by
-        /// slot, of which slots 0, 255, 256, 300, 511, 512 and 699 place one: the first and the last
-        /// row of a block, the first of the next and one inside it, and the last row of the table,
-        /// whose block ends short of whole. Every row carries its slot as its custom index and a
-        /// transform that is not nought, and a placed one a reference naming its slot — slot 300's
-        /// in its high word alone, so a test of the low word would lose it. The blocks of 256 place
-        /// 2, 3 and 2, so the starts are 0, 2 and 5, and the packing is the seven rows in slot order.
-        /// What follows them is left as it was.
+        /// **The rows that place an instance, packed in slot order, and no others.** 700 rows by slot, of which slots
+        /// 0, 255, 256, 300, 511, 512 and 699 place one: the first and last row of a block, the first of the next and
+        /// one inside it, and the last row of the table, whose block ends short of whole. Every row carries its slot
+        /// as its custom index and a transform that is not nought, and a placed one a reference naming its slot, slot
+        /// 300's in its high word alone, so a test of the low word would lose it. The blocks of 256 place 2, 3 and 2,
+        /// so the starts are 0, 2 and 5, and the packing is the seven rows in slot order. What follows them is left as
+        /// it was.
         TEST_F(RtxTopLevelPackPassTest, theRowsThatPlaceArePackedInSlotOrderAndNoOthers)
         {
             const Device& device = getDevice();

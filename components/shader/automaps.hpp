@@ -92,22 +92,19 @@ namespace Shader
     /// `ShaderVisitor` puts them and where `SceneUtil::RigGeometry` poses them from.
     inline constexpr unsigned int sTangentUnit = 7;
 
-    /// The unit whose coordinates `geometry`'s unit `unit` is read through: its own, or unit
-    /// nought's where it has none, or, where unit nought has none either, the first unit that has
-    /// some other than `sTangentUnit`, whose array holds tangents once they are built. Nothing
-    /// where the geometry has no coordinates. The one rule for both renderers:
-    /// `ShaderVisitor::adjustGeometry` binds unit nought's by it, and `MapVisitor` reads a normal
-    /// map's tangents through it.
+    /// The unit whose coordinates `geometry`'s unit `unit` is read through: its own, or unit nought's,
+    /// or the first other than `sTangentUnit` (whose array holds tangents once built). Nothing where the
+    /// geometry has no coordinates. The one rule for both renderers (`ShaderVisitor::adjustGeometry` and
+    /// `MapVisitor`).
     std::optional<unsigned int> coordinatesFor(const osg::Geometry& geometry, unsigned int unit);
 
     /// Builds `geometry`'s tangents at `sTangentUnit` with `osgUtil::TangentSpaceGenerator`, from
     /// the coordinates at `unit`, which the caller found it has.
     void generateTangents(osg::Geometry& geometry, unsigned int unit);
 
-    /// What a renderer that runs no `ShaderVisitor` still needs of it, and nothing else: the
-    /// companion maps, and the tangents a normal map is read through. It visits the state sets the
-    /// shader visitor visits and applies the same rules, so both renderers find the same maps and
-    /// read them through the same tangents.
+    /// What a renderer that runs no `ShaderVisitor` still needs of it: the companion maps and the
+    /// tangents a normal map is read through, by the same rules over the same state sets, so both
+    /// renderers find the same maps.
     class MapVisitor : public osg::NodeVisitor
     {
     public:

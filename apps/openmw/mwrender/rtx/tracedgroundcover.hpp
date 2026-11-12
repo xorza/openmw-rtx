@@ -27,9 +27,8 @@ namespace MWRender
     /// and reduced over the files as its chunk reduces them, and the model `GroundcoverStore` names
     /// for each record.
     ///
-    /// **Read per cell where the rasterizer reads per chunk.** Its chunk resets the density at
-    /// every cell and counts a reference before it asks the chunk's border, so a cell keeps the
-    /// same plants under any chunk that covers it, and this keeps those.
+    /// Read per cell where the rasterizer reads per chunk: its chunk resets the density at every cell, so a
+    /// cell keeps the same plants under any chunk that covers it.
     class TracedGroundcover final : public Rtx::GroundcoverSource
     {
     public:

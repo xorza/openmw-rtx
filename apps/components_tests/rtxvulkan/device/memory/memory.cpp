@@ -110,11 +110,9 @@ namespace Rtx
 
         /// A thousand small resources come out of one allocation rather than a thousand.
         ///
-        /// **What the allocator exists for.** A cell of Morrowind brings a few hundred textures and
-        /// each carries a shading map of two kilobytes, so an allocation apiece is four figures of
-        /// kernel-visible calls for the cell the game starts in, each for two kilobytes the driver
-        /// rounds up to its own granularity. Two megabytes fit inside one block, so the honest claim
-        /// is one and the assertion allows no more.
+        /// **What the allocator exists for.** A cell of Morrowind brings a few hundred textures each with a
+        /// two-kilobyte shading map, so an allocation apiece is four figures of kernel-visible calls, each rounded up
+        /// to the driver's granularity. Two megabytes fit inside one block, so the honest claim is one.
         TEST_F(RtxMemoryTest, aThousandSmallResourcesComeOutOfOneAllocation)
         {
             MemoryAllocator& memory = getDevice().getMemory();
@@ -151,9 +149,8 @@ namespace Rtx
 
         /// A range given back is what the next resource of that size takes.
         ///
-        /// **What makes a cell leaving pay for the cell arriving.** The hole a departing texture
-        /// leaves is the hole the next one lands in — no call into the driver, and no block that
-        /// grows for ever.
+        /// **What makes a cell leaving pay for the cell arriving.** The hole a departing texture leaves is the hole
+        /// the next one lands in: no driver call, and no block that grows for ever.
         TEST_F(RtxMemoryTest, aRangeGivenBackIsTakenOverByTheNextResource)
         {
             MemoryAllocator& memory = getDevice().getMemory();
@@ -181,12 +178,12 @@ namespace Rtx
             EXPECT_EQ(memory.getBlockCount(), after) << "taking over a hole made a new allocation";
         }
 
-        /// A buffer starts where its use owes, past the driver's alignment, out of either path; and
-        /// buffers alone sit closer together than the device's buffer-image granularity.
+        /// A buffer starts where its use owes, past the driver's alignment, out of either path; and buffers alone sit
+        /// closer together than the device's buffer-image granularity.
         ///
-        /// **The library is told a buffer is a buffer** (`vmaAllocateMemoryForBuffer`), so it keeps
-        /// the granularity only where an image is a neighbour. Asked as a resource of no known kind, it
-        /// kept a kilobyte between every two buffers on this card.
+        /// **The library is told a buffer is a buffer** (`vmaAllocateMemoryForBuffer`), so it keeps the granularity
+        /// only where an image is a neighbour. Asked as a resource of no known kind, it kept a kilobyte between every
+        /// two buffers on one card.
         TEST_F(RtxMemoryTest, aBufferStartsWhereItsUseOwesAndBuffersPackPastTheGranularity)
         {
             const Device& device = getDevice();
@@ -273,13 +270,10 @@ namespace Rtx
             }
         }
 
-        /// The report accounts for every block, and a range taken moves the live figure and not the
-        /// reserved one.
+        /// The report accounts for every block, and a range taken moves the live figure and not the reserved one.
         ///
-        /// **The figure has to be real before anything can be decided on it.** A card whose
-        /// host-visible heap is a couple of hundred megabytes fails on a number nothing in this
-        /// renderer could state, so this is what says the number means something: reserved is what
-        /// `vkAllocateMemory` asked for, live is what is inside it, and one never exceeds the other.
+        /// **The figure has to be real before anything can be decided on it.** Reserved is what `vkAllocateMemory`
+        /// asked for, live is what is inside it, and one never exceeds the other.
         TEST_F(RtxMemoryTest, theReportCountsWhatWasReservedAndWhatIsLive)
         {
             MemoryAllocator& memory = getDevice().getMemory();
@@ -340,10 +334,9 @@ namespace Rtx
 
         /// Blocks that empty go back to the device.
         ///
-        /// **What a load's staging costs after the load.** A world's geometry goes to the device
-        /// through 184 MiB of staging blocks, measured at Seyda Neen, and nothing reads them again —
-        /// so a block that empties goes back to the device rather than standing until the renderer
-        /// closes.
+        /// **What a load's staging costs after the load.** A world's geometry goes to the device through 184 MiB of
+        /// staging blocks, measured at Seyda Neen, and nothing reads them again, so an emptied block is returned
+        /// rather than kept until the renderer closes.
         TEST_F(RtxMemoryTest, blocksThatEmptyGoBackToTheDevice)
         {
             MemoryAllocator& memory = getDevice().getMemory();
@@ -372,11 +365,9 @@ namespace Rtx
 
         /// With no room left, content is refused and the frame's own memory is made.
         ///
-        /// **Both ways content comes to new memory**: forty megabytes, more than half a block, is
-        /// an allocation of its own, and four kilobytes is a range of a block — which, with every
-        /// gap filled and every ceiling at nought, has nowhere to go. The same forty megabytes as
-        /// the frame's are made where the ceilings say there is nothing, because nothing stands in
-        /// for them.
+        /// **Both ways content comes to new memory**: forty megabytes, more than half a block, is an allocation of its
+        /// own, and four kilobytes is a range of a block, which with every gap filled and every ceiling at nought has
+        /// nowhere to go. The same forty megabytes as the frame's are made where the ceilings say there is nothing.
         TEST_F(RtxMemoryTest, withNoRoomContentIsRefusedAndTheFramesOwnMemoryIsMade)
         {
             const Testing::NoRoomForContent full(getDevice());
@@ -432,27 +423,19 @@ namespace Rtx
             EXPECT_EQ(held()[2], before[2]) << "a range given back was still counted";
         }
 
-        /// Each use's room is what content's blocks have free and the whole blocks its ceiling leaves,
-        /// and the ceiling of each stands below the one before it by what the one before it holds.
+        /// Each use's room is what content's blocks have free and the whole blocks its ceiling leaves, and the ceiling
+        /// of each stands below the one before it by what the one before it holds.
         ///
-        /// **Hand-computed from the heap's own figures.** The budget is set to what the heap holds —
-        /// what the process holds outside the allocator among it, once — plus what essential memory
-        /// holds, owed once more, plus three blocks and a megabyte: the structures' ceiling is then
-        /// three blocks and a megabyte above the heap, which is three whole blocks. The memory
-        /// outside the allocator is more than that megabyte — eight of it made here, since what a
-        /// driver holds beside the allocator is its own: NVIDIA's holds some, and AMD's Windows driver
-        /// counts a low-end AMD integrated GPU's heap as the allocator's blocks alone — so counted twice it would
-        /// leave two. The textures' stands
-        /// lower by the forty-eight megabytes of structure held here and whatever other structures
-        /// the binary's device holds, which the heap's own count says; the megabyte is there so the
-        /// division by a block does not land on its edge.
+        /// **Hand-computed from the heap's own figures.** The budget is set to what the heap holds (the process's
+        /// memory outside the allocator counted once) plus what essential memory holds, owed once more, plus three
+        /// blocks and a megabyte: the structures' ceiling is then three whole blocks above the heap, and the megabyte
+        /// keeps the division by a block off its edge. The textures' ceiling stands lower by the structure held here
+        /// and whatever other structures the device holds.
         ///
-        /// **The frame's targets are owed their reserve and not themselves once more**: a frame
-        /// target of sixteen megabytes held, and a reserve of exactly what the targets hold, leave
-        /// the three blocks; a reserve two blocks beyond it leaves one.
-        ///
-        /// **Content fits to the byte**: under a budget that puts the textures' ceiling at the heap
-        /// it fits, and under one a byte less, or with a reserve a byte more, it does not.
+        /// **The frame's targets are owed their reserve and not themselves once more**: sixteen megabytes held and a
+        /// reserve of exactly that leave the three blocks; a reserve two blocks beyond it leaves one. **Content fits
+        /// to the byte**: under a budget that puts the textures' ceiling at the heap it fits, and a byte less, or a
+        /// reserve a byte more, it does not.
         TEST_F(RtxMemoryTest, eachUseStopsWhereTheUsesBeforeItCouldBeMadeOnceMore)
         {
             MemoryAllocator& memory = getDevice().getMemory();

@@ -24,9 +24,8 @@ namespace Rtx
     ///
     /// **Named once and counted.** Each distinct refusal — its kind, its name and its reason — goes
     /// to the log the first time it is met, in one shape at one level, and is counted by kind; a
-    /// lamp refused every frame is one refusal. A repeat allocates nothing, so a value refused on
-    /// the frame path is reported where it is met. The frame's thread only: what cannot reach it
-    /// holds its refusals as `Refusal` and hands them over.
+    /// lamp refused every frame is one refusal. A repeat allocates nothing. The frame's thread
+    /// only: what cannot reach it holds its refusals as `Refusal` and hands them over.
     class Refusals
     {
     public:

@@ -7,12 +7,11 @@
 
 // A digest of the frame's images, taken on the device: what a comparison of two runs compares
 // where the picture past an upscaler is the upscaler's and not this renderer's. `digest.comp`
-// folds every texel of every image into four words an image, a workgroup at a time, and the host
-// folds the words of the texels the same way in a test, so the two are one function of an image's
-// bits and neither trusts the other.
+// folds every texel of every image into four words an image, and the host folds the words of the
+// texels the same way in a test, so the two are one function of an image's bits.
 //
 // **Four words, each a sum or an exclusive-or over the texels.** Both are commutative, so the
-// order the workgroups land in — which is the device's and never the same twice — cannot reach the
+// order the workgroups land in, which is the device's and never the same twice, cannot reach the
 // answer. Two independent mixes of each texel, kept apart as a sum and as an exclusive-or, are a
 // hundred and twenty-eight bits a single changed bit anywhere in the image moves.
 

@@ -38,14 +38,12 @@
 
 namespace Rtx::Testing
 {
-    /// A particle system under a transform that carries its texture, its blend and its
-    /// material, the way `NifOsg` builds one: the material reads the vertex for its colour,
-    /// which is what the loader gives every particle system a file does not say otherwise for.
+    /// A particle system under a transform that carries its texture, its blend and its material, the way
+    /// `NifOsg` builds one: the material reads the vertex for its colour.
     ///
-    /// The emitter's own state set sets none of them, which is what makes this a test of the
-    /// walk up the path rather than of the drawable: a `ParticleSystem` really does carry an
-    /// empty state set of its own in the shipped content, and asking it for the blend answers
-    /// "covers" for every flame in the game.
+    /// The emitter's own state set sets none of them, which is what makes this a test of the walk up the path
+    /// rather than of the drawable: a `ParticleSystem` carries an empty state set of its own in the shipped
+    /// content, and asking it for the blend answers "covers" for every flame in the game.
     struct Plume
     {
         osg::ref_ptr<osg::MatrixTransform> mRoot;
@@ -98,17 +96,13 @@ namespace Rtx::Testing
 
     /// Puts the shared random sequence back where it started.
     ///
-    /// **`osgParticle` draws from `std::rand` for every range it reads**, the single-value ones
-    /// these fixtures set included — so a plume run from two different points in that sequence is
-    /// two different plumes, and a test comparing the two measures the sequence rather than what it
-    /// meant to. The harness's `--random-seed` (`hosted.cpp`) is the same problem where a whole run
-    /// is compared with another, with the driver drawing from the sequence too; here the difference
+    /// **`osgParticle` draws from `std::rand` for every range it reads**, the single-value ones these fixtures
+    /// set included, so a plume run from two different points in that sequence is two different plumes. The
+    /// harness's `--random-seed` (`hosted.cpp`) is the same problem across a whole run; here the difference
     /// measured was one unit in the last place of a height.
     ///
-    /// **Called per run and not once per test, which is why no fixture set-up does it.** The first
-    /// run advances the sequence, so a reset at the top of the test would leave the second run
-    /// starting somewhere else. Which point the sequence is put back to does not matter, only that
-    /// both runs get the same one.
+    /// **Called per run and not once per test**: the first run advances the sequence, so a reset at the top of
+    /// the test would leave the second run starting somewhere else. Only that both runs get the same point matters.
     inline void resetRandom()
     {
         std::srand(1);
@@ -116,10 +110,8 @@ namespace Rtx::Testing
 
     /// The scene every test here fills, and the walk that fills it.
     ///
-    /// **Held by the fixture rather than opened by each test**, because the pair is what a test of
-    /// the extractor is made of, and the transform and the anchor a walk takes are the same in
-    /// nearly all of them. A test that wants a second scene, or a fresh walk on every call of a
-    /// lambda, still builds its own — and says something by doing it.
+    /// **Held by the fixture rather than opened by each test**, because the transform and the anchor a walk
+    /// takes are the same in nearly all of them. A test that wants a second scene still builds its own.
     class RtxSceneExtractorTest : public ::testing::Test
     {
     protected:

@@ -32,11 +32,9 @@ namespace Rtx
 
         /// What a copy would be written from, and what it would be written with.
         ///
-        /// **Most of these tests ask the bookkeeping and not the picture**: the debt — which rows a
-        /// copy is about to be given — is where every one of the failures this type replaced lived,
-        /// a copy that was never told about a row it had to have. What a copy holds is read back on
-        /// the queue where a test asks it (`readCopy`): a host-written buffer is never read by the
-        /// host.
+        /// **Most of these tests ask the bookkeeping and not the picture**: the debt, which rows a copy is about to be
+        /// given, is where every failure this type replaced lived. What a copy holds is read back on the queue where a
+        /// test asks it (`readCopy`).
         /// A debt as a vector, in the order it was named, which is what a gtest comparison takes.
         std::vector<Index> listed(std::span<const Index> owed)
         {
@@ -52,11 +50,8 @@ namespace Rtx
                 mTable.open(getDevice(), 2, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "test");
             }
 
-            /// Which rows `slot` is owed, sorted so that a debt compares equal whatever order it
-            /// arrived in.
-            ///
-            /// **Not deduplicated**, because whether a row is named twice is one of the things these
-            /// tests are asking about.
+            /// Which rows `slot` is owed, sorted so that a debt compares equal whatever order it arrived in. **Not
+            /// deduplicated**, because whether a row is named twice is one of the things these tests ask about.
             std::vector<Index> owedBy(std::uint32_t slot)
             {
                 std::vector<Index> sorted = listed(mTable.getOwed(FrameSlot{ slot }));
@@ -232,9 +227,8 @@ namespace Rtx
 
         /// A copy's buffer grows with the table and never with the frame count.
         ///
-        /// **Doubling has to be asked for and not taken.** A growth strategy applied whether or not
-        /// the buffer is too small remakes it on every sync, twice as large each time, and a run of
-        /// a few hundred frames ends at `VK_ERROR_OUT_OF_DEVICE_MEMORY`.
+        /// **Doubling has to be asked for and not taken.** A growth strategy applied whether or not the buffer is too
+        /// small remakes it on every sync, twice as large each time, and ends at `VK_ERROR_OUT_OF_DEVICE_MEMORY`.
         TEST_F(RtxSlotTableTest, syncingWithoutGrowingLeavesTheBufferWhereItIs)
         {
             mTable.grow(64);
@@ -382,12 +376,10 @@ namespace Rtx
 
         /// A copy's sync waits for the submit that took the copy's address, and for nothing else.
         ///
-        /// **The copy knows its reader; nothing beside it does.** A placement writes the copy the
-        /// frame before last read, and a count of frames kept by the renderer, the obvious judge of
-        /// whether that frame is done, is exact for a frame's trace and wrong for a picture the
-        /// interface's own submit carried. `addressFor` stamps the copy with the value of whatever submit takes
-        /// it, and `finishReads` waits for that value. Held on the queue while this thread waits,
-        /// so the wait cannot return before the hold opens and lasts at least the hold's length.
+        /// **The copy knows its reader; nothing beside it does.** A count of frames kept by the renderer is exact for
+        /// a frame's trace and wrong for a picture the interface's own submit carried. `addressFor` stamps the copy
+        /// with the value of whatever submit takes it, and `finishReads` waits for that value. Held on the queue while
+        /// this thread waits, so the wait cannot return before the hold opens.
         TEST_F(RtxSlotTableTest, syncingWaitsForTheSubmitThatTookTheCopysAddress)
         {
             mTable.grow(1);

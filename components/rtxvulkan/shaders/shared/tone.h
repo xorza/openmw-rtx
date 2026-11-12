@@ -58,12 +58,11 @@ namespace Rtx::Shaders
     /// What the display pass is told: the size of the picture, and what is drawn on it that the
     /// trace could not draw.
     ///
-    /// **Its own pass rather than the composite's last line, and the split is what upscaling
-    /// needs.** An upscaler reconstructs from scene-referred radiance across several frames; a
-    /// picture already squeezed through a display curve has had its highlights flattened into each
-    /// other, and no amount of reconstruction gets them back. So the curve has to come after
-    /// whatever upscales, at that pass's resolution and not the trace's — which is also why the
-    /// sky's point sources are drawn here.
+    /// **Its own pass rather than the composite's last line, and the split is what upscaling needs.** An
+    /// upscaler reconstructs from scene-referred radiance across several frames, and a picture already
+    /// squeezed through a display curve has had its highlights flattened into each other beyond recovery, so
+    /// the curve comes after whatever upscales, at that pass's resolution and not the trace's, which is also
+    /// why the sky's point sources are drawn here.
     struct ToneConstants
     {
         /// The frame's sprite tile list and what its tiles can meet, `VisibilityConstants::mTables`'s:
@@ -82,10 +81,10 @@ namespace Rtx::Shaders
 
         /// The trace's own extent, which is what `Channel::Backdrop` is written at.
         ///
-        /// **Two extents because an upscaler stands between them**, and the other is the camera's.
-        /// What this pass writes is one pixel of the picture; what it asks about a pixel — how much
-        /// of the backdrop is left in front of what is drawn there — was answered at whatever the
-        /// trace ran at, and at `performance` that is a quarter as many pixels.
+        /// **Two extents because an upscaler stands between them**, and the other is the camera's. What this
+        /// pass writes is one pixel of the picture; what it asks about a pixel, how much of the backdrop is left
+        /// in front of what is drawn there, was answered at whatever the trace ran at, a quarter as many pixels
+        /// at `performance`.
         uint mTracedWidth;
         uint mTracedHeight;
 
@@ -104,20 +103,19 @@ namespace Rtx::Shaders
         /// The frame's camera at *this* pass's extent, with no jitter — and so the extent the pass
         /// covers.
         ///
-        /// **The same basis and a different grid.** `rayAt` divides by the camera's own extent, so a
-        /// camera carrying the output's is what turns an output pixel into the ray it shows. The
-        /// jitter is the trace's: it moves a sample inside its pixel so an upscaler can accumulate
-        /// several, and a pass that draws once at the resolution it is shown at wants the centre.
+        /// **The same basis and a different grid.** `rayAt` divides by the camera's own extent, so a camera
+        /// carrying the output's turns an output pixel into the ray it shows. The jitter is the trace's, moving a
+        /// sample inside its pixel so an upscaler can accumulate several; a pass that draws once at the
+        /// resolution it is shown at wants the centre.
         Camera mCamera;
 
         /// How much of the bloom pyramid is left in the picture, and one texel of its finest level.
         ///
-        /// **The lens is applied here because everything before this pass is the trace's own
-        /// frame.** A veil written back over the radiance image would be a measurement nobody could
-        /// hand compute, and would make the composite mean one thing with an upscaler in the frame
-        /// and another without one. `BloomPass` builds the pyramid and this spreads its finest
-        /// level over the picture — which also saves the full-resolution pass a separate blend
-        /// would cost.
+        /// **The lens is applied here because everything before this pass is the trace's own frame.** A veil
+        /// written back over the radiance image would be a measurement nobody could hand compute, and would make
+        /// the composite mean one thing with an upscaler in the frame and another without. `BloomPass` builds the
+        /// pyramid and this spreads its finest level over the picture, which also saves the full-resolution pass
+        /// a separate blend would cost.
         ///
         /// Nought is no lens, which is what a doll and a map tile are drawn with: the pyramid is the
         /// frame's and neither of those is a frame. The shader samples nothing at all where this is
@@ -127,10 +125,12 @@ namespace Rtx::Shaders
 
         /// The star field, drawn here rather than by the trace.
         ///
-        /// **A point source is what a temporal upscaler removes**: a star one traced pixel wide is
-        /// averaged away across frames, and one the traced grid misses is never there. So the field is drawn where it
-        /// is shown, and the trace draws the rest of the sky — and hands this pass `Channel::Backdrop`, because a moon,
-        /// a deck, a pane, the water and the air all stand between the field and the eye and none of them is here.
+        /// **A point source is what a temporal upscaler removes**: a star one traced pixel wide is averaged
+        /// away across frames, and one the traced grid misses is never there. So the field is drawn where it is
+        /// shown, and the trace draws the rest of the sky and hands this pass `Channel::Backdrop`, because a
+        /// moon, a deck, a pane, the water and the air all stand between the field and the eye and none of them
+        /// is here.
+
         StarField mStars;
 
         /// The sun glare fader's wash: its colour, and how much of it this frame lays over the

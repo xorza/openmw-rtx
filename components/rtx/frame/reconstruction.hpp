@@ -199,18 +199,15 @@ namespace Rtx
         /// sequence then runs on without a period.
         std::uint32_t mJitterPhases = 0;
 
-        /// What every texture level is offset by, in levels: the shown pixel's cone is narrower
-        /// than the traced one by the upscaler's ratio, and a level chosen for the traced pixel
-        /// reads every texture that much coarser than the picture shows — `log2(render / display)`,
-        /// plus the request's epsilon. Where nothing upscales the epsilon stands on its own.
+        /// What every texture level is offset by, in levels: the shown pixel's cone is narrower than the
+        /// traced one by the upscaler's ratio, so a level chosen for the traced pixel reads every texture that
+        /// much coarser than the picture shows — `log2(render / display)`, plus the request's epsilon. Where
+        /// nothing upscales the epsilon stands on its own.
         ///
-        /// **The shown pixel's own level, and not FSR's guide's one finer.** The guide has
-        /// `log2(render / display) - 1`, for a frame the upscaler accumulates across jitter phases.
-        /// Held against the truth, that level was the sharper one and the noisier: at quality the
-        /// Seyda Neen shore's frame stood 0.92 from the reference blurred by 1.5 pixels and moved
-        /// 0.60 from its own mean, and at the shown pixel's level 0.75 and 0.54 — the pond 1.55 and
-        /// 1.30, and every mode and place of the noise suite no worse on either. Half a level
-        /// coarser moved the noise down again and the bias up: 0.80, the pond 1.38.
+        /// **The shown pixel's own level, and not FSR's guide's one finer** (`log2(render / display) - 1`).
+        /// Against the truth that level was the sharper and the noisier: at quality the Seyda Neen shore's
+        /// frame stood 0.92 from the reference blurred by 1.5 pixels and moved 0.60 from its own mean, and at
+        /// the shown pixel's level 0.75 and 0.54; half a level coarser moved the noise down and the bias up.
         float mLevelBias = 0.0f;
 
         /// Where the trace's draws came from: the request's, and the tile for a picture.
@@ -226,13 +223,11 @@ namespace Rtx
         FilterSwitches mFilters = sNoFilterSwitches;
 
         /// Whether the eye meets a soft edge's texels under the cut by their alpha
-        /// (`VisibilityConstants::mSoftEdgeDither`), a draw right only on average: a world's frame,
-        /// which the eye, the upscaler and the filters each take over time, and not a picture, which
-        /// stands alone and would show such a draw as stipple on a doll's hair. **Not under an
-        /// upscaler that filters the light itself**, unless a run names it: each frame's cut moved the
-        /// guides it reads at a leaf's edge, and cut, the pond under the trees stood less noisy on both
-        /// legs, 1.24 against 1.28 and its p99 8.00 against 9.06 strafed
-        /// (`research/2026-11-11-ray-reconstruction-against-super-resolution.md`).
+        /// (`VisibilityConstants::mSoftEdgeDither`), a draw right only on average: a world's frame, which the
+        /// eye, the upscaler and the filters each take over time, and not a picture, which would show it as
+        /// stipple. **Not under an upscaler that filters the light itself**, unless a run names it: each
+        /// frame's cut moved the guides it reads at a leaf's edge, and cut, the pond under the trees stood
+        /// less noisy (`research/2026-11-11-ray-reconstruction-against-super-resolution.md`).
         bool mSoftEdgeDither = false;
 
         /// Whether an upscaler reconstructed the frame.
@@ -289,18 +284,15 @@ namespace Rtx
         }
     };
 
-    /// How wide the radiance the trace writes is stored: `direct`, `indirect`, `sunlit`,
-    /// `specular` and the composite's own frame.
+    /// How wide the radiance the trace writes is stored: `direct`, `indirect`, `sunlit`, `specular` and the
+    /// composite's own frame.
     ///
-    /// **Full floats where a reference sums them, and half floats where a frame is shown.** A
-    /// reference is a sum of a thousand frames, and rounding every term before adding it only
-    /// averages away if the error is random, which it is not — the direct light is all but
-    /// identical from frame to frame and the sampler is a low-discrepancy sequence, so in halves
-    /// the converged mean of a flat surface comes out low by more than a test's tolerance. A frame
-    /// that is shown is never summed: the peak linear radiance a frame of this game reaches is
-    /// under nine, which a half carries with four orders of magnitude to spare at a step finer than
-    /// the display's — and sixteen bytes a pixel written three times and read six a frame is what
-    /// the full width costs a picture that cannot tell.
+    /// **Full floats where a reference sums them, and half floats where a frame is shown.** A reference is a
+    /// sum of a thousand frames, and rounding every term before adding only averages away if the error is
+    /// random, which it is not: in halves the converged mean of a flat surface comes out low by more than a
+    /// test's tolerance. A shown frame is never summed, and a half carries the peak linear radiance of this
+    /// game (under nine) at a step finer than the display's, where the full width costs sixteen bytes a
+    /// pixel written three times and read six a frame.
     enum class RadianceWidth
     {
         Shown,
@@ -402,12 +394,11 @@ namespace Rtx
         /// reference wants it held still. A frame may ask otherwise, like `mReconstruction`.
         ExposureRule mExposure{};
 
-        /// How long to hold the queue after every frame's trace, in milliseconds, or nought to
-        /// hold it not at all. A held queue keeps the device that far behind the host, so every
-        /// frame is recorded over a frame still running: what makes a hazard that needs the
-        /// overlap show on the first frame of every run. `check` sets it, and so does the second
-        /// leg of `repeat`. What the hold came to on each frame is the zone `FrameZone::Stress` of
-        /// the frame's report, which is what the run's `QueueHeld` check reads it back by.
+        /// How long to hold the queue after every frame's trace, in milliseconds, or nought to hold it not at
+        /// all. A held queue keeps the device that far behind the host, so every frame is recorded over a
+        /// frame still running: a hazard that needs the overlap then shows on the first frame of every run.
+        /// `check` sets it, and so does the second leg of `repeat`; what the hold came to is the zone
+        /// `FrameZone::Stress` of the frame's report, which the run's `QueueHeld` check reads back.
         double mStressOverlapMs = 0.0;
 
         /// Whether the trace keeps its kernels — the stages' dispatches and the fog's scatter

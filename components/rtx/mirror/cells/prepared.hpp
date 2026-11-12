@@ -202,11 +202,10 @@ namespace Rtx
         NightDayModes mModes;
     };
 
-    /// A model read whole on a thread that is not the frame's: its parts, the folded geometry of
-    /// every one of them in the format the scene copies from, and the images they name. Owned by
-    /// the reader and lent to every cell that names it, once per cell — `Lent` counts them;
-    /// refilled for the next model once every hold is back. Flat, one buffer per attribute,
-    /// because a cell names hundreds of models of a handful of parts each.
+    /// A model read whole on a thread that is not the frame's: its parts, the folded geometry of every one of them in
+    /// the format the scene copies from, and the images they name. Owned by the reader and lent to every cell that
+    /// names it, once per cell (`Lent` counts them); refilled for the next model once every hold is back. Flat, one
+    /// buffer per attribute, because a cell names hundreds of models of a handful of parts each.
     struct PreparedModel : Lent
     {
         /// The corrected path the model was read under, which is what the reader finds it by

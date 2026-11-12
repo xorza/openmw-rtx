@@ -51,27 +51,24 @@ namespace Rtx
 
             Buffer made = Buffer::deviceLocal(*mDevice, getBlockBytes(), mUsage, name);
 
-            // Zeroed at birth, not left as the allocator found it. A block is longer than what
-            // is put in it and holds gaps between the runs handed out, and a picture that depended
-            // on what was last in that memory would depend on it.
+            // Zeroed at birth, not left as the allocator found it: a block is longer than what is put in
+            // it and holds gaps between the runs handed out, which a picture must not depend on.
             made.clear(batch.getCommands());
 
             mAddresses.push_back(made.getDeviceAddress());
             mBlocks.push_back(std::move(made));
         }
 
-        // The fills above and the copies after them write the same bytes. A run written into a
-        // block this call just emptied is a write after a write, and the queue orders neither
-        // against the other on its own — the layers say so at once, which is how this was found.
+        // The fills above and the copies after them write the same bytes: a run written into a block this
+        // call just emptied is a write after a write, which the queue orders on its own for neither. Found
+        // by the layers.
         handOver(batch.getCommands(), Use::sBufferClearWrite,
             BufferUse{ VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_CLEAR_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT });
 
-        // Made again rather than appended to, which is what a table of a few dozen addresses is
-        // worth: the address changes, and every frame carries it afresh. Addressable and never
-        // bound, because the frame block is how a shader reaches it. Uploaded through the batch
-        // into video memory, as everything written once is, and ordered ahead of what reads it.
-        //
-        // A frame in flight carries the old one's address in its frame block and reads it on every
+        // Made again rather than appended to, which is what a table of a few dozen addresses is worth: the
+        // address changes, and every frame carries it afresh. Addressable and never bound, because the
+        // frame block is how a shader reaches it. Uploaded through the batch into video memory and ordered
+        // ahead of what reads it. A frame in flight carries the old one's address and reads it on every
         // hit, which its burial covers.
         mTable = uploadBuffer(
             batch, std::span<const VkDeviceAddress>(mAddresses), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, mTableName);

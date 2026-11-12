@@ -9,13 +9,11 @@ namespace Rtx
     struct FrameOptions;
     struct InstanceCounts;
 
-    /// A frame as its trace samples it: what the caller stated, and every field that follows from
-    /// the statement and the renderer's own state — the jitter, the noise and the level bias the
-    /// reconstruction decides, how the surfaces are shown, what the scene holds, and where the eye
-    /// was. The one place those are written, for a frame and for a picture inside the interface
-    /// alike. **The one writer of them**: a host states a viewpoint and a world
-    /// (`Renderer::renderFrame`), which leaves them at nought, and what a frame may ask of them it
-    /// asks through `options`.
+    /// A frame as its trace samples it: what the caller stated, and every field that follows from the
+    /// statement and the renderer's own state — the jitter, the noise and the level bias the reconstruction
+    /// decides, how the surfaces are shown, what the scene holds, and where the eye was. **The one writer of
+    /// them**, for a frame and for a picture inside the interface alike: a host states a viewpoint and a
+    /// world (`Renderer::renderFrame`), and what a frame may ask of them it asks through `options`.
     ///
     /// @param options what the frame asked for over `profile`; a picture's asks nothing.
     /// @param counts what the traced scene holds.

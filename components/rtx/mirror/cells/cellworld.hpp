@@ -32,11 +32,9 @@ namespace Rtx
 {
     class GroundcoverSource;
 
-    /// Where a cell's content is read from, by path: a model's template, and an image. An
-    /// interface, so that a ring can be handed a model by a test that has no loader. The game
-    /// answers out of `Resource::SceneManager`, whose template is the one node every clone is
-    /// copied from and whose image cache hands one object to a template and to whoever asks for the
-    /// path.
+    /// Where a cell's content is read from, by path: a model's template, and an image. An interface, so that a ring can
+    /// be handed a model by a test that has no loader. The game answers out of `Resource::SceneManager`, whose template
+    /// is the one node every clone is copied from.
     class ContentSource
     {
     public:
@@ -83,11 +81,10 @@ namespace Rtx
         /// Which nodes a walk of a template may descend into — the frame walk's own.
         osg::Node::NodeMask mMask = ~0u;
 
-        /// The state set every reference stands under: the world walk's root's, which
-        /// `SceneExtractor::extractWorld` holds a reference root to, or null for none. The first link
-        /// of every chain the reader reads (`TemplateWalk`), so a part is described and keyed as the
-        /// walk finds its clone. Read on the reader's thread: the game states it once, when the
-        /// rendering manager is made, and writes it never after.
+        /// The state set every reference stands under: the world walk's root's, which `SceneExtractor::extractWorld`
+        /// holds a reference root to, or null for none. The first link of every chain the reader reads
+        /// (`TemplateWalk`), so a part is described and keyed as the walk finds its clone. Read on the reader's thread:
+        /// the game states it once and never writes it after.
         const osg::StateSet* mAbove = nullptr;
 
         /// Whether each cell's references are read at all: off is the A/B `--distant-statics=false`

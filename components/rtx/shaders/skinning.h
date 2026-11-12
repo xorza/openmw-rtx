@@ -4,16 +4,13 @@
 #include "hosttypes.h"
 #include "portable.h"
 
-// What poses a skinned body or a morphed face on the device, as both sides see it. Included
-// verbatim by the host and by the two kernels, for the reason `scene.h` is: a row the host packs and
-// a kernel reads has to be one row.
+// What poses a skinned body or a morphed face on the device, included verbatim by the host and the two
+// kernels, as `scene.h` is: a row the host packs and a kernel reads has to be one row.
 //
 // **The arithmetic is `SceneUtil::RigGeometry::cull`'s and `MorphGeometry::cull`'s, and nothing
-// else.** A skin is `p · Σ w_i B_i` with `B_i` the bone's inverse bind, its skeleton-space matrix and
-// the skin transform composed on the host; a normal and a tangent take the linear part of the same
-// sum and are not normalised, because the rasterizer does not. A morph is the base plus every
-// target's offset at its weight, positions only. What the game draws is the target, and these are
-// its numbers.
+// else.** A skin is `p · Σ w_i B_i`, with `B_i` composed on the host; a normal and a tangent take the
+// linear part of the same sum and are not normalised, because the rasterizer does not. A morph is the
+// base plus every target's offset at its weight, positions only.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
@@ -24,16 +21,14 @@ namespace Rtx::Shaders
     /// tens of groups.
     const uint SKIN_WORKGROUP = 64;
 
-    /// A vertex's run word: the run's first influence in the low bits above the count, and the
-    /// count in the bottom byte. `RigGeometry::VertexList` is `unsigned short`, so a rig's runs are
-    /// under sixty-four thousand and its influences a small multiple of that, which leaves the
-    /// twenty-four bits of `first` three orders of magnitude of room.
+    /// A vertex's run word: the run's first influence above the count, which is the bottom byte.
+    /// `RigGeometry::VertexList` is `unsigned short`, so a rig's runs are under sixty-four thousand
+    /// and the twenty-four bits of `first` have three orders of magnitude of room.
     const uint RUN_COUNT_BITS = 8u;
     const uint RUN_COUNT_MASK = (1u << RUN_COUNT_BITS) - 1u;
 
-    /// The run word of `count` influences from `first`, and the two halves of one: the one
-    /// statement of the layout, which the resolver writes and the skin pass and the table's check
-    /// read.
+    /// The run word of `count` influences from `first`, and its two halves: the one statement of the
+    /// layout, which the resolver writes and the skin pass and the table's check read.
     RTX_SHADER uint runWord(uint first, uint count)
     {
         return (first << RUN_COUNT_BITS) | count;
@@ -56,11 +51,9 @@ namespace Rtx::Shaders
     /// `TABLE_ALIGN_ROWS`.
     const uint BONE_ALIGN = 16u;
 
-    /// One bone's share of one vertex.
-    ///
-    /// **A run per vertex and not a fixed four**, because the rasterizer applies every influence
-    /// the file names. The reference implementation measured 107 of 487 000 vertices with a fifth
-    /// and dropped it; here the run costs an indirection and makes the answer exact.
+    /// One bone's share of one vertex. **A run per vertex and not a fixed four**, because the
+    /// rasterizer applies every influence the file names; the run costs an indirection and makes the
+    /// answer exact.
     struct GpuInfluence
     {
         /// Into the rig's bones, and so into the mesh's rows of `GpuBone`.

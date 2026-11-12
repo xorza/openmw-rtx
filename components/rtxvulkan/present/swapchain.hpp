@@ -97,10 +97,9 @@ namespace Rtx
 
         /// Waits until the present two before the next frame's is on the screen, where the device
         /// offers the wait and the images meet the refresh: DXVK's maximum frame latency of two,
-        /// asked before the frame's input. **Under FIFO nothing else bounds the presents queued**,
-        /// the swapchain's images and the frames in flight together, and each one queued is a frame
-        /// of the player's input the screen shows late. A present the screen never shows — a window
-        /// the compositor hid — is waited a tenth of a second once, and not again.
+        /// asked before the frame's input. Under FIFO nothing else bounds the presents queued, and
+        /// each is a frame of the player's input shown late. A present the screen never shows (a
+        /// window the compositor hid) is waited a tenth of a second once, and not again.
         void awaitLatency();
 
         /// Rebuilds at a new size, and answers false where the surface is lost and nothing stands.

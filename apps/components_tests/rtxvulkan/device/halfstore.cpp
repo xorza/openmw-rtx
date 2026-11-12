@@ -193,15 +193,11 @@ namespace Rtx
         }
 
         /// **`packHalf2x16` lands on one of the two halves around a value, and which is the driver's**:
-        /// the same floats (`betweenHalves`) packed in the arithmetic. NVIDIA's rounds to nearest,
-        /// where its image store does not — a quarter of a step lands on the base, three quarters on
-        /// the half above it in size, and a half on the even one of the two, which is the base — and
-        /// AMD's Windows driver rounds toward nought, as its store does. Nothing may rest on it — the
-        /// spec leaves this rounding to the device as it leaves the store's — and this says what a
-        /// history that did would meet.
-        ///
-        /// **And the shader's own `nearestHalf` rounds to nearest, on every device**, which the
-        /// wavelet's narrow levels rest on: exact steps, a tie to the even one.
+        /// the floats of `betweenHalves` packed in the arithmetic. NVIDIA's rounds to nearest, where its
+        /// image store does not (a half lands on the even one, the base), and AMD's Windows driver rounds
+        /// toward nought, as its store does. Nothing may rest on it, the spec leaving this to the device,
+        /// and this says what a history that did would meet. **The shader's own `nearestHalf` rounds to
+        /// nearest on every device**, which the wavelet's narrow levels rest on: exact steps, a tie to even.
         TEST_F(RtxHalfStoreTest, aPackedHalfLandsBesideItsValueAndNearestHalfOnTheNearest)
         {
             const VkDriverId driver = getDevice().getPhysicalDevice().getProperties().mVulkan12.driverID;
@@ -250,23 +246,19 @@ namespace Rtx
                     << values[at] * 255.0f << " of 255 was stored as " << static_cast<int>(converted.mBytes[at]);
         }
 
-        /// **A running mean kept in halves keeps its target where the shader rounds it at random,
-        /// and settles under it where the store rounds it.** 4096 means, each blended toward
+        /// **A running mean kept in halves keeps its target where the shader rounds it at random, and
+        /// settles under it where the store rounds it.** 4096 means, each blended toward
         /// `1 + 0.4 × 2^-10` at a history's weight of nine tenths, 256 times, from nought: a target
         /// between two halves, a fifth of the way to the one above.
         ///
-        /// - **Stored as it is**, each store rounds toward nought on this card. Under one, where a
-        ///   half's step is 2^-11, a blend moves the mean by a tenth of what it lacks, and the store
-        ///   drops that once it is under a step: every mean stops where it lacks ten steps, about
-        ///   4.9 thousandths under the target.
-        /// - **Rounded at random** (`roundedToHalf`), the stored value's mean is the value, so the
-        ///   mean of the means is the target. Each store adds noise of half a step at most, 2^-11, so
-        ///   a mean's deviation stands under `2^-11 / sqrt(1 - 0.81)`, 1.12 thousandths, and the mean
-        ///   of 4096 under 1.75 hundred-thousandths: within a ten-thousandth by more than five
-        ///   deviations.
+        /// - **Stored as it is**, each store rounds toward nought: under one a blend moves the mean by a
+        ///   tenth of what it lacks and the store drops that once it is under a step, so every mean stops
+        ///   where it lacks ten steps, about 4.9 thousandths under the target.
+        /// - **Rounded at random** (`roundedToHalf`), the stored value's mean is the value; each store adds
+        ///   noise of half a step at most, so a mean's deviation stands under `2^-11 / sqrt(1 - 0.81)`,
+        ///   1.12 thousandths, and the mean of 4096 within a ten-thousandth by more than five deviations.
         ///
-        /// Measured: stored, 0.995605, 4.79 thousandths under the target of 1.000391; rounded at
-        /// random, 1.000394, three millionths over it.
+        /// Measured: stored, 0.995605, under the target of 1.000391; rounded at random, 1.000394.
         TEST_F(RtxHalfStoreTest, aRunningMeanRoundedAtRandomKeepsItsTargetWhereAStoreRoundsItUnder)
         {
             const Device& device = getDevice();

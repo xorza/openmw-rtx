@@ -17,28 +17,20 @@ namespace Rtx
     Immediate<VkSemaphore, vkDestroySemaphore> makeTimelineSemaphore(const Device& device, std::string_view name);
 
     /// The queue's one clock: a timeline semaphore that every submit the pool makes signals with
-    /// the next value, so "has that finished" is a comparison against a counter the queue advances
-    /// and never a fence somebody has to own, reset and remember. A resource retires against the
-    /// value of the submit that last named it, a question recorded into a batch is readable once
-    /// the value the batch rode has passed, and a frame is the value its trace signalled.
+    /// the next value, so "has that finished" is a comparison against a counter and never a fence
+    /// somebody has to own. A resource retires against the value of the submit that last named it.
+    /// A count of frames, placements or calls never stands in for it: two placements in one frame
+    /// made such a count run ahead of the queue.
     ///
-    /// **A count of frames, placements or calls never stands in for it.** The store counted
-    /// placements and called that a fence; two placements in one frame made the count run ahead of
-    /// the queue.
+    /// The clock is never read off the device on the frame path. What the host knows the queue has
+    /// passed is what a wait left behind, and the frame ring waits once a frame, so what a frame
+    /// reads is a function of how many frames were drawn and never of how fast the device drew them.
+    /// Read off the device, it moved with the wall (sprite list sizes, compaction and reuse of
+    /// freed room a frame earlier or later) and two builds of one tree drew three pixels apart,
+    /// which `repeat` cannot see because two runs of one binary keep the same phase.
     ///
-    /// **And the clock is never read off the device on the frame path.** What the host knows the
-    /// queue has passed is what a wait left behind, and the frame ring waits once a frame: so
-    /// what a frame reads of the clock is a function of how many frames were drawn, and never of
-    /// how fast the device drew them. Asked of the device, the answer moved with the wall — a
-    /// sprite list was sized from a report that had or had not landed, a structure was compacted a
-    /// frame earlier or later, a buried buffer was freed and its room reused a frame sooner — and
-    /// two builds of one tree drew three pixels apart. `repeat` could not see it, because two runs
-    /// of one binary keep the same phase.
-    ///
-    /// **Every wait is the device's**, `Device::waitFor` or `Device::waitIdle`, and nothing else
-    /// waits: a wait is where what the clock knows changes, so it is where what the queue may
-    /// still read changes, and the device is what collects that — a caller that waited here and
-    /// forgot to collect would hold what it could have freed.
+    /// Every wait is the device's (`Device::waitFor`, `Device::waitIdle`): a wait is where what the
+    /// queue may still read changes, and the device is what collects that.
     class Timeline
     {
     public:

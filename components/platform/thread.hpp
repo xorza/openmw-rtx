@@ -36,11 +36,10 @@ namespace Platform
 
     /// A thread running `work`, handed its `std::stop_token` where it takes one.
     ///
-    /// **Every thread starts named, and under the terminate handler of the thread that made it.**
-    /// MSVC keeps that handler per thread and starts each new one on the default, which aborts and
-    /// says nothing; elsewhere the process has one and setting it changes nothing. What needs the
-    /// copy is a test's death handler, set on the thread that runs the statement. The crash catcher
-    /// sets its own on every thread the loader starts, and needs none.
+    /// **Every thread starts named, and under the terminate handler of the thread that made it.** MSVC keeps
+    /// that handler per thread and starts each new one on the default, which aborts and says nothing;
+    /// elsewhere setting it changes nothing. A test's death handler needs the copy; the crash catcher sets
+    /// its own on every thread the loader starts.
     template <class Work>
     std::jthread startThread(std::string_view name, Work work)
     {

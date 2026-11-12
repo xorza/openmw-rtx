@@ -6,37 +6,20 @@
 
 // The puffs over the reconstructed frame, at the resolution it is shown at.
 //
-// **After the denoiser and the upscaler, because neither should touch a particle.** A sprite is not noise
-// in a ray-traced estimate, so a denoiser given one reconstructs it as an error; and a particle an upscaler
-// took at the traced extent would be drawn at a fraction of the picture's resolution and stretched. So the
-// trace leaves the puffs in a layer of their own and this launch composites them over the frame —
-// `airBefore + colour * opacity + added + T * (frame - airBefore)`, which is exact for a layer in front of
-// the haze behind it.
+// After the denoiser and the upscaler, because neither should touch a particle: a denoiser reconstructs a
+// sprite as an error, and an upscaler would take it at a fraction of the picture's resolution. The composite
+// is `airBefore + colour * opacity + added + T * (frame - airBefore)`, exact for a layer in front of the haze
+// behind it. One pass whatever reconstructs the frame; nothing else composites a puff.
 //
-// **The shape at the shown extent and the light at the traced one.** What a picture needs at its own
-// resolution is a puff's edge: which pixels it covers and how much. What it does not need there is the
-// light, which is read out of froxels that are a hundred pixels across and costs three fetches a sprite —
-// marched at every shown pixel, a storm's frame paid five times what it did.
+// The shape is at the shown extent and the light at the traced one: the light is read from froxels a hundred
+// pixels across, and marched at every shown pixel a storm's frame paid five times. One invocation a traced
+// pixel, for every shown pixel whose centre lands on it, since whether a puff can be there is a fact about
+// the traced pixel (0.30 ms of a 4K frame launched over the shown grid, 0.12 over the traced).
 //
-// **One pass whatever reconstructs the frame.** Without an upscaler the shown extent is the traced one and
-// this runs at it; nothing else composites a puff anywhere in this renderer.
-//
-// **One invocation a traced pixel, for every shown pixel whose centre lands on it.** Whether a puff can be
-// there at all is a fact about the traced pixel — its tile's run of sprites and its shells — and most of
-// every frame holds none. Launched over the shown grid, each of the three shown pixels over a traced one at
-// `balanced` made the same test at the occupancy the full path's registers allow: 0.30 ms of a 4K frame,
-// where the traced grid takes 0.12.
-//
-// **Where the eye's view ends, found again along the ray through the traced pixel's centre.** The traced
-// grid is jittered for the upscaler, so the depth one of its pixels holds at a silhouette is the post on
-// one frame and the water behind it on the next — and a puff hidden by the one and not the other was drawn
-// over the post's edge on every other frame, in blocks of the traced grid: the rope and the posts of Seyda
-// Neen's pier shook under M[FR]'s mist, which stood still with the puffs taken away. The centre does not
-// move with the jitter, so a depth found along it holds still with the edge it hides a puff behind.
-//
-// **A launch and not a dispatch**, for the reason `RtxSourceTreeTest` gives: this traces, and so does the
-// fog the sprite march reaches, and a dispatch that can trace answers differently under another process's
-// preemption.
+// Where the eye's view ends is found again along the ray through the traced pixel's centre: the traced grid
+// is jittered, so a silhouette's depth alternated between post and water and a puff hidden by one and not the
+// other shook at the edge. The centre does not move with the jitter. A launch and not a dispatch, for the
+// reason `RtxSourceTreeTest` gives.
 
 #include "camera.h"
 #include "scene.h"
@@ -179,11 +162,10 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     const vec3 composited
         = airBefore + layer.mColour * opacity + layer.mAdded + layer.mTransmittance * max(before.rgb - airBefore, vec3(0.0));
 
-    // **Behind a see-through arm, the world's puffs are laid down by what the arms let through.** The
-    // rasterizer draws the arms after every particle, so the smoke behind a Chameleon's hand is seen
-    // through the hand as the room is — and the frame here holds the two already blended, the arms' share
-    // `A` over `t` of the world `W`. Putting the puffs between them exactly wants `A`, which the
-    // reconstruction has mixed into the frame at a resolution the trace never ran at.
+    // Behind a see-through arm, the world's puffs are laid down by what the arms let through: the rasterizer
+    // draws the arms after every particle, so the frame here holds the two already blended, the arms' share `A`
+    // over `t` of the world `W`. Putting the puffs between them exactly wants `A`, which the reconstruction has
+    // mixed into the frame at a resolution the trace never ran at.
     const float armsThrough = arms
         ? 1.0
         : imageLoad(backdrop, channelAt(CHANNEL_BACKDROP, ivec2(traced), tracedExtent.x, fieldSwapOf(frame.mFrame))).a;

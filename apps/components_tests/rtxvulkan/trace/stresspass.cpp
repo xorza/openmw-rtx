@@ -43,31 +43,18 @@ namespace Rtx
             }
         };
 
-        /// The hold is the time asked on every frame, the first included, whatever the card's clock:
-        /// the loop's own clock reads what was asked and no more than one tick past it, and the
-        /// queue was held at least that long.
+        /// The hold is the time asked on every frame, the first included, whatever the card's clock: the loop's
+        /// own clock reads what was asked and at most one tick (ten microseconds, NVIDIA's real-time clock step)
+        /// more, and the zone is no shorter than the loop.
         ///
-        /// **In the clock's own ticks, at the queue's timestamp period**, which the zone reads in
-        /// as well: a zone no shorter than the loop is the two counters running at one rate, and on
-        /// NVIDIA's, which counts nanoseconds, a tick is a millionth of a millisecond.
+        /// A cold card idles at a few hundred megahertz and steps its clock over the first frames, which is where
+        /// a hold set by a count missed by a third; a clock switch stalls the card for a millisecond or so, which
+        /// the zone shows and the loop's clock runs through, so the zone is only asked to be no shorter.
         ///
-        /// **Off a cold card, deliberately.** The card idles at a few hundred megahertz and steps
-        /// its clock over the first frames of load, which is where a hold set by a count missed by
-        /// a third. A clock switch stalls the card for a millisecond or so, which the zone shows
-        /// and the loop's clock runs through; so the zone is asked only to be no shorter than the
-        /// loop. Ten microseconds past the asked time is the tick the loop leaves on: NVIDIA's
-        /// real-time clock advances by the microsecond.
-        ///
-        /// **And the two counters at one rate, which the extension does not promise**: from the
-        /// shortest frame of the four-millisecond hold to the shortest of the twenty-four-millisecond
-        /// one, the zone grows by what the loop does, within 15%. A difference, because the launch
-        /// and the drain the zone holds past the loop are the same on both and cancel. Another
-        /// process's slice of the card does not cancel, and does not grow with the hold: on a
-        /// desktop it stood on every frame of a hold, up to 1.7 ms of it, and beside the other GPU
-        /// shard the two holds' shortest frames differed by up to 0.8 ms. So the holds are twenty
-        /// milliseconds apart, where 1.7 ms moves the rate by 8.5%, under the 15% asked. A loop whose
-        /// clock ran slower than the timestamp period says would hold the queue longer than asked,
-        /// which the lower bounds above let through.
+        /// The extension does not promise the two counters run at one rate, so from the shortest frame of the 4 ms
+        /// hold to that of the 24 ms one the zone must grow by what the loop does, within 15%. A difference, since
+        /// the launch and drain the zone holds past the loop cancel. Another process's slice of the card does
+        /// not cancel (up to 1.7 ms seen), so the holds are 20 ms apart, where 1.7 ms moves the rate by 8.5%.
         TEST_F(RtxStressPassTest, theHoldIsTheTimeAskedOnEveryFrameWhateverTheCardsClock)
         {
             Device& device = getDevice();

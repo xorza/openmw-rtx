@@ -4,25 +4,22 @@
 // Everything the trace is handed: set nought's bindings, and every table the scene owns reached through an
 // address the frame block carries.
 //
-// **The frame's own block carries what is not a table, and where every table is.** The camera, the sky, the
-// sea's moments and where the lamps were binned ride there because a record that is one row belongs in the
-// block rather than in a descriptor of its own. The tables ride there as `GpuTables`, one address apiece,
-// because seventeen storage-buffer bindings pushed twice a frame were seventeen places a layout and a write
+// The frame's own block carries what is not a table, and where every table is: a record that is one row
+// belongs in the block rather than in a descriptor of its own, and the tables ride there as `GpuTables`,
+// one address apiece, because seventeen storage-buffer bindings were seventeen places a layout and a write
 // could disagree; `scene.h` says the rest.
 //
-// **A table is read through a function and never through its reference.** `instanceAt`, `lightAt` and their
-// siblings construct the reference from the block and index it, so the alignment each reference claims is
-// stated once, beside the table it is for. None of them takes `nonuniformEXT`: that decoration is for an
-// index into a descriptor array, and a reference is not one, however the index into the table was reached.
+// A table is read through a function and never through its reference: `instanceAt`, `lightAt` and their
+// siblings construct the reference from the block, so the alignment each claims is stated once, beside the
+// table. None takes `nonuniformEXT`, which is for an index into a descriptor array, not a reference.
 //
-// **The declarations, and `bindings.h` next door holds the numbers** — set zero's are a fact shared with
+// The declarations are here and `bindings.h` holds the numbers: set zero's are shared with
 // `VisibilityPass`, which writes the same slots.
 //
-// **Four sets, by who made what they name.** Set zero is the frame and what it points at, pushed; set one
-// is the bindless textures a scene owns; set two is the channels a `GBuffer` owns, numbered by `gbuffer.h`,
-// which `GBuffer` reads too; set three is the air a `FogVolume` holds, numbered by `fogvolume.h`. The split
-// is not tidiness — the device allows 32 push descriptors and this had reached exactly 32, so every list
-// that keeps growing moved to the owner that already holds it.
+// Four sets, by who made what they name: zero is the frame and what it points at, pushed; one is the
+// bindless textures a scene owns; two is the channels a `GBuffer` owns (`gbuffer.h`); three is the air a
+// `FogVolume` holds (`fogvolume.h`). The device allows 32 push descriptors and set zero had reached
+// exactly 32, so every list that keeps growing moved to the owner that already holds it.
 
 // The structure below is a query's, and every traversal in the libraries this reaches is a
 // query. Declared here and not in each stage, so a stage cannot reach the structure without it.
@@ -50,25 +47,21 @@ layout(set = SET_PASS, binding = BIND_SCENE) uniform accelerationStructureEXT sc
 
 /// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it.
 ///
-/// **No format on this or the bounce below**, because a run decides how wide they are — `gbuffer.h` says
-/// which run gets which — and a store with no format converts to whatever the view holds.
-///
-/// **Readable, as every channel the bounce's stages weigh the pane mask against is** (`storeBounced`): they
-/// read the pixel's whole light back off what the trace wrote.
+/// No format on this or the bounce below, because a run decides how wide they are (`gbuffer.h`) and a
+/// store with no format converts to whatever the view holds. Readable, as every channel the bounce's
+/// stages weigh the pane mask against is (`storeBounced`).
 layout(set = SET_CHANNELS, binding = CHANNEL_DIRECT) uniform image2D direct;
 
 /// The lamps and the one bounce with the albedo divided out, times whatever the path took off it on the way
 /// to the eye — the channel the wavelet filters.
 ///
-/// **Demodulated because a blur must not touch texture.** What varies slowly across a wall is the light
-/// landing on it; what varies fast is the wall. Dividing the albedo out leaves only the first, and the
-/// composite multiplies the second back in at full sharpness.
+/// Demodulated because a blur must not touch texture: dividing the albedo out leaves the slowly varying
+/// light, and the composite multiplies the wall back in at full sharpness.
 ///
-/// **And the water and the air ride here rather than with the albedo.** Both are `colour * a + b` over
-/// everything in front of the eye, so applying them to a sum applies them to each term: `b` goes into
-/// `direct` and `a` belongs to whichever term it attenuated, which is this one. Putting it on the albedo
-/// instead made that channel a product of a surface and a path, and a filter asking what the surface is got
-/// the weather in the answer.
+/// The water and the air ride here rather than with the albedo. Both are `colour * a + b` over everything
+/// in front of the eye, so applying them to a sum applies them to each term: `b` goes into `direct` and `a`
+/// belongs to whichever term it attenuated, which is this one. On the albedo it would be a product of a
+/// surface and a path, and a filter asking what the surface is would get the weather.
 layout(set = SET_CHANNELS, binding = CHANNEL_INDIRECT) uniform image2D indirect;
 
 /// The surface's own diffuse albedo, and nothing else.
@@ -77,8 +70,7 @@ layout(set = SET_CHANNELS, binding = CHANNEL_ALBEDO, GBUFFER_ALBEDO) uniform ima
 /// The shading normal as `packSurfaceNormal`'s code in `r`, and the distance from the eye along the pixel's
 /// ray in `g`.
 ///
-/// **The normal the shading actually used**, which for water is the wave's rather than the plane's — a
-/// rippled surface described as a flat one is reconstructed as a flat one.
+/// The normal the shading actually used, which for water is the wave's rather than the plane's.
 layout(set = SET_CHANNELS, binding = CHANNEL_SURFACE, GBUFFER_SURFACE) uniform image2D surfaceChannel;
 
 /// Where each surface stood on the previous frame's screen, less where it stands on this one. Read
@@ -88,14 +80,12 @@ layout(set = SET_CHANNELS, binding = CHANNEL_MOTION, GBUFFER_MOTION) uniform ima
 /// How much of the backdrop this pixel still shows, per channel, in `rgb` — everything the trace put
 /// between the backdrop and the eye, multiplied together.
 ///
-/// **The backdrop is drawn by a pass that can see none of this.** `ToneConstants::mStars` says why the
-/// field is drawn there and not here, and the interface is not drawn by this renderer at all; what it costs
-/// is that the pass has no moons, no cloud deck, no window pane, no water and no fog in front of it. So the
-/// trace hands it the one number that carries all of them: `skyRadiance`'s `shown` times the path's own
-/// transmittance — the puffs' apart, which `spritecomposite.rgen` leaves in the frame's alpha for the same
-/// pass.
+/// The backdrop is drawn by a pass that can see none of this (`ToneConstants::mStars` says why), with no
+/// moons, cloud deck, window pane, water or fog in front of it. So the trace hands it the one number that
+/// carries all of them: `skyRadiance`'s `shown` times the path's own transmittance, the puffs' apart, which
+/// `spritecomposite.rgen` leaves in the frame's alpha for the same pass.
 ///
-/// **And in `a`, what see-through arms let through of everything behind them**, one where none stands.
+/// In `a`, what see-through arms let through of everything behind them, one where none stands.
 layout(set = SET_CHANNELS, binding = CHANNEL_BACKDROP, GBUFFER_BACKDROP) uniform image2D backdrop;
 
 /// The sprites in front of the surface: their straight colour lit where they stand and already
@@ -196,16 +186,13 @@ layout(set = SET_PASS, binding = BIND_SUN_GLARE, scalar) buffer SunGlare
     SunGlareCount sunGlare;
 };
 
-// **A buffer and not a push constant.** The frame's description passed 256 bytes, which is every byte
-// `maxPushConstantsSize` promises on this hardware; `VisibilityPass` writes it into a buffer of its own
-// instead. The name and the fields are the ones the push block had, so nothing that reads `frame` knows the
-// difference.
+// A buffer and not a push constant: the frame's description passed 256 bytes, every byte
+// `maxPushConstantsSize` promises on this hardware; `VisibilityPass` writes it into a buffer of its own.
 //
-// **Uniform and not storage**, which is worth a few per cent of the trace: every pixel reads half of these
-// fields several times over, and a uniform block is promoted to a constant bank the way a push constant is,
-// where a storage buffer is a memory read like any other.
+// Uniform and not storage, worth a few per cent of the trace: every pixel reads half of these fields
+// several times over, and a uniform block is promoted to a constant bank the way a push constant is.
 //
-// **Declared before the tables, because the tables are reached through it.**
+// Declared before the tables, because the tables are reached through it.
 layout(set = SET_PASS, binding = BIND_FRAME, scalar) uniform Frame
 {
     VisibilityConstants frame;
@@ -213,20 +200,19 @@ layout(set = SET_PASS, binding = BIND_FRAME, scalar) uniform Frame
 
 // The scene's tables, each a reference constructed from the address `frame.mTables` carries.
 //
-// **The alignment each reference claims is `scene.h`'s to state**, beside the rows it is about:
+// The alignment each reference claims is `scene.h`'s to state, beside the rows it is about:
 // `TABLE_ALIGN_LAYERS` where a 64-byte row puts two `vec4` on sixteen, `TABLE_ALIGN_BLOCKS` for a table of
 // eight-byte addresses, and `TABLE_ALIGN_ROWS` everywhere a row or an element is only four-aligned.
 //
-// **Not `restrict`, though it would be true.** Tried on every reference: it gave back a hundredth or two of
-// the four the address path costs the guild's trace, inside the noise, and it moved two interiors — one by
-// nineteen levels on seventy-six pixels — where the compiled shape shifted a lamp pick. `GpuTables` carries
-// the cost it did not recover.
+// Not `restrict`, though it would be true: tried on every reference, it gave back a hundredth or two of the
+// four the address path costs the guild's trace, inside the noise, and it moved two interiors where the
+// compiled shape shifted a lamp pick.
 
 // The vertex attributes and the indices, as lists of blocks.
 //
-// **A block is allocated once at its full size and never moved**, so a scene that grows keeps every address
-// already handed out and every acceleration structure built from one stays valid — which is what lets a
-// cell arriving append rather than rebuild the world.
+// A block is allocated once at its full size and never moved, so a scene that grows keeps every address
+// already handed out and every acceleration structure built from one stays valid: a cell arriving appends
+// rather than rebuilds the world.
 layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer PositionBlock
 {
     vec3 at[];
@@ -269,10 +255,9 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_BLOCKS) re
 
 // The block a global id lives in.
 //
-// **Resolved once for a triangle and not once for a corner.** A mesh's run never straddles a block, so its
-// three corners and its three indices share one — and the table read that finds it is the half of every
-// attribute fetch that is the same for all three. `geometry.glsl` is what takes the block and reads the
-// corners out of it.
+// Resolved once for a triangle and not once for a corner: a mesh's run never straddles a block, so its three
+// corners and indices share one, and the table read that finds it is the same for all three.
+// `geometry.glsl` takes the block and reads the corners out of it.
 NormalBlock normalBlockOf(uint vertex)
 {
     return NormalBlock(BlockTable(frame.mTables.mNormalBlocks).at[vertex / VERTEX_BLOCK]);
@@ -451,9 +436,8 @@ GpuSprite spriteAt(uint index)
 
 /// One sphere and one run of sprites per particle system, indexed by `GpuSprite::mEmitter`.
 ///
-/// **No count beside it, because nothing walks these.** The buffer never shrinks, so its length outlives
-/// the cell that filled it — and the only way in is from a sprite the tile named, which can only name one
-/// that is real.
+/// No count beside it, because nothing walks these: the only way in is from a sprite the tile named, which
+/// can only name a real one.
 GpuEmitter emitterAt(uint index)
 {
     return EmitterTable(frame.mTables.mEmitters).at[index];
@@ -469,7 +453,7 @@ GpuEmitterFrame emitterFrameAt(uint index)
 /// then every tile's sprites run together in tile order and ascending inside each run — which is the order
 /// they composite in.
 ///
-/// **Made on the device, by `SpriteBinPass`, ahead of the trace.** `spriterects.comp` says why the layer is
+/// Made on the device, by `SpriteBinPass`, ahead of the trace. `spriterects.comp` says why the layer is
 /// binned per tile and the emitters are not, and `SPRITE_TILE_UNBINNED` what a tile past the room holds.
 uint spriteTileListAt(uint slot)
 {
@@ -479,9 +463,9 @@ uint spriteTileListAt(uint slot)
 // The sea, as the tiles `WavePass` synthesised it into. One texture apiece per cascade, sampled rather than
 // loaded, because the level a ray cone reaches is what a water pixel asks for.
 //
-// **Three textures and not one, because the third is a square that has to be averaged apart from what it is
-// the square of.** The mean of `tr(H)^2` over a footprint and the square of the mean of `tr(H)` are
-// different numbers, and their difference is the curvature the cone threw away.
+// Three textures and not one, because the third is a square that has to be averaged apart from what it is
+// the square of: the mean of `tr(H)^2` over a footprint and the square of the mean of `tr(H)` differ by the
+// curvature the cone threw away.
 
 /// The two slopes, their own second moment, and the elevation squared.
 layout(set = SET_PASS, binding = BIND_WAVE_SURFACE) uniform sampler2D waveSurface[WAVE_CASCADES];
@@ -497,23 +481,17 @@ layout(set = SET_PASS, binding = BIND_RIPPLE_CURVATURE) uniform sampler2D ripple
 
 /// The fog's fractal field, drawn once for the life of the device and read at three world scales.
 ///
-/// **Wrapping, mipped, and two channels.** `.x` is the shape a coverage band is cut out of and `.y` is a
-/// second field decorrelated from it — read together they are the displacement the finer scales are sampled
-/// at, which is a vector out of one fetch rather than two fetches at two places.
-///
-/// **A volume and not a ground plan**, for the reason `FOG_FIELD_SIZE` gives: a field with no third axis
-/// holds one value all the way up, so every bank in it is a column.
+/// Wrapping, mipped, and two channels: `.x` is the shape a coverage band is cut out of and `.y` a second
+/// field decorrelated from it, read together as the displacement the finer scales are sampled at, a vector
+/// out of one fetch. A volume and not a ground plan, for the reason `FOG_FIELD_SIZE` gives.
 layout(set = SET_PASS, binding = BIND_FOG_FIELD) uniform sampler3D fogField;
 
 // The air in front of the eye, integrated once for a block of pixels rather than once per pixel.
 // `Rtx::FogVolume` says what each image holds and why there are three pairs of them.
 //
-// **A set of its own, which is the set `GBuffer` already argued for.** Set zero is pushed, the device
-// allows 32 push descriptors and this renderer had reached exactly that once — so images belonging to a
-// camera's size go with the owner that holds them.
-//
-// **Each image is named twice wherever a pass both reads and writes it**, because Vulkan has no descriptor
-// that is both.
+// A set of its own, the one `GBuffer` already argued for: set zero is pushed and the device allows 32 push
+// descriptors, so images belonging to a camera's size go with the owner that holds them. Each image is
+// named twice wherever a pass both reads and writes it, because Vulkan has no descriptor that is both.
 
 /// What the air scatters at a point in `rgb` and its extinction per world unit in `a`, as the previous
 /// frame left it — and beside it the three answers a ray each gave there: the sun's transport in `r`, the

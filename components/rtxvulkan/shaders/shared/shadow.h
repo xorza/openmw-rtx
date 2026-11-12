@@ -16,31 +16,30 @@
 
 // What the passes keep, said once for both sides that have to agree.
 //
-// **A mean and its variance in one word, which the shader rounds** (`lib/shadowword.glsl`). The
-// temporal pass's answer and the filter's levels are a mean and a variance, which the SDK stores in
-// two halves: here the mean is a sixteen-bit unorm and the variance a half. The first level's
-// answer is the history the next frame's temporal pass blends into, and the temporal pass's own is
-// what the first level filters, so both are in the history's loop and their means are rounded at
-// random: a mean rounded to the nearest step stalls (`RtxShadowWordTest`), and one the store rounds
-// falls, as halves did, which round toward nought on this card (`RtxHalfStoreTest`) and stood a
-// penumbra 0.68% dark after 256 frames (`RtxPenumbraDenoiseTest`). The second level writes the
-// scratch again once the first has read it, and only the third reads that, so it rounds to the
-// nearest. The SDK keeps its moments — a mean, a running sum of squared deviations and a count — in
-// `R11G11B10_FLOAT`, whose count stops climbing near 128 where its six bits of mantissa no longer
-// take a step of one; here the mean is a unorm, the sum and the count halves, all rounded at random
-// since the next frame's update reads them back, and the count stops at `SHADOW_MOMENT_FRAMES` by
-// rule (`updatedShadowMoments`).
+// **A mean and its variance in one word, which the shader rounds** (`lib/shadowword.glsl`). The temporal
+// pass's answer and the filter's levels are a mean and a variance, which the SDK stores in two halves: here
+// the mean is a sixteen-bit unorm and the variance a half. The first level's answer is the history the next
+// frame's temporal pass blends into, and the temporal pass's own is what the first level filters, so both
+// are in the history's loop and their means are rounded at random: a mean rounded to the nearest step stalls
+// (`RtxShadowWordTest`), and one the store rounds falls, as halves do, which round toward nought on this card
+// (`RtxHalfStoreTest`) and stood a penumbra 0.68% dark after 256 frames (`RtxPenumbraDenoiseTest`). The
+// second level writes the scratch again once the first has read it, and only the third reads that, so it
+// rounds to the nearest. The SDK keeps its moments (a mean, a running sum of squared deviations and a count)
+// in `R11G11B10_FLOAT`, whose count stops climbing near 128 where its six bits of mantissa no longer take a
+// step of one; here the mean is a unorm, the sum and the count halves, all rounded at random since the next
+// frame's update reads them back, and the count stops at `SHADOW_MOMENT_FRAMES` by rule
+// (`updatedShadowMoments`).
 //
 // **The rays' bits, packed**: two words an 8×4 tile of pixels, bit `(y % 4) * 8 + x % 8` of each
 // for that pixel — the SDK's layout. The first is one where the pixel receives and its rays got
 // through, and the second one where it receives at all (`receivesShadowed`). The classification
 // reads the eighteen texels around its tile rather than the 576 pixels they stand for.
 //
-// **The second word is not the SDK's**, which has the first alone. A pixel the shadowed sources do
-// not light keeps a bit of one, since nothing was split off it, and the classification's local
-// mean counted it as lit: a receiver in a hard shadow beside a face turned from the lamp was held
-// up to that mean, and showed a seam of lamp light the shadow should have hidden. At the mages'
-// guild's planter one such pixel stood at 76 of 255 where 256 raw frames hold 3.
+// **The second word is not the SDK's**, which has the first alone: a pixel the shadowed sources do not light
+// keeps a bit of one, since nothing was split off it, and the classification's local mean counted it as lit,
+// so a receiver in a hard shadow beside a face turned from the lamp was held up to that mean and showed a
+// seam of lamp light (at the mages' guild's planter one such pixel stood at 76 of 255 where 256 raw frames
+// hold 3).
 //
 // **Two halves a tile for the classification**: one where the tile was cleared — every receiver in
 // it and around it lit alike, so its value is exact and nothing filters it — and nought where the

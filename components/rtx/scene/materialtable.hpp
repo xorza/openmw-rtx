@@ -31,9 +31,8 @@ namespace Rtx
     /// Every material the scene holds, the terrain layers they name, and the weights those place.
     /// One type, because a material's textures have to be given back before the run that says
     /// which they were is handed to the next chunk. The textures are the scene's, handed in per
-    /// call rather than held: a slot is named by holds nothing here can see, and a table that held
-    /// a reference to the texture table was one a defaulted move of the scene left pointing at the
-    /// scene it was moved from.
+    /// call rather than held: a table that held a reference to the texture table would be left
+    /// pointing at the scene a defaulted move came from.
     class MaterialTable : public HeldRows<Material>
     {
     public:

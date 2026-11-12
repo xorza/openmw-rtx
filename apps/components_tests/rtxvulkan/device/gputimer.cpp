@@ -115,11 +115,10 @@ namespace Rtx
 
         /// A frame accounts for its own device time, pass by pass.
         ///
-        /// **The thing a wall clock around the submit cannot do.** One `renderFrame` is a trace, a
-        /// wavelet, a composite and two tone passes, and the CPU sees one number for all of them.
-        /// What is asserted is that each is measured separately, that each is a real duration, and
-        /// that together they fit inside the submit that contained them — which is the cross-check
-        /// that says these are the device's clock and not something invented.
+        /// **The thing a wall clock around the submit cannot do.** One `renderFrame` is a trace, a wavelet,
+        /// a composite and two tone passes, and the CPU sees one number. Asserted: each is measured
+        /// separately, each is a real duration, and together they fit inside the submit that contained
+        /// them, which says these are the device's clock and not something invented.
         struct RtxGpuTimerTest : Testing::RendererTest
         {
         };
@@ -218,10 +217,10 @@ namespace Rtx
             EXPECT_FALSE(reports(after.mGpu.spans(), FrameZone::Tlas))
                 << "the top level was built again over the rows it was built over the frame before";
 
-            // **A cell arriving says so too, and that is the frame worth having a figure for.** The
-            // structures its meshes bring are recorded ahead of the placement and ride its submit,
-            // so without a bracket of their own they are device time the frame's fence carries and
-            // no zone accounts for — which is exactly the frame a player feels.
+            // **A cell arriving says so too, and that is the frame worth having a figure for.** Its
+            // meshes' structures are recorded ahead of the placement and ride its submit, so without a
+            // bracket of their own they are device time the frame's fence carries and no zone accounts
+            // for.
             Testing::addQuad(scene, sWallCorners, std::nullopt, osg::Matrixf::translate(0.0f, -50.0f, 0.0f));
 
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});

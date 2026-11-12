@@ -73,12 +73,10 @@ namespace Rtx
         /// What a written texture is stored as, which is what the shaders that write it declare.
         constexpr VkFormat sWrittenFormat = toVulkanFormat(TEXTURE_WRITTEN_FORMAT);
 
-        /// What a texture made on the device is created as: the format its description states.
-        ///
-        /// **The description's, because whether the trace reads it through the curve is a fact
-        /// about the content** — a bake is lighting — and the core is what states it. A dispatch
-        /// stores through `sWrittenFormat`, the same bytes with the curve off, so a description may
-        /// name that or its twin under the curve and nothing else.
+        /// What a texture made on the device is created as: the format its description states. The description's,
+        /// because whether the trace reads it through the curve is a fact about the content (a bake is lighting). A
+        /// dispatch stores through `sWrittenFormat`, the same bytes with the curve off, so a description may name that
+        /// or its twin under the curve and nothing else.
         VkFormat writtenAs(const TextureFormat format)
         {
             const VkFormat image = toVulkanFormat(format);
@@ -441,13 +439,11 @@ namespace Rtx
                     Drop{ .mStanding = priceFile(texture, level).standing(), .mSlot = texture.mSlot, .mAt = at });
         }
 
-        // **The file that stands the most bytes comes down a level first**, and of two that stand
-        // alike the one in the later slot, until the arrival fits: Unreal's streamer takes one mip
-        // at a time off the textures it least needs until its plan fits the pool, where one side
-        // for the whole arrival came down by halves and left up to three quarters of the room
-        // unused. What stands follows from the textures and the room alone, so the same world in
-        // the same room stands the same. Each level of a file stands fewer bytes than the one above
-        // it, so the order takes a file's levels in turn and any prefix holds each file's first.
+        // The file that stands the most bytes comes down a level first, and of two that stand alike the one in the
+        // later slot, until the arrival fits: Unreal's streamer takes one mip at a time off the textures it least
+        // needs, where one side for the whole arrival came down by halves and left up to three quarters of the room
+        // unused. What stands follows from the textures and the room alone, so the same world in the same room stands
+        // the same. Each level of a file stands fewer bytes than the one above, so any prefix holds each file's first.
         std::ranges::sort(mDrops, [](const Drop& left, const Drop& right) {
             return std::tie(left.mStanding, left.mSlot) > std::tie(right.mStanding, right.mSlot);
         });
@@ -477,12 +473,11 @@ namespace Rtx
             return low;
         };
 
-        // **The whole arrival, where it fits after some drops.** Where it fits after none, the
-        // ground's composites, which no drop brings down, are more than the room by themselves, and
-        // holding the files to their last levels would buy them nothing: the files come down as far
-        // as they fit alone, and the ground, stood last, takes what they leave. What is nearest the
-        // eye keeps its detail, and what gives way is the distance. Where the files fit after no
-        // count of drops either, each comes down as far as its file goes.
+        // The whole arrival, where it fits after some drops. Where it fits after none, the ground's composites, which
+        // no drop brings down, are more than the room by themselves, and holding the files to their last levels would
+        // buy them nothing: the files come down as far as they fit alone, and the ground takes what they leave. What is
+        // nearest the eye keeps its detail. Where the files fit after no count of drops either, each comes down as far
+        // as its file goes.
         std::optional<std::size_t> drops = fewestFitting(true);
         if (!drops.has_value())
             drops = fewestFitting(false);
@@ -587,11 +582,10 @@ namespace Rtx
 
             case TextureSource::SpriteBake:
             {
-                // The source stands, or draws the stand-in: `SceneTextures` names one only where
-                // the table holds it live, a live slot is described whenever it arrives, and
-                // `write` stands every source ahead of every bake. A bake of a slot that holds
-                // nothing is a contract broken and not content. A source drawing the stand-in is
-                // baked as the stand-in, as it is drawn.
+                // The source stands, or draws the stand-in: `SceneTextures` names one only where the table holds it
+                // live, and `write` stands every source ahead of every bake. A bake of a slot that holds nothing is a
+                // contract broken and not content. A source drawing the stand-in is baked as the stand-in, as it is
+                // drawn.
                 Crash::contract(texture.mFrom < mSlots.size() && !mSlots[texture.mFrom].isEmpty(),
                     "a sprite light bake names a source that does not stand");
                 return into.standBake(mDevice, arrival, standingIn(mSlots[texture.mFrom]), texture.mFormat, name);
@@ -632,12 +626,11 @@ namespace Rtx
         if constexpr (sDebugNames)
             name = "texture " + std::to_string(texture.mSlot);
 
-        // Why the slot draws the stand-in, or nothing where the texture stands. A file the device
-        // takes at no level is known before anything is made; room is known by asking for it.
-        // What the slot held is the descriptor a frame in flight bound, and its images bury
-        // themselves, so it stays valid until the timeline says nothing reads it. Let go of before
-        // the new one is made, because the new one is made where it stays: the arrival's work names
-        // its images.
+        // Why the slot draws the stand-in, or nothing where the texture stands. A file the device takes at no level is
+        // known before anything is made; room is known by asking for it. What the slot held is the descriptor a frame
+        // in flight bound, and its images bury themselves, so it stays valid until the timeline says nothing reads it.
+        // Let go before the new one is made, because the new one is made where it stays: the arrival's work names its
+        // images.
         forget(slot);
         slot.mTexture = Texture();
 

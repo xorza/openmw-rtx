@@ -19,12 +19,9 @@ namespace Rtx
 {
     namespace
     {
-        /// The byte overload is the float curve at that byte, and not an approximation of it.
-        ///
-        /// **Every one of the two hundred and fifty-six, bit for bit.** A texel arrives as a byte, so
-        /// the only arguments the curve is ever given by a decoder are `k / 255` — which is what
-        /// makes a table over `k` the same answer rather than a faster one. A `NEAR` here would say
-        /// the pictures may differ by a rounding, and they may not.
+        /// The byte overload is the float curve at that byte, and not an approximation of it: every one of the
+        /// 256, bit for bit. A decoder only ever gives the curve `k / 255`, which is what makes a table over `k`
+        /// the same answer rather than a faster one, so a `NEAR` here would let the pictures differ by a rounding.
         TEST(RtxSrgbTest, theByteCurveIsTheFloatCurveAtEveryStoredValue)
         {
             for (std::uint32_t stored = 0; stored < 256; ++stored)
@@ -34,12 +31,9 @@ namespace Rtx
             }
         }
 
-        /// A value that is not one of the 256 is not answered as though it were.
-        ///
-        /// **What the float overload's recovery has to refuse.** It finds the byte a value would
-        /// round to and divides it back before it believes the table, so a value one place off a
-        /// stored byte — and a value halfway between two — must come out of the curve instead.
-        /// Snapping either to the nearest byte would be a guess, and it would move the picture.
+        /// A value that is not one of the 256 is not answered as though it were. The float overload finds the
+        /// byte a value would round to and divides it back before it believes the table, so a value one place off
+        /// a stored byte, or halfway between two, must come out of the curve: snapping would move the picture.
         TEST(RtxSrgbTest, aValueThatIsNotAStoredByteTakesTheCurve)
         {
             // One representable step above 127 / 255, which is as close to a stored byte as a value
@@ -160,11 +154,9 @@ namespace Rtx
 
         /// The colour the game hands over is the same colour, and takes the same decode.
         ///
-        /// **OpenMW's own comment calls its pipeline linear and it is not the numbers it is talking
-        /// about.** `SceneUtil::colourFromRGB` divides a record's bytes by 255 and stops, so what
-        /// settles on a light, a fog or the sky is display-encoded exactly as the record was — which
-        /// is why the game path decodes rather than passing it through, and why the two must land on
-        /// the same value for the same record or a screenshot and the game are two different worlds.
+        /// **OpenMW's own comment calls its pipeline linear and it is not**: `SceneUtil::colourFromRGB` divides a
+        /// record's bytes by 255 and stops, so what settles on a light, a fog or the sky is display-encoded as
+        /// the record was. The game path decodes, and must land on the same value as a screenshot's.
         TEST(RtxDecodeColourTest, aColourTheGameHasAlreadyUnpackedDecodesToTheSameLight)
         {
             for (const std::uint32_t packed : { 0x00000000u, 0x00808080u, 0x000080FFu, 0x00FFFFFFu })

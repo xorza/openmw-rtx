@@ -39,10 +39,8 @@ namespace RtxTool
 {
     namespace
     {
-        /// **How long a stop waits on a paused world before it gives up, in seconds of world.** What
-        /// the session can lift — a menu — lifts within a frame or two, the interface's script
-        /// unpausing on the notice the close sends; what is still there after a hundred times that
-        /// is a pause the session cannot lift, and a stop waiting on it would wait for ever.
+        /// How long a stop waits on a paused world before it gives up, in seconds of world: what the session can
+        /// lift, a menu, lifts within a frame or two, so a pause that outlasts a hundred times that is one it cannot.
         constexpr float sPauseSeconds = 2.0f;
     }
 
@@ -55,10 +53,8 @@ namespace RtxTool
 
     void Measurer::reserve()
     {
-        // Reserved once at the longest stop's length, so no measured frame grows a vector — a
-        // benchmark that stops to reallocate is measuring its own allocator. A window that runs
-        // until it is closed is not a benchmark, and room for its "length" is thirty gigabytes a
-        // row: Linux promised that and never gave it, and Windows refuses it outright.
+        // Reserved once at the longest stop's length, so no measured frame grows a vector. A window that runs until
+        // it is closed is not a benchmark, and room for its "length" is thirty gigabytes a row.
         std::uint32_t longest = 0;
         for (const Stop& stop : mRequest.mStops)
         {
@@ -73,8 +69,7 @@ namespace RtxTool
 
     void Measurer::begin(const Stop& stop)
     {
-        // **First, because everything below writes into it.** A stop's progress is one object so
-        // that a field added to it is reset here whether or not its author remembered to.
+        // First, because everything below writes into it: one object, so a field added is reset here.
         mProgress.restart();
         assert(!stop.mSchedule.mHeld.has_value() && "a stop begun before the session settled its length");
 
@@ -97,13 +92,9 @@ namespace RtxTool
         const float step = worldStep(mRequest.mStep);
         const std::uint32_t measured = stop.mSchedule.mSpec.getMeasured(step);
 
-        // **Counted at the frame the run traced, and never at the frame the device answered for
-        // it.** The count is what the trace's sampler and the upscaler's jitter are walked by, what
-        // the hashes table numbers its rows by and what ends the stop; and a result comes back one
-        // frame later or two, by whether the card had finished when the frame after asked — so a
-        // count of results would put two runs of one build at different points of the sequence,
-        // and pair the scene of one frame with the picture of another. What the device answered is
-        // taken in below, under the number of the frame it answers for.
+        // Counted at the frame the run traced and never at the frame the device answered for it: a result comes back
+        // one frame later or two, so counting results would put two runs of one build at different points of the
+        // sequence and pair one frame's scene with another's picture. What the device answered is taken in below.
         const MeasureWindow::Taken taken = mProgress.mWindow.take(WindowFrame{
             .mWhole = report.isWhole(),
             .mPaused = report.mPaused,
@@ -127,13 +118,10 @@ namespace RtxTool
                     std::format("{}: the world stood paused on {} frames ahead of the measurement, held by {}\n",
                         stop.mName, window.getWarmedPaused(), mProgress.mPausedBy));
 
-            // **Sampled through the measured frames and not at their ends.** Two readings bound
-            // nothing: the ends of a place agree to within a couple of per cent while the card
-            // moves a fifth of its clock between them, and a leg that lost its clock then reads
-            // like a leg that lost its speed.
-            //
-            // **Asked for and not opened here**: the worker begins the window on its next turn, so
-            // this frame pays one store and no driver call (`CardWatch::start`).
+            // Sampled through the measured frames and not at their ends: the ends of a place agree to within a
+            // couple of per cent while the card moves a fifth of its clock between them. Asked for and not opened
+            // here: the worker begins the window on its next turn, so this frame pays one store and no driver
+            // call (`CardWatch::start`).
             mCardWatch.start();
             mCounters.start();
             mProfiling.enable();
@@ -179,21 +167,15 @@ namespace RtxTool
         mProgress.mPlace.mArrivals.add(taken.mClosedArrived, taken.mClosed);
         mProgress.mWallMs += frameMs;
 
-        // **A measured frame of a paused world is a frame of something else**, and nothing else in
-        // a report says so: the figures of a world standing still look like any other place's. A
-        // menu a script opened paused every run under M[FR]'s hotkey notice until the session
-        // learnt to close one (`Stager::closeMenus`), and the console, a message box waiting for an
-        // answer or a script's own tag pause it the same way. The frame's own flag, which is the
-        // one it was drawn under. Not in a session somebody plays, whose pauses are theirs.
+        // A measured frame of a paused world is a frame of something else, and nothing in a report says so. A menu
+        // a script opens (M[FR]'s hotkey notice), the console, a message box and a script's own tag pause it;
+        // `Stager::closeMenus` closes the first kind. Not in a session somebody plays, whose pauses are theirs.
         if (report.mPaused && !mRequest.mPlayed && mProgress.mPausedFrames++ == 0)
             mProgress.mPausedBy = Stager::describePause();
 
-        // **Counted here and not where the route moved**, because a crossing is a dropped frame and
-        // this is where what it dropped is known: the window closes the crossing's frame with the
-        // span it worked in, as it closes every figure (`MeasureWindow::Taken::mClosedCrossing`).
-        //
-        // **The whole frame goes in as the read**, because the game gives no split: the ring
-        // arrives on the loading threads, and what a crossing costs here is the frame that dropped.
+        // Counted here and not where the route moved, because a crossing is a dropped frame and only here is what it
+        // dropped known (`MeasureWindow::Taken::mClosedCrossing`). The whole frame goes in as the read, because the
+        // game gives no split: the ring arrives on the loading threads.
         if (taken.mClosedCrossing.has_value())
             mProgress.mPlace.mCrossings.add(*taken.mClosedCrossing, taken.mClosed.at(Rtx::Timing::Frame));
 
@@ -313,12 +295,10 @@ namespace RtxTool
 
             Crash::contract(finished->mDigest.has_value(), "a still's probe came back without its digest");
 
-            // **The same frame, traced again after the last measured one with the first one's
-            // sample**: the jitter and every dither of the eye's surface are the first frame's, so
-            // its surface and motion cannot move unless the code under them did. The build pins the
-            // float arithmetic the driver's second code could otherwise take apart, so a probe that
-            // moved was traced on a swapped code computing one of the operations left to the device
-            // — a division, a root, a transcendental — otherwise, and the stop's frames are then two
+            // The same frame, traced again after the last measured one with the first one's sample, so its surface
+            // and motion cannot move unless the code under them did. The build pins the float arithmetic the
+            // driver's second code could otherwise take apart, so a moved probe was traced on a swapped code
+            // computing a division, a root or a transcendental differently, and the stop's frames are then two
             // codes' and no reference.
             if (mRecord.getHashes().probeMoved(stop.mName, *finished->mDigest))
             {
@@ -345,9 +325,8 @@ namespace RtxTool
         place.mClock = card.mPlace.mClock;
         place.mCard = card.mPlace.mShare;
 
-        // **What the window before answered is said once, for the first place.** A desktop that
-        // was drawing while the run loaded was caught in nearly every sample, and every place's own
-        // line then reads against it.
+        // What the window before answered is said once, for the first place: a desktop that was drawing while the
+        // run loaded was caught in nearly every sample, and every place's own line reads against it.
         if (!mBeforeSaid && card.mBefore.mViewed)
             mRecord.note(std::format("before the first stop, {}\n", describeCard(card.mBefore)));
         mBeforeSaid = true;
@@ -378,11 +357,10 @@ namespace RtxTool
 
         if (mRecord.empty())
         {
-            // **What only a frame says, taken at the first stop**; `RunRecord::begin` took the rest.
-            // A bench's stops override none of the upscaling, the reconstruction and the exposure,
-            // so the first stop's are the run's; another command's stops may, and its header says
-            // the first stop's. The upscaling is the last measured frame's own answer, off its
-            // result — the pair the renderer resolved for it — and not the renderer's mode alone.
+            // What only a frame says, taken at the first stop (`RunRecord::begin` took the rest): a bench's stops
+            // override none of the upscaling, reconstruction and exposure, so the first stop's are the run's;
+            // another command's may, and its header says the first stop's. The upscaling is the last measured
+            // frame's own answer, the pair the renderer resolved, not the renderer's mode alone.
             BenchHeader& header = mRecord.getHeader();
             header.mExtents = extents;
             header.mReconstruction = mProgress.mReconstruction;
@@ -408,9 +386,8 @@ namespace RtxTool
             },
             mRecord, mRequest.mShelf);
 
-        // **The hour and the sky of one moment, the stop's last frame**, so a stop the sky turned
-        // over, or a film's take that crossed from one weather to another, is not reported at its
-        // closing hour under its opening sky.
+        // The hour and the sky of one moment, the stop's last frame, so a stop the sky turned over is not reported
+        // at its closing hour under its opening sky.
         const MWBase::World& world = *MWBase::Environment::get().getWorld();
         place.mHour = world.getTimeStamp().getHour();
         const std::optional<Rtx::Weather> weather = Rtx::weatherOfScriptId(world.getCurrentWeatherScriptId());

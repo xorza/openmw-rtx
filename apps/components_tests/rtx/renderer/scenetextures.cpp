@@ -220,12 +220,11 @@ namespace Rtx
 
         /// The uncompressed spellings a `.dds` uses are taken, and both channel orders are kept.
         ///
-        /// **Morrowind's meshes are block-compressed to the last file and its sky is not.** The
-        /// cloud decks are 32-bit `DDPF_RGB`, so a renderer that took only blocks drew every
-        /// weather's clouds as the unreadable stand-in — an opaque grey, which over a deck is the
-        /// whole sky. The two orders are separate formats rather than one and a swizzle: a `.dds`
-        /// says which it holds and the API has a format for each, where converting would mean owning
-        /// a copy of a buffer `TextureData` is defined by not owning.
+        /// **Morrowind's meshes are block-compressed to the last file and its sky is not.** The cloud decks are
+        /// 32-bit `DDPF_RGB`, so a renderer taking only blocks would draw every weather's clouds as the unreadable
+        /// stand-in, an opaque grey. The two orders are separate formats rather than one and a swizzle: a `.dds`
+        /// says which it holds and the API has a format for each, where converting would mean owning a copy of a
+        /// buffer `TextureData` is defined by not owning.
         TEST(RtxSceneTexturesTest, theUncompressedSpellingsAreTakenAndKeepTheirChannelOrder)
         {
             std::vector<Rtx::MipLevel> levels;
@@ -694,14 +693,11 @@ namespace Rtx
 
         /// Describing an arrival a second time reaches the heap not at all.
         ///
-        /// **What every scratch in `SceneTextures` is for, stated as a number.** A cell arriving is
-        /// the frame with the least room to grow anything, and the class holds the images, the
-        /// levels, the descriptions, the kept slots and the shading maps across arrivals so that one
-        /// refills what the last one grew. A `clear()` traded for a fresh vector anywhere in there
-        /// is what this catches, and nothing else would.
-        ///
-        /// **The first call is the one that grows them**, so it is spent and not measured — the same
-        /// shape the frame-path guards use.
+        /// **What every scratch in `SceneTextures` is for, stated as a number.** A cell arriving is the frame with
+        /// the least room to grow anything, and the class holds the images, levels, descriptions, kept slots and
+        /// shading maps across arrivals so that one refills what the last grew; a `clear()` traded for a fresh
+        /// vector anywhere in there is what this catches. **The first call is the one that grows them**, so it is
+        /// spent and not measured, the shape the frame-path guards use.
         TEST(RtxSceneTexturesTest, describingAnArrivalASecondTimeReachesTheHeapNotAtAll)
         {
             // **Kept under the name the image carries**, so the slot and the name the description
@@ -741,14 +737,12 @@ namespace Rtx
 
         /// A slot the scene has given up is described by nobody, and the gap it leaves is survived.
         ///
-        /// `SceneDesc` empties a freed slot's path and leaves it in the table until something takes
-        /// it over. Describing one would build an image, a shading map and a descriptor write for a
-        /// slot no material can reach — and count it as a texture that could not be read, which is
-        /// what made a departing cell look like a broken one.
+        /// `SceneDesc` empties a freed slot's path and leaves it in the table until something takes it over.
+        /// Describing one would build an image, a shading map and a descriptor write for a slot no material can
+        /// reach, and count it as a texture that could not be read, so a departing cell would look broken.
         ///
-        /// **The freed slot is first here on purpose.** What comes out is not one description per
-        /// entry of the table, so a backend taking position for slot would put every texture above
-        /// the gap one place too low.
+        /// **The freed slot is first here on purpose.** What comes out is not one description per entry of the
+        /// table, so a backend taking position for slot would put every texture above the gap one place too low.
         TEST(RtxSceneTexturesTest, aFreedSlotIsNotDescribedAndTheOthersKeepTheirSlots)
         {
 

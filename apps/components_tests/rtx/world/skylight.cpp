@@ -122,10 +122,9 @@ namespace Rtx
 
         /// The ten names, in the order a script id counts along.
         ///
-        /// **This order is the engine's and not ours.** `MWWorld::WeatherManager::addWeather` is
-        /// called ten times in `apps/openmw/mwworld/weather.cpp:672` and each call's position is the
-        /// `mScriptId` the game later hands the renderer, and `ESM::Weather`'s table spells them in
-        /// that order. A table of this renderer's own that drifted from it would put an ashstorm's
+        /// **This order is the engine's and not ours.** Each weather's position in
+        /// `ESM::Weather::indexToRefId`'s table is the `mScriptId` the game later hands the
+        /// renderer. A table of this renderer's own that drifted from it would put an ashstorm's
         /// sky over a rainstorm without anything failing to compile, so there is none.
         TEST(RtxSkylightTest, aWeatherNameIndexesTheOrderTheEngineRegistersThemIn)
         {

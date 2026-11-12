@@ -6,10 +6,10 @@
 // The accumulator's anti-lag: the slow mean of the bounce held to what its fast mean says around the pixel,
 // after the accumulator and before the wavelet.
 //
-// **Why a slow mean drags.** The accumulator drops a history only where the surface changed. Where the
-// light changes on a surface that did not move — an actor's darkness dragged over a floor — its 32 frames
-// keep the old light, and the wavelet's feedback blurs it as it fades: a trail ten pixels long and more
-// behind a moving bar (`RtxBounceTrailTest`).
+// **Why a slow mean drags.** The accumulator drops a history only where the surface changed. Where the light
+// changes on a surface that did not move (an actor's darkness dragged over a floor) its 32 frames keep the
+// old light, and the wavelet's feedback blurs it as it fades: a trail ten pixels long and more behind a
+// moving bar (`RtxBounceTrailTest`).
 //
 // **Why the fast mean's neighbourhood and not the frame's sample.** A sample is one bounce, and one that
 // found a lit patch stands many deviations over the mean, so a box of samples would hold the slow mean to
@@ -26,8 +26,7 @@
 //
 // **And the variance the wavelet's brightness test reads**: a settled mean's own moments', and a short
 // history's, which its own cannot give yet (`ACCUMULATE_SETTLED`), that of the moments over the same 5×5
-// square, each tap by how nearly it is the pixel's surface, `shortHistoryVariance`, ReLAX's spatial
-// estimate.
+// square, each tap by how nearly it is the pixel's surface (`shortHistoryVariance`, ReLAX's spatial estimate).
 //
 // **The fill moves by the bounce's share.** `CHANNEL_FILL` is a share of the bounce, so the fill moves
 // toward its fast mean by the share the bounce's luma moved, as ReLAX moves a history's other data by its
@@ -243,10 +242,9 @@ void main()
     const vec3 followedFill = clamp(fastFillHere + pushed * towardFill, vec3(0.0), followed);
 
     // **A short history's variance is the square's moments, by how nearly each tap is this surface**
-    // (`facingWeights`, `coplanarWeight`), as ReLAX weighs its spatial estimate's taps and SVGF its
-    // bilateral one: a short history stands where something was uncovered, and a flat square mixed the
-    // occluder's moments into the uncovered surface's variance, which loosened the wavelet's brightness
-    // test where it matters.
+    // (`facingWeights`, `coplanarWeight`), as ReLAX weighs its spatial estimate's taps and SVGF its bilateral
+    // one: a short history stands where something was uncovered, and a flat square mixed the occluder's
+    // moments into the uncovered surface's variance, loosening the wavelet's brightness test where it matters.
     const ivec2 own = centre - INSET;
     const float deviation = imageLoad(moments, stored).g;
     float variance = deviation * deviation;

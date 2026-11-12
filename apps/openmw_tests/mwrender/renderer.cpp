@@ -202,12 +202,10 @@ namespace MWRender
             const Clock::duration limit
                 = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<float>(1.0f / 200.0f));
 
-            // The first frame after the limit was set, which nothing before it can have made late:
-            // on a Windows runner a 5 ms sleep came back 5.9 ms later, so a second frame measured
-            // after a first one had nothing left to sleep. **Bounded by the clock read around the
-            // limiter's making and the frame**, and never by a number of milliseconds: the limiter
-            // measures from its making, and an ASan runner held a frame 3.6 ms whose limiter it had
-            // made 1.4 ms before.
+            // The first frame after the limit was set, which nothing before it can have made late (a second
+            // frame after a first had nothing left to sleep). Bounded by the clock read around the limiter's
+            // making and the frame, never by a number of milliseconds: the limiter measures from its making,
+            // and an ASan runner held a frame 3.6 ms whose limiter it had made 1.4 ms before.
             const Clock::time_point made = Clock::now();
             renderer.setFrameRateLimit(200.0f);
             const Clock::time_point began = Clock::now();
@@ -231,15 +229,11 @@ namespace MWRender
             EXPECT_LE(renderer.getLastHold(), after - between) << "nothing held it past its own call";
         }
 
-        /// **A nested frame is opened as the loop opens its own**: held to the limit, and a wall
-        /// clock moved on by what it stood for, so a loading screen or a message box stamps and
-        /// steps the interface by its own time and not the outer frame's. At 200 frames a second the
-        /// hold is 5 ms, so the step is never less, and the frame answers the step the clock took.
-        /// How much more is the system's sleep: on a Windows runner, a frame held for 5 ms stood for 10.5.
-        ///
-        /// **A clock that states its step moves by the loop's frames alone**: a nested frame of a
-        /// measured run stands for nothing and leaves the clock where the loop put it, because how
-        /// many a run draws is the wall's answer.
+        /// A nested frame is opened as the loop opens its own: held to the limit, and a wall clock moved on
+        /// by what it stood for, so a loading screen or a message box steps the interface by its own time. At
+        /// 200 frames a second the hold is 5 ms, so the step is never less; how much more is the system's
+        /// sleep. A clock that states its step moves by the loop's frames alone: a nested frame of a measured
+        /// run leaves the clock where the loop put it, because how many a run draws is the wall's answer.
         TEST(RendererTest, aNestedFrameStepsAWallClockAndLeavesAStatedOne)
         {
             RecordingRenderer renderer;

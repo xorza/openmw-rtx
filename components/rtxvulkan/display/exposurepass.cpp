@@ -71,13 +71,9 @@ namespace Rtx
     {
         const GpuZone timed(timer, commands, FrameZone::Exposure);
 
-        // Two frames in flight share one set of these buffers, and the previous frame's curve
-        // reading them, its reduction writing the exposure this one moves toward, and its clear are
-        // all behind the head barrier `CommandPool::begin` recorded — which is why the clear waits
-        // for nothing of its own.
-        //
-        // Cleared here and not in a shader: the workgroups accumulate into it, so one of them
-        // zeroing it would race with the rest.
+        // Two frames in flight share these buffers; the previous frame's readers and writers are all
+        // behind the head barrier `CommandPool::begin` recorded, so the clear waits for nothing of
+        // its own. Cleared here and not in a shader: the workgroups accumulate into it.
         mHistogram.clear(commands);
         mHistogram.transition(commands, Use::sBufferClearWrite, Use::sBufferComputeReadWrite);
 

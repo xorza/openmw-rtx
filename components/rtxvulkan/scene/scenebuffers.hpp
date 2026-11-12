@@ -46,19 +46,18 @@ namespace Rtx
         /// Takes in the attributes of the meshes the scene says arrived, and the layer and mask
         /// runs that arrived with them. The blocks are appended to rather than replaced, and a
         /// departure needs nothing here. Through `batch`, with frames in flight: a run an arrival
-        /// was given may be one a material that went held until the last sweep, and the frame
-        /// that shaded its hits can still be reading it. Ends in the barrier whatever reads them
-        /// needs.
+        /// was given may be one a departed material held, which a frame can still be reading. Ends
+        /// in the barrier whatever reads them needs.
         void extend(Batch& batch, const SceneDesc& scene);
 
         /// Rewrites what a moving world changes — where things are and what is lit — leaving what
         /// it is made of alone: rebuilding all of it is tens of milliseconds on a nine-by-nine
-        /// region. Those tables are host-written, so this is a write through `uploads` and not a
-        /// load's batch and a wait. Into `slot`'s copy of every table a frame
-        /// writes, whose fence the caller waited; `SlotTable` and `SlotBlocks` keep each copy's
-        /// account of what it is owed. `scene` must be the one the constructor was given, and
-        /// `records` the rows the acceleration structure was placed with, so the motion transform a
-        /// shader reads and the one an instance was placed with come out of the same arithmetic.
+        /// region. Those tables are host-written, so this is a write through `uploads`. Into
+        /// `slot`'s copy of every table a frame writes, whose fence the caller waited; `SlotTable`
+        /// and `SlotBlocks` keep each copy's account of what it is owed. `scene` must be the one
+        /// the constructor was given, and `records` the rows the acceleration structure was placed
+        /// with, so the motion transform a shader reads and the one an instance was placed with
+        /// come out of the same arithmetic.
         ///
         /// @param changed the slots `updateInstanceRecords` wrote, which is the one list the rows
         ///        are driven by.
@@ -212,8 +211,8 @@ namespace Rtx
         /// A standing mesh's normals in the shared blocks, by its vertex offset, and a deforming
         /// mesh's in the posed blocks, by its bind offset as its pose is (`MeshRange::mBindOffset`):
         /// `SkinPass` poses them as it poses the body, and an arrival writes its bind normals first,
-        /// so a body the pass has not reached holds what a hit can read. **One posed copy and not one
-        /// a frame in flight**: no frame reads another's normals, as it reads the poses for motion,
+        /// so a body the pass has not reached holds what a hit can read. One posed copy and not one
+        /// a frame in flight: no frame reads another's normals as it reads the poses for motion,
         /// and the pass writes them on the queue behind every frame that read the last.
         JoinedBlocks mNormals{ Shaders::VERTEX_BLOCK, sizeof(std::uint32_t), Shaders::POSED_FIRST_BLOCK };
 

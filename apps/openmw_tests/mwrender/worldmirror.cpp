@@ -116,14 +116,11 @@ namespace MWRender
             }
         };
 
-        /// **What the walk stopped finding is gone from the scene the hand-over takes.** A sweep run
-        /// after the frame would trace a slot the walk no longer met once more where it last stood:
-        /// the player's body, stamped afresh on every cell it entered, would draw as a double of
-        /// itself one frame behind — the arms in front of a player walking backward. A stamp is for
-        /// a node's life, so the identity that moves here is a structural one: the
-        /// second body shifts into the first's place when the first goes, and is walked as the
-        /// first, moved. What must not stand beside it is its own old slot, where the last frame
-        /// left it.
+        /// What the walk stopped finding is gone from the scene the hand-over takes: a sweep run after the
+        /// frame would trace a slot the walk no longer met once more where it last stood, as the player's body
+        /// stamped afresh on every cell drew as a double one frame behind. A stamp is for a node's life, so
+        /// the identity that moves here is structural: the second body shifts into the first's place when the
+        /// first goes. What must not stand beside it is its own old slot.
         TEST(RtxWorldMirrorTest, whatTheWalkStoppedFindingIsGoneBeforeTheHandOver)
         {
             TwoBodyFrame world;
@@ -274,13 +271,10 @@ namespace MWRender
             EXPECT_EQ(mirror.getTraversalMask(), playing) << "and it comes back";
         }
 
-        /// **What the content hides is left out whether or not the loader has been told which bit
-        /// hides.** `NifOsg::VisController` stamps `Mask_UpdateVisitor` on a node its data says is
-        /// not there, and `NifOsg::Loader` learns that bit from `RenderingManager` — which the
-        /// engine builds *after* the renderer. So a mask that asks the loader for it subtracts
-        /// nought, and every hidden node in the game is walked, placed and traced: the Heart of
-        /// Lorkhan stands wearing the whole of its destruction, each shell at the frame that
-        /// sequence opens on.
+        /// What the content hides is left out whether or not the loader has been told which bit hides:
+        /// `NifOsg::VisController` stamps `Mask_UpdateVisitor` on a node its data says is not there, and the
+        /// loader learns that bit from `RenderingManager`, which the engine builds after the renderer. A mask
+        /// asking the loader would subtract nought and every hidden node be traced.
         ///
         /// The loader is left untold here, which is the state the mirror is really built in.
         TEST(RtxWorldMirrorTest, whatTheContentHidesIsLeftOutBeforeTheLoaderIsToldWhichBitHides)

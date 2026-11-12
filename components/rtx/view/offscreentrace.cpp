@@ -111,9 +111,8 @@ namespace Rtx
         if (mSubject == nullptr)
             return true;
 
-        // Posed here, because nothing else will. The camera callback the game hangs on a doll's
-        // subtree is what finds the head to look at, and it runs in an update traversal — and a
-        // subtree that is in no graph is reached by no traversal but this one.
+        // Posed here, because a subtree in no graph is reached by no traversal but this one: the camera
+        // callback the game hangs on a doll's subtree, which finds the head to look at, runs in an update.
         Subject& subject = *mSubject;
         subject.mPosedFrame = static_cast<unsigned int>(posing.getFrameNumber());
 
@@ -129,23 +128,20 @@ namespace Rtx
         // to reuse the moment this returns.
         *subject.mPoseStamp = posing;
 
-        // Re-walked and not rebuilt, which the identity maps owning their keys is what makes
-        // sound. Between one redraw and the next this subject is taken apart —
-        // `NpcAnimation::updateParts` frees the body parts that changed and builds their
-        // replacements — and the allocator is free to put a new part exactly where a retired one
-        // was. A map keyed on the bare address found the retired part's entry under the new part's
-        // and mirrored the wrong geometry, which is the torn figure a change of clothes produced; a
-        // map that holds its key cannot be shown that address at all until it lets go.
+        // Re-walked and not rebuilt, which the identity maps owning their keys make sound: between
+        // redraws `NpcAnimation::updateParts` frees changed body parts and builds replacements, and the
+        // allocator may put a new part exactly where a retired one was. A map keyed on the bare address
+        // found the retired part's entry under the new part (a torn figure after a change of clothes);
+        // a map that holds its key cannot be shown that address until it lets go.
         //
-        // What a walk refills wholesale goes, as the world's frame does — the lights, the sprites
-        // and the deformed meshes. The placements are reconciled in place, and the meshes and
-        // materials stay because they are what the walk is trying not to read again.
+        // What a walk refills wholesale goes, as the world's frame does — the lights, the sprites and
+        // the deformed meshes. Placements are reconciled in place; meshes and materials stay because
+        // they are what the walk is trying not to read again.
         subject.mScene->clearPlacement();
 
-        // The world's clock, which the update above posed by: an enchanted glow on the doll and a
-        // flame in its hand run at the hour the world has, as the rasterizer's preview runs them.
-        // Redrawn on a change and not every frame, so its emitters step by the gap since the last
-        // redraw, which is what the rasterizer's cull of the preview hands `osgParticle`.
+        // The world's clock, which the update above posed by: an enchanted glow on the doll and a flame in
+        // its hand run at the world's hour, as the rasterizer's preview runs them. Redrawn on a change
+        // and not every frame, so emitters step by the gap since the last redraw, as `osgParticle` gets.
         const double posedAt = posing.getSimulationTime();
         const double step = subject.mPosedAt.has_value() ? posedAt - *subject.mPosedAt : 0.0;
         subject.mPosedAt = posedAt;
@@ -154,10 +150,10 @@ namespace Rtx
         // The picture's own eye, for whatever in the subject turns to face one.
         subject.mExtractor->setEye(viewBasisOf(osg::Matrixd::inverse(mView)));
 
-        // The number the update above ran at, because that is what a semi-active skeleton compares
-        // the walk's `markReached` against: a skeleton told another number stops moving its bones
-        // three redraws on. The pose the walk reads is what the update left in the bones, and it
-        // is handed to the device as rows: no cull runs here and no traversal number gates it.
+        // The number the update above ran at, because a semi-active skeleton compares the walk's
+        // `markReached` against it: told another, it stops moving its bones three redraws on. The pose
+        // the walk reads is what the update left in the bones, handed to the device as rows; no cull
+        // runs here and no traversal number gates it.
         subject.mExtractor->extract(*subject.mNode, osg::Matrixf::identity(), 0, subject.mPosedFrame);
 
         // The sweep is what takes the parts that came off. It is sound for the same reason it is
@@ -221,9 +217,9 @@ namespace Rtx
         if (!camera.has_value())
             return false;
 
-        // The trace's own rule, so a picture framed orthographically is picked along its parallel
-        // rays and not fanned out from its eye. From the near plane to the far one, which a ray
-        // reaches at the distance its slant from the forward stretches it to.
+        // The trace's own rule, so a picture framed orthographically is picked along its parallel rays and
+        // not fanned out from its eye: near plane to far, which a ray reaches at the distance its slant
+        // from the forward stretches it to.
         const Shaders::Ray ray = Shaders::rayAcross(camera->mEyes.mWorld, osg::Vec2f(x, y));
         const osg::Vec3f from = camera->mOrigin + ray.mOffset;
         osg::Vec3f forward = camera->mEyes.mWorld.mBasis.mForward;
@@ -235,18 +231,16 @@ namespace Rtx
             from + ray.mDirection * (mRequest.mFraming.mFar / slant));
         intersector->setIntersectionLimit(osgUtil::LineSegmentIntersector::LIMIT_NEAREST);
 
-        // Posed here, on the processor, because the intersection reads the drawable's own copy.
-        // `SceneUtil::RigGeometry` and `MorphGeometry` skin inside a cull traversal and answer an
-        // intersection with whatever the last cull wrote; the picture was traced from a pose the
-        // device computed, so without this the click would land on the bind pose. A number from the
-        // shared sequence, because both deforming geometries refuse to move for one they have seen.
+        // Posed here, on the processor, because the intersection reads the drawable's own copy:
+        // `SceneUtil::RigGeometry` and `MorphGeometry` skin inside a cull and answer an intersection with
+        // the last cull's result, so without this the click would land on the bind pose. A number from
+        // the shared sequence, because both refuse to move for one they have seen.
         const unsigned int posed = subject.mExtractor->getContext().mTraversals.next();
         subject.mPoseStamp->setFrameNumber(posed);
 
-        // **Updated before it is posed, as a frame is**: a part `NpcAnimation::updateParts` attached
-        // since the last redraw binds its skeleton in an update traversal, and culled before one it
-        // found none and logged so. At the picture's own clock, so what the picture showed stands
-        // where it stood.
+        // **Updated before it is posed, as a frame is**: a part `NpcAnimation::updateParts` attached since
+        // the last redraw binds its skeleton in an update traversal, and culled before one it found none
+        // and logged so. At the picture's own clock, so what was shown stands where it stood.
         subject.mUpdate->reset();
         subject.mUpdate->setFrameStamp(subject.mPoseStamp.get());
         subject.mUpdate->setTraversalNumber(posed);

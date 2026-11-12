@@ -161,11 +161,9 @@ namespace Rtx
 
         /// A deck is lit by what stands over it, and its own body is what keeps the sun off its base.
         ///
-        /// **The engine paints its deck and this one lights it.** `SkyManager::setWeather` adds an eighth
-        /// to a display-encoded fog, which read as light is a third again over a clear day and eight
-        /// times over the same weather's night — so a painted deck arrived at midnight eight times
-        /// the sky it covers. Lit, it is `CLOUD_TRANSMISSION` of whatever reaches it, whatever hour
-        /// that is.
+        /// **The engine paints its deck and this one lights it.** `SkyManager::setWeather` adds an eighth to a
+        /// display-encoded fog, which read as light is eight times the sky at night, so a painted deck arrived at
+        /// midnight eight times the sky it covers. Lit, it is `CLOUD_TRANSMISSION` of whatever reaches it.
         ///
         /// A sun of 8, 4, 2 straight overhead, a sky mean of 0.4, 0.8, 1.2, and a moon a third of
         /// the way up delivering 0.4, 0.8, 1.2 to a face square to it:

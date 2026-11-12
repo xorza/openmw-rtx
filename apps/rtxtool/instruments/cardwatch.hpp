@@ -29,14 +29,12 @@ namespace RtxTool
 
     /// Whose work the card ran across a window of a run, by the driver's own samples.
     ///
-    /// **Another process's work, and not the time it took the card from the renderer.** An editor's
-    /// redraw or a browser's tab lands on whichever pass is running, and the frame that carries it
-    /// reads as the renderer's. The driver samples five times a second which processes kept the
-    /// shader cores busy, and this counts the samples that were somebody else's — one in twenty at
-    /// a four per cent share, so a short place under a light load may see none, and a run that saw
-    /// any was under a load. **A context switch is not in them**: under `nsys`, KWin took the card
-    /// 789 times for 1.48 s in a run of `balmora-mages-guild` whose 28 samples were all this
-    /// process's, because a compositor's slice is the switch and little work.
+    /// Another process's work and not the time it took the card from the renderer: an editor's redraw or a
+    /// browser's tab lands on whichever pass is running. The driver samples five times a second which
+    /// processes kept the shader cores busy, and this counts the samples that were somebody else's (one in
+    /// twenty at a four per cent share, so a short place under a light load may see none). A context switch
+    /// is not in them: under `nsys`, KWin took the card 789 times for 1.48 s in a run whose 28 samples were
+    /// all this process's, because a compositor's slice is the switch and little work.
     struct CardShare
     {
         /// How long the window was.
@@ -105,12 +103,10 @@ namespace RtxTool
     /// The card through a run, on a thread of its own: its clock across a place's frames, and
     /// who held it through every window of the run.
     ///
-    /// **The clock sampled through the frames rather than at their ends**, because two ends
-    /// agree to within a couple of per cent while the card moves a fifth of its clock between
-    /// them, and a leg that lost its clock then reads like a leg that lost its speed. **The
-    /// holders from the process's start and not from the frames**, because the window before
-    /// the first place — the load, at the card's idle clock, where a redraw lasts long enough to
-    /// be caught in nearly every sample — is where an animating desktop shows plainest.
+    /// The clock is sampled through the frames rather than at their ends, which agree to within a couple of
+    /// per cent while the card moves a fifth of its clock between them. The holders are taken from the
+    /// process's start and not the frames, because the load before the first place, at the card's idle clock,
+    /// is where an animating desktop shows plainest.
     class CardWatch
     {
     public:

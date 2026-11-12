@@ -235,11 +235,10 @@ namespace Rtx
                 layer.mRelief = mWalk.alphaRangeOf(*normal.mImage);
         }
 
-        // One cell at a time, which is the paging's near answer: containers page here as they do
-        // in the active grid's own chunks, and the size rule is what thins them with distance. One
-        // walk of the cell's records answers the lamps too, which the paging never stands, and a
-        // reference is a lamp where its record is a `LIGH`: its light is carried whether or not
-        // the statics are read, and its model stands as any static's does.
+        // One cell at a time, which is the paging's near answer: containers page here as they do in the active grid's
+        // own chunks, and the size rule thins them with distance. One walk of the cell's records answers the lamps too,
+        // which the paging never stands: a reference is a lamp where its record is a `LIGH`, its light carried whether
+        // or not the statics are read.
         mStorage.collect(1.0f, cell, mWorldspace, Terrain::RefKinds::Both, *mCollector, mRefScratch);
 
         for (const Terrain::PagedCellRef& ref : mRefScratch)

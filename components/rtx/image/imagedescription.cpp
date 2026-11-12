@@ -191,11 +191,10 @@ namespace Rtx
 
     TextureData describeStandIn()
     {
-        // Mid grey and not magenta, because a live graph's unreadable textures are mostly things
-        // that were never files, and the refusal already names each. Only a base colour draws it;
-        // every other reader reads the slot as none, `TEXTURE_STANDS_IN`. One opaque BC1 block with both
-        // endpoints the same grey: 0x8410 is RGB565 for (16, 16, 16) out of (31, 63, 31) — a touch
-        // above half, which is mid grey once the sRGB curve is undone.
+        // Mid grey and not magenta, because a live graph's unreadable textures are mostly things that were never files.
+        // Only a base colour draws it; every other reader reads the slot as none, `TEXTURE_STANDS_IN`. One opaque BC1
+        // block, both endpoints 0x8410: RGB565 (16, 16, 16), a touch above half, which is mid grey once the sRGB curve
+        // is undone.
         static constexpr std::array<std::byte, 8> sBlock{ std::byte{ 0x10 }, std::byte{ 0x84 }, std::byte{ 0x10 },
             std::byte{ 0x84 }, std::byte{}, std::byte{}, std::byte{}, std::byte{} };
         static constexpr MipLevel sLevel{ .mOffset = 0, .mWidth = 4, .mHeight = 4 };
@@ -275,25 +274,19 @@ namespace Rtx
             const auto width = static_cast<std::uint32_t>(image.s());
             const auto height = static_cast<std::uint32_t>(image.t());
 
-            // **The layout held against OpenSceneGraph's before a byte is read.** Every reader of the
-            // bytes below and the upload take a level's size from `layout`, and the image's buffer is
-            // what its loader allocated level by level, `computeImageSizeInBytes`; where the two count
-            // a level differently, reading the image by `layout` runs past its buffer or short of its
-            // levels. A format read by its pixel format alone did that to every sixteen-bit file — and
-            // a padded row would do it again. Level by level and not by `getTotalSizeInBytes`, whose
-            // count of a block format with no chain differs between OpenSceneGraph builds: a two-by-two
-            // BC3 is four bytes of its sixteen in one and 32 in another. The bytes are the kept levels'
-            // and no more, so an upload stages none of what they leave out.
+            // **The layout held against OpenSceneGraph's before a byte is read.** Every reader and the upload take a
+            // level's size from `layout`, and the image's buffer is what its loader allocated level by level
+            // (`computeImageSizeInBytes`); where the two differ, reading by `layout` runs past the buffer or short of
+            // its levels. Level by level and not by `getTotalSizeInBytes`, whose count of a block format with no chain
+            // differs between OpenSceneGraph builds. The bytes are the kept levels' and no more, so an upload stages
+            // none of what they leave out.
             //
-            // **A volume is its first slice**, as the rasterizer draws a file bound as a flat texture:
-            // each level is read at its own offset for one slice, and every slice counts toward where
-            // the next level begins. A player's crash in the staging copy was a 128 by 128 DXT3 file of
-            // four slices staged at all four.
+            // **A volume is its first slice**, as the rasterizer draws a file bound as a flat texture: each level is
+            // read at its own offset for one slice, and every slice counts toward where the next level begins. A 128 by
+            // 128 DXT3 file of four slices once crashed the staging copy by being staged at all four.
             //
-            // **A level's offset is 32 bits**, which neither the bound on what is read nor the copy holds:
-            // RGBA8 of 32768 on a side lays four gigabytes at its finest, and widening multiplies a source
-            // by four for an eight-bit channel, so an eight-bit image of that side is a gigabyte read and
-            // four laid, its next level's offset past what the offset can name.
+            // **A level's offset is 32 bits**, which neither the bound on what is read nor the copy holds: RGBA8 of
+            // 32768 on a side lays four gigabytes at its finest, and widening multiplies an eight-bit source by four.
             std::size_t laidTotal = 0;
             for (std::uint32_t level = 0; level < count; ++level)
                 laidTotal += laidLevelBytes(format, std::max(width >> level, 1u), std::max(height >> level, 1u));

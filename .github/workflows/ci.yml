@@ -116,9 +116,8 @@ jobs:
           - name: linux-tsan
             os: ubuntu-26.04
             # On the runner itself, over Ubuntu's GCC 15's libstdc++, against the same set: ThreadSanitizer
-            # turns address randomisation off for its process through `personality`, which Docker's seccomp
-            # profile refuses, and every sanitized program stopped on "unexpected memory mapping" in the
-            # container.
+            # turns address randomisation off through `personality`, which Docker's seccomp profile refuses
+            # ("unexpected memory mapping" in the container).
             flavour: tsan
             build-flags: --without-device
             ccache-size: 2000M

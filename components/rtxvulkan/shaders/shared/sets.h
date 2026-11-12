@@ -7,12 +7,13 @@
 // Which descriptor set is which, for the shaders that declare them and the layouts and binds that
 // place them.
 //
-// **A set's number was a literal in the shaders and a place in a list on the host**, and three lists
-// had to agree with each other and with the literals: the layouts a pipeline was made with, the sets
-// a trace bound, and the first set a bind began at. The layers caught a disagreement only because
-// the three shared sets happen to hold different descriptor types, and only in a validated run.
-// `Rtx::SharedSets` names each by what it holds, and puts it at the number here, and every stage's
-// module is held to every set its layout names (`Rtx::bindingDisagreement`) in every run.
+// **One number per set, shared by both sides**: a literal in the shaders and a place in a list on the host
+// meant the layouts a pipeline was made with, the sets a trace bound and the first set a bind began at had to
+// agree, and the layers caught a disagreement only in a validated run, since the three shared sets happen to
+// hold different descriptor types. `Rtx::SharedSets` names each by what it holds and puts it at the number
+// here, and every stage's module is held to every set its layout names (`Rtx::bindingDisagreement`) in every
+// run.
+
 //
 // Set zero is each pass's own and is pushed; the others are made once and bound by every pass that
 // reads them.

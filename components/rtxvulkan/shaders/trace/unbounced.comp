@@ -5,11 +5,9 @@
 
 // The ambient on every pixel's solid where no bounce is traced (`SamplingSwitches::mIndirect` off), under
 // one occlusion ray, in the channel a bounce would fill: the bounce's stage for such a frame. The whole of
-// it is the fill, which no pass after it keeps apart (`ACCUMULATE_HOLDS_FILL`).
-//
-// **A kernel of its own and not a path through `bounce.comp`**: a surface read only for its position and
-// its normals leaves every other fetch of `resolve` to the compiler to remove, and no list, gloss or lobe
-// holds registers.
+// it is the fill, which no pass after it keeps apart (`ACCUMULATE_HOLDS_FILL`). A kernel of its own and not a
+// path through `bounce.comp`: a surface read only for its position and normals leaves every other fetch of
+// `resolve` to the compiler to remove, and no list, gloss or lobe holds registers.
 
 #include "shared/traceconstants.h"
 #include "camera.h"

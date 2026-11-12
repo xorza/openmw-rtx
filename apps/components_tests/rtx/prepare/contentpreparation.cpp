@@ -163,15 +163,13 @@ namespace Rtx
                 .mAround = around };
         }
 
-        /// **A model is walked once, and again only once a file it read moved.** Two quads, each with
-        /// a diffuse of its own and one normal map they share: the first start walks both, folds two
-        /// shapes and makes the shared map's chain once; a start where nothing moved walks neither and
-        /// writes no manifest;
-        /// one where the second model's diffuse moved walks it alone; a content list that no longer
-        /// names it leaves it in the manifest, so a switch back walks nothing, until no run named it for
-        /// 31 days. A model no file stands for is walked again once its stamp moves, as a mod that adds
-        /// it moves it. Each run says what it took: its two threads, and a time to its last job inside the
-        /// call, nought where it had no job; and has the loader let go of every file a job read.
+        /// **A model is walked once, and again only once a file it read moved.** Two quads, each with a diffuse of its
+        /// own and one normal map they share: the first start walks both, folds two shapes and makes the shared
+        /// map's chain once; a start where nothing moved walks neither and writes no manifest; one where the second
+        /// model's diffuse moved walks it alone; a content list that no longer names a model leaves it in the
+        /// manifest, so a switch back walks nothing, until no run named it for 31 days. A model no file stands for is
+        /// walked again once its stamp moves. Each run says what it took (its two threads, and a time to its last job
+        /// inside the call, nought with no job), and the loader has let go of every file a job read.
         TEST(RtxContentPreparationTest, aModelIsWalkedOnceAndAgainOnlyOnceAFileItReadMoved)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";

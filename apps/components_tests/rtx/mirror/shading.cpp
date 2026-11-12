@@ -100,10 +100,10 @@ namespace Rtx
             EXPECT_EQ(keys.size(), 2u) << "the pair under the second parent is held by nothing";
             EXPECT_EQ(keyOf({ first.get(), shared.get(), second.get() }), deeper) << "a held key is found again";
 
-            // **Let go of into the sink, as a material's sweep lets go of its key**: what the sink
-            // holds is no hold on a key. Each pair that goes puts what it held in the sink: its key,
-            // the key above it and its own link, three references. One pair went at the first sweep
-            // and two go at this one, beside the key the sink was handed: 3 + 1 + 2 · 3 = 10.
+            // **Let go of into the sink, as a material's sweep lets go of its key**: what the sink holds is no hold on
+            // a key. Each pair that goes puts its key, the key above it and its own link in the sink, three references;
+            // one pair went at the first sweep and two go at this one, beside the key the sink was handed:
+            // 3 + 1 + 2 · 3 = 10.
             released.keep(held);
             held = nullptr;
 
@@ -133,15 +133,13 @@ namespace Rtx
 
         /// The fade the game writes is read, and the alpha beside it is multiplied into it.
         ///
-        /// `MWRender::TransparencyUpdater` writes `actorFade`, and Invisibility and Chameleon ride
-        /// `alpha` on the same state set. Three quarters of a half is three eighths, and the
-        /// inherited fade is replaced rather than multiplied — the nearest state set that carries
-        /// the pair is the whole answer.
+        /// `MWRender::TransparencyUpdater` writes `actorFade`, and Invisibility and Chameleon ride `alpha` on the same
+        /// state set. Three quarters of a half is three eighths, and the inherited fade is replaced rather than
+        /// multiplied: the nearest state set carrying the pair is the whole answer.
         ///
-        /// **And a nearer `alpha` replaces the actor's and keeps its fade**, as the rasterizer's
-        /// state stack resolves the two uniforms apart: a cast effect's root on an invisible caster
-        /// states an `alpha` of one, so the placement under it is faded by the actor's three
-        /// quarters alone, and the material reads its own `alpha`.
+        /// **And a nearer `alpha` replaces the actor's and keeps its fade**, as the rasterizer's state stack resolves
+        /// the two uniforms apart: a cast effect's root on an invisible caster states an `alpha` of one, so the
+        /// placement under it is faded by the actor's three quarters alone, and the material reads its own `alpha`.
         TEST(RtxShadingTest, theFadeAndTheAlphaAreMultipliedAndANearerAlphaReplacesTheActors)
         {
             const osg::ref_ptr<osg::StateSet> fading = new osg::StateSet;

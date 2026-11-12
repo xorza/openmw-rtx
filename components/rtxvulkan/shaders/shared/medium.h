@@ -36,23 +36,20 @@ namespace Rtx::Shaders
     /// sun's transport with the irradiance and the phase left off, and the density itself, which the
     /// weather's extinction makes per world unit.
     ///
-    /// **The products and not their factors**: what a stretch integrates is the extinction times
-    /// the light, and the two move against each other — a froxel the bank's edge crosses is dense and
-    /// shadowed on one side and thin and lit on the other — so the mean of their product is not the
-    /// product of their means, which is what a history and a tent of the two apart came to.
+    /// **The products and not their factors**: what a stretch integrates is the extinction times the light,
+    /// and the two move against each other (a froxel the bank's edge crosses is dense and shadowed on one side
+    /// and thin and lit on the other), so the mean of their product is not the product of their means.
     ///
-    /// **A sample at the slice's middle, and not a constant over the slice.** The volume holds one of
-    /// these per froxel, and what a froxel's value is is a property of one point in it, averaged over
-    /// draws — so between two of them the air is what a sampler says it is between two texels: the
-    /// line from one to the next. `fogThrough` integrates that line, and `fogintegrate.comp` and
-    /// `fogVolumeAlong` both step through it, so a column's accumulation and a pixel's read of the
-    /// slice it ends in agree exactly at the slice's far edge.
+    /// **A sample at the slice's middle, and not a constant over the slice.** The volume holds one of these
+    /// per froxel, a property of one point in it averaged over draws, so between two of them the air is what a
+    /// sampler says it is between two texels: the line from one to the next. `fogThrough` integrates that
+    /// line, and `fogintegrate.comp` and `fogVolumeAlong` both step through it, so a column's accumulation and
+    /// a pixel's read of the slice it ends in agree exactly at the slice's far edge.
     ///
-    /// **Constant over a slice instead, the grid drew itself.** The accumulation was then a straight
-    /// line across every slice with a corner at every edge — or, reconstructed with a cubic to hide the
-    /// corners, a bump in the middle of every slice — and either is a pattern with the slices' own
-    /// period, laid on the ground as shells around the eye wherever two neighbouring slices held
-    /// different air. Banked air holds different air in neighbouring slices everywhere.
+    /// **Constant over a slice would draw the grid**: the accumulation is then a straight line across every
+    /// slice with a corner at every edge (or, reconstructed with a cubic to hide the corners, a bump in the
+    /// middle), a pattern with the slices' own period laid on the ground as shells around the eye wherever
+    /// neighbouring slices hold different air, which banked air does everywhere.
     struct FogSlice
     {
         vec3 mSource;
@@ -83,17 +80,16 @@ namespace Rtx::Shaders
     /// density, accumulating what it scattered in and taking off what it lost.
     ///
     /// **The source is the extinction times the light, so what a stretch scatters in is
-    /// `T (1 - e^-σd) / σ` of it** — the transmittance's share the source keeps over the stretch —
-    /// which `mediumKept` holds to its digits however thin the air, and which is the stretch's length times
-    /// the transmittance where there is no air at all. What the transmittance loses is the same stretch
-    /// times `σ`.
+    /// `T (1 - e^-σd) / σ` of it**, the transmittance's share the source keeps over the stretch, which
+    /// `mediumKept` holds to its digits however thin the air and which is the stretch's length times the
+    /// transmittance where there is no air at all. What the transmittance loses is the same stretch times `σ`.
     ///
-    /// **The transmittance exact over a stretch the line does not bend in, and the light scattered in
-    /// the midpoint rule's, second order in the stretch.** A linear density's mean is its middle, so the
-    /// optical depth is exact; the light a linear source scatters through a linear density has a closed
-    /// form only through `erf`, and the middle's source over the stretch's loss is its midpoint estimate.
-    /// Which is why both callers cut a slice at its middle: the line from one slice's sample to the next
-    /// bends only at the samples, so each half of a slice is one straight piece.
+    /// **The transmittance exact over a stretch the line does not bend in, and the light scattered in the
+    /// midpoint rule's, second order in the stretch.** A linear density's mean is its middle, so the optical
+    /// depth is exact; the light a linear source scatters through a linear density has a closed form only
+    /// through `erf`, and the middle's source over the stretch's loss is its midpoint estimate. Both callers
+    /// therefore cut a slice at its middle: the line from one slice's sample to the next bends only at the
+    /// samples, so each half of a slice is one straight piece.
     RTX_SHADER FogColumn fogThrough(FogColumn column, FogSlice slice, float length, float extinction)
     {
         const float depth = slice.mDensity * extinction * length;

@@ -156,24 +156,19 @@ namespace Rtx
             return static_cast<int>(std::lround(roughness * 255.0f));
         }
 
-        /// **What each level of a normal map lost of the normals it averages**, by hand and against
-        /// the device. A map four texels square: three quarters of it points straight out, and its
-        /// top right quarter leans forty-five degrees one way and the other, in bytes that are each
-        /// other's mirror, 218 and 37 about 127.5.
+        /// **What each level of a normal map lost of the normals it averages**, by hand and against the device. A map
+        /// four texels square: three quarters of it points straight out, and its top right quarter leans forty-five
+        /// degrees one way and the other, in bytes that are each other's mirror, 218 and 37 about 127.5.
         ///
-        /// Its second level: a flat quarter loses nothing, to the bit — normals that agree are a
-        /// mean one long only to a float's last place, and that place to the fourth root was a
-        /// byte of five. The leaning quarter's mean is half its normals' length squared, a loss of
-        /// a half, which stands for `2 · 0.5 / (0.7071 · 2.5) = 0.5657` of slopes and a roughness
-        /// of its fourth root, `0.8672`, 221. Its third: a quarter of the leaning quarter's half,
-        /// and what the four means lose to each other, the leaning one `0.2929` shorter than the
-        /// flat ones along z: `0.125 + 3 · 0.0858 / 16 = 0.1411`, a roughness of `0.6141`, 157.
+        /// Its second level: a flat quarter loses nothing, to the bit, since normals that agree are a mean one long
+        /// only to a float's last place, and that place to the fourth root was a byte of five. The leaning quarter's
+        /// mean is half its normals' length squared, a loss of a half, which stands for `2 · 0.5 / (0.7071 · 2.5) =
+        /// 0.5657` of slopes and a roughness of `0.8672`, 221. Its third: `0.125 + 3 · 0.0858 / 16 = 0.1411`, a
+        /// roughness of `0.6141`, 157.
         ///
-        /// **And an odd extent's last texel is in its level** (`axisTaps`): a line of three, two flat
-        /// and the last leaning, is one texel a third each, and loses what each pair of the three
-        /// apart does, a ninth of each: the two flat ones nothing and the leaning one, whose bytes
-        /// lean 44.77°, `2 - 2 cos 44.77° = 0.5802` from each, `2 · 0.5802 / 9 = 0.1289`. Halved as
-        /// two, the leaning texel was dropped and the line lost nothing.
+        /// **And an odd extent's last texel is in its level** (`axisTaps`): a line of three, two flat and the last
+        /// leaning, is one texel a third each, and loses a ninth of what each pair apart does, `2 · 0.5802 / 9 =
+        /// 0.1289` for the leaning one. Halved as two, the leaning texel was dropped and the line lost nothing.
         TEST_F(RtxNormalSpreadPassTest, eachLevelLosesWhatItsNormalsDisagreeBy)
         {
             constexpr std::uint8_t flat[4]{ 128, 128, 255, 255 };
@@ -231,12 +226,12 @@ namespace Rtx
             EXPECT_NEAR(int{ spreadLine[0][0] }, byteOf(third), 1) << "the odd line's last texel was dropped";
         }
 
-        /// **The spreads of a group work in the room the group before used**, and come out as they
-        /// do where every map has room of its own. Two maps of four texels a side, the leaning one of
-        /// `eachLevelLosesWhatItsNormalsDisagreeBy` and the same mirrored, each a spread of four
-        /// texels and one, so five texels of means, eighty bytes: under a room of eighty they are two
-        /// groups over eighty bytes, under the whole room one group over a hundred and sixty, which
-        /// says the room is what splits them. The second map's spread reads the same either way.
+        /// **The spreads of a group work in the room the group before used**, and come out as they do where every map
+        /// has room of its own. Two maps of four texels a side, the leaning one of
+        /// `eachLevelLosesWhatItsNormalsDisagreeBy` and its mirror, each a spread of four texels and one, so five
+        /// texels of means, eighty bytes: under a room of eighty they are two groups over eighty bytes, under the
+        /// whole room one group over a hundred and sixty, which says the room is what splits them. The second map's
+        /// spread reads the same either way.
         TEST_F(RtxNormalSpreadPassTest, aGroupOfSpreadsWorksInTheRoomTheGroupBeforeUsed)
         {
             constexpr std::uint8_t flat[4]{ 128, 128, 255, 255 };
@@ -265,11 +260,10 @@ namespace Rtx
             EXPECT_NE(int{ apart.mLevels[1][0][1] }, 0) << "the second map's leaning quarter lost nothing";
         }
 
-        /// **A texel that points nowhere stands in as the flat normal**, where it was normalised to a
-        /// NaN that the chain's means carried for the texture's life. Half floats, because no byte
-        /// is a half: (0.5, 0.5, 0.5) decodes to no direction at all, beside three that point
-        /// straight out. With it read as straight out, the four agree, so their mean is (0, 0, 1) to
-        /// the bit — a quarter of one, four times — and they lose nothing.
+        /// **A texel that points nowhere stands in as the flat normal**, where it was normalised to a NaN that the
+        /// chain's means carried for the texture's life. Half floats, because no byte is a half: (0.5, 0.5, 0.5)
+        /// decodes to no direction at all, beside three that point straight out. Read as straight out, the four agree,
+        /// so their mean is (0, 0, 1) to the bit and they lose nothing.
         TEST_F(RtxNormalSpreadPassTest, aTexelThatPointsNowhereStandsInAsTheFlatNormal)
         {
             constexpr std::uint16_t half = 0x3800;

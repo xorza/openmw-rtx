@@ -13,11 +13,10 @@ namespace Rtx
     /// What the denoiser leaves of a frame, each stage's answer as the frame ends: what a run's
     /// digest takes of it beside the trace's channels (`FrameDigest::mDenoiser`), so a comparison
     /// that finds the composed frame moved names the first stage that moved under it. **In the
-    /// order the stages run**: the temporal passes, the clamps and the shadow's tiles, the shadow
-    /// filter's levels and the wavelet's, so the first of them that differs is where a difference
-    /// began. The wavelet's levels by the image each ends in: its history the first, the narrow
-    /// image the second — the fourth too, where the composite and not the level composes the frame
-    /// — and the blend the third.
+    /// order the stages run**, so the first that differs is where a difference began. The
+    /// wavelet's levels by the image each ends in: its history the first, the narrow image the
+    /// second — the fourth too, where the composite and not the level composes the frame — and
+    /// the blend the third.
     enum class DenoiserImage : std::uint8_t
     {
         AccumulateMoments,

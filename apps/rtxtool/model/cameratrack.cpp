@@ -188,9 +188,8 @@ namespace RtxTool
             const double u2 = u * u;
             const double u3 = u2 * u;
 
-            // The Hermite basis with `h00` folded into `h01` as `1 − h01`, so a key is its own value
-            // to the bit and a flat segment stays flat: `h00·a + h01·a` rounds off `a`, and a clock
-            // standing still read 12.000000000000002 and then 12.
+            // The Hermite basis with `h00` folded into `h01` as `1 − h01`, so a key is its own value to the bit and
+            // a flat segment stays flat: `h00·a + h01·a` rounds off `a`.
             const double h10 = u3 - 2.0 * u2 + u;
             const double h01 = -2.0 * u3 + 3.0 * u2;
             const double h11 = u3 - u2;

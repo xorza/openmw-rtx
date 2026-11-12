@@ -7,11 +7,10 @@
 
 namespace RtxTool
 {
-    /// **How long a stop waits on a world that stopped arriving, in milliseconds of the wall.** A
-    /// settled walk adopts a cell a frame and an unsettled one whenever the reader hands one over:
-    /// the deck's whole band, four hundred and twenty frames of it, stood in seven seconds. Ten
-    /// seconds with no cell is a reader that is stuck or a ring that leaves cells it never asks for,
-    /// and not a slow one.
+    /// **How long a stop waits on a world that stopped arriving, in milliseconds of the wall.** A settled walk
+    /// adopts a cell a frame and an unsettled one whenever the reader hands one over (the deck's whole band, 420
+    /// frames, stood in seven seconds); ten seconds with no cell is a stuck reader or a ring that leaves cells it
+    /// never asks for, not a slow one.
     inline constexpr double sStallMs = 10000.0;
 
     /// What one frame tells the measuring window: the facts of `MWRender::FrameReport` it decides by.
@@ -38,9 +37,8 @@ namespace RtxTool
         Rtx::FrameSpend mSpend;
     };
 
-    /// **Which frames of a stop are measured, and which span each measured frame time closes**: the
-    /// rules every figure `bench` quotes is selected by, apart from the world they are applied in, so
-    /// they can be held by a test.
+    /// **Which frames of a stop are measured, and which span each measured frame time closes**: the rules every
+    /// figure `bench` quotes is selected by, apart from the world they are applied in, so a test can hold them.
     ///
     /// A stop is measured from the frame after one that drew the whole world, plus the warm-up it
     /// asked for. Never by a count of frames from its first: a ring adopts one cell a frame, so a
@@ -82,18 +80,16 @@ namespace RtxTool
             /// The measured frame's number, counted from one, where `mOutcome` is `Measured`.
             std::uint32_t mDrawn = 0;
 
-            /// **This frame's wall time closes the span the frame before it worked in.**
-            /// `Timing::Frame` runs from the last frame's opening to this one's, so what it holds is
-            /// the game's update this frame arrived through and the renderer's work of the frame
-            /// before. So the closed span is the frame before's figures with this frame's
-            /// `Frame`, `Update` and `Sleep`, and the meshes the frame before brought.
+            /// This frame's wall time closes the span the frame before it worked in: `Timing::Frame` runs from the
+            /// last frame's opening to this one's, so it holds the game's update this frame arrived through and the
+            /// renderer's work of the frame before. The closed span is that frame's figures with this frame's
+            /// `Frame`, `Update` and `Sleep`, and the meshes it brought.
             Rtx::FrameSpend mClosed;
             std::uint32_t mClosedArrived = 0;
 
-            /// **The frame before stood in another cell than the one before it**: a crossing, and
-            /// whether its placement rebuilt the scene, which `mClosed` is the cost of. The move
-            /// pulls the ring in and the read lands in the first frame drawn in the new cell, so
-            /// that frame's own span is what the crossing cost, closed as every figure is.
+            /// The frame before stood in another cell than the one before it: a crossing, and whether its placement
+            /// rebuilt the scene, which `mClosed` is the cost of. The move pulls the ring in and the read lands in
+            /// the first frame drawn in the new cell, so that frame's own span is what the crossing cost.
             std::optional<bool> mClosedCrossing;
         };
 

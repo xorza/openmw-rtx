@@ -105,16 +105,11 @@ namespace RtxTool
                 << describeCommand(dawn);
         }
 
-        /// **The symmetry, asserted rather than assumed**: what the window prints, the view file
-        /// reads, and what comes back is the camera that was standing there.
-        ///
-        /// **Everything P writes, and not only the block half of it.** The readable line goes in
-        /// front of it and would be pasted with it, so if the view file could not take a comment the
-        /// output would be one edit away from usable rather than usable.
-        ///
-        /// Exact equality on the floats and not a tolerance — the block is written shortest
-        /// round-trip precisely so that a saved viewpoint is the viewpoint, and a position rounded
-        /// to the unit is a different frame when the camera is a hand's width from a wall.
+        /// **The symmetry, asserted rather than assumed**: what the window prints, the view file reads,
+        /// and what comes back is the camera that was standing there. **Everything P writes, and not only
+        /// the block half of it**: the readable line goes in front and would be pasted with it, so the
+        /// view file must take it as a comment. Exact equality on the floats and not a tolerance: the
+        /// block is written shortest round-trip so that a saved viewpoint is the viewpoint.
         TEST(RtxViewpointTest, theBlockItPrintsIsTheBlockTheViewFileReads)
         {
             const RtxTool::Stop spot = makeSpot();
@@ -206,12 +201,10 @@ namespace RtxTool
             EXPECT_EQ(held.front().mStand.mArms, "iron longsword");
         }
 
-        /// A window opened by `--cell` has no view to replace: `stopFor` names the stop after the
-        /// cell, and the block opens under a slug of that.
-        ///
-        /// It still has to load: an id the file cannot take, or a missing note line that the parser
-        /// treats as a missing field, would make the printed block unpasteable in exactly the case
-        /// where there is nothing to paste over.
+        /// A window opened by `--cell` has no view to replace: `stopFor` names the stop after the cell, and
+        /// the block opens under a slug of that. It still has to load: an id the file cannot take, or a
+        /// missing note line the parser treats as a missing field, would make the printed block unpasteable
+        /// exactly where there is nothing to paste over.
         TEST(RtxViewpointTest, aWindowOpenedWithoutAViewStillPrintsOne)
         {
             RtxTool::Stop bare = makeSpot();

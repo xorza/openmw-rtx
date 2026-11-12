@@ -46,11 +46,9 @@ namespace Rtx
     };
 
     /// Poses every deforming mesh a slot's copies owe, on the device, ahead of the refit over
-    /// them: per bone on the host and per vertex on the device, where a body skinned on the
-    /// processor was compared, copied, bounded and written across the bus twice every frame.
-    /// `SlotBlocks` says which runs each copy owes — this frame's movers and the ones the frame
-    /// before last missed — and one dispatch writes both tables. Shared by every scene; what
-    /// differs per scene is `SkinTables`.
+    /// them: per bone on the host and per vertex on the device. `SlotBlocks` says which runs each
+    /// copy owes — this frame's movers and the ones the frame before last missed — and one
+    /// dispatch writes both tables. Shared by every scene; what differs per scene is `SkinTables`.
     class SkinPass
     {
     public:
@@ -66,16 +64,15 @@ namespace Rtx
         /// The same for the deforming meshes among `arrived`, and those alone, into every copy:
         /// nothing is owed or paid, and the rows are the ones `SkinTables::extend` staged into
         /// `what.mSlot`'s, which the build over the arrivals reads. An arrival does not wait the
-        /// frames in flight out, so it may not write a row a placement in flight reads — which
-        /// posing every mesh the copy owed did. `what.mTimer` is not read: the frame's report
-        /// carries one `skin` zone and it is the placement's.
+        /// frames in flight out, so it may not write a row a placement in flight reads.
+        /// `what.mTimer` is not read: the frame's report carries one `skin` zone and it is the
+        /// placement's.
         ///
-        /// **Every copy, and not the one the build reads alone**: the trace reads a body's motion as
-        /// its pose in the copy it traces less its pose in the other, and a copy the arrival left
-        /// in the bind pose was a body thrown from its bind pose to where it stands, on the first
-        /// frame of every arrival the placement after it posed into the same copy. The arrivals' runs
-        /// are theirs alone, and a run a mesh that went held is written behind the frame that read
-        /// it, since a dispatch recorded now runs behind it.
+        /// Every copy, and not the one the build reads alone: the trace reads a body's motion as its
+        /// pose in the copy it traces less its pose in the other, and a copy left in the bind pose
+        /// throws the body from there to where it stands. The arrivals' runs are theirs alone, and
+        /// a run a departed mesh held is written behind the frame that read it, since a dispatch
+        /// recorded now runs behind it.
         bool recordArrived(VkCommandBuffer commands, const Skinning& what, std::span<const Index> arrived) const;
 
     private:

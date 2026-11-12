@@ -17,16 +17,13 @@ namespace Rtx
         std::string mLibrary;
     };
 
-    /// **The layers the loader inserted into an instance, as the loader itself says.** An overlay's
-    /// layer runs inside every call the renderer makes, so a crash report names them beside the
-    /// driver. No query answers this: `vkEnumerateInstanceLayerProperties` lists every layer
-    /// installed, an explicit one nobody enabled among them, and not which implicit ones loaded.
-    /// The loader tells a messenger chained into the instance's create info, at info severity, one
-    /// "Insert instance layer" message for each layer it loads (Vulkan-Loader's
-    /// `loader_create_instance_chain`).
-    ///
-    /// Pinned, because the loader calls the messenger again inside `vkDestroyInstance` with the
-    /// address it was handed at the create.
+    /// **The layers the loader inserted into an instance, as the loader itself says.** An overlay's layer
+    /// runs inside every call the renderer makes, so a crash report names them beside the driver. No query
+    /// answers this: `vkEnumerateInstanceLayerProperties` lists every installed layer, an explicit one
+    /// nobody enabled among them, and not which implicit ones loaded. The loader tells a messenger chained
+    /// into the instance's create info, at info severity, one "Insert instance layer" message for each
+    /// layer it loads (`loader_create_instance_chain`). Pinned, because the loader calls the messenger
+    /// again inside `vkDestroyInstance` with the address it was handed at the create.
     class LoaderLayers
     {
     public:

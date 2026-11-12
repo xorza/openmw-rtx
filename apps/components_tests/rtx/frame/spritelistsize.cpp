@@ -69,11 +69,10 @@ namespace Rtx
 
         /// Neither the floor nor the report can carry the mark past the cap or round the top.
         ///
-        /// **The whole reason the mark is capped and the arithmetic is sixty-four bits wide.** A
-        /// share of the tiles is a product of two counts and twice a report is a doubling of a
-        /// number the device wrote, and in thirty-two bits each of them wraps to something smaller —
-        /// which would size the buffer under a capacity that did not shrink with it. Past the cap a
-        /// frame is drawn by walking every sprite, which is slow and right.
+        /// **The whole reason the mark is capped and the arithmetic is sixty-four bits wide.** A share of the
+        /// tiles is a product of two counts and twice a report doubles a number the device wrote; in thirty-two
+        /// bits each wraps to something smaller, which would size the buffer under a capacity that did not shrink
+        /// with it. Past the cap a frame is drawn by walking every sprite, which is slow and right.
         TEST(RtxSpriteListSizeTest, nothingCarriesTheMarkPastTheCapOrRoundTheTop)
         {
             constexpr std::uint32_t sMost = std::numeric_limits<std::uint32_t>::max();

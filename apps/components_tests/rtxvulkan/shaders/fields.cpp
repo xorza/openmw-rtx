@@ -20,11 +20,10 @@ namespace Rtx
         using Shaders::storedWidth;
         using Shaders::uvec2;
 
-        /// **A row of five, by hand.** Each field's half holds three columns. With no swap the first
-        /// field is the even pixels of an even row — 0, 2 and 4, stored at 0, 1 and 2 — and the
-        /// second the odd ones, 1 and 3, stored at 3 and 4; the slot at 5 holds no pixel, and reads
-        /// back as the column past the frame. On the next row the parities change places, and the
-        /// swap changes them back.
+        /// **A row of five, by hand.** Each field's half holds three columns. With no swap the first field is the even
+        /// pixels of an even row (0, 2 and 4, stored at 0, 1 and 2) and the second the odd ones, 1 and 3, stored at 3
+        /// and 4; the slot at 5 holds no pixel, and reads back as the column past the frame. On the next row the
+        /// parities change places, and the swap changes them back.
         TEST(RtxFieldsTest, aRowOfFiveIsStoredAsTwoHalvesOfThreeByHand)
         {
             EXPECT_EQ(fieldColumns(5), 3u);

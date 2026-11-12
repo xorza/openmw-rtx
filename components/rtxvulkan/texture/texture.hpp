@@ -52,31 +52,30 @@ namespace Rtx
         /// A slot with nothing in it yet, which is what the array holds while it is being filled.
         Texture() = default;
 
-        /// Stands a texture from its file's bytes in this one, which is empty, from level `first`
-        /// on, uploaded level by level. Left empty, and why, where the device has no room for it as
-        /// `use`. Every image is made before anything is handed to `arrival`, so a refusal leaves it
-        /// as it found it. What makes the texture is `arrival`'s to record, and this stays where it
-        /// is until then: the work names its images.
+        /// Stands a texture from its file's bytes in this one, which is empty, from level `first` on, uploaded level by
+        /// level. Left empty, and why, where the device has no room for it as `use`. Every image is made before
+        /// anything is handed to `arrival`, so a refusal leaves it as it found it. What makes the texture is
+        /// `arrival`'s to record, and this stays where it is until then: the work names its images.
         ///
-        /// @param first the level the image begins at: nought for the file as it is, and further
-        ///        down for one held to a smaller side.
+        /// @param first the level the image begins at: nought for the file as it is, and further down for one held
+        ///        to a smaller side.
         /// @param name what a capture calls it. Empty where the build names no objects.
         /// @param regions the caller's scratch, cleared and refilled here with one copy per level.
         Result<void, MemoryRefusal> standFile(const Device& device, Batch& batch, TextureArrival& arrival,
             const TextureData& data, std::uint32_t first, std::string_view name,
             std::vector<VkBufferImageCopy>& regions, MemoryUse use);
 
-        /// Stands a sprite's light bake in this one, which is empty: shaped like `source`, made from
-        /// its alpha, under the neutral map. `source` stands, uploaded in an earlier batch or in
-        /// `arrival`'s run, which records every copy ahead of every bake.
+        /// Stands a sprite's light bake in this one, which is empty: shaped like `source`, made from its alpha, under
+        /// the neutral map. `source` stands, uploaded in an earlier batch or in `arrival`'s run, which records every
+        /// copy ahead of every bake.
         ///
         /// @param format what the description says the bake is, which is its image's format.
         Result<void, MemoryRefusal> standBake(const Device& device, TextureArrival& arrival, const Texture& source,
             TextureFormat format, std::string_view name);
 
         /// Stands a chunk's flattened ground in this one, which is empty, under the neutral map:
-        /// `GROUND_COMPOSITE_EXTENT` square in BC7, with a chain to one texel, left undefined. Copied
-        /// into by `TextureArray::bakeComposites`, in the placement after it arrives.
+        /// `GROUND_COMPOSITE_EXTENT` square in BC7, with a chain to one texel, left undefined. Copied into by
+        /// `TextureArray::bakeComposites`, in the placement after it arrives.
         ///
         /// @param format what the description says the composite is, which is its image's format.
         Result<void, MemoryRefusal> standComposite(
@@ -150,32 +149,27 @@ namespace Rtx
         VkDeviceSize mCanvasBytes = 0;
     };
 
-    /// Every texture a scene uses, in one descriptor array a shader indexes by material, and every
-    /// texture's companion in a second array beside it at the same slot. The companions are an
-    /// array and not a buffer, because each is a grid the texture unit filters; an array of their
-    /// own for the reason `texturearray.glsl` gives.
+    /// Every texture a scene uses, in one descriptor array a shader indexes by material, and every texture's companion
+    /// in a second array beside it at the same slot (an array and not a buffer, because each is a grid the texture unit
+    /// filters; see `texturearray.glsl`).
     ///
-    /// **One set per frame in flight, and a debt per set**, the way `SlotTable` keeps its copies:
-    /// an arrival writes the slots it brought into the set the next placement binds and owes them
-    /// to the other, which is paid when that set's frame comes round. Update after bind is what
-    /// makes writing a set legal while a command that bound it is on the queue — for a slot that
-    /// command does not read. A slot the sweep freed and an arrival took over is one the frame
-    /// behind is still reading through its material table, and one set written from the host
-    /// while it traced was exactly that read.
+    /// One set per frame in flight, and a debt per set, the way `SlotTable` keeps its copies: an arrival writes the
+    /// slots it brought into the set the next placement binds and owes them to the other, which is paid when that set's
+    /// frame comes round. Update after bind makes writing a set legal while a command that bound it is on the queue,
+    /// for a slot that command does not read: a slot the sweep freed and an arrival took over is one the frame behind
+    /// still reads, and one set written from the host while it traced was exactly that read.
     class TextureArray
     {
     public:
-        /// An array of `slots` textures, none of them written yet: `write` stands them. The length
-        /// is the scene's table and not what was described, because a slot the scene has given
-        /// back still sits between two that are. A slot nothing describes is one no material
-        /// names, which is what `descriptorBindingPartiallyBound` is required for.
+        /// An array of `slots` textures, none of them written yet: `write` stands them. The length is the scene's table
+        /// and not what was described, because a slot the scene has given back still sits between two that are. A slot
+        /// nothing describes is one no material names, which is what `descriptorBindingPartiallyBound` is required for.
         ///
-        /// @param layout what `describeLayout` made: every array is shaped by the one the renderer
-        ///        keeps, which is what lets one pass be handed any scene's set.
+        /// @param layout what `describeLayout` made: every array is shaped by the one the renderer keeps, which is
+        ///        what lets one pass be handed any scene's set.
         /// @param passes the renderer's, which the stand-in and the neutral texel are made with.
-        /// @param arrival the renderer's, which every array's arrivals are recorded through: its
-        ///        rooms are scratch, grown to the largest group any scene met and kept, and every
-        ///        scene's arrivals record on one queue in order.
+        /// @param arrival the renderer's, which every array's arrivals are recorded through: its rooms are scratch,
+        ///        grown to the largest group any scene met and kept.
         /// @param anisotropy `RenderProfile::mAnisotropy`: what the footprint binding filters by.
         TextureArray(const Device& device, Batch& batch, const SetLayout& layout, const TexturePasses& passes,
             TextureArrival& arrival, std::uint32_t slots, std::uint32_t anisotropy = 1);
@@ -184,18 +178,16 @@ namespace Rtx
         /// updated after bind. Made once by whoever owns the passes that name it.
         static SetLayout describeLayout(const Device& device);
 
-        /// Uploads each of `arrived` into the slot it names, leaving every other texture alone —
-        /// why the sets are allocated at the maximum rather than at the scene's count. By slot and
-        /// not by appending, because a slot a departing cell freed is taken over wherever it sits.
-        /// What a slot held before buries itself: a frame in flight may be reading it. The
-        /// descriptors are owed to every set and written by `sync`. The bakes go in after every
-        /// file, because a bake is made from a source that may be arriving beside it, and the
-        /// ground last, for the reason `chooseLevels` gives.
+        /// Uploads each of `arrived` into the slot it names, leaving every other texture alone (why the sets are
+        /// allocated at the maximum rather than at the scene's count). By slot and not by appending, because a slot a
+        /// departing cell freed is taken over wherever it sits. What a slot held before buries itself: a frame in
+        /// flight may be reading it. The descriptors are owed to every set and written by `sync`. The bakes go in after
+        /// every file, since a bake is made from a source that may be arriving beside it, and the ground last, for the
+        /// reason `chooseLevels` gives.
         ///
-        /// **Every file from the level `chooseLevels` gives it** for the room the device has left
-        /// for textures. A texture the room still cannot hold comes down a level at a time, and one
-        /// with no level at all it can hold draws the stand-in, as does one past the device's side
-        /// at every level; each of those is appended to `refused`, saying why.
+        /// Every file from the level `chooseLevels` gives it. A texture the room still cannot hold comes down a level
+        /// at a time; one with no level it can hold, or past the device's side at every level, draws the stand-in, and
+        /// each of those is appended to `refused`, saying why.
         ///
         /// @param passes the renderer's, which every texture is made with as it arrives.
         /// @param arrival the renderer's, which the arrival is recorded through.
@@ -210,12 +202,11 @@ namespace Rtx
         /// samples whichever slots its materials name.
         void sync(FrameSlot slot, Uploads& uploads);
 
-        /// Records the bake of every composite that arrived since the last call, into the
-        /// composites themselves, reading `slot`'s set and texel counts and the tables `tables`
-        /// names — the copy the placement recording this has just written. After `sync(slot)`, so the set holds the
-        /// layers' textures and the composites alike. True where a bake was recorded, because a
-        /// placement that recorded nothing else is not submitted. Timed as `FrameZone::Ground` on
-        /// `timer`, null where nothing is timed.
+        /// Records the bake of every composite that arrived since the last call, into the composites themselves,
+        /// reading `slot`'s set and texel counts and the tables `tables` names — the copy the placement recording this
+        /// has just written. After `sync(slot)`, so the set holds the layers' textures and the composites alike. True
+        /// where a bake was recorded, because a placement that recorded nothing else is not submitted. Timed as
+        /// `FrameZone::Ground` on `timer`, null where nothing is timed.
         bool bakeComposites(VkCommandBuffer commands, const GroundCompositePass& pass, FrameSlot slot,
             const Shaders::GpuTables& tables, GpuTimer* timer);
 
@@ -272,14 +263,12 @@ namespace Rtx
         /// is valid against, and never more than `maxImageDimension2D`.
         std::uint32_t getSideLimit() const { return mSideLimit; }
 
-        /// The level `write` stands each of `arrived` from where the device has `room` bytes for it,
-        /// into `firsts` at the arrival's index: each file from its first level within the device's
-        /// side, brought down a level at a time, the file standing the most bytes first, until the
-        /// arrival comes to no more than the room. Where it fits after no count of drops, as far as
-        /// its files fit without the ground's composites, which no drop brings down and which then
-        /// take what is left — and each file as far down as it goes where not even that fits.
-        /// Nought for what is not a file. The rooms of `arrival` are priced past what they hold
-        /// already.
+        /// The level `write` stands each of `arrived` from where the device has `room` bytes for it, into `firsts` at
+        /// the arrival's index: each file from its first level within the device's side, brought down a level at a
+        /// time, the file standing the most bytes first, until the arrival comes to no more than the room. Where it
+        /// fits after no count of drops, as far as its files fit without the ground's composites, which then take what
+        /// is left; and each file as far down as it goes where not even that fits. Nought for what is not a file. The
+        /// rooms of `arrival` are priced past what they hold already.
         void chooseLevels(std::span<const TextureData> arrived, VkDeviceSize room, const TextureArrival& arrival,
             std::vector<std::uint32_t>& firsts) const;
 
@@ -414,14 +403,10 @@ namespace Rtx
         /// again only for more.
         std::uint32_t mSaidDrop = 0;
 
-        /// One word per slot of the array, `TEXTURE_SLOTS` long: how many texels the texture in
-        /// it holds, which `coneLod` reads where it asked the driver for a size, and
-        /// `TEXTURE_STANDS_IN` over it where they are the stand-in's.
-        ///
-        /// **A copy per frame in flight, owed and paid the way the descriptors are.** A slot the
-        /// sweep freed and an arrival took over is one the frame behind still reads through its
-        /// material table, so one buffer written as textures stood was a count rewritten under a
-        /// trace — a leaf's mask read at the wrong level, and a walk that did not repeat.
+        /// One word per slot of the array, `TEXTURE_SLOTS` long: how many texels the texture in it holds, which
+        /// `coneLod` reads where it asked the driver for a size, and `TEXTURE_STANDS_IN` over it where they are the
+        /// stand-in's. A copy per frame in flight, owed and paid the way the descriptors are: one buffer written as
+        /// textures stood was a count rewritten under a trace, for a slot the frame behind still reads.
         SlotTable<std::uint32_t> mTexels;
 
         /// One set per frame in flight, each image array at the maximum the layout declares.

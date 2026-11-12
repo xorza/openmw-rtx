@@ -15,14 +15,12 @@
 
 // How a shared header spells a function every side of it defines for itself.
 //
-// **C++ needs `inline` and GLSL has no such keyword.** Two translation units including one header
-// would otherwise define the same function twice and fail to link; GLSL compiles a single
-// translation unit and has nothing to say about it.
+// **C++ needs `inline` and GLSL has no such keyword**: two translation units including one header
+// would otherwise define the same function twice.
 //
 // **What the host takes is the scalar arithmetic and not the shading maths.** A shading language's
-// vectors are OpenSceneGraph's on this side and it has no use for a second set — but a curve a
-// shader is fitted to is a curve a test has to be able to call, and a fit nobody can check is a
-// magic number.
+// vectors are OpenSceneGraph's on this side — but a curve a shader is fitted to is a curve a test
+// has to be able to call, and a fit nobody can check is a magic number.
 #ifdef RTX_HOST
 #define RTX_SHADER inline
 #else
@@ -39,16 +37,14 @@
 // A constant both sides read is written as a literal where its derivation calls a transcendental —
 // `log2`, `sin`, `atan`. glslang folds such a call on the device side and the C++ library computes it
 // on the host, and the two need not round alike in the last place; on the host it is also not a
-// constant expression, and every file that includes the header runs its initialiser at start. So
-// the literal is the correctly rounded value, its comment states the derivation, and
-// `RtxSharedConstantTest` holds the one to the other.
+// constant expression. So the literal is the correctly rounded value, its comment states the
+// derivation, and `RtxSharedConstantTest` holds the one to the other.
 //
-// **And where its arithmetic rounds a step the other side does not.** glslang keeps a literal at
-// its decimal value in double and folds a constant expression in double, rounding once where the
-// constant is emitted; C++ rounds every literal and every step to float. A derivation over inexact
-// literals is then two numbers, one a side, and the literal is the device's: the test computes each
-// in double and rounds once. A step whose operands are exact and whose one rounding is the result's
-// agrees on both sides and stays written as arithmetic.
+// **And where its arithmetic rounds a step the other side does not.** glslang folds a constant
+// expression in double, rounding once where the constant is emitted; C++ rounds every literal and
+// every step to float. A derivation over inexact literals is then two numbers, one a side, and the
+// literal is the device's: the test computes each in double and rounds once. A step whose operands
+// are exact and whose one rounding is the result's agrees on both sides and stays arithmetic.
 
 // A member the host leaves zero where an initialiser does not name it, which is what the device
 // reads of a record the host did not fill. C++ says so on the member, so a designated initialiser

@@ -27,8 +27,7 @@ end
 --- The lamps a magic bolt's effects leave on a surface it struck, where no actor took them: one for
 -- each Light effect on Target, three times the radius the same magnitude gives an actor's glow, for
 -- the effect's duration, and how far off the surface it would stand where nothing is in the way. An
--- effect of no magnitude or no duration lights nothing, as on an actor. `roll(min, max)` draws a
--- whole number from `min` to `max`.
+-- effect of no magnitude or no duration lights nothing, as on an actor.
 function surfaceLight.lamps(effects, roll)
     local lamps = {}
     for _, effect in ipairs(effects) do

@@ -50,12 +50,10 @@ namespace Rtx
 
         const GpuZone timed(timer, commands, FrameZone::Sprites);
 
-        // The counts start at nothing. The head is `tiles + 1` entries, and the fill is the
-        // device's rather than a memset of the host's: it is the one cost that scales with the
-        // tile count whatever the sprites do, and taking it off the host is what let the tile be
-        // chosen for the trace. Whatever the queue last did to this copy — the caller waited the
-        // fence, but a wait on the host is not a dependency on the queue — is behind the head
-        // barrier `CommandPool::begin` recorded.
+        // The counts start at nothing. The head is `tiles + 1` entries, and the fill is the device's rather than a
+        // memset of the host's: it is the one cost that scales with the tile count whatever the sprites do. Whatever
+        // the queue last did to this copy is behind the head barrier `CommandPool::begin` recorded (a host wait on the
+        // fence is no dependency on the queue).
         list.clear(commands, (VkDeviceSize{ tiles } + 1) * sizeof(std::uint32_t));
         assert(
             presence.getSize() >= VkDeviceSize{ tiles } * sizeof(std::uint32_t) && "a presence shorter than its tiles");
@@ -106,11 +104,9 @@ namespace Rtx
 
         const GpuZone timed(timer, commands, FrameZone::Shade);
 
-        // One workgroup per emitter per light, and the ones with nothing to do exit at once. The
-        // count is tens, so a workgroup that reads its emitter and returns is cheaper than a host
-        // pass that worked out which ones to launch and wrote a list of them. Whatever the queue
-        // last did to this copy — the frame before last's trace — is behind the head barrier
-        // `CommandPool::begin` recorded; the host's write of the emitters is behind the submit.
+        // One workgroup per emitter per light, and the ones with nothing to do exit at once: the count is tens, so that
+        // is cheaper than a host pass that worked out which to launch. Whatever the queue last did to this copy is
+        // behind the head barrier `CommandPool::begin` recorded; the host's write of the emitters is behind the submit.
         dispatch(commands, mShade, shade, Groups{ .mX = shade.mEmitterCount * Shaders::SPRITE_SHADE_LIGHTS });
 
         // The bin reads the sprites next and the trace reads them after that.

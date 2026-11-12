@@ -41,21 +41,17 @@ namespace RtxTool
         /// Everything a hosted run writes into the settings before the engine reads them: the
         /// window it is presented in.
         ///
-        /// **These are settings and not a second command line**, because both binaries have to
-        /// reach one engine configured one way. What the *trace* and the *mirror* are configured by
-        /// travels in the `RunSetup` the renderer is made with — `SessionRequest::mSetup` — and
-        /// never through the registry, which is the player's.
+        /// These are settings and not a second command line, because both binaries have to reach one engine
+        /// configured one way. What the trace and the mirror are configured by travels in the `RunSetup`
+        /// (`SessionRequest::mSetup`) and never through the registry, which is the player's.
         void applyHostedSettings(const WindowRequest& window)
         {
             window.writeSettings();
 
-            // **Physics on the frame's own thread, so a run is the same run twice.** A physics
-            // worker refreshes the AI's line-of-sight cache after each step
-            // (`PhysicsTaskScheduler::refreshLOSCache`) while the AI on the main thread reads it,
-            // and whether a refresh landed before or after a read is the worker's timing: an actor
-            // that saw or did not see its target walks elsewhere from the next frame on. The step
-            // is one physics step a frame either way, so nothing about the simulation changes but
-            // who runs it and when the cache is read.
+            // Physics on the frame's own thread, so a run is the same run twice: a physics worker refreshes the
+            // AI's line-of-sight cache after each step (`PhysicsTaskScheduler::refreshLOSCache`) while the AI
+            // reads it, and whether a refresh landed before a read is the worker's timing, which sends an actor
+            // that saw or did not see its target elsewhere.
             Settings::physics().mAsyncNumThreads.set(0);
         }
 
@@ -131,13 +127,11 @@ namespace RtxTool
 
             config.filterOutNonExistingPaths(dataDirs);
 
-            // **The keys exist where somebody plays the run** — `VerbPolicy::mPlayed`, and not
-            // wherever there is a window: a bench shows one, and a key pressed there moved the
-            // clock, the hour or the weather under a measurement that recorded none of it. A played
-            // run answers the brackets, the comma, the full stop, the slash and the page keys with
-            // the weather and the clock, through the Lua scripts under the harness's own data
-            // directory, Home with where it stands and End with what the renderer holds, through
-            // the session; the played game names neither the directory nor the file.
+            // The keys exist where somebody plays the run (`VerbPolicy::mPlayed`), not wherever there is a
+            // window: a bench shows one, and a key pressed there moved the clock, hour or weather under a
+            // measurement that recorded none of it. A played run answers the brackets, comma, full stop, slash
+            // and page keys with the weather and the clock through Lua scripts under the harness's own data
+            // directory, Home and End through the session; the played game names neither.
             if (played)
                 dataDirs.push_back(keysDirectory());
 
@@ -177,10 +171,9 @@ namespace RtxTool
             engine.setSaveGameFile(line.mPlaces.mSave.u8string());
             engine.setRandomSeed(seed);
 
-            // **No sound, and no mouse where nobody plays.** A run measured with an audio device open
-            // measures the mixer as well, and a grabbed pointer in a run nobody plays is a pointer
-            // somebody has to get back. A played one looks around as the game does: ungrabbed, it
-            // went without relative mode and turned the camera by warps, which Wayland lets no
+            // No sound, and no mouse where nobody plays: an open audio device measures the mixer too, and a
+            // grabbed pointer in an unplayed run has to be got back. A played one looks around as the game does,
+            // as ungrabbed it went without relative mode and turned the camera by warps, which Wayland lets no
             // window make.
             engine.setSoundUsage(false);
             engine.setGrabMouse(played);

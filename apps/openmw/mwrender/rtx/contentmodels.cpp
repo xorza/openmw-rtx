@@ -59,7 +59,7 @@ namespace MWRender
 
         /// Beside each of `Record`'s models, its `_sh` sibling where one stands: the scabbard or the
         /// holstered shield an actor that sheathes the item wears, which no record names
-        /// (`ActorAnimation::updateHolsteredWeapons`, `ActorAnimation::updateHolsteredShield`).
+        /// (`ActorAnimation::updateHolsteredWeapon`, `ActorAnimation::updateHolsteredShield`).
         template <class Record>
         void addSheaths(const MWWorld::ESMStore& store, const VFS::Manager& vfs, std::vector<std::string>& into)
         {

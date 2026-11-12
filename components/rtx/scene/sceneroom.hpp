@@ -37,19 +37,14 @@ namespace Rtx
         std::uint32_t mBindVertices = 0;
     };
 
-    /// What a world's tables are made with room for. A world grows as cells arrive, and a growth past
-    /// the room is a table and both its copies made again on the frame a cell arrives on. The suites'
-    /// largest place reaches 80,324 placements, so the placements are three times that: 16 MiB of the
-    /// top level's rows (64 bytes each) and 40 MiB of instance rows (`GpuInstance`, 160) a copy. One
-    /// session through every place of the suites held 5,641 meshes and 1,561 materials at most, so each
-    /// is five times that, for a mod list's: 896 KiB of meshes (28 bytes each) and 896 KiB of
-    /// materials (112) a copy. The runs' tables are twice what that session and the crossing reached,
-    /// to a power of two: 3,627 layers, 4,027,504 mask weights (16 MiB of floats, the room 32), 21,112
-    /// rig runs, 4,421 influences, 22,315 morph offsets, 5,882 pose words and 48,856 bind vertices,
-    /// read off `ContentMemory`. A growth past one copies the table on the device rather than staging
-    /// it whole. The textures are every slot the array has (`TextureTable::sCapacity`), about 0.5 MB
-    /// of rows: a row holds two `osg::ref_ptr`, which OpenSceneGraph 3.6.5 gives no move, so a
-    /// growth copied every row's path and image on the frame a cell arrived.
+    /// What a world's tables are made with room for. A growth past the room is a table and both its
+    /// copies made again on the frame a cell arrives on. The placements are three times the suites'
+    /// largest place (80,324); meshes and materials five times the most one session through every
+    /// place held (5,641 and 1,561), for a mod list's; the runs' tables twice what that session and the
+    /// crossing reached, to a power of two, read off `ContentMemory`. A growth past one copies the
+    /// table on the device rather than staging it whole. The textures are every slot the array has
+    /// (`TextureTable::sCapacity`): a row holds two `osg::ref_ptr`, which OpenSceneGraph 3.6.5 gives
+    /// no move, so a growth copied every row's path and image on the frame a cell arrived.
     inline constexpr SceneRoom sWorldRoom{ .mPlacements = 1u << 18,
         .mMeshes = 1u << 15,
         .mMaterials = 1u << 13,

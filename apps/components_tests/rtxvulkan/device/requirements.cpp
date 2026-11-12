@@ -197,10 +197,9 @@ namespace Rtx
                 EXPECT_EQ(options[static_cast<std::size_t>(bare)].mFeature, nullptr) << static_cast<int>(bare);
         }
 
-        /// **An option falls with what it needs**, whatever order the table lists them in, and
-        /// stands where what it needs is given or taken. Every option offered: with nothing given,
-        /// the present fences fall, since no swapchain is enabled; with the priority not taken,
-        /// paging by priority falls with it; and every option that needs nothing stands. Given the
+        /// **An option falls with what it needs**, whatever order the table lists them in, and stands where what it
+        /// needs is given or taken. With nothing given, the present fences fall, since no swapchain is enabled; with
+        /// the priority not taken, paging by priority falls; every option that needs nothing stands. Given the
         /// swapchain and its surface's maintenance, the fences stand.
         TEST(RtxRequirementsTest, anOptionFallsWithWhatItNeeds)
         {

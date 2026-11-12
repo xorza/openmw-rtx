@@ -21,15 +21,11 @@ namespace RtxTool
     {
         /// The sheet has to show what the chain makes, or it is a picture of a different renderer.
         ///
-        /// **Display-encoded, deliberately.** A painted colour's bytes are display-encoded, so dividing
-        /// in linear and encoding again lands on a byte the chain would also produce — which is what
-        /// makes this a cross-check rather than two independent claims.
-        ///
-        /// `Rtx::Testing::paintTwoTones` says what the texture is: 255 across its middle half under an
-        /// estimate of 1.501, which is 0.66624 in light and encodes to 213 of 255. The chain's test,
-        /// `aPaintedColoursEveryLevelIsDelitWhereItStands`, works the same arithmetic for the same
-        /// reason. The same texture bound as a colour is the same picture in both halves, which is what
-        /// makes the sheet an A/B rather than a claim.
+        /// **Display-encoded, deliberately**: a painted colour's bytes are display-encoded, so dividing in
+        /// linear and encoding again lands on a byte the chain would also produce, which makes this a
+        /// cross-check. `Rtx::Testing::paintTwoTones` is 255 across its middle half under an estimate of
+        /// 1.501: 0.66624 in light, 213 of 255. The same texture bound as a colour is the same picture in
+        /// both halves, which makes the sheet an A/B.
         TEST(RtxContactSheetTest, theSheetAppliesTheCorrectionTheChainApplies)
         {
             Rtx::Testing::TestTexture painted = Rtx::Testing::paintTwoTones(32, 96);

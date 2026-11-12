@@ -62,10 +62,10 @@ namespace Rtx
     /// A ray tracing pipeline of a ray generation stage alone, which traces with ray queries, and
     /// the shader binding table a launch reads it out of, pushed a `Constants`.
     ///
-    /// **A launch and not a compute dispatch, though nothing but ray queries traces in it**: a ray
-    /// query answers repeatably only inside a launch, which the card does not preempt mid-traversal
-    /// (`fogscatter.rgen`). **And no hit, miss or any-hit stage**: AMD's Windows driver answers no
-    /// ray query in a pipeline that also calls `traceRayEXT`
+    /// A launch and not a compute dispatch, though nothing but ray queries traces in it: a ray
+    /// query answers repeatably only inside a launch, which the card does not preempt
+    /// mid-traversal (`fogscatter.rgen`). And no hit, miss or any-hit stage: AMD's Windows driver
+    /// answers no ray query in a pipeline that also calls `traceRayEXT`
     /// (`docs/rtx/research/2026-10-19-amd-windows-driver-faults.md`).
     template <class Constants>
     class TracePipeline : public TypedPipeline<Constants>

@@ -21,12 +21,11 @@ namespace Rtx
     /// Name of a `VkResult` as it is spelled in the header, for messages.
     std::string_view resultName(VkResult result);
 
-    /// **Throws `DeviceError` naming `call` and the result unless `result` is `VK_SUCCESS`**, for a
+    /// Throws `DeviceError` naming `call` and the result unless `result` is `VK_SUCCESS`, for a
     /// call on the device. `VK_ERROR_DEVICE_LOST` is `deviceFailed` with what the device says about
-    /// the fault, from `Device::describeFault`, which is the one moment that question may be asked.
-    /// `VK_INCOMPLETE` is a failure here, and `enumerateVk` is the one caller that answers it instead
-    /// of raising it. One overload wherever a device stands, so no call that can lose it takes the
-    /// path that cannot say so (`RtxSourceTreeTest`).
+    /// the fault, which is the one moment that question may be asked. `VK_INCOMPLETE` is a failure
+    /// here; `enumerateVk` is the one caller that answers it. One overload wherever a device
+    /// stands, so no call that can lose it takes the path that cannot say so (`RtxSourceTreeTest`).
     void checkVk(const Device& device, VkResult result, const char* call);
 
     /// The same for a call on the instance or a physical device, which no device stands behind to
@@ -54,8 +53,7 @@ namespace Rtx
     void checkVkWait(const Device& device, VkResult result, const char* what, std::uint64_t patience);
 
     /// Waits for `fence`, and ends the process through `deviceFailed` naming `what` if the device
-    /// does not answer in time. A deadline, because with `UINT64_MAX` a stalled submit took the
-    /// whole test suite with it.
+    /// does not answer in time: with `UINT64_MAX` a stalled submit took the whole test suite with it.
     ///
     /// @param patience nanoseconds to allow; a parameter so a test can reach the failure.
     void awaitVk(const Device& device, VkFence fence, const char* what, std::uint64_t patience = sPatience);
@@ -76,9 +74,8 @@ namespace Rtx
     inline constexpr int sEnumerationTries = 4;
 
     /// The two-call enumeration every Vulkan list query is made of, asked until the driver has
-    /// nothing left to add: `VK_INCOMPLETE` is a legal answer to the second call, and a surface
-    /// that offered one more format than it had a moment earlier ended the process during
-    /// start-up. `check` raises what a call answered.
+    /// nothing left to add: `VK_INCOMPLETE` is a legal answer to the second call. `check` raises
+    /// what a call answered.
     ///
     /// @param call the entry point's own name, for the message a failure carries.
     /// @param enumerate invoked as `(std::uint32_t* count, T* into)`, exactly as the entry point
@@ -133,11 +130,9 @@ namespace Rtx
     /// Logs `failure` and what was raised. `tearDown` calls this and nothing else should.
     void reportTornDown(std::string_view failure, const char* raised);
 
-    /// Runs `work` and reports whatever it raises rather than letting it out — what every teardown
-    /// in this backend goes through, because a destructor is `noexcept`: a call that refuses, or an
-    /// allocation that fails with no return code, would otherwise end the process from a
-    /// destructor. A lost device ends it anyway, through `deviceFailed`, with the report taken
-    /// where it was found. Wherever a caller can act on a failure, `checkVk` is the right call.
+    /// Runs `work` and reports whatever it raises rather than letting it out, which every teardown
+    /// goes through because a destructor is `noexcept`. A lost device ends the process anyway,
+    /// through `deviceFailed`. Wherever a caller can act on a failure, `checkVk` is the right call.
     ///
     /// @param failure the whole clause the log states, which the raised message is appended to.
     template <class Work>

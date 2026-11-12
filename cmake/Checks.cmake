@@ -1,8 +1,8 @@
-# What the tree's targets compile with, as two `INTERFACE` targets `openmw_link_tree` links: `openmw-system`,
-# how every target the tree defines compiles on its system, the vendored ones under `extern/` included;
-# and `openmw-checks`, the warnings each compiler takes,
-# for the tree's own under `components/` and `apps/` and no third party's. A directory's
-# `add_compile_options` reached a target or not by the order its folder was added in.
+# What the tree's targets compile with, as two `INTERFACE` targets `openmw_link_tree` links: `openmw-system`, how
+# every target the tree defines compiles on its system, the vendored ones under `extern/` included; and
+# `openmw-checks`, the warnings each compiler takes, for the tree's own under `components/` and `apps/` and no third
+# party's. Linked by target, since a directory's `add_compile_options` reached a target or not by the order its
+# folder was added in.
 
 # The compilers the tree is built and checked with, and none older: Clang 23, the pinned one every Linux build
 # compiles with (`vcpkg/linux.cmake`) and the editor's, and MSVC 19.44, which Visual Studio 2026's passes. An
@@ -85,8 +85,8 @@ else()
             -pedantic
             -Wnon-virtual-dtor
             -Wshadow
-            # Beyond upstream's. Rejected: `-Wfloat-equal`, for deliberate sentinels, and `-Wold-style-cast` and
-            # `-Wuseless-cast`, which fire inside OpenSceneGraph's and MyGUI's headers.
+            # Beyond upstream's. Rejected: `-Wfloat-equal`, for deliberate sentinels, and `-Wold-style-cast`, which
+            # fires inside OpenSceneGraph's and MyGUI's headers.
             -Wnull-dereference
             -Wcast-qual
             $<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>

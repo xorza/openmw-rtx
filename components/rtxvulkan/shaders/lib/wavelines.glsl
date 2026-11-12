@@ -5,12 +5,12 @@
 // and `wavecolumns.comp` both run, a workgroup a line.
 //
 // **Cooley-Tukey with the permutation done on the way in.** Stockham avoids the bit reversal by carrying an
-// extra buffer through every stage; reversing an index is one instruction here, and the load is going to
-// shared memory anyway. Nine stages at the largest grid, each a barrier apart.
+// extra buffer through every stage; reversing an index is one instruction here and the load goes to shared
+// memory anyway. Nine stages at the largest grid, each a barrier apart.
 //
 // **Three lines a workgroup and not one**, because every field of a row or a column is formed from, or
-// composed into, the same cells: the row pass forms the three from one amplitude, and the column pass
-// writes a texel out of all three.
+// composed into, the same cells: the row pass forms the three from one amplitude, and the column pass writes
+// a texel out of all three.
 
 #include "scene.h"
 #include "shared/sets.h"

@@ -3,13 +3,11 @@
 
 // Whether a sampler can still see a field of a given scale.
 //
-// **A field finer than the sampler looking at it is not detail, it is noise dressed as detail.** What
-// `footprint` means is whatever is doing the looking, which here is a ray cone against a wavelength. How
-// wide the looking *is* comes off the camera; see `coneAt`.
+// A field finer than the sampler looking at it is not detail, it is noise dressed as detail. `footprint`
+// is whatever is doing the looking, here a ray cone against a wavelength; see `coneAt`.
 //
-// **Only for a field with no mip chain to climb.** Everything that has one makes this same argument exactly
-// and in the sampler — `waveLevel` and `fogFieldAt` each pick the level whose texels are as wide as the
-// cone. What is left is `rainSlope`'s rings, which are laid down rather than sampled.
+// Only for a field with no mip chain to climb: `waveLevel` and `fogFieldAt` make this argument in the
+// sampler by picking the level whose texels are as wide as the cone. What is left is `rainSlope`'s rings.
 
 /// How much of something that long a sampler this wide can still tell apart, from none of it to all.
 float resolved(float wavelength, float footprint)

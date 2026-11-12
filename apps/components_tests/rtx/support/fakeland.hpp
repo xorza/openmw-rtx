@@ -37,12 +37,11 @@ namespace Rtx::Testing
     /// A land of a few cells with records and a default plane everywhere else, filled the way
     /// `ESMTerrain::Storage` fills a chunk one cell wide at full detail.
     ///
-    /// **Heights a test can compute by hand**: a plane of eight units a column and sixteen a row
-    /// over every cell with a record. Every such cell is two ground types, grass on its western
-    /// half and rock on its eastern, on the 34 × 34 blend maps `getBlendmaps` builds for Morrowind.
-    /// The rock is a mod's: a `_diffusespec` with an `_nh` beside it, height and all, as
-    /// `getLayerInfo` finds them under `auto use terrain normal maps` and `auto use terrain specular
-    /// maps`.
+    /// **Heights a test can compute by hand**: a plane of eight units a column and sixteen a row over
+    /// every cell with a record. Every such cell is grass on its western half and rock on its eastern,
+    /// on the 34 × 34 blend maps `getBlendmaps` builds for Morrowind. The rock is a mod's: a
+    /// `_diffusespec` with an `_nh` beside it, as `getLayerInfo` finds them under `auto use terrain
+    /// normal maps` and `auto use terrain specular maps`.
     class FakeLand : public Terrain::Storage
     {
     public:

@@ -100,20 +100,20 @@ namespace Rtx
     class VisibilityPass
     {
     public:
-        /// Uploads the blue-noise tile and the lobe's table, which the pass owns because they belong
-        /// to the sampler and to the surface model and not to the scene or the camera, and starts
-        /// making the kernels, which it returns without: `kernels` waits for them.
+        /// Uploads the blue-noise tile and the lobe's table, which the pass owns because they belong to the sampler and
+        /// to the surface model and not to the scene or the camera, and starts making the kernels, which it returns
+        /// without: `kernels` waits for them.
         ///
-        /// @param textureLayout the layout of the bindless array this will be handed at record
-        ///        time, because a pipeline layout names every set it will ever see.
+        /// @param textureLayout the layout of the bindless array this will be handed at record time, because a pipeline
+        ///        layout names every set it will ever see.
         /// @param channelLayout the same, for the set a `GBuffer` hands over.
         /// @param volumeLayout the same again, for the set a `FogVolume` hands over.
-        /// @param counting whether the frame counts for the host — the hits and the values that
-        ///        were not finite — a harness facility, specialized away rather than branched on.
-        /// @param specialize whether to make a kernel per tuple behind the full tuple's, or the full
-        ///        tuple's alone and answer every frame with it — `RenderProfile::mSpecializeKernels`.
-        /// @param masks whether the kernels write the masks the upscaler reads, specialized away rather
-        ///        than branched on.
+        /// @param counting whether the frame counts for the host — the hits and the values that were not finite — a
+        ///        harness facility, specialized away rather than branched on.
+        /// @param specialize whether to make a kernel per tuple behind the full tuple's, or the full tuple's alone and
+        ///        answer every frame with it — `RenderProfile::mSpecializeKernels`.
+        /// @param masks whether the kernels write the masks the upscaler reads, specialized away rather than branched
+        ///        on.
         VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
             const SetLayout& volumeLayout, bool counting, bool specialize, UpscaleMasks masks);
 
@@ -121,11 +121,10 @@ namespace Rtx
         /// and the tone pass's dither draws from.
         VkDeviceAddress getBlueNoise() const { return mBlueNoise.addressFor(); }
 
-        /// Waits `patience` at most for `set`'s kernels, and says how many are made — every tuple's
-        /// counted as one; throws what making one threw. For a host drawing a loading screen while it
-        /// waits. Recording needs no wait of its own: every launch reads its kernel through
-        /// `kernels`, which waits for the full tuple, and a frame takes its own tuple only once it is
-        /// made (`variantFor`).
+        /// Waits `patience` at most for `set`'s kernels, and says how many are made — every tuple's counted as one;
+        /// throws what making one threw. For a host drawing a loading screen while it waits. Recording needs no wait of
+        /// its own: every launch reads its kernel through `kernels`, which waits for the full tuple, and a frame takes
+        /// its own tuple only once it is made (`variantFor`).
         JobProgress awaitKernels(KernelSet set, std::chrono::milliseconds patience) const;
 
         /// A kernel the pass made, and which of its kernels it is.
@@ -142,22 +141,19 @@ namespace Rtx
         /// not of a frame, which is what its compiler made of it (`Device::compiledUseOf`).
         void listKernels(std::vector<NamedKernel>& out) const;
 
-        /// Writes the frame's block: `constants` with what only the passes know filled in — the
-        /// tiles' widths, the lamps' grid, the froxel grid and where every table is, the bin's
-        /// sprites among them. Before every launch of this frame, `recordSpriteShelter` first,
-        /// because that one runs before the bin and reads the block like the rest.
+        /// Writes the frame's block: `constants` with what only the passes know filled in — the tiles' widths, the
+        /// lamps' grid, the froxel grid and where every table is, the bin's sprites among them. Before every launch of
+        /// this frame, `recordSpriteShelter` first, because that one runs before the bin and reads the block too.
         ///
-        /// @param sprites where this trace's sprites and tiles are, off the bin the chain recording
-        ///        the trace owns and filled ahead of it.
+        /// @param sprites where this trace's sprites and tiles are, off the bin the chain recording the trace owns and
+        ///        filled ahead of it.
         void writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteTables& sprites,
             const Shaders::VisibilityConstants& constants) const;
 
-        /// Zeroes, in the bin's own table, every falling sprite that stands under a roof — one ray
-        /// straight up apiece, `spriteshelter.rgen`. After `writeFrame` and the bin's `take`, and
-        /// before its `record`, so the shade counts no sheltered drop as a layer and the bin lists
-        /// none. Nothing for a frame the block says has no shelter in it.
-        ///
-        /// @param count how many sprites the bin took, which is the launch's width.
+        /// Zeroes, in the bin's own table, every falling sprite that stands under a roof — one ray straight up apiece,
+        /// `spriteshelter.rgen`. After `writeFrame` and the bin's `take`, and before its `record`, so the shade counts
+        /// no sheltered drop as a layer and the bin lists none. Nothing for a frame the block says has no shelter in
+        /// it.
         void recordSpriteShelter(VkCommandBuffer commands, const VisibilityInputs& inputs,
             const Shaders::VisibilityConstants& constants, std::uint32_t count, GpuTimer* timer) const;
 
@@ -167,11 +163,10 @@ namespace Rtx
         void recordSpriteEmitters(
             VkCommandBuffer commands, const VisibilityInputs& inputs, std::uint32_t count, GpuTimer* timer) const;
 
-        /// The tuple a frame of these inputs runs: the one its constants call for where it is made,
-        /// and the full tuple until then. Asked once a frame, and handed to `writesOf` and `record`,
-        /// so the two agree whichever tuple lands between them. Resolved from the constants this
-        /// frame is about to be traced with, and from nothing kept between frames: a dusk moves the
-        /// tuple and a doorway moves it again.
+        /// The tuple a frame of these inputs runs: the one its constants call for where it is made, and the full tuple
+        /// until then. Asked once a frame, and handed to `writesOf` and `record`, so the two agree whichever tuple
+        /// lands between them. Resolved from the constants this frame is about to be traced with and nothing kept
+        /// between frames: a dusk moves the tuple and a doorway moves it again.
         VisibilityVariant variantFor(
             const VisibilityInputs& inputs, const Shaders::VisibilityConstants& constants) const;
 
@@ -188,18 +183,17 @@ namespace Rtx
         void record(VkCommandBuffer commands, const VisibilityInputs& inputs, VisibilityVariant variant,
             const Shaders::VisibilityConstants& constants, GpuTimer* timer) const;
 
-        /// Composites the puffs over `shown`, in place, at the picture's own extent: the
-        /// sprites' shape and the cloud shells marched there against the bin the trace binned over its
-        /// own grid, and the sprites' light read off the layer the trace left in `Channel::Puffs`. After
-        /// whatever denoised and upscaled the frame, because neither should touch a particle —
-        /// `spritecomposite.rgen` says what an upscaler's overlay costs.
+        /// Composites the puffs over `shown`, in place, at the picture's own extent: the sprites' shape and the cloud
+        /// shells marched there against the bin the trace binned over its own grid, and the sprites' light read off the
+        /// layer the trace left in `Channel::Puffs`. After whatever denoised and upscaled the frame, because neither
+        /// should touch a particle (`spritecomposite.rgen`).
         ///
         /// @param shown the frame as it will be shown, in `GENERAL`.
-        /// @param eyes the frame's eyes as the trace cast them, at the traced extent; the composite
-        ///        is handed them on the shown grid.
-        /// @param extent how much of `shown` the picture is, from its corner: the whole of a
-        ///        frame's, and a picture's own size inside an image that may be larger. The block is
-        ///        the one the trace wrote, so the bin is read from there.
+        /// @param eyes the frame's eyes as the trace cast them, at the traced extent; the composite is handed them on
+        ///        the shown grid.
+        /// @param extent how much of `shown` the picture is, from its corner: the whole of a frame's, and a picture's
+        ///        own size inside an image that may be larger. The block is the one the trace wrote, so the bin is read
+        ///        from there.
         void recordSpriteComposite(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& shown,
             const Shaders::Eyes& eyes, VkExtent2D extent, GpuTimer* timer) const;
 
@@ -231,12 +225,10 @@ namespace Rtx
             VisibilityVariant mVariant{};
         };
 
-        /// Starts making every kernel this pass can ever need, on threads of their own, because the
-        /// frame path must not be able to compile: the trace took 2.8 seconds on a cold cache, and
-        /// a frame that stopped for one was `Xid 109, CTX SWITCH TIMEOUT` and a device reset. Off
-        /// the caller's thread, because the full tuple takes ten seconds cold and every tuple a
-        /// minute, and the window has to go on answering meanwhile. In parallel, because the
-        /// driver's cache is internally synchronised, and `PipelineCache` outlives the process.
+        /// Starts making every kernel this pass can ever need, on threads of their own, because the frame path must not
+        /// be able to compile: the trace took 2.8 seconds on a cold cache, and a frame that stopped for one was `Xid
+        /// 109, CTX SWITCH TIMEOUT` and a device reset. Off the caller's thread, because the full tuple takes ten
+        /// seconds cold and every tuple a minute. In parallel, because the driver's cache is internally synchronised.
         void compileEvery(const SetLayout& textureLayout);
 
         /// Makes the one kernel `wanted` names, into its slot. On a hand of `compileEvery`'s, each
@@ -251,11 +243,11 @@ namespace Rtx
         /// before it and the one after.
         void writeConstants(VkCommandBuffer commands, const Shaders::VisibilityConstants& described) const;
 
-        /// Pushes set zero — everything both passes read — and binds the three sets nothing pushes.
-        /// Any of the pipelines here, because the volume reads the same world the trace does.
+        /// Pushes set zero — everything both passes read — and binds the three sets nothing pushes. Any of the
+        /// pipelines here, because the volume reads the same world the trace does.
         ///
-        /// @param shown the composite's frame as shown, and nothing for every other launch, whose
-        ///        set does not declare it.
+        /// @param shown the composite's frame as shown, and nothing for every other launch, whose set does not declare
+        ///        it.
         void pushInputs(VkCommandBuffer commands, const Pipeline& pipeline, const VisibilityInputs& inputs,
             const Image* shown = nullptr) const;
 
@@ -283,11 +275,10 @@ namespace Rtx
         /// it has media (`hasMedia`), and every other always.
         static bool runsStage(Kernel stage, VisibilityVariant variant);
 
-        /// The launch that fills the fog volume's froxels for `variant`, a room's included: the
-        /// volume walks the lamps once per froxel where the closed form would be a lamp reservoir
-        /// and a shadow ray per pixel. **The maps are not a question it asks**, so a tuple is
-        /// answered by its twin without them where that one is made, and by the full tuple's until
-        /// then.
+        /// The launch that fills the fog volume's froxels for `variant`, a room's included: the volume walks the lamps
+        /// once per froxel where the closed form would be a lamp reservoir and a shadow ray per pixel. The maps are not
+        /// a question it asks, so a tuple is answered by its twin without them where that one is made, and by the full
+        /// tuple's until then.
         const TracePipeline<NoConstants>& scatterPipelineFor(VisibilityVariant variant) const;
 
         const Device& mDevice;
@@ -365,11 +356,9 @@ namespace Rtx
         /// filled. A shared future's read once it is ready.
         const Kernels& kernels() const;
 
-        /// Every trace module the kernels run, read once with its interface by the compile before its
-        /// hands start, and shared by them: on the compile's thread, so a file that cannot be read
-        /// is thrown to every ask of the kernels as a kernel that cannot be made is. Before the
-        /// compile, so its hands are joined before the code goes. **Let go by the last compile once
-        /// its hands are joined**: a few megabytes nothing reads again.
+        /// Every trace module the kernels run, read once with its interface by the compile before its hands start, and
+        /// shared by them: on the compile's thread, so a file that cannot be read is thrown to every ask of the kernels
+        /// as a kernel that cannot be made is. Let go by the last compile once its hands are joined.
         std::optional<ShaderCode> mCode;
 
         Kernels mKernels;

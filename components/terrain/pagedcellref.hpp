@@ -18,17 +18,16 @@ namespace Terrain
     /// What the game says of a gate: whether the references behind it stand in the distance.
     enum class GateState : std::uint8_t
     {
-        /// Not yet evaluated, and so nothing behind it stands: a stage the game has not decided on
-        /// is more often down than up, and a gate is told before the frame that reads it.
+        /// Not yet evaluated, and so nothing behind it stands: a gate is told before the frame that reads
+        /// it, and an undecided stage is more often down than up.
         Unknown,
 
         Open,
         Closed,
 
-        /// The script's answer rests on something only an active cell has — an activation that
-        /// takes the reference down, another reference's state, an instruction the evaluation does
-        /// not model — so each reference stands by what the game says of it, as an ungated one
-        /// does.
+        /// The script's answer rests on something only an active cell has (an activation, another
+        /// reference's state, an instruction the evaluation does not model), so each reference stands by
+        /// what the game says of it, as an ungated one does.
         Undecided,
     };
 
@@ -41,10 +40,9 @@ namespace Terrain
         osg::Vec3f mRotation{};
         float mScale = 1.f;
 
-        /// The gate that says whether it stands in the distance, where a script that runs only while
-        /// its cell is active enables or disables it — its record's own, or one a reference in its
-        /// cell wears that names it — so the content files' answer is not the game's.
-        /// `MWScript::VisibilityGates` says which.
+        /// The gate that says whether it stands in the distance, where a script that runs only while its
+        /// cell is active enables or disables it, so the content files' answer is not the game's
+        /// (`MWScript::VisibilityGates`).
         std::uint32_t mGate = sNoGate;
     };
 

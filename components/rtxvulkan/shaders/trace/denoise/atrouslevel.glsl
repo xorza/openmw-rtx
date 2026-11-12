@@ -8,21 +8,20 @@
 // what a pixel carries into the next frame is the filtered light rather than the single sample that went
 // into it.
 //
-// **It filters light and never a surface.** The trace divided the albedo out, so what is here is what
-// varies slowly across a wall — the part a blur can average without destroying anything — and the composite
-// multiplies the texture back in afterwards at full sharpness. Filtering a finished picture instead is what
-// makes a denoiser look like a smear.
+// **It filters light and never a surface.** The trace divided the albedo out, so what is here varies slowly
+// across a wall and a blur can average it without destroying anything; the composite multiplies the texture
+// back in afterwards at full sharpness. Filtering a finished picture is what makes a denoiser look like a
+// smear.
 //
 // **The other two edge-stopping functions are not SVGF's.** Its depth term divides by the depth gradient
 // along the tap, `exp(-|z(p) - z(q)| / (sigma_z * |grad z . (p - q)| + eps))`; what is below is a
-// plane-distance test, which is what the denoisers written since — NRD's among them — settled on, and which
-// handles a grazing floor without needing a derivative that a ray tracer has no rasterizer to hand it.
+// plane-distance test, which the denoisers written since (NRD's among them) settled on and which handles a
+// grazing floor without a derivative a ray tracer has no rasterizer to hand it.
 //
 // **The alpha holds the deviation, its square root, and not the variance itself.** Each level shrinks the
-// variance by its weights' squares, and every level stores it in a half (`ATROUS_CHANNEL`): in dim light
-// the variance fell under the least normal half, 6.1e-5, or was flushed to nought, and the brightness test
-// refused every tap in the dark. The deviation spans half the exponents, so a half holds it where it held
-// none of the variance.
+// variance by its weights' squares and stores it in a half (`ATROUS_CHANNEL`): in dim light it fell under the
+// least normal half, 6.1e-5, or was flushed to nought, and the brightness test refused every tap in the dark.
+// The deviation spans half the exponents, so a half holds it where it held none of the variance.
 //
 // **The first level is also NRD's history fix** (`ACCUMULATE_FIX_FRAMES`): at a pixel whose mean holds that
 // few frames, its taps stand `ACCUMULATE_FIX_STRIDE / (1 + n)` apart under ReLAX's flat kernel, with no
@@ -160,9 +159,10 @@ shared vec4 gPosition[TILE][TILE];
 ///
 /// **A select and not a table, and that is a rule for every fixed table in this renderer.** `glslc` cannot
 /// subscript a constant composite, so it copies the whole array into function storage once per subscript
-/// *expression* — which on this hardware is scratch memory. `[[unroll]]` does not undo it, because the copy
-/// is emitted before any loop is unrolled: a probe over the three passes that did this took sixteen such
-/// copies to fourteen and no further, where stating the value instead took them to three.
+/// *expression*, which on this hardware is scratch memory. `[[unroll]]` does not undo it, because the copy is
+/// emitted before any loop is unrolled: a probe over three passes took sixteen such copies to fourteen and no
+/// further, where stating the value instead took them to three.
+
 float kernelAt(int offset)
 {
     const int away = abs(offset);

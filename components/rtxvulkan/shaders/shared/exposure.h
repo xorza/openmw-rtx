@@ -34,10 +34,9 @@ namespace Rtx::Shaders
     /// owns exactly one bin of the workgroup's own tally, which `histogram.comp` indexes by the
     /// thread.
     ///
-    /// **A histogram and not a running mean, because of what an interior looks like**: a handful of
-    /// tiny flames at a luminance of one, in a room sitting at a hundredth of that. A mean is
-    /// dragged around by whichever population has more pixels; a histogram keeps them apart and
-    /// lets the reduction decide what to expose for.
+    /// **A histogram and not a running mean, because of what an interior looks like**: a handful of tiny
+    /// flames at a luminance of one, in a room sitting at a hundredth of that. A mean is dragged around by
+    /// whichever population has more pixels; a histogram keeps them apart.
     const uint EXPOSURE_BINS = HISTOGRAM_WORKGROUP * HISTOGRAM_WORKGROUP;
 
     /// What the binning pass needs to place a luminance.

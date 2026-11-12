@@ -18,9 +18,8 @@ namespace Rtx
 {
     /// Sixteen bytes, which is what both poses are laid in: a bone is three words and a morph's
     /// weights fill words four at a time, zero-padded past the last. `Shaders::BONE_ALIGN` is why
-    /// a word is this wide — a run of bones handed to the kernel claims that alignment of every
-    /// address it is built from — and the device reads the same bytes it read when the two poses
-    /// had a buffer each: three words are one `GpuBone`, and four floats in a row are four floats.
+    /// a word is this wide: a run of bones handed to the kernel claims that alignment of every
+    /// address it is built from.
     struct alignas(16) PoseWord
     {
         float mValues[4];
@@ -121,10 +120,8 @@ namespace Rtx
     /// One type, because a deformer's rows, the runs behind it and the words each mesh was given
     /// have to be released in one order across five allocators. A mesh standing on a deformer is
     /// one hold on its row. Every call takes the `MeshRange`, because which deformer poses a mesh
-    /// is the mesh's own fact. One row table, one arrival set and one pose buffer for both kinds,
-    /// because everything but the kernel that reads them is the same bookkeeping. A row's holds are
-    /// nought only between `addRig` or `addMorph` and the stand `SceneDesc::addMesh` makes in the
-    /// same call.
+    /// is the mesh's own fact. A row's holds are nought only between `addRig` or `addMorph` and
+    /// the stand `SceneDesc::addMesh` makes in the same call.
     class DeformerTable : public HeldRows<Deformer>
     {
     public:

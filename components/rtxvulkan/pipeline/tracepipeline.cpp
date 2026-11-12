@@ -49,12 +49,10 @@ namespace Rtx
         const VkRayTracingPipelineCreateInfoKHR pipeline{
             .sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
             .pNext = creation.chain(nullptr),
-            // The statistics are asked for and, on this driver, not answered: NVIDIA reports one
-            // executable for every compute pipeline in this renderer and none at all for a ray
-            // tracing one — `Device::reportPipeline` is where that shows. Asked for anyway,
-            // because it costs the frame nothing and is what makes the report appear the day a
-            // driver answers. No procedural geometry anywhere in this renderer, so no AABB is ever
-            // traversed, which NVIDIA's best-practice list asks to promise "whenever possible".
+            // The statistics are asked for though NVIDIA reports none for a ray tracing pipeline
+            // (`Device::reportPipeline`): it costs the frame nothing and the report appears the day a
+            // driver answers. No procedural geometry, so no AABB is ever traversed, which NVIDIA's
+            // best-practice list asks to promise.
             .flags = device.getPipelineFlags() | VK_PIPELINE_CREATE_RAY_TRACING_SKIP_AABBS_BIT_KHR,
             .stageCount = 1,
             .pStages = &stage,

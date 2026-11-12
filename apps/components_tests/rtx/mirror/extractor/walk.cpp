@@ -67,15 +67,13 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.meshes().getTriangleCount(), 4u);
         }
 
-        /// **What a content file describes and this renderer cannot take is refused per drawable,
-        /// once, and the walk goes on.** The quad beside the refused mesh stands. Each is refused to
-        /// the scene once, however many walks meet it, and the walk after reads the drawable no
-        /// more. A mesh past one block is one such, and a triangle naming a vertex its drawable does
-        /// not have is another, which read on would have been a read past the positions and a
-        /// fault on the device.
+        /// **What a content file describes and this renderer cannot take is refused per drawable, once, and the walk
+        /// goes on.** The quad beside the refused mesh stands, and the walk after reads the drawable no more. A mesh
+        /// past one block is one such, and a triangle naming a vertex its drawable does not have is another (read
+        /// on, a read past the positions and a device fault).
         ///
-        /// **And a heat haze is left out whole, and says so**: a branch `SceneUtil::setupDistortion`
-        /// set up draws into the rasterizer's distortion buffer alone, so its quad is no instance.
+        /// **And a heat haze is left out whole, and says so**: a branch `SceneUtil::setupDistortion` set up draws into
+        /// the rasterizer's distortion buffer alone, so its quad is no instance.
         TEST_F(RtxSceneExtractorTest, aMeshThisCannotBuildIsRefusedOnceAndTheWalkGoesOn)
         {
             osg::ref_ptr<osg::Group> haze = new osg::Group;
@@ -109,14 +107,12 @@ namespace Rtx::Testing
 
         /// A flipbook shows one frame at a time, and this walk is what advances it.
         ///
-        /// **`NifOsg` builds an `osg::Sequence` for every `NiFltAnimationNode`** — Morrowind's fires,
-        /// forges and lava flows. A sequence hands over every child under `TRAVERSE_ALL_CHILDREN`,
-        /// so all of its frames are traced at once and in the same place, and the branch of
-        /// `Sequence::traverse` that moves its clock is never reached.
+        /// **`NifOsg` builds an `osg::Sequence` for every `NiFltAnimationNode`** (Morrowind's fires, forges and lava
+        /// flows). Under `TRAVERSE_ALL_CHILDREN` it hands over every child, so all frames are traced at once in the
+        /// same place, and the branch of `Sequence::traverse` that moves its clock is never reached.
         ///
-        /// Two frames a second apart, read at two times. One instance each time, and the second
-        /// read is the other frame. Both halves are claimed: honouring it without stepping it shows
-        /// frame zero for ever, and stepping it without honouring it shows both frames at once.
+        /// Two frames a second apart, read at two times: one instance each time, the second read being the other
+        /// frame. Honouring it without stepping shows frame zero for ever; stepping without honouring shows both.
         TEST_F(RtxSceneExtractorTest, aFlipbookShowsOneFrameAndThisWalkIsWhatAdvancesIt)
         {
             osg::ref_ptr<osg::MatrixTransform> first = new osg::MatrixTransform(osg::Matrix::translate(10.0, 0.0, 0.0));
@@ -156,18 +152,15 @@ namespace Rtx::Testing
                 << "and a second later the clock has moved on to the other";
         }
 
-        /// A walk leaves out a subtree the mask it was given excludes, and reaches every node until
-        /// it is given one.
+        /// A walk leaves out a subtree the mask it was given excludes, and reaches every node until it is given one.
         ///
-        /// **The owner states the mask and this component never derives it.** The bit a hidden node
-        /// carries is the engine's own — `MWRender::Mask_UpdateVisitor` — which this side cannot
-        /// name, and a default that asked `NifOsg::Loader` for it answered with whatever the loader
-        /// has been told by the moment the extractor is built. In the game it has been told
-        /// nothing: the renderer is built before the rendering manager that tells it, so every node
-        /// a `NifOsg::VisController` hides is walked, placed and traced.
+        /// **The owner states the mask and this component never derives it.** The bit a hidden node carries is the
+        /// engine's own (`MWRender::Mask_UpdateVisitor`), which this side cannot name, and a default asking
+        /// `NifOsg::Loader` for it would answer with whatever the loader has been told when the extractor is built:
+        /// in the game nothing yet, since the renderer is built before the rendering manager that tells it, so every
+        /// node a `NifOsg::VisController` hides would be walked, placed and traced.
         ///
-        /// The marked node carries a real bit rather than none, so only a walk that honours the
-        /// mask it was handed can tell the three runs apart.
+        /// The marked node carries a real bit rather than none, so only a walk honouring its mask tells the runs apart.
         TEST_F(RtxSceneExtractorTest, aWalkLeavesOutWhatTheMaskItWasGivenExcludes)
         {
             constexpr osg::Node::NodeMask marked = 1u << 3;
@@ -195,10 +188,9 @@ namespace Rtx::Testing
             EXPECT_EQ(instancesUnder(std::nullopt), 2u) << "which is what an extractor nobody told walks with";
         }
 
-        /// The same geometry under two parents is one mesh and two placements. Getting this wrong is
-        /// not a cosmetic waste: OpenMW's resource cache hands out the same object for every
-        /// reference to a model, so a cell of a hundred identical crates would build a hundred
-        /// acceleration structures.
+        /// The same geometry under two parents is one mesh and two placements. OpenMW's resource cache hands out the
+        /// same object for every reference to a model, so a cell of a hundred identical crates would otherwise build
+        /// a hundred acceleration structures.
         TEST_F(RtxSceneExtractorTest, sharedGeometryIsOneMeshPlacedTwice)
         {
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
@@ -224,11 +216,10 @@ namespace Rtx::Testing
             EXPECT_EQ(placedAt(mScene, 1), osg::Vec3f(0.0f, 20.0f, 0.0f));
         }
 
-        /// **A branch a switch has turned off is not in the picture, and `osg::Switch::traverse`
-        /// does not say so** — under `TRAVERSE_ALL_CHILDREN` it visits every child it has. Left
-        /// alone, `MWRender`'s `DayNightCallback` traces the night lamp at noon and the day mesh at
-        /// midnight at the same time, and a harvested plant is traced through the unharvested one it
-        /// replaced.
+        /// **A branch a switch has turned off is not in the picture, and `osg::Switch::traverse` does not say so**:
+        /// under `TRAVERSE_ALL_CHILDREN` it visits every child. Left alone, `MWRender`'s `DayNightCallback` would
+        /// trace the night lamp at noon and the day mesh at midnight together, and a harvested plant through the
+        /// unharvested one it replaced.
         TEST_F(RtxSceneExtractorTest, onlyTheBranchASwitchHasOnIsMirrored)
         {
             osg::ref_ptr<osg::MatrixTransform> day = new osg::MatrixTransform(osg::Matrix::translate(10.0, 0.0, 0.0));
@@ -258,9 +249,8 @@ namespace Rtx::Testing
             EXPECT_EQ(midnight.mMeshesReused, 0u);
             EXPECT_EQ(midnight.mInstances, 1u);
 
-            // The branch that went off is standing until the sweep, which is what any placement
-            // leaving the graph costs — and gone after it, in its own slot rather than by
-            // renumbering the one that arrived.
+            // The branch that went off stands until the sweep, as any placement leaving the graph does, and is gone
+            // after it in its own slot rather than by renumbering the one that arrived.
             EXPECT_EQ(mExtractor.retire().mMeshes, 1u);
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
             ASSERT_EQ(mScene.placements().getRows().size(), 2u);
@@ -269,10 +259,9 @@ namespace Rtx::Testing
             EXPECT_EQ(placedAt(mScene, 1), osg::Vec3f(0.0f, 20.0f, 0.0f));
         }
 
-        /// **An LOD stands its nearest level and nothing else, wherever the eye is**, and
-        /// `osg::LOD::traverse` does not say so either: under `TRAVERSE_ALL_CHILDREN` every level is
-        /// visited, and a `NiLODNode` would be traced with all of its budgets standing at once. The
-        /// level is the one whose range starts nearest, whatever order the loader left them in.
+        /// **An LOD stands its nearest level and nothing else, wherever the eye is**, and `osg::LOD::traverse` does
+        /// not say so either: under `TRAVERSE_ALL_CHILDREN` every level is visited, so a `NiLODNode` would stand all
+        /// its budgets at once. The level is the one whose range starts nearest, whatever order the loader left.
         TEST_F(RtxSceneExtractorTest, onlyTheNearestLevelOfAnLodIsMirrored)
         {
             osg::ref_ptr<osg::MatrixTransform> far = new osg::MatrixTransform(osg::Matrix::translate(10.0, 0.0, 0.0));
@@ -340,13 +329,12 @@ namespace Rtx::Testing
             EXPECT_NEAR(origin.z(), 0.0f, 1e-4f);
         }
 
-        /// A transform that reads the visitor it is handed, the way `MWRender::CameraRelativeTransform`
-        /// does to catch the eye point off a cull — and, like it, without checking for null first.
+        /// A transform that reads the visitor it is handed, as `MWRender::CameraRelativeTransform` does to catch the
+        /// eye point off a cull, and without checking for null first.
         ///
-        /// **The sky is one of these, and it is why the walk hands its visitor over.**
-        /// `osg::computeLocalToWorld` passes null, which is safe only because it never reaches a
-        /// transform with no drawable below it; a visitor accumulating on the way down enters every
-        /// one, and this crashed the game on the frame the sky first came into view.
+        /// **The sky is one of these, and it is why the walk hands its visitor over.** `osg::computeLocalToWorld`
+        /// passes null, which is safe only because it never reaches a transform with no drawable below it; a visitor
+        /// accumulating on the way down enters every one, which crashed the game when the sky first came into view.
         class VisitorReadingTransform : public osg::MatrixTransform
         {
         public:
@@ -374,15 +362,12 @@ namespace Rtx::Testing
             EXPECT_EQ(placedAt(mScene, 0), osg::Vec3f(0.0f, 0.0f, 4.0f));
         }
 
-        /// A billboard turns toward the eye the walk was told, and stays where it stands under a
-        /// walk told none.
+        /// A billboard turns toward the eye the walk was told, and stays where it stands under a walk told none.
         ///
-        /// **`NifOsg::AutoTransform` turns only under a cull visitor**, and this walk is none: handed
-        /// itself it keeps the rotation a cull last left, which here is the one the file was
-        /// authored with. `RigidFaceCamera` maps the node's own +Z onto the look and its own +Y
-        /// onto the up, so what is asserted is the placed axes against the eye handed in, under two
-        /// eyes and under a parent that moves the node — the eye is taken into the node's own frame
-        /// first.
+        /// **`NifOsg::AutoTransform` turns only under a cull visitor**, and this walk is none: handed itself it keeps
+        /// the rotation a cull last left, here the one the file was authored with. `RigidFaceCamera` maps the node's
+        /// +Z onto the look and +Y onto the up, so the placed axes are asserted against the eye handed in, under two
+        /// eyes and under a parent that moves the node: the eye is taken into the node's own frame first.
         TEST_F(RtxSceneExtractorTest, aBillboardTurnsTowardTheEyeTheWalkWasTold)
         {
             // Built as the loader builds one, from a record: an `AutoTransform` made from nothing
@@ -435,11 +420,10 @@ namespace Rtx::Testing
             expectAxis(upStill, osg::Vec3f(0.0f, 0.0f, 1.0f), "y up for an eye looking along -x");
         }
 
-        /// **A place that is not finite stands nothing, and a billboard under a scale of nought
-        /// stands where it was authored.** The billboard's frame has no inverse, so the eye has no
-        /// way into it: inverted anyway, the eye was a NaN and so was the placement, every element.
-        /// Under a scale of nought it is a quad of no size, placed and finite. A transform of a NaN
-        /// is refused once by the drawable's name, and walked again it is not refused twice.
+        /// **A place that is not finite stands nothing, and a billboard under a scale of nought stands where it was
+        /// authored.** The billboard's frame has no inverse, so the eye has no way into it (inverted anyway it was a
+        /// NaN, and so was the placement); under a scale of nought it is a quad of no size, placed and finite. A
+        /// transform of a NaN is refused once by the drawable's name, and not again on a second walk.
         TEST_F(RtxSceneExtractorTest, aPlaceThatIsNotFiniteStandsNothingAndABillboardWithNoInverseStandsStill)
         {
             osg::Matrix broken;
@@ -547,17 +531,15 @@ namespace Rtx::Testing
             EXPECT_EQ(second.mMeshesReused, 2u);
             EXPECT_EQ(mScene.meshes().getRows().size(), 2u);
 
-            // **Each walk counts into its own report and never into the walk before it.** What a
-            // resolver counts through is `MirrorPass`, which is the mirror's own member and outlives
-            // the call — so a walk that left it pointed where the last one did would report the sum
-            // here and leave the first standing at a number it never met.
+            // **Each walk counts into its own report and never into the walk before it.** What a resolver counts
+            // through is `MirrorPass`, the mirror's own member that outlives the call, so a walk that left it pointed
+            // where the last one did would report the sum and leave the first standing at a number it never met.
             EXPECT_EQ(first.mMeshesAdded, 2u);
             EXPECT_EQ(first.mMeshesReused, 0u);
 
-            // **The property the incremental mirror rests on, in its strongest form.** The same mesh
-            // at two places is still two rows of the acceleration structure — placements are not
-            // deduplicated — but a second pass over an unchanged graph finds the slots those two
-            // already hold rather than making two more. Nothing was added, and nothing moved.
+            // **The property the incremental mirror rests on, in its strongest form.** The same mesh at two places is
+            // still two rows of the acceleration structure (placements are not deduplicated), but a second pass over an
+            // unchanged graph finds the slots those two already hold rather than making two more.
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 2u);
             EXPECT_EQ(mScene.placements().getRows().size(), 2u);
 
@@ -595,11 +577,10 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.placements().getMoved()[0], 0u);
         }
 
-        /// **A clockwise front is the placement's and not the material's**, as a fade is: the left
-        /// body part and the right one share the state set a material is keyed on, and
-        /// `SceneUtil::attach` hangs the clockwise front above the left one alone. So the one quad
-        /// placed under it and beside it is one material and two faces. An `OVERRIDE` above keeps
-        /// its front over the one a node below states, unless that one is `PROTECTED`, as the
+        /// **A clockwise front is the placement's and not the material's**, as a fade is: the left and right body
+        /// parts share the state set a material is keyed on, and `SceneUtil::attach` hangs the clockwise front above
+        /// the left one alone, so the one quad placed under it and beside it is one material and two faces. An
+        /// `OVERRIDE` above keeps its front over one a node below states, unless that one is `PROTECTED`, as the
         /// rasterizer's state stack resolves it.
         TEST_F(RtxSceneExtractorTest, aClockwiseFrontIsThePlacementsAndNotTheSharedMaterials)
         {
@@ -644,13 +625,10 @@ namespace Rtx::Testing
             EXPECT_FALSE(rows[3].mInstance.mClockwise) << "except over a protected front";
         }
 
-        /// **Texture coordinates are read off the array's own type byte**, which is what
-        /// `asVec2Array` asks and what a `dynamic_cast` walks the class hierarchy to answer. The
-        /// two agree on a `Vec2Array` and on nothing else, so a three-component array is not
-        /// coordinates this reads, and the mesh that brought them is refused rather than drawn as
-        /// if it brought none.
-        ///
-        /// Hand-written: the second corner's V is a half.
+        /// **Texture coordinates are read off the array's own type byte**, as `asVec2Array` asks, where a
+        /// `dynamic_cast` walks the class hierarchy. The two agree on a `Vec2Array` and nothing else, so a
+        /// three-component array is not coordinates this reads, and its mesh is refused rather than drawn as if it
+        /// brought none. Hand-written: the second corner's V is a half.
         TEST_F(RtxSceneExtractorTest, textureCoordinatesAreReadOnlyWhereTheArrayIsAPairPerVertex)
         {
             osg::ref_ptr<osg::Vec2Array> pairs = new osg::Vec2Array;

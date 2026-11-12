@@ -578,11 +578,10 @@ namespace CrashTests
 
         int matrix(const std::filesystem::path& self, const std::filesystem::path& root)
         {
-            // **Side by side, because the modes wait rather than work.** Each is a process with a
-            // folder of its own, and six of them stand still for seconds while a hang limit passes:
-            // one after another the matrix took 36 s, and side by side it takes its longest mode's 8.
-            // `runShell` is `std::system`, which glibc and the MSVC runtime make safe to call from
-            // several threads; POSIX does not promise it, and where a libc locks it, this is serial.
+            // **Side by side, because the modes wait rather than work.** Each is a process with its own folder, and
+            // six of them stand still for seconds while a hang limit passes: serially the matrix took 36 s, side by
+            // side its longest mode's 8. `runShell` is `std::system`, which glibc and the MSVC runtime make safe
+            // to call from several threads; POSIX does not promise it, and where a libc locks it, this is serial.
             const std::vector<Mode> modes = modesOfThisSystem();
             std::vector<Outcome> outcomes(modes.size());
             {

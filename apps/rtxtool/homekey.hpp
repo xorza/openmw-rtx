@@ -24,21 +24,17 @@ namespace RtxTool
 {
     struct Stop;
 
-    /// What Home does in a window: keeps the frame it went down on. The note of that frame is
-    /// printed, the frame's picture is written with the note inside it as the PNG's `Description`,
-    /// and the note is appended to a film's keys where the run names a file for them — so the note
-    /// and the picture a person shares are of one frame, however long they looked around first.
+    /// What Home does in a window: keeps the frame it went down on. The note of that frame is printed, the
+    /// picture is written with the note inside as the PNG's `Description`, and the note is appended to a
+    /// film's keys where the run names a file, so the note and the picture are of one frame.
     ///
-    /// **The picture is the device's copy of the frame, a frame or two behind it.** Home asks for
-    /// the copy before the frame is traced, and the note is kept until the copy comes back under
-    /// that frame's number.
+    /// The picture is the device's copy of the frame, a frame or two behind it: Home asks for the copy before
+    /// the frame is traced, and the note is kept until the copy comes back under that frame's number.
     ///
-    /// **Written off the frame**, as the engine's own screenshot key writes its file: a PNG of a
-    /// shown frame is tens of milliseconds, and a window somebody is looking through does not stall
-    /// for a key. The frame copies the picture into a room this owns and a thread of its own writes
-    /// it, in the order the presses came; the frame prints where each went, because the stream is
-    /// the frame thread's. A room is used again once it is printed, so presses allocate only while
-    /// they come faster than pictures are written.
+    /// Written off the frame, as the engine's own screenshot key writes its file, since a PNG is tens of
+    /// milliseconds: the frame copies the picture into a room this owns and a thread of its own writes it in
+    /// press order; the frame prints where each went, because the stream is the frame thread's. A room is
+    /// reused once printed, so presses allocate only while they come faster than pictures are written.
     class HomeKey
     {
     public:

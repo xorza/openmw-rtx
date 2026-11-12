@@ -65,19 +65,17 @@ namespace Rtx
 
     inline void keepKey(Released&, std::size_t) {}
 
-    /// A map of what the mirror knows, and how much of it the walk in progress has reached. The
-    /// count is what lets a sweep be skipped rather than run over tens of thousands of entries to
-    /// find nothing: a world that stands still reaches every entry it holds. A held entry counts as
-    /// reached without being stamped, so the two counts together are the size exactly when every
-    /// unheld entry was met — `whole`. The count belongs to one epoch, because a table is not
-    /// always retired. Every write goes through this class, or a count kept beside the map is free
-    /// to fall behind it.
+    /// A map of what the mirror knows, and how much of it the walk in progress has reached. The count is what lets a
+    /// sweep be skipped rather than run over tens of thousands of entries to find nothing: a world that stands still
+    /// reaches every entry it holds. A held entry counts as reached without being stamped, so the two counts together
+    /// are the size exactly when every unheld entry was met (`whole`). The count belongs to one epoch, because a table
+    /// is not always retired. Every write goes through this class, or a count kept beside the map is free to fall
+    /// behind it.
     ///
-    /// **An entry is good until the next insert into the same map.** Every map here is an
-    /// open-addressing table, whose entries stand in its own array, so a lookup at every node and
-    /// drawable of a walk is a probe of that array rather than a cache miss for each link of a
-    /// bucket's list. A table grown past its room moves every entry: nothing keeps a reference into
-    /// one across an insert, and what must outlive one keeps the key and finds the entry again.
+    /// **An entry is good until the next insert into the same map.** Every map here is an open-addressing table, so a
+    /// lookup at every node and drawable of a walk is a probe of one array rather than a cache miss per bucket link. A
+    /// table grown past its room moves every entry: nothing keeps a reference into one across an insert, and what must
+    /// outlive one keeps the key and finds the entry again.
     template <class Map>
     class Kept
     {

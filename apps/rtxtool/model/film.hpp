@@ -91,10 +91,10 @@ namespace RtxTool
         /// not set it.
         float mSpeed = 800.0f;
 
-        /// **The film's length, for the eye's speed to fill.** Every flight is flown at the one
-        /// speed that ends the film at this many seconds, after its holds, its stills, what stands
-        /// on the spot, and the keys' own `seconds`; or nothing for `mSpeed`. A default length
-        /// leaves the film to `mSpeed` where it cannot be filled (`FilmLength`).
+        /// The film's length, for the eye's speed to fill: every flight is flown at the one speed that ends the film
+        /// at this many seconds, after its holds, its stills, what stands on the spot and the keys' own `seconds`;
+        /// or nothing for `mSpeed`. A default length leaves the film to `mSpeed` where it cannot be filled
+        /// (`FilmLength`).
         std::optional<FilmLength> mLength;
 
         /// Seconds the eye takes to reach its speed from a rest and to come back to one: at a
@@ -112,11 +112,10 @@ namespace RtxTool
         /// takes.
         float mCrossingSeconds = 8.0f;
 
-        /// **The sky on its own rate, for a time-lapse the camera flies through.** The game
-        /// clock's speed over the whole film as a multiple of the game's own — the `timescale` the
-        /// session starts at, which is also what the clock keys' `×N` multiplies in a window —
-        /// where the hours the keys name after the first are left alone and set no segment's
-        /// length; or nothing for the keys' hours.
+        /// The sky on its own rate, for a time-lapse the camera flies through: the game clock's speed over the whole
+        /// film as a multiple of the game's own (the `timescale` the session starts at, which the clock keys' `×N`
+        /// multiplies in a window). The hours the keys name after the first are left alone and set no segment's
+        /// length; nothing for the keys' hours.
         std::optional<float> mClock;
 
         /// The weathers the sky turns through over the whole film, round and round, where the
@@ -183,10 +182,9 @@ namespace RtxTool
         float mTurnDegrees = 0.0f;
         float mHours = 0.0f;
 
-        /// World units a frame the eye cruises at over it, or nought where it goes nowhere: a
-        /// flight's what fills its span where a key's time or a length closes the span, and the
-        /// plan's speed where none does, give or take the part of a frame its take was rounded by
-        /// to end on a frame; a key's own seconds what fills them.
+        /// World units a frame the eye cruises at over it, or nought where it goes nowhere: what fills the span where
+        /// a key's time or a length closes it, else the plan's speed, give or take the part of a frame the take was
+        /// rounded by to end on a frame.
         double mSpeed = 0.0;
 
         /// The longest its turn, its clock and its weather ask, in seconds, and which of them asks
@@ -246,26 +244,24 @@ namespace RtxTool
         /// where that stood aside.
         FilmPacing mPacing;
 
-        /// The default length in seconds where it stood aside because the holds, the stills, what
-        /// stands on the spot, the keys' own seconds and the takes' first frames left no frame of it
-        /// to a take that flies: the one way a default leaves the film's speed to `mSpeed`, which the
-        /// plan says. A default with no flight to fill stands aside with nothing to say, since no
-        /// speed is read.
+        /// The default length in seconds where it stood aside because the holds, the stills, what stands on the spot,
+        /// the keys' own seconds and the takes' first frames left no frame of it to a take that flies: the one way a
+        /// default leaves the film's speed to `mSpeed`, which the plan says. A default with no flight to fill says
+        /// nothing, since no speed is read.
         std::optional<float> mDefaultTooShort{};
 
         std::uint32_t getFrames() const;
     };
 
-    /// Splits `keys` into takes, lays each take's path through its eyes, and times it: a flight at
-    /// one speed along the path, `mSpeed` or what fills `mLength`; a segment that goes nowhere by
-    /// the longest of what else it changes; a key's own seconds over either.
+    /// Splits `keys` into takes, lays each take's path through its eyes, and times it: a flight at one speed along
+    /// the path, `mSpeed` or what fills `mLength`; a segment that goes nowhere by the longest of what else it
+    /// changes; a key's own seconds over either.
     ///
-    /// **A key's `at` closes a span of the film**, as `mLength` closes the last: the flights in a
-    /// span share the one speed that fills its time, and the flights after the last closed span
-    /// fly at `mSpeed`. The default length stands aside where a key names its time. Each take's
-    /// flights in one span end on a whole frame, and fly at what fills that exactly. Throws where
-    /// there is no key, where the keys' times do not run forward from the first key's nought, and
-    /// where a span closed by a key or a named length cannot be filled.
+    /// A key's `at` closes a span of the film, as `mLength` closes the last: the flights in a span share the one
+    /// speed that fills its time, and those after the last closed span fly at `mSpeed`. The default length stands
+    /// aside where a key names its time. A take's flights in one span end on a whole frame. Throws where there is no
+    /// key, where the keys' times do not run forward from the first key's nought, and where a span closed by a key
+    /// or a named length cannot be filled.
     FilmPlan planFilm(std::vector<FilmKey> keys, const FilmPacing& pacing);
 
     /// The plan as a person reads it before committing an hour of rendering to it: every take, why

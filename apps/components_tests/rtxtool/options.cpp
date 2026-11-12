@@ -178,12 +178,11 @@ namespace RtxTool
             EXPECT_THROW(lineOf(options, { "--upscaler=unknown" }, Verbs::Bench), std::runtime_error);
         }
 
-        /// **The line is read once into what each option means, and a condition nobody named is
-        /// none**: nothing named stands no hour, no weather, no air, no places of the file's and no
-        /// folder, and the day, the hold and the upscaler at their defaults, unnamed. Named, each is
-        /// what it says; `--views` with nothing in it is every view, and not none. A place named
-        /// beside `--views`, a weather that is none of the ten, a point that is not three numbers, a
-        /// size and an exposure that are none are refused with the option that named them.
+        /// **The line is read once into what each option means, and a condition nobody named is none**:
+        /// no hour, weather, air, places of the file's or folder, and the day, the hold and the upscaler
+        /// unnamed at their defaults. `--views` with nothing in it is every view, not none. A place named
+        /// beside `--views`, a weather that is none of the ten, a point that is not three numbers, and a
+        /// size or exposure that is none are refused with the option that named them.
         TEST(RtxToolOptionsTest, aLineIsReadOnceAndWhatNobodyNamedIsNone)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
@@ -296,11 +295,9 @@ namespace RtxTool
             EXPECT_EQ(defaultValidation(Rtx::ValidationLevel::Off), "off");
         }
 
-        /// The bug: an option belonging to one command, given to another, went nowhere.
-        ///
-        /// `shot --views=balmora` rendered the default view at Seyda Neen and reported it without a
-        /// word, because every option is declared on one description and each command reads the
-        /// ones it knows about.
+        /// An option belonging to one command, given to another, is refused: every option is declared on one
+        /// description and each command reads the ones it knows about, so `shot --views=balmora` would
+        /// otherwise render the default view without a word.
         TEST(RtxToolOptionsTest, aCommandRefusesAnOptionItDoesNotRead)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
@@ -350,8 +347,8 @@ namespace RtxTool
 
         /// Every option says which commands read it, and the ones that say "all of them" say it.
         ///
-        /// The bug this holds shut: a knob that never named an owner answered `Verbs::Every` by
-        /// default, so `info --size=800x600 --delight=0` was taken and thrown away.
+        /// What this holds shut: a knob with no owner would answer `Verbs::Every`, so `info --size=800x600
+        /// --delight=0` would be taken and thrown away.
         TEST(RtxToolOptionsTest, everyOptionSaysWhichCommandsReadIt)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);

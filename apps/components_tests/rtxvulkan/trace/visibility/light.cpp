@@ -57,11 +57,10 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// How far the vertex normals of `leaningFloor` lean off their own triangle.
-        ///
-        /// **Seventy degrees, which is what the content is like.** Four hits in a hundred of a
-        /// Morrowind frame carry a shading normal more than sixty degrees off the triangle it sits
-        /// on, so this is inside the range the renderer meets rather than a corner built to fail.
+        /// How far the vertex normals of `leaningFloor` lean off their own triangle: seventy degrees, which is
+        /// what the content is like (four hits in a hundred of a Morrowind frame carry a shading normal more
+        /// than sixty degrees off their triangle), inside the range the renderer meets and not a corner built
+        /// to fail.
         constexpr float sLeaningNormal = 70.0f * std::numbers::pi_v<float> / 180.0f;
 
         /// A level quad at the origin whose vertex normals all lean `sLeaningNormal` off it — as the
@@ -82,11 +81,10 @@ namespace Rtx::Testing
             return scene;
         }
 
-        /// The sun, which is one direction everywhere and casts a shadow to the end of the world.
-        ///
-        /// The wall's normal is (0, -1, 0), so a sun travelling straight along it meets it square and
-        /// the whole answer is the irradiance: 0.5 albedo times 2.0 over pi is 0.318310 linear, which
-        /// encodes to 1.055 * 0.318310^(1/2.4) - 0.055 = 0.599797, or 153 of 255.
+        /// The sun, which is one direction everywhere and casts a shadow to the end of the world. The wall's
+        /// normal is (0, -1, 0), so a sun travelling straight along it meets it square and the whole answer is
+        /// the irradiance: 0.5 albedo times 2.0 over pi is 0.318310 linear, which encodes to
+        /// 1.055 * 0.318310^(1/2.4) - 0.055 = 0.599797, or 153 of 255.
         TEST_F(RtxVisibilityTest, theSunLightsWhatItFacesAndTheOccluderTakesItAway)
         {
             constexpr std::uint32_t size = 33;
@@ -166,16 +164,13 @@ namespace Rtx::Testing
             EXPECT_EQ(render(slanted, bright, Occluder::None), 111) << "or the same again from a slant";
         }
 
-        /// The eye sees through the nearest pane to what stands behind it.
+        /// The eye sees through the nearest pane to what stands behind it. A translucent surface is not the
+        /// hit: resolved against the stand-in cutoff `AlphaMode::Blend` is given, a pane with an opaque texture
+        /// would be drawn solid and nothing behind it traced. It is shaded, kept, and the ray carries on.
         ///
-        /// **A translucent surface is not the hit.** Resolved against the stand-in cutoff
-        /// `AlphaMode::Blend` is given, a pane with an opaque texture would be drawn solid and nothing
-        /// behind it traced. It is shaded, kept, and the ray carries on from where it stood.
-        ///
-        /// A black pane is what makes the arithmetic checkable: it is lit to nothing, so what comes
-        /// back is the wall behind it times what the pane let past. At a half that is half the wall's
-        /// radiance, which the test above pins at 111 by halving the sun instead — the same number
-        /// by the other route.
+        /// A black pane makes the arithmetic checkable: lit to nothing, what comes back is the wall behind it
+        /// times what the pane let past. At a half that is half the wall's radiance, which the test above pins
+        /// at 111 by halving the sun instead.
         TEST_F(RtxVisibilityTest, theEyeSeesThroughTheNearestPaneToWhatStandsBehindIt)
         {
             // **On the ray and off the sun's.** The eye stands at x=100 and looks at the origin, so
@@ -198,19 +193,17 @@ namespace Rtx::Testing
                 << "a pane that stops nothing is a pane that is not there";
         }
 
-        /// **A blend that is all there is a pane where its texture never reaches solid, and a cut
-        /// where it is a mask**: the Imperial lantern's glass is a material of opacity one over a
-        /// texture whose alpha never reaches half. The pane above, black, at an opacity of one,
-        /// wears a texture of alpha 128 everywhere.
+        /// A blend that is all there is a pane where its texture never reaches solid, and a cut where it is a
+        /// mask: the Imperial lantern's glass is a material of opacity one over a texture whose alpha never
+        /// reaches half. The pane above, black, at an opacity of one, wears a texture of alpha 128 everywhere.
         ///
-        /// As a pane it lets 1 - 128/255 = 0.49804 of the wall through. The wall is 153, which is
-        /// 0.31831 in light, so the pixel is 0.15853, which encodes to 110.86 — the 111 the half
-        /// pane above lands on. Read as a mask, the same alpha is cut at a half, which 0.50196
-        /// passes, so the pane stands whole and black.
+        /// As a pane it lets 1 - 128/255 = 0.49804 of the wall through. The wall is 153, which is 0.31831 in
+        /// light, so the pixel is 0.15853, which encodes to 110.86, the 111 the half pane above lands on. Read
+        /// as a mask the same alpha is cut at a half, which 0.50196 passes, so the pane stands whole and black.
         ///
-        /// **And a mask's texel under the cut is nothing to a light ray**, which keeps the cut: at an
-        /// alpha of 64 no ray to the sun is stopped anywhere, where the eye meets it a quarter of the
-        /// time (`aCutoutStopsARayOnItsMaskAndLetsItThroughTheHoles`).
+        /// A mask's texel under the cut is nothing to a light ray, which keeps the cut: at an alpha of 64 no
+        /// ray to the sun is stopped anywhere, where the eye meets it a quarter of the time
+        /// (`aCutoutStopsARayOnItsMaskAndLetsItThroughTheHoles`).
         TEST_F(RtxVisibilityTest, aBlendIsAPaneWhereItsTextureNeverClosesAndACutWhereItIsAMask)
         {
             constexpr std::uint32_t size = 33;
@@ -251,18 +244,15 @@ namespace Rtx::Testing
                     << "a light ray stopped on a texel under the cut at " << value / 4;
         }
 
-        /// Every layer of a stack is peeled, and not only the nearest of them.
+        /// Every layer of a stack is peeled, and not only the nearest of them. A person is a stack: a cuirass
+        /// over a skirt over a leg is three surfaces on one pixel, so an actor under Chameleon, or fading out
+        /// at the edge of `actors processing range`, would show its nearest layer see-through and every layer
+        /// under it at full strength. `PEEL_LAYERS` is what the trace peels, and the layer past it is drawn as
+        /// the solid it stands in for and not as a hole through the world.
         ///
-        /// **A person is a stack.** A cuirass over a skirt over a leg is three surfaces on one
-        /// pixel, so an actor under Chameleon — or fading out at the edge of `actors processing
-        /// range` — showed its nearest layer see-through and every layer under it at full strength.
-        /// `PEEL_LAYERS` is what the trace peels, and the layer past it is drawn as the solid
-        /// it stands in for rather than as a hole through the world.
-        ///
-        /// Black panes again, for the reason the test above gives: each is lit to nothing, so what
-        /// comes back is the wall times what every layer let past. Half a pane a layer halves it a
-        /// layer, which is the same multiplication as a sun of half the irradiance — so each of
-        /// these is checked against the sun that lands where it lands.
+        /// Black panes again, each lit to nothing, so what comes back is the wall times what every layer let
+        /// past. Half a pane a layer halves it a layer, the same multiplication as a sun of half the
+        /// irradiance, so each is checked against the sun that lands where it lands.
         TEST_F(RtxVisibilityTest, everyLayerOfAStackIsPeeledAndNotOnlyTheNearest)
         {
             const osg::Vec3f bright(2.0f, 2.0f, 2.0f);
@@ -287,20 +277,17 @@ namespace Rtx::Testing
             EXPECT_EQ(through(5), 0);
         }
 
-        /// **A shell is one layer of the peel and not two.**
+        /// A shell is one layer of the peel and not two. The rasterizer draws the world with `GL_CULL_FACE` on,
+        /// so a robe, a cuirass and a pane of glass each show the eye one face. Culling nothing, the peel walks
+        /// through the far wall as well as the near one and composites the same alpha twice: the Ancestor
+        /// Ghost, whose seven body shapes blend `SRC_ALPHA, INV_SRC_ALPHA` at an alpha of 0.45 and carry no
+        /// `NiStencilProperty`, would cover 0.45 + 0.55 * 0.45 of its pixel where the game covers 0.45. A faded
+        /// actor is worse: `PEEL_LAYERS` is four, counted for a cuirass over a skirt over a leg, and with their
+        /// backs the budget runs out and the last layer draws solid.
         ///
-        /// The rasterizer draws the world with `GL_CULL_FACE` on, so a robe, a cuirass and a pane
-        /// of glass each show the eye one face. Culling nothing, the peel walks through the far wall
-        /// as well as the near one and composites the same alpha twice: the Ancestor Ghost, whose
-        /// seven body shapes blend `SRC_ALPHA, INV_SRC_ALPHA` at an alpha of 0.45 and carry no
-        /// `NiStencilProperty`, would cover 0.45 + 0.55 * 0.45 of its pixel where the game covers
-        /// 0.45. A faded actor is worse: `PEEL_LAYERS` is four, counted for a cuirass over a skirt
-        /// over a leg, and with the backs of those three the budget runs out and the last layer
-        /// draws solid.
-        ///
-        /// Two black half panes on the eye's ray, the near one facing the eye and the far one facing
-        /// away, which is what a closed surface is from outside. The figures are the ones the test
-        /// above pins: one layer is 111 and two is the wall at a quarter.
+        /// Two black half panes on the eye's ray, the near one facing the eye and the far one facing away, as
+        /// a closed surface is from outside. The figures are the ones the test above pins: one layer is 111
+        /// and two is the wall at a quarter.
         TEST_F(RtxVisibilityTest, aShellIsPeeledFromTheFaceItShowsAndNotFromItsBack)
         {
             constexpr std::uint32_t size = 33;
@@ -334,17 +321,14 @@ namespace Rtx::Testing
                 << "and a surface the content draws from both faces is still two layers";
         }
 
-        /// A placement the game is fading is seen through, whatever its material says.
+        /// A placement the game is fading is seen through, whatever its material says. The same pane, made
+        /// see-through by the other of the two numbers: the material stays fully opaque and the placement is
+        /// faded, which is where `MWRender::TransparencyUpdater` puts an actor's distance fade, Invisibility
+        /// and Chameleon. The picture must be the same, the shader multiplying the two.
         ///
-        /// **The same pane, made see-through by the other of the two numbers.** The tests around
-        /// this one give the material an alpha. This one leaves the material fully opaque and fades
-        /// the placement instead, which is where `MWRender::TransparencyUpdater` puts an actor's
-        /// distance fade, Invisibility and Chameleon. The picture has to be the same: the shader
-        /// multiplies the two, and nothing downstream of that knows which one it came from.
-        ///
-        /// **The pane carries no texture**, which is the case this most needs to be right about. A
-        /// faded placement is forced non-opaque whatever its material, so it reaches the cutout test
-        /// — and a material with no mask has nothing there for that test to read.
+        /// The pane carries no texture, the case this most needs to be right about: a faded placement is
+        /// forced non-opaque whatever its material, so it reaches the cutout test, and a material with no
+        /// mask has nothing there for that test to read.
         TEST_F(RtxVisibilityTest, aFadedPlacementIsSeenThroughWhateverItsMaterialSays)
         {
             const std::array pane = uprightQuadAt(20.0f, -50.0f, osg::Vec2f(50.0f, 0.0f));
@@ -360,12 +344,11 @@ namespace Rtx::Testing
 
             EXPECT_EQ(litThroughPane(pane, black, bright, 0.0f), 153) << "an actor faded away entirely";
 
-            // **A fade a hair short of one is peeled like any other.** The trace was once handed the
-            // opacity as a half, and `1 - 2^-13` is a half's one: the hit answered a pane, with no
-            // response and no motion, and the trace asked the half again and kept that pane whole,
-            // so the surface channel said there was no surface there. Peeled, the pixel's surface is
-            // the wall's behind it, to the bit — the byte is black either way, which is why the
-            // surface channel.
+            // A fade a hair short of one is peeled like any other. The trace is handed the opacity as a half
+            // and `1 - 2^-13` is a half's one: the hit would answer a pane, with no response and no motion, and
+            // the trace would ask the half again and keep that pane whole, so the surface channel would say there
+            // was no surface there. Peeled, the pixel's surface is the wall's behind it, to the bit (the byte is
+            // black either way, which is why the surface channel).
             const auto surfaceThrough = [&](std::optional<float> fade) {
                 constexpr std::uint32_t size = 33;
 
@@ -385,21 +368,18 @@ namespace Rtx::Testing
             EXPECT_EQ(surfaceThrough(1.0f - 0x1p-13f), wall) << "a fade that rounds to one as a half was not peeled";
         }
 
-        /// A translucent occluder dims the sun rather than stopping it.
+        /// A translucent occluder dims the sun rather than stopping it. A shadow ray's answer is a product of
+        /// what it passed through and a product does not care which factor came first, so this needs no
+        /// sorting, no layer budget and no second pass, where the eye needs all three.
         ///
-        /// **The cheap half of transparency, and the reason it is cheap is order.** A shadow ray's
-        /// answer is a product of what it passed through, and a product does not care which factor
-        /// came first — so this needs no sorting, no layer budget and no second pass, where the eye
-        /// needs all three.
+        /// Measured against the neighbouring test's own numbers and not a byte worked out here: the tone curve
+        /// is not the sRGB encode, so half a radiance is not half a byte. A pane that lets all or nothing
+        /// through lands where no pane and a solid one do, to the byte.
         ///
-        /// Measured against the neighbouring test's own numbers rather than against a byte worked out
-        /// here: the tone curve is not the sRGB encode, so half a radiance is not half a byte. A pane
-        /// that lets all or nothing through lands where no pane and a solid one do, to the byte.
-        ///
-        /// **Half a pane is drawn into the shadow's bit and not into its light** (`GatherRun`): the
-        /// shadowed light under it is the whole sun's, to the bit, and the bit is open on as many of
-        /// its draws as the pane lets through, with the drawn reach. Over 64 frames, n >= 64 draws of
-        /// a half: the mean's deviation is `0.5 / sqrt(n)`, held at four of it.
+        /// Half a pane is drawn into the shadow's bit and not into its light (`GatherRun`): the shadowed light
+        /// under it is the whole sun's, to the bit, and the bit is open on as many of its draws as the pane
+        /// lets through, with the drawn reach. Over 64 frames, n >= 64 draws of a half: the mean's deviation is
+        /// `0.5 / sqrt(n)`, held at four of it.
         TEST_F(RtxVisibilityTest, aTranslucentOccluderDimsTheSunRatherThanStoppingIt)
         {
             // Square in the sun's path to the middle of the wall, which is where the centre pixel
@@ -461,12 +441,11 @@ namespace Rtx::Testing
             addPane(halfPane, occluder, white(0.5f));
             expectHalfOpen(drawnUnder(halfPane, {}), "half of it through half a pane");
 
-            // **A cutout the game is fading lets the sun through its holes, as the eye sees them.**
-            // The eye passes a texel under the cutoff and peels what is left by its alpha times the
-            // fade, so a shadow ray walking past the same surface is charged the same: nothing by a
-            // hole, and a half by an opaque texel of a placement at half. Charged a hole's own
-            // alpha instead, a quarter under a half fade, the wall stood at 144 where the eye saw
-            // nothing standing in the sun's way.
+            // A cutout the game is fading lets the sun through its holes, as the eye sees them: the eye passes a
+            // texel under the cutoff and peels what is left by its alpha times the fade, so a shadow ray walking
+            // past the same surface is charged the same, nothing by a hole and a half by an opaque texel of a
+            // placement at half. Charged a hole's own alpha instead, a quarter under a half fade, the wall would
+            // stand at 144 where the eye saw nothing in the sun's way.
             const auto throughFadedCutout = [&](std::uint8_t alpha, float fade) {
                 const std::array<std::uint8_t, 4> texel{ 255, 255, 255, alpha };
                 const std::array<TextureData, 1> textures{ describeTexel(texel) };
@@ -501,12 +480,10 @@ namespace Rtx::Testing
             expectHalfOpen(drawnUnder(fading, painted), "whose opaque texels are half there, as half a pane is");
         }
 
-        /// A glow, which the engine treats as two different things and so does this.
-        ///
-        /// The emissive **colour** joins the light and is multiplied by the texture, so a surface
-        /// glows *with its own texture in it*. The emissive **map** is added past the albedo, so it
-        /// glows through whatever the surface is made of. Getting either backwards is visible: a
-        /// mushroom cap comes out flat white, or a map on a coloured surface goes black.
+        /// A glow, which the engine treats as two different things and so does this. The emissive colour joins
+        /// the light and is multiplied by the texture, so a surface glows with its own texture in it; the
+        /// emissive map is added past the albedo, so it glows through whatever the surface is made of. Either
+        /// backwards is visible: a mushroom cap flat white, or a map on a coloured surface black.
         TEST_F(RtxVisibilityTest, aGlowJoinsTheLightAndAGlowingMapIsAddedPastIt)
         {
             constexpr std::uint32_t size = 33;
@@ -579,18 +556,14 @@ namespace Rtx::Testing
             EXPECT_EQ(mapped[1], 0) << "and none of the green, which nothing is lighting";
         }
 
-        /// A masked surface in front of a wall: the ray stops on what survives the cutout and goes
-        /// on through what does not.
-        ///
-        /// The scene is arranged so the answer is a whole number of pixels. The mask is sixteen
-        /// texels across, red throughout, and transparent over its left half; the quad carrying it
-        /// exactly fills a sixty-degree frame at a hundred units, so image column c samples
-        /// u = (c + 0.5) / 64 and the sampler's REPEAT wrap makes both seams behave the same way.
-        /// At column 31 the filter sits 0.375 of the way onto the first opaque texel and at column
-        /// 32 it sits 0.625 on, so a cutoff of 0.5 falls exactly between them with a margin of
-        /// 0.125 either side — far wider than the four bits of sub-texel precision Vulkan
-        /// guarantees. The left half of the image is therefore the wall behind and the right half
-        /// is the mask, with nothing in between.
+        /// A masked surface in front of a wall: the ray stops on what survives the cutout and goes on through
+        /// what does not. The scene is arranged so the answer is a whole number of pixels: the mask is sixteen
+        /// texels across, red throughout and transparent over its left half, and the quad carrying it exactly
+        /// fills a sixty-degree frame at a hundred units, so column c samples u = (c + 0.5) / 64 and REPEAT
+        /// makes both seams behave alike. At column 31 the filter sits 0.375 of the way onto the first opaque
+        /// texel and at column 32 0.625, so a cutoff of 0.5 falls between them with a margin of 0.125 either
+        /// side, far wider than the four bits of sub-texel precision Vulkan guarantees. The left half is the
+        /// wall behind and the right half is the mask, with nothing in between.
         TEST_F(RtxVisibilityTest, aCutoutStopsARayOnItsMaskAndLetsItThroughTheHoles)
         {
             constexpr std::uint32_t size = 64;
@@ -677,18 +650,16 @@ namespace Rtx::Testing
                 ASSERT_EQ(below[i + 1] == 0, !kept) << "pixel " << i / 4;
             }
 
-            // A blend that named no threshold of its own is a mask, cut at the same half, and **the
-            // eye meets a texel that cut drops with a chance of its alpha** (`cutAt`), so the frames
-            // average to the blend `objects.frag` draws. The bytes the cutout has wherever the
-            // filtered alpha is nought or at least a half, or Morrowind's foliage — which is blended
-            // and never alpha-tested — would not be cut out at all.
+            // A blend that named no threshold of its own is a mask, cut at the same half, and the eye meets a
+            // texel that cut drops with a chance of its alpha (`cutAt`), so the frames average to the blend
+            // `objects.frag` draws. The bytes are the cutout's wherever the filtered alpha is nought or at least
+            // a half; Morrowind's foliage, blended and never alpha-tested, would otherwise not be cut out at all.
             //
-            // By hand: a texel is four columns, and column c samples texel coordinate (c + 0.5) / 4,
-            // so the ramp between the bare texel 7 and the painted texel 8 gives columns 30 to 33
-            // alphas of 0.125, 0.375, 0.625 and 0.875, and the one REPEAT wraps between texel 15 and
-            // texel 0 gives columns 62, 63, 0 and 1 the same, reversed. Over 16 frames, each of the
-            // four columns under the cut is met on its alpha's share of its 1024 pixels: 128 and 384
-            // on average, held within four deviations, `4 sqrt(1024 a (1 - a))`, 42 and 62.
+            // A texel is four columns and column c samples texel coordinate (c + 0.5) / 4, so the ramp between
+            // the bare texel 7 and the painted texel 8 gives columns 30 to 33 alphas of 0.125, 0.375, 0.625 and
+            // 0.875, and the one REPEAT wraps between texel 15 and texel 0 gives columns 62, 63, 0 and 1 the same,
+            // reversed. Over 16 frames each of the four columns under the cut is met on its alpha's share of its
+            // 1024 pixels: 128 and 384 on average, held within four deviations, `4 sqrt(1024 a (1 - a))`, 42 and 62.
             constexpr std::uint32_t frames = 16;
             const auto alphaOf = [&](std::uint32_t column) {
                 if (column == seam - 2 || column == 1)
@@ -736,17 +707,16 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A cutout keeps its coverage with distance, as the rasterizer keeps it.** A checker of
-        /// opaque texels and holes, cut at 0.6, whose file carries one level: the chain the host
-        /// makes (`ChainPass`) holds an alpha of a half at every level under it, which the test fails, so a
-        /// canopy read from a few levels down had no leaves. The alpha is raised by a quarter a
-        /// level (`alpha.glsl`'s scale): tiled sixteen times across a card that fills the frame, a
-        /// pixel covers four texels, the read stands two levels down, and `0.5 · 1.5 = 0.75` passes —
-        /// every pixel the card. Tiled once, a texel is four pixels a side, nothing is raised, and the
-        /// checker shows as its own bilinear read: pixels a quarter and three quarters of a texel off
-        /// its centre read `0.875² + 0.125² = 0.781` in the middle two by two of an opaque texel and
-        /// `0.875 · 0.625 + 0.125 · 0.375 = 0.594` beside them, so four of every thirty-two pixels
-        /// are the card. A raise of a hundredth would take the second over the cut and the share to
+        /// A cutout keeps its coverage with distance, as the rasterizer keeps it. A checker of opaque texels
+        /// and holes, cut at 0.6, whose file carries one level: the chain the host makes (`ChainPass`) holds an
+        /// alpha of a half at every level under it, which the test fails, so a canopy read from a few levels
+        /// down would have no leaves. The alpha is raised by a quarter a level (`alpha.glsl`'s scale): tiled
+        /// sixteen times across a card that fills the frame, a pixel covers four texels, the read stands two
+        /// levels down and `0.5 · 1.5 = 0.75` passes, every pixel the card. Tiled once, a texel is four pixels
+        /// a side, nothing is raised and the checker shows as its own bilinear read: pixels a quarter and three
+        /// quarters of a texel off its centre read `0.875² + 0.125² = 0.781` in the middle two by two of an
+        /// opaque texel and `0.875 · 0.625 + 0.125 · 0.375 = 0.594` beside them, so four of every thirty-two
+        /// pixels are the card. A raise of a hundredth would take the second over the cut and the share to
         /// three eighths.
         TEST_F(RtxVisibilityTest, aCutoutKeepsItsCoverageWithDistanceAsTheRasterizerKeepsIt)
         {
@@ -822,23 +792,20 @@ namespace Rtx::Testing
             EXPECT_EQ(cardShare(1.0f), 0.125f) << "the near checker was raised as well";
         }
 
-        /// A wall lit by one lamp, at the radiance the falloff says and nowhere else.
-        ///
-        /// The centre pixel looks straight at the origin, where the wall's normal is (0, -1, 0) and
-        /// the light sits fifty units along it, so the cosine is exactly one and the whole answer is
-        /// the falloff. Written out, with a reach of 500 and the tests' grey of 0.5:
+        /// A wall lit by one lamp, at the radiance the falloff says and nowhere else. The centre pixel looks
+        /// straight at the origin, where the wall's normal is (0, -1, 0) and the light sits fifty units along
+        /// it, so the cosine is exactly one and the whole answer is the falloff, with a reach of 500 and the
+        /// tests' grey of 0.5:
         ///
         ///   window    = 1 - (50 / 500)^4              = 0.99990
         ///   falloff   = window^2 / (50^2 + 1)         = 0.99980 / 2501 = 3.99760e-4
         ///   radiance  = 4000 * falloff / pi           = 0.508947
         ///   encoded   = 1.055 * (0.5 * 0.508947)^(1/2.4) - 0.055 = 0.54150, or 138 of 255
         ///
-        /// The camera stands off the light's axis so that something can be put between the wall and
-        /// the lamp without also standing in front of the wall.
-        ///
-        /// That cosine of one is also what pins the normal: it holds only if the plane's normal came
-        /// back out of the acceleration structure unrotated and unmirrored, which symmetrical
-        /// geometry otherwise hides well enough to survive being looked at.
+        /// The camera stands off the light's axis so that something can be put between the wall and the lamp
+        /// without also standing in front of the wall. The cosine of one also pins the normal: it holds only if
+        /// the plane's normal came back out of the acceleration structure unrotated and unmirrored, which
+        /// symmetrical geometry otherwise hides.
         TEST_F(RtxVisibilityTest, aLampLightsAWallByItsFalloffAndAnObstacleTakesItAway)
         {
             // Odd, so one pixel sits exactly on the axis and its ray lands exactly on the origin.
@@ -909,13 +876,8 @@ namespace Rtx::Testing
             behind.mPosition = osg::Vec3f(0.0f, 50.0f, 0.0f);
             EXPECT_EQ(render(behind, sky, false), 124) << "a lamp on the far side lights nothing";
 
-            // The window, biting at half the reach rather than at the very end of it, where it is
-            // indistinguishable from the inverse square alone:
-            //
-            //   window   = 1 - (50 / 100)^4      = 0.93750
-            //   falloff  = 0.87891 / 2501        = 3.51422e-4
-            //   radiance = 4000 * falloff / pi   = 0.447465
-            //   encoded  = 1.055 * (0.5 * 0.447465)^(1/2.4) - 0.055 = 0.51035, or 130 of 255
+            // The window, biting at half the reach and not at the very end, where it is indistinguishable from
+            // the inverse square alone:
             Light near = lamp;
             near.mReach = 100.0f;
             EXPECT_EQ(render(near, osg::Vec3f(), false), 130) << "the window taking a bite out of it";
@@ -981,15 +943,14 @@ namespace Rtx::Testing
                 << "the quad shadowed a lamp that takes light away";
         }
 
-        /// **A lamp carried across the light grid lights every copy of the list where it stands.** The
-        /// grid writes only the records a lamp left and entered, and each frame in flight's copy of
-        /// the list takes what changed since that copy was last written — so a copy that missed a
-        /// record a frame on the other copy wrote is a lamp missing from a cell it reaches, and a
-        /// dark patch under it.
+        /// A lamp carried across the light grid lights every copy of the list where it stands. The grid writes
+        /// only the records a lamp left and entered, and each frame in flight's copy of the list takes what
+        /// changed since that copy was last written, so a copy that missed a record the other copy wrote is a
+        /// lamp missing from a cell it reaches and a dark patch under it.
         ///
-        /// Two unlit lamps at the corners hold the grid's extent, and a lit one of reach 200 walks
-        /// along a wall in steps of 150, across cells of 256. Both copies draw the lamp's last place
-        /// as a scene handed over fresh with the lamp there draws it, to the bit.
+        /// Two unlit lamps at the corners hold the grid's extent and a lit one of reach 200 walks along a wall
+        /// in steps of 150, across cells of 256. Both copies draw the lamp's last place as a scene handed over
+        /// fresh with the lamp there draws it, to the bit.
         TEST_F(RtxVisibilityTest, aLampCarriedAcrossTheLightGridLightsEveryCopyWhereItStands)
         {
             constexpr std::uint32_t size = 32;
@@ -1030,16 +991,16 @@ namespace Rtx::Testing
             EXPECT_EQ(other, placed) << "the other copy of the list";
         }
 
-        /// **A lamp that takes light away takes it off the lamps' exact sum on a surface that draws one
-        /// lamp, too.** A white pane half there, which the eye peels and shades with its lamps
-        /// composed (`PathEndLight`), over a black sky, under a red lamp and a blue one at one place,
-        /// and a white lamp there that takes half of either away. Each alone lights the frame `r` in
-        /// its own channel, so the darkened sum is `r / 2` in red and in blue.
+        /// A lamp that takes light away takes it off the lamps' exact sum on a surface that draws one lamp,
+        /// too. A white pane half there, which the eye peels and shades with its lamps composed
+        /// (`PathEndLight`), over a black sky, under a red lamp and a blue one at one place and a white lamp
+        /// there that takes half of either away. Each alone lights the frame `r` in its own channel, so the
+        /// darkened sum is `r / 2` in red and in blue.
         ///
-        /// The pane draws one lamp a pixel by its luminance: red with a chance of `p = 0.2126 /
-        /// 0.2848 = 0.7465`, delivering `r / p` in red, and blue otherwise, `r / (1 - p)` in blue.
-        /// Clamped after that one-lamp draw, red came to `p (r / p - r / 2) = 0.627 r` and blue to
-        /// `0.873 r`; scaled by the exact sum's darkened share, each comes to `r / 2`.
+        /// The pane draws one lamp a pixel by its luminance: red with a chance of `p = 0.2126 / 0.2848 =
+        /// 0.7465`, delivering `r / p` in red, and blue otherwise, `r / (1 - p)` in blue. Clamped after that
+        /// one-lamp draw, red would come to `p (r / p - r / 2) = 0.627 r` and blue to `0.873 r`; scaled by the
+        /// exact sum's darkened share, each comes to `r / 2`.
         TEST_F(RtxVisibilityTest, aLampThatTakesLightAwayTakesItOffTheExactSumWhereOneLampIsDrawn)
         {
             constexpr std::uint32_t size = 32;
@@ -1075,11 +1036,11 @@ namespace Rtx::Testing
             EXPECT_NEAR(darkened.z(), 0.5f * r, 0.01f * r) << "blue";
         }
 
-        /// **A point that composes its light draws a fixed count of lamps and keeps their mean.** The
-        /// half pane of the test above under twelve lamps of three colours, at three distances: the
-        /// pane draws two candidates of the twelve a pixel and resamples them, which over 64 frames
-        /// of the frame's 1024 pixels comes to the mean of the walk over every lamp, while one frame of
-        /// it is another draw than one frame of the walk.
+        /// A point that composes its light draws a fixed count of lamps and keeps their mean. The half pane of
+        /// the test above under twelve lamps of three colours, at three distances: the pane draws two
+        /// candidates of the twelve a pixel and resamples them, which over 64 frames of the frame's 1024 pixels
+        /// comes to the mean of the walk over every lamp, while one frame of it is another draw than one frame
+        /// of the walk.
         TEST_F(RtxVisibilityTest, aComposingPointDrawsAFixedCountOfLampsAndKeepsTheirMean)
         {
             constexpr std::uint32_t size = 32;
@@ -1183,19 +1144,11 @@ namespace Rtx::Testing
             EXPECT_EQ(occluded.mLift, open.mLift);
         }
 
-        /// **A wall with a specular map reflects the lamp by the lobe the host evaluates**, a
-        /// dielectric keeps what the lobe did not take for its diffuse half, and a normal map turns
-        /// both through the tangent frame the rasterizer builds.
-        ///
-        /// The lamp test's wall, lamp and camera, with a metal and roughness map on the wall and the
-        /// sky black, so the centre pixel is the lamp's direct light and nothing else: its
-        /// irradiance square to the wall, `4000 * 3.99760e-4 = 1.59904`, through `brdf.h` at the
-        /// pixel's own vectors — the eye along `(1, -1, 0) / √2` and the lamp along `(0, -1, 0)`.
-        /// **A bounce's landing takes its fill under its own specular map's blue**, where a room's record is
-        /// the ambient and no ray asks, and where the sky is and its occlusion ray does. The eye sees only a
-        /// wall with no map, and the bounces that reach the floor are the only ones the floor's map can move:
-        /// every path draws what it drew, so each pixel's fill falls by `indirectVisibility` of the floor's
-        /// blue and albedo, to the rounding of the two halves compared.
+        /// A bounce's landing takes its fill under its own specular map's blue, where a room's record is the
+        /// ambient and no ray asks, and where the sky is and its occlusion ray does. The eye sees only a wall
+        /// with no map, and the bounces that reach the floor are the only ones the floor's map can move: every
+        /// path draws what it drew, so each pixel's fill falls by `indirectVisibility` of the floor's blue and
+        /// albedo, to the rounding of the two halves compared.
         TEST_F(RtxVisibilityTest, aBouncesLandingTakesItsFillUnderItsSpecularMapsBlue)
         {
             constexpr std::uint32_t size = 16;
@@ -1254,30 +1207,32 @@ namespace Rtx::Testing
             }
         }
 
-        /// The base colour and the roughness are both a byte of 128, `0.501961`, read linearly as a
-        /// data map is.
+        /// A wall with a specular map reflects the lamp by the lobe the host evaluates, a dielectric keeps what
+        /// the lobe did not take for its diffuse half, and a normal map turns both through the tangent frame
+        /// the rasterizer builds. The lamp test's wall, lamp and camera, with a metal and roughness map on the
+        /// wall and the sky black, so the centre pixel is the lamp's direct light alone: its irradiance square
+        /// to the wall, `4000 * 3.99760e-4 = 1.59904`, through `brdf.h` at the pixel's own vectors (the eye
+        /// along `(1, -1, 0) / √2`, the lamp along `(0, -1, 0)`). The base colour and the roughness are both a
+        /// byte of 128, `0.501961`, read linearly as a data map is.
         ///
-        /// **The normal map is the frame's test.** The mesh carries the tangent `(1, 0, 0)` with a
-        /// handedness of one and the normal `(0, -1, 0)`, so the bitangent `cross(N, T) * w` is
-        /// `(0, 0, 1)`; a texel of `(191, 128, 221)` is the tangent-space normal
-        /// `(0.498, 0.0039, 0.733)`, which leans the normal toward the eye's side of the wall. A
-        /// frame built another way round — a bitangent flipped, a tangent read as the bitangent —
-        /// leans it somewhere else, and every term below moves with it.
+        /// The normal map is the frame's test: the mesh carries the tangent `(1, 0, 0)` with a handedness of
+        /// one and the normal `(0, -1, 0)`, so the bitangent `cross(N, T) * w` is `(0, 0, 1)`, and a texel of
+        /// `(191, 128, 221)` is the tangent-space normal `(0.498, 0.0039, 0.733)`, which leans the normal toward
+        /// the eye's side of the wall. A frame built another way round (a bitangent flipped, a tangent read as
+        /// the bitangent) leans it elsewhere and every term below moves with it.
         ///
-        /// **A vertex tint's hue darkens both halves**, and the reflectance's edge with it: a colour
-        /// of half `(0.25, 0.25, 1)` is the hue `(0.25, 0.25, 1)`, its brightness taken out
-        /// (`hueOf`), which takes the dielectric's 4% to 1% in red and green, and the edge, which
-        /// green states for all three, to `50 * 0.01 = 0.5`; blue keeps 4%.
+        /// A vertex tint's hue darkens both halves, and the reflectance's edge with it: a colour of half
+        /// `(0.25, 0.25, 1)` is that hue with its brightness taken out (`hueOf`), which takes the dielectric's
+        /// 4% to 1% in red and green and the edge, which green states for all three, to `50 * 0.01 = 0.5`;
+        /// blue keeps 4%. A vertex normal leaning past the eye keeps its lobe, tilted toward the plane until it
+        /// faces the eye at `SHADING_MIN_FACING`: a lobe dropped there leaves the diffuse half alone with no
+        /// `(1 - F)` on it, and a door whose normals lean that way would show the curve where the lean crosses
+        /// the eye as a hard edge.
         ///
-        /// **A vertex normal leaning past the eye keeps its lobe**, tilted toward the plane until it
-        /// faces the eye at `SHADING_MIN_FACING`. A lobe dropped there leaves the diffuse half alone,
-        /// with no `(1 - F)` on it, and a door whose normals lean that way across its face shows the
-        /// curve where the lean crosses the eye as a hard edge.
-        ///
-        /// **What the device is held to is the host's arithmetic, to float rounding**: the same
-        /// scalar functions and the same table lookup, `SpecularAlbedo::at`. A lobe off by a factor
-        /// anywhere is off by far more than a part in ten thousand. The surface views are held to
-        /// the same inputs exactly: the mapped normal, the painted roughness and the reflectance.
+        /// The device is held to the host's arithmetic to float rounding (the same scalar functions and table
+        /// lookup, `SpecularAlbedo::at`), a lobe off by a factor being off by far more than a part in ten
+        /// thousand; the surface views to the same inputs exactly: the mapped normal, painted roughness and
+        /// reflectance.
         TEST_F(RtxVisibilityTest, aSpecularMapReflectsTheLampByTheHostsLobe)
         {
             constexpr std::uint32_t size = 33;
@@ -1378,12 +1333,11 @@ namespace Rtx::Testing
             EXPECT_EQ(lit(0, false, SurfaceView::Specular, 0.25f), osg::Vec3f(0.01f, 0.01f, 0.04f))
                 << "the hue on the reflectance, and the brightness nowhere";
 
-            // **The lobe's light is divided by its albedo held at `SPECULAR_ALBEDO_FLOOR` from
-            // below**: the dielectric's own at the eye's 45°, and a hue of a twentieth in red and
-            // green, which takes their reflectance to 0.2% and their albedo under the floor, at the
-            // floor where it was one. Blue keeps 4% under green's edge. To the shared exponent's
-            // nine-bit mantissa that `specularModulation` rounds to, `2^-9` of the brightest
-            // channel, which sets the exponent the others share, and the host's 1e-4 above.
+            // The lobe's light is divided by its albedo held at `SPECULAR_ALBEDO_FLOOR` from below: the
+            // dielectric's own at the eye's 45°, and a hue of a twentieth in red and green, which takes their
+            // reflectance to 0.2% and their albedo under the floor, held at the floor. Blue keeps 4% under
+            // green's edge. To the shared exponent's nine-bit mantissa that `specularModulation` rounds to,
+            // `2^-9` of the brightest channel (which sets the exponent the others share), and the host's 1e-4.
             const auto albedoOf = [&](float reflectance, float green) {
                 const osg::Vec2f table = specularAlbedoAt(normal * toEye, roughness);
                 return Shaders::specularAlbedoOf(reflectance, Shaders::specularEdge(green), table.x(), table.y())
@@ -1444,13 +1398,12 @@ namespace Rtx::Testing
             EXPECT_NEAR(lit(0, true).x(), leaning, leaning * 1e-4f) << "through the leaning map";
             EXPECT_GT(std::abs(leaning - dielectric), dielectric * 1e-2f) << "a map that leans nothing";
 
-            // A vertex normal leaning past the eye, and `facingRay`'s blend toward the plane solved on
-            // the host:
+            // A vertex normal leaning past the eye, and `facingRay`'s blend toward the plane solved on the host:
             //   away    = (-0.8, -0.6, 0), which faces the eye at (-0.8 + 0.6) / √2 = -0.141421
             //   blend   = (0.03 + 0.141421) / (0.707107 + 0.141421)              =  0.202020
             //   facing  = normalize((1 - blend) away + blend (0, -1, 0))
-            // where the blend faces the eye at 0.03 exactly, and 0.032144 once it is a unit again.
-            // The diffuse half keeps the vertex normal, and its cosine of 0.6 to the lamp.
+            // where the blend faces the eye at 0.03 exactly, and 0.032144 once it is a unit again. The diffuse
+            // half keeps the vertex normal, and its cosine of 0.6 to the lamp.
             const osg::Vec3f away(-0.8f, -0.6f, 0.0f);
             const float blend = (0.03f - away * toEye) / (normal * toEye - away * toEye);
             osg::Vec3f facing = away * (1.0f - blend) + normal * blend;
@@ -1472,18 +1425,17 @@ namespace Rtx::Testing
             EXPECT_EQ(lit(255, false, SurfaceView::Specular), osg::Vec3f(base, base, base));
         }
 
-        /// **A glossy surface that turns under a pixel is as rough as the turns it averages.** The
-        /// wall's corner normals are `(k x, -1, k z)`, one length at every corner, so the normal the
-        /// hit interpolates is `(0, -1, 0)` at the middle of the frame and turns by exactly `k` a unit
-        /// along both of the wall's axes there. **A wall twenty units across**, whose corners are
-        /// three units long at the most: the mesh stores them as directions (`Shaders::packNormal`),
-        /// whose steps move each by up to 1.3e-4, and the middle's normal is the corners' small
-        /// `-1` part over their length, so a longer corner, as the 400-unit wall's 57, made that
-        /// step a twentyfold larger share of the turn and moved the roughness past the tolerance. The eye a hundred
-        /// units off looks at it square on, so the footprint is a circle `w = 100 · spread` across, and a point spread
-        /// evenly over it sees slopes of `w² / 16 · k²` along each axis: `w² k² / 8` of variance over both, which
-        /// `widenedRoughness` adds to the painted `alpha²`. A wall that does not turn keeps the map's
-        /// roughness to the bit.
+        /// A glossy surface that turns under a pixel is as rough as the turns it averages. The wall's corner
+        /// normals are `(k x, -1, k z)`, one length at every corner, so the normal the hit interpolates is
+        /// `(0, -1, 0)` at the middle of the frame and turns by exactly `k` a unit along both of the wall's
+        /// axes there. The wall is twenty units across, its corners three units long at the most: the mesh
+        /// stores them as directions (`Shaders::packNormal`), whose steps move each by up to 1.3e-4, and the
+        /// middle's normal is the corners' small `-1` part over their length, so a longer corner (the 400-unit
+        /// wall's 57) makes that step a twentyfold larger share of the turn and moves the roughness past the
+        /// tolerance. The eye a hundred units off looks at it square on, so the footprint is a circle
+        /// `w = 100 · spread` across, and a point spread evenly over it sees slopes of `w² / 16 · k²` along
+        /// each axis: `w² k² / 8` of variance over both, which `widenedRoughness` adds to the painted `alpha²`.
+        /// A wall that does not turn keeps the map's roughness to the bit.
         TEST_F(RtxVisibilityTest, aGlossySurfaceThatTurnsUnderAPixelIsAsRoughAsTheTurnsItAverages)
         {
             constexpr std::uint32_t size = 33;
@@ -1526,13 +1478,12 @@ namespace Rtx::Testing
             EXPECT_GT(roughnessUnder(0.2f), roughnessUnder(0.1f) + 0.01f) << "the more it turns, the rougher";
         }
 
-        /// **A glossy surface is as rough as its normal map's level has lost**, where the trace reads
-        /// the map at a level that averages its normals. The map is two texels square, leaning
-        /// forty-five degrees one way and the other in bytes that mirror each other, so its second
-        /// level is their mean, a loss of a half: the byte of 221 `RtxNormalSpreadPassTest` works
-        /// out, and a lost roughness of `221 / 255`. A cone read eight levels past the map's finest
-        /// takes all of it, `widenedRoughness(0.502, (221 / 255)⁴)`, and one read eight levels
-        /// short of it none. The wall is flat, so its bend loses nothing to add to either.
+        /// A glossy surface is as rough as its normal map's level has lost, where the trace reads the map at a
+        /// level that averages its normals. The map is two texels square, leaning forty-five degrees one way
+        /// and the other in bytes that mirror each other, so its second level is their mean, a loss of a half:
+        /// the byte of 221 `RtxNormalSpreadPassTest` works out, a lost roughness of `221 / 255`. A cone read
+        /// eight levels past the map's finest takes all of it, `widenedRoughness(0.502, (221 / 255)⁴)`, and one
+        /// read eight levels short of it none. The wall is flat, so its bend loses nothing to add to either.
         TEST_F(RtxVisibilityTest, aGlossySurfaceIsAsRoughAsItsNormalMapsLevelHasLost)
         {
             constexpr std::uint32_t size = 33;
@@ -1583,18 +1534,17 @@ namespace Rtx::Testing
             EXPECT_EQ(roughnessAt(-8.0f), painted) << "and at it, where nothing is averaged";
         }
 
-        /// **A grazing normal-mapped surface loses what its anisotropic read averages, and no
-        /// more.** The wall of the test above, turned forty-five degrees about the eye's line: its
-        /// footprint is as wide as before across and `1 / cos 45° = √2` as long along, so the long
-        /// axis reads `log2 √2 = 0.5` of a level coarser than square on. A read along the footprint
-        /// averages the long axis by the short one, a box of the same area half a `log2` finer, so
-        /// sixteen taps lose a quarter of a level more than square on, and one tap, which reads at
-        /// the long axis, half.
+        /// A grazing normal-mapped surface loses what its anisotropic read averages, and no more. The wall of
+        /// the test above, turned forty-five degrees about the eye's line: its footprint is as wide as before
+        /// across and `1 / cos 45° = √2` as long along, so the long axis reads `log2 √2 = 0.5` of a level
+        /// coarser than square on. A read along the footprint averages the long axis by the short one, a box
+        /// of the same area half a `log2` finer, so sixteen taps lose a quarter of a level more than square on
+        /// and one tap, which reads at the long axis, half.
         ///
-        /// Read back through the roughness view: with the loss rising from nought to all of
-        /// `lost = 221 / 255` over the map's first level, `R⁴ = painted⁴ + (lost · level)⁴`, so the
-        /// level is `(R⁴ - painted⁴)^(1/4) / lost`. The epsilon stands the square-on read a quarter
-        /// of a level in, so every read lands inside the first level.
+        /// Read back through the roughness view: with the loss rising from nought to all of `lost = 221 / 255`
+        /// over the map's first level, `R⁴ = painted⁴ + (lost · level)⁴`, so the level is
+        /// `(R⁴ - painted⁴)^(1/4) / lost`. The epsilon stands the square-on read a quarter of a level in, so
+        /// every read lands inside the first level.
         TEST_F(RtxVisibilityTest, aGrazingNormalMappedSurfaceLosesWhatItsAnisotropicReadAverages)
         {
             constexpr std::uint32_t size = 33;
@@ -1665,17 +1615,16 @@ namespace Rtx::Testing
             EXPECT_NEAR(levelRead(45.0f, epsilon, 16), 0.5f, 2e-3f) << "sixteen read the area they average";
         }
 
-        /// **A map that stands in is read as no map**, in every role an object's map has: a normal
-        /// map, a specular map, a dark map, an emissive map and an environment sheet. The slot is
-        /// described as the stand-in, as the builder describes a file that does not read and as the
-        /// backend stands a texture it has no room for, and the lit wall of the test above is then
-        /// the same pixel as with no map at all, to the bit. A real map in the same slot moves the
-        /// pixel, which is what says each role reaches it.
+        /// A map that stands in is read as no map, in every role an object's map has: a normal map, a specular
+        /// map, a dark map, an emissive map and an environment sheet. The slot is described as the stand-in, as
+        /// the builder describes a file that does not read and as the backend stands a texture it has no room
+        /// for, and the lit wall of the test above is then the same pixel as with no map at all, to the bit; a
+        /// real map in the same slot moves the pixel, which says each role reaches it.
         ///
-        /// **A second wall wears a specular map in every render**, so every render runs the variant
-        /// with the maps compiled in and the renders differ by the slot alone. It stands a thousand
-        /// units behind the first, where no ray the pixel sends can reach: the bounce leaves the
-        /// front face, and the lamp and the eye are on that side too.
+        /// A second wall wears a specular map in every render, so every render runs the variant with the maps
+        /// compiled in and the renders differ by the slot alone. It stands a thousand units behind the first,
+        /// where no ray the pixel sends can reach: the bounce leaves the front face, and the lamp and the eye
+        /// are on that side too.
         TEST_F(RtxVisibilityTest, aMapThatStandsInIsReadAsNoMap)
         {
             constexpr std::uint32_t size = 33;
@@ -1774,17 +1723,16 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A glossy surface holds its lamps by what they send back through the lobe**, and a grey
-        /// metal under two lamps is then sampled with no variance at all: its lobe is all it returns,
-        /// so a lamp's weight is its term, and whichever lamp is held, the estimate is the two lobes
-        /// summed. One frame is the host's sum, to float rounding.
+        /// A glossy surface holds its lamps by what they send back through the lobe, and a grey metal under two
+        /// lamps is then sampled with no variance at all: its lobe is all it returns, so a lamp's weight is its
+        /// term and whichever lamp is held the estimate is the two lobes summed. One frame is the host's sum,
+        /// to float rounding.
         ///
-        /// The wall, camera and metal of the specular test, and two lamps fifty units from the
-        /// middle of the wall, each delivering that test's `1.59904` square to its direction: one
-        /// along `(0, -1, 0)` and one along `(-0.6, -0.8, 0)`, nearer the eye's mirror direction.
-        /// Weighed by the diffuse cosine instead, a frame holding either is that lamp's lobe times
-        /// `1.8` over its own cosine — which is the sum only where the second lamp's lobe is 0.8 of
-        /// the first's, and at these directions it is more than the first's.
+        /// The wall, camera and metal of the specular test and two lamps fifty units from the middle of the
+        /// wall, each delivering that test's `1.59904` square to its direction: one along `(0, -1, 0)` and one
+        /// along `(-0.6, -0.8, 0)`, nearer the eye's mirror direction. Weighed by the diffuse cosine instead, a
+        /// frame holding either is that lamp's lobe times `1.8` over its own cosine, which is the sum only where
+        /// the second lamp's lobe is 0.8 of the first's, and at these directions it is more than the first's.
         TEST_F(RtxVisibilityTest, aMetalHoldsTheLampsItsLobeReturnsAndIsSampledWithNoNoise)
         {
             constexpr std::uint32_t size = 33;
@@ -1850,21 +1798,19 @@ namespace Rtx::Testing
             EXPECT_NEAR(frame.at(centre), first + second, (first + second) * 1e-4f);
         }
 
-        /// **The same for the sky: a metal holds the source its lobe returns, and one frame is the
-        /// host's sum.**
+        /// The same for the sky: a metal holds the source its lobe returns, and one frame is the host's sum.
+        /// The wall, metal and camera of the test above with no lamp and the sky black: the sun along
+        /// `(0, -1, 0)` at an irradiance of 2 and Masser along `(-0.6, -0.8, 0)` at 0.5. The sky's pick weighs
+        /// a glossy surface by its lobe, as the lamps' does (`surfaceCandidate`), so whichever source a pixel
+        /// draws is divided by the chance its own lobe gave it and the estimate is the two lobes summed.
+        /// Weighed by the cosine and the irradiance, a frame holding the sun would give `2.4 / 2` of its lobe
+        /// and one holding the moon `2.4 / 0.4` of hers: the sum only where the moon's lobe is a fifth of the
+        /// sun's.
         ///
-        /// The wall, metal and camera of the test above, with no lamp and the sky black: the sun
-        /// along `(0, -1, 0)` at an irradiance of 2, and Masser along `(-0.6, -0.8, 0)` at 0.5. The
-        /// sky's pick weighs a glossy surface by its lobe, as the lamps' does (`surfaceCandidate`),
-        /// so whichever source a pixel draws is divided by the chance its own lobe gave it, and the
-        /// estimate is the two lobes summed. Weighed by the cosine and the irradiance, as the sky's
-        /// pick was, a frame holding the sun gives `2.4 / 2` of its lobe and one holding the moon
-        /// `2.4 / 0.4` of hers: the sum only where the moon's lobe is a fifth of the sun's.
-        ///
-        /// **Each lobe at its disc's representative point** (`reflectionAt`): the mirror direction of
-        /// the eye's ray, `(-1, -1, 0) / sqrt 2`, stands 45 degrees off the sun and 8 off Masser,
-        /// so each is taken at its disc's rim toward it — the sun's real half angle, Masser's 0.05 —
-        /// and scaled by `(α / α′)²`, `α′ = α + sine / 3`.
+        /// Each lobe at its disc's representative point (`reflectionAt`): the mirror direction of the eye's
+        /// ray, `(-1, -1, 0) / sqrt 2`, stands 45 degrees off the sun and 8 off Masser, so each is taken at its
+        /// disc's rim toward it (the sun's real half angle, Masser's 0.05) and scaled by `(α / α′)²`,
+        /// `α′ = α + sine / 3`.
         TEST_F(RtxVisibilityTest, aMetalHoldsTheSkySourceItsLobeReturnsAndIsSampledWithNoNoise)
         {
             constexpr std::uint32_t size = 33;
@@ -1943,16 +1889,14 @@ namespace Rtx::Testing
             EXPECT_NEAR(frame.at(centre), sun + moon, (sun + moon) * 1e-4f);
         }
 
-        /// **A metal's bounce that escapes finds the sky a mirror shows, and not the sky a hemisphere
-        /// gathers**: the fill is light the weather says a night has and nothing draws, so an eye
-        /// looking into a polished surface must not find it any more than one looking up does. The
-        /// water's reflection read the sky as seen and a metal's read `skyGlow`, so a pond and a
-        /// polished plate showed two skies.
+        /// A metal's bounce that escapes finds the sky a mirror shows, and not the sky a hemisphere gathers:
+        /// the fill is light the weather says a night has and nothing draws, so an eye looking into a polished
+        /// surface must not find it, any more than one looking up does. The water's reflection reads the sky
+        /// as seen, and a metal reading `skyGlow` would show a pond and a polished plate two skies.
         ///
-        /// The metal wall of the test above, under a black sky with no sun and no moon and only a
-        /// fill: the metal has no diffuse half for the fill to reach, and its lobe finds a sky of
-        /// nothing, so the pixel is black to the bit. The same wall under a sky with no fill is
-        /// what it is measured against.
+        /// The metal wall of the test above under a black sky with no sun and no moon and only a fill: the
+        /// metal has no diffuse half for the fill to reach and its lobe finds a sky of nothing, so the pixel is
+        /// black to the bit. The same wall under a sky with no fill is what it is measured against.
         TEST_F(RtxVisibilityTest, aMetalsReflectionFindsTheSkyAnEyeSeesAndNotTheFill)
         {
             constexpr std::uint32_t size = 33;
@@ -1993,30 +1937,26 @@ namespace Rtx::Testing
             EXPECT_EQ(frame.at(centre), 0.0f) << "a polished metal found the fill";
         }
 
-        /// Which side of a surface the light may come from is the triangle's plane's answer, and a
-        /// vertex normal that disagrees does not get to overrule it.
+        /// Which side of a surface the light may come from is the triangle's plane's answer, and a vertex
+        /// normal that disagrees does not get to overrule it. Morrowind's vertex normals point clean through
+        /// their own triangles (a stretch of the Seyda Neen customs office floor interpolates to one aimed at
+        /// the ground on a quad whose plane is level to a hundredth), and a normal merely turned to face the
+        /// ray is left pointing down there, because at a shallow enough view it already faces the eye. A floor
+        /// with its normal under it drops every lamp overhead on the cosine and sends its bounce into itself,
+        /// a black band that slides about as the camera moves.
         ///
-        /// **Morrowind's vertex normals point clean through their own triangles.** A stretch of the
-        /// floor in the Seyda Neen customs office interpolates to one aimed at the ground, on a quad
-        /// whose plane is level to a hundredth — and a normal merely turned to face the *ray* is
-        /// left pointing down there, because at a shallow enough view it already does face the eye.
-        /// A floor with its normal under it drops every lamp overhead on the cosine and sends its
-        /// bounce into itself, which reads as a black band that slides about as the camera moves.
-        ///
-        /// The wall is met at fourteen degrees to its own plane, which is what makes that possible:
-        /// the camera stands at `(200, -50, 0)`, so the ray travels `(-0.970, 0.243, 0)` and a normal
-        /// of `(0.6, 0.8, 0)` — pointing through the wall, away from the lamp — still meets it at
-        /// `-0.388` and passes for facing it.
-        ///
-        /// Three renders, and the arithmetic is the falloff from the lamp test with a cosine on it:
+        /// The wall is met at fourteen degrees to its own plane: the camera stands at `(200, -50, 0)`, so the
+        /// ray travels `(-0.970, 0.243, 0)` and a normal of `(0.6, 0.8, 0)`, pointing through the wall away
+        /// from the lamp, still meets it at `-0.388` and passes for facing it. Three renders, with the
+        /// arithmetic the lamp test's falloff times a cosine:
         ///
         ///   falloff  = (1 - (50 / 500)^4)^2 / (50^2 + 1)      = 3.99760e-4
         ///   plane    = 4000 * 0.5 * 1.0 * falloff / pi        = 0.254491 -> 138 of 255
         ///   tilted   = 4000 * 0.5 * 0.8 * falloff / pi        = 0.203593 -> 125 of 255
         ///
-        /// The tilted normal is *used* — 125 is its own cosine of 0.8 and not the plane's one — and
-        /// only which side it sits on is taken from the plane. Turned to face the ray instead it
-        /// meets the lamp at minus 0.8 and the pixel is black, which is the whole of the defect.
+        /// The tilted normal is used (125 is its own cosine of 0.8, not the plane's) and only which side it
+        /// sits on is taken from the plane; turned to face the ray it would meet the lamp at minus 0.8 and
+        /// the pixel would be black.
         TEST_F(RtxVisibilityTest, aVertexNormalMayTiltAShadingModelButNotChooseWhichSideIsLit)
         {
             constexpr std::uint32_t size = 33;
@@ -2063,19 +2003,15 @@ namespace Rtx::Testing
             EXPECT_EQ(render(flipped), render(tilted)) << "which way the normals were authored is not information";
         }
 
-        /// A leaf is lit through its back, and nothing else is.
+        /// A leaf is lit through its back, and nothing else is. The wall stands square to the camera and the
+        /// sun is behind it. A solid takes nothing from there and is black; a sheet with a mask takes
+        /// `SHEET_TRANSMISSION` of what the same sun would give its front. The sheet's texture is white and
+        /// whole, so its albedo is one: the front under an irradiance of two is 2 / pi = 0.63662 and the back
+        /// half that, 0.31831. A lamp behind it is the same arithmetic on the lamp test's falloff:
+        /// 4000 * 3.99760e-4 / pi = 0.50898 on the front, half of it on the back.
         ///
-        /// The wall stands square to the camera and the sun is put behind it. A solid takes nothing
-        /// from there and the pixel is black; a sheet with a mask takes `SHEET_TRANSMISSION` of
-        /// what the same sun would give its front. The sheet's texture is white and whole, so its
-        /// albedo is one: the front under an irradiance of two is 2 / pi = 0.63662, and the back is
-        /// half that, 0.31831 — the number the sun test reaches for a front of albedo a half. A lamp
-        /// behind it is the same arithmetic on the lamp test's falloff: 4000 * 3.99760e-4 / pi
-        /// = 0.50898 on the front, and half of it on the back.
-        ///
-        /// The two controls say which fact each is. The same card not doubled is a solid, and a
-        /// doubled card with no mask is cloth: a tabard is seen from the side it is lit from. Both
-        /// are black from behind.
+        /// The two controls say which fact each is: the same card not doubled is a solid, and a doubled card
+        /// with no mask is cloth (a tabard is seen from the side it is lit from). Both are black from behind.
         TEST_F(RtxVisibilityTest, aLeafIsLitThroughItsBackAndClothAndSolidsAreNot)
         {
             constexpr std::uint32_t size = 33;
@@ -2141,14 +2077,13 @@ namespace Rtx::Testing
             EXPECT_EQ(render(false, true, behind, true), 0.0f) << "and a solid takes nothing from it";
         }
 
-        /// **A leaf's penumbra is the same lit through its back as through its front.** The leaf of
-        /// `aLeafIsLitThroughItsBackAndClothAndSolidsAreNot` under the sun square to it, from before
-        /// and from behind, a card 100 units off it on the lit side stopping its shadow ray, under
-        /// `twoDegreeLimb`'s sun so the penumbra is a pixel and more wide: the
-        /// penumbra handed to the shadow denoiser is the occluder's distance times the sun's half
-        /// angle over the receiver's plane, which the sun meets square from either side. The back
-        /// takes the sun at `SHEET_TRANSMISSION` of the front, which says how much light passes and
-        /// not where its shadow falls: read as the cosine, it stretched the back's penumbra twice.
+        /// A leaf's penumbra is the same lit through its back as through its front. The leaf of
+        /// `aLeafIsLitThroughItsBackAndClothAndSolidsAreNot` under the sun square to it, from before and from
+        /// behind, a card 100 units off on the lit side stopping its shadow ray, under `twoDegreeLimb`'s sun so
+        /// the penumbra is a pixel and more wide: the penumbra handed to the shadow denoiser is the occluder's
+        /// distance times the sun's half angle over the receiver's plane, which the sun meets square from
+        /// either side. The back's `SHEET_TRANSMISSION` says how much light passes and not where its shadow
+        /// falls; read as the cosine it would stretch the back's penumbra twice.
         TEST_F(RtxVisibilityTest, aLeafsPenumbraIsTheSameLitThroughItsBackAsItsFront)
         {
             constexpr std::uint32_t size = 33;
@@ -2194,22 +2129,19 @@ namespace Rtx::Testing
             EXPECT_NEAR(back, front, front * 1e-4f) << "the back's penumbra stretched by the transmission";
         }
 
-        /// A half-plane hung behind the wall, and one column of pixels read against the same column
-        /// with nothing in the way.
+        /// A half-plane hung behind the wall, and one column of pixels read against the same column with
+        /// nothing in the way. The whole of a soft shadow is where the shadow ray leaves from: a lamp with an
+        /// extent and the sun's half-degree disc are not one direction, the ray is drawn from somewhere on the
+        /// source, and the band an occluder hides some of it from is the penumbra, whose width is the source's
+        /// own size seen from the occluder. The three tests below pin one source each at both edges of its band
+        /// and in the middle.
         ///
-        /// **The whole of a soft shadow is where the shadow ray leaves from.** A lamp with an extent
-        /// and the sun's half-degree disc are neither of them one direction: the ray is drawn from
-        /// somewhere on the source, and the band an occluder hides some of it from is the penumbra.
-        /// How wide that band is, is arithmetic — the source's own size seen from the occluder — and
-        /// the three tests below pin one source each at both edges of its band and in the middle.
-        ///
-        /// A half-plane occluder, so the geometry is one number: an edge at `x = X` in a plane
-        /// parallel to the wall, hung behind it and so out of the camera's own view. The wall is at
-        /// y = 0 and the source is straight out along -Y, so the **centre column** of pixels stands
-        /// at x = 0 whatever row it is on — every one of them is at the same place in the penumbra,
-        /// and averaging the column is averaging draws of one quantity rather than smearing several.
-        /// Each is divided by what the same pixel reads with nothing in the way, so the falloff and
-        /// the cosine — which do differ down the column — cancel and what is left is visibility.
+        /// A half-plane occluder, so the geometry is one number: an edge at `x = X` in a plane parallel to the
+        /// wall, hung behind it and out of the camera's own view. The wall is at y = 0 and the source straight
+        /// out along -Y, so the centre column stands at x = 0 whatever row it is on: every pixel is at the same
+        /// place in the penumbra and averaging the column averages draws of one quantity. Each is divided by
+        /// what the same pixel reads with nothing in the way, so the falloff and cosine, which differ down the
+        /// column, cancel and what is left is visibility.
         class RtxPenumbraTest : public RtxVisibilityTest
         {
         protected:
@@ -2251,13 +2183,11 @@ namespace Rtx::Testing
                 return open;
             }
 
-            /// What share of the source the centre column can see.
-            ///
-            /// **One frame where the answer is the same on every frame, and sixty-four where it is a
-            /// draw.** A pixel wholly inside or wholly outside the penumbra is decided by geometry
-            /// and repeats; one in the middle of it is a coin, and the mean of the column over
-            /// sixty-four frames is 33 * 64 = 2112 of them — a standard error of
-            /// sqrt(0.25 / 2112) = 0.0109, so a tolerance of 0.05 is four and a half of them.
+            /// What share of the source the centre column can see. One frame where the answer is the same on
+            /// every frame, sixty-four where it is a draw: a pixel wholly inside or outside the penumbra is
+            /// decided by geometry, one in the middle is a coin, and the mean over sixty-four frames is
+            /// 33 * 64 = 2112 of them, a standard error of sqrt(0.25 / 2112) = 0.0109, so 0.05 is four and a
+            /// half of them.
             float visible(const SceneDesc& scene, const std::vector<float>& open,
                 const Shaders::VisibilityConstants& camera, std::uint32_t frames)
             {
@@ -2273,11 +2203,10 @@ namespace Rtx::Testing
                 return static_cast<float>(total / sSize);
             }
 
-            /// Straight on, so the centre column's rays stay in the plane x = 0 and land on the wall
-            /// there, which is what makes one column a run of draws of the same quantity. **From
-            /// between the wall and every occluder**, so no eye ray starts in an occluder's plane: a
-            /// ray that does is the driver's to call, and from an eye at -100, in the fill's
-            /// occluder's plane, AMD's Windows driver drew the fill's shadow wrong.
+            /// Straight on, so the centre column's rays stay in the plane x = 0 and land on the wall there,
+            /// making one column a run of draws of the same quantity. From between the wall and every occluder,
+            /// so no eye ray starts in an occluder's plane: that is the driver's to call, and from an eye at
+            /// -100, in the fill's occluder's plane, AMD's Windows driver drew the fill's shadow wrong.
             static Shaders::VisibilityConstants lookAtTheWall()
             {
                 Shaders::VisibilityConstants camera
@@ -2302,13 +2231,10 @@ namespace Rtx::Testing
             }
         };
 
-        /// A source whose size was measured casts a penumbra as wide as that size allows.
-        ///
-        /// **The lamp** stands 400 units out with a source radius of 20, and the occluder hangs
-        /// halfway: a ray leaving a point 20 units off the axis crosses the occluder's plane 10 off
-        /// it, so an edge twelve units either side is wholly clear of the cone or wholly across it.
-        ///
-        ///     half-width = 200 * tan(asin(20 / 400)) = 10.013
+        /// A source whose size was measured casts a penumbra as wide as that size allows. The lamp stands 400
+        /// units out with a source radius of 20 and the occluder hangs halfway: a ray leaving a point 20 units
+        /// off the axis crosses the occluder's plane 10 off it, so an edge twelve units either side is wholly
+        /// clear of the cone or wholly across it.
         TEST_F(RtxPenumbraTest, aMeasuredSourceCastsAPenumbraAsWideAsItsOwnSizeAllows)
         {
             const Light lamp = makeLamp();
@@ -2325,16 +2251,14 @@ namespace Rtx::Testing
                 << "and exactly half of it stands on the shadow's own edge";
         }
 
-        /// A fill's penumbra is as wide as its whole ball, because from outside it the ray is aimed
-        /// anywhere across the ball — and the ball is the clearance, so nothing inside it shadows.
-        ///
-        /// The same lamp made a fill two hundred across: from the wall the ball subtends
-        /// `asin(200 / 400)`, thirty degrees, so a ray to its edge crosses an occluder a quarter of
-        /// the way out `100 * tan(30°) = 57.74` off the axis — an edge at 60 either side is wholly
-        /// clear of every ray or across every one, and the ball's own symmetry puts half of them
-        /// on either side of the axis. A quarter of the way and not halfway, because the ray stops
-        /// the ball's radius short of its closest approach to the centre: at twenty degrees off
-        /// the axis that is 176 units out, and an occluder at 200 would stand past its end.
+        /// A fill's penumbra is as wide as its whole ball, because from outside it the ray is aimed anywhere
+        /// across the ball, and the ball is the clearance, so nothing inside it shadows. The same lamp made a
+        /// fill two hundred across: from the wall the ball subtends `asin(200 / 400)`, thirty degrees, so a ray
+        /// to its edge crosses an occluder a quarter of the way out, `100 * tan(30°) = 57.74` off the axis, and
+        /// an edge at 60 either side is wholly clear of every ray or across every one, the ball's symmetry
+        /// putting half of them on either side. A quarter of the way and not halfway, because the ray stops the
+        /// ball's radius short of its closest approach to the centre: at twenty degrees off the axis that is
+        /// 176 units out, and an occluder at 200 would stand past its end.
         TEST_F(RtxPenumbraTest, aFillCastsAPenumbraAsWideAsItsWholeBall)
         {
             Light fill = makeLamp();
@@ -2355,12 +2279,10 @@ namespace Rtx::Testing
                 << "and half of it stands on the shadow's own edge";
         }
 
-        /// A floor inside a fill's ball is lit by the ball from every side, and shadowed by nothing.
-        ///
-        /// **Inside the ball the cosine to the centre is blended out, and no ray is sent.** The
-        /// ball's centre stands three hundred units along the floor and half a unit over it, so the
-        /// floor's centre meets it at a cosine of 0.001667 — as a lamp, all but nothing — a quarter
-        /// of the way inside a ball four hundred across:
+        /// A floor inside a fill's ball is lit by the ball from every side, and shadowed by nothing. Inside
+        /// the ball the cosine to the centre is blended out and no ray is sent. The ball's centre stands three
+        /// hundred units along the floor and half a unit over it, so the floor's centre meets it at a cosine
+        /// of 0.001667 (as a lamp, all but nothing), a quarter of the way inside a ball four hundred across:
         ///
         ///   window   = 1 - (300 / 1600)^4                       = 0.998764
         ///   falloff  = window^2 / (300^2 + 400^2)               = 3.99011e-6
@@ -2369,11 +2291,10 @@ namespace Rtx::Testing
         ///   radiance = 500000 * falloff * cosine / pi            = 0.159554
         ///   encoded  = 1.055 * (0.5 * 0.159554)^(1/2.4) - 0.055  = 0.31286, or 80 of 255
         ///
-        /// where the lamp of the same record reads `500000 * falloff * 0.001667 / pi` = 0.001058,
-        /// which is 2 of 255. A sheet ten units under the floor takes nothing away, because the
-        /// ball is the ray's clearance and the floor stands inside it: drawn to a point anywhere on
-        /// the ball instead, half of a floor's rays would go down through the floor into whatever is
-        /// under it, and come back as a speckle over the whole pool.
+        /// where the lamp of the same record reads 0.001058, 2 of 255. A sheet ten units under the floor takes
+        /// nothing away, because the ball is the ray's clearance and the floor stands inside it: drawn to a
+        /// point anywhere on the ball, half of a floor's rays would go down through the floor and come back as
+        /// a speckle over the whole pool.
         TEST_F(RtxVisibilityTest, aFloorInsideAFillIsLitFromEverySideAndShadowedByNothing)
         {
             constexpr std::uint32_t size = 33;
@@ -2409,16 +2330,9 @@ namespace Rtx::Testing
             EXPECT_EQ(render(true, true), 80) << "and the same floor with a sheet under it";
         }
 
-        /// Outside its ball a fill is exactly the lamp of its record.
-        ///
-        /// A thousand units off, facing the centre, a fill four hundred across reads `falloff`'s
-        /// inverse square softened by that four hundred, the same as a lamp whose flame is four
-        /// hundred across would:
-        ///
-        ///   window   = 1 - (1000 / 1600)^4                       = 0.847412
-        ///   falloff  = window^2 / (1000^2 + 400^2)               = 6.19058e-7
-        ///   radiance = 600000 * falloff / pi                     = 0.118233
-        ///   encoded  = 1.055 * (0.5 * 0.118233)^(1/2.4) - 0.055  = 0.26967, or 69 of 255
+        /// Outside its ball a fill is exactly the lamp of its record. A thousand units off, facing the centre,
+        /// a fill four hundred across reads `falloff`'s inverse square softened by that four hundred, as a lamp
+        /// whose flame is four hundred across would:
         TEST_F(RtxVisibilityTest, aFillOutsideItsBallIsTheLampOfItsRecord)
         {
             constexpr std::uint32_t size = 33;
@@ -2450,15 +2364,10 @@ namespace Rtx::Testing
             EXPECT_EQ(render(true), 69) << "and the fill of the same record";
         }
 
-        /// A source carrying no size casts an edge, inside the band a measured one is still part-lit
-        /// across.
-        ///
-        /// `Rtx::Light::mSourceRadius` says which lamps carry one and which do not. At `X = -1` the
-        /// unmeasured lamp is still fully lit and at `X = +1` fully dark, where the sized one is
-        /// part-lit at both — the segment of a disc of radius 10.013 cut one unit off its centre:
-        ///
-        ///     u        = -1 / 10.013                          = -0.09987
-        ///     lit      = (acos(u) - u * sqrt(1 - u^2)) / pi    = 0.56348
+        /// A source carrying no size casts an edge, inside the band a measured one is still part-lit across.
+        /// `Rtx::Light::mSourceRadius` says which lamps carry one. At `X = -1` the unmeasured lamp is still
+        /// fully lit and at `X = +1` fully dark, where the sized one is part-lit at both: the segment of a disc
+        /// of radius 10.013 cut one unit off its centre,
         TEST_F(RtxPenumbraTest, anUnmeasuredSourceCastsAnEdgeWhereAMeasuredOneIsStillPartLit)
         {
             const Light lamp = makeLamp();
@@ -2468,11 +2377,10 @@ namespace Rtx::Testing
             point.mSourceRadius = 0.0f;
             point.mClearance = 0.0f;
 
-            // **Its own open reading, and it has to be its own.** A size softens the singularity in
-            // `falloff` as well as widening the shadow ray, so the two lamps do not deliver the same
-            // light at the same place — 400 units out, one divides by `400^2 + 20^2` and the other
-            // by `400^2 + 1`. Divided by the sized lamp's reading, a point that clears every ray
-            // would read 1.0025 rather than one.
+            // Its own open reading, and it has to be its own: a size softens the singularity in `falloff` as
+            // well as widening the shadow ray, so the two lamps do not deliver the same light at the same place
+            // (400 units out, one divides by `400^2 + 20^2` and the other by `400^2 + 1`), and divided by the
+            // sized lamp's reading a point that clears every ray would read 1.0025 rather than one.
             const std::vector<float> pointOpen = openFor(point, sLampDepth, camera);
 
             EXPECT_FLOAT_EQ(visible(sceneWith(point, sLampDepth, -1.0f), pointOpen, camera, 1), 1.0f)
@@ -2487,10 +2395,8 @@ namespace Rtx::Testing
         }
 
         /// The sun is one direction everywhere, so its penumbra grows with nothing but the occluder's
-        /// distance — two thousand units of it, at the three degrees the shadow cone is drawn from,
-        /// which `SUN_SHADOW_RADIUS` says is wider than the disc and why.
-        ///
-        ///     half-width = 2000 * tan(0.052360) = 104.82
+        /// distance: two thousand units of it, at the three degrees the shadow cone is drawn from, which
+        /// `SUN_SHADOW_RADIUS` says is wider than the disc and why.
         TEST_F(RtxPenumbraTest, theSunsPenumbraGrowsWithTheOccludersDistanceAlone)
         {
             constexpr float sunDepth = -2000.0f;
@@ -2514,20 +2420,16 @@ namespace Rtx::Testing
                 << "and half a disc stands on the shadow's own edge, two thousand units back";
         }
 
-        /// What a bounce's landing takes differs on either side of a door.
+        /// What a bounce's landing takes differs on either side of a door. Out of doors the ambient is the sky
+        /// and a landing asks whether it reaches: handed the open sky whatever stood over it, a hollow would
+        /// be lit as though the sky reached into it. A room's is the `AMBI` fill, which the walls make, and a
+        /// landing takes it whole with no ray of its own (`landingLightOf`), however near the next surface.
         ///
-        /// **Out of doors the ambient is the sky, and a landing asks whether it reaches**: handed the
-        /// open sky whatever stood over it, a hollow would be lit as though the sky reached into it.
-        /// **A room's is the `AMBI` fill, which the walls make**, and a landing takes it whole, with no
-        /// ray of its own (`landingLightOf`), however near the next surface stands.
-        ///
-        /// A floor under a lid, lit by nothing but the ambient. Every bounce off the floor lands on
-        /// the lid's underside, and what that underside is handed is the whole of the claim. So a room's
-        /// floor holds one level at 35 and 70 units.
-        ///
-        /// The lid is 8000 across, so an escape past its edge, which brings a room nothing, is 2.2% at
-        /// 600 units and nothing worth naming at 70: `tan(theta) > 4000 / 600` is `d.z < 0.1474`, and
-        /// `0.1474^2` is that.
+        /// A floor under a lid, lit by nothing but the ambient: every bounce off the floor lands on the lid's
+        /// underside, and what that underside is handed is the whole of the claim, so a room's floor holds one
+        /// level at 35 and 70 units. The lid is 8000 across, so an escape past its edge, which brings a room
+        /// nothing, is 2.2% at 600 units and nothing worth naming at 70: `tan(theta) > 4000 / 600` is
+        /// `d.z < 0.1474`, and `0.1474^2` is that.
         TEST_F(RtxVisibilityTest, aRoomsFillStandsWholeAtALandingAndAnExteriorsSkyIsTakenAwayByAnything)
         {
             constexpr std::uint32_t size = 32;
@@ -2575,30 +2477,26 @@ namespace Rtx::Testing
             EXPECT_LT(floorUnderTheLid(open, 1.0f, 600.0f), 0.1f * clear) << "and the sky does not reach under a lid";
         }
 
-        /// The fill by the ambient albedo and a lamp's bounce by the diffuse one, as the rasterizer
-        /// lights a fragment `texture × (D × lit + A × ambient)`.
+        /// The fill by the ambient albedo and a lamp's bounce by the diffuse one, as the rasterizer lights a
+        /// fragment `texture × (D × lit + A × ambient)`.
         ///
-        /// **A floor whose ambient colour is half its diffuse one, beside the floor that states none.**
-        /// Under an even sky with no sun every bounce escapes to the sky, which is the fill out of
-        /// doors; in a room with an ambient and no lamp every bounce ends on a lid, whose `pathEnd` is
-        /// the fill a path ends at. Either way the whole bounce is fill, so the fill channel is the
-        /// indirect channel to the bit; and with nothing direct the picture is the bounce by the
-        /// ambient albedo. The diffuse albedo is a half and the ambient a quarter, so the composite's
-        /// `D S + (A - D) S` is `0.5 S` rounded and then `0.25 S`, each exact in binary: the one
-        /// picture is half the other to the bit.
+        /// A floor whose ambient colour is half its diffuse one, beside the floor that states none. Under an
+        /// even sky with no sun every bounce escapes to the sky, the fill out of doors; in a room with an
+        /// ambient and no lamp every bounce ends on a lid, whose `pathEnd` is the fill a path ends at. Either
+        /// way the whole bounce is fill, so the fill channel is the indirect channel to the bit, and with
+        /// nothing direct the picture is the bounce by the ambient albedo. The diffuse albedo is a half and the
+        /// ambient a quarter, so the composite's `D S + (A - D) S` is `0.5 S` rounded and then `0.25 S`, each
+        /// exact in binary: the one picture is half the other to the bit. Through the cascade too, which
+        /// filters the fill by the whole bounce's weights: the two inputs are one image, so the two means are
+        /// one, and the picture is half the other's to the bit again.
         ///
-        /// **Through the cascade too**, which filters the fill by the whole bounce's weights: the two
-        /// inputs are one image, so the two means are one, and the picture is half the other's to the
-        /// bit again.
+        /// A lamp's light off the lid is not fill: with the room's ambient off and a lamp under the lid the
+        /// fill is nought and the bounce is not, and the floor's ambient colour moves nothing.
         ///
-        /// **A lamp's light off the lid is not fill.** With the room's ambient off and a lamp under
-        /// the lid, the fill is nought and the bounce is not, and the floor's ambient colour moves
-        /// nothing.
-        ///
-        /// **No bounce traced: the whole light is fill, which no channel keeps apart.** The same floor
-        /// under a surface ambient of a half and no occluder: `0.5 * 0.5 + (0.25 - 0.5) * 0.5 = 0.125`,
-        /// where a fill read as nought gives `0.25`. On each road to the picture: nothing filtered, the
-        /// one wavelet level composing, and a run the composite sums over that level's answer.
+        /// No bounce traced: the whole light is fill, which no channel keeps apart. The same floor under a
+        /// surface ambient of a half and no occluder: `0.5 * 0.5 + (0.25 - 0.5) * 0.5 = 0.125`, where a fill
+        /// read as nought gives `0.25`. On each road to the picture: nothing filtered, the one wavelet level
+        /// composing, and a run the composite sums over that level's answer.
         TEST_F(RtxVisibilityTest, theFillIsReflectedByTheAmbientAlbedoAndALampsBounceByTheDiffuseOne)
         {
             constexpr std::uint32_t size = 32;
@@ -2720,20 +2618,17 @@ namespace Rtx::Testing
             }
         }
 
-        /// How much of the sun a surface takes is its normal's answer, and a sun behind its plane
-        /// is stopped by the surface itself.
+        /// How much of the sun a surface takes is its normal's answer, and a sun behind its plane is stopped
+        /// by the surface itself. A surface follows its normals, which describe the surface the content
+        /// faceted (the content's creases were split at load, `Rtx::CreaseSplit`): the sun along the shading
+        /// normal of a floor whose vertex normals lean seventy degrees gives cosine one, albedo a half and the
+        /// Lambert divisor, 0.5 * 4 / pi = 0.63662.
         ///
-        /// **A surface follows its normals**, because they describe the surface the content faceted:
-        /// the content's creases were split at load (`Rtx::CreaseSplit`). The sun along the shading
-        /// normal of a floor whose vertex normals lean seventy degrees: cosine one, albedo a half,
-        /// and the Lambert divisor, 0.5 * 4 / pi = 0.63662.
-        ///
-        /// **Mirrored about the plane, the floor's own face stops it**, which its normals still face
-        /// at `cos 40`: a ray to the sun stops on every face (`skyLightAsk`), and the floor's normals
-        /// all lean alike, so the surface they describe is its plane and `Surface::mLift` lifts the
-        /// ray off nothing. The rasterizer's shadow map holds the same face. A sheet takes its plane
-        /// as well, since what reaches it from behind is the other half of `mTransmission`, not a
-        /// light in front of it.
+        /// Mirrored about the plane, the floor's own face stops it, which its normals still face at `cos 40`:
+        /// a ray to the sun stops on every face (`skyLightAsk`), and the floor's normals all lean alike, so
+        /// the surface they describe is its plane and `Surface::mLift` lifts the ray off nothing. The
+        /// rasterizer's shadow map holds the same face. A sheet takes its plane as well, since what reaches it
+        /// from behind is the other half of `mTransmission` and not a light in front of it.
         TEST_F(RtxVisibilityTest, theSunFollowsASurfacesNormalInFrontOfItsPlaneAndStopsOnItBehind)
         {
             constexpr std::uint32_t size = 16;
@@ -2768,28 +2663,26 @@ namespace Rtx::Testing
             EXPECT_LT(litFrom(sheet, -1.0f), 0.002f) << "as a sheet's does";
         }
 
-        /// **A facet turned from the sun is lit where its normals face it, and not shadowed by its own
-        /// solid.** A closed prism along x — a ridge at z = 100 over a base 200 wide — whose sloped
-        /// sides are smoothed over the ridge, as a coarse rock is: the ridge's vertices carry the
-        /// normal straight up, the sides' lower ones their own faces'. The sun stands sixty degrees
-        /// off the zenith on the far side, so the near side's plane, `(0, 1, 1) / √2`, turns from it
-        /// (`cos = (0.5 - 0.866) / √2 < 0`) while its normals near the ridge still face it.
+        /// A facet turned from the sun is lit where its normals face it, and not shadowed by its own solid. A
+        /// closed prism along x, a ridge at z = 100 over a base 200 wide, whose sloped sides are smoothed over
+        /// the ridge as a coarse rock is: the ridge's vertices carry the normal straight up, the sides' lower
+        /// ones their own faces'. The sun stands sixty degrees off the zenith on the far side, so the near
+        /// side's plane, `(0, 1, 1) / √2`, turns from it (`cos = (0.5 - 0.866) / √2 < 0`) while its normals
+        /// near the ridge still face it.
         ///
-        /// The eye looks down, a unit off the vertical so it has a basis, at (0, 10, 90) on the near
-        /// side, a tenth of the way down its slope,
-        /// where the normal is `normalize(0.9 · up + 0.1 · (0, 1, 1) / √2)` = (0, 0.07264, 0.99734)
-        /// and meets the sun at a cosine of 0.43576: 0.5 · 4 · 0.43576 / π = 0.27742. From the facet
-        /// itself the shadow ray to that sun crosses the prism and leaves through the far side, which
-        /// faces the sun and stops it; lifted onto the surface the normals describe — nine tenths of
-        /// the ten units the ridge's tangent plane stands above the point — it clears the ridge.
+        /// The eye looks down, a unit off the vertical so it has a basis, at (0, 10, 90) on the near side, a
+        /// tenth of the way down its slope, where the normal is `normalize(0.9 · up + 0.1 · (0, 1, 1) / √2)` =
+        /// (0, 0.07264, 0.99734) and meets the sun at a cosine of 0.43576: 0.5 · 4 · 0.43576 / π = 0.27742.
+        /// From the facet itself the shadow ray crosses the prism and leaves through the far side, which faces
+        /// the sun and stops it; lifted onto the surface the normals describe (nine tenths of the ten units the
+        /// ridge's tangent plane stands above the point) it clears the ridge.
         ///
-        /// **The facet the sun faces is lifted too**, for a sun sixty degrees off the zenith on the
-        /// near side: (0, 0.866, 0.5), which the plane meets at a cosine of 0.966 and the normal at
-        /// 0.56164, so 0.5 · 4 · 0.56164 / π = 0.35755. A ledge two-sided at z = 95 over y from 13 to
-        /// 30 stands in its way: the ray from the facet meets that height at y = 18.66 and stops, and
-        /// lifted to z = 99 it starts above the ledge and climbs away from it. That is the Seyda Neen
-        /// boulder's neighbour standing over a facet that faces the sun, and a contact shadow of the
-        /// same height lost is its cost.
+        /// The facet the sun faces is lifted too, for a sun sixty degrees off the zenith on the near side,
+        /// (0, 0.866, 0.5), which the plane meets at a cosine of 0.966 and the normal at 0.56164, so
+        /// 0.5 · 4 · 0.56164 / π = 0.35755. A ledge two-sided at z = 95 over y from 13 to 30 stands in its way:
+        /// the ray from the facet meets that height at y = 18.66 and stops, and lifted to z = 99 it starts
+        /// above the ledge and climbs away. That is the Seyda Neen boulder's neighbour standing over a facet
+        /// that faces the sun; a contact shadow of the same height lost is its cost.
         TEST_F(RtxVisibilityTest, aFacetIsLitWhereItsNormalsFaceTheSunAndNotShadowedWithinItsLift)
         {
             constexpr std::uint32_t size = 17;
@@ -2866,19 +2759,15 @@ namespace Rtx::Testing
                 << "not shadowed by what stands within its lift";
         }
 
-        /// A bounce does not gather through the triangle it left.
+        /// A bounce does not gather through the triangle it left. The same leaning normal, asked of the
+        /// indirect term: a cosine lobe about a normal seventy degrees off its plane puts `(1 - cos 70) / 2` of
+        /// its projected measure under the surface, a third of it, and on sheet geometry those rays meet
+        /// nothing to stop them, so the floor would gather whatever stood beneath it.
         ///
-        /// **The same leaning normal, asked of the indirect term.** A cosine lobe about a normal
-        /// seventy degrees off its plane puts `(1 - cos 70) / 2` of its projected measure *under*
-        /// the surface — a third of it — and on sheet geometry those rays meet nothing to stop them.
-        /// So the floor gathered whatever stood beneath the floor.
-        ///
-        /// A glowing sheet on one side of the floor and then the other, with nothing else in the
-        /// scene. Above, the floor gathers `(1 + cos 70) / 2` of it, which is the form factor of a
-        /// half-space seen at that tilt. Below, it gathers none.
-        ///
-        /// The sheet's own radiance is `1 * 0.125 * EMISSIVE_INTENSITY` (its untextured texel is
-        /// white), which is one, so the grey floor above comes to `0.5 * 0.67101`.
+        /// A glowing sheet on one side of the floor and then the other, nothing else in the scene. Above, the
+        /// floor gathers `(1 + cos 70) / 2` of it, the form factor of a half-space seen at that tilt; below,
+        /// none. The sheet's radiance is `1 * 0.125 * EMISSIVE_INTENSITY` (its untextured texel is white),
+        /// which is one, so the grey floor above comes to `0.5 * 0.67101`.
         TEST_F(RtxVisibilityTest, aBounceDoesNotGatherThroughTheTriangleItLeft)
         {
             constexpr std::uint32_t size = 32;
@@ -2919,14 +2808,12 @@ namespace Rtx::Testing
             EXPECT_LT(floorUnder(glowingAt(-100.0f)), 0.005f) << "and it stops at the triangle";
         }
 
-        /// A bounce meets a see-through pane as often as the pane is there.
-        ///
-        /// **The blend the eye draws, in the mean, for every ray that commits a hit.** A grey floor
-        /// under a glowing sheet that covers every direction it gathers from comes to its albedo, a
-        /// half, for the sheet's radiance of one (`aBounceDoesNotGatherThroughTheTriangleItLeft`
-        /// says why one). A black pane between them, unlit and glowing nothing, takes the share of
-        /// that it covers: met solid by every bounce, it took all of it at any opacity. At an
-        /// opacity of one the floor is dark, at a half it is `0.5 * 0.5` = 0.25, and at a quarter
+        /// A bounce meets a see-through pane as often as the pane is there: the blend the eye draws, in the
+        /// mean, for every ray that commits a hit. A grey floor under a glowing sheet that covers every
+        /// direction it gathers from comes to its albedo, a half, for the sheet's radiance of one
+        /// (`aBounceDoesNotGatherThroughTheTriangleItLeft`). A black pane between them, unlit and glowing
+        /// nothing, takes the share of that it covers (met solid by every bounce it would take all of it at
+        /// any opacity): at an opacity of one the floor is dark, at a half `0.5 * 0.5` = 0.25, at a quarter
         /// `0.5 * 0.75` = 0.375.
         TEST_F(RtxVisibilityTest, aBounceMeetsASeeThroughPaneAsOftenAsThePaneIsThere)
         {
@@ -2958,14 +2845,12 @@ namespace Rtx::Testing
             EXPECT_NEAR(floorUnder(0.25f), 0.375f, 0.01f) << "and a quarter a quarter";
         }
 
-        /// **A lamp's own model glows to the eye and lights nothing by the bounce** (`landingLightOf`,
-        /// `INSTANCE_LAMP_BODY`): its lamp delivers that light already.
-        ///
-        /// A glowing sheet over a grey floor and nothing else, the sheet two-sided so the eye under
-        /// it sees it. Its radiance is `1 * 0.125 * EMISSIVE_INTENSITY`, one, and it covers every
-        /// direction the floor gathers from, so the floor comes to its albedo, a half — and to
-        /// nothing where the sheet is a lamp's model. Looked at, the
-        /// sheet is one either way: its glow is the eye's, and the floor it would bounce off is dark.
+        /// A lamp's own model glows to the eye and lights nothing by the bounce (`landingLightOf`,
+        /// `INSTANCE_LAMP_BODY`): its lamp delivers that light already. A glowing sheet over a grey floor and
+        /// nothing else, the sheet two-sided so the eye under it sees it. Its radiance is
+        /// `1 * 0.125 * EMISSIVE_INTENSITY`, one, covering every direction the floor gathers from, so the
+        /// floor comes to its albedo, a half, and to nothing where the sheet is a lamp's model. Looked at,
+        /// the sheet is one either way: its glow is the eye's, and the floor it would bounce off is dark.
         TEST_F(RtxVisibilityTest, aLampsOwnModelGlowsToTheEyeAndLightsNothingByTheBounce)
         {
             constexpr std::uint32_t size = 32;
@@ -3025,28 +2910,23 @@ namespace Rtx::Testing
                 << "a metal reflected a lamp's model beside its lamp";
         }
 
-        /// A bounce is drawn by the cosine, and a half is the number that says so.
-        ///
-        /// **The one property of the estimator a uniform sky cannot show.** Every other test here
-        /// fills the sky with one radiance so that a single sample carries no variance — which is
-        /// what makes them exact, and what leaves `cosineDirection` unmeasured. A sky that runs from
+        /// A bounce is drawn by the cosine, and a half is the number that says so: the one property of the
+        /// estimator a uniform sky cannot show. Every other test here fills the sky with one radiance so a
+        /// single sample carries no variance, which leaves `cosineDirection` unmeasured; a sky that runs from
         /// horizon to zenith turns the direction itself into the answer.
         ///
-        /// The camera's sky fades by `t = sin e / (sin e + cos e)` (`Testing::sHemisphereRamp`), and
-        /// Malley's method draws the elevation with the density `sin 2e`, so
+        /// The camera's sky fades by `t = sin e / (sin e + cos e)` (`Testing::sHemisphereRamp`) and Malley's
+        /// method draws the elevation with the density `sin 2e`, so
         ///
         ///   E[t]   = 1/2, because t(e) + t(90° - e) = 1 and sin 2e is the same at both
         ///   E[t²]  = integral of 2 s c · s² / (s + c)² over [0, 90°] = (pi - 2) / 4
         ///   Var[t] = (pi - 2) / 4 - 1/4 = (pi - 3) / 4,  sd = 0.188144
         ///
-        /// A floor of albedo 0.5 under that sky therefore has to come back at
-        /// `0.5 * (horizon + range / 2)` per channel, spread by `0.5 * |range| * 0.188144`.
-        ///
-        /// **The mean is also what tells this estimator from the wrong one.** Drawing uniformly over
-        /// the hemisphere and carrying the cosine as a weight is unbiased as well, but its
-        /// directions average `E[t] = integral of t cos e = 1 - ln(1 + sqrt 2) / sqrt 2 = 0.376775`
-        /// — a picture an eighth of the sky's range away, seven times the tolerance below at the
-        /// narrowest range here, and not to be mistaken for it.
+        /// A floor of albedo 0.5 under that sky therefore comes back at `0.5 * (horizon + range / 2)` per
+        /// channel, spread by `0.5 * |range| * 0.188144`. The mean also tells this estimator from the wrong
+        /// one: drawing uniformly over the hemisphere and carrying the cosine as a weight is unbiased as well,
+        /// but its directions average `E[t] = integral of t cos e = 1 - ln(1 + sqrt 2) / sqrt 2 = 0.376775`,
+        /// an eighth of the sky's range away, seven times the tolerance below at the narrowest range here.
         TEST_F(RtxVisibilityTest, aBounceDrawsItsDirectionByTheCosineAndNotUniformly)
         {
             constexpr std::uint32_t size = 64;
@@ -3133,35 +3013,24 @@ namespace Rtx::Testing
             EXPECT_GT(moved(shade(1u << 24), shade((1u << 24) + 1u)), std::size_t{ size } * size * 9 / 10)
                 << "the frame redraws the bounce a session in";
 
-            // **And what the accumulator is for: the error falls as the square root of the count.**
-            // Averaging sixty-four independent draws divides the standard deviation of each by eight
-            // and leaves the mean where it was — the whole basis for calling a long run a reference,
-            // and worth asserting rather than assuming, because a sum that dropped or double-counted
-            // a frame would still look converged.
+            // What the accumulator is for: averaging drives the error down and leaves the mean alone. Every
+            // pixel here has the same normal under the same sky, so its true value is the same number, which
+            // makes the spread across the frame the error itself and its fall with the count the whole basis
+            // for calling a long run a reference.
             //
-            // **And what the accumulator is for: averaging drives the error down and leaves the mean
-            // alone.** Every pixel here has the same normal under the same sky, so its true value is
-            // the same number — which makes the spread across the frame the error itself, and its
-            // fall with the count the whole basis for calling a long run a reference.
+            // The reduction is bounded at both ends, both derived. Independent draws divide the standard
+            // deviation by `sqrt(64)` = 8 and nothing can do worse, so a floor of eight catches a sum that
+            // dropped frames or a turn that stopped turning (a pixel's samples repeating, the spread where one
+            // frame left it). The ceiling is sixty-four, what a perfectly stratified sequence would reach, and
+            // catches the opposite fault: a tile that failed to upload reads zero everywhere, every pixel draws
+            // the same direction, and the spread collapses while the mean stays right. Measured, the reduction
+            // is 19 in each channel, past independence because the frames are a golden-ratio sweep of the
+            // interval.
             //
-            // **The reduction is bounded at both ends, and both ends are derived.** Independent
-            // draws would divide the standard deviation by `sqrt(64)`, which is eight, and nothing
-            // can do worse than that — so a floor of eight catches a sum that dropped frames or a
-            // turn that stopped turning, either of which leaves a pixel's samples repeating and the
-            // spread where one frame left it. The ceiling is sixty-four, the reduction a perfectly
-            // stratified sequence would reach, and it catches the opposite fault: a tile that failed
-            // to upload reads as zero everywhere, every pixel draws the same direction as every
-            // other, and the spread collapses to nothing while the mean stays right.
-            //
-            // Measured, the reduction is 19 in each channel — comfortably past what independence gives,
-            // because the frames are a golden-ratio sweep of the interval rather than sixty-four
-            // guesses at it.
-            //
-            // **The mean's tolerance is twenty times tighter than the single-frame one above**, and
-            // has to be: at sixty-four samples a pixel's values cluster inside a few bytes, so the
-            // sRGB step that dominated there is no longer what limits this. A divisor off by one
-            // moves the mean by a sixty-fourth of it, 0.0029 at the least — the whole point of the
-            // assertion, and something a tolerance sized for one noisy frame would wave through.
+            // The mean's tolerance is twenty times tighter than the single-frame one above, and has to be: at
+            // sixty-four samples a pixel's values cluster inside a few bytes, so the sRGB step that dominated
+            // there no longer limits this. A divisor off by one moves the mean by a sixty-fourth of it, 0.0029
+            // at the least, which a tolerance sized for one noisy frame would wave through.
             constexpr std::uint32_t averaged = 64;
             const Frame converged = shade(0, averaged);
 
@@ -3181,40 +3050,37 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A glossy floor under an even sky gives back what its two halves reflect toward the eye**,
-        /// whichever half each pixel's bounce drew: the white furnace, for the specular bounce.
+        /// A glossy floor under an even sky gives back what its two halves reflect toward the eye, whichever
+        /// half each pixel's bounce drew: the white furnace, for the specular bounce. The cosine test's floor
+        /// and eye with the view narrowed to two degrees, so every pixel sees the floor within 1.6 degrees of
+        /// square on, under a sky of one radiance `L` and nothing else: every bounce escapes and a pixel's
+        /// expected value is `L` times what the surface reflects toward the eye, read as radiance over four
+        /// frames averaged.
         ///
-        /// The cosine test's floor and eye with the view narrowed to two degrees, so every pixel sees
-        /// the floor within 1.6 degrees of square on, under a sky of one radiance `L` and nothing
-        /// else: every bounce escapes, and a pixel's expected value is `L` times what the surface
-        /// reflects toward the eye. Read as the radiance rather than bytes, over four frames averaged.
+        /// The lobe reflects what `lobeIntegrals` finds square on, compensated off the table: the draw is the
+        /// lobe at a cosine of one, where its whole is 0.91440, and the compensation read off the table's node
+        /// there, blended across two roughness rows, holds 0.91442, so the expectation carries their ratio,
+        /// 2.3e-5 under one.
         ///
-        /// **The lobe reflects what `lobeIntegrals` finds square on, compensated off the table.** The
-        /// draw is the lobe at a cosine of one, where its whole is 0.91440; the compensation is read
-        /// off the table's node at a cosine of one, blended across two roughness rows, and holds
-        /// 0.91442. The expectation carries their ratio, which is 2.3e-5 under one.
+        /// - A white metal, `F0 = F90 = 1` and no diffuse half, reflects all of what reaches it: its
+        ///   compensation is `1 / whole`, so the frame averages `L` to that ratio. Every pixel draws the lobe,
+        ///   so this holds the visible-normal draw, its `G2 / G1` and the compensation. Uncompensated it
+        ///   averages `L whole`, 0.043 lower; drawn into the indirect term, the lobe's light would be
+        ///   multiplied by a diffuse albedo of nought.
+        /// - Half a metal, `m = 128 / 255`: `F0 = 0.04 + 0.96 m` and `c_diff = 1 - m`, each half drawn about
+        ///   as often. The lobe reflects its `Es`, from the integrals. The diffuse half reflects
+        ///   `c_diff (1 - F)` averaged over the cosine, which square on is closed: the half vector to a
+        ///   direction `θ` off the normal is `θ / 2` off it, so with `c = cos(θ / 2)`, `cosθ = 2c² - 1` and
+        ///   `sinθ dθ = -4c dc`, the average is `8 ∫ (1 - F(c)) (2c³ - c) dc` over `[1/√2, 1]`. The constant
+        ///   part is `(1 - F0)`, since `∫ (2c³ - c) dc = 1/8`; Schlick's takes `8 (F90 - F0) J` off it, with
+        ///   `x = 1 - c` and `J = ∫ x⁵ (1 - 5x + 6x² - 2x³) dx` over `[0, 1 - 1/√2]`, 1.0236e-5. A lobe whose
+        ///   weight left out its chance (the draw's `1 / p`) would average 0.12 lower.
         ///
-        /// - **A white metal**, `F0 = F90 = 1` and no diffuse half, reflects all of what reaches it:
-        ///   its compensation is `1 / whole`, so the frame averages `L` to that ratio. Every pixel
-        ///   draws the lobe, so this holds the visible-normal draw, its `G2 / G1` and the
-        ///   compensation. Uncompensated it averages `L whole`, 0.043 lower; drawn into the indirect
-        ///   term, the lobe's light is multiplied by a diffuse albedo of nought.
-        /// - **Half a metal**, `m = 128 / 255`: `F0 = 0.04 + 0.96 m` and `c_diff = 1 - m`, and each
-        ///   half drawn about as often. The lobe reflects its `Es`, from the integrals. The diffuse half
-        ///   reflects `c_diff (1 - F)` averaged over the cosine, which square on is closed: the half
-        ///   vector to a direction `θ` off the normal is `θ / 2` off it, so with `c = cos(θ / 2)`,
-        ///   `cosθ = 2c² - 1` and `sinθ dθ = -4c dc`, the average is `8 ∫ (1 - F(c)) (2c³ - c) dc`
-        ///   over `[1/√2, 1]`. The constant part is `(1 - F0)`, since `∫ (2c³ - c) dc = 1/8`; Schlick's
-        ///   takes `8 (F90 - F0) J` off it, with `x = 1 - c` and
-        ///   `J = ∫ x⁵ (1 - 5x + 6x² - 2x³) dx` over `[0, 1 - 1/√2]`, 1.0236e-5. A lobe whose weight
-        ///   left out its chance — the draw's `1 / p` — would average 0.12 lower.
-        ///
-        /// **2.5e-3 is four standard errors of independent draws.** One frame's pixels spread by 0.135
-        /// and 0.162 about their means, so 65536 draws put a mean within 6.3e-4 of its expectation a
-        /// standard error. The directions are blue noise and the choice of half a hash: measured, the
-        /// white metal lands within 3e-5 and half a metal within 2.6e-4. The rule's own error is
-        /// 1e-5, and the pixels' cosines, 0.9996 at the corners, move the lobe's whole by 8e-6 on
-        /// average.
+        /// 2.5e-3 is four standard errors of independent draws: one frame's pixels spread by 0.135 and 0.162
+        /// about their means, so 65536 draws put a mean within 6.3e-4 of its expectation a standard error.
+        /// The directions are blue noise and the choice of half a hash; measured, the white metal lands within
+        /// 3e-5 and half a metal within 2.6e-4. The rule's own error is 1e-5, and the pixels' cosines (0.9996
+        /// at the corners) move the lobe's whole by 8e-6 on average.
         TEST_F(RtxVisibilityTest, aGlossyFloorUnderAnEvenSkyGivesBackWhatItReflects)
         {
             constexpr std::uint32_t size = 128;

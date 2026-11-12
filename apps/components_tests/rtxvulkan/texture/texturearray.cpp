@@ -49,15 +49,13 @@ namespace Rtx
             Testing::flushWriting(pool, [&](Uploads& uploads) { textures.sync(slot, uploads); });
         }
 
-        /// Writing a set's descriptors waits for the submit that bound the set, and for nothing
-        /// else.
+        /// Writing a set's descriptors waits for the submit that bound the set, and for nothing else.
         ///
-        /// **The one per-copy resource that is not a buffer.** A set is bound by handle, so no
-        /// address names it, and its bindings allow an update after a bind — but not of a
-        /// descriptor a pending trace samples, and a trace samples whichever slots its materials
-        /// name. `getSet` is the hand-out and stamps the set the way `Buffer::addressFor` stamps a
-        /// buffer; `finishReads` waits for that stamp. Held on the queue while this thread waits,
-        /// so the wait cannot return before the hold opens and lasts at least the hold's length.
+        /// **The one per-copy resource that is not a buffer.** A set is bound by handle, so no address names it, and
+        /// its bindings allow an update after a bind, but not of a descriptor a pending trace samples, and a trace
+        /// samples whichever slots its materials name. `getSet` stamps the set the way `Buffer::addressFor` stamps a
+        /// buffer; `finishReads` waits for that stamp. Held on the queue while this thread waits, so the wait cannot
+        /// return before the hold opens.
         TEST_F(RtxTextureArrayTest, syncingASetWaitsForTheSubmitThatBoundIt)
         {
             Device& device = getDevice();
@@ -119,34 +117,25 @@ namespace Rtx
             syncSet(textures, pool, FrameSlot{ 1 });
         }
 
-        /// An arrival of one file is held to the largest side it fits the room at, the level a
-        /// file begins at: a file from its first level within the side, a bake as large as its
-        /// source is held to, and a composite, whose side is the renderer's own, at what it costs.
-        /// Where the arrival fits at no side, its files are held to the side they fit at without
-        /// the composite, which gives way; and where they fit at none, each begins at its last
+        /// An arrival of one file is held to the largest side it fits the room at, the level a file begins at: a file
+        /// from its first level within the side, a bake as large as its source is held to, and a composite, whose side
+        /// is the renderer's own, at what it costs. Where the arrival fits at no side, its files are held to the side
+        /// they fit at without the composite, which gives way; and where they fit at none, each begins at its last
         /// level.
         ///
-        /// **Hand-computed.** The ladder is 64, 32 and 16 texels square, four bytes a texel: 16384,
-        /// 4096 and 1024 bytes, 21504 from the top, 5120 from the second level and 1024 from the
-        /// third, and a colour brings nothing beside it. The ladder alone is 21504 bytes whole, 5120
-        /// held to 32 and 1024 held to 16, and no smaller for anything below 16, where it has no
-        /// level. A bake of it is four bytes a texel over the levels the ladder stands with — 5376
-        /// texels from 64 and 1280 from 32, which is what the ladder itself comes to. A composite is
-        /// 512 square in BC7 with its chain, a block of sixteen bytes a 4 by 4 and one each for the two
-        /// levels under a block: 16384 + 4096 + 1024 + 256 + 64 + 16 + 4 + 1 + 1 + 1 = 21847 blocks,
-        /// 349552 bytes, whatever the side. The scene's first composite brings the canvas it is baked
-        /// on, a chain of 349525 texels at four bytes, and the blocks it is encoded through, 1398100 +
-        /// 349552 = 1747652, and 2097204 with the composite — so a byte short of it and the ladder's
-        /// least, the arrival fits nowhere and the ladder is held as though the composite were not
+        /// **Hand-computed.** The ladder is 64, 32 and 16 texels square, four bytes a texel: 21504 bytes from the top,
+        /// 5120 from the second level and 1024 from the third; a bake of it is 5376 texels from 64 and 1280 from 32. A
+        /// composite is 512 square in BC7 with its chain: 21847 blocks of sixteen bytes, 349552, whatever the side.
+        /// The scene's first composite also brings the canvas it is baked on (349525 texels at four bytes) and the
+        /// blocks it is encoded through, 1398100 + 349552 = 1747652, and 2097204 with the composite: a byte short of
+        /// it and the ladder's least, the arrival fits nowhere and the ladder is held as though the composite were not
         /// there.
         ///
-        /// **The companions and what a texture is made through count too.** The ladder as a normal
-        /// map brings a spread of half its side to one texel, a byte a texel, and the sixteen-byte
-        /// means it is built through, which are the arrival's room and priced once as what it grows
-        /// by — all of it here, where the array holds none yet: from 64, 32 square down is 1365
-        /// texels, 1365 + 21840 bytes beside the 21504, 44709 in all; from 32, 341 texels and 5120,
-        /// 10917; from 16, 85 texels and 1024, 2469. A one-level 64 square is its level, 16384,
-        /// whatever the side, because the file has no smaller level, and a bake of it the same again.
+        /// **The companions and what a texture is made through count too.** The ladder as a normal map brings a spread
+        /// of half its side to one texel and the sixteen-byte means it is built through, priced once as what the
+        /// arrival grows the room by, all of it here: from 64, 1365 texels, 1365 + 21840 bytes beside the 21504, 44709
+        /// in all; from 32, 10917; from 16, 2469. A one-level 64 square is its level, 16384, whatever the side, and a
+        /// bake of it the same again.
         TEST_F(RtxTextureArrayTest, anArrivalIsHeldToTheLargestSideItFitsTheRoomAt)
         {
             Device& device = getDevice();
@@ -224,15 +213,13 @@ namespace Rtx
             }
         }
 
-        /// **The file that stands the most bytes comes down a level first, and of two that stand
-        /// alike the later slot, until the arrival fits.** Two of the ladders of
-        /// `anArrivalIsHeldToTheLargestSideItFitsTheRoomAt`, 21504 bytes whole, 5120 from the second
-        /// level and 1024 from the third: in 21504 + 5120 bytes the second slot comes down one and
-        /// the first stands whole, where one side for both held both to 32 and left 16384 unused; a
-        /// byte short, both come down one; in 5120 + 1024, the second comes down two. A 64-square
-        /// ladder beside a 32-square one, 5120 whole and 1024 from its second level, in 21504 + 1024
-        /// bytes: the large one comes down, though it is the earlier slot, and the small one stands
-        /// whole, where taking the later slot first would have stood the large whole.
+        /// **The file that stands the most bytes comes down a level first, and of two that stand alike the later slot,
+        /// until the arrival fits.** Two of the ladders of `anArrivalIsHeldToTheLargestSideItFitsTheRoomAt`, 21504
+        /// bytes whole, 5120 from the second level and 1024 from the third: in 21504 + 5120 bytes the second slot
+        /// comes down one and the first stands whole, where one side for both held both to 32 and left 16384 unused; a
+        /// byte short, both come down one; in 5120 + 1024, the second comes down two. A 64-square ladder beside a
+        /// 32-square one, 5120 whole and 1024 from its second level, in 21504 + 1024 bytes: the large one comes down
+        /// though it is the earlier slot, where taking the later slot first would have stood the large whole.
         TEST_F(RtxTextureArrayTest, theFileThatStandsTheMostComesDownFirstUntilTheArrivalFits)
         {
             Device& device = getDevice();
@@ -270,10 +257,10 @@ namespace Rtx
         }
 
         /// **An arrival is priced only what its means room must grow by.** The normal map of
-        /// `anArrivalIsHeldToTheLargestSideItFitsTheRoomAt` costs 44709 at the top, 21840 of it means,
-        /// where the array holds none: a byte short of that and it is held to 32. Once one such map
-        /// has arrived, the room holds its 21840 and the next pays none of it: 22869 is the top, and a
-        /// byte short of it 32, in that array and in any other the room is handed to.
+        /// `anArrivalIsHeldToTheLargestSideItFitsTheRoomAt` costs 44709 at the top, 21840 of it means, where the array
+        /// holds none: a byte short of that and it is held to 32. Once one such map has arrived, the room holds its
+        /// 21840 and the next pays none of it: 22869 is the top, and a byte short of it 32, in that array and in any
+        /// other the room is handed to.
         TEST_F(RtxTextureArrayTest, anArrivalIsPricedWhatItsMeansRoomMustGrowBy)
         {
             Device& device = getDevice();
@@ -318,20 +305,16 @@ namespace Rtx
                 << "a second scene priced the means the shared room holds";
         }
 
-        /// A texture past the side the device takes stands from its first level within the side,
-        /// and one with no level within it draws the stand-in, refused and saying why.
+        /// A texture past the side the device takes stands from its first level within the side, and one with no level
+        /// within it draws the stand-in, refused and saying why.
         ///
-        /// **One texel wider than the device takes**, so the case is the device's own and no
-        /// larger than a row: the second level is half that, within the side, and is what stands —
-        /// four bytes a texel.
+        /// **One texel wider than the device takes**, so the case is the device's own and no larger than a row: the
+        /// second level is half that, within the side, and is what stands, four bytes a texel. **The side is the
+        /// device's, and never past `TEXTURE_SIDE_MOST`**, whose square the texel word holds whole.
         ///
-        /// **The side is the device's, and never past `TEXTURE_SIDE_MOST`**, whose square the texel
-        /// word holds whole.
-        ///
-        /// **The slot's texel word says which stands**: the level's count under the file's wrap, and
-        /// the stand-in's four by four under its own wrap, `Repeat`, with `TEXTURE_STANDS_IN` over it
-        /// — as it does for a slot described as the stand-in, which is how the builder describes a
-        /// file that does not read.
+        /// **The slot's texel word says which stands**: the level's count under the file's wrap, and the stand-in's
+        /// four by four under its own wrap, `Repeat`, with `TEXTURE_STANDS_IN` over it, as for a slot described as the
+        /// stand-in, which is how the builder describes a file that does not read.
         TEST_F(RtxTextureArrayTest, aTexturePastTheDevicesSideBeginsAtItsFirstLevelWithinIt)
         {
             Device& device = getDevice();
@@ -417,16 +400,15 @@ namespace Rtx
             EXPECT_EQ(bySource.mBytes, 2u * 16384u);
         }
 
-        /// A texture the device has no room for comes down a level at a time, and one it has room
-        /// for at no level draws the stand-in, refused and saying why.
+        /// A texture the device has no room for comes down a level at a time, and one it has room for at no level
+        /// draws the stand-in, refused and saying why.
         ///
-        /// **Room for one block, and every gap filled.** The ladder's first level, 3072 square at
-        /// four bytes, is 36 MiB, past half a block and so an allocation of its own; a small image the
-        /// test holds comes first and opens the block, which leaves a megabyte under the ceiling, and
-        /// the level is refused although the side chosen for the arrival counted the block as room for
-        /// it. Its second level, 1536 square, is 9 MiB and fits the block: 9437184 bytes.
-        /// The single level of the same 36 MiB has nothing further down. The slot's texel word says
-        /// the stand-in while it stands in, and is the file's own count once it stands.
+        /// **Room for one block, and every gap filled.** The ladder's first level, 3072 square at four bytes, is 36
+        /// MiB, past half a block and so an allocation of its own; a small image the test holds comes first and opens
+        /// the block, which leaves a megabyte under the ceiling, and the level is refused although the side chosen for
+        /// the arrival counted the block as room for it. Its second level, 1536 square, is 9 MiB and fits the block:
+        /// 9437184 bytes. The single level of the same 36 MiB has nothing further down. The slot's texel word says the
+        /// stand-in while it stands in, and is the file's own count once it stands.
         TEST_F(RtxTextureArrayTest, aTextureTheDeviceHasNoRoomForComesDownALevelOrDrawsTheStandIn)
         {
             Device& device = getDevice();

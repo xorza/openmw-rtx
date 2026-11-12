@@ -86,11 +86,9 @@ namespace Rtx
         std::size_t layOutLike(std::span<const MipLevel> shape, const TexelLayout& laid);
     };
 
-    /// What stands in a texture slot, which decides what a description carries and how a backend
-    /// builds it. Stated rather than deduced from two sentinels, for the reason
-    /// `Rtx::TextureKind` gives of the table a description is built from: a reader that has to
-    /// work out which of four a value is works it out in its own order, and two orders are one
-    /// rule written twice.
+    /// What stands in a texture slot, which decides what a description carries and how a backend builds it. Stated
+    /// rather than deduced from sentinels, for the reason `Rtx::TextureKind` gives: a reader that works out which of
+    /// four a value is works it out in its own order, and two orders are one rule written twice.
     enum class TextureSource : std::uint8_t
     {
         /// A file the content named, decoded. `TextureData::mBytes` and `mLevels` are the file's

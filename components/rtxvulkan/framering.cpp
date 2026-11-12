@@ -238,12 +238,8 @@ namespace Rtx
 
     std::optional<FrameResult> FrameRing::finishFrame()
     {
-        // What is already in hand before anything is waited for. A frame the ring drained to
-        // make room has been finished and its report is here; waiting again would wait the frame
-        // after it and hand back a report a frame ahead of the one the caller is asking about.
-        //
-        // Waited out one after another where the oldest were skipped, which come back with no
-        // report.
+        // A frame the ring drained to make room has its report here already; waiting again would
+        // wait the frame after it and hand back a report a frame ahead of the one asked about.
         while (mReports.empty() && mFinished < mFrame)
             finishOldest();
 

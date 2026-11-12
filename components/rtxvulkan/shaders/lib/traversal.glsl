@@ -44,9 +44,8 @@ float alongPast(float distance)
 /// Where a ray leaving a surface along `direction` starts: `point` pushed off its triangle by `step`, on
 /// the side `direction` leaves by — and the ray then starts at nought.
 ///
-/// **A distance skipped at the start was the alternative, and it skipped what stood there**: a unit of it,
-/// and the floor at a wall's foot took the sun through the wall, and every contact shadow nearer than a
-/// unit was lost.
+/// **Not a distance skipped at the start**, which skipped what stood there: a unit of it let the floor at a
+/// wall's foot take the sun through the wall and lost every contact shadow nearer than a unit.
 ///
 /// @param step the triangle's unit normal, either way round, times how far the point can stand off
 ///        the triangle: `stepOf`. Nought for a point in the air, which has no surface to leave and
@@ -144,13 +143,13 @@ bool isSeenThrough(float opacity, GpuMaterial material)
 
 /// How much of a see-through surface is there, where a ray met it.
 ///
-/// **The texture's alpha over the two `surfaceOpacity` carries**, which is what a blend does: the texture
-/// says where a stained pane's lead is, the material says how much glass there is, and the placement says
-/// how much of the whole thing the game is showing.
+/// **The texture's alpha over the two `surfaceOpacity` carries**, as a blend does: the texture says where a
+/// stained pane's lead is, the material how much glass there is, and the placement how much of the whole the
+/// game is showing.
 ///
-/// **One function, so that one surface cannot be hazed two ways.** A shadow ray asks what it let past and
-/// the eye asks what it covered, which are the same number seen from either side — and they stay the same
-/// number only while there is one place it is worked out.
+/// **One function, so that one surface cannot be hazed two ways**: what a shadow ray let past and what the
+/// eye covered are the same number seen from either side, and stay so only while it is worked out in one
+/// place.
 ///
 /// @param opacity what `surfaceOpacity` gave for this hit, made once by the caller.
 /// @param painted the texture's own alpha where the ray met it.
@@ -312,9 +311,8 @@ uint rayKeyOf(vec3 origin, vec3 direction)
 
 /// Whether a candidate hit stops the ray, and what it lets past where it does not.
 ///
-/// **One load of the instance and its material, and not three questions asked in turn.** Whether a
-/// candidate is see-through, what it lets past and whether it landed in a hole are one decision about one
-/// surface, so they are one load.
+/// **One load of the instance and its material, and not three questions asked in turn**: whether a candidate
+/// is see-through, what it lets past and whether it landed in a hole are one decision about one surface.
 ///
 /// @param edges the triangle's world edges, `RTX_READ_CANDIDATE_EDGES`, or none for a ray with no
 ///        cone, whose every read takes the finest level whatever the triangle is (`coneBaseOf`).
@@ -355,10 +353,10 @@ bool candidateStops(Candidate candidate, TriangleEdges edges, vec3 direction, fl
 
     // **Met and not tested where there is nothing to test.** A material with no mask arrives here because
     // forcing an instance non-opaque says nothing about its material: an untextured pane is forced for its
-    // own alpha, and an actor is forced for the fade its placement carries. Neither promises a mask.
+    // own alpha, and an actor for the fade its placement carries. Neither promises a mask.
     //
-    // **The material and not the placement.** An actor the game is fading keeps every hole in its mask,
-    // because a fade is not a hole — what the fade does to what is left is measured elsewhere.
+    // **The material and not the placement.** An actor being faded keeps every hole in its mask, because a
+    // fade is not a hole.
     if (!walkPast && !byChance && !hasMask(material))
         return true;
 
@@ -469,13 +467,13 @@ SceneAnswer unansweredScene()
 /// whole software traversal at every site that drives one, and a stage that held fifty of them did not
 /// compile in 52 GB (`docs/rtx/research/2026-10-19-amd-windows-trace-compile-memory.md`).
 ///
-/// **The candidate loop runs to completion.** It confirms every hit that lands on the material rather than
-/// in one of its holes, and — where the request asks — walks past a translucent one instead, keeping what
-/// it let through (`candidateStops`). The cone at a candidate decides how much of the mask one pixel is
-/// looking at; a ray that carries none reads the finest level — every shadow ray.
+/// **The candidate loop runs to completion.** It confirms every hit that lands on the material rather than in
+/// one of its holes and, where the request asks, walks past a translucent one keeping what it let through
+/// (`candidateStops`). The cone at a candidate decides how much of the mask one pixel is looking at; a ray
+/// that carries none (every shadow ray) reads the finest level.
 ///
-/// **The committed triangle's corners are not read here** but off the scene's own vertices
-/// (`committedHit`): AMD's Windows driver fetches a committed triangle's corners wrong.
+/// **The committed triangle's corners are not read here** but off the scene's own vertices (`committedHit`):
+/// AMD's Windows driver fetches a committed triangle's corners wrong.
 SceneAnswer queryScene(SceneQuery asked)
 {
     rayQueryEXT query;
@@ -595,11 +593,10 @@ struct Hit
 
     /// Where in the shared vertex buffers this triangle's three corners are, already global.
     ///
-    /// **Resolved in `committedHit` and carried out, rather than the primitive index.** The index block has
-    /// to be read there in any case, to interpolate the shading normal while the object-to-world matrix is
-    /// still in scope, and `resolve` would read the same block for the same three numbers. Two words more
-    /// in a `Hit` against one block-table address and three index loads on every ray that lands — which is
-    /// neutral in time, and kept for the duplication.
+    /// **Resolved in `committedHit` and carried out, rather than the primitive index**: the index block is
+    /// read there anyway, to interpolate the shading normal while the object-to-world matrix is in scope, and
+    /// `resolve` would read the same block for the same three numbers. Neutral in time, and kept to avoid
+    /// the duplication.
     uvec3 mCorner;
 
     vec2 mBary;
@@ -628,9 +625,9 @@ struct Hit
     /// The vertex normal interpolated across the triangle, in world space — or nought where the mesh
     /// carries none, which `resolve` reads as "use the plane".
     ///
-    /// **Three floats where the transform they came through is nine.** The object-to-world matrix is only
-    /// ever used to bring this one vector across, so the vector is what a `Hit` carries and the matrix is
-    /// not. Not unit: `resolve` normalises it, and the uniform scale in the transform drops out there.
+    /// **Three floats where the transform they came through is nine**: the object-to-world matrix only brings
+    /// this one vector across, so the vector is what a `Hit` carries and not the matrix. Not unit: `resolve`
+    /// normalises it, and the uniform scale in the transform drops out there.
     vec3 mShading;
 
     /// The vertex tangent interpolated across the triangle, in world space, with the bitangent's
@@ -680,12 +677,11 @@ Hit noHit()
 
 /// Where a hit stands and how far that can be off its triangle: `Hit::mPosition` and `Hit::mRounding`.
 ///
-/// **NVIDIA's bound for a hardware traversal** (*Solving Self-Intersection Artifacts in DirectX
-/// Raytracing*, NVIDIA developer blog, 2022), which is the one that holds on a card whose own test of the
-/// ray against the triangle rounds: the point is mixed in the mesh's own space, base corner last, and
-/// carried into the world with the translation last; its error is bounded in the mesh's space by the
-/// corner's size and the triangle's extent — `c1` covers RTX's test, and the article says the bound is the
-/// hardware's — and in the world by the placement's.
+/// **NVIDIA's bound for a hardware traversal** (*Solving Self-Intersection Artifacts in DirectX Raytracing*,
+/// NVIDIA developer blog, 2022), the one that holds on a card whose own ray-triangle test rounds: the point
+/// is mixed in the mesh's own space, base corner last, and carried into the world with the translation last;
+/// its error is bounded in the mesh's space by the corner's size and the triangle's extent (`c1` covers
+/// RTX's test, and the article says the bound is the hardware's) and in the world by the placement's.
 void placeHit(inout Hit hit, vec3 corners[3], vec2 bary, mat4x3 toWorld, mat4x3 toObject)
 {
     const float c0 = 5.9604644775390625e-8;
@@ -723,13 +719,13 @@ float footprintOf(SceneQuery asked, SceneAnswer met)
 /// The committed intersection, read off the query and put into world space.
 ///
 /// **Its corners off the scene's own vertices** (`trianglePositions`), the numbers its structure was built
-/// over, where a query's position fetch would read them: AMD's Windows driver fetches a committed
-/// triangle's corners wrong — another triangle's along the ray, or a confirmed one's turned
+/// over, where a query's position fetch would read them: AMD's Windows driver fetches a committed triangle's
+/// corners wrong, another triangle's along the ray or a confirmed one's turned
 /// (`docs/rtx/research/2026-10-19-amd-windows-driver-faults.md`).
 ///
-/// **Its transforms off the instance's row** (`GpuInstance::mToWorld`, `mToObject`), the top level's own
-/// and its inverse, and not off the query: a stage resolves a hit the trace stored with no query at all
-/// (`storedSolidOf`), and the two read the same numbers.
+/// **Its transforms off the instance's row** (`GpuInstance::mToWorld`, `mToObject`), the top level's own and
+/// its inverse and not the query's: a stage resolves a hit the trace stored with no query at all
+/// (`storedSolidOf`), and the two must read the same numbers.
 Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float footprint)
 {
     Hit hit;
@@ -782,8 +778,8 @@ Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float
 /// far it went reads (`stepWater`), with none of the normals or the tangent a `Surface` is resolved from.
 ///
 /// **So a walk carries no `Surface` through the traversals it asks**: a resolved surface held across a ray
-/// query is twenty-odd scalars more of every live state in it, which held the water's kernel past its
-/// ceiling on AMD's Windows driver (248 registers of 244).
+/// query is twenty-odd scalars more of every live state, which held the water's kernel past its ceiling on
+/// AMD's Windows driver (248 registers of 244).
 struct PlacedHit
 {
     bool mHit;
@@ -843,31 +839,30 @@ Passage openPassage()
 }
 
 /// What the ray from `from` to what stands `distance` away along `towards` meets, past the surfaces whose
-/// faces `faces` does not cull — `skyLightAsk`, `lampLightAsk` and `ambientAsk`, which say which — as the
-/// ray a walk asks, and `passageAnswered` what it answered.
+/// faces `faces` does not cull (`skyLightAsk`, `lampLightAsk` and `ambientAsk` say which), as the ray a walk
+/// asks, and `passageAnswered` what it answered.
 ///
-/// **And handing it one loses.** JCGT 10(1) 2021 finds level zero slower than a cone level in every scene
-/// it tries, but the paper's finding is about the *fetch*, and this path's cost is the *level*: a width of
-/// nought is answered at once, so level zero here skips the texel count's load in `coneLod`, and a
-/// determinant and two logarithms in `coneBase`, at every candidate. What those early returns save is more
-/// than the cache gives back, on every place tried.
+/// **No cone, so level zero.** JCGT 10(1) 2021 finds level zero slower than a cone level in every scene it
+/// tries, but its finding is about the *fetch* and this path's cost is the *level*: a width of nought is
+/// answered at once, skipping the texel count's load in `coneLod` and a determinant and two logarithms in
+/// `coneBase` at every candidate, which saves more than the cache gives back on every place tried.
 ///
 /// **A light nearer than `SHADOW_BIAS` is open.** A candle on a table asks for a ray of next to no length,
-/// and one of none or less is a `tmax` under the `tmin`, which `rayQueryInitializeEXT` leaves undefined — a
+/// and one of none or less is a `tmax` under the `tmin`, which `rayQueryInitializeEXT` leaves undefined: a
 /// hang or a garbage answer rather than an empty one. Nothing stands between a point and a light that near.
 ///
-/// @param from where the ray starts, already off its surface (`leaveSurface`).
-/// **A translucent surface dims the light rather than stopping it**, and the order it is met in does
-/// not matter: the answer is a product, and a product does not care. That is what makes the shadow
-/// the cheap half of transparency — the eye needs its layers sorted and this needs nothing at all.
-/// Taken as `blockedBy`'s sum and not as the product itself, because a float product does care.
+/// **A translucent surface dims the light rather than stopping it**, and the order it is met in does not
+/// matter: the answer is a product, which makes the shadow the cheap half of transparency (the eye needs its
+/// layers sorted). Taken as `blockedBy`'s sum and not as the product itself, because a float product does
+/// care.
 ///
 /// **`TerminateOnFirstHit` stays, but where the occluder's distance is read.** A translucent candidate is
-/// never confirmed, so traversal walks past it and keeps the early out for the first thing that does stop
-/// the ray. The first in traversal's order is not the nearest, and a penumbra made of a roof five hundred
-/// units on blurred away the contact shadow of a hand two units over a table; so a ray whose penumbra the
-/// shadow denoiser reads runs to the nearest solid.
+/// never confirmed, so traversal walks past it and keeps the early out for the first thing that does stop the
+/// ray. The first in traversal's order is not the nearest, and a penumbra made of a roof five hundred units
+/// on blurred away the contact shadow of a hand two units over a table; so a ray whose penumbra the shadow
+/// denoiser reads runs to the nearest solid.
 ///
+/// @param from where the ray starts, already off its surface (`leaveSurface`).
 /// @param faces the ray flags that cull one face or none.
 /// @param nearest whether `Passage::mOccluder` must be the nearest solid's — a split ray's, whose
 ///        penumbra is read.
@@ -909,8 +904,7 @@ float throughAnswered(RayAnswer answered)
 /// **Every face stops it, which is the rasterizer's rule.** Its shadow map is drawn with `GL_CULL_FACE` off
 /// unless `[Shadows] use front face culling` asks otherwise, and with it on it keeps the faces turned away
 /// from the light: under either, a single-sided wall casts whichever way it faces. The content leans on it:
-/// a quasi-exterior is an interior's shell, which faces in, stood under the sun, and Mournhold's city wall
-/// faces the plaza and holds the afternoon sun off it.
+/// a quasi-exterior is an interior's shell, which faces in, stood under the sun.
 RayAsk skyLightAsk(vec3 from, vec3 towards, float distance, bool nearest)
 {
     return passageAsk(from, towards, distance, gl_RayFlagsNoneEXT, nearest);
@@ -961,14 +955,13 @@ struct RayRule
 
 /// How far the nearest surface that stops a ray is along it, at most `reach` away.
 ///
-/// **Traversal and the cutout, and no material resolved at all.** An asker that wants a distance pays for
-/// the whole of `resolveAsked` otherwise — the plane, the shading normal, the emissive, and for a piece of
-/// ground the entire layer stack with a mask read apiece — to read one float back off it. The cutout still
-/// runs, or the ray would stop in the holes of a mask.
+/// **Traversal and the cutout, and no material resolved at all.** An asker that wants a distance would pay
+/// for the whole of `resolveAsked` otherwise (the plane, the shading normal, the emissive, and for ground the
+/// entire layer stack with a mask read apiece) to read one float back. The cutout still runs, or the ray
+/// would stop in the holes of a mask.
 ///
-/// **`reach` is the answer as well as the limit**, which is what makes such a ray short: an asker that only
-/// cares whether anything stands within a band hands over the band, and reads a miss as *no nearer than
-/// that*.
+/// **`reach` is the answer as well as the limit**, which makes such a ray short: an asker that only cares
+/// whether anything stands within a band hands over the band, and reads a miss as *no nearer than that*.
 ///
 /// @param rule which surfaces stop the ray and how it meets them — `RayRule`. `solidWithinAsk` asks
 ///        for solids alone, met as nearest things and from either face.
@@ -1023,10 +1016,10 @@ struct Surface
 
     /// The triangle's own plane, turned the same way `mNormal` is.
     ///
-    /// **What a bounce is bounded by, and what a sheet takes a light's side from.** A shading normal leans
-    /// off its own triangle wherever the content faceted a curve, so it would aim a bounce into the floor
-    /// the bounce left; the plane does not. It is turned rather than left as the winding wound it so that a
-    /// caller has one vector meaning "out of this surface" and no side of its own to work out.
+    /// **What a bounce is bounded by, and what a sheet takes a light's side from.** A shading normal leans off
+    /// its own triangle wherever the content faceted a curve, so it would aim a bounce into the floor the
+    /// bounce left; the plane does not. It is turned rather than left as the winding wound it, so a caller
+    /// has one vector meaning "out of this surface" and no side of its own to work out.
     vec3 mGeometric;
 
     /// The diffuse albedo: the texture's, delit, for a vanilla surface, and `(1 - metal)` of the
@@ -1157,9 +1150,9 @@ vec3 stepOf(Surface surface)
 
 /// What a hit is made of.
 ///
-/// **Everything a hit leads to and nothing the traversal already answered.** Every table this reads is
-/// keyed on where the ray landed — the instance, its mesh, its material, its textures — and `Hit` is what
-/// the traversal answered.
+/// **Everything a hit leads to and nothing the traversal already answered.** Every table this reads is keyed
+/// on where the ray landed (the instance, its mesh, its material, its textures), and `Hit` is what the
+/// traversal answered.
 ///
 /// @param detailed whether the hit is a picture: the eye's own, a reflection's, the bed under a
 ///        waterline — `traceAsk`'s `draws`. **A diffuse bounce's far hit is not**, and reads no normal
@@ -1206,10 +1199,10 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
 
     // **Which side the ray met is the plane's answer, and the shading normal is not allowed to give a
     // different one.** Morrowind's vertex normals are authored coarsely enough to point clean through their
-    // own triangle: a stretch of the floor in the Seyda Neen customs office interpolates to one aimed at
-    // the ground, on a quad whose plane is level to a hundredth. Turned to face the *ray* that normal is
-    // left pointing down — it already does face a camera looking along the floor — and a floor with a
-    // normal under it drops every lamp overhead on the cosine and sends its bounce into itself.
+    // own triangle: a stretch of the floor in the Seyda Neen customs office interpolates to one aimed at the
+    // ground, on a quad whose plane is level to a hundredth. Turned to face the *ray* that normal stays
+    // pointing down, and a floor with a normal under it drops every lamp overhead on the cosine and sends its
+    // bounce into itself.
     surface.mGeometric = faceforward(surface.mGeometric, direction, surface.mGeometric);
     const bool turned = dot(normal, surface.mGeometric) < 0.0;
     surface.mNormal = turned ? -normal : normal;
@@ -1220,9 +1213,8 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
 
     // **Fetched for every hit, and selected between without a branch.** A mesh that brought no colour holds
     // white, so the load answers neutrally rather than needing a case, and the two weights below are one or
-    // nought — the content states which, and `MATERIAL_VERTEX_TINT` says why the mode does not survive the
-    // trip. Over half of Morrowind's shapes and every piece of ground carry a colour, so a branch would be
-    // taken by most of the frame anyway.
+    // nought (`MATERIAL_VERTEX_TINT` says why the mode does not survive the trip). Over half of Morrowind's
+    // shapes and every piece of ground carry a colour, so a branch would be taken by most of the frame anyway.
     //
     // **A model is tinted by its colours' hue and the ground by its colours whole**: the ground's are the
     // level's painted shading and tint, which nothing traced stands in for.
@@ -1271,11 +1263,11 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
 
         // **Shifted toward the eye by the map's height first**, where it carries one, so every read on this
         // sheet after it lands where the relief puts it: the map itself, the albedo, the opacity, and the
-        // specular, emissive and dark maps. **Marched through the relief** where the scene has one that
-        // spans more than one height, and read back where the trace marched it already.
+        // specular, emissive and dark maps. **Marched through the relief** where the scene has one that spans
+        // more than one height, and read back where the trace marched it already.
         //
         // **The march its own branch, ahead of the shift's and not inside it**, so a tuple with no relief
-        // compiles the shift's branch as it stood before the march existed (`HAS_RELIEF`).
+        // compiles the shift's branch unchanged (`HAS_RELIEF`).
         if (HAS_RELIEF && (material.mFlags & MATERIAL_PARALLAX) != 0u)
         {
             const vec3 eye = vec3(dot(tangent, -direction), dot(bitangent, -direction), dot(normal, -direction));
@@ -1339,17 +1331,15 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
         // layers over each other with additive blending and one pass apiece.
         const vec2 chunkUv = acrossTriangle(uv[0], uv[1], uv[2], hit.mBary);
 
-        // The frame every layer shares: the tangent the chunk's x, which is the world's, less its part
-        // along N, and the bitangent `cross(N, T)`. A heightfield's normal leans up, so x is never along
-        // it.
+        // The frame every layer shares: the tangent the chunk's x, which is the world's, less its part along N,
+        // and the bitangent `cross(N, T)`. A heightfield's normal leans up, so x is never along it.
         //
-        // **Not `terrain.vert`'s frame**, whose bitangent is `cross(N, x)`: that is `sqrt(1 - Nx²)` long,
-        // so on a slope down x a replacer's map tilted the normal less across the slope than along it, 0.71
-        // as far at 45 degrees.
+        // **Not `terrain.vert`'s frame**, whose bitangent is `cross(N, x)`, `sqrt(1 - Nx²)` long: on a slope
+        // down x a replacer's map tilted the normal 0.71 as far across the slope as along it at 45 degrees.
         //
-        // **Filled behind `HAS_MAPS` and not declared with it**: the optimizer the kernels are compared
-        // through keeps arithmetic nothing reads, so a frame computed outside the branch would be in every
-        // vanilla program, read by nothing and moving its digest by a normalize.
+        // **Filled behind `HAS_MAPS` and not declared with it**: the optimizer the kernels are compared through
+        // keeps arithmetic nothing reads, so a frame computed outside the branch would be in every vanilla
+        // program and move its digest by a normalize.
         vec3 layerTangent = vec3(0.0);
         vec3 layerBitangent = vec3(0.0);
         vec3 layerEye = vec3(0.0);
@@ -1366,10 +1356,9 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
         }
 
         // **The stack's relief marched once, through the heights its layers show summed** (`ReliefMaps`), and
-        // every layer read where the march stood: the stack draws the sum of its layers' albedos, so the
-        // relief it draws is the sum of their heights, and a layer with no height stands at the middle one.
-        // Behind `HAS_RELIEF` and the chunk's own relief, so a stack with none shifts each layer as
-        // `terrain.frag` does, as it always did.
+        // every layer read where the march stood: the stack draws the sum of its layers' albedos, so the relief
+        // it draws is the sum of their heights, and a layer with no height stands at the middle one. Behind
+        // `HAS_RELIEF` and the chunk's own relief, so a stack with none shifts each layer as `terrain.frag` does.
         bool stackMarched = false;
         float stackToward = 0.0;
         if (HAS_RELIEF && HAS_MAPS && detailed && (material.mFlags & MATERIAL_PARALLAX) != 0u
@@ -1507,11 +1496,11 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     }
     else if (specularMap)
     {
-        // **A `_spec` map is a metalness, a perceptual roughness and an occlusion**, a classic one
-        // converted to it with its diffuse on the host (`ConversionPass`). The occlusion is of the
-        // relief no ray meets, since a ray stops at the mesh, and what real geometry occludes the traced
-        // bounce and `ambientReaching` already find. The scattering in its alpha is not read: the BC1
-        // maps most of the content ships cannot carry it.
+        // **A `_spec` map is a metalness, a perceptual roughness and an occlusion**, a classic one converted
+        // with its diffuse on the host (`ConversionPass`). The occlusion is of the relief no ray meets, since a
+        // ray stops at the mesh; what real geometry occludes the traced bounce and `ambientReaching` already
+        // find. The scattering in its alpha is not read: the BC1 maps most of the content ships cannot carry it.
+
         const vec4 painted = sampleDiffuse(material.mSpecular, point);
         const float metal = painted.x;
         surface.mSpecular = mix(vec3(DIELECTRIC_F0), albedo, metal) * tint;

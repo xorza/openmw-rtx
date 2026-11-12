@@ -77,13 +77,11 @@ namespace Rtx
             expectHusk(second, "moved by assignment");
         }
 
-        /// **Each level is the box mean of the one above it, and chains of different depths step
-        /// together.** An 8×4 chain of four levels holds `x + 8y` at its first: its second holds
-        /// the mean of each two by two, `2i + 16j + (0 + 1 + 8 + 9) / 4 = 2i + 16j + 4.5`; its third
-        /// the mean of those, `4k + 13.5` (13.5, 17.5); its last the mean of all 32, 15.5. A 4×4
-        /// chain of three levels holds `2(x + 4y)`: its second `4i + 16j + 5` (5, 9, 21, 25), and
-        /// its last 15, the mean of every even number to 30. Every figure is a half exactly, and a
-        /// blit that halves samples halfway between two texels, so the filter's weights are exact.
+        /// **Each level is the box mean of the one above it, and chains of different depths step together.** An 8×4
+        /// chain of four levels holds `x + 8y` at its first, so its second holds `2i + 16j + 4.5`, its third `4k +
+        /// 13.5`, its last the mean of all 32, 15.5. A 4×4 chain of three levels holds `2(x + 4y)`: its second `4i +
+        /// 16j + 5`, its last 15. Every figure is a half exactly, and a blit that halves samples halfway between two
+        /// texels, so the filter's weights are exact.
         TEST_F(RtxImageTest, eachLevelOfAChainIsTheBoxMeanOfTheOneAboveIt)
         {
             const Device& device = getDevice();

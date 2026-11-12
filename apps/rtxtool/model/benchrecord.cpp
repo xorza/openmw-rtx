@@ -48,10 +48,9 @@ namespace RtxTool
             return value.has_value() ? std::format("{}", *value) : "null";
         }
 
-        /// Null where nothing answered, so a record taken on a machine with no driver library says
-        /// it carries no clock rather than claiming one of zero; and null for each part the
-        /// instrument cannot read, for the same reason. The mean and the count are in it because
-        /// they say whether two records ran at one clock.
+        /// Null where nothing answered, so a record from a machine with no driver library says it carries no clock
+        /// rather than claiming one of zero; and null for each part the instrument cannot read. The mean and the
+        /// count are in it because they say whether two records ran at one clock.
         std::string asJson(const GpuClock& clock)
         {
             if (!clock.mRead)
@@ -87,9 +86,8 @@ namespace RtxTool
                 asJson(step), asJson(setup.mSettled), asJson(setup.mRun.mMemoryBudget));
         }
 
-        /// Null where nothing looked, for the same reason; and in the record at all because a
-        /// record is what a run on another commit is read against, and a run another process
-        /// drew through is not the same run.
+        /// Null where nothing looked, for the same reason; in the record at all because a run another process drew
+        /// through is not the same run as one on another commit.
         std::string asJson(const CardShare& card)
         {
             if (!card.mViewed)
@@ -118,12 +116,9 @@ namespace RtxTool
                 counts.mCounted, counts.mKernelCounted, counts.mTwoKinds);
         }
 
-        /// Everything a scene came to, so the record can compare what a change cost in memory as
-        /// well as in time.
-        ///
-        /// **Every field, because the report beside it chooses and this does not.** A human report
-        /// leaves out what nobody reads at a glance; a record exists to be diffed against the same
-        /// run on another commit, and a figure it never wrote is one nobody can go back for.
+        /// Everything a scene came to, so the record can compare what a change cost in memory as well as in time.
+        /// Every field, because the report beside it chooses and a record does not: it exists to be diffed against
+        /// the same run on another commit, and a figure it never wrote is one nobody can go back for.
         std::string asJson(const Rtx::SceneStats& scene)
         {
             return std::format(R"({{"instances": {}, "instanceSlots": {}, "cutoutInstances": {}, )"
@@ -228,9 +223,8 @@ namespace RtxTool
                 times.mMedian, times.mMean, times.mP95, times.mP99, times.mBest, times.mWorst);
         }
 
-        /// **The counts as well as the times**, because a zone's distribution is over the frames
-        /// that ran it: without them a record cannot tell a pass that costs the frame a tenth of a
-        /// millisecond from one that costs seven every sixtieth frame.
+        /// The counts as well as the times, because a zone's distribution is over the frames that ran it: without
+        /// them a record cannot tell a tenth of a millisecond every frame from seven every sixtieth.
         std::string asJson(const GpuZone& zone)
         {
             return std::format(R"({{"shareMs": {:.4f}, "frames": {}, "ofFrames": {}, "times": {}}})", zone.mShareMs,
@@ -277,12 +271,8 @@ namespace RtxTool
 
     namespace
     {
-        /// What compaction has left to give back, or nothing where there is none and where the
-        /// device would not say.
-        ///
-        /// **Left out rather than printed as nought**, because a pair reading "would compact to 0.0"
-        /// is a saving of everything rather than an answer nobody has — and a pair reading "52.5 of
-        /// them would compact to 52.5" is a settled cell saying so at length.
+        /// What compaction has left to give back, or nothing where there is none or the device would not say: left
+        /// out rather than printed as nought, which would read as a saving of everything.
         std::string describeCompaction(const Rtx::SceneStats& scene)
         {
             if (scene.mCompactableBytes == 0 || scene.mCompactableNowBytes <= scene.mCompactableBytes)
@@ -372,8 +362,8 @@ namespace RtxTool
 
     std::string describeHostHeld(const Rtx::ContentMemory& content)
     {
-        // **The host's side of the device's question**: runs a freed mesh left as holes, which
-        // nothing moves to close, and what the cell reader keeps of models it no longer lends.
+        // The host's side of the device's question: runs a freed mesh left as holes, which nothing moves to close,
+        // and what the cell reader keeps of models it no longer lends.
         const Rtx::ReaderMemory& reader = content.mReader;
         if (content.mVertexEnd == 0 && reader.mLentModels + reader.mSpareModels + reader.mFiledModels == 0)
             return {};
@@ -392,8 +382,8 @@ namespace RtxTool
 
     std::string describeHeader(const BenchHeader& header)
     {
-        // **The build and the layers first, because either makes every figure below one not to
-        // quote**, and the command's own word on whether it measures beside them.
+        // The build and the layers first, because either makes every figure below one not to quote, and the
+        // command's own word on whether it measures beside them.
         const Rtx::RenderProfile& profile = header.mSetup.mRun.mProfile;
         const MWRender::MirrorKnobs& mirror = header.mSetup.mMirror;
         std::string out = std::format("\nrun  {}, layers {}, {}{}{}\n",
@@ -432,10 +422,8 @@ namespace RtxTool
     {
         std::string out;
 
-        // **Each line only where there is something to put in it.** A place a harness staged names
-        // a view, a cell and a scene it built; a game measuring itself names none of the three, and
-        // a row of empty quotes and zeroes reads as a measurement of nothing rather than as an
-        // absence.
+        // Each line only where there is something to put in it: a game measuring itself names no view, cell or
+        // built scene, and a row of empty quotes and zeroes reads as a measurement of nothing.
         if (!place.mView.empty())
         {
             out += '\n' + place.mView;
@@ -449,17 +437,14 @@ namespace RtxTool
             out += std::format("  cell {} at {} in {}   {}\n", place.mCell, describeHour(place.mHour), place.mWeather,
                 describeSceneHeld(place.mScene));
 
-        // **Two facts and not one line.** A staged place pays one build before its frames and can
-        // name what it cost; a run of a real game builds a little at every crossing and has no such
-        // number. What both have is how much of the frame hit something, which is what tells "the
-        // cell rendered" from "the camera faced away from it".
-        // **Under the scene's line, because it is the same fact from the device's side.** The line
-        // above says what the content came to; this says what the card gave up for it, and the
-        // second is the one a card with a small host-visible heap runs out of first.
+        // Under the scene's line, because it is the same fact from the device's side: the line above says what the
+        // content came to, this what the card gave up for it, which a card with a small host-visible heap runs out
+        // of first.
         out += Rtx::describeMemory(place.mMemory);
 
         out += describeHostHeld(place.mContent);
 
+        // How much of the frame hit something is what tells "the cell rendered" from "the camera faced away".
         if (place.mHitPercent > 0.0)
             out += std::format("  {:.1f}% of primary rays hit\n", place.mHitPercent);
 
@@ -473,11 +458,9 @@ namespace RtxTool
         for (const Rtx::Timing timing : Rtx::sTimings.values())
             out += describeTimes(std::format("{} ms", Rtx::sTimings.name(timing)), place.mRows[indexOf(timing)]);
 
-        // **The device's own account of the same frame, one figure each.** Six distributions would
-        // be a wall; what this row answers is "which of them is the expensive one", and the row
-        // above already says how much the whole frame varies. Each figure is the zone's share of
-        // the average frame, so the row sums to the device's part of it and a pass that only runs
-        // at a crossing says so beside its own share.
+        // The device's own account of the same frame, one figure each: six distributions would be a wall, and this
+        // row answers which of them is the expensive one. Each figure is the zone's share of the average frame, so
+        // a pass that only runs at a crossing says so beside its own share.
         out += describeZones(place.mGpu);
         out += describeCounters(place.mGpu, place.mCounterNames);
         out += describeClock(place.mClock);
@@ -487,18 +470,16 @@ namespace RtxTool
         out += "  " + describeCard(place.mCard) + '\n';
         out += "  " + describeCounts(place.mThread) + '\n';
 
-        // **Only for a route, because a place that stands still has nothing to say here.** The
-        // worst is the one to read: a crossing is a dropped frame, and an average over six hundred
-        // frames of which four were the expensive ones hides exactly the thing.
+        // Only for a route. The worst is the one to read: a crossing is a dropped frame, and an average over six
+        // hundred frames of which four were expensive hides exactly the thing.
         if (place.mCrossings.mCount > 0)
             out += std::format("  {} crossings, {} of them rebuilds — {:.0f} ms worst, {:.1f} s over the run{}\n",
                 place.mCrossings.mCount, place.mCrossings.mRebuilds, place.mCrossings.mWorstMs,
                 place.mCrossings.mTotalMs / 1000.0,
                 place.mTravelled < 1.0 ? std::format(", {:.0f}% of the route flown", place.mTravelled * 100.0) : "");
 
-        // **The arrivals beside the crossings, at every place.** A crossing is a route's; a mesh
-        // arrives wherever an actor walks in, and what the worst frames carried is the one reading
-        // that says whether the tail is theirs.
+        // The arrivals beside the crossings, at every place: a crossing is a route's, but a mesh arrives wherever an
+        // actor walks in, and what the worst frames carried says whether the tail is theirs.
         if (place.mArrivals.mFrames > 0)
             out += std::format(
                 "  {} frames extended the scene with {} meshes — {:.1f} ms worst, {:.1f} mean against "
@@ -619,9 +600,8 @@ namespace RtxTool
 
         file << "  ]\n}\n";
 
-        // Checked as `FrameHashes::write` checks, for its reason: a record compared across commits
-        // that was never written leaves the last one at its path to be compared as this one.
-        // Closed and then asked, because a write the system reports late reports it at the close.
+        // A record compared across commits that was never written would leave the last one at its path to be
+        // compared as this one, so a failed write is reported.
         return writeReport(path, file.view());
     }
 }

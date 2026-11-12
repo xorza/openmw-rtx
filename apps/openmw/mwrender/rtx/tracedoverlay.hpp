@@ -40,9 +40,8 @@ namespace MWRender
     /// says which cell was painted. `sampleBilinear` is what a `GL_LINEAR` sampler does, so the map
     /// is the map the rasterizer's camera composites.
     ///
-    /// **A tile's picture comes back off the device frames after it was traced**, so a paint is
-    /// kept until the copy is there and finished then — `finish`, once a frame from the renderer,
-    /// after the frame behind has been collected — and never polled for from the interface.
+    /// A tile's picture comes back off the device frames after it was traced, so a paint is kept until the
+    /// copy is there and finished then (`finish`), and never polled for from the interface.
     class TracedOverlay final : public MapOverlay
     {
     public:

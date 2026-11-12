@@ -4,11 +4,10 @@
 #extension GL_EXT_shader_image_load_formatted : require
 #extension GL_KHR_shader_subgroup_ballot : require
 
-// A bounce of every pixel's solid, one of the frame's bounce rays (`StageConstants`), a stage of its own
-// after the trace (`visibility.comp`): the solid the trace found resolved again, its bounce drawn and
-// traced, and what the bounce brought back written where its ray met nothing; where it met a surface, the
-// pixel listed for the landing's stage (`landing.comp`), which visits it and writes what the bounce brought
-// back.
+// A bounce of every pixel's solid, one of the frame's bounce rays (`StageConstants`), a stage of its own after
+// the trace (`visibility.comp`): the solid the trace found resolved again, its bounce drawn and traced, and
+// what the bounce brought back written where its ray met nothing; where it met a surface, the pixel is
+// listed for the landing's stage (`landing.comp`), which visits it.
 //
 // **A stage, because the one kernel spilled** (`docs/rtx/architecture.md`, "A stage a kernel, in one fixed
 // order"): it carried every walk's record at once.

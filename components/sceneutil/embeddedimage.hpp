@@ -13,14 +13,12 @@
 
 namespace SceneUtil
 {
-    /// What an image a model carries inside it is known by, where it has no file of its own: the
-    /// model's path and the record that holds its texels. Two references of one model then share
-    /// one image's texture, and two models never do. Vanilla has one such model,
-    /// `meshes\i\tx_crystal_02.nif`.
+    /// What an image a model carries inside it is known by, where it has no file of its own: the model's
+    /// path and the record that holds its texels, so two references of one model share one texture and
+    /// two models never do. Vanilla has one such model, `meshes\i\tx_crystal_02.nif`.
     ///
-    /// **A stamp and not a file name**, so nothing that loads images by name tries to open the key.
-    /// Kept in the image's user data slot, as `StableIdentity` is kept on a node, where the loader
-    /// writes nothing else.
+    /// **A stamp and not a file name**, so nothing that loads images by name tries to open the key. Kept
+    /// in the image's user data slot, where the loader writes nothing else.
     class EmbeddedImage final : public osg::Object
     {
     public:

@@ -47,18 +47,18 @@ namespace Rtx
         ArenaSpan mSpan;
     };
 
-    /// Images that share one allocation wherever their spans do not meet: the images a frame uses
-    /// inside one stretch of it and never again — the trace's stage images, the denoiser's scratch,
-    /// the upscaler's own — laid over each other, as a frame graph's transient resources are
-    /// (O'Donnell, "FrameGraph", GDC 2017), through the placement VMA's "Resource aliasing"
-    /// describes. Its other gains, scheduling across queues and reordering passes, are not wanted
-    /// here: the order is fixed, and the second queue was declined.
+    /// Images that share one allocation wherever their spans do not meet: the images a frame uses inside
+    /// one stretch of it and never again — the trace's stage images, the denoiser's scratch, the
+    /// upscaler's own — laid over each other, as a frame graph's transient resources are (O'Donnell,
+    /// "FrameGraph", GDC 2017), through the placement VMA's "Resource aliasing" describes. Scheduling
+    /// across queues and reordering passes are not wanted: the order is fixed, and the second queue was
+    /// declined.
     ///
-    /// **One queue, and the barrier every command buffer opens with, are what the sharing rests
-    /// on** (`CommandPool::open`): a frame's first use of the memory comes after the last frame's
-    /// last. Inside one buffer, an image whose memory an earlier span used discards from
-    /// `Use::sAliased`, which `firstUseOf` says; one that holds memory nothing used before it in the
-    /// buffer discards from `Use::sUndefined`. A second queue would need an arena a frame slot.
+    /// **One queue, and the barrier every command buffer opens with, are what the sharing rests on**
+    /// (`CommandPool::open`): a frame's first use of the memory comes after the last frame's last. Inside
+    /// one buffer, an image whose memory an earlier span used discards from `Use::sAliased`
+    /// (`firstUseOf`); one that holds memory nothing used before it discards from `Use::sUndefined`. A
+    /// second queue would need an arena a frame slot.
     class ImageArena
     {
     public:

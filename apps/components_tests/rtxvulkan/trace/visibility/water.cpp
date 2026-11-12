@@ -309,7 +309,7 @@ namespace Rtx::Testing
         /// for red and nothing like deep for blue, which the bed's water stops at 60 and the
         /// bottomless water carries to 70.
         ///
-        /// Read as sky instead, it came back through 2000 units of water at half of blue, and drew
+        /// Read as sky instead, it comes back through 2000 units of water at half of blue, drawing
         /// the edge of the loaded terrain across the sea as a line with brighter water beyond it.
         TEST_F(RtxVisibilityTest, deepWaterSettlesAtHalfWhatOneAttenuatedLegWouldGive)
         {
@@ -360,14 +360,10 @@ namespace Rtx::Testing
 
         /// The same column of water has to look the same from either side of it.
         ///
-        /// **This is the test that found the missing half.** Seen from ten units above, a ray crosses
-        /// the surface, the water and back; seen from ten units below, it crosses the water and the
-        /// ray is fogged by it directly. Those are different code paths through the same physics, and
-        /// they have to agree — which they cannot while the light reaching the bottom is not
-        /// attenuated by the water over it.
-        ///
-        /// M6's stated done-when, and the sort of thing that is found by measuring rather than by
-        /// looking: neither view is obviously wrong on its own.
+        /// Seen from ten units above, a ray crosses the surface, the water and back; seen from ten
+        /// units below, it crosses the water and is fogged by it directly. Those are different code
+        /// paths through the same physics, and they cannot agree while the light reaching the bottom
+        /// is not attenuated by the water over it; neither view is obviously wrong on its own.
         TEST_F(RtxVisibilityTest, aColumnOfWaterAgreesFromAboveAndFromBelow)
         {
             constexpr std::uint32_t size = 33;
@@ -632,8 +628,8 @@ namespace Rtx::Testing
         /// there is no sun, so the only thing water changes about a pixel is the sky it reflects —
         /// a constant across a parallel view — and what a row measures is the fade itself. The bed
         /// falls one in ten, so the band's middle is 17.5 units of depth and x = 175 in both views.
-        /// Along the refraction the grazing view read 1.44 times the depth and put the middle 53
-        /// units nearer the line, which is four rows of this frame.
+        /// Measured along the refraction, the grazing view reads 1.44 times the depth and puts the
+        /// middle 53 units nearer the line, which is four rows of this frame.
         TEST_F(RtxVisibilityTest, theWaterlineIsAsDeepAsTheWaterOverItAndNotAsFarAsARayThroughItGoes)
         {
             constexpr std::uint32_t size = 64;
@@ -957,8 +953,7 @@ namespace Rtx::Testing
         ///
         /// **Water is not fog.** Petzold's coastal particles have a mean cosine of 0.92 against the
         /// fog's droplets, so an underwater haze is a beam around the sun rather than an even
-        /// milkiness. Before this the water scattered only the sky, so facing the sun under it
-        /// rendered identically to facing away.
+        /// milkiness, so facing the sun under it must differ from facing away.
         ///
         /// **Two horizontal rays out of the same eye, and everything but the phase cancels.** Both
         /// run until the water runs out and both come back with a black sky, so the frame is the

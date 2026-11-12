@@ -135,15 +135,12 @@ namespace MWRender
         Renderer* mRenderer = nullptr;
     };
 
-    /// One image of the world on the screen, and the window it goes in. Nothing below this line is
-    /// abstracted — contexts, swapchains, render bins and acceleration structures belong to a
-    /// renderer outright, and an interface over them would be a mini-GL that Vulkan does not fit.
-    /// Every member is a question the game asks; a pure virtual is one both renderers answer, and
-    /// a default is an empty answer — a loading budget the ray tracer has no compiler to spend, or
-    /// a world-space change the rasterizer has no history to lose. What the game must never be handed is one
-    /// renderer's mechanism to poke at, because every caller of that grows a null test that is a
-    /// renderer test in disguise; the two that remain, the shader chain and the compile operation,
-    /// are there for upstream callers that cannot be changed.
+    /// One image of the world on the screen, and the window it goes in. Contexts, swapchains, render
+    /// bins and acceleration structures belong to a renderer outright: an interface over them would
+    /// be a mini-GL that Vulkan does not fit. Every member is a question the game asks; a pure
+    /// virtual is one both renderers answer, a default an empty answer. The game is never handed a
+    /// renderer's mechanism, since each caller would grow a null test that is a renderer test in
+    /// disguise; the shader chain and the compile operation remain for upstream callers.
     ///
     /// The window's own moments — its size, the function keys — reach the renderer as an
     /// `SDLUtil::GraphicsListener`, from `SDLUtil::InputWrapper`.
@@ -169,13 +166,11 @@ namespace MWRender
         /// shown in.
         const Misc::Presentation& getPresentation() const { return mPresentation; }
 
-        /// The ground of one worldspace and the distance over it, as this renderer draws them. The
-        /// rasterizer builds upstream's chunked world with its paging and groundcover; a renderer
-        /// that stands the ground itself hands back a `Terrain::World` that holds the storage, the
-        /// worldspace and the active grid and builds nothing, because chunks beside `Rtx::CellRing`
-        /// would be built for nobody, inside `Scene::changeCellGrid`'s synchronous wait. Once per
-        /// worldspace, and everything the game says about the distance from then on — a script's
-        /// toggle, a moved object, a new game — is said to what this hands back.
+        /// The ground of one worldspace and the distance over it, as this renderer draws them. A
+        /// renderer that stands the ground itself hands back a `Terrain::World` that builds nothing,
+        /// because chunks beside `Rtx::CellRing` would be built for nobody, inside
+        /// `Scene::changeCellGrid`'s synchronous wait. Once per worldspace; everything the game says
+        /// about the distance from then on is said to what this hands back.
         virtual std::unique_ptr<Ground> createGround(const GroundSpec& spec) = 0;
 
         /// The world's own events, as `RenderingManager` receives them: a cell comes and goes, an
@@ -215,14 +210,10 @@ namespace MWRender
         virtual osg::ref_ptr<osg::Group> createSceneRoot() = 0;
 
         /// The world exists; build whatever goes between it and the screen. A second phase because
-        /// the renderer is made before there is a world, and what the rasterizer puts in front of
-        /// the world needs the world to talk to. Called from `RenderingManager`'s constructor, with
-        /// no world attached. `world` is for what is built once off it — upstream's
-        /// `PostProcessor`, whose constructor takes it, the sun light the light manager is given,
-        /// the precipitation root the rasterizer puts state on, the resource system the ray
-        /// tracer's pictures resolve through. What changes per frame comes through `describeFrame`
-        /// and never through this reference. The world stays attached while what this hands back
-        /// stands.
+        /// the renderer is made before there is a world. Called from `RenderingManager`'s
+        /// constructor, with no world attached. `world` is for what is built once off it; what
+        /// changes per frame comes through `describeFrame` and never through this reference. The
+        /// world stays attached while what this hands back stands.
         WorldAttachment attachWorld(RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released);
 
         /// Whatever the renderer wants culled and drawn, from the top — the rasterizer's
@@ -252,12 +243,10 @@ namespace MWRender
         void showWorld(bool shown);
         bool isWorldShown() const { return mWorldShown; }
 
-        /// A render mode this renderer owns, turned off and back on, and which it now is:
-        /// `Render_Scene` is the `tws` console command — a second reason apart from `showWorld`,
-        /// because a loading screen that ends while `tws` is off must not bring the world back,
-        /// and a world `tws` hides is still updated — and the rest are the renderer's own
-        /// (`Render_Wireframe` is the rasterizer's polygon mode). The game keeps the modes that
-        /// are its own nodes (paths, meshes, the pathgrid) and the water.
+        /// A render mode this renderer owns, turned off and back on, and which it now is.
+        /// `Render_Scene` is the `tws` console command, a second reason apart from `showWorld`: a
+        /// loading screen that ends while `tws` is off must not bring the world back, and a world
+        /// `tws` hides is still updated. The game keeps the modes that are its own nodes and the water.
         bool toggleRenderMode(RenderMode mode);
         bool isWorldToggled() const { return mWorldToggled; }
 
@@ -275,7 +264,7 @@ namespace MWRender
         virtual PostProcessor* getPostProcessor() { return nullptr; }
 
         /// Recompiles every shader this renderer draws with, from source: the debug package's
-        /// `triggerShaderReload`. The rasterizer recompiles its GLSL and its chain.
+        /// `triggerShaderReload`.
         virtual void reloadShaders() {}
 
         /// Whether a shader edited on disk is recompiled as it changes, `setShaderHotReloadEnabled`.
@@ -286,9 +275,8 @@ namespace MWRender
         virtual void forgetScriptState() {}
 
         /// The host's clock: what time it is and how long the frame now open stands for. Handed
-        /// over once, before the first frame, and outlives this. The rasterizer's viewer stamps the
-        /// wall for itself; the ray tracer stamps what this says, which is what makes a stated step
-        /// a run that repeats.
+        /// over once, before the first frame, and outlives this. The ray tracer stamps what this
+        /// says, which is what makes a stated step a run that repeats.
         void setLoopClock(Misc::LoopClock& clock) { mClock = &clock; }
 
         /// `[Video] framerate limit`, in frames a second, or nought for none. Once, beside the
@@ -298,9 +286,8 @@ namespace MWRender
 
         /// Holds the game in the frame-rate limit until the next frame may begin, and says how long
         /// the last one stood for on the wall. Once per loop, before input is read, because what is
-        /// read after this is what the frame shows. The limiter is the one the engine's loop used
-        /// to hold, one call earlier in the loop, which is the same point in the cycle, and it
-        /// answers as it did: the limit's own length for a frame it slept for.
+        /// read after this is what the frame shows. Answers the limit's own length for a frame it
+        /// slept for.
         std::chrono::steady_clock::duration awaitFrame();
 
         /// Opens the game loop's next frame: held by `awaitFrame`, and the clock moved on by what
@@ -313,8 +300,7 @@ namespace MWRender
         /// what it stood for. Answers how long it stands for, which a nested loop steps its
         /// interface by: nought under a stated step, whose clock counts the loop's frames alone and
         /// holds for this one, so that whatever reads the clock's step inside the frame reads the
-        /// same nought. Without it a nested frame was paced by a limiter of its own, and stamped and
-        /// stepped the interface by the outer frame's time.
+        /// same nought.
         float openNestedFrame();
 
         /// What `setFrameRateLimit` handed over, nought before it has: what the loading screen holds

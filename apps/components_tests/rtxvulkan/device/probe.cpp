@@ -55,12 +55,9 @@ namespace Rtx
         constexpr VkBufferUsageFlags sUsage
             = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
-        /// What the device is asked to read back.
-        ///
-        /// Every value is a sum of powers of two, so it survives the trip exactly and an equality
-        /// comparison is a statement about the hardware rather than about rounding. The three
-        /// channels are pulled apart — different magnitudes, one of them negative — so a reading
-        /// that swapped or shifted components cannot pass.
+        /// What the device is asked to read back. Every value is a sum of powers of two, so it survives the trip
+        /// exactly and an equality comparison is about the hardware, not rounding. The three channels differ in
+        /// magnitude and one is negative, so a reading that swapped or shifted components cannot pass.
         std::vector<osg::Vec3f> makePattern()
         {
             std::vector<osg::Vec3f> pattern;
@@ -234,19 +231,16 @@ namespace Rtx
         {
         };
 
-        /// A descriptor, a pointer, a pointer out of a block table and a pointer out of a uniform
-        /// block all read the same bytes — and a reference that claims sixteen-byte alignment reads
-        /// a `GpuLayer`-shaped row whole.
+        /// A descriptor, a pointer, a pointer out of a block table and a pointer out of a uniform block all read the
+        /// same bytes, and a reference that claims sixteen-byte alignment reads a `GpuLayer`-shaped row whole.
         ///
-        /// **The question that stopped the geometry blocking, asked of the device directly.** Moving
-        /// the normal fetch from a descriptor to a pointer changed the picture on sixteen views and
-        /// nothing else did; with nothing able to ask this, it had to be put to a whole traced frame
-        /// and answered by elimination, which cost a day and reached the wrong answer twice.
+        /// **The question that stopped the geometry blocking, asked of the device directly.** Moving the normal fetch
+        /// from a descriptor to a pointer changed the picture on sixteen views; without this, it had to be answered by
+        /// elimination on a whole traced frame.
         ///
-        /// **Both memory kinds, because the renderer uses both.** The frame's tables are host-written,
-        /// which is mapped write-combining video memory where the build's writes are mapped, and
-        /// indices and texture coordinates live in ordinary device-local memory staged through a
-        /// copy. A pointer read that only misbehaves in one of them would look like a shader bug.
+        /// **Both memory kinds, because the renderer uses both.** The frame's tables are host-written, in
+        /// write-combining video memory, and indices and texture coordinates live in device-local memory staged
+        /// through a copy. A pointer read that misbehaves in one only would look like a shader bug.
         TEST_F(RtxProbeTest, aPointerAndADescriptorReadTheSameBytes)
         {
             const Device& device = getDevice();

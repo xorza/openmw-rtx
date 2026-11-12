@@ -80,13 +80,11 @@ namespace Rtx::Testing
 
     std::unique_ptr<Harness> makeHarness(bool validation)
     {
-        // Tests provoke errors deliberately and assert on them; aborting would take the suite
-        // down with the first one. Synchronization validation is **the same switch
-        // `describeRenderer` sets, for the same reason**: a test that drives Vulkan directly
-        // supplies its own ordering with a submit and a wait, so a missing barrier in the code
-        // under it shows as nothing at all — and a suite validated one way through the renderer
-        // and another way beside it answers a different question in each file. It costs no
-        // measurable time here either.
+        // Tests provoke errors deliberately and assert on them; aborting would take the suite down with the first one.
+        // Synchronization validation is **the same switch `describeRenderer` sets, for the same reason**: a test that
+        // drives Vulkan directly supplies its own ordering with a submit and a wait, so a missing barrier shows as
+        // nothing at all, and a suite validated one way through the renderer and another beside it answers a different
+        // question in each file.
         const ValidationOptions options{
             .mLevel = validation ? ValidationLevel::Sync : ValidationLevel::Off,
             .mAbortOnError = false,
@@ -144,34 +142,25 @@ namespace Rtx::Testing
             return rendererCache(validation).get([validation] { return buildRenderer(validation); });
         }
 
-        /// What holding a device for the run costs the rest of the binary: every device closed after
-        /// the last test and before `main` returns.
+        /// What holding a device for the run costs the rest of the binary: every device closed after the last test and
+        /// before `main` returns.
         ///
-        /// **A fork of a process holding a device runs to seconds**: its mappings are copied and
-        /// the driver's fork handlers run. Measured at four to eight seconds a death test once the
-        /// pixel suite had built a renderer, against a fifth of a second for the re-exec the
-        /// `threadsafe` style does — a child that never held a device — which `main` sets for every
-        /// death test.
+        /// **A fork of a process holding a device runs to seconds**: its mappings are copied and the driver's fork
+        /// handlers run. Measured at four to eight seconds a death test once the pixel suite had built a renderer,
+        /// against a fifth of a second for the `threadsafe` re-exec, which `main` sets for every death test.
         ///
-        /// **Two Vulkan devices destroyed after `main` has returned abort inside the validation
-        /// layer**, with no message and no stack of ours on it. One pair survives static destruction
-        /// and a second does not — reproduced with nothing in the process but two instances left to
-        /// exit — and this binary keeps up to four: a raw device for the tests that drive Vulkan
-        /// directly and a `Renderer` for the pixel suite, each in a validated and an unvalidated
-        /// flavour. Closing them here is both the fix and where they belonged: a cache that lives
-        /// for the run should end with the run, not with the process.
+        /// **Two Vulkan devices destroyed after `main` has returned abort inside the validation layer**, with no
+        /// message. One pair survives static destruction and a second does not, and this binary keeps up to four: a
+        /// raw device and a `Renderer`, each validated and unvalidated. Closing them here is the fix.
         ///
-        /// **And no device is a failed run, not an empty one.** A skip per test is honest per test
-        /// and a green run of nothing per suite. This binary holds only the tests that need a device,
-        /// so the first thing it does is ask for it, and every fixture after it holds a reference.
+        /// **No device is a failed run, not an empty one**: a skip per test is honest per test and a green run of
+        /// nothing per suite, so the first thing this binary does is ask for the device. **The validated renderer is
+        /// built beside it, before any test is timed**: three and a half seconds of pipelines even out of a warm
+        /// driver cache would otherwise be charged to whichever test asked first, and one that cannot be built fails
+        /// the binary as a missing device does.
         ///
-        /// **And the validated renderer beside the device, before any test is timed.** It is three
-        /// and a half seconds of pipelines even out of a warm driver cache, and made on the first
-        /// ask it would be charged to whichever test asked first. A renderer that cannot be built fails the binary the
-        /// way a missing device does, since every test that draws would fail on it one by one.
-        ///
-        /// **Not in a death test's child**, which runs this again for one statement that aborts and
-        /// needs the device at most: `inDeathChild` says how it knows.
+        /// **Not in a death test's child**, which runs this again for one statement that aborts and needs the device
+        /// at most: `inDeathChild` says how it knows.
         class DeviceEnvironment : public ::testing::Environment
         {
             void SetUp() override
@@ -344,19 +333,16 @@ namespace Rtx::Testing
     {
         forgetErrors(mRenderer);
 
-        // **And nothing a previous test's frames left**, for the same reason: the renderer is the
-        // binary's, and what it carries from one frame to the next — the denoiser's and the air's
-        // histories, the exposure, the ripples on the water — is state a test did not draw: a
-        // footfall one test presses into the water bends the next test's still sea. A new world
+        // **And nothing a previous test's frames left**, for the same reason: what the renderer carries from one frame
+        // to the next (the denoiser's and the air's histories, the exposure, the ripples on the water) is state a test
+        // did not draw, and a footfall one test presses into the water bends the next test's still sea. A new world
         // costs every history, as it does the game.
         mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
 
-        // And none of what a previous test told the renderer: the modes its reserve keeps room for,
-        // its gamma, which every picture after it would be raised by, its upscaler, its filtering
-        // and its bounces, as the renderer was made with them, and its sea — so a test that failed
-        // before it put one back leaks nothing into the rest of the shard. The fog's field is put
-        // back by the one test that states another, under a guard, since a field told drains the
-        // frames.
+        // And none of what a previous test told the renderer: the modes its reserve keeps room for, its gamma, its
+        // upscaler, its filtering, its bounces and its sea, as the renderer was made with them, so a test that failed
+        // before it put one back leaks nothing into the rest of the shard. The fog's field is put back by the one test
+        // that states another, under a guard, since a field told drains the frames.
         const RenderProfile& made = mMade.mProfile;
         mProbe.setReservedUpscales(mMade.mReservedUpscales);
         mRenderer.setGamma(made.mGamma);

@@ -105,12 +105,9 @@ namespace Rtx
             EXPECT_LT(furthestFromNeutral(ShadingMap(flat.mData, AlphaImage(flat.mData))), 0.01f);
         }
 
-        /// Detail alternating every texel is not lighting, and a map that followed it would flatten
-        /// the texture into a colour.
-        ///
-        /// **This is the test the whole grid size exists for.** A checkerboard has the widest
-        /// possible swing between neighbouring texels and no low-frequency content at all, so an
-        /// estimate that answers anything but neutral here is reading paint as light.
+        /// Detail alternating every texel is not lighting, and a map that followed it would flatten the texture
+        /// into a colour. **This is the test the whole grid size exists for**: a checkerboard has the widest
+        /// swing between neighbours and no low-frequency content, so anything but neutral reads paint as light.
         TEST(RtxShadingMapTest, aCheckerboardIsLeftAlone)
         {
             const Testing::TestTexture checks = painted(256, 256,
@@ -161,10 +158,8 @@ namespace Rtx
 
         /// A painted gradient is what lighting looks like, and the map has to find it.
         ///
-        /// **A cosine and not a ramp, because the blur wraps.** Morrowind's textures tile and the
-        /// estimate blurs accordingly, so a gradient that does not meet itself at the edges is an
-        /// input no tiling texture can present — a straight ramp would have its two ends averaged
-        /// together and the test would be measuring that rather than the estimate.
+        /// **A cosine and not a ramp, because the blur wraps**: Morrowind's textures tile, so a straight ramp
+        /// would have its two ends averaged together and the test would measure that instead of the estimate.
         ///
         /// The arithmetic, end to end. The texture is `120 + 60 cos(2 pi x / 256)` in linear, which
         /// is 60 to 180 and three to one. One period spans the grid's thirty-two cells, so each of
@@ -200,13 +195,10 @@ namespace Rtx
             EXPECT_EQ(std::distance(values.begin() + row, darkest), sSide / 2);
         }
 
-        /// A loose texture's channels are read in the order its format states them.
-        ///
-        /// The map is built from luminance, where red weighs 0.2126 and blue 0.0722, so a gradient
-        /// is a stronger correction in red than in blue. The same bytes with the gradient in the
-        /// first read as BGRA are a blue gradient, and must give exactly the map a gradient in the
-        /// third byte read as RGBA gives — and not the red one a reader that took one order for both
-        /// saw.
+        /// A loose texture's channels are read in the order its format states them. The map is built from
+        /// luminance, where red weighs 0.2126 and blue 0.0722, so the same bytes with the gradient in the first
+        /// byte read as BGRA are a blue gradient, and must give exactly the map a gradient in the third byte read
+        /// as RGBA gives, and not the red one a reader that took one order for both saw.
         TEST(RtxShadingMapTest, aLooseTexturesChannelsAreReadInItsOwnOrder)
         {
             const auto ramped = [](std::size_t channel, TextureFormat format) {
@@ -262,10 +254,8 @@ namespace Rtx
 
         /// The compressed path, which is the one every texture in the game actually takes.
         ///
-        /// **A block's mean is its palette weighted by how many texels chose each entry**, and this
-        /// is where that arithmetic is checked — endpoint decoding, four-colour mode, index
-        /// unpacking and the transfer function, none of which the linear tests above can reach.
-        ///
+        /// **A block's mean is its palette weighted by how many texels chose each entry**, which the linear tests
+        /// above cannot reach: endpoint decoding, four-colour mode, index unpacking and the transfer function.
         /// Two endpoints: `0xFFFF` is white, and `0x8410` is five-six-five `(16, 32, 16)`, which
         /// replicates to bytes `(132, 130, 132)`. Through the sRGB curve those are 0.23074, 0.22323
         /// and 0.23074 linear, and Rec. 709 weights them to a luminance of 0.225369 — against
@@ -296,12 +286,9 @@ namespace Rtx
             EXPECT_NEAR(values[row + 3 * sSide / 4], 0.6893f, 0.01f) << "and the darker one";
         }
 
-        /// A cutout sheet with nothing opaque anywhere in it.
-        ///
-        /// **The one texture the estimate gets no texels from.** `blockSum` refuses a transparent
-        /// texel because a transparent texel is not a colour, so a sheet transparent everywhere
-        /// resolves no cell at all — and that is content rather than a broken contract. A debug
-        /// build asserted its way out of the renderer on the first view that used one.
+        /// A cutout sheet with nothing opaque anywhere in it. **The one texture the estimate gets no texels
+        /// from**: `blockSum` refuses a transparent texel, so a sheet transparent everywhere resolves no cell at
+        /// all. That is content rather than a broken contract, and a debug build asserted its way out on one.
         TEST(RtxShadingMapTest, aFullyTransparentCutoutComesBackNeutral)
         {
             // 0xFF is four texels of the fourth entry, which the ascending endpoints make
@@ -312,13 +299,10 @@ namespace Rtx
             EXPECT_EQ(furthestFromNeutral(ShadingMap(blank.mData, AlphaImage(blank.mData))), 0.0f);
         }
 
-        /// A texture too small to fill the grid, which most of Morrowind's smaller ones are.
-        ///
-        /// **Sixty-four texels land in sixty-four cells and leave nine hundred and sixty empty.**
-        /// Reading those as black would make the estimate a spike wherever the texture did reach,
-        /// and drive the correction straight into its clamps — a flat texture would come back as a
-        /// grid of light and dark squares and paint them onto every surface using it. Too few
-        /// texels to resolve shading has to mean the same as having no shading.
+        /// A texture too small to fill the grid, which most of Morrowind's smaller ones are. **Sixty-four texels
+        /// land in sixty-four cells and leave nine hundred and sixty empty**: reading those as black would drive
+        /// the correction into its clamps and paint squares onto every surface using it, so too few texels to
+        /// resolve shading has to mean the same as having no shading.
         TEST(RtxShadingMapTest, aTextureSmallerThanTheGridStillComesBackNeutral)
         {
             const Testing::TestTexture small

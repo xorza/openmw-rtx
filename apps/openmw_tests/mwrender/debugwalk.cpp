@@ -46,11 +46,10 @@ namespace MWRender
         /// is read only under `GL_BLEND`, as the rasterizer reads it: the cell borders paint at an
         /// alpha of nought and draw opaque, and the navmesh blends.
         ///
-        /// **Under a node of `Mask_Debug` alone, culled by the view's mask**, as the rasterizer's
-        /// cull draws them: a scene root beside the debug nodes holds the world, and a walk that
-        /// read it would read every mesh in the cell as a line drawing. A border's line under a
-        /// `Mask_Terrain` group is read where the view keeps the ground, and not under `tws`,
-        /// which takes it; the ground's own geometry beside it is no debug node and is never read.
+        /// Under a node of `Mask_Debug` alone, culled by the view's mask, as the rasterizer's cull draws them:
+        /// a scene root beside the debug nodes holds the world, and reading it would read every mesh as a
+        /// line drawing. A border's line under a `Mask_Terrain` group is read where the view keeps the ground,
+        /// and not under `tws`; the ground's own geometry beside it is never read.
         TEST(RtxDebugWalkTest, theWalkReadsDebugGeometryByItsTransformAndNothingElse)
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;

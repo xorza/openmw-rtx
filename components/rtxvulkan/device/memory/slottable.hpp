@@ -27,10 +27,10 @@
 namespace Rtx
 {
     /// One host-side table and one device copy of it per frame in flight. A copy is behind because
-    /// something wrote a row, and for no other reason: `write` marks the row owed by every copy and
-    /// `sync` pays one copy's debt, in one place, where a debt derived from the scene's change
-    /// lists replayed at every table failed silently as a frame of wrong geometry. The host rows
-    /// are the truth, so a row is computed once however many copies take it.
+    /// something wrote a row, and for no other reason: `write` marks the row owed by every copy and `sync`
+    /// pays one copy's debt, in one place, where a debt derived from the scene's change lists replayed at
+    /// every table failed silently as a frame of wrong geometry. The host rows are the truth, so a row is
+    /// computed once however many copies take it.
     template <class Row>
     class SlotTable
     {
@@ -74,10 +74,9 @@ namespace Rtx
                 write(at) = row;
         }
 
-        /// How many times the rows were written or grown: a count that moves whenever the host rows
-        /// do, for an owner that keeps what it built from them and asks whether that is still them.
-        /// A copy remade empty owes everything and moves nothing here, since the rows it is owed are
-        /// the ones they were.
+        /// How many times the rows were written or grown: a count that moves whenever the host rows do, for
+        /// an owner that keeps what it built from them and asks whether that is still them. A copy remade
+        /// empty owes everything and moves nothing here.
         std::uint64_t getWrites() const { return mWrites; }
 
         /// Makes the table `rows` long, value-initialising what is appended. What is appended is
@@ -126,12 +125,11 @@ namespace Rtx
             RowDebt& owed = mOwed.at(slot);
             const VkDeviceSize needed = mRows.size() * sizeof(Row);
 
-            // The copy about to be written is the one the frame before last read, and
-            // `finishReads` waited that out before this placement began; a mapped write asserts
-            // that it did.
+            // `finishReads` waited out the frame before last, which read the copy about to be written,
+            // before this placement began; a mapped write asserts that it did.
 
-            // A copy made again is empty whatever the debt says. A byte where the table is empty,
-            // because a descriptor with nothing bound is undefined rather than blank.
+            // A copy made again is empty whatever the debt says. A byte where the table is empty, because a
+            // descriptor with nothing bound is undefined rather than blank.
             if (copy.outgrow(std::max(needed, VkDeviceSize{ 1 })))
                 owed.oweEverything();
 

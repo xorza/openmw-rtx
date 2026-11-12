@@ -26,13 +26,11 @@ namespace Rtx
     class Device;
     class GpuTimer;
 
-    /// FSR 3.1.4, ported: AMD's temporal upscaler, which also reconstructs a frame at its own size,
-    /// as the anti-aliasing. The passes are AMD's (`extern/fidelityfx/`), the bindings and the
-    /// inputs the port's (`shaders/upscale/`), and this is the SDK host's dispatch
-    /// (`ffx_fsr3upscaler.cpp`): the resources, the order, the clears. `FsrFrame` is its constants.
-    ///
-    /// **Compute shaders and nothing else**, so every device that runs the renderer runs it: no
-    /// extension, no library, no vendor.
+    /// FSR 3.1.4, ported: AMD's temporal upscaler, which also reconstructs a frame at its own size, as the
+    /// anti-aliasing. The passes are AMD's (`extern/fidelityfx/`), the bindings and the inputs the port's
+    /// (`shaders/upscale/`), and this is the SDK host's dispatch (`ffx_fsr3upscaler.cpp`): the resources, the order,
+    /// the clears. `FsrFrame` is its constants. Compute shaders and nothing else, so every device that runs the
+    /// renderer runs it.
     class FsrUpscaler
     {
     public:
@@ -42,12 +40,11 @@ namespace Rtx
         FsrUpscaler(const FsrUpscaler&) = delete;
         FsrUpscaler& operator=(const FsrUpscaler&) = delete;
 
-        /// Builds what the upscaler keeps for one pair of extents, and clears all of it: the frame
-        /// after starts a history of its own. Once per resolution, and never per frame. Takes
-        /// `shared`, the images `declareShared` declared at these extents as the frame's arena placed
-        /// them, whether the extents moved or not; targets that stand are asked at their own extents,
-        /// and let go of first where they moved. The mode is DLSS's to read: FSR's arithmetic follows
-        /// from the extents alone.
+        /// Builds what the upscaler keeps for one pair of extents, and clears all of it: the frame after starts a
+        /// history of its own. Once per resolution, and never per frame. Takes `shared`, the images `declareShared`
+        /// declared at these extents as the frame's arena placed them, whether the extents moved or not; targets that
+        /// stand are asked at their own extents, and let go of first where they moved. The mode is DLSS's to read:
+        /// FSR's arithmetic follows from the extents alone.
         void resize(Upscale mode, VkExtent2D render, VkExtent2D output, const ArenaRun& shared);
 
         /// The images a reconstruction at these extents writes whole before it reads them and no

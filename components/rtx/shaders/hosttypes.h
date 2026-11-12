@@ -3,13 +3,7 @@
 
 #include "portable.h"
 
-// What a shared structure is spelled in, said once.
-//
-// **Sixteen headers said it for themselves, and each said a trimmed part of it.** A header that
-// grew a `vec4` had to grow an alias and an OpenSceneGraph include beside it, and a header that
-// lost its last `vec2` kept both — so the block drifted per file and a reader had to check every
-// copy against every other. There is nothing in it that belongs to one structure rather than to
-// all of them.
+// What a shared structure is spelled in, said once, so the block does not drift per header.
 //
 // **A push block carries no padding member, and says where its last member ends.** A block with a
 // 64-bit address is rounded to a multiple of eight on this side and not in the shader's block, and
@@ -90,10 +84,8 @@ namespace Rtx::Shaders
 
 #else
 
-// **Asked for here rather than by each shader that needs it.** Five headers addressed a table by a
-// 64-bit pointer and each declared the extension and defined the spelling for itself, then undefined
-// it at the end — an order that worked because of which header happened to include which. Said once
-// and left standing, a translation unit cannot get it wrong.
+// **Asked for here rather than by each shader that needs it**, so a translation unit cannot get
+// it wrong by which header happened to include which.
 //
 // **A shader that spells no 64-bit type gains nothing by it.** `composite.comp` and
 // `wavecolumns.comp` reach this header and neither declares `OpCapability Int64`: the extension

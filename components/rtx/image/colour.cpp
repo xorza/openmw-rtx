@@ -83,11 +83,9 @@ namespace Rtx
 
     float toLinear(float encoded)
     {
-        // The table where the value arrived as a stored byte, because nearly everything the
-        // content states is `k / 255` and `std::pow` is a libm call no compiler inlines. Exact
-        // rather than a guess, because the comparison is the same `k / 255.0f` the table was
-        // built from, and anything else takes the curve. The bounds are asked first so that a NaN
-        // never reaches the conversion to an integer.
+        // The table where the value arrived as a stored byte: `std::pow` is a libm call no compiler inlines. Exact,
+        // because the comparison is the same `k / 255.0f` the table was built from. The bounds are asked first so that
+        // a NaN never reaches the conversion to an integer.
         if (encoded > 0.0f && encoded <= 1.0f)
         {
             const auto byte = static_cast<std::uint8_t>(encoded * 255.0f + 0.5f);
