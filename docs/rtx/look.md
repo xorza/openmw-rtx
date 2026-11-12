@@ -19,3 +19,18 @@ and the tests in `apps/components_tests/graphite/` hold each to what it must cle
 - **The error ink is lifted at its own hue until it reads**: Ayu Graphite's `#ff8b8c` reads 4.26:1 on a
   field's `#454545`, so it is raised in Oklab lightness, its hue kept and its chroma where sRGB holds it, to
   the least colour that clears 4.5:1, as palantir lifts its muted ink over Ayu Graphite's.
+- **Fusion, the palette and a proxy style; no style sheet**, as Qt Creator draws its dark theme
+  (`Graphite::Style`). The palette carries every colour, so code that sets a widget's palette keeps working; the
+  style draws palantir's recipes for buttons, fields, check boxes, tabs, rows, scroll bars, progress bars,
+  menus and frames, and Fusion the rest. Refused: a style sheet with variables, as OBS Studio 30.2 themes: a
+  sheet that sets a property overrides what code sets in a widget's palette, a complex widget restyled by the
+  box model takes all its subcontrols with it, and check marks and arrows become image files, a second copy of
+  the colours; Fusion and the palette alone, whose gradients, bevels and 2 px corners are the look replaced.
+- **A focus is an edge, never a dotted rectangle**: a field's edge turns the accent's whenever it holds the
+  focus, a button's and a check box's only when the keyboard moved it there, as palantir rings a control on a
+  keyboard focus alone (CSS's `:focus-visible`).
+- **Scroll bars without arrows**: palantir's 8 px pill on the far side of a 4 px gap, laid out as the common
+  style lays out its transient bars, without making them transient, which would overlay and hide them.
+- **Menus and tooltips are square**: palantir rounds its floating panels, but a rounded top-level window is a
+  translucent one, which a desk without a compositor draws black around its corners.
+

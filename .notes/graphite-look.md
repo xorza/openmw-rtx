@@ -109,14 +109,6 @@ Sources:
 Each batch ends with its tests green and screenshots of every launcher page and every wizard page
 beside the last batch's, at 100 % and 200 % scale, on Linux and on Windows (192.168.0.8).
 
-3. **The proxy style, controls.** `Graphite::Style : QProxyStyle` over Fusion: push and tool buttons,
-   the default button, line edits, spin boxes and combo boxes (frame, fill, arrows drawn as two-stroke
-   chevrons in `text`), check boxes and radios, the focus edge in place of the focus rectangle, and the
-   pixel metrics and sizes that give palantir's paddings. Tests: each primitive rendered into an image
-   under the offscreen platform, its fill, edge and mark read at exact pixels in each state.
-4. **The proxy style, containers.** Tab bars and tab widgets, item views' rows and the selection wash,
-   scroll bars, progress bars, group boxes, menus, tooltips, the wizard's header and side panel, and
-   message boxes. Tests as batch 3.
 5. **Icons.** Lucide's line icons for the toolbar's pages and the fallback glyphs, recoloured at load
    and cached as pixmaps; the licence beside the others. The red invalid name reads `error`.
    Upstream changes, recorded.
@@ -125,3 +117,11 @@ beside the last batch's, at 100 % and 200 % scale, on Linux and on Windows (192.
 
 The work is about three to four days: the proxy style's dozen primitives and their tests are most of
 it.
+
+## Changed
+
+- **Menus and tooltips square, not rounded at 10 and 4**: a rounded top-level window is a translucent one,
+  which a desk without a compositor draws black around its corners.
+- **Screenshots on Linux each batch, on Windows and at 200 % once, in the last batch**: the look is drawn by one
+  style on every system, and the Windows machine builds the tree from scratch for each look.
+

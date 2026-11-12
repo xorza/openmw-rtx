@@ -134,6 +134,7 @@ target_sources(
         graphite/look.cpp
         graphite/offscreen.cpp
         graphite/palette.cpp
+        graphite/style.cpp
     PRIVATE
         FILE_SET HEADERS
             BASE_DIRS

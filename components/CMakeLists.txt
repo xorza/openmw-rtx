@@ -1704,6 +1704,7 @@ target_sources(
         graphite/colour.cpp
         graphite/look.cpp
         graphite/palette.cpp
+        graphite/style.cpp
     PUBLIC
         FILE_SET HEADERS
             BASE_DIRS
@@ -1712,6 +1713,7 @@ target_sources(
                 graphite/colour.hpp
                 graphite/look.hpp
                 graphite/palette.hpp
+                graphite/style.hpp
 )
 target_link_libraries(openmw-graphite PUBLIC Qt::Widgets)
 
